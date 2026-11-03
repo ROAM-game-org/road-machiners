@@ -14,3 +14,6 @@ __pycache__/
 /factory/docs/tasks/
 /game/public/drafts/
 /game/src/data/drafts/
+
+/desktop/build/
+/desktop/release/

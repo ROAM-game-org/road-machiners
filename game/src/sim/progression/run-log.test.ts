@@ -27,7 +27,7 @@ describe('the Chaos Highway run log', () => {
     expect(line).toMatchObject({ t: 'group', stretch: 1 });
     if (line.t !== 'group') throw new Error('no group line');
     expect(line.trucks).toHaveLength(after.chaosHighway!.groups[0].templates.length);
-    expect(line.elite).toBe(after.chaosHighway!.groups[0].elite);
+    expect(line.elites).toBe(after.chaosHighway!.groups[0].elites);
     expect(line.money).toBe(Math.round(after.chaosHighway!.groups[0].money));
     expect(line.trucks[0].guns.length).toBeGreaterThan(0);
     expect(line.trucks[0].armor).toBe(0);

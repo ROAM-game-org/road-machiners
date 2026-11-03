@@ -22,6 +22,17 @@ export const GAME_GL: WebGLContextAttributes = {
   powerPreference: 'default',
 };
 
+let drawing: string | null = null;
+
+export function drawingRenderer(): string | null {
+  return drawing;
+}
+
+export function rendererOf(context: WebGL2RenderingContext): string {
+  const info = context.getExtension('WEBGL_debug_renderer_info');
+  return String(context.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : context.RENDERER));
+}
+
 export function openWebGL(canvas: HTMLCanvasElement, attributes: WebGLContextAttributes): WebGLSurface {
   let reason: string | null = null;
   const onCreationError = (e: Event) => {
@@ -31,6 +42,7 @@ export function openWebGL(canvas: HTMLCanvasElement, attributes: WebGLContextAtt
   try {
     const context = canvas.getContext('webgl2', attributes);
     if (!context) throw new WebGLUnavailable(reason);
+    drawing = rendererOf(context);
     return { canvas, context };
   } catch (e) {
     if (e instanceof WebGLUnavailable) throw e;

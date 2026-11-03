@@ -26,7 +26,8 @@ await loadModels(async (name) => {
   if (!url) throw new Error(`Missing model file for ${name}`);
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
-const built = buildSites({ size: 1, heights: [0, 0, 0, 0], types: ['hardpan'], atlas: ICARUS_KEY });
+const FLAT_TERRAIN: Terrain = { size: 1, heights: [0, 0, 0, 0], types: ['hardpan'], atlas: ICARUS_KEY };
+const built = buildSites(FLAT_TERRAIN, false);
 const { root: sites, movers } = built;
 
 const FORTRESS_WALL_TILES = 4;
@@ -78,7 +79,7 @@ describe('landmark scale', () => {
     const size = 800;
     const heights = Array.from({ length: (size + 1) ** 2 }, (_, k) => 0.004 * (k % (size + 1)) + 0.003 * Math.floor(k / (size + 1)));
     const slope: Terrain = { size, heights, types: Array.from({ length: size * size }, () => 'hardpan' as const), atlas: ICARUS_KEY };
-    const sloped = buildSites(slope).root;
+    const sloped = buildSites(slope, false).root;
     for (const site of ALL.filter(isFortress)) {
       const flat = sites.getObjectByName(`landmark-${site.id}`)!.children;
       const hill = sloped.getObjectByName(`landmark-${site.id}`)!.children;
@@ -619,7 +620,7 @@ describe('deck models', () => {
 
 describe('a Chaos Highway outpost fort', () => {
   const map = highwayMap(3, 1);
-  const built = buildSites(map.terrain);
+  const built = buildSites(map.terrain, false);
 
   it('builds the road fort interior inside its own curtain, with one gate light per gate and a work light (IV1)', () => {
     for (const j of [1, 2]) {
@@ -780,5 +781,148 @@ describe('fortress lamps (#402)', () => {
       expect(halos.length, site.id).toBe(lampsOf(site.id).length);
       for (const halo of halos) expect(((halo.parent as Mesh).material as MeshLambertMaterial).color.getHex(), site.id).toBe(PAL.lamp.amber);
     }
+  });
+});
+
+type Looks = Map<string, { triangles: number; corners: number; sum: Vector3 }>;
+
+function lookOf(mesh: Mesh): string {
+  const m = mesh.material as MeshLambertMaterial;
+  return [m.color.getHex(), m.emissive.getHex(), m.side, mesh.castShadow, mesh.receiveShadow].join('|');
+}
+
+function looksOf(root: Object3D): Looks {
+  root.updateMatrixWorld(true);
+  const looks: Looks = new Map();
+  const corner = new Vector3();
+  root.traverse((o) => {
+    if (!(o instanceof Mesh) || o instanceof InstancedMesh || o.userData.outline) return;
+    const entry = looks.get(lookOf(o)) ?? { triangles: 0, corners: 0, sum: new Vector3() };
+    const position = o.geometry.getAttribute('position');
+    const index = o.geometry.index;
+    const count = index ? index.count : position.count;
+    for (let n = 0; n < count; n++) entry.sum.add(corner.fromBufferAttribute(position, index ? index.getX(n) : n).applyMatrix4(o.matrixWorld));
+    entry.triangles += count / 3;
+    entry.corners += count;
+    looks.set(lookOf(o), entry);
+  });
+  return looks;
+}
+
+function meshesIn(root: Object3D): Mesh[] {
+  const found: Mesh[] = [];
+  root.traverse((o) => {
+    if (o instanceof Mesh && !o.userData.outline) found.push(o);
+  });
+  return found;
+}
+
+function siteIn(world: typeof built, id: string): Object3D {
+  const found = world.root.getObjectByName(`landmark-${id}`);
+  if (!found) throw new Error(`Missing site ${id}`);
+  return found;
+}
+
+function halosIn(root: Object3D): Vector3[] {
+  root.updateMatrixWorld(true);
+  const at: Vector3[] = [];
+  root.traverse((o) => {
+    if (o.name === 'halo' && o.parent) at.push(o.parent.getWorldPosition(new Vector3()));
+  });
+  return at.sort((a, b) => a.x - b.x || a.z - b.z || a.y - b.y);
+}
+
+describe('merged static meshes', () => {
+  const roadTerrain = highwayMap(3, 1).terrain;
+  const worlds = [
+    { name: 'the sites of the map', loose: built, merged: buildSites(FLAT_TERRAIN), ids: ALL.map((s) => s.id) },
+    { name: 'the outposts of the Chaos Highway', loose: buildSites(roadTerrain, false), merged: buildSites(roadTerrain), ids: [1, 2].map((j) => outpostFort(3, 1, j).id) },
+  ];
+
+  it('draws every site with under 60% of its meshes, and the Bowl with under 40%', () => {
+    const shares: number[] = [];
+    for (const { loose, merged, ids } of worlds) {
+      for (const id of ids) {
+        const before = meshesIn(siteIn(loose, id)).length;
+        const after = meshesIn(siteIn(merged, id)).length;
+        expect(after, id).toBeLessThan(before);
+        expect(siteIn(merged, id).children.some((o) => o.name === 'static'), id).toBe(true);
+        shares.push(after / before);
+      }
+    }
+    expect(shares.filter((share) => share >= 0.6)).toHaveLength(0);
+    const bowl = worlds[0];
+    expect(meshesIn(siteIn(bowl.merged, 'bowl')).length).toBeLessThan(meshesIn(siteIn(bowl.loose, 'bowl')).length * 0.4);
+  });
+
+  it('keeps the triangles and the world position of every look, shadow flag and side', () => {
+    for (const { loose, merged, ids } of worlds) {
+      for (const id of ids) {
+        const before = looksOf(siteIn(loose, id));
+        const after = looksOf(siteIn(merged, id));
+        expect([...after.keys()].sort(), id).toEqual([...before.keys()].sort());
+        for (const [key, was] of before) {
+          const now = after.get(key)!;
+          expect(now.triangles, `${id} ${key}`).toBe(was.triangles);
+          expect(now.sum.distanceTo(was.sum) / was.corners, `${id} ${key}`).toBeLessThan(1e-4);
+        }
+      }
+    }
+  });
+
+  it('keeps the world bounds of every site', () => {
+    for (const { loose, merged, ids } of worlds) {
+      for (const id of ids) {
+        const was = new Box3().setFromObject(siteIn(loose, id), true);
+        const now = new Box3().setFromObject(siteIn(merged, id), true);
+        expect(now.min.distanceTo(was.min), id).toBeLessThan(1e-3);
+        expect(now.max.distanceTo(was.max), id).toBeLessThan(1e-3);
+      }
+    }
+  });
+
+  it('keeps every moving part, lamp head, halo and light where it was, inside its site', () => {
+    for (const { loose, merged, ids } of worlds) {
+      loose.root.updateMatrixWorld(true);
+      merged.root.updateMatrixWorld(true);
+      expect(merged.movers.map((m) => m.node.name)).toEqual(loose.movers.map((m) => m.node.name));
+      merged.movers.forEach(({ node }, i) => {
+        expect(node.getWorldPosition(new Vector3()).distanceTo(loose.movers[i].node.getWorldPosition(new Vector3())), node.name).toBeLessThan(1e-6);
+        let site: Object3D | null = node;
+        while (site !== null && !site.name.startsWith('landmark-')) site = site.parent;
+        expect(site, node.name).not.toBeNull();
+      });
+      expect(merged.lamps).toEqual(loose.lamps);
+      expect(merged.lights).toEqual(loose.lights);
+      for (const id of ids) {
+        const was = halosIn(siteIn(loose, id));
+        const now = halosIn(siteIn(merged, id));
+        expect(now.length, id).toBeGreaterThan(0);
+        expect(now.map((p) => p.toArray())).toEqual(was.map((p) => p.toArray()));
+      }
+    }
+  });
+
+  it('keeps every instanced mesh and every transparent mesh as it was', () => {
+    for (const { loose, merged, ids } of worlds) {
+      for (const id of ids) {
+        const kept = (root: Object3D) => meshesIn(root).filter((m) => m instanceof InstancedMesh || (m.material as MeshLambertMaterial).transparent).map((m) => `${m.name}|${m.parent?.name}|${m instanceof InstancedMesh ? m.count : 0}`);
+        expect(kept(siteIn(merged, id)).sort(), id).toEqual(kept(siteIn(loose, id)).sort());
+      }
+    }
+  });
+
+  it('lights every lit lamp box with its own color after the merge (IV21)', () => {
+    let lamps = 0;
+    for (const { merged } of worlds) {
+      merged.root.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const material = o.material as MeshLambertMaterial;
+        if (!LIT_LAMPS.has(material.color.getHex())) return;
+        expect(material.emissive.getHex(), o.parent?.name).toBe(material.name === 'glow' ? MODEL_GLOW.emissive : material.color.getHex());
+        lamps++;
+      });
+    }
+    expect(lamps).toBeGreaterThan(0);
   });
 });

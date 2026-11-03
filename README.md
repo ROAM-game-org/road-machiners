@@ -20,7 +20,7 @@ ROAM is built in public by a software factory of AI coding agents.
 2. Agents triage each one. Bugs and small improvements go to work at once. A new feature goes to the [Telegram channel](https://t.me/roam_game_dispatch) as a proposal, and players vote on it with reactions.
 3. Agents design, build and test the work. Players can play a voted feature's build and comment on it in the channel.
 4. A human committee plays each result and approves or denies it.
-5. Approved work goes to the [dev build](https://roam-game.online/dev/) at once and ships to [itch.io](https://btseytlin.itch.io/road-machiners) as a weekly release.
+5. Approved work goes to the [dev build](https://roam-game.online/dev/) at once and ships to [itch.io](https://btseytlin.itch.io/road-machiners) in a release a committee member orders.
 6. A Hermes agent manages the factory and fixes its failures.
 
 ## Links

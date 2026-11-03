@@ -41,7 +41,6 @@ Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do
 + {towed_to_bowl and not hattie_tow} [Tell me about the tow man.]
   The tag on his chain is old <term=pierce>Pierce</term> yard stock. Before the crews took the yard, Pierce hung one on every key and chain.
   Yours matches.
-  He found your truck dead in the badlands, you in the seat. He took the lot for abandoned and hooked it up.
   ~ hattie_tow = true
   -> about_tow
 + {towed_to_bowl and engine_missing() and not hattie_strip} [Who stripped my truck?]

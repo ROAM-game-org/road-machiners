@@ -17,15 +17,22 @@ type Command = Parameters<typeof applyControl>[1];
 const ROOT = resolve('tmp/factory-control-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-09-29T10:00:00Z');
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, day: '2026-09-29', postId: 42, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
+const HORN = { issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] as string[] };
 const JOB: Job = { id: 'verify-4-x', stage: 'verify', issue: 4, pid: 77, startedAt: '2026-09-29T09:00:00Z', log: 'l' };
 
 let calls: string[] = [];
 let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
+let pushFails = false;
+let remote: string[] = ['laptop/fix'];
 let editFails = false;
 let contained: string[] = [];
+let green = true;
+let greenAt: string[] = [];
+let ownHeads: string[] = ['abc1234'];
+let changed: string[] = ['game/src/sim/far.ts'];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -42,9 +49,12 @@ function fakeCtx(): Ctx {
         calls.push(`move ${n} ${column}`);
       },
       pullRequestFor: async () => null,
+      createIssue: async (title: string, body: string, labels: string[]) => { calls.push(`createIssue ${title} | ${body} | ${labels.join(',')}`); return 50; },
+      addCard: async (n: number, column: string) => { calls.push(`addCard ${n} ${column}`); },
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
+      suitePassed: async (sha: string) => green || greenAt.includes(sha),
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -67,6 +77,16 @@ function fakeCtx(): Ctx {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
       },
+      fullHash: async (commit: string) => {
+        if (commit.startsWith('origin/') && !remote.includes(commit.slice('origin/'.length))) throw new Error(`unknown revision ${commit}`);
+        return commit.startsWith('origin/') ? 'f'.repeat(40) : commit;
+      },
+      push: async (commit: string, branch: string) => {
+        if (pushFails) throw new Error('push rejected');
+        calls.push(`push ${commit} ${branch}`);
+      },
+      changedFiles: async () => changed,
+      ownHeads: async () => ownHeads,
     },
   } as unknown as Ctx;
 }
@@ -103,8 +123,14 @@ beforeEach(() => {
   rmSync(ROOT, { recursive: true, force: true });
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
+  pushFails = false;
+  remote = ['laptop/fix'];
   editFails = false;
   contained = ['abc1111'];
+  green = true;
+  greenAt = [];
+  ownHeads = ['abc1234'];
+  changed = ['game/src/sim/far.ts'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
   calls = [];
@@ -126,7 +152,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'playtest' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }, { action: 'adopt', branch: 'laptop/fix', title: 'Fix the load' }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -139,9 +165,9 @@ describe('writeControl and parseControl', () => {
     expect(() => parseControl({ ...ok, action: 'move', to: 'design' })).toThrow('issue');
     expect(() => parseControl({ ...ok, action: 'drop', queue: 'mail', id: 1 })).toThrow('queue');
     expect(() => parseControl({ ...ok, action: 'drop', queue: 'ship' })).toThrow('id');
-    expect(() => parseControl({ by: 'Ann', action: 'cut' })).toThrow('reason');
-    expect(() => parseControl({ reason: 'r', action: 'cut' })).toThrow('by');
-    expect(() => parseControl({ ...ok, reason: ' ', action: 'cut' })).toThrow('reason');
+    expect(() => parseControl({ by: 'Ann', action: 'playtest' })).toThrow('reason');
+    expect(() => parseControl({ reason: 'r', action: 'playtest' })).toThrow('by');
+    expect(() => parseControl({ ...ok, reason: ' ', action: 'playtest' })).toThrow('reason');
   });
 });
 
@@ -182,7 +208,7 @@ describe('isGated', () => {
     expect(isGated(ctx, command({ action: 'ship' }))).toBe(true);
     expect(isGated(ctx, command({ action: 'merge', issue: 4 }))).toBe(true);
     expect(isGated(ctx, command({ action: 'move', issue: 4, to: 'done' }))).toBe(false);
-    expect(isGated(ctx, command({ action: 'cut' }))).toBe(false);
+    expect(isGated(ctx, command({ action: 'playtest' }))).toBe(false);
   });
 
   it('gates a removal', () => {
@@ -389,6 +415,67 @@ describe('move', () => {
   });
 });
 
+describe('a move to Merging and the green suite', () => {
+  it('lands a card with no green suite on its head in Hardening, and keeps the approval for the hardening session', async () => {
+    busyCard();
+    green = false;
+    const text = await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Hardening');
+    expect(calls).not.toContain('move 4 Merging');
+    expect(text).toContain('Hardening');
+    expect(readState(statePath).approvedResolving).toEqual({ 4: 'Bob' });
+  });
+
+  it('lands a merge order for a card with no green suite in Hardening', async () => {
+    busyCard();
+    green = false;
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Hardening');
+    expect(calls).not.toContain('move 4 Merging');
+    expect(readState(statePath).approvedResolving).toEqual({ 4: 'Bob' });
+  });
+
+  it('moves a card with a green suite to Merging', async () => {
+    busyCard();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('moves a card that changes no game file to Merging with no suite', async () => {
+    busyCard();
+    green = false;
+    changed = ['docs/guide.md'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('accepts a head whose only failures are the base\'s', async () => {
+    busyCard();
+    green = false;
+    seed({ ...readState(statePath), suiteCleared: { 4: 'abc1234' } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'merging' }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('moves a card to Merging when only base merges came after its green commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234', 'catch01', 'own0001'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Merging');
+  });
+
+  it('sends a card to Hardening when its green commit is older than its own last commit', async () => {
+    busyCard();
+    green = false;
+    ownHeads = ['abc1234'];
+    greenAt = ['own0001'];
+    await applyControl(fakeCtx(), command({ action: 'merge', issue: 4 }));
+    expect(calls).toContain('move 4 Hardening');
+  });
+});
+
 describe('merge', () => {
   it('moves a card to the merge queue under the actor', async () => {
     busyCard();
@@ -569,33 +656,34 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'ship', by: '11' }))).rejects.toThrow('no current candidate post');
   });
 
-  it('cuts by clearing lastRelease, and refuses an open release', async () => {
-    seed({ lastRelease: '2026-09-28T00:00:00Z' });
-    await applyControl(fakeCtx(), command({ action: 'cut' }));
-    expect(readState(statePath).lastRelease).toBeNull();
-    expect(ctrlLines()[0]).toMatchObject({ action: 'cut', issue: null });
-    seed({ release: RELEASE, lastRelease: 'x' });
-    await expect(applyControl(fakeCtx(), command({ action: 'cut' }))).rejects.toThrow('2026-09-29');
-    expect(readState(statePath).lastRelease).toBe('x');
+  it('orders a playtest by recording the order, and refuses with no open release', async () => {
+    seed({ release: RELEASE, lastRelease: '2026-09-28T00:00:00Z' });
+    await applyControl(fakeCtx(), command({ action: 'playtest' }));
+    expect(readState(statePath).pendingPlaytest).toBe('Ann');
+    expect(readState(statePath).lastRelease).toBe('2026-09-28T00:00:00Z');
+    expect(ctrlLines()[0]).toMatchObject({ action: 'playtest', issue: 20 });
+    seed({ release: null });
+    await expect(applyControl(fakeCtx(), command({ action: 'playtest' }))).rejects.toThrow('No release is open');
+    expect(readState(statePath).pendingPlaytest).toBeNull();
   });
 
   it('queues a removal with the reason as its text', async () => {
-    seed({ release: RELEASE });
+    seed({ release: RELEASE, devMerges: [HORN] });
     await applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }));
     expect(readState(statePath).pendingRemovals).toEqual([{ issue: 5, by: 'Ann', text: 'the gate failed on load' }]);
     expect(calls.find((call) => call.startsWith('comment 5'))).toContain('Ann');
   });
 
   it('queues a removal that stopped after its reverts again, so it finishes, but not a second copy', async () => {
-    seed({ release: { ...RELEASE, removed: [5] } });
+    seed({ release: { ...RELEASE, removed: [5] }, devMerges: [HORN] });
     await applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }));
     expect(readState(statePath).pendingRemovals).toHaveLength(1);
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('already queued');
   });
 
-  it('refuses a removal of an issue with no recorded merge in the release', async () => {
-    seed({ release: { ...RELEASE, merges: [] } });
-    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('Issue #5 is not in release');
+  it('refuses a removal of an issue with no recorded merge on dev', async () => {
+    seed({ release: { ...RELEASE } });
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('Issue #5 has no merge on dev');
     expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
@@ -605,9 +693,10 @@ describe('ship, cut and remove', () => {
     expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
-  it('accepts a cut from Hermes', async () => {
-    await expect(applyControl(fakeCtx(), command({ action: 'cut', by: 'hermes' }))).resolves.toContain('release cut');
-    expect(ctrlLines()[0]).toMatchObject({ action: 'cut', by: 'Hermes' });
+  it('accepts a playtest order from Hermes', async () => {
+    seed({ release: RELEASE });
+    await expect(applyControl(fakeCtx(), command({ action: 'playtest', by: 'hermes' }))).resolves.toContain('playtest');
+    expect(ctrlLines()[0]).toMatchObject({ action: 'playtest', by: 'Hermes' });
   });
 
   it('refuses a removal with no open release', async () => {
@@ -674,5 +763,55 @@ describe('kept hotfix approvals', () => {
     seed({ keptApprovals: { 4: KEPT } });
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
     expect(readState(statePath).keptApprovals).toEqual({});
+  });
+});
+
+describe('adopt', () => {
+  const adopt = (body: object = {}, by = '11') => command({ action: 'adopt', branch: 'laptop/fix', title: 'Fix the load', reason: 'Played on the laptop', by, ...body });
+
+  it('opens the issue with the reason as body, pushes the branch as the card branch and puts the card in Hardening, in one order', async () => {
+    await applyControl(fakeCtx(), adopt());
+    expect(calls.filter((call) => !call.startsWith('comment'))).toEqual([
+      'fetch',
+      'createIssue Fix the load | Played on the laptop | ',
+      `push ${'f'.repeat(40)} factory/issue-50`,
+      'addCard 50 Hardening',
+    ]);
+    expect(readState(statePath).approvedResolving).toEqual({ 50: 'Ann' });
+    cards = [card(50, 'Hardening')];
+    expect(cardDrift(cards[0], readState(statePath))).toEqual([]);
+    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card')).toMatchObject([{ issue: 50, step: 'entered', to: 'Hardening' }]);
+    expect(ctrlLines()).toMatchObject([{ action: 'adopt', issue: 50, by: 'Ann' }]);
+    expect(calls.find((call) => call.startsWith('comment 50'))).toContain('Ordered by Ann');
+  });
+
+  it('refuses a branch missing on GitHub and creates nothing', async () => {
+    remote = [];
+    await expect(applyControl(fakeCtx(), adopt())).rejects.toThrow('laptop/fix is not on GitHub');
+    expect(calls.some((call) => call.startsWith('createIssue') || call.startsWith('push') || call.startsWith('addCard'))).toBe(false);
+    expect(readState(statePath).approvedResolving).toEqual({});
+  });
+
+  it('refuses a base branch', async () => {
+    for (const branch of ['main', 'dev']) await expect(applyControl(fakeCtx(), adopt({ branch }))).rejects.toThrow('base branch');
+    expect(calls.some((call) => call.startsWith('createIssue'))).toBe(false);
+  });
+
+  it('closes the new issue and adds no card when the push fails', async () => {
+    pushFails = true;
+    await expect(applyControl(fakeCtx(), adopt())).rejects.toThrow('push rejected');
+    expect(calls).toContain('close 50 not planned');
+    expect(calls.some((call) => call.startsWith('addCard'))).toBe(false);
+    expect(readState(statePath).approvedResolving).toEqual({});
+  });
+
+  it('is a member order and refuses Hermes', async () => {
+    await expect(applyControl(fakeCtx(), adopt({}, 'hermes'))).rejects.toThrow('--by <member>');
+    expect(calls).toEqual([]);
+    expect(isGated(fakeCtx(), adopt())).toBe(true);
+  });
+
+  it('needs a branch and a title', () => {
+    for (const body of [{ branch: ' ' }, { title: '' }]) expect(() => parseControl({ kind: 'control', by: 'Ann', reason: 'r', action: 'adopt', branch: 'b', title: 't', ...body })).toThrow();
   });
 });

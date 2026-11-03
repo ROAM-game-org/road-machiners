@@ -6,6 +6,7 @@ import { CHASSIS } from '../../data/chassis';
 import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
+import { CAR_WRECK_LOOKS } from '../../data/terrain';
 import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
 import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
@@ -106,12 +107,21 @@ describe('loot colors on props', () => {
 
   function colorsAt(root: THREE.Group, x: number, y = 20): number[] {
     root.updateMatrixWorld(true);
-    const out: number[] = [];
+    const out = new Set<number>();
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
-      for (const at of standingAt(o)) if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) out.push((o.material as THREE.MeshLambertMaterial).color.getHex());
+      for (const at of standingAt(o)) if (Math.abs(at.x / S - x) < 2 && Math.abs(at.z / S - y) < 2) for (const hex of surfaceColors(o)) out.add(hex);
     });
-    return out;
+    return [...out].sort((a, b) => a - b);
+  }
+
+  function surfaceColors(mesh: THREE.Mesh): number[] {
+    const material = mesh.material as THREE.MeshLambertMaterial;
+    const painted = mesh.geometry.getAttribute('color');
+    if (!material.vertexColors || !painted) return [material.color.getHex()];
+    const seen = new Set<number>();
+    for (let i = 0; i < painted.count; i++) seen.add(new THREE.Color(painted.getX(i), painted.getY(i), painted.getZ(i)).multiply(material.color).getHex());
+    return [...seen];
   }
 
   it('lifts a lootable prop, leaves the empty one, and restores it once emptied', () => {
@@ -126,7 +136,7 @@ describe('loot colors on props', () => {
     views.sync(obstacles, world(true, false, true), []);
     const lifted = colorsAt(root, 10);
     expect(lifted).not.toEqual(plainA);
-    lifted.forEach((hex, i) => expect([plainA[i], lootColor(plainA[i])]).toContain(hex));
+    lifted.forEach((hex) => expect([...plainA, ...plainA.map((plain) => lootColor(plain))]).toContain(hex));
     expect(colorsAt(root, 20)).toEqual(plainB);
     expect(colorsAt(root, 40)).not.toEqual(plainHulk);
 
@@ -155,7 +165,7 @@ describe('loot colors on props', () => {
       ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
       ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
     ];
-    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }];
+    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }, ...CAR_WRECK_LOOKS.map((look) => ({ id: look.model, view: model(look.model) }))];
     for (const { id, view } of cases) {
       const swatches = lootSwatchesOf(view);
       expect(swatches.length, id).toBeGreaterThan(0);
