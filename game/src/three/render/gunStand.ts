@@ -625,6 +625,29 @@ export function bodyFace(body: THREE.Object3D, axis: 'x' | 'z', outward: number,
   return found;
 }
 
+const LOWEST_FACES = new Map<string, number | null>();
+
+export function lowestFace(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number]): number | null {
+  body.updateWorldMatrix(true, true);
+  const shared = typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
+  const key = `${body.userData.model}:${axis}:${outward}:${lateral.map((n) => n.toFixed(3)).join(',')}`;
+  if (shared && LOWEST_FACES.has(key)) return LOWEST_FACES.get(key) as number | null;
+  const found = lowestHit(body, axis, outward, lateral);
+  if (shared) LOWEST_FACES.set(key, found);
+  return found;
+}
+
+function lowestHit(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number]): number | null {
+  const box = new THREE.Box3().setFromObject(body);
+  const outer = outermost(body, axis, outward, lateral, [box.min.y, box.max.y]);
+  if (outer === null) return null;
+  for (let y = box.min.y; y < box.max.y; y += FACE_COLUMN) {
+    const face = outermost(body, axis, outward, lateral, [y, y + FACE_COLUMN]);
+    if (face !== null && outward * (outer - face) <= CLIP_TOLERANCE) return y;
+  }
+  return null;
+}
+
 function outermost(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], height: [number, number]): number | null {
   const index = faceIndex(body, `${outward > 0 ? '+' : '-'}${axis}` as keyof typeof LOOKS);
   const hits = facePoints(lateral, height).map(([u, y]) => nearestFace(index, u, y)?.point[axis]);
