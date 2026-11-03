@@ -88,6 +88,12 @@ describe('lesson text', () => {
 
   const tradeLines = (trade: LessonTrade): string[] => [...Object.values(LESSONS[trade].weak), ...LESSONS[trade].general].map((id) => entryText('en', lineKey(id)));
 
+  it('tells every hauler and gun hand story in the first person in English', () => {
+    for (const trade of ['hauler', 'gunHand'] as LessonTrade[]) {
+      for (const text of tradeLines(trade)) expect(text).toMatch(/\b(I|I'm|I've|I'll|I'd|my|me)\b/);
+    }
+  });
+
   it('keeps the law tic to a few lines', () => {
     expect(tradeLines('law').filter((text) => /for the record/i.test(text)).length).toBeLessThanOrEqual(3);
   });

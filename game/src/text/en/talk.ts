@@ -276,7 +276,7 @@ export const TALK = {
   'line.lessonGunHandSideOn': 'Last job, I saw rounds miss a truck coming nose-on, then land when it turned broadside. I hold fire till they show me their side.',
   'line.lessonGunHandRange': 'I saw a cheap gun scatter rounds on both sides of a truck at the edge of its range, then hit its door when the driver closed in. I close in before I spend rounds from a cheap gun.',
   'line.lessonGunHandRecoil': 'Last job, I saw a heavy gun spray rounds wide from a light truck, while a long gun only hit after the truck parked. I park for the long gun and leave heavy guns off light trucks.',
-  'line.lessonGunHandFirstAid': 'After an ambush, a driver parked outside town and dressed his wounds, using extra supplies until he was fit to drive on.',
+  'line.lessonGunHandFirstAid': 'After one fight, I watched a hurt driver park clear of the road and dress his wounds with spare supplies. He healed nearly as fast as in town. I carry extra supplies for that now.',
   'line.lessonGunHandDriveHome': 'I took a haul once without counting the empty drive back and had to sell my spare rounds for fuel to get home. Count the empty drive home against your fuel before you take a haul.',
   'line.lessonGunHandTallParts': "I watched a driver turn broadside in a head-on fight because the gun behind his cab couldn't fire forward over it. I keep the other truck off my nose so the gun has a shot.",
   'line.lessonGunHandSound': "Coming home from a job, I shut down behind a hill and heard another truck's engine two hills off before its driver heard mine. Now I stop before the last hill, kill my engine, and listen.",
