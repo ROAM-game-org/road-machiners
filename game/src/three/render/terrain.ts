@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import {
   paintGroundCanvas,
@@ -23,7 +24,8 @@ const FACET_TINT = 0.04;
 const FACET_SMOOTH_DAY = 0.5;
 
 export function groundSide(size: number): number {
-  return Math.min(TEXTURE_SIDE, Math.round(GROUND_PIXELS_PER_TILE * (size + 2 * TERRAIN_MARGIN)));
+  if (size > HIGHWAY.size) return TEXTURE_SIDE;
+  return Math.round(GROUND_PIXELS_PER_TILE * (size + 2 * TERRAIN_MARGIN));
 }
 
 function mapCanvas(w: World, side: number): PaintCanvas {

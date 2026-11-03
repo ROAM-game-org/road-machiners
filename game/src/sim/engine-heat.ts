@@ -12,7 +12,7 @@ import { inOverdrive, plainMaxSpeed, vehicleStats } from './stats';
 import { cappedHeatAt, heatAt } from './sun';
 import type { PartInstance, Vehicle, World } from './types';
 import { isShutDown } from './utility';
-import { endOverdrive, playerCommand } from './world';
+import { playerCommand } from './world';
 
 function enginePulls(world: World, me: Vehicle): boolean {
   return me.speed > RULES.parkedSpeed && !isShutDown(world, me);
@@ -34,16 +34,10 @@ export function advanceEngineHeat(world: World): void {
   world.player.engineHeat = Math.min(1, Math.max(0, next));
   practiceHeat(world, me.speed, sunHeat);
 
-  if (before < ENGINE_HEAT.warnAt && world.player.engineHeat >= ENGINE_HEAT.warnAt) warnRunningHot(world, me);
+  if (before < ENGINE_HEAT.warnAt && world.player.engineHeat >= ENGINE_HEAT.warnAt) world.events.push({ t: 'info', note: { id: 'engineHot' } });
   if (!engineOverheating(world)) return;
   for (const e of heatedEngines(me)) damagePart(e, ENGINE_HEAT.overheatDamage, 0);
   world.events.push({ t: 'info', note: { id: 'engineOverheat', hp: ENGINE_HEAT.overheatDamage } });
-}
-
-function warnRunningHot(world: World, me: Vehicle): void {
-  const cutOut = inOverdrive(world, me);
-  if (cutOut) endOverdrive(world);
-  world.events.push({ t: 'info', note: { id: cutOut ? 'overdriveHot' : 'engineHot' } });
 }
 
 export function engineHot(world: World): boolean {

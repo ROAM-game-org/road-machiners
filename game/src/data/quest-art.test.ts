@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SHOPS } from './market';
-import { QUEST_ART, TOWN_ART } from './quest-art';
+import { QUEST_ART, TOWN_ART, townArtKeys } from './quest-art';
 
 describe('quest art', () => {
   it('has a file in public/quest-art/ for every picture', () => {
@@ -46,5 +46,11 @@ describe('quest art', () => {
       expect(Object.keys(SHOPS)).toContain(place);
       for (const key of [art.band, ...Object.values(art.sections)]) expect(QUEST_ART[key]).toBeDefined();
     }
+  });
+
+  it('lists every town band and section picture for the background download', () => {
+    const keys = townArtKeys();
+    expect(keys).toHaveLength(8);
+    expect(keys.filter((key) => !(key in QUEST_ART))).toEqual([]);
   });
 });

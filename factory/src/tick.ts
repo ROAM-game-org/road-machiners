@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepCardSessions, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { availableGb, freeGb, requireAgyLogin, requireCappedSlice, requireCodexLogin } from './health';
@@ -30,7 +30,7 @@ import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Pla
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
@@ -125,7 +125,8 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const releaseTask = (card: Card): boolean => card.labels.includes(RELEASE_TASK_LABEL) || (state.release?.tasks.includes(card.issue) ?? false);
+  const normal = [...adhoc, ...byProgress(state, work.filter(releaseTask)), ...byProgress(state, work.filter((card) => !releaseTask(card)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
@@ -157,8 +158,8 @@ function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
   return [{ stage: 'waste', issue: null, pastCardLimit: false }];
 }
 
-function releaseCut(state: FactoryState, now: Date, cfg: Due): JobPick | null {
-  return state.release === null && isDue(state.lastRelease, now, cfg.releaseDays * DAY_MS) ? { stage: 'release', issue: null } : null;
+function releaseCut(state: FactoryState): JobPick | null {
+  return state.release === null && state.pendingCut !== null ? { stage: 'release', issue: null } : null;
 }
 
 function devJob(state: FactoryState, devHead: string | null): JobPick | null {
@@ -167,7 +168,7 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state), releaseJob(state, cards, heads.release)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
@@ -466,6 +467,7 @@ export async function cleanWork(ctx: Ctx, listed: Card[]): Promise<void> {
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
+  for (const name of sweepCardSessions(ctx.cfg.home, state, cards, unconfirmed)) ctx.log('tick', null, `removed the kept card session ${name}`);
   const logs = sweepLogs(join(ctx.cfg.home, 'logs'), state, ctx.now(), ctx.cfg.logDays);
   if (logs.length > 0) ctx.log('tick', null, `removed ${logs.length} job logs older than ${ctx.cfg.logDays} days`);
   cleanArchives(ctx);
@@ -477,11 +479,14 @@ function cleanArchives(ctx: Ctx): void {
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {
-  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
+  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => !reply.reported && minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
   for (const [messageId, reply] of late) {
-    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
+    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: reply.proposal
+      ? { ...state.unroutedReplies, [messageId]: { ...reply, reported: true } }
+      : Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
     const text = reply.text.replace(/\s+/g, ' ');
-    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
+    const kind = reply.proposal ? 'private proposal' : 'approval';
+    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the ${kind} post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
   }
 }
 

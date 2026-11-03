@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
@@ -32,6 +33,9 @@ export const NAMES = [
   'wmount_riser',
   'wmount_leg',
   'wreck',
+  'wreck_sedan',
+  'wreck_compact',
+  'wreck_wagon',
   'rock',
   'rock_slab',
   'rock_split',
@@ -442,6 +446,25 @@ export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tin
   return group;
 }
 
+export type SourcePart = { geometry: THREE.BufferGeometry; material: THREE.Material; matrix: THREE.Matrix4 };
+
+const sourcePartsOf = new WeakMap<THREE.Object3D, SourcePart[]>();
+
+export function sourceParts(name: ModelName): readonly SourcePart[] {
+  const src = source(name);
+  const known = sourcePartsOf.get(src);
+  if (known) return known;
+  src.updateMatrixWorld(true);
+  const toRoot = new THREE.Matrix4().copy(src.matrixWorld).invert();
+  const parts: SourcePart[] = [];
+  src.traverse((o) => {
+    if (o instanceof THREE.Mesh) parts.push({ geometry: o.geometry, material: o.material as THREE.Material, matrix: new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld) });
+  });
+  sourcePartsOf.set(src, parts);
+  return parts;
+}
+
+export const SHIP_GLOW_MATERIAL = 'ship_glow';
 const GLOW_MATERIAL = 'glow';
 const GLOW = { color: new THREE.Color(PAL.lamp.amber), strength: 0.4 };
 export const MODEL_GLOW = { color: GLOW.color.getHex(), emissive: GLOW.color.clone().multiplyScalar(GLOW.strength).getHex() };
@@ -530,7 +553,9 @@ function weldGrid(geos: readonly THREE.BufferGeometry[]): WeldGrid {
 }
 
 function weldKey(grid: WeldGrid, x: number, y: number, z: number): number {
-  const [i, j, k] = [weldStep(x) - grid.min[0], weldStep(y) - grid.min[1], weldStep(z) - grid.min[2]];
+  const i = weldStep(x) - grid.min[0];
+  const j = weldStep(y) - grid.min[1];
+  const k = weldStep(z) - grid.min[2];
   return (i * grid.span[1] + j) * grid.span[2] + k;
 }
 
@@ -544,7 +569,9 @@ function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
     const count = g.index ? g.index.count : pos.count;
     for (let n = 0; n < count; n++) {
       const at = g.index ? g.index.getX(n) : n;
-      const [x, y, z] = [pos.getX(at), pos.getY(at), pos.getZ(at)];
+      const x = pos.getX(at);
+      const y = pos.getY(at);
+      const z = pos.getZ(at);
       const key = weldKey(origin, x, y, z);
       let slot = slots.get(key);
       if (slot === undefined) {
@@ -573,6 +600,16 @@ export function outlineOf(geos: readonly THREE.BufferGeometry[]): THREE.Mesh[] {
 
 const welded = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
 
+function weldedOutlineOf(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  const origin = unchangedSource(geometry);
+  let geo = welded.get(origin);
+  if (!geo) {
+    geo = weld([origin]);
+    welded.set(origin, geo);
+  }
+  return geo;
+}
+
 export function outlineProps(obj: THREE.Object3D): void {
   const meshes: THREE.Mesh[] = [];
   obj.traverse((o) => {
@@ -586,18 +623,32 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilFunc = THREE.AlwaysStencilFunc;
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
-    const origin = unchangedSource(mesh.geometry);
-    let geo = welded.get(origin);
-    if (!geo) {
-      geo = weld([origin]);
-      welded.set(origin, geo);
-    }
+    const geo = weldedOutlineOf(mesh.geometry);
     const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo) : new THREE.Mesh(geo, propOutline);
     outline.onBeforeRender = readViewport;
     outline.renderOrder = OUTLINE_ORDER;
     outline.userData.outline = true;
     mesh.add(outline);
   }
+}
+
+export function registerMergedOutline(merged: THREE.BufferGeometry, parts: readonly Pick<SourcePart, 'geometry' | 'matrix'>[]): void {
+  const pieces = parts.map(({ geometry, matrix }) => {
+    const piece = weld([geometry]);
+    (piece.getAttribute('position') as THREE.BufferAttribute).applyMatrix4(matrix);
+    (piece.getAttribute('normal') as THREE.BufferAttribute).applyMatrix3(new THREE.Matrix3().setFromMatrix4(matrix));
+    return piece;
+  });
+  const outline = mergeGeometries(pieces);
+  if (!outline) throw new Error('A merged prop has parts whose outlines cannot merge');
+  welded.set(merged, outline);
+}
+
+export function registerBakedOutline(merged: THREE.BufferGeometry, parts: readonly Pick<SourcePart, 'geometry' | 'matrix'>[]): void {
+  const pieces = parts.map(({ geometry, matrix }) => weldedOutlineOf(geometry).clone().applyMatrix4(matrix));
+  const outline = mergeGeometries(pieces);
+  if (!outline) throw new Error('A merged model has parts whose outlines cannot merge');
+  welded.set(merged, outline);
 }
 
 function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry): THREE.InstancedMesh {

@@ -370,6 +370,7 @@ export class GarageRenders {
   private readonly listeners: (() => void)[] = [];
   private queue: GarageJob[] = [];
   private wanted: readonly GarageNeed[] = [];
+  private screenLater: readonly GarageNeed[] = [];
   private running: Running | null = null;
 
   constructor(
@@ -392,7 +393,17 @@ export class GarageRenders {
 
   want(needs: readonly GarageNeed[]): void {
     this.wanted = needs;
-    this.queue = needs.flatMap((need) => planJobs(need, this.has));
+    this.replan();
+  }
+
+  private replan(): void {
+    const planned = new Set(this.running ? jobKeys(this.running.job) : []);
+    const done = (key: string): boolean => {
+      if (this.has(key) || planned.has(key)) return true;
+      planned.add(key);
+      return false;
+    };
+    this.queue = [...this.wanted, ...this.screenLater].flatMap((need) => planJobs(need, done));
   }
 
   pending(): number {
@@ -407,13 +418,15 @@ export class GarageRenders {
     }
   }
 
-  ensureNow(needs: readonly GarageNeed[]): void {
+  ensureNow(needs: readonly GarageNeed[], later: readonly GarageNeed[] = []): void {
+    this.screenLater = later;
     const jobs = needs.flatMap((need) => planJobs(need, this.has));
-    if (jobs.length === 0) return;
-    this.dropRunning();
-    for (const job of jobs) this.runNow(job);
-    this.want(this.wanted);
-    for (const listener of this.listeners) listener();
+    if (jobs.length > 0) {
+      this.dropRunning();
+      for (const job of jobs) this.runNow(job);
+    }
+    this.replan();
+    if (jobs.length > 0) for (const listener of this.listeners) listener();
   }
 
   private readonly has = (key: string): boolean => this.bodies.has(key) || this.sprites.has(key) || this.failed.has(key);

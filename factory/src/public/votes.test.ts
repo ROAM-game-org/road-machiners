@@ -1,13 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readState, updateState } from '../state';
-import { CHANNEL, publicFake } from './public-fakes';
-import { postProposal } from './proposals';
+import { CHANNEL, publicFake, type PublicFake } from './public-fakes';
+import { postProposal, postProposalGate } from './proposals';
 import { countVotes, reviveVotes } from './votes';
+
+function approvedProposal(f: PublicFake, issue: number, pitch: string, at: Date): void {
+  f.store.addProposal(issue, pitch, at);
+  f.store.beginGate(issue, at);
+  f.store.markGatePosted(issue, 9000 + issue);
+  f.store.decideGate(issue, 9000 + issue, 'yes', at);
+}
 
 function posted(counts: Record<string, number> | null) {
   const f = publicFake();
-  f.store.addProposal(7, 'Winch', f.clock.now);
+  approvedProposal(f, 7, 'Winch', f.clock.now);
   f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   f.cards = [{ itemId: 'x', issue: 7, column: 'Triage', labels: ['voting'] }];
   if (counts) f.store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts });
@@ -71,7 +78,7 @@ describe('countVotes', () => {
 
   it('makes no edit right after posting, since the post already shows the count', async () => {
     const f = publicFake();
-    f.store.addProposal(7, 'Winch\n\nPull trucks out.', f.clock.now);
+    approvedProposal(f, 7, 'Winch\n\nPull trucks out.', f.clock.now);
     await postProposal(f.ctx, f.store);
     await countVotes(f.ctx, f.store);
     expect(f.messages).toHaveLength(1);
@@ -216,7 +223,7 @@ describe('countVotes', () => {
 describe('reviveVotes', () => {
   const voting = (issue: number, column: 'Triage' | 'Design' = 'Triage') => ({ itemId: `i${issue}`, issue, column, labels: ['voting'] });
 
-  it('reopens a proposal that closed before any post attempt, once, and posts it on the next proposal step', async () => {
+  it('reopens a proposal that closed before any post attempt, once, and sends it to committee review', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.closeProposal(7, f.clock.now);
@@ -226,8 +233,9 @@ describe('reviveVotes', () => {
     expect(f.store.proposal(7)?.closedAt).toBeNull();
     expect(f.logs.filter((line) => line.includes('open again'))).toHaveLength(1);
     expect(f.calls).toEqual(['issue 7']);
-    await postProposal(f.ctx, f.store);
-    expect(f.store.proposal(7)?.postedAt).not.toBeNull();
+    await postProposalGate(f.ctx, f.store);
+    expect(f.messages[0]?.chat).toBe('committee');
+    expect(f.store.proposal(7)?.postedAt).toBeNull();
   });
 
   it('keeps the proposal of a closed issue closed, so the post step does not close it again on every tick', async () => {
@@ -237,7 +245,7 @@ describe('reviveVotes', () => {
     f.cards = [voting(7)];
     for (let tick = 0; tick < 3; tick++) {
       await reviveVotes(f.ctx, f.cards);
-      await postProposal(f.ctx, f.store);
+      await postProposalGate(f.ctx, f.store);
     }
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
     expect(f.store.proposal(7)?.postedAt).toBeNull();
@@ -259,10 +267,10 @@ describe('reviveVotes', () => {
 
   it('leaves an open, posted or attempted proposal, a card outside Triage and a card with a running job', async () => {
     const f = posted(null);
-    f.store.addProposal(8, 'Horn', f.clock.now);
-    f.store.addProposal(9, 'Lamp', f.clock.now);
+    approvedProposal(f, 8, 'Horn', f.clock.now);
+    approvedProposal(f, 9, 'Lamp', f.clock.now);
     f.store.beginProposalPost(9, f.clock.now);
-    f.store.addProposal(10, 'Tow', f.clock.now);
+    approvedProposal(f, 10, 'Tow', f.clock.now);
     f.store.markProposalPosted(10, CHANNEL, 101, 'footer', f.clock.now);
     f.store.closeProposal(10, f.clock.now);
     updateState(f.ctx.statePath, (state) => ({ ...state, jobs: [{ id: 'triage-12-x', stage: 'triage', issue: 12, pid: 1, startedAt: '', log: '' }] }));

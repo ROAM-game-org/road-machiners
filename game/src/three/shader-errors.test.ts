@@ -167,4 +167,83 @@ describe('ShaderWarmup', () => {
     new ShaderWarmup(renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), (e) => { throw e; });
     expect(renderer.debug.onShaderError).not.toBeNull();
   });
+
+  describe('a prepared group', () => {
+    function groupRenderer(shown: THREE.Object3D[]) {
+      const seen: boolean[][] = [];
+      const renderer = {
+        debug: { onShaderError: null },
+        properties: { get: () => ({}) },
+        compileAsync: () => Promise.resolve(),
+        render: () => seen.push(shown.map((o) => o.visible)),
+        getSize: (target: THREE.Vector2) => target.set(800, 600),
+      } as unknown as THREE.WebGLRenderer;
+      return { renderer, seen };
+    }
+
+    function countedMeshes(group: THREE.Group, count: number): { reads: () => number } {
+      let reads = 0;
+      const material = new THREE.MeshBasicMaterial();
+      for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
+        Object.defineProperty(mesh, 'material', { get: () => { reads++; return material; } });
+        group.add(mesh);
+      }
+      return { reads: () => reads };
+    }
+
+    it('is not walked again while its shaders are compiled and its children stay the same', async () => {
+      const scene = new THREE.Scene();
+      const group = new THREE.Group();
+      const counted = countedMeshes(group, 40);
+      scene.add(group);
+      const { renderer } = groupRenderer([group]);
+      const warmup = new ShaderWarmup(renderer, scene, new THREE.PerspectiveCamera(), (e) => { throw e; });
+      warmup.prepare(group);
+      await Promise.resolve();
+      warmup.render(false);
+      const before = counted.reads();
+      warmup.render(false);
+      warmup.render(false);
+      expect(counted.reads()).toBe(before);
+    });
+
+    it('holds a mesh added after it was sealed until that mesh compiles', async () => {
+      const scene = new THREE.Scene();
+      const group = new THREE.Group();
+      countedMeshes(group, 3);
+      scene.add(group);
+      const late = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+      const { renderer, seen } = groupRenderer([late]);
+      const warmup = new ShaderWarmup(renderer, scene, new THREE.PerspectiveCamera(), (e) => { throw e; });
+      warmup.prepare(group);
+      await Promise.resolve();
+      warmup.render(false);
+      group.add(late);
+      warmup.render(false);
+      expect(seen.at(-1)).toEqual([false]);
+      await Promise.resolve();
+      warmup.render(false);
+      expect(seen.at(-1)).toEqual([true]);
+    });
+
+    it('is walked again once a child is removed and added back with a changed material', async () => {
+      const scene = new THREE.Scene();
+      const group = new THREE.Group();
+      const kept = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+      group.add(kept);
+      scene.add(group);
+      const { renderer, seen } = groupRenderer([kept]);
+      const warmup = new ShaderWarmup(renderer, scene, new THREE.PerspectiveCamera(), (e) => { throw e; });
+      warmup.prepare(group);
+      await Promise.resolve();
+      warmup.render(false);
+      expect(seen.at(-1)).toEqual([true]);
+      group.remove(kept);
+      kept.material = new THREE.MeshBasicMaterial();
+      group.add(kept);
+      warmup.render(false);
+      expect(seen.at(-1)).toEqual([false]);
+    });
+  });
 });

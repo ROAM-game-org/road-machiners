@@ -29,14 +29,15 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['chaosHighway'] },
 };
 
-export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed' | 'chassisFloor'>;
+export type WaveGear = Pick<GearRules, 'gunFirst' | 'gunTier' | 'cargoPart'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
-const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, paysFuel: false, cargoPart: false };
+const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, cargoPart: false };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
 export type EnemyCard = { weight: number; from: number; floor: number; chase: boolean };
 export type Line = { first: number; step: number };
+export type Ramp = Line & { from: number };
 
 export const CHAOS_HIGHWAY = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
@@ -58,12 +59,12 @@ export const CHAOS_HIGHWAY = {
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
   director: {
-    budget: { first: 1, step: 3 } as Line,
-    truckShare: 16,
-    gearShare: 0.25,
-    elite: { from: 3, cost: 2, money: 2, every: 4 },
-    waves: { first: 2, step: 0.25 } as Line,
-    wave: { min: 1, size: { first: 1, step: 0.2 } as Line, cap: 5 },
+    budget: { first: 4, step: 3 } as Line,
+    truckShare: 35,
+    gearShare: 0.7,
+    elite: { from: 2, cost: 2, money: 2, every: 2 },
+    waves: { first: 3, step: 0.5, from: 2 } as Ramp,
+    wave: { min: 1, size: { first: 1, step: 0.5 } as Line, cap: 5 },
     spacing: 60,
     jitter: 0.15,
   },
@@ -106,9 +107,9 @@ export type BandRule = { kind: PropKind; count: [number, number]; r: [number, nu
 export type GroundBand = { below: number; type: TerrainTypeId };
 
 export const HIGHWAY = {
-  version: 6,
-  size: 410,
-  stretch: { min: 230, max: 310 },
+  version: 7,
+  size: 800,
+  stretch: { min: 300, max: 700 },
   milestoneInset: 50,
   road: {
     lanes: [-3, -1, 1, 3],

@@ -37,7 +37,6 @@ export class Orders {
   readonly ledger = emptyLedger();
   readonly notes: BotNote[] = [];
   buysGear = true;
-  fieldRepair = false;
   constructor(public world: World) {}
 
   run(command: (w: World) => World, key: LedgerKey = 'other'): void {

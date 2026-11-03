@@ -235,59 +235,39 @@ describe('engine overdrive', () => {
     expect(vehicleStats(w, npc)).toEqual(npcNormal);
   });
 
-  function drivingInOverdrive(turn: number, overdrive: boolean) {
+  it('overheats a driving engine even at night', () => {
     const w = emptyWorld();
     w.player.ranks.driving = 1;
-    w.turn = turn;
-    w.player.overdrive = overdrive;
+    w.turn = NIGHT;
+    w.player.overdrive = true;
     engine(w).wear = 0;
     const me = w.vehicles[0];
     me.speed = vehicleStats(w, me).maxSpeed;
-    return w;
-  }
-
-  function turnsToHotMark(turn: number, overdrive: boolean): number {
-    const w = drivingInOverdrive(turn, overdrive);
-    let turns = 0;
-    while (w.player.engineHeat < ENGINE_HEAT.warnAt) {
-      advanceEngineHeat(w);
-      turns++;
-      expect(turns).toBeLessThan(80);
-    }
-    return turns;
-  }
-
-  it('reaches the hot mark at night and cuts out there', () => {
-    const w = drivingInOverdrive(NIGHT, true);
-    let turns = 0;
-    while (w.player.overdrive) {
-      advanceEngineHeat(w);
-      turns++;
-      expect(turns).toBeLessThan(40);
-    }
-    expect(turns).toBeGreaterThan(10);
-    expect(w.player.engineHeat).toBeGreaterThanOrEqual(ENGINE_HEAT.warnAt);
-    expect(w.events.filter((e) => e.t === 'info' && e.note.id === 'overdriveHot')).toHaveLength(1);
-    expect(w.events.some((e) => e.t === 'info' && e.note.id === 'engineHot')).toBe(false);
-  });
-
-  it('runs on to full heat and overheat damage when switched back on above the mark', () => {
-    const w = drivingInOverdrive(NIGHT, true);
-    w.player.engineHeat = ENGINE_HEAT.warnAt;
     let turns = 0;
     while (w.player.engineHeat < 1) {
       advanceEngineHeat(w);
       turns++;
       expect(turns).toBeLessThan(40);
     }
-    expect(w.player.overdrive).toBe(true);
-    const before = engine(w).hp;
-    advanceEngineHeat(w);
-    expect(engine(w).hp).toBe(before - ENGINE_HEAT.overheatDamage);
+    expect(turns).toBeGreaterThan(15);
   });
 
   it('heats much faster than normal driving in the noon sun', () => {
-    expect(turnsToHotMark(NOON, true)).toBeLessThan(turnsToHotMark(NOON, false) / 2);
+    const turnsToOverheat = (overdrive: boolean) => {
+      const w = emptyWorld();
+      w.player.ranks.driving = 1;
+      w.turn = NOON;
+      w.player.overdrive = overdrive;
+      const me = w.vehicles[0];
+      me.speed = vehicleStats(w, me).maxSpeed;
+      let turns = 0;
+      while (w.player.engineHeat < 1) {
+        advanceEngineHeat(w);
+        turns++;
+      }
+      return turns;
+    };
+    expect(turnsToOverheat(true)).toBeLessThan(turnsToOverheat(false) / 2);
   });
 
   it('adds no heat while parked', () => {

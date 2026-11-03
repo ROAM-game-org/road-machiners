@@ -11,7 +11,6 @@ const NOTE_STOPS: Record<SimNote["id"], boolean> = {
   engineOverheat: true,
   engineDoused: false,
   overdriveCutOut: true,
-  overdriveHot: true,
   outOfSupplies: true,
   noRoomFuel: true,
   noRoomSupplies: true,

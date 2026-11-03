@@ -305,7 +305,7 @@ describe('a player order with a pace', () => {
 
 describe('overdrive ends with the drive', () => {
   const noteIds = (w: World) => w.events.flatMap((e) => (e.t === 'info' ? [e.note.id] : []));
-  const heatNotes = (w: World) => noteIds(w).filter((id) => id === 'engineHot' || id === 'overdriveHot');
+  const heatNotes = (w: World) => noteIds(w).filter((id) => id === 'engineHot');
   const cruise = (d: World) => {
     const me = playerVehicle(d);
     me.speed = vehicleStats(d, me).maxSpeed;
@@ -356,30 +356,12 @@ describe('overdrive ends with the drive', () => {
     expect(endTurn(w, cruise).player.overdrive).toBe(false);
   });
 
-  it('cuts out on the turn the heat crosses the running-hot mark, with one note in place of the hot warning', () => {
+  it('keeps overdrive on and raises only the hot warning when the heat crosses the running-hot mark', () => {
     const w = overdriving();
     w.player.engineHeat = ENGINE_HEAT.warnAt - 0.01;
     const next = endTurn(w, cruise);
     expect(next.player.engineHeat).toBeGreaterThanOrEqual(ENGINE_HEAT.warnAt);
-    expect(next.player.overdrive).toBe(false);
-    expect(heatNotes(next)).toEqual(['overdriveHot']);
-  });
-
-  it('is not cut again when switched back on above the mark', () => {
-    const w = overdriving();
-    w.player.engineHeat = ENGINE_HEAT.warnAt;
-    const next = endTurn(w, cruise);
     expect(next.player.overdrive).toBe(true);
-    expect(heatNotes(next)).toEqual([]);
-  });
-
-  it('raises only the hot warning when the crossing happens without overdrive', () => {
-    const w = overdriving();
-    w.player.overdrive = false;
-    w.turn = 1 + ((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay / 24;
-    w.player.engineHeat = ENGINE_HEAT.warnAt - 0.001;
-    const next = endTurn(w, cruise);
-    expect(next.player.engineHeat).toBeGreaterThanOrEqual(ENGINE_HEAT.warnAt);
     expect(heatNotes(next)).toEqual(['engineHot']);
   });
 });

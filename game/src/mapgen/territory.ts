@@ -3,7 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
 import { TERRITORIES, type FarmRules, type Patch, type RimRocks, type TerritoryRules, type WreckRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
-import { boxDistance, onDeck, propBoxes, type PosedBox } from '../sim/mapgen';
+import { boxDistance, onDeck, anyLookBoxes, type PosedBox } from '../sim/mapgen';
 import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
 import { randRange, type Rng } from '../sim/rng';
@@ -78,7 +78,7 @@ function fillWreck(draws: Draws, rules: TerritoryRules, wreck: WreckRules, piece
   const [onWeb, onSpur] = [markRoads(d, t, roads, 'inside'), markRoads(d, t, spurs, 'spur')];
   const onRoad: Touch = (pos, r) => onWeb(pos, r) || onSpur(pos, r);
   throwOnRoadCliffs(d, t, roads);
-  const pieceBoxes = territoryPieces(t).flatMap((p) => propBoxes(pieceObstacle(p, 'piece')));
+  const pieceBoxes = territoryPieces(t).flatMap((p) => anyLookBoxes(pieceObstacle(p, 'piece')));
   const caches = territoryCaches(t).map((c) => prop(wreck.cacheLook, c.pos, wreck.cacheRadius, c.yaw));
   for (const c of caches) if (onRoad(c.pos, c.r) || touchesMarks(d, c.pos, c.r)) throw new Error(`${t.id} cache at ${at(c.pos)} stands on a dirt road`);
   d.props.push(...caches);
@@ -120,7 +120,7 @@ function seatPieces(d: MapDraft, pieces: readonly BakedPiece[], ease: number): v
   const before = { size: d.size, heights: Array.from(d.heights), types: [] };
   const pulls = new Map<number, { gap: number; centre: number }[]>();
   pieces.forEach((p, n) => {
-    const low = propBoxes(pieceObstacle(p, `seat-${n}`)).filter((b) => b.z0 < PHYSICS.truckClearance);
+    const low = anyLookBoxes(pieceObstacle(p, `seat-${n}`)).filter((b) => b.z0 < PHYSICS.truckClearance);
     const centre = groundAt(before, p.pos.x, p.pos.y) - p.sink;
     for (const c of seatCorners(d.size, p, low, ease)) {
       const k = c.j * (d.size + 1) + c.i;
