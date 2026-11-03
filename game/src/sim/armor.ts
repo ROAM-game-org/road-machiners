@@ -629,7 +629,7 @@ function floorUnder(chassisId: string, item: GridItem): number {
 function topOf(chassisId: string, item: GridItem): number {
   if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
   const def = partDef(item.part.defId);
-  if (def.role === 'cab') return floorUnder(chassisId, item);
+  if (isCab(def)) return floorUnder(chassisId, item);
   const rise = TALL_RISE[def.id];
   if (rise === undefined) throw new Error(`Tall part ${def.id} on ${chassisId} has no rise in TALL_RISE`);
   return cachedHeight('top', chassisId, item, () => floorUnder(chassisId, item) + rise);
