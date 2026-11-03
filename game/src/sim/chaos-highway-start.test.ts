@@ -182,7 +182,7 @@ describe('Chaos Highway first enemy', () => {
   function spawnedTrucks(seed: number, stretch: number, template: string, money = CHAOS_HIGHWAY.cards[template].floor) {
     const w = startWorld(seed);
     const run = w.chaosHighway!;
-    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money, elite: false };
+    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money, elites: 0 };
     run.groups = [group];
     spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);

@@ -5,7 +5,7 @@ import { PAINT } from '../data/chassis';
 import { startKit } from '../data/start';
 import { highwayMap } from '../sim/highway';
 import { defaultSetup } from '../sim/settings';
-import { rollStretch, type RolledGroup, type RolledStretch } from '../sim/stretch-roll';
+import { rollStretch, type RolledStretch, type RolledTruck } from '../sim/stretch-roll';
 import { newWorld } from '../sim/world';
 import type { Vehicle, World } from '../sim/types';
 
@@ -26,7 +26,8 @@ body { margin: 0; padding: 16px; background: #1b1c1d; color: #ddd6c8; font: 600 
 .stretch h2 { flex: 0 0 110px; font-size: 18px; margin: 8px 0 0; }
 .groups { display: flex; flex-wrap: wrap; gap: 32px 64px; }
 .group { display: flex; gap: 6px; padding: 8px; background: #26272a; border-radius: 8px; border: 3px solid #3a3b3d; }
-.group.elite { border-color: #d4a82a; }
+.group img { border-radius: 6px; border: 3px solid transparent; }
+.group img.elite { border-color: #d4a82a; }
 .group img { display: block; }
 `;
 
@@ -83,9 +84,13 @@ function element(tag: string, className: string, text = ''): HTMLElement {
   return node;
 }
 
-async function groupBox(renderer: THREE.WebGLRenderer, group: RolledGroup): Promise<HTMLElement> {
-  const box = element('div', group.elite ? 'group elite' : 'group');
-  for (const truck of group.trucks) box.append(await portraitImage(renderer, truck));
+async function groupBox(renderer: THREE.WebGLRenderer, group: RolledTruck[]): Promise<HTMLElement> {
+  const box = element('div', 'group');
+  for (const truck of group) {
+    const img = await portraitImage(renderer, truck.vehicle);
+    if (truck.elite) img.className = 'elite';
+    box.append(img);
+  }
   return box;
 }
 
@@ -111,7 +116,7 @@ async function buildAtlas(): Promise<{ stretches: number; trucks: number }> {
   try {
     for (let j = q.from; j <= q.to; j++) {
       const rolled = rollStretch(world, j, q.roll);
-      trucks += rolled.groups.reduce((sum, g) => sum + g.trucks.length, 0);
+      trucks += rolled.groups.reduce((sum, g) => sum + g.length, 0);
       document.body.append(await stretchRow(renderer, rolled));
     }
   } finally {

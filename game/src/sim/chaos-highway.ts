@@ -19,7 +19,7 @@ import { fightCornered, topGoal } from './npc-activities';
 import { generateNpcLoadout, openGear, type GearRules } from './npc-loadout';
 import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
-import { directStretch, payOf, type PlannedWave } from './chaos-highway-director';
+import { directStretch, payOf, truckMoney, type PlannedWave } from './chaos-highway-director';
 import { mountedParts } from './grid';
 import { maxHp } from './wear';
 import { allegianceFor, isFree, spawnAt } from './spawn';
@@ -65,7 +65,7 @@ export function planStretch(seed: number, j: number, waves: readonly PlannedWave
       at: wave.at,
       templates: Array.from({ length: wave.size }, () => wave.template),
       money: wave.money,
-      elite: wave.elite,
+      elites: wave.elites,
       level,
       spawned: false,
       vehicles: [],
@@ -262,7 +262,7 @@ export function waveGear(template: string, stretch: number, money: number): Gear
 }
 
 export function spawnGroup(world: World, run: ChaosHighwayRun, group: WaveGroup, progress: number): void {
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money)), cargo: {} } }));
+  const loadouts = group.templates.map((id, i) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, truckMoney(group, i))), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => footprint(l.loadout.chassisId)));
   if (spots === 'seen') {
     group.retryUntil = null;

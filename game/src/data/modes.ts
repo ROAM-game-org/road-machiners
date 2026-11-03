@@ -37,6 +37,7 @@ const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
 export type EnemyCard = { weight: number; from: number; floor: number; chase: boolean };
 export type Line = { first: number; step: number };
+export type Ramp = Line & { from: number };
 
 export const CHAOS_HIGHWAY = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
@@ -58,12 +59,12 @@ export const CHAOS_HIGHWAY = {
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
   director: {
-    budget: { first: 3, step: 3 } as Line,
+    budget: { first: 4, step: 3 } as Line,
     truckShare: 35,
     gearShare: 0.7,
-    elite: { from: 2, cost: 2, money: 2, every: 4 },
-    waves: { first: 2.5, step: 0.5 } as Line,
-    wave: { min: 1, size: { first: 1, step: 0.3 } as Line, cap: 5 },
+    elite: { from: 2, cost: 2, money: 2, every: 2 },
+    waves: { first: 3, step: 0.5, from: 2 } as Ramp,
+    wave: { min: 1, size: { first: 1, step: 0.5 } as Line, cap: 5 },
     spacing: 60,
     jitter: 0.15,
   },

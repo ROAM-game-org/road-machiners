@@ -27,7 +27,7 @@ const BLOCKERS = Object.entries(CHAOS_HIGHWAY.cards).filter(([, card]) => !card.
 
 function spawned(w: World, templates: string[], stretch: number): Vehicle[] {
   const run = w.chaosHighway!;
-  const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates, level: waveOf(stretch).level, money: CHAOS_HIGHWAY.cards[templates[0]].floor, elite: false };
+  const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates, level: waveOf(stretch).level, money: CHAOS_HIGHWAY.cards[templates[0]].floor, elites: 0 };
   run.groups = [group];
   spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
   return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
@@ -72,7 +72,7 @@ describe('Chaos Highway waves', () => {
   it('sends a blocker card only from ahead and a chasing card from any side', () => {
     const blocker = BLOCKERS[0];
     const chaser = CHASERS[0];
-    const waves = (seed: number, template: string) => [0, 1, 2, 3].map((i) => ({ at: milestoneAt(seed, 5) + 40 * (i + 1), template, size: 2, money: 45000, elite: false }));
+    const waves = (seed: number, template: string) => [0, 1, 2, 3].map((i) => ({ at: milestoneAt(seed, 5) + 40 * (i + 1), template, size: 2, money: 45000, elites: 0 }));
     for (const seed of [1, 2, 3, 4, 5]) {
       expect(planStretch(seed, 6, waves(seed, blocker)).every((g) => g.from === 'ahead'), `seed ${seed}`).toBe(true);
     }
