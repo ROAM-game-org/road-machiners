@@ -63,6 +63,7 @@ import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
 import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
+import { settleOverdue } from './shop-credit';
 import { advanceProduction } from './production';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
@@ -144,6 +145,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       contracts: [],
       pastContracts: [],
       costBasis: { ...kit.costBasis },
+      account: null,
       knockouts: 0,
       state: 'active',
       knockoutTurns: 0,
@@ -434,6 +436,7 @@ export function endTurnInPlace(
     noteHaulerHits(w);
     dropStrandedTowers(w);
     advanceContracts(w);
+    settleOverdue(w);
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);

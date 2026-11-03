@@ -925,3 +925,7 @@ export function withXpWorkWindow(world: SavedJson): SavedJson {
   const xpWindow = xpDay === oldClockDay_XP(turn) ? Math.floor((turn - 1) / WORK_DAY_TURNS_XP) : -1;
   return { ...world, player: { ...player, xpWindow } };
 }
+
+export function withShopAccount(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), account: null } };
+}

@@ -540,6 +540,12 @@ export const CRIME = {
   leadFee: wageOf(24),
 };
 
+export const CREDIT = {
+  line: wageOf(3 * TIME.workDayTurns),
+  dueTurns: 2 * TIME.workDayTurns,
+  lateShare: 0.25,
+};
+
 export const BOUNTY = {
   lapseTurns: 5 * TIME.workDayTurns,
   huntTurns: TIME.workDayTurns / 2,

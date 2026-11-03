@@ -268,6 +268,9 @@ export type Refusal =
   | { id: 'topRank'; skill: SkillId }
   | { id: 'needsXp'; cost: number; have: number }
   | { id: 'noMoney' }
+  | { id: 'accountFull' }
+  | { id: 'accountElsewhere'; shop: string }
+  | { id: 'wantedNoCredit' }
   | { id: 'notAtDesk' }
   | { id: 'payBountiesFirst'; faction: StandingFactionId }
   | { id: 'noCargoRoom' }
@@ -511,6 +514,8 @@ export type CourierStory = { driver: string; beat: CourierBeat; turn: number; ai
 export type MomentState = { driver: string | null; heard: boolean };
 export type EncounterLog = { next: number; pending: PendingEncounter | null; story: CourierStory | null };
 
+export type ShopAccount = { shop: string; owed: number; due: number };
+
 export type Player = {
   vehicleId: string;
   money: number;
@@ -539,6 +544,7 @@ export type Player = {
   contracts: Contract[];
   pastContracts: PastContract[];
   costBasis: Record<string, number>;
+  account: ShopAccount | null;
   knockouts: number;
   state: "active" | "knockedOut" | "dead";
   knockoutTurns: number;
@@ -573,7 +579,7 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'haulPay' | 'supplyFund' | 'claimReward' | BountyMoneyKind;
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'haulPay' | 'supplyFund' | 'claimReward' | 'accountPaid' | BountyMoneyKind;
 export type BountyMoneyKind = 'bountyFund' | 'bountyCoffers' | 'bountyOffice' | 'bountyEscrow';
 
 export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
@@ -667,7 +673,10 @@ export type GameEvent =
   | { t: 'outpostReached'; milestone: number; pay: number; wrecks: number }
   | { t: 'roadOpened'; stretch: number }
   | { t: 'runLost'; stretch: number; cause: RunLossCause }
-  | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number; kept?: { good: string; crates: number } }
+  | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number; kept?: { good: string; crates: number }; unpaid?: number }
+  | { t: 'onAccount'; shop: string; good: string; count: number; price: number }
+  | { t: 'accountPaid'; shop: string; amount: number }
+  | { t: 'account'; shop: string; owed: number; due: number; outcome: 'expiring' | 'lapsed' }
   | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
   | { t: 'asked'; by: string; of: string; target: string; told: boolean }

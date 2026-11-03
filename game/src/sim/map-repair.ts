@@ -174,6 +174,7 @@ const PLAYER_MOVE = {
   contracts: 'shift',
   pastContracts: 'keep',
   costBasis: 'keep',
+  account: 'keep',
   knockouts: 'keep',
   state: 'keep',
   knockoutTurns: 'keep',

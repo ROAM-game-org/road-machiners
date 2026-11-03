@@ -4,7 +4,6 @@ import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyCon
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
 import type { GridSquare } from '../sim/map-grid';
-import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
 import { escortStatus, turnsLeft } from '../sim/escort-job';
@@ -15,7 +14,6 @@ import { playerVehicle, vehicleById } from '../sim/damage';
 import { namedTruck, requireTruck } from '../sim/sites';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
-import type { Work, WorkLeft } from '../sim/states';
 import { dist } from '../sim/vec';
 import { goodsCount } from '../sim/grid';
 import { spareParts } from '../sim/inventory';
@@ -24,32 +22,30 @@ import { canVehicleSee, playerSees } from '../sim/vision';
 import { topGoal } from '../sim/npc-activities';
 import { judgeDanger, npcTraits, passReason } from '../sim/npc-decisions';
 import { huntsOffRoad } from '../sim/hunt-style';
-import { isHostile } from '../sim/combat';
+import { isHostile, shotDamage } from '../sim/combat';
 import { trackOf } from '../sim/tracks';
 import { hasBasic, hasPerk } from '../sim/progress';
 import { finesOn } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
-import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
+import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData, type Work, type WorkLeft } from '../sim/states';
 import { MAP_GRID, REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { isJunk, maxHp } from '../sim/wear';
 import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
-import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import { directionsText } from './directions-text';
 import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
-import { siteRecipes } from '../data/market';
+import { siteRecipes, type ClaimLook } from '../data/market';
 import { keyLabel } from './input-mode';
 import { driverName, factionName, standingCauseText, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
-import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { compassText, damage, distanceText, fuelLiters, hp, kph, moneyM, moneyMsg } from './units';
 import { seesAll } from './see-all';
-import { bandAtLeast, isRaider } from '../sim/relations';
+import { bandAtLeast, isRaider, stanceToward } from '../sim/relations';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -1074,6 +1070,9 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   runLost: runLostText,
   bountyFiled: quiet,
   bountyClosed: bountyClosedText,
+  onAccount: (_, e) => line(t('log.account.opened', { shop: siteName(e.shop), n: e.count, good: goodLower(e.good), price: moneyMsg(e.price) }), ''),
+  accountPaid: (_, e) => line(t('log.account.paid', { shop: siteName(e.shop), amount: moneyMsg(e.amount) }), ''),
+  account: (_, e) => line(e.outcome === 'expiring' ? t('log.account.expiring', { shop: siteName(e.shop), when: clock(e.due).full }) : t('log.account.lapsed', { shop: siteName(e.shop) }), 'bad'),
   settlement: (_, e) => line(t('log.settlement', { price: moneyMsg(e.price), faction: factionName(e.faction) }), ''),
   asked: quiet,
   huntWithdrawn: quiet,

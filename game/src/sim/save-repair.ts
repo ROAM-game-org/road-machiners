@@ -183,6 +183,7 @@ function dropGoneContent(world: World): void {
   dropOwnContracts(world);
   world.player.pastContracts = world.player.pastContracts.filter((p) => contractFits(p.contract));
   dropUnknownKeys(world.player.costBasis);
+  dropGoneAccount(world);
   dropHulks(world);
   world.spawnQueue = world.spawnQueue.filter(queuedSpawnFits);
 }
@@ -264,6 +265,10 @@ function isTemplate(id: string): boolean {
 function clearContractWork(truck: Vehicle, ids: ReadonlySet<string>): void {
   for (const id of ids) if (parcelOf(truck, id)) removeParcel(truck, id);
   if (truck.job?.kind === 'survey' && ids.has(truck.job.contractId)) truck.job = null;
+}
+
+function dropGoneAccount(world: World): void {
+  if (world.player.account && !isShop(world.player.account.shop)) world.player.account = null;
 }
 
 function dropOwnContracts(world: World): void {

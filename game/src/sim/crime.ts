@@ -1,4 +1,4 @@
-import { BOUNTY, CRIME, SHOPS } from '../data/market';
+import { BOUNTY, CREDIT, CRIME, SHOPS } from '../data/market';
 import { BANDS, SITE_FACTIONS, STANDING } from '../data/npc-behavior';
 import { goodValue } from './market';
 import type { Vec } from './vec';
@@ -13,7 +13,7 @@ import { modeRules } from './settings';
 import { canUseSite, parkedOn } from './sites';
 import { boundTo } from './states';
 import { followingOf } from './companies';
-import type { CaseIssuer, CaseLead, CasePosse, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
+import type { CaseIssuer, CaseLead, CasePosse, CrimeCase, CrimeOffense, Memory, Refusal, ShopAccount, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerVehicle } from './damage';
 import { vehicleHasPerk } from './progress';
@@ -134,21 +134,40 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
 }
 
 export function fileEmbezzlement(world: World, shopId: string, crates: number, good: string, at: Vec): void {
-  if (!SHOP_IDS.has(shopId)) throw new Error(`${shopId} is not a shop that can post a bounty`);
+  requireShopId(shopId);
   if (!Number.isInteger(crates) || crates <= 0) throw new Error(`An embezzlement needs crates kept, got ${crates}`);
   if (!modeRules(world).bounties) return;
+  const fine = Math.min(fairM(crates * goodValue(good)), capRoom(world));
+  requireWholeM(fine, 'embezzlement fine');
+  if (fine < CRIME.minStake) return;
+  fileShopCase(world, shopId, { fine, restitution: 0 }, at, { kept: { good, crates } });
+}
+
+export function fileUnpaidAccount(world: World, account: ShopAccount, at: Vec): void {
+  requireShopId(account.shop);
+  const fine = Math.min(Math.max(fairM(account.owed * CREDIT.lateShare), CRIME.minStake), Math.max(0, capRoom(world)));
+  requireWholeM(fine, 'unpaidAccountFine');
+  fileShopCase(world, account.shop, { fine, restitution: account.owed }, at, { unpaid: account.owed });
+}
+
+type ShopCaseNote = { kept: { good: string; crates: number } } | { unpaid: number };
+
+function requireShopId(shopId: string): void {
+  if (!SHOP_IDS.has(shopId)) throw new Error(`${shopId} is not a shop that can post a bounty`);
+}
+
+const capRoom = (world: World): number => CRIME.maxOwed - owedBy(world, playerVehicle(world).id);
+
+function fileShopCase(world: World, shopId: string, terms: { fine: number; restitution: number }, at: Vec, note: ShopCaseNote): void {
   const target = playerVehicle(world);
-  const owed = Math.min(fairM(crates * goodValue(good)), CRIME.maxOwed - owedBy(world, target.id));
-  requireWholeM(owed, 'embezzlement fine');
-  if (owed < CRIME.minStake) return;
   const turn = world.turn;
   const c: CrimeCase = {
-    id: newId(world, 'case'), crime: `${turn}:${target.id}:${shopId}:embezzled`, offense: 'embezzled', target: target.id, victim: shopId, issuer: shopIssuer(shopId),
-    reporters: [], site: shopId, at: { ...at }, turn, filed: turn, owed, restitution: 0, escrow: 0,
+    id: newId(world, 'case'), crime: `${turn}:${target.id}:${shopId}:${'kept' in note ? 'embezzled' : 'unpaid'}`, offense: 'embezzled', target: target.id, victim: shopId, issuer: shopIssuer(shopId),
+    reporters: [], site: shopId, at: { ...at }, turn, filed: turn, owed: terms.fine, restitution: terms.restitution, escrow: 0,
     status: 'open', closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: 'lone', lead: { at: { ...at }, turn, heading: null },
   };
   world.crimes = [...world.crimes, c];
-  world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: shopId, offense: c.offense, victim: shopId, site: shopId, owed, kept: { good, crates } });
+  world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: shopId, offense: c.offense, victim: shopId, site: shopId, owed: terms.fine, ...note });
 }
 
 function shopIssuer(shopId: string): CaseIssuer {

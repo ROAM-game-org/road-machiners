@@ -30,6 +30,7 @@ import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
 import { straighten } from './rig';
+import { accountRefusal, putOnAccount } from './shop-credit';
 
 export type Supply = "fuel" | "supplies";
 
@@ -105,7 +106,7 @@ export function tradeGoods(
     throw new Error(`Bad trade ${count} ${good}`);
   if (direction === "buy") requireStock(world, shopId, good, count);
   const total = getLotTradePrice(world, vehicle, shopId, good, count, direction);
-  if (direction === "buy") buyGoods(world, vehicle, good, count, total);
+  if (direction === "buy") buyGoods(world, vehicle, shopId, { good, count, total });
   else sellGoods(world, vehicle, shopId, good, count, total);
   recordTrade(shopId, shopState(world, shopId), good, count, direction);
 }
@@ -115,14 +116,27 @@ function requireStock(world: World, shopId: string, good: string, count: number)
   if (count > goodStock(shopState(world, shopId), good)) throw new Refused({ id: "noStock" });
 }
 
-function buyGoods(world: World, vehicle: Vehicle, good: string, count: number, total: number): void {
-  const resources = getResources(world, vehicle);
-  if (resources.money < total) throw new Refused({ id: "noMoney" });
-  if (cargoRoom(vehicle) < count) throw new Refused({ id: "noCargoRoom" });
-  if (vehicle.id === world.player.vehicleId) noteCostBasis(world, good, total / count, count);
-  const added = addGoods(world, vehicle, good, count);
-  if (added !== count) throw new Error("Cargo capacity invariant failed");
-  shopMoney(world, vehicle, -total, "cargoBuy");
+type GoodsLot = { good: string; count: number; total: number };
+
+function buyGoods(world: World, vehicle: Vehicle, shopId: string, lot: GoodsLot): void {
+  const onAccount = getResources(world, vehicle).money < lot.total;
+  if (onAccount) requireAccountRoom(world, vehicle, shopId, lot.total);
+  if (cargoRoom(vehicle) < lot.count) throw new Refused({ id: "noCargoRoom" });
+  if (vehicle.id === world.player.vehicleId) noteCostBasis(world, lot.good, lot.total / lot.count, lot.count);
+  const added = addGoods(world, vehicle, lot.good, lot.count);
+  if (added !== lot.count) throw new Error("Cargo capacity invariant failed");
+  if (onAccount) chargeAccount(world, shopId, lot);
+  else shopMoney(world, vehicle, -lot.total, "cargoBuy");
+}
+
+function requireAccountRoom(world: World, vehicle: Vehicle, shopId: string, price: number): void {
+  const refusal = vehicle.id === world.player.vehicleId ? accountRefusal(world, shopId, price) : { id: "noMoney" as const };
+  if (refusal) throw new Refused(refusal);
+}
+
+function chargeAccount(world: World, shopId: string, lot: GoodsLot): void {
+  putOnAccount(world, shopId, lot.total);
+  world.events.push({ t: "onAccount", shop: shopId, good: lot.good, count: lot.count, price: lot.total });
 }
 
 export function noteCostBasis(world: World, good: string, price: number, count: number): void {

@@ -174,6 +174,7 @@ const REFUSALS: RefusalWords = {
   busy: (_, r) => t(`refusal.busy.${r.job}`),
   needsXp: (_, r) => t('refusal.needsXp', { cost: r.cost, have: r.have }),
   payBountiesFirst: (_, r) => t('refusal.payBountiesFirst', { faction: factionName(r.faction) }),
+  accountElsewhere: (_, r) => t('refusal.accountElsewhere', { shop: siteName(r.shop) }),
 };
 
 export function refusalText(world: World, r: Refusal): Msg {

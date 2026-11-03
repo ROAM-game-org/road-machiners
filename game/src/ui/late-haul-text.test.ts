@@ -60,3 +60,30 @@ describe("embezzlement words", () => {
     expect(eventText(w, e)).toBeNull();
   });
 });
+
+describe("shop account words", () => {
+  const account = { shop: "bowl", owed: 60, due: 900 };
+
+  it("keeps the filing for an unpaid account out of the log", () => {
+    const w = emptyWorld();
+    const e: GameEvent = { t: "bountyFiled", case: "c", target: w.player.vehicleId, reporter: "bowl", offense: "embezzled", victim: "bowl", site: "bowl", owed: 15, unpaid: 60 };
+    expect(eventText(w, e)).toBeNull();
+  });
+
+  it("warns of the due time and logs the lapse in danger ink", () => {
+    const expiring = eventText(emptyWorld(), { t: "account", ...account, outcome: "expiring" })!;
+    const lapsed = eventText(emptyWorld(), { t: "account", ...account, outcome: "lapsed" })!;
+    expect(en(expiring.text)).toBe(`Account at Bowl due by ${en(clock(900).full)}`);
+    expect(en(lapsed.text)).toBe("Unpaid account at Bowl: Bowl takes it to the Marshalls.");
+    expect([expiring.cls, lapsed.cls]).toEqual(["bad", "bad"]);
+  });
+
+  it("logs a lot put on account and the account paid off", () => {
+    expect(en(eventText(emptyWorld(), { t: "onAccount", shop: "bowl", good: "salt", count: 3, price: 60 })!.text)).toMatch(/^On account at Bowl: 3 crates of salt, 60/);
+    expect(en(eventText(emptyWorld(), { t: "accountPaid", shop: "bowl", amount: 60 })!.text)).toMatch(/^Paid off the account at Bowl: 60/);
+  });
+
+  it("names the shop where the open account is", () => {
+    expect(en(refusalText(emptyWorld(), { id: "accountElsewhere", shop: "nose" }))).toBe("Your account is open at Nose");
+  });
+});
