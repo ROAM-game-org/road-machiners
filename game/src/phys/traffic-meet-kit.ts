@@ -155,7 +155,7 @@ const HAULER_LOAD = 1000;
 
 export function overtake(haulers: number): Overtake {
   const bumps: Bump[] = [];
-  const w0 = standardWorld(5);
+  const w0 = standardWorld(11);
   w0.vehicles = w0.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
