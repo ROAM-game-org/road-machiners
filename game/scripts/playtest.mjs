@@ -59,7 +59,7 @@ page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await emulateWebGL2Floor(page);
 await page.goto(playUrl(url));
-await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS }).catch(() => retryAfterBrowserCrash());
 await page.waitForTimeout(1000);
 const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
 if (!bootGone) {
