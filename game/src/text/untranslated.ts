@@ -100,6 +100,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/main.ts', text: 'building the ground', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'waiting for physics and models', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'starting the game', reason: CRASH_REPORT },
+  { file: 'src/three/main.ts', text: 'The game reported an error during the bench:  ', reason: 'A line of the perf bench error that the perf script prints in a terminal. No player runs the bench.' },
   { file: 'src/three/map-file.ts', text: 'Map file', reason: CRASH_REPORT },
   { file: 'src/three/map-file.ts', text: 'Route file', reason: CRASH_REPORT },
   { file: 'src/three/shader-errors.ts', text: '*', reason: CRASH_REPORT },
