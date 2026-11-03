@@ -528,6 +528,7 @@ export const LOG = {
   'note.engineOverheat': 'The engine is cooking itself. Something inside gives.',
   'opening.stranded': 'You are stranded in a land you do not know. Not your finest moment.',
   'note.overdriveCutOut': 'Overdrive cut out: the engine is too worn.',
+  'note.overdriveHot': 'Engine running hot. Overdrive cut out.',
   'note.engineDoused': m('Doused the engine: supplies -{supplies}', { supplies: 'int' }),
   'note.outOfSupplies': 'No food, no water. You are getting weak.',
   'note.noRoomFuel': m('No room for fuel: fuel -{fuel}', { fuel: 'dec1' }),

@@ -216,6 +216,7 @@ export type SimNote =
   | { id: 'engineOverheat'; hp: number }
   | { id: 'engineDoused'; supplies: number }
   | { id: 'overdriveCutOut' }
+  | { id: 'overdriveHot' }
   | { id: 'outOfSupplies'; health: number }
   | { id: 'noRoomFuel'; fuel: number }
   | { id: 'noRoomSupplies'; supplies: number }

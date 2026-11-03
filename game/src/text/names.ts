@@ -126,6 +126,7 @@ const NOTES: NoteWords = {
   engineHot: () => t('note.engineHot'),
   engineOverheat: () => t('note.engineOverheat'),
   overdriveCutOut: () => t('note.overdriveCutOut'),
+  overdriveHot: () => t('note.overdriveHot'),
   engineDoused: (n) => t('note.engineDoused', { supplies: n.supplies }),
   outOfSupplies: () => t('note.outOfSupplies'),
   noRoomFuel: (n) => t('note.noRoomFuel', { fuel: n.fuel }),

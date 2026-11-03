@@ -531,6 +531,7 @@ export const LOG: Translation<typeof EN> = {
   'note.engineOverheat': 'Двигатель раскалился. Внутри что-то сдало.',
   'opening.stranded': 'Вы застряли в краях, которых не знаете. Не лучший момент в вашей жизни.',
   'note.overdriveCutOut': 'Форсаж отключился: двигатель слишком изношен.',
+  'note.overdriveHot': 'Двигатель перегревается. Форсаж отключился.',
   'note.engineDoused': 'Двигатель залит водой, припасы −{supplies}.',
   'note.outOfSupplies': 'Ни еды, ни воды. Вы слабеете.',
   'note.noRoomFuel': 'Нет места для топлива, топливо −{fuel}.',
