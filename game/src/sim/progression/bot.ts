@@ -29,7 +29,7 @@ import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { topGoal } from '../npc-activities';
-import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
+import { firepower, getsAway, getUpkeepReserve, isWeak, perceiveDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
 import { HUNT_MARGIN, huntable, huntedSpeed } from './hunted';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
@@ -781,7 +781,7 @@ function seenHostiles(world: World): Vehicle[] {
 function dangerOf(world: World, foe: Vehicle): number {
   const spread = NPC_BEHAVIOR.dangerSpread;
   const roll = hashRandom(world.seed ^ JUDGE_SALT, ...[...foe.id].map((c) => c.charCodeAt(0)));
-  return judgeDanger(world, playerVehicle(world), foe) * (1 - spread + 2 * spread * roll);
+  return perceiveDanger(world, playerVehicle(world), foe, 1 - spread + 2 * spread * roll);
 }
 
 const JUDGE_SALT = 0x6a756467;
@@ -861,7 +861,7 @@ function charge(o: Orders, foe: Vehicle, goal: Goal): void {
 
 
 function fights(o: Orders, foe: Vehicle, goal: Goal): boolean {
-  return beats(o, foe, goal) && (goal === 'hunter' || !outruns(o.world, o.me, foe));
+  return beats(o, foe, goal) && (goal === 'hunter' || !getsAway(o.world, o.me, foe));
 }
 
 function beats(o: Orders, foe: Vehicle, goal: Goal): boolean {
@@ -870,16 +870,7 @@ function beats(o: Orders, foe: Vehicle, goal: Goal): boolean {
 }
 
 function outmatchedBy(world: World, foe: Vehicle): boolean {
-  return dangerOf(world, foe) > 1 && !outruns(world, playerVehicle(world), foe);
-}
-
-function outruns(world: World, me: Vehicle, foe: Vehicle): boolean {
-  return currentTopSpeed(world, me) > currentTopSpeed(world, foe);
-}
-
-function currentTopSpeed(world: World, v: Vehicle): number {
-  const stats = vehicleStats(world, v);
-  return isStranded(world, v) ? Math.min(stats.maxSpeed, stats.limpSpeed) : stats.maxSpeed;
+  return dangerOf(world, foe) > 1 && !getsAway(world, playerVehicle(world), foe);
 }
 
 function demandYield(o: Orders, foe: Vehicle): boolean {

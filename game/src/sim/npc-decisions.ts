@@ -145,9 +145,8 @@ export function judgeDanger(world: World, observer: Vehicle, other: Vehicle): nu
   return strengthRatio(fightOddsAgainst(world, observer, other));
 }
 
-export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle): number {
-  const spread = NPC_BEHAVIOR.dangerSpread;
-  return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
+export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle, noise: number = randRange(world, 1 - NPC_BEHAVIOR.dangerSpread, 1 + NPC_BEHAVIOR.dangerSpread)): number {
+  return judgeDanger(world, observer, other) * noise;
 }
 
 export function dangerJoining(world: World, speaker: Vehicle, fighters: Vehicle[], friend: Vehicle, foes: Vehicle[]): number {
@@ -774,7 +773,7 @@ function weakFlee(world: World, vehicle: Vehicle): number {
   return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakFlee : 1;
 }
 
-function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+export function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
   if (!canDrive(world, vehicle)) return false;
   const odds = fightOddsAgainst(world, vehicle, foe);
   return odds.getaway > 0 && odds.getaway >= odds.win;
