@@ -115,6 +115,29 @@ const ROADSIDE_SIZES = [
   { model: 'barrel', long: 0.9, tall: 0.6 },
 ] as const;
 
+const CAR_WRECK_SIZES = [
+  { model: 'wreck', long: 5.2, tall: 1.65 },
+  { model: 'wreck_sedan', long: 5.1, tall: 1.4 },
+  { model: 'wreck_compact', long: 3.3, tall: 1.7 },
+  { model: 'wreck_wagon', long: 4.4, tall: 1.55 },
+] as const;
+
+describe('car wreck looks', () => {
+  it.each(CAR_WRECK_SIZES)('$model is about $long m long and $tall m tall', ({ model, long, tall }) => {
+    const boxes = shapeBoxes(model);
+    expect(Math.abs(lengthOf(boxes) - long)).toBeLessThanOrEqual(0.8);
+    expect(Math.abs(Math.max(...boxes.map((b) => b.z1)) - tall)).toBeLessThanOrEqual(0.5);
+  });
+
+  it.each(CAR_WRECK_SIZES)('keeps $model within the pickup reach, under eye height', ({ model }) => {
+    const reachOf = (name: string): number => Math.max(...shapeBoxes(name).flatMap((b) => [b.x0, b.x1].flatMap((x) => [b.y0, b.y1].map((y) => Math.hypot(x, y)))));
+    const boxes = shapeBoxes(model);
+    expect(reachOf(model)).toBeGreaterThanOrEqual(2.1);
+    expect(reachOf(model)).toBeLessThanOrEqual(reachOf('wreck'));
+    for (const b of boxes) expect(b.z1, JSON.stringify(b)).toBeLessThan(1.9);
+  });
+});
+
 describe('roadside model sizes', () => {
   it.each(ROADSIDE_SIZES)('$model is about $long m long and $tall m tall', ({ model, long, tall }) => {
     const boxes = shapeBoxes(model);

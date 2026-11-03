@@ -6,7 +6,7 @@ import { RULES } from '../data/rules';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { hulkBoxes } from './body';
 import { fromRoad, milestoneAt, outpostYardHalf, windowMilestones, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
-import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
+import { boxDistance, anyLookBoxes, propObstacle, type PosedBox } from './mapgen';
 import { hashRandom, nextRandom, randInt, randRange, type Rng } from './rng';
 import type { DeckSpec } from '../data/terrain';
 import type { PropKind } from './terrain';
@@ -329,7 +329,7 @@ function shapesOf(p: Local): Shape[] {
   let shapes = SHAPES.get(p);
   if (!shapes) {
     if (p.hulk) hulkBoxes(p.hulk, undefined);
-    shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : propBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
+    shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : anyLookBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
     SHAPES.set(p, shapes);
   }
   return shapes;
