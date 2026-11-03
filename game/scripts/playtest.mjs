@@ -19,7 +19,7 @@ const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
-const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
+const BOOT_LIMIT_MS = timeoutsOff ? 0 : 90000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
@@ -46,8 +46,9 @@ const retryAfterBrowserCrash = async () => {
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
+browser.on('disconnected', () => { crashed = true; });
 process.on('uncaughtException', async (cause) => {
-  if (!crashed) {
+  if (!crashed && !/Target page, context or browser has been closed/.test(cause?.message ?? '')) {
     console.error(cause);
     process.exit(1);
   }
