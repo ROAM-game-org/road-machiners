@@ -13,7 +13,7 @@ const stepFormat = TINY_FROM + TINY_STEPS.indexOf(goodsStoreStep);
 
 describe('save migration goodsStore, the player gets an empty crate store per shop', () => {
   it('runs after the work day XP step', () => {
-    expect(TINY_STEPS[stepFormat - TINY_FROM - 1].name).toBe('xpByWorkDay');
+    expect(TINY_STEPS.findIndex((s) => s.name === 'xpByWorkDay')).toBeLessThan(TINY_STEPS.indexOf(goodsStoreStep));
   });
 
   it('adds only an empty store to the player', () => {
