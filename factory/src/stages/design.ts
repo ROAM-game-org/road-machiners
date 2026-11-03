@@ -1,6 +1,6 @@
 import { moveCard } from '../card-events';
 import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, TASK_FILE, WONT_DO_LABEL, type Ctx } from '../types';
-import { pullSystemBundle, releaseBundle } from './bundle';
+import { releaseBundle } from './bundle';
 import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
 import { writeGroomedInput } from './groom';
 import { existsSync, readFileSync } from 'node:fs';
@@ -13,7 +13,6 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const baseNote = await catchUpBase(ctx, issue, base, 'design');
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
-  await pullSystemBundle(ctx, issue);
   await writeIssueInput(ctx, issue, home);
   writeGroomedInput(ctx, issue, home);
   const bugExpansion = await bugExpansionFor(ctx, issue);

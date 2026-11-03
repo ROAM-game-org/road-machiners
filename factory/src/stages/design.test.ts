@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runStage } from './design';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import { TASK_FILE, type AgentRun, type Card, type Ctx } from '../types';
+import { TASK_FILE, type AgentRun, type Ctx } from '../types';
 
 let home = '';
 let calls: string[] = [];
@@ -11,7 +11,6 @@ let labels: string[] = [];
 let bases: string[] = [];
 let caughtUp: { commit: string | null; conflicts: string[]; kept: string | null } = { commit: null, conflicts: [], kept: null };
 let merged = true;
-let board: Card[] = [];
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -22,7 +21,6 @@ beforeEach(() => {
   bases = [];
   caughtUp = { commit: null, conflicts: [], kept: null };
   merged = true;
-  board = [];
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
@@ -38,7 +36,6 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : 'Louder horn', body: number === 7 ? 'Add a horn' : 'Make it louder', labels, createdAt: '', state: 'OPEN', author: 'anna' }),
       comments: async () => [{ login: 'a', body: 'yes please', createdAt: '2026-09-30T08:00:00Z', byFactory: false }],
-      cards: async () => board,
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), close: record('close'), move: record('move'),
     },
     container: { agent: async (run: AgentRun) => { calls.push(run.prompt.startsWith('This is a merge round') ? 'agent base-merge' : 'agent design'); agent(run); } },
@@ -121,115 +118,6 @@ describe('design stage with a bundle', () => {
     expect(calls).toContain('removeLabel 9 bundled');
     expect(calls.at(-1)).toBe('move 9 Triage');
     expect(readState(`${home}/state.json`).bundles).toEqual({});
-  });
-});
-
-describe('design stage pulling same-system cards', () => {
-  const card = (issue: number, column: Card['column'], extra: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels: ['system:social', ...extra] });
-  const refuse = () => fakeCtx((run) => writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'No.\n'));
-  const withState = (change: Partial<ReturnType<typeof readState>>): void => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), ...change });
-  let input = '';
-  const reading = () => fakeCtx((run) => {
-    input = readFileSync(`${run.clone}/${run.dir}/.factory/issue.md`, 'utf8');
-    writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'No.\n');
-  });
-
-  it('pulls same-system Design cards into the lead, before the agent reads its input', async () => {
-    labels = ['system:social'];
-    board = [card(7, 'Design'), card(9, 'Design'), card(8, 'Design')];
-    await runStage(reading(), 7);
-    expect(calls).toContain('comment 9 Design bundled this into #7, which carries it from here: It is about the same game system, social, so one design covers them together.\n\nIt closes when #7 ships.');
-    expect(calls).toContain('addLabel 8 bundled');
-    expect(calls).toContain('move 9 Done');
-    expect(calls).toContain('comment 7 Design pulled in #8, #9, which are about the same game system, social. This card also carries them.');
-    expect(input).toContain('# Bundled issue #8');
-    expect(input).toContain('# Bundled issue #9');
-    expect(readState(`${home}/state.json`).designStarted).toEqual([7, 8, 9]);
-  });
-
-  it('finishes the moves of an earlier pull that stopped halfway, and pulls nothing new', async () => {
-    withState({ designStarted: [7, 8, 9], bundles: { '7': [8, 9] } });
-    labels = ['system:social'];
-    board = [card(7, 'Design'), { ...card(8, 'Done', ['bundled']) }, card(9, 'Design'), card(10, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls).toContain('move 9 Done');
-    expect(calls).toContain('comment 7 Design pulled in #9, which are about the same game system, social. This card also carries them.');
-    expect(calls).not.toContain('addLabel 8 bundled');
-    expect(calls.filter((call) => / 10 /.test(call))).toEqual([]);
-  });
-
-  it.each([
-    ['another system', { ...card(9, 'Design'), labels: ['system:economy'] }],
-    ['no system', { ...card(9, 'Design'), labels: [] }],
-    ['a later column', card(9, 'Implementation')],
-    ['a stuck label', card(9, 'Design', ['factory-stuck'])],
-    ['a place in Triage, like a card a released bundle sent back', card(9, 'Triage')],
-    ['a needs-info label', card(9, 'Design', ['needs-info'])],
-    ['a hotfix label', card(9, 'Design', ['hotfix'])],
-    ['an adhoc label', card(9, 'Design', ['adhoc'])],
-    ['another base', card(9, 'Design', ['release-task'])],
-  ])('leaves a card with %s alone', async (_why, other) => {
-    labels = ['system:social'];
-    board = [card(7, 'Design'), other];
-    await runStage(refuse(), 7);
-    expect(calls.filter((call) => / 9 /.test(call))).toEqual([]);
-  });
-
-  it.each([
-    ['started Design', () => withState({ designStarted: [9] })],
-    ['runs a job', () => withState({ jobs: [{ id: 'j9', issue: 9, stage: 'design', startedAt: '2026-09-30T09:00:00Z', log: 'j9.log', pid: 1 }] })],
-    ['is held', () => withState({ held: { '9': { by: 'x', reason: 'wait', at: '2026-09-30T09:00:00Z', stage: null } } })],
-    ['leads a bundle', () => withState({ bundles: { '9': [11] } })],
-  ])('leaves a card that %s alone', async (_why, setup) => {
-    setup();
-    labels = ['system:social'];
-    board = [card(7, 'Design'), card(9, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls.filter((call) => / 9 /.test(call))).toEqual([]);
-  });
-
-  it.each([
-    ['the system none', ['system:none']],
-    ['no system', []],
-    ['a hotfix label', ['system:social', 'hotfix']],
-  ])('pulls nothing into a lead with %s', async (_why, set) => {
-    labels = set;
-    board = [card(7, 'Design'), card(9, 'Design', set.filter((label) => label !== 'hotfix'))];
-    await runStage(refuse(), 7);
-    expect(calls.filter((call) => / 9 /.test(call))).toEqual([]);
-  });
-
-  it('fails loudly and names the card that carries two system labels', async () => {
-    labels = ['system:social'];
-    board = [card(7, 'Design'), card(9, 'Design', ['system:economy'])];
-    await expect(runStage(refuse(), 7)).rejects.toThrow('Issue #9 carries more than one system label: social, economy');
-  });
-
-  it('pulls nothing when the lead already started Design before, like on a redesign', async () => {
-    withState({ designStarted: [7] });
-    labels = ['system:social'];
-    board = [card(7, 'Design'), card(9, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls.filter((call) => / 9 /.test(call))).toEqual([]);
-  });
-
-  it('pulls a release task only into a release task', async () => {
-    labels = ['system:social', 'release-task'];
-    board = [card(7, 'Design', ['release-task']), card(9, 'Design', ['release-task']), card(8, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls).toContain('addLabel 9 bundled');
-    expect(calls).not.toContain('addLabel 8 bundled');
-  });
-
-  it('drops design-sonnet only when it pulled a card', async () => {
-    labels = ['system:social', 'design-sonnet'];
-    board = [card(7, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls).not.toContain('removeLabel 7 design-sonnet');
-    rmSync(`${home}/state.json`);
-    board = [card(7, 'Design'), card(9, 'Design')];
-    await runStage(refuse(), 7);
-    expect(calls).toContain('removeLabel 7 design-sonnet');
   });
 });
 

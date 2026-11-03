@@ -56,8 +56,7 @@ function queued(state: FactoryState): JobPick[] {
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
-  const carried = new Set(Object.values(state.bundles).flat());
-  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue) && !carried.has(card.issue));
+  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue));
 }
 
 function byProgress(state: FactoryState, cards: Card[]): JobPick[] {
