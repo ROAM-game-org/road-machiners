@@ -6,7 +6,7 @@ import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, standingBlock
 import { PHYSICS } from '../data/physics';
 import { vehicleStats } from './stats';
 import { topGoal } from './npc-activities';
-import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, startCombat, testDrive } from './testkit';
 import { addState } from './states';
 import { startEscort } from './tow';
 import type { Vehicle, World } from './types';
@@ -620,6 +620,13 @@ describe('meetings', () => {
 
     it('a follower at the same speed starts no meeting', () => {
       const { w, passer } = behind([2.1, 2.1]);
+      settleMeetings(w);
+      expect(passer.yieldsTo).toBeUndefined();
+    });
+
+    it('a driver closing on a truck it is fighting starts no meeting', () => {
+      const { w, passer, slow } = behind();
+      startCombat(w, passer, slow);
       settleMeetings(w);
       expect(passer.yieldsTo).toBeUndefined();
     });

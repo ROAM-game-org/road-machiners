@@ -492,7 +492,7 @@ function startMeeting(world: World, a: Vehicle, b: Vehicle): void {
   const aCloses = closesOn(world, a, b, 1);
   const bCloses = closesOn(world, b, a, 1);
   if (!aCloses && !bCloses) return;
-  if (aCloses !== bCloses && !sameWay(a, b)) return;
+  if (aCloses !== bCloses && (!sameWay(a, b) || inCombat(world, a) || inCombat(world, b))) return;
   const [giver, holder] = aCloses && bCloses ? (a.id < b.id ? [a, b] : [b, a]) : aCloses ? [a, b] : [b, a];
   giver.yieldsTo = [...(giver.yieldsTo ?? []), holder.id];
 }
