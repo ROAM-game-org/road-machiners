@@ -3,11 +3,11 @@ import { expect } from 'vitest';
 import { isShield, PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { baseModel, itemLookId, partModel } from '../../render/partLooks';
-import { bodyOf, cellRect, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
+import { bodyOf, cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
 import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { loadModels, model, type ModelName } from './models';
-import { armorPlacement } from './armorCut';
+import { ARMOR_SINK_ROWS, armorPlacement } from './armorCut';
 import { footprint, wouldFloat } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -141,6 +141,18 @@ function outermostBody(chassisId: string, item: PartItem, box: THREE.Box3, side:
   return best;
 }
 
+function outermostFace(chassisId: string, item: PartItem, box: THREE.Box3, side: string): number {
+  const probe = probeOf(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit), side);
+  const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
+  const whole = rawBox(probe.baseName);
+  const heights = steps(whole.min.y, whole.max.y);
+  let best = -Infinity;
+  for (const u of steps(lo, hi)) {
+    for (const y of heights) best = Math.max(best, reachAt(probe, u, y) ?? -Infinity);
+  }
+  return best;
+}
+
 function overhangOf(box: THREE.Box3, half: Half): number {
   return Math.max(0, box.max.x - half.x, -half.x - box.min.x, box.max.z - half.z, -half.z - box.min.z);
 }
@@ -153,9 +165,11 @@ function armorProblems(id: string, item: PartItem, under: PartItem[]): string[] 
   const snug = bodyHalf(unitBody(id, cellRect(id, itemCells(item)).unit).half, side) - TRUCK_LOOK.armorInset;
   const gap = inner - outermostBody(id, item, box, side);
   const depth = depthOf(box, side);
+  const faceGap = PARTS[item.part.defId].kind === 'armor' ? outermostFace(id, item, box, side) - inner : 0;
   return [
     inner > snug + EPS ? `${label}: inner face ${inner.toFixed(3)} past ${snug.toFixed(3)}` : '',
     gap > CLIP_TOLERANCE ? `${label}: ${gap.toFixed(3)} m of air between armor and body` : '',
+    faceGap > ARMOR_SINK_ROWS * cellSteps(id).row + EPS ? `${label}: ${faceGap.toFixed(3)} m behind the outermost body face` : '',
     depth < TRUCK_LOOK.armorDepth - EPS ? `${label}: ${depth.toFixed(3)} m deep, under ${TRUCK_LOOK.armorDepth}` : '',
   ].filter((problem) => problem !== '');
 }

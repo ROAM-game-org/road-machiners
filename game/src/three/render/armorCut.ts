@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { isShield, partDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
+import { cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { bodyFace } from './gunStand';
@@ -210,6 +210,8 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   return { pos, yaw, scale };
 }
 
+export const ARMOR_SINK_ROWS = 3;
+
 function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
@@ -222,10 +224,34 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
   const at = { pos, yaw: SIDE_YAW[side], scale };
-  const touch = nearestTouch(at, box, body, side, 2 * half.y);
-  if (touch === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
+  const rest = pos.y;
+  const found = nearestTouch(at, box, body, side, 2 * half.y);
+  if (found === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
+  const face = wholeFace(at, box, body, side);
+  const row = cellSteps(v.chassisId).row;
+  const touch = def.kind === 'armor' && found < face - ARMOR_SINK_ROWS * row ? dropToFace(at, box, body, side, rest, face - row, `${def.id} on side ${side} of ${v.chassisId}`) : found;
   pos[axis] += outward * (Math.min(0, outward * touch - snug) + overArmor(v, item, def));
   return at;
+}
+
+function wholeFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number {
+  const { axis, outward } = SIDE_FACE[side];
+  const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
+  const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
+  const whole = new THREE.Box3().setFromObject(body);
+  const face = bodyFace(body, axis, outward, lateral, [whole.min.y, whole.max.y]);
+  if (face === null) throw new Error(`The body has no face behind the armor on side ${side}`);
+  return face;
+}
+
+function dropToFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, rest: number, near: number, what: string): number {
+  const floor = new THREE.Box3().setFromObject(body).min.y;
+  for (let y = rest; y > floor; y -= CLIP_TOLERANCE) {
+    at.pos.y = y;
+    const touch = touchBehind(at, box, body, side);
+    if (touch !== null && touch >= near) return touch;
+  }
+  throw new Error(`Armor ${what} finds no height at its face`);
 }
 
 function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
