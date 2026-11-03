@@ -19,6 +19,10 @@ export function worldHuntingSpots(world: World): HuntingSpotsBake {
   return huntingSpots({ hash: world.mapHash, terrain: world.terrain });
 }
 
+export function mapHasCamps(world: World): boolean {
+  return atlasOf(world.terrain).oldSpots;
+}
+
 export type Claimant = { id: string; home: Vec; reach: number };
 
 export function turfClaimants(): Claimant[] {

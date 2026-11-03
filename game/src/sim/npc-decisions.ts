@@ -43,7 +43,7 @@ import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt } from './territory';
 import { seesDowned, seesStock, visibleDowned, visibleSalvage, workableSpots } from './loot-picks';
-import { divideTurf, turfClaimants, worldHuntingSpots } from './hunting-spots';
+import { divideTurf, mapHasCamps, turfClaimants, worldHuntingSpots } from './hunting-spots';
 import { addState, bindingStatesHeld, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { driveStats, isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
@@ -535,6 +535,7 @@ export function patrolPoints(site: Site): readonly Vec[] {
 }
 
 export function raiderPatrolPosts(world: World, camp: Site): readonly Vec[] {
+  if (!mapHasCamps(world)) return [];
   return campPosts(world, camp, roadStops(camp, HUNT.patrolPostSpacing), 'patrol');
 }
 

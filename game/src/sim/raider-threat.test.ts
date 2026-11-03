@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
-import { raiderGrounds, raiderPatrolPosts } from './npc-decisions';
+import { getKnownSite, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
 import { raiderPosts, threatAt, threatAlong, threatOfCount } from './raider-threat';
-import { emptyWorld } from './testkit';
+import { campWarmSteps } from './camp-warm';
+import { chaosHighwayWorld, emptyWorld } from './testkit';
 
 describe('raider threat steps', () => {
   it('maps post counts to steps', () => {
@@ -34,5 +35,17 @@ describe('raider posts', () => {
   it('reads a post itself as at least risky', () => {
     const w = emptyWorld();
     expect(threatAt(w, raiderPosts(w)[0])).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('a map without camps', () => {
+  it('has no camp posts, no warm steps and the lowest threat', () => {
+    const w = chaosHighwayWorld();
+    const kiln = getKnownSite('kiln');
+    expect(raiderGrounds(w, kiln)).toEqual([]);
+    expect(raiderPatrolPosts(w, kiln)).toEqual([]);
+    expect(campWarmSteps(w)).toEqual([]);
+    expect(raiderPosts(w)).toEqual([]);
+    expect(threatAt(w, { x: 400, y: 400 })).toBe(1);
   });
 });
