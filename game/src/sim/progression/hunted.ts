@@ -1,12 +1,10 @@
-import { NPC_BEHAVIOR, SPAWN } from '../../data/npcs';
+import { NPC_BEHAVIOR } from '../../data/npcs';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
-import { fightOdds } from '../fight-odds';
-import { strengthRatio } from '../npc-decisions';
-import { isAlly, isOutlaw } from '../relations';
+import { judgeDanger } from '../npc-decisions';
+import { isOutlaw } from '../relations';
 import { vehicleStats } from '../stats';
 import type { Vehicle, World } from '../types';
-import { dist } from '../vec';
 
 export const HUNT_MARGIN = 4;
 
@@ -26,7 +24,6 @@ function fastestHuntable(world: World): number | undefined {
 }
 
 export function huntable(world: World, foe: Vehicle): boolean {
-  const group = world.vehicles.filter((v) => v.id === foe.id || (!isKnockedOut(v) && dist(v.pos, foe.pos) <= SPAWN.neighborHelp && isAlly(world, v, foe)));
-  const danger = strengthRatio(fightOdds(world, [playerVehicle(world)], group)) * (1 + NPC_BEHAVIOR.dangerSpread);
+  const danger = judgeDanger(world, playerVehicle(world), foe) * (1 + NPC_BEHAVIOR.dangerSpread);
   return danger * HUNT_MARGIN <= 1;
 }
