@@ -270,6 +270,7 @@ export type Refusal =
   | { id: 'notAtDesk' }
   | { id: 'payBountiesFirst'; faction: StandingFactionId }
   | { id: 'noCargoRoom' }
+  | { id: 'storeFull'; cap: number }
   | { id: 'unhurt' }
   | { id: 'noSupplies' }
   | { id: 'noStock' }
@@ -534,6 +535,7 @@ export type Player = {
   discovered: string[];
   scavenged: string[];
   storage: PartInstance[];
+  storedGoods: Record<string, Record<string, number>>;
   contracts: Contract[];
   pastContracts: PastContract[];
   costBasis: Record<string, number>;
