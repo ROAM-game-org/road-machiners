@@ -318,7 +318,6 @@ export class GameMenu {
     else if (entry === "load") this.savePanel.openLoad();
     else if (entry === "unstuck") this.actions.unstuck.run();
     else if (entry === "options") this.options.open();
-
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
@@ -329,8 +328,8 @@ export class GameMenu {
 
   private toggleFullscreen(): void {
     this.closeList(false);
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen();
+    const change = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    change.catch(() => this.refresh());
     this.button.focus();
   }
 
