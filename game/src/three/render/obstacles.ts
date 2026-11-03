@@ -17,7 +17,7 @@ import type { V3, VehicleFrame } from '../../phys/frames';
 import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { dent } from './vehicle';
-import { instancedModel, model, socket, type ModelName } from './models';
+import { instancedModel, model, SHIP_GLOW_MATERIAL, socket, type ModelName } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
@@ -456,7 +456,7 @@ export function paintShipGlow(obj: THREE.Object3D): void {
 }
 
 function glowShipMaterial(m: THREE.MeshLambertMaterial): void {
-  if (m.name !== 'ship_glow') return;
+  if (m.name !== SHIP_GLOW_MATERIAL) return;
   m.emissive.setHex(PAL.shipGlow);
   m.emissiveIntensity = SHIP_GLOW.emissive;
   m.color.multiplyScalar(SHIP_GLOW.base);

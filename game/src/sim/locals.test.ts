@@ -255,13 +255,13 @@ describe('the lost wagon chain', () => {
     expect(choices(towed, 'bowl_hattie')).toEqual(expect.arrayContaining(['Tell me about the tow man.', 'Who stripped my truck?']));
   });
 
-  it('tells a towed driver the tow man found the truck in the badlands, and writes no world variable', () => {
+  it('tells a towed driver what the tag on the tow chain says, and writes no world variable', () => {
     const towed = parkedAt('bowl');
     towed.player.quests.world.towed_to_bowl = true;
 
     const asked = talk(towed, 'bowl_hattie', ['Tell me about the tow man.']);
 
-    expect(questView(asked, QUESTS).lines.map((l) => l.text).join(' ')).toContain('badlands');
+    expect(questView(asked, QUESTS).lines.map((l) => l.text).join(' ')).toContain('Pierce');
     expect(flatChoices(asked)).not.toContain('Tell me about the tow man.');
     expect(asked.player.quests.world).toEqual(towed.player.quests.world);
     expect(asked.player.notes).toEqual([]);

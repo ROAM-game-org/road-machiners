@@ -45,6 +45,7 @@ digraph public {
   answerJob [label="Answer job, one at a time\nat most FACTORY_ANSWERS_PER_DAY\nSonnet reads and runs\nthe game on main,\nreplies with its answer"];
   images [label="Its images and the replied\nperson's image, downloaded once\ninto the issue's media folder"];
   intake [label="Intake\nthen Triage"];
+  releaseTask [label="Task of the open release\nrelease.tasks, once a tick\nholds playtest, candidate and Ship"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
   rejected [label="Dropped as spam", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
@@ -54,13 +55,14 @@ digraph public {
   comment -> filter;
   feedback -> filter;
   plugin -> filter;
-  filter -> digest [label="about its thread, a report\nabout the change of a card's build,\nor a report from the candidate"];
+  filter -> digest [label="about its thread, a report\nabout the change of a card's build,\nor feedback on the candidate"];
   filter -> linked [label="off its thread or with none,\nabout known work"];
   linked -> digest;
-  filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
+  filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report, or a bug, feature,\npatch or redesign on the candidate"];
   filter -> answer [label="question"];
   filter -> answerJob [label="question"];
   newIssue -> intake;
+  newIssue -> releaseTask [label="from the candidate"];
   digest -> answer;
   newIssue -> answer;
   digest -> images;

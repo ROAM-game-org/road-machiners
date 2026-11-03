@@ -14,7 +14,7 @@ const FULL = 'abc1234'.padEnd(40, '5');
 const FULL2 = 'def5678'.padEnd(40, '6');
 const AT = { stage: 'verify' as const, issue: 5 };
 
-type Script = { reads: SuiteRun[]; log?: string; dispatch?: () => Promise<number>; minutesPerRead?: number };
+type Script = { reads: SuiteRun[]; log?: string; dispatch?: () => Promise<number>; minutesPerRead?: number; running?: number };
 
 function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string[] } {
   const dispatched: string[] = [];
@@ -35,6 +35,7 @@ function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string
         return next;
       },
       suiteLog: async () => script.log ?? '',
+      suitesRunning: async () => script.running ?? 0,
     },
   };
   return { ctx: ctx as unknown as Ctx, dispatched, logs };
@@ -96,6 +97,11 @@ describe('remoteSuite', () => {
   it('is a machine failure when the run does not start in time', async () => {
     const { ctx } = fakeCtx({ reads: Array(20).fill(RUN), minutesPerRead: 4 });
     await expect(remoteSuite(ctx, AT, 'abc1234')).rejects.toThrow(/did not start within 15 minutes/);
+  });
+
+  it('waits past the start limit while other suite runs hold the runners, since its run waits in the queue behind them', async () => {
+    const { ctx } = fakeCtx({ reads: [...Array(10).fill(RUN), { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }], minutesPerRead: 4, running: 2 });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
   });
 
   it('waits past the start limit for a run that started', async () => {
@@ -205,6 +211,13 @@ describe('the suite calls of the GitHub client', () => {
     const jobs = JSON.stringify({ jobs: [{ status: 'queued', steps: [] }] });
     const github = ghClient(apiFake([], { 'runs/77/jobs': jobs, 'runs/77': run }), CFG);
     expect(await github.suiteRun(77)).toEqual({ done: false, started: false, passed: false, testsFailed: false, conclusion: null, url: 'h' });
+  });
+
+  it('counts the suite runs in progress', async () => {
+    const calls: string[][] = [];
+    const github = ghClient(apiFake(calls, { 'status=in_progress': '{"total_count":2,"workflow_runs":[]}' }), CFG);
+    expect(await github.suitesRunning()).toBe(2);
+    expect(calls[0]).toEqual(['api', 'repos/o/r/actions/workflows/game-suite.yml/runs?status=in_progress&per_page=1']);
   });
 
   it('dispatches a rerun of some test files with its worker count', async () => {

@@ -4,7 +4,7 @@ import { t } from "../text/msg";
 import { el, panel } from "./dom";
 import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
-import { cameraSetting, type CameraMode } from "./camera-setting";
+import { cameraSetting, RENDER_SCALES, renderScaleSetting, type CameraMode, type RenderScale } from "./camera-setting";
 import { minimapSetting } from "./minimap-setting";
 import { soundSection, type SoundSettings, type SoundView } from "./sound";
 import { UI_SIZES, uiSize } from "./ui-size";
@@ -20,6 +20,7 @@ export class OptionsPanel {
   private sizeSwitch: OptionSwitch<number> | null = null;
   private minimapSwitch: OptionSwitch<boolean> | null = null;
   private cameraSwitch: OptionSwitch<CameraMode> | null = null;
+  private renderScaleSwitch: OptionSwitch<RenderScale> | null = null;
   private soundView: SoundView | null = null;
 
   constructor(private readonly sound: SoundSettings, private readonly onClose?: () => void) {}
@@ -42,9 +43,11 @@ export class OptionsPanel {
     this.minimapSwitch = this.minimap(minimapSection);
     const cameraSection = el("section", { class: "options-camera" }, el("h4", {}, t("options.camera")));
     this.cameraSwitch = this.camera(cameraSection);
+    const renderScaleSection = el("section", { class: "options-render-scale" }, el("h4", {}, t("options.renderScale")));
+    this.renderScaleSwitch = this.renderScale(renderScaleSection);
     this.soundView = soundSection(this.sound);
     const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, renderScaleSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
@@ -90,6 +93,20 @@ export class OptionsPanel {
     });
   }
 
+  private renderScale(parent: HTMLElement): OptionSwitch<RenderScale> {
+    const setting = renderScaleSetting();
+    return new OptionSwitch(parent, {
+      label: t("options.renderScale"),
+      choices: RENDER_SCALES.map((scale) => ({ value: scale, label: t("setting.percent", { n: Math.round(scale * 100) }) })),
+      current: () => setting.scale(),
+      pick: (scale) => setting.set(scale),
+      off: () => null,
+      subscribe: (fn) => setting.subscribe(fn),
+      rootClass: "render-scale-switch",
+      buttonClass: "num",
+    });
+  }
+
   close(): void {
     if (!this.root) return;
     this.root.remove();
@@ -98,13 +115,19 @@ export class OptionsPanel {
     this.languageSwitch = null;
     this.sizeSwitch?.dispose();
     this.sizeSwitch = null;
+    this.disposeViewSwitches();
+    this.soundView?.dispose();
+    this.soundView = null;
+    window.removeEventListener("keydown", this.onKey, true);
+  }
+
+  private disposeViewSwitches(): void {
     this.minimapSwitch?.dispose();
     this.minimapSwitch = null;
     this.cameraSwitch?.dispose();
     this.cameraSwitch = null;
-    this.soundView?.dispose();
-    this.soundView = null;
-    window.removeEventListener("keydown", this.onKey, true);
+    this.renderScaleSwitch?.dispose();
+    this.renderScaleSwitch = null;
   }
 
   private dismiss(): void {

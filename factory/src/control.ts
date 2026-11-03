@@ -10,13 +10,15 @@ import { withStatus } from './post-status';
 import { dropReplyMedia } from './reply-media';
 import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
-import { agentHome, workDir } from './stages/common';
+import { ownWorkSettled } from './stages/card-suite';
+import { agentHome, baseBranchFor, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
+import { claimReleaseTask, taskRefusal } from './stages/release-common';
 import { invalidateApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
-import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
+import { BRANCH, GAME_DIR, HOTFIX_LABEL, NEEDS_INFO_LABEL, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
 export const DROP_QUEUES = ['approval', 'removal', 'ship', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
@@ -29,7 +31,8 @@ export type ControlAction =
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number };
+  | { action: 'unhold'; issue: number }
+  | { action: 'enroll'; issue: number };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -76,7 +79,9 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
-  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),};
+  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
+  enroll: (data) => ({ action: 'enroll', issue: requireNumber(data, 'issue') }),
+};
 
 export function parseControl(raw: unknown): ControlCommand {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('A control command must be a JSON object.');
@@ -114,7 +119,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,
+  move, merge, ship, cut, remove, drop, enroll,
   hold: async (ctx, command, by) => ({ issue: command.issue, text: await holdCard(ctx, command.issue, by, command.reason) }),
   unhold: async (ctx, command) => ({ issue: command.issue, text: releaseHold(ctx, command.issue) }),
 };
@@ -196,6 +201,7 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
     pendingApprovals: omitKey(state.pendingApprovals, key),
     approvedResolving: dropsApproval ? omitKey(state.approvedResolving, key) : state.approvedResolving,
     unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.issue !== issue)),
+    proposalPosts: Object.fromEntries(Object.entries(state.proposalPosts).filter(([, number]) => number !== issue)),
     failures: withoutFailuresOf(state.failures, issue),
   };
 }
@@ -257,14 +263,30 @@ async function relocate(ctx: Ctx, card: Card, needs: Need[], plan: Relocation): 
   await clearFlags(ctx, card);
 }
 
+async function hardenFirst(ctx: Ctx, card: Card): Promise<boolean> {
+  await requireBranch(ctx, card.issue);
+  return !(await ownWorkSettled(ctx, card.issue, baseBranchFor(ctx, card.labels)));
+}
+
+const HARDEN_FIRST = 'Its head has no green full suite, so it goes to Hardening first. Hardening runs the suite and then moves it to Merging.';
+
 async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' }>, by: string): Promise<Outcome> {
-  const { issue, to } = command;
+  const { issue } = command;
   const card = await requireWorkCard(ctx, issue);
+  if (command.to === 'merging' && await hardenFirst(ctx, card)) {
+    const moved = await moveTo(ctx, card, 'harden', command.reason, by);
+    return { ...moved, text: `Moved to harden. ${HARDEN_FIRST}` };
+  }
+  return moveTo(ctx, card, command.to, command.reason, by);
+}
+
+async function moveTo(ctx: Ctx, card: Card, to: MoveTarget, reason: string, by: string): Promise<Outcome> {
+  const { issue } = card;
   const key = String(issue);
   await relocate(ctx, card, NEEDS[to] ?? [], {
     column: COLUMN[to],
     step: to === 'done' ? 'dropped' : 'moved',
-    status: `↪️ Moved to ${to} by ${by}: ${command.reason}`,
+    status: `↪️ Moved to ${to} by ${by}: ${reason}`,
     dropsApproval: DROPS_APPROVAL.includes(to),
     enter: (state) => {
       const posted = to === 'approval' ? { ...state, postOnly: [...state.postOnly, issue] } : state;
@@ -272,8 +294,8 @@ async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' 
       return APPROVES.includes(to) && !isApproved(kept, card) ? { ...kept, approvedResolving: { ...kept.approvedResolving, [key]: by } } : kept;
     },
   });
-  if (to === 'done') await closeCard(ctx, issue, `Dropped by ${by}: ${command.reason}`, 'dropped');
-  else if (to !== 'verify') await invalidateApproval(ctx, issue, `${by} moved the card to ${to}: ${command.reason}`);
+  if (to === 'done') await closeCard(ctx, issue, `Dropped by ${by}: ${reason}`, 'dropped');
+  else if (to !== 'verify') await invalidateApproval(ctx, issue, `${by} moved the card to ${to}: ${reason}`);
   return { issue, text: `Moved to ${to}.` };
 }
 
@@ -285,6 +307,10 @@ function keptHold(held: FactoryState['held'], key: string, to: MoveTarget): Fact
 async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge' }>, by: string): Promise<Outcome> {
   const { issue } = command;
   const card = await requireWorkCard(ctx, issue);
+  if (await hardenFirst(ctx, card)) {
+    const moved = await moveTo(ctx, card, 'harden', command.reason, by);
+    return { ...moved, text: `Moved to harden. ${HARDEN_FIRST}` };
+  }
   const key = String(issue);
   await relocate(ctx, card, [requireBranch], {
     column: 'Merging',
@@ -329,11 +355,11 @@ async function remove(ctx: Ctx, command: Extract<ControlCommand, { action: 'remo
   return { issue: command.issue, text: queueRemoval(ctx, command.issue, by, command.reason, true) };
 }
 
-async function cut(ctx: Ctx): Promise<Outcome> {
+async function cut(ctx: Ctx, _command: Extract<ControlCommand, { action: 'cut' }>, by: string): Promise<Outcome> {
   const release = readState(ctx.statePath).release;
   if (release !== null) throw new Error(`Release ${release.day} is open on #${release.issue}. Ship it before a new cut.`);
-  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: null }));
-  return { issue: null, text: 'A release cut is due. It starts on a coming tick.' };
+  updateState(ctx.statePath, (state) => ({ ...state, pendingCut: by }));
+  return { issue: null, text: 'A release cut is ordered. It starts on a coming tick.' };
 }
 
 type Drop = { has: (state: FactoryState, id: number) => boolean; without: (state: FactoryState, id: number) => FactoryState };
@@ -362,4 +388,40 @@ async function drop(ctx: Ctx, command: Extract<ControlCommand, { action: 'drop' 
   if (!DROPS[queue].has(readState(ctx.statePath), entry)) throw new Error(`The ${name} is not there.`);
   updateState(ctx.statePath, (state) => DROPS[queue].without(state, entry));
   return { issue: ISSUE_QUEUES.includes(queue) ? id : null, text: `Dropped the ${name}.` };
+}
+
+function enrollRefusal(card: Card): string | null {
+  if (card.column === 'Done') return 'its card is Done, so its change is already settled. Open a release task for any fix the release still needs';
+  if (card.labels.includes(RELEASE_LABEL)) return 'it is the release tracking issue';
+  if (card.labels.includes(HOTFIX_LABEL)) return 'it is a hotfix, which ships to main on its own and meets the release at its Ship';
+  if (card.labels.includes(VOTING_LABEL)) return 'it waits for player votes, so it is no fix yet';
+  return null;
+}
+
+async function enroll(ctx: Ctx, command: Extract<ControlCommand, { action: 'enroll' }>, by: string): Promise<Outcome> {
+  const card = await requireCard(ctx, command.issue);
+  const claim = claimReleaseTask(ctx, card.issue, openReleaseIssue(ctx, card), (state) => taskRefusal(state) ?? mergingRefusal(state, card));
+  if ('refusal' in claim) throw enrollError(card, claim.refusal);
+  const { release, added } = claim;
+  if (added) await ctx.github.comment(release.issue, `#${card.issue} is now a task of this release, ordered by ${by}: ${command.reason}\n\nIt was already filed, so no new issue was opened. Any current candidate post no longer ships. The playtest, a new candidate and Ship wait until its approved change is on ${release.branch} or it is refused.`);
+  return { issue: card.issue, text: enrolledText(card, release, added) };
+}
+
+const enrollError = (card: Card, refusal: string): Error => new Error(`Issue #${card.issue} cannot become a task of the open release: ${refusal}.`);
+
+function openReleaseIssue(ctx: Ctx, card: Card): number {
+  const refusal = enrollRefusal(card);
+  if (refusal !== null) throw enrollError(card, refusal);
+  const { release } = readState(ctx.statePath);
+  if (release === null) throw enrollError(card, 'no release is open');
+  return release.issue;
+}
+
+const mergingRefusal = (state: FactoryState, card: Card): string | null => (isMerging(state, card) ? 'it is merging now. Repeat the order after the merge job ends' : null);
+
+function enrolledText(card: Card, release: ReleaseState, added: boolean): string {
+  const already = added ? 'is now' : 'was already';
+  if (card.labels.includes(RELEASE_TASK_LABEL)) return `#${card.issue} ${already} a task of release ${release.day}, and it runs on ${release.branch}.`;
+  if (card.column === 'Triage') return `#${card.issue} ${already} a task of release ${release.day}. A ready verdict of triage runs it as a fix of that release, on ${release.branch}.`;
+  return `#${card.issue} ${already} a task of release ${release.day}. It keeps its column, branch, work and agent sessions, and goes on from dev with the committee approval as before. When the merge job lands its approved change on dev, it ports that change onto ${release.branch} with the full merge checks, and only then is the card done. The playtest, a new candidate and Ship wait for it.`;
 }

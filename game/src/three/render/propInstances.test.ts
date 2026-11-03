@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { initPhysics } from '../../phys/drive';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
-import { loadModels, model } from './models';
+import { instancedModel, loadModels, model, outlineProps, type ModelName } from './models';
 import { buildProp, ObstacleViews } from './obstacles';
 import { RenderScope, SightLimit } from './scope';
-import { PropInstances } from './propInstances';
+import { instancedProp, PropInstances } from './propInstances';
 import { buildCells, buildingOnSync } from '../../test/cells';
 import { ICARUS_KEY } from '../../sim/atlas';
 
@@ -69,6 +69,49 @@ function zeroInstances(mesh: THREE.InstancedMesh): number {
     if (m.elements.every((e) => e === 0)) zero++;
   }
   return zero;
+}
+
+function pointsOf(meshes: THREE.InstancedMesh[]): { count: number; box: THREE.Box3; sum: THREE.Vector3 } {
+  const box = new THREE.Box3();
+  const sum = new THREE.Vector3();
+  const at = new THREE.Matrix4();
+  const point = new THREE.Vector3();
+  let count = 0;
+  for (const mesh of meshes) {
+    mesh.getMatrixAt(0, at);
+    const position = mesh.geometry.getAttribute('position');
+    const index = mesh.geometry.index;
+    const total = index ? index.count : position.count;
+    for (let n = 0; n < total; n++) {
+      point.fromBufferAttribute(position, index ? index.getX(n) : n).applyMatrix4(at);
+      box.expandByPoint(point);
+      sum.add(point);
+      count++;
+    }
+  }
+  return { count, box, sum };
+}
+
+function outlineSums(group: THREE.Group): { count: number; position: THREE.Vector3; normal: THREE.Vector3 } {
+  const position = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const at = new THREE.Matrix4();
+  const plain = new THREE.Matrix3();
+  const point = new THREE.Vector3();
+  let count = 0;
+  for (const mesh of group.children as THREE.InstancedMesh[]) {
+    const outline = mesh.children.find((c): c is THREE.InstancedMesh => c.userData.outline === true);
+    if (!outline) throw new Error('A prop mesh has no outline');
+    mesh.getMatrixAt(0, at);
+    plain.setFromMatrix4(at);
+    const [p, n] = [outline.geometry.getAttribute('position'), outline.geometry.getAttribute('normal')];
+    for (let i = 0; i < p.count; i++) {
+      position.add(point.fromBufferAttribute(p, i).applyMatrix4(at));
+      normal.add(point.fromBufferAttribute(n, i).applyMatrix3(plain));
+    }
+    count += p.count;
+  }
+  return { count, position, normal };
 }
 
 describe('PropInstances', () => {
@@ -145,26 +188,119 @@ describe('PropInstances', () => {
     expect(counts.length).toBeGreaterThan(meshesOf(build().root, 'scope-chunk-0-0').length);
   });
 
-  it('draws 30 fort walls as one instanced mesh per material piece, whatever the count', () => {
-    const wall = (i: number): Landmark => ({ ...tree(`fortPatchworkWall-${i}`, 2 + i, 5), look: 'fortPatchworkWall' });
-    const draw = (n: number): THREE.InstancedMesh[] => {
-      const root = new THREE.Group();
-      const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
-      new PropInstances(scope, flat(), Array.from({ length: n }, (_, i) => wall(i)), same);
-      buildCells(scope);
-      return meshesOf(root, 'scope-chunk-0-0');
-    };
+  function drawn(look: string, n: number): THREE.InstancedMesh[] {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+    const props = Array.from({ length: n }, (_, i) => ({ ...tree(`${look}-${i}`, 2 + i, 5), look }) as Landmark);
+    new PropInstances(scope, flat(), props, same);
+    buildCells(scope);
+    return meshesOf(root, 'scope-chunk-0-0');
+  }
 
-    const few = draw(2);
-    const many = draw(30);
-
-    expect(many.length).toBe(few.length);
-    let pieces = 0;
-    model('fort_patchwork_wall').traverse((o) => {
-      if (o instanceof THREE.Mesh) pieces++;
+  function partsOf(name: ModelName): THREE.Mesh[] {
+    const out: THREE.Mesh[] = [];
+    model(name).traverse((o) => {
+      if (o instanceof THREE.Mesh) out.push(o);
     });
-    expect(many).toHaveLength(pieces);
-    expect(many.map((m) => m.count)).toEqual(many.map(() => 30));
+    return out;
+  }
+
+  it('draws 30 fort walls as one merged instanced mesh, whatever the count', () => {
+    const few = drawn('fortPatchworkWall', 2);
+    const many = drawn('fortPatchworkWall', 30);
+
+    expect(partsOf('fort_patchwork_wall').length).toBeGreaterThan(1);
+    expect(few).toHaveLength(1);
+    expect(many).toHaveLength(1);
+    expect(many[0].count).toBe(30);
+  });
+
+  it('keeps the glowing part of a tower apart from the merged parts', () => {
+    const meshes = drawn('fortPatchworkTower', 3);
+    const parts = partsOf('fort_patchwork_tower');
+    const glowing = parts.filter((p) => (p.material as THREE.MeshLambertMaterial).emissive.getHex() !== 0);
+
+    expect(glowing).toHaveLength(1);
+    expect(meshes).toHaveLength(2);
+    const [merged, lit] = meshes;
+    expect((merged.material as THREE.MeshLambertMaterial).vertexColors).toBe(true);
+    expect(merged.geometry.getAttribute('color')).toBeDefined();
+    expect((lit.material as THREE.MeshLambertMaterial).emissive.getHex()).not.toBe(0);
+    expect((lit.material as THREE.MeshLambertMaterial).vertexColors).toBe(false);
+    expect(lit.geometry.getAttribute('color')).toBeUndefined();
+  });
+
+  it('writes the color of every plain part into the vertices of the merged mesh', () => {
+    const [merged] = drawn('fortPatchworkTower', 1);
+    const colors = merged.geometry.getAttribute('color');
+    const seen = new Set<number>();
+    for (let i = 0; i < colors.count; i++) seen.add(new THREE.Color(colors.getX(i), colors.getY(i), colors.getZ(i)).getHex());
+    const wanted = new Set(
+      partsOf('fort_patchwork_tower')
+        .map((p) => p.material as THREE.MeshLambertMaterial)
+        .filter((m) => m.emissive.getHex() === 0)
+        .map((m) => m.color.getHex()),
+    );
+
+    expect(wanted.size).toBeGreaterThan(1);
+    expect(seen).toEqual(wanted);
+  });
+
+  it('gives the merged mesh the outline its separate parts had, each part welded alone', () => {
+    const placement = new THREE.Matrix4().makeTranslation(3, 1, 2).multiply(new THREE.Matrix4().makeRotationY(0.7).scale(new THREE.Vector3(1.3, 0.8, 1.1)));
+    const merged = instancedProp('fort_patchwork_wall', [placement], same);
+    const separate = instancedModel('fort_patchwork_wall', [placement], [1], (m) => m);
+    outlineProps(merged);
+    outlineProps(separate);
+
+    const together = outlineSums(merged);
+    const apart = outlineSums(separate);
+
+    expect(merged.children).toHaveLength(1);
+    expect(separate.children.length).toBeGreaterThan(1);
+    expect(together.count).toBe(apart.count);
+    expect(together.position.distanceTo(apart.position)).toBeLessThan(1e-2);
+    expect(together.normal.distanceTo(apart.normal)).toBeLessThan(1e-2);
+  });
+
+  it('merges the parts into the same shape the separate parts make', () => {
+    const placement = new THREE.Matrix4().makeTranslation(3, 1, 2).multiply(new THREE.Matrix4().makeRotationY(0.7));
+    const merged = instancedProp('fort_patchwork_wall', [placement], same);
+    const separate = instancedModel('fort_patchwork_wall', [placement], [1], (m) => m);
+
+    const together = pointsOf(merged.children as THREE.InstancedMesh[]);
+    const apart = pointsOf(separate.children as THREE.InstancedMesh[]);
+
+    expect(separate.children.length).toBeGreaterThan(1);
+    expect(together.count).toBe(apart.count);
+    expect(together.box.min.distanceTo(apart.box.min)).toBeLessThan(1e-4);
+    expect(together.box.max.distanceTo(apart.box.max)).toBeLessThan(1e-4);
+    expect(together.sum.distanceTo(apart.sum)).toBeLessThan(1e-2);
+  });
+
+  it('hides and shows every mesh of a prop that has a glowing part', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+    const towers = ['a', 'b'].map((s, i) => ({ ...tree(`tower-${s}`, 3 + i, 5), look: 'fortPatchworkTower' }) as Landmark);
+    const props = new PropInstances(scope, flat(), towers, same);
+    buildCells(scope);
+    const meshes = meshesOf(root, 'scope-chunk-0-0');
+    const standing = matricesOf(meshes);
+
+    props.hide('tower-a');
+    const hidden = meshes.map(zeroInstances);
+    props.show('tower-a');
+
+    expect(meshes).toHaveLength(2);
+    expect(hidden).toEqual([1, 1]);
+    expect(matricesOf(meshes)).toEqual(standing);
+  });
+
+  it('gives every instance of every mesh the neutral tint', () => {
+    for (const mesh of drawn('fortPatchworkTower', 3)) {
+      const tint = new THREE.Color();
+      for (let i = 0; i < mesh.count; i++) expect(mesh.getColorAt(i, tint).getHex()).toBe(0xffffff);
+    }
   });
 
   it('keeps a withdrawn slot hidden for good', () => {
@@ -192,24 +328,20 @@ describe('PropInstances', () => {
 
   it('puts each instance where a per-prop copy of the same model stands', () => {
     const { root } = build();
-    const single = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, true);
-    const probe = new THREE.Group();
     const lone = buildProp(flat(), TREES[1]);
     lone.updateMatrixWorld(true);
-    probe.add(lone);
-    const pieces: THREE.Matrix4[] = [];
-    lone.traverse((o) => {
-      if (o instanceof THREE.Mesh) pieces.push(o.matrixWorld.clone());
-    });
     const batched = meshesOf(root, 'scope-chunk-0-0');
     const at = new THREE.Matrix4();
-
-    expect(single).toBeDefined();
-    expect(batched).toHaveLength(pieces.length);
-    batched.forEach((mesh, i) => {
+    const placed = new THREE.Box3();
+    for (const mesh of batched) {
       mesh.getMatrixAt(1, at);
-      at.elements.forEach((e, k) => expect(e).toBeCloseTo(pieces[i].elements[k], 4));
-    });
+      mesh.geometry.computeBoundingBox();
+      placed.union(new THREE.Box3().copy(mesh.geometry.boundingBox as THREE.Box3).applyMatrix4(at));
+    }
+    const standing = new THREE.Box3().setFromObject(lone);
+
+    expect(placed.min.distanceTo(standing.min)).toBeLessThan(1e-3);
+    expect(placed.max.distanceTo(standing.max)).toBeLessThan(1e-3);
   });
 });
 

@@ -15,6 +15,7 @@ import { instancedModel, model, type ModelName } from './models';
 import type { RenderScope } from './scope';
 import type { PlayClock } from '../play-clock';
 import { SiteMotion, type Motion } from './site-motion';
+import { mergeStaticMeshes } from './siteMerge';
 import { buildBowl } from './interiors/bowl';
 import { buildCamp } from './interiors/camp';
 import { buildDustwell } from './interiors/dustwell';
@@ -156,6 +157,9 @@ export class SiteBuilder {
     const group = instancedModel(name, placements, placements.map(() => 1), (m) => m);
     this.root.add(group);
     return group;
+  }
+  mergeStatic(kept: readonly THREE.Object3D[]): void {
+    mergeStaticMeshes(this.root, kept, new THREE.Vector3(this.site.pos.x * S, this.groundAt(0, 0) * S, this.site.pos.y * S));
   }
   offRoad(x: number, z: number, clearance: number): void {
     const pos = { x: this.site.pos.x + x, y: this.site.pos.y + z };
@@ -503,7 +507,7 @@ function resolveLights(b: SiteBuilder, site: Site, t: Terrain): SiteLight[] {
   return lights;
 }
 
-function buildSite(t: Terrain, site: Site): BuiltSite {
+function buildSite(t: Terrain, site: Site, merge = true): BuiltSite {
   const b = new SiteBuilder(t, site);
   const decor = SITE_DECOR[siteLook(site)];
   if (decor === undefined) throw new Error(`Missing landmark model for ${siteLook(site)}`);
@@ -511,6 +515,7 @@ function buildSite(t: Terrain, site: Site): BuiltSite {
   closeSite(b, site, t);
   const lights = resolveLights(b, site, t);
   const lamps = lightNights(b, site);
+  if (merge) b.mergeStatic([...b.movers.map((m) => m.node), ...b.lamps, ...b.fixtures.map((f) => f.head)]);
   b.root.traverse((o) => {
     o.updateMatrix();
     o.matrixAutoUpdate = false;
@@ -534,13 +539,13 @@ const DECK_MODELS = [
   { id: 'broken-wing', build: buildWingDeck },
 ] as const;
 
-export function buildSites(t: Terrain): BuiltSite {
+export function buildSites(t: Terrain, merge = true): BuiltSite {
   const root = new THREE.Group();
   const movers: Mover[] = [];
   const lights: SiteLight[] = [];
   const lamps: PoolLamp[] = [];
   for (const site of sitesOf(t)) {
-    const built = buildSite(t, site);
+    const built = buildSite(t, site, merge);
     root.add(built.root);
     movers.push(...built.movers);
     lights.push(...built.lights);
@@ -604,6 +609,7 @@ export class HollowLamps {
       const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
       const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
       for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
+      builder.mergeStatic(builder.lamps);
       return builder.root;
     });
   }

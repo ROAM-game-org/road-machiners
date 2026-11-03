@@ -665,7 +665,7 @@ describe('the bot in a fight', () => {
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
-      const x = structuredClone(w);
+      const x = cloneWorld(w);
       x.rngState = Math.imul(i + 1, 2654435761);
       return playerVehicle(botOrders(x, 'trader').world).order;
     });
