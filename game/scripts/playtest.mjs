@@ -71,7 +71,7 @@ if (!bootGone) {
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
   process.exit(1);
 }
-await page.screenshot({ path: '.playtest/start.png' });
+await afterCrashRetry(() => page.screenshot({ path: '.playtest/start.png', timeout: BOOT_LIMIT_MS }));
 
 const hitProblems = [];
 const findDeadCorners = () => {
