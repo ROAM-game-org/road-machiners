@@ -52,9 +52,8 @@ The escort plays as an NPC guard would.
 
 - Auto fire is on while no hostile is in sight.
 - With no hostile in sight, it holds the escort spot beside the hauler. `followSpot()` in `src/sim/tow.ts` gives the spots. It takes the first one clear of props and trucks, right, left, then behind, so it never steers into a roadblock beside the hauler.
-- With a hostile in sight, it fights the deadliest one with the NPC merc fight code, with its follow spot beside the hauler as its post. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code. It picks fight spots only within `escortWaitGap` of its post and holds the post for a foe out of reach, so it fights beside the hauler. The deadliest is the one with the most working gun damage per cab HP, weighed down when it is out of its own range of the escort and the hauler, and doubled when it shot the hauler last turn. It keeps its target until another is half again as deadly.
-- It focuses fire: every gun that reaches the target shoots it, and the others shoot the nearest hostile they reach.
-- It stands just outside the range of the foe's deadliest gun when its own guns reach further, and at 60% of its own range when they do not. It never drives into the foe.
+- With a hostile in sight, it fights the nearest one with the NPC merc fight code, with its follow spot beside the hauler as its post. `computeFightGoal()` and `fightOrder()` in `src/sim/ai.ts` hold that code. A foe already inside its gun range is fought where it stands. For a farther foe it picks fight spots only within `escortWaitGap` of its post and holds the post when none is in reach, so it fights beside the hauler. Auto fire does the shooting and aims at the body, as for every NPC.
+- It fights with auto fire on, the way an NPC gunner does, and drives with the NPC merc fight code: `computeFightGoal()` and `fightOrder()` in `src/sim/ai.ts`, through `asFighter()` in `src/sim/progression/fighter.ts`.
 - It drives back to the escort spot when it falls behind the hauler along the road by more than its longest gun range.
 - It douses a hot engine at the heat warning.
 - It turns auto repair off while the tank is holed. It parks and patches the tank first, since auto repair ranks the tank last.
