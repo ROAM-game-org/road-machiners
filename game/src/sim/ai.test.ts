@@ -581,10 +581,74 @@ describe('meetings', () => {
     expect(low.yieldsTo).toBeUndefined();
   });
 
-  it('a stored role with the giver id above the holder id throws', () => {
+  it('two trucks that list each other as giver throw', () => {
+    const { w, low, high } = faceOff('lowFirst');
+    low.yieldsTo = [high.id];
+    high.yieldsTo = [low.id];
+    expect(() => settleMeetings(w)).toThrow(/yield to each other/);
+  });
+
+  it('a stored role with the giver id above the holder id is a legal overtake', () => {
     const { w, low, high } = faceOff('lowFirst');
     high.yieldsTo = [low.id];
-    expect(() => settleMeetings(w)).toThrow();
+    settleMeetings(w);
+    expect(high.yieldsTo).toEqual([low.id]);
+  });
+
+  describe('overtakes', () => {
+    function behind(bothSpeeds: [number, number] = [4.5, 2.1]): { w: World; passer: Vehicle; slow: Vehicle } {
+      const w = emptyWorld({ x: 100, y: 130 });
+      const slow = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 107, y: 100 }, 0);
+      const passer = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 }, 0);
+      slow.brain = npcBrain('trader', slow.pos, ['trader']);
+      passer.brain = npcBrain('trader', passer.pos, ['trader']);
+      [passer.speed, slow.speed] = bothSpeeds;
+      passer.order = { kind: 'through', dest: { x: 170, y: 100 } };
+      slow.order = { kind: 'through', dest: { x: 170, y: 100 } };
+      if (passer.id < slow.id) [passer.id, slow.id] = [slow.id, passer.id];
+      return { w, passer, slow };
+    }
+
+    it('a driver closing on a slower truck ahead gives way to it whatever their ids', () => {
+      const { w, passer, slow } = behind();
+      settleMeetings(w);
+      expect(givesWayTo(w, passer, slow)).toBe(true);
+      expect(givesWayTo(w, slow, passer)).toBe(false);
+      expect(routeBlockers(w, passer).some((b) => dist(b.pos, slow.pos) < 0.5)).toBe(true);
+      expect(routeBlockers(w, slow).some((b) => dist(b.pos, passer.pos) < 0.5)).toBe(false);
+    });
+
+    it('a follower at the same speed starts no meeting', () => {
+      const { w, passer } = behind([2.1, 2.1]);
+      settleMeetings(w);
+      expect(passer.yieldsTo).toBeUndefined();
+    });
+
+    it('the meeting holds while the passer is alongside and parallel', () => {
+      const { w, passer, slow } = behind();
+      settleMeetings(w);
+      passer.pos = { x: 107, y: 104 };
+      settleMeetings(w);
+      expect(givesWayTo(w, passer, slow)).toBe(true);
+      expect(routeBlockers(w, passer).some((b) => dist(b.pos, slow.pos) < 0.5)).toBe(true);
+    });
+
+    it('the meeting ends once the passer is ahead and neither closes on the other', () => {
+      const { w, passer, slow } = behind();
+      settleMeetings(w);
+      passer.pos = { x: 125, y: 102 };
+      settleMeetings(w);
+      expect(passer.yieldsTo).toBeUndefined();
+    });
+
+    it('the meeting ends when the slower truck turns away and they part', () => {
+      const { w, passer, slow } = behind();
+      settleMeetings(w);
+      slow.pos = { x: 112, y: 160 };
+      slow.heading = Math.PI / 2;
+      settleMeetings(w);
+      expect(passer.yieldsTo).toBeUndefined();
+    });
   });
 
   it('the player on a route follows the same role', () => {

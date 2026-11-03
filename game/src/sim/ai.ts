@@ -452,7 +452,7 @@ function endMeetings(world: World, giver: Vehicle, live: ReadonlyMap<string, Veh
   if (!giver.yieldsTo) return;
   const kept = giver.yieldsTo.filter((id) => {
     const holder = live.get(id);
-    if (holder && holder.id < giver.id) throw new Error(`${giver.id} yields to ${holder.id}, which has the lower id`);
+    if (holder?.yieldsTo?.includes(giver.id)) throw new Error(`${giver.id} and ${holder.id} yield to each other`);
     return holder && !endsMeeting(world, giver, holder);
   });
   if (kept.length > 0) giver.yieldsTo = kept;
@@ -465,8 +465,21 @@ function endsMeeting(world: World, giver: Vehicle, holder: Vehicle): boolean {
   const py = holder.pos.y - giver.pos.y;
   const rx = Math.cos(holder.heading) * holder.speed - Math.cos(giver.heading) * giver.speed;
   const ry = Math.sin(holder.heading) * holder.speed - Math.sin(giver.heading) * giver.speed;
-  if (px * rx + py * ry >= 0) return true;
+  if (px * rx + py * ry >= 0 && (!sameWay(giver, holder) || hasPassed(world, giver, holder) && !closesOn(world, giver, holder, 1) && !closesOn(world, holder, giver, 1))) return true;
   return dist(giver.pos, holder.pos) > swerveReach(world, giver, holder) + vehicleStats(world, giver).radius + vehicleStats(world, holder).radius;
+}
+
+function sameWay(a: Vehicle, b: Vehicle): boolean {
+  return Math.cos(angleDiff(a.heading, b.heading)) > 0;
+}
+
+function hasPassed(world: World, giver: Vehicle, holder: Vehicle): boolean {
+  const clear = vehicleStats(world, giver).radius + vehicleStats(world, holder).radius;
+  const px = holder.pos.x - giver.pos.x;
+  const py = holder.pos.y - giver.pos.y;
+  const holderBehindGiver = px * Math.cos(giver.heading) + py * Math.sin(giver.heading) < -clear;
+  const giverAheadOfHolder = -(px * Math.cos(holder.heading) + py * Math.sin(holder.heading)) > clear;
+  return holderBehindGiver || giverAheadOfHolder;
 }
 
 function swerveReach(world: World, a: Vehicle, b: Vehicle): number {
@@ -475,9 +488,12 @@ function swerveReach(world: World, a: Vehicle, b: Vehicle): number {
 
 function startMeeting(world: World, a: Vehicle, b: Vehicle): void {
   if (a === b || !givesWay(world, b)) return;
-  const [giver, holder] = a.id < b.id ? [a, b] : [b, a];
-  if (giver.yieldsTo?.includes(holder.id)) return;
-  if (!closesOn(world, giver, holder, 1) || !closesOn(world, holder, giver, 1)) return;
+  if (a.yieldsTo?.includes(b.id) || b.yieldsTo?.includes(a.id)) return;
+  const aCloses = closesOn(world, a, b, 1);
+  const bCloses = closesOn(world, b, a, 1);
+  if (!aCloses && !bCloses) return;
+  if (aCloses !== bCloses && !sameWay(a, b)) return;
+  const [giver, holder] = aCloses && bCloses ? (a.id < b.id ? [a, b] : [b, a]) : aCloses ? [a, b] : [b, a];
   giver.yieldsTo = [...(giver.yieldsTo ?? []), holder.id];
 }
 
