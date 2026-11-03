@@ -806,12 +806,20 @@ describe('Petra Quell at the Roadhouse', () => {
     expect(localsAt(CRIME.post).map((l) => l.id)).toEqual(['petra']);
   });
 
-  it('gives the three notes as the player asks on', () => {
-    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [
-      'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
-      'Who goes after the wrongdoers?', 'Why no claims against raiders?',
-    ]);
-    expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders']);
+  const BEFORE_RAIDERS = [
+    'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
+    'Who goes after the wrongdoers?',
+  ];
+
+  it('gives the two notes as the player asks on', () => {
+    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [...BEFORE_RAIDERS, 'Why no claims against raiders?']);
+    expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff']);
+  });
+
+  it('writes no note when Petra answers about raiders', () => {
+    const before = talk(parkedAt(CRIME.post), 'roadhouse_petra', BEFORE_RAIDERS);
+    const after = talk(parkedAt(CRIME.post), 'roadhouse_petra', [...BEFORE_RAIDERS, 'Why no claims against raiders?']);
+    expect(after.player.notes).toEqual(before.player.notes);
   });
 
   it('offers the search question only to a player holding a search', () => {

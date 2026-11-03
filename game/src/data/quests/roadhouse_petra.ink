@@ -47,7 +47,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
   The book marks a raider's wrong unanswered and leaves it open.
   Sabra Kell rides out after the unanswered Kiln ones on her own fee, since no Roadhouse car will.
   ~ petra_raiders = true
-  ~ note("roadhouseRaiders")
   -> hub
 + [What does the plain say?]
   <term=bowl>Bowl</term> and <term=nose>Nose</term> keep their patrols by their own gates, so Roadhouse cars cross the unwatched plain between them twice a day while it's light.

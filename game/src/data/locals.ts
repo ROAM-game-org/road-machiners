@@ -16,7 +16,7 @@ export const NOTE_IDS = [
   'talkCommitteeRent',
   'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',
   'orchardIron',
-  'roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders',
+  'roadhouseBook', 'roadhouseBuyOff',
 ] as const;
 
 export type NoteId = (typeof NOTE_IDS)[number];

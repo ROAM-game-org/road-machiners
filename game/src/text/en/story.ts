@@ -160,9 +160,6 @@ export const STORY = {
   'journalNote.roadhouseBuyOff.title': 'Buying back into a town',
   'journalNote.roadhouseBuyOff.from': 'Petra Quell, the Roadhouse',
   'journalNote.roadhouseBuyOff.text': 'A town\'s grudge against a driver has a price. The Roadhouse can pay it to the town, and the driver pays the Roadhouse at Wim Satterly\'s counter.',
-  'journalNote.roadhouseRaiders.title': 'No claim against a raider',
-  'journalNote.roadhouseRaiders.from': 'Petra Quell, the Roadhouse',
-  'journalNote.roadhouseRaiders.text': 'The road book takes nothing against a raider. A raider has no town behind them and nothing a claim can make them pay, so a wrong done by one is written down as unanswered and left open.',
 
   'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the cistern house sells it by the bucket.',
   'term.nose': "The town up the north road, built around a wreck on a mountain. Its soldiers keep order, and its workshop line builds the basin's engines and guns.",
