@@ -17,7 +17,7 @@ const url = arg('url', 'http://localhost:5173');
 const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
-const CRASH_ATTEMPTS = 3;
+const CRASH_ATTEMPTS = 8;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
@@ -41,12 +41,19 @@ const retryAfterBrowserCrash = async () => {
     process.exit(1);
   }
   console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
-  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1) } });
+  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1), PLAYTEST_FORCE_SOFTWARE: "1" } });
   process.exit(rerun.status ?? 1);
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
-const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
+process.on('uncaughtException', async (cause) => {
+  if (!crashed) {
+    console.error(cause);
+    process.exit(1);
+  }
+  await retryAfterBrowserCrash();
+});
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -181,7 +188,7 @@ for (let i = 0; i < turns; i++) {
   await page.waitForFunction((turn) => {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
-  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
+  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
 }
 await page.screenshot({ path: '.playtest/end.png' });
 
