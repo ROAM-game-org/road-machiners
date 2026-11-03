@@ -40,41 +40,88 @@ function begin(size: number): number {
   return ++gen;
 }
 
-export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = () => true): number | null {
+type FreeCellAnswer = { cell: number | null; stamped: number[] };
+
+const answersByComponents = new WeakMap<Int32Array, Map<string, FreeCellAnswer>>();
+const ANSWERS_MAX = 512;
+const acceptsAll = () => true;
+
+export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = acceptsAll): number | null {
+  const comp = layer.grid.pieces.comp;
+  const key = `${layer.id}:${c}:${component}:${maxRing}`;
+  const known = accepts === acceptsAll ? answersByComponents.get(comp)?.get(key) : undefined;
+  if (known && answerHolds(ov, known)) return known.cell;
+  const answer = searchFreeCell(layer, ov, c, component, maxRing, accepts);
+  if (accepts === acceptsAll && layer.grid.pieces.comp === comp) rememberAnswer(comp, key, answer);
+  return answer.cell;
+}
+
+function answerHolds(ov: Overlay, answer: FreeCellAnswer): boolean {
+  if (answer.cell !== null && ov.stamp[answer.cell] === ov.gen) return false;
+  return answer.stamped.every((cell) => ov.stamp[cell] === ov.gen);
+}
+
+function rememberAnswer(comp: Int32Array, key: string, answer: FreeCellAnswer): void {
+  let answers = answersByComponents.get(comp);
+  if (!answers) answersByComponents.set(comp, (answers = new Map()));
+  if (answers.size >= ANSWERS_MAX) answers.delete(answers.keys().next().value!);
+  answers.set(key, answer);
+}
+
+function searchFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null, maxRing: number, accepts: (cell: number) => boolean): FreeCellAnswer {
   const n = layer.n;
   const g = begin(n * n);
   const holds = component === null ? null : cellsHolding(layer, component);
+  const cx = c % n;
+  const cy = (c - cx) / n;
+  const stamped: number[] = [];
   let tail = 0;
   queue[tail++] = c;
   seen[c] = g;
   for (let i = 0; i < tail; i++) {
     const cur = queue[i];
-    if (freeIn(layer, ov, cur, component, holds) && accepts(cur)) return cur;
-    tail = ringOut(n, cur, c, g, maxRing, tail);
+    if (freeIn(layer, cur, component, holds)) {
+      if (ov.stamp[cur] === ov.gen) stamped.push(cur);
+      else if (accepts(cur)) return { cell: cur, stamped };
+    }
+    tail = ringOut(n, cur, cx, cy, g, maxRing, tail);
   }
-  return null;
+  return { cell: null, stamped };
 }
 
-function freeIn(layer: NavLayer, ov: Overlay, c: number, component: number | null, holds: Uint8Array | null): boolean {
-  if (holds !== null && holds[cellOfFine(layer.grid, c)] === 0) return false;
-  return isFree(layer, ov, c) && (component === null || componentOf(layer, c) === component);
+function freeIn(layer: NavLayer, c: number, component: number | null, holds: Uint8Array | null): boolean {
+  const cell = cellOfFine(layer.grid, c);
+  if (holds !== null && holds[cell] === 0) return false;
+  if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
+  return !layer.blocked[c] && (component === null || componentOf(layer, c) === component);
 }
 
-function ringOut(n: number, cur: number, c: number, g: number, maxRing: number, tail: number): number {
-  const count = neighbours(n, cur);
-  for (let k = 0; k < count; k++) {
-    const next = around[k];
-    if (seen[next] === g || ringOf(n, c, next) > maxRing) continue;
+function ringOut(n: number, cur: number, cx: number, cy: number, g: number, maxRing: number, tail: number): number {
+  const x = cur % n;
+  const y = (cur - x) / n;
+  for (let i = 0; i < 8; i++) {
+    const nx = x + AROUND_X[i];
+    const ny = y + AROUND_Y[i];
+    if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+    const next = ny * n + nx;
+    if (seen[next] === g || Math.max(Math.abs(nx - cx), Math.abs(ny - cy)) > maxRing) continue;
     seen[next] = g;
     queue[tail++] = next;
   }
   return tail;
 }
 
+const holdsByComponents = new WeakMap<Int32Array, Map<number, Uint8Array>>();
+
 function cellsHolding(layer: NavLayer, component: number): Uint8Array {
   const P = layer.grid.pieces;
+  let byComponent = holdsByComponents.get(P.comp);
+  if (!byComponent) holdsByComponents.set(P.comp, (byComponent = new Map()));
+  const known = byComponent.get(component);
+  if (known) return known;
   const holds = new Uint8Array(layer.grid.m * layer.grid.m);
   for (let p = 1; p < P.cell.length; p++) if (P.cell[p] !== -1 && P.comp[p] === component) holds[P.cell[p]] = 1;
+  byComponent.set(component, holds);
   return holds;
 }
 
@@ -82,10 +129,6 @@ function isFree(layer: NavLayer, ov: Overlay, c: number): boolean {
   const cell = cellOfFine(layer.grid, c);
   if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
   return !layer.blocked[c] && ov.stamp[c] !== ov.gen;
-}
-
-function ringOf(n: number, a: number, b: number): number {
-  return Math.max(Math.abs((a % n) - (b % n)), Math.abs(Math.floor(a / n) - Math.floor(b / n)));
 }
 
 const AROUND_X = [-1, -1, -1, 0, 0, 1, 1, 1];
