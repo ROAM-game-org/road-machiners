@@ -1,4 +1,4 @@
-import { computeFightGoal, fightOrder, followDrive } from '../ai';
+import { followDrive } from '../ai';
 import { haulerOf } from '../damage';
 import { isKnockedOut } from '../defeat';
 import { backOutSpot } from '../free-spot';
@@ -10,7 +10,7 @@ import { followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { RULES } from '../../data/rules';
-import { asFighter } from './fighter';
+import { asFighter, fightMoveFor } from './fighter';
 
 const FOLLOW_RANKS = [0, 1, 2, 3];
 const BEHIND_RANK = 2;
@@ -35,10 +35,8 @@ export function escortFoe(world: World, me: Vehicle): Vehicle | null {
 }
 
 export function fightMove(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
-  const fighter = asFighter(me);
   const post = onMe(world, me, foe) ? null : clearFollowSpot(world, me, haulerOf(world));
-  const goal = computeFightGoal(world, fighter, foe, foe, post);
-  return goal ? fightOrder(world, fighter, foe, goal) : { kind: 'brake' };
+  return fightMoveFor(world, me, foe, post);
 }
 
 function onMe(world: World, me: Vehicle, foe: Vehicle): boolean {

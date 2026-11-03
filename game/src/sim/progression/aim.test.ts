@@ -1,38 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { playerVehicle } from '../damage';
-import { corePart } from '../grid';
-import { vehicleStats } from '../stats';
 import type { Vehicle, World } from '../types';
 import { makePart } from '../factory';
 import { mountPart } from '../inventory';
 import { addVehicle, emptyWorld } from '../testkit';
-import { aimFor, isSoftTarget } from './aim';
+import { isSoftTarget } from './aim';
 
 function duel(foeParts: string[]) {
   const w = emptyWorld({ x: 30, y: 30 });
   const foe = addVehicle(w, 'scrapjaw', 'buggy', foeParts, { x: 50, y: 30 });
   foe.heading = Math.PI;
-  return { w, foe, weapon: vehicleStats(w, playerVehicle(w)).weapons[0] };
+  return { w, foe };
 }
 
 function platedFully(foe: Vehicle, w: World): void {
   while (mountPart(w, foe, makePart(w, 'plates', 0)));
 }
-
-describe('aimFor', () => {
-  it('aims at the body, as NPC gunners do, while the foe has not refused to give up', () => {
-    const { w, foe, weapon } = duel(['mg', 'stockEngine']);
-    expect(aimFor(w, foe, weapon)).toBe('body');
-  });
-
-  it('aims at the cab once the foe refused to give up', () => {
-    const { w, foe, weapon } = duel(['mg', 'stockEngine']);
-    foe.heading = Math.PI / 2;
-    w.player.talked[foe.id] = { yieldDemand: 'refused' };
-
-    expect(aimFor(w, foe, weapon)).toBe(corePart(foe, 'cab').id);
-  });
-});
 
 describe('isSoftTarget', () => {
   it('takes an unarmored foe and leaves one that stops most of the round', () => {

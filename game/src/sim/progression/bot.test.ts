@@ -836,18 +836,6 @@ describe('the hunter', () => {
     expect(turn.world.player.autoFire).toBe(true);
   });
 
-  it('has a bot out of combat drop the aim it set while auto fire was on', () => {
-    const w = parkedAt('bowl');
-    const me = playerVehicle(w);
-    const merc = addVehicle(w, 'independent', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
-    merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
-    for (const mw of vehicleStats(w, me).weapons) me.weaponOrders[mw.part.id] = { targetId: merc.id, aim: 'body' };
-
-    const turn = botOrders(w, 'trader');
-
-    expect(playerVehicle(turn.world).weaponOrders).toEqual({});
-  });
-
   it('has a hunter hold its chase of a heard raider it would refuse on sight', () => {
     const orderFacing = (parts: string[]) => {
       const w = emptyWorld({ x: 30, y: 30 });

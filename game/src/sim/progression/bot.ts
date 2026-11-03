@@ -12,7 +12,8 @@ import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
 import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
 import { maxHealthOf } from '../health';
-import { engageGuns, gunStand, isSoftTarget, refusedToYield, setFire } from './aim';
+import { isSoftTarget, setFire } from './aim';
+import { engage } from './fighter';
 import { hostileToPlayer, playerCanAct, setAutoRepair, setMoveOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
@@ -736,8 +737,7 @@ function engageFoe(o: Orders): boolean {
 
 function engageSeen(o: Orders, foe: Vehicle): boolean {
   if (dangerOf(o.world, foe) * HUNT_MARGIN > 1 || !isSoftTarget(o.world, foe)) return false;
-  engageGuns(o, foe);
-  if (!demandYield(o, foe)) driveTo(o, refusedToYield(o.world, foe) ? gunStand(o, foe) : foe.pos);
+  if (!demandYield(o, foe)) engage(o, foe);
   return true;
 }
 
@@ -855,9 +855,10 @@ function edgeAlong(pos: Vec, way: Vec, size: number): Vec {
 }
 
 function charge(o: Orders, foe: Vehicle, goal: Goal): void {
-  if (goal === 'hunter') engageGuns(o, foe);
-  driveTo(o, goal === 'hunter' ? gunStand(o, foe) : foe.pos);
+  if (goal === 'hunter') engage(o, foe);
+  else driveTo(o, foe.pos);
 }
+
 
 function fights(o: Orders, foe: Vehicle, goal: Goal): boolean {
   return beats(o, foe, goal) && (goal === 'hunter' || !outruns(o.world, o.me, foe));
