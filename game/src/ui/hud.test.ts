@@ -94,7 +94,7 @@ describe('held contract line', () => {
 });
 
 describe('the wake', () => {
-  it('toasts You come to. once and logs it', () => {
+  it('toasts You wake up. once and logs it', () => {
     const w = emptyWorld();
     w.events = [{ t: 'wake', gaveUp: false }];
     const toasts: string[] = [];
@@ -105,8 +105,8 @@ describe('the wake', () => {
       radio: { hear: () => {} },
     }) as Hud;
     hud.pushEvents(w);
-    expect(toasts).toEqual(['You come to.']);
-    expect(logged).toEqual(['You come to.']);
+    expect(toasts).toEqual(['You wake up.']);
+    expect(logged).toEqual(['You wake up.']);
   });
 });
 

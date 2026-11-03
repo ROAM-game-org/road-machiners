@@ -799,7 +799,7 @@ describe("player wake-up", () => {
   it("is a notable event, and its log line is plain ink", () => {
     expect(isNotable({ t: "wake", gaveUp: false })).toBe(true);
     const line = eventText(emptyWorld(), { t: "wake", gaveUp: false });
-    expect(en(line?.text)).toBe("You come to.");
+    expect(en(line?.text)).toBe("You wake up.");
     expect(line?.cls).toBe("");
   });
 

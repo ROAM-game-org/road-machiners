@@ -6,6 +6,7 @@ import { warmRoutes } from '../sim/path';
 import { PERF } from '../data/perf';
 import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
+import { campWarmSteps } from '../sim/camp-warm';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
@@ -67,9 +68,11 @@ function exploreSight(w: World, sight: LiveSight): void {
   for (const tiles of sight.tiles) for (const idx of tiles) w.player.explored[idx] = 1;
 }
 export type PreviewTask = LanguageTask & { meId: string };
-type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: Obstacle[] | null; terrain: World['terrain'] | null };
+type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync; terrain: World['terrain'] | null };
 export type TurnRequest = Posted<TurnTask> & { kind: 'turn'; id: number };
 export type PreviewRequest = Posted<PreviewTask> & { kind: 'preview'; id: number };
+
+export type ObstacleSync = { kind: 'same' } | { kind: 'full'; list: Obstacle[] } | { kind: 'delta'; remove: string[]; add: Obstacle[] };
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null;
@@ -82,14 +85,43 @@ function sameData(a: unknown, b: unknown): boolean {
   return keys.length === Object.keys(b).length && keys.every((k) => sameData(a[k], b[k]));
 }
 
+export function applyObstacles(base: readonly Obstacle[] | null, sync: ObstacleSync): Obstacle[] {
+  if (sync.kind === 'full') return sync.list;
+  if (!base) throw new Error(`Obstacle ${sync.kind} needs a list to build on`);
+  if (sync.kind === 'same') return base as Obstacle[];
+  const gone = new Set(sync.remove);
+  return [...base.filter((o) => !gone.has(o.id)), ...sync.add];
+}
+
+function rebuilds(from: readonly Obstacle[], delta: ObstacleSync, to: readonly Obstacle[]): boolean {
+  const built = applyObstacles(from, delta);
+  return built.length === to.length && built.every((o, i) => sameData(o, to[i]));
+}
+
+export function diffObstacles(from: readonly Obstacle[], to: readonly Obstacle[]): ObstacleSync {
+  if (from === to) return { kind: 'same' };
+  const before = new Map(from.map((o) => [o.id, o]));
+  const after = new Set(to.map((o) => o.id));
+  const add = to.filter((o) => {
+    const old = before.get(o.id);
+    return old === undefined || (old !== o && !sameData(old, o));
+  });
+  const changed = new Set(add.map((o) => o.id));
+  const remove = [...before.keys()].filter((id) => !after.has(id) || changed.has(id));
+  if (add.length === 0 && remove.length === 0) return { kind: 'same' };
+  const delta: ObstacleSync = { kind: 'delta', remove, add };
+  const small = add.length + remove.length <= to.length / 2;
+  return small && rebuilds(from, delta, to) ? delta : { kind: 'full', list: to as Obstacle[] };
+}
+
 export class SentObstacles {
   private last: readonly Obstacle[] | null = null;
 
-  split(world: TurnState): { world: Omit<TurnState, 'obstacles'>; obstacles: Obstacle[] | null } {
+  split(world: TurnState): { world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync } {
     const { obstacles, ...rest } = world;
-    if (this.last && sameData(this.last, obstacles)) return { world: rest, obstacles: null };
+    const sync: ObstacleSync = this.last ? diffObstacles(this.last, obstacles) : { kind: 'full', list: obstacles };
     this.last = obstacles;
-    return { world: rest, obstacles };
+    return { world: rest, obstacles: sync };
   }
 
   forget(): void {
@@ -100,10 +132,15 @@ export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
-export type TurnResponse = { id: number; turn: PostedTurn; obstacles: Obstacle[] | null; perf: Record<string, PerfStat> } | WorkerFailure;
+export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat> } | WorkerFailure;
 
-export function joinTurn(turn: PostedTurn, obstacles: Obstacle[] | null, before: TurnState): PreparedTurn {
-  return { ...turn, world: { ...turn.world, obstacles: obstacles ?? before.obstacles } };
+export function postLabel(base: string, request: { terrain: unknown; obstacles: ObstacleSync }): string {
+  const obstacles = request.obstacles.kind === 'same' ? '' : `-obstacles-${request.obstacles.kind}`;
+  return `${base}${request.terrain ? '-terrain' : ''}${obstacles}`;
+}
+
+export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: TurnState): PreparedTurn {
+  return { ...turn, world: { ...turn.world, obstacles: applyObstacles(before.obstacles, obstacles) } };
 }
 export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat> } | WorkerFailure;
 
@@ -211,8 +248,8 @@ export function startTurnWorker(): void {
       timed('route-terrain', () => prepareRouteTerrain(request.terrain));
       return;
     }
-    obstacles = request.obstacles ?? obstacles;
     try {
+      obstacles = applyObstacles(obstacles, request.obstacles);
       await ready;
       terrain = request.terrain ?? terrain;
       const task = taskOf(request, obstacles, terrain);
@@ -233,8 +270,16 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   if (!center) return;
   const step = () => {
     if (run === idleRun && buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs)) setTimeout(step, 0);
+    else if (run === idleRun) warmCamps(run, campWarmSteps({ ...world, terrain }));
   };
   setTimeout(step, 0);
+}
+
+function warmCamps(run: number, steps: (() => void)[]): void {
+  const next = steps.shift();
+  if (!next || run !== idleRun) return;
+  timed('camp-warm', next);
+  setTimeout(() => warmCamps(run, steps), 0);
 }
 
 type Answerable =(TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
@@ -251,7 +296,7 @@ function answer(request: Answerable, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
       const { world: { obstacles, ...world }, ...turn } = computeRequestedTurn(request, terrain);
-      const changed = sameData(obstacles, request.world.obstacles) ? null : obstacles;
+      const changed = diffObstacles(request.world.obstacles, obstacles);
       self.postMessage({ id: request.id, turn: { ...turn, world }, obstacles: changed, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot, turn.tail?.next.snapshot].flatMap((s) => (s ? [s.buffer as ArrayBuffer] : [])),
       });

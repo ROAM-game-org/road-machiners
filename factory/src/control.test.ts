@@ -138,7 +138,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }, { action: 'enroll', issue: 4 }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -749,5 +749,58 @@ describe('kept hotfix approvals', () => {
     seed({ keptApprovals: { 4: KEPT } });
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
     expect(readState(statePath).keptApprovals).toEqual({});
+  });
+});
+
+describe('enroll', () => {
+  const enroll = (issue: number) => applyControl(fakeCtx(), command({ action: 'enroll', issue }));
+
+  it('makes a card past Triage a task of the open release where it stands, and drops the candidate post and a queued Ship', async () => {
+    cards = [card(4, 'Implementation', ['bug', 'player-report'])];
+    seed({ release: RELEASE, pendingShip: 'Ann', jobs: [{ ...JOB, stage: 'implement' }] });
+    const text = await enroll(4);
+    const state = readState(statePath);
+    expect(state.release).toMatchObject({ tasks: [4], postId: null });
+    expect(state.pendingShip).toBeNull();
+    expect(state.jobs).toEqual([{ ...JOB, stage: 'implement' }]);
+    expect(text).toContain('It keeps its column, branch, work and agent sessions');
+    expect(text).toContain('ports that change onto release/2026-09-29 with the full merge checks');
+    expect(calls.filter((call) => call.startsWith('move') || call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.find((call) => call.startsWith('comment 20'))).toContain('#4 is now a task of this release, ordered by Ann: the gate failed on load');
+    expect(calls.find((call) => call.startsWith('comment 20'))).toContain('no new issue was opened');
+    expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Ordered by Ann');
+    expect(ctrlLines()).toEqual([expect.objectContaining({ action: 'enroll', issue: 4, by: 'Ann' })]);
+  });
+
+  it('leaves the candidate post of a card that already was a task, and comments only on the card', async () => {
+    cards = [card(4, 'Design')];
+    seed({ release: { ...RELEASE, tasks: [4] } });
+    expect(await enroll(4)).toContain('was already a task of release 2026-09-29');
+    expect(readState(statePath).release?.postId).toBe(42);
+    expect(calls.filter((call) => call.startsWith('comment 20'))).toEqual([]);
+  });
+
+  it('tells triage to run a Triage card as a fix of the release', async () => {
+    cards = [card(4, 'Triage', ['bug'])];
+    seed({ release: RELEASE });
+    expect(await enroll(4)).toContain('A ready verdict of triage runs it as a fix of that release');
+  });
+
+  it.each([
+    ['a Done card', card(4, 'Done'), {}, 'its card is Done'],
+    ['a hotfix', card(4, 'Testing', ['hotfix']), {}, 'it is a hotfix'],
+    ['a card waiting for votes', card(4, 'Triage', ['voting']), {}, 'it waits for player votes'],
+    ['the tracking card', card(4, 'Approval', ['release']), {}, 'it is the release tracking issue'],
+    ['no open release', card(4, 'Design'), { release: null }, 'no release is open'],
+    ['a shipping release', card(4, 'Design'), { release: { ...RELEASE, shipping: { sha: 'abc', features: [] } } }, 'release 2026-09-29 is shipping'],
+    ['a running Ship', card(4, 'Design'), { jobs: [{ ...JOB, stage: 'ship', issue: 20 }] }, 'release 2026-09-29 is shipping'],
+    ['a card in the running merge batch', card(4, 'Merging'), { jobs: [{ ...JOB, stage: 'merge', issue: null, batch: [4] }] }, 'it is merging now'],
+  ] as [string, Card, Partial<FactoryState>, string][])('refuses %s and changes nothing', async (_name, row, patch, reason) => {
+    cards = [row];
+    seed({ release: RELEASE, ...patch });
+    const before = readFileSync(statePath, 'utf8');
+    await expect(enroll(4)).rejects.toThrow(reason);
+    expect(readFileSync(statePath, 'utf8')).toBe(before);
+    expect(calls.filter((call) => call.startsWith('comment'))).toEqual([]);
   });
 });

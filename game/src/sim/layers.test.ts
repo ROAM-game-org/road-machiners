@@ -14,14 +14,14 @@ function part(w: World, defId: string, x: number, y: number, rot: Rot = 0): Grid
   return { id: `i-${defId}-${x}-${y}`, x, y, rot, kind: 'part', part: makePart(w, defId, 0) };
 }
 
-function platedNose(): { w: World; v: Vehicle } {
+function platedNose(chassis = 'scout', width = 4): { w: World; v: Vehicle } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
-  for (let x = 1; x <= 4; x++) v.items.push(part(w, 'steelPlate', x, 0));
+  const v = addVehicle(w, 'scrapjaw', chassis, [], { x: 40, y: 40 });
+  for (let x = 1; x <= width; x++) v.items.push(part(w, 'steelPlate', x, 0));
   return { w, v };
 }
 
-function withRam(w: World, v: Vehicle, x = 2): GridItem {
+function withRam(w: World, v: Vehicle, x = 1): GridItem {
   const ram = part(w, 'ram', x, 0);
   v.items.push(ram);
   return ram;
@@ -30,7 +30,7 @@ function withRam(w: World, v: Vehicle, x = 2): GridItem {
 describe('accessory layer', () => {
   it('lets a ram sit on the nose over a full row of plates', () => {
     const { w, v } = platedNose();
-    const ram = part(w, 'ram', 2, 0);
+    const ram = part(w, 'ram', 1, 0);
     expect(placementError(gridOf(v), v.items, ram, null)).toBeNull();
     v.items.push(ram);
     expect(isMounted(v.chassisId, ram)).toBe(true);
@@ -40,8 +40,8 @@ describe('accessory layer', () => {
 
   it('keeps two accessories off the same cell', () => {
     const { w, v } = platedNose();
-    withRam(w, v, 1);
-    expect(placementError(gridOf(v), v.items, part(w, 'ram', 2, 0), null)).toEqual({ id: 'inTheWay' });
+    withRam(w, v);
+    expect(placementError(gridOf(v), v.items, part(w, 'ram', 1, 0), null)).toEqual({ id: 'inTheWay' });
   });
 
   it('keeps two plates off the same cell', () => {
@@ -63,17 +63,20 @@ describe('accessory layer', () => {
     expect(freeCells(v)).toBe(before);
   });
 
-  it('moves a ram along the nose without swapping out the plates under it', () => {
-    const { w, v } = platedNose();
+  it('moves a ram along a wider nose without swapping out the plates under it', () => {
+    const { w, v } = platedNose('van', 5);
     const ram = withRam(w, v, 1);
     const plan = planItemMove(v, ram.id, { x: 2, y: 0, rot: 0 });
     expect(plan.error).toBeNull();
   });
 
-  it('installs a ram in the middle of the nose', () => {
+  it('installs a ram over the whole four-cell nose', () => {
     const { w, v } = platedNose();
-    const ram = part(w, 'ram', 0, 0);
-    expect(installSpot(v, ram as Extract<GridItem, { kind: 'part' }>)).toEqual({ x: 1, y: 0, rot: 0 });
+    const ram = part(w, 'ram', 0, 0) as Extract<GridItem, { kind: 'part' }>;
+    expect(installSpot(v, ram)).toEqual({ x: 1, y: 0, rot: 0 });
+    v.items.push({ ...ram, ...installSpot(v, ram)! });
+    const covered = gridOf(v).cells[0].map((c, x) => (c === 'F' ? x : -1)).filter((x) => x >= 0);
+    expect(covered).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -90,16 +93,16 @@ describe('lanes through two layers', () => {
 
 describe('ram multiplier by lane', () => {
   it('counts a ram only where the crash touches its lanes', () => {
-    const { w, v } = platedNose();
-    withRam(w, v, 2);
+    const { w, v } = platedNose('van', 5);
+    withRam(w, v);
     expect(ramMult(v, { side: 'front', lanes: [3] })).toBe(RAM_MULT);
-    expect(ramMult(v, { side: 'front', lanes: [1] })).toBe(1);
-    expect(ramMult(v, { side: 'front', lanes: [1, 2] })).toBe(RAM_MULT);
+    expect(ramMult(v, { side: 'front', lanes: [5] })).toBe(1);
+    expect(ramMult(v, { side: 'front', lanes: [4, 5] })).toBe(RAM_MULT);
   });
 
   it('ignores a broken ram', () => {
     const { w, v } = platedNose();
-    const ram = withRam(w, v, 2) as Extract<GridItem, { kind: 'part' }>;
+    const ram = withRam(w, v) as Extract<GridItem, { kind: 'part' }>;
     ram.part.hp = 0;
     expect(ramMult(v, { side: 'front', lanes: [3] })).toBe(1);
   });

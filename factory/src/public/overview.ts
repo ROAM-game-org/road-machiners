@@ -35,7 +35,7 @@ function chatRow(comment: StoredComment): string {
 }
 
 export function publicRows(ctx: Ctx, store: PublicStore): string[] {
-  const proposals = [...store.unpostedProposals(), ...store.openProposals()];
+  const proposals = [...store.pendingProposals(), ...store.openProposals()];
   const chat = store.recentChat(RECENT_CHAT).map(chatRow);
   return [...proposals.map((proposal) => proposalRow(ctx, store, proposal)), ...buildRows(ctx, store, proposals), ...chat];
 }
