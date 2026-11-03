@@ -72,6 +72,16 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 
 Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.
 
+## Shop credit
+
+A player with the Shop credit perk can buy goods on account at a Roaming town or stall market. Cash pays whenever it covers the lot, so credit never takes the money meant for fuel. A lot the cash cannot cover goes on account whole, and the goods come aboard at once with their cost noted as for a cash buy.
+
+- One account at a time, at one shop. The first account buy opens it, due two work days later, about four game hours. Later buys there add to it and keep the due time.
+- The credit line is three work days of the tier 1 wage, about 166 M. A lot that would take the account over it is refused, and so is a buy at another shop while one account is open, a buy by a player who knows of an open case on them, and any account on Chaos Highway, where there are no bounties. A case the player has not learned of yet refuses nothing.
+- Goods only. Parts, fuel, supplies, repairs, chassis and paint stay cash.
+- The market tab shows the account with what it owes and when it is due, and at its shop a Pay off button that pays all of it from cash. There is no part payment. The contracts dock shows the account while it is open.
+- A little before the due time the log warns. At the due time an unpaid account lapses: the shop's faction counts it as a failed contract, and the shop files an embezzlement case for the unpaid sum plus a quarter of it as a fine, see [crime](crime.md). The filing is silent, as every filing is.
+
 ## Odd jobs
 
 A player parked at any shop site with less than one work day of the tier 1 wage (56 M) can do odd jobs from the town page. The choice is off at 56 M or more, and it names that limit. A shift is 150 turns, eight game hours, and runs on its own: turns advance until the shift ends, as on the beacon. It pays 5.95 cents a turn, which nets about 20 M a work day after the supplies the driver eats. A shift that ends early pays for the turns worked and gives no XP. Moving, combat or any other order ends it. The pay shows in the ledger as odd jobs.
