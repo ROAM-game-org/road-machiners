@@ -6,14 +6,14 @@ import { partDef } from '../../data/parts';
 import { REGION, type TownDef } from '../../data/region';
 import { RULES } from '../../data/rules';
 import { TERRAIN } from '../../data/terrain';
-import { ENGINE_HEAT } from '../../data/wear';
+import { engineHot, heldHeatSpeed } from '../engine-heat';
 import type { LineId, TopicId } from '../../data/dialogue';
 import { isJunk, maxHp } from '../wear';
 import { inCombat } from '../combat';
 import { canFirstAid, startFirstAid } from '../jobs';
 import { maxHealthOf } from '../health';
 import { setFire } from './aim';
-import { asFighter } from './fighter';
+import { asFighter, fightMoveFor } from './fighter';
 import { heldFlight, reachedFlight, sawThreat, startFlight } from './flee-memory';
 import { hostileToPlayer, playerCanAct, setAutoRepair, setMoveOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
@@ -42,7 +42,7 @@ import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
 import { towData } from '../states';
-import type { Call, GoalReason, GridItem, NpcState, PartInstance, SalvageStock, Vehicle, World } from '../types';
+import type { Call, GoalReason, GridItem, MoveOrder, NpcState, PartInstance, SalvageStock, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../chaos-highway';
@@ -108,6 +108,7 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
   if (playerCanAct(o.world)) {
     keepSwitches(o);
     act(o, goal, archetype);
+    paceForHeat(o);
   }
   return { world: o.world, events: o.events, ledger: o.ledger, notes: o.notes };
 }
@@ -194,26 +195,35 @@ function underFire(world: World, me: Vehicle): boolean {
 
 function holds(o: Orders): boolean {
   if (o.me.job) return true;
-  if (coolsEngine(o)) {
-    stopTruck(o);
-    return true;
-  }
   const deal = patchDeal(o.world);
   if (!deal) return false;
   workPatch(o, deal);
   return true;
 }
 
-const HEAT_RESUME = ENGINE_HEAT.warnAt / 2;
-
-function coolsEngine(o: Orders): boolean {
-  if (inCombat(o.world, o.me) || seenHostiles(o.world).length > 0) return false;
-  const heat = o.world.player.engineHeat;
-  return heat >= ENGINE_HEAT.warnAt || (heat >= HEAT_RESUME && standing(o.me));
+function paceForHeat(o: Orders): void {
+  const order = o.me.order;
+  if (order === null || order.kind === 'brake' || facesFoe(o)) return;
+  const pace = heatPace(o);
+  if (pace === order.pace) return;
+  if (crawls(pace)) return stopTruck(o);
+  o.run((w) => setMoveOrder(w, { kind: order.kind, dest: order.dest, ...paceField(pace) }));
 }
 
-function standing(me: Vehicle): boolean {
-  return me.order === null || me.order.kind === 'brake';
+function crawls(pace: number | undefined): boolean {
+  return pace !== undefined && pace <= RULES.parkedSpeed;
+}
+
+function paceField(pace: number | undefined): { pace?: number } {
+  return pace === undefined ? {} : { pace };
+}
+
+function facesFoe(o: Orders): boolean {
+  return inCombat(o.world, o.me) || seenHostiles(o.world).length > 0;
+}
+
+function heatPace(o: Orders): number | undefined {
+  return engineHot(o.world) ? heldHeatSpeed(o.world, o.me) : undefined;
 }
 
 function stopTruck(o: Orders): void {
@@ -701,9 +711,24 @@ const JUDGE_SALT = 0x6a756467;
 function defend(o: Orders): boolean {
   if (!inCombat(o.world, o.me)) return avoid(o);
   const foe = weakestFoe(o.world);
-  if (foe && (standsAgainst(o, foe) || reachedFlight(o.world, o.me))) driveTo(o, foe.pos);
+  if (foe && standsAgainst(o, foe)) fightFoe(o, foe);
   else flee(o);
   return true;
+}
+
+function fightFoe(o: Orders, foe: Vehicle): void {
+  const move = fightMoveFor(o.world, o.me, foe, null);
+  if (!sameMove(move, o.me.order)) o.run((w) => setMoveOrder(w, move));
+}
+
+function sameMove(a: MoveOrder, b: MoveOrder | null): boolean {
+  if (b === null || a.kind !== b.kind) return false;
+  if (a.kind === 'brake' || b.kind === 'brake') return true;
+  return samePoint(a.dest, b.dest) && a.pace === b.pace;
+}
+
+function samePoint(a: Vec, b: Vec): boolean {
+  return a.x === b.x && a.y === b.y;
 }
 
 function standsAgainst(o: Orders, foe: Vehicle): boolean {
