@@ -57,7 +57,9 @@ async function launched(chromium, options) {
 }
 
 export async function launchChromium(chromium, options = {}) {
-  const run = await launched(chromium, options);
+  const run = process.env.PLAYTEST_FORCE_SOFTWARE === "1"
+    ? await launchSoftware(chromium, options, "GPU browser crashed in the preceding attempt")
+    : await launched(chromium, options);
   if (run.software) warnSoftware(run.renderer);
   else console.log(`renderer ${run.renderer}`);
   return run;
