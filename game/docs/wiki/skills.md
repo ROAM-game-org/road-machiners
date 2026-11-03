@@ -73,8 +73,8 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | stormRider | Storm rider | toughness | 2 | Dust storms do not cut your sight or aim. |
 | fightThrough | Fight through | toughness | 4 | A broken cab, or a hit on a cab below half its HP, does not knock you out while your health is above half. |
 | longHaul | Long haul | toughness | 4 | You heal while driving, not only while parked. |
-| marketEars | Market ears | social | 2 | A trader you call tells you the prices of the last town it left, as they were then. |
-| rumorMill | Rumor mill | social | 2 | A driver you call tells you of a wreck or site it passed. |
+| shopCredit | Shop credit | social | 2 | When your cash falls short, one town market puts the goods on account. Pay it there by the due time, or the shop goes to the Marshalls. |
+| roadWatch | Road watch | social | 2 | A driver you call, unless it is a raider, tells you where it last saw raiders and how many. |
 | paidTruce | Paid truce | social | 4 | You can pay a hostile driver to end its feud with you. |
 | bountyHunter | Bounty hunter | social | 4 | You see the bounty on a wanted truck and collect it when you knock the truck out. Fighting it is no crime for you. |
 <!-- /wiki:perks -->

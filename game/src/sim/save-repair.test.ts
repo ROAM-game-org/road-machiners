@@ -79,6 +79,17 @@ describe('repairContent', () => {
     expect([w.player.money, w.player.xp]).toEqual([money, xp]);
   });
 
+  it.each(['marketEars', 'rumorMill'])('drops a retired %s pick and reopens the Social 2 pair without awarding anything', (retired) => {
+    const w = fresh();
+    w.player.ranks.social = 2;
+    w.player.perks = [retired as never];
+    const before = { money: w.player.money, xp: w.player.xp, events: w.events.length };
+    repairContent(w);
+    expect(w.player.perks).toEqual([]);
+    expect(pendingPerkPairs(w)).toEqual([{ skill: 'social', level: 2, perks: ['shopCredit', 'roadWatch'] }]);
+    expect({ money: w.player.money, xp: w.player.xp, events: w.events.length }).toEqual(before);
+  });
+
   it('drops a queued start spawn whose template or site left the data and keeps the rest', () => {
     const w = fresh();
     const keep = dealt[0];

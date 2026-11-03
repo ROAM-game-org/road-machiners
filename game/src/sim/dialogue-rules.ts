@@ -12,7 +12,7 @@ import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
 import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
-import { TRADE_TIP } from '../data/npcs';
+import { RUMORS, TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
 import { REGION, type TownDef } from '../data/region';
@@ -390,8 +390,8 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   fightsForLoot: (_world, _npc, vars) => answerOf(vars) === 'fight',
   canTowNpc: (world, npc) => canTowNpc(world, npc),
   towedByPlayer: (world, npc) => playerTowing(world)?.other === npc.id,
-  knowsLastTown: (world, npc) => hasPerk(world, 'marketEars') && lastTownMemory(npc) !== null,
-  hearsRumor: (world, npc) => hasPerk(world, 'rumorMill') && heardRumor(world, npc) !== null,
+  knowsLastTown: (world, npc) => lastTownMemory(npc) !== null,
+  hearsRumor: (world, npc) => heardRumor(world, npc) !== null,
   rumorOfSite: (_world, _npc, vars) => vars.site !== undefined,
   rumorOfWreck: (_world, _npc, vars) => vars.site === undefined,
   canPayTruce: (world, npc) => hasPerk(world, 'paidTruce') && world.player.money >= trucePrice(npc),
@@ -425,7 +425,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   noHandover: (world, npc) => handoverWith(world, npc) === null,
   sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
   missedSought: (_world, _npc, vars) => sightingVar(vars).seen === null,
-  heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
+  heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= RUMORS.reach,
   nearClaimWreck: (world, npc) => claimSeenBy(world, npc) !== null,
   rivalAsked: (world, npc) => rivalNearWreck(world, requireClaimSeen(world, npc)),
   noRivalAsked: (world, npc) => !rivalNearWreck(world, requireClaimSeen(world, npc)),
@@ -840,7 +840,7 @@ export function holdsNote(world: World, id: NoteId): boolean {
 }
 
 function nearWreck(v: Vehicle, claim: ClaimContract): boolean {
-  return dist(v.pos, claim.at) <= PERK_NUMBERS.rumorMill.radius;
+  return dist(v.pos, claim.at) <= RUMORS.reach;
 }
 
 export function claimSeenBy(world: World, npc: Vehicle): ClaimContract | null {

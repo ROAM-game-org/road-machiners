@@ -15,7 +15,7 @@ import { playerVehicle } from './damage';
 import { asksOf, chooseText } from './dialogue-testkit';
 import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, hangUp, honk, radioSpeakers, raiseCalls } from './dialogue';
 import { fireBlock, isHostile } from './combat';
-import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
+import { MEMORY, NPC_UPKEEP, NPCS, RUMORS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { aidPrice, checkAid, offerAid, playerAid, spareAid, wantedAid } from './aid';
 import { corePart, isMounted } from './grid';
@@ -654,7 +654,7 @@ describe('call practice', () => {
 });
 
 
-describe('market ears', () => {
+describe('market news', () => {
   const askText = en(TOPICS.marketNews.ask!.say);
 
   function backFromNose(w: World, npc: Vehicle): void {
@@ -663,7 +663,6 @@ describe('market ears', () => {
 
   it('a trader back from a town tells its buy and sell prices', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     const open = callVehicle(w, npc.id);
     const asked = chooseText(open, askText);
@@ -673,7 +672,6 @@ describe('market ears', () => {
 
   it('tells the prices as they were when the trader left, not as they are now', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     const goods = SHOPS.nose.goods.map((good) => ({ good, buy: buyPrice(w, 'nose', good), sell: sellPrice(w, 'nose', good) }));
     for (const good of SHOPS.nose.goods) setShopPressure(w, 'nose', good, 0.5);
@@ -684,22 +682,21 @@ describe('market ears', () => {
 
   it('is not offered once the trader has forgotten the town', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     w.turn += MEMORY.turns.prices;
     forgetOld(w);
     expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
 
-  it('is not offered without the perk', () => {
+  it('is offered to a player with no perk', () => {
     const { w, npc } = withNpc('trader', 'independent');
     backFromNose(w, npc);
-    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
+    expect(w.player.perks).toEqual([]);
+    expect(asksOf(callVehicle(w, npc.id))).toContain(askText);
   });
 
   it('is not offered by a driver that has not been to a town', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    w.player.perks = ['marketEars'];
     remember(w, npc, { kind: 'prices', shop: 'granary', pressure: standingPressures(w, 'granary') });
     expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
   });
@@ -804,7 +801,6 @@ describe('rumor mill', () => {
 
   function rumorWorld(): { w: World; npc: Vehicle } {
     const { w, npc } = withNpc('trader', 'independent');
-    w.player.perks = ['rumorMill'];
     w.player.discovered = [...REGION.towns, ...REGION.locations].map((s) => s.id);
     w.salvage = [];
     return { w, npc };
@@ -914,7 +910,7 @@ describe('rumor mill', () => {
       wreck('wreck1', { x: 40, y: 30 }),
       wreck('wreck2', { x: 41, y: 30 }),
       { ...wreck('wreck3', { x: 42, y: 30 }), goods: {} },
-      wreck('wreck4', { x: 36 + PERK_NUMBERS.rumorMill.radius + 1, y: 30 }),
+      wreck('wreck4', { x: 36 + RUMORS.reach + 1, y: 30 }),
       wreck('cargo-v9-1', { x: 43, y: 30 }),
     ];
     w.player.scavenged = ['wreck1'];
@@ -932,11 +928,11 @@ describe('rumor mill', () => {
     expect(next.player.rumored).toEqual(['story-wagon-seven']);
   });
 
-  it('is not offered without the perk', () => {
+  it('is offered to a player with no perk', () => {
     const { w, npc } = rumorWorld();
-    w.player.perks = [];
     w.salvage = [wreck('wreck7', { x: 50, y: 30 })];
-    expect(asksOf(callVehicle(w, npc.id))).not.toContain(askText);
+    expect(w.player.perks).toEqual([]);
+    expect(asksOf(callVehicle(w, npc.id))).toContain(askText);
   });
 });
 
@@ -945,7 +941,7 @@ describe('army wagon topic', () => {
 
   function wagonWorld(away = 0): { w: World; npc: Vehicle } {
     const wagon = STORY_WRECKS[0].pos;
-    const at = { x: wagon.x + PERK_NUMBERS.rumorMill.radius - 5 + away, y: wagon.y };
+    const at = { x: wagon.x + RUMORS.reach - 5 + away, y: wagon.y };
     const w = emptyWorld({ x: at.x - 6, y: at.y });
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], at);
     npc.brain = npcBrain('trader', npc.pos, TRAITS_OF.trader);
@@ -1034,7 +1030,7 @@ describe('claim wreck topic', () => {
     none.w.player.contracts = [];
     expect(asked(none.w, none.npc)).not.toContain(askText);
     const far = claimWorld();
-    far.claim.at = { x: far.npc.pos.x + PERK_NUMBERS.rumorMill.radius + 5, y: far.npc.pos.y };
+    far.claim.at = { x: far.npc.pos.x + RUMORS.reach + 5, y: far.npc.pos.y };
     far.w.salvage[0].pos = { ...far.claim.at };
     expect(asked(far.w, far.npc)).not.toContain(askText);
     const rival = claimWorld();

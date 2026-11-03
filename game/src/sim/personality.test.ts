@@ -28,7 +28,6 @@ function driver(traits: TraitId[], personality: PersonalityId): { w: World; npc:
 }
 
 function backFromNose(w: World, npc: Vehicle): void {
-  w.player.perks = ['marketEars'];
   remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
 }
 

@@ -56,7 +56,6 @@ describe('talk by attitude band', () => {
     const { w, npc } = driver('guidestar', ['trader'], 'tightLipped');
     w.player.standing.guidestar = 20;
     remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
-    w.player.perks = ['marketEars'];
     const told = chooseLine(callVehicle(w, npc.id), ask('marketNews'));
     expect(told.player.call?.node).toBe(TOPICS.marketNews.start);
   });

@@ -143,6 +143,8 @@ export const MEMORY = {
 
 export const TRADE_TIP = { share: 0.2 };
 
+export const RUMORS = { reach: 60 };
+
 export const FIRST_NAMES: readonly string[] = [
   'Abe', 'Ada', 'Anya', 'Arlo', 'Bea', 'Bo', 'Boris', 'Cal', 'Cass', 'Clem', 'Dace', 'Dmitri', 'Dora', 'Earl',
   'Edda', 'Elias', 'Faye', 'Fenn', 'Gus', 'Hank', 'Hester', 'Ida', 'Igor', 'Ivy', 'Jed', 'Jonah', 'Juno', 'Kat',

@@ -321,11 +321,11 @@ describe('open perk pairs', () => {
     const w = emptyWorld();
     w.player.ranks.social = 4;
     expect(pendingPerkPairs(w)).toEqual([
-      { skill: 'social', level: 2, perks: ['marketEars', 'rumorMill'] },
+      { skill: 'social', level: 2, perks: ['shopCredit', 'roadWatch'] },
       { skill: 'social', level: 4, perks: ['paidTruce', 'bountyHunter'] },
     ]);
     const next = choosePerk(w, 'paidTruce');
-    expect(pendingPerkPairs(next)).toEqual([{ skill: 'social', level: 2, perks: ['marketEars', 'rumorMill'] }]);
+    expect(pendingPerkPairs(next)).toEqual([{ skill: 'social', level: 2, perks: ['shopCredit', 'roadWatch'] }]);
   });
 });
 

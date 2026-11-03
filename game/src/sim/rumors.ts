@@ -1,6 +1,5 @@
-import { PERK_NUMBERS } from '../data/skills';
 import { REGION } from '../data/region';
-import { TRADE_TIP } from '../data/npcs';
+import { RUMORS, TRADE_TIP } from '../data/npcs';
 import { goodValue, standingPrice } from './market';
 import { recall } from './memory';
 import { hasSalvage, isStoryWreck } from './salvage';
@@ -24,7 +23,7 @@ function isRumorWreck(world: World, stock: SalvageStock): boolean {
 }
 
 function nearest(npc: Vehicle, rumors: Rumor[]): Rumor | null {
-  const near = rumors.filter((r) => dist(npc.pos, r.pos) <= PERK_NUMBERS.rumorMill.radius);
+  const near = rumors.filter((r) => dist(npc.pos, r.pos) <= RUMORS.reach);
   near.sort((a, b) => dist(npc.pos, a.pos) - dist(npc.pos, b.pos) || (a.id < b.id ? -1 : 1));
   return near[0] ?? null;
 }

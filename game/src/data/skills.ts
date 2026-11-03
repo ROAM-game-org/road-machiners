@@ -99,7 +99,7 @@ export type PerkId =
   | 'readDriver' | 'spotter' | 'cargoEye' | 'nightEyes'
   | 'welder' | 'teardown' | 'rebuild' | 'roadMechanic'
   | 'desertRat' | 'stormRider' | 'fightThrough' | 'longHaul'
-  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyHunter';
+  | 'shopCredit' | 'roadWatch' | 'paidTruce' | 'bountyHunter';
 
 export const PERK_LEVELS = [2, 4] as const;
 export type PerkLevel = (typeof PERK_LEVELS)[number];
@@ -123,8 +123,8 @@ export const PERKS: Record<PerkId, PerkDef> = {
   stormRider: { skill: 'toughness', level: 2, },
   fightThrough: { skill: 'toughness', level: 4, },
   longHaul: { skill: 'toughness', level: 4, },
-  marketEars: { skill: 'social', level: 2, },
-  rumorMill: { skill: 'social', level: 2, },
+  shopCredit: { skill: 'social', level: 2, },
+  roadWatch: { skill: 'social', level: 2, },
   paidTruce: { skill: 'social', level: 4, },
   bountyHunter: { skill: 'social', level: 4, },
 };
@@ -147,7 +147,6 @@ export const PERK_NUMBERS = {
   roadMechanic: { price: 2 },
   desertRat: { sunShare: 0.62 },
   fightThrough: { health: 0.5 },
-  rumorMill: { radius: 60 },
   paidTruce: { share: 0.1 },
 } as const;
 
