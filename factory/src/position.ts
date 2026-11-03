@@ -1,4 +1,4 @@
-import { NEEDS_INFO_LABEL, RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type FailureCause, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
+import { NEEDS_INFO_LABEL, RELEASE_LABEL, VOTING_LABEL, isCleanupTask, type Card, type FactoryState, type FailureCause, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
 
 export type Position = 'triage' | 'design' | 'implement' | 'verify' | 'post' | 'approval' | 'harden' | 'merging' | 'done';
 export const MOVE_TARGETS = ['triage', 'design', 'implement', 'verify', 'approval', 'harden', 'merging', 'done'] as const;
@@ -26,7 +26,14 @@ export function cardPosition(card: Card, state: FactoryState): Position {
 
 export function cardDrift(card: Card, state: FactoryState): string[] {
   if (card.labels.includes(RELEASE_LABEL)) return [];
-  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state), ...questionDrift(card, state), ...feedbackDrift(card, state)];
+  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...proposalDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state), ...questionDrift(card, state), ...feedbackDrift(card, state)];
+}
+
+function proposalDrift(card: Card, state: FactoryState): string[] {
+  const posts = Object.entries(state.proposalPosts).filter(([, issue]) => issue === card.issue);
+  return posts.length > 0 && (card.column !== 'Triage' || !card.labels.includes(VOTING_LABEL))
+    ? [`#${card.issue} has a private proposal post but is not waiting for a vote in Triage`]
+    : [];
 }
 
 function questionDrift(card: Card, state: FactoryState): string[] {

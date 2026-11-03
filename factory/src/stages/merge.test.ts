@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
@@ -38,10 +38,18 @@ let suiteDown = false;
 let replaced: string[] = [];
 let dirty: string[] = [];
 let unchecked: number[] = [];
+let pickConflicts: string[][] = [];
+let pickLeftOpen = false;
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
 const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
+
+function keptSession(issue: number, id: string): void {
+  mkdirSync(`${home}/card-sessions/issue-${issue}/-work-game`, { recursive: true });
+  writeFileSync(`${home}/card-sessions/issue-${issue}/card.id`, id);
+  writeFileSync(`${home}/card-sessions/issue-${issue}/-work-game/${id}.jsonl`, '{}');
+}
 const result = (cost = 1) => `${JSON.stringify({ type: 'result', total_cost_usd: cost, duration_ms: 1000 })}\n`;
 
 beforeEach(() => {
@@ -72,6 +80,8 @@ beforeEach(() => {
   replaced = [];
   dirty = [];
   unchecked = [];
+  pickConflicts = [];
+  pickLeftOpen = false;
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, day: '2026-09-29', postId: 300, removed: [9], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } }, pendingShip: 'ann' });
 });
@@ -135,6 +145,11 @@ function fakeCtx(budget = 5): Ctx {
         if (pushFailures-- > 0) throw new Error('rejected: non-fast-forward');
       },
       isMerged: async () => false,
+      pickIntoWork: async (_dir: string, commit: string) => {
+        calls.push(`pick ${commit}`);
+        return pickConflicts.shift() ?? [];
+      },
+      unfinishedPick: async () => pickLeftOpen,
       replaceBranch: async (commit: string, branch: string) => { replaced.push(`${commit} ${branch}`); },
     },
   };
@@ -501,6 +516,20 @@ describe('merge queue', () => {
     await expect(merge(fakeCtx())).rejects.toThrow('left the merge of factory/issue-6 into dev unfinished');
   });
 
+  it('resumes the card own kept Testing session for its conflict, and keeps the fix rounds on the merge session', async () => {
+    keptSession(6, 'card-6');
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }] };
+    shellFailures = ['FAIL a.test.ts: expected 1 to be 2'];
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(2);
+    expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-6`, id: 'card-6', resume: true });
+    expect(runs[0]!.prompt).toContain('This is a merge round for your card, issue #6.');
+    expect(runs[0]!.prompt).toContain('- game/src/a.ts');
+    expect(runs[1]!.prompt).toContain('expected 1 to be 2');
+    expect(runs[1]!.session?.dir).toBe(`${home}/sessions/merge`);
+    expect(runs[1]!.session?.resume).toBe(false);
+  });
+
   it('hands failed checks to one continued agent session until they pass', async () => {
     shellFailures = ['FAIL a.test.ts: expected 1 to be 2', 'FAIL b.test.ts'];
     await merge(fakeCtx());
@@ -576,6 +605,33 @@ describe('merge queue', () => {
     shellFailures = ['FAIL a.test.ts', PASS, 'FAIL b.test.ts', 'FAIL c.test.ts'];
     await expect(merge(fakeCtx(5))).rejects.toThrow(/\$6\.00 of its \$5 budget[\s\S]*\$30\.00 on conflicts/);
     expect(calls.filter((call) => /^(agent|checks|push|merge dev)/.test(call))).toEqual(['checks', 'agent', 'checks', 'push head1 dev', 'merge dev', 'agent', 'merge dev', 'checks', 'agent', 'checks']);
+  });
+
+  describe('a base that moved during the checks', () => {
+    const owning = (owners: Record<string, string[]>): Ctx => {
+      const ctx = fakeCtx();
+      ctx.repo.changedFiles = async (_base: string, branch: string) => owners[branch] ?? [];
+      return ctx;
+    };
+
+    it('resumes the kept session of the one card whose change the conflict touches', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts', 'game/src/b.ts'], 'factory/issue-5': ['game/src/c.ts'] }));
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-6`, id: 'card-6', resume: true });
+      expect(runs[0]!.prompt).toContain('dev moved on GitHub while the checks ran');
+    });
+
+    it('gives the conflict to the merge session when several cards share the conflicted files', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts'], 'factory/issue-5': ['game/src/a.ts'] }));
+      expect(runs[0]!.session?.dir).toBe(`${home}/sessions/merge`);
+      expect(logs).toContain('the conflicted files of the moved dev belong to cards #5, #6 together, so the merge session resolves them');
+    });
   });
 
   it('runs each checks run with the time limit, and runs a timed-out run again before it pushes', async () => {

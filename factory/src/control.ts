@@ -202,6 +202,7 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
     pendingApprovals: omitKey(state.pendingApprovals, key),
     approvedResolving: dropsApproval ? omitKey(state.approvedResolving, key) : state.approvedResolving,
     unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.issue !== issue)),
+    proposalPosts: Object.fromEntries(Object.entries(state.proposalPosts).filter(([, number]) => number !== issue)),
     failures: withoutFailuresOf(state.failures, issue),
   };
 }

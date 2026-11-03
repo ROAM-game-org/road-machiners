@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, writeState } from '../state';
@@ -30,6 +31,18 @@ describe('hotfix fan-out', () => {
       'merge factory/issue-7 main', 'merge main dev', 'push main dev',
     ]);
     expect(f.calls.some((call) => call.startsWith('addLabel'))).toBe(false);
+  });
+
+  it('resumes the hotfix card own kept Testing session for a conflict of main into dev', async () => {
+    const f = hotfixable();
+    const kept = `${f.ctx.cfg.home}/card-sessions/issue-7`;
+    mkdirSync(`${kept}/-work-game`, { recursive: true });
+    writeFileSync(`${kept}/card.id`, 'card-7');
+    writeFileSync(`${kept}/-work-game/card-7.jsonl`, '{}');
+    f.mergeConflicts = ['main dev'];
+    await shipHotfix(f.ctx, 7, 'Big horn', ANN, 'abc1234');
+    expect(f.agentRuns[0]!.session).toEqual({ dir: kept, id: 'card-7', resume: true });
+    expect(f.agentRuns[0]!.prompt).toContain('This is a merge round for your card, issue #7.');
   });
 
   it('ships with a GitHub release and posts nothing to the public channel', async () => {

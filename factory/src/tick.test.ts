@@ -253,6 +253,13 @@ describe('chooseJobs with held cards', () => {
     expect(report.decisions).toEqual([{ stage: 'triage', issue: 1, reasons: ['voting'] }]);
   });
 
+  it('starts no job on a card a bundle carries, or on one offered to a running design', () => {
+    const cards = [card(8, 'Design'), card(9, 'Design'), card(10, 'Design')];
+    const running = { id: 'j5', issue: 5, stage: 'design' as const, startedAt: '2026-09-30T09:00:00Z', log: 'j5.log', pid: 1 };
+    expect(chooseJobs(state({ bundles: { 7: [8] }, designOffers: { 5: [9] }, jobs: [running] }), cards, NOW, CFG)).toEqual([{ stage: 'design', issue: 10 }]);
+    expect(chooseJobs(state({ designOffers: { 5: [9] } }), [card(9, 'Design')], NOW, ONE)).toEqual([{ stage: 'design', issue: 9 }]);
+  });
+
   it('reports a held card as waiting with the reason held', () => {
     const report = evaluateSchedule(state({ held: { 5: HOLD } }), [card(5, 'Testing')], NOW, CFG);
     expect(report.picks).toEqual([]);
@@ -725,6 +732,16 @@ describe('tick', () => {
     expect(after.unroutedReplies).toEqual({ 6: { issue: 5, postId: 43, text: 'x', at: fresh } });
     expect(after.failures).toMatchObject([{ stage: 'feedback', issue: null, error: expect.stringContaining('issue #4 on your best reading, unrouted for 15 minutes: show the atlas') }]);
     expect(h.labels).toEqual([]);
+  });
+
+  it('reports an unrouted private proposal reply once and preserves its exact words for a later route', async () => {
+    const h = harness(null, false);
+    const reply = { issue: 4, postId: 77, text: 'оба предложения хуевые, иди переделывай', at: hoursAgo(1), proposal: true };
+    writeState(h.ctx.statePath, state({ unroutedReplies: { 3: reply } }));
+    await tick(h.ctx, '/code', h.deps);
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).unroutedReplies['3']).toEqual({ ...reply, reported: true });
+    expect(readState(h.ctx.statePath).failures.filter((failure) => failure.error.includes('private proposal post 77'))).toHaveLength(1);
   });
 
   it('starts the waste review when its period passed, before card work in the triage queue', () => {

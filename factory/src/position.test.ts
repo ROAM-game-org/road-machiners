@@ -47,6 +47,11 @@ describe('cardDrift', () => {
   it('flags an approval post outside Approval', () => {
     expect(cardDrift(card('Design'), withState({ approvalPosts: { 9: 157 } }))).toEqual(['#157 open approval post 9 but column Design']);
   });
+  it('flags a private proposal post outside voting in Triage', () => {
+    const state = withState({ proposalPosts: { 77: 157 } });
+    expect(cardDrift(card('Triage', 157, ['voting']), state)).toEqual([]);
+    expect(cardDrift(card('Design'), state)).toEqual(['#157 has a private proposal post but is not waiting for a vote in Triage']);
+  });
   it('flags a queued approval outside Approval', () => {
     expect(cardDrift(card('Testing'), withState({ pendingApprovals: { 157: 'bob' } }))).toEqual(['#157 queued approval but column Testing']);
   });

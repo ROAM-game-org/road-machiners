@@ -241,7 +241,7 @@ describe('playtest', () => {
     expect(JSON.parse(readFileSync(join(auditDir(run.f.ctx, RELEASE, 2), 'meta.json'), 'utf8'))).toMatchObject({ run: 2, sha: 'fix0001', outcome: 'clean' });
   });
 
-  it('blocks when the last play still has fixes to replay, pushes nothing and opens no release task', async () => {
+  it('blocks when the last play still has fixes to replay, pushes nothing', async () => {
     const run = setup();
     run.turns = [fixed('fix0001'), fixed('fix0002'), fixed('fix0003')];
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('The last play left fixes that no play checked: end the raid goal after a lost target.');

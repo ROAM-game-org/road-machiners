@@ -3,18 +3,18 @@ import { basename, dirname, join } from 'node:path';
 import { withLockSync } from './lock';
 import type { FactoryState, Failure, Job, JobStage, PlaytestState, StuckRecord } from './types';
 
-export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, pendingPlaytest: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingCleanup: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, caughtUpTo: {}, keptApprovals: {},pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, suiteCleared: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, questionPosts: {}, pendingFeedback: {}, routed: [], landings: {} };
+export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, proposalPosts: {}, lastRelease: null, pendingPlaytest: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingCleanup: null, designed: [], designOffers: {}, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, caughtUpTo: {}, keptApprovals: {},pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, suiteCleared: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, questionPosts: {}, pendingFeedback: {}, routed: [], landings: {} };
 
 const STATE_LOCK_MS = 30_000;
 
 type OldFailure = Omit<Failure, 'cause'> & { cause?: Failure['cause']; decision?: boolean };
 type OldStuck = Omit<StuckRecord, 'cause' | 'error'> & { cause: string; decision: boolean };
-type OldFields = { job?: Omit<Job, 'id'> | null; testPhase?: Record<string, string>; patching?: unknown; visualSendBacks?: unknown; jobStarts?: unknown; pendingChanges?: unknown; pendingCut?: unknown };
+type OldFields = { job?: Omit<Job, 'id'> | null; testPhase?: Record<string, string>; patching?: unknown; visualSendBacks?: unknown; jobStarts?: unknown; pendingChanges?: unknown; pendingCut?: unknown; designStarted?: unknown };
 type SavedState = Partial<FactoryState> & OldFields;
 
 export function readState(path: string): FactoryState {
   if (!existsSync(path)) return structuredClone(EMPTY_STATE);
-  const { job, testPhase, patching: _patching, visualSendBacks: _visualSendBacks, jobStarts: _jobStarts, pendingChanges: _pendingChanges, pendingCut: _pendingCut, ...saved } = JSON.parse(readFileSync(path, 'utf8')) as SavedState;
+  const { job, testPhase, patching: _patching, visualSendBacks: _visualSendBacks, jobStarts: _jobStarts, pendingChanges: _pendingChanges, pendingCut: _pendingCut, designStarted: _designStarted, ...saved } = JSON.parse(readFileSync(path, 'utf8')) as SavedState;
   const jobs = (saved.jobs ?? (job ? [{ ...job, id: basename(job.log, '.log') }] : [])).map(renameTesting);
   return { ...structuredClone(EMPTY_STATE), ...saved, jobs, ...fillHealth(saved), postOnly: saved.postOnly ?? postPhases(testPhase) };
 }

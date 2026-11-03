@@ -198,6 +198,7 @@ export type ReleasePost = {
 export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
+  proposalPosts: Record<string, number>;
   lastRelease: string | null;
   pendingPlaytest: string | null;
   devMerges: IssueMerge[];
@@ -213,6 +214,8 @@ export type FactoryState = {
   pendingIncidents: number[];
   pendingAnswers: number[];
   bundles: Record<string, number[]>;
+  designed: number[];
+  designOffers: Record<string, number[]>;
   lastTickError: string | null;
   failures: Failure[];
   adhocReplies: Record<string, ChatReply>;
@@ -250,7 +253,7 @@ export type Hold = { by: string; reason: string; at: string; stage: JobStage | n
 
 export type KeptApproval = { by: string; at: string; build: string; checked: string[]; reason: string | null };
 
-export type UnroutedReply = { issue: number; postId: number; text: string; at: string };
+export type UnroutedReply = { issue: number; postId: number; text: string; at: string; proposal?: boolean; reported?: boolean };
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;
@@ -335,6 +338,8 @@ export interface HostRepo {
   replaceBranch(commit: string, branch: string): Promise<void>;
   catchUpBase(dir: string, base: string): Promise<{ commit: string | null; conflicts: string[]; kept: string | null }>;
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
+  pickIntoWork(dir: string, commit: string): Promise<string[]>;
+  unfinishedPick(dir: string): Promise<boolean>;
   isMerged(base: string, branch: string): Promise<boolean>;
   headHash(branch: string): Promise<string>;
   fullHash(commit: string): Promise<string>;

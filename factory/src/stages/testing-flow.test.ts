@@ -7,6 +7,7 @@ import { EMPTY_STATE, readState, writeState } from '../state';
 import type { AgentRun, Ctx, Pin } from '../types';
 import { BudgetError } from './checkpoint';
 import { testPoolPin } from '../cpus';
+import { cardSession } from '../card-session';
 
 const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
@@ -178,6 +179,16 @@ describe('testing in one job', () => {
     expect(photoButtons).toEqual([[{ text: 'Approve', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 100: 7 });
     expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('keeps the session that made the posted build, so a later merge conflict of the card resumes it', async () => {
+    await runVerify(fakeCtx(posts), 7);
+    expect(cardSession(home, 7)).toEqual({ dir: `${home}/card-sessions/issue-7`, id: runs[0]!.session!.id, resume: true });
+  });
+
+  it('keeps no session when the testing run fails before its post', async () => {
+    await expect(runVerify(fakeCtx(posts, Array(9).fill('typecheck failed'), 3), 7)).rejects.toThrow(BudgetError);
+    expect(cardSession(home, 7)).toBeNull();
   });
 
   it('runs the full suite on the pushed head of a normal card beside its build', async () => {

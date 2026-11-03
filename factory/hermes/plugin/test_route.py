@@ -47,6 +47,16 @@ def test_reply_to_unknown_post_is_normal_chat():
     assert route("approve", "99") is None
 
 
+def test_proposal_reply_is_routed_as_committee_feedback():
+    decision = plugin.route("оба предложения хуевые, иди переделывай", "77", "-100", POSTS, CFG, proposal_posts={"77": 1349})
+    assert decision == ("proposal-reply", 1349, "оба предложения хуевые, иди переделывай")
+    assert plugin.inbox_command(decision, 1, "Ann", -100, 80, 77) == {
+        "kind": "proposal-reply", "issue": 1349, "text": "оба предложения хуевые, иди переделывай", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 80, "postId": 77,
+    }
+    assert plugin.route("YES", "77", "-101", POSTS, CFG, proposal_posts={"77": 1349}) is None
+    assert plugin.route("YES", "77", "-100", POSTS, CFG, proposal_posts={"77": 1349}) == ("proposal-yes", 1349, "YES")
+
+
 def test_change_command_is_normal_chat():
     assert route("/change add rain") is None
 
@@ -280,6 +290,40 @@ def test_hook_queues_a_plain_approval_reply_and_hands_it_to_hermes_with_a_header
     assert json.loads(file.read_text()) | {} == {
         "kind": "reply", "issue": 12, "text": "show us the top-down atlas", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 5, "postId": 55,
     }
+
+
+@pytest.mark.parametrize("words", ["оба предложения хуевые, иди переделывай", "давайте вынесем на голосование игроков"])
+def test_hook_hands_a_natural_proposal_reply_to_hermes_with_exact_words(tmp_path, words):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {}, "proposalPosts": {"77": 12}}')
+    result, _, inbox = dispatch(tmp_path, "1", text=words, reply="77")
+    assert result["action"] == "rewrite"
+    assert result["text"].startswith("[Factory: a committee member replied to the private proposal post 77 of issue #12.")
+    assert "factory_route_proposal" in result["text"]
+    assert result["text"].endswith("\n\n" + words)
+    (file,) = inbox.iterdir()
+    assert json.loads(file.read_text()) == {
+        "kind": "proposal-reply", "issue": 12, "text": words, "by": "1", "byName": "Ann", "chat": "-100", "messageId": 5, "postId": 77,
+    }
+
+
+def test_proposal_tool_queues_a_member_action_for_the_reply(tmp_path):
+    committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
+    committee.seed()
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {}, "proposalPosts": {"77": 12}}')
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    cfg = plugin.Config(str(inbox), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
+    handle = plugin.make_proposal_handler(cfg, session_env=lambda key: SESSION.get(key, ""))
+    assert json.loads(handle({"post": 77, "action": "redesign"}))["success"] is True
+    (file,) = inbox.iterdir()
+    assert json.loads(file.read_text()) == {
+        "kind": "proposal-action", "issue": 12, "text": None, "action": "redesign", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 77, "postId": 77,
+    }
+    assert "error" in json.loads(handle({"post": 77, "action": "publish"}))
+    outsider = plugin.make_proposal_handler(cfg, session_env=lambda key: {**SESSION, "HERMES_SESSION_USER_ID": "9"}.get(key, ""))
+    assert "error" in json.loads(outsider({"post": 77, "action": "vote"}))
 
 
 def test_reply_to_a_questions_post_answers_them():
@@ -637,8 +681,10 @@ def test_register_adds_queue_tool(tmp_path, monkeypatch):
     assert calls[0]["name"] == "factory_queue_task" and calls[0]["toolset"] == "factory"
     assert calls[0]["schema"]["parameters"]["required"] == ["request"]
     assert calls[1]["name"] == "factory_route_reply" and calls[1]["toolset"] == "factory"
-    assert calls[2]["name"] == "factory_sender" and calls[2]["toolset"] == "factory"
-    assert calls[3]["name"] == "factory_release_draft" and calls[3]["toolset"] == "factory"
-    assert calls[3]["schema"]["parameters"]["required"] == ["text"]
-    assert calls[4]["name"] == "factory_status" and calls[4]["toolset"] == "factory"
+    assert calls[2]["name"] == "factory_route_proposal" and calls[2]["toolset"] == "factory"
+    assert calls[2]["schema"]["parameters"]["required"] == ["post", "action"]
+    assert calls[3]["name"] == "factory_sender" and calls[3]["toolset"] == "factory"
+    assert calls[4]["name"] == "factory_release_draft" and calls[4]["toolset"] == "factory"
+    assert calls[4]["schema"]["parameters"]["required"] == ["text"]
+    assert calls[5]["name"] == "factory_status" and calls[5]["toolset"] == "factory"
     assert calls[1]["schema"]["parameters"]["required"] == ["post", "route", "text"]

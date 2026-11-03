@@ -421,6 +421,42 @@ describe('work clones', () => {
     expect((await git(work, 'log', '-1', '--format=%s')).trim()).toBe('Merge issue #12: Horn');
   });
 
+  describe('porting a dev merge onto the release', () => {
+    async function ported(releaseFile: string) {
+      const env = await setup();
+      await env.commit('release/x', releaseFile, 'release\n', 'main');
+      await env.feature(30, 'g.txt', 'dev only\n');
+      await env.feature(31, 'f.txt', 'fix\n');
+      const sha = await env.head('dev');
+      await env.repo.fetch();
+      const work = join(env.home, 'work', 'merge-queue');
+      await env.repo.prepareWorkClone('release/x', 'release/x', work);
+      return { ...env, sha, work };
+    }
+
+    it('cherry-picks only the change of the card merge, with no other dev work, and the merge is one of the card branch', async () => {
+      const { repo, sha, work } = await ported('g.txt');
+      expect(await repo.pickIntoWork(work, sha)).toEqual([]);
+      expect(await repo.unfinishedPick(work)).toBe(false);
+      expect(readFileSync(join(work, 'f.txt'), 'utf8')).toBe('fix\n');
+      expect(readFileSync(join(work, 'g.txt'), 'utf8')).toBe('release\n');
+      expect((await git(work, 'log', '-1', '--format=%P')).trim().split(' ')).toHaveLength(1);
+      expect(await repo.isMerged(`${sha}^2`, 'factory/issue-31')).toBe(true);
+      await expect(repo.isMerged(`${sha}^2`, 'factory/issue-30')).resolves.toBe(false);
+    });
+
+    it('stops on a conflict, reports the same open pick again, and counts it finished only after the commit', async () => {
+      const { repo, sha, work } = await ported('f.txt');
+      expect(await repo.pickIntoWork(work, sha)).toEqual(['f.txt']);
+      expect(await repo.unfinishedPick(work)).toBe(true);
+      expect(await repo.pickIntoWork(work, sha)).toEqual(['f.txt']);
+      writeFileSync(join(work, 'f.txt'), 'release and fix\n');
+      await git(work, 'add', 'f.txt');
+      await git(work, ...ID, 'commit', '--no-edit');
+      expect(await repo.unfinishedPick(work)).toBe(false);
+    });
+  });
+
   describe('catching a work clone up to its base', () => {
     const tip = async (dir: string) => (await git(dir, 'rev-parse', 'HEAD')).trim();
     const staleClone = async (issue: number) => {

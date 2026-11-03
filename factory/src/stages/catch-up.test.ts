@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import { MergeConflictError, STUCK_LABEL, type AgentRun, type Card, type Ctx, type Failure, type Job, type MergeStep, type Resolution } from '../types';
@@ -56,6 +56,12 @@ function fakeCtx(): Ctx {
   return fake as unknown as Ctx;
 }
 
+function keptSession(issue: number, id: string): void {
+  mkdirSync(`${home}/card-sessions/issue-${issue}/-work-game`, { recursive: true });
+  writeFileSync(`${home}/card-sessions/issue-${issue}/card.id`, id);
+  writeFileSync(`${home}/card-sessions/issue-${issue}/-work-game/${id}.jsonl`, '{}');
+}
+
 const caughtUp = (): Record<string, string> => readState(`${home}/state.json`).caughtUpTo;
 
 describe('catchUp', () => {
@@ -78,6 +84,27 @@ describe('catchUp', () => {
     await catchUp(fakeCtx(), 8);
     expect(calls).toEqual(['fetch', 'is-merged dev factory/issue-8', 'merge dev into factory/issue-8 with 0 resolutions', 'open /work/merge-factory-issue-8', 'agent', 'merge dev into factory/issue-8 with 1 resolutions']);
     expect(runs[0]!.prompt).toContain('game/src/a.ts');
+  });
+
+  it('resumes the card own kept Testing session to resolve its conflict, in the merge clone', async () => {
+    keptSession(8, 'own-session');
+    conflicts = 1;
+    await catchUp(fakeCtx(), 8);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-8`, id: 'own-session', resume: true });
+    expect(runs[0]!.clone).toBe(`${home}/work/merge-factory-issue-8`);
+    expect(runs[0]!.prompt).toContain('This is a merge round for your card, issue #8.');
+    expect(runs[0]!.prompt).toContain('Every part of your approved change must survive');
+    expect(runs[0]!.prompt).toContain('- game/src/a.ts');
+    expect(logs).toContain('the kept session own-session of #8 resolves the conflict of dev into factory/issue-8');
+  });
+
+  it('falls back to a fresh merge agent and says so when the card kept no session', async () => {
+    conflicts = 1;
+    await catchUp(fakeCtx(), 8);
+    expect(runs[0]!.session).toBeUndefined();
+    expect(runs[0]!.prompt).not.toContain('This is a merge round for your card');
+    expect(logs).toContain('#8 has no kept session, so a fresh agent resolves the conflict of dev into factory/issue-8');
   });
 
   it('pushes nothing when the issue branch already holds the base', async () => {

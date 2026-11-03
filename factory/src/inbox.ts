@@ -1,4 +1,4 @@
-import { addCard } from './card-events';
+import { addCard, moveCard } from './card-events';
 import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee, telegramIds } from './committee';
@@ -10,18 +10,19 @@ import { deny, routeFeedback } from './stages/approval';
 import { adoptQuestionMedia } from './stages/common';
 import { replyMediaLines } from './reply-media';
 import { clearAsked, questionPostIssue } from './questions';
+import { openStore } from './public/store';
 import { readState, updateState } from './state';
-import { ADHOC_LABEL, NEEDS_INFO_LABEL, type Ctx, type RejectedControl, type Route } from './types';
+import { ADHOC_LABEL, NEEDS_INFO_LABEL, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type RejectedControl, type Route } from './types';
 
 const TITLE_LIMIT = 80;
-const KINDS = ['approve', 'deny', 'reply', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'candidate-reply', 'release-draft', 'publish'];
+const KINDS = ['approve', 'deny', 'reply', 'proposal-reply', 'proposal-action', 'proposal-yes', 'proposal-no', 'proposal-redesign', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'candidate-reply', 'release-draft', 'publish'];
 const ROUTES: Route[] = ['answer', 'patch', 'redesign'];
-const SILENT_KINDS: InboxCommand['kind'][] = ['adhoc', 'reply', 'answer', 'release-draft'];
+const SILENT_KINDS: InboxCommand['kind'][] = ['adhoc', 'reply', 'proposal-reply', 'proposal-action', 'proposal-yes', 'proposal-no', 'proposal-redesign', 'answer', 'release-draft'];
 const HERMES = 'hermes';
 const HERMES_KINDS: InboxCommand['kind'][] = ['adhoc', 'answer', 'patch', 'redesign', 'release-draft'];
 
 export type InboxCommand = {
-  kind: 'approve' | 'deny' | 'reply' | Route | 'answer-questions' | 'adhoc' | 'ship' | 'remove' | 'candidate-reply' | 'release-draft' | 'publish';
+  kind: 'approve' | 'deny' | 'reply' | 'proposal-reply' | 'proposal-action' | 'proposal-yes' | 'proposal-no' | 'proposal-redesign' | Route | 'answer-questions' | 'adhoc' | 'ship' | 'remove' | 'candidate-reply' | 'release-draft' | 'publish';
   issue: number | null;
   text: string | null;
   by: string;
@@ -30,6 +31,7 @@ export type InboxCommand = {
   messageId: number | null;
   postId: number | null;
   image?: string | null;
+  action?: 'vote' | 'reject' | 'redesign' | 'feedback';
 };
 
 export function inboxDir(home: string): string {
@@ -157,6 +159,11 @@ const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
   ship: (ctx, command, issue, by) => queueShip(ctx, issue, by, command.postId),
   remove: (ctx, command, issue, by) => queueRemoval(ctx, issue, by, requireText(command)),
   reply: (ctx, command, issue) => awaitRoute(ctx, command, issue),
+  'proposal-reply': pendingProposalReply,
+  'proposal-action': routeProposalReply,
+  'proposal-yes': (ctx, command, issue, by) => directProposalReply(ctx, command, issue, by, 'vote'),
+  'proposal-no': (ctx, command, issue, by) => directProposalReply(ctx, command, issue, by, 'reject'),
+  'proposal-redesign': (ctx, command, issue, by) => directProposalReply(ctx, command, issue, by, 'redesign'),
   'answer-questions': answerQuestions,
   answer: routed, patch: routed, redesign: routed,
   deny: async (ctx, command, issue, by) => {
@@ -165,6 +172,92 @@ const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
     return `Issue #${issue} is denied and closed.`;
   },
 };
+
+type ProposalAction = NonNullable<InboxCommand['action']>;
+
+function requireProposalPost(ctx: Ctx, command: InboxCommand, issue: number, postId: number): void {
+  if (command.chat !== ctx.cfg.committeeChat || readState(ctx.statePath).proposalPosts[String(postId)] !== issue) throw new Error('That proposal post is not current.');
+}
+
+function pendingProposalReply(ctx: Ctx, command: InboxCommand, issue: number): string {
+  const postId = requirePost(command);
+  requireProposalPost(ctx, command, issue, postId);
+  const reply = { issue, postId, text: requireText(command), at: ctx.now().toISOString(), proposal: true };
+  updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: { ...state.unroutedReplies, [String(command.messageId)]: reply } }));
+  return `Reply on #${issue} waits for Hermes to route it.`;
+}
+
+async function routeProposalReply(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
+  const postId = requirePost(command);
+  const pending = readState(ctx.statePath).unroutedReplies[String(command.messageId)];
+  if (!pending?.proposal || pending.issue !== issue || pending.postId !== postId) throw new Error('No matching member proposal reply is pending.');
+  return applyProposalAction(ctx, command, issue, by, pending.text, requireProposalAction(command.action));
+}
+
+function requireProposalAction(action: InboxCommand['action']): ProposalAction {
+  if (action === 'vote' || action === 'reject' || action === 'redesign' || action === 'feedback') return action;
+  throw new Error('Unknown proposal action.');
+}
+
+async function directProposalReply(ctx: Ctx, command: InboxCommand, issue: number, by: string, action: ProposalAction): Promise<string> {
+  return applyProposalAction(ctx, command, issue, by, requireText(command), action);
+}
+
+async function applyProposalAction(ctx: Ctx, command: InboxCommand, issue: number, by: string, text: string, action: ProposalAction): Promise<string> {
+  const postId = requirePost(command);
+  requireProposalPost(ctx, command, issue, postId);
+  const store = openStore(ctx.cfg.home);
+  try {
+    requireOpenGate(store, issue, postId);
+    if (action === 'feedback') {
+      await ctx.github.comment(issue, `Committee feedback from ${by} on the private voting proposal:\n\n${text}`);
+      clearProposalReply(ctx, command.messageId);
+      return `Feedback on #${issue} is recorded. Player voting stays closed.`;
+    }
+    await applyPrivateDecision(ctx, store, issue, postId, by, text, action);
+    closeProposalPost(ctx, command.messageId, postId);
+    return action === 'vote' ? `Player voting on #${issue} is permitted. The feature is not approved.` : `The private proposal on #${issue} was ${action}ed.`;
+  } finally {
+    store.close();
+  }
+}
+
+function requireOpenGate(store: ReturnType<typeof openStore>, issue: number, postId: number): void {
+  if (store.gatePost(issue) !== postId) throw new Error('That proposal is no longer waiting for committee permission.');
+}
+
+async function applyPrivateDecision(ctx: Ctx, store: ReturnType<typeof openStore>, issue: number, postId: number, by: string, text: string, action: Exclude<ProposalAction, 'feedback'>): Promise<void> {
+  await requireVotingCard(ctx, issue);
+  await ctx.github.comment(issue, `Committee member ${by} routed the private proposal as ${action}:\n\n${text}`);
+  if (action !== 'vote') await rejectPrivateProposal(ctx, issue, action);
+  if (!store.decideGate(issue, postId, action === 'vote' ? 'yes' : 'no', ctx.now())) throw new Error('That proposal already has a committee decision.');
+}
+
+async function requireVotingCard(ctx: Ctx, issue: number): Promise<void> {
+  const item = await ctx.github.issue(issue);
+  const card = await ctx.github.card(issue);
+  if (item.state !== 'OPEN' || !item.labels.includes(VOTING_LABEL) || card?.column !== 'Triage') throw new Error('That proposal no longer waits for a committee decision in Triage.');
+}
+
+async function rejectPrivateProposal(ctx: Ctx, issue: number, action: 'reject' | 'redesign'): Promise<void> {
+  await ctx.github.removeLabel(issue, VOTING_LABEL);
+  if (action === 'redesign') return moveCard(ctx, issue, 'Design', 'redesign');
+  await ctx.github.addLabel(issue, WONT_DO_LABEL);
+  await ctx.github.close(issue, 'not planned');
+  await moveCard(ctx, issue, 'Done', 'denied');
+}
+
+function clearProposalReply(ctx: Ctx, messageId: number | null): void {
+  updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== String(messageId))) }));
+}
+
+function closeProposalPost(ctx: Ctx, messageId: number | null, postId: number): void {
+  updateState(ctx.statePath, (state) => ({
+    ...state,
+    proposalPosts: Object.fromEntries(Object.entries(state.proposalPosts).filter(([id]) => id !== String(postId))),
+    unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id, reply]) => id !== String(messageId) && (!reply.proposal || reply.postId !== postId))),
+  }));
+}
 
 async function handleIssueCommand(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
   const handler = ISSUE_HANDLERS[command.kind];

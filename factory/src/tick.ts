@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { removalCandidates, sweepLogs, sweepWork } from './cleanup';
+import { removalCandidates, sweepCardSessions, sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { availableGb, freeGb, requireAgyLogin, requireCappedSlice, requireCodexLogin } from './health';
@@ -20,6 +20,7 @@ import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
 import { candidateWanted } from './stages/release-common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
+import { carriedIssues, offeredIssues } from './stages/bundle';
 import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
@@ -57,7 +58,8 @@ function queued(state: FactoryState): JobPick[] {
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
-  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue));
+  const spoken = new Set([...carriedIssues(state), ...offeredIssues(state)]);
+  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue) && !spoken.has(card.issue));
 }
 
 function byProgress(state: FactoryState, cards: Card[]): JobPick[] {
@@ -499,6 +501,7 @@ export async function cleanWork(ctx: Ctx, listed: Card[]): Promise<void> {
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
+  for (const name of sweepCardSessions(ctx.cfg.home, state, cards, unconfirmed)) ctx.log('tick', null, `removed the kept card session ${name}`);
   const logs = sweepLogs(join(ctx.cfg.home, 'logs'), state, ctx.now(), ctx.cfg.logDays);
   if (logs.length > 0) ctx.log('tick', null, `removed ${logs.length} job logs older than ${ctx.cfg.logDays} days`);
   cleanArchives(ctx);
@@ -510,11 +513,14 @@ function cleanArchives(ctx: Ctx): void {
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {
-  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
+  const late = Object.entries(readState(ctx.statePath).unroutedReplies).filter(([, reply]) => !reply.reported && minutesSince(ctx, reply.at) > ctx.cfg.replyRouteMinutes);
   for (const [messageId, reply] of late) {
-    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
+    updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: reply.proposal
+      ? { ...state.unroutedReplies, [messageId]: { ...reply, reported: true } }
+      : Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
     const text = reply.text.replace(/\s+/g, ' ');
-    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
+    const kind = reply.proposal ? 'private proposal' : 'approval';
+    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the ${kind} post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
   }
 }
 

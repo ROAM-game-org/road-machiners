@@ -157,14 +157,26 @@ describe('read commands', () => {
 
   it('card prints one fact per line and its drift', async () => {
     const f = board();
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), postOnly: [5], builds: { '5': 'abc1234' } });
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), postOnly: [5], builds: { '5': 'abc1234' }, designed: [5], designOffers: { '5': [7] }, bundles: { '5': [8, 9] } });
     await run(f, 'card', '5');
     expect(out).toContain('position: design');
     expect(out).toContain('labels: hotfix');
     expect(out).toContain('post only: yes');
+    expect(out).toContain('designed: yes');
+    expect(out).toContain('design offer: #7');
+    expect(out).toContain('bundle: #8, #9');
     expect(out).toContain('build: abc1234');
     expect(out).toContain('drift: #5 waits for a post but column Design');
     await expect(run(f, 'card', '99')).rejects.toThrow('No card');
+  });
+
+  it('shows private proposal posts and unrouted member replies on the card', async () => {
+    const f = board();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), proposalPosts: { 77: 5 }, unroutedReplies: { 12: { issue: 5, postId: 77, text: 'redo it', at: 'a', proposal: true } } });
+    await run(f, 'card', '5');
+    expect(out).toContain('private proposal posts: 77');
+    expect(out).toContain('unrouted proposal replies: 1');
+    expect(out).toContain('drift: #5 has a private proposal post but is not waiting for a vote in Triage');
   });
 
   it('shows a hold in cards, card, status and audit', async () => {
