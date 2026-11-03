@@ -1,21 +1,19 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import { chromium } from 'playwright';
 import { installCensus, readCensus } from './census-page.mjs';
-import { censusLines, workerSteps } from './census-report.mjs';
+import { censusLines } from './census-report.mjs';
 import { launchChromium } from './gpu.mjs';
 
 const SCENES = ['town-day', 'town-night', 'fight', 'drive'];
 const KNOWN_SCENES = new Set(['town-day', 'town-day-far', 'town-night', 'town-night-far', 'fight', 'drive']);
 const FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio', '--enable-precise-memory-info'];
-const CATEGORIES = ['disabled-by-default-v8.cpu_profiler'];
 const POLL_MS = 250;
 const SERVER_TIMEOUT_MS = 60000;
 const GAME_TIMEOUT_MS = 300000;
 const BENCH_TIMEOUT_MS = 900000;
-const TRACE_MAX_BYTES = 600 * 1024 * 1024;
 const USAGE = 'Usage: npm run census [-- --scenes <id,id>]';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -78,29 +76,19 @@ const benchState = () => {
   return state?.done ? true : null;
 };
 
-function readTrace(path) {
-  const bytes = statSync(path).size;
-  if (bytes > TRACE_MAX_BYTES) throw new Error(`The trace ${path} is ${Math.round(bytes / 1e6)} MB, too big to read`);
-  const trace = JSON.parse(readFileSync(path, 'utf8'));
-  rmSync(path);
-  return trace;
-}
-
-async function censusOf(browser, base, scene, tracePath) {
+async function censusOf(browser, base, scene) {
   const errors = [];
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   page.on('crash', () => errors.push('the page crashed'));
-  await browser.startTracing(page, { path: tracePath, screenshots: false, categories: CATEGORIES });
   await page.goto(`${base}?bench&scenes=${scene}`, { waitUntil: 'commit', timeout: GAME_TIMEOUT_MS });
   await until(page, errors, 'The game boot', GAME_TIMEOUT_MS, gameReady);
   const systems = await page.evaluate(installCensus);
   console.log(`${scene}: census wrapped ${systems} systems, bench playing`);
   await until(page, errors, 'The bench', BENCH_TIMEOUT_MS, benchState);
   const census = await page.evaluate(readCensus);
-  await browser.stopTracing();
   await page.close();
-  return { census, rules: workerSteps(readTrace(tracePath)) };
+  return census;
 }
 
 async function runScene(base, scene, commit) {
@@ -108,9 +96,9 @@ async function runScene(base, scene, commit) {
   try {
     if (software) throw new Error(`The census got the software renderer ${renderer}. It needs a GPU.`);
     const name = `perf-reports/census-${os.hostname().replace(/[^\w.-]/g, '_')}-${commit}-${scene}`;
-    const { census, rules } = await censusOf(browser, base, scene, `${name}.trace.json`);
-    writeFileSync(`${name}.json`, `${JSON.stringify({ scene, commit, renderer, census, rules }, null, 2)}\n`);
-    console.log(`\n${censusLines(scene, census, rules).join('\n')}\n\nreport ${name}.json\n`);
+    const census = await censusOf(browser, base, scene);
+    writeFileSync(`${name}.json`, `${JSON.stringify({ scene, commit, renderer, census }, null, 2)}\n`);
+    console.log(`\n${censusLines(scene, census).join('\n')}\n\nreport ${name}.json\n`);
   } finally {
     await browser.close();
   }
