@@ -38,6 +38,8 @@ const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 export type EnemyCard = { weight: number; from: number; floor: number; chase: boolean };
 export type Line = { first: number; step: number };
 
+const GUARD_GAP = 8;
+
 export const CHAOS_HIGHWAY = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
   outpost: {
@@ -83,7 +85,7 @@ export const CHAOS_HIGHWAY = {
   } as Record<string, EnemyCard>,
   chaseSpeed: 5.5,
   nerve: 0.15,
-  playerMargin: 8,
+  playerMargin: GUARD_GAP,
   haulerNear: 20,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
@@ -94,7 +96,7 @@ export const CHAOS_HIGHWAY = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 250, step: 100 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, guardGap: GUARD_GAP, catchUp: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, accessory: 2, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   stockGrowthStretches: 4,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },
