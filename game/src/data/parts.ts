@@ -901,6 +901,15 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   },
 };
 
+export const TALL_RISE: Readonly<Record<string, number>> = {
+  trailerBox: 1.05,
+  enclosedFrame: 1.05,
+  heavyFrame: 1.05,
+  cannon: 0.85,
+  sniperCannon: 0.7,
+  tankGun: 0.9,
+};
+
 export const PARTS: Record<string, PartDef> = Object.fromEntries(
   Object.entries(UNPRICED_PARTS).map(([id, def]) => [id, pricePart(withBulk(scaleMass(def)))]),
 );

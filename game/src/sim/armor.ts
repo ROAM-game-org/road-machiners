@@ -1,10 +1,11 @@
 import { RULES } from '../data/rules';
+import { GUN_CLEARANCE } from '../data/weapons';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
-import { GRID_CELL, cellCenter, cellRect, cellSteps, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
+import { GRID_CELL, cellCenter, cellRect, cellSteps, highestUnder, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
-import { isShield, partDef, type PartDef } from '../data/parts';
+import { isShield, partDef, TALL_RISE, type PartDef } from '../data/parts';
 import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponArc } from './stats';
 import { wornDef } from './wear';
@@ -461,13 +462,13 @@ export type FireSpan = { from: number; to: number };
 const SIDE_CENTER: Record<Side, number> = { front: 0, right: 90, rear: 180, left: -90 };
 
 export function gunSpans(v: Loadout, item: GridItem): FireSpan[] {
-  return spansIn(v, tallItems(v), item);
+  return spansIn(v, blockersOf(v, item), item);
 }
 
 export function gunBlockers(v: Vehicle, item: GridItem): GridItem[] {
   const arc = arcPieces(v, item);
   const out = new Set<GridItem>();
-  for (const s of shadowsOf(tallItems(v), item)) if (overlaps(s.pieces, arc)) out.add(s.blocker);
+  for (const s of shadowsOf(blockersOf(v, item), item)) if (overlaps(s.pieces, arc)) out.add(s.blocker);
   return [...out];
 }
 
@@ -504,32 +505,30 @@ export function openArcShares(v: Vehicle): number[] {
   const key = gunLayoutKey(v);
   const known = openArcCache.get(key);
   if (known) return known;
-  const tall = tallItems(v);
-  const shares = mountedItems(v, 'weapon').map((item) => shareOpen(v, tall, item));
+  const shares = mountedItems(v, 'weapon').map((item) => shareOpen(v, item));
   if (openArcCache.size >= OPEN_ARCS_KEPT) openArcCache.clear();
   openArcCache.set(key, shares);
   return shares;
 }
 
-function shareOpen(v: Vehicle, tall: readonly GridItem[], item: GridItem): number {
-  return spanDegrees(spansIn(v, tall, item)) / spanDegrees(arcPieces(v, item));
+function shareOpen(v: Vehicle, item: GridItem): number {
+  return spanDegrees(spansIn(v, blockersOf(v, item), item)) / spanDegrees(arcPieces(v, item));
 }
 
 export function gunLayoutScore(v: Vehicle): number {
   const guns = mountedItems(v, 'weapon');
-  const tall = tallItems(v);
   const covered = new Set<Side>();
   let sum = 0;
   for (const item of guns) {
-    const spans = spansIn(v, tall, item);
+    const spans = spansIn(v, blockersOf(v, item), item);
     for (const side of spanSides(spans)) covered.add(side);
     sum += spanDegrees(spans);
   }
   return covered.size * (360 * guns.length + 1) + sum;
 }
 
-function spansIn(v: Loadout, tall: readonly GridItem[], item: GridItem): FireSpan[] {
-  const shadows = shadowsOf(tall, item).flatMap((s) => s.pieces);
+function spansIn(v: Loadout, blockers: readonly GridItem[], item: GridItem): FireSpan[] {
+  const shadows = shadowsOf(blockers, item).flatMap((s) => s.pieces);
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));
 }
@@ -600,8 +599,40 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
   return merged;
 }
 
-function tallItems(v: Loadout): GridItem[] {
-  return v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
+function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
+  const tall = v.items.filter((it) => it.id !== gun.id && it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
+  if (tall.length === 0) return tall;
+  const reach = floorUnder(v.chassisId, gun) + GUN_CLEARANCE;
+  return tall.filter((it) => topOf(v.chassisId, it) > reach);
+}
+
+const heightCache = new Map<string, number>();
+
+function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, measure: () => number): number {
+  const key = `${what},${chassisId},${item.kind === 'part' ? item.part.defId : item.id},${item.x},${item.y},${item.rot}`;
+  let height = heightCache.get(key);
+  if (height === undefined) {
+    height = measure();
+    heightCache.set(key, height);
+  }
+  return height;
+}
+
+function floorUnder(chassisId: string, item: GridItem): number {
+  return cachedHeight('floor', chassisId, item, () => {
+    const floor = highestUnder(chassisId, cellRect(chassisId, itemCells(item)));
+    if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
+    return floor;
+  });
+}
+
+function topOf(chassisId: string, item: GridItem): number {
+  if (item.kind !== 'part') throw new Error(`${item.id} is not a part`);
+  const def = partDef(item.part.defId);
+  if (def.role === 'cab') return floorUnder(chassisId, item);
+  const rise = TALL_RISE[def.id];
+  if (rise === undefined) throw new Error(`Tall part ${def.id} on ${chassisId} has no rise in TALL_RISE`);
+  return cachedHeight('top', chassisId, item, () => floorUnder(chassisId, item) + rise);
 }
 
 export function aimWithin(spans: readonly FireSpan[], rel: number): number {
