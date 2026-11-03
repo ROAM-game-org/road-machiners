@@ -210,7 +210,6 @@ export type FactoryState = {
   pendingIncidents: number[];
   pendingAnswers: number[];
   bundles: Record<string, number[]>;
-  designStarted: number[];
   lastTickError: string | null;
   failures: Failure[];
   adhocReplies: Record<string, ChatReply>;

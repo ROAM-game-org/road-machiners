@@ -1,13 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readSystem, type GameSystem } from '../systems';
 import { OUT_DIR, type Ctx, type ReleaseState } from '../types';
 import { fillPrompt, readOutput, runAgent } from './common';
 
 export type Complexity = 'trivial' | 'intermediate' | 'hard';
 export type Routing = { complexity: Complexity; why: string };
 export type Pitch = { title: string; text: string };
-export type Work = { routing: Routing; bundle: number[]; releaseFix: boolean; system: GameSystem };
+export type Work = { routing: Routing; bundle: number[]; releaseFix: boolean };
 export type Groomed = ({ verdict: 'ready'; reason: string } & Work) | ({ verdict: 'vote'; reason: string; pitch: Pitch } & Work) | { verdict: 'wont-do'; reason: string } | { verdict: 'unclear'; reason: string; questions: string[] };
 type Offer = { candidates: number[]; release: ReleaseState | null };
 
@@ -91,7 +90,7 @@ function readGroomed(fields: Record<string, unknown>, offer: Offer): Groomed {
   const reason = readText(fields.reason, 'reason');
   if (fields.verdict === 'wont-do') return { verdict: 'wont-do', reason };
   if (fields.verdict !== 'ready' && fields.verdict !== 'vote') throw new Error(`groom.json has an unknown verdict: ${String(fields.verdict)}`);
-  const work = { routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, offer.candidates, 'groom.json'), releaseFix: readReleaseFix(fields.releaseFix, offer.release, 'groom.json'), system: readSystem(fields.system, 'groom.json') };
+  const work = { routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, offer.candidates, 'groom.json'), releaseFix: readReleaseFix(fields.releaseFix, offer.release, 'groom.json') };
   if (fields.verdict === 'ready') return { verdict: 'ready', reason, ...work };
   if (work.releaseFix) throw new Error('groom.json puts a release fix to a vote');
   return { verdict: 'vote', reason, ...work, pitch: composePitch(readPitch(fields.pitch)) };
