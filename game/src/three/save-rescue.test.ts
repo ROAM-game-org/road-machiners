@@ -167,6 +167,17 @@ describe('readCarried', () => {
     }
   });
 
+  it('carries a gun turned across its cells with its pose, and resets an impossible pose to 0', () => {
+    const save = currentSave() as unknown as { world: SavedWorld };
+    const truck = save.world.vehicles.find((v) => v.id === save.world.player.vehicleId)!;
+    const gun = (truck.items as unknown as { kind: string; part?: { defId: string }; rot: number }[]).find((it) => it.kind === 'part' && it.part!.defId === 'mg');
+    if (!gun) throw new Error('The standard truck holds no mg');
+    gun.rot = 6;
+    expect(readCarried(save).truck!.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!.rot).toBe(6);
+    gun.rot = 9;
+    expect(readCarried(save).truck!.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!.rot).toBe(0);
+  });
+
   it('turns a retired part and a retired good into their prices', () => {
     const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
     const truck = save.world.vehicles.find((v) => v.id === save.world.player.vehicleId)!;

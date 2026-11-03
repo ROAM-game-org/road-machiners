@@ -7,16 +7,16 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent. A goal st
 <!-- wiki:npc-templates -->
 | id | name | profession | allegiance | traits | extra traits (chance) | fight style | aggro range (tiles) | cap | spawn interval (turns) | spawn place |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| buggy | Raider outrider | Raider | spawn site, else scrapjaw | raider | brave (0.15) | circle | 11 | 6 | 50 | {"kind":"camp"} |
-| gunwagon | Gunwagon | Raider | spawn site, else scrapjaw | raider | brave (0.15) | hold | 12 | 2 | 150 | {"kind":"camp"} |
-| trader | Trader caravan | Trader | spawn town at a share, else independent | trader | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 8 | 12 | {"kind":"town"} |
-| scavenger | Scavenger | Scavenger | independent | scavenger | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 4 | 12 | {"kind":"town"} |
+| buggy | Raider outrider | Raider | spawn site, else scrapjaw | raider | brave (0.15) | circle | 11 | 9 | 50 | {"kind":"camp"} |
+| gunwagon | Gunwagon | Raider | spawn site, else scrapjaw | raider | brave (0.15) | hold | 12 | 3 | 150 | {"kind":"camp"} |
+| trader | Trader caravan | Trader | spawn town at a share, else independent | trader | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 12 | 12 | {"kind":"town"} |
+| scavenger | Scavenger | Scavenger | independent | scavenger | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 6 | 12 | {"kind":"town"} |
 | bowlFarmer | Bowl Farmers patrol | Bowl Farmer | spawn site, else bowl | lawman, brave |  | hold | 0 | 3 | 70 | {"kind":"sites","ids":["bowl"]} |
 | noseArmy | Nose Army patrol | Nose soldier | spawn site, else nose | lawman, brave |  | hold | 0 | 3 | 70 | {"kind":"sites","ids":["nose"]} |
 | marshal | Marshall car | Marshall | marshals | marshal, brave |  | circle | 0 | 2 | 90 | {"kind":"sites","ids":["marshal-post"]} |
-| courier | Courier | Courier | guidestar | courier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 4 | 30 | {"kind":"town"} |
-| roamer | Roamer | Roamer | independent | roamer | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 3 | 30 | {"kind":"town"} |
-| vulture | Vulture | Vulture | independent | vulture | coward (0.6), scumbag (0.35), brave (0.1) | hold | 0 | 3 | 30 | {"kind":"town"} |
+| courier | Courier | Courier | guidestar | courier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 6 | 30 | {"kind":"town"} |
+| roamer | Roamer | Roamer | independent | roamer | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 4 | 30 | {"kind":"town"} |
+| vulture | Vulture | Vulture | independent | vulture | coward (0.6), scumbag (0.35), brave (0.1) | hold | 0 | 4 | 30 | {"kind":"town"} |
 | convoy | Supply convoy | Convoy driver | spawn site, else bowl | supplier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 2 | 100 | {"kind":"sites","ids":["bowl","nose"]} |
 | convoyGuard | Convoy guard | Convoy guard | its leader, else bowl | guard, brave | scumbag (0.25) | hold | 0 | 2 | 100 | {"kind":"escort","of":"convoy"} |
 | merc | Merc | Merc | independent | merc | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 3 | 70 | {"kind":"sites","ids":["bowl","nose"]} |
