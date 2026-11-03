@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as path from './path';
 import { PERF } from '../data/perf';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -247,6 +248,25 @@ describe('NPC traffic', () => {
     w.vehicles[0].pos = { x: 106, y: 98 };
     corridor(w);
     expect(trafficStops(w, npc, DEST)).toBe(true);
+  });
+
+  it('steers no route around a slower truck ahead in its only lane (issue 1342)', () => {
+    const { w, npc } = scene(106, 100, 0, 2);
+    npc.order = { kind: 'through', dest: DEST, pace: 8 };
+    corridor(w);
+    expect(routeBlockers(w, npc)).toEqual([]);
+  });
+
+  it('works out once per turn whether it can pass a truck ahead (issue 1342)', () => {
+    const { w, npc } = scene(106, 100, 0, 2);
+    npc.order = { kind: 'through', dest: DEST, pace: 8 };
+    const search = vi.spyOn(path, 'route');
+    routeBlockers(w, npc);
+    const first = search.mock.calls.length;
+    routeBlockers(w, npc);
+    expect(first).toBeGreaterThan(0);
+    expect(search.mock.calls.length).toBe(first);
+    search.mockRestore();
   });
 
   it('overtakes a slower truck ahead on open ground', () => {
