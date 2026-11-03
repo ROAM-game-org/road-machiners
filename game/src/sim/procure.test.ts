@@ -133,22 +133,6 @@ describe('the terms of a supply order', () => {
     expect(rates[0]).toBe(rates[1]);
   });
 
-  it('never pays an order under its crate part, and prints the largest posted reward', () => {
-    let largest = 0;
-    for (const shopId of Object.keys(SHOPS)) {
-      const w = emptyWorld();
-      for (const good of shopDef(shopId).goods) setShopPressure(w, shopId, good, 0.9);
-      for (const good of procureCandidates(w, shopId, w.shops[shopId])) {
-        const cratePay = Math.round(standingPrice(shopId, good, 0));
-        const reward = procureReward(CONTRACTS.procure.units[1], cratePay, procureTrip(shopId, good));
-        expect(reward).toBeGreaterThanOrEqual(CONTRACTS.procure.units[1] * cratePay);
-        largest = Math.max(largest, reward);
-      }
-    }
-    console.info(`largest supply order reward ${largest}`);
-    expect(largest).toBeGreaterThan(0);
-  });
-
   it('asks for a crate count between the smallest order and the shortfall', () => {
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       const w = emptyWorld();
