@@ -456,7 +456,9 @@ export class Travel {
 
   private keptStep(speed: number): number {
     const reach = Math.min(speed, this.turns.keptSpeed());
-    return Math.max(1, ...CONFIG.travelSpeeds.filter((step) => step <= reach));
+    let kept = 1;
+    for (const step of CONFIG.travelSpeeds) if (step <= reach && step > kept) kept = step;
+    return kept;
   }
 
   getSpeedIndex(): number {

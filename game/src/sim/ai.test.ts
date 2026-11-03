@@ -624,6 +624,13 @@ describe('meetings', () => {
       expect(passer.yieldsTo).toBeUndefined();
     });
 
+    it('a driver closing on a parked truck starts no meeting', () => {
+      const { w, passer, slow } = behind([4.5, 0]);
+      settleMeetings(w);
+      expect(passer.yieldsTo).toBeUndefined();
+      expect(slow.yieldsTo).toBeUndefined();
+    });
+
     it('a driver closing on a truck it is fighting starts no meeting', () => {
       const { w, passer, slow } = behind();
       startCombat(w, passer, slow);
