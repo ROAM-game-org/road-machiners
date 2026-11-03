@@ -280,18 +280,13 @@ function settleDraft(draft: World, fn: (draft: World) => void): void {
 
 function settleOverdrive(w: World): void {
   if (!w.player.overdrive || overdriveBlock(w, playerVehicle(w)) === null) return;
-  endOverdrive(w);
-  w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
-}
-
-export function endOverdrive(w: World): void {
-  if (!w.player.overdrive) throw new Error('Overdrive is already off');
   w.player.overdrive = false;
+  w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
 }
 
 function parkOverdrive(w: World): void {
   if (!w.player.overdrive) return;
-  if (playerVehicle(w).speed <= RULES.parkedSpeed || w.player.state !== 'active' || isTowed(w)) endOverdrive(w);
+  if (playerVehicle(w).speed <= RULES.parkedSpeed || w.player.state !== 'active' || isTowed(w)) w.player.overdrive = false;
 }
 
 export type ActBlock = 'knockedOut' | 'towed' | 'onRadio';

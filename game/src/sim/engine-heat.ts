@@ -34,7 +34,9 @@ export function advanceEngineHeat(world: World): void {
   world.player.engineHeat = Math.min(1, Math.max(0, next));
   practiceHeat(world, me.speed, sunHeat);
 
-  if (before < ENGINE_HEAT.warnAt && world.player.engineHeat >= ENGINE_HEAT.warnAt) world.events.push({ t: 'info', note: { id: 'engineHot' } });
+  if (before < ENGINE_HEAT.warnAt && world.player.engineHeat >= ENGINE_HEAT.warnAt) {
+    world.events.push({ t: 'info', note: { id: 'engineHot' } });
+  }
   if (!engineOverheating(world)) return;
   for (const e of heatedEngines(me)) damagePart(e, ENGINE_HEAT.overheatDamage, 0);
   world.events.push({ t: 'info', note: { id: 'engineOverheat', hp: ENGINE_HEAT.overheatDamage } });
