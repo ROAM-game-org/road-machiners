@@ -1,3 +1,4 @@
+import { isPlayerTruck, playerVehicle } from './damage';
 import { releaseGoneHolders } from './moments';
 import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -559,6 +560,15 @@ function repairPlayer(world: World): void {
   }
   player.perks = player.perks.filter(isPerkId);
   dropGoneSources(player);
+  dropOwnTruckOrders(world);
+}
+
+function dropOwnTruckOrders(world: World): void {
+  const me = playerVehicle(world);
+  for (const [weaponId, order] of Object.entries(me.weaponOrders)) {
+    const target = world.vehicles.find((v) => v.id === order.targetId);
+    if (target && isPlayerTruck(world, target)) delete me.weaponOrders[weaponId];
+  }
 }
 
 function dropGoneSources(player: World['player']): void {

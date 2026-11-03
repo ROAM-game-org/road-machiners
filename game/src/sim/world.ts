@@ -11,7 +11,7 @@ import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
 import type { StartKit } from '../data/start';
-import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
+import { findPart, haulerOf, isPlayerTruck, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods, mountPart } from './inventory';
@@ -475,7 +475,7 @@ export function setWeaponOrder(
       return;
     }
     const target = w.vehicles.find((v) => v.id === order.targetId);
-    if (!target || target.id === me.id)
+    if (!target || isPlayerTruck(w, target))
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
       throw new Refused({ id: "unseen" });
