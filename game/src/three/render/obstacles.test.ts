@@ -6,6 +6,7 @@ import { CHASSIS } from '../../data/chassis';
 import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
+import { CAR_WRECK_LOOKS } from '../../data/terrain';
 import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
 import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
@@ -155,7 +156,7 @@ describe('loot colors on props', () => {
       ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
       ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
     ];
-    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }];
+    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }, ...CAR_WRECK_LOOKS.map((look) => ({ id: look.model, view: model(look.model) }))];
     for (const { id, view } of cases) {
       const swatches = lootSwatchesOf(view);
       expect(swatches.length, id).toBeGreaterThan(0);
