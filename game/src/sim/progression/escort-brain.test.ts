@@ -68,7 +68,9 @@ describe('escortMove', () => {
     const w = started();
     const me = playerVehicle(w);
     haulerOf(w).speed = 5;
-    me.pos = { ...followSpot(w, me, haulerOf(w), 0) };
+    const spot = followSpot(w, me, haulerOf(w), 0);
+    const h = haulerOf(w).heading;
+    me.pos = { x: spot.x - Math.cos(h) * 3, y: spot.y - Math.sin(h) * 3 };
     refreshVision(w);
     const order = escortMove(w, me);
     expect(order.kind).toBe('through');

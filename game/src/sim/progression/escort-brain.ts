@@ -24,7 +24,9 @@ export function clearFollowSpot(world: World, me: Vehicle, leader: Vehicle): Vec
 }
 
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
-  return followDrive(me, leader, clearFollowSpot(world, me, leader));
+  const spot = clearFollowSpot(world, me, leader);
+  const order = followDrive(me, leader, spot);
+  return order.kind === 'through' && order.pace !== undefined && order.pace <= RULES.parkedSpeed ? { kind: 'stopAt', dest: spot } : order;
 }
 
 export function escortFoe(world: World, me: Vehicle): Vehicle | null {
