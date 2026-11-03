@@ -13,7 +13,7 @@ import { inCombat, isHostile } from '../combat';
 import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
 import { maxHealthOf } from '../health';
 import { isSoftTarget, setFire } from './aim';
-import { engage } from './fighter';
+import { asFighter, engage } from './fighter';
 import { hostileToPlayer, playerCanAct, setAutoRepair, setMoveOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
 import { isDefeated, isKnockedOut } from '../defeat';
@@ -28,8 +28,9 @@ import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopSta
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
-import { topGoal } from '../npc-activities';
-import { firepower, getsAway, getUpkeepReserve, isWeak, perceiveDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
+import { fleeDestination, keepsFleeCourse, topGoal } from '../npc-activities';
+import { isPartWorn } from '../npc-repair';
+import { firepower, getsAway, isManageable, npcProfile, getUpkeepReserve, isWeak, perceiveDanger, getKnownSite, tripFuelCost } from '../npc-decisions';
 import { HUNT_MARGIN, huntable, huntedSpeed } from './hunted';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
@@ -42,7 +43,7 @@ import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleS
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
 import { towData } from '../states';
 import type { Call, GoalReason, GridItem, NpcState, PartInstance, SalvageStock, Vehicle, World } from '../types';
-import { dist, pointsAway, type Vec } from '../vec';
+import { dist, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../chaos-highway';
 import { inYard } from '../outpost-gates';
@@ -307,7 +308,7 @@ function serviceInTown(o: Orders, style: UpgradeStyle, shop: string): void {
 function needsOf(world: World): string {
   const p = world.player;
   const me = playerVehicle(world);
-  return `shop ${shopAt(world)}, fuel ${p.fuel}/${fuelCap(me)} for way ${fuelForWayToShop(world).toFixed(1)}, supplies ${p.supplies}/${suppliesCap(me)}, repair ${repairCost(world)}, badly damaged ${mountedParts(me).filter(isBadlyDamaged).map((part) => part.defId).join(' ')}, combat ${inCombat(world, me)}, exposed ${underFire(world, me)}, engine ${mountedParts(me, 'engine').length}`;
+  return `shop ${shopAt(world)}, fuel ${p.fuel}/${fuelCap(me)} for way ${fuelForWayToShop(world).toFixed(1)}, supplies ${p.supplies}/${suppliesCap(me)}, repair ${repairCost(world)}, badly damaged ${mountedParts(me).filter(isPartWorn).map((part) => part.defId).join(' ')}, combat ${inCombat(world, me)}, exposed ${underFire(world, me)}, engine ${mountedParts(me, 'engine').length}`;
 }
 
 function nearestEngineShop(world: World): Site | null {
@@ -364,7 +365,7 @@ function restoreEngine(o: Orders, shopId: string): void {
 }
 
 function restoreBasics(o: Orders, shopId: string): void {
-  if (underFire(o.world, o.me) || !mountedParts(o.me, 'core').some(isBadlyDamaged)) return;
+  if (underFire(o.world, o.me) || !mountedParts(o.me, 'core').some(isPartWorn)) return;
   const cost = basicsRepairCost(o.world);
   if (o.world.player.money < cost) sellCargo(o);
   if (saleBudget(o.world) >= cost) payRepair(o, shopId, cost, repairBasics);
@@ -422,7 +423,7 @@ function needsService(o: Orders): boolean {
 }
 
 function needsRepair(o: Orders): boolean {
-  return !underFire(o.world, o.me) && garageFixes(o).some(isBadlyDamaged);
+  return !underFire(o.world, o.me) && garageFixes(o).some(isPartWorn);
 }
 
 function garageFixes(o: Orders): PartInstance[] {
@@ -434,10 +435,6 @@ function garageFixes(o: Orders): PartInstance[] {
 function affordsRepair(o: Orders, part: PartInstance): boolean {
   const cost = partRepairCost(o.world, part);
   return cost > 0 && cost <= o.world.player.money;
-}
-
-function isBadlyDamaged(part: PartInstance): boolean {
-  return part.hp / maxHp(part) <= NPC_BEHAVIOR.fleeCondition;
 }
 
 function serviceHere(o: Orders): void {
@@ -816,42 +813,16 @@ function heardHostiles(world: World): Vehicle[] {
 }
 
 function flee(o: Orders): void {
-  const seen = seenHostiles(o.world).map((v) => v.pos);
-  if (keepsCourse(o.me, seen)) return;
-  const threats = seen.length > 0 ? seen : heardThreat(o.world);
-  if (threats.length === 0) return driveToSite(o, nearestTown(o.world));
-  const safe = REGION.towns.filter((town) => threats.every((foe) => pointsAway(o.me.pos, town.pos, foe))).sort((a, b) => dist(o.me.pos, a.pos) - dist(o.me.pos, b.pos));
-  if (safe[0]) return driveToSite(o, safe[0]);
-  driveTo(o, awayFrom(o.me.pos, threats, o.world.size));
+  const threat = nearest(o.me.pos, seenHostiles(o.world).map((v) => v.pos)) ?? heardFoe(o.world);
+  if (keepsRunning(o.me, threat)) return;
+  if (!threat) return driveToSite(o, nearestTown(o.world));
+  const fighter = asFighter(o.me);
+  driveTo(o, fleeDestination(o.world, fighter, npcProfile(fighter), threat));
 }
 
-function keepsCourse(me: Vehicle, seen: Vec[]): boolean {
+function keepsRunning(me: Vehicle, threat: Vec | null): boolean {
   const order = me.order;
-  return order !== null && order.kind !== 'brake' && !seen.some((foe) => closesOn(me.pos, order.dest, foe));
-}
-
-function heardThreat(world: World): Vec[] {
-  const heard = heardFoe(world);
-  return heard ? [heard] : [];
-}
-
-function closesOn(from: Vec, to: Vec, foe: Vec): boolean {
-  return (to.x - from.x) * (foe.x - from.x) + (to.y - from.y) * (foe.y - from.y) > 0;
-}
-
-function awayFrom(pos: Vec, threats: Vec[], size: number): Vec {
-  const unit = (foe: Vec) => ({ x: (pos.x - foe.x) / Math.max(dist(pos, foe), 1e-6), y: (pos.y - foe.y) / Math.max(dist(pos, foe), 1e-6) });
-  const sum = threats.map(unit).reduce((a, b) => ({ x: a.x + b.x, y: a.y + b.y }));
-  const near = nearest(pos, threats)!;
-  const len = Math.hypot(sum.x, sum.y);
-  const way = len > 1e-6 ? { x: sum.x / len, y: sum.y / len } : { x: -unit(near).y, y: unit(near).x };
-  return edgeAlong(pos, way, size);
-}
-
-function edgeAlong(pos: Vec, way: Vec, size: number): Vec {
-  const reach = (p: number, d: number) => (d > 1e-6 ? (size - 1 - p) / d : d < -1e-6 ? (1 - p) / d : Infinity);
-  const t = Math.max(0, Math.min(reach(pos.x, way.x), reach(pos.y, way.y)));
-  return { x: pos.x + way.x * t, y: pos.y + way.y * t };
+  return order !== null && order.kind !== 'brake' && (!threat || keepsFleeCourse(me, order.dest, threat));
 }
 
 function charge(o: Orders, foe: Vehicle, goal: Goal): void {
@@ -866,7 +837,7 @@ function fights(o: Orders, foe: Vehicle, goal: Goal): boolean {
 
 function beats(o: Orders, foe: Vehicle, goal: Goal): boolean {
   const margin = goal === 'hunter' ? HUNT_MARGIN : 1;
-  return dangerOf(o.world, foe) * margin <= 1;
+  return isManageable(asFighter(o.me), dangerOf(o.world, foe) * margin);
 }
 
 function outmatchedBy(world: World, foe: Vehicle): boolean {

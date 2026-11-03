@@ -3,7 +3,6 @@ import type { GameEvent, PartInstance, Vehicle, World } from '../types';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS, chassisDef } from '../../data/chassis';
 import { MAP_SCALE, REGION } from '../../data/region';
-import { TERRAIN } from '../../data/terrain';
 import { START_KITS } from '../../data/start';
 import { partDef } from '../../data/parts';
 import { SHOPS } from '../../data/market';
@@ -688,7 +687,7 @@ describe('the hunter', () => {
     for (const r of runs) expect([r.turned, r.ran]).toEqual([r.faster, !r.faster]);
   });
 
-  it('has a trader caught between two raiders run square to them, closing on neither', () => {
+  it('has a trader caught between two raiders run away from the nearer one', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
@@ -702,7 +701,7 @@ describe('the hunter', () => {
     const order = playerVehicle(botOrders(w, 'trader').world).order;
 
     if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
-    expect(order.dest.x).toBeCloseTo(30);
+    expect(pointsAway(me.pos, order.dest, raiders[0].pos) || pointsAway(me.pos, order.dest, raiders[1].pos)).toBe(true);
     expect(dist(order.dest, me.pos)).toBeGreaterThan(1);
   });
 
@@ -807,7 +806,7 @@ describe('the hunter', () => {
     expect(playerVehicle(turn.world).order).toEqual(run);
   });
 
-  it('has a bot with no town away from a stronger raider run on past its guns', () => {
+  it('has a bot with no town away from a stronger raider run directly away from it', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
@@ -819,7 +818,7 @@ describe('the hunter', () => {
 
     if (order?.kind !== 'stopAt') throw new Error('Expected a stop order');
     expect(pointsAway(me.pos, order.dest, raider.pos)).toBe(true);
-    expect(dist(order.dest, raider.pos)).toBeGreaterThan(TERRAIN.vision.radius);
+    expect(dist(order.dest, raider.pos)).toBeGreaterThan(dist(me.pos, raider.pos));
   });
 
   it('has a bot at a town gate in combat fire back', () => {

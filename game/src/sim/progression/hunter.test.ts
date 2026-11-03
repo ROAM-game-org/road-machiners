@@ -61,6 +61,6 @@ describe('the hunter against one strong raider', () => {
 
     expect(turn.player.autoFire).toBe(false);
     expect(order?.kind).toBe('stopAt');
-    expect(order?.kind === 'stopAt' && dist(order.dest, raider.pos)).toBeGreaterThan(50);
+    expect(order?.kind === 'stopAt' && dist(order.dest, raider.pos)).toBeGreaterThan(dist(playerVehicle(w).pos, raider.pos));
   });
 });
