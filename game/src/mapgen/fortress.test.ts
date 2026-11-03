@@ -134,22 +134,24 @@ describe('fortress layer', () => {
     const field = typeCode('field');
     const scree = typeCode('scree');
     const counts = { field: 0, scree: 0 };
+    const wrong: string[] = [];
+    const heights = d.heights;
     for (let y = 0; y < d.size; y++) {
       for (let x = 0; x < d.size; x++) {
-        const corners = [d.heights[y * n + x], d.heights[y * n + x + 1], d.heights[(y + 1) * n + x], d.heights[(y + 1) * n + x + 1]];
-        const type = d.types[y * d.size + x];
-        if (corners.some((h) => h > RIM)) continue;
-        if (corners.every((h) => h === RIM)) {
-          expect(type, `tile ${x},${y}`).toBe(SAND);
-        } else if (corners.every((h) => h === corners[0])) {
-          expect(type, `tile ${x},${y}`).toBe(field);
-          counts.field++;
-        } else {
-          expect(type, `tile ${x},${y}`).toBe(scree);
-          counts.scree++;
-        }
+        const top = y * n + x;
+        const h0 = heights[top];
+        const h1 = heights[top + 1];
+        const h2 = heights[top + n];
+        const h3 = heights[top + n + 1];
+        if (h0 > RIM || h1 > RIM || h2 > RIM || h3 > RIM) continue;
+        const flat = h0 === h1 && h0 === h2 && h0 === h3;
+        const expected = flat ? (h0 === RIM ? SAND : field) : scree;
+        if (flat && h0 !== RIM) counts.field++;
+        if (!flat) counts.scree++;
+        if (d.types[y * d.size + x] !== expected) wrong.push(`tile ${x},${y}`);
       }
     }
+    expect(wrong).toEqual([]);
     expect(counts.field).toBeGreaterThan(counts.scree);
     expect(counts.scree).toBeGreaterThan(0);
   });
