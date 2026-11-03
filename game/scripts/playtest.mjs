@@ -34,7 +34,8 @@ const turns = Number(arg('turns', software ? '4' : '12'));
 const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 if (timeoutsOff) page.setDefaultTimeout(0);
-const retryAfterBrowserCrash = async () => {
+const retryAfterBrowserCrash = async (cause) => {
+  if (cause) console.log(`Crash cause: ${String(cause?.message ?? cause).split('\n')[0]}`);
   await browser.close().catch(() => {});
   if (attempt >= CRASH_ATTEMPTS) {
     console.error(`FAIL\nThe browser process crashed in all ${CRASH_ATTEMPTS} attempts.`);
@@ -52,9 +53,9 @@ process.on('uncaughtException', async (cause) => {
     console.error(cause);
     process.exit(1);
   }
-  await retryAfterBrowserCrash();
+  await retryAfterBrowserCrash(cause);
 });
-const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(); throw cause; });
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(cause); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -190,7 +191,7 @@ for (let i = 0; i < turns; i++) {
   await page.waitForFunction((turn) => {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
-  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
+  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { await retryAfterBrowserCrash(cause); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
 }
 await page.screenshot({ path: '.playtest/end.png' });
 
