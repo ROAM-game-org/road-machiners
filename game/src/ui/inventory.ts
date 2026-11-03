@@ -5,7 +5,7 @@ import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, getLotTradePrice, partRepairCost, repairPart, sellPrice } from "../sim/economy";
-import { sellStoredGood, shopTrades, storedHere } from "../sim/goods-store";
+import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
 import { priceEl, reasonButton } from "./shop-rows";
 import { reachedOutpostAt } from "../sim/chaos-highway";
@@ -593,12 +593,11 @@ export class InventoryView {
 
   private cratesEl(w: World, shopId: string): HTMLElement {
     const stored = storedHere(w);
-    const total = Object.values(stored).reduce((sum, n) => sum + n, 0);
     const chips = Object.entries(stored).map(([good, count]) => this.storedCrateChip(w, shopId, good, count));
     return el(
       "div",
       { class: "inv-storage inv-crates", "data-drop": "storage" },
-      el("h3", {}, t("inv.storedCrates"), el("span", { class: "inv-fill", title: t("inv.storedRule") }, t("inv.storedFill", { n: total, cap: GOODS_STORE.crates }))),
+      el("h3", {}, t("inv.storedCrates"), el("span", { class: "inv-fill", title: t("inv.storedRule") }, t("inv.storedFill", { n: storeTotal(w, shopId), cap: GOODS_STORE.crates }))),
       ...(chips.length ? chips : [el("div", { class: "dim" }, t("inv.storageEmptyCrates"))]),
     );
   }

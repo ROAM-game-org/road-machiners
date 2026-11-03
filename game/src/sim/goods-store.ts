@@ -5,7 +5,7 @@ import { newId } from './factory';
 import { requireGarage } from './garage';
 import { goodsCount, gridOf, placementError, type Spot } from './grid';
 import { afterRefit, requireIdleRefit } from './inventory';
-import { getLotTradePrice, settleCargoSale } from './economy';
+import { getLotTradePrice, requireVehicleShop, settleCargoSale } from './economy';
 import { owedCrates, requireShop, requireSpareGoods, shopAt } from './market';
 import { payoutM } from './money';
 import type { GridItem, Vehicle, World } from './types';
@@ -24,7 +24,7 @@ export function storedCrates(world: World): Record<string, number> {
   return totals;
 }
 
-function storeTotal(world: World, shopId: string): number {
+export function storeTotal(world: World, shopId: string): number {
   return Object.values(world.player.storedGoods[shopId] ?? {}).reduce((sum, n) => sum + n, 0);
 }
 
@@ -99,6 +99,7 @@ export function sellStoredGood(world: World, good: string, count: number): World
     const shopId = requireShop(w);
     if (!shopTrades(shopId, good)) throw new Error(`${shopId} does not trade ${good}`);
     const me = playerVehicle(w);
+    requireVehicleShop(w, me, shopId);
     takeStored(w, shopId, good, count);
     settleCargoSale(w, me, shopId, good, count, getLotTradePrice(w, me, shopId, good, count, 'sell'));
   });
