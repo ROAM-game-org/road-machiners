@@ -18,6 +18,7 @@ import { PHYSICS } from '../data/physics';
 import { CLAYMORE } from '../data/utilities';
 import { bodyOf } from '../sim/body';
 import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
+import { stepPhysics } from './snapshot';
 import { rotateBy, upOf } from './frames';
 import { physicsMove } from './turn';
 import type { VehicleFrame } from './frames';
@@ -33,6 +34,39 @@ import { me, ordered, play, playYielding } from '../test/drive-kit';
 
 beforeAll(async () => {
   await initPhysics();
+});
+
+describe('stepPhysics', () => {
+  function crashWorld(): RAPIER.World {
+    const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+    world.createCollider(RAPIER.ColliderDesc.cuboid(50, 0.5, 50).setTranslation(0, -0.5, 0));
+    for (let i = 0; i < 40; i++) world.createCollider(RAPIER.ColliderDesc.cuboid(0.5, 1, 0.5).setTranslation(3 + (i % 8) * 1.5, 1, -6 + Math.floor(i / 8) * 1.5).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS));
+    const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 1, 0).setLinvel(12, 0, 1).setAngvel({ x: 0, y: 2, z: 0 }));
+    world.createCollider(RAPIER.ColliderDesc.cuboid(1, 0.5, 2).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
+    return world;
+  }
+
+  function play(step: (world: RAPIER.World, events: RAPIER.EventQueue) => void): { poses: number[]; hits: number } {
+    const world = RAPIER.World.restoreSnapshot(crashWorld().takeSnapshot());
+    const events = new RAPIER.EventQueue(true);
+    let hits = 0;
+    for (let i = 0; i < 180; i++) {
+      step(world, events);
+      events.drainCollisionEvents(() => hits++);
+    }
+    const poses = world.bodies.getAll().flatMap((b) => [...Object.values(b.translation()), ...Object.values(b.rotation())]);
+    events.free();
+    world.free();
+    return { poses, hits };
+  }
+
+  it('moves every body exactly as World.step does and raises the same collision events', () => {
+    const plain = play((world, events) => world.step(events));
+    const direct = play(stepPhysics);
+
+    expect(plain.hits).toBeGreaterThan(0);
+    expect(direct).toEqual(plain);
+  });
 });
 
 describe('impact geometry', () => {

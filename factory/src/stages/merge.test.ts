@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
@@ -10,7 +10,7 @@ import { BaselineFailureError, BudgetError } from './checkpoint';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
-const { merge } = await import('./merge');
+const { merge, uncheckedMerges } = await import('./merge');
 
 let home = '';
 let calls: string[] = [];
@@ -37,10 +37,19 @@ let baselineDown = false;
 let suiteDown = false;
 let replaced: string[] = [];
 let dirty: string[] = [];
+let unchecked: number[] = [];
+let pickConflicts: string[][] = [];
+let pickLeftOpen = false;
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
 const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
+
+function keptSession(issue: number, id: string): void {
+  mkdirSync(`${home}/card-sessions/issue-${issue}/-work-game`, { recursive: true });
+  writeFileSync(`${home}/card-sessions/issue-${issue}/card.id`, id);
+  writeFileSync(`${home}/card-sessions/issue-${issue}/-work-game/${id}.jsonl`, '{}');
+}
 const result = (cost = 1) => `${JSON.stringify({ type: 'result', total_cost_usd: cost, duration_ms: 1000 })}\n`;
 
 beforeEach(() => {
@@ -70,6 +79,9 @@ beforeEach(() => {
   suiteDown = false;
   replaced = [];
   dirty = [];
+  unchecked = [];
+  pickConflicts = [];
+  pickLeftOpen = false;
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
@@ -99,6 +111,7 @@ function fakeCtx(budget = 5): Ctx {
       },
       suiteLog: async (id: number) => `FAIL src/sim/raid.test.ts in run ${id}`,
       suiteFailures: async (id: number) => suitePlan[id - 1]?.record ?? null,
+      suitePassed: async (sha: string) => !unchecked.some((issue) => sha === `factory/issue-${issue}-own`),
     },
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
@@ -126,11 +139,17 @@ function fakeCtx(budget = 5): Ctx {
       workHead: async () => `merged${++heads}`,
       diff: async () => diff,
       changedFiles: async () => files,
+      ownHeads: async (_base: string, branch: string) => [`${branch}-own`],
       push: async (commit: string, branch: string) => {
         calls.push(`push ${commit} ${branch}`);
         if (pushFailures-- > 0) throw new Error('rejected: non-fast-forward');
       },
       isMerged: async () => false,
+      pickIntoWork: async (_dir: string, commit: string) => {
+        calls.push(`pick ${commit}`);
+        return pickConflicts.shift() ?? [];
+      },
+      unfinishedPick: async () => pickLeftOpen,
       replaceBranch: async (commit: string, branch: string) => { replaced.push(`${commit} ${branch}`); },
     },
   };
@@ -155,6 +174,24 @@ describe('merge queue', () => {
     expect(deployed).toEqual(['dev']);
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
+  });
+
+  it('sends a card whose own work has no green suite to Hardening, and merges the rest', async () => {
+    files = ['game/src/sim/world.ts'];
+    unchecked = [5];
+    await merge(fakeCtx());
+    expect(calls).toContain('move 5 Hardening');
+    expect(comments[0]).toBe('5 This card reached Merging with no green full suite on its own work, so it goes to Hardening, which runs the suite and then moves it back to Merging.');
+    expect(calls).not.toContain('merge factory/issue-5');
+    expect(calls).toContain('merge factory/issue-6');
+    expect(calls).toContain('move 6 Done');
+  });
+
+  it('keeps a card of the kept landing batch in Merging even with no green suite, so its kept work resumes', async () => {
+    files = ['game/src/sim/world.ts'];
+    unchecked = [5];
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), landings: { merge: { cards: [5] } as never } });
+    expect(await uncheckedMerges(fakeCtx())).toEqual([]);
   });
 
   it('clears the earlier failures of each merged card, and keeps a batch row for a member that did not merge', async () => {
@@ -186,7 +223,7 @@ describe('merge queue', () => {
     cards = [card(5, [RELEASE_TASK_LABEL])];
     changed = ['game/src/sim/fuel.ts'];
     await merge(fakeCtx());
-    expect(replaced).toEqual(['head1 factory/suite-merge-release-2026-09-29']);
+    expect(replaced).toEqual(['head1 factory/suite-merge-release-2026-09-29', 'head1 factory/suite-merge-dev']);
   });
 
   it('hands a failed suite to the merge session and runs the suite again on its fix', async () => {
@@ -391,6 +428,146 @@ describe('merge queue', () => {
     expect(readLedger(home, new Date(0))).toContainEqual(expect.objectContaining({ issue: 5, step: 'merged', into: 'release/2026-09-29', sha: 'merged1' }));
   });
 
+  it('lands an approved release task on the release, then carries the release into dev with the full suite before the card is done', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    changed = ['game/src/sim/fuel.ts'];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(clone|merge |suite|checks|push|move)/.test(call))).toEqual([
+      'clone release/2026-09-29 release/2026-09-29', 'merge factory/issue-5', 'suite head1', 'checks', 'push head1 release/2026-09-29',
+      'clone dev dev', 'merge release/2026-09-29', 'suite head1', 'checks', 'push head1 dev',
+      'move 5 Done',
+    ]);
+    expect(messages).toEqual(['Merge issue #5: Card 5', 'Merge release/2026-09-29 into dev with #5']);
+    expect(comments).toEqual(['5 Approved by Ann and merged into the release branch release/2026-09-29 and into dev. It closes when its release ships.']);
+    const state = readState(`${home}/state.json`);
+    expect(state.release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: 'merged1', into: 'release/2026-09-29', reverted: [] }]);
+    expect(state.devMerges).toEqual([]);
+    expect(state.landings).toEqual({});
+  });
+
+  it('leaves a release task in Merging when its carry into dev fails, and the next job resumes the kept carry without merging the card into the release again', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    const ctx = fakeCtx();
+    ctx.repo.push = async (commit: string, branch: string) => {
+      calls.push(`push ${commit} ${branch}`);
+      if (branch === 'dev') throw new Error('GitHub is down');
+    };
+    ctx.repo.isMerged = async (commit: string) => commit === 'dev';
+    await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+    expect(calls).not.toContain('move 5 Done');
+    expect(calls).toContain(`label 5 ${STUCK_LABEL}`);
+    expect(readState(`${home}/state.json`).landings.merge).toMatchObject({ into: 'dev', cards: [5] });
+    calls = [];
+    comments = [];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(merge |push|move)/.test(call))).toEqual(['merge dev', 'push head1 dev', 'move 5 Done']);
+    expect(readState(`${home}/state.json`).release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: 'merged1', into: 'release/2026-09-29', reverted: [] }]);
+    expect(comments).toEqual(['5 Approved by Ann and merged into the release branch release/2026-09-29 and into dev. It closes when its release ships.']);
+  });
+
+  it('carries nothing when dev already holds the release head', async () => {
+    cards = [card(5, [RELEASE_TASK_LABEL])];
+    const ctx = fakeCtx();
+    ctx.repo.isMerged = async (commit: string, branch: string) => commit === 'release/2026-09-29' && branch === 'dev';
+    await merge(ctx);
+    expect(calls.filter((call) => /^(merge |push|move)/.test(call))).toEqual(['merge factory/issue-5', 'push head1 release/2026-09-29', 'move 5 Done']);
+  });
+
+  describe('a release task that runs on dev', () => {
+    const enrolled = (tasks: number[]) => updateState(`${home}/state.json`, (state) => ({ ...state, release: { ...state.release!, tasks } }));
+    const portable = (ctx: Ctx): Ctx => {
+      ctx.repo.isMerged = async (base: string, branch: string) => base === 'merged1^2' && branch === 'factory/issue-5';
+      return ctx;
+    };
+
+    it('lands on dev, settles the plain cards, then ports its dev merge onto the release with the full checks before the card is done', async () => {
+      enrolled([5]);
+      changed = ['game/src/sim/fuel.ts'];
+      await merge(portable(fakeCtx()));
+      expect(calls.filter((call) => /^(clone|merge |pick|suite|checks|push|move)/.test(call))).toEqual([
+        'clone dev dev', 'merge factory/issue-5', 'merge factory/issue-6', 'suite head1', 'checks', 'push head1 dev',
+        'move 6 Done',
+        'clone release/2026-09-29 release/2026-09-29', 'pick merged1', 'suite head1', 'checks', 'push head1 release/2026-09-29',
+        'move 5 Done',
+      ]);
+      expect(replaced).toEqual(['head1 factory/suite-merge-dev', 'head1 factory/suite-merge-release-2026-09-29']);
+      expect(comments).toEqual([
+        '6 Approved by Bob and merged into dev. It merged together with #5, and the checks passed on the result. It closes when its release ships.',
+        '5 Approved by Ann and merged into dev and ported onto the release branch release/2026-09-29. It closes when its release ships.',
+      ]);
+      const state = readState(`${home}/state.json`);
+      expect(state.release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: expect.not.stringMatching(/^merged1$/), into: 'release/2026-09-29', reverted: [], fromDev: 'merged1' }]);
+      expect(state.devMerges.map((merge) => merge.issue)).toEqual([6]);
+      expect(state.release?.postId).toBeNull();
+      expect(state.pendingShip).toBeNull();
+      expect(state.landings).toEqual({});
+    });
+
+    it('stays in Merging when its port fails, and the next job resumes the kept port without landing on dev again', async () => {
+      enrolled([5]);
+      cards = [card(5)];
+      const ctx = fakeCtx();
+      ctx.repo.isMerged = async (base: string, branch: string) => base === 'release/2026-09-29' || (base === 'merged1^2' && branch === 'factory/issue-5');
+      ctx.repo.push = async (commit: string, branch: string) => {
+        calls.push(`push ${commit} ${branch}`);
+        if (branch !== 'dev') throw new Error('GitHub is down');
+      };
+      await expect(merge(ctx)).rejects.toThrow('GitHub is down');
+      expect(calls).not.toContain('move 5 Done');
+      expect(calls).toContain(`label 5 ${STUCK_LABEL}`);
+      const kept = readState(`${home}/state.json`).landings.merge;
+      expect(kept).toMatchObject({ into: 'release/2026-09-29', cards: [5], merged: true, sources: [{ branch: 'factory/issue-5', sha: 'merged1' }] });
+      calls = [];
+      comments = [];
+      const next = fakeCtx();
+      next.repo.isMerged = async (base: string, branch: string) => (base === 'factory/issue-5' && branch === 'dev') || (base === 'merged1^2' && branch === 'factory/issue-5');
+      await merge(next);
+      expect(calls.filter((call) => /^(merge |pick|push|move)/.test(call))).toEqual(['merge release/2026-09-29', 'push head1 release/2026-09-29', 'move 5 Done']);
+      expect(readState(`${home}/state.json`).release?.merges).toEqual(kept!.merges);
+      expect(kept!.merges).toEqual([expect.objectContaining({ issue: 5, into: 'release/2026-09-29', fromDev: 'merged1' })]);
+      expect(comments).toEqual(['5 Approved by Ann and merged into dev and ported onto the release branch release/2026-09-29. It closes when its release ships.']);
+    });
+
+    it('refuses to port a recorded dev merge that is not a merge of the card branch, and leaves the card in Merging', async () => {
+      enrolled([5]);
+      cards = [card(5)];
+      await expect(merge(fakeCtx())).rejects.toThrow('The recorded dev merge merged1 of #5 is not a merge of factory/issue-5, so the factory does not port it');
+      expect(calls).not.toContain('move 5 Done');
+      expect(calls.some((call) => call.startsWith('pick'))).toBe(false);
+      expect(calls).toContain(`label 5 ${STUCK_LABEL}`);
+    });
+
+    it('hands a conflicted port to the merge session with the port prompt, and fails when the session leaves it open', async () => {
+      enrolled([5]);
+      cards = [card(5)];
+      pickConflicts = [['game/src/sim/fuel.ts']];
+      pickLeftOpen = true;
+      await expect(merge(portable(fakeCtx()))).rejects.toThrow('The merge agent left the port of #5 onto release/2026-09-29 unfinished.');
+      expect(runs[0]!.prompt).toContain('Issue 5 is a task of this release.');
+      expect(runs[0]!.prompt).toContain('Never bring in other dev work.');
+      expect(calls).not.toContain('push head1 release/2026-09-29');
+      expect(calls).not.toContain('move 5 Done');
+    });
+
+    it('hands a conflicted port to the card own kept Testing session with the port prompt', async () => {
+      enrolled([5]);
+      cards = [card(5)];
+      keptSession(5, 'card-5');
+      pickConflicts = [['game/src/sim/fuel.ts']];
+      await merge(portable(fakeCtx()));
+      expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-5`, id: 'card-5', resume: true });
+      expect(runs[0]!.prompt).toContain('Issue 5 is a task of this release.');
+      expect(calls).toContain('move 5 Done');
+    });
+
+    it('waits in Merging while a ship runs', async () => {
+      enrolled([5]);
+      updateState(`${home}/state.json`, (state) => ({ ...state, jobs: [{ id: 'ship-1', stage: 'ship', issue: 20, pid: 1, log: 'ship.log', started: '2026-09-30T09:00:00Z' } as never] }));
+      await merge(portable(fakeCtx()));
+      expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6']);
+    });
+  });
+
   it('records nothing when the batch fails', async () => {
     shellFailures = ['boom', 'boom', 'boom', 'boom', 'boom', 'boom'];
     await merge(fakeCtx(0.5)).catch(() => undefined);
@@ -419,7 +596,7 @@ describe('merge queue', () => {
     cards = cards.filter((c) => ![5, 7, 8].includes(c.issue));
     calls = [];
     await merge(fakeCtx());
-    expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6']);
+    expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6', 'merge release/2026-09-29']);
   });
 
   it('keeps an earlier batch pushed and settled when a later batch fails, and labels only the failed batch', async () => {
@@ -443,6 +620,20 @@ describe('merge queue', () => {
     expect(runs[0]!.model).toBe('sonnet');
     merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }, { commit: 'c6', conflicts: ['game/src/a.ts'] }] };
     await expect(merge(fakeCtx())).rejects.toThrow('left the merge of factory/issue-6 into dev unfinished');
+  });
+
+  it('resumes the card own kept Testing session for its conflict, and keeps the fix rounds on the merge session', async () => {
+    keptSession(6, 'card-6');
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }] };
+    shellFailures = ['FAIL a.test.ts: expected 1 to be 2'];
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(2);
+    expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-6`, id: 'card-6', resume: true });
+    expect(runs[0]!.prompt).toContain('This is a merge round for your card, issue #6.');
+    expect(runs[0]!.prompt).toContain('- game/src/a.ts');
+    expect(runs[1]!.prompt).toContain('expected 1 to be 2');
+    expect(runs[1]!.session?.dir).toBe(`${home}/sessions/merge`);
+    expect(runs[1]!.session?.resume).toBe(false);
   });
 
   it('hands failed checks to one continued agent session until they pass', async () => {
@@ -520,6 +711,33 @@ describe('merge queue', () => {
     shellFailures = ['FAIL a.test.ts', PASS, 'FAIL b.test.ts', 'FAIL c.test.ts'];
     await expect(merge(fakeCtx(5))).rejects.toThrow(/\$6\.00 of its \$5 budget[\s\S]*\$30\.00 on conflicts/);
     expect(calls.filter((call) => /^(agent|checks|push|merge dev)/.test(call))).toEqual(['checks', 'agent', 'checks', 'push head1 dev', 'merge dev', 'agent', 'merge dev', 'checks', 'agent', 'checks']);
+  });
+
+  describe('a base that moved during the checks', () => {
+    const owning = (owners: Record<string, string[]>): Ctx => {
+      const ctx = fakeCtx();
+      ctx.repo.changedFiles = async (_base: string, branch: string) => owners[branch] ?? [];
+      return ctx;
+    };
+
+    it('resumes the kept session of the one card whose change the conflict touches', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts', 'game/src/b.ts'], 'factory/issue-5': ['game/src/c.ts'] }));
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.session).toEqual({ dir: `${home}/card-sessions/issue-6`, id: 'card-6', resume: true });
+      expect(runs[0]!.prompt).toContain('dev moved on GitHub while the checks ran');
+    });
+
+    it('gives the conflict to the merge session when several cards share the conflicted files', async () => {
+      keptSession(6, 'card-6');
+      pushFailures = 1;
+      merges = { dev: [{ commit: 'd1', conflicts: ['game/src/a.ts'] }] };
+      await merge(owning({ 'factory/issue-6': ['game/src/a.ts'], 'factory/issue-5': ['game/src/a.ts'] }));
+      expect(runs[0]!.session?.dir).toBe(`${home}/sessions/merge`);
+      expect(logs).toContain('the conflicted files of the moved dev belong to cards #5, #6 together, so the merge session resolves them');
+    });
   });
 
   it('runs each checks run with the time limit, and runs a timed-out run again before it pushes', async () => {

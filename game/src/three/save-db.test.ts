@@ -4,7 +4,7 @@ import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { DatabaseLost, IDB_OPEN_MS, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
+import { DatabaseLost, IDB_OPEN_MS, desktopHost, HostShapeError, hostBackend, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
 import { allSlots, slotKey, type SlotId } from './save-slots';
 
 const SLOTS = allSlots(3);
@@ -653,7 +653,7 @@ describe('openSaves', () => {
       },
     });
     const storage = makeStorage();
-    const opening = openSaves(KEY, storage, SLOTS);
+    const opening = openSaves(KEY, storage, SLOTS, null);
     await vi.advanceTimersByTimeAsync(IDB_OPEN_MS * 2 + 1000);
     const slots = await opening;
     expect(requests).toHaveLength(2);
@@ -673,7 +673,7 @@ describe('openSaves', () => {
     const stub = stubOpen(2);
     const storage = makeStorage();
     storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
-    const opening = openSaves(KEY, storage, SLOTS);
+    const opening = openSaves(KEY, storage, SLOTS, null);
     await vi.runAllTimersAsync();
     const slots = await opening;
     vi.useRealTimers();
@@ -692,7 +692,7 @@ describe('openSaves', () => {
     const stub = stubOpen(1);
     const storage = makeStorage();
     storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
-    const opening = openSaves(KEY, storage, SLOTS);
+    const opening = openSaves(KEY, storage, SLOTS, null);
     await vi.runAllTimersAsync();
     const slots = await opening;
     vi.useRealTimers();
@@ -710,7 +710,7 @@ describe('openSaves', () => {
     const stub = stubOpen(0, true);
     const storage = makeStorage();
     storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
-    const opening = openSaves(KEY, storage, SLOTS);
+    const opening = openSaves(KEY, storage, SLOTS, null);
     await vi.runAllTimersAsync();
     const slots = await opening;
     vi.useRealTimers();
@@ -722,5 +722,98 @@ describe('openSaves', () => {
     expect(JSON.parse(storage.getItem(slotKey(KEY, 'slot1')) ?? 'null')).toEqual({ savedAt: 7 });
     expect(stub.saved.size).toBe(0);
     warn.mockRestore();
+  });
+});
+
+describe('openSaves with a desktop host', () => {
+  function fakeHost() {
+    const files = memoryBackend();
+    const calls: string[] = [];
+    const saves = {
+      readAll: async () => { calls.push('readAll'); return [...(await files.readAll())]; },
+      put: async (slot: SlotId, envelope: unknown) => { calls.push(`put ${slot}`); await files.put(slot, envelope); },
+      remove: async (slot: SlotId) => { calls.push(`remove ${slot}`); await files.remove(slot); },
+      appendLog: files.appendLog,
+      readLog: files.readLog,
+    };
+    return { host: { kind: 'desktop' as const, saves }, files, calls };
+  }
+
+  it('reads the saves the host holds, and leaves local storage alone', async () => {
+    const { host, files } = fakeHost();
+    await files.put('slot1', { savedAt: 3, world: { turn: 8 } });
+    const storage = makeStorage();
+    storage.setItem('roam.save', JSON.stringify({ savedAt: 9, world: { turn: 1 } }));
+
+    const slots = await openSaves('roam.save', storage, SLOTS, host);
+
+    expect(slots.get('slot1')).toEqual({ savedAt: 3, world: { turn: 8 } });
+    expect(slots.has('auto')).toBe(false);
+    expect(storage.getItem('roam.save')).not.toBeNull();
+  });
+
+  it('writes and removes through the host', async () => {
+    const { host, files, calls } = fakeHost();
+    const slots = await openSaves('roam.save', makeStorage(), SLOTS, host);
+    slots.put('auto', { savedAt: 1, world: { turn: 2 } });
+    slots.put('day', { savedAt: 1, world: { turn: 3 } });
+    slots.remove('day');
+    await slots.flush();
+    expect(calls).toEqual(['readAll', 'put auto', 'put day', 'remove day']);
+    expect([...(await files.readAll()).keys()]).toEqual(['auto']);
+  });
+
+  it('keeps run logs on the host', async () => {
+    const { host } = fakeHost();
+    const slots = await openSaves('roam.save', makeStorage(), SLOTS, host);
+    await slots.appendLog('run', [{ kind: 'turn', turn: 1 }]);
+    expect(await slots.readLog('run')).toEqual([{ kind: 'turn', turn: 1, runId: 'run', seq: 0 }]);
+  });
+
+  it('fails loud when the host fails, with no fall back to browser storage', async () => {
+    const { host } = fakeHost();
+    host.saves.readAll = async () => { throw new Error('disk gone'); };
+    const storage = makeStorage();
+    await expect(openSaves('roam.save', storage, SLOTS, host)).rejects.toThrow('disk gone');
+  });
+
+  it('hostBackend turns the host pairs into a map', async () => {
+    const { host, files } = fakeHost();
+    await files.put('day', { savedAt: 1 });
+    expect(await hostBackend(host.saves).readAll()).toEqual(new Map([['day', { savedAt: 1 }]]));
+  });
+});
+
+
+const hostCall = async () => undefined;
+const hostSaves = { readAll: async () => [], put: hostCall, remove: hostCall, appendLog: hostCall, readLog: async () => [] };
+
+describe('desktopHost', () => {
+  it('is null in a browser, where nothing sets roamDesktop', () => {
+    expect(desktopHost({})).toBeNull();
+  });
+
+  it('returns the host the shell exposes', () => {
+    const host = { kind: 'desktop', saves: hostSaves };
+    expect(desktopHost({ roamDesktop: host })).toBe(host);
+  });
+
+  it('throws on a host that is not an object', () => {
+    expect(() => desktopHost({ roamDesktop: 'desktop' })).toThrow(HostShapeError);
+    expect(() => desktopHost({ roamDesktop: null })).toThrow(HostShapeError);
+  });
+
+  it('throws on a host of another kind', () => {
+    expect(() => desktopHost({ roamDesktop: { kind: 'phone', saves: hostSaves } })).toThrow(/kind is phone/);
+  });
+
+  it('throws on a host with no saves', () => {
+    expect(() => desktopHost({ roamDesktop: { kind: 'desktop' } })).toThrow(/saves is not an object/);
+  });
+
+  it.each(['readAll', 'put', 'remove', 'appendLog', 'readLog'])('throws when saves.%s is missing', (name) => {
+    const broken: Record<string, unknown> = { ...hostSaves };
+    delete broken[name];
+    expect(() => desktopHost({ roamDesktop: { kind: 'desktop', saves: broken } })).toThrow(new RegExp(`saves.${name} is not a function`));
   });
 });

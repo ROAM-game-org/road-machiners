@@ -266,12 +266,16 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
 
 export function update(world: World, fn: (draft: World) => void): World {
   const draft = cloneWorld(world);
+  settleDraft(draft, fn);
+  return draft;
+}
+
+function settleDraft(draft: World, fn: (draft: World) => void): void {
   draft.events = [];
   draft.removed = [];
   fn(draft);
   settleAims(draft);
   settleOverdrive(draft);
-  return draft;
 }
 
 function settleOverdrive(w: World): void {
@@ -371,9 +375,18 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
+  const draft = cloneWorld(world);
+  endTurnInPlace(draft, move);
+  return draft;
+}
+
+export function endTurnInPlace(
+  world: World,
+  move: (w: World) => void,
+): void {
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
-  return timed('turn', () => update(world, (w) => {
+  timed('turn', () => settleDraft(world, (w) => {
     const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
