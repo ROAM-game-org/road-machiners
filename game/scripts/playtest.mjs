@@ -53,7 +53,7 @@ process.on('uncaughtException', async (cause) => {
   }
   await retryAfterBrowserCrash();
 });
-const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
