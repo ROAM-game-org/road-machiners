@@ -1,5 +1,5 @@
 {
- "format": "2.137",
+ "format": "2.138",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -129,6 +129,7 @@
    },
    "state": "string",
    "storage": [],
+   "storedGoods": {},
    "supplies": "number",
    "talked": {},
    "townPatched": "boolean",

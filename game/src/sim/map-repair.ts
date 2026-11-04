@@ -173,6 +173,7 @@ const PLAYER_MOVE = {
   discovered: 'keep',
   scavenged: 'keep',
   storage: 'keep',
+  storedGoods: 'keep',
   contracts: 'shift',
   pastContracts: 'keep',
   costBasis: 'keep',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PAINT } from '../../data/chassis';
+import { PAINT, PAINT_SCHEMES } from '../../data/chassis';
 import { restFrame } from '../../phys/frames';
 import { bareVehicle } from '../../sim/factory';
 import type { World } from '../../sim/types';
@@ -39,5 +39,53 @@ describe('a truck view that swaps chassis', () => {
   it('still throws on a frame that does not fit a finished build', () => {
     const view = new VehicleView(truck('niva'), true, PAINT.standard, 'world');
     expect(() => view.pose(restFrame(world, truck('sorokonoga')), 0)).toThrow(/rear unit/);
+  });
+});
+
+describe('a truck view that compares what it was built from', () => {
+  const looks = (view: VehicleView) => view.root.children[0];
+
+  it('keeps its build when asked again with the same items, chassis and paint', () => {
+    const v = truck('niva');
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const built = looks(view);
+
+    view.update(v, true, PAINT.standard);
+
+    expect(looks(view)).toBe(built);
+  });
+
+  it('rebuilds when a new items array has a part worn to a new step', () => {
+    const v = truck('niva');
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const built = looks(view);
+    const worn = structuredClone(v);
+    for (const it of worn.items) if (it.kind === 'part') it.part.hp = 0;
+
+    view.update(worn, true, PAINT.standard);
+
+    expect(looks(view)).not.toBe(built);
+  });
+
+  it('rebuilds when the player repaints the truck', () => {
+    const v = truck('niva');
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const built = looks(view);
+    const other = PAINT_SCHEMES[1];
+
+    view.update(v, true, other);
+
+    expect(looks(view)).not.toBe(built);
+  });
+
+  it('keeps finishing a stalled rebuild when asked again with the same truck', () => {
+    const view = new VehicleView(truck('niva'), true, PAINT.standard, 'world');
+    const next = truck('sorokonoga');
+    const built = looks(view);
+
+    view.update(next, true, PAINT.standard, STALLED);
+    view.update(next, true, PAINT.standard);
+
+    expect(looks(view)).not.toBe(built);
   });
 });

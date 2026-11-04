@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Stalled, withinMs, type Timers } from './stall';
+import { workerError } from './three/travel';
+import { errorText, Stalled, withinMs, type Timers } from './stall';
 
 function fakeTimers() {
   const runs = new Map<number, () => void>();
@@ -46,5 +47,42 @@ describe('withinMs', () => {
     await vi.advanceTimersByTimeAsync(60);
     expect(await pending).toBeInstanceOf(Stalled);
     vi.useRealTimers();
+  });
+});
+
+const FIREFOX_STACK = 'readSummary@https://example.test/turn-worker.js:16:695484\nterrainEntry@https://example.test/turn-worker.js:16:12';
+
+function withStack<E extends Error>(error: E, stack: string | undefined): E {
+  error.stack = stack;
+  return error;
+}
+
+describe('errorText', () => {
+  it('keeps a V8 stack that already starts with the name and message', () => {
+    const stack = 'Error: no route\n    at readSummary (layer.ts:476:115)';
+    expect(errorText(withStack(new Error('no route'), stack))).toBe(stack);
+  });
+
+  it('puts the name and message before a Firefox stack', () => {
+    expect(errorText(withStack(new Error('no route'), FIREFOX_STACK))).toBe(`Error: no route\n${FIREFOX_STACK}`);
+  });
+
+  it('gives the name and message of an error with no stack', () => {
+    expect(errorText(withStack(new RangeError('too far'), undefined))).toBe('RangeError: too far');
+  });
+
+  it('gives only the name when the message is empty', () => {
+    expect(errorText(withStack(new TypeError(''), undefined))).toBe('TypeError');
+  });
+
+  it('turns anything else into its string', () => {
+    expect(errorText('lost')).toBe('lost');
+    expect(errorText(42)).toBe('42');
+  });
+
+  it('lets a worker error from Firefox keep its message on the main thread', () => {
+    const error = workerError(errorText(withStack(new TypeError('Turn worker has no terrain'), FIREFOX_STACK)));
+    expect(error.message).toBe('Turn worker has no terrain');
+    expect(error.name).toBe('TypeError');
   });
 });
