@@ -172,7 +172,7 @@ export function worth(world: World): number {
 
 function saleValue(world: World, goods: Record<string, number>, parts: readonly PartInstance[]): number {
   const me = playerVehicle(world);
-  const goodsValue = Object.entries(goods).reduce((sum, [good, n]) => sum + Math.max(...REGION.towns.map((t) => getLotTradePrice(world, me, t.id, good, n, 'sell'))), 0);
+  const goodsValue = Object.entries(goods).reduce((sum, [good, n]) => sum + Math.max(...REGION.towns.filter((t) => SHOPS[t.id]?.goods.includes(good)).map((t) => getLotTradePrice(world, me, t.id, good, n, 'sell'))), 0);
   return goodsValue + parts.reduce((sum, part) => sum + partTradePrice(world, me, part, 'sell'), 0);
 }
 

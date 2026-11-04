@@ -612,7 +612,7 @@ describe('the bot in a fight', () => {
     me.speed = 0;
     const toBowl = dist(me.pos, bowl.pos);
     const between = { x: me.pos.x + ((bowl.pos.x - me.pos.x) / toBowl) * 8, y: me.pos.y + ((bowl.pos.y - me.pos.y) / toBowl) * 8 };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], between);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'heavyDiesel'], between);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     startCombat(w, raider, me);
 
@@ -661,7 +661,7 @@ describe('the bot in a fight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel', 'rack'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -694,7 +694,7 @@ describe('the bot in a fight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 6, y: me.pos.y + 6 });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'heavyDiesel'], { x: me.pos.x + 6, y: me.pos.y + 6 });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     startCombat(w, raider, me);
 
