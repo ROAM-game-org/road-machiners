@@ -478,7 +478,7 @@ export function raiderGrounds(world: World, camp: Site): readonly Vec[] {
 }
 
 function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: string): readonly Vec[] {
-  requireExplorationMap(world, `Camp ${camp.id}`);
+  requireExplorationMap(world, 'camp', camp.id);
   const posts = postsOf(world, `${kind}:${camp.id}`, grounds);
   if (grounds.length > 0 && posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
   return posts;
@@ -541,7 +541,7 @@ export function raiderPatrolPosts(world: World, camp: Site): readonly Vec[] {
 }
 
 export function patrolStopsOf(world: World, vehicle: Vehicle): readonly Vec[] {
-  requireExplorationMap(world, `The patrol of ${vehicle.id}`);
+  requireExplorationMap(world, 'patrol', vehicle.id);
   const site = patrolSite(vehicle);
   return hasTrait(vehicle, 'raider') ? raiderPatrolPosts(world, site) : patrolPoints(site);
 }
