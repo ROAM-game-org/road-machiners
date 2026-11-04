@@ -246,3 +246,21 @@ it('stops a doomed truck immediately and creates its wreck after movement settle
   expect(f.world.removed).toContain(f.b);
   expect(f.world.events.filter(e => e.t === 'destroyed')).toMatchObject([{ by: f.a.id }]);
 });
+
+it('keeps fixed firing phases on a long-running combat clock', () => {
+  const f = fight();
+  const start = 2 ** 31;
+  const duration = PHYSICS.turnSeconds * 1000;
+  const steps = PHYSICS.turnSeconds * PHYSICS.stepsPerSecond;
+  f.state.now = start;
+  beginTimedCombat(f.world, f.state, duration);
+  for (let i = 0; i < steps; i++) stepTimedCombat(f.world, f.state, duration / steps);
+  endTimedCombat(f.world, f.state);
+  const launched = f.state.records.filter(r => r.kind === 'launch');
+  const rounds = vehicleStats(f.world, f.a).weapons[0].def.rounds;
+  expect(launched).toHaveLength(rounds);
+  launched.forEach((record, i) => {
+    const scheduled = (i + 0.5) / rounds * duration;
+    expect(Math.abs(record.at - start - scheduled)).toBeLessThan(duration / steps / 2);
+  });
+});

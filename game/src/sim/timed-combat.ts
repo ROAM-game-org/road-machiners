@@ -64,7 +64,12 @@ function scheduleVehicle(world: World, state: TimedCombatState, id: string, dura
 }
 
 function attemptDue(state: TimedCombatState): boolean {
-  return state.attempts.length > 0 && state.attempts[0].at <= state.now + 1e-6;
+  const attempt = state.attempts[0];
+  return attempt !== undefined && attempt.at <= state.now + combatStepRoundoff(state.now, attempt.at);
+}
+
+export function combatStepRoundoff(a: number, b: number): number {
+  return Number.EPSILON * Math.max(1, Math.abs(a), Math.abs(b)) * PHYSICS.turnSeconds * PHYSICS.stepsPerSecond;
 }
 function timedSpec(id: string) {
   const spec = PROJECTILE_FLIGHT[id];
