@@ -14,6 +14,7 @@ import { beginSearch } from './search';
 import { practice } from './progress';
 import { isFortress, siteGap, type Site } from './sites';
 import { modeRules } from './settings';
+import { heldCrates } from './goods-store';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
 import { playerCommand, Refused } from './world';
@@ -206,7 +207,7 @@ function placeLoot(world: World, stock: SalvageStock, item: GridItem): void {
   const me = playerVehicle(world);
   if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} never lies in salvage`);
   if (item.kind === 'good') {
-    takeBasis(world, stock, item.good, goodsCount(me)[item.good] ?? 0, 1);
+    takeBasis(world, stock, item.good, heldCrates(world, item.good), 1);
     me.items.push(item);
     stock.goods[item.good] -= 1;
     return;

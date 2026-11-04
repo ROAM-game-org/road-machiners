@@ -142,6 +142,10 @@ export function lootGoodItem(good: string): GridItem {
   return { id: `loot-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
 }
 
+export function storedGoodItem(good: string): GridItem {
+  return { id: `stored-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
+}
+
 export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null, picked: { item: GridItem } | null): HTMLElement {
   const size = gridSize(m);
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
