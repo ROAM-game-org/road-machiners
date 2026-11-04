@@ -1,5 +1,5 @@
 import { DOWNLOAD } from './config';
-import { attemptWithin, isTransientStatus, type Body } from './download';
+import { attemptWithin, isTransientStatus, retryable, type Body } from './download';
 import { REAL_TIMERS } from './stall';
 
 export const ASSET_RETRY_DELAYS_MS: readonly number[] = [1000, 3000, 9000];
@@ -95,7 +95,9 @@ export async function fetchAssetBody(label: string, url: string, init?: RequestI
     if ('body' in result) return result.body;
     if ('missing' in result) {
       const page = await buildGone(net);
-      throw page === null ? result.missing : new BuildGone(label, url, i + 1, result.missing, page);
+      if (page !== null) throw new BuildGone(label, url, i + 1, result.missing, page);
+      if (!retryable(result.missing.status) || i === net.delaysMs.length) throw result.missing;
+      continue;
     }
     last = result.transient;
   }
