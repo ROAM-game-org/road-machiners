@@ -39,6 +39,7 @@ let real: World;
 beforeAll(() => {
   real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
   for (const shop of Object.values(real.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+  standardWorld(2);
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
@@ -679,31 +680,43 @@ describe('rival crews', () => {
 });
 
 describe('a rival on the real map', () => {
-  it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
-    let w = standardWorld(2);
-    const { shop, stock, part } = nearestClaim(w);
-    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
-    claim.rivalAt = w.turn + 1;
-    shopState(w, shop).contracts.push(claim);
-    keepNearestDrivers(w, 4, [], shop);
-    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const pads = sitePads(siteOf(shop));
-    w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {
-      const pad = pads[i % pads.length];
-      v.pos = { x: pad.x + Math.floor(i / pads.length) * 6, y: pad.y };
-    });
-    const move = (d: World): void => { for (const v of d.vehicles) if (v.id !== d.player.vehicleId) advanceFar(d, v); };
-    w = cloneWorld(w);
-    let rival: string | null = null;
-    let ended = false;
-    for (let turn = 0; turn < 1500 && !ended; turn++) {
+  const MAX_TURNS = 1500;
+  const FIRST_PART_TURNS = 125;
+  let w = standardWorld(2);
+  const { shop, stock, part } = nearestClaim(w);
+  const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
+  let rival: string | null = null;
+  let ended = false;
+  let turnsPlayed = 0;
+  const move = (d: World): void => { for (const v of d.vehicles) if (v.id !== d.player.vehicleId) advanceFar(d, v); };
+
+  function playUntil(limit: number): void {
+    while (turnsPlayed < limit && !ended) {
       endTurnInPlace(w, move);
+      turnsPlayed++;
       expect(w.events.filter((e) => e.t === 'stall'), `turn ${w.turn}`).toEqual([]);
       const live = w.shops[shop].contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
       rival = live?.rival ?? rival;
       const truck = w.vehicles.find((v) => v.id === rival);
       ended = rival !== null && !truck?.brain?.goals.some((g) => g.kind === 'claim');
     }
+  }
+
+  it('sends a rival from the shop with the nearest NPCs alive, and never stalls in the first part of the run', () => {
+    claim.rivalAt = w.turn + 1;
+    shopState(w, shop).contracts.push(claim);
+    keepNearestDrivers(w, 4, [], shop);
+    const pads = sitePads(siteOf(shop));
+    w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {
+      const pad = pads[i % pads.length];
+      v.pos = { x: pad.x + Math.floor(i / pads.length) * 6, y: pad.y };
+    });
+    w = cloneWorld(w);
+    playUntil(FIRST_PART_TURNS);
+  });
+
+  it('runs the rival to the end of its claim, and never stalls', () => {
+    playUntil(MAX_TURNS);
     expect(rival).not.toBeNull();
     expect(ended).toBe(true);
     const where = w.shops[shop].stock.some((p) => p.id === part.id) ? 'delivered' : 'over';

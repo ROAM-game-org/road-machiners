@@ -22,6 +22,8 @@ import { sunAt } from './sun';
 import { addVehicle, comparableWorld, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
+import { REGION } from '../data/region';
+import { addState } from './states';
 
 const BY_RADIUS = Object.keys(CHASSIS).sort((a, b) => CHASSIS[b].radius - CHASSIS[a].radius);
 const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length - 1]];
@@ -298,5 +300,68 @@ describe('a player order with a pace', () => {
     const manual = setDirect(setMoveOrder(w, { kind: 'through', dest, pace: 2 }), true);
     expect(playerVehicle(manual).order).toEqual({ kind: 'through', dest });
     expect(playerVehicle(setDirect(manual, false)).order).toEqual({ kind: 'through', dest });
+  });
+});
+
+describe('overdrive ends with the drive', () => {
+  const noteIds = (w: World) => w.events.flatMap((e) => (e.t === 'info' ? [e.note.id] : []));
+  const heatNotes = (w: World) => noteIds(w).filter((id) => id === 'engineHot');
+  const cruise = (d: World) => {
+    const me = playerVehicle(d);
+    me.speed = vehicleStats(d, me).maxSpeed;
+    me.trail = [{ x: me.pos.x - 1, y: me.pos.y, heading: 0 }, { ...me.pos, heading: 0 }];
+  };
+
+  function overdriving(): World {
+    const w = emptyWorld();
+    w.player.ranks.driving = 1;
+    w.turn = TIME.turnsPerDay * 0.5;
+    return setOverdrive(w, true);
+  }
+
+  it('switches off, with no event, when the truck ends the turn parked', () => {
+    const next = endTurn(overdriving(), () => {});
+    expect(next.player.overdrive).toBe(false);
+    expect(noteIds(next).filter((id) => id.startsWith('overdrive'))).toEqual([]);
+  });
+
+  it('stays on while the truck ends the turn driving on a cool engine', () => {
+    const next = endTurn(overdriving(), cruise);
+    expect(next.player.overdrive).toBe(true);
+  });
+
+  it('survives switching on while parked in planning, then driving that turn', () => {
+    const w = emptyWorld();
+    w.player.ranks.driving = 1;
+    w.turn = TIME.turnsPerDay * 0.5;
+    const planned = setOverdrive(w, true);
+    expect(planned.player.overdrive).toBe(true);
+    expect(endTurn(planned, cruise).player.overdrive).toBe(true);
+  });
+
+  it('switches off when the driver is knocked out', () => {
+    const w = overdriving();
+    w.player.state = 'knockedOut';
+    const me = playerVehicle(w);
+    const foe = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: me.pos.x + 3, y: me.pos.y });
+    me.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [foe.id], gaveUp: false };
+    expect(endTurn(w, cruise).player.overdrive).toBe(false);
+  });
+
+  it('switches off while another driver tows the truck', () => {
+    const w = overdriving();
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    tower.trail = [{ x: 39, y: 30, heading: 0 }, { x: 40, y: 30, heading: 0 }];
+    addState(w, 'tow', tower.id, w.player.vehicleId, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
+    expect(endTurn(w, cruise).player.overdrive).toBe(false);
+  });
+
+  it('keeps overdrive on and raises only the hot warning when the heat crosses the running-hot mark', () => {
+    const w = overdriving();
+    w.player.engineHeat = ENGINE_HEAT.warnAt - 0.01;
+    const next = endTurn(w, cruise);
+    expect(next.player.engineHeat).toBeGreaterThanOrEqual(ENGINE_HEAT.warnAt);
+    expect(next.player.overdrive).toBe(true);
+    expect(heatNotes(next)).toEqual(['engineHot']);
   });
 });
