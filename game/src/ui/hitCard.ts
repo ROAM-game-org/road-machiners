@@ -1,5 +1,5 @@
 import { chanceSteps, fireBlock, hitOdds, type ChanceStep, type HitOdds } from '../sim/combat';
-import { playerVehicle } from '../sim/damage';
+import { isPlayerTruck, playerVehicle } from '../sim/damage';
 import { vehicleStats, type MountedWeapon } from '../sim/stats';
 import type { Aim, Vehicle, World } from '../sim/types';
 import { partName, vehicleTitle } from '../text/names';
@@ -49,9 +49,9 @@ function aimAt(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): Aim {
 
 export function hitCardRows(world: World, hoveredId: string): HitCardData | null {
   const me = playerVehicle(world);
-  if (hoveredId === me.id) return null;
   const it = world.vehicles.find((v) => v.id === hoveredId);
   if (!it) throw new Error(`No vehicle ${hoveredId} to hover`);
+  if (isPlayerTruck(world, it)) return null;
   return {
     name: vehicleTitle(world, it),
     mine: vehicleStats(world, me).weapons.map((mw, i) => row(world, me, mw, it, aimAt(me, mw, it), i + 1, MY_NAMES)),
