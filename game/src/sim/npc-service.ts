@@ -180,7 +180,11 @@ export function legEnd(world: World, vehicle: Vehicle): Vec | null {
 }
 
 function pumpHere(vehicle: Vehicle, profile: NpcProfile): Site | null {
-  return pumpsOf(vehicle, profile, false).map(getKnownSite).find((site) => canUseSite(vehicle.pos, site)) ?? null;
+  for (const id of pumpsOf(vehicle, profile, false)) {
+    const site = getKnownSite(id);
+    if (canUseSite(vehicle.pos, site)) return site;
+  }
+  return null;
 }
 
 function canBuyFuelAt(world: World, vehicle: Vehicle, pump: Site): boolean {

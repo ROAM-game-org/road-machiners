@@ -19,7 +19,7 @@ import type { GridItem, PartInstance, World } from './types';
 import { dist } from './vec';
 import { playerSees } from './vision';
 import { maxHp } from './wear';
-import { carriedWorld, endTurn, newWorld } from './world';
+import { carriedWorld, cloneWorld, endTurn, newWorld } from './world';
 import { startPose } from './start-pose';
 
 const KIT = startKit('standard');
@@ -43,14 +43,14 @@ const turns = (w: World, n: number): World => {
 };
 
 function withoutTraffic(w: World): World {
-  const next = structuredClone(w);
+  const next = cloneWorld(w);
   next.vehicles = next.vehicles.filter((v) => v.faction === 'player');
   next.spawnQueue = [];
   return next;
 }
 
 function parkedBy(w: World): World {
-  const next = structuredClone(w);
+  const next = cloneWorld(w);
   const me = playerVehicle(next);
   me.pos = openingStopPoint(next);
   me.speed = 0;
@@ -87,7 +87,7 @@ describe('new-game opening', () => {
     expect(openingStockOf(newWorld(1, startKit('combat'), TEST_MAP, defaultSetup('roaming'), false))).toBeNull();
     const world = carriedWorld({
       seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null,
-      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
+      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], storedGoods: {}, setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
     }, KIT, () => TEST_MAP, () => 7);
     expect(openingStockOf(world)).toBeNull();
     expect(world.obstacles.some((o) => o.id === OPENING_WRECK_ID)).toBe(false);

@@ -24,7 +24,6 @@ export class ArtBand {
     for (const [held, img] of this.images) {
       if (held === key) continue;
       img.onerror = null;
-      if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
       img.removeAttribute("src");
       this.images.delete(held);
     }

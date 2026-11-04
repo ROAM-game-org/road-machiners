@@ -22,7 +22,7 @@ A mode that turns on `traffic` or `rescue` needs a map with towns, so a new worl
 
 Chaos Highway plays on its own generated map, never on Icarus. The world seed builds the land. The road runs north (map −y), and the fixed camera draws it toward the top right of the screen.
 
-Each stretch between two outposts has its own length, drawn from the seed: any whole number of tiles from 230 to 310. The next stretch cannot be guessed from the last one. The range lives in `HIGHWAY`.
+Each stretch between two outposts has its own length, drawn from the seed: any whole number of tiles from 300 to 700. The next stretch cannot be guessed from the last one. The range lives in `HIGHWAY`.
 
 The road winds, so a sprinter has no long straight run. It runs straight for 40 tiles after each outpost and before the next one. Between them it is cut into bend cells of at least 40 tiles, 3 on the shortest stretch and 5 on the longest. At each cell end it swings 4 to 7 tiles off its line, to alternating sides, starting on a side drawn from the seed. One stretch in ten stays straight. Every bend keeps a radius of at least 22 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
 
@@ -66,9 +66,9 @@ Early stretches lean to pileups, rockfalls and craters, later ones to checkpoint
 
 ## Windows
 
-The land is generated as you go, in windows of 410 by 410 tiles. Each window is further north than the last by the length of the stretch it opens, so 230 to 310 tiles.
+The land is generated as you go, in windows of 800 by 800 tiles. Each window is further north than the last by the length of the stretch it opens, so 300 to 700 tiles. A window lays out every stretch and fort it reaches, so a short stretch shows the fort beyond its own.
 
-- Milestone 0 is the start, and each next milestone stands one stretch length (230 to 310 tiles, drawn from the seed) further up the road. A window holds two milestones on its middle column: the one the player last reached, 50 tiles from its south edge, and the next outpost, one stretch length further north. The window is 410 tiles tall, so the next outpost always stands at least 50 tiles inside its north edge.
+- Milestone 0 is the start, and each next milestone stands one stretch length (300 to 700 tiles, drawn from the seed) further up the road. A window holds two milestones on its middle column: the one the player last reached, 50 tiles from its south edge, and the next outpost, one stretch length further north. The window is 800 tiles tall, so the next outpost always stands at least 50 tiles inside its north edge.
 - Every height, ground type, prop and ramp is a pure function of the seed and its place along and across the road. So two windows agree exactly where they overlap, and a reload rebuilds the same land.
 - Driving on from a paid outpost needs the gates shut: both trucks parked with their whole bodies inside its yard. It opens the window beyond it. The world moves south under the trucks by the length of the stretch just won, so they stand in the same spot of the same fort on the same ground, now as the last outpost of the new window. The wrecks, smoke, craters and states left behind are gone.
 - In the game Drive on autosaves and reloads the page onto the new window, with the boot step "Opening the road north".
@@ -98,14 +98,14 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 A director plans each stretch's groups when the road opens, in `src/sim/chaos-highway-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
-- Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
-- Group size: 1 truck on stretch 1, 0.2 more each stretch, from 1 to 5 trucks, rolled the same way.
-- Truck budget: 1 truck on stretch 1, 4 on stretch 2, 3 more each stretch after. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
-- Gear money: each truck's gear money is 16% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
+- Groups: 3 on stretches 1 and 2, half a group more each stretch after, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
+- Group size: 1 truck on stretch 1, 0.5 more each stretch, from 1 to 5 trucks, rolled the same way.
+- Truck budget: 4 trucks on stretch 1, 3 more each stretch after. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns single trucks elite, one per group before any group gets a second.
+- Gear money: each truck's gear money is 35% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus 70% of all the pay earned before the stretch, the share a player in a recorded run kept as gear after repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
 
-Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first. A blocker is never elite.
+Elite trucks start on stretch 2. A stretch has at most one, and one more every 2 stretches. An elite truck has twice the gear money, and the rest of its group keeps the plain money. A blocker is never elite.
 
-The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck carries a gun, picked before its utility part, and never a cargo part. A plain truck has no armor, mounted or spare. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
+The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck takes the shared NPC loadout with a gun picked first and no cargo part, since the highway has no trade. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
 
 Each group draws one card by weight from the cards open at its stretch, so its trucks share a template. Each truck takes its own template's loadout.
 

@@ -192,17 +192,27 @@ it('threads a checkpoint that blocks every lane from the outer lane, with no hit
 }, budget(300_000));
 
 const WEDGE_SEED = 1;
-const WEDGE_WINDOW = 6;
-const WEDGE_POS = { x: 209.9, y: 201.4 };
-const WEDGE_HEADING = -1.8;
+const WEDGE_WINDOW = 3;
+const WEDGE_STRETCH = 4;
+const WEDGE_GAP = 8.1;
+const WEDGE_LANE = 4.9;
+const WEDGE_SKEW = -0.0058;
 const WEDGE_TURNS = 12;
 const WEDGE_PAST = 8;
 
+function wedgeStart(): { n: number; pos: { x: number; y: number }; heading: number } {
+  const block = stretchLayout(WEDGE_SEED, WEDGE_STRETCH).scenes.find((s) => s.kind === 'roadblock');
+  if (!block) throw new Error(`Stretch ${WEDGE_STRETCH} of seed ${WEDGE_SEED} has no roadblock`);
+  const n = block.from - WEDGE_GAP;
+  return { n, pos: roadPoint(WEDGE_SEED, WEDGE_WINDOW, n, WEDGE_LANE), heading: roadHeading(WEDGE_SEED, n) + WEDGE_SKEW };
+}
+
 it('drives a semi free when it sits nose first against a checkpoint barrier', () => {
   let w = worldAtWindow(WEDGE_SEED, WEDGE_WINDOW);
+  const start = wedgeStart();
   const hauler = haulerOf(w);
-  hauler.pos = { ...WEDGE_POS };
-  hauler.heading = WEDGE_HEADING;
+  hauler.pos = { ...start.pos };
+  hauler.heading = start.heading;
   hauler.speed = 0;
   w.chaosHighway!.waitingAt = null;
   sendGunTruckAway(w);
@@ -217,7 +227,7 @@ it('drives a semi free when it sits nose first against a checkpoint barrier', ()
   }
   freeDrive(drive);
   expect(stalls).toBe(0);
-  expect(haulerOf(w).pos.y).toBeLessThan(WEDGE_POS.y - WEDGE_PAST);
+  expect(alongOf(WEDGE_SEED, toRoad(WEDGE_SEED, WEDGE_WINDOW, haulerOf(w).pos))).toBeGreaterThan(start.n + WEDGE_PAST);
 }, budget(300_000));
 
 function fromLane(seed: number, lane: number): { w: World; turns: number; stalls: number; won: boolean } {

@@ -22,7 +22,7 @@ export async function catchUp(ctx: Ctx, issue: number): Promise<void> {
 
 async function mergeBase(ctx: Ctx, issue: number, base: string): Promise<void> {
   try {
-    await mergeResolving(ctx, 'catch-up', [{ branch: base, into: BRANCH(issue), message: `Merge ${base} into ${BRANCH(issue)} while it waits in Merging`, issue: null }]);
+    await mergeResolving(ctx, 'catch-up', [{ branch: base, into: BRANCH(issue), message: `Merge ${base} into ${BRANCH(issue)} while it waits in Merging`, issue: null }], { card: issue });
   } catch (error) {
     throw new Error(`The catch-up of #${issue} with ${base} failed, and its merge job merges it as before: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }

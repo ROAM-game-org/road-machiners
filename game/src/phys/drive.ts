@@ -1,14 +1,14 @@
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
-import { freeOnThrow, restoreWorld } from './snapshot';
+import { freeOnThrow, restoreWorld, stepPhysics } from './snapshot';
 import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, captureImpactMotion, GROUND, type Crash, type ImpactMotion } from './contacts';
 
 export { GROUND, type Crash };
 import { PHYSICS } from '../data/physics';
 import { BREAKABLE, RULES } from '../data/rules';
 import { fuelLimited, isNear } from '../sim/far';
-import { blockingBoxes, isBreakable } from '../sim/mapgen';
+import { blockingBoxes, isBreakable, propBase } from '../sim/mapgen';
 import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from '../sim/stats';
@@ -19,7 +19,7 @@ import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
 import { ropeClientOf } from '../sim/tow';
 import { atlasOf } from '../sim/atlas';
-import { propBase, railOffset, type Deck } from '../sim/bridge';
+import { railOffset, type Deck } from '../sim/bridge';
 import { deckSegments, groundAt, tileAt, type DeckSegment, type Terrain } from '../sim/terrain';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { craterReach } from '../sim/craters';
@@ -264,7 +264,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     lines.pull(i);
     for (const c of cars) holdUnits(c);
     landings.note(cars, before, i);
-    world.step(events);
+    stepPhysics(world, events);
     events.drainCollisionEvents((h1, h2, started) => {
       if (started) contacts.add(crashOf(h1, h2, owners, obstacleOf, d, before, world, w), i);
     });

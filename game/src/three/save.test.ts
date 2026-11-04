@@ -3,7 +3,7 @@ import { budget } from '../test/budget';
 import { startKit } from '../data/start';
 import { cloneWorld, newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
-import { gridOf, mountedParts, placementError } from '../sim/grid';
+import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, comparableWorld, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
@@ -164,6 +164,29 @@ describe('game save', () => {
     expect(back.utilityOrders[ram.id]).toEqual({ kind: 'disarm' });
     expect(mountedParts(back).find((p) => p.id === ram.id)!.charge).toEqual({ reload: 0, armed: true });
     expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps a gun pointed across its cells through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const truck = addVehicle(world, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 });
+    const poses = [4, 6] as const;
+    const guns = poses.map((rot, i) => {
+      const gun: GridItem = { id: `cross${i}`, kind: 'part', x: 0, y: 0, rot, part: makePart(world, 'mg', 0) };
+      const spot = mountSpots(gridOf(truck), truck.items, gun, MOUNT_CELLS.weapon).find((s) => s.rot === rot)!;
+      const placed = { ...gun, ...spot };
+      truck.items.push(placed);
+      return placed;
+    });
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const back = loaded.vehicles.find((v) => v.id === truck.id)!;
+    for (const gun of guns) expect(back.items.find((it) => it.id === gun.id)).toMatchObject({ x: gun.x, y: gun.y, rot: gun.rot });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
     expect(loaded.events).toEqual([]);
   });
 

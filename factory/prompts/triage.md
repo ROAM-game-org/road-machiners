@@ -65,14 +65,6 @@ Everything else waits for a release, also most bugs.
 When in doubt, it is not a hotfix.
 A hotfix ships alone, so it bundles only duplicates of itself, never other work.
 
-Release fix.
-`.factory/release.md` says whether a release takes fixes now, and lists its features.
-A release fix branches from the release and goes out with it.
-Mark a release fix only when the bug is in one of those features.
-When no release takes fixes, `releaseFix` is false.
-A hotfix is never a release fix.
-When in doubt, it is not a release fix.
-
 Complexity.
 It picks the models for the later stages.
 Aim for 20% Opus and 80% Sonnet in measured factory-agent tokens.
@@ -92,11 +84,10 @@ Read the code the issue touches to answer them.
 A committee member reads it to audit the choice.
 
 Write `.factory/triage.json` with this shape.
-`{"verdict": "ready" | "wont-do" | "duplicate", "reason": "...", "duplicateOf": 21, "hotfix": true | false, "releaseFix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15]}`
+`{"verdict": "ready" | "wont-do" | "duplicate", "reason": "...", "duplicateOf": 21, "hotfix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15]}`
 The reason is one or two plain sentences.
 For a hotfix, the reason says what breaks for players.
-For a release fix, the reason names the release feature it fixes.
 When you bundle, the reason also says what the bundled requests share.
 The field `duplicateOf` is required for `duplicate` only. A duplicate needs no other field.
-The fields `hotfix`, `releaseFix`, `complexity`, `complexityReason` and `bundle` are required for a `ready` bug only.
+The fields `hotfix`, `complexity`, `complexityReason` and `bundle` are required for a `ready` bug only.
 The bundle lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.

@@ -3,23 +3,29 @@ import { rmSync } from 'node:fs';
 import { deployDev } from '../deploy';
 import { recordFeedback } from '../pending-feedback';
 import { readState, updateState } from '../state';
-import { BRANCH, FEEDBACK_HEADING, RELEASE_CANDIDATE_LABEL, type Ctx, type IssueMerge, type ReleaseState } from '../types';
+import { BRANCH, FEEDBACK_HEADING, RELEASE_CANDIDATE_LABEL, type Ctx, type FactoryState, type IssueMerge, type ReleaseState } from '../types';
 import { BASE_BRANCH, agentLog, workDir } from './common';
 import { revertResolving } from './merge-resolve';
-import { requireRelease } from './release-common';
+import { mergeOf, requireRelease } from './release-common';
 
-async function revertReleaseMerge(ctx: Ctx, release: ReleaseState, issue: number): Promise<void> {
-  const merge = release.merges.find((item) => item.issue === issue);
-  if (merge === undefined) throw new Error(`Release ${release.day} has no recorded merge of issue #${issue}`);
-  const branches = merge.into === BASE_BRANCH ? [release.branch, BASE_BRANCH] : [release.branch];
-  for (const branch of branches.filter((name) => !merge.reverted.includes(name))) {
-    await revertResolving(ctx, 'remove', merge, branch);
-    updateState(ctx.statePath, (state) => (state.release ? { ...state, pendingShip: null, release: { ...state.release, postId: null, merges: markReverted(state.release.merges, issue, branch) } } : state));
-  }
+async function revertOnDev(ctx: Ctx, release: ReleaseState, issue: number): Promise<void> {
+  const merge = mergeOf(readState(ctx.statePath).devMerges, issue);
+  if (merge === undefined && release.removed.includes(issue)) return;
+  if (merge === undefined) throw new Error(`Dev has no recorded merge of issue #${issue}`);
+  if (merge.reverted.includes(BASE_BRANCH)) return;
+  await revertResolving(ctx, 'remove', merge, BASE_BRANCH);
+  updateState(ctx.statePath, (state) => ({ ...state, devMerges: state.devMerges.map((item) => (sameMerge(item, merge) ? { ...item, reverted: [...item.reverted, BASE_BRANCH] } : item)) }));
 }
 
-function markReverted(merges: IssueMerge[], issue: number, branch: string): IssueMerge[] {
-  return merges.map((merge) => (merge.issue === issue ? { ...merge, reverted: [...merge.reverted, branch] } : merge));
+const sameMerge = (a: IssueMerge, b: IssueMerge): boolean => a.issue === b.issue && a.sha === b.sha;
+
+function dropCandidate(state: FactoryState, issue: number): FactoryState {
+  const release = state.release && { ...state.release, postId: null, candidate: null, removed: [...new Set([...state.release.removed, issue])], playtest: { ...state.release.playtest, passed: null } };
+  return { ...state, pendingShip: null, release };
+}
+
+function forgetMerge(state: FactoryState, issue: number): FactoryState {
+  return { ...state, devMerges: state.devMerges.filter((merge) => merge.issue !== issue) };
 }
 
 export async function remove(ctx: Ctx, issue: number): Promise<void> {
@@ -27,8 +33,8 @@ export async function remove(ctx: Ctx, issue: number): Promise<void> {
   if (!removal) throw new Error(`No removal of issue #${issue} is queued`);
   const release = requireRelease(ctx);
   await ctx.repo.fetch();
-  await revertReleaseMerge(ctx, release, issue);
-  updateState(ctx.statePath, (state) => ({ ...state, release: state.release && { ...state.release, removed: [...new Set([...state.release.removed, issue])] } }));
+  await revertOnDev(ctx, release, issue);
+  updateState(ctx.statePath, (state) => dropCandidate(state, issue));
   await deployDev(ctx, agentLog(ctx, issue, 'remove'));
   await ctx.repo.deleteBranch(BRANCH(issue));
   rmSync(workDir(ctx, issue), { recursive: true, force: true });
@@ -39,6 +45,6 @@ export async function remove(ctx: Ctx, issue: number): Promise<void> {
   await ctx.github.comment(issue, body);
   recordFeedback(ctx.statePath, issue, { source: 'committee', body });
   await moveCard(ctx, issue, 'Design', 'removed');
-  updateState(ctx.statePath, (state) => ({ ...state, pendingShip: null, release: state.release && { ...state.release, postId: null } }));
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Issue #${issue} is out of release ${release.day} and back in design. A new candidate follows when the release tasks are done.`);
+  updateState(ctx.statePath, (state) => forgetMerge(state, issue));
+  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Issue #${issue} is out of release ${release.day} and back in design. The next playtest pass without it becomes the new candidate.`);
 }

@@ -588,6 +588,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.failed': 'Не получилось.',
   'refusal.noMoney': 'Не хватает М',
   'refusal.noCargoRoom': 'Не хватает места в кузове',
+  'refusal.storeFull': 'Здесь склад полон: {cap, plural, one {# ящик} few {# ящика} many {# ящиков} other {# ящика}}',
   'refusal.noStock': 'Столько нет на складе',
   'refusal.onOrder': 'Отложено для заказа',
   'refusal.theyHaveNoRoom': 'У них нет места',
