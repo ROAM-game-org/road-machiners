@@ -14,7 +14,7 @@ import { cellAt, drawnLayer, GridScale, iconBox, type GridMetrics, LAYERS_PER_BA
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
-import { backgroundNeeds, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
+import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
 import type { GarageSprite } from "../three/render/garageRender";
 import { partDef } from "../data/parts";
 
@@ -232,13 +232,30 @@ describe("the garage grid's layers and marks", () => {
   });
 });
 
+describe("the garage looks of a truck whose picture failed (issue 1404)", () => {
+  const rendering = (body: unknown) => ({ ensureNow: () => {}, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
+
+  it("are missing, so the grid draws its plain outline", () => {
+    const w = emptyWorld();
+    const looks = garageLooks(rendering(null), w, w.vehicles[0], [], null);
+    expect(looks).toEqual({ own: null, other: null });
+  });
+
+  it("hold the body when it exists", () => {
+    const w = emptyWorld();
+    const body = { image: { url: "blob:x" }, cores: new Map() };
+    const looks = garageLooks(rendering(body), w, w.vehicles[0], [], null);
+    expect(looks.own?.body).toBe(body);
+  });
+});
+
 describe("the pivot a fan starts from", () => {
   const sprite = (pivot: GarageSprite["pivot"]): GarageSprite => ({ url: "blob:x", left: 0, top: 0, width: 1, height: 1, pivot });
   const lookWith = (made: GarageSprite | null): { look: GarageLook; gun: GridItem } => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
-    return { look: { renders: { sprite: () => made }, paint: w.player.paint, truck: me } as unknown as GarageLook, gun };
+    return { look: { renders: { sprite: () => made }, paint: w.player.paint, truck: me, body: { image: sprite(undefined), cores: new Map() } } as unknown as GarageLook, gun };
   };
   const m = gridMetrics("scout", gridOf(emptyWorld().vehicles[0]), 100);
 
