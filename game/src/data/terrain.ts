@@ -876,6 +876,13 @@ export const ROCK_LOOKS = [
   { model: 'rock_split', weight: 0.2 },
 ] as const;
 
+export const CAR_WRECK_LOOKS = [
+  { model: 'wreck', weight: 0.25 },
+  { model: 'wreck_sedan', weight: 0.25 },
+  { model: 'wreck_compact', weight: 0.25 },
+  { model: 'wreck_wagon', weight: 0.25 },
+] as const;
+
 export type RoadsideBand = readonly [number, number];
 
 function spreadBand(band: RoadsideBand, factor: number): RoadsideBand {

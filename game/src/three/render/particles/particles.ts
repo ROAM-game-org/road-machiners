@@ -101,21 +101,20 @@ export class Particles {
       if (!s.alive) continue;
       const t = s.age / s.life;
       colorAt(this.keysOf(s.look), t, this.color);
-      batch.push({
-        x: s.pos.x,
-        y: s.pos.y,
-        z: s.pos.z,
-        size: sizeAt(s.look, t) * s.scale,
-        spin: s.spin,
-        shape: s.shape,
-        r: this.color.r,
-        g: this.color.g,
-        b: this.color.b,
-        alpha: alphaAt(s.look, t),
-        sx: s.vel.x * s.look.streak,
-        sy: s.vel.y * s.look.streak,
-        sz: s.vel.z * s.look.streak,
-      });
+      const card = batch.slot();
+      card.x = s.pos.x;
+      card.y = s.pos.y;
+      card.z = s.pos.z;
+      card.size = sizeAt(s.look, t) * s.scale;
+      card.spin = s.spin;
+      card.shape = s.shape;
+      card.r = this.color.r;
+      card.g = this.color.g;
+      card.b = this.color.b;
+      card.alpha = alphaAt(s.look, t);
+      card.sx = s.vel.x * s.look.streak;
+      card.sy = s.vel.y * s.look.streak;
+      card.sz = s.vel.z * s.look.streak;
     }
   }
 

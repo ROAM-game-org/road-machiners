@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { readState, updateState } from '../state';
-import { CHANNEL, publicFake } from './public-fakes';
+import { CHANNEL, publicFake, type PublicFake } from './public-fakes';
 import { postProposal, proposalText } from './proposals';
+
+function approvedProposal(f: PublicFake, issue: number, pitch: string, at: Date): void {
+  f.store.addProposal(issue, pitch, at);
+  f.store.beginGate(issue, at);
+  f.store.markGatePosted(issue, 9000 + issue);
+  f.store.decideGate(issue, 9000 + issue, 'yes', at);
+}
 
 const HOUR_MS = 3_600_000;
 
 function unlabeledAndOpen() {
   const f = publicFake();
-  f.store.addProposal(7, 'Unlabeled one', new Date('2026-10-14T08:00:00Z'));
-  f.store.addProposal(8, 'Open one', new Date('2026-10-14T09:00:00Z'));
+  approvedProposal(f, 7, 'Unlabeled one', new Date('2026-10-14T08:00:00Z'));
+  approvedProposal(f, 8, 'Open one', new Date('2026-10-14T09:00:00Z'));
   return f;
 }
 
@@ -16,8 +23,8 @@ describe('postProposal', () => {
   it('posts the oldest proposal under a bold Proposal heading with pitch, links, bundle links and the vote rule, and marks it posted', async () => {
     const f = publicFake();
     updateState(f.ctx.statePath, (state) => ({ ...state, bundles: { 7: [8, 9] } }));
-    f.store.addProposal(7, 'Winch\n\nPull stuck trucks out of sand.', new Date('2026-10-14T08:00:00Z'));
-    f.store.addProposal(12, 'Radio\n\nTalk to traders.', new Date('2026-10-14T09:00:00Z'));
+    approvedProposal(f, 7, 'Winch\n\nPull stuck trucks out of sand.', new Date('2026-10-14T08:00:00Z'));
+    approvedProposal(f, 12, 'Radio\n\nTalk to traders.', new Date('2026-10-14T09:00:00Z'));
     await postProposal(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7', 'sendHtml']);
     const { chat, text } = f.messages[0]!;
@@ -36,7 +43,7 @@ describe('postProposal', () => {
 
   it('escapes the title and pitch, so player text cannot add markup', async () => {
     const f = publicFake();
-    f.store.addProposal(7, 'Tow <b>& winch</b>\n\nPulls <a href="x">trucks</a> & cars > 3 t.', f.clock.now);
+    approvedProposal(f, 7, 'Tow <b>& winch</b>\n\nPulls <a href="x">trucks</a> & cars > 3 t.', f.clock.now);
     await postProposal(f.ctx, f.store);
     const text = f.messages[0]!.text;
     expect(text.split('\n\n').slice(0, 2)).toEqual(['<b>Предложение: Tow &lt;b&gt;&amp; winch&lt;/b&gt;</b>', 'Pulls &lt;a href="x"&gt;trucks&lt;/a&gt; &amp; cars &gt; 3 t.']);
@@ -45,7 +52,7 @@ describe('postProposal', () => {
 
   it('shortens a pitch too long for one message, so the post and its later edits fit', async () => {
     const f = publicFake();
-    f.store.addProposal(7, `Winch\n\n${'Tow & pull. '.repeat(500)}`, f.clock.now);
+    approvedProposal(f, 7, `Winch\n\n${'Tow & pull. '.repeat(500)}`, f.clock.now);
     await postProposal(f.ctx, f.store);
     const text = f.messages[0]!.text;
     expect(text.length).toBeLessThanOrEqual(4096);
@@ -59,18 +66,18 @@ describe('postProposal', () => {
 
   it('uses the configured emoji in the rule and stops when a vote side names none', async () => {
     const f = publicFake({ voteEmoji: '🔥 👍', minVotes: 5 });
-    f.store.addProposal(7, 'Winch', f.clock.now);
+    approvedProposal(f, 7, 'Winch', f.clock.now);
     await postProposal(f.ctx, f.store);
     expect(f.messages[0]!.text).toBe('<b>Предложение: Winch</b>\n\nhttps://github.com/o/r/issues/7\n\nНужно на 5 🔥 больше, чем 👎. Сейчас: 0 🔥, 0 👎, итог 0/5');
     const g = publicFake({ vetoEmoji: ' ' });
-    g.store.addProposal(7, 'Winch', g.clock.now);
+    approvedProposal(g, 7, 'Winch', g.clock.now);
     await expect(postProposal(g.ctx, g.store)).rejects.toThrow('FACTORY_VETO_EMOJI names no emoji');
   });
 
   it('posts one proposal per tick', async () => {
     const f = publicFake({ proposalsPerDay: 5 });
-    f.store.addProposal(7, 'A', f.clock.now);
-    f.store.addProposal(8, 'B', f.clock.now);
+    approvedProposal(f, 7, 'A', f.clock.now);
+    approvedProposal(f, 8, 'B', f.clock.now);
     await postProposal(f.ctx, f.store);
     await postProposal(f.ctx, f.store);
     expect(f.messages).toHaveLength(2);
@@ -82,11 +89,11 @@ describe('postProposal', () => {
     const f = publicFake({ proposalsPerDay: 2 });
     for (const [issue, hoursAgo] of [[1, 23], [2, 5]] as const) {
       const at = new Date(f.clock.now.getTime() - hoursAgo * HOUR_MS);
-      f.store.addProposal(issue, 'old', at);
+      approvedProposal(f, issue, 'old', at);
       f.store.beginProposalPost(issue, at);
       f.store.markProposalPosted(issue, CHANNEL, issue, 'footer', at);
     }
-    f.store.addProposal(3, 'waiting', f.clock.now);
+    approvedProposal(f, 3, 'waiting', f.clock.now);
     await postProposal(f.ctx, f.store);
     expect(f.messages).toEqual([]);
     expect(f.calls).toEqual([]);
@@ -98,8 +105,8 @@ describe('postProposal', () => {
   it('closes the proposal of a closed issue unposted, posts the next open one, and never reads the closed issue again', async () => {
     const f = publicFake();
     f.issueState[7] = 'CLOSED';
-    f.store.addProposal(7, 'Closed one', new Date('2026-10-14T08:00:00Z'));
-    f.store.addProposal(8, 'Open one', new Date('2026-10-14T09:00:00Z'));
+    approvedProposal(f, 7, 'Closed one', new Date('2026-10-14T08:00:00Z'));
+    approvedProposal(f, 8, 'Open one', new Date('2026-10-14T09:00:00Z'));
     await postProposal(f.ctx, f.store);
     expect(f.messages[0]!.text).toContain('Open one');
     expect(f.store.proposal(7)?.postedAt).toBeNull();
@@ -124,8 +131,8 @@ describe('postProposal', () => {
 
   it('closes a proposal whose send fails, reports it once, never retries it and posts the next one on the next tick', async () => {
     const f = publicFake({ proposalsPerDay: 5 });
-    f.store.addProposal(7, 'Broken', new Date('2026-10-14T08:00:00Z'));
-    f.store.addProposal(8, 'Fine', new Date('2026-10-14T09:00:00Z'));
+    approvedProposal(f, 7, 'Broken', new Date('2026-10-14T08:00:00Z'));
+    approvedProposal(f, 8, 'Fine', new Date('2026-10-14T09:00:00Z'));
     const send = f.ctx.telegram.sendHtml;
     let failing = true;
     f.ctx.telegram.sendHtml = async (...args: Parameters<typeof send>) => {
@@ -150,7 +157,7 @@ describe('postProposal', () => {
 
   it('closes a proposal whose issue read fails, reports it once and never reads it again', async () => {
     const f = publicFake({ proposalsPerDay: 5 });
-    f.store.addProposal(7, 'Broken', f.clock.now);
+    approvedProposal(f, 7, 'Broken', f.clock.now);
     f.ctx.github.issue = async () => { throw new Error('GitHub down'); };
     await postProposal(f.ctx, f.store);
     await postProposal(f.ctx, f.store);
@@ -161,7 +168,7 @@ describe('postProposal', () => {
 
   it('counts a failed attempt toward the daily cap, so a broken chat stops after the cap', async () => {
     const f = publicFake({ proposalsPerDay: 2 });
-    for (const issue of [1, 2, 3, 4]) f.store.addProposal(issue, `P${issue}`, f.clock.now);
+    for (const issue of [1, 2, 3, 4]) approvedProposal(f, issue, `P${issue}`, f.clock.now);
     f.ctx.telegram.sendHtml = async () => { throw new Error('chat not found'); };
     for (let tick = 0; tick < 5; tick++) await postProposal(f.ctx, f.store);
     expect(readState(f.ctx.statePath).failures).toHaveLength(2);
@@ -177,7 +184,7 @@ describe('postProposal', () => {
     const f = publicFake({ proposalsPerDay: 1 });
     f.issueState[1] = 'CLOSED';
     f.issueLabels[2] = [];
-    for (const issue of [1, 2, 3]) f.store.addProposal(issue, `P${issue}`, f.clock.now);
+    for (const issue of [1, 2, 3]) approvedProposal(f, issue, `P${issue}`, f.clock.now);
     await postProposal(f.ctx, f.store);
     expect(f.messages).toHaveLength(1);
     expect(f.store.proposal(3)?.messageId).toBe(501);
@@ -185,10 +192,10 @@ describe('postProposal', () => {
 
   it('posts a card put to a vote again after its earlier proposal closed', async () => {
     const f = publicFake({ proposalsPerDay: 5 });
-    f.store.addProposal(7, 'First pitch', f.clock.now);
+    approvedProposal(f, 7, 'First pitch', f.clock.now);
     await postProposal(f.ctx, f.store);
     f.store.closeProposal(7, f.clock.now);
-    f.store.addProposal(7, 'Second pitch', f.clock.now);
+    approvedProposal(f, 7, 'Second pitch', f.clock.now);
     await postProposal(f.ctx, f.store);
     expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['<b>Предложение: First pitch</b>', '<b>Предложение: Second pitch</b>']);
     expect(f.store.proposal(7)?.messageId).toBe(502);
@@ -196,10 +203,10 @@ describe('postProposal', () => {
 
   it('counts the earlier post of a card put to a vote again toward the cap', async () => {
     const f = publicFake({ proposalsPerDay: 1 });
-    f.store.addProposal(7, 'First pitch', f.clock.now);
+    approvedProposal(f, 7, 'First pitch', f.clock.now);
     await postProposal(f.ctx, f.store);
     f.store.closeProposal(7, f.clock.now);
-    f.store.addProposal(7, 'Second pitch', f.clock.now);
+    approvedProposal(f, 7, 'Second pitch', f.clock.now);
     await postProposal(f.ctx, f.store);
     expect(f.messages).toHaveLength(1);
     f.clock.now = new Date(f.clock.now.getTime() + 25 * HOUR_MS);

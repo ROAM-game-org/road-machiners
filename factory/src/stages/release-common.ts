@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { readState, updateState } from '../state';
-import { RELEASE_TASK_LABEL, type Card, type Ctx, type IssueMerge, type ReleaseState } from '../types';
+import { readState } from '../state';
+import type { Ctx, IssueMerge, ReleaseState } from '../types';
 
 export type Feature = { issue: number; title: string };
 
@@ -34,21 +34,8 @@ export function changelogText(changes: Change[]): string {
   return changes.map((change) => `- [#${change.issue}] ${change.text}`).join('\n');
 }
 
-export async function openReleaseTasks(ctx: Ctx): Promise<number[]> {
-  return openTasks(await ctx.github.cards(), requireRelease(ctx).tasks);
-}
-
-export function openTasks(cards: Card[], recorded: number[]): number[] {
-  const labeled = cards.filter((card) => card.labels.includes(RELEASE_TASK_LABEL) && card.column !== 'Done').map((card) => card.issue);
-  const unseen = recorded.filter((issue) => !cards.some((card) => card.issue === issue && card.column === 'Done'));
-  return [...new Set([...labeled, ...unseen])].sort((a, b) => a - b);
-}
-
-export function recordReleaseTask(ctx: Ctx, issue: number): void {
-  updateState(ctx.statePath, (state) => {
-    if (state.release === null) throw new Error(`No release is open to record task #${issue}`);
-    return state.release.tasks.includes(issue) ? state : { ...state, release: { ...state.release, tasks: [...state.release.tasks, issue] } };
-  });
+export function mergeOf(merges: IssueMerge[], issue: number): IssueMerge | undefined {
+  return merges.filter((merge) => merge.issue === issue).at(-1);
 }
 
 export function requireRelease(ctx: Ctx): ReleaseState {
@@ -57,8 +44,15 @@ export function requireRelease(ctx: Ctx): ReleaseState {
   return release;
 }
 
-export function releaseFeatures(release: ReleaseState): Feature[] {
-  return toFeatures(release.merges.filter((merge) => !release.removed.includes(merge.issue)));
+export function passedForCandidate(release: ReleaseState): ReleaseState['playtest']['passed'] {
+  const passed = release.playtest.passed;
+  const removed = passed?.features.some((merge) => release.removed.includes(merge.issue));
+  return removed === false ? passed : null;
+}
+
+export function candidateWanted(release: ReleaseState): boolean {
+  const passed = passedForCandidate(release);
+  return passed !== null && passed.sha !== release.candidate?.sha;
 }
 
 export function candidateDir(ctx: Ctx): string {

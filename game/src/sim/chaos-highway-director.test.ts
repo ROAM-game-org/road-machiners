@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHAOS_HIGHWAY, HAZARDS } from '../data/modes';
 import { cardsOf, directStretch, eliteCap, expectedGear, payOf, planWaves, stretchBudget } from './chaos-highway-director';
 import { NPCS } from '../data/npcs';
-import { isShield, PARTS } from '../data/parts';
+import { PARTS } from '../data/parts';
 import { HAULER_KIT, startKit } from '../data/start';
 import { waveGear, waveOf } from './chaos-highway';
 import { milestoneAt } from './highway';
@@ -55,22 +55,22 @@ describe('Chaos Highway director', () => {
         const { budget, base } = stretchBudget(w, j);
         for (const seed of SEEDS) {
           const waves = planWaves(seed, j, budget, base);
-          const cost = waves.reduce((sum, wave) => sum + wave.size * (wave.elite ? DIRECTOR.elite.cost : 1), 0);
+          const cost = waves.reduce((sum, wave) => sum + wave.size + wave.elites * (DIRECTOR.elite.cost - 1), 0);
           expect(cost, `growth ${growth} stretch ${j} seed ${seed}`).toBeLessThanOrEqual(budget);
           expect(waves.length).toBeGreaterThan(0);
           for (const wave of waves) {
             expect(wave.size).toBeGreaterThanOrEqual(DIRECTOR.wave.min);
             expect(wave.size).toBeLessThanOrEqual(DIRECTOR.wave.cap);
-            expect(wave.elite && j < DIRECTOR.elite.from).toBe(false);
-            const plain = Math.max(CHAOS_HIGHWAY.cards[wave.template].floor, base);
-            expect(wave.money).toBe(wave.elite ? plain * DIRECTOR.elite.money : plain);
+            expect(wave.elites > 0 && j < DIRECTOR.elite.from).toBe(false);
+            expect(wave.elites).toBeLessThanOrEqual(wave.size);
+            expect(wave.money).toBe(Math.max(CHAOS_HIGHWAY.cards[wave.template].floor, base));
           }
         }
       }
     }
   });
 
-  it('makes no more elite waves than the cap of the stretch, and never a blocker elite', () => {
+  it('makes no more elite trucks than the cap of the stretch, spreads them one per group first, and never makes a blocker elite', () => {
     expect(eliteCap(DIRECTOR.elite.from - 1)).toBe(0);
     expect(eliteCap(DIRECTOR.elite.from)).toBe(1);
     expect(eliteCap(DIRECTOR.elite.from + DIRECTOR.elite.every)).toBe(2);
@@ -78,8 +78,10 @@ describe('Chaos Highway director', () => {
       const world = seedWorld(seed);
       for (const j of STRETCHES) {
         const waves = directStretch(world, j);
-        expect(waves.filter((w) => w.elite).length, `stretch ${j} seed ${seed}`).toBeLessThanOrEqual(eliteCap(j));
-        expect(waves.some((w) => w.elite && !CHAOS_HIGHWAY.cards[w.template].chase)).toBe(false);
+        const chasers = waves.filter((w) => CHAOS_HIGHWAY.cards[w.template].chase);
+        expect(waves.reduce((sum, w) => sum + w.elites, 0), `stretch ${j} seed ${seed}`).toBeLessThanOrEqual(eliteCap(j));
+        expect(waves.some((w) => w.elites > 0 && !CHAOS_HIGHWAY.cards[w.template].chase)).toBe(false);
+        if (chasers.some((w) => w.elites > 1)) expect(chasers.every((w) => w.elites > 0)).toBe(true);
       }
     }
   });
@@ -112,10 +114,10 @@ describe('Chaos Highway director', () => {
     const trucks = (j: number) => SEEDS.map((seed) => directStretch(seedWorld(seed), j).reduce((sum, wave) => sum + wave.size, 0));
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     const first = SEEDS.flatMap((seed) => directStretch(seedWorld(seed), 1));
-    expect(first.every((wave) => !wave.elite && wave.size <= Math.ceil(DIRECTOR.wave.size.first))).toBe(true);
+    expect(first.every((wave) => wave.elites === 0 && wave.size <= Math.ceil(DIRECTOR.wave.size.first))).toBe(true);
     expect(mean(trucks(3))).toBeGreaterThan(mean(trucks(1)));
     expect(mean(trucks(10))).toBeGreaterThan(mean(trucks(3)));
-    expect(SEEDS.some((seed) => directStretch(seedWorld(seed), DIRECTOR.elite.from).some((wave) => wave.elite))).toBe(true);
+    expect(SEEDS.some((seed) => directStretch(seedWorld(seed), DIRECTOR.elite.from).some((wave) => wave.elites > 0))).toBe(true);
   });
 
   it('arms every card with a gun at the plain and the elite gear money of its first stretch', () => {
@@ -124,26 +126,13 @@ describe('Chaos Highway director', () => {
       const j = card.from;
       const plain = Math.max(card.floor, stretchBudget(w, j).base);
       for (const elite of j >= DIRECTOR.elite.from ? [false, true] : [false]) {
-        const gear = waveGear(template, j, elite ? plain * DIRECTOR.elite.money : plain, elite);
+        const gear = waveGear(template, j, elite ? plain * DIRECTOR.elite.money : plain);
         for (let seed = 1; seed <= 20; seed++) {
           const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(j).level, gear);
           expect(loadout.parts.some((p) => PARTS[p.defId].kind === 'weapon'), `${template} seed ${seed} elite ${elite}`).toBe(true);
         }
       }
     }
-  });
-
-  it('gives elite trucks armor before more guns', () => {
-    const w = withGrowth(1);
-    const j = DIRECTOR.elite.from;
-    const money = Math.max(CHAOS_HIGHWAY.cards.merc.floor, stretchBudget(w, j).base) * DIRECTOR.elite.money;
-    const platesOf = (armorFirst: boolean) => SEEDS.map((seed) => {
-      const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS.merc, null, waveOf(j).level, { ...waveGear('merc', j, money, true), armorFirst });
-      return loadout.parts.filter((p) => isShield(PARTS[p.defId])).length;
-    });
-    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-    expect(sum(platesOf(true))).toBeGreaterThan(sum(platesOf(false)));
-    expect(platesOf(true).filter((n) => n > 0).length).toBeGreaterThan(0.5 * SEEDS.length);
   });
 
   it('pays more every stretch with no cap, and a beaten truck pays nothing', () => {

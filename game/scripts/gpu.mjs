@@ -3,6 +3,8 @@ const ANGLE = {
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
 };
 const SOFTWARE_RENDERERS = /SwiftShader|llvmpipe/;
+const SOFTWARE_LAUNCH_ATTEMPTS = 4;
+const SOFTWARE_LAUNCH_PAUSE_MS = 10000;
 const SOFTWARE_ONLY = ['--disable-dev-shm-usage'];
 
 function gpuArgs() {
@@ -45,8 +47,17 @@ async function launchGpu(chromium, options) {
 }
 
 async function launchSoftware(chromium, options, why) {
-  const browser = await chromium.launch({ ...options, args: [...SOFTWARE_ONLY, ...(options.args ?? [])] });
-  return { browser, software: true, renderer: `${await probe(browser)}, since ${why}` };
+  for (let attempt = 1; ; attempt++) {
+    const browser = await chromium.launch({ ...options, args: [...SOFTWARE_ONLY, ...(options.args ?? [])] });
+    try {
+      return { browser, software: true, renderer: `${await probe(browser)}, since ${why}` };
+    } catch (error) {
+      await browser.close().catch(() => {});
+      if (attempt >= SOFTWARE_LAUNCH_ATTEMPTS) throw error;
+      console.log(`The software browser crashed on start, attempt ${attempt}. Trying again.`);
+      await new Promise((done) => setTimeout(done, SOFTWARE_LAUNCH_PAUSE_MS * attempt));
+    }
+  }
 }
 
 async function launched(chromium, options) {
@@ -57,7 +68,9 @@ async function launched(chromium, options) {
 }
 
 export async function launchChromium(chromium, options = {}) {
-  const run = await launched(chromium, options);
+  const run = process.env.PLAYTEST_FORCE_SOFTWARE === "1"
+    ? await launchSoftware(chromium, options, "GPU browser crashed in the preceding attempt")
+    : await launched(chromium, options);
   if (run.software) warnSoftware(run.renderer);
   else console.log(`renderer ${run.renderer}`);
   return run;

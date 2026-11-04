@@ -107,7 +107,7 @@ describe('a knocked-out Chaos Highway truck', () => {
   it('does not hold the next group back, which comes once the hauler reaches its place', () => {
     let w = chaosHighwayWorld(4);
     w = nextLevel(w);
-    const waves = [0, 1e6].map((at) => ({ at, template: 'buggy', size: 1, money: 10000, elite: false }));
+    const waves = [0, 1e6].map((at) => ({ at, template: 'buggy', size: 1, money: 10000, elites: 0 }));
     runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, waves);
     const first = spawnGroup(w);
     for (const v of trucksOf(w, first)) {
