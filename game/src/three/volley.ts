@@ -1,3 +1,5 @@
+import type { TimedFlight, TimedRecord, TimedCombatState } from '../sim/timed-combat';
+import { combatState } from '../sim/timed-combat';
 import { CONFIG } from "../config";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
@@ -204,6 +206,7 @@ function useSoundsOf(e: Extract<GameEvent, { t: "utility" }>): UtilitySound[] {
 }
 
 export function playShotFx(host: CombatHost, breaks: BreakCues): number {
+  if (combatState(host.world)) return playTimedCombat(host, breaks);
   const rows = new Map<string, number>();
   const played = new Set<string>();
   let lastMs = 0;
@@ -552,4 +555,52 @@ function pastMiss(a: V3, b: V3, offset: number, ground: Ground, random: () => nu
   const past = MISS_PAST.min + random() * MISS_PAST.spread;
   const end = { x: side.x + ((side.x - a.x) / len) * past, y: 0, z: side.z + ((side.z - a.z) / len) * past };
   return { ...end, y: ground(end) };
+}
+
+function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
+  const state = combatState(host.world);
+  if (!state) throw new Error('Timed combat playback has no simulation state');
+  const rows = new Map<string, number>();
+  for (const record of state.records) playTimedRecord(host, record, state, rows, breaks);
+  for (const [id, destroyed] of Object.entries(state.destroyedAt)) {
+    host.fx.later(Math.max(0, destroyed - state.turnStart - host.startMs), () => {
+      const point = host.eventPoint(id);
+      if (point) { host.fx.explode(point); host.sound.at('explosion', point, 0); }
+    });
+  }
+  return host.poses.moveMs;
+}
+
+function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues): void {
+  if (!record.flight) return;
+  const at = Math.max(0, record.at - state.turnStart - host.startMs);
+  if (record.kind === 'launch') playTimedLaunch(host, record.flight, at);
+  if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
+}
+function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number): void {
+  const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
+      if (!host.eventPoint(f.shot.shooter.id)) return;
+      const spec = projectileOf(f.shot.mw.def.id);
+      const point = groundPoint(host.world.terrain, f.impactAt);
+      const hit = f.shot.rolls[0].hit;
+      const land = { ...point, y: point.y + (hit ? 1 : 0) };
+      host.fx.shot(spec, shooterMuzzle(host, f.shot.shooter.id, f.shot.mw.part.id), {
+        delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
+      }, blastRadiusOf(f.shot.mw.def.id), {
+        fired: m => host.sound.at(spec.look === 'tracer' ? 'mg-fire' : 'cannon-fire', m.pos, 0),
+        landed: () => {},
+      }, ground, host.world.turn);
+}
+function playTimedImpact(host: CombatHost, f: TimedFlight, event: Extract<GameEvent, { t: 'shot' }>, at: number, rows: Map<string, number>, breaks: BreakCues): void {
+      for (const round of event.rounds) showDamage(host, round, at, rows);
+      const hit = event.rounds.some(r => r.struck !== null);
+      const point = groundPoint(host.world.terrain, f.impactAt);
+      const land = { ...point, y: point.y + (hit ? 1 : 0) };
+      host.fx.later(at, () => {
+        host.fx.projectileImpact({ delayMs: 0, flightMs: 0, land, impact: hit ? 'truck' : 'ground' }, blastRadiusOf(f.shot.mw.def.id), projectileOf(f.shot.mw.def.id).look === 'shell');
+        host.sound.at(hit ? 'hit-metal' : 'miss', land, 0);
+      });
+      host.fx.later(at, () => {
+        for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk);
+      });
 }

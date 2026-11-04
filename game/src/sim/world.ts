@@ -1,3 +1,4 @@
+import { combatState } from './timed-combat';
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
@@ -398,6 +399,11 @@ export function endTurnInPlace(
     assignUtilityOrders(w);
     activateUtilities(w);
     const gaps = huntGaps(w);
+    if (combatState(w)) {
+      assignAutoOrders(w);
+      freezeFire(w);
+      settleAims(w);
+    }
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
@@ -419,7 +425,7 @@ export function endTurnInPlace(
     freezeFire(w);
     settleAims(w);
     tickCharges(w);
-    fireWeapons(w);
+    if (!combatState(w)) fireWeapons(w);
     cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
@@ -429,7 +435,7 @@ export function endTurnInPlace(
     leakFuel(w);
     fitAllStores(w);
     applyGodMode(w);
-    resolveDestroyed(w);
+    if (!combatState(w)) resolveDestroyed(w);
     settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);

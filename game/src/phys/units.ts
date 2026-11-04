@@ -1,3 +1,6 @@
+import { vehicleStats } from '../sim/stats';
+import { combatState, beginTimedCombat, stepTimedCombat, endTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
@@ -5,10 +8,10 @@ import { unitMasses } from '../sim/mass';
 import { unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { angleDiff, clamp } from '../sim/vec';
-import { toMps, type Car, type Drive, type Trailer } from './drive';
+import { toMps, rearKey, type Car, type Drive, type Trailer } from './drive';
 import { wheelMounts } from './body';
 import { seatUnits, type Seat } from './seat';
-import { headingOf, type V3, type VehicleFrame, type WheelFrame } from './frames';
+import { headingOf, TURN_STEPS, type V3, type VehicleFrame, type WheelFrame } from './frames';
 
 const T = PHYSICS.truck;
 const STEP = 1 / PHYSICS.stepsPerSecond;
@@ -216,4 +219,55 @@ function notOn(other: RAPIER.RigidBody): (collider: RAPIER.Collider) => boolean 
 
 export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, load: UnitLoad): Trailer {
   return { body, b, ctl: makeCar(world, body, b, 1, load) };
+}
+
+export class TimedDrive {
+  private state: TimedCombatState | undefined;
+  private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number }[] = [];
+  constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
+    const state = combatState(world);
+    if (!state || steps !== TURN_STEPS || state.active) return;
+    this.state = state;
+    this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading }));
+    beginTimedCombat(world, state, steps / PHYSICS.stepsPerSecond * 1000);
+  }
+  step(): void {
+    if (!this.state) return;
+    for (const c of this.cars) {
+      const p = c.body.translation();
+      c.v.pos = { x: p.x / PHYSICS.metersPerTile, y: p.z / PHYSICS.metersPerTile };
+      c.v.heading = headingOf(c.body.rotation());
+    }
+    stepTimedCombat(this.world, this.state, 1000 / PHYSICS.stepsPerSecond);
+    for (const c of this.cars) this.refreshCar(c);
+  }
+  private refreshCar(car: Car): void {
+    if (this.world.vehicles.includes(car.v)) return this.refreshStats(car);
+    car.plan = { ...car.plan, engine: false, target: 0, dest: null };
+    car.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+  }
+  private refreshStats(car: Car): void {
+    const next = vehicleStats(this.world, car.v);
+    if (next === car.s) return;
+    car.s = next;
+    this.refresh(car);
+  }
+  finish(): void {
+    if (!this.state) return;
+    endTimedCombat(this.world, this.state);
+    for (const start of this.starts) {
+      if (!this.world.vehicles.includes(start.v)) continue;
+      start.v.pos = start.pos;
+      start.v.heading = start.heading;
+    }
+  }
+}
+
+export function impactMotions(cars: Car[]): Map<string, ImpactMotion> {
+  const motions = new Map<string, ImpactMotion>();
+  for (const c of cars) {
+    motions.set(c.v.id, captureImpactMotion(c.body));
+    if (c.rear) motions.set(rearKey(c.v.id), captureImpactMotion(c.rear.body));
+  }
+  return motions;
 }

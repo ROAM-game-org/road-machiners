@@ -1,3 +1,4 @@
+import { playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG, PLAY_EASE } from "../config";
@@ -405,7 +406,7 @@ export class Game {
   }
 
   private displayWorld(): World {
-    return this.anim && !this.anim.impacts ? this.anim.before : this.world;
+    return playbackWorld(this.world, this.anim);
   }
 
   private refreshUi(): void {
@@ -853,7 +854,7 @@ export class Game {
     this.phase = "results";
     this.craters.revealAll(this.world.turn);
     for (const e of this.world.events) {
-      if (e.t !== "destroyed") continue;
+      if (!untimedDestroyed(this.world, e)) continue;
       const p = this.eventPoint(e.vehicle);
       if (p) this.fx.explode(p);
     }
@@ -910,7 +911,7 @@ export class Game {
 
   private playImpactSounds(): void {
     for (const e of this.world.events) {
-      const p = e.t === "destroyed" && this.eventPoint(e.vehicle);
+      const p = untimedDestroyed(this.world, e) && this.eventPoint(e.vehicle);
       if (p) this.sound.at("explosion", p, 0);
     }
     const sting = stingOf(this.world.events, playerVehicle(this.world).id);
@@ -958,12 +959,7 @@ export class Game {
   }
 
   private eventPoint(id: string): V3 | null {
-    const v =
-      this.world.vehicles.find((x) => x.id === id) ??
-      this.world.removed.find((x) => x.id === id);
-    const f = this.frames[id] ?? (v ? restFrame(this.world, v) : null);
-    if (!v || !f || !this.canShowCombatVehicle(v)) return null;
-    return { x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z };
+    return combatEventPoint(this.world, this.frames, id, GUN_HEIGHT, v => this.canShowCombatVehicle(v));
   }
 
   private combatHost(startMs = 0): CombatHost {
@@ -1126,6 +1122,7 @@ export class Game {
     const a = this.anim;
     if (!a) return null;
     const elapsed = (a.elapsed += ms);
+    this.uiStale = timedUiStale(this.world, elapsed, ms, this.uiStale);
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
@@ -1143,7 +1140,7 @@ export class Game {
     const glass = daylightAt(lightTurnOf(this.world, this.anim)).glass;
     const now = performance.now();
     this.radioLights.note(this.world, now, this.callShown());
-    const shown = [...this.world.vehicles, ...(landed ? [] : this.world.removed)];
+    const shown = shownTimedVehicles(this.world, landed, this.anim);
     const hidden: Vehicle[] = [];
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);

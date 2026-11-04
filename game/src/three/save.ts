@@ -1,3 +1,4 @@
+import type { PrototypeWorld } from '../sim/timed-combat';
 import { t, type Msg } from '../text/msg';
 import { isNoteId } from '../data/locals';
 import type { BakedMap } from '../sim/terrain';
@@ -426,7 +427,7 @@ export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: s
 }
 
 export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: SavedWorld } {
-  const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
+  const { terrain: _terrain, events: _events, removed: _removed, prototypeCombat: _prototypeCombat, ...saved } = world as PrototypeWorld;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
   const sheltered = saved.sheltered.map(({ vehicle: { trail: _trail, ...vehicle }, site }) => ({ vehicle, site }));

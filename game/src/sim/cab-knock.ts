@@ -1,6 +1,3 @@
-// A cab below half may knock its driver out before it breaks. The chance comes only from the cab's hp share before
-// and after the turn's cab damage: a hazard summed over the band below RULES.cabKnock.below, deeper hp weighing more.
-// Survival chances multiply and the exponent adds, so one big hit and many small hits that drop the cab the same
 
 import { RULES } from "../data/rules";
 import { turnPartHits } from "./combat";
@@ -24,12 +21,12 @@ export function cabDamageThisTurn(world: World, v: Vehicle): number {
   return (turnPartHits(world).get(v.id) ?? []).reduce((sum, hit) => (hit.part === id ? sum + hit.damage : sum), 0);
 }
 
-export function rollCabKnock(world: World, v: Vehicle): boolean {
+export function rollCabKnock(world: World, v: Vehicle, damage = cabDamageThisTurn(world, v)): boolean {
   const cab = corePart(v, "cab");
   if (cab.hp <= 0) return false;
   const max = maxHp(cab);
   const after = cab.hp / max;
-  const before = Math.min(1, after + cabDamageThisTurn(world, v) / max);
+  const before = Math.min(1, after + damage / max);
   const p = cabKnockChance(before, after, RULES.cabKnock);
   return p > 0 && chance(world, p);
 }
