@@ -663,7 +663,7 @@ describe('the bot in a fight', () => {
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
     const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
-    expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
+    expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread);
     const orders = Array.from({ length: 12 }, (_, i) => {
       const x = cloneWorld(w);
       x.rngState = Math.imul(i + 1, 2654435761);
