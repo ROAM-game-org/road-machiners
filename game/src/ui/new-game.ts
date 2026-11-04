@@ -43,7 +43,7 @@ class NewGameScreen {
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, t("newGame.settings"));
   private readonly settings = el("div", { class: "world-settings", hidden: true });
   private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, t("newGame.skipIntro"));
-  private readonly startButton = el("button", { class: "start btn-l", onclick: () => void this.start() }, t("newGame.start"));
+  private readonly startButton = el("button", { class: "start btn-l", onclick: () => this.start() }, t("newGame.start"));
   private readonly onKey = (e: Event) => {
     if ((e as KeyboardEvent).code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
@@ -144,10 +144,13 @@ class NewGameScreen {
     this.render();
   }
 
-  private async start(): Promise<void> {
-    if (!(await askConfirm({ question: CONFIRM_NEW_GAME, yes: t("confirm.startNew") }))) return;
-    this.actions.requestBoot({ new: parseSetup(this.draft), intro: !this.skipIntro });
-    this.actions.reload();
+  private start(): void {
+    const request = { new: parseSetup(this.draft), intro: !this.skipIntro };
+    void askConfirm({ question: CONFIRM_NEW_GAME, yes: t("confirm.startNew") }).then((yes) => {
+      if (!yes) return;
+      this.actions.requestBoot(request);
+      this.actions.reload();
+    });
   }
 
   private close(): void {
