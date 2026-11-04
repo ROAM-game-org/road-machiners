@@ -281,3 +281,13 @@ function segmentSlab(start: number, delta: number, half: number): [number, numbe
   const a = (-half - start) / delta, b = (half - start) / delta;
   return [Math.min(a, b), Math.max(a, b)];
 }
+
+export function trailPoseAt(trail: readonly Pose[], t: number): Pose {
+  const k = Math.min(Math.floor(t), trail.length - 2);
+  const f = t - k;
+  const a = trail[k];
+  const c = trail[k + 1];
+  const pose: Pose = { x: a.x + (c.x - a.x) * f, y: a.y + (c.y - a.y) * f, heading: a.heading + angleDiff(a.heading, c.heading) * f };
+  if (a.bend !== undefined && c.bend !== undefined) pose.bend = a.bend + (c.bend - a.bend) * f;
+  return pose;
+}

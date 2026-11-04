@@ -1,5 +1,6 @@
 import { vehicleStats, type VehicleStats } from '../sim/stats';
 import { combatState, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { FarCombatMotion } from '../sim/far';
 import { isKnockedOut } from '../sim/defeat';
 import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -8,7 +9,7 @@ import { lineAnchors, type BodyPoint, type LineAnchor } from '../sim/harpoon';
 import { PHYSICS } from '../data/physics';
 import { couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
 import { unitMasses } from '../sim/mass';
-import { unitPoses } from '../sim/rig';
+import { bendField, unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { angleDiff, clamp } from '../sim/vec';
 import { toMps, toTilesPerTurn, forwardSpeed, rearKey, type Car, type Drive, type Trailer, type Tear } from './drive';
@@ -226,15 +227,19 @@ export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body
 
 export class TimedDrive {
   private state: TimedCombatState | undefined;
+  private far: FarCombatMotion | undefined;
   private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number; speed: number; bend: number | undefined }[] = [];
   constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
     const state = combatState(world);
     if (steps !== TURN_STEPS || !state.active) return;
     this.state = state;
+    const near = new Set(cars.map(car => car.v.id));
+    this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)), true);
     this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading, speed: c.v.speed, bend: c.v.bend }));
   }
   step(): void {
     if (!this.state) return;
+    this.far?.at((this.state.now - this.state.turnStart) / (PHYSICS.turnSeconds * 1000));
     for (const c of this.cars) {
       const p = c.body.translation();
       c.v.pos = { x: p.x / PHYSICS.metersPerTile, y: p.z / PHYSICS.metersPerTile };
@@ -263,12 +268,10 @@ export class TimedDrive {
   }
   finish(): void {
     if (!this.state) return;
+    this.far?.finish();
     for (const start of this.starts) {
       if (!this.world.vehicles.includes(start.v) || this.state.destroyedAt[start.v.id] !== undefined) continue;
-      start.v.pos = start.pos;
-      start.v.heading = start.heading;
-      start.v.speed = start.speed;
-      if (start.bend !== undefined) start.v.bend = start.bend;
+      Object.assign(start.v, { pos: start.pos, heading: start.heading, speed: start.speed }, bendField(start.bend));
     }
   }
 }

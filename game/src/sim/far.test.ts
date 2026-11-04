@@ -746,3 +746,36 @@ describe('far tower and its rope', () => {
     expect(dist(tower.pos, { x: 120, y: 120 })).toBeLessThan(dist(client.pos, { x: 120, y: 120 }) - 1);
   });
 });
+
+it('moves distant trucks along their coarse paths while projectiles are in flight', async () => {
+  const { launchTimedRound } = await import('./timed-combat');
+  const { mountedParts } = await import('./grid');
+  const { refreshVision } = await import('./vision');
+  const { PROJECTILE_FLIGHT } = await import('../data/weapons');
+  const world = emptyWorld();
+  const x = 30 + LIVE + 10;
+  const shooter = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x, y: 30 });
+  const target = addVehicle(world, 'independent', 'buggy', ['stockEngine'], { x: x + 8, y: 30 }, Math.PI / 2);
+  target.speed = 7;
+  target.order = { kind: 'through', dest: { x: target.pos.x, y: 60 }, pace: 7 };
+  refreshVision(world);
+  const weapon = mountedParts(shooter, 'weapon')[0];
+  const flight = launchTimedRound(world, shooter, weapon.id, target, 'body', 0, PROJECTILE_FLIGHT.mg.speed, false)!;
+  expect(flight).not.toBeNull();
+  flight.impactAt = { ...target.pos };
+  flight.roll = { hit: true, error: 0, crit: false };
+  world.combat.flights.push({ ...flight, landsAt: 8 * PHYSICS.metersPerTile / flight.speed * 1000 });
+  const drive = buildDrive(world);
+  let next: Drive | null = null;
+  try {
+    const after = endTurn(world, physicsMove(drive, result => { next = result.next; }));
+    const shot = after.events.find(e => e.t === 'shot' && e.shooter === shooter.id);
+    expect(shot?.t).toBe('shot');
+    if (shot?.t !== 'shot') throw new Error('Distant shot did not land');
+    expect(shot.rounds[0].struck).toBeNull();
+    expect(after.vehicles.find(v => v.id === target.id)!.pos.y).toBeGreaterThan(target.pos.y);
+  } finally {
+    if (next) freeDrive(next);
+    freeDrive(drive);
+  }
+});

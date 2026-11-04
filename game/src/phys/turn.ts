@@ -327,7 +327,7 @@ export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World)
     const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));
     applyTurn(w, r);
     for (const v of far) {
-      advanceFar(w, v);
+      if (!w.combat.active) advanceFar(w, v);
       r.frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
     }
     done({ ...r, sight: timed('live-sight', () => playerSight(w, r.frames[w.player.vehicleId])) });

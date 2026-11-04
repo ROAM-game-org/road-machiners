@@ -1,3 +1,4 @@
+import { isKnockedOut } from './defeat';
 import { PHYSICS } from '../data/physics';
 import { stepTimedCombat } from './timed-combat';
 
@@ -23,7 +24,7 @@ import type { Blocker } from './nav/buckets';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
 import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
-import { bendField, followPose, poseOf, rigDiscs } from './rig';
+import { bendField, followPose, poseOf, rigDiscs, trailPoseAt } from './rig';
 
 export function isNear(w: World, v: Vehicle): boolean {
   return !isOnRope(w, v.id) && inLiveRange(w, v.pos);
@@ -379,8 +380,60 @@ export function completeCombatMovement(world: World, startedMs: number): void {
   const duration = PHYSICS.turnSeconds * 1000;
   const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
   if (world.combat.now === startedMs) {
-    for (let step = 0; step < steps; step++) stepTimedCombat(world, world.combat, duration / steps);
+    const motion = new FarCombatMotion(world, world.vehicles.filter(v => v.trail.length >= 2), false);
+    for (let step = 0; step < steps; step++) {
+      motion.at(step / steps);
+      stepTimedCombat(world, world.combat, duration / steps);
+    }
+    motion.finish();
   }
   const rounding = Number.EPSILON * Math.max(1, Math.abs(startedMs), Math.abs(world.combat.now)) * steps;
   if (Math.abs(world.combat.now - startedMs - duration) > rounding) throw new Error('Movement did not advance one full combat turn');
+}
+
+type FarMotion = { v: Vehicle; trail: Pose[]; startSpeed: number; endSpeed: number; phase: number; stopped: boolean };
+
+export class FarCombatMotion {
+  private moves: FarMotion[];
+
+  constructor(private world: World, vehicles: Vehicle[], plan: boolean) {
+    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => this.prepare(v, plan));
+  }
+
+  private prepare(v: Vehicle, plan: boolean): FarMotion {
+    const speed = v.speed;
+    if (plan) advanceFar(this.world, v);
+    if (v.trail.length < 2) throw new Error(`Coarse movement has no path for ${v.id}`);
+    const move = { v, trail: v.trail, startSpeed: plan ? speed : v.speed, endSpeed: v.speed, phase: 0, stopped: false };
+    this.place(move, 0);
+    return move;
+  }
+
+  at(phase: number): void {
+    for (const move of this.moves) this.advance(move, phase);
+  }
+
+  private advance(move: FarMotion, phase: number): void {
+    if (move.stopped) return;
+    if (this.world.combat.destroyedAt[move.v.id] !== undefined || isKnockedOut(move.v)) return this.stop(move);
+    this.place(move, phase);
+  }
+
+  private place(move: FarMotion, phase: number): void {
+    const pose = trailPoseAt(move.trail, phase * (move.trail.length - 1));
+    Object.assign(move.v, { pos: { x: pose.x, y: pose.y }, heading: pose.heading, speed: move.startSpeed + (move.endSpeed - move.startSpeed) * phase }, bendField(pose.bend));
+    move.phase = phase;
+  }
+
+  private stop(move: FarMotion): void {
+    const last = poseOf(move.v);
+    const reached = Math.floor(move.phase * (move.trail.length - 1));
+    move.v.trail = move.trail.map((pose, i) => i > reached ? { ...last } : pose);
+    move.v.speed = 0;
+    move.stopped = true;
+  }
+
+  finish(): void {
+    this.at(1);
+  }
 }
