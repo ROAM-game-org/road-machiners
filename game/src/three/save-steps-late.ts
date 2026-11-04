@@ -944,3 +944,7 @@ export function withEliteTrucks(world: SavedJson): SavedJson {
 export function withGoodsStore(world: SavedJson): SavedJson {
   return { ...world, player: { ...(world.player as SavedJson), storedGoods: {} } };
 }
+
+export function withProjectileFlights(world: SavedJson): SavedJson {
+  return { ...world, combat: { now: 0, flights: [] } };
+}

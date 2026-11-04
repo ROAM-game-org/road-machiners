@@ -1,3 +1,4 @@
+import { PROJECTILE_FLIGHT } from '../../data/weapons';
 
 import * as THREE from 'three';
 import { PARTS } from '../../data/parts';
@@ -23,8 +24,8 @@ export type ProjectileSpec = {
   flash: number;
   wobble: number;
   casing: CasingSize | null;
-  pellets?: true;
-  rope?: true;
+  pellets?: boolean;
+  rope?: boolean;
 };
 
 export function roundSpec(spec: ProjectileSpec, k: number): ProjectileSpec {
@@ -32,25 +33,25 @@ export function roundSpec(spec: ProjectileSpec, k: number): ProjectileSpec {
 }
 
 export const PROJECTILES: Record<string, ProjectileSpec> = {
-  mg: { look: 'tracer', speed: 220, gapMs: 80, length: 1.4, width: 0.05, color: PAL.flash, flash: 0.6, wobble: 0, casing: 'small' },
-  shotgun: { look: 'tracer', speed: 160, gapMs: 8, length: 0.6, width: 0.04, color: PAL.flash, flash: 0.8, wobble: 0, casing: 'small', pellets: true },
-  autocannon: { look: 'tracer', speed: 140, gapMs: 140, length: 1.2, width: 0.1, color: 0xffad50, flash: 0.9, wobble: 0, casing: 'small' },
-  cannon: { look: 'shell', speed: 60, gapMs: 0, length: 0.6, width: 0.22, color: 0xffad50, flash: 1.4, wobble: 0, casing: 'large' },
-  tankGun: { look: 'shell', speed: 60, gapMs: 0, length: 0.75, width: 0.28, color: 0xffad50, flash: 1.6, wobble: 0, casing: 'large' },
-  sniperCannon: { look: 'shell', speed: 110, gapMs: 0, length: 0.7, width: 0.16, color: 0xffd080, flash: 1.2, wobble: 0, casing: 'large' },
-  heavyMg: { look: 'tracer', speed: 200, gapMs: 90, length: 1.4, width: 0.07, color: PAL.flash, flash: 0.7, wobble: 0, casing: 'small' },
-  gatling: { look: 'tracer', speed: 220, gapMs: 38, length: 1.2, width: 0.05, color: PAL.flash, flash: 0.7, wobble: 0, casing: 'small' },
-  longRifle: { look: 'tracer', speed: 260, gapMs: 0, length: 2, width: 0.05, color: 0xffd080, flash: 0.8, wobble: 0, casing: 'small' },
-  amRifle: { look: 'tracer', speed: 260, gapMs: 0, length: 2.2, width: 0.08, color: 0xffd080, flash: 1.1, wobble: 0, casing: 'small' },
-  battleRifle: { look: 'tracer', speed: 240, gapMs: 110, length: 1.6, width: 0.06, color: 0xffd080, flash: 0.8, wobble: 0, casing: 'small' },
-  flechette: { look: 'tracer', speed: 280, gapMs: 70, length: 1.8, width: 0.04, color: 0xd8e0e8, flash: 0.8, wobble: 0, casing: null },
-  flamer: { look: 'tracer', speed: 30, gapMs: 50, length: 0.8, width: 0.3, color: 0xff7a20, flash: 1, wobble: 0.3, casing: null },
-  pneumobolter: { look: 'shell', speed: 90, gapMs: 0, length: 0.9, width: 0.08, color: 0xb8b0a0, flash: 0.4, wobble: 0, casing: null },
-  slugCannon: { look: 'shell', speed: 100, gapMs: 150, length: 0.4, width: 0.14, color: 0xffad50, flash: 1, wobble: 0, casing: 'large' },
-  recoilless: { look: 'shell', speed: 60, gapMs: 0, length: 0.7, width: 0.2, color: 0xffad50, flash: 1.6, wobble: 0, casing: null },
-  grenadeLauncher: { look: 'grenade', speed: 45, gapMs: 160, length: 0.3, width: 0.3, color: 0x4a4a3c, flash: 0.9, wobble: 0, casing: null },
-  harpoon: { look: 'bolt', speed: 110, gapMs: 0, length: 1.1, width: 0.16, color: 0x2e2a26, flash: 0.5, wobble: 0, casing: null, rope: true },
-  rocketRack: { look: 'missile', speed: 40, gapMs: 110, length: 0.9, width: 0.16, color: 0x6a6a64, flash: 0.9, wobble: 0.5, casing: null },
+  mg: { look: 'tracer', speed: PROJECTILE_FLIGHT.mg.speed, gapMs: 80, length: 1.4, width: 0.05, color: PAL.flash, flash: 0.6, wobble: 0, casing: 'small' },
+  shotgun: { look: 'tracer', speed: PROJECTILE_FLIGHT.shotgun.speed, gapMs: 8, length: 0.6, width: 0.04, color: PAL.flash, flash: 0.8, wobble: 0, casing: 'small', pellets: PROJECTILE_FLIGHT.shotgun.pellets },
+  autocannon: { look: 'tracer', speed: PROJECTILE_FLIGHT.autocannon.speed, gapMs: 140, length: 1.2, width: 0.1, color: 0xffad50, flash: 0.9, wobble: 0, casing: 'small' },
+  cannon: { look: 'shell', speed: PROJECTILE_FLIGHT.cannon.speed, gapMs: 0, length: 0.6, width: 0.22, color: 0xffad50, flash: 1.4, wobble: 0, casing: 'large' },
+  tankGun: { look: 'shell', speed: PROJECTILE_FLIGHT.tankGun.speed, gapMs: 0, length: 0.75, width: 0.28, color: 0xffad50, flash: 1.6, wobble: 0, casing: 'large' },
+  sniperCannon: { look: 'shell', speed: PROJECTILE_FLIGHT.sniperCannon.speed, gapMs: 0, length: 0.7, width: 0.16, color: 0xffd080, flash: 1.2, wobble: 0, casing: 'large' },
+  heavyMg: { look: 'tracer', speed: PROJECTILE_FLIGHT.heavyMg.speed, gapMs: 90, length: 1.4, width: 0.07, color: PAL.flash, flash: 0.7, wobble: 0, casing: 'small' },
+  gatling: { look: 'tracer', speed: PROJECTILE_FLIGHT.gatling.speed, gapMs: 38, length: 1.2, width: 0.05, color: PAL.flash, flash: 0.7, wobble: 0, casing: 'small' },
+  longRifle: { look: 'tracer', speed: PROJECTILE_FLIGHT.longRifle.speed, gapMs: 0, length: 2, width: 0.05, color: 0xffd080, flash: 0.8, wobble: 0, casing: 'small' },
+  amRifle: { look: 'tracer', speed: PROJECTILE_FLIGHT.amRifle.speed, gapMs: 0, length: 2.2, width: 0.08, color: 0xffd080, flash: 1.1, wobble: 0, casing: 'small' },
+  battleRifle: { look: 'tracer', speed: PROJECTILE_FLIGHT.battleRifle.speed, gapMs: 110, length: 1.6, width: 0.06, color: 0xffd080, flash: 0.8, wobble: 0, casing: 'small' },
+  flechette: { look: 'tracer', speed: PROJECTILE_FLIGHT.flechette.speed, gapMs: 70, length: 1.8, width: 0.04, color: 0xd8e0e8, flash: 0.8, wobble: 0, casing: null },
+  flamer: { look: 'tracer', speed: PROJECTILE_FLIGHT.flamer.speed, gapMs: 50, length: 0.8, width: 0.3, color: 0xff7a20, flash: 1, wobble: 0.3, casing: null },
+  pneumobolter: { look: 'shell', speed: PROJECTILE_FLIGHT.pneumobolter.speed, gapMs: 0, length: 0.9, width: 0.08, color: 0xb8b0a0, flash: 0.4, wobble: 0, casing: null },
+  slugCannon: { look: 'shell', speed: PROJECTILE_FLIGHT.slugCannon.speed, gapMs: 150, length: 0.4, width: 0.14, color: 0xffad50, flash: 1, wobble: 0, casing: 'large' },
+  recoilless: { look: 'shell', speed: PROJECTILE_FLIGHT.recoilless.speed, gapMs: 0, length: 0.7, width: 0.2, color: 0xffad50, flash: 1.6, wobble: 0, casing: null },
+  grenadeLauncher: { look: 'grenade', speed: PROJECTILE_FLIGHT.grenadeLauncher.speed, gapMs: 160, length: 0.3, width: 0.3, color: 0x4a4a3c, flash: 0.9, wobble: 0, casing: null },
+  harpoon: { look: 'bolt', speed: PROJECTILE_FLIGHT.harpoon.speed, gapMs: 0, length: 1.1, width: 0.16, color: 0x2e2a26, flash: 0.5, wobble: 0, casing: null, rope: PROJECTILE_FLIGHT.harpoon.rope },
+  rocketRack: { look: 'missile', speed: PROJECTILE_FLIGHT.rocketRack.speed, gapMs: 110, length: 0.9, width: 0.16, color: 0x6a6a64, flash: 0.9, wobble: 0.5, casing: null },
 };
 
 export function blastRadiusOf(key: string): number {
@@ -75,7 +76,7 @@ const MISSILE = {
 };
 
 export type Impact = 'truck' | 'ground' | 'none';
-export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number };
+export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number; elapsedMs?: number; impactRecorded?: boolean };
 
 type Flight = {
   spec: ProjectileSpec;
@@ -226,7 +227,7 @@ export class Projectiles {
     obj.visible = false;
     this.scene.add(obj);
     const to = new THREE.Vector3(l.plan.land.x, l.plan.land.y, l.plan.land.z);
-    this.flights.push({
+    const flight: Flight = {
       spec: l.spec,
       obj,
       muzzle: l.muzzle,
@@ -241,16 +242,29 @@ export class Projectiles {
       rope: l.spec.rope ? new Rope() : null,
       struck: l.plan.impact === 'truck',
       ground: l.ground,
-    });
+    };
+    this.flights.push(flight);
+    if (l.plan.elapsedMs !== undefined) {
+      flight.age = l.plan.elapsedMs / 1000;
+      this.fire(flight, false);
+      this.place(flight, 0);
+    }
+  }
+
+  clearFlights(): void {
+    for (const flight of this.flights) {
+      this.scene.remove(flight.obj);
+      if (flight.rope) this.scene.remove(flight.rope.root);
+    }
+    this.flights = [];
   }
 
   tick(dt: number): void {
     for (let i = this.flights.length - 1; i >= 0; i--) {
       const f = this.flights[i];
-      const before = f.age;
       f.age += dt;
       if (f.age < 0) continue;
-      if (before <= 0) this.fire(f);
+      if (!f.obj.visible) this.fire(f);
       if (f.age >= f.life) {
         this.scene.remove(f.obj);
         this.flights.splice(i, 1);
@@ -285,13 +299,13 @@ export class Projectiles {
     }
   }
 
-  private fire(f: Flight): void {
+  private fire(f: Flight, notify = true): void {
     const m = f.muzzle();
     f.from.set(m.pos.x, m.pos.y, m.pos.z);
     f.side.set(-(f.to.z - f.from.z), 0, f.to.x - f.from.x).normalize();
     f.obj.visible = true;
     if (f.rope) this.scene.add(f.rope.root);
-    f.onFire(m);
+    if (notify) f.onFire(m);
   }
 
   private place(f: Flight, dt: number): void {

@@ -8,6 +8,7 @@ import { highwayHash } from '../sim/highway';
 import { chaosHighwayWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
+import { newTimedCombat } from '../sim/timed-combat';
 import { TEST_MAP } from '../test/map';
 import { changeMapIfMoved, loadWorld, mapFor, SaveHold, SAVE_KEY, saveImporter, writeSave, type Run } from './save';
 import { RunLog } from './run-log';
@@ -63,7 +64,7 @@ describe('a saved world by mode', () => {
 
     const loaded = loadWorld(saved(world), 'auto', TEST_MAP)!;
 
-    expect(loaded).toEqual({ ...world, events: [], removed: [] });
+    expect(loaded).toEqual({ ...world, events: [], removed: [], combat: { ...newTimedCombat(), now: world.combat.now, flights: world.combat.flights } });
     expect(loaded.chaosHighway?.groups[0]).toEqual(world.chaosHighway!.groups[0]);
   });
 

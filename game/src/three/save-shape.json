@@ -1,8 +1,12 @@
 {
- "format": "2.137",
+ "format": "2.138",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
+  "combat": {
+   "flights": [],
+   "now": "number"
+  },
   "craters": [],
   "crimes": [],
   "dustClouds": [],

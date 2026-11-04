@@ -972,3 +972,10 @@ describe('withEliteTrucks', () => {
     expect(namedStep('withEliteTrucks')(structuredClone(before))).toEqual(before);
   });
 });
+
+it('starts older saves without projectiles and preserves their existing facts', () => {
+  const migration = STEPS.find(step => step.name === 'withProjectileFlights');
+  expect(migration).toBeDefined();
+  const before = structuredClone(FORMAT_2_62);
+  expect(migration!.step(before)).toEqual({ ...before, combat: { now: 0, flights: [] } });
+});

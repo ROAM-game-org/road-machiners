@@ -11,7 +11,7 @@ import { TERRAIN } from '../data/terrain';
 import { PERF } from '../data/perf';
 import { buildDrive, freeDrive, type Drive } from '../phys/drive';
 import { physicsMove } from '../phys/turn';
-import { inCombat, isHostile } from '../sim/combat';
+import { inCombat, isHostile, turnPartHits } from '../sim/combat';
 import { joinCompany } from '../sim/companies';
 import { homeCamp } from '../sim/npc-decisions';
 import { isDefeated } from '../sim/defeat';
@@ -442,7 +442,6 @@ export function turnLine(w: World, turn: number): string {
   return `t${turn} ${trucks.join(' | ')} | ${shots.join(' ')}`;
 }
 
-const partHp = (v: Vehicle) => mountedParts(v).reduce((sum, p) => sum + p.hp, 0);
 const side = (): Side => ({ rounds: 0, hits: 0, odds: 0, damage: 0, speed: 0, ramCrashes: 0, ramsLanded: 0 });
 
 type Count = { ids: Ids; a: Side; b: Side; crashes: number; leaver: 'a' | 'b' | null; center: Vec; spread: number };
@@ -502,11 +501,11 @@ function noteRam(w: World, s: Side, id: string, otherId: string, hits: PartHit[]
 
 const ramPart = (def: PartDef): boolean => (def.kind === 'armor' || def.kind === 'accessory') && def.ramMult > 1;
 
-function countDamage(w: World, c: Count, before: Map<string, number>): void {
-  for (const v of w.vehicles) {
-    const lost = Math.max(0, (before.get(v.id) ?? 0) - partHp(v));
-    if (c.ids.a.includes(v.id)) c.b.damage += lost;
-    else if (c.ids.b.includes(v.id)) c.a.damage += lost;
+function countDamage(w: World, c: Count): void {
+  for (const [vehicle, hits] of turnPartHits(w)) {
+    const lost = hits.reduce((sum, hit) => sum + hit.damage, 0);
+    if (c.ids.a.includes(vehicle)) c.b.damage += lost;
+    else if (c.ids.b.includes(vehicle)) c.a.damage += lost;
   }
 }
 
@@ -537,13 +536,12 @@ function fledSide(a: Vehicle[], b: Vehicle[], c: Count): Outcome {
 }
 
 function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: Drive } {
-  const before = new Map(w.vehicles.map((v) => [v.id, partHp(v)]));
   let next: Drive | null = null;
   w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
   freeDrive(d);
   if (arena) keepArenaFight(w, c.ids);
   countShots(w, c);
-  countDamage(w, c, before);
+  countDamage(w, c);
   countMoves(w, c);
   countRams(w, c);
   noteLeaver(w, c);
@@ -588,9 +586,11 @@ function arrive(w: World, ids: Ids): void {
 
 function steer(w: World, fight: Fight, c: Count): World {
   const policy = scriptedTruck(fight)?.driver as Policy | undefined;
-  if (!policy) return w;
+  if (!policy || w.player.state !== 'active') return w;
+  const foes = inFight(w, c.ids.b);
+  if (foes.length === 0) return w;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
-  return orders(w, policy, fight.orbit, nearest(me, inFight(w, c.ids.b)));
+  return orders(w, policy, fight.orbit, nearest(me, foes));
 }
 
 export function runFight(fight: Fight, watch?: (w: World, turn: number) => void): FightReport {
@@ -611,7 +611,7 @@ export function runFight(fight: Fight, watch?: (w: World, turn: number) => void)
     ({ w, d } = playTurn(w, d, c, fight.arena !== null));
     turns++;
     watch?.(w, turns);
-    outcome = c.ids.late ? null : outcomeOf(w, c);
+    outcome = c.ids.late ? null : settledOutcome(w, c);
   }
   freeDrive(d);
   const spread = fight.road === undefined || fight.road === null ? null : c.spread;
@@ -669,7 +669,7 @@ export function formatReport(reports: FightReport[], sets: string[]): string {
     `# Combat harness`,
     '',
     `${reports.length} fights. Changed numbers: ${sets.length ? sets.join(', ') : 'none'}.`,
-    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is part HP the side takes off the other per turn. Crashes are per fight. Rams landed counts the damaging crashes on a side that carries a ram or spikes in which they took the hit, out of all damaging crashes on that side. The side is the one facing the other truck at the end of the turn. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
+    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is recorded part damage suffered by the other side per turn. Crashes are per fight. Rams landed counts the damaging crashes on a side that carries a ram or spikes in which they took the hit, out of all damaging crashes on that side. The side is the one facing the other truck at the end of the turn. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
     '',
     '| a | b | won | lost | a fled | b fled | truce | timeout | turns | crashes | a speed | a hit | a odds | a dmg/turn | a rams landed | b speed | b hit | b odds | b dmg/turn | b rams landed | b hp left | across | a left/out/fled | b left/out/fled | bystander |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
@@ -708,4 +708,9 @@ function spreadCell(rs: FightReport[]): string {
 function hpLeftCell(rs: FightReport[]): string {
   const shares = rs.flatMap((r) => (r.bHpLeft === null ? [] : [r.bHpLeft]));
   return shares.length > 0 ? pct(shares.reduce((a, b) => a + b, 0), shares.length) : '-';
+}
+
+function settledOutcome(world: World, count: Count): Outcome | null {
+  if (world.player.state === 'dead') return outcomeOf(world, count);
+  return world.combat.flights.length > 0 ? null : outcomeOf(world, count);
 }
