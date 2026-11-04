@@ -86,3 +86,19 @@ describe("survey ground tag", () => {
     });
   }
 });
+
+describe("held clocks in a row", () => {
+  const base = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1 } as const;
+  const claim: Contract = { ...base, id: "c", kind: "claim", stockId: "tank-3", at: { x: 300, y: 40 }, partId: "p1", defId: "mg", rivalAt: 100, rival: null, leads: [] };
+
+  it("counts down a held job and keeps the full clue of a claim", () => {
+    const row = heldContractRow(emptyWorld(), claim) as unknown as FakeNode;
+    expect(row.textContent).toMatch(/\d+:\d\d left/);
+    expect(row.textContent).toMatch(/about .* out/);
+  });
+
+  it("counts down a posted escort offer", () => {
+    const row = postedEscort(1)() as unknown as FakeNode;
+    expect(row.textContent).toMatch(/leaves in \d+:\d\d/);
+  });
+});

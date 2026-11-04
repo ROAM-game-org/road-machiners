@@ -131,7 +131,7 @@ export function isWeaponItem(it: GridItem): boolean {
 export type GarageLooks = { own: GarageLook | null; other: GarageLook | null };
 
 export function garageLooks(renders: GarageRenders | null, w: World, own: Vehicle, extra: readonly GridItem[], otherId: string | null): GarageLooks {
-  if (!renders) return { own: null, other: null };
+  if (!renders || renders.suspended()) return { own: null, other: null };
   const other = w.vehicles.find((v) => v.id === otherId) ?? null;
   const paint = w.player.paint;
   renders.ensureNow([shownNeed(own, paint), ...(other ? [shownNeed(other, paint)] : [])], [ownNeed(own, paint, extra)]);

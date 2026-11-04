@@ -104,6 +104,19 @@ export function resolveActor(ctx: Ctx, by: string, gated: boolean): string {
   return member.name ?? member.github ?? member.telegram;
 }
 
+// A playtest pass makes a release candidate, so only the owner orders one: the first member, whose Telegram id FACTORY_COMMITTEE_BOOTSTRAP holds and the committee cannot remove.
+// The owner is matched by Telegram id or GitHub login, never by a name.
+export function resolveOwner(ctx: Ctx, by: string): string {
+  const { home, committeeBootstrapTelegram: telegram, committeeBootstrapGithub: github } = ctx.cfg;
+  const owner = readCommittee(home, { telegram, github }).find((item) => item.telegram === telegram);
+  if (owner === undefined || ![owner.telegram, owner.github].includes(by)) throw new Error(`Only the committee owner orders a release playtest, since its pass makes a release candidate. ${by} is not the owner. Pass --by with the owner's Telegram id.`);
+  return owner.name ?? owner.github ?? owner.telegram;
+}
+
+export function resolveOrder(ctx: Ctx, command: ControlCommand): string {
+  return command.action === 'playtest' ? resolveOwner(ctx, command.by) : resolveActor(ctx, command.by, isGated(ctx, command));
+}
+
 export function isGated(ctx: Ctx, command: ControlCommand): boolean {
   if (command.action === 'ship' || command.action === 'remove' || command.action === 'adopt') return true;
   if (!approves(command)) return false;
@@ -126,7 +139,7 @@ const HANDLERS: Handlers = {
 };
 
 export async function applyControl(ctx: Ctx, command: ControlCommand): Promise<string> {
-  const by = resolveActor(ctx, command.by, isGated(ctx, command));
+  const by = resolveOrder(ctx, command);
   const handler = HANDLERS[command.action] as (ctx: Ctx, command: ControlCommand, by: string) => Promise<Outcome>;
   const { issue, text } = await handler(ctx, command, by);
   if (issue !== null) await ctx.github.comment(issue, `${text}\n\nOrdered by ${by}. Reason: ${command.reason}`);

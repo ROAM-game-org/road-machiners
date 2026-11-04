@@ -65,9 +65,26 @@ export function haulerPace(world: World): number {
   const alarm = runOf(world).hauler.alarmUntil;
   const own = alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
   const gunTruck = playerVehicle(world);
-  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck), Math.max(HAULER.crawl, slowdown(world, gunTruck))) : own;
+  const pace = setsPace(world, gunTruck) ? Math.min(own, heldSpeed(world, haulerOf(world), gunTruck)) : own;
   if (pace <= RULES.parkedSpeed) throw new Error(`Hauler pace ${pace} is at or below parked speed`);
   return pace;
+}
+
+function heldSpeed(world: World, hauler: Vehicle, gunTruck: Vehicle): number {
+  const held = Math.min(plainMaxSpeed(world, gunTruck), Math.max(HAULER.crawl, slowdown(world, gunTruck)));
+  return catchesUp(world, hauler, gunTruck) ? Math.min(held, Math.max(HAULER.crawl, held - HAULER.catchUp)) : held;
+}
+
+function gunTruckLag(world: World, hauler: Vehicle, gunTruck: Vehicle): number {
+  return alongNow(world, hauler) - alongNow(world, gunTruck);
+}
+
+function awaits(world: World, hauler: Vehicle, gunTruck: Vehicle): boolean {
+  return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
+}
+
+function catchesUp(world: World, hauler: Vehicle, gunTruck: Vehicle): boolean {
+  return gunTruckLag(world, hauler, gunTruck) > HAULER.guardGap && awaits(world, hauler, gunTruck);
 }
 
 function slowdown(world: World, gunTruck: Vehicle): number {
@@ -88,9 +105,9 @@ function gunTruckFree(world: World, gunTruck: Vehicle): boolean {
 export function waitsForGunTruck(world: World, hauler: Vehicle): boolean {
   if (betweenLevels(world) || dist(hauler.pos, parkSpot(world)) <= HAULER.approach) return false;
   const gunTruck = playerVehicle(world);
-  const lag = alongNow(world, hauler) - alongNow(world, gunTruck);
+  const lag = gunTruckLag(world, hauler, gunTruck);
   if (lag + stopDistance(vehicleStats(world, hauler), hauler.speed) <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
-  return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
+  return awaits(world, hauler, gunTruck);
 }
 
 function groupTrucks(world: World): Vehicle[] {

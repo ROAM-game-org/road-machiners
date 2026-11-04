@@ -1,3 +1,4 @@
+import { runCommand } from "./run-command";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
 import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
@@ -211,13 +212,12 @@ export class OutpostScreen {
   private run(cmd: ShopCommand): void {
     keepFocus(this.root, () => {
       try {
-        this.host.apply(cmd(this.host.world()));
-        this.error = null;
-        this.rows.collapse();
-      } catch (e) {
-        this.error = commandFailure(this.host.world(), e);
+        const failed = runCommand(this.host.world(), cmd, (next) => this.host.apply(next));
+        this.error = failed === null ? null : commandFailure(this.host.world(), failed);
+        if (failed === null) this.rows.collapse();
+      } finally {
+        this.render();
       }
-      this.render();
     });
   }
 
