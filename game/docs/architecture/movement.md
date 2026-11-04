@@ -251,7 +251,8 @@ Trucks ease to a stop when travel pauses. That motion is real physics.
 - A stop that comes after the movement ended but before the next turn began commits the same tail through `Travel.settleStop()`. That covers a call, a tap or a click while the next turn is still being prepared. It skips a truck that a rule moved in the wait. The world clock keeps its pace while such a stop is open.
 - A next turn waits while the tail still plays. The clock speeds back up once that turn is ready, easing in over `playEaseMs`. The turn starts from the tail end with the time past it carried over.
 - A turn asked for after the trucks came to rest starts from where they rest.
-- A vehicle that a rule moves off its tail end leaves the slowdown.
+- A vehicle that a rule moves off its tail end leaves the slowdown. So does a vehicle whose body changed, like a truck swapped in town, and the next turn starts it from its first frame.
+- A kept frame is shown or blended only when `fitsBody()` in `src/phys/frames.ts` says it fits the truck's chassis.
 
 ## World clock
 
