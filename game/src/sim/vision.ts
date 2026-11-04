@@ -230,7 +230,9 @@ function tileSeen(look: Look, tile: Vec): boolean {
 export function canVehicleSee(world: World, observer: Vehicle, position: Vec): boolean {
   if (observer.id === world.player.vehicleId) return playerSees(world, position);
   const target = position;
-  if (dist(observer.pos, target) > sightRadius(world, observer, litAt(world, target))) return false;
+  const apart = dist(observer.pos, target);
+  if (apart > clearDaySight(world, observer)) return false;
+  if (apart > sightRadius(world, observer, litAt(world, target))) return false;
   return isCheapMeeting(world, observer.pos, target) || inPlainView(world, observer.pos, target, propsNear(world, observer.pos, target), dustScreens(world));
 }
 
