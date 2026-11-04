@@ -16,6 +16,9 @@ import { standardWorld } from "../test/world-cache";
 import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 
+const reported = vi.hoisted(() => [] as unknown[]);
+vi.mock("./crash", async (original) => ({ ...(await original<typeof import("./crash")>()), reportError: (error: unknown) => void reported.push(error) }));
+
 const TAIL = 11;
 const NO_DRIVE = {} as DriveSnapshot;
 
@@ -276,6 +279,17 @@ describe("picked travel speed", () => {
       const turns = new TurnPreparation(TAIL);
       (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
       expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
+    });
+  });
+
+  describe("turn worker failures", () => {
+    it("reports a failure nobody waits for with the worker's message and frames", () => {
+      const turns = new TurnPreparation(TAIL);
+      reported.length = 0;
+      (turns as unknown as { fail(id: number | null, message: string): void }).fail(null, "Error: no route\nrun@worker.js:1:2");
+      const [error] = reported as Error[];
+      expect(error.message).toBe("no route");
+      expect(error.stack).toContain("run@worker.js:1:2");
     });
   });
 
