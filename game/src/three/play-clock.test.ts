@@ -126,4 +126,20 @@ describe('PlayClock', () => {
   it('refuses time running backward', () => {
     expect(() => new PlayClock(CLOCK).coast(-EASE * 10, true, 1)).toThrow();
   });
+
+  it('never reports negative play time while slowing, at any frame size', () => {
+    const folds = [3, 5, 8];
+    let seed = 12345;
+    const next = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    for (const stopFolds of folds) {
+      for (let run = 0; run < 40; run++) {
+        const clock = new PlayClock({ stopMs: 2000, startMs: 300, stopFolds });
+        frame(clock, (c) => c.coast(300, true, 1));
+        for (let i = 0; i < 4000 && clock.isMoving(); i++) {
+          const realMs = 10 ** (next() * 10 - 9) * (next() < 0.5 ? 1 : 16000);
+          expect(frame(clock, (c) => c.coast(Math.min(realMs, 16), false, 1))).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
 });

@@ -14,7 +14,7 @@ import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, t
 
 const NOW = new Date('2026-01-10T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
-const CFG = { playtestHours: 12, wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
+const CFG = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
 const ONE = { ...CFG, triageWorkers: 1, designWorkers: 1, implementWorkers: 1 };
 const DEV = 'dev0001';
 const FRESH = { lastRelease: '2026-01-09T12:00:00Z', devBuild: DEV };
@@ -91,37 +91,34 @@ describe('playtestDue', () => {
   const at = (over: Partial<ReleaseState['playtest']>, pending: string | null = null): FactoryState => state({ pendingPlaytest: pending, release: { ...RELEASE, playtest: { ...RELEASE.playtest, ...over } } });
   const old = { sha: 'dev0001', at: hoursAgo(13) };
 
-  it('is due on a moved dev tip once the hours passed, or with no start yet', () => {
-    expect(playtestDue(at({ lastStart: old }), 'dev0002', NOW, 12)).toBe(true);
-    expect(playtestDue(at({}), 'dev0002', NOW, 12)).toBe(true);
-    expect(playtestDue(at({ lastStart: { sha: 'dev0001', at: hoursAgo(11) } }), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ lastStart: old }), 'dev0001', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ lastStart: old }), 'dev0001abc', NOW, 12)).toBe(false);
+  it('is due on a member order, never on a moved dev tip or the time since the last start alone', () => {
+    expect(playtestDue(at({ lastStart: old }))).toBe(false);
+    expect(playtestDue(at({}))).toBe(false);
+    expect(playtestDue(at({ lastStart: { sha: 'dev0001', at: hoursAgo(24 * 30) } }))).toBe(false);
+    expect(playtestDue(at({ lastStart: old }, 'Ann'))).toBe(true);
+    expect(playtestDue(at({}, 'Ann'))).toBe(true);
   });
 
-  it('is due again while kept work of a dead playtest waits, also on an unmoved dev tip', () => {
+  it('is due again while kept work of a dead playtest waits, with no new order', () => {
     const work = { start: 'dev0001', baseline: 'main01', features: [], session: 's', plays: 1 };
-    expect(playtestDue(at({ lastStart: { sha: 'dev0002', at: hoursAgo(1) }, work }), 'dev0002', NOW, 12)).toBe(true);
-    expect(playtestDue(at({ work, blocked: { sha: 'x', reason: 'r' } }), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ work, fixes: 'fix0001' }), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ lastStart: { sha: 'dev0002', at: hoursAgo(1) }, work }))).toBe(true);
+    expect(playtestDue(at({ work, blocked: { sha: 'x', reason: 'r' } }))).toBe(false);
+    expect(playtestDue(at({ work, fixes: 'fix0001' }))).toBe(false);
   });
 
-  it('is not due automatically while dev holds no unshipped merge, but an order still starts it', () => {
-    const empty = (pending: string | null): FactoryState => ({ ...at({ lastStart: old }, pending), devMerges: [] });
-    expect(playtestDue(empty(null), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(empty('Ann'), 'dev0002', NOW, 12)).toBe(true);
+  it('starts on an order also while dev holds no unshipped merge', () => {
+    expect(playtestDue({ ...at({ lastStart: old }, 'Ann'), devMerges: [] })).toBe(true);
   });
 
   it('is not due while playtest fixes wait to land on dev, also on an order', () => {
-    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }, 'Ann'), 'dev0002', NOW, 12)).toBe(false);
+    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }))).toBe(false);
+    expect(playtestDue(at({ lastStart: old, fixes: 'fix0001' }, 'Ann'))).toBe(false);
   });
 
-  it('is never due with no dev tip, no release or a block, but an order overrides a block', () => {
-    expect(playtestDue(at({}), null, NOW, 12)).toBe(false);
-    expect(playtestDue(state({ release: null }), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' } }), 'dev0002', NOW, 12)).toBe(false);
-    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' }, lastStart: { sha: 'dev0002', at: hoursAgo(1) } }, 'Ann'), null, NOW, 12)).toBe(true);
+  it('is never due with no release or a block, but an order overrides a block', () => {
+    expect(playtestDue(state({ release: null, pendingPlaytest: 'Ann' }))).toBe(false);
+    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' } }))).toBe(false);
+    expect(playtestDue(at({ blocked: { sha: 'x', reason: 'r' }, lastStart: { sha: 'dev0002', at: hoursAgo(1) } }, 'Ann'))).toBe(true);
   });
 });
 
@@ -159,21 +156,38 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(removed, [tracking()], NOW, CFG)).toEqual([]);
   });
 
-  it('starts the playtest when dev moved past the last start and the hours passed', () => {
-    expect(chooseJobs(open, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
-    expect(chooseJobs(state({ release: started('dev0000', 13) }), [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
-    expect(chooseJobs(state({ release: started('dev0000', 1) }), [tracking()], NOW, CFG, MOVED)).toEqual([]);
-    expect(chooseJobs(state({ release: started(DEV, 13) }), [tracking()], NOW, CFG, MOVED)).toEqual([]);
-    expect(chooseJobs(open, [tracking()], NOW, CFG)).toEqual([]);
+  it('starts no playtest and makes no candidate on dev merges and timer ticks without an order', () => {
+    const merges = [merged(3), merged(4), merged(5)];
+    for (const release of [RELEASE, started('dev0000', 13), started('dev0000', 24 * 30)]) {
+      for (const hours of [0, 12, 48, 24 * 14]) {
+        const later = new Date(NOW.getTime() + hours * 3_600_000);
+        const ticked = state({ release, devMerges: merges, lastRelease: null });
+        expect(chooseJobs(ticked, [tracking()], later, CFG, { dev: 'dev0009', main: null })).toEqual([{ stage: 'dev', issue: null }]);
+        expect(evaluateSchedule(ticked, [tracking()], later, CFG, { dev: 'dev0009', main: null }).release.reason).toBe('playtest');
+      }
+    }
   });
 
-  it('starts the playtest beside a posted candidate, since the pass replaces it', () => {
-    const posted = state({ release: { ...started('dev0000', 13), postId: 7, candidate: PASS, playtest: { ...started('dev0000', 13).playtest, passed: PASS } } });
-    expect(chooseJobs(posted, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+  it('starts the playtest on a member order, and its pass then makes the candidate', () => {
+    const ordered = state({ release: started('dev0000', 1), pendingPlaytest: 'Ann' });
+    expect(chooseJobs(ordered, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs({ ...ordered, release: started(DEV, 1) }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs(ordered, [tracking()], NOW, CFG)).toEqual([{ stage: 'playtest', issue: 20 }]);
+    const pass = state({ release: { ...ordered.release!, playtest: { ...ordered.release!.playtest, passed: PASS } } });
+    expect(chooseJobs(pass, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'candidate', issue: 20 }]);
+  });
+
+  it('keeps a posted candidate through dev merges and ticks, and replaces it only after an ordered pass', () => {
+    const release = { ...started('dev0000', 13), postId: 7, candidate: PASS, playtest: { ...started('dev0000', 13).playtest, passed: PASS } };
+    const posted = state({ release, devMerges: [merged(3), merged(4)] });
+    expect(chooseJobs(posted, [tracking()], new Date(NOW.getTime() + 48 * 3_600_000), CFG, { dev: 'dev0009', main: null })).toEqual([{ stage: 'dev', issue: null }]);
+    expect(evaluateSchedule(posted, [tracking()], NOW, CFG, MOVED).release.reason).toBe('ship-approval');
+    expect(chooseJobs({ ...posted, pendingShip: 'Ann' }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'ship', issue: 20 }]);
+    expect(chooseJobs({ ...posted, pendingPlaytest: 'Ann' }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
   });
 
   it('runs a candidate before the next playtest', () => {
-    expect(chooseJobs(passed, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'candidate', issue: 20 }]);
+    expect(chooseJobs({ ...passed, pendingPlaytest: 'Ann' }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'candidate', issue: 20 }]);
   });
 
   it('runs no playtest while it is blocked, until an order lifts it', () => {
@@ -184,19 +198,21 @@ describe('chooseJobs during a release', () => {
   });
 
   it('runs the playtest in the verify queue, beside a branch job', () => {
-    const busy = { ...open, pendingApprovals: { '4': 'u' } };
+    const ordered = { ...open, pendingPlaytest: 'Ann' };
+    const busy = { ...ordered, pendingApprovals: { '4': 'u' } };
     expect(chooseJobs(busy, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'playtest', issue: 20 }]);
-    expect(chooseJobs({ ...open, jobs: [running('verify', 9)] }, [tracking()], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs({ ...open, pendingApprovals: { '4': 'u' } }, [tracking()], NOW, CFG, MOVED)).toEqual([{ stage: 'approve', issue: 4 }]);
+    expect(chooseJobs({ ...ordered, jobs: [running('verify', 9)] }, [tracking()], NOW, CFG, MOVED)).toEqual([]);
   });
 
   it('does not wait for open work cards', () => {
-    expect(chooseJobs(open, [tracking(), card(21, 'Testing')], NOW, { ...CFG, verifyWorkers: 2 }, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }, { stage: 'verify', issue: 21 }]);
+    expect(chooseJobs({ ...open, pendingPlaytest: 'Ann' }, [tracking(), card(21, 'Testing')], NOW, { ...CFG, verifyWorkers: 2 }, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }, { stage: 'verify', issue: 21 }]);
     expect(chooseJobs(passed, [tracking(), card(21, 'Approval')], NOW, CFG)).toEqual([{ stage: 'candidate', issue: 20 }]);
   });
 
   it('waits when the tracking issue is stuck or missing', () => {
-    expect(chooseJobs(open, [tracking(['release', STUCK_LABEL])], NOW, CFG, MOVED)).toEqual([]);
-    expect(chooseJobs(open, [], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs({ ...open, pendingPlaytest: 'Ann' }, [tracking(['release', STUCK_LABEL])], NOW, CFG, MOVED)).toEqual([]);
+    expect(chooseJobs({ ...open, pendingPlaytest: 'Ann' }, [], NOW, CFG, MOVED)).toEqual([]);
   });
 
   it('counts the playtest and the candidate toward the limit of the tracking card', () => {
@@ -1110,9 +1126,13 @@ describe('tick', () => {
     expect(args(h)).toEqual([['ship', '20']]);
   });
 
-  it('starts a playtest when dev moved past the last start and the hours passed', async () => {
+  it('starts no playtest on a dev that moved long after the last start, until a member orders one', async () => {
     const h = harness(null, false, [card(20, 'Approval', ['release'])]);
-    writeState(h.ctx.statePath, state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, lastStart: { sha: 'dev0000', at: hoursAgo(13) } } } }));
+    const moved = state({ release: { ...RELEASE, playtest: { ...RELEASE.playtest, lastStart: { sha: 'dev0000', at: hoursAgo(24 * 7) } } } });
+    writeState(h.ctx.statePath, moved);
+    await tick(h.ctx, '/code', h.deps);
+    expect(args(h)).toEqual([]);
+    writeState(h.ctx.statePath, { ...moved, pendingPlaytest: 'Ann' });
     await tick(h.ctx, '/code', h.deps);
     expect(args(h)).toEqual([['playtest', '20']]);
   });
