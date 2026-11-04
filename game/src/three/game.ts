@@ -895,6 +895,7 @@ export class Game {
   }
 
   private endRun(): void {
+    if (this.modalOpen()) return;
     confirmEndRun(this.world).then((yes) => {
       if (yes) this.rescueCommand((w) => (canAbandonRun(w) ? abandonRun(w) : null));
     }, reportError);
