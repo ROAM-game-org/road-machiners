@@ -13,7 +13,7 @@ import { inYard, wholeInYard, yardSpots } from '../sim/outpost-gates';
 import { chaosHighwayWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { dist } from '../sim/vec';
-import { endTurn } from '../sim/world';
+import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, GROUND, initPhysics, type Drive, type TurnResult } from './drive';
 import { physicsMove } from './turn';
@@ -337,3 +337,37 @@ it('stops on its lane within a few tiles past gun reach for a parked gun truck, 
   expect(along(haulerOf(w))).toBeGreaterThan(before + 1);
   expect(stalls).toBe(0);
 }, budget(300_000));
+
+it('lets a gun truck 15 tiles behind at its top speed catch up to the guard gap while the hauler keeps driving', () => {
+  const seed = 1;
+  const { guardGap } = CHAOS_HIGHWAY.hauler;
+  const START_LAG = 15;
+  const REACH_AHEAD = 30;
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
+  const hauler = haulerOf(w);
+  const gun = playerVehicle(w);
+  const haulerAlong = alongOf(seed, toRoad(seed, 0, hauler.pos));
+  gun.pos = roadPoint(seed, 0, haulerAlong - START_LAG, HIGHWAY.road.lanes[2]);
+  gun.heading = roadHeading(seed, haulerAlong);
+  gun.speed = plainMaxSpeed(w, gun);
+  hauler.speed = HAULER_CRUISE;
+  let drive: Drive = buildDrive(w);
+  let stalls = 0;
+  let slowest = Infinity;
+  const along = (v: Vehicle): number => alongOf(seed, toRoad(seed, 0, v.pos));
+  for (let turn = 0; turn < 8; turn++) {
+    const me = playerVehicle(w);
+    w = setMoveOrder(w, { kind: 'through', dest: roadPoint(seed, 0, along(me) + REACH_AHEAD, HIGHWAY.road.lanes[2]), pace: plainMaxSpeed(w, me) });
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    freeDrive(drive);
+    drive = result!.next;
+    slowest = Math.min(slowest, haulerOf(w).speed);
+  }
+  freeDrive(drive);
+  expect(along(haulerOf(w)) - along(playerVehicle(w))).toBeLessThanOrEqual(guardGap);
+  expect(slowest).toBeGreaterThan(RULES.parkedSpeed);
+  expect(stalls).toBe(0);
+});

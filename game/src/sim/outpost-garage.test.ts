@@ -91,15 +91,15 @@ describe('buying at an outpost', () => {
     expect(mountedParts(playerVehicle(fitted), 'armor').map((p) => p.id)).toContain(armor.id);
   });
 
-  it('puts a part that fits on the truck, not in storage', () => {
+  it('puts a part that would fit the truck into storage (issue 1345)', () => {
     const w = atOutpost();
     const part = w.chaosHighway!.outposts[1].stock.find((p) => canStowPart(playerVehicle(w), p));
     if (!part) throw new Error('Nothing in stock fits');
 
     const bought = outpostBuyPart(w, part.id);
 
-    expect(bought.player.storage).toEqual([]);
-    expect(playerVehicle(bought).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
+    expect(bought.player.storage.map((p) => p.id)).toEqual([part.id]);
+    expect(playerVehicle(bought).items).toEqual(playerVehicle(w).items);
   });
 
   it('refuses only when money is short or the part is not stocked here', () => {

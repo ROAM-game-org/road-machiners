@@ -1,4 +1,4 @@
-import { partDef, type WeaponDef } from '../data/parts';
+import { partDef, TALL_RISE, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
@@ -431,27 +431,48 @@ describe('shadows of tall parts', () => {
     expect(spansHold(gunSpans(racked, itemOf(racked, 'mg')), 130)).toBe(true);
   });
 
-  it('a driver seat blocks a gun behind it', () => {
-    const v = truckWith(emptyWorld(), 'bukhanka', [{ defId: 'mg', x: 4, y: 4 }]);
-    const gun = itemOf(v, 'mg');
-    expect(shadowHolds(cabShadow(v, gun), 0)).toBe(true);
-    expect(spansHold(gunSpans(v, gun), 0)).toBe(false);
+  it('roof guns level with the bukhanka cab fire straight ahead and across the nose (#1340)', () => {
+    const v = truckWith(emptyWorld(), 'bukhanka', [{ defId: 'mg', x: 1, y: 4 }, { defId: 'mg', x: 5, y: 4 }]);
+    for (const gun of mountedItems(v, 'weapon')) {
+      const spans = gunSpans(v, gun);
+      for (const angle of [0, 30, -30]) expect(spansHold(spans, angle)).toBe(true);
+      expect(gunBlockers(v, gun)).toEqual([]);
+    }
   });
 
-  it('a gun beside the convertible hardtop cab loses the angles toward the cab, off its own lane', () => {
+  it('a gun level with the convertible hardtop cab fires over it (#1340)', () => {
     const w = emptyWorld();
     const v = truckWith(w, 'convertible', []);
     const cab = rectOf(coreItem(v, 'cab'));
-    const spot = freeMounts(w, v, 'mg').find((s) => s.y >= cab.y0 && s.y + 3 <= cab.y1 && (s.x + 1 <= cab.x0 || s.x >= cab.x1))!;
+    const spot = freeMounts(w, v, 'mg').find((s) => s.y >= cab.y1 || s.y + 3 <= cab.y0 || s.x + 1 <= cab.x0 || s.x >= cab.x1)!;
+    putGun(w, v, 'mg', spot);
+    expect(gunBlockers(v, itemOf(v, 'mg'))).toEqual([]);
+  });
+
+  it('a gun in the hauler bed stays blind forward over the cab', () => {
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', []);
+    const cab = rectOf(coreItem(v, 'cab'));
+    const spot = freeMounts(w, v, 'mg').find((s) => s.y >= cab.y1 && s.x >= cab.x0 && s.x + 1 <= cab.x1)!;
     putGun(w, v, 'mg', spot);
     const gun = itemOf(v, 'mg');
-    const shadow = cabShadow(v, gun);
-    const toward = (shadow.from + shadow.to) / 2;
-    const away = toward > 0 ? -80 : 80;
-    const spans = gunSpans(v, gun);
-    expect(spansHold(spans, toward)).toBe(false);
-    expect(spansHold(spans, 0)).toBe(true);
-    expect(spansHold(spans, away)).toBe(true);
+    expect(spansHold(gunSpans(v, gun), 0)).toBe(false);
+    expect(gunBlockers(v, gun).map((b) => b.id)).toContain(coreItem(v, 'cab').id);
+  });
+
+  it('a tall part with no rise throws with its name', () => {
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', []);
+    putGun(w, v, 'mg', freeMounts(w, v, 'mg')[0]);
+    const saved = TALL_RISE.trailerBox;
+    const rises = TALL_RISE as Record<string, number>;
+    delete rises.trailerBox;
+    try {
+      putGun(w, v, 'trailerBox', freeMounts(w, v, 'trailerBox')[0]);
+      expect(() => gunSpans(v, itemOf(v, 'mg'))).toThrow(/trailerBox/);
+    } finally {
+      rises.trailerBox = saved;
+    }
   });
 
   it('a tall gun never blocks itself', () => {
