@@ -480,3 +480,42 @@ describe('camera default zoom', () => {
     expect(spread(inward)).toBeCloseTo(spread(max));
   });
 });
+
+describe('camera canvas rect', () => {
+  function countedRig() {
+    const reads = { count: 0 };
+    const box = { left: 0, top: 0, width: 1280, height: 720 };
+    const container = {
+      clientWidth: 1280,
+      clientHeight: 720,
+      getBoundingClientRect: () => {
+        reads.count++;
+        return { ...box };
+      },
+    } as HTMLElement;
+    return { rig: new CameraRig(container), reads, box };
+  }
+
+  it('reads the rect once per frame however many points it places', () => {
+    const { rig, reads } = countedRig();
+    rig.tick(0);
+    const before = reads.count;
+
+    for (let i = 0; i < 20; i++) rig.screenOf({ x: i, y: 0, z: 0 });
+
+    expect(reads.count - before).toBe(1);
+  });
+
+  it('follows a moved canvas after the next tick or resize', () => {
+    const { rig, box } = countedRig();
+    rig.tick(0);
+    const at = rig.screenOf({ x: 0, y: 0, z: 0 });
+
+    box.left = 100;
+    rig.tick(0);
+    expect(rig.screenOf({ x: 0, y: 0, z: 0 }).x).toBeCloseTo(at.x + 100);
+    box.left = 200;
+    rig.resize();
+    expect(rig.screenOf({ x: 0, y: 0, z: 0 }).x).toBeCloseTo(at.x + 200);
+  });
+});

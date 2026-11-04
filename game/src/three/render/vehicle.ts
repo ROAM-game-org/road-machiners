@@ -120,6 +120,7 @@ export class VehicleView {
   private body = new THREE.Group();
 
   private sig = '';
+  private settled: { items: GridItem[]; chassisId: string; body: number; cab: number; gear: number } | null = null;
   private pending: { sig: string; twin: VehicleView; steps: Generator<void, void>; built: boolean } | null = null;
   private units: UnitView[] = [];
   private running = false;
@@ -146,10 +147,19 @@ export class VehicleView {
   }
 
   update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
-    const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+    const paint = paintOf(v, playerPaint);
+    if (!this.settledOn(v, paint)) {
+      const sig = signatureOf(v, playerPaint);
+      if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+      this.running = engineRuns(v);
+      this.settled = sig === this.sig ? { items: v.items, chassisId: v.chassisId, body: paint.body, cab: paint.cab, gear: paint.gear } : null;
+    }
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
-    this.running = engineRuns(v);
+  }
+
+  private settledOn(v: Vehicle, paint: TruckColors): boolean {
+    const s = this.settled;
+    return s !== null && s.items === v.items && s.chassisId === v.chassisId && s.body === paint.body && s.cab === paint.cab && s.gear === paint.gear;
   }
 
   pose(f: VehicleFrame, dt: number): void {
