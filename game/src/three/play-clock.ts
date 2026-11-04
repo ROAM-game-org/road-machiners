@@ -48,7 +48,7 @@ export class PlayClock {
     const from = this.stop.positionAt(this.rate);
     const to = Math.min(1, from + realMs / this.stopEaseMs);
     this.rate = to === 1 ? 0 : this.stop.rateAt(to);
-    return this.stopEaseMs * (this.stop.playedTo(to) - this.stop.playedTo(from));
+    return this.stopEaseMs * this.stop.playedBetween(from, to);
   }
 
   private add(ms: number): void {
@@ -90,8 +90,12 @@ class StopCurve {
     return ((1 - Math.exp(-this.folds * position)) / this.folds - position * this.floor) / (1 - this.floor);
   }
 
+  playedBetween(from: number, to: number): number {
+    return Math.max(0, this.playedTo(to) - this.playedTo(from));
+  }
+
   leftShare(rate: number): number {
-    return this.playedTo(1) - this.playedTo(this.positionAt(rate));
+    return this.playedBetween(this.positionAt(rate), 1);
   }
 }
 

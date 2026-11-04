@@ -1,5 +1,7 @@
 import type { WeaponDef } from './parts';
 
+export const GUN_CLEARANCE = 0.25;
+
 export const UNPRICED_WEAPONS: Record<string, Omit<WeaponDef, 'value' | 'bulk'>> = {
   mg: {
     id: "mg",
