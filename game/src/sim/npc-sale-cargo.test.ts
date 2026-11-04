@@ -23,36 +23,36 @@ function truckHolding(good: string | null) {
   return { w, npc };
 }
 
-function marketsOf(_npc: unknown, markets: string[]): NpcProfile {
+function marketsOf(markets: string[]): NpcProfile {
   return { markets } as NpcProfile;
 }
 
 describe('sale cargo needs a buyer who takes it', () => {
   it('does not count grain nobody known buys', () => {
     const { npc } = truckHolding('grain');
-    expect(hasSaleCargo(npc, marketsOf(npc, withoutGrain.slice(0, 3)))).toBe(false);
+    expect(hasSaleCargo(npc, marketsOf(withoutGrain.slice(0, 3)))).toBe(false);
   });
 
   it('counts grain once a known market trades it', () => {
     const { npc } = truckHolding('grain');
-    expect(hasSaleCargo(npc, marketsOf(npc, [withoutGrain[0], withGrain[0]]))).toBe(true);
+    expect(hasSaleCargo(npc, marketsOf([withoutGrain[0], withGrain[0]]))).toBe(true);
   });
 
   it('counts any good at a camp', () => {
     const { npc } = truckHolding('grain');
-    expect(hasSaleCargo(npc, marketsOf(npc, [camp]))).toBe(true);
+    expect(hasSaleCargo(npc, marketsOf([camp]))).toBe(true);
   });
 
   it('counts a spare part at any shop', () => {
     const { w, npc } = truckHolding(null);
     expect(stowPart(w, npc, makePart(w, 'stockEngine', 0))).toBe(true);
-    expect(hasSaleCargo(npc, marketsOf(npc, [withoutGrain[0]]))).toBe(true);
+    expect(hasSaleCargo(npc, marketsOf([withoutGrain[0]]))).toBe(true);
   });
 
   it('keeps retained repair parts', () => {
     const { w, npc } = truckHolding(null);
     addGoods(w, npc, 'parts', NPC_UPKEEP.repairParts);
-    expect(hasSaleCargo(npc, marketsOf(npc, [withGrain[0]]))).toBe(false);
+    expect(hasSaleCargo(npc, marketsOf([withGrain[0]]))).toBe(false);
   });
 
   it('agrees with what the shop sells', () => {
@@ -73,6 +73,6 @@ describe('sale cargo needs a buyer who takes it', () => {
 
   it('saleGoal throws when no market takes the cargo', () => {
     const { w, npc } = truckHolding('grain');
-    expect(() => saleGoal(w, npc, marketsOf(npc, withoutGrain.slice(0, 2)))).toThrow('no buyer');
+    expect(() => saleGoal(w, npc, marketsOf(withoutGrain.slice(0, 2)))).toThrow('no buyer');
   });
 });
