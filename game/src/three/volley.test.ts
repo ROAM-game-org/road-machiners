@@ -733,6 +733,7 @@ describe("playShotFx through the move", () => {
     const { launched, hooked, gunId } = fire("harpoon", (t) => [round(t)]);
     expect(launched[0].delayMs + launched[0].flightMs).toBeLessThan(MOVE_MS * 0.9);
     expect(hooked).toEqual([gunId]);
+    expect(launched[0].impact).toBe("truck");
   });
 
   it("hooks no line with a harpoon that misses", () => {

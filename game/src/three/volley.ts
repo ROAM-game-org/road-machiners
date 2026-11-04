@@ -527,14 +527,13 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
   if (!host.eventPoint(f.shooterId)) return;
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
   const spec = projectileOf(f.weaponDefId);
-  const point = groundPoint(host.world.terrain, f.impactAt);
-  const land = { ...point, y: point.y + (f.roll.hit ? 1 : 0) };
+  const plan = timedImpactPlan(host.world, f, flightHits(host.world, f));
   const muzzle = shooterMuzzle(host, f.shooterId, f.weaponId);
   const sounds = gunSounds(f.weaponDefId);
   const dry = last && host.world.events.some(e => e.t === 'empty' && e.vehicle === f.shooterId && e.weapon === f.weaponId);
   const pellet = host.world.combat.records.filter(r => r.kind === 'launch' && r.flight?.weaponId === f.weaponId).findIndex(r => r.flight === f);
   host.fx.shot(roundSpec(spec, pellet), muzzle, {
-    delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
+    ...plan, delayMs: at, flightMs: f.landsAt - f.launchedMs, impactRecorded: true,
   }, blastRadiusOf(f.weaponDefId), {
     fired: m => {
       host.sound.at(sounds.fire, m.pos, 0);
@@ -604,9 +603,14 @@ function resumeTimedFlight(host: CombatHost, state: TimedCombatState, flight: Ti
   if (elapsedMs < 0 || flight.landsAt <= state.turnStart + host.startMs) return;
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
   const from = groundPoint(host.world.terrain, flight.from);
-  const land = groundPoint(host.world.terrain, flight.impactAt);
+  const plan = timedImpactPlan(host.world, flight, flightHits(host.world, flight));
   const muzzle = () => ({ pos: { ...from, y: from.y + 1 }, dir: { x: 1, y: 0, z: 0 } });
   host.fx.shot(projectileOf(flight.weaponDefId), muzzle, {
-    delayMs: 0, flightMs: flight.landsAt - flight.launchedMs, elapsedMs, land, impact: 'none',
+    ...plan, flightMs: flight.landsAt - flight.launchedMs, elapsedMs, impactRecorded: true,
   }, blastRadiusOf(flight.weaponDefId), { fired: () => {}, landed: () => {} }, ground, host.world.turn);
+}
+
+function flightHits(world: World, flight: TimedFlight): boolean {
+  const impact = world.combat.records.find(record => record.kind === 'impact' && record.flight === flight);
+  return impact?.event ? impact.event.rounds[0].struck !== null : flight.roll.hit;
 }

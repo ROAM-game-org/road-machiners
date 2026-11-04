@@ -76,7 +76,7 @@ const MISSILE = {
 };
 
 export type Impact = 'truck' | 'ground' | 'none';
-export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number; elapsedMs?: number };
+export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number; elapsedMs?: number; impactRecorded?: boolean };
 
 type Flight = {
   spec: ProjectileSpec;

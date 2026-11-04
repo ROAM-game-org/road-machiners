@@ -176,7 +176,7 @@ export class Fx3D {
       cues.fired(m);
     };
     const onLand = () => {
-      if (plan.impact !== 'none') this.landing(plan, blastRadius, spec.look === 'shell');
+      if (plan.impact !== 'none' && !plan.impactRecorded) this.landing(plan, blastRadius, spec.look === 'shell');
       cues.landed();
     };
     this.projectiles.launch({ spec, muzzle, plan, onFire, onLand, ground });
