@@ -687,3 +687,25 @@ export const UNPRICED_WEAPONS: Record<string, Omit<WeaponDef, 'value' | 'bulk'>>
     line: { turns: 10 },
   },
 };
+
+export const PROJECTILE_FLIGHT: Record<string, { speed: number; pellets: boolean; rope: boolean }> = {
+  mg: { speed: 220, pellets: false, rope: false },
+  shotgun: { speed: 160, pellets: true, rope: false },
+  autocannon: { speed: 140, pellets: false, rope: false },
+  cannon: { speed: 60, pellets: false, rope: false },
+  tankGun: { speed: 60, pellets: false, rope: false },
+  sniperCannon: { speed: 110, pellets: false, rope: false },
+  heavyMg: { speed: 200, pellets: false, rope: false },
+  gatling: { speed: 220, pellets: false, rope: false },
+  longRifle: { speed: 260, pellets: false, rope: false },
+  amRifle: { speed: 260, pellets: false, rope: false },
+  battleRifle: { speed: 240, pellets: false, rope: false },
+  flechette: { speed: 280, pellets: false, rope: false },
+  flamer: { speed: 30, pellets: false, rope: false },
+  pneumobolter: { speed: 90, pellets: false, rope: false },
+  slugCannon: { speed: 100, pellets: false, rope: false },
+  recoilless: { speed: 60, pellets: false, rope: false },
+  grenadeLauncher: { speed: 45, pellets: false, rope: false },
+  harpoon: { speed: 110, pellets: false, rope: true },
+  rocketRack: { speed: 40, pellets: false, rope: false },
+};

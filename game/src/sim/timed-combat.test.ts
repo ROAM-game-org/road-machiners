@@ -1,3 +1,5 @@
+import { PROJECTILE_FLIGHT } from '../data/weapons';
+import { PARTS } from '../data/parts';
 import { vehicleStats } from './stats';
 import { expect, it } from 'vitest';
 import { emptyWorld, addVehicle } from './testkit';
@@ -95,4 +97,9 @@ it('lets a launched round land after its shooter leaves the world', () => {
   endTimedCombat(f.world, f.state);
   expect(f.state.records.filter(r => r.kind === 'impact' && r.flight === flight)).toHaveLength(1);
   expect(f.state.records.filter(r => r.kind === 'launch')).toHaveLength(1);
+});
+
+it('supports every registered weapon in the game combat schedule', () => {
+  const missing = Object.values(PARTS).filter(part => part.kind === 'weapon' && !(part.id in PROJECTILE_FLIGHT)).map(part => part.id);
+  expect(missing).toEqual([]);
 });

@@ -1,3 +1,4 @@
+import { PROJECTILE_FLIGHT } from '../data/weapons';
 import { spanOf } from './body';
 import { PHYSICS } from '../data/physics';
 import { aiming, rollRound, spendShot, noteStray, practiceHits, tieLine, directRound, explode, burstPoint, npcFate, tickGuns, fireBlock, targetBlock, hitOdds, noteAttack, isHostile, missPoint, laneOfOffset, shotDamage, wreckVehicle, type Shot, type Landing } from './combat';
@@ -9,7 +10,6 @@ import { walkLane } from './armor';
 import { bearing, type Vec } from './vec';
 import type { World, Vehicle, Aim, GameEvent, ShotRound } from './types';
 
-export const TIMED_WEAPONS = { mg: { speed: 220, pellets: false }, cannon: { speed: 60, pellets: false }, shotgun: { speed: 160, pellets: true } };
 export type TimedAttempt = { at: number; shooter: string; target: string; weapon: string; aim: Aim; volley: string };
 export type TimedFlight = TimedShot & { landsAt: number };
 export type TimedRecord = { at: number; kind: 'launch' | 'cancel' | 'impact'; flight: TimedFlight | null; event: Extract<GameEvent, { t: 'shot' }> | null };
@@ -65,8 +65,8 @@ function attemptDue(state: TimedCombatState): boolean {
   return state.attempts.length > 0 && state.attempts[0].at <= state.now + 1e-6;
 }
 function timedSpec(id: string) {
-  const spec = TIMED_WEAPONS[id as keyof typeof TIMED_WEAPONS];
-  if (!spec) throw new Error(`Prototype does not support ${id}`);
+  const spec = PROJECTILE_FLIGHT[id];
+  if (!spec) throw new Error(`No projectile flight settings for ${id}`);
   return spec;
 }
 function tryLaunch(world: World, state: TimedCombatState, attempt: TimedAttempt): TimedShot | null {
