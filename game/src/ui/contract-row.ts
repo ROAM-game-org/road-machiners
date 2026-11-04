@@ -7,7 +7,7 @@ import type { World } from "../sim/types";
 import { PLUS, SPACE, t, type PlainKey } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractClock, heldContractDue, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortLeavesIn, escortStatusText, heldContractClock, heldContractDeadline, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -47,9 +47,9 @@ function surveyLine(w: World, c: Contract, posted: boolean): HTMLElement | null 
 }
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
-  if (posted) return el("span", { class: "price", title: t("contract.leavesTitle", { n: Math.max(0, c.deadline - w.turn) }) }, createIcon("clock"), escortLeaves(c));
+  if (posted) return el("span", { class: "price", title: escortLeaves(c) }, createIcon("clock"), escortLeavesIn(w, c));
   const status = escortStatusText(w, c);
-  return status ? el("span", { class: "price dim", title: heldContractDue(c) }, createIcon("clock"), status) : el("span", {});
+  return status ? el("span", { class: "price dim", title: t("contract.noDeadline") }, createIcon("clock"), status) : el("span", {});
 }
 
 export function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
@@ -66,7 +66,7 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
   const met = isMet(c);
   const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
-    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractClock(w, c));
+    : el("span", { class: "price", title: heldContractDeadline(w, c) ?? undefined }, createIcon("clock"), heldContractClock(w, c));
   return el(
     "div",
     { class: "job" },

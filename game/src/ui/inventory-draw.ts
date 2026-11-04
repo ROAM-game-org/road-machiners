@@ -74,14 +74,34 @@ export function cellUnder(m: GridMetrics, grid: HTMLElement, clientX: number, cl
   return cellAt(m, uiSize().toLayer(clientX - r.left), uiSize().toLayer(clientY - r.top));
 }
 
+const FIT_PASSES = 3;
+
 export class GridScale {
   private pxPerMeter: number | null = null;
   private own: GridMetrics | null = null;
   private target: GridMetrics | null = null;
+  private fitKey: string | null = null;
 
   reset(): void {
     this.pxPerMeter = null;
     this.target = null;
+    this.fitKey = null;
+  }
+
+  holds(key: string): boolean {
+    return this.pxPerMeter !== null && this.fitKey === key;
+  }
+
+  settle(key: string, overflow: () => number, redraw: () => void): void {
+    this.fitKey = key;
+    for (let pass = 0; pass < FIT_PASSES; pass++) {
+      const over = overflow();
+      if (over <= 0) return;
+      const before = this.pxPerMeter;
+      this.shrinkBy(over);
+      if (this.pxPerMeter === before) return;
+      redraw();
+    }
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {
@@ -150,7 +170,7 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
   const size = gridSize(m);
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
-  grid.append(look ? lookUnder(look, m) : truckOutline(chassisId, m));
+  grid.append(look ? truckBackdrop(look.body, m) : truckOutline(chassisId, m));
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
       const node = gridCellEl(g, x, y, m);
@@ -158,12 +178,6 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
     }
   if (look) dressGrid(grid, m, picked?.item ?? null);
   return grid;
-}
-
-function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
-  const body = look.renders.body(look.truck, look.paint);
-  if (!body) throw new Error(`The ${look.truck.chassisId} garage render is not ready`);
-  return truckBackdrop(body, m);
 }
 
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
@@ -251,9 +265,7 @@ function artOf(look: GarageLook, it: GridItem, m: GridMetrics, rect: PixelRect):
 }
 
 function builtInArt(look: GarageLook, it: Extract<GridItem, { kind: "part" }>, m: GridMetrics, rect: PixelRect): HTMLElement | null {
-  const body = look.renders.body(look.truck, look.paint);
-  if (!body) return null;
-  return coreArt(body, it.part, m, rect) ?? el("span", { class: "inv-art" });
+  return coreArt(look.body, it.part, m, rect) ?? el("span", { class: "inv-art" });
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {
