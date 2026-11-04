@@ -479,8 +479,13 @@ export class GarageRenders {
   private start(): Running | null {
     const job = this.queue.shift();
     if (!job) return null;
-    const built = this.build(this.renderer, job, this, false);
-    this.running = { job, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
+    try {
+      const built = this.build(this.renderer, job, this, false);
+      this.running = { job, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
+    } catch (error) {
+      this.failJob(job, error);
+      return this.start();
+    }
     return this.running;
   }
 

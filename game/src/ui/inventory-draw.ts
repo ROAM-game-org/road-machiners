@@ -146,7 +146,7 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
   const size = gridSize(m);
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
-  grid.append(look ? lookUnder(look, m) : truckOutline(chassisId, m));
+  grid.append(look ? truckBackdrop(look.body, m) : truckOutline(chassisId, m));
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
       const node = gridCellEl(g, x, y, m);
@@ -154,10 +154,6 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
     }
   if (look) dressGrid(grid, m, picked?.item ?? null);
   return grid;
-}
-
-function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
-  return truckBackdrop(look.body, m);
 }
 
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
