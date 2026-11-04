@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as path from './path';
 import { PERF } from '../data/perf';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -228,10 +229,44 @@ describe('NPC traffic', () => {
     expect(trafficStops(w, npc, DEST)).toBe(false);
   });
 
-  it('stops behind a slower truck in its only lane', () => {
+  it('follows a slower truck in its only lane without stopping (issue 1342)', () => {
     const { w, npc } = scene(106, 100, 0, 2);
     corridor(w);
+    expect(trafficStops(w, npc, DEST)).toBe(false);
+  });
+
+  it('a stopped queue head does not wait for a faster truck coming up behind it (issue 1342)', () => {
+    const { w, npc } = scene(94, 100, 0, 4);
+    npc.speed = 0.2;
+    corridor(w);
+    expect(trafficStops(w, npc, DEST)).toBe(false);
+  });
+
+  it('still stops for a truck ahead that turned across its heading (issue 1342)', () => {
+    const { w, npc } = scene(106, 100, 0, 2);
+    w.vehicles[0].heading = Math.PI / 2 + 0.3;
+    w.vehicles[0].pos = { x: 106, y: 98 };
+    corridor(w);
     expect(trafficStops(w, npc, DEST)).toBe(true);
+  });
+
+  it('steers no route around a slower truck ahead in its only lane (issue 1342)', () => {
+    const { w, npc } = scene(106, 100, 0, 2);
+    npc.order = { kind: 'through', dest: DEST, pace: 8 };
+    corridor(w);
+    expect(routeBlockers(w, npc)).toEqual([]);
+  });
+
+  it('works out once per turn whether it can pass a truck ahead (issue 1342)', () => {
+    const { w, npc } = scene(106, 100, 0, 2);
+    npc.order = { kind: 'through', dest: DEST, pace: 8 };
+    const search = vi.spyOn(path, 'route');
+    routeBlockers(w, npc);
+    const first = search.mock.calls.length;
+    routeBlockers(w, npc);
+    expect(first).toBeGreaterThan(0);
+    expect(search.mock.calls.length).toBe(first);
+    search.mockRestore();
   });
 
   it('overtakes a slower truck ahead on open ground', () => {

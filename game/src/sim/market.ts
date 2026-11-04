@@ -500,8 +500,16 @@ export function haulLegs(world: World, shopId: string): HaulLeg[] {
   });
 }
 
+export function dueTurn(c: Contract): number {
+  return c.deadline + 1;
+}
+
+export function bountyTurn(c: HaulContract): number {
+  return lateBy(c) + 1;
+}
+
 export function isExpired(world: World, c: Contract): boolean {
-  return world.turn > c.deadline;
+  return world.turn >= dueTurn(c);
 }
 
 export function searchLapsed(world: World, c: Contract): boolean {
@@ -883,7 +891,7 @@ function warnContract(world: World, c: Contract): void {
 }
 
 function warnLateHaul(world: World, c: HaulContract): void {
-  const outcome = world.turn === c.deadline + 1 ? 'overdue' : lateBy(c) - world.turn === CONTRACTS.warnTurns ? 'expiring' : null;
+  const outcome = world.turn === dueTurn(c) ? 'overdue' : lateBy(c) - world.turn === CONTRACTS.warnTurns ? 'expiring' : null;
   if (outcome) world.events.push({ t: 'contract', contract: { ...c }, outcome });
 }
 
@@ -891,6 +899,6 @@ function contractOutcome(world: World, c: Contract): 'failed' | 'lapsed' | null 
   if (c.kind === 'rescue') return null;
   if (c.kind === 'search' && searchLapsed(world, c)) return 'lapsed';
   if (claimGone(world, c)) return 'lapsed';
-  if (c.kind === 'haul' && isLate(world, c)) return haulCratesAboard(world, c) === 0 || world.turn > lateBy(c) ? 'failed' : null;
+  if (c.kind === 'haul' && isLate(world, c)) return haulCratesAboard(world, c) === 0 || world.turn >= bountyTurn(c) ? 'failed' : null;
   return isExpired(world, c) ? 'failed' : null;
 }

@@ -64,14 +64,13 @@ describe('refitting the hauler at an outpost', () => {
     expect(after.player.money).toBeLessThan(money);
   });
 
-  it('buys armor, engines and cargo frames onto the hauler and refuses a gun', () => {
+  it('buys armor, engines and cargo frames into storage, leaves the hauler as it was and refuses a gun', () => {
     const w = parkedAtOutpost();
     const hauler = haulerOf(w);
     const armor = stockOf(w, 'armor');
     const bought = outpostBuyPart(w, armor.id, hauler.id);
-    const items = haulerOf(bought).items.filter((it) => it.kind === 'part' && it.part.id === armor.id);
-    expect(items.length + bought.player.storage.filter((p) => p.id === armor.id).length).toBe(1);
-    expect(items.length).toBe(1);
+    expect(bought.player.storage.filter((p) => p.id === armor.id)).toHaveLength(1);
+    expect(haulerOf(bought).items).toEqual(hauler.items);
 
     const gun = stockOf(w, 'weapon');
     expect(() => outpostBuyPart(w, gun.id, hauler.id)).toThrow(Refused);
@@ -100,15 +99,18 @@ describe('refitting the hauler at an outpost', () => {
     expect(partDef(gun.defId).kind).toBe('weapon');
   });
 
-  it('moves an armor plate on the hauler grid at once, and does not touch the player truck', () => {
+  it('moves a bought armor plate from storage onto the hauler grid at once, and does not touch the player truck', () => {
     const w = parkedAtOutpost();
     const hauler = haulerOf(w);
     const armor = stockOf(w, 'armor');
     const bought = outpostBuyPart(w, armor.id, hauler.id);
-    const placed = haulerOf(bought).items.find((it) => it.kind === 'part' && it.part.id === armor.id)!;
     const playerItems = playerVehicle(bought).items.length;
-    const spot = placed.kind === 'part' ? installSpot(haulerOf(bought), placed) : null;
-    if (spot) expect(haulerOf(moveItem(bought, placed.id, spot, hauler.id)).job).toBeNull();
-    expect(playerVehicle(bought).items.length).toBe(playerItems);
+    const spot = installSpot(haulerOf(bought), { id: 'probe', kind: 'part', part: armor, x: 0, y: 0, rot: 0 });
+    if (spot) {
+      const placed = takeFromStorage(bought, armor.id, spot, hauler.id);
+      expect(haulerOf(placed).job).toBeNull();
+      expect(haulerOf(placed).items.some((it) => it.kind === 'part' && it.part.id === armor.id)).toBe(true);
+      expect(playerVehicle(placed).items.length).toBe(playerItems);
+    }
   });
 });
