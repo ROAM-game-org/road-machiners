@@ -81,6 +81,7 @@ import type { ShadeView } from "./render/shade";
 import { BeaconPulseView } from "./render/beaconPulse";
 import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
+import { GpuContext } from "./gpu-context";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
 import { unstuckReason } from "../ui/unstuck-reason";
@@ -117,6 +118,7 @@ export class Game {
   private world: World;
   private drive: DriveSnapshot;
   readonly renderer: THREE.WebGLRenderer;
+  private readonly gpu: GpuContext;
   readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
@@ -210,6 +212,7 @@ export class Game {
 
   constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
+    this.gpu = new GpuContext(surface.canvas, surface.context, reportError);
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
@@ -224,7 +227,7 @@ export class Game {
     container.appendChild(this.renderer.domElement);
     this.view = container;
     this.rig = new CameraRig(this.renderer.domElement);
-    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError);
+    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError, this.gpu);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
     this.renderer.domElement.classList.add("view");
