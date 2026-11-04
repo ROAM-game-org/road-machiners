@@ -202,8 +202,7 @@ function hookFlight(world: World, flight: TimedShot, landing: Landing, side: Sid
   if (part) attachLine(world, { from: source.shooter, fromPart: source.weapon.id, to: landing.struck, toPart: part.id }, flight.lineTurns);
 }
 
-export type PrototypeWorld = World & { prototypeCombat?: TimedCombatState };
-export const combatState = (world: World) => (world as PrototypeWorld).prototypeCombat;
+export const combatState = (world: World): TimedCombatState => world.combat;
 
 function hookSource(world: World, flight: TimedShot): { shooter: Vehicle; weapon: MountedWeapon['part'] } | null {
   const shooter = world.vehicles.find(v => v.id === flight.shooterId);

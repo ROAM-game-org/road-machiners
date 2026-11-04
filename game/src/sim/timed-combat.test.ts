@@ -1,3 +1,4 @@
+import { PHYSICS } from '../data/physics';
 import { PROJECTILE_FLIGHT } from '../data/weapons';
 import { PARTS } from '../data/parts';
 import { vehicleStats } from './stats';
@@ -149,4 +150,12 @@ it('preserves remaining flight distance when a saved map changes scale', async (
   expect(moved.flights[0].launchedMs).toBe(250);
   expect(moved.flights[0].landsAt).toBe(750);
   expect(moved.flights[0].speed).toBe(flight.speed);
+});
+
+it('uses the timed combat clock for an ordinary stationary turn', async () => {
+  const { endTurn } = await import('./world');
+  const f = fight(); f.world.vehicles = [f.a, f.b];
+  const next = endTurn(f.world, () => {});
+  expect(next.combat.now).toBeCloseTo(PHYSICS.turnSeconds * 1000, 8);
+  expect(next.combat.records.some(record => record.kind === 'launch')).toBe(true);
 });

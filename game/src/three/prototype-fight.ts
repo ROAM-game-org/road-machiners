@@ -4,7 +4,6 @@ import { bearing, dist } from '../sim/vec';
 import { PARTS } from '../data/parts';
 import { makeVehicle } from '../sim/factory';
 import { newTimedCombat } from '../sim/timed-combat';
-import type { PrototypeWorld } from '../sim/timed-combat';
 import { START_KITS } from '../data/start';
 import { spawnNear, skipToHour } from '../sim/cheats';
 import { newWorld, setAutoFire } from '../sim/world';
@@ -28,7 +27,6 @@ export function prototypeFight(map: BakedMap, weapon: 'mg' | 'cannon' | 'shotgun
   world = setAutoFire(world, true);
   refreshVision(world);
   world.combat = newTimedCombat();
-  (world as PrototypeWorld).prototypeCombat = world.combat;
   return world;
 }
 

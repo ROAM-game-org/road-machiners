@@ -9,7 +9,7 @@ import { PHYSICS } from '../data/physics';
 import { filledLanes, heldPart, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
 import { presentedSpan, reachMeters, unitPose } from './rig';
-import { rollCabKnock } from "./cab-knock";
+import { rollCabKnock, cabDamageThisTurn } from "./cab-knock";
 import { corePart, itemBulk, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { canVehicleSee, hasLineOfFire } from './vision';
@@ -620,10 +620,10 @@ export function shotDamage(e: { rounds: ShotRound[] }): Map<string, PartHit[]> {
   return out;
 }
 
-export function turnPartHits(world: World): Map<string, PartHit[]> {
+export function turnPartHits(world: World, events: readonly GameEvent[] = world.events): Map<string, PartHit[]> {
   const out = new Map<string, PartHit[]>();
   const add = (id: string, hits: PartHit[]) => { if (hits.length > 0) out.set(id, [...(out.get(id) ?? []), ...hits]); };
-  for (const e of world.events) for (const [id, hits] of eventHits(e)) add(id, hits);
+  for (const e of events) for (const [id, hits] of eventHits(e)) add(id, hits);
   return out;
 }
 
@@ -956,10 +956,11 @@ function towPair(world: World, a: Vehicle, b: Vehicle): boolean {
   return stateOf(world, 'tow', a.id, b.id) !== null || stateOf(world, 'tow', b.id, a.id) !== null;
 }
 
-export function resolveDestroyed(world: World): void {
-  const shot = damagedByShots(world);
+export function resolveDestroyed(world: World, settled: ReadonlySet<GameEvent> = new Set()): void {
+  const events = world.events.filter(event => !settled.has(event));
+  const shot = damagedByShots(events);
   for (const v of world.vehicles.filter((x) => x.faction !== "player")) {
-    const fate = npcFate(world, v, shot);
+    const fate = npcFate(world, v, shot, cabDamageThisTurn(world, v, events));
     if (fate === "dies") wreckVehicle(world, v);
     else if (fate === "knockedOut") knockOutNpc(world, v);
   }
@@ -996,9 +997,9 @@ function brokenCabFate(world: World): "dies" | "knockedOut" {
   return chance(world, RULES.npcDeathChance) ? "dies" : "knockedOut";
 }
 
-function damagedByShots(world: World): Set<string> {
+function damagedByShots(events: readonly GameEvent[]): Set<string> {
   const hurt = new Set<string>();
-  for (const e of world.events) {
+  for (const e of events) {
     if (e.t !== "shot") continue;
     if (e.rounds.some((r) => r.hits.some((h) => h.damage > 0))) hurt.add(e.target);
   }

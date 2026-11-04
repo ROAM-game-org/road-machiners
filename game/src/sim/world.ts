@@ -1,4 +1,6 @@
-import { combatState, newTimedCombat } from './timed-combat';
+import { PHYSICS } from '../data/physics';
+import { completeCombatMovement } from './far';
+import { newTimedCombat, beginTimedCombat, endTimedCombat } from './timed-combat';
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
@@ -25,7 +27,7 @@ import type { BakedMap } from './terrain';
 import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
-import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { assignAutoOrders, dropMagazine, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
 import { advanceIntro, greetAtWell, wakeInTown } from './intro';
@@ -400,12 +402,14 @@ export function endTurnInPlace(
     assignUtilityOrders(w);
     activateUtilities(w);
     const gaps = huntGaps(w);
-    if (combatState(w)) {
-      assignAutoOrders(w);
-      freezeFire(w);
-      settleAims(w);
-    }
+    assignAutoOrders(w);
+    freezeFire(w);
+    settleAims(w);
+    const combatStart = w.combat.now;
+    beginTimedCombat(w, w.combat, PHYSICS.turnSeconds * 1000);
     move(w);
+    completeCombatMovement(w, combatStart);
+    endTimedCombat(w, w.combat);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
     caltropHits(w);
@@ -426,7 +430,6 @@ export function endTurnInPlace(
     freezeFire(w);
     settleAims(w);
     tickCharges(w);
-    if (!combatState(w)) fireWeapons(w);
     cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
@@ -436,7 +439,7 @@ export function endTurnInPlace(
     leakFuel(w);
     fitAllStores(w);
     applyGodMode(w);
-    if (!combatState(w)) resolveDestroyed(w);
+    resolveDestroyed(w, new Set(w.combat.records.flatMap(record => record.event ? [record.event] : [])));
     settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);

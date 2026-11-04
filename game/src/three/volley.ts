@@ -7,11 +7,10 @@ import { MIX, type CueId } from "../data/sounds";
 import { crashLevel } from "../audio/pick";
 import { PAL } from "../render/palette";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
-import { missPoint } from "../sim/combat";
-import { carriedPart, carriedPartDef } from "../sim/salvage";
+import { carriedPartDef } from "../sim/salvage";
 import { isShield } from "../data/parts";
 import type { Vec } from "../sim/vec";
-import type { GameEvent, PartInstance, ShotRound, Vehicle, World } from "../sim/types";
+import type { GameEvent, ShotRound, Vehicle, World } from "../sim/types";
 import type { BreakCues, PartBreak, ShotLike } from "./breakCues";
 import { roundLabel } from "../ui/format";
 import { computeRoundPoint, groundPoint, headingOf, toMap, type TurnFrames, type V3, type VehicleFrame } from "../phys/frames";
@@ -20,9 +19,7 @@ import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import type { VehicleView } from "./render/vehicle";
 import { scoreEventOf, type SoundDirector } from "./sound";
-import { weaponOn } from "../sim/stats";
 import { PHYSICS } from "../data/physics";
-import { spanOf } from "../sim/body";
 
 export type VolleyHost = {
   world: World;
@@ -153,13 +150,6 @@ export function utilitySeen(events: readonly GameEvent[], seen: (vehicleId: stri
   return events.some((e) => e.t === "utility" && seen(e.vehicle));
 }
 
-function playDryGuns(host: CombatHost, played: Set<string>): void {
-  for (const e of host.world.events) {
-    const p = e.t === "empty" && !played.has(gunKey(e.vehicle, e.weapon)) ? host.eventPoint(e.vehicle) : null;
-    if (p) host.fx.later(Math.max(0, host.poses.moveMs - host.startMs), () => host.sound.at("gun-empty", p, 0));
-  }
-}
-
 const gunKey = (vehicle: string, weapon: string) => `${vehicle}|${weapon}`;
 
 const USE_CUES: Partial<Record<UtilityEffectType | "claymore", CueId>> = {
@@ -206,59 +196,13 @@ function useSoundsOf(e: Extract<GameEvent, { t: "utility" }>): UtilitySound[] {
 }
 
 export function playShotFx(host: CombatHost, breaks: BreakCues): number {
-  if (combatState(host.world)) return playTimedCombat(host, breaks);
-  const rows = new Map<string, number>();
-  const played = new Set<string>();
-  let lastMs = 0;
-  for (const e of host.world.events) {
-    const lands = e.t === "shot" ? playTruckShot(host, e, rows, breaks) : null;
-    if (lands === null) continue;
-    queueVolleyScore(host, e, lands);
-    lastMs = Math.max(lastMs, lands.lastMs);
-    if (e.t === "shot") played.add(gunKey(e.shooter, e.weapon));
-  }
-  playDryGuns(host, played);
-  return lastMs;
-}
-
-function queueVolleyScore(host: CombatHost, e: GameEvent, lands: VolleyLands): void {
-  const pick = scoreEventOf(e, host.world.player.vehicleId);
-  if (pick) host.sound.queueScoreEvent(pick.kind, lands.landsMs[pick.round ?? 0]);
+  return playTimedCombat(host, breaks);
 }
 
 function vehicleOf(w: World, id: string): Vehicle {
   const v = w.vehicles.find((x) => x.id === id) ?? w.removed.find((x) => x.id === id);
   if (!v) throw new Error(`Shot names unknown vehicle ${id}`);
   return v;
-}
-
-function missAt(w: World, from: Vec, target: Vec): (offset: number) => V3 {
-  return (offset) => groundPoint(w.terrain, missPoint(from, target, offset));
-}
-
-function gunOf(view: VehicleView | undefined, weapon: string, shooter: Vehicle, part: PartInstance, spec: ProjectileSpec): Gun {
-  const defId = part.defId;
-  const rangeM = weaponOn(shooter, part).range * PHYSICS.metersPerTile;
-  if (!view) return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: 0, covers: () => false };
-  return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: view.turretUnit(weapon), covers: (heading, yaw) => view.covers(weapon, heading, yaw) };
-}
-
-function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>, breaks: BreakCues): VolleyLands | null {
-  if (!host.eventPoint(e.shooter) || !host.eventPoint(e.target)) return null;
-  const w = host.world;
-  const shooter = vehicleOf(w, e.shooter);
-  const target = vehicleOf(w, e.target);
-  const part = carriedPart(w, e.shooter, e.weapon);
-  if (!part) throw new Error(`Shot from ${e.shooter} names no mounted weapon ${e.weapon}`);
-  const spec = projectileOf(part.defId);
-  const gun = gunOf(host.views.get(e.shooter), e.weapon, shooter, part, spec);
-  const half = spanOf(target.chassisId).half;
-  const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late: killingRounds(w, e), missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
-  const ground = (p: V3) => groundPoint(w.terrain, toMap(p)).y;
-  const plans = planShot(host.poses, shot, gun, ground, Math.random);
-  const dry = w.events.some((x) => x.t === "empty" && x.vehicle === e.shooter && x.weapon === e.weapon);
-  const hooked = spec.rope ? () => host.lineHooked(e.shooter, e.weapon) : null;
-  return playVolley(host, plans, shooterMuzzle(host, e.shooter, e.weapon), e, breaks, part.defId, rows, dry, hooked);
 }
 
 function shooterMuzzle(host: CombatHost, shooter: string, weapon: string): () => Muzzle {
@@ -276,14 +220,6 @@ function restMuzzle(host: CombatHost, shooter: string): Muzzle {
   const heading = host.poses.endHeading(shooter) ?? v.heading;
   return { pos, dir: { x: Math.cos(heading), y: 0, z: Math.sin(heading) } };
 }
-
-function killingRounds(w: World, e: ShotLike): (k: number) => boolean {
-  const gone = w.events.flatMap((x) => (x.t === "destroyed" ? [x.vehicle] : []));
-  const killers = new Set(gone.map((v) => e.rounds.map((r) => damages(r, v)).lastIndexOf(true)));
-  return (k) => killers.has(k);
-}
-
-const damages = (r: ShotRound, vehicle: string): boolean => r.struck === vehicle || r.blast.some((b) => b.vehicle === vehicle);
 
 export function hookLine(world: World, playing: { before: World; hookedLines: Set<string> } | null, shooter: string, weapon: string): void {
   if (!playing) return;
@@ -559,9 +495,13 @@ function pastMiss(a: V3, b: V3, offset: number, ground: Ground, random: () => nu
 
 function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   const state = combatState(host.world);
-  if (!state) throw new Error('Timed combat playback has no simulation state');
   const rows = new Map<string, number>();
-  for (const record of state.records) playTimedRecord(host, record, state, rows, breaks);
+  const last = new Map<string, TimedFlight>();
+  for (const record of state.records) {
+    if (record.kind === 'launch' && record.flight) last.set(record.flight.weaponId, record.flight);
+  }
+  for (const record of state.records) playTimedRecord(host, record, state, rows, breaks, last);
+  queueTimedScores(host, state);
   for (const [id, destroyed] of Object.entries(state.destroyedAt)) {
     host.fx.later(Math.max(0, destroyed - state.turnStart - host.startMs), () => {
       const point = host.eventPoint(id);
@@ -571,36 +511,77 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   return host.poses.moveMs;
 }
 
-function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues): void {
+function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);
-  if (record.kind === 'launch') playTimedLaunch(host, record.flight, at);
+  if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight);
   if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
 }
-function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number): void {
+
+function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boolean): void {
+  vehicleOf(host.world, f.shooterId);
+  vehicleOf(host.world, f.targetId);
+  if (!host.eventPoint(f.shooterId)) return;
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
-      if (!host.eventPoint(f.shooterId)) return;
-      const spec = projectileOf(f.weaponDefId);
-      const point = groundPoint(host.world.terrain, f.impactAt);
-      const hit = f.roll.hit;
-      const land = { ...point, y: point.y + (hit ? 1 : 0) };
-      host.fx.shot(spec, shooterMuzzle(host, f.shooterId, f.weaponId), {
-        delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
-      }, blastRadiusOf(f.weaponDefId), {
-        fired: m => host.sound.at(spec.look === 'tracer' ? 'mg-fire' : 'cannon-fire', m.pos, 0),
-        landed: () => {},
-      }, ground, host.world.turn);
+  const spec = projectileOf(f.weaponDefId);
+  const point = groundPoint(host.world.terrain, f.impactAt);
+  const land = { ...point, y: point.y + (f.roll.hit ? 1 : 0) };
+  const muzzle = shooterMuzzle(host, f.shooterId, f.weaponId);
+  const sounds = gunSounds(f.weaponDefId);
+  const dry = last && host.world.events.some(e => e.t === 'empty' && e.vehicle === f.shooterId && e.weapon === f.weaponId);
+  const pellet = host.world.combat.records.filter(r => r.kind === 'launch' && r.flight?.weaponId === f.weaponId).findIndex(r => r.flight === f);
+  host.fx.shot(roundSpec(spec, pellet), muzzle, {
+    delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
+  }, blastRadiusOf(f.weaponDefId), {
+    fired: m => host.sound.at(sounds.fire, m.pos, 0),
+    landed: () => { if (dry) host.sound.at('gun-empty', muzzle().pos, 0); },
+  }, ground, host.world.turn);
 }
+
+function gunSounds(weapon: string): { fire: CueId; struck: StruckCues } {
+  return GUN_SOUNDS[weapon] ?? { fire: projectileOf(weapon).look === 'tracer' ? 'mg-fire' : 'cannon-fire', struck: DEFAULT_STRUCK };
+}
+
 function playTimedImpact(host: CombatHost, f: TimedFlight, event: Extract<GameEvent, { t: 'shot' }>, at: number, rows: Map<string, number>, breaks: BreakCues): void {
-      for (const round of event.rounds) showDamage(host, round, at, rows);
-      const hit = event.rounds.some(r => r.struck !== null);
-      const point = groundPoint(host.world.terrain, f.impactAt);
-      const land = { ...point, y: point.y + (hit ? 1 : 0) };
-      host.fx.later(at, () => {
-        host.fx.projectileImpact({ delayMs: 0, flightMs: 0, land, impact: hit ? 'truck' : 'ground' }, blastRadiusOf(f.weaponDefId), projectileOf(f.weaponDefId).look === 'shell');
-        host.sound.at(hit ? 'hit-metal' : 'miss', land, 0);
-      });
-      host.fx.later(at, () => {
-        for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk);
-      });
+  for (const round of event.rounds) showDamage(host, round, at, rows);
+  host.fx.later(at, () => landTimedFx(host, f, event, breaks));
+}
+
+function landTimedFx(host: CombatHost, f: TimedFlight, event: Extract<GameEvent, { t: 'shot' }>, breaks: BreakCues): void {
+  const round = event.rounds[0];
+  const plan = timedImpactPlan(host.world, f, round.struck !== null);
+  const spec = projectileOf(f.weaponDefId);
+  host.fx.projectileImpact(plan, blastRadiusOf(f.weaponDefId), spec.look === 'shell');
+  const sounds = gunSounds(f.weaponDefId);
+  landSound(host, plan, round, reachedPart(host.world, round) ? sounds.struck.part : sounds.struck.plate);
+  if (round.burst) host.onBurst(round.burst);
+  if (spec.rope && round.struck !== null) host.lineHooked(f.shooterId, f.weaponId);
+  for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk);
+}
+
+function queueTimedScores(host: CombatHost, state: TimedCombatState): void {
+  const groups = new Map<string, TimedRecord[]>();
+  for (const record of state.records) {
+    if (record.kind !== 'impact' || !record.event) continue;
+    const key = gunKey(record.event.shooter, record.event.weapon);
+    const records = groups.get(key) ?? [];
+    records.push(record);
+    groups.set(key, records);
+  }
+  for (const records of groups.values()) queueTimedScore(host, state, records);
+}
+
+function queueTimedScore(host: CombatHost, state: TimedCombatState, records: TimedRecord[]): void {
+  const event = records[0].event;
+  if (!event) throw new Error('Score group has no impact event');
+  const rounds = records.flatMap(r => r.event?.rounds ?? []);
+  const pick = scoreEventOf({ ...event, rounds }, host.world.player.vehicleId);
+  if (!pick) return;
+  const earning = records[pick.round ?? 0];
+  host.sound.queueScoreEvent(pick.kind, Math.max(0, earning.at - state.turnStart - host.startMs));
+}
+
+function timedImpactPlan(world: World, f: TimedFlight, hit: boolean): RoundPlan {
+  const point = groundPoint(world.terrain, f.impactAt);
+  return { delayMs: 0, flightMs: 0, land: { ...point, y: point.y + Number(hit) }, impact: hit ? 'truck' : 'ground' };
 }

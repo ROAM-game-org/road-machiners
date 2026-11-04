@@ -1,3 +1,5 @@
+import { PHYSICS } from '../data/physics';
+import { stepTimedCombat } from './timed-combat';
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -371,4 +373,14 @@ function sample(chassisId: string, start: Pose, path: Vec[], moved: number): Pos
     trail.push(followPose(chassisId, trail[trail.length - 1], { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading }));
   }
   return trail;
+}
+
+export function completeCombatMovement(world: World, startedMs: number): void {
+  const duration = PHYSICS.turnSeconds * 1000;
+  const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+  if (world.combat.now === startedMs) {
+    for (let step = 0; step < steps; step++) stepTimedCombat(world, world.combat, duration / steps);
+  }
+  const rounding = Number.EPSILON * Math.max(1, Math.abs(startedMs), Math.abs(world.combat.now)) * steps;
+  if (Math.abs(world.combat.now - startedMs - duration) > rounding) throw new Error('Movement did not advance one full combat turn');
 }

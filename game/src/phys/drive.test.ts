@@ -13,7 +13,7 @@ import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { stateOf } from '../sim/states';
-import { endTurn, setDirect, setMoveOrder } from '../sim/world';
+import { cloneWorld, endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { CLAYMORE } from '../data/utilities';
 import { bodyOf } from '../sim/body';
@@ -1051,7 +1051,7 @@ describe('physics turns', () => {
 
 
 it('an engine broken by an impact loses drive during the same physics turn', async () => {
-  const { launchTimedRound, newTimedCombat } = await import('../sim/timed-combat');
+  const { launchTimedRound, newTimedCombat, beginTimedCombat, endTimedCombat } = await import('../sim/timed-combat');
   const { mountedParts } = await import('../sim/grid');
   const { refreshVision } = await import('../sim/vision');
   const { declareFeud } = await import('../sim/states');
@@ -1068,15 +1068,17 @@ it('an engine broken by an impact loses drive during the same physics turn', asy
     const engine = mountedParts(target, 'engine')[0];
     engine.hp = 1;
     const state = newTimedCombat();
-    Object.assign(world, { prototypeCombat: state });
+    world.combat = state;
     const flight = launchTimedRound(world, shooter, mountedParts(shooter, 'weapon')[0].id, target, 'body', 0, 220, false)!;
     expect(flight).not.toBeNull();
     flight.impactAt = { ...target.pos };
     flight.roll = { hit: true, error: 0, crit: false };
     if (impact) state.flights.push({ ...flight, landsAt: 1000 / PHYSICS.stepsPerSecond * 2 });
+    beginTimedCombat(world, state, PHYSICS.turnSeconds * 1000);
     const drive = buildDrive(world);
     try {
       const result = simulateTurn(drive, world);
+      endTimedCombat(world, state);
       try {
         const frames = result.frames[target.id];
         return { travel: Math.abs(frames.at(-1)!.pos.x - 35 * PHYSICS.metersPerTile), engineHp: engine.hp, impacts: state.records.filter(r => r.kind === 'impact').map(r => r.at) };
@@ -1091,4 +1093,27 @@ it('an engine broken by an impact loses drive during the same physics turn', asy
   expect(broken.impacts[0]).toBeLessThan(1000 / PHYSICS.stepsPerSecond * 3);
   expect(intact.travel).toBeGreaterThan(0);
   expect(broken.travel).toBeLessThan(intact.travel);
+});
+
+it('keeps movement unchanged when combat has no firing or impacts', async () => {
+  const { beginTimedCombat, endTimedCombat } = await import('../sim/timed-combat');
+  const world = emptyWorld({ x: 30, y: 30 });
+  const player = world.vehicles.find(v => v.id === world.player.vehicleId)!;
+  world.vehicles = [player];
+  player.direct = true;
+  player.weaponOrders = {};
+  player.order = { kind: 'through', dest: { x: 50, y: 30 } };
+  const drive = buildDrive(world);
+  try {
+    const plain = simulateTurn(drive, cloneWorld(world));
+    try {
+      const activeWorld = cloneWorld(world);
+      beginTimedCombat(activeWorld, activeWorld.combat, PHYSICS.turnSeconds * 1000);
+      const active = simulateTurn(drive, activeWorld);
+      try {
+        endTimedCombat(activeWorld, activeWorld.combat);
+        expect(active.frames[player.id]).toEqual(plain.frames[player.id]);
+      } finally { freeDrive(active.next); }
+    } finally { freeDrive(plain.next); }
+  } finally { freeDrive(drive); }
 });

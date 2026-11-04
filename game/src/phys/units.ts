@@ -1,5 +1,5 @@
-import { vehicleStats } from '../sim/stats';
-import { combatState, beginTimedCombat, stepTimedCombat, endTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { vehicleStats, type VehicleStats } from '../sim/stats';
+import { combatState, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
 import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
@@ -226,10 +226,9 @@ export class TimedDrive {
   private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number }[] = [];
   constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
     const state = combatState(world);
-    if (!state || steps !== TURN_STEPS || state.active) return;
+    if (steps !== TURN_STEPS || !state.active) return;
     this.state = state;
     this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading }));
-    beginTimedCombat(world, state, steps / PHYSICS.stepsPerSecond * 1000);
   }
   step(): void {
     if (!this.state) return;
@@ -248,13 +247,12 @@ export class TimedDrive {
   }
   private refreshStats(car: Car): void {
     const next = vehicleStats(this.world, car.v);
-    if (next === car.s) return;
+    const changed = motionStatsChanged(car.s, next);
     car.s = next;
-    this.refresh(car);
+    if (changed) this.refresh(car);
   }
   finish(): void {
     if (!this.state) return;
-    endTimedCombat(this.world, this.state);
     for (const start of this.starts) {
       if (!this.world.vehicles.includes(start.v)) continue;
       start.v.pos = start.pos;
@@ -270,4 +268,9 @@ export function impactMotions(cars: Car[]): Map<string, ImpactMotion> {
     if (c.rear) motions.set(rearKey(c.v.id), captureImpactMotion(c.rear.body));
   }
   return motions;
+}
+
+function motionStatsChanged(before: VehicleStats, after: VehicleStats): boolean {
+  const { weapons: _weapons, fuelPerTile: _fuelPerTile, ...motion } = after;
+  return (Object.keys(motion) as (keyof typeof motion)[]).some(key => motion[key] !== before[key]);
 }
