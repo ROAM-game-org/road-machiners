@@ -25,7 +25,7 @@ import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
 import { sharpSensesOf } from './detect';
-import { affordableBuyCount, getTradeRate, getUpkeepReserve } from './economy';
+import { affordableBuyCount, getTradeRate, getUpkeepReserve, sellsAnythingAt } from './economy';
 export { getUpkeepReserve } from './economy';
 import { cargoRoom, hasCargoRoom } from './inventory';
 import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
@@ -380,8 +380,8 @@ function fitsAfterSale(world: World, vehicle: Vehicle, targetId: string): boolea
   return truck !== undefined && canTakeFromTruck(sold, truck);
 }
 
-export function hasSaleCargo(vehicle: Vehicle): boolean {
-  return afterSale(vehicle).items.length < vehicle.items.length;
+export function hasSaleCargo(vehicle: Vehicle, profile: NpcProfile = npcProfile(vehicle)): boolean {
+  return afterSale(vehicle).items.length < vehicle.items.length && profile.markets.some((id) => sellsAnythingAt(vehicle, id, NPC_UPKEEP.repairParts));
 }
 
 function afterSale(vehicle: Vehicle): Vehicle {

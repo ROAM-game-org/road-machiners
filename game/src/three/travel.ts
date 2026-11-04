@@ -580,7 +580,7 @@ export class TurnPreparation {
 
   private fail(id: number | null, message: string): void {
     if (this.pending && (id === null || this.pending.id === id)) this.pending.failure = message;
-    else reportError(new Error(message));
+    else reportError(workerError(message));
   }
 
   sendTerrain(terrain: World["terrain"]): void {
