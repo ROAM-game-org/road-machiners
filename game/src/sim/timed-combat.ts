@@ -34,7 +34,7 @@ export function beginTimedCombat(world: World, state: TimedCombatState, duration
   state.destroyedAt = {};
   state.fired = [];
   state.volleys = [];
-  for (const shooter of world.vehicles) scheduleVehicle(world, state, shooter.id, durationMs);
+  for (const shooter of world.vehicles) scheduleVehicle(world, state, shooter, durationMs);
   state.attempts.sort((a, b) => a.at - b.at);
 }
 
@@ -53,9 +53,8 @@ export function endTimedCombat(world: World, state: TimedCombatState): void {
   finishTimedGuns(world, state.fired);
 }
 
-function scheduleVehicle(world: World, state: TimedCombatState, id: string, durationMs: number): void {
-  const shooter = world.vehicles.find(v => v.id === id);
-  if (!shooter) throw new Error(`Missing shooter ${id}`);
+function scheduleVehicle(world: World, state: TimedCombatState, shooter: Vehicle, durationMs: number): void {
+  if (Object.keys(shooter.weaponOrders).length === 0) return;
   for (const mounted of vehicleStats(world, shooter).weapons) {
     const order = shooter.weaponOrders[mounted.part.id];
     if (!order) continue;
