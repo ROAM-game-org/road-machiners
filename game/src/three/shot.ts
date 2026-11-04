@@ -1,4 +1,3 @@
-import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { PAINT, type TruckPaint } from '../data/chassis';
 import { PHYSICS } from '../data/physics';

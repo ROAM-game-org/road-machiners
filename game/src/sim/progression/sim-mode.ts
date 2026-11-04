@@ -1,4 +1,3 @@
-import { errorText } from '../../error-text';
 import type { TruckPaint } from '../../data/chassis';
 import { TIME } from '../../data/time';
 import { inCombat } from '../combat';

@@ -1,4 +1,3 @@
-import { errorText } from '../error-text';
 import { TIME } from '../data/time';
 import { SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
 import { SIM_TEXT } from '../ui/sim/sim-text';

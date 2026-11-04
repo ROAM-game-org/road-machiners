@@ -1,5 +1,4 @@
 
-import { errorText } from '../error-text';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';

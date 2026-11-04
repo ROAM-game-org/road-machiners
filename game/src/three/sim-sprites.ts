@@ -1,4 +1,3 @@
-import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { loadModels, paintSurfaceMasks } from './render/models';
 import { boundsOf, flipRows, linearToSrgb, unpremultiply } from './render/portraitPixels';

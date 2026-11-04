@@ -1,4 +1,3 @@
-import { errorText } from '../../error-text';
 import "../style.css";
 import "./sim.css";
 import { FACTIONS } from "../../data/npc-behavior";

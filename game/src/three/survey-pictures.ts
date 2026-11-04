@@ -1,4 +1,3 @@
-import { errorText } from '../error-text';
 import * as THREE from 'three';
 import { SURVEY_PICTURE } from '../data/survey-pictures';
 import { PHYSICS } from '../data/physics';
