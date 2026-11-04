@@ -277,8 +277,8 @@ function buyTruck(o: Orders, post: Outpost, suits: (chassisId: string) => boolea
   const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id) && suits(id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
   if (best) {
-    const fitted = fittedPartIds(o.me);
-    o.run((w) => withRemounted(outpostBuyChassis(w, best), fitted), 'gear');
+    const before = o.me;
+    o.run((w) => boughtTruck(w, best, before), 'gear');
   }
 }
 
