@@ -1049,3 +1049,46 @@ describe('physics turns', () => {
   });
 });
 
+
+it('an engine broken by an impact loses drive during the same physics turn', async () => {
+  const { launchTimedRound, newTimedCombat } = await import('../sim/timed-combat');
+  const { mountedParts } = await import('../sim/grid');
+  const { refreshVision } = await import('../sim/vision');
+  const { declareFeud } = await import('../sim/states');
+  const run = (impact: boolean) => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, 'player', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const target = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
+    world.player.vehicleId = shooter.id;
+    world.vehicles = [shooter, target];
+    declareFeud(world, target, shooter.id);
+    refreshVision(world);
+    target.direct = true;
+    target.order = { kind: 'through', dest: { x: 20, y: 30 }, pace: 2 };
+    const engine = mountedParts(target, 'engine')[0];
+    engine.hp = 1;
+    const state = newTimedCombat();
+    Object.assign(world, { prototypeCombat: state });
+    const flight = launchTimedRound(world, shooter, mountedParts(shooter, 'weapon')[0].id, target, 'body', 0, 220, false)!;
+    expect(flight).not.toBeNull();
+    flight.impactAt = { ...target.pos };
+    flight.shot.rolls[0] = { hit: true, error: 0, crit: false };
+    if (impact) state.flights.push({ ...flight, landsAt: 1000 / PHYSICS.stepsPerSecond * 2 });
+    const drive = buildDrive(world);
+    try {
+      const result = simulateTurn(drive, world);
+      try {
+        const frames = result.frames[target.id];
+        return { travel: Math.abs(frames.at(-1)!.pos.x - 35 * PHYSICS.metersPerTile), engineHp: engine.hp, impacts: state.records.filter(r => r.kind === 'impact').map(r => r.at) };
+      } finally { freeDrive(result.next); }
+    } finally { freeDrive(drive); }
+  };
+  const intact = run(false);
+  const broken = run(true);
+  expect(intact.engineHp).toBe(1);
+  expect(broken.engineHp).toBe(0);
+  expect(broken.impacts).toHaveLength(1);
+  expect(broken.impacts[0]).toBeLessThan(1000 / PHYSICS.stepsPerSecond * 3);
+  expect(intact.travel).toBeGreaterThan(0);
+  expect(broken.travel).toBeLessThan(intact.travel);
+});
