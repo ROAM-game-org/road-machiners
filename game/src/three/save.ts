@@ -465,6 +465,7 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
     list: () => listSaves(slots, slotCount),
     manualSlots: () => manualSlots(slotCount),
     hasSave: () => hasSave(slots, allSlots(slotCount)),
+    mode: () => world().setup.mode,
     save: (slot: SlotId) => writeSave(slots, slot, world(), runId, Date.now()),
     reboot: (request: BootRequest) => {
       requestBoot(session, SAVE_KEY, request);

@@ -49,7 +49,7 @@ import { token } from "./tokens";
 import { createSwitch, lockSlot, stackedLabel } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { kph, moneyEl } from "./units";
-import { playerVehicle } from "../sim/damage";
+import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import type { Refusal } from "../sim/types";
@@ -727,7 +727,7 @@ export class Hud {
   }
 
   private aimOf(w: World, v: Vehicle): ConditionAim | undefined {
-    if (v.id === playerVehicle(w).id) return undefined;
+    if (isPlayerTruck(w, v)) return undefined;
     if (this.actions.aimState(v.id).locked) return undefined;
     return { marks: aimMarks(w, v.id), pick: (partId) => this.actions.aimPart(v.id, partId) };
   }
