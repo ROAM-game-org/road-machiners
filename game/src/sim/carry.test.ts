@@ -40,7 +40,7 @@ function carriedOf(over: Partial<Carried> = {}): Carried {
   return {
     seed: 99, money: 777, xp: 340, ranks: { driving: 2, social: 1 }, xpBySource: { ram: 12 }, perks: [], paint: null, discovered: [],
     knockouts: 2, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: { scrap: 8 },
-    truck: { chassisId: 'scout', items: kitItems() }, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0, ...over,
+    truck: { chassisId: 'scout', items: kitItems() }, storage: [], storedGoods: {}, setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0, ...over,
   };
 }
 

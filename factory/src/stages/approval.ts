@@ -16,19 +16,21 @@ async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
   if (card?.column !== 'Approval') throw new Error(`Issue #${issue} is not in Approval, it is in ${card?.column ?? 'no column'}`);
 }
 
-function forgetPosts(ctx: Ctx, issue: number, keepBuild = false): void {
+export function forgetPosts(ctx: Ctx, issue: number, keepBuild = false): void {
   const closed = Object.entries(readState(ctx.statePath).approvalPosts).filter(([, number]) => number === issue).map(([post]) => Number(post));
   updateState(ctx.statePath, (state) => {
     const approvalPosts = Object.fromEntries(Object.entries(state.approvalPosts).filter(([, number]) => number !== issue));
     const pendingApprovals = { ...state.pendingApprovals };
     delete pendingApprovals[String(issue)];
     const builds = { ...state.builds };
+    const suiteCleared = { ...state.suiteCleared };
     if (!keepBuild) delete builds[String(issue)];
+    if (!keepBuild) delete suiteCleared[String(issue)];
     const approvedResolving = { ...state.approvedResolving };
     delete approvedResolving[String(issue)];
     const postOnly = state.postOnly.filter((n) => n !== issue);
     const unroutedReplies = Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.issue !== issue));
-    return { ...state, approvalPosts, pendingApprovals, builds, approvedResolving, postOnly, unroutedReplies };
+    return { ...state, approvalPosts, pendingApprovals, builds, suiteCleared, approvedResolving, postOnly, unroutedReplies };
   });
   dropReplyMedia(ctx.cfg.home, closed);
 }

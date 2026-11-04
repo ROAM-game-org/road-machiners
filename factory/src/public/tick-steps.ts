@@ -1,7 +1,7 @@
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
 import { placeChatImages } from './chat-images';
-import { postProposal } from './proposals';
+import { postProposal, postProposalGate } from './proposals';
 import { classifyComments } from './classify-comments';
 import type { PublicFilter } from './decision';
 import { sendDigests } from './digest';
@@ -17,6 +17,7 @@ type Step = (ctx: Ctx, store: PublicStore, filter: PublicFilter) => Promise<void
 const STEPS: Step[] = [
   ingest,
   classifyComments,
+  postProposalGate,
   postProposal,
   countVotes,
   fileComments,

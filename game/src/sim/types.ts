@@ -51,7 +51,7 @@ export type GunState = { cooldown: number; ammo: number; reloadWork: number };
 
 export type ChargeState = { reload: number; armed?: true };
 
-export type Rot = 0 | 1 | 2 | 3;
+export type Rot = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type GridItem =
   | {
@@ -270,6 +270,7 @@ export type Refusal =
   | { id: 'notAtDesk' }
   | { id: 'payBountiesFirst'; faction: StandingFactionId }
   | { id: 'noCargoRoom' }
+  | { id: 'storeFull'; cap: number }
   | { id: 'unhurt' }
   | { id: 'noSupplies' }
   | { id: 'noStock' }
@@ -534,6 +535,7 @@ export type Player = {
   discovered: string[];
   scavenged: string[];
   storage: PartInstance[];
+  storedGoods: Record<string, Record<string, number>>;
   contracts: Contract[];
   pastContracts: PastContract[];
   costBasis: Record<string, number>;
@@ -686,7 +688,7 @@ export type WaveGroup = {
   at: number;
   templates: string[];
   money: number;
-  elite: boolean;
+  elites: number;
   level: GearLevel;
   spawned: boolean;
   vehicles: string[];

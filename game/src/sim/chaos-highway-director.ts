@@ -1,4 +1,4 @@
-import { CHAOS_HIGHWAY, GAME_MODES, HAZARDS, type EnemyCard, type Line } from '../data/modes';
+import { CHAOS_HIGHWAY, GAME_MODES, HAZARDS, type EnemyCard, type Line, type Ramp } from '../data/modes';
 import { PARTS } from '../data/parts';
 import { HAULER_KIT, kitPartIds, startKit } from '../data/start';
 import { milestoneAt, stretchStream } from './highway';
@@ -9,7 +9,7 @@ import { fairM } from './money';
 
 const DIRECTOR = CHAOS_HIGHWAY.director;
 
-export type PlannedWave = { at: number; template: string; size: number; money: number; elite: boolean };
+export type PlannedWave = { at: number; template: string; size: number; money: number; elites: number };
 export type StretchBudget = { budget: number; base: number; growth: number };
 
 export function payOf(j: number): number {
@@ -18,6 +18,10 @@ export function payOf(j: number): number {
 
 function lineAt(line: Line, j: number): number {
   return line.first + line.step * (j - 1);
+}
+
+function rampAt(ramp: Ramp, j: number): number {
+  return ramp.first + ramp.step * Math.max(0, j - ramp.from);
 }
 
 export function expectedGear(j: number): number {
@@ -45,18 +49,9 @@ export function planWaves(seed: number, j: number, budget: number, base: number)
   const rng = stretchStream(seed, j, 'director');
   const from = milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost;
   const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost - CHAOS_HIGHWAY.sides.ahead;
-  const count = Math.min(Math.floor((to - from) / DIRECTOR.spacing), roll(rng, lineAt(DIRECTOR.waves, j)));
+  const count = Math.min(Math.floor((to - from) / DIRECTOR.spacing), roll(rng, rampAt(DIRECTOR.waves, j)));
   const waves = fitBudget(Array.from({ length: count }, () => drawWave(rng, j, base)), budget);
-  let left = budget - trucksIn(waves);
-  let elites = 0;
-  for (const wave of shuffled(rng, waves)) {
-    const extra = wave.size * (DIRECTOR.elite.cost - 1);
-    if (extra > left || elites >= eliteCap(j) || !CHAOS_HIGHWAY.cards[wave.template].chase) continue;
-    elites++;
-    wave.money *= DIRECTOR.elite.money;
-    wave.elite = true;
-    left -= extra;
-  }
+  promoteElites(rng, j, waves, budget - trucksIn(waves));
   const slot = (to - from) / waves.length;
   return waves.map((wave, i) => ({ ...wave, at: from + slot * (i + 0.5) + randRange(rng, -1, 1) * DIRECTOR.jitter * slot }));
 }
@@ -64,7 +59,15 @@ export function planWaves(seed: number, j: number, budget: number, base: number)
 function drawWave(rng: Rng, j: number, base: number): Wave {
   const [template, card] = drawCard(rng, cardsOf(j));
   const size = Math.max(DIRECTOR.wave.min, Math.min(DIRECTOR.wave.cap, roll(rng, lineAt(DIRECTOR.wave.size, j))));
-  return { template, size, money: Math.max(card.floor, base), elite: false };
+  return { template, size, money: Math.max(card.floor, base), elites: 0 };
+}
+
+function promoteElites(rng: Rng, j: number, waves: Wave[], left: number): void {
+  const chasers = shuffled(rng, waves.filter((wave) => CHAOS_HIGHWAY.cards[wave.template].chase));
+  const largest = Math.max(0, ...chasers.map((wave) => wave.size));
+  const seats = Array.from({ length: largest }, (_, rank) => chasers.filter((wave) => wave.size > rank)).flat();
+  const affordable = Math.floor(left / (DIRECTOR.elite.cost - 1));
+  for (const wave of seats.slice(0, Math.min(eliteCap(j), affordable))) wave.elites++;
 }
 
 function fitBudget(waves: Wave[], budget: number): Wave[] {
@@ -93,6 +96,10 @@ function shuffled<T>(rng: Rng, items: T[]): T[] {
     [order[i], order[k]] = [order[k], order[i]];
   }
   return order;
+}
+
+export function truckMoney(wave: Pick<PlannedWave, 'money' | 'elites'>, truck: number): number {
+  return truck < wave.elites ? wave.money * DIRECTOR.elite.money : wave.money;
 }
 
 export function eliteCap(j: number): number {

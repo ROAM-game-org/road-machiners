@@ -15,7 +15,7 @@ import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
 import { driveStats, isStranded, vehicleRadius, vehicleStats, type MountedWeapon } from "./stats";
 import { waitsForFollowers } from "./company-wait";
-import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
+import { followPace, getHitchedTowIds, isOnRope, postOf, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
@@ -27,6 +27,7 @@ import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
+import { heldAway, startRecovery, tickRecovery } from "./stall";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v) && thinksThisTurn(world, v));
@@ -43,7 +44,7 @@ export function planNpcOrders(world: World): void {
 function thinkOrderPoint(world: World, v: Vehicle): Plan {
   const b = v.brain!;
   delete b.ramTarget;
-  if (b.recovery) b.recovery--;
+  tickRecovery(b);
   const activity = thinkNpc(world, v);
   return { v, activity, goal: orderPoint(world, v, activity) };
 }
@@ -59,7 +60,7 @@ function setOrder(world: World, { v, activity, goal }: Plan): void {
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   const b = v.brain!;
-  b.stuck = heldAway(v, goal) ? (b.stuck ?? 0) + 1 : 0;
+  b.stuck = heldAway(v, b, goal) ? (b.stuck ?? 0) + 1 : 0;
   if (b.stuck < RULES.unstick.turns) return;
   if (turnCornered(world, v)) {
     b.stuck = 0;
@@ -74,12 +75,6 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
 
 function waitsOnHold(v: Vehicle, goal: Vec | null, held: Vec | null): boolean {
   return held !== goal && dist(v.pos, held!) <= RULES.arriveRadius * 2;
-}
-
-function heldAway(v: Vehicle, goal: Vec | null): boolean {
-  const b = v.brain!;
-  if (!goal || !b.lastPos || b.recovery) return false;
-  return dist(v.pos, b.lastPos) < RULES.arriveRadius / 2 && dist(v.pos, goal) > RULES.arriveRadius * 2;
 }
 
 function freeSpotNear(world: World, v: Vehicle): Vec | null {
@@ -99,20 +94,12 @@ function noteStall(world: World, v: Vehicle, yielding: boolean): void {
   b.lastPos = { ...v.pos };
   if (b.stalled < RULES.npcStuckTurns) return;
   if (turnCornered(world, v)) b.stalled = 0;
-  else startRecovery(v);
+  else startRecovery(v, b);
 }
 
 function barelyMoved(v: Vehicle): boolean {
   const last = v.brain!.lastPos;
   return !!last && !!v.order && v.order.kind !== "brake" && dist(v.pos, last) < RULES.arriveRadius / 2;
-}
-
-function startRecovery(v: Vehicle): void {
-  const b = v.brain!;
-  const back = RULES.reverse.distance + RULES.minAimDistance;
-  b.recovery = RULES.npcRecoveryTurns;
-  b.recoveryGoal = { x: v.pos.x - Math.cos(v.heading) * back, y: v.pos.y - Math.sin(v.heading) * back };
-  b.stalled = 0;
 }
 
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
@@ -144,7 +131,11 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
 
 function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
-  if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
+  return leader ? followDrive(v, leader, dest) : { kind: "stopAt", dest };
+}
+
+export function followDrive(v: Vehicle, leader: Vehicle, dest: Vec): MoveOrder {
+  if (leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
   if (dist(v.pos, leader.pos) > NPC_BEHAVIOR.escortCatchUpGap) return { kind: "through", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
 }
@@ -155,7 +146,7 @@ function foeInSight(world: World, v: Vehicle, activity: NpcActivity): Vehicle | 
   return foe && canVehicleSee(world, v, foe.pos) ? foe : null;
 }
 
-function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehicle): Vec | null {
+export function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehicle, post: Vec | null = postOf(world, v)): Vec | null {
   const b = v.brain!;
   if (charges(world, v, target)) {
     b.ramTarget = target.id;
@@ -168,8 +159,12 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
-  if (!runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
-  return fightPoint(world, v, seen, clearance);
+  return engagePoint(world, v, seen, clearance, post);
+}
+
+function engagePoint(world: World, v: Vehicle, seen: Vehicle, clearance: number, post: Vec | null): Vec {
+  if (!post && !runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
+  return fightPoint(world, v, seen, clearance, post);
 }
 
 export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
@@ -224,24 +219,35 @@ export function leadOf(target: Vehicle): Vec {
   return { x: target.pos.x + Math.cos(target.heading) * target.speed, y: target.pos.y + Math.sin(target.heading) * target.speed };
 }
 
-export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance: number): Vec {
+export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance: number, post: Vec | null = null): Vec {
   const lead = leadOf(target);
   const turn = circleTurn(world, v);
   const reach = longestRange(world, v) - RULES.arriveRadius;
   const clear = clearLines(world, vehicleRadius(v), []);
   let best: Candidate | null = null;
-  for (const share of F.rings) {
-    const r = Math.max(clearance, share * reach);
-    for (let i = 0; i < F.angles; i++) {
-      const a = (2 * Math.PI * i) / F.angles;
-      const p = { x: lead.x + Math.cos(a) * r, y: lead.y + Math.sin(a) * r };
-      const score = scorePoint(world, v, target, lead, p, turn);
-      const fires = bearingShare(world, v, { ...target, pos: lead }, p) > 0;
-      const open = clear(v.pos, p);
-      if (!best || beats({ p, score, fires, open }, best)) best = { p, score, fires, open };
-    }
+  for (const p of ringPoints(lead, reach, clearance, post)) {
+    const score = scorePoint(world, v, target, lead, p, turn);
+    const fires = bearingShare(world, v, { ...target, pos: lead }, p) > 0;
+    const open = clear(v.pos, p);
+    if (!best || beats({ p, score, fires, open }, best)) best = { p, score, fires, open };
   }
-  return best!.p;
+  return best ? best.p : holdPost(v, post);
+}
+
+function holdPost(v: Vehicle, post: Vec | null): Vec {
+  if (!post) throw new Error(`${v.id} found no fight point`);
+  return post;
+}
+
+function ringPoints(lead: Vec, reach: number, clearance: number, post: Vec | null): Vec[] {
+  const points = F.rings.flatMap((share) => {
+    const r = Math.max(clearance, share * reach);
+    return Array.from({ length: F.angles }, (_, i) => {
+      const a = (2 * Math.PI * i) / F.angles;
+      return { x: lead.x + Math.cos(a) * r, y: lead.y + Math.sin(a) * r };
+    });
+  });
+  return post ? points.filter((p) => dist(p, post) <= NPC_BEHAVIOR.escortWaitGap) : points;
 }
 
 type Candidate = { p: Vec; score: number; fires: boolean; open: boolean };
@@ -467,7 +473,7 @@ function endMeetings(world: World, giver: Vehicle, live: ReadonlyMap<string, Veh
   if (!giver.yieldsTo) return;
   const kept = giver.yieldsTo.filter((id) => {
     const holder = live.get(id);
-    if (holder && holder.id < giver.id) throw new Error(`${giver.id} yields to ${holder.id}, which has the lower id`);
+    if (holder?.yieldsTo?.includes(giver.id)) throw new Error(`${giver.id} and ${holder.id} yield to each other`);
     return holder && !endsMeeting(world, giver, holder);
   });
   if (kept.length > 0) giver.yieldsTo = kept;
@@ -480,8 +486,21 @@ function endsMeeting(world: World, giver: Vehicle, holder: Vehicle): boolean {
   const py = holder.pos.y - giver.pos.y;
   const rx = Math.cos(holder.heading) * holder.speed - Math.cos(giver.heading) * giver.speed;
   const ry = Math.sin(holder.heading) * holder.speed - Math.sin(giver.heading) * giver.speed;
-  if (px * rx + py * ry >= 0) return true;
+  if (px * rx + py * ry >= 0 && (!sameWay(giver, holder) || hasPassed(world, giver, holder) && !closesOn(world, giver, holder, 1) && !closesOn(world, holder, giver, 1))) return true;
   return dist(giver.pos, holder.pos) > swerveReach(world, giver, holder) + vehicleStats(world, giver).radius + vehicleStats(world, holder).radius;
+}
+
+function sameWay(a: Vehicle, b: Vehicle): boolean {
+  return Math.cos(angleDiff(a.heading, b.heading)) > 0;
+}
+
+function hasPassed(world: World, giver: Vehicle, holder: Vehicle): boolean {
+  const clear = vehicleStats(world, giver).radius + vehicleStats(world, holder).radius;
+  const px = holder.pos.x - giver.pos.x;
+  const py = holder.pos.y - giver.pos.y;
+  const holderBehindGiver = px * Math.cos(giver.heading) + py * Math.sin(giver.heading) < -clear;
+  const giverAheadOfHolder = -(px * Math.cos(holder.heading) + py * Math.sin(holder.heading)) > clear;
+  return holderBehindGiver || giverAheadOfHolder;
 }
 
 function swerveReach(world: World, a: Vehicle, b: Vehicle): number {
@@ -490,9 +509,12 @@ function swerveReach(world: World, a: Vehicle, b: Vehicle): number {
 
 function startMeeting(world: World, a: Vehicle, b: Vehicle): void {
   if (a === b || !givesWay(world, b)) return;
-  const [giver, holder] = a.id < b.id ? [a, b] : [b, a];
-  if (giver.yieldsTo?.includes(holder.id)) return;
-  if (!closesOn(world, giver, holder, 1) || !closesOn(world, holder, giver, 1)) return;
+  if (a.yieldsTo?.includes(b.id) || b.yieldsTo?.includes(a.id)) return;
+  const aCloses = closesOn(world, a, b, 1);
+  const bCloses = closesOn(world, b, a, 1);
+  if (!aCloses && !bCloses) return;
+  if (aCloses !== bCloses && (!sameWay(a, b) || (aCloses ? b : a).speed < RULES.parkedSpeed || inCombat(world, a) || inCombat(world, b))) return;
+  const [giver, holder] = aCloses && bCloses ? (a.id < b.id ? [a, b] : [b, a]) : aCloses ? [a, b] : [b, a];
   giver.yieldsTo = [...(giver.yieldsTo ?? []), holder.id];
 }
 

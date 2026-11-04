@@ -54,6 +54,59 @@ describe('wanted cells', () => {
   });
 });
 
+function scanned(scopes: readonly RenderScope[], center: Vec, radius: number): number[] {
+  const near = new Map<number, number>();
+  for (const s of scopes)
+    for (const cell of s.waitingCells()) {
+      const r = s.claimOf(cell);
+      const gap = Math.hypot(Math.max(r.x0 - center.x, 0, center.x - r.x1), Math.max(r.y0 - center.y, 0, center.y - r.y1));
+      if (gap <= radius) near.set(cell, Math.min(near.get(cell) ?? Infinity, gap));
+    }
+  return [...near].sort((a, b) => a[1] - b[1] || a[0] - b[0]).map(([cell]) => cell);
+}
+
+function lcg(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 2 ** 32;
+  };
+}
+
+describe('wanted cells against a scan of every waiting cell', () => {
+  function crowded(seed: number): RenderScope[] {
+    const rnd = lcg(seed);
+    const scopes = [scope(), scope()];
+    for (const s of scopes)
+      for (let i = 0; i < 60; i++) {
+        const radius = i % 15 === 0 ? 30 + rnd() * 50 : 0.5 + rnd() * 3;
+        const at = { x: radius + rnd() * (SIZE - 2 * radius), y: radius + rnd() * (SIZE - 2 * radius) };
+        s.place(at, radius, box(`p${i}`, at));
+      }
+    return scopes;
+  }
+
+  for (const seed of [1, 2, 3])
+    it(`returns the same cells in the same order for seed ${seed}`, () => {
+      const scopes = crowded(seed);
+      const rnd = lcg(seed + 100);
+      for (let i = 0; i < 60; i++) {
+        const center = { x: rnd() * SIZE, y: rnd() * SIZE };
+        const radius = [5, 20, 45, 90, 400, Infinity][i % 6];
+        expect(wantedCells(scopes, center, radius)).toEqual(scanned(scopes, center, radius));
+      }
+    });
+
+  it('keeps matching a scan while cells empty out', () => {
+    const scopes = crowded(9);
+    const center = { x: 160, y: 160 };
+    for (let step = 0; step < 6; step++) {
+      for (const cell of wantedCells(scopes, center, 60).slice(0, 3)) for (const s of scopes) while (s.buildNext(cell));
+      expect(wantedCells(scopes, center, 60)).toEqual(scanned(scopes, center, 60));
+    }
+  });
+});
+
 describe('cell streamer', () => {
   it('builds every cell in reach in one frame, past the budget, and counts it as a blocking build', () => {
     resetPerf();

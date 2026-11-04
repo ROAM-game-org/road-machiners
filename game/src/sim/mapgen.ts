@@ -7,7 +7,7 @@ import { BREAKABLE } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
 import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
-import { ROCK_LOOKS, TERRAIN } from '../data/terrain';
+import { CAR_WRECK_LOOKS, ROCK_LOOKS, TERRAIN } from '../data/terrain';
 import { hashId, randInt, randRange } from './rng';
 import { hulkBoxes, type HulkBox } from './body';
 import { chassisDef } from '../data/chassis';
@@ -123,7 +123,8 @@ export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: num
 type FortLook = Exclude<Extract<PropKind, `fort${string}`>, 'fortOutpostShut'>;
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
 type RockModel = (typeof ROCK_LOOKS)[number]['model'];
-type PropModel = RockModel | 'road_sign' | 'route_sign' | 'barrel' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | 'boat_fishing' | 'boat_barge' | 'boat_skiff' | FortModel;
+export type CarWreckModel = (typeof CAR_WRECK_LOOKS)[number]['model'];
+type PropModel = RockModel | CarWreckModel | 'road_sign' | 'route_sign' | 'barrel' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | 'boat_fishing' | 'boat_barge' | 'boat_skiff' | FortModel;
 
 const M = PHYSICS.metersPerTile;
 const TURN = Math.PI * 2;
@@ -199,6 +200,9 @@ const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   gas_station: 7.2,
   bridge_broken: 6,
   wreck: 0.7 * M,
+  wreck_sedan: 0.7 * M,
+  wreck_compact: 0.7 * M,
+  wreck_wagon: 0.7 * M,
   shack: 3.6,
   junk: 2.4,
   fence: 2,
@@ -259,23 +263,27 @@ export function propPose(o: Obstacle): PropPose {
 }
 
 export function rockModel(id: string): RockModel {
-  const total = ROCK_LOOKS.reduce((sum, look) => sum + look.weight, 0);
-  if (!(total > 0)) throw new Error('ROCK_LOOKS weights must sum to more than zero');
-  let pick = rockPick(id) * total;
-  for (const look of ROCK_LOOKS) {
-    pick -= look.weight;
-    if (pick < 0) return look.model;
-  }
-  return ROCK_LOOKS[ROCK_LOOKS.length - 1].model;
+  return weightedPick(ROCK_LOOKS, hashId(`${id}:shape`), 'ROCK_LOOKS');
 }
 
-function rockPick(id: string): number {
-  return hashId(`${id}:shape`);
+function weightedPick<T>(looks: readonly { model: T; weight: number }[], pick: number, table: string): T {
+  const total = looks.reduce((sum, look) => sum + look.weight, 0);
+  if (!(total > 0)) throw new Error(`${table} weights must sum to more than zero`);
+  let left = pick * total;
+  for (const look of looks) {
+    left -= look.weight;
+    if (left < 0) return look.model;
+  }
+  return looks[looks.length - 1].model;
+}
+
+export function carWreckModel(id: string): CarWreckModel {
+  return weightedPick(CAR_WRECK_LOOKS, hashId(`${id}:look`), 'CAR_WRECK_LOOKS');
 }
 
 function wreckPose(o: Exclude<Obstacle, Landmark>, pos: Vec): PropPose {
   if (o.hulk) return { model: 'hulk', chassisId: o.hulk.chassisId, pos, yaw: o.hulk.yaw, scale: even(1), ...(o.hulk.bend === undefined ? {} : { bend: o.hulk.bend }) };
-  return { model: 'wreck', pos, yaw: hashId(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
+  return { model: carWreckModel(o.id), pos, yaw: hashId(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
 }
 
 export type RampModel = { pitch: number; length: number; width: number; thickness: number; centerHeight: number };
@@ -328,7 +336,7 @@ function landmarkModel(look: LandmarkLook): PropModel {
 }
 
 function landmarkPose(o: Landmark): PropPose {
-  const model = landmarkModel(o.look);
+  const model = o.look === 'carWreck' ? carWreckModel(o.id) : landmarkModel(o.look);
   const pos = { ...o.pos };
   if (FORT_MODELS.get(o.look)?.piece === 'wall') return { model, pos, yaw: o.yaw, scale: { x: o.r / FORTRESS.wallLength * 2, y: 1, z: 1 } };
   const yaw = o.look === 'pole' ? o.yaw + Math.PI / 2 : o.yaw;
@@ -407,10 +415,21 @@ export function propKey(o: Obstacle): string {
   return posedShape(o).key;
 }
 
+export function anyLookBoxes(o: Obstacle): readonly PosedBox[] {
+  const pose = propPose(o);
+  if (!CAR_WRECK_LOOKS.some((look) => look.model === pose.model)) return propBoxes(o);
+  return CAR_WRECK_LOOKS.flatMap((look) => posedShapeOf({ ...pose, model: look.model }).boxes);
+}
+
 function posedShape(o: Obstacle): PosedShape {
   const own = POSED_SHAPES.get(o);
   if (own) return own;
-  const pose = propPose(o);
+  const shape = posedShapeOf(propPose(o));
+  POSED_SHAPES.set(o, shape);
+  return shape;
+}
+
+function posedShapeOf(pose: PropPose): PosedShape {
   const local = localShape(pose);
   const key = `${local.key}|${pose.pos.x},${pose.pos.y}`;
   let shape = POSED_BY_KEY.get(key);
@@ -418,7 +437,6 @@ function posedShape(o: Obstacle): PosedShape {
     shape = { key, reach: local.reach, boxes: local.boxes.map((b) => ({ ...b, center: { x: pose.pos.x + b.center.x, y: pose.pos.y + b.center.y } })) };
     POSED_BY_KEY.set(key, shape);
   }
-  POSED_SHAPES.set(o, shape);
   return shape;
 }
 
@@ -451,10 +469,16 @@ function poseBoxes(pose: PropPose): readonly HulkBox[] {
   return pose.model === 'hulk' ? hulkBoxes(pose.chassisId, pose.bend) : propShape(pose.model).map((box) => ({ box, x: 0, y: 0, turn: 0 }));
 }
 
-function boxLocal(box: PosedBox, p: Vec): Vec {
-  const dx = p.x - box.center.x;
-  const dy = p.y - box.center.y;
-  return { x: dx * box.axis.x + dy * box.axis.y, y: dy * box.axis.x - dx * box.axis.y };
+const slab = { t0: 0, t1: 1 };
+
+function narrowSlab(from: number, to: number, half: number): boolean {
+  const d = to - from;
+  if (d === 0) return !(Math.abs(from) > half);
+  const ta = (-half - from) / d;
+  const tb = (half - from) / d;
+  slab.t0 = Math.max(slab.t0, Math.min(ta, tb));
+  slab.t1 = Math.min(slab.t1, Math.max(ta, tb));
+  return !(slab.t0 > slab.t1);
 }
 
 export function boxDistance(box: PosedBox, p: Vec): number {
@@ -470,21 +494,16 @@ export function segmentCrossesBox(box: PosedBox, a: Vec, b: Vec): boolean {
 }
 
 export function stretchCrossesBox(box: PosedBox, a: Vec, b: Vec, t0: number, t1: number): boolean {
-  const p = boxLocal(box, a);
-  const q = boxLocal(box, b);
-  for (const [from, to, half] of [[p.x, q.x, box.half.x], [p.y, q.y, box.half.y]]) {
-    const d = to - from;
-    if (d === 0) {
-      if (Math.abs(from) > half) return false;
-      continue;
-    }
-    const ta = (-half - from) / d;
-    const tb = (half - from) / d;
-    t0 = Math.max(t0, Math.min(ta, tb));
-    t1 = Math.min(t1, Math.max(ta, tb));
-    if (t0 > t1) return false;
-  }
-  return t0 <= t1;
+  const { center, axis, half } = box;
+  const adx = a.x - center.x;
+  const ady = a.y - center.y;
+  const bdx = b.x - center.x;
+  const bdy = b.y - center.y;
+  slab.t0 = t0;
+  slab.t1 = t1;
+  if (!narrowSlab(adx * axis.x + ady * axis.y, bdx * axis.x + bdy * axis.y, half.x)) return false;
+  if (!narrowSlab(ady * axis.x - adx * axis.y, bdy * axis.x - bdx * axis.y, half.y)) return false;
+  return slab.t0 <= slab.t1;
 }
 
 export function boxSegmentDistance(box: PosedBox, a: Vec, b: Vec): number {

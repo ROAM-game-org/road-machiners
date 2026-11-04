@@ -114,6 +114,21 @@ export function tileSlope(t: Terrain, tile: number): Vec {
   return { x: grade * on.deck.axis.x, y: grade * on.deck.axis.y };
 }
 
+export function tileGrade(t: Terrain, tile: number): number {
+  const i = tile % t.size;
+  if (deckAt(decksOf(t.atlas), i + 0.5, (tile - i) / t.size + 0.5) !== null) {
+    const slope = tileSlope(t, tile);
+    return Math.hypot(slope.x, slope.y);
+  }
+  const row = t.size + 1;
+  const k = ((tile - i) / t.size) * row + i;
+  const a = t.heights[k];
+  const b = t.heights[k + 1];
+  const c = t.heights[k + row];
+  const d = t.heights[k + row + 1];
+  return Math.hypot((b - a + d - c) / 2, (c - a + d - b) / 2);
+}
+
 export function groundSlope(t: Terrain, tile: number): Vec {
   const i = tile % t.size;
   const j = Math.floor(tile / t.size);

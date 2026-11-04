@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { cardSessionsRoot } from './card-session';
 import { isLocked } from './lock';
+import { archiveTranscripts } from './transcript-archive';
 import { RUN_KEY, RUN_LOCK_NAME, type Card, type FactoryState } from './types';
 
 type Keep = (id: number, state: FactoryState, cards: Card[]) => boolean;
@@ -18,8 +20,8 @@ const KEEP_NUMBERED: Record<string, Keep> = {
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {
   'dev-build': { stages: ['dev'], keep: () => false },
   'release-main': { stages: ['ship'], keep: () => false },
-  'release-candidate': { stages: ['candidate', 'ship'], keep: (state) => state.release !== null },
-  'release-playtest': { stages: ['playtest'], keep: () => false },
+  'release-candidate': { stages: ['candidate', 'ship'], keep: (state) => state.release?.candidate != null },
+  'release-playtest': { stages: ['playtest'], keep: (state) => state.release?.playtest.work != null },
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },
   answer: { stages: ['answer'], keep: () => false },
@@ -93,7 +95,21 @@ export function sweepWork(workRoot: string, lockRoot: string, state: FactoryStat
   return swept;
 }
 
-const KEEP_LOGS = new Set(['tick.log', 'update.log']);
+export function sweepCardSessions(home: string, state: FactoryState, cards: Card[], unconfirmed: ReadonlySet<number> = new Set()): string[] {
+  const root = cardSessionsRoot(home);
+  if (!existsSync(root)) return [];
+  const done = readdirSync(root, { withFileTypes: true })
+    .map((entry) => ({ name: entry.name, match: entry.isDirectory() ? /^issue-(\d+)$/.exec(entry.name) : null }))
+    .filter(({ match }) => match !== null && !unconfirmed.has(Number(match[1])) && !openCard(Number(match[1]), state, cards))
+    .map(({ name }) => name);
+  for (const name of done) {
+    archiveTranscripts(home, join(root, name));
+    rmSync(join(root, name), { recursive: true, force: true });
+  }
+  return done;
+}
+
+const KEEP_LOGS =new Set(['tick.log', 'update.log']);
 
 function oldFile(path: string, cutoff: number): boolean {
   const stat = statSync(path);
