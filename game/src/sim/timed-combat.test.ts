@@ -264,3 +264,24 @@ it('keeps fixed firing phases on a long-running combat clock', () => {
     expect(Math.abs(record.at - start - scheduled)).toBeLessThan(duration / steps / 2);
   });
 });
+
+it('uses moving target positions in the headless recorder combat clock', async () => {
+  const { FAR_MOVER } = await import('./progression/record');
+  const { endTurn } = await import('./world');
+  const { setHeadless } = await import('./fidelity');
+  const f = fight();
+  const startY = f.b.pos.y;
+  f.b.heading = Math.PI / 2;
+  f.b.speed = 7;
+  f.b.order = { kind: 'through', dest: { x: f.b.pos.x, y: 60 }, pace: 7 };
+  setHeadless(true);
+  try {
+    const after = endTurn(f.world, FAR_MOVER.step(f.world));
+    const launch = after.combat.records.find(r => r.kind === 'launch' && r.flight?.shooterId === f.a.id);
+    expect(launch?.flight).toBeDefined();
+    const endY = after.vehicles.find(v => v.id === f.b.id)!.pos.y;
+    expect(launch!.flight!.aimedAt.y).toBeGreaterThan(startY);
+    expect(launch!.flight!.aimedAt.y).toBeLessThan(endY);
+    expect(after.combat.now).toBeCloseTo(PHYSICS.turnSeconds * 1000, 7);
+  } finally { setHeadless(false); }
+});

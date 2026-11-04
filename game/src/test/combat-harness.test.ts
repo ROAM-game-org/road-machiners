@@ -179,3 +179,38 @@ it('waits for a launched shot after its shooter is destroyed', async () => {
   expect(laterImpacts).toBeGreaterThan(0);
   expect(pending).toBe(0);
 });
+
+it('settles pending shots without steering a scripted driver toward a defeated opponent', async () => {
+  const { wreckVehicle } = await import('../sim/combat');
+  let pending = -1;
+  const report = runFight({ ...FIGHT, a: parseLineup('stand:mg/bare~0'), b: parseLineup('buggy:cannon/bare~0'), seed: 1, maxTurns: 5 }, (w, turn) => {
+    if (turn === 1) {
+      const flight = w.combat.flights.find(f => f.shooterId === w.player.vehicleId);
+      expect(flight).toBeDefined();
+      const target = w.vehicles.find(v => v.id === flight!.targetId)!;
+      wreckVehicle(w, target);
+    }
+    pending = w.combat.flights.length;
+  });
+  expect(report.outcome).toBe('won');
+  expect(report.turns).toBeGreaterThan(1);
+  expect(pending).toBe(0);
+});
+
+it('settles pending shots without issuing orders to a knocked-out scripted driver', async () => {
+  const { checkKnockout } = await import('../sim/defeat');
+  const { corePart } = await import('../sim/grid');
+  let pending = -1;
+  const report = runFight({ ...FIGHT, a: parseLineup('stand:mg/bare~0'), b: parseLineup('buggy:cannon/bare~0'), seed: 1, maxTurns: 5 }, (w, turn) => {
+    if (turn === 1) {
+      expect(w.combat.flights.length).toBeGreaterThan(0);
+      const player = w.vehicles.find(v => v.id === w.player.vehicleId)!;
+      corePart(player, 'cab').hp = 0;
+      checkKnockout(w);
+    }
+    pending = w.combat.flights.length;
+  });
+  expect(report.outcome).toBe('lost');
+  expect(report.turns).toBeGreaterThan(1);
+  expect(pending).toBe(0);
+});

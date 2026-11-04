@@ -586,9 +586,11 @@ function arrive(w: World, ids: Ids): void {
 
 function steer(w: World, fight: Fight, c: Count): World {
   const policy = scriptedTruck(fight)?.driver as Policy | undefined;
-  if (!policy) return w;
+  if (!policy || w.player.state !== 'active') return w;
+  const foes = inFight(w, c.ids.b);
+  if (foes.length === 0) return w;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
-  return orders(w, policy, fight.orbit, nearest(me, inFight(w, c.ids.b)));
+  return orders(w, policy, fight.orbit, nearest(me, foes));
 }
 
 export function runFight(fight: Fight, watch?: (w: World, turn: number) => void): FightReport {
