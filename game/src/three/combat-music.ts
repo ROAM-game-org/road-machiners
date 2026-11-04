@@ -1,6 +1,6 @@
 import SONGS from "../data/combat-songs.json";
 import { SCORE_BLOCKS, soundsWith } from "../data/sounds";
-import { loadBank, type BankOptions } from "../audio/bank";
+import { loadBank, reportFailures, type BankOptions } from "../audio/bank";
 import { BlockSession, type BlockEvent, type BlockSong, type Fired } from "./block-session";
 import { BlockVoices, type KitBuffers } from "./block-voices";
 
@@ -11,13 +11,16 @@ export type KitLoader = (name: string) => Promise<Kit | null>;
 
 const TICK_MS = 100;
 
-export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions): KitLoader {
+export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions, report: (err: unknown) => void): KitLoader {
   return async (name) => {
     const song = COMBAT_SONGS[name];
     if (!song) throw new Error(`Unknown combat song ${name}`);
     const files = [song.file, song.guitars, song.cymbals.file];
     const loaded = await loadBank(ctx, soundsWith(files), options);
-    if (loaded.failures.length > 0) throw new Error(`Combat song ${name} did not decode: ${loaded.failures.map((f) => `${f.file} ${f.kind}`).join(", ")}`);
+    if (loaded.failures.length > 0) {
+      for (const failure of reportFailures(loaded.failures, files.length, new Set(), options.support)) report(failure);
+      return null;
+    }
     if (loaded.unreachable.length > 0) {
       console.warn(`Combat song ${name} could not be fetched, so this fight keeps the last song`, loaded.unreachable);
       return null;

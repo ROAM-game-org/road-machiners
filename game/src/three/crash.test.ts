@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AssetUnreachable, DownloadFailed } from '../fetch-asset';
+import { AssetStatusError, AssetUnreachable, BuildGone, DownloadFailed } from '../fetch-asset';
 import { WebGLUnavailable } from './webgl';
 import { crashText, downloadFailedText, faultKind, isForeignError, noteError, onReport, type CrashContext, type ErrorFacts } from './crash';
 
@@ -97,5 +97,15 @@ describe('noteError', () => {
     const err = new Error('stand-in');
     noteError(err);
     expect(sink).toHaveBeenCalledWith(err);
+  });
+
+  it('only warns for a file that never arrived, also from a replaced build', () => {
+    const sink = vi.fn();
+    onReport(sink);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    noteError(new AssetUnreachable('Model', 'truck.glb', 4, 'offline'));
+    noteError(new BuildGone('Model', 'truck.glb', 1, new AssetStatusError('HTTP 403', 403), 'https://game/'));
+    expect(sink).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 });
