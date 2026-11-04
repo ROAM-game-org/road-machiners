@@ -339,8 +339,9 @@ export function routeBlockers(world: World, v: Vehicle): Blocker[] {
   const standing = standingBlockers(world, v);
   if (!followsTraffic(world, v)) return standing;
   const dest = v.order && v.order.kind !== "brake" ? v.order.dest : null;
-  const swerves = conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v) && (!dest || !leads(world, v, x) || passes(world, v, x, dest)));
-  const kept = heldHolders(world, v).filter((x) => !swerves.includes(x));
+  const followed = (x: Vehicle): boolean => !!dest && leads(world, v, x) && !passes(world, v, x, dest);
+  const swerves = conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v) && !followed(x));
+  const kept = heldHolders(world, v).filter((x) => !swerves.includes(x) && !followed(x));
   return [...standing, ...[...swerves, ...kept].flatMap((x) => sweptPath(world, v, x))];
 }
 
