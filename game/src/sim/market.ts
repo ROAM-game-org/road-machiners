@@ -24,6 +24,7 @@ import { isDefeated } from './defeat';
 import { recall } from './memory';
 import { playerCommand, Refused } from './world';
 import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
+import { heldCrates } from './goods-store';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { partValue } from './wear';
 import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyPoint, type SurveySite } from './survey';
@@ -731,7 +732,7 @@ function loadHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
   const v = playerVehicle(world);
   if (freeCells(v) < c.units) throw new Error(`Needs ${c.units} free cells for the cargo`);
   moveStock(shopState(world, c.shop), c.shop, c.good, -c.units, 'contract');
-  const held = goodsCount(v)[c.good] ?? 0;
+  const held = heldCrates(world, c.good);
   if (addGoods(world, v, c.good, c.units) !== c.units) throw new Error('Cargo capacity invariant failed');
   const paid = world.player.costBasis[c.good] ?? 0;
   world.player.costBasis[c.good] = (paid * held + goodValue(c.good) * c.units) / (held + c.units);
