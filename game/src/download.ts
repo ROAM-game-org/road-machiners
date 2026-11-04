@@ -25,7 +25,7 @@ export function isTransientStatus(status: number): boolean {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
 }
 
-function retryable(status: number): boolean {
+export function retryable(status: number): boolean {
   return status === 404 || isTransientStatus(status);
 }
 
