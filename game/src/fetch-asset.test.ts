@@ -41,6 +41,27 @@ describe('fetchAsset', () => {
     await expect(fetchAsset('Map', 'map.bin', run.net)).resolves.toBeInstanceOf(ArrayBuffer);
   });
 
+  it.each([520, 521, 522, 523, 524, 525, 526, 530])('retries CDN status %i', async (code) => {
+    const run = net([status(code), ok]);
+    await expect(fetchAsset('Model', 'a.glb', run.net)).resolves.toBeInstanceOf(ArrayBuffer);
+    expect(run.waits).toEqual([1000]);
+  });
+
+  it('gives up on a status that never clears', async () => {
+    const run = net([status(520)]);
+    const err = await fetchAsset('Model', 'a.glb', run.net).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AssetUnreachable);
+    expect((err as AssetUnreachable).attempts).toBe(4);
+    expect(run.waits).toEqual([1000, 3000, 9000]);
+  });
+
+  it('fails at once on a forbidden file', async () => {
+    const run = net([status(403), ok]);
+    const err = await fetchAsset('Map', 'map.bin', run.net).catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(AssetUnreachable);
+    expect(run.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('fails at once on a missing file', async () => {
     const run = net([status(404), ok]);
     const err = await fetchAsset('Map', 'map.bin', run.net).catch((e: unknown) => e);
