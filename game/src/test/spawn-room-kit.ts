@@ -13,7 +13,7 @@ import { reusedWorld, standardWorld } from './world-cache';
 const carried = (seed: number) =>
   reusedWorld(`carried ${seed}`, () => {
     const w = carriedWorld(
-      { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0 },
+      { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], storedGoods: {}, setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0 },
       START_KITS.standard,
       () => TEST_MAP,
       () => seed,

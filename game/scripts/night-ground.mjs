@@ -132,7 +132,10 @@ const reloadPage = async (page) => {
 
 const waitForGame = async (page, bootLimitMs) => {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
-  await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs });
+  await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs }).catch(async (cause) => {
+    const shown = await page.evaluate(() => document.querySelector('#boot')?.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '');
+    throw new Error(`the boot screen stayed up for ${bootLimitMs} ms, showing "${shown}"`, { cause });
+  });
 };
 
 export async function startNewGame(page, mode, bootLimitMs) {
@@ -169,7 +172,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
 }
 
 const HIGHWAY_ATTEMPTS = 4;
-const CRASHED = /crashed/;
+const CRASHED = /crashed|boot screen stayed up/;
 
 export async function checkHighwayNightInSoftware(url, options) {
   let problems = [];
