@@ -67,7 +67,7 @@ async function buildGone(net: AssetNet): Promise<string | null> {
   if (goneNets.has(net)) return page;
   try {
     const outcome = await attemptWithin(page, { cache: 'no-store' }, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
-    if ('body' in outcome) return null;
+    if ('body' in outcome || isTransientStatus(outcome.status)) return null;
   } catch {
     return null;
   }

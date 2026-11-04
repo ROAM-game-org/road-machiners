@@ -108,6 +108,11 @@ describe('fetchAsset', () => {
       expect(err).toBeInstanceOf(AssetStatusError);
     });
 
+    it('keeps AssetStatusError when the page answers a transient status', async () => {
+      const err = await fetchAsset('Song', 'song.ogg', hosted(status(503)).net).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AssetStatusError);
+    });
+
     it('probes the page once for a build known gone', async () => {
       const run = hosted(status(404));
       await fetchAsset('Song', 'a.ogg', run.net).catch(() => {});
