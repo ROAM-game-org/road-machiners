@@ -76,7 +76,7 @@ const MISSILE = {
 };
 
 export type Impact = 'truck' | 'ground' | 'none';
-export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number };
+export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number; elapsedMs?: number };
 
 type Flight = {
   spec: ProjectileSpec;
@@ -227,7 +227,7 @@ export class Projectiles {
     obj.visible = false;
     this.scene.add(obj);
     const to = new THREE.Vector3(l.plan.land.x, l.plan.land.y, l.plan.land.z);
-    this.flights.push({
+    const flight: Flight = {
       spec: l.spec,
       obj,
       muzzle: l.muzzle,
@@ -242,16 +242,29 @@ export class Projectiles {
       rope: l.spec.rope ? new Rope() : null,
       struck: l.plan.impact === 'truck',
       ground: l.ground,
-    });
+    };
+    this.flights.push(flight);
+    if (l.plan.elapsedMs !== undefined) {
+      flight.age = l.plan.elapsedMs / 1000;
+      this.fire(flight, false);
+      this.place(flight, 0);
+    }
+  }
+
+  clearFlights(): void {
+    for (const flight of this.flights) {
+      this.scene.remove(flight.obj);
+      if (flight.rope) this.scene.remove(flight.rope.root);
+    }
+    this.flights = [];
   }
 
   tick(dt: number): void {
     for (let i = this.flights.length - 1; i >= 0; i--) {
       const f = this.flights[i];
-      const before = f.age;
       f.age += dt;
       if (f.age < 0) continue;
-      if (before <= 0) this.fire(f);
+      if (!f.obj.visible) this.fire(f);
       if (f.age >= f.life) {
         this.scene.remove(f.obj);
         this.flights.splice(i, 1);
@@ -286,13 +299,13 @@ export class Projectiles {
     }
   }
 
-  private fire(f: Flight): void {
+  private fire(f: Flight, notify = true): void {
     const m = f.muzzle();
     f.from.set(m.pos.x, m.pos.y, m.pos.z);
     f.side.set(-(f.to.z - f.from.z), 0, f.to.x - f.from.x).normalize();
     f.obj.visible = true;
     if (f.rope) this.scene.add(f.rope.root);
-    f.onFire(m);
+    if (notify) f.onFire(m);
   }
 
   private place(f: Flight, dt: number): void {

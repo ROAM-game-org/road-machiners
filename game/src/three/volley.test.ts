@@ -236,7 +236,7 @@ describe("playVolley sounds", () => {
       c.fired({ pos: p } as never);
       c.landed();
     };
-    const host = { world: emptyWorld(), fx: { shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
+    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
     playVolley(host, plansOf([round]), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false, null);
     return cues;
   }
@@ -266,7 +266,7 @@ describe("playVolley breaks", () => {
     target.id = "t";
     const host = {
       world,
-      fx: { shot: (_s: unknown, _m: unknown, _p: unknown, _r: unknown, cues: { landed: () => void }) => landed.push(cues.landed), label: () => {}, later: () => {}, projectileImpact: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, _p: unknown, _r: unknown, cues: { landed: () => void }) => landed.push(cues.landed), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: (cue: string) => sounds.push(cue) },
       eventPoint,
       breakPart: (b: PartBreak) => broken.push(b),
@@ -568,7 +568,7 @@ describe("playShotFx before a shooter's view exists", () => {
     const host = {
       world,
       views: new Map(),
-      fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number; flightMs: number }) => launched.push(plan), label: () => {}, later: () => {}, projectileImpact: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: { delayMs: number; flightMs: number }) => launched.push(plan), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -596,7 +596,7 @@ describe("playShotFx before a shooter's view exists", () => {
     const host = {
       world,
       views: new Map(),
-      fx: { shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {}, later: () => {}, projectileImpact: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -614,7 +614,7 @@ describe("playShotFx before a shooter's view exists", () => {
 });
 
 describe("playShotFx after the shooter's view is gone", () => {
-  type Kept = { muzzle: () => Muzzle; landed: () => void };
+  type Kept = { muzzle: () => Muzzle; fired: (m: Muzzle) => void };
   const M1: Muzzle = { pos: { x: 4, y: 2, z: 6 }, dir: { x: 1, y: 0, z: 0 } };
 
   const emptyingShot = (views: Map<string, unknown>) => {
@@ -633,7 +633,7 @@ describe("playShotFx after the shooter's view is gone", () => {
     const host = {
       world,
       views,
-      fx: { shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { landed: () => void }) => kept.push({ muzzle, landed: cues.landed }), label: () => {}, later: () => {}, projectileImpact: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { fired: (m: Muzzle) => void }) => kept.push({ muzzle, fired: cues.fired }), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -647,13 +647,13 @@ describe("playShotFx after the shooter's view is gone", () => {
     return { shooter: shooter.id, kept, sounds, poses };
   };
 
-  it("plays the gun-empty cue once at the last muzzle when the view goes before the rounds land", () => {
+  it("plays the gun-empty cue once at the last launch after the view disappears", () => {
     const views = new Map<string, unknown>();
     const { shooter, kept, sounds } = emptyingShot(views);
     views.set(shooter, { covers: () => true, turretUnit: () => 0, muzzle: () => M1 });
     kept.forEach((k) => k.muzzle());
     views.delete(shooter);
-    for (const k of kept) k.landed();
+    for (const k of kept) k.fired(k.muzzle());
     expect(sounds.filter((s) => s.cue === "gun-empty")).toEqual([{ cue: "gun-empty", at: M1.pos }]);
   });
 
@@ -696,7 +696,7 @@ describe("playShotFx through the move", () => {
     const host = {
       world,
       views: new Map([[shooter.id, { covers: () => true, turretUnit: () => 0 }]]),
-      fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {}, later: (_at: number, run: () => void) => run(), projectileImpact: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {}, later: (_at: number, run: () => void) => run(), projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},

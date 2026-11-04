@@ -182,6 +182,10 @@ export class Fx3D {
     this.projectiles.launch({ spec, muzzle, plan, onFire, onLand, ground });
   }
 
+  clearShots(): void {
+    this.projectiles.clearFlights();
+  }
+
   projectileImpact(plan: RoundPlan, blastRadius: number, big: boolean): void {
     this.landing(plan, blastRadius, big);
   }

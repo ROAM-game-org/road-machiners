@@ -495,6 +495,8 @@ function pastMiss(a: V3, b: V3, offset: number, ground: Ground, random: () => nu
 
 function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   const state = combatState(host.world);
+  host.fx.clearShots();
+  resumeTimedFlights(host, state);
   const rows = new Map<string, number>();
   const last = new Map<string, TimedFlight>();
   for (const record of state.records) {
@@ -514,6 +516,7 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
 function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);
+  if (record.at < state.turnStart + host.startMs) return;
   if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight);
   if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
 }
@@ -533,8 +536,11 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
   host.fx.shot(roundSpec(spec, pellet), muzzle, {
     delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
   }, blastRadiusOf(f.weaponDefId), {
-    fired: m => host.sound.at(sounds.fire, m.pos, 0),
-    landed: () => { if (dry) host.sound.at('gun-empty', muzzle().pos, 0); },
+    fired: m => {
+      host.sound.at(sounds.fire, m.pos, 0);
+      if (dry) host.sound.at('gun-empty', m.pos, 0);
+    },
+    landed: () => {},
   }, ground, host.world.turn);
 }
 
@@ -584,4 +590,23 @@ function queueTimedScore(host: CombatHost, state: TimedCombatState, records: Tim
 function timedImpactPlan(world: World, f: TimedFlight, hit: boolean): RoundPlan {
   const point = groundPoint(world.terrain, f.impactAt);
   return { delayMs: 0, flightMs: 0, land: { ...point, y: point.y + Number(hit) }, impact: hit ? 'truck' : 'ground' };
+}
+
+function resumeTimedFlights(host: CombatHost, state: TimedCombatState): void {
+  const old = state.records.flatMap(record => record.flight && record.flight.launchedMs < state.turnStart ? [record.flight] : []);
+  const pending = state.flights.filter(flight => flight.launchedMs < state.turnStart);
+  for (const flight of [...old, ...pending]) resumeTimedFlight(host, state, flight);
+}
+
+function resumeTimedFlight(host: CombatHost, state: TimedCombatState, flight: TimedFlight): void {
+  if (!host.eventPoint(flight.targetId) && !host.eventPoint(flight.shooterId)) return;
+  const elapsedMs = state.turnStart + host.startMs - flight.launchedMs;
+  if (elapsedMs < 0 || flight.landsAt <= state.turnStart + host.startMs) return;
+  const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
+  const from = groundPoint(host.world.terrain, flight.from);
+  const land = groundPoint(host.world.terrain, flight.impactAt);
+  const muzzle = () => ({ pos: { ...from, y: from.y + 1 }, dir: { x: 1, y: 0, z: 0 } });
+  host.fx.shot(projectileOf(flight.weaponDefId), muzzle, {
+    delayMs: 0, flightMs: flight.landsAt - flight.launchedMs, elapsedMs, land, impact: 'none',
+  }, blastRadiusOf(flight.weaponDefId), { fired: () => {}, landed: () => {} }, ground, host.world.turn);
 }
