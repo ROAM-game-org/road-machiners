@@ -89,7 +89,7 @@ describe('far NPC travel', () => {
   it('simulates only near vehicles in physics', () => {
     const { w, d, last } = play(mixedWorld(), 1);
     expect(Object.keys(d.bodies).sort()).toEqual([w.vehicles[0].id, w.vehicles[1].id].sort());
-    expect(w.vehicles[2].trail).toHaveLength(RULES.substeps + 1);
+    expect(w.vehicles[2].trail).toHaveLength(TURN_STEPS + 1);
     freeDrive(d);
   });
 
@@ -778,4 +778,45 @@ it('moves distant trucks along their coarse paths while projectiles are in fligh
     if (next) freeDrive(next);
     freeDrive(drive);
   }
+});
+
+it('uses damaged drive parts for the remaining distant movement', async () => {
+  const { FarCombatMotion } = await import('./far');
+  const { mountedParts } = await import('./grid');
+  const run = (broken: boolean) => {
+    const w = emptyWorld();
+    const truck = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 40, y: 30 });
+    truck.speed = 4;
+    truck.order = { kind: 'through', dest: { x: 80, y: 30 }, pace: 6 };
+    const motion = new FarCombatMotion(w, [truck]);
+    motion.at(0.25);
+    if (broken) mountedParts(truck, 'engine')[0].hp = 0;
+    motion.at(0.5);
+    motion.finish();
+    return truck.pos.x - 40;
+  };
+  expect(run(true)).toBeLessThan(run(false));
+});
+
+it('charges distant movement only as it happens and never arrives after a knockout', async () => {
+  const { FarCombatMotion } = await import('./far');
+  const { knockOutNpc } = await import('./defeat');
+  const w = emptyWorld();
+  const truck = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 40, y: 30 });
+  truck.speed = 4;
+  truck.order = { kind: 'stopAt', dest: { x: 42.5, y: 30 } };
+  truck.brain = npcBrain('trader', truck.pos, ['trader']);
+  const fuel = getResources(w, truck).fuel;
+  const motion = new FarCombatMotion(w, [truck]);
+  expect(getResources(w, truck).fuel).toBe(fuel);
+  expect(w.events.some(e => e.t === 'arrived' && e.vehicle === truck.id)).toBe(false);
+  motion.at(0.25);
+  const stoppedAt = { ...truck.pos };
+  const spent = getResources(w, truck).fuel;
+  expect(spent).toBeLessThan(fuel);
+  knockOutNpc(w, truck);
+  motion.finish();
+  expect(truck.pos).toEqual(stoppedAt);
+  expect(getResources(w, truck).fuel).toBe(spent);
+  expect(w.events.some(e => e.t === 'arrived' && e.vehicle === truck.id)).toBe(false);
 });

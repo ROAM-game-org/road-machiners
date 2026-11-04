@@ -234,7 +234,7 @@ export class TimedDrive {
     if (steps !== TURN_STEPS || !state.active) return;
     this.state = state;
     const near = new Set(cars.map(car => car.v.id));
-    this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)), true);
+    this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)));
     this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading, speed: c.v.speed, bend: c.v.bend }));
   }
   step(): void {
