@@ -136,6 +136,39 @@ type Tap = { pointerId: number; x: number; y: number };
 
 type Press = { timer: number; source: ItemSource; id: string; item: GridItem; grab: { x: number; y: number } };
 
+interface FitRoom {
+  size: string;
+  overflow: (root: HTMLElement) => number;
+}
+
+function scrollAncestor(box: HTMLElement): HTMLElement | null {
+  let outermost: HTMLElement | null = null;
+  for (let node = box.parentElement; node; node = node.parentElement) {
+    const y = getComputedStyle(node).overflowY;
+    if (y === "auto" || y === "scroll") outermost = node;
+  }
+  return outermost;
+}
+
+function lowestGrid(root: HTMLElement): number {
+  const trucks = [...root.querySelectorAll(".inv-truck")];
+  return Math.max(...trucks.map((t) => t.getBoundingClientRect().bottom));
+}
+
+function overflowIn(frame: HTMLElement, root: HTMLElement): number {
+  const padding = parseFloat(getComputedStyle(frame).paddingBottom) || 0;
+  return uiSize().toLayer(lowestGrid(root) - frame.getBoundingClientRect().top) + frame.scrollTop - (frame.clientHeight - padding);
+}
+
+function fitRoom(box: HTMLElement): FitRoom {
+  const frame = scrollAncestor(box);
+  const frames = [frame ?? box];
+  return {
+    size: frame ? `frame ${frame.offsetWidth}x${frame.offsetHeight}` : `box ${box.offsetWidth}x${box.offsetHeight}`,
+    overflow: (root) => Math.max(...frames.map((f) => overflowIn(f, root))),
+  };
+}
+
 export class InventoryView {
   private drag: Drag | null = null;
   private press: Press | null = null;
@@ -185,14 +218,21 @@ export class InventoryView {
   }
 
   fitTo(box: HTMLElement): void {
+    const room = fitRoom(box);
+    const key = this.fitKeyOf(room.size);
+    if (this.scale.holds(key)) {
+      this.render();
+      return;
+    }
     this.scale.reset();
     this.render();
-    const trucks = [...this.root.querySelectorAll(".inv-truck")];
-    if (trucks.length === 0) throw new Error("Inventory view is not rendered");
-    const over = uiSize().toLayer(Math.max(...trucks.map((t) => t.getBoundingClientRect().bottom)) - box.getBoundingClientRect().bottom);
-    if (over <= 0) return;
-    this.scale.shrinkBy(over);
-    this.render();
+    if (this.root.querySelector(".inv-truck") === null) throw new Error("Inventory view is not rendered");
+    this.scale.settle(key, () => room.overflow(this.root), () => this.render());
+  }
+
+  private fitKeyOf(size: string): string {
+    const w = this.host.world();
+    return [this.mine(w).id, this.shown(w).chassisId, this.truck ?? "", this.loot ?? "", uiSize().toLayer(1), size].join("|");
   }
 
   setLoot(stockId: string | null): void {

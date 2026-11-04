@@ -12,7 +12,7 @@ export type Footprint = { offsets: number[]; r: number };
 
 export type Mover = { id: string; pos: Vec; vel: Vec; r: number };
 
-export type Clearance = { touches(at: Vec, heading: number, bend: number | undefined): boolean; depth(at: Vec, heading: number, bend: number | undefined): number; worsensFrom(at: Vec, heading: number, bend: number | undefined): (to: Vec, heading: number, bend: number | undefined) => boolean; meetsMoving(at: Vec, heading: number, bend: number | undefined, seconds: number, movers: Mover[]): boolean; follow(prev: Pose, next: Pose): Pose };
+export type Clearance = { touches(at: Vec, heading: number, bend: number | undefined): boolean; depth(at: Vec, heading: number, bend: number | undefined): number; worsensFrom(at: Vec, heading: number, bend: number | undefined): (to: Vec, heading: number, bend: number | undefined) => boolean; meetsMoving(at: Vec, heading: number, bend: number | undefined, seconds: number, movers: Mover[]): Mover | null; follow(prev: Pose, next: Pose): Pose };
 
 const footprints = new Map<string, Footprint>();
 
@@ -80,10 +80,10 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
         if (![m.pos.x, m.pos.y, m.vel.x, m.vel.y].every(Number.isFinite)) throw new Error(`Mover ${m.id} has a non-finite position or velocity`);
         const there = { x: m.pos.x + m.vel.x * seconds, y: m.pos.y + m.vel.y * seconds };
         for (const { c, r } of circles) {
-          if (dist(there, c) < m.r + r + PHYSICS.driver.clearMargin + PHYSICS.driver.moverSpread * seconds) return true;
+          if (dist(there, c) < m.r + r + PHYSICS.driver.clearMargin + PHYSICS.driver.moverSpread * seconds) return m;
         }
       }
-      return false;
+      return null;
     },
   };
 }
