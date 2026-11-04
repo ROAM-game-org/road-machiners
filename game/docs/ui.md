@@ -85,6 +85,7 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 - An action sits at the end of the line it changes. A Buy button is inside its row. The turn commits at the bottom right.
 - A choice the game waits for opens a notice at the top center and stops nothing else on screen.
 - A task that takes the whole attention, like a shop or a save, opens a modal in the center.
+- A confirm of the player's own command that throws away progress opens the confirm dialog in the center over every screen, and nothing else takes a key until it is answered. New game, Restart run, End run and Load save ask this way, through `askConfirm()` in `src/ui/confirm-dialog.ts`, and no code opens a browser `alert`, `confirm` or `prompt`, since a native box leaves fullscreen. This bends the choice level of 7, a notice, because a notice waits on the game and stops nothing, while a confirm guards a command the player just gave. Escape and Cancel are one path, and Escape closes only the dialog.
 - The quest page and the `.ink-page` take the layer above the instruments and the log, and those hide while one is open, so nothing of the HUD lies over a page. The call notice still shows over it, since a call waits for an answer.
 - A look screen over a scene: while a talk window or page scene is on view, I, C and J open the inventory, character screen and journal over it in a look-only state. The screen lifts to `--z-over-scene`, with its own scrim, and its world controls are off with one reason, "Not during a scene". Escape closes it and the scene stays at the same paragraph. The scene lets the keys through while a Menu panel is open. On a phone the bar is hidden under the scene, so the scene window shows a row of three icon buttons (`.quest-look`) in its top corner for the same screens.
 - The game menu may hold a rare world action that is a way out, not a truck control, like Get unstuck. It is a flat menu button, and when the sim would refuse it the entry is off with that reason in the shared tooltip, read from `unstuckBlock()`.
@@ -279,7 +280,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - `--lcd-cell-w` is the minimum width of an LCD readout cell beside the dial, 88px, and 0 in the narrow layer.
 - `--compass-w` is the side of the compass gauge beside the speed dial, 60px, and 44px on the phone.
 - HUD placement: `--hud-inset` from the window edge, `--hud-gap` between HUD panels, `--hud-hover-top` for the hover panel and `--hud-notice-top` for notices.
-- Layers run `--z-hud` to `--z-report`. The report desk sits above the crash screen. A new layer goes between two others in `tokens.css`, never as a raw number.
+- Layers run `--z-hud` to `--z-report`, with `--z-confirm` above `--z-new-game` and below `--z-tip`. The report desk sits above the crash screen. A new layer goes between two others in `tokens.css`, never as a raw number.
 
 ## 12. Shared pieces
 
@@ -292,6 +293,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
   - The Charts tab of a chart town, the whole map fitted with each map grid square for sale outlined on the grid's own lines.
 - `.panel` is the base of every HUD box: panel surface, strong edge, shadow and the standard padding of `--space-4` by `--space-5`. The radio, the instruments and the weapons are drawn hardware and use the compact padding of `--space-2` by `--space-4`. Only the help panel sets its own, since its rows carry their own margins.
 - `.dialog` frames a modal, the save panel and the New game screen, with the scrim over the game and padding of `--space-9` on every side.
+- `.confirm-dialog` is the yes or no question of a command that throws away progress: a `.dialog` in the center at `--z-confirm`, `role="alertdialog"`, over a `.confirm-block` that takes every pointer event. It holds the question as one body paragraph and a right-aligned row of Cancel and the yes button, which is `.btn-danger` and names the action (Start new game, Restart run, End run, Load save). It has no heading (P17). Focus starts on Cancel, Tab wraps between the two buttons, Escape is Cancel, and every other key is held back from the game and from the screens under it. A second ask while one is open is refused. `isConfirmOpen()` counts in `GameMenu.isOpen()`.
 - `.dock-panel` is a panel of the right dock: the log, the contracts and the radio.
 - The desktop right dock scrolls inside when held contracts exceed the space above the log and End turn. The phone Radio drawer uses its existing scroll area.
 - `.notice` is a box at the top middle of the HUD that waits for a choice: rescue, stranded and dialogue.

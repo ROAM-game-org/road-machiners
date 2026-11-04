@@ -61,6 +61,7 @@ const afterCrashRetry = async (step) => step().catch(async (cause) => { if (cras
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+page.on('dialog', (d) => { errors.push(`native ${d.type()} dialog: ${d.message()}`); d.dismiss(); });
 await emulateWebGL2Floor(page);
 await afterCrashRetry(async () => {
   await page.goto(playUrl(url));
