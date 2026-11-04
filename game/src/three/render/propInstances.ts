@@ -1,12 +1,12 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { propPose, propReach, type PropPose } from '../../sim/mapgen';
-import { propBase } from '../../sim/bridge';
+import { propBase, propPose, propReach, type PropPose } from '../../sim/mapgen';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import { dist } from '../../sim/vec';
-import { instancedModel, type ModelName } from './models';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { registerMergedOutline, SHIP_GLOW_MATERIAL, sourceParts, type ModelName, type SourcePart } from './models';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
 
@@ -81,7 +81,7 @@ export class PropInstances {
       g.updateMatrix();
       return g.matrix;
     });
-    const group = instancedModel(name, placements, placements.map(() => 1), (source) => materialOf(name, source));
+    const group = instancedProp(name, placements, materialOf);
     const meshes = group.children.map((m) => {
       if (!(m instanceof THREE.InstancedMesh)) throw new Error(`Instanced ${name} holds a mesh that is not instanced`);
       return m;
@@ -117,6 +117,83 @@ function groupsOf(props: readonly Landmark[]): Map<string, [ModelName, Landmark[
     else out.set(key, [name, [o]]);
   }
   return out;
+}
+
+type MergedModel = { geometry: THREE.BufferGeometry | null; look: THREE.MeshLambertMaterial; special: readonly SourcePart[] };
+
+const mergedModels = new WeakMap<readonly SourcePart[], MergedModel>();
+
+function isPlain(material: THREE.Material): material is THREE.MeshLambertMaterial {
+  return material instanceof THREE.MeshLambertMaterial && isOnlyColor(material);
+}
+
+function isOnlyColor(material: THREE.MeshLambertMaterial): boolean {
+  const flat = material.side === THREE.FrontSide && !material.transparent;
+  const unlit = material.emissive.getHex() === 0 && material.name !== SHIP_GLOW_MATERIAL;
+  return flat && unlit && !material.map && !material.aoMap;
+}
+
+function coloredPiece(part: SourcePart & { material: THREE.MeshLambertMaterial }): THREE.BufferGeometry {
+  const piece = new THREE.BufferGeometry();
+  const source = part.geometry;
+  if (!source.getAttribute('normal')) throw new Error('A merged prop part has no normals');
+  piece.setAttribute('position', source.getAttribute('position').clone());
+  piece.setAttribute('normal', source.getAttribute('normal').clone());
+  if (source.index) piece.setIndex(source.index.clone());
+  const colors: number[] = [];
+  const { r, g, b } = part.material.color;
+  for (let i = 0; i < piece.getAttribute('position').count; i++) colors.push(r, g, b);
+  piece.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  return piece.applyMatrix4(part.matrix);
+}
+
+function mergePlain(name: ModelName, parts: readonly (SourcePart & { material: THREE.MeshLambertMaterial })[]): THREE.BufferGeometry {
+  const pieces = parts.map(coloredPiece);
+  const indexed = pieces.every((p) => p.index);
+  const merged = mergeGeometries(indexed ? pieces : pieces.map((p) => (p.index ? p.toNonIndexed() : p)));
+  if (!merged) throw new Error(`Merged ${name} has parts with different attributes`);
+  registerMergedOutline(merged, parts);
+  return merged;
+}
+
+function mergedOf(name: ModelName): MergedModel {
+  const parts = sourceParts(name);
+  const known = mergedModels.get(parts);
+  if (known) return known;
+  const plain = parts.filter((p): p is SourcePart & { material: THREE.MeshLambertMaterial } => isPlain(p.material));
+  const merged: MergedModel = {
+    geometry: plain.length > 0 ? mergePlain(name, plain) : null,
+    look: new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, vertexColors: true, name: 'merged' }),
+    special: parts.filter((p) => !isPlain(p.material)),
+  };
+  mergedModels.set(parts, merged);
+  return merged;
+}
+
+export function instancedProp(name: ModelName, placements: THREE.Matrix4[], materialOf: MaterialOf): THREE.Group {
+  if (placements.length === 0) throw new Error(`Instanced ${name} needs at least one placement`);
+  const merged = mergedOf(name);
+  const group = new THREE.Group();
+  if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, new THREE.Matrix4()));
+  for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, part.matrix));
+  group.matrixAutoUpdate = false;
+  return group;
+}
+
+function instancedPart(geometry: THREE.BufferGeometry, material: THREE.Material, placements: THREE.Matrix4[], local: THREE.Matrix4): THREE.InstancedMesh {
+  const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
+  const matrix = new THREE.Matrix4();
+  const tint = new THREE.Color(1, 1, 1);
+  placements.forEach((placement, i) => {
+    mesh.setMatrixAt(i, matrix.multiplyMatrices(placement, local));
+    mesh.setColorAt(i, tint);
+  });
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.matrixAutoUpdate = false;
+  mesh.computeBoundingBox();
+  mesh.computeBoundingSphere();
+  return mesh;
 }
 
 function setInstance(mesh: THREE.InstancedMesh, index: number, matrix: ArrayLike<number>): void {

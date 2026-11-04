@@ -48,6 +48,8 @@ A prop that trucks drive under keeps every box below `PHYSICS.truckClearance` (2
 
 ## Territory loot sections
 
+Car wrecks come in four looks, picked from the prop's id: the burnt pickup `wreck` (`wreck.py`), a burnt GAZ-24 Volga sedan on its rims `wreck_sedan`, a ZAZ-968 Zaporozhets rolled on its side `wreck_compact` and a stripped VAZ-2104 estate on blocks with two wheels stacked beside it `wreck_wagon`. They share the six `wreck.py` colors, a footprint reach of 2.1 to 2.8 m at unit scale and box tops under 1.9 m, so the loot lift, salvage reach and sight match the pickup's.
+
 The loot spots of the Fallen Sun and Glass Flats are sections of their wreck, not crate heaps: `hull_bay` (hull caches), `cargo_pod` (field spots) and `engine_section` (Glass Flats caches). Each is built to a 2.8 m footprint radius like the heap it replaces, stays under the 2.4 m eye height so its load shows, and is open on top with its cargo in bright ship colors. A crate heap now means a dropped pile or an army depot.
 
 ## Trucks
@@ -84,7 +86,7 @@ Each truck is one base model per chassis plus shared kit parts on its inventory 
 - Build a part for its rotation-0 footprint: w cells across in Blender Y and h cells along in Blender X, with the nose at +X. Truck right is Blender -Y. The origin is the footprint center on the deck top.
 - The view turns a part for rotation 1 and 3 and stretches it to the turned footprint. Rotation 2 and 3 draw like 0 and 1. So keep parts boxy.
 - A weapon's mount keeps that footprint where the body under it allows. Only the gun head turns, by the gun's facing: rotation times 90 degrees clockwise from the nose.
-- Build armor as a front-edge row with its outer face at +X. The view turns it to the side its cells lie on. A mounted side plate is drawn thin on the model's outer face, and rams replace the bumper. Accessories, the rams and spikes, use the same row build. Over a plate they are drawn one armor depth further out, in front of it. Armor rows are 1 or 3 cells long.
+- Build armor as a front-edge row with its outer face at +X. The view turns it to the side its cells lie on. A mounted side plate is drawn thin on the model's outer face, and rams replace the bumper. Accessories, the rams and spikes, use the same row build. Over a plate they are drawn one armor depth further out, in front of it. Armor rows are 1 or 2 cells long, and rams are 4.
   - Keep armor shallow. Front and back plates fill their cell, and spare plates fill their rest, so a strut behind the plate shows on the truck and as a stem in the icon. `check_fit()` in `tools/blender/parts_common_armor.py` stops the build when a vertex lies more than `BACK_DEPTH` (0.40 m, the spaced armor's foot) behind the outer edge. Hold a plate up with a gusset inside its foot, and end cage brackets at a back rail.
 - Items stand on their row surface. An engine on its mount cells shows through a cutout in the base. A weapon whose mount stands more than 5 cm above the surface under it stands on a riser post from that surface. The post lifts its turret over the cab ahead and over everything its barrel can sweep, see `gunClearance.ts`.
 - Every drawn piece stands on the real base mesh, not on the height map, which keeps only the top of each 10 cm column and misses overhangs. `gunStand.ts` casts rays at the base's triangles. Glass, lamps and the radio light never hold anything up.

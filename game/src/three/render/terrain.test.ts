@@ -94,7 +94,8 @@ describe('terrain under decks', () => {
 
 describe('ground texture side', () => {
   it('keeps the highway ground at its texel density', () => {
-    expect(groundSide(HIGHWAY.size)).toBe(1420);
+    expect(groundSide(HIGHWAY.size)).toBe(2709);
+    expect(groundSide(HIGHWAY.size) / (HIGHWAY.size + 20)).toBeCloseTo(groundSide(600) / 620, 2);
   });
 
   it('caps the Icarus ground at the texture floor', () => {

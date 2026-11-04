@@ -53,8 +53,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> about_me
 + {towed_to_bowl and not asked_what} [What happened to me?]
   ~ asked_what = true
-  {engine_missing(): Heard they took your engine and left you the truck to swear at.|Heard a raider went through your truck and left the engine alone. Count yourself lucky.} # speaker: Hattie
-  Tow man brought you here on his chain. # speaker: Hattie
+  He said he found your truck dead in the badlands, with you in the seat. That's his word, I wasn't there. {engine_missing(): He didn't say who pulled the engine.|He didn't say who went through the cab.} # speaker: Hattie
   -> about_me
 + {not asked_next} [What do I do now?]
   ~ asked_next = true

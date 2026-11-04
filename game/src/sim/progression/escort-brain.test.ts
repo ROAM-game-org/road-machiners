@@ -6,10 +6,12 @@ import type { Vehicle, World } from '../types';
 import { dist } from '../vec';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
-import { asFighter, escortFoe, escortMove as moveWith, hostilesSeen, lagBehind, leash, nearestToHauler, type Stall } from './escort-brain';
+import { escortFoe, escortMove as moveWith, type Stall } from './escort-brain';
+import { asFighter } from './fighter';
 import { RULES } from '../../data/rules';
+import { NPC_BEHAVIOR } from '../../data/npcs';
 
-const freshStall = (me: Vehicle): Stall => ({ turn: -1, at: { ...me.pos }, stalled: 0, recovery: 0, goal: null });
+const freshStall = (_me: Vehicle): Stall => ({});
 const escortMove = (w: World, me: Vehicle) => moveWith(w, me, escortFoe(w, me), freshStall(me));
 
 function started(): World {
@@ -27,26 +29,20 @@ function destOf(order: ReturnType<typeof escortMove>) {
   return order.dest;
 }
 
-describe('hostilesSeen', () => {
-  it('lists a hostile truck in sight and skips one out of sight', () => {
+describe('escortFoe', () => {
+  it('picks a hostile truck in sight and skips one out of sight', () => {
     const w = started();
     const near = foeAt(w, 6, 0, playerVehicle(w));
-    const far = foeAt(w, 0, -300, haulerOf(w));
+    foeAt(w, 0, -300, haulerOf(w));
     refreshVision(w);
-    const ids = hostilesSeen(w).map((v) => v.id);
-    expect(ids).toContain(near.id);
-    expect(ids).not.toContain(far.id);
+    expect(escortFoe(w, playerVehicle(w))?.id).toBe(near.id);
   });
-});
 
-describe('nearestToHauler', () => {
-  it('picks the foe closest to the hauler', () => {
+  it('finds no foe when none is in sight', () => {
     const w = started();
-    const hauler = haulerOf(w);
-    const close = foeAt(w, 4, 0, hauler);
-    const farther = foeAt(w, 12, 0, hauler);
-    expect(nearestToHauler(w, [farther, close])?.id).toBe(close.id);
-    expect(nearestToHauler(w, [])).toBeNull();
+    foeAt(w, 0, -300, haulerOf(w));
+    refreshVision(w);
+    expect(escortFoe(w, playerVehicle(w))).toBeNull();
   });
 });
 
@@ -57,65 +53,56 @@ describe('escortMove', () => {
     expect(destOf(escortMove(w, playerVehicle(w)))).toEqual(followSpot(w, playerVehicle(w), haulerOf(w), 0));
   });
 
-  it('stops at its follow spot when it reaches it this turn, so a gun truck faster than the hauler never coasts past it with no order', () => {
+  it('stops at its follow spot while the hauler is parked and drives through it while the hauler moves', () => {
     const w = started();
     const me = playerVehicle(w);
     const hauler = haulerOf(w);
-    hauler.speed = 4.5;
-    const spot = followSpot(w, me, hauler, 0);
-    me.pos = { x: spot.x, y: spot.y + 2 };
-    me.speed = 7.2;
     refreshVision(w);
+    hauler.speed = 0;
     expect(escortMove(w, me).kind).toBe('stopAt');
-    me.speed = 1;
+    hauler.speed = 4.5;
     expect(escortMove(w, me).kind).toBe('through');
   });
 
-  it('never puts a held pace on the follow order', () => {
+  it('paces itself to the hauler like an NPC guard once it is close', () => {
     const w = started();
+    const me = playerVehicle(w);
     haulerOf(w).speed = 5;
+    const spot = followSpot(w, me, haulerOf(w), 0);
+    const h = haulerOf(w).heading;
+    me.pos = { x: spot.x - Math.cos(h) * 3, y: spot.y - Math.sin(h) * 3 };
     refreshVision(w);
-    const order = escortMove(w, playerVehicle(w));
-    expect(order.kind).not.toBe('brake');
-    expect('pace' in order).toBe(false);
+    const order = escortMove(w, me);
+    expect(order.kind).toBe('through');
+    expect('pace' in order).toBe(true);
   });
 
-  it('fights a foe in sight by the NPC fight point while within its gun reach of the hauler', () => {
+  it('fights a foe in sight from a spot within the wait gap of its place beside the hauler', () => {
     const w = started();
     const me = playerVehicle(w);
     me.pos = { x: haulerOf(w).pos.x + 4, y: haulerOf(w).pos.y };
-    const foe = foeAt(w, 8, 0, me);
+    foeAt(w, 8, 0, me);
     refreshVision(w);
     const dest = destOf(escortMove(w, me));
-    expect(dest).not.toEqual(followSpot(w, me, haulerOf(w), 0));
-    expect(dist(dest, foe.pos)).toBeLessThanOrEqual(leash(w, me) + foe.speed);
+    const post = followSpot(w, me, haulerOf(w), 0);
+    expect(dest).not.toEqual(post);
+    expect(dist(dest, post)).toBeLessThanOrEqual(NPC_BEHAVIOR.escortWaitGap);
+  });
+
+  it('keeps its target while it lags behind the hauler', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    me.pos = { x: hauler.pos.x, y: hauler.pos.y + NPC_BEHAVIOR.escortWaitGap + 2 };
+    const foe = foeAt(w, 6, 0, me);
+    refreshVision(w);
+    expect(escortFoe(w, me)?.id).toBe(foe.id);
   });
 
   it('gives the gun truck a merc brain only on a copy, so the player truck keeps none', () => {
     const w = started();
     expect(asFighter(playerVehicle(w)).brain?.templateId).toBe('merc');
     expect(playerVehicle(w).brain).toBeNull();
-  });
-
-  it('drives back to the hauler once it falls behind it by more than its gun reach, even with a foe in sight', () => {
-    const w = started();
-    const me = playerVehicle(w);
-    const hauler = haulerOf(w);
-    me.pos = { x: hauler.pos.x, y: hauler.pos.y + leash(w, me) + 5 };
-    foeAt(w, 6, 0, me);
-    refreshVision(w);
-    expect(lagBehind(w, me, hauler)).toBeGreaterThan(leash(w, me));
-    expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBe(0);
-  });
-
-  it('keeps fighting a foe off to the side of the hauler, since only falling behind pulls it back', () => {
-    const w = started();
-    const me = playerVehicle(w);
-    const hauler = haulerOf(w);
-    me.pos = { x: hauler.pos.x + leash(w, me) + 5, y: hauler.pos.y };
-    foeAt(w, 6, 0, me);
-    refreshVision(w);
-    expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBeGreaterThan(0);
   });
 });
 
@@ -161,8 +148,8 @@ describe('the escort stall', () => {
     for (let k = 0; k < 5; k++) {
       w.turn += 1;
       me.order = { kind: 'stopAt', dest: { ...me.pos } };
-      expect(moveWith(w, me, null, stall).kind === 'stopAt' && stall.recovery > 0).toBe(false);
+      expect(moveWith(w, me, null, stall).kind === 'stopAt' && !!stall.recovery).toBe(false);
     }
-    for (let k = 0; k < 5; k++) expect(heldTurn(w, me, stall, w.turn + 2).kind === 'stopAt' && stall.recovery > 0).toBe(false);
+    for (let k = 0; k < 5; k++) expect(heldTurn(w, me, stall, w.turn + 2).kind === 'stopAt' && !!stall.recovery).toBe(false);
   });
 });

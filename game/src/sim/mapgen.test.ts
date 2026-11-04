@@ -4,9 +4,9 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../data/region';
 import { FALLEN_SUN_DECKS, TERRITORIES } from '../data/territory';
 import { START_KITS } from '../data/start';
 import { PHYSICS } from '../data/physics';
-import { ROCK_LOOKS } from '../data/terrain';
+import { CAR_WRECK_LOOKS, ROCK_LOOKS } from '../data/terrain';
 import { deckAt, deckById, underDeck } from './bridge';
-import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, obstacleReach, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
+import { anyLookBoxes, blockingBoxes, carWreckModel, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, obstacleReach, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
 import { hulkBoxes } from './body';
 import { ROAD_INDEX } from './road-index';
 import { isFortress } from './sites';
@@ -249,7 +249,7 @@ describe('prop poses', () => {
   it('turns a wreck by its id the other way and sizes it from its 0.7-tile reference', () => {
     const pose = propPose({ id: 'wreck3', pos: { x: 12, y: 34 }, r: 0.91, kind: 'wreck' });
 
-    expect(pose.model).toBe('wreck');
+    expect(pose.model).toBe(carWreckModel('wreck3'));
     expect(pose.yaw).toBeCloseTo(0.30278265313245356 * Math.PI * 2, 12);
     expect(pose.scale).toEqual(even(0.91 / 0.7));
   });
@@ -280,12 +280,55 @@ describe('prop poses', () => {
     expect(propReach(landmark(look, 0.7))).toBeLessThanOrEqual(0.9 * S);
   });
 
-  it('keeps the generic wreck pose and shape for a kill wreck without a hulk', () => {
+  it('gives a kill wreck without a hulk the car look of its id and the boxes of that look', () => {
     const plain: Obstacle = { id: 'wreck-npc7', pos: { x: 12, y: 34 }, r: 0.9, kind: 'wreck' };
+    const model = carWreckModel('wreck-npc7');
 
-    expect(propPose(plain).model).toBe('wreck');
-    expect(propKey(plain).startsWith('wreck|')).toBe(true);
-    expect(propBoxes(plain).length).toBe(propShape('wreck').length);
+    expect(propPose(plain).model).toBe(model);
+    expect(propKey(plain).startsWith(`${model}|`)).toBe(true);
+    expect(propBoxes(plain).length).toBe(propShape(model).length);
+  });
+
+  describe('car wreck looks', () => {
+    const ids = Array.from({ length: 4000 }, (_, i) => `wreck${i}`);
+
+    it('depends on the id alone and stays inside the table', () => {
+      const models: string[] = CAR_WRECK_LOOKS.map((look) => look.model);
+      for (const id of ids.slice(0, 50)) {
+        expect(carWreckModel(id)).toBe(carWreckModel(id));
+        expect(models).toContain(carWreckModel(id));
+      }
+    });
+
+    it.each(CAR_WRECK_LOOKS)('gives $model a share within 0.05 of its weight', ({ model, weight }) => {
+      const share = ids.filter((id) => carWreckModel(id) === model).length / ids.length;
+      expect(Math.abs(share - weight)).toBeLessThanOrEqual(0.05);
+    });
+
+    it('gives a car wreck landmark and a plain wreck with the same id the same look', () => {
+      for (const id of ['carWreck-9', 'wreck3', 'wreck-npc7']) {
+        const plain = propPose({ id, pos: { x: 12, y: 34 }, r: 0.7, kind: 'wreck' });
+        const landmark = propPose({ id, pos: { x: 12, y: 34 }, r: 0.7, kind: 'landmark', look: 'carWreck', yaw: 0 });
+        expect(landmark.model).toBe(plain.model);
+      }
+    });
+
+    it('keeps the pickup for a dead truck and the chassis for a hulk', () => {
+      for (const id of ids.slice(0, 40)) {
+        expect(propPose({ id, pos: { x: 12, y: 34 }, r: 0.7, kind: 'landmark', look: 'deadTruck', yaw: 0 }).model).toBe('wreck');
+        expect(propPose({ id, pos: { x: 12, y: 34 }, r: 0.7, kind: 'wreck', hulk: { chassisId: 'bus', yaw: 0 } }).model).toBe('hulk');
+      }
+    });
+
+    it('measures a car wreck by the boxes of every look and anything else by its own', () => {
+      const wreck: Obstacle = { id: 'wreck3', pos: { x: 12, y: 34 }, r: 0.91, kind: 'wreck' };
+      const own = propBoxes(wreck);
+      const every = anyLookBoxes(wreck);
+      expect(every.length).toBe(CAR_WRECK_LOOKS.reduce((sum, look) => sum + propShape(look.model).length, 0));
+      for (const box of own) expect(every).toContainEqual(box);
+      const rock: Obstacle = { id: 'rock7', pos: { x: 12, y: 34 }, r: 1.5, kind: 'rock' };
+      expect(anyLookBoxes(rock)).toBe(propBoxes(rock));
+    });
   });
 
   it('stretches a building to its footprint, with a height and half turn from its id', () => {
@@ -307,7 +350,7 @@ describe('prop poses', () => {
       ['ruin', 1.5, 'ruin_house', (1.5 * S) / 4.8],
       ['gasStation', 2, 'gas_station', (2 * S) / 7.2],
       ['bridgeSpan', 2, 'bridge_broken', (2 * S) / 6],
-      ['carWreck', 0.7, 'wreck', (0.7 * S) / (0.7 * S)],
+      ['carWreck', 0.7, carWreckModel('carWreck-9'), (0.7 * S) / (0.7 * S)],
       ['shack', 0.9, 'shack', (0.9 * S) / 3.6],
       ['junk', 0.6, 'junk', (0.6 * S) / 2.4],
       ['fence', 0.5, 'fence', (2 * 0.5 * S) / 4],

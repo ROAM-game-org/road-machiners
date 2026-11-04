@@ -10,7 +10,7 @@ import { inOverdrive, maxSpeedSteps } from './stats';
 import { groupPrey, inCombat } from './combat';
 import { haulerOf, playerVehicle } from './damage';
 import { abandonRun, advanceChaosHighway, betweenLevels, canAbandonRun, canDriveOn, chaosHighwayReadout, moveWindow, planStretch, reachedOutpostAt, runEarnings, spawnGroup, driveOn, waveOf, WINDOW_MOVE } from './chaos-highway';
-import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, type PlannedWave } from './chaos-highway-director';
+import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, truckMoney, type PlannedWave } from './chaos-highway-director';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, stretchLength, toRoad, windowShift } from './highway';
 import { sightRadius } from './vision';
 import { dist } from './vec';
@@ -99,7 +99,7 @@ function plan(seed: number, j: number): WaveGroup[] {
 }
 
 function planned(sizes: number[], first: number): PlannedWave[] {
-  return sizes.map((size, i) => ({ at: first + i * 20, template: 'buggy', size, money: CHAOS_HIGHWAY.cards.buggy.floor, elite: false }));
+  return sizes.map((size, i) => ({ at: first + i * 20, template: 'buggy', size, money: CHAOS_HIGHWAY.cards.buggy.floor, elites: 0 }));
 }
 
 describe('the Chaos Highway enemy cards', () => {
@@ -169,16 +169,15 @@ describe('the stretch director', () => {
     }
   });
 
-  it('makes waves elite only from the elite stretch, with the elite money', () => {
+  it('makes trucks elite only from the elite stretch, and gives an elite truck the elite money and its groupmates the plain money', () => {
     const { elite } = CHAOS_HIGHWAY.director;
     const all = (from: number, to: number) => SEEDS.flatMap((seed) => STRETCHES.filter((j) => j >= from && j <= to).flatMap((j) => wavesOf(seed, j)));
 
-    expect(all(1, elite.from - 1).some((wave) => wave.elite)).toBe(false);
-    const late = SEEDS.flatMap((seed) => STRETCHES.filter((j) => j >= elite.from).flatMap((j) => wavesOf(seed, j).map((wave) => ({ wave, j }))));
-    expect(late.some(({ wave }) => wave.elite)).toBe(true);
-    for (const { wave, j } of late.filter(({ wave: w }) => w.elite)) {
-      expect(wave.money, `stretch ${j}`).toBe(Math.max(CHAOS_HIGHWAY.cards[wave.template].floor, stretchBudget(PLAN_WORLD, j).base) * elite.money);
-    }
+    expect(all(1, elite.from - 1).some((wave) => wave.elites > 0)).toBe(false);
+    const mixed = all(elite.from, STRETCHES[STRETCHES.length - 1]).find((wave) => wave.elites > 0 && wave.elites < wave.size);
+    if (!mixed) throw new Error('No group mixes elite and plain trucks');
+    expect(truckMoney(mixed, 0)).toBe(mixed.money * elite.money);
+    expect(truckMoney(mixed, mixed.size - 1)).toBe(mixed.money);
   });
 
   it('plans the same stretch the same way for the same seed', () => {
@@ -764,12 +763,12 @@ describe('the gear money of a stretch', () => {
   const partsValue = (v: Vehicle): number =>
     v.items.reduce((sum, item) => (item.kind === 'part' && PARTS[item.part.defId].kind !== 'core' ? sum + PARTS[item.part.defId].value : sum), 0);
 
-  it('caps what each spawned truck spends on parts at the money of its group', () => {
+  it('caps what each spawned truck spends on parts at its own gear money', () => {
     const w = nextLevel(withGrowth(0));
     const g = spawnFirst(w);
 
     expect(g.stretch).toBe(2);
     expect(g.money).toBeGreaterThan(0);
-    for (const v of trucksOf(w, g)) expect(partsValue(v)).toBeLessThanOrEqual(g.money);
+    trucksOf(w, g).forEach((v, i) => expect(partsValue(v)).toBeLessThanOrEqual(truckMoney(g, i)));
   });
 });

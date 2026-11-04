@@ -65,20 +65,46 @@ function toCell(ch: string): Cell | null {
   throw new Error(`Bad layout character "${ch}"`);
 }
 
-export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
-  if (item.kind !== 'part') return { w: 1, h: 1 };
-  const d = partDef(item.part.defId);
-  return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+type Sized = Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' });
+
+function checkedPose(item: Sized & { kind: 'part' }): void {
+  const top = partDef(item.part.defId).kind === 'weapon' ? 7 : 3;
+  if (!Number.isInteger(item.rot) || item.rot < 0 || item.rot > top) throw new Error(`Pose ${item.rot} is not allowed for ${item.part.defId}`);
 }
 
-export function itemBulk(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
+export function cellsTurned(item: Pick<GridItem, 'rot'>): boolean {
+  return (item.rot % 2 === 1) !== item.rot >= 4;
+}
+
+export function itemSize(item: Sized): { w: number; h: number } {
   if (item.kind !== 'part') return { w: 1, h: 1 };
+  checkedPose(item);
+  const d = partDef(item.part.defId);
+  return cellsTurned(item) ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+}
+
+export function itemBulk(item: Sized): { w: number; h: number } {
+  if (item.kind !== 'part') return { w: 1, h: 1 };
+  checkedPose(item);
   const d = partDef(item.part.defId).bulk;
-  return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+  return cellsTurned(item) ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
 
 export function facingOf(item: GridItem): number {
-  return item.rot * 90;
+  return (item.rot % 4) * 90;
+}
+
+const WEAPON_TURNS: Rot[] = [0, 1, 2, 3, 4, 5, 6, 7];
+const PART_TURNS: Rot[] = [0, 1];
+const WEAPON_CYCLE: Rot[] = [0, 4, 1, 5, 2, 6, 3, 7];
+
+export function turnsOf(item: GridItem): Rot[] {
+  return isWeapon(item) ? WEAPON_TURNS : PART_TURNS;
+}
+
+export function nextTurn(item: GridItem): Rot {
+  if (!isWeapon(item)) return item.rot === 0 ? 1 : 0;
+  return WEAPON_CYCLE[(WEAPON_CYCLE.indexOf(item.rot) + 1) % WEAPON_CYCLE.length];
 }
 
 export function itemCells(item: GridItem): { x: number; y: number }[] {
@@ -134,7 +160,7 @@ function letterAt(g: Grid, x: number, y: number): Cell | null {
 
 function coversOnly(g: Grid, item: GridItem & { kind: 'part' }, letter: Cell): boolean {
   const d = partDef(item.part.defId);
-  const turned = item.rot % 2 === 1;
+  const turned = cellsTurned(item);
   const w = turned ? d.h : d.w;
   const h = turned ? d.w : d.h;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (letterAt(g, item.x + dx, item.y + dy) !== letter) return false;
@@ -393,8 +419,8 @@ function isWeapon(item: GridItem): boolean {
 
 export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Cell[]): Spot[] {
   const taken = occupiedCells(g, items, item.id)[isAccessoryItem(item) ? 'accessory' : 'base'];
-  const turns = isWeapon(item) ? 4 : 2;
-  const sizes = [0, 1, 2, 3].map((rot) => itemSize({ ...item, rot: rot as Rot }));
+  const turns = turnsOf(item).length as 2 | 8;
+  const sizes = turnsOf(item).map((rot) => itemSize({ ...item, rot }));
   const free = (s: Spot) => {
     const { w, h } = sizes[s.rot];
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (taken.has(cellKey(s.x + dx, s.y + dy))) return false;
@@ -407,7 +433,7 @@ export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Ce
 
 const letterSpotCache = new WeakMap<Grid, Map<string, readonly Spot[]>>();
 
-function spotsOnLetter(g: Grid, letter: Cell, turns: 2 | 4, sizes: { w: number; h: number }[]): readonly Spot[] {
+function spotsOnLetter(g: Grid, letter: Cell, turns: 2 | 8, sizes: { w: number; h: number }[]): readonly Spot[] {
   const byKey = letterSpotCache.get(g) ?? new Map<string, readonly Spot[]>();
   letterSpotCache.set(g, byKey);
   const key = `${letter}|${turns}|${sizes[0].w}x${sizes[0].h}`;
@@ -444,11 +470,11 @@ export function occupiedCells(g: Grid, items: GridItem[], ignoreId: string | nul
 
 const spotCache = new Map<number, readonly Spot[]>();
 
-function allSpots(g: Grid, turns: 2 | 4 = 2): readonly Spot[] {
-  const key = cellKey(g.w, g.h) * 8 + turns;
+function allSpots(g: Grid, turns: 2 | 8 = 2): readonly Spot[] {
+  const key = cellKey(g.w, g.h) * 16 + turns;
   const cached = spotCache.get(key);
   if (cached) return cached;
-  const rots = ([0, 1, 2, 3] as const).slice(0, turns);
+  const rots = WEAPON_TURNS.slice(0, turns);
   const tries = rots.flatMap((rot) => gridSpots(g, rot));
   spotCache.set(key, tries);
   return tries;

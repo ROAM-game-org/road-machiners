@@ -11,7 +11,7 @@ import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { gridSquareText, postedSummary, surveyWayText } from './format';
 import { createIcon } from './cards';
-import { surveyPictureEl } from './survey-picture';
+import { surveyPictureEl } from './picture-store';
 import { contractIcon, heldContractRow } from './contract-row';
 import { el, panel } from './dom';
 import type { UiHost } from './host';
