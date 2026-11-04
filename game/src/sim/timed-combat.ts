@@ -16,14 +16,14 @@ import type { World, Vehicle, Aim, GameEvent, ShotRound } from './types';
 export type TimedAttempt = { at: number; shooter: string; target: string; weapon: string; aim: Aim; volley: string };
 export type TimedFlight = TimedShot & { landsAt: number };
 export type TimedRecord = { at: number; kind: 'launch' | 'cancel' | 'impact'; flight: TimedFlight | null; event: Extract<GameEvent, { t: 'shot' }> | null };
-export type TimedCombatState = { now: number; turnStart: number; active: boolean; flights: TimedFlight[]; attempts: TimedAttempt[]; fired: string[]; volleys: string[]; records: TimedRecord[]; destroyedAt: Record<string, number> };
+export type TimedCombatState = { now: number; turnStart: number; active: boolean; flights: TimedFlight[]; attempts: TimedAttempt[]; fired: string[]; volleys: string[]; records: TimedRecord[]; destroyedAt: Record<string, number>; pendingWrecks: { vehicle: string; by: Vehicle['lastHitBy'] }[] };
 
 export function newTimedCombat(): TimedCombatState {
-  return { now: 0, turnStart: 0, active: false, flights: [], attempts: [], fired: [], volleys: [], records: [], destroyedAt: {} };
+  return { now: 0, turnStart: 0, active: false, flights: [], attempts: [], fired: [], volleys: [], records: [], destroyedAt: {}, pendingWrecks: [] };
 }
 
 export function beginTimedCombat(world: World, state: TimedCombatState, durationMs: number): void {
-  if (state.attempts.length) throw new Error('Unfinished firing schedule at turn start');
+  if (state.attempts.length || state.pendingWrecks.length) throw new Error('Unfinished combat at turn start');
   state.active = true;
   state.turnStart = state.now;
   state.records = [];
@@ -44,6 +44,7 @@ export function stepTimedCombat(world: World, state: TimedCombatState, ms: numbe
 
 export function endTimedCombat(world: World, state: TimedCombatState): void {
   if (state.attempts.length) throw new Error('Turn ended before scheduled attempts');
+  finishWrecks(world, state);
   state.active = false;
   finishTimedGuns(world, state.fired);
 }
@@ -71,6 +72,7 @@ function timedSpec(id: string) {
   return spec;
 }
 function tryLaunch(world: World, state: TimedCombatState, attempt: TimedAttempt): TimedShot | null {
+  if (state.destroyedAt[attempt.shooter] !== undefined || state.destroyedAt[attempt.target] !== undefined) return null;
   const shooter = world.vehicles.find(v => v.id === attempt.shooter);
   const target = world.vehicles.find(v => v.id === attempt.target);
   if (!shooter || !target) return null;
@@ -94,11 +96,7 @@ function launchAttempt(world: World, state: TimedCombatState, attempt: TimedAtte
 function impactFlight(world: World, state: TimedCombatState, flight: TimedFlight, end: number, struck: string | null): void {
     const event = landTimedRound(world, flight, struck);
     state.records.push({ at: end, kind: 'impact', flight, event });
-    if (event) {
-      const from = world.events.length;
-      settleTimedImpact(world, event);
-      for (const outcome of world.events.slice(from)) if (outcome.t === 'destroyed') state.destroyedAt[outcome.vehicle] = end;
-    }
+    if (event) settleTimedImpact(world, event, state, end);
 }
 
 export type TimedShot = { shooterId: string; targetId: string; weaponId: string; weaponDefId: string; aim: Aim; chance: number; damageChance: number; round: WeaponRound; lineTurns: number | null; targetSide: Side; roll: { hit: boolean; error: number; crit: boolean }; from: Vec; aimedAt: Vec; impactAt: Vec; launchedMs: number; speed: number };
@@ -132,7 +130,7 @@ export function finishTimedGuns(world: World, fired: readonly string[]): void {
   tickGuns(world, new Set(fired));
 }
 
-export function settleTimedImpact(world: World, event: Extract<GameEvent, { t: 'shot' }>): void {
+export function settleTimedImpact(world: World, event: Extract<GameEvent, { t: 'shot' }>, state = world.combat, at = state.now): void {
   applyGodMode(world);
   checkDeath(world);
   checkKnockout(world, [event]);
@@ -140,11 +138,26 @@ export function settleTimedImpact(world: World, event: Extract<GameEvent, { t: '
   for (const id of hit) {
     const v = world.vehicles.find(v => v.id === id);
     if (!v || v.faction === 'player') continue;
-    const cabDamage = cabDamageOf(event, v);
-    const fate = npcFate(world, v, hit, cabDamage);
-    if (fate === 'dies') wreckVehicle(world, v);
-    else if (fate === 'knockedOut') knockOutNpc(world, v);
+    settleNpcImpact(world, v, event, state, at);
   }
+}
+
+function settleNpcImpact(world: World, v: Vehicle, event: Extract<GameEvent, { t: 'shot' }>, state: TimedCombatState, at: number): void {
+  if (state.destroyedAt[v.id] !== undefined) return;
+  const fate = npcFate(world, v, new Set(shotDamage(event).keys()), cabDamageOf(event, v));
+  if (fate === 'dies') {
+    state.destroyedAt[v.id] = at;
+    state.pendingWrecks.push({ vehicle: v.id, by: v.lastHitBy });
+  } else if (fate === 'knockedOut') knockOutNpc(world, v);
+}
+
+function finishWrecks(world: World, state: TimedCombatState): void {
+  for (const wreck of state.pendingWrecks) {
+    const v = requiredVehicle(world, wreck.vehicle);
+    v.lastHitBy = wreck.by;
+    wreckVehicle(world, v);
+  }
+  state.pendingWrecks = [];
 }
 
 function requiredVehicle(world: World, id: string): Vehicle {
@@ -228,7 +241,7 @@ function flightPoint(flight: TimedFlight, at: number): Vec {
 }
 
 function advanceFlights(world: World, state: TimedCombatState, end: number): void {
-  const due = state.flights.flatMap(flight => flightContact(world, flight, state.now, end));
+  const due = state.flights.flatMap(flight => flightContact(world, state, flight, state.now, end));
   due.sort((a, b) => a.at - b.at);
   for (const contact of due) {
     const flight = contact.flight;
@@ -240,9 +253,9 @@ function advanceFlights(world: World, state: TimedCombatState, end: number): voi
 }
 
 type FlightContact = { flight: TimedFlight; at: number; struck: string | null };
-function flightContact(world: World, flight: TimedFlight, now: number, end: number): FlightContact[] {
+function flightContact(world: World, state: TimedCombatState, flight: TimedFlight, now: number, end: number): FlightContact[] {
   const from = flightPoint(flight, now), to = flightPoint(flight, end);
-  const contacts = world.vehicles.filter(v => v.id !== flight.shooterId).flatMap(v => {
+  const contacts = world.vehicles.filter(v => v.id !== flight.shooterId && state.destroyedAt[v.id] === undefined).flatMap(v => {
     const entry = segmentTruckEntry(v, from, to);
     return entry === null ? [] : [{ flight, at: Math.max(now, flight.launchedMs) + entry * (Math.min(end, flight.landsAt) - Math.max(now, flight.launchedMs)), struck: v.id }];
   });

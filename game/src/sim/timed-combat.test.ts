@@ -227,3 +227,22 @@ it('settles player defeat on impact before the next firing attempt', async () =>
   endTimedCombat(f.world, f.state);
   expect(f.state.records.some(r => r.kind === 'launch' && r.flight?.shooterId === f.a.id)).toBe(false);
 });
+
+it('stops a doomed truck immediately and creates its wreck after movement settles', async () => {
+  const { settleTimedImpact } = await import('./timed-combat');
+  const f = fight();
+  f.b.resources!.health = 0;
+  f.world.combat = f.state;
+  beginTimedCombat(f.world, f.state, 1000);
+  const event = { t: 'shot' as const, shooter: f.a.id, weapon: f.gun.id, target: f.b.id, aim: 'body' as const, chance: 1, damageChance: 1, side: 'front' as const, rounds: [{ hit: true, crit: false, offset: 0, struck: f.b.id, hits: [{ part: mountedParts(f.b, 'engine')[0].id, damage: 1 }], blast: [], burst: null }] };
+  f.b.lastHitBy = f.a.id;
+  settleTimedImpact(f.world, event, f.state);
+  expect(f.world.vehicles).toContain(f.b);
+  expect(f.state.destroyedAt[f.b.id]).toBe(0);
+  f.b.lastHitBy = null;
+  for (let i = 0; i < 60; i++) stepTimedCombat(f.world, f.state, 1000 / 60);
+  endTimedCombat(f.world, f.state);
+  expect(f.world.vehicles).not.toContain(f.b);
+  expect(f.world.removed).toContain(f.b);
+  expect(f.world.events.filter(e => e.t === 'destroyed')).toMatchObject([{ by: f.a.id }]);
+});

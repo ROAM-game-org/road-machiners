@@ -353,6 +353,7 @@ function exploreBodiless(w: World): void {
 export function applyTurn(w: World, r: TurnResult): void {
   applyBreaks(w, r);
   for (const v of w.vehicles) {
+    if (w.combat.active && w.combat.destroyedAt[v.id] !== undefined) continue;
     const frames = r.frames[v.id];
     if (frames) applyDriven(w, r, v, frames);
   }
