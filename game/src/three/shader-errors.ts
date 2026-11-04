@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { GpuContext } from './gpu-context';
 
 export class ShaderBuildFailed extends Error {
   constructor(detail: string) {
@@ -14,8 +15,29 @@ const materialOf = (renderer: THREE.WebGLRenderer, program: WebGLProgram) =>
 
 const stageLog = (gl: WebGLRenderingContext, shader: WebGLShader, stage: string) => `${stage}: ${gl.getShaderInfoLog(shader) || 'no log'}`;
 
-export function failLoudOnShaderError(renderer: THREE.WebGLRenderer): void {
+export const SHADER_LOSS_GRACE_MS = 1000;
+
+type Held = { detail: string; epoch: number; atMs: number };
+
+export class ShaderVerdicts {
+  private held: Held[] = [];
+
+  hold(detail: string, epoch: number, atMs: number): void {
+    this.held.push({ detail, epoch, atMs });
+  }
+
+  settle(gpu: GpuContext, nowMs: number): void {
+    this.held = this.held.filter((h) => h.epoch === gpu.epoch() && !gpu.lost());
+    const due = this.held.find((h) => nowMs - h.atMs >= SHADER_LOSS_GRACE_MS);
+    if (!due) return;
+    this.held = this.held.filter((h) => h !== due);
+    throw new ShaderBuildFailed(due.detail);
+  }
+}
+
+export function failLoudOnShaderError(renderer: THREE.WebGLRenderer, gpu: GpuContext, verdicts: ShaderVerdicts): void {
   renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
+    const lost = gpu.lost();
     const limit = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
     const detail = [
       `material ${materialOf(renderer, program)}`,
@@ -23,8 +45,10 @@ export function failLoudOnShaderError(renderer: THREE.WebGLRenderer): void {
       `link log: ${gl.getProgramInfoLog(program) || 'no log'}`,
       stageLog(gl, vertex, 'vertex'),
       stageLog(gl, fragment, 'fragment'),
+      `context lost: ${lost ? 'yes' : 'no'}`,
     ].join(' | ');
-    throw new ShaderBuildFailed(detail);
+    if (lost) console.warn(`ShaderBuildFailed ignored while the WebGL context is lost: ${detail}`);
+    else verdicts.hold(detail, gpu.epoch(), performance.now());
   };
 }
 
@@ -80,23 +104,37 @@ class Variants {
 const READY_BUDGET_MS = 2;
 
 export class ShaderWarmup {
-  private readonly compiled = new Variants();
-  private readonly compiling = new Variants();
+  private compiled = new Variants();
+  private compiling = new Variants();
+  private generation = 0;
+  private readonly verdicts = new ShaderVerdicts();
   private held: THREE.Object3D[] = [];
   private drawnView = '';
   private readonly watched = new WeakSet<THREE.Object3D>();
-  private readonly sealed = new WeakSet<THREE.Object3D>();
+  private sealed = new WeakSet<THREE.Object3D>();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly scene: THREE.Scene,
     private readonly camera: THREE.Camera,
     private readonly onError: (error: unknown) => void,
+    private readonly gpu: GpuContext,
   ) {
-    failLoudOnShaderError(renderer);
+    failLoudOnShaderError(renderer, gpu, this.verdicts);
+    gpu.onRestored(() => this.forget());
+  }
+
+  private forget(): void {
+    this.generation++;
+    this.compiled = new Variants();
+    this.compiling = new Variants();
+    this.sealed = new WeakSet();
+    this.drawnView = '';
   }
 
   render(worldFrozen: boolean): void {
+    this.verdicts.settle(this.gpu, performance.now());
+    if (this.gpu.lost()) return;
     const view = this.viewKey();
     if (worldFrozen && view === this.drawnView) return;
     this.drawnView = view;
@@ -138,7 +176,9 @@ export class ShaderWarmup {
     });
     if (fresh.length === 0) return this.seal(root);
     for (const [m, variant] of fresh) this.compiling.add(m, variant);
+    const generation = this.generation;
     this.renderer.compileAsync(root, this.camera, this.scene).then(() => {
+      if (generation !== this.generation) return;
       for (const [m, variant] of fresh) {
         this.compiling.delete(m, variant);
         this.compiled.add(m, variant);
@@ -205,7 +245,9 @@ export class ShaderWarmup {
     const fresh = materialsOf(o).filter((m) => !this.compiling.has(m, variant));
     if (fresh.length === 0) return;
     for (const m of fresh) this.compiling.add(m, variant);
+    const generation = this.generation;
     this.renderer.compileAsync(o, this.camera, this.scene).then(() => {
+      if (generation !== this.generation) return;
       for (const m of fresh) {
         this.compiling.delete(m, variant);
         this.compiled.add(m, variant);

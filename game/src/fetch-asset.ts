@@ -1,10 +1,8 @@
 import { DOWNLOAD } from './config';
-import { attemptWithin, type Body } from './download';
+import { attemptWithin, isTransientStatus, type Body } from './download';
 import { REAL_TIMERS } from './stall';
 
 export const ASSET_RETRY_DELAYS_MS: readonly number[] = [1000, 3000, 9000];
-
-const TRANSIENT_STATUS: ReadonlySet<number> = new Set([408, 429, 500, 502, 503, 504]);
 
 export type AssetNet = {
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
@@ -85,7 +83,7 @@ async function attempt(label: string, url: string, init: RequestInit | undefined
     return { transient: e };
   }
   if ('body' in outcome) return { body: outcome.body };
-  if (TRANSIENT_STATUS.has(outcome.status)) return { transient: new AssetStatusError(`HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
+  if (isTransientStatus(outcome.status)) return { transient: new AssetStatusError(`HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
   return { missing: new AssetStatusError(`${label} ${url} failed to load: HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
 }
 

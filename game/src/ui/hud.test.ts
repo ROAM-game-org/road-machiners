@@ -46,7 +46,7 @@ describe('held contract line', () => {
     expect(line.text()).toContain('Survey');
     expect(line.text()).toContain('1 of 3 surveyed');
     expect(line.text()).not.toMatch(/(Safe|Risky|Dangerous) ground/);
-    expect(line.text()).toContain('by Day');
+    expect(line.text()).toContain(' left');
     expect(line.all('contract-clue')).toHaveLength(2);
     expect(line.all('tag').map((tag) => tag.text())).toEqual(['found']);
   });
@@ -61,7 +61,7 @@ describe('held contract line', () => {
     const line = heldContractLine(emptyWorld(), order) as unknown as FakeNode;
 
     expect(line.text()).toContain('Bring 5 crates of Salt to Bowl');
-    expect(line.text()).toContain('by Day');
+    expect(line.text()).toContain(' left');
   });
 
   it('toasts the found place and completed survey, while keeping a surveyed place in the log', () => {
