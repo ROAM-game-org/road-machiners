@@ -7,7 +7,8 @@ import { emptyWorld, addVehicle } from './testkit';
 import { mountedParts } from './grid';
 import { refreshVision } from './vision';
 import { declareFeud } from './states';
-import { beginTimedCombat, endTimedCombat, newTimedCombat, stepTimedCombat } from './timed-combat';
+import { beginTimedCombat, endTimedCombat, launchTimedRound, newTimedCombat, stepTimedCombat } from './timed-combat';
+import { getResources } from './resources';
 
 function fight() {
   const world = emptyWorld();
@@ -296,4 +297,20 @@ it('uses moving target positions in the headless recorder combat clock', async (
     expect(launch!.flight!.aimedAt.y).toBeLessThan(endY);
     expect(after.combat.now).toBeCloseTo(PHYSICS.turnSeconds * 1000, 7);
   } finally { setHeadless(false); }
+});
+
+it('lets a second shell pass a truck that the first shell destroyed in the same step', () => {
+  const f = fight();
+  f.state.active = true;
+  const speed = PROJECTILE_FLIGHT.mg.speed;
+  const shells = [0, 1].map(() => launchTimedRound(f.world, f.a, f.gun.id, f.b, 'body', 0, speed, true)!);
+  for (const shell of shells) {
+    shell.roll.hit = true;
+    shell.impactAt = { ...f.b.pos };
+    f.state.flights.push({ ...shell, landsAt: 1000 / 60 });
+  }
+  getResources(f.world, f.b).health = 0;
+  stepTimedCombat(f.world, f.state, 1000 / 60);
+  const struck = f.state.records.filter(r => r.kind === 'impact').map(r => r.event!.rounds[0].struck);
+  expect(struck.filter(id => id === f.b.id)).toHaveLength(1);
 });

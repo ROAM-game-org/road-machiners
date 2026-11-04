@@ -499,10 +499,16 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   resumeTimedFlights(host, state);
   const rows = new Map<string, number>();
   const last = new Map<string, TimedFlight>();
+  const pellets = new Map<TimedFlight, number>();
+  const launched = new Map<string, number>();
   for (const record of state.records) {
-    if (record.kind === 'launch' && record.flight) last.set(record.flight.weaponId, record.flight);
+    if (record.kind !== 'launch' || !record.flight) continue;
+    const count = launched.get(record.flight.weaponId) ?? 0;
+    pellets.set(record.flight, count);
+    launched.set(record.flight.weaponId, count + 1);
+    last.set(record.flight.weaponId, record.flight);
   }
-  for (const record of state.records) playTimedRecord(host, record, state, rows, breaks, last);
+  for (const record of state.records) playTimedRecord(host, record, state, rows, breaks, last, pellets);
   queueTimedScores(host, state);
   for (const [id, destroyed] of Object.entries(state.destroyedAt)) {
     host.fx.later(Math.max(0, destroyed - state.turnStart - host.startMs), () => {
@@ -513,15 +519,15 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   return host.poses.moveMs;
 }
 
-function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>): void {
+function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>, pellets: Map<TimedFlight, number>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);
   if (record.at < state.turnStart + host.startMs) return;
-  if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight);
+  if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight, pellets.get(record.flight)!);
   if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
 }
 
-function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boolean): void {
+function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boolean, pellet: number): void {
   vehicleOf(host.world, f.shooterId);
   vehicleOf(host.world, f.targetId);
   if (!host.eventPoint(f.shooterId)) return;
@@ -531,7 +537,6 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
   const muzzle = shooterMuzzle(host, f.shooterId, f.weaponId);
   const sounds = gunSounds(f.weaponDefId);
   const dry = last && host.world.events.some(e => e.t === 'empty' && e.vehicle === f.shooterId && e.weapon === f.weaponId);
-  const pellet = host.world.combat.records.filter(r => r.kind === 'launch' && r.flight?.weaponId === f.weaponId).findIndex(r => r.flight === f);
   host.fx.shot(roundSpec(spec, pellet), muzzle, {
     ...plan, delayMs: at, flightMs: f.landsAt - f.launchedMs, impactRecorded: true,
   }, blastRadiusOf(f.weaponDefId), {

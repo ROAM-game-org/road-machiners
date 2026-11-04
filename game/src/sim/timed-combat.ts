@@ -241,23 +241,30 @@ export function transformedCombat(state: TimedCombatState, point: (position: Vec
 function transformedFlight(now: number, flight: TimedFlight, point: (position: Vec) => Vec, scale: number): TimedFlight {
   const moved = { ...flight, from: point(flight.from), aimedAt: point(flight.aimedAt), impactAt: point(flight.impactAt) };
   if (scale === 1) return moved;
-  const share = Math.max(0, Math.min(1, (now - flight.launchedMs) / (flight.landsAt - flight.launchedMs)));
-  moved.from = point({ x: flight.from.x + (flight.impactAt.x - flight.from.x) * share, y: flight.from.y + (flight.impactAt.y - flight.from.y) * share });
+  moved.from = point(flightPoint(flight, now));
   moved.launchedMs = now;
   moved.landsAt = now + Math.max(0, flight.landsAt - now) * scale;
   return moved;
 }
 
 function flightPoint(flight: TimedFlight, at: number): Vec {
-  const share = Math.max(0, Math.min(1, (at - flight.launchedMs) / (flight.landsAt - flight.launchedMs)));
+  const span = flight.landsAt - flight.launchedMs;
+  const share = span > 0 ? Math.max(0, Math.min(1, (at - flight.launchedMs) / span)) : 1;
   return { x: flight.from.x + (flight.impactAt.x - flight.from.x) * share, y: flight.from.y + (flight.impactAt.y - flight.from.y) * share };
 }
 
 function advanceFlights(world: World, state: TimedCombatState, end: number): void {
   const due = state.flights.flatMap(flight => flightContact(world, state, flight, state.now, end));
-  due.sort((a, b) => a.at - b.at);
-  for (const contact of due) {
+  const byTime = (a: FlightContact, b: FlightContact) => a.at - b.at;
+  due.sort(byTime);
+  while (due.length > 0) {
+    const contact = due.shift()!;
     const flight = contact.flight;
+    if (contact.struck !== null && state.destroyedAt[contact.struck] !== undefined) {
+      due.push(...flightContact(world, state, flight, contact.at, end));
+      due.sort(byTime);
+      continue;
+    }
     flight.impactAt = flightPoint(flight, contact.at);
     flight.landsAt = contact.at;
     state.flights = state.flights.filter(f => f !== flight);
