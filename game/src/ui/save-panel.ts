@@ -21,10 +21,6 @@ export type SavePanelActions = {
   importSave: (text: string) => Promise<ImportResult>;
 };
 
-export function overwritesOtherMode(info: SlotInfo | null, mode: GameModeId): boolean {
-  return info?.mode != null && info.mode !== mode;
-}
-
 export async function pickImport(importSave: SavePanelActions["importSave"]): Promise<ImportResult | null> {
   const text = await pickTextFile(".json,application/json");
   return text === null ? null : importSave(text);
@@ -148,8 +144,9 @@ export class SavePanel {
 
   private saveInto(slot: SlotId, info: SlotInfo | null): void {
     const mode = this.actions.mode();
-    if (info?.mode && overwritesOtherMode(info, mode)) {
-      const ask = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(info.mode), current: modeName(mode) });
+    const saved = info?.mode;
+    if (saved && saved !== mode) {
+      const ask = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(saved), current: modeName(mode) });
       if (!window.confirm(say(ask))) return;
     }
     this.actions.save(slot);
