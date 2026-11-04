@@ -9,6 +9,7 @@ import { defaultSetup } from '../sim/settings';
 import { rollStretch, type RolledStretch, type RolledTruck } from '../sim/stretch-roll';
 import { newWorld } from '../sim/world';
 import type { Vehicle, World } from '../sim/types';
+import { errorText } from '../stall';
 
 declare global {
   interface Window {

@@ -8,6 +8,7 @@ import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../..
 import type { GridItem } from '../../sim/types';
 import { loadModels, model, type ModelName } from './models';
 import { armorPlacement } from './armorCut';
+import { lowestFace } from './gunStand';
 import { footprint, wouldFloat } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -21,6 +22,7 @@ const ARMOR = Object.values(PARTS).filter(isShield);
 const EPS = 1e-6;
 const LOOSE_PARTS = ['panniers', 'rack', 'trailerBox'];
 const PROBE = 0.1;
+const RAM_FOOT_REACH = 0.25;
 const FAR = 20;
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
@@ -167,13 +169,35 @@ export function armorSitsOnBody(id: string): void {
   expect(cases.flatMap(({ item, under }) => armorProblems(id, item, under))).toEqual([]);
 }
 
+function rams(id: string): PartItem[] {
+  return mountedArmor(id).filter((item) => (PARTS[item.part.defId] as { look?: string }).look === 'ram');
+}
+
+export function ramsAreBacked(id: string): void {
+  const problems: string[] = [];
+  for (const item of rams(id)) {
+    const side = plateSide(id, item);
+    const box = placedBox(id, item);
+    const probe = probeOf(baseModel(id, cellRect(id, itemCells(item)).unit), side);
+    const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
+    const inner = innerFace(box, side);
+    const backed = steps(box.min.y, box.max.y).map((y) => {
+      const reaches = steps(lo, hi).map((u) => reachAt(probe, u, y)).filter((r): r is number => r !== null);
+      return reaches.length > 0 && inner - Math.max(...reaches) <= CLIP_TOLERANCE;
+    });
+    if (!backed[0] && !backed[1]) {
+      problems.push(`${item.part.defId} at ${item.x},${item.y} side ${side}: rows from the foot ${backed.map((b) => (b ? 'body' : 'air')).join(' ')}`);
+    }
+  }
+  expect(problems).toEqual([]);
+}
+
 function expectRaised(id: string, item: PartItem): void {
   const def = PARTS[item.part.defId];
   if (!isShield(def)) return;
   const half = bodyOf(id).half.y;
   const box = placedBox(id, item);
-  if (def.look === 'ram') expect(box.min.y, def.id).toBeCloseTo(-half + TRUCK_LOOK.armorRise + rawBox(partModel(def.id)).min.y, 5);
-  else expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
+  if (def.look !== 'ram') expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
 }
 
 export function armorRisesOverBody(): void {
@@ -237,5 +261,19 @@ export function armorModelsAreThin(): void {
   for (const def of ARMOR) {
     const box = rawBox(partModel(def.id));
     expect(box.max.x - box.min.x, def.id).toBeLessThan(box.max.z - box.min.z);
+  }
+}
+
+export function lowNosesCarryRamsLow(id: string): void {
+  for (const item of rams(id)) {
+    const side = plateSide(id, item);
+    const box = placedBox(id, item);
+    const base = shared(baseModel(id, cellRect(id, itemCells(item)).unit));
+    const across = isAcross(side);
+    const outward = side === 'F' || side === 'R' ? 1 : -1;
+    const lateral: [number, number] = across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
+    const low = lowestFace(base, across ? 'x' : 'z', outward, lateral);
+    expect(low, item.part.defId).not.toBeNull();
+    expect(box.min.y - (low as number), `${item.part.defId} at ${item.x},${item.y}`).toBeLessThanOrEqual(RAM_FOOT_REACH);
   }
 }

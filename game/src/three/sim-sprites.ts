@@ -7,6 +7,7 @@ import { VehicleView, type RebuildBudget } from './render/vehicle';
 import { CHASSIS, type TruckPaint } from '../data/chassis';
 import type { Vehicle } from '../sim/types';
 import { SPRITES, spritePlan, truckOf, type SpriteCell, type SpriteEntry, type SpriteManifest, type SpriteWant } from './sim-sprite-plan';
+import { errorText } from '../stall';
 
 declare global {
   interface Window {

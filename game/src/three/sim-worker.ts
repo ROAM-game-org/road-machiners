@@ -5,6 +5,7 @@ import { SIM_TEXT } from '../ui/sim/sim-text';
 import { fetchMap } from './map-file';
 import { idbBackend, SaveSlots } from './save-db';
 import { resumedRun, SIM_SAVES, SIM_SLOT, simEnvelope, type Resumed } from './sim-save';
+import { errorText } from '../stall';
 
 const SAVE_EVERY = Math.round(TIME.workDayTurns / 24);
 const RANDOM_SEEDS = 1_000_000;

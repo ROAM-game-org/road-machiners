@@ -18,6 +18,7 @@ import { cardOf } from './sim-cards';
 import { everyTruck } from '../sites';
 import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
 import { QUIET } from './turn-log';
+import { errorText } from '../../stall';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
 

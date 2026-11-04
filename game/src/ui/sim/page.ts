@@ -19,6 +19,7 @@ import { drawEconomy, RoadPaths, shopAt } from "./economy-draw";
 import { EconomyView } from "./economy-view";
 import { TIME } from "../../data/time";
 import { TravelSpeed, TRAVEL_SPEED_CODES } from "../travel-speed";
+import { errorText } from "../../stall";
 
 const MARKER = { ring: 4, halo: 2, hit: 8, line: 2, shortestPx: 24 };
 const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };

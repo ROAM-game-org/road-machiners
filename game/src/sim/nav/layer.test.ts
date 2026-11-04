@@ -4,14 +4,13 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../../data/region';
 import { START_KITS } from '../../data/start';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN_TYPES } from '../../data/terrain';
-import { icarusAtlas, type Atlas } from '../atlas';
 import { deckById } from '../bridge';
 import { boxDistance, boxSegmentDistance, isBreakable, mapObstacles, propBoxes, propPose, RAMP_MODELS, rampSpan } from '../mapgen';
 import { route } from '../path';
 import type { Obstacle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { blockedAt, CELL, CLEARANCE, climbTaste, cutTaste, slowAt, dynamicBlockers, makeTaste, navLayer, rulesKey, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
+import { blockedAt, CELL, CLEARANCE, climbTaste, cutTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
 import { pieceTable, regionAt } from './cells';
 import { perfSnapshot, resetPerf } from '../../perf';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
@@ -361,28 +360,5 @@ describe('breakable props', () => {
     expect(broken.id).not.toBe(whole.id);
     expect(broken.slow).toBeCloseTo(whole.slow / BREAKABLE.routeCost);
     expect(back.slow).toBe(whole.slow);
-  });
-});
-
-describe('route rules key', () => {
-  const ulp = (x: number) => x + Math.abs(x) * Number.EPSILON;
-  const moved = <T>(value: T, change: (x: number) => number): T => JSON.parse(JSON.stringify(value), (_key, v) => (typeof v === 'number' ? change(v) : v));
-  const withMoved = (change: (x: number) => number): Atlas => {
-    const atlas = icarusAtlas();
-    return { ...atlas, towns: moved(atlas.towns, change), locations: moved(atlas.locations, change), decks: { ...atlas.decks, boxes: moved(atlas.decks.boxes, change) } };
-  };
-
-  it('stays the same when every site and deck number moves one ULP, as another browser engine rounds them', () => {
-    expect(rulesKey(withMoved(ulp))).toBe(rulesKey(icarusAtlas()));
-  });
-
-  it('changes when a site radius moves by 0.01', () => {
-    const atlas = icarusAtlas();
-    const [first, ...rest] = atlas.towns;
-    expect(rulesKey({ ...atlas, towns: [{ ...first, radius: first.radius + 0.01 }, ...rest] })).not.toBe(rulesKey(atlas));
-  });
-
-  it('changes when a deck box moves by 0.01', () => {
-    expect(rulesKey(withMoved((x) => x + 0.01))).not.toBe(rulesKey(icarusAtlas()));
   });
 });

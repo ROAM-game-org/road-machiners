@@ -50,6 +50,7 @@ import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
+import { errorText } from '../stall';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);

@@ -22,6 +22,7 @@ import { daylightAt, enableSunShadows, lightScene, sunLight } from './render/day
 import { MODEL_FILL } from './render/modelFill';
 import { loadModels, model as gameModel, NAMES, paintSurfaceMasks, type ModelName } from './render/models';
 import { VehicleView } from './render/vehicle';
+import { errorText } from '../stall';
 
 export type Panel = { label: string; build: () => THREE.Object3D };
 

@@ -17,6 +17,7 @@ import { loadModels, outlineProps, paintSurfaceMasks } from './render/models';
 import { buildProp } from './render/obstacles';
 import { chunkGeometry, groundMaterial } from './render/terrain';
 import { world } from './shot';
+import { errorText } from '../stall';
 
 const S = PHYSICS.metersPerTile;
 const [ASPECT_W, ASPECT_H] = SURVEY_PICTURE.aspect;

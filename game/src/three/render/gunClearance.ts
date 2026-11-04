@@ -59,9 +59,10 @@ const GRID = 0.05;
 
 export function clearTop(pivot: Flat, shape: HeadShape, sweep: readonly FireSpan[], obstacles: readonly Obstacle[], gap: number): number {
   let best = -Infinity;
+  const margin = { ...shape, reach: shape.reach + gap };
   for (const o of obstacles) {
     if (o.top + gap <= best) continue;
-    if (touches(o, pivot, shape, sweep)) best = o.top + gap;
+    if (touches(o, pivot, margin, sweep)) best = o.top + gap;
   }
   return best;
 }

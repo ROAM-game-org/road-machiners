@@ -15,11 +15,11 @@ export type Meeting = { impacts: number[]; arrivedIn: number | null };
 
 type Bump = { a: string; b: string; impact: number };
 
-const MEETING_TURNS = 12;
+const MEETING_TURNS = 14;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
-const CLEAR_OF_TOWN = 30;
+const CLEAR_OF_TOWN = 35;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
@@ -148,6 +148,7 @@ export function meetHeadOn(lane: number, speed: number): HeadOn {
 
 export type Overtake = { passedIn: number | null; impacts: number[]; slowTurns: number };
 
+const OVERTAKE_CLEAR_OF_TOWN = 60;
 const HAULER_GAP = 7;
 const SCOUT_BACK = 14;
 const OVERTAKE_TURNS = 25;
@@ -170,7 +171,7 @@ export function overtake(haulers: number): Overtake {
   let d = buildDrive(w);
   const haulerOf = (id: string) => w.vehicles.find((v) => v.id === id)!;
   const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
-  for (let i = 0; i < 40 && !(haulerOf(ids[0]).speed >= 2 && dist(haulerOf(ids[0]).pos, bowl.pos) > bowl.radius + CLEAR_OF_TOWN); i++) ({ w, d } = turn(w, d, bumps));
+  for (let i = 0; i < 40 && !(haulerOf(ids[0]).speed >= 2 && dist(haulerOf(ids[0]).pos, bowl.pos) > bowl.radius + OVERTAKE_CLEAR_OF_TOWN); i++) ({ w, d } = turn(w, d, bumps));
   freeDrive(d);
   const lead = haulerOf(ids[0]);
   const rear = haulerOf(ids.at(-1)!);

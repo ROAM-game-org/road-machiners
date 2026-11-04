@@ -29,6 +29,7 @@ import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type W
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 import { ownExplored } from '../sim/explored';
+import { errorText } from '../stall';
 
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
@@ -311,7 +312,6 @@ function answer(request: Answerable, terrain: World['terrain']): void {
       throw new Error(`Unknown worker request kind ${(request as { kind: unknown }).kind}`);
   }
 }
-
 
 const STOPPED = 0.05;
 
