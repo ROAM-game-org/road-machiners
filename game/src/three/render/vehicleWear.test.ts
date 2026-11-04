@@ -32,6 +32,12 @@ function truck(): Vehicle {
   return playerVehicle(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
 }
 
+function withHp(v: Vehicle, partId: string, hp: number): Vehicle {
+  const items = structuredClone(v.items);
+  for (const it of items) if (it.kind === 'part' && it.part.id === partId) it.part.hp = hp;
+  return { ...v, items };
+}
+
 function colors(view: VehicleView): string {
   const hexes = new Set<number>();
   view.root.traverse((o) => {
@@ -68,11 +74,9 @@ describe('part wear look', () => {
     const clean = colors(view);
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     const max = maxHp(part);
-    part.hp = 1;
-    view.update(v, true, PAINT.standard);
+    view.update(withHp(v, part.id, 1), true, PAINT.standard);
     expect(colors(view)).not.toBe(clean);
-    part.hp = max;
-    view.update(v, true, PAINT.standard);
+    view.update(withHp(v, part.id, max), true, PAINT.standard);
     expect(colors(view)).toBe(clean);
   });
 
@@ -81,22 +85,21 @@ describe('part wear look', () => {
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
     const root = view.root;
-    const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
-    part.hp = 1;
+    const worn = withHp(v, mountedParts(v).find((p) => maxHp(p) > 1)!.id, 1);
     const oneStep = { take: () => ((oneStep.left -= 1) >= 0), ready: () => true, left: 0 };
     let calls = 0;
     while (colors(view) === clean) {
       oneStep.left = 1;
-      view.update(v, true, PAINT.standard, oneStep);
+      view.update(worn, true, PAINT.standard, oneStep);
       calls++;
       expect(calls).toBeLessThan(24);
     }
     expect(calls).toBeGreaterThan(3);
     expect(view.root).toBe(root);
-    expect(colors(view)).toBe(colors(new VehicleView(v, true, PAINT.standard, 'world')));
+    expect(colors(view)).toBe(colors(new VehicleView(worn, true, PAINT.standard, 'world')));
     const meshes = (view.root.children.length);
     oneStep.left = 1;
-    view.update(v, true, PAINT.standard, oneStep);
+    view.update(worn, true, PAINT.standard, oneStep);
     expect(oneStep.left).toBe(1);
     expect(view.root.children.length).toBe(meshes);
   });
@@ -105,13 +108,13 @@ describe('part wear look', () => {
     const v = truck();
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
-    mountedParts(v).find((p) => maxHp(p) > 1)!.hp = 1;
+    const worn = withHp(v, mountedParts(v).find((p) => maxHp(p) > 1)!.id, 1);
     const budget = { take: () => true, ready: () => budget.compiled, compiled: false };
-    view.update(v, true, PAINT.standard, budget);
-    view.update(v, true, PAINT.standard, budget);
+    view.update(worn, true, PAINT.standard, budget);
+    view.update(worn, true, PAINT.standard, budget);
     expect(colors(view)).toBe(clean);
     budget.compiled = true;
-    view.update(v, true, PAINT.standard, budget);
+    view.update(worn, true, PAINT.standard, budget);
     expect(colors(view)).not.toBe(clean);
   });
 
@@ -130,13 +133,13 @@ describe('part wear look', () => {
     const full = signatureOf(v, PAINT.standard);
     const cab = mountedParts(v).find((p) => BODY_PARTS.has(p.defId))!;
     const max = maxHp(cab);
-    cab.hp = max - 1;
-    expect(signatureOf(v, PAINT.standard)).not.toBe(full);
-    view.update(v, true, PAINT.standard);
+    const worn = withHp(v, cab.id, max - 1);
+    expect(signatureOf(worn, PAINT.standard)).not.toBe(full);
+    view.update(worn, true, PAINT.standard);
     expect(colors(view)).not.toBe(clean);
-    cab.hp = max;
-    view.update(v, true, PAINT.standard);
-    expect(signatureOf(v, PAINT.standard)).toBe(full);
+    const repaired = withHp(v, cab.id, max);
+    view.update(repaired, true, PAINT.standard);
+    expect(signatureOf(repaired, PAINT.standard)).toBe(full);
     expect(colors(view)).toBe(clean);
   });
 
@@ -186,8 +189,7 @@ describe('paint job look', () => {
     expect(mint).toContain(String(bodyPaint(PALETTE.chalk)));
     expect(mint).toContain(String(bodyPaint(PALETTE.tan)));
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
-    part.hp = 1;
-    view.update(v, true, gearOnly);
+    view.update(withHp(v, part.id, 1), true, gearOnly);
     expect(colors(view)).not.toBe(mint);
   });
 

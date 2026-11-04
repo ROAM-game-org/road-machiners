@@ -21,6 +21,7 @@ import { daylightAt, enableSunShadows, lightScene, sunLight } from './render/day
 import { MODEL_FILL } from './render/modelFill';
 import { loadModels, model as gameModel, NAMES, paintSurfaceMasks, type ModelName } from './render/models';
 import { VehicleView } from './render/vehicle';
+import { errorText } from '../stall';
 
 export type Panel = { label: string; build: () => THREE.Object3D };
 
@@ -131,7 +132,7 @@ declare global {
 
 export function runShot(): void {
   drawShot().catch((e: unknown) => {
-    window.__SHOT_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+    window.__SHOT_ERROR__ = errorText(e);
   });
 }
 

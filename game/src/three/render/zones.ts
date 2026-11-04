@@ -14,10 +14,15 @@ const HOVER_RADIUS_TILES = 0.6;
 const HOVER_WIDTH_TILES = 0.08;
 const HOVER_SEGMENTS = 32;
 
+type ZoneKey = {
+  terrain: Terrain; x: number; y: number; heading: number; halfAngle: number; brakeEnd: number; holdEnd: number; reach: number;
+};
+
 export class ZonesView {
   readonly root = new THREE.Group();
   private bands: Record<Throttle, THREE.Mesh>;
   private ring: THREE.Mesh;
+  private last: ZoneKey | null = null;
 
   constructor() {
     this.bands = {
@@ -27,7 +32,7 @@ export class ZonesView {
     };
     for (const k of Object.keys(this.bands) as Throttle[]) this.root.add(this.bands[k]);
     this.ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.01, 0.02, HOVER_SEGMENTS).rotateX(-Math.PI / 2),
+      new THREE.RingGeometry(HOVER_RADIUS_TILES * S - HOVER_WIDTH_TILES * S, HOVER_RADIUS_TILES * S, HOVER_SEGMENTS).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: PAL.plan, transparent: true, opacity: 0.8, depthTest: false, side: THREE.DoubleSide }),
     );
     this.ring.visible = false;
@@ -50,6 +55,10 @@ export class ZonesView {
     const z = zoneEdges();
     const brakeEnd = speed === 0 ? 0 : z.brakeEnd;
     const holdEnd = speed === 0 ? 0 : z.holdEnd;
+    const last = this.last;
+    if (last && last.terrain === terrain && last.x === pos.x && last.y === pos.y && last.heading === heading
+      && last.halfAngle === halfAngle && last.brakeEnd === brakeEnd && last.holdEnd === holdEnd && last.reach === z.reach) return;
+    this.last = { terrain, x: pos.x, y: pos.y, heading, halfAngle, brakeEnd, holdEnd, reach: z.reach };
     this.band('brake', terrain, pos, heading, halfAngle, 0, brakeEnd);
     this.band('hold', terrain, pos, heading, halfAngle, brakeEnd, holdEnd);
     this.band('accelerate', terrain, pos, heading, halfAngle, holdEnd, z.reach);
@@ -80,9 +89,6 @@ export class ZonesView {
     (this.ring.material as THREE.MeshBasicMaterial).color.setHex(color);
     const h = heightAt(terrain, p.x, p.y) * S + LIFT;
     this.ring.position.set(p.x * S, h, p.y * S);
-    const r = HOVER_RADIUS_TILES * S;
-    this.ring.geometry.dispose();
-    this.ring.geometry = new THREE.RingGeometry(r - HOVER_WIDTH_TILES * S, r, HOVER_SEGMENTS).rotateX(-Math.PI / 2);
   }
 }
 
