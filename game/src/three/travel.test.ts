@@ -124,10 +124,10 @@ describe("picked travel speed", () => {
     expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[2]);
   });
 
-  it("plays 1 when no travel runs, whatever is picked", () => {
+  it("plays the pick when no travel runs", () => {
     const travel = new Travel(250, TAIL);
     travel.setSpeedIndex(LAST);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
   it("plays only listed speeds, picked", () => {
@@ -138,26 +138,63 @@ describe("picked travel speed", () => {
     const travel = travelling(LAST);
     travel.pause();
     expect(travel.getSpeedIndex()).toBe(LAST);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
     travel.update(true, true);
     travel.press(5000, false, true);
     travel.release();
     expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("drops to 1 when travel stops on its own", () => {
+  it("keeps the pick when travel stops on its own", () => {
     const travel = travelling(LAST);
     travel.update(false, true);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("leaves turns that run on their own at 1", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
+  function towedWorld() {
+    const world = makeSafeWorld();
+    const me = playerVehicle(world);
+    world.vehicles.push({ ...me, id: "tower", pos: { x: me.pos.x + 3, y: me.pos.y } });
+    addState(world, "tow", "tower", me.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
+    return world;
+  }
+
+  function oddJobsWorld() {
+    const world = makeSafeWorld();
+    playerVehicle(world).job = { kind: "oddJobs", turnsLeft: 10, total: 10 };
+    return world;
+  }
+
+  function beaconWorld() {
+    const world = makeSafeWorld();
+    world.player.beacon = true;
+    return world;
+  }
+
+  function knockedOutWorld() {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    expect(travel.isAuto(world)).toBe(true);
-    expect(travel.getSpeed()).toBe(1);
+    return world;
+  }
+
+  const runs: [string, () => World][] = [
+    ["an idle world", makeSafeWorld],
+    ["an odd jobs shift", oddJobsWorld],
+    ["a beacon wait", beaconWorld],
+    ["a knocked-out run", knockedOutWorld],
+    ["a towed run", towedWorld],
+  ];
+
+  describe.each(runs)("during %s", (_name, build) => {
+    it.each(CONFIG.travelSpeeds.map((_, i) => i))("plays pick %i", (index) => {
+      const travel = new Travel(250, TAIL);
+      travel.setSpeedIndex(index);
+      const world = build();
+      expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[index]);
+      let pace = 1;
+      for (let i = 0; i < 80; i++) pace = travel.paceSpeed(world, 1000, 35, 4);
+      expect(pace).toBe(CONFIG.travelSpeeds[index]);
+    });
   });
 
   it("steps one speed at a time and stops at both ends", () => {
