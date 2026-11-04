@@ -96,6 +96,15 @@ function countsOf(value: unknown): Record<string, number> {
   return Object.fromEntries(entries.filter((e): e is [string, number] => e[1] !== null));
 }
 
+function storesOf(value: unknown): Carried['storedGoods'] {
+  const stores = Object.entries(objectOf(value) ?? {}).map(([shopId, store]) => [shopId, wholeCountsOf(store)] as const);
+  return Object.fromEntries(stores.filter(([, store]) => Object.keys(store).length > 0));
+}
+
+function wholeCountsOf(value: unknown): Record<string, number> {
+  return Object.fromEntries(Object.entries(countsOf(value)).filter(([, n]) => Number.isInteger(n) && n > 0));
+}
+
 function partOf(value: unknown): CarriedPart | null {
   const part = objectOf(value);
   const defId = idOf(part?.defId);
@@ -260,7 +269,7 @@ function soldAt(run: Json, milestone: number): string[] {
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], storedGoods: {}, setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
 };
 
 export function readCarried(raw: unknown, prices: Readonly<Record<string, number>> = RETIRED_PRICES_RESCUE): Carried {
@@ -290,6 +299,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, money.rate(basis)])),
     truck: mounted.truck,
     storage: mounted.storage,
+    storedGoods: storesOf(player.storedGoods),
     setup: setupOf(world.setup, format),
     quests: questVarsOf(player.quests, format),
     run: runOf(world, format, money),
@@ -338,7 +348,8 @@ const idOfItem = (item: CarriedItem): string => (item.kind === 'part' ? item.par
 function refundedRetired(carried: Carried, prices: Readonly<Record<string, number>>): Carried {
   const retired = (id: string): boolean => Object.hasOwn(prices, id);
   const gone = retiredIdsOf(carried).filter(retired);
-  return { ...carried, ...withoutRetired(carried, retired), refunded: gone.reduce((sum, id) => sum + prices[id], 0) };
+  const storedRefund = Object.values(carried.storedGoods).flatMap((store) => Object.entries(store)).reduce((sum, [good, n]) => sum + (retired(good) ? prices[good] * n : 0), 0);
+  return { ...carried, ...withoutRetired(carried, retired), refunded: gone.reduce((sum, id) => sum + prices[id], storedRefund) };
 }
 
 function retiredIdsOf(carried: Carried): string[] {
@@ -347,12 +358,13 @@ function retiredIdsOf(carried: Carried): string[] {
   return [...mounted, ...hauled].map(idOfItem).concat(carried.storage.map((p) => p.defId));
 }
 
-function withoutRetired(carried: Carried, retired: (id: string) => boolean): Pick<Carried, 'truck' | 'storage' | 'run'> {
+function withoutRetired(carried: Carried, retired: (id: string) => boolean): Pick<Carried, 'truck' | 'storage' | 'storedGoods' | 'run'> {
   const kept = (items: CarriedItem[]): CarriedItem[] => items.filter((item) => !retired(idOfItem(item)));
   const { truck, run } = carried;
   return {
     truck: truck && { ...truck, items: kept(truck.items) },
     storage: carried.storage.filter((p) => !retired(p.defId)),
+    storedGoods: Object.fromEntries(Object.entries(carried.storedGoods).map(([shopId, store]) => [shopId, Object.fromEntries(Object.entries(store).filter(([good]) => !retired(good)))])),
     run: run && { ...run, hauler: { ...run.hauler, items: kept(run.hauler.items) } },
   };
 }
