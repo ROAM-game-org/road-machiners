@@ -4,6 +4,7 @@ import { BEACON } from '../data/tow';
 import { REGION } from '../data/region';
 import { playerVehicle } from './damage';
 import { hangUp } from './dialogue';
+import { terrainNav } from './nav/layer';
 import { nearestRoadPoint } from './salvage';
 import { siteGap } from './sites';
 import { isFree } from './spawn';
@@ -32,6 +33,7 @@ function emptiestPoint(world: World): Vec {
 describe('a beacon at the emptiest point of Icarus', () => {
   const world = emptyWorld();
   const pos = emptiestPoint(world);
+  terrainNav(world.terrain);
 
   it('reaches a road from there', () => {
     expect(dist(pos, nearestRoadPoint(pos))).toBeLessThan(BEACON.range);
