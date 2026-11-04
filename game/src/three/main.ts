@@ -49,6 +49,7 @@ import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
+import { errorText } from '../stall';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -147,10 +148,6 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`?${name}=${raw} is no positive number`);
   return value;
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
 function benchFailure(error: unknown, faults: readonly unknown[]): string | null {
