@@ -61,6 +61,7 @@ import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
 import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
 import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
+import type { GpuContext } from "../three/gpu-context";
 import { backgroundNeeds } from "./garage-draw";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
@@ -284,9 +285,9 @@ export class Hud {
     }
   }
 
-  constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
-    this.portraits = new TruckPortraits(renderer);
-    this.garage = new GarageRenders(renderer);
+  constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer, gpu: GpuContext) {
+    this.portraits = new TruckPortraits(renderer, gpu);
+    this.garage = new GarageRenders(renderer, gpu);
     this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
     this.inspected = new TruckConditionView(this.portraits, null);
     this.portraits.onReady((vehicleId) => {

@@ -1,22 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import type { GpuContext } from './gpu-context';
+import { fakeGpu } from '../test/fake-gpu';
 import { failLoudOnShaderError, SHADER_LOSS_GRACE_MS, ShaderBuildFailed, ShaderVerdicts, ShaderWarmup } from './shader-errors';
-
-function fakeGpu() {
-  const restored: (() => void)[] = [];
-  const gpu = {
-    isLost: false,
-    losses: 0,
-    lost() { return this.isLost; },
-    epoch() { return this.losses; },
-    onLost() {},
-    onRestored: (fn: () => void) => restored.push(fn),
-    lose() { this.isLost = true; this.losses++; },
-    restore() { this.isLost = false; restored.forEach((fn) => fn()); },
-  };
-  return gpu as typeof gpu & GpuContext;
-}
 
 describe('failLoudOnShaderError', () => {
   const program = {} as WebGLProgram;
@@ -53,8 +38,8 @@ describe('failLoudOnShaderError', () => {
     const verdicts = new ShaderVerdicts();
     failLoudOnShaderError(r, gpu, verdicts);
     link(r);
-    gpu.lose();
-    gpu.restore();
+    gpu.blackout();
+    gpu.recover();
     expect(() => verdicts.settle(gpu, performance.now() + 10 * SHADER_LOSS_GRACE_MS)).not.toThrow();
   });
 
@@ -63,12 +48,12 @@ describe('failLoudOnShaderError', () => {
     const gpu = fakeGpu();
     const verdicts = new ShaderVerdicts();
     failLoudOnShaderError(r, gpu, verdicts);
-    gpu.lose();
+    gpu.blackout();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() => link(r)).not.toThrow();
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
-    gpu.restore();
+    gpu.recover();
     expect(() => verdicts.settle(gpu, performance.now() + 10 * SHADER_LOSS_GRACE_MS)).not.toThrow();
   });
 });
@@ -218,8 +203,8 @@ describe('ShaderWarmup', () => {
     const gpu = fakeGpu();
     const warmup = new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; }, gpu);
     warmup.render(false);
-    gpu.lose();
-    gpu.restore();
+    gpu.blackout();
+    gpu.recover();
     finish();
     await Promise.resolve();
     expect(warmup.ready(mesh)).toBe(false);
@@ -229,7 +214,7 @@ describe('ShaderWarmup', () => {
     const { renderer, drawn } = warmupRenderer();
     const gpu = fakeGpu();
     const warmup = new ShaderWarmup(renderer, sceneWith(new THREE.Mesh()), new THREE.PerspectiveCamera(), (e) => { throw e; }, gpu);
-    gpu.lose();
+    gpu.blackout();
     warmup.render(false);
     expect(drawn).toEqual([]);
   });

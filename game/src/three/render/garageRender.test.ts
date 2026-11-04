@@ -7,10 +7,12 @@ import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
 import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
+import { fakeGpu } from '../../test/fake-gpu';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const RENDERER = {} as THREE.WebGLRenderer;
+const liveGpu = fakeGpu;
 const SPRITE = { url: 'blob:x', left: 0, top: 0, width: 1, height: 1 };
 
 function scout(): { truck: Vehicle; part: (defId: string) => PartInstance } {
@@ -116,7 +118,7 @@ describe('garage render plan', () => {
 describe('garage render queue', () => {
   it('builds nothing when asked, only in step', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
     const { truck, part } = scout();
 
     renders.want([needFor(truck, [part(firstOf('weapon', 2))])]);
@@ -128,7 +130,7 @@ describe('garage render queue', () => {
   it('stops starting steps once the frame budget is spent', () => {
     const fake = faking(5);
     let clock = 0;
-    const renders = new GarageRenders(RENDERER, fake.build, () => clock++);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build, () => clock++);
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -140,7 +142,7 @@ describe('garage render queue', () => {
 
   it('finishes now what a screen needs, then picks up the background work it left', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const background = needFor(truck, [gun, part(firstOf('cargo', 1))]);
@@ -157,7 +159,7 @@ describe('garage render queue', () => {
 
   it('draws at once only what the screen shows, and queues what it needs later once', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const later = needFor(truck, [gun]);
@@ -173,9 +175,63 @@ describe('garage render queue', () => {
     expect(fake.started.length).toBe(1 + queued);
   });
 
+  it('runs nothing while the context is lost, then builds and tells its listeners on the restore', () => {
+    const fake = faking();
+    const gpu = fakeGpu();
+    const renders = new GarageRenders(RENDERER, gpu, fake.build);
+    const { truck } = scout();
+    let ready = 0;
+    renders.onReady(() => ready++);
+    gpu.blackout();
+    renders.want([needFor(truck, [])]);
+    renders.step(1e9);
+    renders.ensureNow([needFor(truck, [])]);
+    expect(fake.started).toEqual([]);
+
+    gpu.recover();
+
+    expect(ready).toBe(1);
+    renders.step(1e9);
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+  });
+
+  it('drops a job that fails because the context went away, without marking it failed', () => {
+    const gpu = fakeGpu();
+    let drew = false;
+    const build: BuildGarageJob = (_r, job, store) => ({
+      steps: (function* () {
+        yield;
+        if (!drew) {
+          drew = true;
+          gpu.blackout();
+          throw new Error('drew no pixels');
+        }
+        if (job.kind === 'body') store.putBody(job.key, job.chassisId, { image: SPRITE, cores: new Map() });
+      })(),
+      dispose: () => {},
+    });
+    const renders = new GarageRenders(RENDERER, gpu, build);
+    const { truck } = scout();
+
+    expect(() => renders.ensureNow([needFor(truck, [])])).not.toThrow();
+    gpu.recover();
+    renders.step(1e9);
+
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+  });
+
+  it('still marks a job failed and throws when it fails on a live context', () => {
+    const build: BuildGarageJob = () => ({ steps: (function* () { yield; throw new Error('drew no pixels'); })(), dispose: () => {} });
+    const renders = new GarageRenders(RENDERER, fakeGpu(), build);
+    const { truck } = scout();
+
+    expect(() => renders.ensureNow([needFor(truck, [])])).toThrow('drew no pixels');
+    expect(() => renders.ensureNow([needFor(truck, [])])).not.toThrow();
+  });
+
   it('refuses to wait on the GPU when the screen needs the render at once', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
-    const renders = new GarageRenders(RENDERER, build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), build);
     const { truck } = scout();
 
     expect(() => renders.ensureNow([needFor(truck, [])])).toThrow(/at once/);
@@ -183,7 +239,7 @@ describe('garage render queue', () => {
 
   it('has every sprite and the body once ensureNow returns, and tells its listeners once', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const need = needFor(truck, [gun]);
@@ -209,7 +265,7 @@ describe('garage render queue', () => {
       })(),
       dispose: () => {},
     });
-    const renders = new GarageRenders(RENDERER, build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), build);
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -227,7 +283,7 @@ describe('garage render queue', () => {
 
   it('keeps showing the last look of a part while its new wear look is drawn', async () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const spot = mountSpotsOf('scout', gun, coreItems(truck))[0];

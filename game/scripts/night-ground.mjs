@@ -148,6 +148,38 @@ export async function startNewGame(page, mode, bootLimitMs) {
   await waitForGame(page, bootLimitMs);
 }
 
+const loseContext = (page) =>
+  page.evaluate(() => {
+    const gl = window.__ROAM__.renderer.getContext();
+    gl.getExtension('WEBGL_lose_context').loseContext();
+    return gl.isContextLost();
+  });
+
+const restoreContext = (page) =>
+  page.evaluate(() => {
+    const gl = window.__ROAM__.renderer.getContext();
+    gl.getExtension('WEBGL_lose_context').restoreContext();
+  });
+
+const loseAndRestore = async (page, mode, shot, check, problems) => {
+  const errors = [];
+  const onError = (e) => errors.push(e.stack ?? e.message);
+  page.on('pageerror', onError);
+  if (!(await loseContext(page))) problems.push(`${mode}: the context did not report itself lost`);
+  await page.keyboard.press('i');
+  const turn = await page.evaluate(() => window.__ROAM__.state.turn);
+  await page.waitForTimeout(1500);
+  const held = await page.evaluate(() => window.__ROAM__.state.turn);
+  if (held !== turn) problems.push(`${mode}: the turn advanced from ${turn} to ${held} while the context was lost`);
+  await restoreContext(page);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: shot.replace(/\.png$/, '-restored-inventory.png') });
+  await page.keyboard.press('Escape');
+  await check('a restored context');
+  page.off('pageerror', onError);
+  for (const e of errors) problems.push(`${mode} after a restored context: page error ${e.split('\n')[0]}`);
+};
+
 export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimitMs, nightTurns }) {
   const problems = [];
   const check = async (step) => {
@@ -163,6 +195,8 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
     await playNightTurns(page, nightTurns, turnLimitMs);
     await check('night turns');
   }
+  await loseAndRestore(page, mode, shot, check, problems);
+  await page.screenshot({ path: shot.replace(/\.png$/, '-restored.png') });
   await reloadPage(page);
   await waitForGame(page, bootLimitMs);
   if (!(await isNight(page))) await lightUpNight(page);
