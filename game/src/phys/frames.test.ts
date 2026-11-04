@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendFrames, fitsChassis, frameAt, headingOf, headingQuat, restFrame, staleFrame, type VehicleFrame } from "./frames";
-import { addVehicle, emptyWorld } from "../sim/testkit";
+import { blendFrames, fitsBody, frameAt, headingOf, headingQuat, restWheels, type VehicleFrame } from "./frames";
 
 const frame = (x: number, heading: number, spin: number, ground = true): VehicleFrame => ({
   pos: { x, y: 0, z: 0 },
@@ -56,21 +55,27 @@ describe("blendFrames", () => {
   });
 });
 
-describe("fitsChassis", () => {
-  const w = emptyWorld({ x: 20, y: 60 });
-  const single = addVehicle(w, "independent", "niva", [], { x: 20, y: 60 });
-  const rig = addVehicle(w, "independent", "sorokonoga", [], { x: 20, y: 60 });
+describe("fitsBody", () => {
+  const frameOf = (chassisId: string): VehicleFrame => {
+    const wheels = restWheels(chassisId);
+    const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: wheels.front };
+    if (wheels.rear) frame.rear = { pos: { x: 0, y: 0, z: 0 }, rot: headingQuat(0), wheels: wheels.rear };
+    return frame;
+  };
 
-  it("holds when the frame has a rear exactly when the chassis has two units", () => {
-    expect(fitsChassis(restFrame(w, single), "niva")).toBe(true);
-    expect(fitsChassis(restFrame(w, rig), "sorokonoga")).toBe(true);
-    expect(fitsChassis(restFrame(w, single), "sorokonoga")).toBe(false);
-    expect(fitsChassis(restFrame(w, rig), "niva")).toBe(false);
+  it("accepts the rest frame of its own chassis, single unit or rig", () => {
+    expect(fitsBody(frameOf("scout"), "scout")).toBe(true);
+    expect(fitsBody(frameOf("sorokonoga"), "sorokonoga")).toBe(true);
   });
 
-  it("marks a kept frame of the other body stale", () => {
-    expect(staleFrame(restFrame(w, rig), single, true)).toBe(true);
-    expect(staleFrame(restFrame(w, single), rig, true)).toBe(true);
-    expect(staleFrame(restFrame(w, rig), rig, true)).toBe(false);
+  it("rejects a frame of another trailer state", () => {
+    expect(fitsBody(frameOf("scout"), "sorokonoga")).toBe(false);
+    expect(fitsBody(frameOf("sorokonoga"), "scout")).toBe(false);
+  });
+
+  it("rejects a frame with another wheel count on either unit", () => {
+    const rig = frameOf("sorokonoga");
+    expect(fitsBody({ ...rig, wheels: rig.wheels.slice(1) }, "sorokonoga")).toBe(false);
+    expect(fitsBody({ ...rig, rear: { ...rig.rear!, wheels: rig.rear!.wheels.slice(1) } }, "sorokonoga")).toBe(false);
   });
 });
