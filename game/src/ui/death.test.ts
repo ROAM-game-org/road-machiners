@@ -24,7 +24,7 @@ function deadRun() {
   world.chaosHighway = {} as never;
   const requests: BootRequest[] = [];
   const reload = vi.fn();
-  const noSlots = { list: () => [], manualSlots: () => [], save: vi.fn(), reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave: vi.fn() };
+  const noSlots = { list: () => [], manualSlots: () => [], mode: () => "roaming" as const, save: vi.fn(), reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave: vi.fn() };
   const screen = new DeathScreen({ ...noSlots, hasSave: () => false, newGame: { requestBoot: (r) => requests.push(r), reload } });
   screen.show(world);
   const death = page.ui.withClass("death") as FakeNode;
