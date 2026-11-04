@@ -446,11 +446,21 @@ type RouteSummary = { keys: Uint32Array; pieces: Map<number, PieceTable> };
 type SummaryHeader = { version: number; map: string; size: number; atlas: string; rules: number; radii: number[]; cells: number };
 const SUMMARY_VERSION = 2;
 
+const PORTABLE_PRECISION = 1e6;
+
+function roundedNumber(_key: string, value: unknown): unknown {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * PORTABLE_PRECISION) / PORTABLE_PRECISION : value;
+}
+
+export function portableJson(value: unknown): string {
+  return JSON.stringify(value, roundedNumber);
+}
+
 function rulesKey(t: Terrain): number {
   const atlas = atlasOf(t);
   const nav = REGION.navigation;
   const sites = atlasSites(atlas).map((s) => [s.id, s.pos.x, s.pos.y, s.radius]);
-  return hash32(JSON.stringify({ CELL, CLEARANCE, COARSE, SIDE, MAX_GROW, nav: [nav.offRoadCost, nav.slopeCost], road: REGION.roadWidth, terrain: TERRAIN, types: TERRAIN_TYPES, cost: BREAKABLE.routeCost, sites, decks: atlas.decks.boxes }));
+  return hash32(portableJson({ CELL, CLEARANCE, COARSE, SIDE, MAX_GROW, nav: [nav.offRoadCost, nav.slopeCost], road: REGION.roadWidth, terrain: TERRAIN, types: TERRAIN_TYPES, cost: BREAKABLE.routeCost, sites, decks: atlas.decks.boxes }));
 }
 
 function summaryHeader(t: Terrain, map: string, radii: number[]): SummaryHeader {
@@ -473,7 +483,7 @@ function readSummary(t: Terrain, bytes: Uint8Array): RouteSummary {
   const view = new DataView(buffer);
   const { header, headerBytes } = headerOf(bytes);
   const want = summaryHeader(t, header.map, header.radii);
-  for (const key of ['version', 'size', 'atlas', 'rules', 'cells'] as const) if (header[key] !== want[key]) throw new Error(`The route summary was baked for another ${key}. Run npm run routes:bake.`);
+  for (const key of ['version', 'size', 'atlas', 'rules', 'cells'] as const) if (header[key] !== want[key]) throw new Error(`The route summary was baked for another ${key} (file ${header[key]}, this build ${want[key]}). Run npm run routes:bake.`);
   let at = aligned(4 + headerBytes);
   const take = <T extends Uint8Array | Uint16Array | Uint32Array | Int32Array | Float32Array>(Kind: { new (b: ArrayBuffer, o: number, l: number): T; BYTES_PER_ELEMENT: number }, length: number): T => {
     const out = new Kind(buffer, at, length);
