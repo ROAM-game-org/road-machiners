@@ -151,15 +151,12 @@ export async function startNewGame(page, mode, bootLimitMs) {
 const loseContext = (page) =>
   page.evaluate(() => {
     const gl = window.__ROAM__.renderer.getContext();
-    gl.getExtension('WEBGL_lose_context').loseContext();
+    window.__loseContext = gl.getExtension('WEBGL_lose_context');
+    window.__loseContext.loseContext();
     return gl.isContextLost();
   });
 
-const restoreContext = (page) =>
-  page.evaluate(() => {
-    const gl = window.__ROAM__.renderer.getContext();
-    gl.getExtension('WEBGL_lose_context').restoreContext();
-  });
+const restoreContext = (page) => page.evaluate(() => window.__loseContext.restoreContext());
 
 const loseAndRestore = async (page, mode, shot, check, problems) => {
   const errors = [];
@@ -172,7 +169,7 @@ const loseAndRestore = async (page, mode, shot, check, problems) => {
   const held = await page.evaluate(() => window.__ROAM__.state.turn);
   if (held !== turn) problems.push(`${mode}: the turn advanced from ${turn} to ${held} while the context was lost`);
   await restoreContext(page);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(4000);
   await page.screenshot({ path: shot.replace(/\.png$/, '-restored-inventory.png') });
   await page.keyboard.press('Escape');
   await check('a restored context');

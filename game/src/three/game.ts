@@ -211,7 +211,7 @@ export class Game {
 
   constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
-    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights].forEach((lights) => lights.contextRestored()));
+    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);

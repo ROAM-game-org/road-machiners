@@ -195,6 +195,16 @@ describe('garage render queue', () => {
     expect(renders.body(truck, PAINT.standard)).not.toBeNull();
   });
 
+  it('reports itself suspended exactly while the context is lost', () => {
+    const gpu = fakeGpu();
+    const renders = new GarageRenders(RENDERER, gpu, faking().build);
+    expect(renders.suspended()).toBe(false);
+    gpu.blackout();
+    expect(renders.suspended()).toBe(true);
+    gpu.recover();
+    expect(renders.suspended()).toBe(false);
+  });
+
   it('drops a job that fails because the context went away, without marking it failed', () => {
     const gpu = fakeGpu();
     let drew = false;

@@ -388,6 +388,10 @@ export class GarageRenders {
     });
   }
 
+  suspended(): boolean {
+    return this.gpu.lost();
+  }
+
   private stale(epoch: number): boolean {
     return this.gpu.lost() || this.gpu.epoch() !== epoch;
   }
