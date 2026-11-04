@@ -147,6 +147,10 @@ async function freshGame(browser, viewport) {
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#report .feedback')).display === 'none'), `${viewport.name}: the page report corner is hidden in play`);
+  const turn = await page.evaluate(() => window.__ROAM__.state.turn);
+  await page.evaluate(() => window.__ROAM__.endTurn());
+  await page.waitForFunction((from) => window.__ROAM__.state.turn > from || document.body.innerText.includes('The game crashed'), turn, { timeout: BOOT_LIMIT_MS });
+  expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen after the first turn`);
   expect(errors.length === 0, `${viewport.name}: no page errors ${errors.join('; ')}`);
   return page;
 }

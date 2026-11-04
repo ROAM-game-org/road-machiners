@@ -197,7 +197,7 @@ describe("the in-game Save panel Import save", () => {
     const { ui } = open([]);
     vi.mocked(pickTextFile).mockResolvedValue("file text");
     importSave.mockResolvedValue({ refusal: t("save.importNoSlot") });
-    const panel = new SavePanel({ list: () => [], manualSlots: () => [], save: vi.fn(), reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
+    const panel = new SavePanel({ list: () => [], manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
 
     panel.openSave();
     ui.byClass("save-exports")[0].button("Import save").fire("click");
@@ -217,7 +217,7 @@ describe("the in-game Load panel", () => {
     const { ui } = open([]);
     const win = window as unknown as FakeNode;
     const reboot = vi.fn();
-    const panel = new SavePanel({ list: () => SAVES, manualSlots: () => [], save: vi.fn(), reboot, exportSave: vi.fn(), exportLog: vi.fn(), importSave });
+    const panel = new SavePanel({ list: () => SAVES, manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot, exportSave: vi.fn(), exportLog: vi.fn(), importSave });
     panel.openLoad();
     const row = ui.byClass("save-row")[0];
     row.fire("click");
@@ -253,4 +253,48 @@ describe("the in-game Load panel", () => {
     expect(reboot).not.toHaveBeenCalled();
   });
 
+  describe("saving over another mode", () => {
+    function savePanel(saves: SlotInfo[], mode: "roaming" | "chaosHighway") {
+      const { ui } = open([]);
+      const save = vi.fn();
+      const panel = new SavePanel({ list: () => saves, manualSlots: () => ["slot1"], save, mode: () => mode, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
+      panel.openSave();
+      ui.byClass("save-row")[0].fire("click");
+      return { ui, save, dialog: () => ui.byClass("confirm-dialog")[0] };
+    }
+
+    it("asks in the game's dialog, naming the slot and both modes, and keeps the slot on cancel", async () => {
+      const { ui, save, dialog } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway");
+      const asked = dialog().textContent;
+      expect(asked).toContain("Slot 1");
+      expect(asked).toContain("Roaming");
+      expect(asked).toContain("Chaos Highway");
+      dialog().button("Cancel").fire("click");
+      await Promise.resolve();
+      expect(save).not.toHaveBeenCalled();
+      expect(ui.byClass("confirm-dialog")).toEqual([]);
+    });
+
+    it("saves when the player confirms", async () => {
+      const { save, dialog } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway");
+      dialog().button("Save").fire("click");
+      await vi.waitFor(() => expect(save).toHaveBeenCalledWith("slot1"));
+    });
+
+    it("asks the other way round too", () => {
+      const { save, dialog } = savePanel([info("slot1", 900, 120, "chaosHighway")], "roaming");
+      expect(dialog()).toBeDefined();
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["an empty slot", []],
+      ["a slot of the same mode", [info("slot1", 900, 120, "chaosHighway")]],
+      ["a damaged slot", [{ slot: "slot1", savedAt: 900, turn: null, mode: null } as SlotInfo]],
+    ])("saves at once over %s", async (_name, saves) => {
+      const { ui, save } = savePanel(saves as SlotInfo[], "chaosHighway");
+      await vi.waitFor(() => expect(save).toHaveBeenCalledWith("slot1"));
+      expect(ui.byClass("confirm-dialog")).toEqual([]);
+    });
+  });
 });

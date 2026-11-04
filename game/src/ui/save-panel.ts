@@ -1,5 +1,6 @@
 
 import { closeLabel } from "./input-mode";
+import type { GameModeId } from "../sim/types";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
 import { bindAttr } from "../text/language";
@@ -14,6 +15,7 @@ export type SavePanelActions = {
   list: () => SlotInfo[];
   manualSlots: () => SlotId[];
   save: (slot: SlotId) => void;
+  mode: () => GameModeId;
   reboot: (slot: SlotId) => void;
   exportSave: () => void;
   exportLog: () => void;
@@ -121,7 +123,7 @@ export class SavePanel {
 
   openSave(refusal: Msg | null = null): void {
     const infos = new Map(this.actions.list().map((info) => [info.slot, info]));
-    const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot)));
+    const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot, infos.get(slot) ?? null)));
     const exports = el(
       "div",
       { class: "save-exports" },
@@ -141,7 +143,13 @@ export class SavePanel {
     this.list.openLoad(this.actions.list(), (slot) => void this.loadFrom(slot));
   }
 
-  private saveInto(slot: SlotId): void {
+  private async saveInto(slot: SlotId, info: SlotInfo | null): Promise<void> {
+    const mode = this.actions.mode();
+    const saved = info?.mode;
+    if (saved && saved !== mode) {
+      const question = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(saved), current: modeName(mode) });
+      if (!(await askConfirm({ question, yes: t("menu.save") }))) return;
+    }
     this.actions.save(slot);
     this.openSave();
   }

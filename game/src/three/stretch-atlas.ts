@@ -8,6 +8,7 @@ import { defaultSetup } from '../sim/settings';
 import { rollStretch, type RolledStretch, type RolledTruck } from '../sim/stretch-roll';
 import { newWorld } from '../sim/world';
 import type { Vehicle, World } from '../sim/types';
+import { errorText } from '../stall';
 
 declare global {
   interface Window {
@@ -131,7 +132,7 @@ export function runStretchAtlas(): void {
   buildAtlas().then(
     (done) => (window.__STRETCH_ATLAS__ = done),
     (error: unknown) => {
-      window.__STRETCH_ATLAS_ERROR__ = error instanceof Error ? (error.stack ?? error.message) : String(error);
+      window.__STRETCH_ATLAS_ERROR__ = errorText(error);
       document.body.append(element('pre', '', window.__STRETCH_ATLAS_ERROR__));
     },
   );

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
-import { lateBy, siteOf, type Contract } from "../sim/market";
+import { bountyTurn, siteOf, type Contract } from "../sim/market";
 import type { CrimeCase, GameEvent } from "../sim/types";
 import { refusalText } from "../text/names";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { caseVictimName, clock, eventText, heldContractClock, heldContractDue } from "./format";
+import { caseVictimName, clock, contractDue, eventText, heldContractClock, heldContractDeadline, lateDue, timeSpanText } from "./format";
 
 const en = (msg: Msg | null | undefined): string => resolve(msg!, "en");
 const haul: Extract<Contract, { kind: "haul" }> = { id: "h", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 100, deadline: 500, window: 400, rush: false, tier: 1 };
@@ -21,8 +21,10 @@ const contractEvent = (outcome: "overdue" | "late" | "expiring" | "failed"): Gam
 describe("late haul words", () => {
   it("names the bounty time of a late haul in place of the deadline", () => {
     const w = lateWorld();
-    expect(en(heldContractClock(w, haul))).toBe(`bounty ${en(clock(lateBy(haul) + 1).full)}`);
-    expect(en(heldContractClock({ ...w, turn: 400 }, haul))).toBe(en(heldContractDue(haul)));
+    expect(en(heldContractClock(w, haul))).toBe(`bounty in ${en(timeSpanText(w.turn, bountyTurn(haul)))}`);
+    expect(en(heldContractDeadline(w, haul))).toBe(en(lateDue(haul)));
+    expect(en(heldContractClock({ ...w, turn: 400 }, haul))).toMatch(/ left$/);
+    expect(en(heldContractDeadline({ ...w, turn: 400 }, haul))).toBe(en(contractDue(haul)));
   });
 
   it("logs the overdue line with the crates' deadline and the shop", () => {
@@ -38,7 +40,7 @@ describe("late haul words", () => {
   it("gives the late limit in the warning of a late haul and the deadline otherwise", () => {
     const late = en(eventText(lateWorld(), contractEvent("expiring"))!.text);
     const early = en(eventText({ ...lateWorld(), turn: 400 }, contractEvent("expiring"))!.text);
-    expect(late).toContain(en(clock(lateBy(haul) + 1).full));
+    expect(late).toContain(en(clock(bountyTurn(haul)).full));
     expect(early).toContain(en(clock(haul.deadline + 1).full));
   });
 

@@ -1,4 +1,4 @@
-
+import { runCommand } from './run-command';
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
@@ -160,6 +160,7 @@ export class QuestScreen {
   ) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
+    this.root.addEventListener('click', (e) => this.refuseClosed(e), true);
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
     window.addEventListener('resize', () => this.restack());
@@ -424,12 +425,21 @@ export class QuestScreen {
   private run(cmd: (w: World) => World): void {
     this.error = null;
     try {
-      this.host.announce(cmd(this.host.world()));
-    } catch (e) {
+      const failed = runCommand(this.host.world(), cmd, (next) => this.host.announce(next));
+      if (failed === null) return;
       this.asked = null;
-      this.error = commandFailure(this.host.world(), e);
+      this.error = commandFailure(this.host.world(), failed);
       if (this.host.world().player.quests.live) this.draw('same');
+    } finally {
+      if (!this.isOpen()) this.hide();
     }
+  }
+
+  private refuseClosed(e: MouseEvent): void {
+    if (this.isOpen()) return;
+    e.stopImmediatePropagation();
+    this.hide();
+    throw new Error('The quest window took a click with no quest on view');
   }
 
   private onClick(e: MouseEvent): void {

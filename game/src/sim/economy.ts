@@ -22,7 +22,7 @@ import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOr
 import { affordableUnits, chargeM, fairM, payoutM, requireWholeM } from "./money";
 import { canUseSite, requireTown, townAt } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
-import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
+import { addGoods, cargoRoom, keepInStorage, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
 import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
@@ -166,6 +166,21 @@ function practiceSale(world: World, buyer: string, good: string, price: number, 
   if (profit > 0) practice(world, "profit", profit, null, `${buyer}:${good}`);
 }
 
+function isCamp(buyerId: string): boolean {
+  return REGION.locations.find((l) => l.id === buyerId)?.kind === "camp";
+}
+
+function goodsSoldAt(vehicle: Vehicle, buyerId: string, retainedParts: number): [string, number][] {
+  const traded = isCamp(buyerId) ? null : shopDef(buyerId).goods;
+  return Object.entries(goodsCount(vehicle))
+    .map(([good, count]): [string, number] => [good, good === "parts" ? Math.max(0, count - retainedParts) : count])
+    .filter(([good, count]) => count > 0 && (traded === null || traded.includes(good)));
+}
+
+export function sellsAnythingAt(vehicle: Vehicle, buyerId: string, retainedParts: number): boolean {
+  return goodsSoldAt(vehicle, buyerId, retainedParts).length > 0 || spareParts(vehicle).length > 0;
+}
+
 export function sellVehicleCargo(
   world: World,
   vehicle: Vehicle,
@@ -173,11 +188,7 @@ export function sellVehicleCargo(
   retainedParts: number,
 ): void {
   requireVehicleShop(world, vehicle, shopId);
-  const traded = shopDef(shopId).goods;
-  for (const [good, count] of Object.entries(goodsCount(vehicle))) {
-    const sellCount = good === 'parts' ? Math.max(0, count - retainedParts) : count;
-    if (sellCount > 0 && traded.includes(good)) tradeGoods(world, vehicle, shopId, good, sellCount, "sell");
-  }
+  for (const [good, count] of goodsSoldAt(vehicle, shopId, retainedParts)) tradeGoods(world, vehicle, shopId, good, count, "sell");
   const spares = spareParts(vehicle);
   for (const part of spares) {
     shopMoney(world, vehicle, partTradePrice(world, vehicle, part, "sell"), "partSale");
@@ -227,11 +238,9 @@ function requireCampService(vehicle: Vehicle, campId: string): void {
 
 export function sellAtCamp(world: World, vehicle: Vehicle, campId: string, retainedParts: number): void {
   requireCampService(vehicle, campId);
-  for (const [good, count] of Object.entries(goodsCount(vehicle))) {
-    const sellCount = good === "parts" ? Math.max(0, count - retainedParts) : count;
-    if (sellCount <= 0) continue;
-    removeGoods(vehicle, good, sellCount);
-    shopMoney(world, vehicle, campGoodPrice(good, sellCount), "campSale");
+  for (const [good, count] of goodsSoldAt(vehicle, campId, retainedParts)) {
+    removeGoods(vehicle, good, count);
+    shopMoney(world, vehicle, campGoodPrice(good, count), "campSale");
   }
   const spares = spareParts(vehicle);
   for (const part of spares) shopMoney(world, vehicle, campPartPrice(part), "campSale");
@@ -249,7 +258,7 @@ export function serviceAtCamp(
 }
 
 export function cargoSaleValue(world: World, vehicle: Vehicle, buyerId: string): number {
-  const camp = REGION.locations.find((l) => l.id === buyerId)?.kind === "camp";
+  const camp = isCamp(buyerId);
   return Object.entries(goodsCount(vehicle)).reduce((sum, [good, count]) => {
     if (camp) return sum + campGoodPrice(good, count);
     return sum + (shopDef(buyerId).goods.includes(good) ? getLotTradePrice(world, vehicle, buyerId, good, count, "sell") : 0);
@@ -380,7 +389,7 @@ function fitEngineOnCredit(world: World, me: Vehicle, shopId: string, engine: Pa
   if (partDef(engine.defId).kind !== 'engine') throw new Error(`${engine.defId} is not an engine`);
   const price = partTradePrice(world, me, engine, 'buy');
   const part = takeStockPart(shopState(world, shopId), engine.id);
-  if (!mountPart(world, me, part)) receiveBoughtPart(world, part, me);
+  if (!mountPart(world, me, part)) receiveBoughtPart(world, part);
   shopMoney(world, me, -price, 'partCredit');
   world.events.push({ t: 'engineCredit', part: part.defId });
 }
@@ -587,8 +596,8 @@ export function buyStockPart(world: World, partId: string): World {
   });
 }
 
-export function receiveBoughtPart(world: World, part: PartInstance, truck: Vehicle = playerVehicle(world)): void {
-  if (!stowPart(world, truck, part)) world.player.storage.push(part);
+export function receiveBoughtPart(world: World, part: PartInstance): void {
+  keepInStorage(world, part);
 }
 
 export function sellPart(world: World, partId: string): World {
@@ -738,9 +747,12 @@ function movableParts(v: Vehicle): PartInstance[] {
   return parts.sort((a, b) => isRack(b) - isRack(a));
 }
 
+const SWAP_KEEPS: ReadonlySet<string> = new Set(['engine', 'cargo', 'store']);
+
 function placeSwappedPart(world: World, v: Vehicle, part: PartInstance, wasMounted: boolean): void {
+  if (!SWAP_KEEPS.has(partDef(part.defId).kind)) return keepInStorage(world, part);
   const placed = (wasMounted && mountPart(world, v, part)) || stowPart(world, v, part);
-  if (!placed) world.player.storage.push(part);
+  if (!placed) keepInStorage(world, part);
 }
 
 export function chassisPrice(world: World, chassisId: string): number {

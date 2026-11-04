@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { readLedger } from './ledger';
-import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
+import { DROP_QUEUES, resolveActor, resolveOrder, resolveOwner, writeControl, type ControlAction, type DropQueue } from './control';
 import { pauseFile, readPause, writePause, type PauseRecord } from './pause';
 import { publicRows } from './public/overview';
 import { openStore } from './public/store';
@@ -35,7 +35,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
 };
 
 const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> = {
-  retry: { usage: 'retry N --by <who> ["decision"]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and records the decision, which only the next playtest job reads', run: retry },
+  retry: { usage: 'retry N --by <who> ["decision"]', help: 'remove the stuck label and the failures of a card. A kept merge or ship work that holds the card starts a new fix budget. On the release tracking card it also lifts a playtest block, so the blocked playtest runs again, and records the decision, which only the next playtest job reads. It orders no playtest when none is blocked', run: retry },
   pause: { usage: 'pause <reason> [--pid N] [--by who]', help: 'pause the factory. --pid ties the pause to a process, and the tick lifts it when that process ends. --by or --pid makes a member pause, which resume refuses', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
   'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
@@ -46,7 +46,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   move: { usage: 'move N <to>', help: `put a card in one of ${MOVE_TARGETS.join(', ')}`, build: ([n, to]) => ({ action: 'move', issue: number(n), to: target(to) }) },
   merge: { usage: 'merge N', help: 'put a card in the merge queue, past its post and hardening', build: ([n]) => ({ action: 'merge', issue: number(n) }) },
   ship: { usage: 'ship', help: 'ship the open release now', build: () => ({ action: 'ship' }) },
-  playtest: { usage: 'playtest', help: 'order a release playtest on the dev tip now, also when dev has not moved or the last playtest started recently', build: () => ({ action: 'playtest' }) },
+  playtest: { usage: 'playtest', help: 'order a release playtest on the dev tip now. Its pass makes the next release candidate, so only the committee owner may order it, with --by set to the owner\'s Telegram id', build: () => ({ action: 'playtest' }) },
   remove: { usage: 'remove N', help: 'take a feature out of dev and the release: its merge on dev is reverted, the candidate is dropped and the card returns to design', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
@@ -104,7 +104,7 @@ function writeCommand(ctx: Ctx, name: string, args: string[]): void {
   const by = takeFlag(args, '--by');
   const reason = takeFlag(by.rest, '--reason');
   const command = { ...WRITE[name].build(reason.rest), by: by.value, reason: reason.value };
-  resolveActor(ctx, command.by, isGated(ctx, command));
+  resolveOrder(ctx, command);
   const path = writeControl(ctx.cfg.home, command, ctx.now());
   console.log(`Wrote ${path}. It applies on the next tick.`);
   const paused = readPause(ctx.cfg.home);
@@ -121,13 +121,21 @@ async function repairCloneCommand(ctx: Ctx, args: string[]): Promise<void> {
   for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge, refuseUnpushed: false })) console.log(line);
 }
 
+// These values start a playtest or stand for its pass, and a pass makes a release candidate. Only the owner sets them, while anyone may clear them.
+const PLAYTEST_PATHS = ['pendingPlaytest', 'release.playtest.passed', 'release.playtest.work'];
+
+function startsPlaytest(path: string, json: string | undefined): boolean {
+  if (json === undefined || json.trim() === 'null') return false;
+  return PLAYTEST_PATHS.some((guarded) => guarded === path || guarded.startsWith(`${path}.`) || path.startsWith(`${guarded}.`));
+}
+
 function setStateCommand(ctx: Ctx, args: string[]): void {
   const by = takeFlag(args, '--by');
   const reason = takeFlag(by.rest, '--reason');
   const remove = reason.rest.includes('--delete');
   const [path, json, ...extra] = reason.rest.filter((arg) => arg !== '--delete');
   if (path === undefined || (json === undefined) !== remove || extra.length > 0) throw new Error(`Usage: ${IMMEDIATE['set-state'].usage}`);
-  const actor = resolveActor(ctx, by.value, false);
+  const actor = startsPlaytest(path, json) ? resolveOwner(ctx, by.value) : resolveActor(ctx, by.value, false);
   const { before, after } = editState(ctx.statePath, path, remove ? null : json);
   ctx.log('tick', null, `${actor} set ${path} from ${JSON.stringify(before)} to ${JSON.stringify(after)}: ${reason.value}`);
   console.log(`${path}: ${JSON.stringify(before)} -> ${after === undefined ? 'deleted' : JSON.stringify(after)}`);
@@ -369,12 +377,16 @@ function retryDecision(given: string[]): string {
 
 async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; text: string }): Promise<string> {
   const recorded = decision.text === '' ? null : { by: decision.by, at: ctx.now().toISOString(), text: decision.text };
+  let blocked = false;
   updateState(ctx.statePath, (state: FactoryState) => {
     if (state.release === null) return state;
     const playtest = state.release.playtest;
-    return { ...state, pendingPlaytest: decision.by, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
+    blocked = playtest.blocked !== null;
+    // Only a blocked playtest, which an order started, runs again. A retry never orders a new one, since its pass makes a release candidate.
+    return { ...state, pendingPlaytest: blocked ? decision.by : state.pendingPlaytest, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
   if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);
+  if (!blocked) return `The release playtest is not blocked, so no playtest is ordered${recorded === null ? '' : '. The next playtest reads the decision'}. Only the owner orders a new one, with factory playtest.`;
   return `Lifted the playtest block of the release. A new playtest job plays up to ${ctx.cfg.playtestRuns} times${recorded === null ? '' : ' and reads the decision'}.`;
 }
 
