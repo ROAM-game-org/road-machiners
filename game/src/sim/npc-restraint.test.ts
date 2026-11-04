@@ -5,7 +5,7 @@ import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
 import { partDef } from '../data/parts';
 import { planNpcOrders } from './ai';
-import { assignAutoOrders } from './combat';
+import { assignAutoOrders, gunOf } from './combat';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
@@ -255,7 +255,8 @@ describe('NPC field repairs', () => {
     planNpcOrders(world);
     resolveNpcActivities(world);
     expect(npc.job?.kind).toBe('repair');
-    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
+    const threat = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
+    gunOf(mountedParts(threat, 'weapon')[0]).cooldown = 1;
 
     const turn = (seed: number) => {
       const start = cloneWorld(world);

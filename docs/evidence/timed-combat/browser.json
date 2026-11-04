@@ -1,0 +1,537 @@
+[
+  {
+    "scenario": "normal",
+    "turns": [
+      {
+        "turn": 1202,
+        "clock": 999.9999999999991,
+        "playerState": "active",
+        "records": [
+          {
+            "kind": "launch",
+            "at": 83.33333333333334,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333334
+          },
+          {
+            "kind": "launch",
+            "at": 83.33333333333334,
+            "shooter": "v118"
+          },
+          {
+            "kind": "launch",
+            "at": 249.99999999999994,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 249.99999999999994
+          },
+          {
+            "kind": "launch",
+            "at": 249.99999999999994,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 251.22611525626303,
+            "shooter": "v118",
+            "damage": 6
+          },
+          {
+            "kind": "impact",
+            "at": 274.58753039536356,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 416.6666666666668,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 416.6666666666668
+          },
+          {
+            "kind": "launch",
+            "at": 416.6666666666668,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 431.2875578658677,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 432.1442646354262,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 583.3333333333334,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333334
+          },
+          {
+            "kind": "launch",
+            "at": 583.3333333333334,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 596.0194794394547,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 602.8743143910208,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 749.9999999999997,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 749.9999999999997
+          },
+          {
+            "kind": "launch",
+            "at": 749.9999999999997,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 761.0618439168285,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 811.9844565368348,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666666,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 916.666666666666
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666666,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 923.9354493731598,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 925.1186799715266,
+            "shooter": "v1",
+            "damage": 0
+          }
+        ]
+      },
+      {
+        "turn": 1203,
+        "clock": 2000.0000000000034,
+        "playerState": "active",
+        "records": [
+          {
+            "kind": "impact",
+            "at": 73.18889721005985,
+            "shooter": "v118",
+            "damage": 6
+          },
+          {
+            "kind": "launch",
+            "at": 83.33333333333348,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333348
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333348
+          },
+          {
+            "kind": "impact",
+            "at": 92.07096050734981,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 250.0000000000009,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 250.0000000000009
+          },
+          {
+            "kind": "cancel",
+            "at": 250.0000000000009
+          },
+          {
+            "kind": "impact",
+            "at": 262.0222497857094,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 416.66666666666833,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 416.66666666666833
+          },
+          {
+            "kind": "cancel",
+            "at": 416.66666666666833
+          },
+          {
+            "kind": "impact",
+            "at": 420.0204885912101,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 583.3333333333358,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333358
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333358
+          },
+          {
+            "kind": "impact",
+            "at": 593.264372079765,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 742.5859812957374,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 750.0000000000032,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 750.0000000000032
+          },
+          {
+            "kind": "cancel",
+            "at": 750.0000000000032
+          },
+          {
+            "kind": "impact",
+            "at": 909.5954331897638,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 916.6666666666706,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 916.6666666666706
+          },
+          {
+            "kind": "launch",
+            "at": 916.6666666666706,
+            "shooter": "v118"
+          }
+        ]
+      },
+      {
+        "turn": 1204,
+        "clock": 2999.999999999995,
+        "playerState": "active",
+        "records": [
+          {
+            "kind": "impact",
+            "at": 52.29289822426222,
+            "shooter": "v118",
+            "damage": 6
+          },
+          {
+            "kind": "impact",
+            "at": 80.44851781730381,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 83.33333333333326,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333326
+          },
+          {
+            "kind": "launch",
+            "at": 83.33333333333326,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 218.33756260645873,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 218.63047406402507,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 249.9999999999984,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 249.9999999999984
+          },
+          {
+            "kind": "launch",
+            "at": 249.9999999999984,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 363.6350879607137,
+            "shooter": "v1",
+            "damage": 4
+          },
+          {
+            "kind": "impact",
+            "at": 378.72316882794735,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 416.66666666666356,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 416.66666666666356
+          },
+          {
+            "kind": "launch",
+            "at": 416.66666666666356,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 522.943228193378,
+            "shooter": "v118",
+            "damage": 6
+          },
+          {
+            "kind": "impact",
+            "at": 537.4540257209835,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 583.3333333333287,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333287
+          },
+          {
+            "kind": "launch",
+            "at": 583.3333333333287,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 696.8471880250656,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "impact",
+            "at": 699.8556087429486,
+            "shooter": "v118",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 749.9999999999939,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 749.9999999999939
+          },
+          {
+            "kind": "launch",
+            "at": 749.9999999999939,
+            "shooter": "v118"
+          },
+          {
+            "kind": "impact",
+            "at": 842.2410928988531,
+            "shooter": "v118",
+            "damage": 2
+          },
+          {
+            "kind": "impact",
+            "at": 864.797040538034,
+            "shooter": "v1",
+            "damage": 0
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666659,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 916.666666666659
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666659,
+            "shooter": "v118"
+          }
+        ]
+      }
+    ],
+    "errors": []
+  },
+  {
+    "scenario": "narrow",
+    "turns": [
+      {
+        "turn": 1202,
+        "clock": 999.9999999999991,
+        "playerState": "active",
+        "records": [
+          {
+            "kind": "cancel",
+            "at": 83.33333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 83.33333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 249.99999999999994
+          },
+          {
+            "kind": "cancel",
+            "at": 249.99999999999994
+          },
+          {
+            "kind": "cancel",
+            "at": 249.99999999999994
+          },
+          {
+            "kind": "cancel",
+            "at": 416.6666666666668
+          },
+          {
+            "kind": "cancel",
+            "at": 416.6666666666668
+          },
+          {
+            "kind": "cancel",
+            "at": 416.6666666666668
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 583.3333333333334
+          },
+          {
+            "kind": "cancel",
+            "at": 749.9999999999997
+          },
+          {
+            "kind": "cancel",
+            "at": 749.9999999999997
+          },
+          {
+            "kind": "cancel",
+            "at": 749.9999999999997
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666666,
+            "shooter": "v1"
+          },
+          {
+            "kind": "cancel",
+            "at": 916.666666666666
+          },
+          {
+            "kind": "launch",
+            "at": 916.666666666666,
+            "shooter": "v118"
+          }
+        ]
+      }
+    ],
+    "errors": []
+  }
+]
