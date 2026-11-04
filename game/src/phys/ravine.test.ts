@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { NPC_BEHAVIOR } from '../data/npcs';
+import { NPCS, NPC_BEHAVIOR } from '../data/npcs';
 import { addGoods } from '../sim/inventory';
 import { climbGrade } from '../sim/stats';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from '../sim/testkit';
@@ -52,7 +52,12 @@ function trucker(w: World, build: 'hauler' | 'scout'): Vehicle {
 
 type Run = { w: World; arrived: number | null; trail: Vec[]; stalls: number; jumped: boolean; goalChanged: boolean; stallTurn: number | null; progressSince: number | null };
 
+function withoutNewTraffic(w: World): void {
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Infinity;
+}
+
 function run(w: World, id: string, turns: number, untilStall = false): Run {
+  withoutNewTraffic(w);
   let d: Drive = buildDrive(w);
   const out: Run = { w: cloneWorld(w), arrived: null, trail: [], stalls: 0, jumped: false, goalChanged: false, stallTurn: null, progressSince: null };
   const first = w.vehicles.find((v) => v.id === id)!.brain!.goals[0];

@@ -60,7 +60,9 @@ function parkedBy(w: World): World {
 
 function searched(w: World): World {
   let next = startSearch(parkedBy(w), OPENING_WRECK_ID);
-  for (let i = 0; i < 6 && playerVehicle(next).job; i++) next = turns(next, 1);
+  const job = playerVehicle(next).job;
+  const length = job?.kind === 'search' ? job.total : 0;
+  for (let i = 0; i < length && playerVehicle(next).job; i++) next = turns(next, 1);
   return next;
 }
 
@@ -87,7 +89,7 @@ describe('new-game opening', () => {
     expect(openingStockOf(newWorld(1, startKit('combat'), TEST_MAP, defaultSetup('roaming'), false))).toBeNull();
     const world = carriedWorld({
       seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null,
-      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
+      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], storedGoods: {}, setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
     }, KIT, () => TEST_MAP, () => 7);
     expect(openingStockOf(world)).toBeNull();
     expect(world.obstacles.some((o) => o.id === OPENING_WRECK_ID)).toBe(false);
