@@ -49,6 +49,7 @@ import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
+import { errorText } from '../stall';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -149,9 +150,6 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   return value;
 }
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
-}
 
 function benchFailure(error: unknown, faults: readonly unknown[]): string | null {
   const reported = faults.map((fault) => `The game reported an error during the bench: ${errorText(fault)}`);

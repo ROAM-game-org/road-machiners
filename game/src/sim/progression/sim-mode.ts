@@ -17,6 +17,7 @@ import { cardOf } from './sim-cards';
 import { everyTruck } from '../sites';
 import { economyOf, marketSample, sampleEvents, StockFlows, type EconTag, type Economy, type SampleEvent } from './sim-economy';
 import { QUIET } from './turn-log';
+import { errorText } from '../../stall';
 
 export { cardOf, npcCard, playerCard } from './sim-cards';
 
@@ -239,9 +240,6 @@ export function simWorld(map: BakedMap, seed: number): World {
   return playthroughWorld(map, seed, 'markov');
 }
 
-export function errorText(error: unknown): string {
-  return error instanceof Error ? error.stack ?? error.message : String(error);
-}
 
 export function frameOf(world: World, events: readonly GameEvent[], ledger: Ledger, watched: string | null, text: SimText, sample: Sample | null): Frame {
   return {
