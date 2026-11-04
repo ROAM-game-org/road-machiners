@@ -17,7 +17,7 @@ what: The boot, saves, sound and turns broke when one browser feature or downloa
 cost: Players on Safari, Firefox and Android could not start the game, lost saves, could not play past the first turn or open their inventory, and it took a long string of hotfixes on main before anyone fixed the cause.
 
 ID: R5
-what: The UI or the renderer asked the sim about a state it does not hold, like a part mounted only in a planned refit, a part on a cell the lookup did not expect, a target the player can no longer see, a site with no gate pads or a shooter whose view was already gone, and the lookup threw instead of refusing.
+what: The UI or the renderer asked the sim about a state it does not hold, like a part mounted only in a planned refit, a part on a cell the lookup did not expect, a target the player can no longer see, a site with no gate pads or a shooter whose view was already gone, and the lookup threw instead of refusing. Checks that run every frame also threw on float rounding: a turn-end slowdown took its played time as the difference of two nearly equal points on its curve, got a tiny negative number, and the play clock threw on backward time. Values computed as a difference of floats need a clamp before any check that throws.
 cost: The game crashed for players until hotfixes on main, and new features kept adding crashes of this kind to dev builds.
 
 ID: R6
