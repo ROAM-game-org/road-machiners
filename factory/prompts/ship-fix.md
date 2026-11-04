@@ -1,6 +1,6 @@
 This is the ship stage of the ROAM factory.
 You work alone in a clone of the game repo, on branch main.
-The factory merged the release branch {{release}} into it. The committee played and approved that release.
+The factory merged the release candidate {{release}} into it. The committee played and approved that candidate.
 
 It then ran the full checks on the merged result, and they failed:
 

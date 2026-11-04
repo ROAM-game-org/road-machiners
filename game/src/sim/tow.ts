@@ -563,11 +563,20 @@ export function startEscort(world: World, escort: Vehicle, leader: Vehicle, site
   return goal;
 }
 
-export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): void {
-  const leader = vehicleById(world, goal.targetId!);
+export function postOf(world: World, vehicle: Vehicle): Vec | null {
+  const held = followingOf(world, vehicle);
+  return held ? escortPost(world, vehicle, vehicleById(world, held.other)) : null;
+}
+
+function escortPost(world: World, vehicle: Vehicle, leader: Vehicle): Vec {
   const rank = followersOf(world, leader.id).findIndex((e) => e.id === vehicle.id);
   if (rank < 0) throw new Error(`${vehicle.id} follows ${leader.id} without escorting it`);
-  const fresh = followSpot(world, vehicle, leader, rank);
+  return followSpot(world, vehicle, leader, rank);
+}
+
+export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): void {
+  const leader = vehicleById(world, goal.targetId!);
+  const fresh = escortPost(world, vehicle, leader);
   const gap = dist(vehicle.pos, leader.pos);
   const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && goal.destination !== null && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
   if (!holds) goal.destination = fresh;

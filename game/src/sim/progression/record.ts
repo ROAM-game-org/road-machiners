@@ -99,7 +99,7 @@ function dayEnds(before: World, after: World, last: boolean): boolean {
   return last || clockOf(after.turn).day > clockOf(before.turn).day;
 }
 
-const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'chaosHighway', sprinter: 'chaosHighway' };
+const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { escort: 'chaosHighway', sprinter: 'chaosHighway' };
 const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'chaosHighway', sprinter: 'chaosHighway' };
 
 function modeOf(archetype: Archetype): GameModeId {

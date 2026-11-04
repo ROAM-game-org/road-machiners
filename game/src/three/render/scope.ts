@@ -200,8 +200,8 @@ export class RenderScope {
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
     const range = this.cellRange(camera);
-    for (const chunk of [...this.attached]) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
-    this.forEachChunkIn(range, (chunk) => this.setShown(chunk, this.shows(chunk)));
+    for (const chunk of this.attached) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
+    this.showChunksIn(range);
     this.frameHooks.forEach((hook) => hook());
   }
 
@@ -228,11 +228,11 @@ export class RenderScope {
     this.span = Math.max(this.span, chunk.box.getSize(this.size).length());
   }
 
-  private forEachChunkIn(range: CellRange, visit: (chunk: Chunk) => void): void {
+  private showChunksIn(range: CellRange): void {
     for (let cy = range.y0; cy <= range.y1; cy++)
       for (let cx = range.x0; cx <= range.x1; cx++) {
         const chunk = this.chunks[cy * this.perSide + cx];
-        if (chunk) visit(chunk);
+        if (chunk) this.setShown(chunk, this.shows(chunk));
       }
   }
 
@@ -245,12 +245,12 @@ export class RenderScope {
     const slack = this.span + 2 * Math.sqrt(3) * MARGIN;
     const wide = 1 + (slack * camera.zoom * 2) / (camera.right - camera.left);
     const tall = 1 + (slack * camera.zoom * 2) / (camera.top - camera.bottom);
-    const box = new THREE.Box2();
+    const box = REACH_BOX.makeEmpty();
     for (const level of [this.lowest, this.highest])
       for (const [nx, ny] of CORNERS) {
         this.corner.set(nx * wide, ny * tall, -1).unproject(camera);
         const along = (level - this.corner.y) / this.forward.y;
-        box.expandByPoint(new THREE.Vector2(this.corner.x + this.forward.x * along, this.corner.z + this.forward.z * along));
+        box.expandByPoint(REACH_POINT.set(this.corner.x + this.forward.x * along, this.corner.z + this.forward.z * along));
       }
     const last = this.perSide - 1;
     const cell = (meters: number) => Math.floor(meters / CHUNK_METERS);
@@ -289,6 +289,8 @@ export class RenderScope {
 }
 
 const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const;
+const REACH_BOX = new THREE.Box2();
+const REACH_POINT = new THREE.Vector2();
 
 function inRange(cell: number, range: CellRange, perSide: number): boolean {
   const cx = cell % perSide;

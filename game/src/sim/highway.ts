@@ -108,6 +108,13 @@ export function windowSpan(seed: number, window: number): { from: number; to: nu
   return { from, to: from + SIZE };
 }
 
+export function windowMilestones(seed: number, window: number): number[] {
+  const { to } = windowSpan(seed, window);
+  const milestones = [window];
+  while (milestoneAt(seed, milestones[milestones.length - 1]) <= to) milestones.push(milestones[milestones.length - 1] + 1);
+  return milestones;
+}
+
 export function highwayHash(seed: number, window: number): string {
   return `highway:${HIGHWAY.version}:${seed}:${window}`;
 }
@@ -174,9 +181,9 @@ export function centerU(seed: number, n: number): number {
   const along = n - milestoneAt(seed, j - 1) - BEND.ends;
   const length = stretchLength(seed, j);
   const cell = bendCell(length);
-  if (along <= 0 || along >= cell * bendCells(length)) return 0;
-  const plan = bendPlan(seed, j);
   const i = Math.floor(along / cell);
+  if (along <= 0 || i >= bendCells(length)) return 0;
+  const plan = bendPlan(seed, j);
   const ramp = (1 - Math.cos((Math.PI * (along - i * cell)) / cell)) / 2;
   return plan[i] + (plan[i + 1] - plan[i]) * ramp;
 }
@@ -487,7 +494,7 @@ const SCENERY_LEAN = Math.ceil(SCENERY_ACROSS * Math.sin(BEND.maxHeading * DEG))
 
 function windowPieces(seed: number, window: number): RoadPiece[] {
   const span = windowSpan(seed, window);
-  const scenes = windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap(scenePieces));
+  const scenes = windowStretches(seed, window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap(scenePieces));
   const scenery = sceneryPieces(seed, span.from - SCENERY_LEAN, span.to + SCENERY_LEAN, clearOfScenes(seed));
   return [...scenery, ...scenes, ...closurePieces(seed, window)];
 }
@@ -502,7 +509,7 @@ function shutGates(seed: number, window: number): BakedProp[] {
 
 function bakedProps(seed: number, window: number): BakedProp[] {
   const pieces = windowPieces(seed, window).map((p): BakedProp => ({ kind: p.kind, pos: fromRoad(seed, window, p.at.n, p.at.u), r: p.r, yaw: p.yaw, group: p.group, step: p.step, ...(p.hulk ? { hulk: p.hulk } : {}) }));
-  const forts = windowForts(seed, window).flatMap(fortressProps);
+  const forts = windowMilestones(seed, window).map((j) => outpostFort(seed, window, j)).flatMap(fortressProps);
   return [...pieces, ...forts, ...shutGates(seed, window)].filter((p) => p.pos.x >= p.r && p.pos.x <= SIZE - p.r && p.pos.y >= p.r && p.pos.y <= SIZE - p.r);
 }
 

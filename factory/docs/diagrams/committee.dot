@@ -15,7 +15,7 @@ digraph committee {
   node [fillcolor="#eef2ff", color="#6366f1"];
   approveJob [label="approve job"]; closed [label="Issue closed\nas wont-do"]; answer [label="Answer in chat\ncard stays"];
   patchJob [label="Card to Testing\nthe reply is the task"]; design [label="Card to Design"]; shipJob [label="ship job"]; removeJob [label="remove job"];
-  newTask [label="release-task issue\nin Design"]; factoryIssue [label="factory issue\nfor the owner"]; adhocJob [label="adhoc job"];
+  newTask [label="dev issue\nin Triage"]; factoryIssue [label="factory issue\nfor the owner"]; adhocJob [label="adhoc job"];
   quiet [label="Plugin drops it\nno reply"]; playerAnswer [label="Hermes answers\nas to a player"];
   approve -> approveJob; deny -> closed;
   reply -> hermes; hermes -> answer [label="answer"]; hermes -> ready [label="patch or\nredesign"];

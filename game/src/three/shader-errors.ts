@@ -159,8 +159,7 @@ export class ShaderWarmup {
     let settled = true;
     root.traverse((o) => {
       if (!isDrawn(o) || !settled) return;
-      const variant = variantOf(o);
-      settled = materialsOf(o).every((m) => this.isCompiled(m, variant));
+      settled = this.allCompiled(o, variantOf(o));
     });
     if (settled) this.sealed.add(root);
   }
@@ -178,10 +177,16 @@ export class ShaderWarmup {
 
   private holdIfUncompiled(o: Drawn): void {
     const variant = variantOf(o);
-    if (materialsOf(o).every((m) => this.isCompiled(m, variant))) return;
+    if (this.allCompiled(o, variant)) return;
     this.compile(o, variant);
     o.visible = false;
     this.held.push(o);
+  }
+
+  private allCompiled(o: Drawn, variant: string): boolean {
+    const material = o.material;
+    if (!Array.isArray(material)) return this.isCompiled(material, variant);
+    return material.every((m) => this.isCompiled(m, variant));
   }
 
   private isCompiled(material: THREE.Material, variant: string): boolean {

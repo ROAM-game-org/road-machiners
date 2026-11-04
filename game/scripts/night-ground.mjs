@@ -132,7 +132,10 @@ const reloadPage = async (page) => {
 
 const waitForGame = async (page, bootLimitMs) => {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
-  await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs });
+  await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs }).catch(async (cause) => {
+    const shown = await page.evaluate(() => document.querySelector('#boot')?.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '');
+    throw new Error(`the boot screen stayed up for ${bootLimitMs} ms, showing "${shown}"`, { cause });
+  });
 };
 
 export async function startNewGame(page, mode, bootLimitMs) {
@@ -168,7 +171,20 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
   return problems;
 }
 
-export async function checkHighwayNightInSoftware(url, { shot, bootLimitMs }) {
+const HIGHWAY_ATTEMPTS = 4;
+const CRASHED = /crashed|boot screen stayed up/;
+
+export async function checkHighwayNightInSoftware(url, options) {
+  let problems = [];
+  for (let attempt = 1; attempt <= HIGHWAY_ATTEMPTS; attempt++) {
+    problems = await tryHighwayNightInSoftware(url, options);
+    if (!problems.some((p) => CRASHED.test(p))) return problems;
+    console.log(`The software browser crashed in Chaos Highway on attempt ${attempt}.`);
+  }
+  return problems;
+}
+
+async function tryHighwayNightInSoftware(url, { shot, bootLimitMs }) {
   const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   if (bootLimitMs === 0) page.setDefaultTimeout(0);

@@ -118,7 +118,7 @@ describe('loadArt', () => {
     vi.useFakeTimers();
     img = fakeImage(() => Promise.resolve());
     vi.stubGlobal('document', { createElement: () => img });
-    vi.stubGlobal('URL', { createObjectURL: () => 'blob:art', revokeObjectURL: () => undefined });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:art' });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -138,6 +138,14 @@ describe('loadArt', () => {
     loadArt(key);
     expect(img.style.objectPosition).toBe(focus);
     expect(img.style.transformOrigin).toBe(focus);
+  });
+
+  it('puts an arrived picture on the image before loadArt returns', async () => {
+    loadArt(key);
+    await vi.advanceTimersByTimeAsync(0);
+    img = fakeImage(() => Promise.resolve());
+    expect(loadArt(key)).toBe(img);
+    expect(img.src).toBe('blob:art');
   });
 
   it('swallows a decode failure', async () => {

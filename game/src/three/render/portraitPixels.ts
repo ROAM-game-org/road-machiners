@@ -13,8 +13,6 @@ export const BODY_ID = 1;
 export const FIRST_PART_ID = 2;
 
 export const TINTS = {
-  steel: { rgb: [150, 156, 162], lo: 0.3, hi: 0.68 },
-  tire: { rgb: [150, 150, 146], lo: 0.3, hi: 0.6 },
   hurt: { rgb: [255, 196, 60], lo: 0.2, hi: 1 },
   crit: { rgb: [255, 120, 40], lo: 0.2, hi: 1 },
   broken: { rgb: [255, 44, 40], lo: 0.2, hi: 1 },
@@ -218,6 +216,10 @@ export function tintMask(mask: Uint8ClampedArray, tint: Tint): Uint8ClampedArray
     for (let c = 0; c < 3; c++) out[p + c] = tint.rgb[c] * k;
   }
   return out;
+}
+
+export function glowMaskOf(mask: Uint8ClampedArray, tier: Tier): Uint8ClampedArray {
+  return tier === "ok" ? mask : tintMask(mask, TINTS[tier]);
 }
 
 export function unpremultiply(rgba: Uint8ClampedArray): void {

@@ -353,16 +353,23 @@ function theirsHead(): HTMLElement {
   return el("span", { class: "end" }, GOODS_COLUMNS.theirs);
 }
 
-export function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int"), title: Msg | null = null): HTMLElement {
-  return el("div", { class: `count ${cls}`, title: title ?? undefined }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
+export function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int"), title: Msg | null = null, tone: PriceHint["tone"] = ""): HTMLElement {
+  const ink = tone || (n === 0 ? "dim" : "");
+  return el("div", { class: `count ${cls}`, title: title ?? undefined }, caption(GOODS_COLUMNS[cls]), el("span", { class: ink ? `num ${ink}` : "num" }, text));
 }
 
 export function owedTitle(owed: number): Msg | null {
   return owed > 0 ? t("trade.owed", { n: owed }) : null;
 }
 
-export function marketHint(w: World, def: ShopDef, state: ShopState, good: string): PriceHint | null {
-  return knowsMarket(w) ? pressureHint(def, state, good) : null;
+export interface MarketHints {
+  stock: PriceHint | null;
+  price: PriceHint | null;
+}
+
+export function marketHints(w: World, def: ShopDef, state: ShopState, good: string): MarketHints {
+  if (!knowsMarket(w)) return { stock: null, price: null };
+  return { stock: stockHint(def, state, good), price: priceHint(def, good) };
 }
 
 export function tradeEstimate(w: World, held: number, sell: number, good: string): SaleEstimate {
@@ -375,9 +382,13 @@ export function profitCell(e: SaleEstimate): HTMLElement {
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
 }
 
-export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
+export function stockHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
   if (stockShort(def.id, state, good)) return { tone: "bad", title: t("trade.hint.short") };
   if (pressureOf(def.id, good, goodStock(state, good)) <= -SHORT_PRESSURE) return { tone: "good", title: t("trade.hint.flooded") };
+  return null;
+}
+
+export function priceHint(def: ShopDef, good: string): PriceHint | null {
   if (def.makes.includes(good)) return { tone: "good", title: t("trade.hint.cheap") };
   if (def.needs.includes(good)) return { tone: "bad", title: t("trade.hint.dear") };
   return null;

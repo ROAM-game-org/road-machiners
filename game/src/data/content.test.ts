@@ -344,8 +344,16 @@ describe("armor in 1 and 2 cells", () => {
     expect([one.bulk.w, one.bulk.h]).toEqual([1, 1]);
     expect([two.bulk.w, two.bulk.h]).toEqual([1, 2]);
     expect([one.w, one.h]).toEqual([1, 1]);
-    expect([two.w, two.h]).toEqual([1, 3]);
+    expect([two.w, two.h]).toEqual([1, 2]);
     expect([one.armor, one.look]).toEqual([two.armor, two.look]);
+  });
+
+  it.each(Object.keys(ARMOR_LINES))("%s and its 2-cell line hold the same hit points and mass per cell", (id) => {
+    const one = PARTS[id];
+    const two = PARTS[ARMOR_LINES[id]];
+    if (one.kind !== "armor" || two.kind !== "armor") throw new Error(`${id} and its line must be armor`);
+    expect(Math.abs(two.hp / (2 * one.hp) - 1)).toBeLessThan(0.1);
+    expect(Math.abs(two.mass / (2 * one.mass) - 1)).toBeLessThan(0.1);
   });
 
   it("makes every armor part 1 or 2 cells and gives every armor line both sizes", () => {

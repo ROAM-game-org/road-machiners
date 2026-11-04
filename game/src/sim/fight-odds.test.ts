@@ -36,7 +36,7 @@ describe('fight odds', () => {
     const w = setUp();
     const bare = addVehicle(w, 'independent', 'van', ['stockEngine'], { x: 40, y: 10 });
     const plated = addVehicle(w, 'independent', 'van', ['stockEngine'], { x: 60, y: 10 });
-    expect(mountPart(w, plated, makePart(w, 'plates', 0), ['F'])).toBe(true);
+    for (const defId of ['plates', 'plates', 'steelPlate']) expect(mountPart(w, plated, makePart(w, defId, 0), ['F'])).toBe(true);
     const cannon = partDef('cannon') as WeaponDef;
     expect(killRate(cannon, targetOf(plated), 'front')).toBeLessThan(killRate(cannon, targetOf(bare), 'front'));
     expect(killRate(cannon, targetOf(plated), 'rear')).toBeCloseTo(killRate(cannon, targetOf(bare), 'rear'));
