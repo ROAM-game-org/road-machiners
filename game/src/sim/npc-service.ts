@@ -223,7 +223,7 @@ export function serviceGoal(world: World, vehicle: Vehicle, profile: NpcProfile)
 }
 
 function brokeServiceGoal(world: World, vehicle: Vehicle, profile: NpcProfile, need: ServiceNeed): NpcActivity | null {
-  if (hasSaleCargo(vehicle)) return saleGoal(world, vehicle, profile);
+  if (hasSaleCargo(vehicle, profile)) return saleGoal(world, vehicle, profile);
   const trip = isStranded(world, vehicle) || isLowOnFuel(world, vehicle, profile) || unfitHunter(world, vehicle);
   return trip ? serviceTrip(world, vehicle, profile, need) : null;
 }
