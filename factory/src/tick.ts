@@ -31,7 +31,7 @@ import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Que
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'playtestHours' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -150,25 +150,11 @@ function workGate(state: FactoryState, release: ReleaseState): ReleaseGate {
   return { reason: release.postId !== null ? 'ship-approval' : 'playtest', issues: [] };
 }
 
-const sameCommit = (a: string, b: string): boolean => a.startsWith(b) || b.startsWith(a);
-
-export function playtestDue(state: FactoryState, devTip: string | null, now: Date, hours: number): boolean {
+export function playtestDue(state: FactoryState): boolean {
   const release = state.release;
   if (release === null || release.playtest.fixes !== null) return false;
   if (state.pendingPlaytest !== null) return true;
-  return release.playtest.blocked === null && autoDue(state, release, devTip, now, hours);
-}
-
-function autoDue(state: FactoryState, release: ReleaseState, devTip: string | null, now: Date, hours: number): boolean {
-  if (release.playtest.work !== null) return true;
-  return state.devMerges.length > 0 && devMovedPastStart(release, devTip, now, hours);
-}
-
-function devMovedPastStart(release: ReleaseState, devTip: string | null, now: Date, hours: number): boolean {
-  const last = release.playtest.lastStart;
-  if (devTip === null) return false;
-  if (last === null) return true;
-  return !sameCommit(devTip, last.sha) && isDue(last.at, now, hours * HOUR_MS);
+  return release.playtest.blocked === null && release.playtest.work !== null;
 }
 
 function openReleaseJob(state: FactoryState): JobPick | null {
@@ -179,15 +165,15 @@ const PLAYTEST_WAITS: ReleaseGate['reason'][] = ['playtest', 'ship-approval'];
 
 const opensRelease = (state: FactoryState): boolean => state.release === null || state.pendingCleanup !== null;
 
-function releaseJob(state: FactoryState, cards: Card[], now: Date, cfg: Due, devTip: string | null): JobPick | null {
+function releaseJob(state: FactoryState, cards: Card[]): JobPick | null {
   if (opensRelease(state)) return openReleaseJob(state);
-  return state.release === null ? null : openReleaseStep(state, state.release, cards, now, cfg, devTip);
+  return state.release === null ? null : openReleaseStep(state, state.release, cards);
 }
 
-function openReleaseStep(state: FactoryState, release: ReleaseState, cards: Card[], now: Date, cfg: Due, devTip: string | null): JobPick | null {
+function openReleaseStep(state: FactoryState, release: ReleaseState, cards: Card[]): JobPick | null {
   const reason = readReleaseGate(state, cards).reason;
   if (reason === 'candidate') return state.pendingShip === null ? { stage: 'candidate', issue: release.issue } : null;
-  return PLAYTEST_WAITS.includes(reason) && playtestDue(state, devTip, now, cfg.playtestHours) ? { stage: 'playtest', issue: release.issue } : null;
+  return PLAYTEST_WAITS.includes(reason) && playtestDue(state) ? { stage: 'playtest', issue: release.issue } : null;
 }
 
 function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
@@ -202,7 +188,7 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseJob(state, cards, now, cfg, heads.dev)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseJob(state, cards)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
