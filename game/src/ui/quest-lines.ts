@@ -72,7 +72,11 @@ function revealOf(style: LineStyle, options: Options): Reveal {
 }
 
 function inlineArt(key: string, atMs: number): HTMLElement {
-  return el('img', { class: 'qt-img qt-unit', src: pictureUrl(questArtPath(key)) ?? questArtUrl(key), 'aria-hidden': 'true', style: `animation-delay: ${atMs}ms` });
+  const img = el('img', { class: 'qt-img qt-unit', src: pictureUrl(questArtPath(key)) ?? questArtUrl(key), 'aria-hidden': 'true', style: `animation-delay: ${atMs}ms` });
+  img.onerror = () => {
+    img.style.visibility = 'hidden';
+  };
+  return img;
 }
 
 function drawLine(nodes: HTMLElement[], w: World, line: QuestLine, atMs: number, options: Options): number {
