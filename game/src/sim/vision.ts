@@ -331,8 +331,22 @@ export function tileOf(world: World, p: Vec): number {
   return y * world.size + x;
 }
 
+const VISIBLE_SETS = new WeakMap<readonly number[], { length: number; tiles: ReadonlySet<number> }>();
+
+function visibleSet(world: World): ReadonlySet<number> {
+  const visible = world.player.visible;
+  const known = VISIBLE_SETS.get(visible);
+  if (!known) {
+    const built = { length: visible.length, tiles: new Set(visible) };
+    VISIBLE_SETS.set(visible, built);
+    return built.tiles;
+  }
+  if (known.length !== visible.length) throw new Error('player.visible changed in place');
+  return known.tiles;
+}
+
 export function playerSees(world: World, p: Vec): boolean {
-  return world.player.visible.includes(tileOf(world, p));
+  return visibleSet(world).has(tileOf(world, p));
 }
 
 export function playerExplored(world: World, p: Vec): boolean {
