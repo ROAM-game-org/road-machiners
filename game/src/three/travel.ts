@@ -9,7 +9,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
-import { frameAt, type VehicleFrame } from "../phys/frames";
+import { fitsBody, frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
@@ -101,9 +101,17 @@ export class Creep {
   }
 
   frameOf(v: Vehicle): VehicleFrame | undefined {
+    return this.keepsTruck(v) ? this.frameAtMs(v.id, this.shownMs()) : undefined;
+  }
+
+  private keepsTruck(v: Vehicle): boolean {
+    const first = this.tail.frames[v.id]?.[0];
+    return this.endsWhere(v) && (!first || fitsBody(first, v.chassisId));
+  }
+
+  private endsWhere(v: Vehicle): boolean {
     const end = this.tail.poses[v.id];
-    if (!end || end.pos.x !== v.pos.x || end.pos.y !== v.pos.y || end.heading !== v.heading) return undefined;
-    return this.frameAtMs(v.id, this.shownMs());
+    return Boolean(end) && end.pos.x === v.pos.x && end.pos.y === v.pos.y && end.heading === v.heading;
   }
 
   private frameAtMs(id: string, ms: number): VehicleFrame | undefined {
@@ -182,9 +190,15 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
   }
 }
 
+function fittingStarts(world: World, starts: Record<string, VehicleFrame>): Record<string, VehicleFrame> {
+  const chassisOf = new Map<string, string>();
+  for (const v of [...world.vehicles, ...world.removed]) chassisOf.set(v.id, v.chassisId);
+  return Object.fromEntries(Object.entries(starts).filter(([id, frame]) => chassisOf.has(id) && fitsBody(frame, chassisOf.get(id)!)));
+}
+
 function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheels {
   const frame = shown[v.id];
-  return frame && Boolean(frame.rear) === (restWheels(v.chassisId).rear !== null) ? frameWheels(frame) : restWheels(v.chassisId);
+  return frame && fitsBody(frame, v.chassisId) ? frameWheels(frame) : restWheels(v.chassisId);
 }
 
 export function canTravel(world: World): boolean {
@@ -440,7 +454,7 @@ export class Travel {
     const join = this.creep?.joinOf(before, shown) ?? { starts: { ...shown }, elapsed };
     this.creep = null;
     this.open = null;
-    return join;
+    return { starts: fittingStarts(before, join.starts), elapsed: join.elapsed };
   }
 
   paceSpeed(world: World, now: number, realMs: number, fastSpeed: number): number {
