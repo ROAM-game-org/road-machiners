@@ -157,9 +157,7 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
 }
 
 function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
-  const body = look.renders.body(look.truck, look.paint);
-  if (!body) throw new Error(`The ${look.truck.chassisId} garage render is not ready`);
-  return truckBackdrop(body, m);
+  return truckBackdrop(look.body, m);
 }
 
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
@@ -237,9 +235,7 @@ function artOf(look: GarageLook, it: GridItem, m: GridMetrics, rect: PixelRect):
 }
 
 function builtInArt(look: GarageLook, it: Extract<GridItem, { kind: "part" }>, m: GridMetrics, rect: PixelRect): HTMLElement | null {
-  const body = look.renders.body(look.truck, look.paint);
-  if (!body) return null;
-  return coreArt(body, it.part, m, rect) ?? el("span", { class: "inv-art" });
+  return coreArt(look.body, it.part, m, rect) ?? el("span", { class: "inv-art" });
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {
