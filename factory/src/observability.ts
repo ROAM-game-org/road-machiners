@@ -72,7 +72,7 @@ function validateIssue(issue: number | null): void {
   if (!Number.isSafeInteger(issue) || issue <= 0) throw new Error('Invalid observation issue');
 }
 function validateReleaseReport(report: ScheduleReport): void {
-  if (!['uncut', 'tracking-missing', 'failed', 'release-tasks', 'playtest', 'playtest-blocked', 'candidate', 'ship-approval'].includes(report.release.reason)) throw new Error('Invalid release gate');
+  if (!['unopened', 'tracking-missing', 'failed', 'playtest', 'playtest-blocked', 'candidate', 'ship-approval'].includes(report.release.reason)) throw new Error('Invalid release gate');
   for (const issue of report.release.issues) validateIssue(issue);
 }
 export function recordObservation(home: string, producer: string, data: ObservationData, now = new Date()): void {

@@ -1,5 +1,4 @@
 import { reportFailure } from '../fail';
-import { taskCandidateReports } from './candidate-tasks';
 import type { Ctx } from '../types';
 import { placeChatImages } from './chat-images';
 import { postProposal, postProposalGate } from './proposals';
@@ -16,7 +15,6 @@ import { countVotes } from './votes';
 type Step = (ctx: Ctx, store: PublicStore, filter: PublicFilter) => Promise<void>;
 
 const STEPS: Step[] = [
-  taskCandidateReports,
   ingest,
   classifyComments,
   postProposalGate,

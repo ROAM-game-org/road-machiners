@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { readState, updateState } from '../state';
-import { RELEASE_TASK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type ReleaseState } from '../types';
+import { readState } from '../state';
+import type { Ctx, IssueMerge, ReleaseState } from '../types';
 
 export type Feature = { issue: number; title: string };
 
@@ -34,53 +34,8 @@ export function changelogText(changes: Change[]): string {
   return changes.map((change) => `- [#${change.issue}] ${change.text}`).join('\n');
 }
 
-export async function openReleaseTasks(ctx: Ctx): Promise<number[]> {
-  return openTasks(await ctx.github.cards(), requireRelease(ctx).tasks);
-}
-
-export function openTasks(cards: Card[], recorded: number[]): number[] {
-  const labeled = cards.filter((card) => card.labels.includes(RELEASE_TASK_LABEL) && card.column !== 'Done').map((card) => card.issue);
-  const unseen = recorded.filter((issue) => !cards.some((card) => card.issue === issue && card.column === 'Done'));
-  return [...new Set([...labeled, ...unseen])].sort((a, b) => a - b);
-}
-
-export function recordReleaseTask(ctx: Ctx, issue: number): void {
-  updateState(ctx.statePath, (state) => {
-    if (state.release === null) throw new Error(`No release is open to record task #${issue}`);
-    return state.release.tasks.includes(issue) ? state : { ...state, release: { ...state.release, tasks: [...state.release.tasks, issue] } };
-  });
-}
-
-export function taskRefusal(state: FactoryState): string | null {
-  if (state.release === null) return 'no release is open';
-  if (state.release.shipping !== undefined || state.jobs.some((job) => job.stage === 'ship')) return `release ${state.release.day} is shipping`;
-  return null;
-}
-
-export type TaskClaim = { release: ReleaseState; added: boolean } | { refusal: string };
-
-export function claimReleaseTask(ctx: Ctx, issue: number, tracking: number, refuse: (state: FactoryState) => string | null = taskRefusal): TaskClaim {
-  let claim: TaskClaim = { refusal: 'no release is open' };
-  updateState(ctx.statePath, (state) => {
-    const { claimed, next } = claimIn(state, issue, tracking, refuse);
-    claim = claimed;
-    return next;
-  });
-  return claim;
-}
-
-function claimIn(state: FactoryState, issue: number, tracking: number, refuse: (state: FactoryState) => string | null): { claimed: TaskClaim; next: FactoryState } {
-  const { release } = state;
-  if (release?.issue !== tracking) return { claimed: { refusal: `the open release is no longer the one of #${tracking}` }, next: state };
-  const refusal = refuse(state);
-  if (refusal !== null) return { claimed: { refusal }, next: state };
-  if (release.tasks.includes(issue)) return { claimed: { release, added: false }, next: state };
-  const added = { ...release, postId: null, tasks: [...release.tasks, issue] };
-  return { claimed: { release: added, added: true }, next: { ...state, pendingShip: null, release: added } };
-}
-
-export function forgetReleaseTask(ctx: Ctx, issue: number): void {
-  updateState(ctx.statePath, (state) => (state.release === null ? state : { ...state, release: { ...state.release, tasks: state.release.tasks.filter((task) => task !== issue) } }));
+export function mergeOf(merges: IssueMerge[], issue: number): IssueMerge | undefined {
+  return merges.filter((merge) => merge.issue === issue).at(-1);
 }
 
 export function requireRelease(ctx: Ctx): ReleaseState {
@@ -89,8 +44,15 @@ export function requireRelease(ctx: Ctx): ReleaseState {
   return release;
 }
 
-export function releaseFeatures(release: ReleaseState): Feature[] {
-  return toFeatures(release.merges.filter((merge) => !release.removed.includes(merge.issue)));
+export function passedForCandidate(release: ReleaseState): ReleaseState['playtest']['passed'] {
+  const passed = release.playtest.passed;
+  const removed = passed?.features.some((merge) => release.removed.includes(merge.issue));
+  return removed === false ? passed : null;
+}
+
+export function candidateWanted(release: ReleaseState): boolean {
+  const passed = passedForCandidate(release);
+  return passed !== null && passed.sha !== release.candidate?.sha;
 }
 
 export function candidateDir(ctx: Ctx): string {

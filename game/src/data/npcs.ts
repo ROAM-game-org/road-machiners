@@ -15,7 +15,7 @@ function trafficSetting(): string {
   return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TRAFFIC ?? '';
 }
 
-const DEFAULT_TRAFFIC = 0.4;
+const DEFAULT_TRAFFIC = 0.6;
 
 function trafficDensity(raw: string): number {
   if (raw === '') return DEFAULT_TRAFFIC;
