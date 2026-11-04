@@ -67,6 +67,17 @@ describe('VehicleLights', () => {
     expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
   });
 
+  it('asks every shadowed beam for a fresh shadow map once the context is restored', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    lights.update(true, 1, origin, [10, 20, 30, 40].map((x) => litAt(x)));
+    const shadowed = spots(scene).filter((b) => b.castShadow);
+    for (const b of shadowed) b.shadow.needsUpdate = false;
+    lights.contextRestored();
+    expect(shadowed).toHaveLength(3);
+    expect(shadowed.every((b) => b.shadow.needsUpdate)).toBe(true);
+  });
+
   it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);

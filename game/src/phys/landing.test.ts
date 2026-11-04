@@ -100,3 +100,32 @@ describe('ground impacts', () => {
     for (const id of wheels) expect(lost.get(id)).toBeGreaterThan(0);
   }, 90_000);
 });
+
+it('applies a recorded landing before finalizing a truck destroyed by a projectile', async () => {
+  const { addVehicle } = await import('../sim/testkit');
+  const { beginTimedCombat, settleTimedImpact, endTimedCombat } = await import('../sim/timed-combat');
+  const { simulateTurn, toMps } = await import('./drive');
+  const { applyTurn } = await import('./turn');
+  const w = emptyWorld();
+  const truck = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 40, y: 30 });
+  truck.resources!.health = 0;
+  beginTimedCombat(w, w.combat, 1000);
+  const drive = buildDrive(w);
+  let next: Drive | null = null;
+  try {
+    settleTimedImpact(w, { t: 'shot', shooter: w.player.vehicleId, weapon: 'test-gun', target: truck.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: truck.id, hits: [{ part: mountedParts(truck, 'engine')[0].id, damage: 1 }], blast: [], burst: null }] });
+    const result = simulateTurn(drive, w);
+    next = result.next;
+    result.landings.push({ vehicle: truck.id, impact: toMps(2), step: 0 });
+    const wheels = coreParts(truck, 'wheel');
+    const before = wheels.reduce((sum, part) => sum + part.hp, 0);
+    applyTurn(w, result);
+    expect(wheels.reduce((sum, part) => sum + part.hp, 0)).toBeLessThan(before);
+    endTimedCombat(w, w.combat);
+    expect(w.vehicles).not.toContain(truck);
+    expect(w.removed).toContain(truck);
+  } finally {
+    if (next) freeDrive(next);
+    freeDrive(drive);
+  }
+});

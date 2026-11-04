@@ -1,14 +1,21 @@
+import { vehicleStats, type VehicleStats } from '../sim/stats';
+import { combatState, hasTimedFire, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { FarCombatMotion } from '../sim/far';
+import { isKnockedOut } from '../sim/defeat';
+import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { HARPOON } from '../data/utilities';
+import { lineAnchors, type BodyPoint, type LineAnchor } from '../sim/harpoon';
 import { PHYSICS } from '../data/physics';
 import { couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
 import { unitMasses } from '../sim/mass';
-import { unitPoses } from '../sim/rig';
+import { bendField, unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { angleDiff, clamp } from '../sim/vec';
-import { toMps, type Car, type Drive, type Trailer } from './drive';
+import { toMps, toTilesPerTurn, forwardSpeed, rearKey, type Car, type Drive, type Trailer, type Tear } from './drive';
 import { wheelMounts } from './body';
 import { seatUnits, type Seat } from './seat';
-import { headingOf, type V3, type VehicleFrame, type WheelFrame } from './frames';
+import { rotateBy, headingOf, TURN_STEPS, type V3, type VehicleFrame, type WheelFrame } from './frames';
 
 const T = PHYSICS.truck;
 const STEP = 1 / PHYSICS.stepsPerSecond;
@@ -216,4 +223,123 @@ function notOn(other: RAPIER.RigidBody): (collider: RAPIER.Collider) => boolean 
 
 export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, load: UnitLoad): Trailer {
   return { body, b, ctl: makeCar(world, body, b, 1, load) };
+}
+
+export class TimedDrive {
+  private state: TimedCombatState | undefined;
+  private far: FarCombatMotion | undefined;
+  private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number; speed: number; bend: number | undefined }[] = [];
+  constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
+    const state = combatState(world);
+    if (steps !== TURN_STEPS || !state.active) return;
+    this.state = state;
+    const near = new Set(cars.map(car => car.v.id));
+    if (hasTimedFire(state)) this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)));
+    this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading, speed: c.v.speed, bend: c.v.bend }));
+  }
+  step(): void {
+    if (!this.state) return;
+    this.far?.at((this.state.now - this.state.turnStart) / (PHYSICS.turnSeconds * 1000));
+    for (const c of this.cars) {
+      const p = c.body.translation();
+      c.v.pos = { x: p.x / PHYSICS.metersPerTile, y: p.z / PHYSICS.metersPerTile };
+      c.v.heading = headingOf(c.body.rotation());
+      c.v.speed = toTilesPerTurn(forwardSpeed(c.body));
+      if (c.rear) c.v.bend = liveBend(c);
+    }
+    stepTimedCombat(this.world, this.state, 1000 / PHYSICS.stepsPerSecond);
+    for (const c of this.cars) this.refreshCar(c);
+  }
+  private refreshCar(car: Car): void {
+    if (!this.world.vehicles.includes(car.v) || this.state?.destroyedAt[car.v.id] !== undefined) return this.stopRemovedCar(car);
+    if (!isKnockedOut(car.v) && this.world.player.state !== 'dead') return this.refreshStats(car);
+    car.plan = { ...car.plan, engine: false, target: 0, dest: null };
+  }
+  private stopRemovedCar(car: Car): void {
+    car.plan = { ...car.plan, engine: false, target: 0, dest: null };
+    car.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+    if (car.rear) car.rear.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+  }
+  private refreshStats(car: Car): void {
+    const next = vehicleStats(this.world, car.v);
+    const changed = motionStatsChanged(car.s, next);
+    car.s = next;
+    if (changed) this.refresh(car);
+  }
+  finish(): void {
+    if (!this.state) return;
+    this.far?.finish();
+    for (const start of this.starts) {
+      if (!this.world.vehicles.includes(start.v) || this.state.destroyedAt[start.v.id] !== undefined) continue;
+      Object.assign(start.v, { pos: start.pos, heading: start.heading, speed: start.speed }, bendField(start.bend));
+    }
+  }
+}
+
+export function impactMotions(cars: Car[]): Map<string, ImpactMotion> {
+  const motions = new Map<string, ImpactMotion>();
+  for (const c of cars) {
+    motions.set(c.v.id, captureImpactMotion(c.body));
+    if (c.rear) motions.set(rearKey(c.v.id), captureImpactMotion(c.rear.body));
+  }
+  return motions;
+}
+
+function motionStatsChanged(before: VehicleStats, after: VehicleStats): boolean {
+  const { weapons: _weapons, fuelPerTile: _fuelPerTile, ...motion } = after;
+  return (Object.keys(motion) as (keyof typeof motion)[]).some(key => motion[key] !== before[key]);
+}
+
+export class Lines {
+  readonly tears: Tear[] = [];
+  constructor(private readonly state: World, private readonly cars: Car[]) {}
+
+  private held(): { line: LineAnchor; a: Car; b: Car }[] {
+    const car = (id: string) => this.cars.find(c => c.v.id === id);
+    return lineAnchors(this.state).filter(line => this.lineLives(line)).flatMap(line => {
+      const a = car(line.from), b = car(line.to);
+      return a && b ? [{ line, a, b }] : [];
+    });
+  }
+
+  private lineLives(line: LineAnchor): boolean {
+    return this.state.combat.destroyedAt[line.from] === undefined && this.state.combat.destroyedAt[line.to] === undefined;
+  }
+
+  pull(step: number): void {
+    for (const h of this.held()) {
+      if (this.tears.some((t) => t.line === h.line.id)) continue;
+      if (!pullLine(h.line, unitRigid(h.a, h.line.fromAt.unit), unitRigid(h.b, h.line.toAt.unit))) this.tears.push({ line: h.line.id, step });
+    }
+  }
+}
+
+function pullLine(line: LineAnchor, a: RAPIER.RigidBody, b: RAPIER.RigidBody): boolean {
+  const pa = worldPoint(a, line.fromAt);
+  const pb = worldPoint(b, line.toAt);
+  const gap = Math.hypot(pb.x - pa.x, pb.z - pa.z);
+  if (gap <= line.length) return true;
+  const stretch = HARPOON.stiffness * (gap - line.length);
+  if (stretch > HARPOON.tearForce) return false;
+  const n = { x: (pb.x - pa.x) / gap, z: (pb.z - pa.z) / gap };
+  const va = a.velocityAtPoint(pa);
+  const vb = b.velocityAtPoint(pb);
+  const separating = (vb.x - va.x) * n.x + (vb.z - va.z) * n.z;
+  const force = Math.max(0, stretch + HARPOON.damping * separating);
+  const j = force * STEP;
+  a.applyImpulseAtPoint({ x: n.x * j, y: 0, z: n.z * j }, pa, true);
+  b.applyImpulseAtPoint({ x: -n.x * j, y: 0, z: -n.z * j }, pb, true);
+  return true;
+}
+
+function unitRigid(c: Car, unit: number): RAPIER.RigidBody {
+  if (unit === 0) return c.body;
+  if (!c.rear) throw new Error(`${c.v.id} has no rear unit ${unit}`);
+  return c.rear.body;
+}
+
+function worldPoint(body: RAPIER.RigidBody, at: BodyPoint): V3 {
+  const t = body.translation();
+  const r = rotateBy(body.rotation(), at);
+  return { x: t.x + r.x, y: t.y + r.y, z: t.z + r.z };
 }

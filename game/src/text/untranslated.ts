@@ -129,6 +129,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/cards.ts', text: 'Chassis sheet', reason: CRASH_REPORT },
   { file: 'src/ui/units.ts', text: '.innerHTML =', reason: SVG },
   { file: 'src/three/webgl.ts', text: 'Firefox/', reason: 'A token tested in the browser user agent string, never shown.' },
+  { file: 'src/three/gpu-context.ts', text: 'the WebGL context was lost and not restored', reason: 'The technical reason line under the WebGL notice, like the browser status message beside it, which stays in the browser language.' },
   { file: 'src/three/icons/page.ts', text: '*', reason: 'icons.html is a dev page for checking the icon sheets. It stays English.' },
   { file: 'src/data/sounds.ts', text: '*', reason: 'Sound prompts feed the dev sound generator and the sound board, never the player.' },
   { file: 'src/data/npc-behavior.ts', text: '*', reason: 'Driver first names and surnames are ids. Each language spells them in src/text/<locale>/drivers.ts.' },

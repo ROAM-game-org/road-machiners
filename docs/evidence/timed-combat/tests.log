@@ -1,0 +1,122 @@
+
+> test
+> vitest run src/sim/timed-combat.test.ts src/sim/timed-round.test.ts src/sim/combat.test.ts src/sim/far.test.ts src/sim/defeat.test.ts src/sim/cab-knock.test.ts src/sim/map-repair.test.ts src/sim/chaos-highway.test.ts src/sim/chaos-highway-start.test.ts src/sim/chaos-highway-knockout.test.ts src/phys/drive.test.ts src/phys/line.test.ts src/phys/landing.test.ts src/phys/turn-task.test.ts src/phys/chaos-highway-worker.test.ts src/three/timed-display.test.ts src/three/volley.test.ts src/three/render/projectiles.test.ts src/three/save.test.ts src/three/save-migrations.test.ts src/test/combat-harness.test.ts
+
+
+ RUN  v3.2.7 /Users/boris/Documents/Korovan/.worktrees/timed-combat/game
+
+[cpu-limits] runner speed workload 468 ms, limits scaled by 0.620
+ ✓ src/sim/map-repair.test.ts (19 tests) 8362ms
+   ✓ repairMap positions > sets the size and the map hash, and resamples the explored tiles to the new size  1517ms
+   ✓ repairMap positions > keeps the explored tiles when only the bake changed  4790ms
+ ✓ src/sim/defeat.test.ts (43 tests) 4401ms
+   ✓ death > a broke, starving player weakens to the starve floor without a knockout  2153ms
+   ✓ the loot rule > a raider that knocked the player out loots goods straight off the truck  1363ms
+ ✓ src/sim/chaos-highway.test.ts (50 tests) 16083ms
+   ✓ the pace of encounters > spawns the groups in order, one per turn, even with the hauler past them all  357ms
+   ✓ the pace of encounters > spawns a due group while an earlier one still fights near the hauler, so not fighting holds nothing back  1279ms
+   ✓ the pace of encounters > never puts more than the cap of trucks on the road at once  1905ms
+   ✓ a group racing in > leaves the overdrive of the player to its switch, and no Roaming truck overdrives  1040ms
+   ✓ arriving at an outpost > keeps both trucks on the same pad and ground through several window moves on any stretch length  2599ms
+   ✓ the endless run > stays bounded over thirty stretches  6445ms
+   ✓ a Chaos Highway world on the highway > shows no Icarus place in three hundred turns of the run  833ms
+ ✓ src/sim/far.test.ts (50 tests) 17697ms
+   ✓ far NPC travel > gives the same turn result for the same world and orders, near and far alike (IV2)  1168ms
+   ✓ far NPC travel > holds a far truck on unpaved ground to the same top share physics drives at, and a paved road to full speed  4794ms
+   ✓ far NPC travel > a far NPC keeps its goal stack across a turn and still drives by it  1537ms
+   ✓ far NPC travel > stores the route and reuses it while the destination holds  1229ms
+   ✓ far NPC travel > drops a kept road route once a raider runs dry, and plans one off the road to the same point  2115ms
+   ✓ far travel contact > a far NPC that drives through trucks never ends its move inside one  2965ms
+   ✓ far routes of cut drivers > keeps a stored cut route and plans again over a stored road route  1383ms
+   ✓ far trips longer than the route window > drives an NPC that ended a turn in a closed pocket out through its wall to a goal outside  1291ms
+   ✓ far trips longer than the route window > ends the trip in the same place after a save and load in the middle of the trip  557ms
+ ✓ src/sim/chaos-highway-start.test.ts (18 tests) 4776ms
+   ✓ Chaos Highway starter kit > is a scout with one machine gun, no armor and the start money on every seed  399ms
+   ✓ Chaos Highway hauler > starts every run with the player truck and a hauler of the hauler kit, with a full tank and no brain  489ms
+   ✓ Chaos Highway outpost stock > keeps the same stock through a save and load  345ms
+   ✓ Chaos Highway first enemy > carries a gun on any seed or template  1087ms
+   ✓ Chaos Highway first enemy > lets plain trucks buy armor, more of them as the gear money grows  1667ms
+ ✓ src/phys/landing.test.ts (7 tests) 6410ms
+   ✓ ground impacts > a truck landing on its wheels from 3 m hurts only its wheels, and only a bit  332ms
+   ✓ ground impacts > a truck touching down while it drives along a downslope takes no damage  2110ms
+   ✓ ground impacts > a truck whose wheels meet a rising slope while it drives level takes no damage  1781ms
+   ✓ ground impacts > a truck dropped 3 m onto a slope still hurts its wheels  2013ms
+ ✓ src/three/save.test.ts (100 tests) 26207ms
+   ✓ game save > saves by hand on any turn and clears for a new game  1556ms
+   ✓ game save > gives the same lootable props after a save and load  1323ms
+   ✓ game save > keeps a longbed fitted on every free cell, each part on its cell, through a reload  435ms
+   ✓ game save > sends a save at the current format with a missing list to the save screen  312ms
+   ✓ game save > records the saved shape of the current format  889ms
+   ✓ game save > loads Agnes's finished outcome and an open road session unchanged, awarding nothing  3643ms
+   ✓ game save > quest revisions > repeats the same repair on every load until the next save, which then loads the same world  329ms
+   ✓ game save > saves only after each twentieth completed turn  312ms
+   ✓ saved world settings > keeps each slot its own setup across a save and a load  1957ms
+   ✓ saved world settings > sends a save at a format no build shipped to the carry route, and keeps the stored save  1020ms
+   ✓ explored bitset > round-trips any length  457ms
+   ✓ relations in a save > gives back the Sunward record and the order's night ledger after a save and load  1138ms
+   ✓ relations in a save > gives back the order resting inside the Hollow, awarding nothing at load  952ms
+   ✓ relations in a save > moves a truck standing in the Hollow's wall off it at load, awarding nothing  997ms
+   ✓ relations in a save > gives back a night opened between the ride-out and dusk, awarding nothing at load  1238ms
+   ✓ relations in a save > keeps the Hollow out of the save and builds it again at load, also for a save that never held it  1098ms
+ ✓ src/phys/chaos-highway-worker.test.ts (1 test) 3313ms
+   ✓ keeps the highway worker alive through preview, idle preparation and the first turn  3312ms
+ ✓ src/phys/turn-task.test.ts (13 tests) 10701ms
+   ✓ restores frozen terrain after worker transfer so turn clones retain the route cache  977ms
+   ✓ computes the same world and physics as a foreground turn without advancing the input  801ms
+   ✓ opens the first fall in the language the task names, whatever the worker last held  6568ms
+   ✓ samples sight along the player's drive every sight step and at its end, with the tiles vision gives there  2154ms
+ ✓ src/sim/chaos-highway-knockout.test.ts (7 tests) 1884ms
+   ✓ a knocked-out Chaos Highway truck > does not hold the next group back, which comes once the hauler reaches its place  478ms
+   ✓ a knocked-out Chaos Highway truck > leaves the road when it wakes, and the run plays on  351ms
+ ✓ src/phys/line.test.ts (15 tests) 1232ms
+   ✓ harpoon line physics > holds a scout fleeing at full throttle from rest for the line's 10 turns  706ms
+ ✓ src/three/save-migrations.test.ts (117 tests) 203ms
+ ✓ src/sim/combat.test.ts (74 tests) 3194ms
+   ✓ rounds > the shown chance of a blast gun counts its splash  1279ms
+   ✓ rounds > the same seed gives the same rounds  629ms
+ ✓ src/sim/timed-combat.test.ts (18 tests) 1045ms
+   ✓ uses moving target positions in the headless recorder combat clock  628ms
+ ✓ src/test/combat-harness.test.ts (19 tests) 33708ms
+   ✓ combat harness > gives the same report for the same fight, also after another seed ran  714ms
+   ✓ combat harness > has two brains of one faction fight each other  2802ms
+   ✓ combat harness > names the courier side when it flees a stronger truck  528ms
+   ✓ combat harness > fights to a knockout inside the arena rather than stopping at a truce  4783ms
+   ✓ combat harness > keeps every truck inside the arena ring  2068ms
+   ✓ combat harness > builds the next fight from a changed balance number  2283ms
+   ✓ group fights in the harness > reports every truck of a crew lineup on its side  5023ms
+   ✓ group fights in the harness > brings a late truck into its side  943ms
+   ✓ group fights in the harness > lets a hired merc ride beside a scripted player and keeps a bystander out of the count  2990ms
+   ✓ counts destroyed truck damage from the recorded impacts  4291ms
+   ✓ waits for a launched shot after its shooter is destroyed  3467ms
+   ✓ settles pending shots without steering a scripted driver toward a defeated opponent  936ms
+ ✓ src/three/volley.test.ts (62 tests) 408ms
+ ✓ src/sim/cab-knock.test.ts (6 tests) 36ms
+ ✓ src/sim/timed-round.test.ts (3 tests) 40ms
+ ✓ src/three/render/projectiles.test.ts (7 tests) 15ms
+ ✓ src/three/timed-display.test.ts (2 tests) 24ms
+ ✓ src/phys/drive.test.ts (73 tests) 40799ms
+   ✓ impact geometry > counts a nose ram at its full closing speed on the rammer front and the rammed side  800ms
+   ✓ impact geometry > gives a parked truck a grievance on the truck that drove into it, through the real turn  2242ms
+   ✓ physics turns > two traders meeting head-on on a road both get past  1480ms
+   ✓ physics turns > limits and charges NPC fuel through the physics turn pipeline  3975ms
+   ✓ physics turns > glass grip > a turning truck skids sideways on glass and holds its line on sand  4309ms
+   ✓ physics turns > glass grip > a truck sent to a point on glass still arrives and stops  1657ms
+   ✓ physics turns > a far stop point from rest reaches speed and then stops on the point  1998ms
+   ✓ physics turns > a fast truck brakes before a sharp route corner instead of running into the wall past it  1657ms
+   ✓ physics turns > a stop order at a point no truck can reach arrives at the closest point the route reaches  1522ms
+   ✓ physics turns > turning around on a route > with rocks behind it too, it turns forward as before  1524ms
+   ✓ physics turns > a click behind outside the reverse cone turns the truck around nose first  1687ms
+   ✓ physics turns > facing a wall, a click back and to the side backs the truck out instead of pushing into the wall  2882ms
+   ✓ physics turns > after backing to a close click behind, a far click behind turns the truck around nose first  301ms
+   ✓ physics turns > a stuck truck with a rock right behind it does not back into the rock  1248ms
+   ✓ physics turns > in manual mode the truck drives into a truck parked on its path; off, it routes around  1359ms
+   ✓ physics turns > a careful driver follows the route around a rock wall  1087ms
+   ✓ physics turns > a truck on a hill it can climb with a start speed of 0 m/s drives up instead of backing away  1806ms
+   ✓ physics turns > a truck on a hill it can climb with a start speed of -4 m/s drives up instead of backing away  1789ms
+   ✓ physics turns > a click in the hold zone keeps its speed up a hill  692ms
+
+ Test Files  21 passed (21)
+      Tests  704 passed (704)
+   Start at  03:21:07
+   Duration  49.31s (transform 3.62s, setup 181ms, collect 44.90s, tests 180.54s, environment 2ms, prepare 826ms)
+

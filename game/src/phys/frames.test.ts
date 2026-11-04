@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendFrames, frameAt, headingOf, headingQuat, type VehicleFrame } from "./frames";
+import { blendFrames, fitsBody, frameAt, headingOf, headingQuat, restWheels, type VehicleFrame } from "./frames";
 
 const frame = (x: number, heading: number, spin: number, ground = true): VehicleFrame => ({
   pos: { x, y: 0, z: 0 },
@@ -52,5 +52,30 @@ describe("blendFrames", () => {
 
   it("rejects a share outside the two frames", () => {
     expect(() => blendFrames(frame(0, 0, 0), frame(1, 0, 0), 1.5)).toThrow(/0\.\.1/);
+  });
+});
+
+describe("fitsBody", () => {
+  const frameOf = (chassisId: string): VehicleFrame => {
+    const wheels = restWheels(chassisId);
+    const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: wheels.front };
+    if (wheels.rear) frame.rear = { pos: { x: 0, y: 0, z: 0 }, rot: headingQuat(0), wheels: wheels.rear };
+    return frame;
+  };
+
+  it("accepts the rest frame of its own chassis, single unit or rig", () => {
+    expect(fitsBody(frameOf("scout"), "scout")).toBe(true);
+    expect(fitsBody(frameOf("sorokonoga"), "sorokonoga")).toBe(true);
+  });
+
+  it("rejects a frame of another trailer state", () => {
+    expect(fitsBody(frameOf("scout"), "sorokonoga")).toBe(false);
+    expect(fitsBody(frameOf("sorokonoga"), "scout")).toBe(false);
+  });
+
+  it("rejects a frame with another wheel count on either unit", () => {
+    const rig = frameOf("sorokonoga");
+    expect(fitsBody({ ...rig, wheels: rig.wheels.slice(1) }, "sorokonoga")).toBe(false);
+    expect(fitsBody({ ...rig, rear: { ...rig.rear!, wheels: rig.rear!.wheels.slice(1) } }, "sorokonoga")).toBe(false);
   });
 });

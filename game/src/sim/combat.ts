@@ -5,12 +5,11 @@ import { aimAt } from "./parley";
 import { CHAOS_HIGHWAY } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
-import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { filledLanes, heldPart, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
 import { presentedSpan, reachMeters, unitPose } from './rig';
-import { rollCabKnock } from "./cab-knock";
+import { rollCabKnock, cabDamageThisTurn } from "./cab-knock";
 import { corePart, itemBulk, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { canVehicleSee, hasLineOfFire } from './vision';
@@ -138,7 +137,7 @@ export function dropMagazine(part: PartInstance): void {
   gun.reloadWork = 0;
 }
 
-function tickGuns(world: World, fired: Set<string>): void {
+export function tickGuns(world: World, fired: Set<string>): void {
   for (const v of world.vehicles)
     for (const part of mountedParts(v, "weapon")) tickGun(v, part, fired.has(part.id));
 }
@@ -207,7 +206,7 @@ function across(shooter: Vehicle, target: Vehicle): Vec {
   return { x: -Math.sin(b), y: Math.cos(b) };
 }
 
-export function presentedWidth(shooter: Vehicle, target: Vehicle): number {
+export function presentedWidth(shooter: Pick<Vehicle, 'pos'>, target: Vehicle): number {
   return presentedSpan(target, shooter.pos);
 }
 
@@ -249,7 +248,7 @@ function bodyLanes(target: Vehicle, side: Side, aimed: number | null): number[] 
   return aimed === null || filled.includes(aimed) ? filled : [...filled, aimed].sort((a, b) => a - b);
 }
 
-function aiming(shooter: Vehicle, target: Vehicle, aim: Aim): Aiming {
+export function aiming(shooter: Pick<Vehicle, 'pos'>, target: Vehicle, aim: Aim): Aiming {
   const side = sideToward(target, shooter.pos);
   const body = presentedWidth(shooter, target);
   if (aim === "body") {
@@ -517,7 +516,7 @@ function spreadCauses(world: World, shooter: Vehicle, shot: WeaponDef, target: V
   return { ...base, still };
 }
 
-function rollRound(world: World, o: HitOdds, a: Aiming): Roll {
+export function rollRound(world: World, o: HitOdds, a: Aiming): Roll {
   return { ...rollAim(world, o, a), crit: chance(world, RULES.critChance) };
 }
 
@@ -543,7 +542,7 @@ function rollAim(
 }
 
 type Roll = { hit: boolean; error: number; crit: boolean };
-type Shot = {
+export type Shot = {
   shooter: Vehicle;
   mw: MountedWeapon;
   target: Vehicle;
@@ -582,7 +581,7 @@ export function fireWeapons(world: World): void {
   tickGuns(world, new Set(shots.map((s) => s.mw.part.id)));
 }
 
-function spendShot(world: World, s: Shot): void {
+export function spendShot(world: World, s: Shot): void {
   const gun = gunOf(s.mw.part);
   gun.cooldown = s.mw.def.cooldown;
   gun.ammo--;
@@ -602,7 +601,7 @@ function applyShot(world: World, s: Shot): void {
   world.events.push(event);
 }
 
-function tieLine(world: World, s: Shot, rounds: ShotRound[]): void {
+export function tieLine(world: World, s: Shot, rounds: ShotRound[]): void {
   const line = s.mw.def.line;
   const k = rounds.findIndex((r) => r.struck === s.target.id);
   if (!line || k < 0) return;
@@ -621,10 +620,10 @@ export function shotDamage(e: { rounds: ShotRound[] }): Map<string, PartHit[]> {
   return out;
 }
 
-export function turnPartHits(world: World): Map<string, PartHit[]> {
+export function turnPartHits(world: World, events: readonly GameEvent[] = world.events): Map<string, PartHit[]> {
   const out = new Map<string, PartHit[]>();
   const add = (id: string, hits: PartHit[]) => { if (hits.length > 0) out.set(id, [...(out.get(id) ?? []), ...hits]); };
-  for (const e of world.events) for (const [id, hits] of eventHits(e)) add(id, hits);
+  for (const e of events) for (const [id, hits] of eventHits(e)) add(id, hits);
   return out;
 }
 
@@ -705,7 +704,7 @@ function vehicleById(world: World, id: string): Vehicle {
   return v;
 }
 
-type Landing = { struck: Vehicle | null; lane: number | null; hits: PartHit[]; point: Vec };
+export type Landing = { struck: Vehicle | null; lane: number | null; hits: PartHit[]; point: Vec };
 
 function resolveRound(world: World, s: Shot, roll: Roll): ShotRound {
   const offset = s.aiming.center + roll.error * s.odds.distance;
@@ -716,7 +715,7 @@ function resolveRound(world: World, s: Shot, roll: Roll): ShotRound {
   return { hit, crit: hit && roll.crit, offset, struck: landing.struck?.id ?? null, hits: landing.hits, blast, burst };
 }
 
-function burstPoint(world: World, r: WeaponDef["round"], landing: Landing): Vec | null {
+export function burstPoint(world: World, r: WeaponDef["round"], landing: Landing): Vec | null {
   if (landing.struck !== null || r.splashRadius <= 0) return null;
   if (r.craterRadius > 0) digCrater(world, landing.point, r.craterRadius);
   return { ...landing.point };
@@ -734,7 +733,7 @@ function enteredLane(a: Aiming, roll: Roll, offset: number): number | null {
   return a.filled[roll.hit && a.lane !== null ? a.lane : laneOfOffset(a.side, a.body, a.lanes, offset)];
 }
 
-function directRound(world: World, r: WeaponDef["round"], crit: boolean): Round {
+export function directRound(world: World, r: WeaponDef["round"], crit: boolean): Round {
   const k = crit ? { damage: RULES.critDamage, pen: RULES.critPen } : { damage: 1, pen: 1 };
   return { damage: r.damage * k.damage * RULES.weaponDamage * damageScale(world), pen: r.pen * k.pen, blast: r.blast, armorShare: r.armorShare };
 }
@@ -787,7 +786,7 @@ function lineOffset(a: Vec, dir: Vec, len: number, p: Vec): number {
   return Math.abs(rel.x * dir.y - rel.y * dir.x);
 }
 
-function explode(world: World, r: WeaponDef["round"], landing: Landing): VehicleHits[] {
+export function explode(world: World, r: WeaponDef["round"], landing: Landing): VehicleHits[] {
   if (r.splashRadius <= 0) return [];
   const out: VehicleHits[] = [];
   for (const v of world.vehicles) {
@@ -806,10 +805,13 @@ export function blastTruck(world: World, v: Vehicle, p: Vec, radius: number, rou
   return planBlast(v, p, radius, round, skip).map((h) => ({ part: h.part.id, damage: damagePart(world, v, h.part, h.amount) }));
 }
 
-function practiceHits(world: World, s: Shot): void {
-  if (s.shooter.id !== world.player.vehicleId) return;
-  const hits = s.rolls.filter((roll) => roll.hit).length;
-  if (hits > 0) practice(world, 'hit', hits, 1 - s.odds.chance, s.target.id);
+export function practiceHits(world: World, s: Shot): void {
+  practiceLandedHits(world, s.shooter.id, s.target.id, s.rolls.filter(roll => roll.hit).length, s.odds.chance);
+}
+
+export function practiceLandedHits(world: World, shooter: string, target: string, hits: number, chance: number): void {
+  if (shooter !== world.player.vehicleId) return;
+  if (hits > 0) practice(world, 'hit', hits, 1 - chance, target);
 }
 
 function escortSees(world: World, v: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
@@ -910,11 +912,15 @@ export function noteAttack(world: World, attacker: Vehicle, victim: Vehicle, cal
   reportIncident(world, { aggressor: attacker, victim, deed: "attacked", victimFights: true });
 }
 
-function noteStray(world: World, s: Shot, e: { rounds: ShotRound[] }): void {
+export function noteStray(world: World, s: Shot, e: { rounds: ShotRound[] }): void {
+  noteStrayHits(world, s.shooter, s.target.id, e);
+}
+
+export function noteStrayHits(world: World, shooter: Vehicle, target: string, e: { rounds: ShotRound[] }): void {
   for (const [id, hits] of shotDamage(e)) {
-    if (id === s.target.id || id === s.shooter.id) continue;
+    if (id === target || id === shooter.id) continue;
     const damage = hits.reduce((sum, h) => sum + h.damage, 0);
-    if (damage > 0) judgeStray(world, s.shooter, vehicleById(world, id), damage);
+    if (damage > 0) judgeStray(world, shooter, vehicleById(world, id), damage);
   }
 }
 
@@ -950,10 +956,11 @@ function towPair(world: World, a: Vehicle, b: Vehicle): boolean {
   return stateOf(world, 'tow', a.id, b.id) !== null || stateOf(world, 'tow', b.id, a.id) !== null;
 }
 
-export function resolveDestroyed(world: World): void {
-  const shot = damagedByShots(world);
+export function resolveDestroyed(world: World, settled: ReadonlySet<GameEvent> = new Set()): void {
+  const events = world.events.filter(event => !settled.has(event));
+  const shot = damagedByShots(events);
   for (const v of world.vehicles.filter((x) => x.faction !== "player")) {
-    const fate = npcFate(world, v, shot);
+    const fate = npcFate(world, v, shot, cabDamageThisTurn(world, v, events));
     if (fate === "dies") wreckVehicle(world, v);
     else if (fate === "knockedOut") knockOutNpc(world, v);
   }
@@ -971,28 +978,28 @@ export function settleAims(world: World): void {
   }
 }
 
-function npcFate(world: World, v: Vehicle, shot: Set<string>): "dies" | "knockedOut" | null {
-  const fate = rolledFate(world, v, shot);
+export function npcFate(world: World, v: Vehicle, shot: Set<string>, cabDamage?: number): "dies" | "knockedOut" | null {
+  const fate = rolledFate(world, v, shot, cabDamage);
   return fate === "knockedOut" && !modeRules(world).npcKnockouts ? "dies" : fate;
 }
 
-function rolledFate(world: World, v: Vehicle, shot: Set<string>): "dies" | "knockedOut" | null {
+function rolledFate(world: World, v: Vehicle, shot: Set<string>, cabDamage?: number): "dies" | "knockedOut" | null {
   if (getResources(world, v).health <= 0) return "dies";
   if (isDefeated(v)) return shot.has(v.id) ? "dies" : null;
-  return corePart(v, "cab").hp > 0 ? cabKnockFate(world, v) : brokenCabFate(world);
+  return corePart(v, "cab").hp > 0 ? cabKnockFate(world, v, cabDamage) : brokenCabFate(world);
 }
 
-function cabKnockFate(world: World, v: Vehicle): "knockedOut" | null {
-  return rollCabKnock(world, v) ? "knockedOut" : null;
+function cabKnockFate(world: World, v: Vehicle, cabDamage?: number): "knockedOut" | null {
+  return rollCabKnock(world, v, cabDamage) ? "knockedOut" : null;
 }
 
 function brokenCabFate(world: World): "dies" | "knockedOut" {
   return chance(world, RULES.npcDeathChance) ? "dies" : "knockedOut";
 }
 
-function damagedByShots(world: World): Set<string> {
+function damagedByShots(events: readonly GameEvent[]): Set<string> {
   const hurt = new Set<string>();
-  for (const e of world.events) {
+  for (const e of events) {
     if (e.t !== "shot") continue;
     if (e.rounds.some((r) => r.hits.some((h) => h.damage > 0))) hurt.add(e.target);
   }
