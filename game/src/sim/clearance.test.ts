@@ -89,11 +89,11 @@ describe('a truck meeting a moving truck', () => {
   const mover = (pos: { x: number; y: number }, vel: { x: number; y: number }) => ({ id: 'v9', pos, vel, r: 0.8 });
 
   it('meets a truck that crosses ahead within the roll time', () => {
-    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, undefined, 1, [mover({ x: 34, y: 34 }, { x: 0, y: -4 })])).toBe(true);
+    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, undefined, 1, [mover({ x: 34, y: 34 }, { x: 0, y: -4 })])).not.toBeNull();
   });
 
   it('does not meet a truck that is already past by then', () => {
-    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, undefined, 1, [mover({ x: 34, y: 34 }, { x: 0, y: 4 })])).toBe(false);
+    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, undefined, 1, [mover({ x: 34, y: 34 }, { x: 0, y: 4 })])).toBeNull();
   });
 
   it('IV6: throws on a non-finite velocity', () => {
