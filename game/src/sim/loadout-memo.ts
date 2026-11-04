@@ -73,5 +73,9 @@ function liveObjects({ items }: Loadout): Set<object> {
 function freezeFact(value: unknown, live: Set<object>): void {
   if (typeof value !== 'object' || value === null || live.has(value) || Object.isFrozen(value)) return;
   Object.freeze(value);
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) freezeFact(value[i], live);
+    return;
+  }
   for (const inner of Object.values(value)) freezeFact(inner, live);
 }

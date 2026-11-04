@@ -5,13 +5,13 @@ import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
 import { BREAKABLE } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
-import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
+import { groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
 import { CAR_WRECK_LOOKS, ROCK_LOOKS, TERRAIN } from '../data/terrain';
 import { hashId, randInt, randRange } from './rng';
 import { hulkBoxes, type HulkBox } from './body';
 import { chassisDef } from '../data/chassis';
-import { propBase, underDeck } from './bridge';
+import { boxCorners, underDeck } from './bridge';
 import { atlasOf, atlasSites, type Atlas } from './atlas';
 import { modeRules } from './settings';
 import type { LandmarkLook, Obstacle, World } from './types';
@@ -364,6 +364,35 @@ const POSED_SHAPES = new WeakMap<Obstacle, PosedShape>();
 
 export function propBoxes(o: Obstacle): readonly PosedBox[] {
   return posedShape(o).boxes;
+}
+
+const FORT_SEATS = new WeakMap<Terrain, WeakMap<readonly PosedBox[], number>>();
+
+function isFortPiece(o: Obstacle): boolean {
+  return o.kind === 'landmark' && (FORT_MODELS.has(o.look) || o.look === 'fortOutpostShut');
+}
+
+function fortSeat(t: Terrain, o: Obstacle): number {
+  const boxes = propBoxes(o);
+  let bySeat = FORT_SEATS.get(t);
+  if (!bySeat) {
+    bySeat = new WeakMap();
+    FORT_SEATS.set(t, bySeat);
+  }
+  let seat = bySeat.get(boxes);
+  if (seat === undefined) {
+    const footings = boxes.filter((b) => b.z0 <= 0);
+    if (footings.length === 0) throw new Error(`Fort piece ${o.id} has no box that reaches the ground`);
+    const lowest = footings.map((b) => Math.min(...boxCorners(b).map((c) => groundAt(t, c.x, c.y))) - b.z0 / PHYSICS.metersPerTile);
+    seat = Math.min(groundAt(t, o.pos.x, o.pos.y), ...lowest);
+    bySeat.set(boxes, seat);
+  }
+  return seat;
+}
+
+export function propBase(t: Terrain, o: Obstacle): number {
+  if (o.kind === 'wreck') return heightAt(t, o.pos.x, o.pos.y);
+  return isFortPiece(o) ? fortSeat(t, o) : groundAt(t, o.pos.x, o.pos.y);
 }
 
 const REACHABLE_BOXES = new WeakMap<Terrain, WeakMap<readonly PosedBox[], ReachableBoxes>>();

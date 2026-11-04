@@ -81,11 +81,14 @@ describe('charts', () => {
     expect(after.player.rumored).toEqual(w.player.rumored);
     expect(after.events.every((e) => e.t === 'discover')).toBe(true);
     const b = gridSquareSpan(square);
+    const changedOutside: number[] = [];
     for (let y = 0; y < w.size; y++)
       for (let x = 0; x < w.size; x++) {
         const inside = x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1;
-        if (!inside) expect(after.player.explored[y * w.size + x]).toBe(w.player.explored[y * w.size + x]);
+        const i = y * w.size + x;
+        if (!inside && after.player.explored[i] !== w.player.explored[i]) changedOutside.push(i);
       }
+    expect(changedOutside).toEqual([]);
   });
 
   it('discovers exactly the sites that the grid places in the square', () => {
