@@ -18,7 +18,7 @@ const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
-const CRASH_PAUSE_MS = 10000;
+const CRASH_PAUSE_MS = 30000;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
