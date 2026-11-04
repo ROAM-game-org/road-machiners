@@ -22,6 +22,10 @@ export function newTimedCombat(): TimedCombatState {
   return { now: 0, turnStart: 0, active: false, flights: [], attempts: [], fired: [], volleys: [], records: [], destroyedAt: {}, pendingWrecks: [] };
 }
 
+export function hasTimedFire(state: TimedCombatState): boolean {
+  return state.attempts.length > 0 || state.flights.length > 0;
+}
+
 export function beginTimedCombat(world: World, state: TimedCombatState, durationMs: number): void {
   if (state.attempts.length || state.pendingWrecks.length) throw new Error('Unfinished combat at turn start');
   state.active = true;
@@ -78,12 +82,17 @@ function timedSpec(id: string) {
 }
 function tryLaunch(world: World, state: TimedCombatState, attempt: TimedAttempt): TimedShot | null {
   if (state.destroyedAt[attempt.shooter] !== undefined || state.destroyedAt[attempt.target] !== undefined) return null;
-  const shooter = world.vehicles.find(v => v.id === attempt.shooter);
+  const shooter = attemptShooter(world, attempt);
   const target = world.vehicles.find(v => v.id === attempt.target);
   if (!shooter || !target) return null;
   const weapon = vehicleStats(world, shooter).weapons.find(w => w.part.id === attempt.weapon);
   if (!weapon) return null;
   return launchTimedRound(world, shooter, attempt.weapon, target, attempt.aim, state.now, timedSpec(weapon.def.id).speed, state.volleys.includes(attempt.volley));
+}
+function attemptShooter(world: World, attempt: TimedAttempt): Vehicle | undefined {
+  const shooter = world.vehicles.find(v => v.id === attempt.shooter);
+  const order = shooter?.weaponOrders[attempt.weapon];
+  return order?.targetId === attempt.target && order.aim === attempt.aim ? shooter : undefined;
 }
 function launchAttempt(world: World, state: TimedCombatState, attempt: TimedAttempt): void {
     const flight = tryLaunch(world, state, attempt);

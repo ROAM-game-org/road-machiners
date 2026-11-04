@@ -5,7 +5,7 @@ import { SKILL_EFFECTS } from '../data/skills';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed, settleWoken } from './far';
+import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
 import { LIVE_REACH, setHeadless } from './fidelity';
 import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
@@ -15,7 +15,7 @@ import { addVehicle, editableTerrain, emptyWorld, npcBrain, raiseCliff } from '.
 import { groundClear } from './spawn';
 import type { Obstacle, Pose, World } from './types';
 import { dist } from './vec';
-import { endTurn } from './world';
+import { cloneWorld, endTurn } from './world';
 import { REGION } from '../data/region';
 import { roadNetworkOf } from './road-network';
 import { touchesObstacle } from './mapgen';
@@ -56,6 +56,17 @@ function mixedWorld(): World {
 }
 
 describe('far NPC travel', () => {
+  it('keeps whole-turn coarse movement when no firing attempt or projectile needs intermediate poses', () => {
+    const world = mixedWorld();
+    const expected = cloneWorld(world);
+    for (const vehicle of expected.vehicles) advanceFar(expected, vehicle);
+    moveFarCombat(world);
+    expect(world.vehicles).toEqual(expected.vehicles);
+    expect(world.player).toEqual(expected.player);
+    expect(world.events).toEqual(expected.events);
+    expect(world.combat.now).toBeCloseTo(PHYSICS.turnSeconds * 1000);
+  });
+
   it('counts the player and vehicles inside sight plus the live margin as near', () => {
     const w = emptyWorld();
     const inside = addVehicle(w, 'independent', 'scout', [], { x: 30 + LIVE - 0.5, y: 30 });
@@ -89,7 +100,8 @@ describe('far NPC travel', () => {
   it('simulates only near vehicles in physics', () => {
     const { w, d, last } = play(mixedWorld(), 1);
     expect(Object.keys(d.bodies).sort()).toEqual([w.vehicles[0].id, w.vehicles[1].id].sort());
-    expect(w.vehicles[2].trail).toHaveLength(TURN_STEPS + 1);
+    expect(w.vehicles[2].trail).toHaveLength(RULES.substeps + 1);
+    expect(last.frames[w.vehicles[2].id]).toHaveLength(TURN_STEPS);
     freeDrive(d);
   });
 

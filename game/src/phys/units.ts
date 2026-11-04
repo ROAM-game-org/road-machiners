@@ -1,5 +1,5 @@
 import { vehicleStats, type VehicleStats } from '../sim/stats';
-import { combatState, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { combatState, hasTimedFire, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
 import { FarCombatMotion } from '../sim/far';
 import { isKnockedOut } from '../sim/defeat';
 import { captureImpactMotion, type ImpactMotion } from './contacts';
@@ -234,7 +234,7 @@ export class TimedDrive {
     if (steps !== TURN_STEPS || !state.active) return;
     this.state = state;
     const near = new Set(cars.map(car => car.v.id));
-    this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)));
+    if (hasTimedFire(state)) this.far = new FarCombatMotion(world, world.vehicles.filter(v => !near.has(v.id)));
     this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading, speed: c.v.speed, bend: c.v.bend }));
   }
   step(): void {

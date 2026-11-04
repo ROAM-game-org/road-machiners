@@ -63,6 +63,18 @@ it('cancels later attempts after a gun breaks without canceling its launched rou
   expect(f.state.records.filter(r => r.kind === 'cancel')).toHaveLength(5);
 });
 
+it('cancels attempts after the firing order ends and preserves shots already airborne', () => {
+  const f = fight(); beginTimedCombat(f.world, f.state, 1000);
+  for (let i = 0; i < 7; i++) stepTimedCombat(f.world, f.state, 1000 / 60);
+  expect(f.state.records.filter(r => r.kind === 'launch')).toHaveLength(1);
+  f.a.weaponOrders = {};
+  for (let i = 7; i < 60; i++) stepTimedCombat(f.world, f.state, 1000 / 60);
+  endTimedCombat(f.world, f.state);
+  expect(f.state.records.filter(r => r.kind === 'launch')).toHaveLength(1);
+  expect(f.state.records.filter(r => r.kind === 'impact')).toHaveLength(1);
+  expect(f.state.records.filter(r => r.kind === 'cancel')).toHaveLength(5);
+});
+
 it('records destruction on the impact step and cancels later shots at the removed target', () => {
   const f = fight(); beginTimedCombat(f.world, f.state, 1000);
   for (let i = 0; i < 7; i++) stepTimedCombat(f.world, f.state, 1000 / 60);

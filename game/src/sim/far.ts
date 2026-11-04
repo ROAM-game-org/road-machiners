@@ -1,6 +1,6 @@
 import { isKnockedOut } from './defeat';
 import { PHYSICS } from '../data/physics';
-import { combatStepRoundoff, stepTimedCombat } from './timed-combat';
+import { combatStepRoundoff, hasTimedFire, stepTimedCombat } from './timed-combat';
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -424,6 +424,11 @@ export class FarCombatMotion {
 }
 
 export function moveFarCombat(world: World, vehicles: Vehicle[] = world.vehicles): void {
+  if (!hasTimedFire(world.combat)) {
+    for (const vehicle of vehicles) if (!isOnRope(world, vehicle.id)) advanceFar(world, vehicle);
+    completeCombatMovement(world, world.combat.now);
+    return;
+  }
   const motion = new FarCombatMotion(world, vehicles);
   const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
   const duration = PHYSICS.turnSeconds * 1000;

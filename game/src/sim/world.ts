@@ -409,6 +409,7 @@ export function endTurnInPlace(
     assignUtilityOrders(w);
     activateUtilities(w);
     const gaps = huntGaps(w);
+    raiseCalls(w);
     assignAutoOrders(w);
     freezeFire(w);
     settleAims(w);
