@@ -4,7 +4,7 @@ import { isCheapMeeting } from "./fidelity";
 import { shadeCastersAround } from "./prop-index";
 import { weatherAt } from "./weather";
 import type { Obstacle, World } from "./types";
-import { propBase } from "./bridge";
+import { propBase } from "./mapgen";
 import { heightAt } from "./terrain";
 import { clamp, type Vec } from "./vec";
 
