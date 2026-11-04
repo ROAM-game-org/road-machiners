@@ -228,8 +228,10 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const placedLateral: [number, number] = across ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
   const profile = faceProfile(body, axis, outward, placedLateral);
   const touchAt = (shift: number): number | null => bodyFace(body, axis, outward, placedLateral, [placed.min.y + shift, placed.max.y + shift]);
-  const failure = `Armor ${def.id} on side ${side} of ${v.chassisId} finds no height at its face`;
-  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), row: cellSteps(v.chassisId).row, failure });
+  const fail = (): never => {
+    throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} finds no height at its face`);
+  };
+  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), row: cellSteps(v.chassisId).row, fail });
   pos.y += shift;
   pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
   return at;
@@ -239,11 +241,11 @@ function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
   return box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
 }
 
-type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; row: number; failure: string };
+type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; row: number; fail: () => never };
 
-function standShift({ profile, placed, touchAt, floor, glassMatters, row, failure }: Stand): number {
+function standShift({ profile, placed, touchAt, floor, glassMatters, row, fail }: Stand): number {
   const face = profileFace(profile, floor);
-  if (face === null) throw new Error(failure);
+  if (face === null) return fail();
   const glass = glassMatters ? profileGlassLine(profile, floor, row) : null;
   const stands = (shift: number): boolean => {
     const touch = touchAt(shift);
@@ -252,7 +254,7 @@ function standShift({ profile, placed, touchAt, floor, glassMatters, row, failur
   };
   const shifts = candidateShifts(profile, placed);
   const found = shifts.find(stands);
-  if (found === undefined) throw new Error(failure);
+  if (found === undefined) return fail();
   return found;
 }
 
