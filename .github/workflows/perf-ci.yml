@@ -1,0 +1,45 @@
+name: perf ci
+run-name: perf ci ${{ github.sha }}
+
+on:
+  push:
+    branches: ['perf-ci/**']
+
+permissions:
+  contents: read
+
+jobs:
+  turns:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm ci
+        working-directory: game
+        run: npm ci
+      - name: drive turns
+        working-directory: game
+        run: |
+          set -o pipefail
+          WARM=1 npx vite-node scripts/turn-profile.mjs drive 8 | tee ../drive-turns.log
+      - name: fight turns
+        working-directory: game
+        run: |
+          set -o pipefail
+          npx vite-node scripts/turn-profile.mjs fight 8 | tee ../fight-turns.log
+      - name: ranked functions in drive turns
+        working-directory: game
+        run: |
+          set -o pipefail
+          PROFILE_FROM=2 npx vite-node scripts/turn-profile.mjs drive 12 > /dev/null
+          node scripts/cpuprof-top.mjs prof/warm.cpuprofile 0 | tee ../drive-ranked.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: turn-profiles
+          path: '*.log'
