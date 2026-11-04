@@ -6,6 +6,7 @@ type Timers = { set: (fn: () => void, ms: number) => unknown; clear: (handle: un
 
 export class GpuContext {
   private losses = 0;
+  private down = false;
   private deadline: unknown = null;
   private readonly lostListeners: (() => void)[] = [];
   private readonly restoredListeners: (() => void)[] = [];
@@ -38,6 +39,7 @@ export class GpuContext {
 
   private lose(): void {
     this.losses++;
+    this.down = true;
     this.clearDeadline();
     this.deadline = this.timers.set(() => {
       this.deadline = null;
@@ -47,7 +49,8 @@ export class GpuContext {
   }
 
   private restore(): void {
-    if (this.deadline === null) throw new Error('webglcontextrestored arrived with no webglcontextlost before it');
+    if (!this.down) throw new Error('webglcontextrestored arrived with no webglcontextlost before it');
+    this.down = false;
     this.clearDeadline();
     this.timers.set(() => this.restoredListeners.forEach((fn) => fn()), 0);
   }

@@ -60,6 +60,16 @@ describe('GpuContext', () => {
     expect(seen).toEqual(['restored']);
   });
 
+  it('still rebuilds when the context comes back after the deadline', () => {
+    const { gpu, fire, timers } = setup();
+    const seen: string[] = [];
+    gpu.onRestored(() => seen.push('restored'));
+    fire('webglcontextlost');
+    timers[0].fn();
+    expect(() => fire('webglcontextrestored')).not.toThrow();
+    expect(seen).toEqual(['restored']);
+  });
+
   it('throws on a restore with no loss before it', () => {
     const { fire } = setup();
     expect(() => fire('webglcontextrestored')).toThrow();

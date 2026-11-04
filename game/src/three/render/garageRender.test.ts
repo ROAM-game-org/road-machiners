@@ -243,6 +243,31 @@ describe('garage render queue', () => {
     expect(String(reports[0])).toMatch(/drew no pixels/);
   });
 
+  it('does not mark a job failed when its build throws because the context just went', () => {
+    const gpu = fakeGpu();
+    const fake = faking();
+    let dying = true;
+    const build: BuildGarageJob = (renderer, job, store, now) => {
+      if (dying) {
+        gpu.blackout();
+        throw new Error('no render target');
+      }
+      return fake.build(renderer, job, store, now);
+    };
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, gpu, build, undefined, (error) => reports.push(error));
+    const { truck } = scout();
+    renders.want([needFor(truck, [])]);
+
+    renders.step(1e9);
+    dying = false;
+    gpu.recover();
+    renders.step(1e9);
+
+    expect(reports).toHaveLength(0);
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+  });
+
   it('refuses to wait on the GPU when the screen needs the render at once', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
     const reports: unknown[] = [];
