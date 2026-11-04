@@ -5,8 +5,8 @@ import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { hulkBoxes } from './body';
-import { fromRoad, milestoneAt, outpostYardHalf, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
-import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
+import { fromRoad, milestoneAt, outpostYardHalf, windowMilestones, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
+import { boxDistance, anyLookBoxes, propObstacle, type PosedBox } from './mapgen';
 import { hashRandom, nextRandom, randInt, randRange, type Rng } from './rng';
 import type { DeckSpec } from '../data/terrain';
 import type { PropKind } from './terrain';
@@ -329,7 +329,7 @@ function shapesOf(p: Local): Shape[] {
   let shapes = SHAPES.get(p);
   if (!shapes) {
     if (p.hulk) hulkBoxes(p.hulk, undefined);
-    shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : propBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
+    shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : anyLookBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
     SHAPES.set(p, shapes);
   }
   return shapes;
@@ -464,8 +464,8 @@ export function sceneAt(seed: number, n: number, margin: number): Scene | null {
   return stretchLayout(seed, j).scenes.find((s) => n >= s.from - margin && n <= s.to + margin) ?? null;
 }
 
-export function windowStretches(window: number): number[] {
-  return [window, window + 1, window + 2].filter((j) => j >= 1);
+export function windowStretches(seed: number, window: number): number[] {
+  return windowMilestones(seed, window).filter((j) => j >= 1);
 }
 
 export function craterDip(craters: readonly Crater[], at: RoadPos): number {
@@ -479,7 +479,7 @@ export function craterDip(craters: readonly Crater[], at: RoadPos): number {
 }
 
 export function windowCraters(seed: number, window: number): Crater[] {
-  return windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.craters));
+  return windowStretches(seed, window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.craters));
 }
 
 
@@ -543,13 +543,13 @@ function southClosure(seed: number, window: number): RoadPiece[] {
 }
 
 export function closurePieces(seed: number, window: number): RoadPiece[] {
-  return [...fortLine(seed, window + 1), ...(window >= 1 ? fortLine(seed, window) : southClosure(seed, window))];
+  return [...windowStretches(seed, window).flatMap((j) => fortLine(seed, j)), ...(window === 0 ? southClosure(seed, window) : [])];
 }
 
 export function highwayDecks(seed: number, window: number): DeckSpec[] {
   const size = HIGHWAY.size;
   const inside = (p: Vec) => p.x >= 0 && p.y >= 0 && p.x <= size && p.y <= size;
-  return windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.ramps)).flatMap((ramp) => {
+  return windowStretches(seed, window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.ramps)).flatMap((ramp) => {
     const from = fromRoad(seed, window, ramp.from.n, ramp.from.u);
     const to = fromRoad(seed, window, ramp.to.n, ramp.to.u);
     if (!inside(from) || !inside(to)) return [];

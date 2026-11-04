@@ -7,6 +7,7 @@ import { gridSquareArea, gridSquareOf, gridSquares, gridSquareSpan, sameGridSqua
 import { requireShop } from './market';
 import { pay } from './economy';
 import type { World } from './types';
+import { ownExplored } from './explored';
 import { playerCommand } from './world';
 import { fairM } from './money';
 
@@ -67,7 +68,8 @@ export function buyChart(world: World, square: GridSquare): World {
     if (unexplored === 0) throw new Error(`Square ${squareName(square)} is already explored`);
     pay(w, chartPrice(unexplored));
     const b = gridSquareSpan(square);
-    for (let y = b.y0; y < b.y1; y++) w.player.explored.fill(1, y * w.size + b.x0, y * w.size + b.x1);
+    const explored = ownExplored(w.player);
+    for (let y = b.y0; y < b.y1; y++) explored.fill(1, y * w.size + b.x0, y * w.size + b.x1);
     for (const site of atlasSites(atlas)) {
       if (sameGridSquare(gridSquareOf(site.pos), square) && !w.player.discovered.includes(site.id)) chartSite(w, site);
     }

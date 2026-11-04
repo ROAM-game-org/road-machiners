@@ -111,7 +111,7 @@ export function npcProfile(v: Vehicle): NpcProfile {
 }
 
 export function getKnownSite(id: string) {
-  const site = [...REGION.towns, ...REGION.locations].find((entry) => entry.id === id);
+  const site = REGION.towns.find((entry) => entry.id === id) ?? REGION.locations.find((entry) => entry.id === id);
   if (!site) throw new Error(`Unknown site ${id}`);
   return site;
 }
@@ -145,9 +145,8 @@ export function judgeDanger(world: World, observer: Vehicle, other: Vehicle): nu
   return strengthRatio(fightOddsAgainst(world, observer, other));
 }
 
-export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle): number {
-  const spread = NPC_BEHAVIOR.dangerSpread;
-  return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
+export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle, noise: number = randRange(world, 1 - NPC_BEHAVIOR.dangerSpread, 1 + NPC_BEHAVIOR.dangerSpread)): number {
+  return judgeDanger(world, observer, other) * noise;
 }
 
 export function dangerJoining(world: World, speaker: Vehicle, fighters: Vehicle[], friend: Vehicle, foes: Vehicle[]): number {
@@ -301,7 +300,7 @@ function tradeOfferer(world: World, vehicle: Vehicle): ((plan: TradePlan) => Wei
   return (plan) => runOffer(world, vehicle, plan, spend, 1, rig);
 }
 
-const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: driveStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
+export const tradeRig = (world: World, vehicle: Vehicle) => ({ fuelPerTile: driveStats(world, vehicle).fuelPerTile, room: cargoRoom(vehicle) });
 
 export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number, fuelPerTile = driveStats(world, vehicle).fuelPerTile): number {
   if (!Number.isFinite(tiles) || tiles < 0) throw new Error(`${vehicle.id} prices the fuel of a trip of ${tiles} tiles`);
@@ -774,7 +773,7 @@ function weakFlee(world: World, vehicle: Vehicle): number {
   return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakFlee : 1;
 }
 
-function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+export function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
   if (!canDrive(world, vehicle)) return false;
   const odds = fightOddsAgainst(world, vehicle, foe);
   return odds.getaway > 0 && odds.getaway >= odds.win;

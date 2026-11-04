@@ -55,7 +55,7 @@ export function landingSession(ctx: Ctx, stage: LandingStage, work: LandingWork)
   return { dir, id: work.session, resume: savedTranscript(dir, work.session) };
 }
 
-function savedTranscript(dir: string, id: string): boolean {
+export function savedTranscript(dir: string, id: string): boolean {
   return readdirSync(dir, { withFileTypes: true }).some((entry) => entry.isDirectory() && existsSync(join(dir, entry.name, `${id}.jsonl`)));
 }
 

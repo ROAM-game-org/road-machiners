@@ -3,6 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
+import { ownExplored } from './explored';
 import { groundAt, heightAt, heightNear, type Terrain } from './terrain';
 import { anyDeckBox, decksOf } from './bridge';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
@@ -179,12 +180,7 @@ function wrapRay(rays: number, k: number): number {
   return ((k % rays) + rays) % rays;
 }
 
-function rayOf(rays: number, from: Vec, p: Vec): number {
-  return wrapRay(rays, Math.round(rayPosition(rays, from, p)));
-}
-
-function horizonSlope(horizons: Horizons, from: Vec, p: Vec, before: number): number {
-  const at = rayPosition(horizons.rays, from, p);
+function horizonSlope(horizons: Horizons, at: number, before: number): number {
   const low = Math.floor(at);
   const share = at - low;
   const row = horizons.steps + 1;
@@ -222,9 +218,10 @@ function tileSeen(look: Look, tile: Vec): boolean {
   const d = dist(eye.at, tile);
   if (d <= TERRAIN.vision.closeRadius) return true;
   const to = look.height(tile.x, tile.y) + TERRAIN.vision.eyeHeight;
-  const k = rayOf(horizons.rays, eye.at, tile);
+  const at = rayPosition(horizons.rays, eye.at, tile);
+  const k = wrapRay(horizons.rays, Math.round(at));
   const before = Math.min(Math.ceil(d * TERRAIN.vision.samplesPerTile) - 1, horizons.steps);
-  if (horizonSlope(horizons, eye.at, tile, before) > (to - eye.z) / d) return false;
+  if (horizonSlope(horizons, at, before) > (to - eye.z) / d) return false;
   const line = { a: eye.at, b: tile, from: eye.z, to };
   const hides = (p: NearProp) => p.near < d && propHides(look.terrain, p.o, line);
   return !look.props.everywhere.some(hides) && !(look.props.byRay[k]?.some(hides) ?? false);
@@ -233,7 +230,9 @@ function tileSeen(look: Look, tile: Vec): boolean {
 export function canVehicleSee(world: World, observer: Vehicle, position: Vec): boolean {
   if (observer.id === world.player.vehicleId) return playerSees(world, position);
   const target = position;
-  if (dist(observer.pos, target) > sightRadius(world, observer, litAt(world, target))) return false;
+  const apart = dist(observer.pos, target);
+  if (apart > clearDaySight(world, observer)) return false;
+  if (apart > sightRadius(world, observer, litAt(world, target))) return false;
   return isCheapMeeting(world, observer.pos, target) || inPlainView(world, observer.pos, target, propsNear(world, observer.pos, target), dustScreens(world));
 }
 
@@ -309,7 +308,7 @@ export function playerVisible(world: World): Set<number> {
 export function refreshVision(world: World): Contact[] {
   const seen = playerVisible(world);
   world.player.visible = [...seen].sort((a, b) => a - b);
-  for (const idx of seen) world.player.explored[idx] = 1;
+  for (const idx of seen) if (world.player.explored[idx] === 0) ownExplored(world.player)[idx] = 1;
   world.player.marked = world.player.marked.filter((m) => world.turn <= m.until);
   const me = world.vehicles.find((x) => x.id === world.player.vehicleId);
   const known = new Set(world.player.contacts.map((c) => c.vehicleId));

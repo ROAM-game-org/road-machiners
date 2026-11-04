@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BootRequest, SlotId, SlotInfo } from "../three/save-slots";
+import { t } from "../text/msg";
 import { isNewGameOpen } from "./new-game";
+import { pickTextFile } from "./dom";
 import { resolve } from "../text/resolve";
 import { clock } from "./format";
 import { SavePanel } from "./save-panel";
 import { chooseStart } from "./save-screen";
 import { SoundSettings } from "./sound";
 import type { Mixer } from "../audio/mixer";
+
+vi.mock("./dom", async (original) => ({ ...(await original<Record<string, unknown>>()), pickTextFile: vi.fn() }));
 
 class FakeNode {
   attrs: Record<string, string> = {};
@@ -40,6 +44,8 @@ class FakeNode {
 const info = (slot: SlotId, savedAt: number, turn: number | null = 0, mode: SlotInfo['mode'] = 'roaming'): SlotInfo => ({ slot, savedAt, turn, mode });
 const SAVES = [info('slot2', 900, 120), info('auto', 500, 40, 'chaosHighway')];
 
+const importSave = vi.fn();
+
 function open(saves: SlotInfo[]) {
   const ui = new FakeNode("div");
   const opener = new FakeNode("button");
@@ -49,7 +55,7 @@ function open(saves: SlotInfo[]) {
   const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn(), confirm: vi.fn(() => true) };
   const chosen = vi.fn();
   const sound = new SoundSettings({ setBusVolume: vi.fn(), setMuted: vi.fn() } as unknown as Mixer, { getItem: () => null, setItem: vi.fn() } as unknown as Storage);
-  void chooseStart(saves, actions, sound).then(chosen);
+  void chooseStart(saves, actions, sound, importSave).then(chosen);
   const menu = ui.byClass("start-menu")[0];
   return { ui, menu, requests, actions, chosen };
 }
@@ -63,7 +69,42 @@ describe("the start menu", () => {
     const { menu } = open(SAVES);
 
     expect(menu.all((n) => n.tag === "h1")[0].textContent).toBe("Road Machiners");
-    expect(menu.all((n) => n.tag === "button").map((b) => b.textContent)).toEqual(["Continue", "Load", "New game", "Options"]);
+    expect(menu.all((n) => n.tag === "button").map((b) => b.textContent)).toEqual(["Continue", "Load", "Import save", "New game", "Options"]);
+  });
+
+  it("plays the slot an imported file lands in", async () => {
+    const { menu, ui, chosen } = open([]);
+    vi.mocked(pickTextFile).mockResolvedValue("file text");
+    importSave.mockResolvedValue({ slot: "slot1" });
+
+    menu.button("Import save").fire("click");
+    await vi.waitFor(() => expect(chosen).toHaveBeenCalledWith("slot1"));
+
+    expect(importSave).toHaveBeenCalledWith("file text");
+    expect(ui.byClass("start-menu")).toEqual([]);
+  });
+
+  it("shows why a file was refused and stays open", async () => {
+    const { menu, chosen } = open([]);
+    vi.mocked(pickTextFile).mockResolvedValue("file text");
+    importSave.mockResolvedValue({ refusal: t("save.importUnreadable") });
+
+    menu.button("Import save").fire("click");
+    await vi.waitFor(() => expect(menu.byClass("bad")).toHaveLength(1));
+
+    expect(menu.byClass("bad")[0].textContent).toBe("This file is not a save");
+    expect(chosen).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the picker is cancelled", async () => {
+    const { menu } = open([]);
+    importSave.mockClear();
+    vi.mocked(pickTextFile).mockResolvedValue(null);
+
+    menu.button("Import save").fire("click");
+    await Promise.resolve();
+
+    expect(importSave).not.toHaveBeenCalled();
   });
 
   it("continues the newest save and closes, with focus on Continue", async () => {
@@ -147,6 +188,26 @@ describe("the start menu", () => {
   });
 });
 
+describe("the in-game Save panel Import save", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reopens with the refusal under the buttons", async () => {
+    const { ui } = open([]);
+    vi.mocked(pickTextFile).mockResolvedValue("file text");
+    importSave.mockResolvedValue({ refusal: t("save.importNoSlot") });
+    const panel = new SavePanel({ list: () => [], manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
+
+    panel.openSave();
+    ui.byClass("save-exports")[0].button("Import save").fire("click");
+    await vi.waitFor(() => expect(ui.byClass("bad")).toHaveLength(1));
+
+    expect(ui.byClass("bad")[0].textContent).toBe("All save slots are full");
+    expect(ui.byClass("save-panel")).toHaveLength(1);
+  });
+});
+
 describe("the in-game Load panel", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -157,7 +218,7 @@ describe("the in-game Load panel", () => {
     const confirm = vi.fn(() => false);
     vi.stubGlobal("window", Object.assign(new FakeNode("window"), { confirm }));
     const reboot = vi.fn();
-    const panel = new SavePanel({ list: () => SAVES, manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot, exportSave: vi.fn(), exportLog: vi.fn() });
+    const panel = new SavePanel({ list: () => SAVES, manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot, exportSave: vi.fn(), exportLog: vi.fn(), importSave });
 
     panel.openLoad();
     const row = ui.byClass("save-row")[0];

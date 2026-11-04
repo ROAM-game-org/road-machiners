@@ -379,7 +379,7 @@ describe('base branch', () => {
   const statePath = 'tmp/factory-common-test/state.json';
   const withRelease = () => {
     mkdirSync('tmp/factory-common-test', { recursive: true });
-    writeState(statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 20, day: '2026-09-29', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } } });
   };
   const ctxWith = (labels: string[]) => ({ statePath, github: { issue: async () => ({ labels }) } }) as unknown as Ctx;
 
@@ -389,21 +389,14 @@ describe('base branch', () => {
     expect(await baseBranchOf(ctxWith(['feature-request']), 7)).toBe('dev');
   });
 
-  it('is the release branch for a release task', async () => {
+  it('is dev for a maintenance card, with or without an open release', async () => {
     withRelease();
-    expect(baseBranchFor(ctxWith([]), ['release-task', 'maintenance'])).toBe('release/2026-09-29');
-    expect(await baseBranchOf(ctxWith(['release-task']), 7)).toBe('release/2026-09-29');
+    expect(baseBranchFor(ctxWith([]), ['maintenance'])).toBe('dev');
+    expect(await baseBranchOf(ctxWith(['maintenance']), 7)).toBe('dev');
   });
 
   it('is main for a hotfix, also with no release open', async () => {
     expect(baseBranchFor(ctxWith([]), ['bug', 'hotfix'])).toBe('main');
-    expect(await baseBranchOf(ctxWith(['hotfix', 'release-task']), 7)).toBe('main');
-  });
-
-  it('throws for a release task when no release is open', async () => {
-    mkdirSync('tmp/factory-common-test', { recursive: true });
-    writeState(statePath, structuredClone(EMPTY_STATE));
-    expect(() => baseBranchFor(ctxWith([]), ['release-task'])).toThrow('needs an open release');
-    await expect(baseBranchOf(ctxWith(['release-task']), 7)).rejects.toThrow('needs an open release');
+    expect(await baseBranchOf(ctxWith(['hotfix', 'maintenance']), 7)).toBe('main');
   });
 });

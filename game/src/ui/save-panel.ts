@@ -6,7 +6,8 @@ import { slotLabel } from "../three/save-slots";
 import { bindAttr, say } from "../text/language";
 import { date, t, type Msg } from "../text/msg";
 import { modeName } from "../text/names";
-import { el, panel } from "./dom";
+import type { ImportResult } from "../three/save";
+import { el, panel, pickTextFile } from "./dom";
 import { clock } from "./format";
 
 export type SavePanelActions = {
@@ -17,10 +18,24 @@ export type SavePanelActions = {
   reboot: (slot: SlotId) => void;
   exportSave: () => void;
   exportLog: () => void;
+  importSave: (text: string) => Promise<ImportResult>;
 };
 
 export function overwritesOtherMode(info: SlotInfo | null, mode: GameModeId): boolean {
   return info?.mode != null && info.mode !== mode;
+}
+
+export async function pickImport(importSave: SavePanelActions["importSave"]): Promise<ImportResult | null> {
+  const text = await pickTextFile(".json,application/json");
+  return text === null ? null : importSave(text);
+}
+
+export function importButton(onclick: () => void, cls = ""): HTMLElement {
+  return el("button", { class: cls, onclick, title: t("save.importTitle") }, t("save.import"));
+}
+
+export function refusalLine(refusal: Msg): HTMLElement {
+  return el("div", { class: "bad", role: "alert" }, refusal);
 }
 
 export function slotDetail(info: SlotInfo | null): { text: Msg; tone: "dim" | "bad" | "num" } {
@@ -109,7 +124,7 @@ export class SavePanel {
     this.list.close();
   }
 
-  openSave(): void {
+  openSave(refusal: Msg | null = null): void {
     const infos = new Map(this.actions.list().map((info) => [info.slot, info]));
     const rows = this.actions.manualSlots().map((slot) => saveRow(slot, infos.get(slot) ?? null, () => this.saveInto(slot, infos.get(slot) ?? null)));
     const exports = el(
@@ -117,8 +132,14 @@ export class SavePanel {
       { class: "save-exports" },
       el("button", { onclick: () => this.actions.exportSave(), title: t("save.exportSaveTitle") }, t("save.exportSave")),
       el("button", { onclick: () => this.actions.exportLog(), title: t("save.exportLogTitle") }, t("save.exportLog")),
+      importButton(() => void this.importFile()),
     );
-    this.list.show(t("menu.save"), [...rows, exports]);
+    this.list.show(t("menu.save"), [...rows, exports, ...(refusal === null ? [] : [refusalLine(refusal)])]);
+  }
+
+  private async importFile(): Promise<void> {
+    const result = await pickImport(this.actions.importSave);
+    if (result !== null) this.openSave("refusal" in result ? result.refusal : null);
   }
 
   openLoad(): void {
