@@ -111,7 +111,7 @@ export function npcProfile(v: Vehicle): NpcProfile {
 }
 
 export function getKnownSite(id: string) {
-  const site = [...REGION.towns, ...REGION.locations].find((entry) => entry.id === id);
+  const site = REGION.towns.find((entry) => entry.id === id) ?? REGION.locations.find((entry) => entry.id === id);
   if (!site) throw new Error(`Unknown site ${id}`);
   return site;
 }

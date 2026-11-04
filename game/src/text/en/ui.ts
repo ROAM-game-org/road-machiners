@@ -44,6 +44,8 @@ export const UI = {
   'money.m': m("{n, plural, one {# M} other {# M's}}", { n: 'count' }),
   'menu.menu': 'Menu',
   'menu.help': 'Help',
+  'menu.fullscreen': 'Full screen',
+  'menu.exitFullscreen': 'Exit full screen',
   'menu.options': 'Options',
   'options.title': 'Options',
   'options.uiSize': 'UI size',

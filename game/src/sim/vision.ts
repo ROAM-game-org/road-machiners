@@ -3,6 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
+import { ownExplored } from './explored';
 import { groundAt, heightAt, heightNear, type Terrain } from './terrain';
 import { anyDeckBox, decksOf } from './bridge';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
@@ -229,7 +230,9 @@ function tileSeen(look: Look, tile: Vec): boolean {
 export function canVehicleSee(world: World, observer: Vehicle, position: Vec): boolean {
   if (observer.id === world.player.vehicleId) return playerSees(world, position);
   const target = position;
-  if (dist(observer.pos, target) > sightRadius(world, observer, litAt(world, target))) return false;
+  const apart = dist(observer.pos, target);
+  if (apart > clearDaySight(world, observer)) return false;
+  if (apart > sightRadius(world, observer, litAt(world, target))) return false;
   return isCheapMeeting(world, observer.pos, target) || inPlainView(world, observer.pos, target, propsNear(world, observer.pos, target), dustScreens(world));
 }
 
@@ -305,7 +308,7 @@ export function playerVisible(world: World): Set<number> {
 export function refreshVision(world: World): Contact[] {
   const seen = playerVisible(world);
   world.player.visible = [...seen].sort((a, b) => a - b);
-  for (const idx of seen) world.player.explored[idx] = 1;
+  for (const idx of seen) if (world.player.explored[idx] === 0) ownExplored(world.player)[idx] = 1;
   world.player.marked = world.player.marked.filter((m) => world.turn <= m.until);
   const me = world.vehicles.find((x) => x.id === world.player.vehicleId);
   const known = new Set(world.player.contacts.map((c) => c.vehicleId));
@@ -328,8 +331,22 @@ export function tileOf(world: World, p: Vec): number {
   return y * world.size + x;
 }
 
+const VISIBLE_SETS = new WeakMap<readonly number[], { length: number; tiles: ReadonlySet<number> }>();
+
+function visibleSet(world: World): ReadonlySet<number> {
+  const visible = world.player.visible;
+  const known = VISIBLE_SETS.get(visible);
+  if (!known) {
+    const built = { length: visible.length, tiles: new Set(visible) };
+    VISIBLE_SETS.set(visible, built);
+    return built.tiles;
+  }
+  if (known.length !== visible.length) throw new Error('player.visible changed in place');
+  return known.tiles;
+}
+
 export function playerSees(world: World, p: Vec): boolean {
-  return world.player.visible.includes(tileOf(world, p));
+  return visibleSet(world).has(tileOf(world, p));
 }
 
 export function playerExplored(world: World, p: Vec): boolean {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SALVAGE } from '../data/salvage';
 import { RULES } from '../data/rules';
 import { SKILL_EFFECTS } from '../data/skills';
-import { beginSearch, startSearch } from './search';
+import { beginSearch, startSearch, stockSearchTurns } from './search';
 import { addVehicle, emptyWorld, npcBrain, practiceOf, spotWorld, testDrive } from './testkit';
 import { propReach } from './mapgen';
 import { spotTable } from './territory';
@@ -65,25 +65,30 @@ describe('timed scavenging search', () => {
 
   it('takes turns in proportion to the stock, then opens it for looting', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.salvage.push({ id: 'rich', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: SALVAGE.unitsPerTurn * 3 }, parts: [], hidden: emptyHidden() });
+    w.salvage.push({ id: 'rich', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: SALVAGE.unitsPerTurn * (SALVAGE.minSearchTurns + 3) }, parts: [], hidden: emptyHidden() });
+    const length = SALVAGE.minSearchTurns + 3;
     let next = scavenge(w, 'rich');
-    expect(next.vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', turnsLeft: 3, total: 3 }));
+    expect(next.vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', turnsLeft: length, total: length }));
     let turns = 0;
     while (next.vehicles[0].job) {
       next = endTurn(next, testDrive);
-      if (++turns > 20) throw new Error('search never finished');
+      if (++turns > 40) throw new Error('search never finished');
     }
-    expect(turns).toBe(3);
+    expect(turns).toBe(length);
     expect(next.events).toContainEqual({ t: 'searched', stock: 'rich' });
     expect(canLoot(next, 'rich')).toBe(true);
     expect(canScavenge(next, 'rich')).toBe(false);
   });
 
-  it('searches a pile in one turn, however big', () => {
+  it('searches a pile in the pile length, however big', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const pile = { until: w.turn + SALVAGE.pileTurns, fromPlayer: false, basis: {} };
     w.salvage.push({ id: 'pile', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: SALVAGE.unitsPerTurn * 5 }, parts: [], pile, hidden: emptyHidden() });
-    const next = endTurn(scavenge(w, 'pile'), testDrive);
+    let next = scavenge(w, 'pile');
+    for (let t = 0; t < SALVAGE.pileSearchTurns; t++) {
+      expect(next.vehicles[0].job).not.toBeNull();
+      next = endTurn(next, testDrive);
+    }
     expect(next.vehicles[0].job).toBeNull();
     expect(next.events).toContainEqual({ t: 'searched', stock: 'pile' });
   });
@@ -179,17 +184,17 @@ describe('timed scavenging search', () => {
 describe('machining on searches', () => {
   it('searches in fewer turns for the player at rank 5', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.salvage.push({ id: 'rich', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: SALVAGE.unitsPerTurn * 5 }, parts: [], hidden: emptyHidden() });
+    w.salvage.push({ id: 'rich', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: SALVAGE.unitsPerTurn * 20 }, parts: [], hidden: emptyHidden() });
     w.player.ranks.machining = 5;
-    const turns = Math.ceil(5 * (1 - 5 * SKILL_EFFECTS.machining.search));
+    const turns = Math.ceil(20 * (1 - 5 * SKILL_EFFECTS.machining.search));
     expect(scavenge(w, 'rich').vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', turnsLeft: turns, total: turns }));
   });
 
-  it('still takes at least one turn at rank 5', () => {
+  it('still takes the minimum turns at rank 5', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.salvage.push({ id: 'small', pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: 1 }, parts: [], hidden: emptyHidden() });
     w.player.ranks.machining = 5;
-    expect(scavenge(w, 'small').vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', turnsLeft: 1, total: 1 }));
+    expect(scavenge(w, 'small').vehicles[0].job).toEqual(expect.objectContaining({ kind: 'search', turnsLeft: SALVAGE.minSearchTurns, total: SALVAGE.minSearchTurns }));
   });
 
   it('leaves NPC searches at full length', () => {
@@ -565,5 +570,19 @@ describe('finite hidden salvage', () => {
     expect(after.supplies).toBe(20);
     expect(next.player.supplies).toBeLessThanOrEqual(suppliesCap(next.vehicles[0]));
     expect(stockTotal(after) + (goodsCount(next.vehicles[0]).scrap ?? 0)).toBe(before);
+  });
+});
+
+describe('search length', () => {
+  const stockOf = (scrap: number): SalvageStock => ({ id: 's', pos: { x: 1, y: 1 }, radius: 1, goods: { scrap }, parts: [], hidden: emptyHidden() });
+
+  it('never goes under the minimum, even with the full Machining cut', () => {
+    expect(stockSearchTurns(stockOf(1), 1)).toBe(SALVAGE.minSearchTurns);
+    expect(stockSearchTurns(stockOf(10), 0.01)).toBe(SALVAGE.minSearchTurns);
+  });
+
+  it('grows with the units past the minimum', () => {
+    const units = SALVAGE.unitsPerTurn * (SALVAGE.minSearchTurns + 6);
+    expect(stockSearchTurns(stockOf(units), 1)).toBe(SALVAGE.minSearchTurns + 6);
   });
 });

@@ -324,7 +324,7 @@ export class Travel {
   }
 
   private fastTravel(): boolean {
-    return this.automatic && CONFIG.travelSpeeds[this.speedIndex] > 1;
+    return CONFIG.travelSpeeds[this.speedIndex] > 1;
   }
 
   private runsOnItsOwn(world: World, now: number): boolean {
@@ -400,7 +400,7 @@ export class Travel {
 
   private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
     if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
-    if (followsOrder(world)) this.turns.prepare(world, drive, CONFIG.travelSpeeds[this.speedIndex] > 1);
+    if (followsOrder(world)) this.turns.prepare(world, drive, this.fastTravel());
   }
 
   beginPlayback(
@@ -451,7 +451,7 @@ export class Travel {
   }
 
   getSpeed(): number {
-    return this.automatic ? this.keptStep(CONFIG.travelSpeeds[this.speedIndex]) : 1;
+    return this.keptStep(CONFIG.travelSpeeds[this.speedIndex]);
   }
 
   private keptStep(speed: number): number {

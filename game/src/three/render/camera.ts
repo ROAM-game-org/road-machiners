@@ -32,6 +32,7 @@ export class CameraRig {
   private tether: { at: V3; radius: number } | null = null;
   private zoom = DEFAULT_ZOOM;
   private ray = new THREE.Raycaster();
+  private rect: { left: number; top: number; width: number; height: number } | null = null;
 
   constructor(private view: HTMLElement) {
     this.camera.position.copy(this.center).add(OFFSET);
@@ -40,6 +41,7 @@ export class CameraRig {
   }
 
   resize(): void {
+    this.rect = null;
     const w = this.view.clientWidth;
     const h = this.view.clientHeight;
     if (!(w > 0 && h > 0)) return;
@@ -155,7 +157,7 @@ export class CameraRig {
 
   screenOf(p: V3): { x: number; y: number } {
     const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera);
-    const rect = this.view.getBoundingClientRect();
+    const rect = (this.rect ??= this.view.getBoundingClientRect());
     return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (1 - (v.y * 0.5 + 0.5)) * rect.height };
   }
 
@@ -164,6 +166,7 @@ export class CameraRig {
   }
 
   tick(dtMs: number): void {
+    this.rect = null;
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
       const leadGoal = this.heading === null ? new THREE.Vector3() : this.leadOffset(this.heading);
