@@ -229,7 +229,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   if (found === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
   const face = wholeFace(at, box, body, side);
   const row = cellSteps(v.chassisId).row;
-  const touch = def.kind === 'armor' && found < face - ARMOR_SINK_ROWS * row ? dropToFace(at, box, body, side, rest, face - row, `${def.id} on side ${side} of ${v.chassisId}`) : found;
+  const touch = def.kind === 'armor' && found < face - ARMOR_SINK_ROWS * row ? dropToFace(at, box, body, side, rest, face - row, def.id, v.chassisId) : found;
   pos[axis] += outward * (Math.min(0, outward * touch - snug) + overArmor(v, item, def));
   return at;
 }
@@ -244,14 +244,14 @@ function wholeFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: S
   return face;
 }
 
-function dropToFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, rest: number, near: number, what: string): number {
+function dropToFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, rest: number, near: number, defId: string, chassisId: string): number {
   const floor = new THREE.Box3().setFromObject(body).min.y;
   for (let y = rest; y > floor; y -= CLIP_TOLERANCE) {
     at.pos.y = y;
     const touch = touchBehind(at, box, body, side);
     if (touch !== null && touch >= near) return touch;
   }
-  throw new Error(`Armor ${what} finds no height at its face`);
+  throw new Error(`Armor ${defId} on side ${side} of ${chassisId} finds no height at its face`);
 }
 
 function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
