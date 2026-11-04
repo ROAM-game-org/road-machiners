@@ -79,7 +79,7 @@ export function outpostBuyPart(world: World, partId: string, truckId?: string): 
     pay(w, outpostPartPrice(w, part, truck.id));
     const facts = outpostFactsAt(w, post.milestone);
     facts.stock = facts.stock.filter((p) => p.id !== partId);
-    receiveBoughtPart(w, part, truck);
+    receiveBoughtPart(w, part);
   });
 }
 
