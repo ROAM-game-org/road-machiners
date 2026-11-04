@@ -3640,6 +3640,140 @@
     }
    ]
   },
+  "courier-5e7a8a-b8a070-5e7a8a": {
+   "file": "courier-5e7a8a-b8a070-5e7a8a.webp",
+   "radiusM": 2.22,
+   "cells": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 76,
+     "h": 61,
+     "fromCenterX": -38,
+     "fromCenterY": -36
+    },
+    {
+     "x": 77,
+     "y": 0,
+     "w": 77,
+     "h": 67,
+     "fromCenterX": -39,
+     "fromCenterY": -37
+    },
+    {
+     "x": 154,
+     "y": 0,
+     "w": 71,
+     "h": 70,
+     "fromCenterX": -36,
+     "fromCenterY": -38
+    },
+    {
+     "x": 231,
+     "y": 0,
+     "w": 58,
+     "h": 72,
+     "fromCenterX": -29,
+     "fromCenterY": -40
+    },
+    {
+     "x": 0,
+     "y": 72,
+     "w": 38,
+     "h": 70,
+     "fromCenterX": -19,
+     "fromCenterY": -40
+    },
+    {
+     "x": 77,
+     "y": 72,
+     "w": 58,
+     "h": 72,
+     "fromCenterX": -29,
+     "fromCenterY": -40
+    },
+    {
+     "x": 154,
+     "y": 72,
+     "w": 71,
+     "h": 71,
+     "fromCenterX": -35,
+     "fromCenterY": -39
+    },
+    {
+     "x": 231,
+     "y": 72,
+     "w": 77,
+     "h": 68,
+     "fromCenterX": -38,
+     "fromCenterY": -38
+    },
+    {
+     "x": 0,
+     "y": 144,
+     "w": 76,
+     "h": 62,
+     "fromCenterX": -38,
+     "fromCenterY": -37
+    },
+    {
+     "x": 77,
+     "y": 144,
+     "w": 77,
+     "h": 66,
+     "fromCenterX": -38,
+     "fromCenterY": -36
+    },
+    {
+     "x": 154,
+     "y": 144,
+     "w": 71,
+     "h": 66,
+     "fromCenterX": -35,
+     "fromCenterY": -34
+    },
+    {
+     "x": 231,
+     "y": 144,
+     "w": 58,
+     "h": 68,
+     "fromCenterX": -29,
+     "fromCenterY": -33
+    },
+    {
+     "x": 0,
+     "y": 216,
+     "w": 38,
+     "h": 71,
+     "fromCenterX": -19,
+     "fromCenterY": -33
+    },
+    {
+     "x": 77,
+     "y": 216,
+     "w": 58,
+     "h": 71,
+     "fromCenterX": -29,
+     "fromCenterY": -33
+    },
+    {
+     "x": 154,
+     "y": 216,
+     "w": 71,
+     "h": 69,
+     "fromCenterX": -36,
+     "fromCenterY": -34
+    },
+    {
+     "x": 231,
+     "y": 216,
+     "w": 77,
+     "h": 64,
+     "fromCenterX": -39,
+     "fromCenterY": -34
+    }
+   ]
+  },
   "courier-7a6a4a-5a6a4a-7a6a4a": {
    "file": "courier-7a6a4a-5a6a4a-7a6a4a.webp",
    "radiusM": 2.22,
