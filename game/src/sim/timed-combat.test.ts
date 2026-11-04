@@ -65,7 +65,7 @@ it('records destruction on the impact step and cancels later shots at the remove
   const flight = f.state.flights[0];
   expect(flight).toBeDefined();
   flight.impactAt = { ...f.b.pos };
-  flight.shot.rolls[0] = { hit: true, error: 0, crit: false };
+  flight.roll = { hit: true, error: 0, crit: false };
   f.b.resources!.health = 0;
   for (let i = 7; i < 60; i++) stepTimedCombat(f.world, f.state, 1000 / 60);
   endTimedCombat(f.world, f.state);
@@ -102,4 +102,24 @@ it('lets a launched round land after its shooter leaves the world', () => {
 it('supports every registered weapon in the game combat schedule', () => {
   const missing = Object.values(PARTS).filter(part => part.kind === 'weapon' && !(part.id in PROJECTILE_FLIGHT)).map(part => part.id);
   expect(missing).toEqual([]);
+});
+
+it('continues serialized flight facts with the same impacts and random state', async () => {
+  const { cloneWorld } = await import('./world');
+  const f = fight(); beginTimedCombat(f.world, f.state, 1000);
+  for (let i = 0; i < 7; i++) stepTimedCombat(f.world, f.state, 1000 / 60);
+  expect(f.state.flights.length).toBeGreaterThan(0);
+  const encoded = JSON.stringify(f.state);
+  expect(encoded).not.toContain('chassisId');
+  const restored: typeof f.state = JSON.parse(encoded);
+  const world = cloneWorld(f.world);
+  for (let i = 7; i < 60; i++) {
+    stepTimedCombat(f.world, f.state, 1000 / 60);
+    stepTimedCombat(world, restored, 1000 / 60);
+  }
+  endTimedCombat(f.world, f.state);
+  endTimedCombat(world, restored);
+  expect(restored).toEqual(f.state);
+  expect(world.rngState).toBe(f.world.rngState);
+  expect(world.events).toEqual(f.world.events);
 });

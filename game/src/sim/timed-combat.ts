@@ -1,12 +1,14 @@
+import type { WeaponRound } from '../data/parts';
+import { attachLine } from './harpoon';
 import { PROJECTILE_FLIGHT } from '../data/weapons';
 import { spanOf } from './body';
 import { PHYSICS } from '../data/physics';
-import { aiming, rollRound, spendShot, noteStray, practiceHits, tieLine, directRound, explode, burstPoint, npcFate, tickGuns, fireBlock, targetBlock, hitOdds, noteAttack, isHostile, missPoint, laneOfOffset, shotDamage, wreckVehicle, type Shot, type Landing } from './combat';
+import { aiming, rollRound, spendShot, noteStrayHits, practiceLandedHits, directRound, explode, burstPoint, npcFate, tickGuns, fireBlock, targetBlock, hitOdds, noteAttack, isHostile, missPoint, laneOfOffset, shotDamage, wreckVehicle, type Shot, type Landing } from './combat';
 import { type MountedWeapon, vehicleStats } from './stats';
-import { corePart } from './grid';
+import { corePart, mountedParts } from './grid';
 import { isKnockedOut, knockOutNpc } from './defeat';
 import { isShutDown } from './utility';
-import { walkLane } from './armor';
+import { walkLane, heldPart, type Side } from './armor';
 import { bearing, type Vec } from './vec';
 import type { World, Vehicle, Aim, GameEvent, ShotRound } from './types';
 
@@ -100,7 +102,7 @@ function impactFlight(world: World, state: TimedCombatState, flight: TimedFlight
     }
 }
 
-export type TimedShot = { shot: Shot; from: Vec; aimedAt: Vec; impactAt: Vec; launchedMs: number; speed: number };
+export type TimedShot = { shooterId: string; targetId: string; weaponId: string; weaponDefId: string; aim: Aim; chance: number; damageChance: number; round: WeaponRound; lineTurns: number | null; targetSide: Side; roll: { hit: boolean; error: number; crit: boolean }; from: Vec; aimedAt: Vec; impactAt: Vec; launchedMs: number; speed: number };
 
 export function launchTimedRound(world: World, shooter: Vehicle, weapon: string, target: Vehicle, aim: Aim, launchedMs: number, speed: number, continuing: boolean): TimedShot | null {
   const mw = vehicleStats(world, shooter).weapons.find(w => w.part.id === weapon);
@@ -112,24 +114,20 @@ export function launchTimedRound(world: World, shooter: Vehicle, weapon: string,
   const shot: Shot = { shooter, mw, target, aim, odds, aiming: a, rolls: [rollRound(world, odds, a)] };
   if (!continuing) spendShot(world, shot);
   noteAttack(world, shooter, target, !isHostile(world, target, shooter));
-  return { shot, from: { ...shooter.pos }, aimedAt: { ...target.pos }, impactAt: missPoint(shooter.pos, target.pos, a.center + shot.rolls[0].error * odds.distance), launchedMs, speed };
+  return { shooterId: shooter.id, targetId: target.id, weaponId: weapon, weaponDefId: mw.def.id, aim, chance: odds.chance, damageChance: odds.damageChance, round: { ...mw.def.round }, lineTurns: mw.def.line?.turns ?? null, targetSide: a.side, roll: shot.rolls[0], from: { ...shooter.pos }, aimedAt: { ...target.pos }, impactAt: missPoint(shooter.pos, target.pos, a.center + shot.rolls[0].error * odds.distance), launchedMs, speed };
 }
 
 export function landTimedRound(world: World, flight: TimedShot): Extract<GameEvent, { t: 'shot' }> | null {
-  const source = flight.shot;
-  const target = world.vehicles.find(v => v.id === source.target.id) ?? source.target;
-  const shooter = world.vehicles.find(v => v.id === source.shooter.id) ?? source.shooter;
-  const from = { ...shooter, pos: flight.from };
-  const a = aiming(from, target, 'body');
-  const shot = { ...source, shooter: from, target, aiming: a };
-  const { landing, offset } = timedLanding(world, flight, shot);
-  const rounds = timedRounds(world, shot, landing, offset);
-  const event = { t: 'shot' as const, shooter: shooter.id, weapon: shot.mw.part.id, target: target.id, aim: shot.aim, chance: shot.odds.chance, damageChance: shot.odds.damageChance, side: shot.aiming.side, rounds };
-  for (const id of shotDamage(event).keys()) requiredVehicle(world, id).lastHitBy = shooter.id;
-  const landedShot = { ...shot, rolls: shot.rolls.map((roll, i) => ({ ...roll, hit: rounds[i].hit })) };
-  noteStray(world, landedShot, event);
-  practiceHits(world, landedShot);
-  tieLine(world, landedShot, rounds);
+  const target = world.vehicles.find(v => v.id === flight.targetId);
+  const a = target ? aiming({ pos: flight.from }, target, 'body') : null;
+  const { landing, offset } = timedLanding(world, flight, target, a);
+  const rounds = timedRounds(world, flight, landing, offset);
+  const event = { t: 'shot' as const, shooter: flight.shooterId, weapon: flight.weaponId, target: flight.targetId, aim: flight.aim, chance: flight.chance, damageChance: flight.damageChance, side: a?.side ?? flight.targetSide, rounds };
+  for (const id of shotDamage(event).keys()) requiredVehicle(world, id).lastHitBy = flight.shooterId;
+  const shooter = world.vehicles.find(v => v.id === flight.shooterId);
+  if (shooter) noteStrayHits(world, shooter, flight.targetId, event);
+  practiceLandedHits(world, flight.shooterId, flight.targetId, Number(rounds[0].hit), flight.chance);
+  hookFlight(world, flight, landing, event.side);
   world.events.push(event);
   return event;
 }
@@ -180,22 +178,36 @@ function impactGeometry(flight: TimedShot, target: Vehicle): { inside: boolean; 
   const offset = -rel.x * Math.sin(angle) + rel.y * Math.cos(angle);
   return { inside, offset };
 }
-function timedLanding(world: World, flight: TimedShot, shot: Shot): { landing: Landing; offset: number } {
-  if (!world.vehicles.includes(shot.target)) return { landing: { struck: null, lane: null, hits: [], point: flight.impactAt }, offset: 0 };
-  const { inside, offset } = impactGeometry(flight, shot.target);
-  if (!inside) return { landing: { struck: null, lane: null, hits: [], point: flight.impactAt }, offset };
-  const a = shot.aiming;
-  const lane = laneOfOffset(a.side, a.body, a.lanes, offset);
-  const filled = a.filled[lane];
-  if (filled === undefined) return { landing: { struck: null, lane: null, hits: [], point: flight.impactAt }, offset };
-  const hits = walkLane(world, shot.target, a.side, filled, directRound(world, shot.mw.def.round, shot.rolls[0].crit));
-  return { landing: { struck: shot.target, lane: filled, hits, point: flight.impactAt }, offset };
+function timedLanding(world: World, flight: TimedShot, target: Vehicle | undefined, a: ReturnType<typeof aiming> | null): { landing: Landing; offset: number } {
+  if (!target || !a) return missedLanding(flight, 0);
+  const { inside, offset } = impactGeometry(flight, target);
+  if (!inside) return missedLanding(flight, offset);
+  const filled = a.filled[laneOfOffset(a.side, a.body, a.lanes, offset)];
+  if (filled === undefined) return missedLanding(flight, offset);
+  const hits = walkLane(world, target, a.side, filled, directRound(world, flight.round, flight.roll.crit));
+  return { landing: { struck: target, lane: filled, hits, point: flight.impactAt }, offset };
 }
-
-function timedRounds(world: World, shot: Shot, landing: Landing, offset: number): ShotRound[] {
-  const hit = landing.struck !== null;
-  return [{ hit, crit: hit && shot.rolls[0].crit, offset, struck: landing.struck?.id ?? null, hits: landing.hits, blast: explode(world, shot.mw.def.round, landing), burst: burstPoint(world, shot.mw.def.round, landing) }];
+function missedLanding(flight: TimedShot, offset: number): { landing: Landing; offset: number } {
+  return { landing: { struck: null, lane: null, hits: [], point: flight.impactAt }, offset };
+}
+function timedRounds(world: World, flight: TimedShot, landing: Landing, offset: number): ShotRound[] {
+  const hit = landing.struck?.id === flight.targetId;
+  return [{ hit, crit: hit && flight.roll.crit, offset, struck: landing.struck?.id ?? null, hits: landing.hits, blast: explode(world, flight.round, landing), burst: burstPoint(world, flight.round, landing) }];
+}
+function hookFlight(world: World, flight: TimedShot, landing: Landing, side: Side): void {
+  if (flight.lineTurns === null || landing.lane === null || !landing.struck) return;
+  const source = hookSource(world, flight);
+  if (!source) return;
+  const part = heldPart(landing.struck, side, landing.lane);
+  if (part) attachLine(world, { from: source.shooter, fromPart: source.weapon.id, to: landing.struck, toPart: part.id }, flight.lineTurns);
 }
 
 export type PrototypeWorld = World & { prototypeCombat?: TimedCombatState };
 export const combatState = (world: World) => (world as PrototypeWorld).prototypeCombat;
+
+function hookSource(world: World, flight: TimedShot): { shooter: Vehicle; weapon: MountedWeapon['part'] } | null {
+  const shooter = world.vehicles.find(v => v.id === flight.shooterId);
+  if (!shooter) return null;
+  const weapon = mountedParts(shooter, 'weapon').find(p => p.id === flight.weaponId && p.hp > 0);
+  return weapon ? { shooter, weapon } : null;
+}

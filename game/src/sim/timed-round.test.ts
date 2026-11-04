@@ -20,7 +20,7 @@ it('spends ammo at launch without applying impact damage', () => {
   expect(mountedParts(b).map(p => p.hp)).toEqual(before);
   expect(gun.gun!.ammo).toBe(ammo - 1);
   expect(w.events.some(e => e.t === 'shot')).toBe(false);
-  flight!.shot.rolls[0] = { hit: true, error: 0, crit: false };
+  flight!.roll = { hit: true, error: 0, crit: false };
   flight!.impactAt = { ...b.pos };
   const event = landTimedRound(w, flight!);
   expect(mountedParts(b).reduce((sum, p) => sum + p.hp, 0)).toBeLessThan(before.reduce((sum, hp) => sum + hp, 0));
@@ -45,4 +45,16 @@ it('does not move a projectile endpoint when its target moves away', () => {
   expect(event.rounds[0].struck).toBeNull();
   expect(mountedParts(b).map(p => p.hp)).toEqual(before);
   expect(flight.impactAt).toEqual(endpoint);
+});
+
+it('records flight facts without retaining vehicle or weapon objects', () => {
+  const world = emptyWorld();
+  const shooter = addVehicle(world, 'player', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+  const target = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
+  world.player.vehicleId = shooter.id;
+  declareFeud(world, target, shooter.id); refreshVision(world);
+  const weapon = mountedParts(shooter, 'weapon')[0];
+  const flight = launchTimedRound(world, shooter, weapon.id, target, 'body', 0, 220, false)!;
+  expect(flight).toMatchObject({ shooterId: shooter.id, targetId: target.id, weaponId: weapon.id, weaponDefId: 'mg' });
+  expect(Object.keys(flight)).not.toContain('shot');
 });

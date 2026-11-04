@@ -5,7 +5,6 @@ import { aimAt } from "./parley";
 import { CHAOS_HIGHWAY } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
-import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { filledLanes, heldPart, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
@@ -207,7 +206,7 @@ function across(shooter: Vehicle, target: Vehicle): Vec {
   return { x: -Math.sin(b), y: Math.cos(b) };
 }
 
-export function presentedWidth(shooter: Vehicle, target: Vehicle): number {
+export function presentedWidth(shooter: Pick<Vehicle, 'pos'>, target: Vehicle): number {
   return presentedSpan(target, shooter.pos);
 }
 
@@ -249,7 +248,7 @@ function bodyLanes(target: Vehicle, side: Side, aimed: number | null): number[] 
   return aimed === null || filled.includes(aimed) ? filled : [...filled, aimed].sort((a, b) => a - b);
 }
 
-export function aiming(shooter: Vehicle, target: Vehicle, aim: Aim): Aiming {
+export function aiming(shooter: Pick<Vehicle, 'pos'>, target: Vehicle, aim: Aim): Aiming {
   const side = sideToward(target, shooter.pos);
   const body = presentedWidth(shooter, target);
   if (aim === "body") {
@@ -807,9 +806,12 @@ export function blastTruck(world: World, v: Vehicle, p: Vec, radius: number, rou
 }
 
 export function practiceHits(world: World, s: Shot): void {
-  if (s.shooter.id !== world.player.vehicleId) return;
-  const hits = s.rolls.filter((roll) => roll.hit).length;
-  if (hits > 0) practice(world, 'hit', hits, 1 - s.odds.chance, s.target.id);
+  practiceLandedHits(world, s.shooter.id, s.target.id, s.rolls.filter(roll => roll.hit).length, s.odds.chance);
+}
+
+export function practiceLandedHits(world: World, shooter: string, target: string, hits: number, chance: number): void {
+  if (shooter !== world.player.vehicleId) return;
+  if (hits > 0) practice(world, 'hit', hits, 1 - chance, target);
 }
 
 function escortSees(world: World, v: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
@@ -911,10 +913,14 @@ export function noteAttack(world: World, attacker: Vehicle, victim: Vehicle, cal
 }
 
 export function noteStray(world: World, s: Shot, e: { rounds: ShotRound[] }): void {
+  noteStrayHits(world, s.shooter, s.target.id, e);
+}
+
+export function noteStrayHits(world: World, shooter: Vehicle, target: string, e: { rounds: ShotRound[] }): void {
   for (const [id, hits] of shotDamage(e)) {
-    if (id === s.target.id || id === s.shooter.id) continue;
+    if (id === target || id === shooter.id) continue;
     const damage = hits.reduce((sum, h) => sum + h.damage, 0);
-    if (damage > 0) judgeStray(world, s.shooter, vehicleById(world, id), damage);
+    if (damage > 0) judgeStray(world, shooter, vehicleById(world, id), damage);
   }
 }
 

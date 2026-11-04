@@ -48,7 +48,7 @@ export function combatEventPoint(world: World, frames: Record<string, VehicleFra
 }
 
 function collectDisplay(record: TimedRecord, damage: Map<string, number>, spent: Set<string>): void {
-  if (record.kind === 'launch' && record.flight) spent.add(record.flight.shot.mw.part.id);
+  if (record.kind === 'launch' && record.flight) spent.add(record.flight.weaponId);
   if (!record.event) return;
   const hits = record.event.rounds.flatMap(round => [...round.hits, ...round.blast.flatMap(b => b.hits)]);
   for (const hit of hits) damage.set(hit.part, (damage.get(hit.part) ?? 0) + hit.damage);

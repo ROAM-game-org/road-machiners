@@ -1072,7 +1072,7 @@ it('an engine broken by an impact loses drive during the same physics turn', asy
     const flight = launchTimedRound(world, shooter, mountedParts(shooter, 'weapon')[0].id, target, 'body', 0, 220, false)!;
     expect(flight).not.toBeNull();
     flight.impactAt = { ...target.pos };
-    flight.shot.rolls[0] = { hit: true, error: 0, crit: false };
+    flight.roll = { hit: true, error: 0, crit: false };
     if (impact) state.flights.push({ ...flight, landsAt: 1000 / PHYSICS.stepsPerSecond * 2 });
     const drive = buildDrive(world);
     try {

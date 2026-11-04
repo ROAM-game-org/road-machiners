@@ -579,14 +579,14 @@ function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedComb
 }
 function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number): void {
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
-      if (!host.eventPoint(f.shot.shooter.id)) return;
-      const spec = projectileOf(f.shot.mw.def.id);
+      if (!host.eventPoint(f.shooterId)) return;
+      const spec = projectileOf(f.weaponDefId);
       const point = groundPoint(host.world.terrain, f.impactAt);
-      const hit = f.shot.rolls[0].hit;
+      const hit = f.roll.hit;
       const land = { ...point, y: point.y + (hit ? 1 : 0) };
-      host.fx.shot(spec, shooterMuzzle(host, f.shot.shooter.id, f.shot.mw.part.id), {
+      host.fx.shot(spec, shooterMuzzle(host, f.shooterId, f.weaponId), {
         delayMs: at, flightMs: f.landsAt - f.launchedMs, land, impact: 'none',
-      }, blastRadiusOf(f.shot.mw.def.id), {
+      }, blastRadiusOf(f.weaponDefId), {
         fired: m => host.sound.at(spec.look === 'tracer' ? 'mg-fire' : 'cannon-fire', m.pos, 0),
         landed: () => {},
       }, ground, host.world.turn);
@@ -597,7 +597,7 @@ function playTimedImpact(host: CombatHost, f: TimedFlight, event: Extract<GameEv
       const point = groundPoint(host.world.terrain, f.impactAt);
       const land = { ...point, y: point.y + (hit ? 1 : 0) };
       host.fx.later(at, () => {
-        host.fx.projectileImpact({ delayMs: 0, flightMs: 0, land, impact: hit ? 'truck' : 'ground' }, blastRadiusOf(f.shot.mw.def.id), projectileOf(f.shot.mw.def.id).look === 'shell');
+        host.fx.projectileImpact({ delayMs: 0, flightMs: 0, land, impact: hit ? 'truck' : 'ground' }, blastRadiusOf(f.weaponDefId), projectileOf(f.weaponDefId).look === 'shell');
         host.sound.at(hit ? 'hit-metal' : 'miss', land, 0);
       });
       host.fx.later(at, () => {
