@@ -6,6 +6,7 @@ import type { ModeRules, WorldSetup } from "../sim/types";
 import { setupText } from "../text/names";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
+import { isConfirmOpen } from "./confirm-dialog";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { desktopHost } from "../three/save-db";
@@ -205,6 +206,7 @@ export class GameMenu {
   private options: OptionsPanel;
 
   private readonly onKey = (e: KeyboardEvent) => {
+    if (isConfirmOpen()) return;
     if (e.code === "Escape") {
       e.stopPropagation();
       this.closeList(true);
@@ -245,7 +247,7 @@ export class GameMenu {
   }
 
   isOpen(): boolean {
-    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.phone.reportOpen() || isNewGameOpen();
+    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.phone.reportOpen() || isNewGameOpen() || isConfirmOpen();
   }
 
   refresh(): void {

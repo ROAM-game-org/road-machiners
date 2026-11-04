@@ -284,7 +284,6 @@ if (!benchMode) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
-  confirm: (text) => window.confirm(text),
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();

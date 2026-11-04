@@ -2,10 +2,11 @@
 import { closeLabel } from "./input-mode";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
-import { bindAttr, say } from "../text/language";
+import { bindAttr } from "../text/language";
 import { date, t, type Msg } from "../text/msg";
 import { modeName } from "../text/names";
 import type { ImportResult } from "../three/save";
+import { askConfirm, isConfirmOpen } from "./confirm-dialog";
 import { el, panel, pickTextFile } from "./dom";
 import { clock } from "./format";
 
@@ -67,7 +68,7 @@ export function saveRow(slot: SlotId, info: SlotInfo | null, onclick: () => void
 export class SaveList {
   private root: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.code !== "Escape") return;
+    if (e.code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
     this.close();
   };
@@ -137,7 +138,7 @@ export class SavePanel {
   }
 
   openLoad(): void {
-    this.list.openLoad(this.actions.list(), (slot) => this.loadFrom(slot));
+    this.list.openLoad(this.actions.list(), (slot) => void this.loadFrom(slot));
   }
 
   private saveInto(slot: SlotId): void {
@@ -145,8 +146,8 @@ export class SavePanel {
     this.openSave();
   }
 
-  private loadFrom(slot: SlotId): void {
-    if (!window.confirm(say(t("save.confirmLoad")))) return;
+  private async loadFrom(slot: SlotId): Promise<void> {
+    if (!(await askConfirm({ question: t("save.confirmLoad"), yes: t("menu.loadSave") }))) return;
     this.actions.reboot(slot);
   }
 }

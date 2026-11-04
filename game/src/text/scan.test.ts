@@ -44,6 +44,13 @@ function calleeName(call: Node): string | null {
   return null;
 }
 
+function isGlobalCall(call: Node): boolean {
+  const callee = call.callee as Node;
+  if (callee.type === 'Identifier') return true;
+  const owner = callee.object as Node;
+  return owner.type === 'Identifier' && (owner.name === 'window' || owner.name === 'globalThis');
+}
+
 function isErrorCall(node: Node): boolean {
   if (node.type !== 'NewExpression' && node.type !== 'CallExpression') return false;
   const callee = node.callee as Node;
@@ -117,7 +124,7 @@ function sinkFindings(node: Node, report: (rule: string, at: Node, text: string)
   const args = node.arguments as Node[];
   if (name === 'insertAdjacentText') report('text sink', node, 'insertAdjacentText');
   if (name === 'setAttribute' && args[0]?.type === 'Literal' && TEXT_ATTRS.has(String(args[0].value))) report('text sink', node, `setAttribute('${String(args[0].value)}')`);
-  if (name && DIALOGS.has(name) && args.length > 0 && !(args[0].type === 'CallExpression' && calleeName(args[0]) === 'say')) report('text sink', node, `${name}()`);
+  if (name && DIALOGS.has(name) && isGlobalCall(node)) report('native dialog', node, `${name}()`);
 }
 
 function forgeryFindings(node: Node, report: (rule: string, at: Node, text: string) => void): void {
@@ -189,9 +196,14 @@ describe('each scan rule catches its own case', () => {
   });
 
   it('flags text sinks', () => {
-    expect(rules("node.textContent = x;\nnode.title = y;\nnode.setAttribute('aria-label', z);\nwindow.confirm(q);")).toEqual(['text sink', 'text sink', 'text sink', 'text sink']);
-    expect(rules('window.confirm(say(msg));')).toEqual([]);
+    expect(rules("node.textContent = x;\nnode.title = y;\nnode.setAttribute('aria-label', z);")).toEqual(['text sink', 'text sink', 'text sink']);
     expect(rules('node.innerHTML = svg;')).toEqual(['innerHTML']);
+  });
+
+  it('flags every native dialog, with or without say()', () => {
+    expect(rules('window.confirm(say(msg));')).toEqual(['native dialog']);
+    expect(rules('alert(x);\nprompt(y);\nconfirm();\nglobalThis.alert(z);')).toEqual(['native dialog', 'native dialog', 'native dialog', 'native dialog']);
+    expect(rules('actions.confirm(x);')).toEqual([]);
   });
 
   it('flags Cyrillic outside the Russian catalog', () => {

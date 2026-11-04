@@ -85,7 +85,8 @@ import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
 import { unstuckReason } from "../ui/unstuck-reason";
 import { getUnstuck } from "../sim/unstuck";
-import { confirmedEndRun, DeathScreen, deathShows } from "../ui/death";
+import { abandonRun, canAbandonRun } from "../sim/chaos-highway";
+import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
@@ -281,7 +282,7 @@ export class Game {
             ? setBeacon(w, on)
             : null,
         ),
-      endRun: () => this.rescueCommand(confirmedEndRun),
+      endRun: () => this.endRun(),
       isBusy: () => this.anim !== null,
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown()), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
@@ -885,6 +886,12 @@ export class Game {
     this.screens.closeAll(null);
     this.runRescue(getUnstuck);
     this.endTurn();
+  }
+
+  private endRun(): void {
+    confirmEndRun(this.world).then((yes) => {
+      if (yes) this.rescueCommand((w) => (canAbandonRun(w) ? abandonRun(w) : null));
+    }, reportError);
   }
 
   private rescueCommand(fn: (w: World) => World | null): void {

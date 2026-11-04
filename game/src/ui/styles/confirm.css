@@ -1,0 +1,31 @@
+#ui .confirm-block {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-confirm);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+#ui .confirm-dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-confirm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  box-sizing: border-box;
+  width: var(--panel-l);
+  max-width: calc(var(--layer-w) - 2 * var(--space-4));
+}
+#ui .confirm-dialog p {
+  margin: 0;
+  font-size: var(--text-body);
+}
+#ui .confirm-dialog .confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}

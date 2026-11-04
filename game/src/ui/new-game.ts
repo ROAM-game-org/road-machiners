@@ -3,9 +3,10 @@ import { GAME_MODES, WORLD_SETTINGS } from "../data/modes";
 import { defaultSetup, parseSetup } from "../sim/settings";
 import type { GameModeId, WorldSettings, WorldSetup } from "../sim/types";
 import type { BootRequest } from "../three/save-slots";
-import { bindAttr, say, setText } from "../text/language";
+import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { modeDescription, modeName, settingDescription, settingName } from "../text/names";
+import { askConfirm, isConfirmOpen } from "./confirm-dialog";
 import { el, panel } from "./dom";
 
 export const CONFIRM_NEW_GAME = t("save.confirmNew");
@@ -15,16 +16,11 @@ const share = (value: number): Msg => t("setting.percent", { n: Math.round(value
 export type NewGameActions = {
   requestBoot: (request: BootRequest) => void;
   reload: () => void;
-  confirm: (text: string) => boolean;
 };
 
 type SettingId = keyof WorldSettings;
 const SETTING_IDS = Object.keys(WORLD_SETTINGS) as SettingId[];
 const MODE_IDS = Object.keys(GAME_MODES) as GameModeId[];
-
-export function browserNewGame(requestBoot: (request: BootRequest) => void): NewGameActions {
-  return { requestBoot, reload: () => window.location.reload(), confirm: (text) => window.confirm(text) };
-}
 
 let shown: NewGameScreen | null = null;
 
@@ -47,9 +43,9 @@ class NewGameScreen {
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, t("newGame.settings"));
   private readonly settings = el("div", { class: "world-settings", hidden: true });
   private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, t("newGame.skipIntro"));
-  private readonly startButton = el("button", { class: "start btn-l", onclick: () => this.start() }, t("newGame.start"));
+  private readonly startButton = el("button", { class: "start btn-l", onclick: () => void this.start() }, t("newGame.start"));
   private readonly onKey = (e: Event) => {
-    if ((e as KeyboardEvent).code !== "Escape") return;
+    if ((e as KeyboardEvent).code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
     this.close();
   };
@@ -148,8 +144,8 @@ class NewGameScreen {
     this.render();
   }
 
-  private start(): void {
-    if (!this.actions.confirm(say(CONFIRM_NEW_GAME))) return;
+  private async start(): Promise<void> {
+    if (!(await askConfirm({ question: CONFIRM_NEW_GAME, yes: t("confirm.startNew") }))) return;
     this.actions.requestBoot({ new: parseSetup(this.draft), intro: !this.skipIntro });
     this.actions.reload();
   }

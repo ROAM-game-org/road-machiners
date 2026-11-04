@@ -169,6 +169,8 @@ export const UI = {
   'log.lineTornThem': m('{who} tears free of a harpoon line', { who: 'text' }),
   'newGame.mode': 'Game mode',
   'newGame.settings': 'World settings',
+  'confirm.cancel': 'Cancel',
+  'confirm.startNew': 'Start new game',
   'newGame.start': 'Start',
   'newGame.skipIntro': 'Skip the intro',
   'newGame.back': 'Back',
