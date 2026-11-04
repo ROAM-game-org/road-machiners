@@ -19,7 +19,7 @@ const MEETING_TURNS = 12;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
-const CLEAR_OF_TOWN = 30;
+const CLEAR_OF_TOWN = 35;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
@@ -148,7 +148,7 @@ export function meetHeadOn(lane: number, speed: number): HeadOn {
 
 export type Overtake = { passedIn: number | null; impacts: number[]; slowTurns: number };
 
-const OVERTAKE_CLEAR_OF_TOWN = 90;
+const OVERTAKE_CLEAR_OF_TOWN = 60;
 const HAULER_GAP = 7;
 const SCOUT_BACK = 14;
 const OVERTAKE_TURNS = 25;
