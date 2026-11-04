@@ -15,6 +15,15 @@ export function forgetFlights(): void {
   FLIGHTS.clear();
 }
 
+export function liveFlights(): [string, Flight][] {
+  return [...FLIGHTS].map(([key, flight]) => [key, { point: { ...flight.point }, seen: flight.seen }]);
+}
+
+export function restoreFlights(flights: readonly [string, Flight][]): void {
+  FLIGHTS.clear();
+  for (const [key, flight] of flights) FLIGHTS.set(key, { point: { ...flight.point }, seen: flight.seen });
+}
+
 export function startFlight(world: World, me: Vehicle, point: Vec): void {
   FLIGHTS.set(keyOf(world, me), { point, seen: world.turn });
 }
