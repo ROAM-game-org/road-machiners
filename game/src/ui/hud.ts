@@ -17,7 +17,10 @@ import { LogPanel } from "./log";
 import {
   claimRivalMark,
   escortStatusText,
+  dockSummary,
+  guardLeavesIn,
   heldContractClock,
+  heldContractDeadline,
   contractSummary,
   surveyProgress,
   isNotable,
@@ -833,8 +836,8 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
   return el(
     'div',
     { class: 'contract-line' },
-    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num' }, heldContractClock(w, c)),
+    el('span', {}, survey ? contractSummary(c) : dockSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num', title: heldContractDeadline(w, c) ?? undefined }, heldContractClock(w, c)),
   );
 }
 
@@ -843,7 +846,7 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
     "div",
     { class: "contract-line" },
     el("span", {}, t("hud.guard", { name: driverName(merc) })),
-    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+    el("span", { class: "num", title: t("contract.leaves", { when: clock(w.turn + turnsLeft).full }) }, guardLeavesIn(w, turnsLeft)),
   );
 }
 
