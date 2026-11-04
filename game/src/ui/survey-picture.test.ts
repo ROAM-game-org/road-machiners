@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { surveySites } from '../sim/survey';
 import { TEST_MAP } from '../test/map';
-import { surveyPictureUrl } from './survey-picture';
+import { surveyPictureUrl } from './picture-store';
 
 describe('survey picture url', () => {
   it('names the file of every survey site', () => {

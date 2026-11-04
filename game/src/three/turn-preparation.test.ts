@@ -72,7 +72,7 @@ it("prepares once and exposes a result only when ready for the same world", () =
   const worker = TestWorker.latest;
   expect(worker?.requests).toHaveLength(1);
   expect(worker.requests[0].tailSteps).toBe(TAIL);
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toEqual(reply);
   expect(turns.take(world)).toBeNull();
 });
@@ -90,12 +90,12 @@ it("computes a prepared turn again after a language switch", () => {
   turns.prepare(world, drive, false);
   const worker = TestWorker.latest;
   setQuestLanguage("ru");
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toBeNull();
   turns.prepare(world, drive, false);
   expect(worker.requests).toHaveLength(2);
   expect(worker.requests[1].questLanguage).toBe("ru");
-  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toEqual(reply);
 });
 
@@ -111,9 +111,9 @@ it("discards a stale result after replanning and sends stable terrain only once"
   expect(worker?.requests).toHaveLength(2);
   expect(worker.requests[0].terrain).toBe(world.terrain);
   expect(worker.requests[1].terrain).toBeNull();
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(changed)).toBeNull();
-  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toBeNull();
   expect(turns.take(changed)).toEqual(reply);
 });
@@ -153,7 +153,7 @@ it("restarts a worker whose script did not load and sends the pending turn again
   expect(second.requests).toHaveLength(1);
   expect(second.requests[0].terrain).toBe(world.terrain);
   expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
-  second.respond({ id: second.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  second.respond({ id: second.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toEqual(reply);
 });
 
@@ -203,7 +203,7 @@ it("waits the download back-off between restarts and resets the count on an answ
   vi.advanceTimersByTime(1);
   expect(TestWorker.created).toBe(3);
   const worker = TestWorker.latest;
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   turns.take(world);
   turns.prepare(changedWorld(), drive, false);
   worker.onerror?.(noScript);
@@ -270,11 +270,11 @@ it("keeps the posted world's obstacle list when the worker reports no change, an
   const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive, false);
   const worker = TestWorker.latest;
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)?.world.obstacles).toBe(world.obstacles);
   const moved = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
   turns.prepare(moved, drive, false);
   const fresh = [...world.obstacles];
-  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: fresh, perf: {} });
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "full", list: fresh }, perf: {} });
   expect(turns.take(moved)?.world.obstacles).toBe(fresh);
 });

@@ -1,12 +1,12 @@
 # Incident log
 
 ID: R1
-what: Code that runs every point, turn or frame walked whole world lists, like every road segment or every obstacle, instead of using a spatial index or a cached result. Derived data was rebuilt on every call, and turn work ran on the main thread.
-cost: Turns took seconds and froze between moves, and the same slowness was fixed several times over.
+what: Code that runs every point, turn or frame walked whole world lists, like every road segment or every obstacle, instead of using a spatial index or a cached result. Derived data was rebuilt on every call, like a cargo search that rebuilt the occupied cells for every spot it tried, and turn work, like a hovered truck's portrait, ran on the main thread.
+cost: Turns took seconds and froze between moves, one robbery froze a player's truck for minutes, and the same slowness was fixed several times over.
 
 ID: R2
-what: Prices, wages, fees and contract rewards were guessed instead of measured with the economy harness, or taken from a run that had crashed.
-cost: Jobs paid too little to bother with, items cost absurd amounts, broke players got tows they could not pay, and the committee had to send features back to run the economy sim.
+what: Prices, wages, fees and contract rewards were guessed instead of measured with the economy harness, or taken from a run that had crashed. A supply order paid its crates at the shop's shortage price, so the shortage that posted the order also inflated its pay, and on top paid half a rush haul of the round trip, so one order paid 2000 to 6000 M and nobody measured it against trading.
+cost: Jobs paid too little to bother with, items cost absurd amounts, broke players got tows they could not pay, a release candidate player got rich from one supply order, and the committee had to send features back to run the economy sim.
 
 ID: R3
 what: A player could end up stuck for good: a rescue that cost more than a broke player had, a rescuer that held its claim forever, a town that rolled no engine for sale for a player whose engine was stripped, and a truck hung on a rock or rocking on a tank trap that the flipped-truck set-down never freed.
@@ -17,20 +17,20 @@ what: The boot, saves and sound broke when one browser feature or download faile
 cost: Players on Safari, Firefox and Android could not start the game or lost saves, and it took a long string of hotfixes before anyone fixed the cause.
 
 ID: R5
-what: The UI asked the sim about a state the sim does not hold, like a part mounted only in a planned refit, or a part on a cell the lookup did not expect, and the lookup threw.
-cost: The game crashed for players until hotfixes on main.
+what: The UI or the renderer asked the sim about a state it does not hold, like a part mounted only in a planned refit, a part on a cell the lookup did not expect, a target the player can no longer see, a site with no gate pads or a shooter whose view was already gone, and the lookup threw instead of refusing.
+cost: The game crashed for players until hotfixes on main, and new features kept adding crashes of this kind to dev builds.
 
 ID: R6
-what: Restoring a snapshot shared records with the original instead of copying them, so later changes corrupted both.
-cost: A player could not get past one turn of their game until a fix shipped.
+what: State was shared where it needed a copy, or kept in two places where it needed one owner. Restoring a snapshot shared records with the original, so later changes corrupted both, and the turn worker kept its own quest language that only the main thread set, so scenes a turn opened came out in English.
+cost: A player could not get past one turn of their game until a fix shipped, Russian players saw English scenes after a knockout, and three cards fixed the worker language in parallel.
 
 ID: R7
 what: The factory wrote to GitHub too often: reactions to pass the vote gate, progress comments on every job, and the same write repeated on every tick.
 cost: GitHub suspended the bot account, hundreds of issues were hidden, and the factory had to move to a new organization.
 
 ID: R8
-what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world. A dashed circle of a clue's general area went back, and so did making an old map mark easier to see with a dark edge and a hover name, though the design said it only fixed how an existing mark reads. When the committee then wrote only "no map markers", the patch read it as markers that could not be seen and made the rings bigger, when it meant to remove them. The committee wants the place named in words, like a large square of a coarse map grid, with nothing drawn on the map.
-cost: The committee redesigned four contract features in one day, a built map area for survey and claim clues went back for a whole redesign, and a rumored-wreck fix took a patch round that enlarged the rings before an angry redesign.
+what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world. A dashed circle of a clue's general area went back, and so did making an old map mark easier to see with a dark edge and a hover name, though the design said it only fixed how an existing mark reads. When the committee then wrote only "no map markers", the patch read it as markers that could not be seen and made the rings bigger, when it meant to remove them. The committee wants the place named in words, like a large square of a coarse map grid, with nothing drawn on the map. Proposals against the game's pillars, like map coordinates, waypoints, a compass, real-time driving and combat, or activities that are not about trucks and the road, also reached a vote or a build.
+cost: The committee redesigned four contract features in one day, a built map area for survey and claim clues went back for a whole redesign, a rumored-wreck fix took a patch round that enlarged the rings before an angry redesign, and members vetoed proposals in the player chat, one of them after it was built and denied.
 
 ID: R9
 what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, changing the 3D world when the issue meant the map, or halving a faint night glow over the player truck when "cars are too bright" meant the daytime light on every truck. The redo of that quick fix met a correction that named a light "from the camera" that no lamp in the game is, picked the sky fill on trucks by its own measurement, built a truck-only shader hook for it, and went to approval without the screenshots its own plan required. When a request names no time, place or screen, check it where the player meets it most, treat a result the eye can barely see as a sign of the wrong target, and when the words match no real light or part, show the candidates side by side before building one.
@@ -41,40 +41,36 @@ what: New truck models misread the reference or the role: wrong scale, proportio
 cost: Each model took three or more committee rounds and one took six, the owner had to ask by hand for a stronger model, the actual images, a closed cab, the root cause of the artifacts and the return of details a cleanup had removed, photo-faithful remakes went back round after round even after the committee had attached the photos, and a built fix for clipping guns went back for a redesign.
 
 ID: R11
-what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, a few keys opened in a scene but not the menu, or a game-wide copy sweep whose design called a small diff a valid result and that rewrote about a dozen lines, among them the one example the owner had pointed out, while the post claimed every line was read.
-cost: Four rounds of patches on one card, the owner had to ask for an atlas of every case, and the copy sweep went back for a whole redesign.
+what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, a game-wide copy sweep that rewrote about a dozen lines while its post claimed every line was read, or a travel speed pick applied to odd jobs and beacon waits but not to knocked-out, towed, search and repair runs. A new kind or a game-wide change also missed the code that lists or depends on it: a deal goal left out of the work list, a harpoon line that no truce ended and that counted as a gun, rams missing from the condition view, a topic field copied by hand into each topic and left out of one, a square grid that kept the models' old engine holes and three-cell armor, and a larger map that rescaled fuel but not engine heat. Apply a rule to every case of its kind, search for every list, switch and number that names the old kinds or scale, and ask before keeping any exception.
+cost: Four rounds of patches on one card, the owner had to ask for an atlas of every case, the copy sweep and the travel speed fix each went back for a whole redesign, players reported a string of bugs and one crash, and the release candidate drew engines wrong and broke fights and convoys until a fix went into the release by hand.
 
 ID: R12
 what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
 cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
 
 ID: R13
-what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. A build also went to approval with no browser check because the host was out of memory, so the committee was asked to do the testing. The post's screenshots and text also failed to show what they claimed: a popup over the subject, a claim with no screenshot behind it, an atlas whose armor and guns hid the bare body the change was about, and a photo-versus-render sheet that labeled mismatched features as matches.
-cost: This was the most common critique, players reported new modes broken after they shipped, the garage grid went back for a patch round over faults its own post showed, the unchecked build went back for a patch round to be verified first, and the committee had to play builds just to learn what the screenshots should have shown.
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. Builds also went to approval with no browser check or measurement because the host was out of memory or overloaded, so the committee was asked to do the testing. The post's screenshots and text also failed to show what they claimed: a popup over the subject, a claim with no screenshot behind it, an atlas whose armor and guns hid the bare body the change was about, and a photo-versus-render sheet that labeled mismatched features as matches.
+cost: This was the most common critique, players reported new modes broken after they shipped, the garage grid went back for a patch round over faults its own post showed, two unchecked builds went back for patch rounds to be verified first, one of them a payout fix posted with no measurement and a board screenshot that showed no supply order, and the committee had to play builds just to learn what the screenshots should have shown.
 
 ID: R14
 what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. A rewrite of a line the committee called confusing swapped one riddle for another, with a pronoun of unclear referent, a metaphor in place of the rule it stood for and a punchline that did not follow, so read each rewritten line cold and check that a stranger gets the plain fact. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
 cost: Every text quest had to be cleaned up, the committee rejected the copy again and again, a sweep to fix confusing lines went back for a patch round because its fix of the reported line was confusing too, and the writing guidance went back for a redesign to follow the checklist in spirit.
 
 ID: R15
-what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
-cost: Repeated patches on the same light and effects, and an exasperated committee.
+what: Effects and attachments did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, drifted on its own clock and snapped, or drew behind the trucks it should hide, hits shown at turn end, light through walls, a glow with no visible source, and lamps and stowed armor placed at a nominal height that floated off the model.
+cost: Repeated patches on the same light and effects, a string of player reports, and an exasperated committee.
 
 ID: R16
 what: Bug fixes treated the symptom with a guard or a retry and never asked why the bad state happened.
 cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
 
 ID: R17
-what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for. A request to hold a slow speed got a new three-position switch and hotkey beside the existing controls, when the choice belonged on the colored speed zones the player already clicks, so extend the existing control before adding a new one.
-cost: A follow-up card for every dropped point, redesigns to remove the extras, a patch round to restore the owner's own lines byte for byte, an approved build stopped before its merge to be redesigned and then patched again, and a built route speed control went back for a whole redesign from an annoyed committee.
+what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for. A request to hold a slow speed got a new three-position switch and hotkey beside the existing controls, when the choice belonged on the colored speed zones the player already clicks, so extend the existing control before adding a new one. A fix for a forgotten overdrive switch, which made it switch off when the truck parks, also made it cut out at the engine's running-hot mark with a new log line, a rule the report never asked for and the committee called wrong. A fix does what the report asks, and any extra rule it seems to need is asked about first.
+cost: A follow-up card for every dropped point, redesigns to remove the extras, patch rounds to restore the owner's own lines byte for byte and to remove an unasked overdrive heat cut-out, an approved build stopped before its merge to be redesigned and then patched again, and a built route speed control went back for a whole redesign from an annoyed committee.
 
 ID: R18
-what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
-cost: Approved work vanished from the game, and urgent fixes went to main.
-
-ID: R20
-what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.
-cost: Members vetoed them in the player chat, and one was built and then denied.
+what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon, a panel, a contract summary, approved town art or a crash fix in the turn worker, and a hotfix merged back into dev used an API that dev had removed.
+cost: Approved work vanished from the game, the owner found approved art missing from the release candidate, a dev branch crashed about one new Chaos Highway game in four, and urgent fixes went to main.
 
 ID: R21
 what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, and a texture sized from the map that needed more than 2048 texels on the largest map.
@@ -82,20 +78,24 @@ cost: On most phones, Macs and Windows Chrome the ground vanished at night, a fi
 
 ID: R23
 what: A request to make a visual effect calmer and lighter was overdone until the effect was nearly gone: besides the asked-for lighter, larger and softer look, the build cut a number the request said to keep to a tenth of its value, and the committee was shown only that one result. When tuning a look, keep the effect plainly visible, change only the numbers the request names, and show the before and a middle step next to the result in video.
-cost: The committee could not see the effect at all, and the card went back for a patch round to record before, after and halfway videos for the committee to pick from.
+cost: The committee could not see the effect at all, the card went back for a patch round to record before, after and halfway videos for the committee to pick from, and the cloud shadows it left too large were reported missing in the release candidate.
 
 ID: R24
 what: Test and sim processes ran on the shared factory host with no memory cap and no check that they ended. Hermes ran the full game suite from a host shell with six workers, the cleanup then deleted the packages under it, and its orphaned workers grew to about 3 GB each. An agent ran six traffic sims of about 1.4 GB beside other jobs' checks and stopped them with a signal that a busy vite-node process ignores. Game tests run on the factory host only as targeted files with one worker, and a stopped job is confirmed gone by its process tree.
 cost: The factory server ran out of memory and swap and froze twice, once for eleven hours, with Hermes, the dashboard and the public site down until a person power-cycled it.
 
 ID: R25
-what: The factory read a check that ran out of time as machine noise and ran it again on the same commit. Test and playtest time limits were switched off in factory containers, so a hung playtest printed nothing until the 45-minute container limit, and the full suite outgrew its CI budget, so every run timed out and was dispatched again with its failed tests unread. A step that goes silent is a hang to diagnose, a timeout keeps the failures it saw, and an unchanged commit never runs the same check twice.
-cost: Merge jobs reran unchanged commits until their four-hour limit in about twenty-five merges, every merge failed for two days, release playtests burned hours of agent time on reruns, and dev took no green suite for three days while a hand push of cards checked only by their own tests left it red.
-
-ID: R26
-what: The cost of the game tests grew with the game and nobody owned it. About one test file in five builds a whole start world on the real map, files rebuilt map bakes, nav layers and quest states for each test, and each agent answered a slow test with a larger timeout instead of a cheaper setup. Time limits only ran on CI, so the agent who wrote a slow test never saw its cost.
-cost: Suite runs took 15 to 25 minutes on the factory and timed out on CI, cards waited hours for checks, single test files took minutes, and a test file outgrew the memory of a test worker.
+what: The game test suite outgrew its time budget and nobody owned its cost. About one test file in five builds a whole start world on the real map, files rebuilt map bakes, nav layers and quest states for each test, a test thinned the world but let the spawner refill it, and each agent answered a slow test with a larger timeout instead of a cheaper setup. The factory then read a check that ran out of time as machine noise and ran it again on the same commit, and with time limits off in factory containers a hung playtest printed nothing until the container limit. A step that goes silent is a hang to diagnose, a timeout keeps the failures it saw, and an unchanged commit never runs the same check twice.
+cost: Suite runs took 15 to 25 minutes and timed out on CI, merge jobs reran unchanged commits until their four-hour limit in about twenty-five merges, every merge failed for two days, dev took no green suite for three days, and the owner merged cards by hand on their own machine.
 
 ID: R27
 what: Agents changed tests to make their own failure go away instead of finding which rule the test guards. Merge fixes cut seeds, rolls and turns to fit the CPU limit, golden values of world creation and loadout rolls were re-pinned to whatever the new code produced, and tests that read whichever truck or id the world happened to draw broke on every content change in files the change never touched. A pin that every content change re-pins guards nothing, and a cut sample hides the rare case it was there to catch.
 cost: Coverage fell with each merge fix, the same goldens were re-pinned about ten times, and merge batches spent rounds fixing tests other cards had made fragile.
+
+ID: R28
+what: Whether the game waits on the player was decided in several places and at the wrong moment of the frame, so a turn started under a quest scene, the loot panel or a radio call that the same turn's playback had just opened, and the renderer froze the picture on its own test while the world clock ran on. Decide the hold in one place, after playback has opened what it opens.
+cost: Players were softlocked until a reload, a played turn was silently thrown away, trucks jumped to new places, and four cards fixed it one screen at a time.
+
+ID: R29
+what: NPC driving and goal rules acted on one stand-in signal and never checked the truck's real situation: a slow push read as a blocked nose, brakes trusted to hold on a slope, backing with no look behind, a fuel check for the nearest pump and not the coming trip, a flee goal for a truck that could only crawl, a route back past the truck it had fled, and Chaos Highway hostiles and the hauler chasing points with no bound tied to the forts or the player's trucks. A traffic rule copied from NPCs to the player made the player always brake, and the stall watchdog missed trucks that rocked or kept changing goals.
+cost: About twenty cards in one release fixed NPCs that stalled, looped for up to a thousand turns, rammed or left the player behind, release playtest data was spoiled, a Chaos Highway stretch could not be won, and the hauler fix went back for a redesign.

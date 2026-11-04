@@ -1,4 +1,3 @@
-// Time of day and the sun. Pure functions of the turn number.
 
 import { TIME } from "../data/time";
 import { isCheapMeeting } from "./fidelity";
@@ -7,7 +6,7 @@ import { weatherAt } from "./weather";
 import type { Obstacle, World } from "./types";
 import { propBase } from "./mapgen";
 import { heightAt } from "./terrain";
-import { clamp, dist, type Vec } from "./vec";
+import { clamp, type Vec } from "./vec";
 
 export type Sun = { dir: Vec; elevation: number };
 
@@ -37,16 +36,17 @@ export function inShade(world: World, pos: Vec, sun: Sun, near: Obstacle[] = sha
   const rise = Math.tan(sun.elevation);
   for (let i = 1; i <= TIME.shadeSamples; i++) {
     const d = (TIME.shadeReach * i) / TIME.shadeSamples;
-    const p = { x: pos.x + sun.dir.x * d, y: pos.y + sun.dir.y * d };
+    const px = pos.x + sun.dir.x * d;
+    const py = pos.y + sun.dir.y * d;
     const rayHeight = base + rise * d;
-    if (heightAt(world.terrain, p.x, p.y) > rayHeight) return true;
-    if (near.some((o) => obstacleBlocks(world, o, p, rayHeight))) return true;
+    if (heightAt(world.terrain, px, py) > rayHeight) return true;
+    for (const o of near) if (obstacleBlocks(world, o, px, py, rayHeight)) return true;
   }
   return false;
 }
 
-function obstacleBlocks(world: World, o: Obstacle, p: Vec, rayHeight: number): boolean {
-  return dist(p, o.pos) <= o.r && propBase(world.terrain, o) + TIME.obstacleShade[o.kind] > rayHeight;
+function obstacleBlocks(world: World, o: Obstacle, px: number, py: number, rayHeight: number): boolean {
+  return Math.hypot(px - o.pos.x, py - o.pos.y) <= o.r && propBase(world.terrain, o) + TIME.obstacleShade[o.kind] > rayHeight;
 }
 
 export function heatAt(world: World, pos: Vec): number {

@@ -308,10 +308,10 @@ describe('ghClient', () => {
       if (args[0] === 'label' && args[1] === 'list') return ok('maintenance\n');
       return ok(args[0] === 'api' ? '31\n' : '');
     };
-    const number = await ghClient(run, CFG).createIssue('T', 'B', ['release-task', 'maintenance']);
+    const number = await ghClient(run, CFG).createIssue('T', 'B', ['bug', 'maintenance']);
     expect(number).toBe(31);
-    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create release-task', 'api repos/o/r/issues -f']);
-    expect(calls[2]).toEqual(['api', 'repos/o/r/issues', '-f', 'title=T', '-f', 'body=B', '-f', 'labels[]=release-task', '-f', 'labels[]=maintenance', '--jq', '.number']);
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create bug', 'api repos/o/r/issues -f']);
+    expect(calls[2]).toEqual(['api', 'repos/o/r/issues', '-f', 'title=T', '-f', 'body=B', '-f', 'labels[]=bug', '-f', 'labels[]=maintenance', '--jq', '.number']);
   });
 
   it('reads the repo labels once and adds a known label with one write', async () => {

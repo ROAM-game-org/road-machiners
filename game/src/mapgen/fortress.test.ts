@@ -135,7 +135,7 @@ describe('fortress layer', () => {
     const scree = typeCode('scree');
     const counts = { field: 0, scree: 0 };
     const wrong: string[] = [];
-    const expectType = (x: number, y: number, type: number, want: number) => {
+    const expectType = (x: number, y: number, type: number, want: number): void => {
       if (type !== want) wrong.push(`tile ${x},${y} is ${type}, wanted ${want}`);
     };
     for (let y = 0; y < d.size; y++) {
@@ -154,7 +154,7 @@ describe('fortress layer', () => {
         }
       }
     }
-    expect(wrong.slice(0, 5)).toEqual([]);
+    expect(wrong).toEqual([]);
     expect(counts.field).toBeGreaterThan(counts.scree);
     expect(counts.scree).toBeGreaterThan(0);
   });

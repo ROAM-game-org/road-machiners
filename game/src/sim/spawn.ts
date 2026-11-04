@@ -322,7 +322,7 @@ export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos
   return v;
 }
 
-function makeNpc(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, faction: NpcFactionId): Vehicle {
+export function makeNpc(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, faction: NpcFactionId): Vehicle {
   const v = makeVehicle(world, {
     faction,
     ...loadout,

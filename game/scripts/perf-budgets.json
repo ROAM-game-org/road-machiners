@@ -1,7 +1,13 @@
 {
-  "bootMs": 2000,
-  "turnMs": 100,
-  "previewMs": 50,
-  "frameP95Ms": 17,
-  "travelFrameMs": 8
+  "default": {
+    "frameP99Ms": 16.7,
+    "over33Per1000": 1,
+    "over100Max": 0,
+    "chunkOver100Max": 0,
+    "turnWaitMs": 100,
+    "previewMs": 50,
+    "bootMs": 2000,
+    "viewport": { "width": 1600, "height": 1000, "scale": 2 }
+  },
+  "machines": {}
 }

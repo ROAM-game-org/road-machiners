@@ -31,7 +31,7 @@ From `factory/`:
 - The GitHub source has two parts: board cards and the merge queue. Each part carries its value or its error, so one failed read blanks only its own panel. The full error goes only to `logs/dashboard.log`.
 - Next release lists the merge records in factory state: the open release's merges minus its removals, or the merges into dev since the last cut when no release is open. It shows unavailable until the tick has filled the records once.
 - The Queues table shows each worker queue with its busy slots, its cards waiting to start and why they wait. A card the scheduler reports twice for one stage counts once. The tooltip on a reason lists its cards. A queue that is full while cards wait shows its busy count in bright ink.
-- The merge queue lists the public Merging cards: the running batch first, then the cards the next batch takes in board order, then stuck, held and release tasks that wait for Ship.
+- The merge queue lists the public Merging cards: the running batch first, then the cards the next batch takes in board order, then stuck and held cards.
 - While `DASHBOARD_HIDE_TELEGRAM=1`, the API returns no channel link or posts.
 
 Agents report their phase with `factory-status <activity>`, with no free text. `FACTORY_OBSERVATION_HEARTBEAT_MS` and `FACTORY_OBSERVATION_MAX_EVENT_BYTES` in `settings.env` set the liveness sampling and the event size limit.
@@ -42,12 +42,12 @@ The Delivery tab reads only the card lines of the ledger, with the panels `deliv
 
 - Time in stage is calendar time from the move into a stage to the next move out, waits included. It is never worker time, which Analytics shows. Testing is the preview, Hardening the harden stage and Merging the merge queue. Older lines, written before the Merging column, count Approval after hardening or `factory merge` as the merge queue. A `factory move` into Testing counts as preview.
 - A stage counts in a range when it ended in that range. Stages still open are counted with their mean age and are not in the means.
-- Issue to dev runs from the time the issue was opened to its first merge into dev. Both come from the ledger: the `entered` card line records the issue's open time as `opened`, and the `merged` line records the merge. Weekly Ship is not its end. Votes and triage waits are inside it. Issues merged in the range count. Hotfixes, release tasks, the release card and ad hoc tasks are left out. A merge whose card entered before `opened` was recorded counts under No open date.
+- Issue to dev runs from the time the issue was opened to its first merge into dev. Both come from the ledger: the `entered` card line records the issue's open time as `opened`, and the `merged` line records the merge. Weekly Ship is not its end. Votes and triage waits are inside it. Issues merged in the range count. Hotfixes, the release card and ad hoc tasks are left out. A merge whose card entered before `opened` was recorded counts under No open date.
 - In flight counts cards that triage accepted and that are not yet merged or closed. It starts at the first triage acceptance, so it needs card records. A merge with no recorded acceptance is counted apart.
 - Loops count each move back by its transition, with the cards it touched. The loop rate is cards with a loop over cards with any move in the range.
 - Failed job retries count card jobs that failed, died or timed out. The tick runs those again in the same column, so they are not loops. A job a control order stopped is no retry, but its spend counts as wasted.
 - Each rejection rate has its own base: triage refusals over triage decisions, design refusals over design decisions, and Deny over committee approvals and denials. Each card counts once per gate, by its latest decision in the range. Pending cards, failed jobs, patches, redesigns, removals and operator drops are not rejections.
-- Hotfixes, release tasks, the release card and ad hoc tasks run other paths, so they are left out and counted.
+- Hotfixes, the release card and ad hoc tasks run other paths, so they are left out and counted.
 - A line equal to the card's previous line is a copy from a resumed job or a repeated tick, and is dropped. A move into the column the card is in starts no new stage.
 - The Delivery queries read card lines of the last 180 days. A card that moved before the first card line is counted as joined before records.
 

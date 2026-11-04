@@ -30,7 +30,18 @@ function stubCanvas(): void {
 function recordedCards(): { glow: Card[]; lit: Card[]; batches: FxCards } {
   const glow: Card[] = [];
   const lit: Card[] = [];
-  return { glow, lit, batches: { glow: { push: (c: Card) => glow.push(c) }, lit: { push: (c: Card) => lit.push(c) } } as unknown as FxCards };
+  return { glow, lit, batches: { glow: recordingBatch(glow), lit: recordingBatch(lit) } as unknown as FxCards };
+}
+
+function recordingBatch(cards: Card[]): { push: (card: Card) => void; slot: () => Card } {
+  return {
+    push: (card) => void cards.push(card),
+    slot: () => {
+      const card: Card = { x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 };
+      cards.push(card);
+      return card;
+    },
+  };
 }
 
 function droveEast(world: World): Vehicle {

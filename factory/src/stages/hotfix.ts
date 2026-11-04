@@ -1,6 +1,6 @@
 import { BRANCH, type Ctx, type KeptApproval } from '../types';
 import { closeBundle } from './bundle';
-import { HOTFIX_BASE } from './common';
+import { HOTFIX_BASE, requireOwnBase } from './common';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
 import { itchKeys, publish } from './ship';
@@ -8,10 +8,11 @@ import { itchKeys, publish } from './ship';
 export async function shipHotfix(ctx: Ctx, issue: number, title: string, approval: KeptApproval, build: string): Promise<string> {
   const keys = itchKeys(ctx);
   await ctx.repo.fetch();
+  await requireOwnBase(ctx, build, HOTFIX_BASE);
   await mergeResolving(ctx, 'approve', [
     { branch: BRANCH(issue), into: HOTFIX_BASE, message: `Hotfix #${issue}: ${title}`, issue },
     { branch: HOTFIX_BASE, into: 'dev', message: `Merge main into dev after hotfix #${issue}`, issue: null },
-  ], { branch: BRANCH(issue), build, base: HOTFIX_BASE });
+  ], { checked: { branch: BRANCH(issue), build, base: HOTFIX_BASE }, card: issue });
   await publish(ctx, keys, `hotfix-${issue}`);
   const day = ctx.now().toISOString().slice(0, 10);
   const changelog = `ROAM hotfix ${day}\n\nFixed: #${issue} ${title}`;
