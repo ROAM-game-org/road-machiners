@@ -1060,7 +1060,7 @@ describe("the slowdown after a stopped turn", () => {
   const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: [{ steer: 0, spin: x, suspension: 0, ground: true }] });
   const pose = { pos: { x: TAIL / PHYSICS.metersPerTile, y: 0 }, heading: 0, speed: 1 };
   const tail: Tail = { frames: { a: Array.from({ length: TAIL }, (_, i) => at(i + 1)) }, next: { snapshot: new Uint8Array() } as DriveSnapshot, poses: { a: pose } };
-  const truck = { id: "a", pos: { ...pose.pos }, heading: 0 } as Vehicle;
+  const truck = { id: "a", pos: { ...pose.pos }, heading: 0, chassisId: "niva" } as Vehicle;
   const shownX = (creep: Creep, v = truck) => creep.frameOf(v)!.pos.x;
   const creepOf = (overshootMs = 0) => new Creep(tail, { a: at(0) }, overshootMs);
 
@@ -1101,6 +1101,23 @@ describe("the slowdown after a stopped turn", () => {
   it("stops showing a truck that a rule moved off its tail end", () => {
     expect(creepOf().frameOf({ ...truck, pos: { x: 0, y: 0 } })).toBeUndefined();
     expect(creepOf().frameOf({ ...truck, id: "b" })).toBeUndefined();
+  });
+
+  it("shows no tail frame for a truck that changed to a rig at the same spot", () => {
+    const rig = { ...truck, chassisId: "sorokonoga" };
+    const creep = creepOf();
+    expect(creep.frameOf(rig)).toBeUndefined();
+    creep.tick(TAIL * STEP + 5);
+    expect(creep.frameOf(rig)).toBeUndefined();
+    expect(creep.joinOf({ vehicles: [rig] } as World, { a: at(TAIL - 1) }).starts.a).toEqual(at(TAIL - 1));
+  });
+
+  it("shows no tail frame for a rig that changed to a single truck", () => {
+    const withRear = (f: VehicleFrame): VehicleFrame => ({ ...f, rear: { pos: f.pos, rot: f.rot, wheels: f.wheels } });
+    const rigTail: Tail = { ...tail, frames: { a: tail.frames.a.map(withRear) } };
+    const creep = new Creep(rigTail, { a: withRear(at(0)) }, 0);
+    expect(creep.frameOf({ ...truck, chassisId: "sorokonoga" })).toBeDefined();
+    expect(creep.frameOf(truck)).toBeUndefined();
   });
 
   it("commits the tail end into the world and the drive", () => {

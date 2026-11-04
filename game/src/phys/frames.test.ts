@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { blendFrames, frameAt, headingOf, headingQuat, type VehicleFrame } from "./frames";
+import { blendFrames, fitsChassis, frameAt, headingOf, headingQuat, restFrame, staleFrame, type VehicleFrame } from "./frames";
+import { addVehicle, emptyWorld } from "../sim/testkit";
 
 const frame = (x: number, heading: number, spin: number, ground = true): VehicleFrame => ({
   pos: { x, y: 0, z: 0 },
@@ -52,5 +53,24 @@ describe("blendFrames", () => {
 
   it("rejects a share outside the two frames", () => {
     expect(() => blendFrames(frame(0, 0, 0), frame(1, 0, 0), 1.5)).toThrow(/0\.\.1/);
+  });
+});
+
+describe("fitsChassis", () => {
+  const w = emptyWorld({ x: 20, y: 60 });
+  const single = addVehicle(w, "independent", "niva", [], { x: 20, y: 60 });
+  const rig = addVehicle(w, "independent", "sorokonoga", [], { x: 20, y: 60 });
+
+  it("holds when the frame has a rear exactly when the chassis has two units", () => {
+    expect(fitsChassis(restFrame(w, single), "niva")).toBe(true);
+    expect(fitsChassis(restFrame(w, rig), "sorokonoga")).toBe(true);
+    expect(fitsChassis(restFrame(w, single), "sorokonoga")).toBe(false);
+    expect(fitsChassis(restFrame(w, rig), "niva")).toBe(false);
+  });
+
+  it("marks a kept frame of the other body stale", () => {
+    expect(staleFrame(restFrame(w, rig), single, true)).toBe(true);
+    expect(staleFrame(restFrame(w, single), rig, true)).toBe(true);
+    expect(staleFrame(restFrame(w, rig), rig, true)).toBe(false);
   });
 });

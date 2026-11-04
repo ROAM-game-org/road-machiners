@@ -116,9 +116,13 @@ function blendUnits(a: UnitFrame, b: UnitFrame, t: number): UnitFrame {
 
 const MOVED_BY_RULES = 0.5;
 
+export function fitsChassis(f: VehicleFrame, chassisId: string): boolean {
+  return Boolean(f.rear) === unitsOf(chassisId).length > 1;
+}
+
 export function staleFrame(kept: VehicleFrame | undefined, v: Vehicle, playing: boolean): boolean {
   if (!kept) return false;
-  if (Boolean(kept.rear) !== unitsOf(v.chassisId).length > 1) return true;
+  if (!fitsChassis(kept, v.chassisId)) return true;
   return !playing && Math.hypot(kept.pos.x / S - v.pos.x, kept.pos.z / S - v.pos.y) > MOVED_BY_RULES;
 }
 

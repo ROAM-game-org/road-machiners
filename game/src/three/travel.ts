@@ -9,7 +9,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
-import { frameAt, type VehicleFrame } from "../phys/frames";
+import { fitsChassis, frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
@@ -103,7 +103,8 @@ export class Creep {
   frameOf(v: Vehicle): VehicleFrame | undefined {
     const end = this.tail.poses[v.id];
     if (!end || end.pos.x !== v.pos.x || end.pos.y !== v.pos.y || end.heading !== v.heading) return undefined;
-    return this.frameAtMs(v.id, this.shownMs());
+    const frame = this.frameAtMs(v.id, this.shownMs());
+    return frame && fitsChassis(frame, v.chassisId) ? frame : undefined;
   }
 
   private frameAtMs(id: string, ms: number): VehicleFrame | undefined {
@@ -184,7 +185,7 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
 
 function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheels {
   const frame = shown[v.id];
-  return frame && Boolean(frame.rear) === (restWheels(v.chassisId).rear !== null) ? frameWheels(frame) : restWheels(v.chassisId);
+  return frame && fitsChassis(frame, v.chassisId) ? frameWheels(frame) : restWheels(v.chassisId);
 }
 
 export function canTravel(world: World): boolean {
