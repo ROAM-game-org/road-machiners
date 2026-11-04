@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { cellCenter, couplingOf, isRig, unitsOf } from './body';
-import { bendLimit, bendOf, bendStep, cellWorld, checkBend, checkRigs, footprint, localToWorld, rigBoxes, rigDiscs, tailReach, unitPoses, worldToLocal } from './rig';
+import { bendLimit, bendOf, bendStep, cellWorld, checkBend, checkRigs, footprint, localToWorld, rigBoxes, rigDiscs, segmentTruckEntry, tailReach, unitPoses, worldToLocal } from './rig';
 import type { Pose } from './types';
 import { dist } from './vec';
 
@@ -153,5 +153,12 @@ describe('rig footprint', () => {
   it('reaches from the front unit to the tail of the trailer', () => {
     expect(tailReach(RIG)).toBeGreaterThan(unitsOf(RIG)[1].body.half.x / S);
     expect(footprint(RIG)).toBeCloseTo(tailReach(RIG), 9);
+  });
+
+  it('finds the entry of a segment into a bent rig and none for a segment that passes far away', () => {
+    const v = posed(0.5, 0);
+    const tail = unitPoses(v)[1].pos;
+    expect(segmentTruckEntry(v, { x: tail.x, y: tail.y - 10 }, tail)).toBeCloseTo(1, 1);
+    expect(segmentTruckEntry(v, { x: 50, y: 40 + 40 }, { x: 60, y: 40 + 40 })).toBeNull();
   });
 });

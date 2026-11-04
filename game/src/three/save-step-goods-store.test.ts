@@ -26,7 +26,7 @@ describe('save migration goodsStore, the player gets an empty crate store per sh
     const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const envelope = JSON.parse(JSON.stringify(saveOf(world)));
     delete envelope.world.player.storedGoods;
-    const names = envelope.steps.names.filter((name: string) => name !== 'goodsStore');
+    const names = envelope.steps.names.slice(0, TINY_STEPS.indexOf(goodsStoreStep));
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', { ...envelope, format: { ...envelope.format, minor: stepFormat }, steps: { ...envelope.steps, names }, savedAt: 1, runId: 'run-1' });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

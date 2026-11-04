@@ -1,0 +1,349 @@
+[
+  {
+    "stage": "before",
+    "revision": "539537be661a2e652b76980af1536acd14d5069b",
+    "sourceTree": "4b2e78a598427a7680194ff69f1abdc9ad369315",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 1337,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "abandoned",
+    "result": {
+      "turn": 120,
+      "completedStretches": 0,
+      "playerState": "dead",
+      "health": 99,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 60,
+        "maximum": 120
+      },
+      "playerDisabled": [
+        {
+          "id": "p18",
+          "defId": "stockEngine"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 100,
+      "haulerCab": {
+        "current": 120,
+        "maximum": 120
+      },
+      "haulerDisabled": [],
+      "incomingDamage": 264.4111111111111,
+      "haulerDamage": 20
+    }
+  },
+  {
+    "stage": "before",
+    "revision": "539537be661a2e652b76980af1536acd14d5069b",
+    "sourceTree": "4b2e78a598427a7680194ff69f1abdc9ad369315",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 41,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "wrecked",
+    "result": {
+      "turn": 231,
+      "completedStretches": 1,
+      "playerState": "dead",
+      "health": 77,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 0,
+        "maximum": 117
+      },
+      "playerDisabled": [
+        {
+          "id": "p16",
+          "defId": "mg"
+        },
+        {
+          "id": "p21",
+          "defId": "cabPickup"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 89,
+      "haulerCab": {
+        "current": 81,
+        "maximum": 120
+      },
+      "haulerDisabled": [],
+      "incomingDamage": 485.42,
+      "haulerDamage": 254
+    }
+  },
+  {
+    "stage": "before",
+    "revision": "539537be661a2e652b76980af1536acd14d5069b",
+    "sourceTree": "4b2e78a598427a7680194ff69f1abdc9ad369315",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 73,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "abandoned",
+    "result": {
+      "turn": 452,
+      "completedStretches": 2,
+      "playerState": "dead",
+      "health": 106,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 63,
+        "maximum": 120
+      },
+      "playerDisabled": [
+        {
+          "id": "p100",
+          "defId": "ram"
+        },
+        {
+          "id": "p216",
+          "defId": "spacedArmor"
+        },
+        {
+          "id": "p209",
+          "defId": "steelPlate"
+        },
+        {
+          "id": "p18",
+          "defId": "stockEngine"
+        },
+        {
+          "id": "p25",
+          "defId": "wheel"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 87,
+      "haulerCab": {
+        "current": 95,
+        "maximum": 120
+      },
+      "haulerDisabled": [],
+      "incomingDamage": 993.3679600304731,
+      "haulerDamage": 220
+    }
+  },
+  {
+    "stage": "after",
+    "revision": "68ed6525bbb8f544d89f09125179f56a13f8d7cd",
+    "sourceTree": "53f292ab5bc94b4137b0cc09d91163b679e6ad76",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 1337,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "abandoned",
+    "result": {
+      "turn": 309,
+      "completedStretches": 1,
+      "playerState": "dead",
+      "health": 102,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 71,
+        "maximum": 120
+      },
+      "playerDisabled": [
+        {
+          "id": "p98",
+          "defId": "steelPlate"
+        },
+        {
+          "id": "p90",
+          "defId": "stockEngine"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 94,
+      "haulerCab": {
+        "current": 106,
+        "maximum": 120
+      },
+      "haulerDisabled": [
+        {
+          "id": "p40",
+          "defId": "wheelHeavy"
+        },
+        {
+          "id": "p44",
+          "defId": "wheelHeavy"
+        }
+      ],
+      "incomingDamage": 380.1516049382716,
+      "haulerDamage": 308.4
+    }
+  },
+  {
+    "stage": "after",
+    "revision": "68ed6525bbb8f544d89f09125179f56a13f8d7cd",
+    "sourceTree": "53f292ab5bc94b4137b0cc09d91163b679e6ad76",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 41,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "abandoned",
+    "result": {
+      "turn": 472,
+      "completedStretches": 2,
+      "playerState": "dead",
+      "health": 91,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 36,
+        "maximum": 120
+      },
+      "playerDisabled": [
+        {
+          "id": "p207",
+          "defId": "plates"
+        },
+        {
+          "id": "p206",
+          "defId": "steelPlate"
+        },
+        {
+          "id": "p18",
+          "defId": "stockEngine"
+        },
+        {
+          "id": "p16",
+          "defId": "mg"
+        },
+        {
+          "id": "p22",
+          "defId": "transmission"
+        },
+        {
+          "id": "p96",
+          "defId": "plates"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 96,
+      "haulerCab": {
+        "current": 120,
+        "maximum": 120
+      },
+      "haulerDisabled": [],
+      "incomingDamage": 1004,
+      "haulerDamage": 568
+    }
+  },
+  {
+    "stage": "after",
+    "revision": "68ed6525bbb8f544d89f09125179f56a13f8d7cd",
+    "sourceTree": "53f292ab5bc94b4137b0cc09d91163b679e6ad76",
+    "runnerHash": "8d4856caffef3a02fdbba4a57fa1745996789ddeb6e2cd6e17070e6be44ade14",
+    "node": "v26.12.1",
+    "seed": 73,
+    "policy": "escort",
+    "physics": true,
+    "maxTurns": 1200,
+    "targetStretches": 3,
+    "setup": {
+      "mode": "chaosHighway",
+      "settings": {
+        "damage": 1,
+        "fuelUse": 1,
+        "supplyUse": 1,
+        "enemyGearGrowth": 1
+      }
+    },
+    "reason": "completed",
+    "result": {
+      "turn": 501,
+      "completedStretches": 3,
+      "playerState": "active",
+      "health": 93,
+      "healthMaximum": 106,
+      "playerChassis": "scout",
+      "playerCab": {
+        "current": 120,
+        "maximum": 120
+      },
+      "playerDisabled": [
+        {
+          "id": "p100",
+          "defId": "ram"
+        }
+      ],
+      "haulerChassis": "semi",
+      "haulerHealth": 90,
+      "haulerCab": {
+        "current": 120,
+        "maximum": 120
+      },
+      "haulerDisabled": [],
+      "incomingDamage": 1016.5187695874719,
+      "haulerDamage": 397
+    }
+  }
+]

@@ -1,4 +1,5 @@
 
+import { prototypeFightFromSearch } from './prototype-fight';
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
@@ -62,7 +63,7 @@ function element(id: string): HTMLElement {
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
 
 async function bootWorld(): Promise<Booted> {
-  if (questJump) return boot.track('world', () => jumpedRun(questJump), BOOT_TEXT.newGame);
+  if (specialBoot()) return bootSpecial();
   const request = takeBootRequest(window.sessionStorage, saveKey);
   if (typeof request === 'object' && request !== null) return bootRequested(request);
   const slot = request ?? (await startSlot());
@@ -139,7 +140,7 @@ async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): P
 
 function openRunSaves(): Promise<SaveSlots> {
   const slotIds = allSlots(CONFIG.saveSlots);
-  return benchMode ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds, desktopHost());
+  return benchMode || combatPrototype ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds, desktopHost());
 }
 
 type BenchState = { done: boolean; report: unknown; error: string | null };
@@ -188,6 +189,7 @@ function newGameWorld(setup: WorldSetup, intro: boolean): World {
   return newGame(seed, modeKit(setup.mode, CONFIG.startKit), intro, newMapFor(setup, seed, map), setup);
 }
 
+const combatPrototype = import.meta.env.DEV && new URLSearchParams(window.location.search).has('combatPrototype');
 const benchMode = new URLSearchParams(window.location.search).has('bench');
 const BENCH_SEED = 1337;
 
@@ -281,7 +283,7 @@ const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS
 travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
-if (!benchMode) persistSaves().catch(reportError);
+if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
@@ -335,4 +337,18 @@ function freshSeed(): number {
 
 function freshRunId(): string {
   return [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function bootPrototype(): Booted {
+    const world = prototypeFightFromSearch(map, window.location.search);
+    const runId = freshRunId();
+    writeSave(slots, 'auto', world, runId, Date.now());
+    return { world, runId, loadedFrom: null, fresh: true };
+}
+
+function specialBoot(): boolean { return combatPrototype || questJump !== null; }
+function bootSpecial(): Booted | Promise<Booted> {
+  if (combatPrototype) return bootPrototype();
+  if (!questJump) throw new Error('Missing quest jump');
+  return boot.track('world', () => jumpedRun(questJump), BOOT_TEXT.newGame);
 }
