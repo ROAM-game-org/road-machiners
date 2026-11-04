@@ -254,7 +254,15 @@ function checkHulk(id: string, hulk: Hulk): void {
   throw new Error(`Hulk ${id} of ${hulk.chassisId} ${hulk.bend === undefined ? 'has no bend' : 'has a bend but is no rig'}`);
 }
 
+function nearSegment(point: Vec, from: Vec, to: Vec, radius: number): boolean {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const length2 = dx * dx + dy * dy;
+  const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - from.x) * dx + (point.y - from.y) * dy) / length2));
+  return Math.hypot(point.x - from.x - dx * t, point.y - from.y - dy * t) <= radius;
+}
+
 export function segmentTruckEntry(v: Posed, from: Vec, to: Vec): number | null {
+  if (!nearSegment(v.pos, from, to, reachMeters(v.chassisId) / S)) return null;
   const entries = rigBoxes(v).flatMap(box => {
     const entry = segmentBoxEntry(box, from, to);
     return entry === null ? [] : [entry];
