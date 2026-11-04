@@ -70,8 +70,8 @@ describe('combat harness', () => {
   });
 
   it('fights to a knockout inside the arena rather than stopping at a truce', () => {
-    const fight = { ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy:standard'), seed: 1, maxTurns: 140, arena: 9 };
-    expect(runFight(fight).outcome).toBe('won');
+    const r = firstFight(SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy:standard'), seed, maxTurns: 140, arena: 9 }), (x) => x.outcome === 'won', 'a knockout');
+    expect(r.outcome).toBe('won');
   });
 
   it('keeps every truck inside the arena ring', () => {

@@ -113,8 +113,23 @@ function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
     const gain = style.chassis === 'speed' ? chassisTopSpeed(id) - chassisTopSpeed(current.id) : def.value - current.value;
-    return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];
+    return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => {
+      const fitted = fittedPartIds(orders.me);
+      orders.run((w) => withRemounted(buyChassis(w, id), fitted), 'gear');
+    } }] : [];
   });
+}
+
+export function fittedPartIds(v: Vehicle): string[] {
+  return mountedItems(v).filter((it) => partDef(it.part.defId).kind !== 'core').map((it) => it.part.id);
+}
+
+export function withRemounted(world: World, partIds: string[]): World {
+  return partIds.reduce((w, id) => {
+    const part = w.player.storage.find((p) => p.id === id);
+    const spot = part && installSpot(playerVehicle(w), probe(part));
+    return spot ? takeFromStorage(w, id, spot) : w;
+  }, world);
 }
 
 function candidates(o: Orders, shop: string): Candidate[] {

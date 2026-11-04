@@ -14,7 +14,7 @@ import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotabl
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
 import type { ClaimContract } from "../sim/salvage";
 import { bakedTier } from "../sim/claim-clue";
 import { claimClue, claimWrecks } from "../sim/claims";
@@ -28,7 +28,7 @@ import { wreckVehicle } from "../sim/combat";
 import { partName, siteName, vehicleTitle } from "../text/names";
 import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
-import { TURN_CLOCK_SECONDS } from "../data/time";
+import { TIME, TURN_CLOCK_SECONDS } from "../data/time";
 
 const turnsFor = (seconds: number) => Math.round(seconds / TURN_CLOCK_SECONDS);
 
@@ -144,7 +144,7 @@ describe("contract text", () => {
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {
     expect(en(contractSummary(order))).toBe("Bring 5 crates of Salt to Bowl");
-    expect(en(heldContractDue(order))).toBe(en(contractDue(order)));
+    expect(en(heldContractClock(emptyWorld(), order))).toMatch(/^\d+:\d\d left$/);
   });
 
   it("logs a collected bounty when the player's truck collected it", () => {
@@ -174,8 +174,8 @@ describe("contract text", () => {
     it("reads a delivered search as ready to claim", () => {
       const met: Contract = { ...search, delivered: true };
       expect(en(contractSummary(met))).toBe("Parcel delivered to Trader Jed Cobb, claim at Bowl");
-      expect(en(heldContractDue(met))).toBe("Ready");
-      expect(en(heldContractDue(search))).toBe(en(contractDue(search)));
+      expect(en(heldContractClock(emptyWorld(), met))).toBe("Ready");
+      expect(en(heldContractClock(emptyWorld(), search))).toMatch(/ left$/);
     });
 
     it("logs the handover with its reward and where to claim it", () => {
@@ -197,8 +197,8 @@ describe("contract text", () => {
     it("names the driver, and reads as ready to claim once met", () => {
       expect(en(contractSummary(rescue))).toBe("Rescue Jed Cobb");
       expect(en(contractSummary({ ...rescue, fulfilled: true }))).toBe("Jed Cobb is moving, claim at Bowl");
-      expect(en(heldContractDue({ ...rescue, fulfilled: true }))).toBe("Ready");
-      expect(en(heldContractDue(rescue))).toBe(en(contractDue(rescue)));
+      expect(en(heldContractClock(emptyWorld(), { ...rescue, fulfilled: true }))).toBe("Ready");
+      expect(en(heldContractClock(emptyWorld(), rescue))).toMatch(/ left$/);
     });
 
     it("says how far and which way from the shop the driver waits", () => {
@@ -235,6 +235,13 @@ describe("contract text", () => {
     expect(gridSquareOf(claim.at)).toEqual({ column: 2, row: 6 });
     expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square C7, east of Bowl, about 1.3 km out");
     expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате В7,");
+  });
+
+  it("keeps the square and drops the bearing, the distance and the shop on the dock line of a claim", () => {
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    expect(en(dockSummary(claim))).toBe("Recover MG turret from a dead tank in square C7");
+    expect(resolve(dockSummary(claim), "ru")).toContain("в квадрате В7");
   });
 
   it("names the piece a claimed wreck lies by, inside it, beside it or offset from it", () => {
@@ -926,7 +933,7 @@ describe("survey contract text", () => {
   it("reads a met survey as ready to report", () => {
     const met = survey([true, true]);
     expect(en(contractSummary(met))).toBe("Survey done, report at Bowl");
-    expect(en(heldContractDue(met))).toBe("Ready");
+    expect(en(heldContractClock(emptyWorld(), met))).toBe("Ready");
   });
 
 
@@ -1165,5 +1172,37 @@ describe("say lines", () => {
     const { w, far, other, shout } = scene();
     w.player.fullLog = true;
     expect(eventText(w, shout(far.id, other.id))).not.toBeNull();
+  });
+});
+
+const shownMinutes = (turn: number): number => {
+  const [, day, hh, mm] = en(clock(turn).full).match(/^Day (\d+) (\d+):(\d\d)$/)!.map(Number);
+  return (day - 1) * 1440 + hh * 60 + mm;
+};
+
+describe("time span text", () => {
+  it("prints hours and minutes under a day", () => {
+    expect(en(timeSpanText(1, 1 + turnsFor(2.5 * 3600)))).toBe("2:30");
+    expect(en(timeSpanText(1, 1 + turnsFor(60) + 1))).toBe("0:01");
+    expect(en(timeSpanText(7, 7))).toBe("0:00");
+  });
+
+  it("counts days from a full day up", () => {
+    expect(en(timeSpanText(1, 1 + turnsFor(26 * 3600 + 5 * 60) + 1))).toBe("1 d 2:05");
+  });
+
+  it("adds up with the clock to the deadline's clock time across midnight", () => {
+    const step = Math.max(1, Math.round(TIME.turnsPerDay / 97));
+    for (let from = 1; from < 2 * TIME.turnsPerDay; from += step * 3) {
+      for (let to = from; to < from + 3 * TIME.turnsPerDay; to += step) {
+        const span = en(timeSpanText(from, to)).match(/^(?:(\d+) d )?(\d+):(\d\d)$/)!;
+        const spanMinutes = Number(span[1] ?? 0) * 1440 + Number(span[2]) * 60 + Number(span[3]);
+        expect(shownMinutes(from) + spanMinutes).toBe(shownMinutes(to));
+      }
+    }
+  });
+
+  it("refuses a span that runs backwards", () => {
+    expect(() => timeSpanText(10, 9)).toThrow();
   });
 });

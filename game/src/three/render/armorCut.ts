@@ -5,7 +5,7 @@ import { TRUCK_LOOK } from '../../render/partLooks';
 import { cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { bodyFace, FACE_COLUMN, faceProfile, profileFace, profileGlassLine, type FaceProfile } from './gunStand';
+import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, type FaceProfile } from './gunStand';
 
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
 export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
@@ -219,7 +219,9 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
   const scale = new THREE.Vector3(depthScale, 1, span / (Math.max(def.bulk.w, def.bulk.h) * CELL.across));
   const snug = half[axis] - TRUCK_LOOK.armorInset;
-  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
+  const lateral: [number, number] = across ? [rect.z0, rect.z1] : [rect.x0, rect.x1];
+  const seat = def.look === 'ram' ? ramSeat(body, axis, outward, lateral, box, half.y) : half.y - box.max.y;
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, seat + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
   const at = { pos, yaw: SIDE_YAW[side], scale };
   const placed = placedBounds(at, box);
@@ -262,6 +264,34 @@ function candidateShifts(profile: FaceProfile, placed: THREE.Box3): number[] {
   for (let shift = FACE_COLUMN; placed.max.y + shift <= top + TRUCK_LOOK.armorRise; shift += FACE_COLUMN) up.push(shift);
   return [...down, ...up];
 }
+
+function ramSeat(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], box: THREE.Box3, hull: number): number {
+  const low = lowestFace(body, axis, outward, lateral);
+  if (low === null) throw new Error(`Ram on the ${axis} axis has no body face in its span`);
+  const height = box.max.y - box.min.y;
+  const highest = Math.max(low, -hull + TRUCK_LOOK.armorRise);
+  let best = { seat: low, air: Infinity };
+  for (let bottom = low; bottom <= highest + 1e-6; bottom += RAM_SEAT_STEP) {
+    const air = airBehind(body, axis, outward, lateral, [bottom, bottom + height]);
+    if (air < best.air) best = { seat: bottom, air };
+  }
+  return best.seat - box.min.y;
+}
+
+const RAM_SEAT_STEP = 0.05;
+
+function airBehind(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], height: [number, number]): number {
+  const outer = bodyFace(body, axis, outward, lateral, height);
+  if (outer === null) return Infinity;
+  let air = 0;
+  for (let y = height[0]; y < height[1] - 1e-6; y += RAM_ROW) {
+    const face = bodyFace(body, axis, outward, lateral, [y, Math.min(y + RAM_ROW, height[1])]);
+    if (face === null || outward * (outer - face) > CLIP_TOLERANCE) air++;
+  }
+  return air;
+}
+
+const RAM_ROW = 0.1;
 
 function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
   return def.kind === 'accessory' && armorUnder(v, item) ? TRUCK_LOOK.armorDepth : 0;
