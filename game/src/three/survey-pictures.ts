@@ -16,6 +16,7 @@ import { loadModels, outlineProps, paintSurfaceMasks } from './render/models';
 import { buildProp } from './render/obstacles';
 import { chunkGeometry, groundMaterial } from './render/terrain';
 import { world } from './shot';
+import { errorText } from '../stall';
 
 const S = PHYSICS.metersPerTile;
 const [ASPECT_W, ASPECT_H] = SURVEY_PICTURE.aspect;
@@ -45,7 +46,7 @@ export function runSurveyPictures(): void {
       window.__SURVEY_PICTURES__ = result;
     },
     (e: unknown) => {
-      window.__SURVEY_PICTURES_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+      window.__SURVEY_PICTURES_ERROR__ = errorText(e);
     },
   );
 }
