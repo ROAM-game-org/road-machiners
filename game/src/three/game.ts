@@ -19,7 +19,7 @@ import {
   type VehicleFrame,
 } from "../phys/frames";
 import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
-import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
+import { playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
 import { zoneHalfAngle, zoneSpeedOf } from "../sim/steering";
@@ -167,6 +167,7 @@ export class Game {
   private playbackEnded = false;
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
+  private beforeIndex: { anim: Playback; byId: Map<string, Vehicle> } | null = null;
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
@@ -713,7 +714,7 @@ export class Game {
   }
 
   private isVehicleVisible(v: Vehicle): boolean {
-    if (playerTrucks(this.world).some((truck) => truck.id === v.id)) return true;
+    if (v.id === this.world.player.vehicleId || v.id === this.world.chaosHighway?.hauler.id) return true;
     const f = this.frames[v.id];
     if (this.live && f) return this.live.visible.has(tileOf(this.world, toMap(f.pos)));
     return playerSees(this.world, v.pos);
@@ -1153,7 +1154,7 @@ export class Game {
       if (seen) this.lastSeen.set(v.id, this.world.turn);
       const look = this.lookOf(v, f, seen);
       if (!look) { hidden.push(v); continue; }
-      const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
+      const before = !landed && this.beforeTruck(v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
       const view = this.trucks.viewOf(v.id, display, seen, this.world.player.paint);
       if (!view) continue;
@@ -1168,6 +1169,12 @@ export class Game {
     this.pin.settle();
     this.trucks.park(this.world, hidden);
     this.trucks.prune(now, this.world.events);
+  }
+
+  private beforeTruck(id: string): Vehicle | undefined {
+    const anim = this.anim!;
+    if (this.beforeIndex?.anim !== anim) this.beforeIndex = { anim, byId: new Map(anim.before.vehicles.map((x) => [x.id, x])) };
+    return this.beforeIndex.byId.get(id);
   }
 
   private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
