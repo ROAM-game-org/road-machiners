@@ -1,8 +1,7 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { propPose, propReach, type PropPose } from '../../sim/mapgen';
-import { propBase } from '../../sim/bridge';
+import { propBase, propPose, propReach, type PropPose } from '../../sim/mapgen';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import { dist } from '../../sim/vec';
