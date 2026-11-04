@@ -52,7 +52,7 @@ function open(saves: SlotInfo[]) {
   vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, activeElement: opener });
   vi.stubGlobal("window", Object.assign(new FakeNode("window"), { localStorage: { getItem: () => null, setItem: vi.fn() } }));
   const requests: BootRequest[] = [];
-  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn(), confirm: vi.fn(() => true) };
+  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
   const chosen = vi.fn();
   const sound = new SoundSettings({ setBusVolume: vi.fn(), setMuted: vi.fn() } as unknown as Mixer, { getItem: () => null, setItem: vi.fn() } as unknown as Storage);
   void chooseStart(saves, actions, sound, importSave).then(chosen);
@@ -161,7 +161,7 @@ describe("the start menu", () => {
   });
 
   it("lists every save under Load and boots the picked one without a confirm", async () => {
-    const { ui, menu, chosen, actions } = open(SAVES);
+    const { ui, menu, chosen } = open(SAVES);
 
     menu.button("Load").fire("click");
     const rows = ui.byClass("save-row");
@@ -170,7 +170,7 @@ describe("the start menu", () => {
     await Promise.resolve();
 
     expect(chosen).toHaveBeenCalledWith("auto");
-    expect(actions.confirm).not.toHaveBeenCalled();
+    expect(ui.byClass("confirm-dialog")).toEqual([]);
     expect(ui.byClass("start-menu")).toEqual([]);
     expect(ui.byClass("save-panel")).toEqual([]);
   });
@@ -213,55 +213,77 @@ describe("the in-game Load panel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("confirms before it reboots into the picked save", () => {
+  function openLoad() {
     const { ui } = open([]);
-    const confirm = vi.fn(() => false);
-    vi.stubGlobal("window", Object.assign(new FakeNode("window"), { confirm }));
+    const win = window as unknown as FakeNode;
     const reboot = vi.fn();
     const panel = new SavePanel({ list: () => SAVES, manualSlots: () => [], save: vi.fn(), mode: () => "roaming" as const, reboot, exportSave: vi.fn(), exportLog: vi.fn(), importSave });
-
     panel.openLoad();
     const row = ui.byClass("save-row")[0];
     row.fire("click");
-    expect(reboot).not.toHaveBeenCalled();
-    confirm.mockReturnValue(true);
-    row.fire("click");
+    return { ui, win, reboot, row, dialog: () => ui.byClass("confirm-dialog")[0] };
+  }
 
-    expect(confirm).toHaveBeenCalledTimes(2);
+  it("asks in the game's dialog and does not reboot on Cancel", async () => {
+    const { ui, reboot, dialog } = openLoad();
+    expect(dialog().textContent).toContain("Load this save?");
+    dialog().button("Cancel").fire("click");
+    await Promise.resolve();
+
+    expect(reboot).not.toHaveBeenCalled();
+    expect(ui.byClass("confirm-dialog")).toEqual([]);
+    expect(ui.byClass("save-panel")).toHaveLength(1);
+  });
+
+  it("reboots into the picked save once on the yes button", async () => {
+    const { reboot, dialog } = openLoad();
+    dialog().button("Load save").fire("click");
+
+    await vi.waitFor(() => expect(reboot).toHaveBeenCalledTimes(1));
     expect(reboot).toHaveBeenCalledWith("slot2");
   });
 
+  it("closes only the dialog on Escape and keeps the list", async () => {
+    const { ui, win, reboot } = openLoad();
+    win.fire("keydown", { code: "Escape" });
+    await Promise.resolve();
+
+    expect(ui.byClass("confirm-dialog")).toEqual([]);
+    expect(ui.byClass("save-panel")).toHaveLength(1);
+    expect(reboot).not.toHaveBeenCalled();
+  });
+
   describe("saving over another mode", () => {
-    function savePanel(saves: SlotInfo[], mode: "roaming" | "chaosHighway", answer: boolean) {
-      const ui = new FakeNode("div");
-      vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, activeElement: new FakeNode("button") });
-      const confirm = vi.fn(() => answer);
-      vi.stubGlobal("window", Object.assign(new FakeNode("window"), { confirm }));
+    function savePanel(saves: SlotInfo[], mode: "roaming" | "chaosHighway") {
+      const { ui } = open([]);
       const save = vi.fn();
       const panel = new SavePanel({ list: () => saves, manualSlots: () => ["slot1"], save, mode: () => mode, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
       panel.openSave();
       ui.byClass("save-row")[0].fire("click");
-      return { confirm, save };
+      return { ui, save, dialog: () => ui.byClass("confirm-dialog")[0] };
     }
 
-    it("asks, naming the slot and both modes, and keeps the slot on cancel", () => {
-      const { confirm, save } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway", false);
-      expect(confirm).toHaveBeenCalledTimes(1);
-      const asked = String((confirm.mock.calls[0] as unknown[])[0]);
+    it("asks in the game's dialog, naming the slot and both modes, and keeps the slot on cancel", async () => {
+      const { ui, save, dialog } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway");
+      const asked = dialog().textContent;
       expect(asked).toContain("Slot 1");
       expect(asked).toContain("Roaming");
       expect(asked).toContain("Chaos Highway");
+      dialog().button("Cancel").fire("click");
+      await Promise.resolve();
       expect(save).not.toHaveBeenCalled();
+      expect(ui.byClass("confirm-dialog")).toEqual([]);
     });
 
-    it("saves when the player confirms", () => {
-      const { save } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway", true);
-      expect(save).toHaveBeenCalledWith("slot1");
+    it("saves when the player confirms", async () => {
+      const { save, dialog } = savePanel([info("slot1", 900, 120, "roaming")], "chaosHighway");
+      dialog().button("Save").fire("click");
+      await vi.waitFor(() => expect(save).toHaveBeenCalledWith("slot1"));
     });
 
     it("asks the other way round too", () => {
-      const { confirm, save } = savePanel([info("slot1", 900, 120, "chaosHighway")], "roaming", false);
-      expect(confirm).toHaveBeenCalledTimes(1);
+      const { save, dialog } = savePanel([info("slot1", 900, 120, "chaosHighway")], "roaming");
+      expect(dialog()).toBeDefined();
       expect(save).not.toHaveBeenCalled();
     });
 
@@ -269,10 +291,10 @@ describe("the in-game Load panel", () => {
       ["an empty slot", []],
       ["a slot of the same mode", [info("slot1", 900, 120, "chaosHighway")]],
       ["a damaged slot", [{ slot: "slot1", savedAt: 900, turn: null, mode: null } as SlotInfo]],
-    ])("saves at once over %s", (_name, saves) => {
-      const { confirm, save } = savePanel(saves as SlotInfo[], "chaosHighway", false);
-      expect(confirm).not.toHaveBeenCalled();
-      expect(save).toHaveBeenCalledWith("slot1");
+    ])("saves at once over %s", async (_name, saves) => {
+      const { ui, save } = savePanel(saves as SlotInfo[], "chaosHighway");
+      await vi.waitFor(() => expect(save).toHaveBeenCalledWith("slot1"));
+      expect(ui.byClass("confirm-dialog")).toEqual([]);
     });
   });
 });

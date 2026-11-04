@@ -172,7 +172,7 @@ async function context(browser, orientation, storageState, uiSize = uiSizeArg) {
   page.setDefaultTimeout(stepLimitMs);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
-  page.on('dialog', (d) => d.accept());
+  page.on('dialog', (d) => { errors.push(`native ${d.type()} dialog: ${d.message()}`); d.dismiss(); });
   const cdp = await ctx.newCDPSession(page);
   return { ctx, page, errors, touch: new Touch(page, cdp) };
 }

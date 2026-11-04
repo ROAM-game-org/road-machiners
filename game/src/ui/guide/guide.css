@@ -11,6 +11,9 @@
 #ui.guide .dock-panel {
   position: static;
 }
+#ui.guide .confirm-dialog {
+  transform: none;
+}
 #ui.guide h1 {
   margin: 0 0 var(--space-4);
   font-size: var(--text-heading);
