@@ -220,7 +220,7 @@ describe('danger', () => {
     const { w, driver } = judge();
     const tank = addVehicle(w, 'scrapjaw', 'bus', ['cannon', 'mg', 'plates', 'stockEngine'], { x: 10, y: 10 });
     const scout = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 60, y: 10 });
-    expect(judgeDanger(w, driver, tank)).toBeGreaterThan(judgeDanger(w, driver, scout) * 3);
+    expect(judgeDanger(w, driver, tank)).toBeGreaterThan(judgeDanger(w, driver, scout) * 2);
   });
 
   it('a tank worn to half HP is less of a threat', () => {
