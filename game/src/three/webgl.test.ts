@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from '../text/resolve';
-import { GAME_GL, noWebGLText, openWebGL, WebGLUnavailable } from './webgl';
+import { drawingRenderer, GAME_GL, noWebGLText, openWebGL, WebGLUnavailable } from './webgl';
+
+function fakeContext(unmasked: string | null) {
+  const info = { UNMASKED_RENDERER_WEBGL: 7 };
+  return {
+    RENDERER: 3,
+    getExtension: () => (unmasked === null ? null : info),
+    getParameter: (name: number) => (name === 7 ? unmasked : 'masked renderer'),
+  };
+}
 
 type Listener = (e: { statusMessage?: string }) => void;
 
@@ -27,7 +36,7 @@ const CHROME = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 
 
 describe('openWebGL', () => {
   it('returns the canvas and the context it was given, with the attributes passed through', () => {
-    const context = {};
+    const context = fakeContext('GPU');
     const fake = fakeCanvas({ context });
     const surface = openWebGL(fake.canvas, GAME_GL);
     expect(surface.canvas).toBe(fake.canvas);
@@ -66,8 +75,18 @@ describe('openWebGL', () => {
     expect(fake.asked).toEqual(['webgl2']);
   });
 
+  it('keeps the unmasked renderer name for the Help line', () => {
+    openWebGL(fakeCanvas({ context: fakeContext('ANGLE (Apple, Apple M3 Pro)') }).canvas, GAME_GL);
+    expect(drawingRenderer()).toBe('ANGLE (Apple, Apple M3 Pro)');
+  });
+
+  it('reads the masked renderer when the browser hides the unmasked one', () => {
+    openWebGL(fakeCanvas({ context: fakeContext(null) }).canvas, GAME_GL);
+    expect(drawingRenderer()).toBe('masked renderer');
+  });
+
   it('removes its listener afterwards', () => {
-    const ok = fakeCanvas({ context: {} });
+    const ok = fakeCanvas({ context: fakeContext('GPU') });
     openWebGL(ok.canvas, GAME_GL);
     expect(ok.listeners.size).toBe(0);
     const bad = fakeCanvas({ creationError: 'x' });

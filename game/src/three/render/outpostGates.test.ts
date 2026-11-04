@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { OUTPOST_GATE } from '../../config';
+import { HIGHWAY } from '../../data/modes';
 import { haulerOf, playerVehicle } from '../../sim/damage';
 import { driveOn } from '../../sim/chaos-highway';
 import { gatesShut, yardSpots } from '../../sim/outpost-gates';
@@ -19,7 +20,7 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
-const SIZE = 410;
+const SIZE = HIGHWAY.size;
 
 function arrive(w: World): World {
   parkInYard(w, w.chaosHighway!.window + 1);

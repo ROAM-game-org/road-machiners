@@ -375,13 +375,20 @@ function groundColor(look: TileLook, x: number, y: number): number {
   return color;
 }
 
+let scratch: ImageData | null = null;
+
+function scratchImage(c: PaintCanvas): ImageData {
+  if (scratch?.width !== c.size || scratch.height !== c.size) scratch = c.ctx.createImageData(c.size, c.size);
+  return scratch;
+}
+
 function paintGround(
   c: PaintCanvas,
   t: Terrain,
   hillshadeStrength: number,
 ): void {
   const look = tileLook(t, hillshadeStrength);
-  const img = c.ctx.createImageData(c.size, c.size);
+  const img = scratchImage(c);
   const data = img.data;
   for (let py = 0; py < c.size; py++) {
     for (let px = 0; px < c.size; px++) {

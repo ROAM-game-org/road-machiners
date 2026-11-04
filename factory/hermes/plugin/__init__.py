@@ -125,6 +125,11 @@ def read_question_posts(state_dir: str) -> dict:
     return json.loads(path.read_text()).get("questionPosts", {})
 
 
+def read_proposal_posts(state_dir: str) -> dict:
+    path = Path(state_dir) / "state.json"
+    return json.loads(path.read_text()).get("proposalPosts", {}) if path.is_file() else {}
+
+
 def read_approval_posts(state_dir: str) -> dict:
     return read_state(state_dir)[0]
 
@@ -140,10 +145,20 @@ def read_release_post(state_dir: str) -> Optional[dict]:
     return post
 
 
-def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None, question_posts=None) -> Optional[tuple]:
+def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None, question_posts=None, proposal_posts=None) -> Optional[tuple]:
     """Decides what a committee member's message means. Returns None for normal Hermes chat."""
     if str(chat_id) != cfg.chat:
         return None
+    proposed = (proposal_posts or {}).get(str(reply_to_message_id)) if reply_to_message_id is not None else None
+    if proposed is not None:
+        stripped = (text or "").strip()
+        if stripped.lower() in ("yes", "yes, open player voting", "да"):
+            return ("proposal-yes", proposed, text)
+        if stripped.lower() in ("no", "reject", "нет", "отклонить"):
+            return ("proposal-no", proposed, text)
+        if ROUTE_PREFIX.match(stripped) and stripped.lower().startswith("redesign"):
+            return ("proposal-redesign", proposed, text)
+        return ("proposal-reply", proposed, text or "")
     if draft_post_id is not None and reply_to_message_id is not None and str(reply_to_message_id) == str(draft_post_id):
         return ("draft-reply", text or "")
     asked = (question_posts or {}).get(str(reply_to_message_id)) if reply_to_message_id is not None else None
@@ -180,7 +195,7 @@ def _release_request(text, release) -> tuple:
     match = REMOVE_REPLY.match(text.strip())
     if match:
         return ("remove", int(match.group(1)), text)
-    return ("release-task", text)
+    return ("candidate-reply", text)
 
 
 def _request(text, reply_to_message_id, approval_posts, release=None) -> Optional[tuple]:
@@ -211,6 +226,16 @@ def reply_header(issue: int, post_id) -> str:
     )
 
 
+def proposal_reply_header(issue: int, post_id) -> str:
+    return (
+        f"[Factory: a committee member replied to the private proposal post {post_id} of issue #{issue}. "
+        "The exact member words follow. Before doing anything else, call factory_route_proposal with this post id "
+        "and one action: vote to permit a PLAYER VOTE only (not approve the feature), reject to close a bad pitch, "
+        "redesign to send a requested rework to Design, or feedback if the intent is unclear. "
+        "Do not infer approval from an ambiguous reply. The tool uses the original reply text and verified member identity.]\n\n"
+    )
+
+
 def draft_reply_header(post_id) -> str:
     """Tells Hermes that the member's reply asks for a change to the release post draft."""
     return (
@@ -224,8 +249,8 @@ def inbox_command(decision: tuple, user_id, user_name, chat_id, message_id, repl
     kind = decision[0]
     return {
         "kind": kind,
-        "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove", "answer-questions") else None,
-        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove", "answer-questions") else decision[1] if kind == "release-task" else None,
+        "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove", "answer-questions", "proposal-reply", "proposal-yes", "proposal-no", "proposal-redesign") else None,
+        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove", "answer-questions", "proposal-reply", "proposal-yes", "proposal-no", "proposal-redesign") else decision[1] if kind == "candidate-reply" else None,
         "by": str(user_id),
         "byName": user_name or None,
         "chat": str(chat_id),
@@ -427,6 +452,22 @@ ROUTE_DONE = {
         "as your section Approval replies says."
     ),
 }
+
+PROPOSAL_TOOL = "factory_route_proposal"
+PROPOSAL_ACTIONS = ("vote", "reject", "redesign", "feedback")
+PROPOSAL_SCHEMA = {
+    "name": PROPOSAL_TOOL,
+    "description": (
+        "Route a committee member's natural reply to a private proposal post. "
+        "vote permits opening a player vote but does not approve the feature; reject closes a pitch not worth voting on; "
+        "redesign records the member's words and sends the issue to Design; feedback records unclear input and keeps it private. "
+        "Choose feedback when permission is ambiguous. The factory uses the member's exact stored words."
+    ),
+    "parameters": {"type": "object", "properties": {
+        "post": {"type": "integer", "description": "The private proposal post id in the factory header."},
+        "action": {"type": "string", "enum": list(PROPOSAL_ACTIONS)},
+    }, "required": ["post", "action"]},
+}
 DRAFT_TOOL = "factory_release_draft"
 DRAFT_LIMIT = 4096  # Telegram's limit for one message, and the draft must stay one message to carry its Publish button
 DRAFT_SCHEMA = {
@@ -551,6 +592,30 @@ def make_route_handler(cfg: Config, readiness: Readiness, session_env=_session_e
     return handle
 
 
+def make_proposal_handler(cfg: Config, session_env=_session_env):
+    def handle(args: dict, **kwargs) -> str:
+        post, action = args.get("post"), args.get("action")
+        if not _is_int(post) or action not in PROPOSAL_ACTIONS:
+            return _tool_error("Name a private proposal post and a valid action. Nothing was queued.")
+        try:
+            actor, user, name, chat, message = _sender(cfg, session_env)
+        except ValueError as error:
+            return _tool_error(f"{error} Nothing was queued.")
+        if actor == HERMES:
+            return _tool_error("Only a member's reply can route a proposal. Nothing was queued.")
+        issue = read_proposal_posts(cfg.state_dir).get(str(post))
+        if issue is None or chat != cfg.chat:
+            return _tool_error(f"Post {post} is no open private proposal post. Nothing was queued.")
+        command = {
+            "kind": "proposal-action", "issue": issue, "text": None, "action": action,
+            "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": post,
+        }
+        write_inbox(cfg.inbox, command)
+        return json.dumps({"success": True, "message": "Proposal reply routed. The factory applies it on the next tick."})
+
+    return handle
+
+
 def _copy_draft_image(cfg: Config, image) -> Optional[str]:
     """Copies the picture into the inbox media folder, where the tick checks it. Returns its path there, or None for no new picture.
     The factory home has another path on the host, so the tick gets a path relative to the media folder."""
@@ -629,7 +694,7 @@ def make_hook(cfg: Config, readiness: Readiness):
         posts, release = read_state(cfg.state_dir)
         release_post = read_release_post(cfg.state_dir)
         draft_post_id = release_post.get("postId") if release_post else None
-        decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id, read_question_posts(cfg.state_dir))
+        decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id, read_question_posts(cfg.state_dir), read_proposal_posts(cfg.state_dir))
         if decision is None:
             if is_bare_thanks(event.text) and not getattr(event, "media_urls", None):
                 return {"action": "skip", "reason": "factory-thanks"}
@@ -652,6 +717,8 @@ def make_hook(cfg: Config, readiness: Readiness):
         # A plain reply also goes on to Hermes, who routes it. The queued command lets the factory see a reply that never got a route.
         if decision[0] == "reply":
             return {"action": "rewrite", "text": reply_header(decision[1], event.reply_to_message_id) + event.text}
+        if decision[0] == "proposal-reply":
+            return {"action": "rewrite", "text": proposal_reply_header(decision[1], event.reply_to_message_id) + (event.text or "")}
         return {"action": "skip", "reason": f"factory-{decision[0]}"}
 
     return on_dispatch
@@ -668,6 +735,7 @@ def register(ctx) -> None:
     ctx.register_telegram_handler(make_media_factory(cfg, readiness))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
     ctx.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
+    ctx.register_tool(name=PROPOSAL_TOOL, toolset="factory", schema=PROPOSAL_SCHEMA, handler=make_proposal_handler(cfg))
     ctx.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
     ctx.register_tool(name=DRAFT_TOOL, toolset="factory", schema=DRAFT_SCHEMA, handler=make_draft_handler(cfg))
     register_status(ctx, public_url=os.environ['FACTORY_PUBLIC_URL'], timeout_seconds=float(os.environ['FACTORY_STATUS_TIMEOUT_MS']) / 1000)

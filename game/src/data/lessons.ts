@@ -9,10 +9,10 @@ export const LESSON_POOL_SALT = 'lessonPool';
 export const WEAKNESS_SHARE = 0.5;
 
 export const LESSON_LINE_IDS = [
-  'lessonHaulerNoGuns', 'lessonHaulerBareSide', 'lessonHaulerWornCore', 'lessonHaulerOverloaded', 'lessonHaulerPrices', 'lessonHaulerNoon', 'lessonHaulerBeacon', 'lessonHaulerHaulPay', 'lessonHaulerRush', 'lessonHaulerKeptCrates', 'lessonHaulerLowFuel', 'lessonHaulerRest', 'lessonHaulerRoadNews', 'lessonHaulerTow',
-  'lessonSalvagerNoGuns', 'lessonSalvagerBareSide', 'lessonSalvagerWornCore', 'lessonSalvagerOverloaded', 'lessonSalvagerRoads', 'lessonSalvagerJunk', 'lessonSalvagerDust', 'lessonSalvagerPristine', 'lessonSalvagerStarve', 'lessonSalvagerCrawl', 'lessonSalvagerWarnOff', 'lessonSalvagerScrapPlate', 'lessonSalvagerFieldFix', 'lessonSalvagerPicked',
-  'lessonLawNoGuns', 'lessonLawBareSide', 'lessonLawWornCore', 'lessonLawOverloaded', 'lessonLawGates', 'lessonLawFirstShot', 'lessonLawLonely', 'lessonLawCab', 'lessonLawBounty', 'lessonLawFlare', 'lessonLawHelp', 'lessonLawCrash', 'lessonLawScrapPatch', 'lessonLawTruceSides',
-  'lessonGunHandNoGuns', 'lessonGunHandBareSide', 'lessonGunHandWornCore', 'lessonGunHandOverloaded', 'lessonGunHandRoles', 'lessonGunHandDust', 'lessonGunHandParked', 'lessonGunHandSideOn', 'lessonGunHandRange', 'lessonGunHandRecoil', 'lessonGunHandFirstAid', 'lessonGunHandDriveHome', 'lessonGunHandTallParts', 'lessonGunHandSound',
+  'lessonHaulerNoGuns', 'lessonHaulerBareSide', 'lessonHaulerWornCore', 'lessonHaulerOverloaded', 'lessonHaulerPrices', 'lessonHaulerNoon', 'lessonHaulerBeacon', 'lessonHaulerHaulPay', 'lessonHaulerRush', 'lessonHaulerKeptCrates', 'lessonHaulerLowFuel', 'lessonHaulerRest', 'lessonHaulerRoadNews', 'lessonHaulerTow', 'lessonHaulerNightRun', 'lessonHaulerHeavyDiesel',
+  'lessonSalvagerNoGuns', 'lessonSalvagerBareSide', 'lessonSalvagerWornCore', 'lessonSalvagerOverloaded', 'lessonSalvagerRoads', 'lessonSalvagerJunk', 'lessonSalvagerDust', 'lessonSalvagerPristine', 'lessonSalvagerStarve', 'lessonSalvagerCrawl', 'lessonSalvagerWarnOff', 'lessonSalvagerScrapPlate', 'lessonSalvagerFieldFix', 'lessonSalvagerPicked', 'lessonSalvagerOldDust', 'lessonSalvagerShookHim',
+  'lessonLawNoGuns', 'lessonLawBareSide', 'lessonLawWornCore', 'lessonLawOverloaded', 'lessonLawGates', 'lessonLawFirstShot', 'lessonLawLonely', 'lessonLawCab', 'lessonLawBounty', 'lessonLawFlare', 'lessonLawHelp', 'lessonLawCrash', 'lessonLawScrapPatch', 'lessonLawTruceSides', 'lessonLawScanner', 'lessonLawFastEngine',
+  'lessonGunHandNoGuns', 'lessonGunHandBareSide', 'lessonGunHandWornCore', 'lessonGunHandOverloaded', 'lessonGunHandRoles', 'lessonGunHandDust', 'lessonGunHandParked', 'lessonGunHandSideOn', 'lessonGunHandRange', 'lessonGunHandRecoil', 'lessonGunHandFirstAid', 'lessonGunHandDriveHome', 'lessonGunHandTallParts', 'lessonGunHandSound', 'lessonGunHandCrawlDust', 'lessonGunHandCloseHill',
 ] as const;
 export type LessonLineId = (typeof LESSON_LINE_IDS)[number];
 
@@ -28,18 +28,18 @@ export const LESSON_TRADES: Partial<Record<TraitId, LessonTrade>> = {
 export const LESSONS: Record<LessonTrade, TradeLessons> = {
   hauler: {
     weak: { noGuns: 'lessonHaulerNoGuns', bareSide: 'lessonHaulerBareSide', wornCore: 'lessonHaulerWornCore', overloaded: 'lessonHaulerOverloaded' },
-    general: ['lessonHaulerPrices', 'lessonHaulerNoon', 'lessonHaulerBeacon', 'lessonHaulerHaulPay', 'lessonHaulerRush', 'lessonHaulerKeptCrates', 'lessonHaulerLowFuel', 'lessonHaulerRest', 'lessonHaulerRoadNews', 'lessonHaulerTow'],
+    general: ['lessonHaulerPrices', 'lessonHaulerNoon', 'lessonHaulerBeacon', 'lessonHaulerHaulPay', 'lessonHaulerRush', 'lessonHaulerKeptCrates', 'lessonHaulerLowFuel', 'lessonHaulerRest', 'lessonHaulerRoadNews', 'lessonHaulerTow', 'lessonHaulerNightRun', 'lessonHaulerHeavyDiesel'],
   },
   salvager: {
     weak: { noGuns: 'lessonSalvagerNoGuns', bareSide: 'lessonSalvagerBareSide', wornCore: 'lessonSalvagerWornCore', overloaded: 'lessonSalvagerOverloaded' },
-    general: ['lessonSalvagerRoads', 'lessonSalvagerJunk', 'lessonSalvagerDust', 'lessonSalvagerPristine', 'lessonSalvagerStarve', 'lessonSalvagerCrawl', 'lessonSalvagerWarnOff', 'lessonSalvagerScrapPlate', 'lessonSalvagerFieldFix', 'lessonSalvagerPicked'],
+    general: ['lessonSalvagerRoads', 'lessonSalvagerJunk', 'lessonSalvagerDust', 'lessonSalvagerPristine', 'lessonSalvagerStarve', 'lessonSalvagerCrawl', 'lessonSalvagerWarnOff', 'lessonSalvagerScrapPlate', 'lessonSalvagerFieldFix', 'lessonSalvagerPicked', 'lessonSalvagerOldDust', 'lessonSalvagerShookHim'],
   },
   law: {
     weak: { noGuns: 'lessonLawNoGuns', bareSide: 'lessonLawBareSide', wornCore: 'lessonLawWornCore', overloaded: 'lessonLawOverloaded' },
-    general: ['lessonLawGates', 'lessonLawFirstShot', 'lessonLawLonely', 'lessonLawCab', 'lessonLawBounty', 'lessonLawFlare', 'lessonLawHelp', 'lessonLawCrash', 'lessonLawScrapPatch', 'lessonLawTruceSides'],
+    general: ['lessonLawGates', 'lessonLawFirstShot', 'lessonLawLonely', 'lessonLawCab', 'lessonLawBounty', 'lessonLawFlare', 'lessonLawHelp', 'lessonLawCrash', 'lessonLawScrapPatch', 'lessonLawTruceSides', 'lessonLawScanner', 'lessonLawFastEngine'],
   },
   gunHand: {
     weak: { noGuns: 'lessonGunHandNoGuns', bareSide: 'lessonGunHandBareSide', wornCore: 'lessonGunHandWornCore', overloaded: 'lessonGunHandOverloaded' },
-    general: ['lessonGunHandRoles', 'lessonGunHandDust', 'lessonGunHandParked', 'lessonGunHandSideOn', 'lessonGunHandRange', 'lessonGunHandRecoil', 'lessonGunHandFirstAid', 'lessonGunHandDriveHome', 'lessonGunHandTallParts', 'lessonGunHandSound'],
+    general: ['lessonGunHandRoles', 'lessonGunHandDust', 'lessonGunHandParked', 'lessonGunHandSideOn', 'lessonGunHandRange', 'lessonGunHandRecoil', 'lessonGunHandFirstAid', 'lessonGunHandDriveHome', 'lessonGunHandTallParts', 'lessonGunHandSound', 'lessonGunHandCrawlDust', 'lessonGunHandCloseHill'],
   },
 };

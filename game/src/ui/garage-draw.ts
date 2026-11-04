@@ -136,7 +136,7 @@ export function garageLooks(renders: GarageRenders | null, w: World, own: Vehicl
   if (!renders) return { own: null, other: null };
   const other = w.vehicles.find((v) => v.id === otherId) ?? null;
   const paint = w.player.paint;
-  renders.ensureNow([ownNeed(own, paint, extra), ...(other ? [shownNeed(other, paint)] : [])]);
+  renders.ensureNow([shownNeed(own, paint), ...(other ? [shownNeed(other, paint)] : [])], [ownNeed(own, paint, extra)]);
   return { own: { renders, paint, truck: own }, other: other ? { renders, paint, truck: other } : null };
 }
 
