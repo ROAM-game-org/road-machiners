@@ -45,6 +45,8 @@ export const UI: Translation<typeof EN> = {
   'money.m': '{n, plural, one {# М} few {# М} many {# М} other {# М}}',
   'menu.menu': 'Меню',
   'menu.help': 'Помощь',
+  'menu.fullscreen': 'Полный экран',
+  'menu.exitFullscreen': 'Выйти из полного экрана',
   'menu.options': 'Настройки',
   'options.title': 'Настройки',
   'options.uiSize': 'Размер интерфейса',
