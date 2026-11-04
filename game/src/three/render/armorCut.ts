@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { isShield, partDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
+import { cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { bodyFace } from './gunStand';
+import { bodyFace, FACE_COLUMN, faceProfile, profileFace, profileGlassLine, type FaceProfile } from './gunStand';
 
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
 export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
@@ -210,8 +210,6 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   return { pos, yaw, scale };
 }
 
-export const ARMOR_SINK_ROWS = 3;
-
 function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
@@ -224,34 +222,45 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
   const at = { pos, yaw: SIDE_YAW[side], scale };
-  const rest = pos.y;
-  const found = nearestTouch(at, box, body, side, 2 * half.y);
-  if (found === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
-  const face = wholeFace(at, box, body, side);
-  const row = cellSteps(v.chassisId).row;
-  const touch = def.kind === 'armor' && found < face - ARMOR_SINK_ROWS * row ? dropToFace(at, box, body, side, rest, face - row, def.id, v.chassisId) : found;
-  pos[axis] += outward * (Math.min(0, outward * touch - snug) + overArmor(v, item, def));
+  const placed = placedBounds(at, box);
+  const lateral: [number, number] = across ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
+  const profile = faceProfile(body, axis, outward, lateral);
+  const touchAt = (shift: number): number | null => bodyFace(body, axis, outward, lateral, [placed.min.y + shift, placed.max.y + shift]);
+  const failure = `Armor ${def.id} on side ${side} of ${v.chassisId} finds no height at its face`;
+  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), row: cellSteps(v.chassisId).row, failure });
+  pos.y += shift;
+  pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
   return at;
 }
 
-function wholeFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number {
-  const { axis, outward } = SIDE_FACE[side];
-  const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
-  const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
-  const whole = new THREE.Box3().setFromObject(body);
-  const face = bodyFace(body, axis, outward, lateral, [whole.min.y, whole.max.y]);
-  if (face === null) throw new Error(`The body has no face behind the armor on side ${side}`);
-  return face;
+function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
+  return box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
 }
 
-function dropToFace(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, rest: number, near: number, defId: string, chassisId: string): number {
-  const floor = new THREE.Box3().setFromObject(body).min.y;
-  for (let y = rest; y > floor; y -= CLIP_TOLERANCE) {
-    at.pos.y = y;
-    const touch = touchBehind(at, box, body, side);
-    if (touch !== null && touch >= near) return touch;
-  }
-  throw new Error(`Armor ${defId} on side ${side} of ${chassisId} finds no height at its face`);
+type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; row: number; failure: string };
+
+function standShift({ profile, placed, touchAt, floor, glassMatters, row, failure }: Stand): number {
+  const face = profileFace(profile, floor);
+  if (face === null) throw new Error(failure);
+  const glass = glassMatters ? profileGlassLine(profile, floor, row) : null;
+  const stands = (shift: number): boolean => {
+    const touch = touchAt(shift);
+    const atFace = touch !== null && profile.outward * (face - touch) <= row;
+    return atFace && (glass === null || placed.max.y + shift <= glass + row);
+  };
+  const shifts = candidateShifts(profile, placed);
+  const found = shifts.find(stands);
+  if (found === undefined) throw new Error(failure);
+  return found;
+}
+
+function candidateShifts(profile: FaceProfile, placed: THREE.Box3): number[] {
+  const top = profile.bottom + profile.reach.length * FACE_COLUMN;
+  const down: number[] = [0];
+  for (let shift = -FACE_COLUMN; placed.min.y + shift >= profile.bottom; shift -= FACE_COLUMN) down.push(shift);
+  const up: number[] = [];
+  for (let shift = FACE_COLUMN; placed.max.y + shift <= top + TRUCK_LOOK.armorRise; shift += FACE_COLUMN) up.push(shift);
+  return [...down, ...up];
 }
 
 function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
@@ -261,26 +270,6 @@ function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def:
 function armorUnder(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem): boolean {
   const cells = new Set(itemCells(item).map((c) => `${c.x},${c.y}`));
   return v.items.some((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)));
-}
-
-function nearestTouch(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, reach: number): number | null {
-  const start = at.pos.y;
-  for (let step = 0; step * CLIP_TOLERANCE <= reach; step++) {
-    for (const dy of step === 0 ? [0] : [step * CLIP_TOLERANCE, -step * CLIP_TOLERANCE]) {
-      at.pos.y = start + dy;
-      const touch = touchBehind(at, box, body, side);
-      if (touch !== null) return touch;
-    }
-  }
-  at.pos.y = start;
-  return null;
-}
-
-function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number | null {
-  const { axis, outward } = SIDE_FACE[side];
-  const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
-  const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
-  return bodyFace(body, axis, outward, lateral, [placed.min.y, placed.max.y]);
 }
 
 function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {

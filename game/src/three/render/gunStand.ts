@@ -13,7 +13,7 @@ const BRACE_SIDES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0), ne
 const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
 const FOOTING_GRID = CLIP_TOLERANCE / 2;
-const FACE_COLUMN = 0.1;
+export const FACE_COLUMN = 0.1;
 const NUDGE_STEP = 0.025;
 const GLASS_SKIN = 2 * CLIP_TOLERANCE;
 const THROUGH_STEP = CLIP_TOLERANCE / 100;
@@ -349,7 +349,7 @@ function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: 
   return { y: (a.y + b.y + c.y + d.y) / 4, slope: { x: (c.y + d.y - a.y - b.y) / 2 / dx, z: (b.y + d.y - a.y - c.y) / 2 / dz } };
 }
 
-type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean };
+type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean };
 type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
 type FaceIndex = { look: Look; start: number; columns: Map<string, Face[]> };
 type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
@@ -442,7 +442,7 @@ function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
   const corner = (k: number) => new THREE.Vector3().fromBufferAttribute(pos, index ? index.getX(k) : k).applyMatrix4(mesh.matrixWorld);
   const faces: Face[] = [];
   for (let k = 0; k < (index ? index.count : pos.count); k += 3) {
-    const face = { a: corner(k), b: corner(k + 1), c: corner(k + 2), facing: 0, seeThrough: seeThrough(mesh) };
+    const face = { a: corner(k), b: corner(k + 1), c: corner(k + 2), facing: 0, seeThrough: seeThrough(mesh), glass: isGlass(mesh) };
     face.facing = new THREE.Triangle(face.a, face.b, face.c).getNormal(new THREE.Vector3()).dot(normal);
     if (face.facing > 0) faces.push(face);
   }
@@ -647,6 +647,62 @@ function facePoints(lateral: [number, number], height: [number, number]): [numbe
   return out;
 }
 
+export type FaceProfile = { outward: number; bottom: number; reach: (number | null)[]; glass: (number | null)[] };
+
+const PROFILES = new Map<string, FaceProfile>();
+
+export function faceProfile(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number]): FaceProfile {
+  body.updateWorldMatrix(true, true);
+  const shared = typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
+  const key = `${body.userData.model}:${axis}:${outward}:${lateral.map((n) => n.toFixed(3)).join(',')}`;
+  const known = shared ? PROFILES.get(key) : undefined;
+  if (known) return known;
+  const made = profileOf(body, axis, outward, lateral);
+  if (shared) PROFILES.set(key, made);
+  return made;
+}
+
+function profileOf(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number]): FaceProfile {
+  const index = faceIndex(body, `${outward > 0 ? '+' : '-'}${axis}` as keyof typeof LOOKS);
+  const box = new THREE.Box3().setFromObject(body);
+  const profile: FaceProfile = { outward, bottom: box.min.y, reach: [], glass: [] };
+  for (let y = box.min.y + FACE_COLUMN / 2; y < box.max.y; y += FACE_COLUMN) {
+    const reaches = rowHits(index, lateral, y).map((hit) => ({ reach: outward * hit.point[axis], glass: hit.face.glass }));
+    profile.reach.push(extreme(reaches.map((r) => r.reach), Math.max));
+    profile.glass.push(extreme(reaches.filter((r) => r.glass).map((r) => r.reach), Math.min));
+  }
+  return profile;
+}
+
+function rowHits(index: FaceIndex, lateral: [number, number], y: number): { point: THREE.Vector3; face: Face }[] {
+  const hits: { point: THREE.Vector3; face: Face }[] = [];
+  for (let u = lateral[0] + FACE_COLUMN / 2; u < lateral[1]; u += FACE_COLUMN) {
+    const hit = nearestFace(index, u, y);
+    if (hit) hits.push(hit);
+  }
+  return hits;
+}
+
+function extreme(values: number[], pick: (...values: number[]) => number): number | null {
+  return values.length === 0 ? null : pick(...values);
+}
+
+function rowMiddle(profile: FaceProfile, row: number): number {
+  return profile.bottom + (row + 0.5) * FACE_COLUMN;
+}
+
+export function profileFace(profile: FaceProfile, floor: number): number | null {
+  const reaches = profile.reach.filter((r, row): r is number => r !== null && rowMiddle(profile, row) >= floor);
+  return reaches.length === 0 ? null : profile.outward * Math.max(...reaches);
+}
+
+export function profileGlassLine(profile: FaceProfile, floor: number, inset: number): number | null {
+  const face = profileFace(profile, floor);
+  if (face === null) return null;
+  const row = profile.glass.findIndex((reach) => reach !== null && Math.abs(face - profile.outward * reach) > inset);
+  return row === -1 ? null : profile.bottom + row * FACE_COLUMN;
+}
+
 export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
   body.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(body);
@@ -669,6 +725,10 @@ function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3, 
     hit = next;
   }
   return hit.point;
+}
+
+function isGlass(obj: THREE.Object3D): boolean {
+  return ((obj as THREE.Mesh).material as THREE.Material | undefined)?.name === GLASS;
 }
 
 function seeThrough(obj: THREE.Object3D): boolean {
