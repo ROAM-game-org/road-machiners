@@ -14,7 +14,7 @@ import type { Vehicle, World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { expect } from 'vitest';
 import { refreshVision } from '../sim/vision';
-import { cloneWorld, endTurn, endTurnInPlace } from '../sim/world';
+import { cloneWorld, endTurnInPlace } from '../sim/world';
 import { reusedWorld, standardWorld } from './world-cache';
 
 export function quietWorld(seed: number): World {
@@ -31,9 +31,9 @@ export function quietWorld(seed: number): World {
 export const seen = { stalls: 0, broken: new Set<string>() };
 
 export function runTo(w: World, turn: number): World {
-  let world = w;
+  const world = cloneWorld(w);
   while (world.turn < turn) {
-    world = endTurn(world, testDrive);
+    endTurnInPlace(world, testDrive);
     keepMembersUnhurt(world);
     seen.stalls += world.events.filter((e) => e.t === 'stall').length;
     for (const e of world.events) if (e.t === 'breakdown') seen.broken.add(e.vehicle);
