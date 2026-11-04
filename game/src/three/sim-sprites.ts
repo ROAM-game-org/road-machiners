@@ -6,6 +6,7 @@ import { VehicleView, type RebuildBudget } from './render/vehicle';
 import { CHASSIS, type TruckPaint } from '../data/chassis';
 import type { Vehicle } from '../sim/types';
 import { SPRITES, spritePlan, truckOf, type SpriteCell, type SpriteEntry, type SpriteManifest, type SpriteWant } from './sim-sprite-plan';
+import { errorText } from '../stall';
 
 declare global {
   interface Window {
@@ -180,7 +181,7 @@ export function runSimSprites(): void {
       window.__SIM_SPRITES__ = result;
     },
     (e: unknown) => {
-      window.__SIM_SPRITES_ERROR__ = e instanceof Error ? (e.stack ?? e.message) : String(e);
+      window.__SIM_SPRITES_ERROR__ = errorText(e);
     },
   );
 }

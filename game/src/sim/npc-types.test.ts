@@ -9,6 +9,7 @@ import { chassisDef } from '../data/chassis';
 import { makePart } from './factory';
 import { freeCells, goodsCount, mountedParts } from './grid';
 import { addGoods } from './inventory';
+import { visibleSalvage } from './loot-picks';
 import { huntingGrounds, optionChances, optionWeights, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { siteGates, sitePads } from './sites';
@@ -342,7 +343,7 @@ describe('independent', () => {
 
   it('prowl more often than anything else and drive to hunting grounds away from them', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const start = huntingGrounds(w)[0];
+    const start = huntingGrounds(w).find((ground) => visibleSalvage(w, createNpc(emptyWorld({ x: 300, y: 300 }), 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...ground })).length === 0)!;
     const npc = createNpc(w, 'vulture', ['vulture'], 'scout', ['longRifle', 'stockEngine'], { ...start });
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
     expect(Object.entries(chances).sort((a, b) => b[1] - a[1])[0][0]).toBe('prowl');

@@ -4,7 +4,7 @@ import { gunOf } from '../../sim/combat';
 import { mountedItems } from '../../sim/grid';
 import { vehicleStats } from '../../sim/stats';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
-import { hoverArcs, iconSpot } from './weaponRange';
+import { hoverArcs, iconSpot, vehicleOrigins, WeaponRangeView } from './weaponRange';
 
 function raiderWithGun() {
   const world = emptyWorld();
@@ -72,5 +72,68 @@ describe('iconSpot', () => {
     const second = iconSpot([{ from: 90, to: 180 }], 20, [first]);
 
     expect(second.distance).toBe(10);
+  });
+});
+
+describe('WeaponRangeView.set', () => {
+  function fillOf(view: WeaponRangeView) {
+    return view.root.children[0] as unknown as { geometry: unknown };
+  }
+
+  it('keeps the fan geometry when the reaches are equal', () => {
+    const { world, raider } = raiderWithGun();
+    const weapons = vehicleStats(world, raider).weapons;
+    const view = new WeaponRangeView(0xffffff, 1);
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+    const fill = fillOf(view).geometry;
+    const edge = view.root.children[1];
+
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+
+    expect(fillOf(view).geometry).toBe(fill);
+    expect(view.root.children[1]).toBe(edge);
+    expect(view.root.visible).toBe(true);
+  });
+
+  it('rebuilds the fan when the origin moves', () => {
+    const { world, raider } = raiderWithGun();
+    const weapons = vehicleStats(world, raider).weapons;
+    const view = new WeaponRangeView(0xffffff, 1);
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+    const fill = fillOf(view).geometry;
+
+    raider.pos = { x: raider.pos.x + 1, y: raider.pos.y };
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+
+    expect(fillOf(view).geometry).not.toBe(fill);
+  });
+
+  it('rebuilds the fan when the heading or a span changes', () => {
+    const { world, raider } = raiderWithGun();
+    const weapons = vehicleStats(world, raider).weapons;
+    const view = new WeaponRangeView(0xffffff, 1);
+    const origins = vehicleOrigins(raider);
+    view.set(world.terrain, origins, weapons);
+    const first = fillOf(view).geometry;
+
+    view.set(world.terrain, [{ pos: origins[0].pos, heading: origins[0].heading + 0.1 }], weapons);
+    const turned = fillOf(view).geometry;
+    const wider = [{ ...weapons[0], spans: weapons[0].spans.map((s) => ({ from: s.from, to: s.to + 10 })) }];
+    view.set(world.terrain, [{ pos: origins[0].pos, heading: origins[0].heading + 0.1 }], wider);
+
+    expect(turned).not.toBe(first);
+    expect(fillOf(view).geometry).not.toBe(turned);
+  });
+
+  it('hides for an empty list and shows again for the same reaches', () => {
+    const { world, raider } = raiderWithGun();
+    const weapons = vehicleStats(world, raider).weapons;
+    const view = new WeaponRangeView(0xffffff, 1);
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+
+    view.set(world.terrain, vehicleOrigins(raider), []);
+    expect(view.root.visible).toBe(false);
+    view.set(world.terrain, vehicleOrigins(raider), weapons);
+    expect(view.root.visible).toBe(true);
   });
 });

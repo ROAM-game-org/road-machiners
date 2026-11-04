@@ -34,6 +34,8 @@ export class WeaponRangeView {
   private fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private edges: Line2[] = [];
   private drawSize = { width: 1, height: 1 };
+  private lastTerrain: Terrain | null = null;
+  private lastKey: number[] = [];
 
   constructor(private readonly color: number, stencilBit: number) {
     this.fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
@@ -46,8 +48,25 @@ export class WeaponRangeView {
     this.root.visible = false;
   }
 
-  set(terrain: Terrain, origins: readonly GunOrigin[], weapons: MountedWeapon[]): void {
+  set(terrain: Terrain, origins: readonly GunOrigin[], weapons: readonly MountedWeapon[]): void {
+    if (terrain === this.lastTerrain && this.matchesKey(origins, weapons)) {
+      this.root.visible = weapons.length > 0;
+      return;
+    }
+    this.lastTerrain = terrain;
+    this.lastKey = reachKey(origins, weapons);
     this.draw(terrain, weapons.map((w) => ({ ...originOf(origins, w.unit), range: w.def.range, spans: w.spans })));
+  }
+
+  private matchesKey(origins: readonly GunOrigin[], weapons: readonly MountedWeapon[]): boolean {
+    const key = this.lastKey;
+    let at = 0;
+    for (const w of weapons) {
+      const { pos, heading } = originOf(origins, w.unit);
+      if (key[at++] !== pos.x || key[at++] !== pos.y || key[at++] !== heading || key[at++] !== w.def.range || key[at++] !== w.spans.length) return false;
+      for (const span of w.spans) if (key[at++] !== span.from || key[at++] !== span.to) return false;
+    }
+    return at === key.length;
   }
 
   hide(): void {
@@ -102,6 +121,16 @@ export class WeaponRangeView {
 }
 
 export type GunOrigin = { pos: Vec; heading: number };
+
+function reachKey(origins: readonly GunOrigin[], weapons: readonly MountedWeapon[]): number[] {
+  const key: number[] = [];
+  for (const w of weapons) {
+    const { pos, heading } = originOf(origins, w.unit);
+    key.push(pos.x, pos.y, heading, w.def.range, w.spans.length);
+    for (const span of w.spans) key.push(span.from, span.to);
+  }
+  return key;
+}
 
 function originOf(origins: readonly GunOrigin[], unit: number): GunOrigin {
   const origin = origins[unit];

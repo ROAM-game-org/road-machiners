@@ -96,6 +96,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - A cell holds its blocked cells, breakable marks and coarse regions: the connected parts of each 8 by 8 block of half-tile cells, linked where they touch.
 - A piece is the connected part of a cell. A crossing joins two pieces of neighbouring cells at their cheapest touching regions. Each piece keeps the cost between each pair of its crossings.
 - Pieces, crossings and their costs for every chassis radius come baked in `public/maps/icarus.routes.bin`, from `npm run routes:bake`. The file stores a key per cell from its ground and solid props. A layer rebuilds only the cells whose key differs, such as the Hollow or another kit's props. A map with no baked file, like Chaos Highway, builds every cell when the layer is made.
+- The file's header holds a rules key, a hash of the route rules, sites and decks. `portableJson()` in `src/sim/nav/layer.ts` rounds every number in it to a millionth before the hash, since Firefox and Chromium differ in the last bit of computed floats. A header that differs from the build throws and names the file's value and the build's.
 - Boot sends the terrain to the turn worker as soon as the map loads. `prepareRouteTerrain()` builds the route ground and the cell keys there while the world is made. Layers load their baked pieces when a route first needs that chassis. While idle, each worker builds cells outward from the player in slices of `PERF.routes.idleSliceMs`.
 - The layer cache keeps one layer per solid prop set and radius, up to 16.
 - Wrecks and parked vehicles are stamped per query.
@@ -229,9 +230,9 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Travel speed
 
 - `Travel` holds the picked travel speed as an index into `CONFIG.travelSpeeds`. The speed control beside the turn button sets it through the `UiHost` hooks `travelSpeedIndex()`, `travelPlaySpeed()` and `stepTravelSpeed()`.
-- `TurnPreparation` measures the worker time of each turn and smooths it with `CONFIG.turnPrepSmoothing`. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1, while waypoint travel runs, else 1. The speed display prints it. Held Space still fast-forwards and does not move it.
+- `TurnPreparation` measures the worker time of each turn and smooths it with `CONFIG.turnPrepSmoothing`. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
 - Playback eases to that step over `playEaseMs`. A single late turn still shows as a short hitch.
-- The knocked-out, towed and beacon runs are not waypoint travel, so they play at 1.
+- The pick is the pace of every turn the player watches: waypoint travel, odd jobs shifts, beacon waits, knocked-out and towed runs, jobs advanced by taps, and combat. `Travel.paceSpeed()` and `getSpeed()` read only the pick, the worker time and the held Space, with no list of runs, so a new job or state follows it without a change.
 - The pick survives pauses and is never saved, like all travel state.
 
 ## Waiting on the player
