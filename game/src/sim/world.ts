@@ -286,6 +286,11 @@ function settleOverdrive(w: World): void {
   w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
 }
 
+function parkOverdrive(w: World): void {
+  if (!w.player.overdrive) return;
+  if (playerVehicle(w).speed <= RULES.parkedSpeed || w.player.state !== 'active' || isTowed(w)) w.player.overdrive = false;
+}
+
 export type ActBlock = 'knockedOut' | 'towed' | 'onRadio';
 
 export function actBlock(world: World): ActBlock | null {
@@ -453,6 +458,7 @@ export function endTurnInPlace(
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
+    parkOverdrive(w);
     advanceChaosHighway(w);
     openRoadScene(w);
     spawnNpcs(w);

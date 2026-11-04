@@ -24,7 +24,7 @@ function estimateTurns(world: World, v: Vehicle, stock: SalvageStock): number {
 
 export function stockSearchTurns(stock: SalvageStock, cut: number): number {
   const units = hiddenUnits(stock) || salvageUnits(stock);
-  return Math.max(1, Math.ceil((units / SALVAGE.unitsPerTurn) * cut));
+  return Math.max(SALVAGE.minSearchTurns, Math.ceil((units / SALVAGE.unitsPerTurn) * cut));
 }
 
 export function beginSearch(world: World, v: Vehicle, stockId: string): void {

@@ -14,7 +14,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | tank, transmission, cab, wheel, wheel, wheel, wheel | bowl, nose | nimble |
 | wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | gunMounts |
 | courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 4150 | 0.5 | 24 | 0.18 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
-| van | Utility van | 1 | 850 | 6.5 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
+| van | Utility van | 1 | 821 | 5.4 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
 | longbed | Longbed truck | 2 | 1,350 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
 | carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 8020 | 0.85 | 70 | 0.5 | 8 x 15 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | armored |
 | tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8860 | 0.9 | 120 | 0.6 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
