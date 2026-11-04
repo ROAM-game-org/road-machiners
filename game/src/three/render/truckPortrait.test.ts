@@ -10,6 +10,7 @@ import { mountPart } from '../../sim/inventory';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
+import { fakeGpu } from '../../test/fake-gpu';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
 import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, chassisSize, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
@@ -53,7 +54,7 @@ function clone(v: Vehicle, id: string): Vehicle {
 describe('truck portrait queue', () => {
   it('never builds when asked: shown and want run no step', () => {
     const fake = counting();
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const v = truck();
     expect(portraits.shown(v, PAINT.standard)).toBeNull();
     portraits.want([], [v], v.id, PAINT.standard);
@@ -64,7 +65,7 @@ describe('truck portrait queue', () => {
 
   it('builds the wanted truck only in step, and shows it after the last step', () => {
     const fake = counting(3);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const v = truck();
     portraits.want([], [v], null, PAINT.standard);
     portraits.step(0, false);
@@ -78,7 +79,7 @@ describe('truck portrait queue', () => {
   it('runs one step on a spent budget and stops starting steps once it is spent', () => {
     const fake = counting(5);
     let clock = 0;
-    const portraits = new TruckPortraits(RENDERER, fake.build, () => (clock += 10));
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build, () => (clock += 10));
     portraits.want([], [truck()], null, PAINT.standard);
     portraits.step(0, false);
     expect(fake.steps()).toBe(1);
@@ -89,7 +90,7 @@ describe('truck portrait queue', () => {
 
   it('builds the player truck, then the focus, then the others in the given order', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const own = clone(truck(), 'own');
     const [near, far, aimed] = ['near', 'far', 'aimed'].map((id) => clone(own, id));
     portraits.want([own], [near, far, aimed], 'aimed', PAINT.standard);
@@ -99,7 +100,7 @@ describe('truck portrait queue', () => {
 
   it('keeps a half-built truck when the focus moves to another truck', () => {
     const fake = counting(3);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const a = clone(truck(), 'a');
     const b = clone(truck(), 'b');
     portraits.want([], [a, b], 'a', PAINT.standard);
@@ -113,7 +114,7 @@ describe('truck portrait queue', () => {
 
   it('only steps the player trucks and the focus while a turn plays', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const own = clone(truck(), 'own');
     const other = clone(own, 'other');
     portraits.want([own], [other], null, PAINT.standard);
@@ -125,7 +126,7 @@ describe('truck portrait queue', () => {
 
   it('drops a build whose look changed, shows the old drawing meanwhile and finds it again when the look returns', () => {
     const fake = counting(2);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const v = truck();
     portraits.want([], [v], null, PAINT.standard);
     settle(portraits);
@@ -146,7 +147,7 @@ describe('truck portrait queue', () => {
 
   it('builds once when only HP or wear change and when cargo changes', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const v = truck();
     portraits.want([], [v], null, PAINT.standard);
     settle(portraits);
@@ -169,7 +170,7 @@ describe('truck portrait queue', () => {
     const engine = mountedParts(v, 'engine')[0];
     engine.hp = 1;
     engine.wear = 3;
-    const portraits = new TruckPortraits(RENDERER, build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), build);
     portraits.want([], [v], null, PAINT.standard);
     settle(portraits);
     const copy = mountedParts(seen as unknown as Vehicle, 'engine')[0];
@@ -181,7 +182,7 @@ describe('truck portrait queue', () => {
 
   it('keeps every truck in sight and only the newest out of sight', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const crowd = Array.from({ length: PORTRAIT_KEEP + 3 }, (_, i) => clone(truck(), `t${i}`));
     portraits.want([], crowd, null, PAINT.standard);
     settle(portraits);
@@ -195,7 +196,7 @@ describe('truck portrait queue', () => {
 
   it('keeps a truck that left sight for one turn without a rebuild', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const v = truck();
     portraits.want([], [v], null, PAINT.standard);
     settle(portraits);
@@ -208,7 +209,7 @@ describe('truck portrait queue', () => {
 
   it('tells its listeners which truck finished', () => {
     const fake = counting(1);
-    const portraits = new TruckPortraits(RENDERER, fake.build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), fake.build);
     const told: string[] = [];
     portraits.onReady((id) => told.push(id));
     const v = truck();
@@ -219,7 +220,7 @@ describe('truck portrait queue', () => {
 
   it('throws a failed build once and does not retry that look', () => {
     const build: BuildPortrait = () => ({ steps: (function* () { throw new Error('no pixels'); yield; return {} as Portrait; })(), dispose() {} });
-    const portraits = new TruckPortraits(RENDERER, build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), build);
     portraits.want([], [truck()], null, PAINT.standard);
     expect(() => portraits.step(0, false)).toThrow('no pixels');
     expect(() => portraits.step(0, false)).not.toThrow();
@@ -229,7 +230,7 @@ describe('truck portrait queue', () => {
     let finish: () => void = () => {};
     const pending = new Promise<void>((resolve) => (finish = resolve));
     const build: BuildPortrait = () => ({ steps: (function* (): Generator<PortraitWait, Portrait, void> { yield pending; return { has: () => true, release() {} } as unknown as Portrait; })(), dispose() {} });
-    const portraits = new TruckPortraits(RENDERER, build);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), build);
     const v = truck();
     portraits.want([], [v], null, PAINT.standard);
     portraits.step(0, false);
@@ -349,5 +350,54 @@ describe('truck portrait view', () => {
     expect(armor().length).toBeGreaterThan(0);
     for (const mesh of armor()) expect(mesh.material.defines?.CUT_WHEELS, mesh.name).toBeGreaterThan(0);
     view.dispose();
+  });
+});
+
+describe('truck portraits across a lost context', () => {
+  it('builds nothing while lost, and tells its listeners on the restore', () => {
+    const fake = counting();
+    const gpu = fakeGpu();
+    const portraits = new TruckPortraits(RENDERER, gpu, fake.build);
+    const v = truck();
+    const ready: string[] = [];
+    portraits.onReady((id) => ready.push(id));
+    portraits.want([], [v], null, PAINT.standard);
+    gpu.blackout();
+    settle(portraits);
+    expect(fake.started).toEqual([]);
+    gpu.recover();
+    expect(ready).toEqual([v.id]);
+    settle(portraits);
+    expect(portraits.shown(v, PAINT.standard)).not.toBeNull();
+  });
+
+  it('drops a job that fails after a loss without marking it failed, and builds it after the restore', () => {
+    const gpu = fakeGpu();
+    let tries = 0;
+    const build: BuildPortrait = () => ({
+      steps: (function* () {
+        yield;
+        if (tries++ === 0) {
+          gpu.blackout();
+          throw new Error('drew no pixels');
+        }
+        return { has: () => true, release() {} } as unknown as Portrait;
+      })(),
+      dispose() {},
+    });
+    const portraits = new TruckPortraits(RENDERER, gpu, build);
+    const v = truck();
+    portraits.want([], [v], null, PAINT.standard);
+    expect(() => portraits.step(1e9, false)).not.toThrow();
+    gpu.recover();
+    settle(portraits);
+    expect(portraits.shown(v, PAINT.standard)).not.toBeNull();
+  });
+
+  it('still throws when a job fails on a live context', () => {
+    const build: BuildPortrait = () => ({ steps: (function* (): Generator<PortraitWait, Portrait, void> { yield; throw new Error('drew no pixels'); })(), dispose() {} });
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), build);
+    portraits.want([], [truck()], null, PAINT.standard);
+    expect(() => portraits.step(1e9, false)).toThrow('drew no pixels');
   });
 });

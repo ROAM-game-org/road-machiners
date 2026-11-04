@@ -7,6 +7,7 @@ import { cellRect, cellSteps, spanOf, unitsOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
 import { noteError } from '../crash';
+import type { GpuContext } from '../gpu-context';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
 import { hidesInside, VehicleView, type RebuildBudget, type ViewScene } from './vehicle';
@@ -34,7 +35,7 @@ type Placement = { item: PartItem; key: string; loose: string };
 type BodyJob = { kind: 'body'; key: string; chassisId: string; truck: Vehicle; paint: TruckPaint };
 type BatchJob = { kind: 'batch'; chassisId: string; truck: Vehicle; paint: TruckPaint; placements: Placement[] };
 export type GarageJob = BodyJob | BatchJob;
-type Running = { job: GarageJob; steps: Generator<PortraitWait, void, void>; waiting: Promise<unknown> | null; failure: { error: unknown } | null; dispose: () => void };
+type Running = { job: GarageJob; steps: Generator<PortraitWait, void, void>; epoch: number; waiting: Promise<unknown> | null; failure: { error: unknown } | null; dispose: () => void };
 export type Frame = { left: number; right: number; top: number; bottom: number };
 
 export function isCore(part: PartInstance): boolean {
@@ -371,15 +372,31 @@ export class GarageRenders {
   private readonly listeners: (() => void)[] = [];
   private queue: GarageJob[] = [];
   private wanted: readonly GarageNeed[] = [];
+  private screenNow: readonly GarageNeed[] = [];
   private screenLater: readonly GarageNeed[] = [];
   private running: Running | null = null;
+  private jobEpoch = 0;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
+    private readonly gpu: GpuContext,
     private readonly build: BuildGarageJob = buildGarageJob,
     private readonly now: () => number = () => performance.now(),
     private readonly report: (error: unknown) => void = noteError,
-  ) {}
+  ) {
+    gpu.onRestored(() => {
+      this.replan();
+      for (const listener of this.listeners) listener();
+    });
+  }
+
+  suspended(): boolean {
+    return this.gpu.lost();
+  }
+
+  private stale(epoch: number): boolean {
+    return this.gpu.lost() || this.gpu.epoch() !== epoch;
+  }
 
   onReady(listener: () => void): void {
     this.listeners.push(listener);
@@ -405,7 +422,7 @@ export class GarageRenders {
       planned.add(key);
       return false;
     };
-    this.queue = [...this.wanted, ...this.screenLater].flatMap((need) => planJobs(need, done));
+    this.queue = [...this.wanted, ...this.screenNow, ...this.screenLater].flatMap((need) => planJobs(need, done));
   }
 
   pending(): number {
@@ -415,13 +432,19 @@ export class GarageRenders {
   step(budgetMs: number): void {
     const start = this.now();
     for (;;) {
+      if (this.gpu.lost()) return;
       if (!this.advance()) return;
       if (this.now() - start >= budgetMs) return;
     }
   }
 
   ensureNow(needs: readonly GarageNeed[], later: readonly GarageNeed[] = []): void {
+    this.screenNow = needs;
     this.screenLater = later;
+    if (!this.gpu.lost()) this.drawNow(needs);
+  }
+
+  private drawNow(needs: readonly GarageNeed[]): void {
     const jobs = needs.flatMap((need) => planJobs(need, this.has));
     if (jobs.length > 0) {
       this.dropRunning();
@@ -440,6 +463,8 @@ export class GarageRenders {
   }
 
   private runNow(job: GarageJob): void {
+    const epoch = this.gpu.epoch();
+    this.jobEpoch = epoch;
     try {
       const built = this.build(this.renderer, job, this, true);
       try {
@@ -448,6 +473,7 @@ export class GarageRenders {
         built.dispose();
       }
     } catch (error) {
+      if (this.stale(epoch)) return;
       this.failJob(job, error);
     }
   }
@@ -455,6 +481,7 @@ export class GarageRenders {
   private advance(): boolean {
     const run = this.free();
     if (!run) return false;
+    if (this.stale(run.epoch)) return this.drop(run);
     const result = this.next(run);
     if (result === 'failed') return true;
     if (result.done) return this.finish(run);
@@ -479,11 +506,12 @@ export class GarageRenders {
   private start(): Running | null {
     const job = this.queue.shift();
     if (!job) return null;
+    this.jobEpoch = this.gpu.epoch();
     try {
       const built = this.build(this.renderer, job, this, false);
-      this.running = { job, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
+      this.running = { job, epoch: this.jobEpoch, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
     } catch (error) {
-      this.failJob(job, error);
+      if (!this.stale(this.jobEpoch)) this.failJob(job, error);
       return this.start();
     }
     return this.running;
@@ -502,6 +530,10 @@ export class GarageRenders {
   }
 
   private fail(run: Running, error: unknown): 'failed' {
+    if (this.stale(run.epoch)) {
+      this.drop(run);
+      return 'failed';
+    }
     this.running = null;
     run.dispose();
     this.failJob(run.job, error);
@@ -513,7 +545,15 @@ export class GarageRenders {
     this.report(error);
   }
 
+  private drop(run: Running): boolean {
+    this.running = null;
+    run.dispose();
+    this.replan();
+    return true;
+  }
+
   private finish(run: Running): boolean {
+    if (this.stale(run.epoch)) return this.drop(run);
     this.running = null;
     run.dispose();
     for (const listener of this.listeners) listener();
@@ -521,11 +561,13 @@ export class GarageRenders {
   }
 
   putBody(key: string, chassisId: string, body: GarageBody): void {
+    if (this.stale(this.jobEpoch)) return;
     this.bodies.set(key, body);
     this.latestBody.set(chassisId, body);
   }
 
   putSprite(key: string, loose: string, sprite: GarageSprite): void {
+    if (this.stale(this.jobEpoch)) return;
     this.sprites.set(key, sprite);
     this.latestSprite.set(loose, sprite);
     this.forgetOldest();
