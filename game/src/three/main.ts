@@ -38,6 +38,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
+import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
@@ -235,7 +236,8 @@ function whenVisible(run: () => void): void {
 }
 function reportStandIns(failures: ModelFailure[]): void {
   for (const { name, error } of failures) {
-    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+    if (error instanceof AssetUnreachable) noteError(error);
+    else noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
   }
 }
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
@@ -264,7 +266,7 @@ let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
 let bankSettled!: () => void;
 const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
-const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support });
+const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }, (err) => reportMusicFault(err));
 const music = new CombatMusic(mixer.ctx, mixer.input('music'), (name) => afterBank.then(() => kitLoader(name)), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
