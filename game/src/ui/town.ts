@@ -1,4 +1,5 @@
 
+import { runCommand } from "./run-command";
 import { GOOD_IDS } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
@@ -464,15 +465,12 @@ export class TownScreen {
   private run(cmd: (w: World) => World, announce = false): void {
     keepFocus(this.root, () => {
       try {
-        const next = cmd(this.host.world());
-        if (announce) this.host.announce(next);
-        else this.host.apply(next);
-        this.error = null;
-        this.rows.collapse();
-      } catch (e) {
-        this.error = commandFailure(this.host.world(), e);
+        const failed = runCommand(this.host.world(), cmd, (next) => (announce ? this.host.announce(next) : this.host.apply(next)));
+        this.error = failed === null ? null : commandFailure(this.host.world(), failed);
+        if (failed === null) this.rows.collapse();
+      } finally {
+        this.render();
       }
-      this.render();
     });
   }
 
@@ -973,13 +971,12 @@ export class TruckTradeScreen {
   private run(cmd: (w: World) => World): void {
     keepFocus(this.root, () => {
       try {
-        this.host.apply(cmd(this.host.world()));
-        this.error = null;
-        this.rows.collapse();
-      } catch (e) {
-        this.error = commandFailure(this.host.world(), e);
+        const failed = runCommand(this.host.world(), cmd, (next) => this.host.apply(next));
+        this.error = failed === null ? null : commandFailure(this.host.world(), failed);
+        if (failed === null) this.rows.collapse();
+      } finally {
+        this.render();
       }
-      this.render();
     });
   }
 

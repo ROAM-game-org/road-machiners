@@ -1,4 +1,5 @@
 
+import { runCommand } from "./run-command";
 import { chassisDef } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { isJunk, maxHp } from "../sim/wear";
@@ -1076,17 +1077,15 @@ export class InventoryView {
   private run(cmd: (w: World) => World, quiet = false): void {
     if (this.look()) throw new Error("Inventory command in look mode");
     try {
-      const w = this.host.world();
-      const next = cmd(w);
-      if (next !== w) {
+      const failed = runCommand(this.host.world(), cmd, (next, w) => {
+        if (next === w) return;
         this.plan = {};
         this.host.apply(next);
-      }
-      this.error = null;
-    } catch (err) {
-      this.error = quiet && !(err instanceof Refused) ? null : commandFailure(this.host.world(), err);
+      });
+      this.error = failed === null || (quiet && !(failed instanceof Refused)) ? null : commandFailure(this.host.world(), failed);
+    } finally {
+      this.onChange();
     }
-    this.onChange();
   }
 }
 
