@@ -1,18 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ASSET_RETRY_DELAYS_MS, AssetUnreachable, fetchAsset, type AssetNet } from './fetch-asset';
+import { ASSET_RETRY_DELAYS_MS, AssetStatusError, AssetUnreachable, BuildGone, fetchAsset, type AssetNet } from './fetch-asset';
 
 function bytes(n: number): ArrayBuffer {
   return new Uint8Array([n]).buffer;
 }
 
-function net(answers: Array<() => Promise<Response>>): { net: AssetNet; waits: number[]; fetch: ReturnType<typeof vi.fn> } {
+function net(answers: Array<() => Promise<Response>>, page: string | null = null): { net: AssetNet; waits: number[]; fetch: ReturnType<typeof vi.fn> } {
   const waits: number[] = [];
   const queue = [...answers];
   const fetch = vi.fn(() => {
     const next = queue.shift() ?? queue[0];
     return next();
   });
-  return { net: { fetch, wait: async (ms) => void waits.push(ms), delaysMs: ASSET_RETRY_DELAYS_MS }, waits, fetch };
+  return { net: { fetch, wait: async (ms) => void waits.push(ms), delaysMs: ASSET_RETRY_DELAYS_MS, page: () => page }, waits, fetch };
 }
 
 const ok = () => Promise.resolve(new Response(bytes(7)));
@@ -57,5 +57,41 @@ describe('fetchAsset', () => {
     };
     const run = net([broken, ok]);
     await expect(fetchAsset('Map', 'map.bin', run.net)).resolves.toBeInstanceOf(ArrayBuffer);
+  });
+
+  describe('after a permanent status', () => {
+    const served = (url: string, pageStatus: () => Promise<Response>) => (url === 'https://game/index.html' ? pageStatus() : status(403)());
+
+    function hosted(pageAnswer: () => Promise<Response>) {
+      const fetch = vi.fn((url: string) => served(url, pageAnswer));
+      const hostNet: AssetNet = { fetch, wait: async () => {}, delaysMs: ASSET_RETRY_DELAYS_MS, page: () => 'https://game/index.html' };
+      return { net: hostNet, fetch };
+    }
+
+    it('throws BuildGone, an unreachable file, when the page is gone too', async () => {
+      const run = hosted(status(403));
+      const err = await fetchAsset('Song', 'song.ogg', run.net).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(BuildGone);
+      expect(err).toBeInstanceOf(AssetUnreachable);
+      expect(run.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps AssetStatusError when the page is served', async () => {
+      const err = await fetchAsset('Song', 'song.ogg', hosted(ok).net).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AssetStatusError);
+      expect(err).not.toBeInstanceOf(AssetUnreachable);
+    });
+
+    it('keeps AssetStatusError when the page probe is dropped', async () => {
+      const err = await fetchAsset('Song', 'song.ogg', hosted(dropped).net).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AssetStatusError);
+    });
+
+    it('probes the page once for a build known gone', async () => {
+      const run = hosted(status(404));
+      await fetchAsset('Song', 'a.ogg', run.net).catch(() => {});
+      await fetchAsset('Song', 'b.ogg', run.net).catch(() => {});
+      expect(run.fetch.mock.calls.filter(([url]) => url === 'https://game/index.html')).toHaveLength(1);
+    });
   });
 });

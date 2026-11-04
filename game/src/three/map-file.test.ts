@@ -17,7 +17,7 @@ function serve(answer: (url: string, init?: RequestInit) => Uint8Array) {
     const body = url.includes('icarus.routes.bin') ? routes : answer(url, init);
     return new Response(body.slice().buffer);
   };
-  return { calls, deps: { fetch, wait: async () => {}, delaysMs: [] } };
+  return { calls, deps: { fetch, wait: async () => {}, delaysMs: [], page: () => null } };
 }
 
 describe('fetchMap', () => {
