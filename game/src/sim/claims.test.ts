@@ -39,6 +39,7 @@ let real: World;
 beforeAll(() => {
   real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
   for (const shop of Object.values(real.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+  standardWorld(2);
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
@@ -686,7 +687,6 @@ describe('a rival on the real map', () => {
     claim.rivalAt = w.turn + 1;
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);
-    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const pads = sitePads(siteOf(shop));
     w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {
       const pad = pads[i % pads.length];
