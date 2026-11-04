@@ -49,7 +49,7 @@ export class GpuContext {
   private restore(): void {
     if (this.deadline === null) throw new Error('webglcontextrestored arrived with no webglcontextlost before it');
     this.clearDeadline();
-    for (const fn of this.restoredListeners) fn();
+    this.timers.set(() => this.restoredListeners.forEach((fn) => fn()), 0);
   }
 
   private clearDeadline(): void {

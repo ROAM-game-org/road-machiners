@@ -12,8 +12,11 @@ function setup() {
     set: (fn, ms) => timers.push({ fn, ms, live: true }) - 1,
     clear: (h) => { timers[h as number].live = false; },
   });
-  const fire = (name: string) => handlers.get(name)!();
-  return { gpu, gl, fire, timers, reports };
+  const fire = (name: string) => {
+    handlers.get(name)!();
+    if (name === 'webglcontextrestored') timers.filter((t) => t.live && t.ms === 0).forEach((t) => { t.live = false; t.fn(); });
+  };
+  return { gpu, gl, fire, handlers, timers, reports };
 }
 
 describe('GpuContext', () => {
@@ -44,6 +47,17 @@ describe('GpuContext', () => {
     fire('webglcontextlost');
     fire('webglcontextrestored');
     expect(timers[0].live).toBe(false);
+  });
+
+  it('tells the listeners on a later task, after the renderer has handled its own restore event', () => {
+    const { gpu, handlers, timers } = setup();
+    const seen: string[] = [];
+    gpu.onRestored(() => seen.push('restored'));
+    handlers.get('webglcontextlost')!();
+    handlers.get('webglcontextrestored')!();
+    expect(seen).toEqual([]);
+    timers.filter((t) => t.live && t.ms === 0).forEach((t) => t.fn());
+    expect(seen).toEqual(['restored']);
   });
 
   it('throws on a restore with no loss before it', () => {
