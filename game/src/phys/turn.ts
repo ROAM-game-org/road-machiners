@@ -311,8 +311,6 @@ function answer(request: Answerable, terrain: World['terrain']): void {
   }
 }
 
-
-
 const STOPPED = 0.05;
 
 export type PlayedTurn = TurnResult & { sight: LiveSight };

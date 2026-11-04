@@ -240,7 +240,6 @@ export function simWorld(map: BakedMap, seed: number): World {
   return playthroughWorld(map, seed, 'markov');
 }
 
-
 export function frameOf(world: World, events: readonly GameEvent[], ledger: Ledger, watched: string | null, text: SimText, sample: Sample | null): Frame {
   return {
     turn: world.turn,

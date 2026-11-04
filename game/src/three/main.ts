@@ -150,7 +150,6 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   return value;
 }
 
-
 function benchFailure(error: unknown, faults: readonly unknown[]): string | null {
   const reported = faults.map((fault) => `The game reported an error during the bench: ${errorText(fault)}`);
   const failed = error === null ? [] : [errorText(error)];
