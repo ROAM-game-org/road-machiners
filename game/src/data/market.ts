@@ -364,6 +364,8 @@ export const PRODUCTION = {
   minTarget: { garage: 120, stall: 30 } as Record<'garage' | 'stall', number>,
 };
 
+export const GOODS_STORE = { crates: 95 };
+
 export const CYCLES_PER_DAY = TIME.workDayTurns / PRODUCTION.cycleTurns;
 
 export const SERVICE_GOOD: Record<'fuel' | 'supplies', string> = { fuel: 'fuelDrums', supplies: 'rations' };

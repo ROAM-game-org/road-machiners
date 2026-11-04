@@ -18,7 +18,7 @@ const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
-const CRASH_PAUSE_MS = 10000;
+const CRASH_PAUSE_MS = 30000;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
@@ -34,7 +34,7 @@ if (software && fpsGate) {
 const turns = Number(arg('turns', software ? '4' : '12'));
 const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
+page.setDefaultTimeout(timeoutsOff ? 0 : Math.max(30000, TURN_LIMIT_MS));
 const retryAfterBrowserCrash = async (cause) => {
   if (cause) console.log(`Crash cause: ${String(cause?.message ?? cause).split('\n')[0]}`);
   await browser.close().catch(() => {});

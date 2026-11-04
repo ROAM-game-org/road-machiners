@@ -188,6 +188,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "van", weight: 4 },
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
+      { value: "courier", weight: 1 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
       { value: "sorokonoga", weight: 1 },
     ],

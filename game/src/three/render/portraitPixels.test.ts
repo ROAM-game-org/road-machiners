@@ -225,4 +225,3 @@ describe("glowMaskOf", () => {
     expect(Array.from(glowMaskOf(paint(), tier))).not.toEqual(Array.from(paint()));
   });
 });
-
