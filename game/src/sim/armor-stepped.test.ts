@@ -78,9 +78,15 @@ describe('a stepped outline', () => {
     expect(gunSpans(v, plateAt(v, 2, 4))).toEqual([{ from: 45, to: 315 }]);
   });
 
-  it('still blocks that gun forward across the cab', () => {
+  it('lets that gun fire forward over a cab the scout roof is level with (#1340)', () => {
     const w = emptyWorld();
     const v = steppedWith(w, [{ defId: 'mg', x: 2, y: 4 }]);
+    expect(spansHold(gunSpans(v, plateAt(v, 2, 4)), 0)).toBe(true);
+  });
+
+  it('still blocks that gun forward across a cannon standing above it', () => {
+    const w = emptyWorld();
+    const v = steppedWith(w, [{ defId: 'mg', x: 2, y: 4 }, { defId: 'cannon', x: 2, y: 2 }]);
     expect(spansHold(gunSpans(v, plateAt(v, 2, 4)), 0)).toBe(false);
   });
 

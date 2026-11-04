@@ -19,7 +19,7 @@ import {
   type VehicleFrame,
 } from "../phys/frames";
 import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
-import { playerVehicle, vehicleById } from "../sim/damage";
+import { isPlayerTruck, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
 import { zoneHalfAngle, zoneSpeedOf } from "../sim/steering";
@@ -692,7 +692,9 @@ export class Game {
 
   private aimVehicle(id: string): void {
     if (this.selected === null || !this.canClick()) return;
-    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), vehicleById(this.world, id)));
+    const target = vehicleById(this.world, id);
+    if (isPlayerTruck(this.world, target)) return;
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), target));
   }
 
   private applyRefusable(next: () => World): void {
@@ -714,7 +716,7 @@ export class Game {
   }
 
   private isVehicleVisible(v: Vehicle): boolean {
-    if (v.id === this.world.player.vehicleId || v.id === this.world.chaosHighway?.hauler.id) return true;
+    if (isPlayerTruck(this.world, v)) return true;
     const f = this.frames[v.id];
     if (this.live && f) return this.live.visible.has(tileOf(this.world, toMap(f.pos)));
     return playerSees(this.world, v.pos);

@@ -38,6 +38,7 @@ export const SCREENS: Translation<typeof EN> = {
   'save.none': 'Сохранений пока нет',
   'save.empty': 'Пусто',
   'save.confirmLoad': 'Загрузить это сохранение? Всё, что было после него, пропадет.',
+  'save.confirmOverwrite': '{slot} содержит сохранение «{saved}». Перезаписать текущим («{current}»)?',
   'save.confirmNew': 'Начать новую игру? Автосохранения удалятся, ячейки сохранений останутся.',
   'save.needsMigrating': 'Сохранение нужно перенести',
   'save.migrate': 'Перенести сохранение',

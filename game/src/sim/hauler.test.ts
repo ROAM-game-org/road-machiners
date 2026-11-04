@@ -601,3 +601,71 @@ describe('the hauler waits for a gun truck that trails it', () => {
     expect(stallEvents(w)).toBe(1);
   });
 });
+
+describe('the hauler lets a trailing gun truck catch up', () => {
+  const GUARD = CHAOS_HIGHWAY.hauler.guardGap;
+  const STEP = CHAOS_HIGHWAY.hauler.catchUp;
+  const CRUISE = CHAOS_HIGHWAY.hauler.cruise;
+  const CRAWL = CHAOS_HIGHWAY.hauler.crawl;
+
+  function trailing(lag: number): { w: World; hauler: Vehicle; gun: Vehicle } {
+    const { w, hauler } = openRoad();
+    const gun = playerVehicle(w);
+    gun.pos = roadPoint(w.seed, 0, N + frontAhead(hauler.chassisId) - lag, LANES[2]);
+    gun.heading = roadHeading(w.seed, N);
+    gun.speed = plainMaxSpeed(w, gun);
+    hauler.speed = CRUISE;
+    return { w, hauler, gun };
+  }
+
+  function slowGun(gun: Vehicle): void {
+    coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
+    mountedParts(gun, 'engine')[0].wear = 2;
+  }
+
+  it('drives one step slower than the speed the gun truck holds while it trails past the guard gap', () => {
+    const { w, hauler, gun } = trailing(15);
+    const pace = haulerPace(w);
+    expect(pace).toBe(Math.min(CRUISE, Math.max(CRAWL, plainMaxSpeed(w, gun) - STEP)));
+    expect(pace).toBeLessThan(plainMaxSpeed(w, gun));
+    planHaulerOrder(w);
+    expect(hauler.order).toMatchObject({ kind: 'through', pace });
+  });
+
+  it('keeps the old pace within the guard gap, ahead of the hauler, and for a free gun truck far behind', () => {
+    for (const lag of [GUARD - 1, -10, 60]) {
+      const { w, gun } = trailing(lag);
+      expect(haulerPace(w), `lag ${lag}`).toBe(Math.min(CRUISE, plainMaxSpeed(w, gun)));
+    }
+  });
+
+  it('drives a step under a slow gun truck but never under the crawl pace or above its limit', () => {
+    const { w, gun } = trailing(15);
+    slowGun(gun);
+    const limit = plainMaxSpeed(w, gun);
+    expect(limit).toBeLessThan(CRUISE);
+    expect(haulerPace(w)).toBe(Math.min(limit, Math.max(CRAWL, limit - STEP)));
+    expect(haulerPace(w)).toBeLessThanOrEqual(limit);
+  });
+
+  it('crawls for a hot gun truck that stands still, and sets no pace for a stranded one', () => {
+    const hot = trailing(15);
+    hot.gun.speed = 0;
+    hot.w.turn = Math.round(NOON_TURN);
+    hot.w.player.engineHeat = 1;
+    hot.w.chaosHighway!.hauler.alarmUntil = null;
+    expect(haulerPace(hot.w)).toBe(CRAWL);
+    const stranded = trailing(15);
+    getResources(stranded.w, stranded.gun).fuel = 0;
+    expect(haulerPace(stranded.w)).toBe(CRUISE);
+  });
+
+  it('gives the same pace and order after a save and load', () => {
+    const { w, hauler } = trailing(15);
+    planHaulerOrder(w);
+    const copy = JSON.parse(JSON.stringify(w)) as World;
+    planHaulerOrder(copy);
+    expect(haulerPace(copy)).toBe(haulerPace(w));
+    expect(haulerOf(copy).order).toEqual(hauler.order);
+  });
+});
