@@ -230,21 +230,65 @@ describe('garage render queue', () => {
     expect(renders.body(truck, PAINT.standard)).not.toBeNull();
   });
 
-  it('still marks a job failed and throws when it fails on a live context', () => {
+  it('still marks a job failed and reports it when it fails on a live context', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield; throw new Error('drew no pixels'); })(), dispose: () => {} });
-    const renders = new GarageRenders(RENDERER, fakeGpu(), build);
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, fakeGpu(), build, undefined, (error) => reports.push(error));
     const { truck } = scout();
 
-    expect(() => renders.ensureNow([needFor(truck, [])])).toThrow('drew no pixels');
-    expect(() => renders.ensureNow([needFor(truck, [])])).not.toThrow();
+    renders.ensureNow([needFor(truck, [])]);
+    renders.ensureNow([needFor(truck, [])]);
+
+    expect(reports).toHaveLength(1);
+    expect(String(reports[0])).toMatch(/drew no pixels/);
   });
 
   it('refuses to wait on the GPU when the screen needs the render at once', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
-    const renders = new GarageRenders(RENDERER, liveGpu(), build);
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, liveGpu(), build, undefined, (error) => reports.push(error));
     const { truck } = scout();
 
-    expect(() => renders.ensureNow([needFor(truck, [])])).toThrow(/at once/);
+    renders.ensureNow([needFor(truck, [])]);
+
+    expect(reports).toHaveLength(1);
+    expect(String(reports[0])).toMatch(/at once/);
+    expect(renders.body(truck, PAINT.standard)).toBeNull();
+  });
+
+  it('reports a body that fails once, keeps it failed, and still runs the other jobs (issue 1404)', () => {
+    const fake = faking();
+    const failing: BuildGarageJob = (renderer, job, store, now) => {
+      if (job.kind === 'body') return { steps: (function* () { throw new Error('The scout cab drew no pixels of its own'); })(), dispose: () => {} };
+      return fake.build(renderer, job, store, now);
+    };
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, liveGpu(), failing, undefined, (error) => reports.push(error));
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const need = needFor(truck, [gun]);
+
+    renders.ensureNow([need]);
+    renders.ensureNow([need]);
+
+    expect(reports).toHaveLength(1);
+    expect(renders.body(truck, PAINT.standard)).toBeNull();
+    expect(fake.started.length).toBeGreaterThan(0);
+    for (const spot of need.parts[0].spots) expect(renders.sprite(truck, PAINT.standard, gun, spot)).not.toBeNull();
+  });
+
+  it('reports a background render that fails without throwing out of step (issue 1404)', () => {
+    const build: BuildGarageJob = () => ({ steps: (function* () { throw new Error('blank readback'); })(), dispose: () => {} });
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, liveGpu(), build, undefined, (error) => reports.push(error));
+    const { truck } = scout();
+    renders.want([needFor(truck, [])]);
+
+    expect(() => renders.step(1e9)).not.toThrow();
+
+    expect(reports).toHaveLength(1);
+    expect(renders.body(truck, PAINT.standard)).toBeNull();
+    expect(renders.pending()).toBe(0);
   });
 
   it('has every sprite and the body once ensureNow returns, and tells its listeners once', () => {

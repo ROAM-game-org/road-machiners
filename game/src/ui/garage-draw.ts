@@ -13,7 +13,7 @@ import { uiSize } from "./ui-size";
 
 type PartItem = Extract<GridItem, { kind: "part" }>;
 
-export type GarageLook = { renders: GarageRenders; paint: TruckPaint; truck: Vehicle };
+export type GarageLook = { renders: GarageRenders; paint: TruckPaint; truck: Vehicle; body: GarageBody };
 
 function isPartItem(it: GridItem): it is PartItem {
   return it.kind === "part";
@@ -106,9 +106,7 @@ function glowOf(sprite: GarageSprite): HTMLElement {
 
 function hiddenSprite(look: GarageLook, it: PartItem): GarageSprite | null {
   if (!isCore(it.part)) return drawnSprite(look, it);
-  const body = look.renders.body(look.truck, look.paint);
-  if (!body) return null;
-  const sprite = body.cores.get(it.part.id);
+  const sprite = look.body.cores.get(it.part.id);
   if (!sprite) throw new Error(`The ${look.truck.chassisId} body has no outline of its hidden ${it.part.defId}`);
   return sprite;
 }
@@ -137,7 +135,12 @@ export function garageLooks(renders: GarageRenders | null, w: World, own: Vehicl
   const other = w.vehicles.find((v) => v.id === otherId) ?? null;
   const paint = w.player.paint;
   renders.ensureNow([shownNeed(own, paint), ...(other ? [shownNeed(other, paint)] : [])], [ownNeed(own, paint, extra)]);
-  return { own: { renders, paint, truck: own }, other: other ? { renders, paint, truck: other } : null };
+  return { own: lookOf(renders, own, paint), other: other ? lookOf(renders, other, paint) : null };
+}
+
+function lookOf(renders: GarageRenders, truck: Vehicle, paint: TruckPaint): GarageLook | null {
+  const body = renders.body(truck, paint);
+  return body ? { renders, paint, truck, body } : null;
 }
 
 export function ghostArt(look: GarageLook | null, it: GridItem, m: GridMetrics, box: PixelRect): HTMLElement | null {

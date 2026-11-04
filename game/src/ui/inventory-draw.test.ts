@@ -10,11 +10,11 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, drawnLayer, iconBox, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, GridScale, iconBox, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
-import { backgroundNeeds, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
+import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
 import type { GarageSprite } from "../three/render/garageRender";
 import { partDef } from "../data/parts";
 
@@ -232,13 +232,30 @@ describe("the garage grid's layers and marks", () => {
   });
 });
 
+describe("the garage looks of a truck whose picture failed (issue 1404)", () => {
+  const rendering = (body: unknown) => ({ ensureNow: () => {}, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
+
+  it("are missing, so the grid draws its plain outline", () => {
+    const w = emptyWorld();
+    const looks = garageLooks(rendering(null), w, w.vehicles[0], [], null);
+    expect(looks).toEqual({ own: null, other: null });
+  });
+
+  it("hold the body when it exists", () => {
+    const w = emptyWorld();
+    const body = { image: { url: "blob:x" }, cores: new Map() };
+    const looks = garageLooks(rendering(body), w, w.vehicles[0], [], null);
+    expect(looks.own?.body).toBe(body);
+  });
+});
+
 describe("the pivot a fan starts from", () => {
   const sprite = (pivot: GarageSprite["pivot"]): GarageSprite => ({ url: "blob:x", left: 0, top: 0, width: 1, height: 1, pivot });
   const lookWith = (made: GarageSprite | null): { look: GarageLook; gun: GridItem } => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
-    return { look: { renders: { sprite: () => made }, paint: w.player.paint, truck: me } as unknown as GarageLook, gun };
+    return { look: { renders: { sprite: () => made }, paint: w.player.paint, truck: me, body: { image: sprite(undefined), cores: new Map() } } as unknown as GarageLook, gun };
   };
   const m = gridMetrics("scout", gridOf(emptyWorld().vehicles[0]), 100);
 
@@ -256,6 +273,41 @@ describe("the pivot a fan starts from", () => {
   it("throws for a drawn gun that carries no pivot", () => {
     const { look, gun } = lookWith(sprite(undefined));
     expect(() => pivotPx(look, gun, m)).toThrow(/no pivot/);
+  });
+});
+
+describe("the grid scale fit", () => {
+  const w = emptyWorld();
+  const truck = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine", "scrapSheet"], { x: 30, y: 30 });
+  const heightAt = (scale: GridScale) => gridSize(scale.measure(truck, true)).height;
+
+  it("shrinks until the measured overflow is gone, counting the fixed padding", () => {
+    const scale = new GridScale();
+    const full = heightAt(scale);
+    const room = full * 0.85 - 10;
+    const padding = 30;
+    scale.settle("a", () => heightAt(scale) + padding - room, () => scale.measure(truck, true));
+    expect(heightAt(scale) + padding).toBeLessThanOrEqual(room + 1);
+  });
+
+  it("holds its size for the same key and refits for another", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale) - 100, () => scale.measure(truck, true));
+    const fitted = heightAt(scale);
+    expect(scale.holds("a")).toBe(true);
+    expect(heightAt(scale)).toBe(fitted);
+    expect(scale.holds("b")).toBe(false);
+    scale.reset();
+    expect(scale.holds("a")).toBe(false);
+  });
+
+  it("stops at the smallest cell when the room is too short", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale), () => scale.measure(truck, true));
+    const m = scale.mine;
+    expect(Math.sqrt(m.cellW * m.cellH)).toBeGreaterThanOrEqual(27.9);
   });
 });
 

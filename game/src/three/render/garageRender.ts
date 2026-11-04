@@ -6,6 +6,7 @@ import { wearLookStep } from '../../render/partLooks';
 import { cellRect, cellSteps, spanOf, unitsOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
+import { noteError } from '../crash';
 import type { GpuContext } from '../gpu-context';
 import { OPAQUE_ALPHA, flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
 import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
@@ -381,6 +382,7 @@ export class GarageRenders {
     private readonly gpu: GpuContext,
     private readonly build: BuildGarageJob = buildGarageJob,
     private readonly now: () => number = () => performance.now(),
+    private readonly report: (error: unknown) => void = noteError,
   ) {
     gpu.onRestored(() => {
       this.replan();
@@ -463,15 +465,16 @@ export class GarageRenders {
   private runNow(job: GarageJob): void {
     const epoch = this.gpu.epoch();
     this.jobEpoch = epoch;
-    const built = this.build(this.renderer, job, this, true);
     try {
-      for (let step = built.steps.next(); !step.done; step = built.steps.next()) if (step.value) throw new Error('A garage render waited on the GPU while the screen needed it at once');
+      const built = this.build(this.renderer, job, this, true);
+      try {
+        for (let step = built.steps.next(); !step.done; step = built.steps.next()) if (step.value) throw new Error('A garage render waited on the GPU while the screen needed it at once');
+      } finally {
+        built.dispose();
+      }
     } catch (error) {
       if (this.stale(epoch)) return;
-      for (const key of jobKeys(job)) this.failed.add(key);
-      throw error;
-    } finally {
-      built.dispose();
+      this.failJob(job, error);
     }
   }
 
@@ -480,6 +483,7 @@ export class GarageRenders {
     if (!run) return false;
     if (this.stale(run.epoch)) return this.drop(run);
     const result = this.next(run);
+    if (result === 'failed') return true;
     if (result.done) return this.finish(run);
     if (result.value) this.wait(run, result.value);
     return true;
@@ -490,7 +494,7 @@ export class GarageRenders {
     return run && !run.waiting ? run : null;
   }
 
-  private next(run: Running): IteratorResult<PortraitWait, void> {
+  private next(run: Running): IteratorResult<PortraitWait, void> | 'failed' {
     if (run.failure) return this.fail(run, run.failure.error);
     try {
       return run.steps.next();
@@ -503,8 +507,13 @@ export class GarageRenders {
     const job = this.queue.shift();
     if (!job) return null;
     this.jobEpoch = this.gpu.epoch();
-    const built = this.build(this.renderer, job, this, false);
-    this.running = { job, epoch: this.jobEpoch, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
+    try {
+      const built = this.build(this.renderer, job, this, false);
+      this.running = { job, epoch: this.jobEpoch, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
+    } catch (error) {
+      this.failJob(job, error);
+      return this.start();
+    }
     return this.running;
   }
 
@@ -520,12 +529,20 @@ export class GarageRenders {
     );
   }
 
-  private fail(run: Running, error: unknown): IteratorResult<PortraitWait, void> {
-    if (this.stale(run.epoch)) return { done: true, value: undefined };
-    for (const key of jobKeys(run.job)) this.failed.add(key);
+  private fail(run: Running, error: unknown): 'failed' {
+    if (this.stale(run.epoch)) {
+      this.drop(run);
+      return 'failed';
+    }
     this.running = null;
     run.dispose();
-    throw error;
+    this.failJob(run.job, error);
+    return 'failed';
+  }
+
+  private failJob(job: GarageJob, error: unknown): void {
+    for (const key of jobKeys(job)) this.failed.add(key);
+    this.report(error);
   }
 
   private drop(run: Running): boolean {

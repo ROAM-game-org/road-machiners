@@ -17,7 +17,10 @@ import { LogPanel } from "./log";
 import {
   claimRivalMark,
   escortStatusText,
+  dockSummary,
+  guardLeavesIn,
   heldContractClock,
+  heldContractDeadline,
   contractSummary,
   surveyProgress,
   isNotable,
@@ -46,7 +49,7 @@ import { token } from "./tokens";
 import { createSwitch, lockSlot, stackedLabel } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { kph, moneyEl } from "./units";
-import { playerVehicle } from "../sim/damage";
+import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import type { Refusal } from "../sim/types";
@@ -725,7 +728,7 @@ export class Hud {
   }
 
   private aimOf(w: World, v: Vehicle): ConditionAim | undefined {
-    if (v.id === playerVehicle(w).id) return undefined;
+    if (isPlayerTruck(w, v)) return undefined;
     if (this.actions.aimState(v.id).locked) return undefined;
     return { marks: aimMarks(w, v.id), pick: (partId) => this.actions.aimPart(v.id, partId) };
   }
@@ -834,8 +837,8 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
   return el(
     'div',
     { class: 'contract-line' },
-    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num' }, heldContractClock(w, c)),
+    el('span', {}, survey ? contractSummary(c) : dockSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num', title: heldContractDeadline(w, c) ?? undefined }, heldContractClock(w, c)),
   );
 }
 
@@ -844,7 +847,7 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
     "div",
     { class: "contract-line" },
     el("span", {}, t("hud.guard", { name: driverName(merc) })),
-    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+    el("span", { class: "num", title: t("contract.leaves", { when: clock(w.turn + turnsLeft).full }) }, guardLeavesIn(w, turnsLeft)),
   );
 }
 
