@@ -722,18 +722,22 @@ export function profileNoseTop(profile: FaceProfile, floor: number, inset: numbe
   return end === -1 ? null : profile.bottom + end * FACE_COLUMN;
 }
 
-export function profileGlassSetback(profile: FaceProfile, floor: number, inset: number): number | null {
+function firstGlassRow(profile: FaceProfile, floor: number, inset: number): number | null {
   const face = profileFace(profile, floor);
   if (face === null) return null;
   const row = profile.glass.findIndex((reach) => reach !== null && Math.abs(face - profile.outward * reach) > inset);
-  return row === -1 ? null : Math.abs(face - profile.outward * (profile.glass[row] as number));
+  return row === -1 ? null : row;
+}
+
+export function profileGlassSetback(profile: FaceProfile, floor: number, inset: number): number | null {
+  const row = firstGlassRow(profile, floor, inset);
+  const face = profileFace(profile, floor);
+  return row === null || face === null ? null : Math.abs(face - profile.outward * (profile.glass[row] as number));
 }
 
 export function profileGlassLine(profile: FaceProfile, floor: number, inset: number): number | null {
-  const face = profileFace(profile, floor);
-  if (face === null) return null;
-  const row = profile.glass.findIndex((reach) => reach !== null && Math.abs(face - profile.outward * reach) > inset);
-  return row === -1 ? null : profile.bottom + row * FACE_COLUMN;
+  const row = firstGlassRow(profile, floor, inset);
+  return row === null ? null : profile.bottom + row * FACE_COLUMN;
 }
 
 export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
