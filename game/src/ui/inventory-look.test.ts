@@ -13,6 +13,8 @@ class FakeNode {
   isConnected = true;
   clientWidth = 400;
   clientHeight = 300;
+  scrollTop = 0;
+  parentElement: FakeNode | null = null;
   classList = {
     add: (c: string) => void (this.className = `${this.className} ${c}`.trim()),
     remove: (c: string) => void (this.className = this.className.split(" ").filter((x) => x !== c).join(" ")),
@@ -57,6 +59,7 @@ function stubDom(): void {
     body: { insertAdjacentHTML: () => {} },
     querySelector: () => null,
   });
+  vi.stubGlobal("getComputedStyle", () => ({ overflowY: "visible", paddingBottom: "0px" }));
   vi.stubGlobal("window", { addEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1280, innerHeight: 720 });
 }
 
