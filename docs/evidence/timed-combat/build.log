@@ -1,0 +1,62 @@
+
+> build
+> tsc && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 485 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/ibm-plex-mono-vietnamese-400-normal-DDuiU_S-.woff               5.62 kB
+dist/assets/ibm-plex-mono-vietnamese-700-normal-Bs14ezHR.woff               5.64 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-700-normal-CtgKGIh5.woff             5.75 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-400-normal-DMdlQ8Kv.woff             5.82 kB
+dist/assets/ibm-plex-mono-vietnamese-400-normal-BulugwFq.woff2              5.87 kB
+dist/assets/DSEG14Classic-Italic-BR_LrGaO.woff2                             5.90 kB
+dist/assets/ibm-plex-mono-vietnamese-700-normal-apsD3J7v.woff2              6.07 kB
+dist/assets/barlow-semi-condensed-vietnamese-400-normal-D1YxRXwC.woff       6.28 kB
+dist/assets/barlow-semi-condensed-vietnamese-700-normal-BvUTSFNY.woff       6.37 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-400-normal-xuaO2J-f.woff2            6.91 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-700-normal-BDQ-w_bc.woff2            7.18 kB
+dist/assets/ibm-plex-mono-cyrillic-400-normal-CEL4l2ZJ.woff                 7.20 kB
+dist/assets/ibm-plex-mono-cyrillic-700-normal-O_YjL27c.woff                 7.28 kB
+dist/assets/barlow-semi-condensed-vietnamese-400-normal-Dj7eBp_3.woff2      7.83 kB
+dist/index.html                                                             7.97 kB │ gzip:     3.11 kB
+dist/assets/barlow-semi-condensed-vietnamese-700-normal-Dm7RZTvf.woff2      8.02 kB
+dist/assets/ibm-plex-mono-cyrillic-400-normal-BSMlKf0J.woff2                8.36 kB
+dist/assets/ibm-plex-mono-cyrillic-700-normal-Bp80XfeI.woff2                8.68 kB
+dist/assets/fira-sans-condensed-cyrillic-700-normal-C0V57pds.woff           8.96 kB
+dist/assets/fira-sans-condensed-cyrillic-400-normal-PSf1cj4F.woff           8.96 kB
+dist/assets/fira-sans-condensed-cyrillic-400-normal-Do_zqP0R.woff2         10.84 kB
+dist/assets/fira-sans-condensed-cyrillic-700-normal-BQ1RFKz5.woff2         11.53 kB
+dist/assets/ibm-plex-mono-latin-ext-700-normal-Cwsjk1Jb.woff               11.65 kB
+dist/assets/ibm-plex-mono-latin-ext-400-normal-D3D2R8hC.woff               11.77 kB
+dist/assets/barlow-semi-condensed-latin-ext-400-normal-Bm5hzUPR.woff       12.30 kB
+dist/assets/barlow-semi-condensed-latin-ext-700-normal-C0vCoZIV.woff       12.52 kB
+dist/assets/ibm-plex-mono-latin-400-normal-CvHOgSBP.woff                   13.14 kB
+dist/assets/ibm-plex-mono-latin-700-normal-CNHXzs6v.woff                   13.21 kB
+dist/assets/ibm-plex-mono-latin-ext-400-normal-BmRBH3aV.woff2              13.35 kB
+dist/assets/ibm-plex-mono-latin-ext-700-normal-Dhimjc7-.woff2              13.38 kB
+dist/assets/barlow-semi-condensed-latin-ext-400-normal-BDztQS4c.woff2      14.45 kB
+dist/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2                  14.71 kB
+dist/assets/ibm-plex-mono-latin-700-normal-7sUh57Bg.woff2                  14.91 kB
+dist/assets/barlow-semi-condensed-latin-ext-700-normal-BhgEo64M.woff2      15.08 kB
+dist/assets/fira-sans-condensed-cyrillic-ext-400-normal-CQX8rEZk.woff      15.51 kB
+dist/assets/fira-sans-condensed-cyrillic-ext-700-normal-C8ms5Umv.woff      15.54 kB
+dist/assets/fira-sans-condensed-cyrillic-ext-400-normal-BFYXjpeA.woff2     17.95 kB
+dist/assets/barlow-semi-condensed-latin-400-normal-CwTnoNB3.woff           19.66 kB
+dist/assets/fira-sans-condensed-cyrillic-ext-700-normal-CJQ5BKxn.woff2     19.74 kB
+dist/assets/barlow-semi-condensed-latin-700-normal-BMyZXq_9.woff           19.94 kB
+dist/assets/barlow-semi-condensed-latin-400-normal-DlzeKIMS.woff2          22.30 kB
+dist/assets/barlow-semi-condensed-latin-700-normal-BpqDG8I9.woff2          23.24 kB
+dist/assets/turn-worker-Z3FpJ2Pz.js                                     6,402.21 kB
+dist/assets/index-DCX__c1V.css                                            129.40 kB │ gzip:    24.94 kB
+dist/assets/bench-ChWjojD3.js                                              25.04 kB │ gzip:     9.43 kB │ map:     91.34 kB
+dist/assets/index-DybgKEEV.js                                           2,262.09 kB │ gzip:   666.74 kB │ map:  5,863.67 kB
+dist/assets/three.core-CMmCxfzi.js                                      6,607.81 kB │ gzip: 2,223.24 kB │ map: 10,188.04 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 11.28s

@@ -1,0 +1,34 @@
+{
+  "revision": "062adae19e8a6eb4ae503b390f0474e69b74865e",
+  "stage": "after",
+  "seeds": [
+    1337,
+    41,
+    73
+  ],
+  "pairs": [
+    [
+      "mg",
+      "cannon"
+    ],
+    [
+      "mg",
+      "shotgun"
+    ],
+    [
+      "cannon",
+      "shotgun"
+    ]
+  ],
+  "armors": [
+    "bare",
+    "plates"
+  ],
+  "driver": "buggy",
+  "chassis": "hauler",
+  "wear": 0,
+  "gap": 8,
+  "orbit": 6,
+  "maxTurns": 120,
+  "sourceTree": "53f292ab5bc94b4137b0cc09d91163b679e6ad76"
+}

@@ -31,3 +31,13 @@ The highway comparison uses the existing escort policy and the same seeds, purch
 ## Verification
 
 Use test-driven development for the production simulation. Tests cover canceled firing attempts, impact ordering, save and worker round trips, shots crossing turns, disabled guns and engines, destroyed shooters, moving targets, every weapon family, and unchanged behavior outside combat. Run focused tests, the quality gate, and a real browser fight. Keep the prototype worktree available for comparison. Do not merge or publish.
+
+## Validation
+
+Timed combat is now the default in the feature worktree. The final focused suite passed 704 tests across 21 files. The production build and final graphics browser playtest passed. Browser records confirm fixed firing times, canceled attempts, and paused flights at turn boundaries. Independent review findings were fixed and covered by regressions. The main checkout remains unmerged.
+
+The matched comparison contains 18 duels per version and three highway seeds per version. Recorded damage includes fatal impacts on removed trucks. Every highway run uses the same collector, settings, escort policy, and stopping rule. The purchasing policy is identical, but realized purchases differ as damage and fort arrivals change. This deviates from the original fixed-purchases wording. See [results and evidence](timed-combat-results.md) for the measurements and revision identifiers.
+
+## Conclusion
+
+Timed combat is the default at runtime source revision `062adae19e8a6eb4ae503b390f0474e69b74865e`. The matched runs show lower duel damage rates and one additional highway stretch reached on each seed.
