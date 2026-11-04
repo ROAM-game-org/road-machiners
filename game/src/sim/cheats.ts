@@ -24,6 +24,7 @@ import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
 import type { Faction, SunwardHunt, Vehicle, World } from './types';
+import { ownExplored } from './explored';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
@@ -307,7 +308,7 @@ export function startWeather(world: World, kind: string, turns: number | null, o
 
 export function revealMap(world: World): World {
   return update(world, (w) => {
-    w.player.explored.fill(1);
+    ownExplored(w.player).fill(1);
     for (const site of atlasSites(atlasOf(w.terrain))) {
       if (!w.player.discovered.includes(site.id)) chartSite(w, site);
     }

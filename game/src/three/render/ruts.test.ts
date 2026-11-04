@@ -72,6 +72,27 @@ describe('Ruts', () => {
     expect(ruts.mesh.count).toBeLessThanOrEqual(2 * (stepsOfArc + 2));
   });
 
+  it('uploads only the laid segments in a frame, and everything in the frame the turn fades them', () => {
+    const w = worldOn('sand');
+    const ruts = new Ruts(new THREE.Scene());
+    ruts.tick(1);
+    ruts.tick(1);
+
+    drive(ruts, w, 100, 100 + 2 * RUT.step);
+
+    const laid = ruts.mesh.count;
+    expect(laid).toBeGreaterThan(0);
+    const matrixRanges = ruts.mesh.instanceMatrix.updateRanges;
+    expect(matrixRanges.length).toBe(laid);
+    expect(matrixRanges.every((r) => r.count === 16)).toBe(true);
+    expect(ruts.mesh.instanceColor?.updateRanges.every((r) => r.count === 3)).toBe(true);
+
+    ruts.tick(2);
+    drive(ruts, w, 110, 110 + RUT.step);
+    expect(ruts.mesh.instanceMatrix.updateRanges.length).toBe(0);
+    expect(ruts.mesh.instanceColor?.updateRanges.length).toBe(0);
+  });
+
   it('lays nothing below one step of travel', () => {
     const w = worldOn('sand');
     const ruts = new Ruts(new THREE.Scene());

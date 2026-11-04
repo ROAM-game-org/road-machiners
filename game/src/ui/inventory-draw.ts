@@ -3,8 +3,8 @@ import { CRATE_MASS, PARCEL } from "../data/goods";
 import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
-import { baseGrid, facingOf, gridOf, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
-import type { GridItem, PartInstance, Rot, Vehicle, World } from "../sim/types";
+import { baseGrid, cellsTurned, facingOf, gridOf, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
+import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
 import { workOf } from "../sim/states";
@@ -142,6 +142,10 @@ export function lootGoodItem(good: string): GridItem {
   return { id: `loot-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
 }
 
+export function storedGoodItem(good: string): GridItem {
+  return { id: `stored-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
+}
+
 export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null, picked: { item: GridItem } | null): HTMLElement {
   const size = gridSize(m);
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
@@ -174,14 +178,24 @@ export function cellEl(c: Cell, x: number, y: number, m: GridMetrics): HTMLEleme
   return el("div", { class: `inv-cell c-${c === "." ? "plain" : c}${spare}`, "data-cell": `${x},${y}`, style: pxStyle(rectOf(m, x, y, 1, 1)), title: CELL_TITLE[c] });
 }
 
+export function iconBox(it: GridItem, m: GridMetrics): { width: number; height: number } {
+  const box = footprint(it);
+  const sideways = facingOf(it) % 180 === 90;
+  const across = cellsTurned(it);
+  const wide = box.w * m.cellW - 2;
+  const tall = box.h * m.cellH - 2;
+  const room = { width: sideways ? tall : wide, height: sideways ? wide : tall };
+  if (across === sideways) return room;
+  const own = itemSize({ ...it, rot: 0 });
+  const k = Math.min(room.width / own.w, room.height / own.h);
+  return { width: own.w * k, height: own.h * k };
+}
+
 export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
   const icon = gridItemIcon(it);
   const gun = weaponDefOf(it);
   if (!gun) return icon;
-  const box = footprint(it);
-  const across = it.rot % 2 === 1;
-  const width = (across ? box.h * m.cellH : box.w * m.cellW) - 2;
-  const height = (across ? box.w * m.cellW : box.h * m.cellH) - 2;
+  const { width, height } = iconBox(it, m);
   icon.style.cssText += `;position:absolute;left:50%;top:50%;width:${width}px;height:${height}px;transform:translate(-50%,-50%) rotate(${facingOf(it)}deg)`;
   return icon;
 }
@@ -315,11 +329,6 @@ export function itemState(it: GridItem, mounted: boolean): Msg {
 }
 
 const SVG = "http://www.w3.org/2000/svg";
-
-export function nextRot(it: GridItem): Rot {
-  if (weaponDefOf(it)) return ((it.rot + 1) % 4) as Rot;
-  return it.rot === 0 ? 1 : 0;
-}
 
 export function weaponDefOf(it: GridItem): WeaponDef | null {
   if (it.kind !== "part") return null;

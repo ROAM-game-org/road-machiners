@@ -3,7 +3,7 @@ import { AssetUnreachable } from '../fetch-asset';
 import { SIGN_STAGES } from '../render/sign';
 import { bindAttr, setText } from '../text/language';
 import { sameMsg, t, type Msg } from '../text/msg';
-import { BOOT_STEPS, BOOT_TEXT, BootProgress, type BootState, type BootStep } from './boot-progress';
+import { BOOT_MEASURE, BOOT_STEPS, BOOT_TEXT, BootProgress, type BootState, type BootStep } from './boot-progress';
 
 const FADE_MS = 250;
 const SIGN_STAGE_MS = 500;
@@ -77,9 +77,11 @@ export class BootScreen {
 
   async track<T>(step: BootStep, work: Promise<T> | (() => T), label?: Msg): Promise<T> {
     this.begin(step, label);
+    const start = performance.now();
     try {
       if (typeof work === 'function') await this.painted();
       const result = await (typeof work === 'function' ? work() : work);
+      performance.measure(`${BOOT_MEASURE}${step}`, { start });
       if (!this.progress.failed) this.progress.finish(step);
       this.render();
       return result;

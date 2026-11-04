@@ -8,6 +8,9 @@ import { chooseOn } from './tracks';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
 import { dist } from './vec';
+import { NPC_BEHAVIOR } from '../data/npcs';
+import { joinCompany } from './companies';
+import { followSpot, postOf } from './tow';
 import { bodyHitChance, inArc } from './combat';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
@@ -347,5 +350,37 @@ describe('intercept', () => {
     planNpcOrders(w);
     const dest = v.order && 'dest' in v.order ? v.order.dest : null;
     expect(dest).not.toEqual(interceptOf(w, v, me));
+  });
+});
+
+describe('a guard in a company', () => {
+  const escort = { kind: 'escort', site: null, fee: 0 } as const;
+
+  function guarded() {
+    const w = emptyWorld({ x: 100, y: 60 });
+    const trader = fighter(w, 'trader', ['stockEngine', 'mg'], { x: 50, y: 30 });
+    trader.speed = 4;
+    const guard = fighter(w, 'merc', ['stockEngine', 'mg'], { x: 48, y: 34 }, 'buggy');
+    joinCompany(w, guard, trader, 'escort', escort);
+    return { w, trader, guard, post: postOf(w, guard)! };
+  }
+
+  it('has its post beside the truck it escorts, and none when it escorts nothing', () => {
+    const { w, trader, guard, post } = guarded();
+    expect(post).toEqual(followSpot(w, guard, trader, 0));
+    expect(postOf(w, trader)).toBeNull();
+  });
+
+  it('fights from a spot within the gap its leader waits at, for a foe at the convoy', () => {
+    const { w, post } = guarded();
+    const foe = fighter(w, 'scrapjaw', ['stockEngine', 'mg'], { x: post.x + 14, y: post.y }, 'buggy');
+    const guard = w.vehicles.find((v) => v.brain?.templateId === 'merc')!;
+    expect(dist(fightPoint(w, guard, foe, CLEAR, post), post)).toBeLessThanOrEqual(NPC_BEHAVIOR.escortWaitGap);
+  });
+
+  it('holds its post for a foe too far for its guns to reach from there', () => {
+    const { w, guard, post } = guarded();
+    const foe = fighter(w, 'scrapjaw', ['stockEngine', 'mg'], { x: post.x + 80, y: post.y }, 'buggy');
+    expect(fightPoint(w, guard, foe, CLEAR, post)).toEqual(post);
   });
 });

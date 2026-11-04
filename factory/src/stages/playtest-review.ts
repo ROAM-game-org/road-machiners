@@ -3,7 +3,8 @@ export type Ending = 'complete' | 'death' | 'error';
 export type LogSummary = { turns: number; shots: number; destroyed: number; knockouts: number; deaths: number; stalls: number; moneyIn: number; moneyOut: number; npcGoals: Record<string, number>; playerTiles: number };
 export type LogFacts = { seed: number; turns: number; sha: string | null; lines: number; events: number; ending: Ending; endTurn: number; message: string | null; summary: LogSummary; quiet: string[] };
 
-export type Finding = { id: string; severity: 'important' | 'minor'; title: string; evidence: string; cause: 'release' | 'old'; why: string; known: number | null; fixed: boolean };
+export type BalanceNumbers = { head: string; baseline: string };
+export type Finding = { id: string; severity: 'important' | 'minor' | 'balance'; title: string; evidence: string; cause: 'release' | 'old'; why: string; known: number | null; fixed: boolean; numbers: BalanceNumbers | null };
 export type Review = {
   verdict: 'clean' | 'fixed' | 'blocked';
   summary: string;
@@ -49,7 +50,7 @@ export function quietParts(summary: LogSummary): string[] {
 }
 
 const VERDICTS = ['clean', 'fixed', 'blocked'];
-const SEVERITIES = ['important', 'minor'];
+const SEVERITIES = ['important', 'minor', 'balance'];
 const CAUSES = ['release', 'old'];
 const LISTS = ['observations', 'suspected', 'limitations', 'findings', 'fixes'] as const;
 const TEXT_LISTS = ['observations', 'suspected', 'limitations', 'fixes'] as const;
@@ -98,11 +99,17 @@ function findingErrors(given: Finding, index: number): string[] {
 }
 
 function withDefaults(given: Finding): Finding {
-  return { ...given, known: given.known ?? null, fixed: given.fixed ?? false };
+  return { ...given, known: given.known ?? null, fixed: given.fixed ?? false, numbers: given.numbers ?? null };
+}
+
+function hasNumbers(numbers: Finding['numbers']): boolean {
+  return numbers !== null && [numbers.head, numbers.baseline].every((side) => typeof side === 'string' && /\d/.test(side));
 }
 
 const FINDING_RULES: ((finding: Finding) => string | null)[] = [
-  (finding) => (SEVERITIES.includes(finding.severity) ? null : `has severity ${String(finding.severity)}, not important or minor`),
+  (finding) => (SEVERITIES.includes(finding.severity) ? null : `has severity ${String(finding.severity)}, not important, minor or balance`),
+  (finding) => (finding.severity === 'balance' && !hasNumbers(finding.numbers) ? 'is balance and needs numbers: {"head": "...", "baseline": "..."}, each text holding the measured numbers' : null),
+  (finding) => (finding.severity === 'balance' && finding.fixed ? 'is balance, which is never fixed in the playtest, so fixed must be false' : null),
   (finding) => (CAUSES.includes(finding.cause) ? null : `has cause ${String(finding.cause)}, not release or old`),
   (finding) => (typeof finding.why === 'string' && finding.why.trim() !== '' ? null : 'gives no reason for its cause'),
   (finding) => (finding.known === null || Number.isInteger(finding.known) ? null : `has known ${String(finding.known)}, not an issue number or null`),

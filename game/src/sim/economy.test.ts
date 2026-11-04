@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CHASSIS } from "../data/chassis";
 import { CRATE_MASS, ECONOMY, GOOD_IDS } from "../data/goods";
 import { vehicleMass } from "./mass";
-import { SHOPS } from "../data/market";
+import { GOODS_STORE, SHOPS } from "../data/market";
 import { goodBasePrice, lotPrice, shopState, stockTarget } from "./market";
 import { PARTS, partDef } from "../data/parts";
 import { REGION } from "../data/region";
@@ -627,10 +627,11 @@ describe("garage", () => {
     expect(mountedParts(next.vehicles[0], "engine")).toHaveLength(1);
   });
 
-  it("refuses a swap whose goods would not fit the new chassis and changes nothing", () => {
+  it("refuses a swap whose goods would fit neither the new chassis nor the shop store, and changes nothing", () => {
     const w = longbedAtBowl();
     w.player.money = CHASSIS.buggy.value * 10;
     addGoods(w, w.vehicles[0], "parts", 1000);
+    w.player.storedGoods = { bowl: { salt: GOODS_STORE.crates } };
     const before = structuredClone(w);
 
     expect(() => buyChassis(w, "buggy")).toThrow("Refused: noCargoRoom");

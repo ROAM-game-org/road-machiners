@@ -10,6 +10,7 @@ import { REGION } from '../data/region';
 import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
+import { restoreStores, storedCrates } from './goods-store';
 import type { StartKit } from '../data/start';
 import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
@@ -141,6 +142,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       discovered: [],
       scavenged: [],
       storage: [],
+      storedGoods: {},
       contracts: [],
       pastContracts: [],
       costBasis: { ...kit.costBasis },
@@ -266,18 +268,27 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
 
 export function update(world: World, fn: (draft: World) => void): World {
   const draft = cloneWorld(world);
+  settleDraft(draft, fn);
+  return draft;
+}
+
+function settleDraft(draft: World, fn: (draft: World) => void): void {
   draft.events = [];
   draft.removed = [];
   fn(draft);
   settleAims(draft);
   settleOverdrive(draft);
-  return draft;
 }
 
 function settleOverdrive(w: World): void {
   if (!w.player.overdrive || overdriveBlock(w, playerVehicle(w)) === null) return;
   w.player.overdrive = false;
   w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
+}
+
+function parkOverdrive(w: World): void {
+  if (!w.player.overdrive) return;
+  if (playerVehicle(w).speed <= RULES.parkedSpeed || w.player.state !== 'active' || isTowed(w)) w.player.overdrive = false;
 }
 
 export type ActBlock = 'knockedOut' | 'towed' | 'onRadio';
@@ -371,9 +382,18 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
+  const draft = cloneWorld(world);
+  endTurnInPlace(draft, move);
+  return draft;
+}
+
+export function endTurnInPlace(
+  world: World,
+  move: (w: World) => void,
+): void {
   if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
   if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
-  return timed('turn', () => update(world, (w) => {
+  timed('turn', () => settleDraft(world, (w) => {
     const troubleBefore = troubleOf(w);
     w.turn++;
     advanceWeather(w);
@@ -438,6 +458,7 @@ export function endTurn(
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
+    parkOverdrive(w);
     advanceChaosHighway(w);
     openRoadScene(w);
     spawnNpcs(w);
@@ -584,6 +605,7 @@ export type Carried = {
   costBasis: Record<string, number>;
   truck: { chassisId: string; items: CarriedItem[] } | null;
   storage: CarriedPart[];
+  storedGoods: Record<string, Record<string, number>>;
   setup: unknown;
   quests: CarriedQuestVars;
   notes: string[];
@@ -614,6 +636,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   carryPaint(world, carried.paint);
   carryQuests(world, carried);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit);
+  restoreStores(world, carried.storedGoods);
   if (run) carryRun(world, run);
   world.player.costBasis = heldBasis(world, carried.costBasis);
   for (const truck of playerTrucks(world)) fitStores(world, truck);
@@ -708,7 +731,8 @@ function carryPerks(world: World, perks: string[]): void {
 }
 
 function heldBasis(world: World, basis: Record<string, number>): Record<string, number> {
-  const held = (good: string) => playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
+  const stored = storedCrates(world);
+  const held = (good: string) => good in stored || playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
   return Object.fromEntries(Object.entries(basis).filter(([good]) => held(good)));
 }
 

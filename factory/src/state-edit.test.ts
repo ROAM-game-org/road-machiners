@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { editState, setPath } from './state-edit';
 
-const RELEASE = { issue: 11, branch: 'release/x', day: 'x', postId: 42, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE = { issue: 11, day: 'x', postId: 42, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 
 describe('setPath', () => {
   it('sets a nested value and leaves the rest of the state as it was', () => {

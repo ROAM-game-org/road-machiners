@@ -1,14 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
-import { controlsFor, entryEnabled, entryReason, type MenuEntry } from "./game-menu";
+import { buildNote, controlsFor, entryEnabled, entryReason, type MenuEntry } from "./game-menu";
+import { openWebGL } from "../three/webgl";
 import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
   const states = [
-    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, report: true } },
-    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, report: true } },
-    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
-    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
+    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
+    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, fullscreen: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
   ];
   for (const { busy, hasSave, expected } of states) {
     it(`busy ${busy}, saved ${hasSave}`, () => {
@@ -65,5 +66,28 @@ describe("the help of a touch screen", () => {
 
   it("keeps the key groups on a screen with a keyboard", () => {
     expect(controlsFor(modeRulesOf("roaming"), false).length).toBeGreaterThan(1);
+  });
+});
+
+describe("buildNote", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function drawOn(renderer: string) {
+    const context = { RENDERER: 3, getExtension: () => null, getParameter: () => renderer };
+    openWebGL({ getContext: () => context, addEventListener: () => {}, removeEventListener: () => {} } as unknown as HTMLCanvasElement, {});
+  }
+
+  it("names the browser host and the renderer", () => {
+    vi.stubGlobal("window", {});
+    drawOn("Test GPU");
+    expect(resolve(buildNote(), "en")).toMatch(/, browser, drawing on Test GPU$/);
+  });
+
+  it("names the desktop host", () => {
+    const calls = Object.fromEntries(["readAll", "put", "remove", "appendLog", "readLog"].map((name) => [name, () => {}]));
+    vi.stubGlobal("window", { roamDesktop: { kind: "desktop", saves: calls } });
+    drawOn("Test GPU");
+    expect(resolve(buildNote(), "en")).toMatch(/, desktop app, drawing on Test GPU$/);
+    expect(resolve(buildNote(), "ru")).toMatch(/десктопное приложение, отрисовка через Test GPU$/);
   });
 });

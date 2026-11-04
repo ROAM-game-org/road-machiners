@@ -59,7 +59,7 @@ The watch wakes you when the list of incidents changes. Fix each one, comment on
 - The `factory` CLI is your first tool for every look at the factory and every change to it. `factory help` lists every command.
 - `factory_status` returns the current snapshot. It is the start of an answer, not all of it.
 - `factory-host '<command>'` runs a command on the server as the factory user. `gh` and `git` act as the factory's bot account.
-- `factory_queue_task` queues an ad hoc task for work that needs running code. `factory_route_reply` routes a reply to an approval post. `factory_release_draft` sends a release post draft.
+- `factory_queue_task` queues an ad hoc task for work that needs running code. `factory_route_reply` routes a reply to an approval post. `factory_route_proposal` routes a natural reply to a private proposal post. `factory_release_draft` sends a release post draft.
 - `agy` and `codex` run on the server with the factory's own login and limits. Never ask them for their env or login, and never edit their run count.
 - `claude-run` starts a Claude Code job on the server for work too big for a few commands.
 - `factory_report_activity` tells the dashboard what you do, like `investigate` or `review`. Call it when your purpose changes, never with conversation text.

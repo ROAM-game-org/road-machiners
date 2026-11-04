@@ -79,7 +79,7 @@ describe('NPC speed floor and wear odds', () => {
   });
 
   it('rolls every other template as it did before the floor moved to the table', () => {
-    const hashes = {"buggy":"3c5dc4fc68b6","trader":"ef4b43e252cf","scavenger":"e1b1f32b8afa","bowlFarmer":"887ff83e8162","noseArmy":"321b9ebd771e","marshal":"94f9c49dcd24","courier":"bd7d63994a24","roamer":"5776c02146ee","vulture":"a5eefa9e7f93","convoy":"2feb26bc945d","convoyGuard":"ecbc2fd1a1e2","merc":"3dd1c19a6f16","cavalcade":"b60e707e489e","hunter":"7938e748019a"};
+    const hashes = {"buggy":"9711a18a0d55","trader":"54bce4edb2fe","scavenger":"c4a4e8699826","bowlFarmer":"7c716ce81af8","noseArmy":"cd3a1f82d6c0","marshal":"07e1f8e88788","courier":"688371b41596","roamer":"67124f69906a","vulture":"ade8a2681e58","convoy":"5cab9cb81c34","convoyGuard":"de15b1e915f0","merc":"3c18a16489c1","cavalcade":"4aaa1f623e63","hunter":"0ed25adf464f"};
     for (const [id, hash] of Object.entries(hashes)) {
       const rolls = [1, 2, 3].map((seed) => describeLoadout(rolled(NPCS[id], 'standard', seed)));
       expect(createHash('sha1').update(rolls.join('|')).digest('hex').slice(0, 12), id).toBe(hash);

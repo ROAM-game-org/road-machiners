@@ -8,6 +8,8 @@ import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
+import { desktopHost } from "../three/save-db";
+import { drawingRenderer } from "../three/webgl";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
 import { OptionsPanel } from "./options";
 import type { SoundSettings } from "./sound";
@@ -21,7 +23,7 @@ export type GameMenuActions = SavePanelActions & {
   unstuck: { reason: () => Msg | null; run: () => void };
 };
 
-export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "report";
+export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "fullscreen" | "tips" | "help" | "report";
 
 export type PhoneMenuLinks = { report: () => void; reportOpen: () => boolean };
 
@@ -31,6 +33,7 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "load", label: t("menu.load") },
   { entry: "unstuck", label: t("menu.unstuck") },
   { entry: "options", label: t("menu.options") },
+  { entry: "fullscreen", label: t("menu.fullscreen") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
   { entry: "report", label: t("hud.feedbackTitle") },
@@ -130,7 +133,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options" || entry === "report") return true;
+  if (["fullscreen", "help", "tips", "options", "report"].includes(entry)) return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -138,6 +141,13 @@ export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean):
 export function entryReason(entry: MenuEntry, busy: boolean, hasSave: boolean): Msg | null {
   if (entryEnabled(entry, busy, hasSave)) return null;
   return busy ? t("menu.waitForTurn") : t("save.none");
+}
+
+export function buildNote(): Msg {
+  const renderer = drawingRenderer();
+  if (renderer === null) throw new Error("The Help panel opened before the game made its drawing context");
+  const host = desktopHost() ? t("help.hostDesktop") : t("help.hostBrowser");
+  return t("help.build", { version: verbatim(versionLabel()), host, renderer: verbatim(renderer) });
 }
 
 export class HelpPanel {
@@ -159,7 +169,7 @@ export class HelpPanel {
     const root = panel("help dialog");
     bindAttr(root, "aria-label", t("help.title"));
     const setup = this.setup();
-    const notes = [verbatim(versionLabel()), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
+    const notes = [buildNote(), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
       el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
       el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
@@ -227,10 +237,11 @@ export class GameMenu {
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {
       const role = entry === "tips" ? "menuitemcheckbox" : "menuitem";
-      const item = el("button", { role, "data-entry": entry, onclick: () => this.choose(entry) }, label) as HTMLButtonElement;
+      const item = el("button", { role, "data-entry": entry, onclick: entry === "fullscreen" ? () => this.toggleFullscreen() : () => this.choose(entry) }, label) as HTMLButtonElement;
       this.items[entry] = item;
       this.list.append(item);
     }
+    document.addEventListener("fullscreenchange", () => this.refresh());
     this.root.append(this.button, this.list);
     this.refresh();
   }
@@ -243,6 +254,8 @@ export class GameMenu {
     const busy = this.isBusy();
     const saved = this.actions.hasSave();
     for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
+    this.items.fullscreen.hidden = !document.fullscreenEnabled;
+    setText(this.items.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
@@ -311,6 +324,13 @@ export class GameMenu {
     } else if (entry === "report") this.phone.report();
     else if (entry === "help") this.help.toggle();
     else this.newGame();
+  }
+
+  private toggleFullscreen(): void {
+    this.closeList(false);
+    const change = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    change.catch(() => this.refresh());
+    this.button.focus();
   }
 
   private newGame(): void {

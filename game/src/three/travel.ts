@@ -10,11 +10,11 @@ import {
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
-import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
-import { mergePerf } from "../perf";
+import { mergePerf, timed } from "../perf";
 import { reportError } from "./crash";
 import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
@@ -61,10 +61,10 @@ type OpenStop = { tail: Tail; ends: Record<string, Pose> };
 export class FastPace {
   private speed = 1;
 
-  step(realMs: number, target: number, fastSpeed: number): number {
+  step(realMs: number, target: number, easeSpan: number): number {
     if (!(realMs >= 0)) throw new Error(`The pace only moves forward, got ${realMs} ms`);
-    if (!(target >= 1 && target <= fastSpeed)) throw new Error(`A pace target lies between 1 and ${fastSpeed}, got ${target}`);
-    const reach = ((fastSpeed - 1) * realMs) / CONFIG.playEaseMs;
+    if (!(target >= 1)) throw new Error(`A pace target is at least 1, got ${target}`);
+    const reach = ((easeSpan - 1) * realMs) / CONFIG.playEaseMs;
     this.speed += Math.max(-reach, Math.min(reach, target - this.speed));
     return this.speed;
   }
@@ -324,7 +324,7 @@ export class Travel {
   }
 
   private fastTravel(): boolean {
-    return this.automatic && CONFIG.travelSpeeds[this.speedIndex] > 1;
+    return CONFIG.travelSpeeds[this.speedIndex] > 1;
   }
 
   private runsOnItsOwn(world: World, now: number): boolean {
@@ -400,7 +400,7 @@ export class Travel {
 
   private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
     if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
-    if (followsOrder(world)) this.turns.prepare(world, drive, CONFIG.travelSpeeds[this.speedIndex] > 1);
+    if (followsOrder(world)) this.turns.prepare(world, drive, this.fastTravel());
   }
 
   beginPlayback(
@@ -445,14 +445,20 @@ export class Travel {
 
   paceSpeed(world: World, now: number, realMs: number, fastSpeed: number): number {
     const outrunsNothing = this.turns.isReady(world) || !this.continues(world, now);
-    const held = this.pace.step(realMs, this.isFast(now) && outrunsNothing ? fastSpeed : 1, fastSpeed);
-    return Math.max(held, this.automatic ? CONFIG.travelSpeeds[this.speedIndex] : 1);
+    const picked = this.getSpeed();
+    const held = this.isFast(now) && outrunsNothing ? this.keptStep(Math.max(fastSpeed, picked)) : 1;
+    return this.pace.step(realMs, Math.max(held, picked), fastSpeed);
   }
 
-  getSpeed(now: number, fastSpeed: number): number {
-    const picked = CONFIG.travelSpeeds[this.speedIndex];
-    if (this.isFast(now)) return Math.max(fastSpeed, picked);
-    return this.automatic ? picked : 1;
+  getSpeed(): number {
+    return this.keptStep(CONFIG.travelSpeeds[this.speedIndex]);
+  }
+
+  private keptStep(speed: number): number {
+    const reach = Math.min(speed, this.turns.keptSpeed());
+    let kept = 1;
+    for (const step of CONFIG.travelSpeeds) if (step <= reach && step > kept) kept = step;
+    return kept;
   }
 
   getSpeedIndex(): number {
@@ -519,7 +525,9 @@ export class TurnPreparation {
     fastTravel: boolean;
     ready: PreparedTurn | null;
     failure: string | null;
+    postedAt: number;
   } | null = null;
+  private prepMs: number | null = null;
 
   constructor(private readonly tailSteps: number) {}
 
@@ -534,6 +542,7 @@ export class TurnPreparation {
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id !== response.id) return;
+      this.notePrep(performance.now() - this.pending.postedAt);
       this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
     };
     worker.onerror = (event) => {
@@ -558,6 +567,15 @@ export class TurnPreparation {
     const pending = this.pending;
     if (!pending || pending.ready || pending.failure) return;
     pending.id = this.post(pending.before, pending.drive, pending.fastTravel);
+    pending.postedAt = performance.now();
+  }
+
+  private notePrep(ms: number): void {
+    this.prepMs = this.prepMs === null ? ms : this.prepMs + CONFIG.turnPrepSmoothing * (ms - this.prepMs);
+  }
+
+  keptSpeed(): number {
+    return this.prepMs === null ? Infinity : MOVE_MS / this.prepMs;
   }
 
   private fail(id: number | null, message: string): void {
@@ -589,7 +607,7 @@ export class TurnPreparation {
 
   prepare(world: World, saved: DriveSnapshot, fastTravel: boolean): void {
     if (this.isFresh(world) && this.pending?.fastTravel === fastTravel) return;
-    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, ready: null, failure: null };
+    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, ready: null, failure: null, postedAt: performance.now() };
   }
 
   private post(world: World, saved: DriveSnapshot, fastTravel: boolean): number {
@@ -598,19 +616,17 @@ export class TurnPreparation {
     if (this.load.gaveUp || this.load.waiting) return id;
     this.worker ??= this.createWorker();
     const snapshot = saved.snapshot.slice();
-    this.worker.postMessage(
-      {
-        kind: "turn",
-        id,
-        questLanguage: currentQuestLanguage(),
-        tailSteps: this.tailSteps,
-        fastTravel,
-        ...this.obstacles.split(state),
-        drive: { ...saved, snapshot },
-        terrain: this.terrain === terrain ? null : terrain,
-      } satisfies TurnRequest,
-      [snapshot.buffer],
-    );
+    const request = timed("send-turn-split", () => ({
+      kind: "turn" as const,
+      id,
+      questLanguage: currentQuestLanguage(),
+      tailSteps: this.tailSteps,
+      fastTravel,
+      ...this.obstacles.split(state),
+      drive: { ...saved, snapshot },
+      terrain: this.terrain === terrain ? null : terrain,
+    }));
+    timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
     this.terrain = terrain;
     return id;
   }

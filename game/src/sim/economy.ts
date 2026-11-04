@@ -30,6 +30,7 @@ import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
 import { straighten } from './rig';
+import { heldCrates, storeSwapOverflow } from './goods-store';
 
 export type Supply = "fuel" | "supplies";
 
@@ -105,9 +106,8 @@ export function tradeGoods(
     throw new Error(`Bad trade ${count} ${good}`);
   if (direction === "buy") requireStock(world, shopId, good, count);
   const total = getLotTradePrice(world, vehicle, shopId, good, count, direction);
-  if (direction === "buy") buyGoods(world, vehicle, good, count, total);
+  if (direction === "buy") buyGoods(world, vehicle, shopId, good, count, total);
   else sellGoods(world, vehicle, shopId, good, count, total);
-  recordTrade(shopId, shopState(world, shopId), good, count, direction);
 }
 
 function requireStock(world: World, shopId: string, good: string, count: number): void {
@@ -115,7 +115,7 @@ function requireStock(world: World, shopId: string, good: string, count: number)
   if (count > goodStock(shopState(world, shopId), good)) throw new Refused({ id: "noStock" });
 }
 
-function buyGoods(world: World, vehicle: Vehicle, good: string, count: number, total: number): void {
+function buyGoods(world: World, vehicle: Vehicle, shopId: string, good: string, count: number, total: number): void {
   const resources = getResources(world, vehicle);
   if (resources.money < total) throw new Refused({ id: "noMoney" });
   if (cargoRoom(vehicle) < count) throw new Refused({ id: "noCargoRoom" });
@@ -123,10 +123,11 @@ function buyGoods(world: World, vehicle: Vehicle, good: string, count: number, t
   const added = addGoods(world, vehicle, good, count);
   if (added !== count) throw new Error("Cargo capacity invariant failed");
   shopMoney(world, vehicle, -total, "cargoBuy");
+  recordTrade(shopId, shopState(world, shopId), good, count, "buy");
 }
 
 export function noteCostBasis(world: World, good: string, price: number, count: number): void {
-  const held = goodsCount(playerVehicle(world))[good] ?? 0;
+  const held = heldCrates(world, good);
   world.player.costBasis[good] = ((world.player.costBasis[good] ?? 0) * held + price * count) / (held + count);
 }
 
@@ -135,8 +136,13 @@ function sellGoods(world: World, vehicle: Vehicle, shopId: string, good: string,
   if (count > held) throw new Error(`Cannot sell ${count} ${good}, holding ${held}`);
   requireSpareGoods(world, vehicle, good, count);
   removeGoods(vehicle, good, count);
+  settleCargoSale(world, vehicle, shopId, good, count, total);
+}
+
+export function settleCargoSale(world: World, vehicle: Vehicle, shopId: string, good: string, count: number, total: number): void {
   shopMoney(world, vehicle, total, "cargoSale");
   if (vehicle.id === world.player.vehicleId) practiceSale(world, shopId, good, total / count, count);
+  recordTrade(shopId, shopState(world, shopId), good, count, "sell");
 }
 
 export function affordableBuyCount(
@@ -713,7 +719,8 @@ export function swapChassis(world: World, chassisId: string): void {
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));
   restowParcels(me, parcels);
   for (const [good, n] of Object.entries(goods)) {
-    if (addGoods(world, me, good, n) < n) throw new Refused({ id: "noCargoRoom" });
+    const placed = addGoods(world, me, good, n);
+    if (placed < n) storeSwapOverflow(world, me, good, n - placed);
   }
   me.weaponOrders = {};
   fitStores(world, me);

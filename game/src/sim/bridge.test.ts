@@ -4,8 +4,8 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION, scalePoint } from '../data/regi
 import { START_KITS } from '../data/start';
 import { TERRAIN, type DeckSpec } from '../data/terrain';
 import { FALLEN_SUN_DECKS } from '../data/territory';
-import { bridgeCut, buildDecks, crossesRail, deckAt, deckById, deckCenterAt, DECKS, nearRail, propBase, underDeck, type Deck } from './bridge';
-import { blockingBoxes, boxDistance, propBoxes, type PosedBox } from './mapgen';
+import { bridgeCut, buildDecks, crossesRail, deckAt, deckById, deckCenterAt, DECKS, nearRail, underDeck, type Deck } from './bridge';
+import { blockingBoxes, boxDistance, propBase, propBoxes, type PosedBox } from './mapgen';
 import { territoryPieces } from './territory';
 import type { Obstacle } from './types';
 import { route, routeLength } from './path';

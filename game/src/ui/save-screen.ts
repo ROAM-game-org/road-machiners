@@ -3,7 +3,7 @@ import { bindAttr } from '../text/language';
 import { t, verbatim, type Msg } from '../text/msg';
 import type { SaveError } from '../three/save';
 import type { SlotId, SlotInfo } from '../three/save-slots';
-import { SaveList, saveSummary, slotRealTime } from './save-panel';
+import { importButton, pickImport, refusalLine, SaveList, saveSummary, slotRealTime, type SavePanelActions } from './save-panel';
 import { disabledWith, download, el, panel } from './dom';
 import { openNewGame, type NewGameActions } from './new-game';
 import { OptionsPanel } from './options';
@@ -33,7 +33,7 @@ export function chooseSaveFate(error: SaveError, canMigrate: boolean, stored: un
 
 const TITLE = verbatim('Road Machiners');
 
-export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: SoundSettings): Promise<SlotId> {
+export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: SoundSettings, importSave: SavePanelActions['importSave']): Promise<SlotId> {
   return new Promise((resolve) => {
     const root = panel('start-menu');
     root.setAttribute('role', 'dialog');
@@ -48,12 +48,20 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
     const continueButton = el('button', { class: 'btn-l', ...disabledWith(none, () => next && play(next.slot)) }, t('menu.continue'));
     const loadButton = el('button', { class: 'btn-l', ...disabledWith(none, () => saveList.openLoad(saves, play)) }, t('menu.load'));
     const saveList = new SaveList(() => loadButton.focus());
+    const refused = el('div', { class: 'start-refusal' });
+    const importFile = async () => {
+      const result = await pickImport(importSave);
+      if (result === null) return;
+      refused.replaceChildren();
+      if ('slot' in result) play(result.slot);
+      else refused.append(refusalLine(result.refusal));
+    };
     const newGameButton = el('button', { class: 'btn-l', onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame'));
     const optionsButton = el('button', { class: 'btn-l' }, t('menu.options'));
     const startOptions = new OptionsPanel(sound, () => optionsButton.focus());
     optionsButton.addEventListener('click', () => startOptions.open());
     const resumes = next === null ? [] : [continueCaption(next, continueButton)];
-    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, newGameButton, optionsButton)));
+    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, importButton(() => void importFile(), 'btn-l'), newGameButton, optionsButton)), refused);
     (next === null ? newGameButton : continueButton).focus();
   });
 }

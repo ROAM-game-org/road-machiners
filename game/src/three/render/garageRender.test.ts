@@ -155,6 +155,24 @@ describe('garage render queue', () => {
     expect(renders.pending()).toBe(0);
   });
 
+  it('draws at once only what the screen shows, and queues what it needs later once', () => {
+    const fake = faking();
+    const renders = new GarageRenders(RENDERER, fake.build);
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const later = needFor(truck, [gun]);
+
+    renders.ensureNow([needFor(truck, [])], [later]);
+    renders.ensureNow([needFor(truck, [])], [later]);
+
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+    expect(renders.sprite(truck, PAINT.standard, gun, later.parts[0].spots[0])).toBeNull();
+    const queued = renders.pending();
+    for (let i = 0; i < 200; i++) renders.step(1e9);
+    for (const spot of later.parts[0].spots) expect(renders.sprite(truck, PAINT.standard, gun, spot)).not.toBeNull();
+    expect(fake.started.length).toBe(1 + queued);
+  });
+
   it('refuses to wait on the GPU when the screen needs the render at once', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
     const renders = new GarageRenders(RENDERER, build);

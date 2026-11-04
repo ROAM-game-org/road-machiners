@@ -1,3 +1,4 @@
+import { NPC_UPKEEP } from '../../data/npcs';
 import { addGoods, getLayoutError } from '../inventory';
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
@@ -68,7 +69,7 @@ describe('the Chaos Highway escort bot', () => {
 
     expect(mountedParts(after).every((p) => p.hp === maxHp(p))).toBe(true);
     expect(mountedParts(haulerOf(turn.world)).every((p) => p.hp === maxHp(p))).toBe(true);
-    expect(goodsCount(after).parts).toBe(4);
+    expect(goodsCount(after).parts).toBe(NPC_UPKEEP.repairParts);
     expect(turn.events).toContainEqual({ t: 'roadOpened', stretch: 2 });
     expect(turn.world.chaosHighway?.window).toBe(1);
     const hop = after.order?.kind === 'stopAt' ? after.order.dest : null;
