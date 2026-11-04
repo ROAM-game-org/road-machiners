@@ -1,6 +1,6 @@
 import { PHYSICS } from '../data/physics';
 import { completeCombatMovement } from './far';
-import { newTimedCombat, beginTimedCombat, endTimedCombat } from './timed-combat';
+import { newTimedCombat, beginTimedCombat, closeTimedCombat, finishWrecks } from './timed-combat';
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
@@ -417,7 +417,7 @@ export function endTurnInPlace(
     beginTimedCombat(w, w.combat, PHYSICS.turnSeconds * 1000);
     move(w);
     completeCombatMovement(w, combatStart);
-    endTimedCombat(w, w.combat);
+    closeTimedCombat(w, w.combat);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
     caltropHits(w);
@@ -448,6 +448,7 @@ export function endTurnInPlace(
     fitAllStores(w);
     applyGodMode(w);
     const landedShots = new Set<World['events'][number]>(w.combat.records.flatMap(record => record.event ? [record.event] : []));
+    finishWrecks(w, w.combat);
     resolveDestroyed(w, landedShots);
     settleCrews(w);
     noteHaulerHits(w);

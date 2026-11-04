@@ -47,8 +47,12 @@ export function stepTimedCombat(world: World, state: TimedCombatState, ms: numbe
 }
 
 export function endTimedCombat(world: World, state: TimedCombatState): void {
-  if (state.attempts.length) throw new Error('Turn ended before scheduled attempts');
+  closeTimedCombat(world, state);
   finishWrecks(world, state);
+}
+
+export function closeTimedCombat(world: World, state: TimedCombatState): void {
+  if (state.attempts.length) throw new Error('Turn ended before scheduled attempts');
   state.active = false;
   finishTimedGuns(world, state.fired);
 }
@@ -164,7 +168,7 @@ function settleNpcImpact(world: World, v: Vehicle, event: Extract<GameEvent, { t
   } else if (fate === 'knockedOut') knockOutNpc(world, v);
 }
 
-function finishWrecks(world: World, state: TimedCombatState): void {
+export function finishWrecks(world: World, state: TimedCombatState): void {
   for (const wreck of state.pendingWrecks) {
     const v = requiredVehicle(world, wreck.vehicle);
     v.lastHitBy = wreck.by;
