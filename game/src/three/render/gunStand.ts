@@ -712,6 +712,23 @@ export function profileFace(profile: FaceProfile, floor: number): number | null 
   return reaches.length === 0 ? null : profile.outward * Math.max(...reaches);
 }
 
+export function profileNoseTop(profile: FaceProfile, floor: number, inset: number): number | null {
+  const face = profileFace(profile, floor);
+  if (face === null) return null;
+  const within = (reach: number | null): boolean => reach !== null && Math.abs(face - profile.outward * reach) <= inset;
+  const first = profile.reach.findIndex((reach, row) => rowMiddle(profile, row) >= floor && within(reach));
+  if (first === -1) return null;
+  const end = profile.reach.findIndex((reach, row) => row > first && !within(reach));
+  return end === -1 ? null : profile.bottom + end * FACE_COLUMN;
+}
+
+export function profileGlassSetback(profile: FaceProfile, floor: number, inset: number): number | null {
+  const face = profileFace(profile, floor);
+  if (face === null) return null;
+  const row = profile.glass.findIndex((reach) => reach !== null && Math.abs(face - profile.outward * reach) > inset);
+  return row === -1 ? null : Math.abs(face - profile.outward * (profile.glass[row] as number));
+}
+
 export function profileGlassLine(profile: FaceProfile, floor: number, inset: number): number | null {
   const face = profileFace(profile, floor);
   if (face === null) return null;

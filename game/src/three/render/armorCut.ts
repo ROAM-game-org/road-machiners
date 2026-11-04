@@ -5,7 +5,7 @@ import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, type FaceProfile } from './gunStand';
+import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
 export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
@@ -231,7 +231,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const fail = (): never => {
     throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} finds no height at its face`);
   };
-  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), row: cellSteps(v.chassisId).row, fail });
+  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), ram: def.look === 'ram', row: cellSteps(v.chassisId).row, fail });
   pos.y += shift;
   pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
   return at;
@@ -241,19 +241,24 @@ function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
   return box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
 }
 
-type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; row: number; fail: () => never };
+type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; ram: boolean; row: number; fail: () => never };
 
-function standShift({ profile, placed, touchAt, floor, glassMatters, row, fail }: Stand): number {
+const LONG_NOSE_ROWS = 5;
+
+function standShift({ profile, placed, touchAt, floor, glassMatters, ram, row, fail }: Stand): number {
   const face = profileFace(profile, floor);
   if (face === null) return fail();
   const glass = glassMatters ? profileGlassLine(profile, floor, row) : null;
-  const stands = (shift: number): boolean => {
+  const setback = glassMatters ? profileGlassSetback(profile, floor, row) : null;
+  const nose = !ram && setback !== null && setback > LONG_NOSE_ROWS * row ? profileNoseTop(profile, floor, row) : null;
+  const standsUnder = (ceiling: number | null) => (shift: number): boolean => {
     const touch = touchAt(shift);
     const atFace = touch !== null && profile.outward * (face - touch) <= row;
-    return atFace && (glass === null || placed.max.y + shift <= glass + row);
+    return atFace && (ceiling === null || placed.max.y + shift <= ceiling);
   };
   const shifts = candidateShifts(profile, placed);
-  const found = shifts.find(stands);
+  const hood = nose === null || glass === null ? undefined : shifts.find(standsUnder(Math.min(nose + TRUCK_LOOK.armorRise, glass + row)));
+  const found = hood ?? shifts.find(standsUnder(glass === null ? null : glass + row));
   if (found === undefined) return fail();
   return found;
 }

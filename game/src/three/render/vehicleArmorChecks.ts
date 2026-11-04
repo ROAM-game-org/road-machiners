@@ -206,6 +206,16 @@ function glassGapOf(id: string, item: PartItem, box: THREE.Box3, side: string): 
   return isAcross(side) ? box.max.y - cellSteps(id).row - glassLine(id, item, box, side) : 0;
 }
 
+export function frontArmorStaysUnderLongHood(id: string): void {
+  const problems: string[] = [];
+  for (const item of mountedArmor(id).filter((it) => plateSide(id, it) === 'F')) {
+    const box = placedBox(id, item);
+    const over = box.max.y - TRUCK_LOOK.armorRise - glassLine(id, item, box, 'F');
+    if (over > EPS) problems.push(`${item.part.defId} at ${item.x},${item.y}: ${over.toFixed(3)} m above the windshield's lower edge`);
+  }
+  expect(problems).toEqual([]);
+}
+
 export function armorSitsOnBody(id: string): void {
   const items = mountedArmor(id);
   expect(items.length).toBeGreaterThan(0);
