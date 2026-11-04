@@ -13,8 +13,8 @@ what: A player could end up stuck for good: a rescue that cost more than a broke
 cost: Real players got stuck and could only load an older save, and the softlock needed a hotfix on main.
 
 ID: R4
-what: The boot, saves and sound broke when one browser feature or download failed: a dropped fetch or a 404 that was never retried, a sound format the browser refused, a worker script that did not load, a stale copy of a file from an earlier build in the browser cache, IndexedDB refused or closed, or a zero-size view. Each fix patched one symptom, the errors blamed the wrong cause, and the same retry was designed several times because a dev build lacked the fix already on main.
-cost: Players on Safari, Firefox and Android could not start the game or lost saves, and it took a long string of hotfixes before anyone fixed the cause.
+what: The boot, saves, sound and turns broke when one browser feature or download failed or one engine computed differently: a dropped fetch or a 404 that was never retried, a sound format the browser refused, a worker script that did not load, a stale copy of a file from an earlier build in the browser cache, IndexedDB refused or closed, a zero-size view, and a route file baked in Node whose check hashed floats from Math.hypot that Firefox gives a different last digit, so Firefox refused a correct file. Each fix patched one symptom, the errors blamed the wrong cause, worker errors sent only the stack, which outside V8 has no message, and the same retry was designed several times because a dev build lacked the fix already on main. Every browser check ran Chromium only, so a value baked in one engine and checked in another must be built from integers, bytes or rounded numbers, and checked in Firefox.
+cost: Players on Safari, Firefox and Android could not start the game, lost saves or could not play past the first turn, and it took a long string of hotfixes on main before anyone fixed the cause.
 
 ID: R5
 what: The UI or the renderer asked the sim about a state it does not hold, like a part mounted only in a planned refit, a part on a cell the lookup did not expect, a target the player can no longer see, a site with no gate pads or a shooter whose view was already gone, and the lookup threw instead of refusing.
@@ -45,8 +45,8 @@ what: A change that applied to many things was built and shown on one, like a di
 cost: Four rounds of patches on one card, the owner had to ask for an atlas of every case, the copy sweep and the travel speed fix each went back for a whole redesign, players reported a string of bugs and one crash, and the release candidate drew engines wrong and broke fights and convoys until a fix went into the release by hand.
 
 ID: R12
-what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
-cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
+what: Screens ignored the UI design system: oversized buttons, two buttons of one dialog at different widths, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
+cost: Many redesigns of screens, a patch round to match a dialog's buttons, and mobile play stayed unusable across several releases.
 
 ID: R13
 what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, a new mode that crashed new games, and a garage grid drawn from the truck model whose own approval screenshot showed a broken bus, with guns drawn under armor, clipped parts and damage highlights off their parts. Look at every screenshot before posting it, and check layer order and highlight placement on every chassis. Builds also went to approval with no browser check or measurement because the host was out of memory or overloaded, so the committee was asked to do the testing. The post's screenshots and text also failed to show what they claimed: a popup over the subject, a claim with no screenshot behind it, an atlas whose armor and guns hid the bare body the change was about, and a photo-versus-render sheet that labeled mismatched features as matches.
