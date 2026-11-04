@@ -4,7 +4,10 @@ import { isShield, partDef } from "../data/parts";
 import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
+import { canRebuild, getLotTradePrice, partRepairCost, repairPart, sellPrice } from "../sim/economy";
+import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
+import { GOODS_STORE } from "../data/market";
+import { priceEl, reasonButton } from "./shop-rows";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import { outpostRepairPart } from "../sim/outposts";
 import {
@@ -27,8 +30,6 @@ import {
   plannedVehicle,
   startRefit,
   stowSpot,
-  storePart,
-  takeFromStorage,
   type RefitLayout,
 } from "../sim/inventory";
 import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
@@ -75,6 +76,7 @@ import {
   takenMarks,
   workMarkOf,
   storageItem,
+  storedGoodItem,
   footprint,
   cellUnder,
   GridScale,
@@ -108,6 +110,8 @@ import {
   type ItemSource,
   type LastClick,
   isRotateKey,
+  storeItem,
+  takeFromStore,
   turnsToTry,
 } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
@@ -115,7 +119,7 @@ import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
-import { commandFailure, parcelTitle } from "./format";
+import { commandFailure, lotTitle, parcelTitle } from "./format";
 
 
 type Drag = {
@@ -225,7 +229,7 @@ export class InventoryView {
           "div",
           { class: "inv-side" },
           ...this.refitBanner(w),
-          this.sideList(w),
+          ...this.sideList(w),
           ...(this.dumpZone ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
           this.inspection,
         ),
@@ -332,6 +336,7 @@ export class InventoryView {
     const target = this.truck ? w.vehicles.find((v) => v.id === this.truck) : undefined;
     return [
       ...w.player.storage.map((p) => ({ source: "storage" as const, item: storageItem(p) })),
+      ...Object.keys(this.storeShop(w) ? storedHere(w) : {}).map((good) => ({ source: "storage" as const, item: storedGoodItem(good) })),
       ...(stock ? [...stock.parts.map(lootPartItem), ...Object.keys(stock.goods).map(lootGoodItem)] : []).map((item) => ({ source: "loot" as const, item })),
       ...(target ? target.items : []).map((item) => ({ source: "truck" as const, item })),
     ];
@@ -426,9 +431,15 @@ export class InventoryView {
     this.host.apply(startRefit(this.host.world(), layout, this.gridTruck ?? undefined));
   }
 
-  private sideList(w: World): HTMLElement | null {
-    if (this.loot) return this.lootEl(w, this.loot);
-    return !this.instant && atGarage(w, this.gridTruck ?? undefined) ? this.storageEl(w) : null;
+  private sideList(w: World): HTMLElement[] {
+    if (this.loot) return [this.lootEl(w, this.loot)];
+    if (this.instant || !atGarage(w, this.gridTruck ?? undefined)) return [];
+    const shopId = this.storeShop(w);
+    return shopId ? [this.storageEl(w), this.cratesEl(w, shopId)] : [this.storageEl(w)];
+  }
+
+  private storeShop(w: World): string | null {
+    return !this.instant && truckFor(w, this.gridTruck ?? undefined).id === w.player.vehicleId ? shopAt(w) : null;
   }
 
   private loreParagraph(item: GridItem): HTMLElement {
@@ -577,6 +588,43 @@ export class InventoryView {
       { class: "inv-storage", "data-drop": "storage" },
       el("h3", {}, t("inv.storage")),
       ...chips,
+    );
+  }
+
+  private cratesEl(w: World, shopId: string): HTMLElement {
+    const stored = storedHere(w);
+    const chips = Object.entries(stored).map(([good, count]) => this.storedCrateChip(w, shopId, good, count));
+    return el(
+      "div",
+      { class: "inv-storage inv-crates", "data-drop": "storage" },
+      el("h3", {}, t("inv.storedCrates"), el("span", { class: "inv-fill", title: t("inv.storedRule") }, t("inv.storedFill", { n: storeTotal(w, shopId), cap: GOODS_STORE.crates }))),
+      ...(chips.length ? chips : [el("div", { class: "dim" }, t("inv.storageEmptyCrates"))]),
+    );
+  }
+
+  private storedCrateChip(w: World, shopId: string, good: string, count: number): HTMLElement {
+    const item = storedGoodItem(good);
+    const chip = el(
+      "div",
+      { class: "inv-chip stored", "data-hold": "", style: toneStyle(good) },
+      itemIconEl(item),
+      el("span", { class: "stored-name" }, t("inv.goodCount", { good: goodName(good), n: count })),
+      shopTrades(shopId, good) ? this.storedSellCell(w, shopId, good, count) : null,
+    );
+    this.markSelected(chip, item);
+    chip.addEventListener("pointerdown", (e) => this.startDrag(e, "storage", good, item, { x: 0, y: 0 }));
+    return chip;
+  }
+
+  private storedSellCell(w: World, shopId: string, good: string, count: number): HTMLElement {
+    const look = this.look();
+    const allTotal = getLotTradePrice(w, playerVehicle(w), shopId, good, count, "sell");
+    return el(
+      "div",
+      { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
+      priceEl(sellPrice(w, shopId, good)),
+      reasonButton([t("trade.minus", { n: 1 })], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
+      reasonButton([t("trade.all")], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`, lotTitle("sell", count, allTotal)),
     );
   }
 
@@ -1023,7 +1071,7 @@ export class InventoryView {
   private dropOnGrid(w: World, d: Drag): World {
     const to = { x: d.item.x, y: d.item.y, rot: d.item.rot };
     if (d.source === "grid") return this.moveGridItem(w, d.id, to);
-    if (d.source === "storage") return takeFromStorage(w, d.id, to, this.gridTruck ?? undefined);
+    if (d.source === "storage") return takeFromStore(w, d.item, d.id, to, this.gridTruck ?? undefined);
     const from = d.source === "truck" ? this.truck! : this.loot!;
     this.requirePickupFits(d);
     return takeDropped(withPlanQueued(w, this.plan, this.gridTruck ?? undefined), { source: d.source, from, id: d.id, item: d.item }, to);
@@ -1096,7 +1144,7 @@ function sourceIdOf(source: ItemSource, item: GridItem): string {
 }
 
 function offGridCommand(target: string | null | undefined, itemId: string, truckId?: string): (w: World) => World {
-  if (target === "storage") return (w) => storePart(w, itemId, truckId);
+  if (target === "storage") return (w) => storeItem(w, itemId, truckId);
   return target === "dump" ? (w) => dumpItem(w, itemId, truckId) : (w) => w;
 }
 
