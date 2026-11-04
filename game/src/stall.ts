@@ -33,3 +33,14 @@ export function withinMs<T>(work: Promise<T>, ms: number, what: string, timers: 
     );
   });
 }
+
+function headOf(error: Error): string {
+  return error.message ? `${error.name}: ${error.message}` : error.name;
+}
+
+export function errorText(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const head = headOf(error);
+  if (!error.stack) return head;
+  return error.stack.startsWith(head) ? error.stack : `${head}\n${error.stack}`;
+}
