@@ -27,7 +27,8 @@ export function prototypeFight(map: BakedMap, weapon: 'mg' | 'cannon' | 'shotgun
   if (scenario === 'narrow') narrowApproach(world, enemy.id, weapon);
   world = setAutoFire(world, true);
   refreshVision(world);
-  (world as PrototypeWorld).prototypeCombat = newTimedCombat();
+  world.combat = newTimedCombat();
+  (world as PrototypeWorld).prototypeCombat = world.combat;
   return world;
 }
 

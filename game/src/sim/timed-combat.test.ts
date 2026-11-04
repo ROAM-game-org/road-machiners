@@ -123,3 +123,30 @@ it('continues serialized flight facts with the same impacts and random state', a
   expect(world.rngState).toBe(f.world.rngState);
   expect(world.events).toEqual(f.world.events);
 });
+
+it('moves an in-flight projectile with a highway window without changing its arrival time', async () => {
+  const { launchTimedRound, transformedCombat } = await import('./timed-combat');
+  const f = fight();
+  const flight = launchTimedRound(f.world, f.a, f.gun.id, f.b, 'body', 0, 220, false)!;
+  f.state.now = 250;
+  f.state.flights.push({ ...flight, landsAt: 500 });
+  const moved = transformedCombat(f.state, p => ({ x: p.x + 10, y: p.y - 20 }), 1);
+  expect(moved.flights[0].from).toEqual({ x: flight.from.x + 10, y: flight.from.y - 20 });
+  expect(moved.flights[0].impactAt).toEqual({ x: flight.impactAt.x + 10, y: flight.impactAt.y - 20 });
+  expect(moved.flights[0].landsAt).toBe(500);
+  expect(moved.now).toBe(250);
+});
+
+it('preserves remaining flight distance when a saved map changes scale', async () => {
+  const { launchTimedRound, transformedCombat } = await import('./timed-combat');
+  const f = fight();
+  const flight = launchTimedRound(f.world, f.a, f.gun.id, f.b, 'body', 0, 220, false)!;
+  f.state.now = 250;
+  f.state.flights.push({ ...flight, landsAt: 500 });
+  const moved = transformedCombat(f.state, p => ({ x: p.x * 2, y: p.y * 2 }), 2);
+  expect(moved.flights[0].from).toEqual({ x: flight.from.x + flight.impactAt.x, y: flight.from.y + flight.impactAt.y });
+  expect(moved.flights[0].impactAt).toEqual({ x: flight.impactAt.x * 2, y: flight.impactAt.y * 2 });
+  expect(moved.flights[0].launchedMs).toBe(250);
+  expect(moved.flights[0].landsAt).toBe(750);
+  expect(moved.flights[0].speed).toBe(flight.speed);
+});

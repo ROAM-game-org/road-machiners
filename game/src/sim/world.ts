@@ -1,4 +1,4 @@
-import { combatState } from './timed-combat';
+import { combatState, newTimedCombat } from './timed-combat';
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
@@ -93,6 +93,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   requireMapFits(map, setup);
   const size = map.terrain.size;
   const world: World = {
+    combat: newTimedCombat(),
     ...seedStreams(seed),
     turn: 1,
     size,

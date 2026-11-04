@@ -211,3 +211,18 @@ function hookSource(world: World, flight: TimedShot): { shooter: Vehicle; weapon
   const weapon = mountedParts(shooter, 'weapon').find(p => p.id === flight.weaponId && p.hp > 0);
   return weapon ? { shooter, weapon } : null;
 }
+
+export function transformedCombat(state: TimedCombatState, point: (position: Vec) => Vec, scale: number): TimedCombatState {
+  if (state.active || state.attempts.length > 0) throw new Error('Cannot move an active combat step to another map');
+  if (!(scale > 0 && Number.isFinite(scale))) throw new Error('Combat map scale must be positive');
+  return { ...newTimedCombat(), now: state.now, flights: state.flights.map(flight => transformedFlight(state.now, flight, point, scale)) };
+}
+function transformedFlight(now: number, flight: TimedFlight, point: (position: Vec) => Vec, scale: number): TimedFlight {
+  const moved = { ...flight, from: point(flight.from), aimedAt: point(flight.aimedAt), impactAt: point(flight.impactAt) };
+  if (scale === 1) return moved;
+  const share = Math.max(0, Math.min(1, (now - flight.launchedMs) / (flight.landsAt - flight.launchedMs)));
+  moved.from = point({ x: flight.from.x + (flight.impactAt.x - flight.from.x) * share, y: flight.from.y + (flight.impactAt.y - flight.from.y) * share });
+  moved.launchedMs = now;
+  moved.landsAt = now + Math.max(0, flight.landsAt - now) * scale;
+  return moved;
+}

@@ -940,3 +940,7 @@ export function withEliteTrucks(world: SavedJson): SavedJson {
   if (run === null) return world;
   return { ...world, chaosHighway: { ...run, groups: (run.groups as SavedJson[]).map(eliteTrucks) } };
 }
+
+export function withProjectileFlights(world: SavedJson): SavedJson {
+  return { ...world, combat: { now: 0, flights: [] } };
+}

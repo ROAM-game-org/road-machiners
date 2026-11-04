@@ -1,3 +1,4 @@
+import type { TimedCombatState } from './timed-combat';
 
 import type { MomentId } from '../data/moments';
 import type { PartHit, Side } from "./armor";
@@ -740,6 +741,7 @@ export type CrimeCase = {
 export type CasePosse = 'lone' | 'pair' | 'spent';
 
 export type World = {
+  combat: TimedCombatState;
   seed: number;
   rngState: number;
   marketRng: Rng;
