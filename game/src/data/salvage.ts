@@ -69,10 +69,11 @@ const LANDMARK_TABLE = {
 } as LootTable;
 
 export const SALVAGE = {
-  unitsPerTurn: 2,
+  unitsPerTurn: 0.5,
+  minSearchTurns: 4,
   pileTurns: 400,
   claimTurns: 60,
-  pileSearchTurns: 1,
+  pileSearchTurns: 4,
   coreValueShare: 0.03,
   restockShare: 0.08,
   wreckClearDays: 1,

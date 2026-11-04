@@ -28,6 +28,7 @@ import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type W
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 import { ownExplored } from '../sim/explored';
+import { errorText } from '../stall';
 
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
@@ -258,7 +259,7 @@ export function startTurnWorker(): void {
       answer(task, task.terrain);
       buildWhileIdle(task.terrain, task.world);
     } catch (error) {
-      self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
+      self.postMessage({ id: request.id, error: errorText(error) } satisfies WorkerFailure);
     }
   };
 }
@@ -310,11 +311,6 @@ function answer(request: Answerable, terrain: World['terrain']): void {
       throw new Error(`Unknown worker request kind ${(request as { kind: unknown }).kind}`);
   }
 }
-
-function describeWorkerError(error: unknown): string {
-  return error instanceof Error ? error.stack ?? error.message : String(error);
-}
-
 
 const STOPPED = 0.05;
 
