@@ -203,3 +203,32 @@ describe('harpoon line physics', () => {
     expect(hauler.pos.x).toBeCloseTo(start.x, 1);
   });
 });
+
+it('pulls a harpoon line during the turn in which its bolt lands', async () => {
+  const { launchTimedRound, beginTimedCombat, endTimedCombat } = await import('../sim/timed-combat');
+  const { refreshVision } = await import('../sim/vision');
+  const { vehicleStats } = await import('../sim/stats');
+  const { w, hauler, scout } = tethered({ speed: 7 });
+  w.lines = [];
+  const weapon = vehicleStats(w, hauler).weapons[0];
+  hauler.heading = -weapon.facing * Math.PI / 180;
+  refreshVision(w);
+  const flight = launchTimedRound(w, hauler, weapon.part.id, scout, 'body', 0, 80, false)!;
+  expect(flight).not.toBeNull();
+  w.combat.flights.push({ ...flight, impactAt: { ...scout.pos }, round: { ...flight.round, damage: 0 }, landsAt: 100 });
+  beginTimedCombat(w, w.combat, 1000);
+  const drive = buildDrive(w);
+  try {
+    const result = simulateTurn(drive, w);
+    endTimedCombat(w, w.combat);
+    expect(w.lines).toHaveLength(1);
+    const line = lineAnchors(w)[0];
+    const a = result.frames[hauler.id].at(-1)!;
+    const b = result.frames[scout.id].at(-1)!;
+    const pa = rotateBy(a.rot, line.fromAt), pb = rotateBy(b.rot, line.toAt);
+    const gap = Math.hypot(b.pos.x + pb.x - a.pos.x - pa.x, b.pos.z + pb.z - a.pos.z - pa.z);
+    expect(result.tears).toEqual([]);
+    expect(gap - line.length).toBeLessThanOrEqual(HARPOON.tearForce / HARPOON.stiffness);
+    freeDrive(result.next);
+  } finally { freeDrive(drive); }
+});

@@ -1,0 +1,63 @@
+{
+  "before": {
+    "bare": {
+      "fights": 9,
+      "meanTurns": 12,
+      "damage": 1920,
+      "turns": 108,
+      "damagePerTurn": 17.77777777777778,
+      "rounds": 393,
+      "hits": 200,
+      "hitRate": 0.5089058524173028,
+      "outcomes": {
+        "truce": 8,
+        "won": 1
+      }
+    },
+    "plates": {
+      "fights": 9,
+      "meanTurns": 31.666666666666668,
+      "damage": 2921.88,
+      "turns": 285,
+      "damagePerTurn": 10.252210526315789,
+      "rounds": 1073,
+      "hits": 564,
+      "hitRate": 0.5256290773532153,
+      "outcomes": {
+        "truce": 8,
+        "b fled": 1
+      }
+    }
+  },
+  "after": {
+    "bare": {
+      "fights": 9,
+      "meanTurns": 16.77777777777778,
+      "damage": 1813,
+      "turns": 151,
+      "damagePerTurn": 12.006622516556291,
+      "rounds": 483,
+      "hits": 199,
+      "hitRate": 0.41200828157349895,
+      "outcomes": {
+        "won": 2,
+        "truce": 5,
+        "a fled": 1,
+        "lost": 1
+      }
+    },
+    "plates": {
+      "fights": 9,
+      "meanTurns": 29.555555555555557,
+      "damage": 2154,
+      "turns": 266,
+      "damagePerTurn": 8.097744360902256,
+      "rounds": 1019,
+      "hits": 556,
+      "hitRate": 0.5456329735034348,
+      "outcomes": {
+        "truce": 9
+      }
+    }
+  }
+}

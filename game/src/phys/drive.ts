@@ -2,7 +2,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
 import { freeOnThrow, restoreWorld, stepPhysics } from './snapshot';
-import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, captureImpactMotion, GROUND, type Crash, type ImpactMotion } from './contacts';
+import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, GROUND, type Crash, type ImpactMotion } from './contacts';
 
 export { GROUND, type Crash };
 import { PHYSICS } from '../data/physics';
@@ -30,13 +30,12 @@ import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { addGround, craterColliders, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rampParts, rideHeightAt, rotateBy, toPhysCircle, TURN_STEPS, upOf, type Circle, type TurnFrames, type V3, type VehicleFrame } from './frames';
-import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, noteGrounded, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
+import { Lines, TimedDrive, impactMotions, addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, noteGrounded, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
 import { oilPatches } from '../sim/hazards';
-import { lineAnchors, type BodyPoint, type LineAnchor } from '../sim/harpoon';
 import { claymoreOf, claymoresSetOff, type ClaymoreCrash } from '../sim/claymore';
-import { HARPOON, OIL } from '../data/utilities';
+import { OIL } from '../data/utilities';
 
 const S = PHYSICS.metersPerTile;
 const T = PHYSICS.truck;
@@ -256,8 +255,10 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
   const contacts = new Contacts(w);
   const throws = new ClaymoreThrows(w, cars);
   const landings = new Landings();
-  const lines = new Lines(lineAnchors(w), cars);
+  const lines = new Lines(w, cars);
+  const combat = new TimedDrive(w, cars, steps, car => { car.plan = planOf(w, car.v, car.s, car.body, car.mem); });
   for (let i = 0; i < steps; i++) {
+    combat.step();
     const before = impactMotions(cars);
     for (const c of cars) driveStep(c, w.terrain);
     for (const c of cars) updateCar(c);
@@ -272,6 +273,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     throws.apply(contacts.takeNewCrashes());
     for (const c of cars) frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
   }
+  combat.finish();
   for (const c of cars) dropControllers(world, carrySpins(noteGrounded(c, (handle) => isGround(d, handle)), frames[c.v.id].at(-1)));
   const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
@@ -316,65 +318,6 @@ function dropControllers(world: RAPIER.World, c: Car): void {
   if (c.rear) world.removeVehicleController(c.rear.ctl);
 }
 
-function impactMotions(cars: Car[]): Map<string, ImpactMotion> {
-  const motions = new Map<string, ImpactMotion>();
-  for (const c of cars) {
-    motions.set(c.v.id, captureImpactMotion(c.body));
-    if (c.rear) motions.set(rearKey(c.v.id), captureImpactMotion(c.rear.body));
-  }
-  return motions;
-}
-
-class Lines {
-  readonly tears: Tear[] = [];
-  private readonly held: { line: LineAnchor; a: Car; b: Car }[];
-
-  constructor(lines: LineAnchor[], cars: Car[]) {
-    const car = (id: string) => cars.find((c) => c.v.id === id);
-    this.held = lines.flatMap((line) => {
-      const a = car(line.from);
-      const b = car(line.to);
-      return a && b ? [{ line, a, b }] : [];
-    });
-  }
-
-  pull(step: number): void {
-    for (const h of this.held) {
-      if (this.tears.some((t) => t.line === h.line.id)) continue;
-      if (!pullLine(h.line, unitRigid(h.a, h.line.fromAt.unit), unitRigid(h.b, h.line.toAt.unit))) this.tears.push({ line: h.line.id, step });
-    }
-  }
-}
-
-function pullLine(line: LineAnchor, a: RAPIER.RigidBody, b: RAPIER.RigidBody): boolean {
-  const pa = worldPoint(a, line.fromAt);
-  const pb = worldPoint(b, line.toAt);
-  const gap = Math.hypot(pb.x - pa.x, pb.z - pa.z);
-  if (gap <= line.length) return true;
-  const stretch = HARPOON.stiffness * (gap - line.length);
-  if (stretch > HARPOON.tearForce) return false;
-  const n = { x: (pb.x - pa.x) / gap, z: (pb.z - pa.z) / gap };
-  const va = a.velocityAtPoint(pa);
-  const vb = b.velocityAtPoint(pb);
-  const separating = (vb.x - va.x) * n.x + (vb.z - va.z) * n.z;
-  const force = Math.max(0, stretch + HARPOON.damping * separating);
-  const j = force * DT;
-  a.applyImpulseAtPoint({ x: n.x * j, y: 0, z: n.z * j }, pa, true);
-  b.applyImpulseAtPoint({ x: -n.x * j, y: 0, z: -n.z * j }, pb, true);
-  return true;
-}
-
-function unitRigid(c: Car, unit: number): RAPIER.RigidBody {
-  if (unit === 0) return c.body;
-  if (!c.rear) throw new Error(`${c.v.id} has no rear unit ${unit}`);
-  return c.rear.body;
-}
-
-function worldPoint(body: RAPIER.RigidBody, at: BodyPoint): V3 {
-  const t = body.translation();
-  const r = rotateBy(body.rotation(), at);
-  return { x: t.x + r.x, y: t.y + r.y, z: t.z + r.z };
-}
 
 class Landings {
   private readonly hardest = new Map<string, { impact: number; step: number }>();

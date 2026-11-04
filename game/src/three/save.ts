@@ -1,3 +1,4 @@
+import { newTimedCombat } from '../sim/timed-combat';
 import { t, type Msg } from '../text/msg';
 import { isNoteId } from '../data/locals';
 import type { BakedMap } from '../sim/terrain';
@@ -246,6 +247,7 @@ function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
   const explored = unpackExplored(world.player.explored, world.size * world.size);
   return {
     ...world,
+    combat: { ...newTimedCombat(), ...world.combat },
     player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
     sheltered: world.sheltered.map((s) => ({ ...s, vehicle: { ...s.vehicle, trail: [] } })),
@@ -432,7 +434,7 @@ export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: Saved
   const sheltered = saved.sheltered.map(({ vehicle: { trail: _trail, ...vehicle }, site }) => ({ vehicle, site }));
   const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, sheltered, obstacles, broken } };
+  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, combat: { now: world.combat.now, flights: world.combat.flights }, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, sheltered, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {
@@ -465,6 +467,7 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
     list: () => listSaves(slots, slotCount),
     manualSlots: () => manualSlots(slotCount),
     hasSave: () => hasSave(slots, allSlots(slotCount)),
+    mode: () => world().setup.mode,
     save: (slot: SlotId) => writeSave(slots, slot, world(), runId, Date.now()),
     reboot: (request: BootRequest) => {
       requestBoot(session, SAVE_KEY, request);

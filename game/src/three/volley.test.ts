@@ -3,13 +3,14 @@ import type { Break, Crash, Landing } from "../phys/drive";
 import { MIX } from "../data/sounds";
 import { RULES } from "../data/rules";
 import { addVehicle, emptyWorld } from "../sim/testkit";
-import type { GameEvent, ShotRound } from "../sim/types";
+import type { GameEvent, ShotRound, World } from "../sim/types";
 import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { PARTS } from "../data/parts";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { PHYSICS } from "../data/physics";
+import type { TimedFlight } from "../sim/timed-combat";
 import { bodyOf } from "../sim/body";
 import { CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
@@ -235,7 +236,7 @@ describe("playVolley sounds", () => {
       c.fired({ pos: p } as never);
       c.landed();
     };
-    const host = { world: emptyWorld(), fx: { shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
+    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
     playVolley(host, plansOf([round]), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false, null);
     return cues;
   }
@@ -265,7 +266,7 @@ describe("playVolley breaks", () => {
     target.id = "t";
     const host = {
       world,
-      fx: { shot: (_s: unknown, _m: unknown, _p: unknown, _r: unknown, cues: { landed: () => void }) => landed.push(cues.landed), label: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, _p: unknown, _r: unknown, cues: { landed: () => void }) => landed.push(cues.landed), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: (cue: string) => sounds.push(cue) },
       eventPoint,
       breakPart: (b: PartBreak) => broken.push(b),
@@ -395,6 +396,7 @@ describe("playVolley breaks", () => {
     const { host } = play();
     const e = { ...event, t: "shot" } as unknown as GameEvent;
     host.world.events = [e];
+    recordShots(host.world);
     expect(() => playShotFx(host as unknown as CombatHost, new BreakCues([]))).toThrow(/unknown vehicle/);
   });
 });
@@ -530,8 +532,32 @@ describe("planShot against the end of the move", () => {
   });
 });
 
+function recordShots(world: World): void {
+  const shots = world.events.filter(e => e.t === 'shot');
+  for (const event of shots) {
+    const shooter = world.vehicles.find(v => v.id === event.shooter);
+    const target = world.vehicles.find(v => v.id === event.target);
+    const part = shooter?.items.find(i => i.kind === 'part' && i.part.id === event.weapon);
+    const defId = part?.kind === 'part' ? part.part.defId : 'mg';
+    const def = PARTS[defId];
+    if (def.kind !== 'weapon') throw new Error('Shot fixture needs a weapon');
+    event.rounds.forEach((round, k) => {
+      const launchedMs = 100 + k * 100;
+      const flight: TimedFlight = {
+        shooterId: event.shooter, targetId: event.target, weaponId: event.weapon, weaponDefId: defId,
+        aim: event.aim, chance: event.chance, damageChance: event.damageChance, round: def.round,
+        targetSide: event.side, lineTurns: def.line?.turns ?? null,
+        from: shooter?.pos ?? { x: 0, y: 0 }, aimedAt: target?.pos ?? { x: 1, y: 0 }, impactAt: target?.pos ?? { x: 1, y: 0 },
+        roll: { hit: round.struck !== null, error: 0, crit: round.crit }, launchedMs, landsAt: launchedMs + 200, speed: projectileOf(defId).speed,
+      };
+      world.combat.records.push({ at: launchedMs, kind: 'launch', flight, event: null });
+      world.combat.records.push({ at: flight.landsAt, kind: 'impact', flight, event: { ...event, rounds: [round] } });
+    });
+  }
+}
+
 describe("playShotFx before a shooter's view exists", () => {
-  it("fires the shooter's rounds as the move ends instead of failing the turn", () => {
+  it("fires at the recorded time before the shooter view exists", () => {
     const world = emptyWorld();
     const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
     const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
@@ -542,7 +568,7 @@ describe("playShotFx before a shooter's view exists", () => {
     const host = {
       world,
       views: new Map(),
-      fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number; flightMs: number }) => launched.push(plan), label: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: { delayMs: number; flightMs: number }) => launched.push(plan), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -551,9 +577,11 @@ describe("playShotFx before a shooter's view exists", () => {
       startMs: 0,
       lineHooked: () => {},
     } as unknown as CombatHost;
+    recordShots(world);
     playShotFx(host, new BreakCues(world.events));
     expect(launched).toHaveLength(1);
-    expect(launched[0].delayMs + launched[0].flightMs).toBeCloseTo(MOVE_MS, 6);
+    expect(launched[0].delayMs).toBe(100);
+    expect(launched[0].flightMs).toBe(200);
   });
 
   it("fires from the shooter's resting place when the next turn no longer shows the shooter", () => {
@@ -568,7 +596,7 @@ describe("playShotFx before a shooter's view exists", () => {
     const host = {
       world,
       views: new Map(),
-      fx: { shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {}, later: () => {}, projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -577,6 +605,7 @@ describe("playShotFx before a shooter's view exists", () => {
       startMs: 0,
       lineHooked: () => {},
     } as unknown as CombatHost;
+    recordShots(world);
     playShotFx(host, new BreakCues(world.events));
     host.poses = posesOf(world, {}, clock, (v) => v.id !== shooter.id);
     expect(muzzles).toHaveLength(1);
@@ -585,7 +614,7 @@ describe("playShotFx before a shooter's view exists", () => {
 });
 
 describe("playShotFx after the shooter's view is gone", () => {
-  type Kept = { muzzle: () => Muzzle; landed: () => void };
+  type Kept = { muzzle: () => Muzzle; fired: (m: Muzzle) => void };
   const M1: Muzzle = { pos: { x: 4, y: 2, z: 6 }, dir: { x: 1, y: 0, z: 0 } };
 
   const emptyingShot = (views: Map<string, unknown>) => {
@@ -604,8 +633,8 @@ describe("playShotFx after the shooter's view is gone", () => {
     const host = {
       world,
       views,
-      fx: { shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { landed: () => void }) => kept.push({ muzzle, landed: cues.landed }), label: () => {} },
-      sound: { at: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { fired: (m: Muzzle) => void }) => kept.push({ muzzle, fired: cues.fired }), label: () => {}, later: () => {}, projectileImpact: () => {} },
+      sound: { at: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -613,17 +642,18 @@ describe("playShotFx after the shooter's view is gone", () => {
       startMs: 0,
       lineHooked: () => {},
     } as unknown as CombatHost;
+    recordShots(world);
     playShotFx(host, new BreakCues(world.events));
     return { shooter: shooter.id, kept, sounds, poses };
   };
 
-  it("plays the gun-empty cue once at the last muzzle when the view goes before the rounds land", () => {
+  it("plays the gun-empty cue once at the last launch after the view disappears", () => {
     const views = new Map<string, unknown>();
     const { shooter, kept, sounds } = emptyingShot(views);
     views.set(shooter, { covers: () => true, turretUnit: () => 0, muzzle: () => M1 });
     kept.forEach((k) => k.muzzle());
     views.delete(shooter);
-    for (const k of kept) k.landed();
+    for (const k of kept) k.fired(k.muzzle());
     expect(sounds.filter((s) => s.cue === "gun-empty")).toEqual([{ cue: "gun-empty", at: M1.pos }]);
   });
 
@@ -666,7 +696,7 @@ describe("playShotFx through the move", () => {
     const host = {
       world,
       views: new Map([[shooter.id, { covers: () => true, turretUnit: () => 0 }]]),
-      fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {} },
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {}, later: (_at: number, run: () => void) => run(), projectileImpact: () => {} },
       sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
@@ -678,29 +708,32 @@ describe("playShotFx through the move", () => {
     world.player.vehicleId = shooter.id;
     queued.length = 0;
     vi.spyOn(Math, "random").mockReturnValue(0.5);
+    recordShots(world);
     playShotFx(host, new BreakCues(world.events));
     vi.restoreAllMocks();
     return { launched, hooked, gunId: gunPart.part.id };
   };
 
   it("queues the volley's score event at the landing of the round that earns it", () => {
-    const { launched } = fire("mg", () => [round(null), round("t")]);
+    const { launched } = fire("mg", () => [round(null), round("t", 0, { hit: true })]);
     expect(queued).toHaveLength(1);
     expect(queued[0][0]).toBe("hit");
     expect(queued[0][1]).toBe(launched[1].delayMs + launched[1].flightMs);
   });
 
-  it("fires every round into a truck that dies during the move but lands the killing one as the move ends", () => {
+  it("keeps recorded launch times when the target dies during the move", () => {
     const { launched } = fire("mg", (t) => [round(t), round(t), round(t)], (t) => [{ t: "destroyed", vehicle: t } as GameEvent]);
     expect(launched[0].delayMs).toBeLessThan(MOVE_MS / 2);
     expect(launched[1].delayMs).toBeLessThan(MOVE_MS * 0.9);
-    expect(launched[2].delayMs + launched[2].flightMs).toBeGreaterThan(MOVE_MS - 3 * STEP_MS);
+    expect(launched.map(p => p.delayMs)).toEqual([100, 200, 300]);
+    expect(launched[2].delayMs + launched[2].flightMs).toBe(500);
   });
 
   it("lands a struck harpoon during the move and shows its line from that moment", () => {
     const { launched, hooked, gunId } = fire("harpoon", (t) => [round(t)]);
     expect(launched[0].delayMs + launched[0].flightMs).toBeLessThan(MOVE_MS * 0.9);
     expect(hooked).toEqual([gunId]);
+    expect(launched[0].impact).toBe("truck");
   });
 
   it("hooks no line with a harpoon that misses", () => {

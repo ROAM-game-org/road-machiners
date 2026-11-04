@@ -176,10 +176,18 @@ export class Fx3D {
       cues.fired(m);
     };
     const onLand = () => {
-      if (plan.impact !== 'none') this.landing(plan, blastRadius, spec.look === 'shell');
+      if (plan.impact !== 'none' && !plan.impactRecorded) this.landing(plan, blastRadius, spec.look === 'shell');
       cues.landed();
     };
     this.projectiles.launch({ spec, muzzle, plan, onFire, onLand, ground });
+  }
+
+  clearShots(): void {
+    this.projectiles.clearFlights();
+  }
+
+  projectileImpact(plan: RoundPlan, blastRadius: number, big: boolean): void {
+    this.landing(plan, blastRadius, big);
   }
 
   private landing(plan: RoundPlan, blastRadius: number, big: boolean): void {
@@ -328,7 +336,7 @@ export class Fx3D {
     slot.el.style.opacity = '1';
   }
 
-  tick(playMs: number, realMs: number, world: World): void {
+  tick(playMs: number, realMs: number, world: World, combatMs: number): void {
     const dt = playMs / 1000;
     this.terrain = world.terrain;
     this.particles.tick(dt);
@@ -348,7 +356,7 @@ export class Fx3D {
       this.pending.splice(i, 1);
       job.run();
     }
-    this.projectiles.tick(dt);
+    this.projectiles.tick(combatMs / 1000);
     this.floatTexts(realMs / 1000);
   }
 

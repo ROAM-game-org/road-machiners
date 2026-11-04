@@ -304,6 +304,10 @@ export class VehicleLights {
 
   constructor(private readonly scene: THREE.Scene) {}
 
+  contextRestored(): void {
+    for (const light of this.shadowed) light.shadow.needsUpdate = true;
+  }
+
   sync(world: World, frames: Record<string, VehicleFrame>, lightTurn: number, reaches: (pos: V3) => boolean, truck: V3): void {
     const lit = world.vehicles
       .filter((v) => frames[v.id] && reaches(frames[v.id].pos))

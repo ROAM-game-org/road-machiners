@@ -1,0 +1,13 @@
+
+> playtest
+> node scripts/playtest.mjs --url http://127.0.0.1:5189
+
+renderer ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)
+built every map cell in 3.3 s
+night roaming at the night peak: missing ground share 0.000
+night roaming at night turns: missing ground share 0.000
+night roaming at a reload at night: missing ground share 0.000
+night chaosHighway at the night peak: missing ground share 0.000
+night chaosHighway at a reload at night: missing ground share 0.000
+turns 12, fps 60.5
+PASS

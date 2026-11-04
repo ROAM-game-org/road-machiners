@@ -5,7 +5,7 @@ import { TIME } from '../../data/time';
 import { wreckVehicle } from '../combat';
 import { playerVehicle } from '../damage';
 import { buyGood, rationing } from '../economy';
-import { advanceFar } from '../far';
+import { moveFarCombat } from '../far';
 import { goodPrice, goodStock, pressureOf, shopState, siteOf, stockTarget, watchStock, type StockCause } from '../market';
 import { yieldTo } from '../parley';
 import { isOutlaw } from '../relations';
@@ -175,7 +175,7 @@ function noteHour(rec: Recording): void {
 
 function playTurn(rec: Recording, onDay: (s: DaySample) => void): void {
   rec.world.player.call = null;
-  rec.world = endTurn(rec.world, (x) => { for (const v of x.vehicles) advanceFar(x, v); });
+  rec.world = endTurn(rec.world, (x) => moveFarCombat(x));
   if (rec.world.turn % Math.round(TIME.workDayTurns / 24) === 0) noteHour(rec);
   if (rec.world.turn % SAMPLE_TURNS !== 0) return;
   const s = sample(rec.world, rec.world.turn / TIME.workDayTurns, rec.rationingHours);
