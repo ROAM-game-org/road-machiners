@@ -59,3 +59,7 @@ function displayItem(item: GridItem, damage: Map<string, number>, spent: Set<str
   if (part.gun) part.gun = { ...part.gun, ammo: part.gun.ammo - Number(spent.has(part.id)) };
   return { ...item, part };
 }
+
+export function combatFrameMs(playback: { elapsed: number } | null, frameMs: number, durationMs: number): number {
+  return playback === null ? 0 : Math.min(frameMs, Math.max(0, durationMs - playback.elapsed));
+}

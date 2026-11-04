@@ -17,3 +17,11 @@ it('changes inspected health at the recorded impact without changing simulation 
   expect(hp(100)).toBe(part.hp - 3);
   expect(mountedParts(after.vehicles.find(v => v.id === vehicle.id)!)[0].hp).toBe(part.hp);
 });
+
+it('keeps projectile playback inside the simulated turn while trucks coast', async () => {
+  const { combatFrameMs } = await import('./timed-display');
+  expect(combatFrameMs({ elapsed: 500 }, 16, 1000)).toBe(16);
+  expect(combatFrameMs({ elapsed: 990 }, 20, 1000)).toBe(10);
+  expect(combatFrameMs({ elapsed: 1000 }, 16, 1000)).toBe(0);
+  expect(combatFrameMs(null, 16, 1000)).toBe(0);
+});

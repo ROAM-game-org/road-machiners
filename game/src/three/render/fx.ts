@@ -336,7 +336,7 @@ export class Fx3D {
     slot.el.style.opacity = '1';
   }
 
-  tick(playMs: number, realMs: number, world: World): void {
+  tick(playMs: number, realMs: number, world: World, combatMs: number): void {
     const dt = playMs / 1000;
     this.terrain = world.terrain;
     this.particles.tick(dt);
@@ -356,7 +356,7 @@ export class Fx3D {
       this.pending.splice(i, 1);
       job.run();
     }
-    this.projectiles.tick(dt);
+    this.projectiles.tick(combatMs / 1000);
     this.floatTexts(realMs / 1000);
   }
 

@@ -1,4 +1,4 @@
-import { playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
+import { combatFrameMs, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG, PLAY_EASE } from "../config";
@@ -958,9 +958,7 @@ export class Game {
     };
   }
 
-  private eventPoint(id: string): V3 | null {
-    return combatEventPoint(this.world, this.frames, id, GUN_HEIGHT, v => this.canShowCombatVehicle(v));
-  }
+  private eventPoint = (id: string): V3 | null => combatEventPoint(this.world, this.frames, id, GUN_HEIGHT, v => this.canShowCombatVehicle(v));
 
   private combatHost(startMs = 0): CombatHost {
     const frames = this.anim?.result.frames ?? {};
@@ -1004,28 +1002,29 @@ export class Game {
     if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
 
-  private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
+  private advanceTurn(now: number, dt: number): { at: number | null; playMs: number; combatMs: number } {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
+    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();
-    this.travel.tickCreep(playMs);
-    let at = this.animStep(now, speed, playMs);
+    this.travel.tickCreep(clock.playMs);
+    let at = this.animStep(now, speed, clock.playMs);
     this.updateLiveVision(at);
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying);
-    if (began === "failed") return { at, playMs };
+    if (began === "failed") return { at, ...clock };
     if (began === "began") {
+      clock.combatMs = 0;
       at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
     this.settleLateStop(now);
     if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
     timed("flush-ui", () => this.flushUi(began, phase));
-    return { at, playMs };
+    return { at, ...clock };
   }
 
   private holdsTime(): boolean {
@@ -1036,10 +1035,10 @@ export class Game {
     return this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden;
   }
 
-  private tickWorldClock(realMs: number, speed: number, now: number): number {
+  private tickWorldClock(realMs: number, speed: number, now: number): { playMs: number; combatMs: number } {
     const wanted = (this.anim !== null && !this.anim.moved) || this.travel.timeWanted(this.world, now);
     this.play.coast(realMs, wanted, wanted ? speed : 1);
-    return this.play.frameMs();
+    return { playMs: this.play.frameMs(), combatMs: combatFrameMs(this.anim, this.play.frameMs(), MOVE_MS) };
   }
 
   private tick(now: number): void {
@@ -1053,7 +1052,7 @@ export class Game {
     this.last = now;
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
-    const { at, playMs } = timed("turn-frame", () => {
+    const { at, playMs, combatMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
       return turn;
@@ -1078,7 +1077,7 @@ export class Game {
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);
     this.siteLights.sync(!sunAt(this.world.turn), lightTurnOf(this.world, this.anim), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now, this.world);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));
-    this.fx.tick(this.play.frameMs(), dt, this.world);
+    this.fx.tick(this.play.frameMs(), dt, this.world, combatMs);
     this.playPanelSounds();
     this.updateLoops();
     this.weather.sync(this.world, turnClockOf(this.anim));
