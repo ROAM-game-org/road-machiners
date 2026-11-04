@@ -1,12 +1,13 @@
 import { ALA_HIRED } from "../data/quests";
 import { worldVar } from "../sim/quests";
 
-import { abandonRun, canAbandonRun, runEarnings } from "../sim/chaos-highway";
+import { canAbandonRun, runEarnings } from "../sim/chaos-highway";
 import type { RunLossCause, World } from "../sim/types";
-import { bindAttr, say } from "../text/language";
+import { bindAttr } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { modeName, siteName } from "../text/names";
 import { outpostId } from "../sim/highway";
+import { askConfirm } from "./confirm-dialog";
 import { disabledWith, el, panel } from "./dom";
 import { CONFIRM_NEW_GAME, openNewGame, type NewGameActions } from "./new-game";
 import { SavePanel, type SavePanelActions } from "./save-panel";
@@ -20,8 +21,8 @@ export type DeathActions = SavePanelActions & {
 const RUN_TITLE: Record<RunLossCause, Msg> = { wrecked: t("death.wrecked"), abandoned: t("death.stranded"), haulerLost: t("death.haulerLost") };
 export const CONFIRM_END_RUN = t("hud.confirmEndRun");
 
-export function confirmedEndRun(world: World): World | null {
-  return canAbandonRun(world) && window.confirm(say(CONFIRM_END_RUN)) ? abandonRun(world) : null;
+export async function confirmEndRun(world: World): Promise<boolean> {
+  return canAbandonRun(world) && (await askConfirm({ question: CONFIRM_END_RUN, yes: t("hud.endRun") }));
 }
 
 export function deathShows(world: World): boolean {
@@ -55,15 +56,15 @@ export class DeathScreen {
         "div",
         { class: "death-buttons" },
         el("button", disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), t("menu.loadSave")),
-        world.chaosHighway ? el("button", { onclick: () => this.restart(world) }, t("death.restartRun")) : null,
+        world.chaosHighway ? el("button", { onclick: () => void this.restart(world) }, t("death.restartRun")) : null,
         el("button", { onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
       ),
     );
   }
 
-  private restart(world: World): void {
+  private async restart(world: World): Promise<void> {
     const { newGame } = this.actions;
-    if (!newGame.confirm(say(CONFIRM_NEW_GAME))) return;
+    if (!(await askConfirm({ question: CONFIRM_NEW_GAME, yes: t("death.restartRun") }))) return;
     newGame.requestBoot({ new: world.setup, intro: restartsWithStory(world) });
     newGame.reload();
   }

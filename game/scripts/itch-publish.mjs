@@ -3,13 +3,17 @@
 // Usage: npm run itch
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, symlinkSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 process.loadEnvFile('.env');
 const target = process.env.ITCH_TARGET;
 if (!target) throw new Error('ITCH_TARGET is missing from .env, like "user/roam"');
 
-const missingModels = (source, built) => readdirSync(resolve(source, 'public/models')).filter((file) => !existsSync(resolve(built, 'dist/models', file)));
+const missingPublicFiles = (source, built) =>
+  readdirSync(resolve(source, 'public'), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(resolve(source, 'public'), resolve(entry.parentPath, entry.name)))
+    .filter((file) => !existsSync(resolve(built, 'dist', file)));
 
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { stdio: 'inherit', cwd });
 const read = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8' }).trim();
@@ -23,8 +27,8 @@ run('git', ['worktree', 'add', '--detach', dir, 'HEAD']);
 try {
   symlinkSync(resolve('node_modules'), resolve(build, 'node_modules'));
   run('npm', ['run', 'build'], build);
-  const gaps = missingModels(build, build);
-  if (gaps.length > 0) throw new Error(`The build lacks model files: ${gaps.join(', ')}`);
+  const gaps = missingPublicFiles(build, build);
+  if (gaps.length > 0) throw new Error(`The build lacks public files: ${gaps.join(', ')}`);
   run('butler', ['push', resolve(build, 'dist'), `${target}:html5`, '--userversion', version]);
 } finally {
   run('git', ['worktree', 'remove', '--force', dir]);

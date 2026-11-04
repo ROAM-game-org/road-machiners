@@ -476,7 +476,6 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
     newGame: {
       requestBoot: (request: BootRequest) => requestBoot(session, SAVE_KEY, request),
       reload: () => void Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError),
-      confirm: (text: string) => window.confirm(text),
     } satisfies NewGameActions,
   };
 }

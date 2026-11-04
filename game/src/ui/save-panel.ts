@@ -3,10 +3,11 @@ import { closeLabel } from "./input-mode";
 import type { GameModeId } from "../sim/types";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
-import { bindAttr, say } from "../text/language";
+import { bindAttr } from "../text/language";
 import { date, t, type Msg } from "../text/msg";
 import { modeName } from "../text/names";
 import type { ImportResult } from "../three/save";
+import { askConfirm, isConfirmOpen } from "./confirm-dialog";
 import { el, panel, pickTextFile } from "./dom";
 import { clock } from "./format";
 
@@ -69,7 +70,7 @@ export function saveRow(slot: SlotId, info: SlotInfo | null, onclick: () => void
 export class SaveList {
   private root: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.code !== "Escape") return;
+    if (e.code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
     this.close();
   };
@@ -139,22 +140,22 @@ export class SavePanel {
   }
 
   openLoad(): void {
-    this.list.openLoad(this.actions.list(), (slot) => this.loadFrom(slot));
+    this.list.openLoad(this.actions.list(), (slot) => void this.loadFrom(slot));
   }
 
-  private saveInto(slot: SlotId, info: SlotInfo | null): void {
+  private async saveInto(slot: SlotId, info: SlotInfo | null): Promise<void> {
     const mode = this.actions.mode();
     const saved = info?.mode;
     if (saved && saved !== mode) {
-      const ask = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(saved), current: modeName(mode) });
-      if (!window.confirm(say(ask))) return;
+      const question = t("save.confirmOverwrite", { slot: slotLabel(slot), saved: modeName(saved), current: modeName(mode) });
+      if (!(await askConfirm({ question, yes: t("menu.save") }))) return;
     }
     this.actions.save(slot);
     this.openSave();
   }
 
-  private loadFrom(slot: SlotId): void {
-    if (!window.confirm(say(t("save.confirmLoad")))) return;
+  private async loadFrom(slot: SlotId): Promise<void> {
+    if (!(await askConfirm({ question: t("save.confirmLoad"), yes: t("menu.loadSave") }))) return;
     this.actions.reboot(slot);
   }
 }

@@ -172,6 +172,8 @@ export const UI: Translation<typeof EN> = {
   'log.lineTornThem': '{who} вырывается из гарпунного троса',
   'newGame.mode': 'Режим игры',
   'newGame.settings': 'Настройки мира',
+  'confirm.cancel': 'Отмена',
+  'confirm.startNew': 'Начать новую игру',
   'newGame.start': 'Начать',
   'newGame.skipIntro': 'Пропустить вступление',
   'newGame.back': 'Назад',

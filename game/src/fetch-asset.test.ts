@@ -62,12 +62,21 @@ describe('fetchAsset', () => {
     expect(run.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('fails at once on a missing file', async () => {
+  it('retries a missing file', async () => {
     const run = net([status(404), ok]);
+    await expect(fetchAsset('Map', 'map.bin', run.net)).resolves.toBeInstanceOf(ArrayBuffer);
+    expect(run.waits).toEqual([1000]);
+  });
+
+  it('reports a file that stays missing as a status error', async () => {
+    const run = net([status(404), status(404), status(404), status(404)]);
     const err = await fetchAsset('Map', 'map.bin', run.net).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AssetStatusError);
     expect(err).not.toBeInstanceOf(AssetUnreachable);
+    expect((err as AssetStatusError).status).toBe(404);
     expect((err as Error).message).toContain('HTTP 404');
-    expect(run.fetch).toHaveBeenCalledTimes(1);
+    expect(run.fetch).toHaveBeenCalledTimes(4);
+    expect(run.waits).toEqual([1000, 3000, 9000]);
   });
 
   it('retries a body that fails partway', async () => {
