@@ -6,14 +6,21 @@ import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
+// ann is the owner and carl another member.
+const member = (by: string, gated: boolean): string => {
+  if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
+  if (!['hermes', 'ann', 'carl'].includes(by)) throw new Error(`unknown actor ${by}`);
+  return by;
+};
+const owner = (by: string): string => {
+  if (by !== 'ann') throw new Error(`Only the committee owner orders a release playtest. ${by} is not the owner.`);
+  return by;
+};
 vi.mock('./control', async (importOriginal) => ({
   DROP_QUEUES: (await importOriginal<{ DROP_QUEUES: readonly string[] }>()).DROP_QUEUES,
-  resolveActor: (_ctx: unknown, by: string, gated: boolean) => {
-    if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
-    if (by !== 'hermes' && by !== 'ann') throw new Error(`unknown actor ${by}`);
-    return by;
-  },
-  isGated: (_ctx: unknown, command: { action: string }) => ['ship', 'adopt'].includes(command.action),
+  resolveActor: (_ctx: unknown, by: string, gated: boolean) => member(by, gated),
+  resolveOwner: (_ctx: unknown, by: string) => owner(by),
+  resolveOrder: (_ctx: unknown, command: { action: string; by: string }) => (command.action === 'playtest' ? owner(command.by) : member(command.by, ['ship', 'adopt'].includes(command.action))),
   writeControl: (home: string, command: unknown, now: Date) => {
     mkdirSync(join(home, 'inbox'), { recursive: true });
     const path = join(home, 'inbox', `${now.getTime()}-control.json`);
@@ -58,8 +65,13 @@ describe('argument errors', () => {
   });
 
   it('refuses an unknown actor and a gated order from hermes before writing', async () => {
-    await expect(run(fake(), 'playtest', '--by', 'bob', '--reason', 'r')).rejects.toThrow('unknown actor');
+    await expect(run(fake(), 'move', '5', 'design', '--by', 'bob', '--reason', 'r')).rejects.toThrow('unknown actor');
     await expect(run(fake(), 'ship', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
+    expect(inbox()).toEqual([]);
+  });
+
+  it('refuses a playtest order from anyone but the owner before writing', async () => {
+    for (const by of ['hermes', 'carl', 'bob']) await expect(run(fake(), 'playtest', '--by', by, '--reason', 'r')).rejects.toThrow('Only the committee owner');
     expect(inbox()).toEqual([]);
   });
 
@@ -354,6 +366,50 @@ describe('immediate commands', () => {
     await expect(run(f, 'retry', String(RELEASE.issue), '--by', 'hermes', 'Raiders', 'may', 'chase')).rejects.toThrow('one quoted argument');
     expect(readState(f.ctx.statePath).release?.playtest).toEqual(PLAYTEST);
     expect(f.calls.filter((call) => call.startsWith('removeLabel'))).toEqual([]);
+  });
+
+  it('retry of the release tracking card with no blocked playtest orders none, and only records the decision', async () => {
+    const f = fake();
+    const passed = { sha: 'abc1234', features: [] };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: { ...PLAYTEST, blocked: null, passed } } });
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'carl', 'Raiders may chase at night.');
+    const state = readState(f.ctx.statePath);
+    expect(state.pendingPlaytest).toBeNull();
+    expect(state.release?.playtest).toEqual({ ...PLAYTEST, blocked: null, passed, decision: { by: 'carl', at: f.ctx.now().toISOString(), text: 'Raiders may chase at night.' } });
+    expect(out.join('\n')).toContain('not blocked, so no playtest is ordered');
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'hermes');
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBeNull();
+  });
+
+  it('retry of a blocked playtest by any member or Hermes runs it again', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: PLAYTEST } });
+    await run(f, 'retry', String(RELEASE.issue), '--by', 'carl');
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBe('carl');
+    expect(readState(f.ctx.statePath).release?.playtest.blocked).toBeNull();
+  });
+
+  it('set-state lets only the owner set a value that starts a playtest or stands for its pass, and lets anyone clear one', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, playtest: { ...PLAYTEST, blocked: null } } });
+    const set = (by: string, path: string, json: string) => run(f, 'set-state', path, json, '--by', by, '--reason', 'r');
+    const pass = JSON.stringify({ sha: 'abc1234', features: [] });
+    const playtest = JSON.stringify({ ...PLAYTEST, blocked: null, passed: { sha: 'abc1234', features: [] } });
+    for (const by of ['hermes', 'carl']) {
+      await expect(set(by, 'pendingPlaytest', '"carl"')).rejects.toThrow('Only the committee owner');
+      await expect(set(by, 'release.playtest.passed', pass)).rejects.toThrow('Only the committee owner');
+      await expect(set(by, 'release.playtest.passed.sha', '"abc1234"')).rejects.toThrow('Only the committee owner');
+      await expect(set(by, 'release.playtest', playtest)).rejects.toThrow('Only the committee owner');
+      await expect(set(by, 'release', JSON.stringify({ ...RELEASE, playtest: JSON.parse(playtest) }))).rejects.toThrow('Only the committee owner');
+    }
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBeNull();
+    expect(readState(f.ctx.statePath).release?.playtest.passed).toBeNull();
+    await set('carl', 'release.postId', '7');
+    expect(readState(f.ctx.statePath).release?.postId).toBe(7);
+    await set('ann', 'pendingPlaytest', '"ann"');
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBe('ann');
+    await set('hermes', 'pendingPlaytest', 'null');
+    expect(readState(f.ctx.statePath).pendingPlaytest).toBeNull();
   });
 
   it('retry of another card leaves the playtest alone', async () => {
