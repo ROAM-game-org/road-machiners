@@ -39,6 +39,7 @@ let real: World;
 beforeAll(() => {
   real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
   for (const shop of Object.values(real.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+  standardWorld(2);
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {

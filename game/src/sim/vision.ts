@@ -3,6 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import type { Contact, Obstacle, Vehicle, World } from './types';
+import { ownExplored } from './explored';
 import { groundAt, heightAt, heightNear, type Terrain } from './terrain';
 import { anyDeckBox, decksOf } from './bridge';
 import { boxDistance, propReach, reachableBoxes, stretchCrossesBox } from './mapgen';
@@ -305,7 +306,7 @@ export function playerVisible(world: World): Set<number> {
 export function refreshVision(world: World): Contact[] {
   const seen = playerVisible(world);
   world.player.visible = [...seen].sort((a, b) => a - b);
-  for (const idx of seen) world.player.explored[idx] = 1;
+  for (const idx of seen) if (world.player.explored[idx] === 0) ownExplored(world.player)[idx] = 1;
   world.player.marked = world.player.marked.filter((m) => world.turn <= m.until);
   const me = world.vehicles.find((x) => x.id === world.player.vehicleId);
   const known = new Set(world.player.contacts.map((c) => c.vehicleId));
