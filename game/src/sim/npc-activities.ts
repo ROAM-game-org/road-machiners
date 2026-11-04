@@ -151,7 +151,7 @@ export function createSiteActivity(kind: NpcActivity['kind'], id: string, reason
   return createActivity(kind, id, { ...getKnownSite(id).pos }, reason);
 }
 
-function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProfile, threatPos: Vec): Vec {
+export function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProfile, threatPos: Vec): Vec {
   const partner = safeBesidePartner(world, vehicle, threatPos);
   if (partner) return partner;
   const safe = [...profile.towns, ...profile.bases].map(getKnownSite).filter((site) => pointsAway(vehicle.pos, site.pos, threatPos));
@@ -822,12 +822,12 @@ function steerInvestigate(world: World, vehicle: Vehicle, goal: NpcActivity, _pr
 
 function steerFlee(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[], goal: NpcActivity): void {
   const threat = fleeThreat(world, vehicle, contacts, goal);
-  if (threat && !keepsFleePoint(vehicle, goal, threat)) goal.destination = fleeDestination(world, vehicle, profile, threat);
+  if (threat && !(goal.destination && keepsFleeCourse(vehicle, goal.destination, threat))) goal.destination = fleeDestination(world, vehicle, profile, threat);
   if (threat || vehicle.brain!.hurt > 0) goal.perceived = world.turn;
 }
 
-function keepsFleePoint(vehicle: Vehicle, goal: NpcActivity, threat: Vec): boolean {
-  return goal.destination !== null && leadsAwayBy(vehicle.pos, goal.destination, threat, NPC_BEHAVIOR.fleeKeepAngle);
+export function keepsFleeCourse(vehicle: Vehicle, destination: Vec, threat: Vec): boolean {
+  return leadsAwayBy(vehicle.pos, destination, threat, NPC_BEHAVIOR.fleeKeepAngle);
 }
 
 function fleeThreat(world: World, vehicle: Vehicle, contacts: Contact[], goal: NpcActivity): Vec | undefined {

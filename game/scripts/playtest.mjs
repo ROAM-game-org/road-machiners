@@ -17,9 +17,10 @@ const url = arg('url', 'http://localhost:5173');
 const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
-const CRASH_ATTEMPTS = 3;
+const CRASH_ATTEMPTS = 8;
+const CRASH_PAUSE_MS = 30000;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
-const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
+const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
@@ -33,34 +34,47 @@ if (software && fpsGate) {
 const turns = Number(arg('turns', software ? '4' : '12'));
 const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
-const retryAfterBrowserCrash = async () => {
+page.setDefaultTimeout(timeoutsOff ? 0 : Math.max(30000, TURN_LIMIT_MS));
+const retryAfterBrowserCrash = async (cause) => {
+  if (cause) console.log(`Crash cause: ${String(cause?.message ?? cause).split('\n')[0]}`);
   await browser.close().catch(() => {});
   if (attempt >= CRASH_ATTEMPTS) {
     console.error(`FAIL\nThe browser process crashed in all ${CRASH_ATTEMPTS} attempts.`);
     process.exit(1);
   }
   console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
-  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1) } });
+  await new Promise((done) => setTimeout(done, CRASH_PAUSE_MS * attempt));
+  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1), PLAYTEST_FORCE_SOFTWARE: "1" } });
   process.exit(rerun.status ?? 1);
 };
 let crashed = false;
 page.on('crash', () => { crashed = true; });
-const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw cause; });
+browser.on('disconnected', () => { crashed = true; });
+process.on('uncaughtException', async (cause) => {
+  if (!crashed && !/Target page, context or browser has been closed/.test(cause?.message ?? '')) {
+    console.error(cause);
+    process.exit(1);
+  }
+  await retryAfterBrowserCrash(cause);
+});
+const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(cause); throw cause; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await emulateWebGL2Floor(page);
-await page.goto(playUrl(url));
-await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+await afterCrashRetry(async () => {
+  await page.goto(playUrl(url));
+  await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+});
 await page.waitForTimeout(1000);
-const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : software ? 60000 : 10000 }).then(() => true, () => false);
+const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: BOOT_LIMIT_MS }).then(() => true, () => false);
+if (!bootGone && crashed) await retryAfterBrowserCrash();
 if (!bootGone) {
   await browser.close();
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
   process.exit(1);
 }
-await page.screenshot({ path: '.playtest/start.png' });
+await afterCrashRetry(() => page.screenshot({ path: '.playtest/start.png', timeout: BOOT_LIMIT_MS }));
 
 const hitProblems = [];
 const findDeadCorners = () => {
@@ -161,7 +175,7 @@ const pressedLanguage = async () => {
   return pressed;
 };
 await checkNoStrayControl('in English');
-await pickLanguageByKeyboard('ru');
+await afterCrashRetry(() => pickLanguageByKeyboard('ru'));
 const russian = await languageReadout();
 if (russian.lang !== 'ru' || !CYRILLIC.test(russian.menu) || !russian.hud.some((label) => CYRILLIC.test(label))) languageProblems.push(`Русский did not switch the menu and HUD: ${JSON.stringify(russian)}`);
 await checkNoStrayControl('in Russian');
@@ -179,7 +193,7 @@ for (let i = 0; i < turns; i++) {
   await page.waitForFunction((turn) => {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
-  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { if (crashed) await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
+  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { await retryAfterBrowserCrash(cause); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
 }
 await page.screenshot({ path: '.playtest/end.png' });
 

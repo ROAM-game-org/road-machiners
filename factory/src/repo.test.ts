@@ -254,6 +254,52 @@ describe('merging only a checked build', () => {
     expect(await repo.hasNewCommits('main', 'dev')).toBe(true);
   });
 
+  it('counts the head commits that are on the other branch and not on the base', async () => {
+    const { repo, feature, commit, hub } = await setup();
+    await feature(3, 'f.txt', 'three\n');
+    await feature(4, 'g.txt', 'four\n');
+    const onDevOnly = Number((await hub('rev-list', '--count', 'main..dev')).trim());
+    expect(onDevOnly).toBeGreaterThan(2);
+    await commit('factory/issue-7', 'f.txt', 'seven\n', 'main');
+    await commit('factory/issue-8', 'g.txt', 'eight\n', 'dev');
+    await repo.fetch();
+    expect(await repo.foreignCommits('factory/issue-7', 'main', 'dev')).toBe(0);
+    expect(await repo.foreignCommits('factory/issue-8', 'main', 'dev')).toBe(onDevOnly);
+    expect(await repo.foreignCommits('dev', 'main', 'dev')).toBe(onDevOnly);
+    expect(await repo.foreignCommits('dev', 'dev', 'dev')).toBe(0);
+  });
+
+  it('does not count main commits that dev already merged', async () => {
+    const { repo, feature, commit } = await setup();
+    await feature(5, 'f.txt', 'five\n', 'main');
+    await repo.merge([{ branch: 'main', into: 'dev', message: 'Merge main into dev', issue: null }]);
+    await commit('factory/issue-7', 'g.txt', 'seven\n', 'main');
+    await repo.fetch();
+    expect(await repo.foreignCommits('factory/issue-7', 'main', 'dev')).toBe(0);
+  });
+
+  it('walks a branch head back past merges of its base to its own last commit', async () => {
+    const { repo, by, commit, head } = await setup();
+    await commit('factory/issue-7', 'f.txt', 'seven\n');
+    const own = await head('factory/issue-7');
+    const mergeDev = async () => {
+      await by('checkout', '-B', 'factory/issue-7', 'origin/factory/issue-7');
+      await by('merge', '--no-ff', '-m', 'catch up', 'origin/dev');
+      await by('push', 'origin', 'factory/issue-7');
+    };
+    await commit('dev', 'g.txt', 'dev one\n');
+    await mergeDev();
+    const first = await head('factory/issue-7');
+    await commit('dev', 'g.txt', 'dev two\n');
+    await mergeDev();
+    const second = await head('factory/issue-7');
+    await repo.fetch();
+    expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([second, first, own]);
+    await commit('factory/issue-7', 'f.txt', 'seven again\n');
+    await repo.fetch();
+    expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([await head('factory/issue-7')]);
+  });
+
   it('lists both paths of a moved file', async () => {
     const { repo, by } = await setup();
     await by('checkout', '-B', 'dev', 'origin/dev');
@@ -373,6 +419,42 @@ describe('work clones', () => {
     expect(await repo.mergeBranchIntoWork(work, 'factory/issue-12', 'Merge issue #12: Horn')).toMatchObject({ conflicts: [] });
     expect((await git(work, 'log', '-1', '--format=%P')).trim().split(' ')).toHaveLength(2);
     expect((await git(work, 'log', '-1', '--format=%s')).trim()).toBe('Merge issue #12: Horn');
+  });
+
+  describe('porting a dev merge onto the release', () => {
+    async function ported(releaseFile: string) {
+      const env = await setup();
+      await env.commit('release/x', releaseFile, 'release\n', 'main');
+      await env.feature(30, 'g.txt', 'dev only\n');
+      await env.feature(31, 'f.txt', 'fix\n');
+      const sha = await env.head('dev');
+      await env.repo.fetch();
+      const work = join(env.home, 'work', 'merge-queue');
+      await env.repo.prepareWorkClone('release/x', 'release/x', work);
+      return { ...env, sha, work };
+    }
+
+    it('cherry-picks only the change of the card merge, with no other dev work, and the merge is one of the card branch', async () => {
+      const { repo, sha, work } = await ported('g.txt');
+      expect(await repo.pickIntoWork(work, sha)).toEqual([]);
+      expect(await repo.unfinishedPick(work)).toBe(false);
+      expect(readFileSync(join(work, 'f.txt'), 'utf8')).toBe('fix\n');
+      expect(readFileSync(join(work, 'g.txt'), 'utf8')).toBe('release\n');
+      expect((await git(work, 'log', '-1', '--format=%P')).trim().split(' ')).toHaveLength(1);
+      expect(await repo.isMerged(`${sha}^2`, 'factory/issue-31')).toBe(true);
+      await expect(repo.isMerged(`${sha}^2`, 'factory/issue-30')).resolves.toBe(false);
+    });
+
+    it('stops on a conflict, reports the same open pick again, and counts it finished only after the commit', async () => {
+      const { repo, sha, work } = await ported('f.txt');
+      expect(await repo.pickIntoWork(work, sha)).toEqual(['f.txt']);
+      expect(await repo.unfinishedPick(work)).toBe(true);
+      expect(await repo.pickIntoWork(work, sha)).toEqual(['f.txt']);
+      writeFileSync(join(work, 'f.txt'), 'release and fix\n');
+      await git(work, 'add', 'f.txt');
+      await git(work, ...ID, 'commit', '--no-edit');
+      expect(await repo.unfinishedPick(work)).toBe(false);
+    });
   });
 
   describe('catching a work clone up to its base', () => {

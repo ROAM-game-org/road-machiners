@@ -8,7 +8,7 @@ import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
 import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
-import { tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
+import { tileGrade, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
 import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
@@ -80,15 +80,18 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
   const openTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
   const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
+  const costs = new Map(TYPE_IDS.map((id) => [id, [routeCost(id, false), routeCost(id, true)]]));
   for (let i = 0; i < t.size * t.size; i++) {
-    const slope = tileSlope(t, i);
-    const grade = Math.hypot(slope.x, slope.y);
-    cliffTile[i] = grade > TERRAIN.drive.maxSlope ? 1 : 0;
+    const grade = tileGrade(t, i);
+    const type = t.types[i];
+    const free = 1 - bySite[i];
+    const road = type === 'road' ? 1 : 0;
+    cliffTile[i] = Number(grade > TERRAIN.drive.maxSlope);
     steep[i] = grade;
-    flatCost[i] = routeCost(t.types[i], bySite[i] === 1);
+    flatCost[i] = costs.get(type)![bySite[i]];
     tileCost[i] = flatCost[i] * slopeCost(grade);
-    roadTile[i] = t.types[i] === 'road' && bySite[i] === 0 ? 1 : 0;
-    openTile[i] = t.types[i] !== 'road' && bySite[i] === 0 ? 1 : 0;
+    roadTile[i] = road * free;
+    openTile[i] = (1 - road) * free;
   }
   return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, roadShy: roadShyField(t.size, roadTile) };
 }

@@ -49,6 +49,7 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
   let bestScore = -1;
   for (const spot of mountSpots(gridOf(v), v.items, item, mount)) {
+    if (spot.rot >= 4) continue;
     const score = gunLayoutScore({ ...v, items: [...v.items, { ...item, ...spot }] });
     if (score > bestScore) [best, bestScore] = [spot, score];
   }

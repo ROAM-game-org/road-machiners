@@ -26,8 +26,9 @@ describe('set-down anchors', () => {
 
   it('every anchor on the first highway outposts has a nav component for every chassis radius', () => {
     for (const window of [0, 1, 2, 3]) {
+      const map = highwayMap(3, window);
       for (const radius of RADII) {
-        const pads = padComponents(highwayMap(3, window), radius);
+        const pads = padComponents(map, radius);
         expect(pads.length, `window ${window}`).toBeGreaterThan(0);
         for (const components of pads) expect(components.every((c) => c !== 0), `window ${window} radius ${radius}`).toBe(true);
       }

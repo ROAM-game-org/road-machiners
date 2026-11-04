@@ -12,6 +12,10 @@ const lines = (text: string): string[] => text.split('\n').filter(Boolean);
 
 const nulSeparated = (text: string): string[] => text.split('\0').filter(Boolean);
 
+type GitIn = (cwd: string, args: string[]) => Promise<string>;
+
+const conflictedIn = async (gitIn: GitIn, dir: string): Promise<string[]> => lines(await gitIn(dir, ['diff', '--name-only', '--diff-filter=U']));
+
 const mergeFlags = (message: string | undefined): string[] => (message === undefined ? ['--no-edit'] : ['--no-ff', '-m', message]);
 
 export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | null = null): HostRepo {
@@ -57,9 +61,7 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     throw new BaseMovedError(branch, build, `${base} moved to ${target.slice(0, 7)} after the checks ran on ${build}, so they no longer count.`);
   }
 
-  async function conflictedFiles(dir: string): Promise<string[]> {
-    return lines(await gitIn(dir, ['diff', '--name-only', '--diff-filter=U']));
-  }
+  const conflictedFiles = (dir: string): Promise<string[]> => conflictedIn(gitIn, dir);
 
   function mergeCommit(source: string, base: string, step: MergeStep, resolutions: Resolution[], done: Resolution[]): Promise<string> {
     const resolved = resolutions.find((item) => item.base === base && item.source === source);
@@ -305,6 +307,7 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       await requireNoOpenWork(dir);
       return mergeBranchCommit(dir, branch, commit, message);
     },
+    ...workPicks(run, requireNoOpenWork),
     async isMerged(base, branch) {
       const result = await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', await ref(base), await ref(branch)], { cwd: path });
       if (result.code === 0 || result.code === 1) return result.code === 0;
@@ -320,13 +323,13 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       return (await git(['rev-parse', '--short', (await git(['merge-base', await ref(a), await ref(b)])).trim()])).trim();
     },
     diff: async (base, branch) => git(['diff', '--no-renames', `${await ref(base)}...${await ref(branch)}`]),
-    async readFile(branch, path) {
-      return git(['show', `${await ref(branch)}:${path}`]);
-    },
+    readFile: async (branch, path) => git(['show', `${await ref(branch)}:${path}`]),
+    ownHeads: async (base, branch) => ownHeadsIn(run, path, await ref(base), await ref(branch)),
     async changedFiles(base, branch) {
       return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
     changedInWork: async (dir, from) => nulSeparated(await gitIn(dir, ['diff', '--name-only', '--no-renames', '-z', `${from}...HEAD`])),
+    foreignCommits: async (head, base, other) => foreignCommitsIn(run, path, await ref(head), await ref(base), await ref(other)),
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
@@ -338,6 +341,54 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       }
     },
   });
+}
+
+function workPicks(run: Run, requireNoOpenWork: (dir: string) => Promise<void>): Pick<HostRepo, 'pickIntoWork' | 'unfinishedPick'> {
+  const gitIn = async (cwd: string, args: string[]): Promise<string> => must(await run('git', [...NO_HOOKS, ...args], { cwd, activity: 'git' }), `git ${args.join(' ')}`);
+  const picking = async (dir: string): Promise<boolean> => (await run('git', [...NO_HOOKS, 'rev-parse', '--verify', '--quiet', 'CHERRY_PICK_HEAD'], { cwd: dir, activity: 'git' })).code === 0;
+  const conflicted = (dir: string): Promise<string[]> => conflictedIn(gitIn, dir);
+
+  async function openPick(dir: string, commit: string): Promise<string[]> {
+    const open = (await gitIn(dir, ['rev-parse', 'CHERRY_PICK_HEAD'])).trim();
+    if (open !== commit) throw new Error(`${dir} has an unfinished cherry-pick of ${open.slice(0, 7)}, not of ${commit.slice(0, 7)}. Repair it with factory repair-clone.`);
+    const conflicts = await conflicted(dir);
+    return conflicts.length > 0 ? conflicts : lines(await gitIn(dir, ['diff', '--name-only', '--cached']));
+  }
+
+  async function freshPick(dir: string, commit: string): Promise<string[]> {
+    await requireNoOpenWork(dir);
+    const result = await run('git', [...NO_HOOKS, 'cherry-pick', '-x', '-m', '1', '--keep-redundant-commits', commit], { cwd: dir, activity: 'git' });
+    if (result.code === 0) return [];
+    const conflicts = await conflicted(dir);
+    if (conflicts.length === 0) throw new Error(`cherry-pick of ${commit} into ${dir} failed without a conflict: ${(result.stderr || result.stdout).trim()}`);
+    return conflicts;
+  }
+
+  return {
+    async pickIntoWork(dir, commit) {
+      await gitIn(dir, ['fetch', 'origin']);
+      return (await picking(dir)) ? openPick(dir, commit) : freshPick(dir, commit);
+    },
+    unfinishedPick: async (dir) => (await picking(dir)) || (await conflicted(dir)).length > 0,
+  };
+}
+
+async function ownHeadsIn(run: Run, path: string, baseTip: string, branchTip: string): Promise<string[]> {
+  const lines = must(await run('git', [...NO_HOOKS, 'rev-list', '--first-parent', '--parents', branchTip, `^${baseTip}`], { activity: 'git', cwd: path }), `git rev-list ${branchTip}`).trim();
+  const heads: string[] = [];
+  for (const line of lines === '' ? [] : lines.split('\n')) {
+    const [sha, , mergedIn] = line.split(' ');
+    heads.push(sha!);
+    if (mergedIn === undefined || !(await containsIn(run, path, baseTip, mergedIn, baseTip))) return heads;
+  }
+  return heads;
+}
+
+async function foreignCommitsIn(run: Run, path: string, head: string, base: string, other: string): Promise<number> {
+  const shared = await run('git', [...NO_HOOKS, 'merge-base', '--all', head, other], { activity: 'git', cwd: path });
+  if (shared.code === 1 && shared.stdout.trim() === '') return 0;
+  const ancestors = lines(must(shared, `git merge-base --all ${head} ${other}`));
+  return Number(must(await run('git', [...NO_HOOKS, 'rev-list', '--count', ...ancestors, `^${base}`], { activity: 'git', cwd: path }), `git rev-list ${head}`).trim());
 }
 
 async function containsIn(run: Run, path: string, branch: string, sha: string, tip: string): Promise<boolean> {

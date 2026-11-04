@@ -35,6 +35,10 @@ export type Card = {
   sz: number;
 };
 
+const DEPTH_BINS = 4096;
+
+const emptyCard =(): Card => ({ x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 });
+
 const VERTEX = `
   attribute vec3 offset;
   attribute vec3 stretch;
@@ -131,10 +135,15 @@ export class CardBatch {
   private readonly shapes: THREE.InstancedBufferAttribute;
   private readonly tints: THREE.InstancedBufferAttribute;
   private readonly cards: Card[] = [];
+  private readonly pool: Card[] = [];
+  private readonly ordered: Card[] = [];
+  private readonly depths: Float32Array;
+  private readonly binStarts = new Int32Array(DEPTH_BINS + 1);
   private readonly depth = new THREE.Vector3();
 
   constructor(private readonly capacity: number, private readonly kind: 'lit' | 'glow', shapes: THREE.Texture, private readonly fillScreens: number) {
     if (!(fillScreens > 0)) throw new Error(`CardBatch needs a positive fill ceiling, got ${fillScreens}`);
+    this.depths = new Float32Array(capacity);
     const quad = new THREE.PlaneGeometry(1, 1);
     this.geo.index = quad.index;
     this.geo.setAttribute('position', quad.getAttribute('position'));
@@ -160,8 +169,14 @@ export class CardBatch {
   }
 
   push(card: Card): void {
+    Object.assign(this.slot(), card);
+  }
+
+  slot(): Card {
     if (this.cards.length >= this.capacity) throw new Error(`CardBatch over its ${this.capacity} cards; the client pools must cap below it`);
+    const card = (this.pool[this.cards.length] ??= emptyCard());
     this.cards.push(card);
+    return card;
   }
 
   flush(camera: THREE.Camera): void {
@@ -200,9 +215,36 @@ export class CardBatch {
   }
 
   private sortBackToFront(camera: THREE.Camera): void {
-    const look = camera.getWorldDirection(this.depth);
-    const d = (c: Card) => c.x * look.x + c.y * look.y + c.z * look.z;
-    this.cards.sort((a, b) => d(b) - d(a));
+    const { nearest, farthest } = this.measureDepths(camera.getWorldDirection(this.depth));
+    const span = farthest - nearest;
+    if (!(span > 0)) return;
+    const scale = (DEPTH_BINS - 1) / span;
+    const n = this.cards.length;
+    const binOf = (i: number) => this.binOf((farthest - this.depths[i]) * scale);
+    this.binStarts.fill(0);
+    for (let i = 0; i < n; i++) this.binStarts[binOf(i) + 1]++;
+    for (let b = 1; b <= DEPTH_BINS; b++) this.binStarts[b] += this.binStarts[b - 1];
+    for (let i = 0; i < n; i++) this.ordered[this.binStarts[binOf(i)]++] = this.cards[i];
+    for (let i = 0; i < n; i++) this.cards[i] = this.ordered[i];
+  }
+
+  private binOf(position: number): number {
+    const bin = Math.floor(position);
+    return bin >= 0 && bin < DEPTH_BINS ? bin : 0;
+  }
+
+  private measureDepths(look: THREE.Vector3): { nearest: number; farthest: number } {
+    let nearest = Infinity;
+    let farthest = -Infinity;
+    for (let i = 0; i < this.cards.length; i++) {
+      const c = this.cards[i];
+      const depth = c.x * look.x + c.y * look.y + c.z * look.z;
+      this.depths[i] = depth;
+      if (!Number.isFinite(depth)) continue;
+      nearest = Math.min(nearest, depth);
+      farthest = Math.max(farthest, depth);
+    }
+    return { nearest, farthest };
   }
 
   private attribute(name: string, size: number): THREE.InstancedBufferAttribute {

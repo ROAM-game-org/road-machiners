@@ -6,6 +6,7 @@ This repo holds ROAM, a turn-based wasteland truck RPG, and the AI coding agent-
 
 - `game/` is the game. It is one npm package with its own `node_modules` and `.env`.
 - `factory/` is the factory. It turns triaged GitHub issues and player-voted proposals into kanban workflows that lead to game changes and releases. It is one npm package with its own `node_modules` and `.env`.
+- `desktop/` is the Electron shell that wraps `game/dist` as a desktop app. It is one npm package with its own `node_modules`. The game reaches it only through `window.roamDesktop`.
 - `quality/` is the quality gate for both packages. The root `package.json`, `.oxlintrc.json`, `.quality.json` and `.githooks/` belong to it.
 
 ## Where to work
@@ -14,6 +15,9 @@ This repo holds ROAM, a turn-based wasteland truck RPG, and the AI coding agent-
 - Read `game/docs/DESIGN.md` before any game change and before answering any question about the game.
 - Work on the factory from `factory/`. Read `factory/CLAUDE.md` first.
 - Game and factory never import each other.
+- Work on the desktop shell from `desktop/`. Build `game/` first, since the shell serves `game/dist`.
+- In `desktop/`, `npm run typecheck` runs tsc, `npm test` runs its Vitest files, `npm run smoke` plays 3 turns in the app, and `npm run pack:mac` builds the Mac dmg with signing off. The root gate does not cover `desktop/`.
+- Every Electron launch sets `ROAM_SMOKE=1` and passes `--mute-audio`, so the window stays hidden and silent. `npm start` opens a visible window with sound, so do not run it from an agent.
 
 ## Landing on dev
 
