@@ -600,7 +600,7 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
 }
 
 function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
-  const tall = v.items.filter((it) => it.id !== gun.id && it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
+  const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
   if (tall.length === 0) return tall;
   const reach = floorUnder(v.chassisId, gun) + GUN_CLEARANCE;
   return tall.filter((it) => topOf(v.chassisId, it) > reach);
