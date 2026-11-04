@@ -30,6 +30,7 @@ import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, J
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 import { payoutM } from './money';
+import { restoreStores } from './goods-store';
 import { queuedSpawnFits } from './spawn';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
@@ -184,6 +185,7 @@ function dropGoneContent(world: World): void {
   dropOwnContracts(world);
   world.player.pastContracts = world.player.pastContracts.filter((p) => contractFits(p.contract));
   dropUnknownKeys(world.player.costBasis);
+  restoreStores(world, world.player.storedGoods);
   dropHulks(world);
   world.spawnQueue = world.spawnQueue.filter(queuedSpawnFits);
 }

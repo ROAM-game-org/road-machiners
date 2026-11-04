@@ -11,10 +11,10 @@ import type { Vehicle } from './types';
 const SEEDS = [1, 2, 3, 4];
 const LEVELS: GearLevel[] = ['standard', 'heavy', 'loaded'];
 const WAVES = [
-  { stretch: 1, money: 300, elite: false },
-  { stretch: 4, money: 900, elite: false },
-  { stretch: 8, money: 1500, elite: true },
-  { stretch: 8, money: 3000, elite: false },
+  { stretch: 1, money: 300 },
+  { stretch: 4, money: 900 },
+  { stretch: 8, money: 1500 },
+  { stretch: 8, money: 3000 },
 ];
 const base = emptyWorld();
 const cases = Object.values(NPCS).flatMap((template) => (template.loadout.spares ? template.loadout.chassis.map(({ value }) => ({ template, chassisId: value })) : []));
@@ -34,7 +34,7 @@ function roll(id: string, chassisId: string, level: GearLevel, seed: number, rul
 
 describe('NPC loadout rebuild', () => {
   it.each(cases)('stows the spares of every rolled $template.id loadout on a $chassisId where the roll stowed them, with or without its cargo', ({ template, chassisId }) => {
-    const rules = [openGear(template.loadout), ...WAVES.map((w) => waveGear(template.id, w.stretch, w.money, w.elite))];
+    const rules = [openGear(template.loadout), ...WAVES.map((w) => waveGear(template.id, w.stretch, w.money))];
     const thrown: string[] = [];
     const moved: string[] = [];
     for (const level of LEVELS) {

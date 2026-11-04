@@ -3,12 +3,14 @@ import { REGION } from "../data/region";
 import { partDef } from "../data/parts";
 import { makePart } from "../sim/factory";
 import { gridOf, isMounted, itemCells, mountedParts, placementError } from "../sim/grid";
-import { fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
+import { addGoods, fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { goodsCount } from "../sim/grid";
+import { storedGoodItem } from "./inventory-draw";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
@@ -111,6 +113,40 @@ describe("double click in a garage", () => {
     const core = w.vehicles[0].items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "core")!;
     expect(doubleClickCommand(w, gridClick(good))).toBeNull();
     expect(doubleClickCommand(w, gridClick(core))).toBeNull();
+  });
+});
+
+describe("crates in the shop store", () => {
+  const storedChip = (good: string): ClickedItem => ({ source: "storage", id: good, item: storedGoodItem(good), stockId: null, truckId: null });
+
+  it("a drop on the storage well stores a crate in this shop's store and a part in parts storage", () => {
+    const w = emptyWorld(sitePads(bowl)[0]);
+    const crate = w.vehicles[0].items.find((it) => it.kind === "good")!;
+    const good = crate.kind === "good" ? crate.good : "";
+    const stored = storeItem(w, crate.id);
+    expect(stored.player.storedGoods).toEqual({ bowl: { [good]: 1 } });
+    expect(stored.player.storage).toEqual([]);
+    const parted = storeItem(stored, partOf(stored, "mg").id);
+    expect(parted.player.storage.map((p) => p.defId)).toEqual(["mg"]);
+    expect(parted.player.storedGoods).toEqual({ bowl: { [good]: 1 } });
+  });
+
+  it("a double click takes one stored crate back into the cargo bay", () => {
+    let w = emptyWorld(sitePads(bowl)[0]);
+    removeAllGoods(w.vehicles[0]);
+    w = update(w, (d) => { d.player.storedGoods = { bowl: { salt: 2 } }; });
+    const next = doubleClickCommand(w, storedChip("salt"))!(w);
+    expect(next.player.storedGoods).toEqual({ bowl: { salt: 1 } });
+    expect(goodsCount(next.vehicles[0])).toEqual({ salt: 1 });
+  });
+
+  it("does nothing when the cargo bay has no room for the crate", () => {
+    let w = emptyWorld(sitePads(bowl)[0]);
+    w = update(w, (d) => {
+      d.player.storedGoods = { bowl: { salt: 2 } };
+      addGoods(d, d.vehicles[0], "salt", 1000);
+    });
+    expect(doubleClickCommand(w, storedChip("salt"))).toBeNull();
   });
 });
 

@@ -2,6 +2,12 @@ import { changesSaveMajor } from './save-guard';
 
 export class CommitteeDecisionError extends Error {}
 
+export class ForeignBaseError extends Error {
+  constructor(readonly base: string, readonly other: string, readonly count: number) {
+    super(`The branch holds ${count} commit${count === 1 ? '' : 's'} that ${other} has and ${base} lacks, so it cannot go into ${base}.`);
+  }
+}
+
 const FORBIDDEN_PATH = /^\.github\/|(^|\/)\.factory(-tasks|-media)?\//;
 
 export type Side = { files: string[]; diff: string };

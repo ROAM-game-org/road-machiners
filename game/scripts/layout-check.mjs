@@ -422,26 +422,53 @@ async function townNavFaults(page) {
   return faults;
 }
 
+async function nestedScrollFaults(page) {
+  const found = await page.evaluate(() => {
+    const scrolls = (n) => /auto|scroll/.test(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
+    const name = (n) => `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]}`;
+    const root = document.querySelector('.town-page, .modal:not([style*="display: none"])');
+    if (!root || innerWidth < 1000) return [];
+    const faults = [...root.querySelectorAll('*')].filter(scrolls).filter((n) => {
+      for (let p = n.parentElement; p && p !== document.body; p = p.parentElement) if (scrolls(p)) return true;
+      return false;
+    }).map((n) => `${name(n)} scrolls inside another scroll area`);
+    for (const shop of root.querySelectorAll('.town-shop')) if (!shop.querySelector(':scope > .shop-body')) faults.push('a shop column has no .shop-body');
+    for (const n of root.querySelectorAll('*')) if (scrolls(n) && !n.matches('.shop-body, .truck-body') && !n.closest('.shop-body, .truck-body')) faults.push(`${name(n)} scrolls and is not a column body`);
+    const page = root.querySelector('.ink-scroll');
+    if (page && scrolls(page)) faults.push('the town page scrolls as a whole');
+    const body = root.querySelector('.shop-body');
+    const tabs = root.querySelector('.town-shop > .tabs');
+    if (body && tabs) {
+      const before = tabs.getBoundingClientRect().top;
+      body.scrollTop = body.scrollHeight;
+      if (Math.abs(tabs.getBoundingClientRect().top - before) > 1) faults.push('the tab row moves when the list scrolls');
+      body.scrollTop = 0;
+    }
+    return faults;
+  });
+  return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
+}
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
-  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  'trade-shortage': { setup: openShortMarket, teardown: closeTown },
-  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: nestedScrollFaults },
+  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
-  garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
   'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
-  paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
+  paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },

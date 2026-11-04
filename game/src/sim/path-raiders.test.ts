@@ -147,6 +147,7 @@ describe('scavengers and roamers that cut across open ground', () => {
 
   function driverWith(w: World, traits: TraitId[]): Vehicle {
     const v = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], a);
+    v.id = `${traits.join('-')}-driver`;
     v.brain = npcBrain('test', a, traits);
     v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'tripToSite' }];
     return v;

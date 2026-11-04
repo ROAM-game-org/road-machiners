@@ -45,14 +45,14 @@ describe('lesson data', () => {
 
   it('fills every slot of every trade once, with every lesson line used once', () => {
     const used = Object.values(LESSONS).flatMap((t) => [...WEAKNESSES.map((weak) => t.weak[weak]), ...t.general]);
-    expect(used).toHaveLength(56);
+    expect(used).toHaveLength(64);
     expect([...used].sort()).toEqual([...LESSON_LINE_IDS].sort());
   });
 
-  it('gives every trade four weakness stories and ten general ones', () => {
+  it('gives every trade four weakness stories and twelve general ones', () => {
     for (const trade of Object.values(LESSONS)) {
       expect(Object.keys(trade.weak)).toHaveLength(4);
-      expect(trade.general).toHaveLength(10);
+      expect(trade.general).toHaveLength(12);
     }
   });
 
@@ -87,6 +87,12 @@ describe('lesson text', () => {
   });
 
   const tradeLines = (trade: LessonTrade): string[] => [...Object.values(LESSONS[trade].weak), ...LESSONS[trade].general].map((id) => entryText('en', lineKey(id)));
+
+  it('tells every hauler and gun hand story in the first person in English', () => {
+    for (const trade of ['hauler', 'gunHand'] as LessonTrade[]) {
+      for (const text of tradeLines(trade)) expect(text).toMatch(/\b(I|I'm|I've|I'll|I'd|my|me)\b/);
+    }
+  });
 
   it('keeps the law tic to a few lines', () => {
     expect(tradeLines('law').filter((text) => /for the record/i.test(text)).length).toBeLessThanOrEqual(3);

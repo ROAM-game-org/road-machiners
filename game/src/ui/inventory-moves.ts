@@ -8,12 +8,13 @@ import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { gridOf, isMounted, mountedParts, placementError, type Spot } from "../sim/grid";
+import { gridOf, isMounted, mountedParts, nextTurn, placementError, turnsOf, type Spot } from "../sim/grid";
 import { installSpot, moveItem, planItemMove, plannedTruck, plannedVehicle, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
-import type { GridItem, PartInstance, PlacementRefusal, Vehicle, World } from "../sim/types";
+import { storeGood, takeStoredGood } from "../sim/goods-store";
+import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle, World } from "../sim/types";
 
 const ROTATE_KEY_CODE = "KeyR";
 
@@ -79,9 +80,18 @@ export function withPlanQueued(w: World, layout: RefitLayout, truckId?: string):
 }
 
 function storageCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
-  if (c.item.kind !== "part") return null;
-  const spot = installSpot(truckFor(w, c.own), c.item);
-  return spot ? (next) => takeFromStorage(next, c.id, spot, c.own) : null;
+  const truck = truckFor(w, c.own);
+  const spot = c.item.kind === "part" ? installSpot(truck, c.item) : stowSpot(truck, c.item);
+  return spot ? (next) => takeFromStore(next, c.item, c.id, spot, c.own) : null;
+}
+
+export function takeFromStore(w: World, item: GridItem, id: string, to: Spot, truckId?: string): World {
+  return item.kind === "good" ? takeStoredGood(w, item.good, to, truckId) : takeFromStorage(w, id, to, truckId);
+}
+
+export function storeItem(w: World, itemId: string, truckId?: string): World {
+  const item = truckFor(w, truckId).items.find((it) => it.id === itemId);
+  return item?.kind === "good" ? storeGood(w, itemId, truckId) : storePart(w, itemId, truckId);
 }
 
 function takeCommand(plan: OpenPlan, c: ClickedItem): ((w: World) => World) | null {
@@ -179,4 +189,14 @@ export function weldBlocker(w: World, me: Vehicle): Msg | null {
   if (busy) return busy;
   const scrap = PERK_NUMBERS.welder.scrap;
   return (goodsCount(me).scrap ?? 0) < scrap ? t("inv.needsScrap", { n: scrap }) : null;
+}
+
+export function turnsToTry(item: GridItem): Rot[] {
+  const poses: Rot[] = [];
+  let turned = item;
+  for (let i = 1; i < turnsOf(item).length; i++) {
+    turned = { ...turned, rot: nextTurn(turned) };
+    poses.push(turned.rot);
+  }
+  return poses;
 }

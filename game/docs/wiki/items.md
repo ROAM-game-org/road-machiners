@@ -14,7 +14,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | tank, transmission, cab, wheel, wheel, wheel, wheel | bowl, nose | nimble |
 | wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | gunMounts |
 | courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 4150 | 0.5 | 24 | 0.18 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
-| van | Utility van | 1 | 850 | 6.5 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
+| van | Utility van | 1 | 821 | 5.4 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
 | longbed | Longbed truck | 2 | 1,350 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
 | carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 8020 | 0.85 | 70 | 0.5 | 8 x 15 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | armored |
 | tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8860 | 0.9 | 120 | 0.6 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
@@ -104,12 +104,12 @@ Each weapon's round:
 <!-- wiki:armor -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| plates | Steel plates | 2 | 68 | 1 x 3 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
-| cage | Rebar cage | 1 | 73 | 1 x 3 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
-| scrapPanels | Scrap panels | 1 | 50 | 1 x 3 | 30 | 44 | 5 | false | 5 | full | 1 |
-| ceramicPlates | Ceramic plates | 2 | 140 | 1 x 3 | 18.75 | 44 | 14 | false | 8 | none | 1 |
-| spacedArmor | Spaced armor | 2 | 71 | 1 x 3 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
-| reinforcedCage | Reinforced cage | 2 | 78 | 1 x 3 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
+| plates | Steel plates | 2 | 68 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
+| cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
+| scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |
+| ceramicPlates | Ceramic plates | 2 | 140 | 1 x 2 | 18.75 | 44 | 14 | false | 8 | none | 1 |
+| spacedArmor | Spaced armor | 2 | 71 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
+| reinforcedCage | Reinforced cage | 2 | 78 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
 | steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
 | scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |
 | ceramicTile | Ceramic tile | 2 | 82 | 1 x 1 | 9.375 | 22 | 14 | false | 8 | none | 1 |
@@ -125,11 +125,11 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 <!-- wiki:accessories -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult | mounts | claymore |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ram | Ram bar | 2 | 86 | 3 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
-| plowRam | Plow ram | 3 | 167 | 3 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
-| claymoreRam | Claymore ram | 2 | 140 | 3 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
+| ram | Ram bar | 2 | 86 | 4 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
+| plowRam | Plow ram | 3 | 167 | 4 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
+| claymoreRam | Claymore ram | 2 | 140 | 4 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
 | spikeCluster | Spike cluster | 1 | 34 | 1 x 1 | 11.25 | 20 | 3 | false | 3 | full | 1.5 | FBLR |  |
-| spikeStrip | Spike strip | 1 | 53 | 1 x 3 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
+| spikeStrip | Spike strip | 1 | 53 | 1 x 2 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
 <!-- /wiki:accessories -->
 
 ## Cargo

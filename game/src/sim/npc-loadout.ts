@@ -130,11 +130,11 @@ function wearOf(rng: Rng, level: Level): number {
   return sampleWeighted(rng, level.wear);
 }
 
-export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean; minSpeed: number; chassisFloor: number; cargoPart: boolean };
+export type GearRules = { gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean; minSpeed: number; chassisFloor: number; cargoPart: boolean };
 export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
 
 function baseGear(minSpeed: number): GearRules {
-  return { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed, chassisFloor: MIN_NPC_SPEED, cargoPart: true };
+  return { gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed, chassisFloor: MIN_NPC_SPEED, cargoPart: true };
 }
 
 export function openGear(table: NpcLoadoutTable): GearRules {
@@ -247,16 +247,18 @@ function rankGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
     const bare = { ...core, items: [...core.items, gun] };
     return { spot, sides: spanSides(gunSpans(bare, gun)), share: openArcShares(bare)[0] };
   };
-  return mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
+  return alongSpots(mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon)).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
 }
 
 function orderedGunSpots(v: Vehicle, item: PartItem): Spot[] {
-  const open = new Set(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map(spotKey));
+  const open = new Set(alongSpots(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon)).map(spotKey));
   const guns = gunsBySide(v);
   const bare = (side: Side) => !guns[side].some((def) => !isLineGun(def));
   const free = rankedGunSpots(v, item).filter((r) => open.has(spotKey(r.spot)));
   return [...free.filter((r) => r.sides.some(bare)), ...free.filter((r) => !r.sides.some(bare))].map((r) => r.spot);
 }
+
+const alongSpots = (spots: Spot[]) => spots.filter((s) => s.rot < 4);
 
 const spotKey = (s: Spot) => `${s.x},${s.y},${s.rot}`;
 
@@ -314,7 +316,7 @@ type GearMove = (v: Vehicle) => Vehicle | null;
 
 function gearMoves(b: Build): GearMove[] {
   const moves: GearMove[] = gunsFor(b.rules).map((id) => (v: Vehicle) => withGun(b, v, id));
-  if (b.rules.armored) moves.push(...armorMoves(b));
+  moves.push(...armorMoves(b));
   for (const id of ENGINES) moves.push((v) => withEngine(b, v, id));
   return moves;
 }
@@ -406,13 +408,12 @@ function armsFront(open: Build, powered: Vehicle): boolean {
 
 function withFirstPicks(b: Build, rng: Rng, template: NpcTemplate, powered: Vehicle): Vehicle {
   const table = template.loadout;
-  let v = b.rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered, powered) : powered;
   const keeps = table.armed ? (next: Vehicle) => canArm(b, next) : undefined;
   const lineGun = table.armed ? (x: Vehicle, id: string) => withLineGun(b, rng, table.priorities, powered, x, id) : undefined;
-  if (b.rules.cargoPart) v = chooseOptionalPart(b, rng, v, table.cargoPart, keeps);
-  v = chooseOptionalPart(b, rng, v, utilityPoolOf(template), keeps, lineGun);
-  if (table.armed && !gunned(b, v)) v = chooseFirstGun(b, rng, table.priorities, v, powered);
-  return b.rules.armorFirst ? pickWith(b, rng, armorMoves(b), gearScorer(b.world, table.priorities, powered, b.rules.paysFuel), v) : v;
+  const armed = b.rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered, powered) : powered;
+  const withCargo = b.rules.cargoPart ? chooseOptionalPart(b, rng, armed, table.cargoPart, keeps) : armed;
+  const v = chooseOptionalPart(b, rng, withCargo, utilityPoolOf(template), keeps, lineGun);
+  return table.armed && !gunned(b, v) ? chooseFirstGun(b, rng, table.priorities, v, powered) : v;
 }
 
 const SPEED_HEADROOM = 1.15;
@@ -528,7 +529,6 @@ type Left = { mass: () => number; cells: () => number };
 function spareAllowed(defId: string | null, left: Left, rules: GearRules): defId is string {
   if (defId === null) return false;
   const def = partDef(defId);
-  if (!rules.armored && isShield(def)) return false;
   if (!withinTier(rules, defId)) return false;
   return def.mass <= left.mass() && def.w * def.h <= left.cells();
 }

@@ -15,7 +15,7 @@ function trafficSetting(): string {
   return (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.TRAFFIC ?? '';
 }
 
-const DEFAULT_TRAFFIC = 0.4;
+const DEFAULT_TRAFFIC = 0.6;
 
 function trafficDensity(raw: string): number {
   if (raw === '') return DEFAULT_TRAFFIC;
@@ -188,6 +188,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "van", weight: 4 },
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
+      { value: "courier", weight: 1 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
       { value: "sorokonoga", weight: 1 },
     ],

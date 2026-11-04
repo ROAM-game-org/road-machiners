@@ -6,7 +6,8 @@ import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
-import { bareGrid, baseGrid } from '../sim/grid';
+import { bareGrid, baseGrid, mountSpots } from '../sim/grid';
+import type { GridItem } from '../sim/types';
 
 type Cell = { x: number; y: number };
 
@@ -55,7 +56,7 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 849.66, longbed: 1349.66,
+  scout: 762.14, hauler: 900.34, buggy: 642.67, wagon: 1007.33, courier: 773.33, van: 820.33, longbed: 1349.66,
   carrier: 1625.34, tractor: 1460.67, jeep: 728.67, convertible: 997.34, bus: 1266.67, loader: 1696, niva: 1049.34, bukhanka: 1150, lincoln: 1429.33, semi: 1400,
   sorokonoga: 1765.67,
 };
@@ -123,14 +124,34 @@ describe('chassis grids', () => {
     }
   });
 
-  it('gives every front and back edge room for a 3-cell ram, centered on an odd edge and one cell left of center on an even one', () => {
+  it('gives every front and back edge room for a 4-cell ram, covering a 4-cell edge, centered on a 6-cell one and half a cell left of center on an odd one', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
       const edges = [c.layout[0], c.layout[c.layout.length - 1]].map((row) => [...row].filter((ch) => ch === 'F' || ch === 'B').length);
       for (const cells of edges) {
-        expect(cells, id).toBeGreaterThanOrEqual(3);
-        const spare = cells - 3;
+        expect(cells, id).toBeGreaterThanOrEqual(4);
+        const spare = cells - 4;
         const left = Math.floor(spare / 2);
         expect(spare - left - left, id).toBe(spare % 2);
+      }
+    }
+  });
+
+  it('fills every edge of every chassis with 2-cell armor and at most one 1-cell piece, leaving no cell bare', () => {
+    const piece = (n: number, defId: string): GridItem => ({ id: `i-${n}`, x: 0, y: 0, rot: 0, kind: 'part', part: { id: `p-${n}`, defId, hp: 1, wear: 0 } });
+    for (const id of Object.keys(CHASSIS)) {
+      const g = baseGrid(id);
+      for (const letter of ['F', 'B', 'L', 'R'] as const) {
+        const edge = g.cells.flat().filter((cell) => cell === letter).length;
+        const items: GridItem[] = [];
+        for (const defId of ['plates', 'steelPlate']) {
+          for (let spot = mountSpots(g, items, piece(items.length, defId), [letter])[0]; spot; spot = mountSpots(g, items, piece(items.length, defId), [letter])[0]) {
+            items.push({ ...piece(items.length, defId), ...spot });
+          }
+        }
+        const longs = items.filter((it) => it.kind === 'part' && it.part.defId === 'plates').length;
+        const shorts = items.length - longs;
+        expect(longs * 2 + shorts, `${id} ${letter}`).toBe(edge);
+        expect(shorts, `${id} ${letter}`).toBeLessThanOrEqual(1);
       }
     }
   });
@@ -549,5 +570,12 @@ describe('the paint schemes', () => {
   it('never repeats a scheme', () => {
     const keys = PAINT_SCHEMES.map((scheme) => `${scheme.body} ${scheme.cab} ${scheme.gear}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('tier 1 cargo speed', () => {
+  it('the van is slower than the scout and not slower than the hauler', () => {
+    expect(CHASSIS.van.maxSpeed).toBeLessThan(CHASSIS.scout.maxSpeed);
+    expect(CHASSIS.van.maxSpeed).toBeGreaterThanOrEqual(CHASSIS.hauler.maxSpeed);
   });
 });

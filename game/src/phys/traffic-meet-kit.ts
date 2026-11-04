@@ -33,7 +33,7 @@ function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
 }
 
 function tradingWorld(): { w: World; traderId: string } {
-  const w = standardWorld(5);
+  const w = standardWorld(8);
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
@@ -144,4 +144,63 @@ export function meetHeadOn(lane: number, speed: number): HeadOn {
   freeDrive(d);
   const pair = [playerOf().id, traderId];
   return { impacts: bumps.filter((c) => pair.includes(c.a) && pair.includes(c.b)).map((c) => c.impact), arrivedIn, stalls };
+}
+
+export type Overtake = { passedIn: number | null; impacts: number[]; slowTurns: number };
+
+const HAULER_GAP = 7;
+const SCOUT_BACK = 14;
+const OVERTAKE_TURNS = 25;
+const HAULER_LOAD = 1000;
+
+export function overtake(haulers: number): Overtake {
+  const bumps: Bump[] = [];
+  const w0 = standardWorld(25);
+  w0.vehicles = w0.vehicles.filter((v) => v.faction === 'player');
+  for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+  const [bowl, nose] = REGION.towns;
+  const ids = Array.from({ length: haulers }, () => {
+    const hauler = addVehicle(w0, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
+    hauler.brain = npcBrain('trader', hauler.pos, ['trader']);
+    addGoods(w0, hauler, 'scrap', HAULER_LOAD);
+    hauler.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
+    return hauler.id;
+  });
+  let w = w0;
+  let d = buildDrive(w);
+  const haulerOf = (id: string) => w.vehicles.find((v) => v.id === id)!;
+  const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
+  for (let i = 0; i < 40 && !(haulerOf(ids[0]).speed >= 2 && dist(haulerOf(ids[0]).pos, bowl.pos) > bowl.radius + CLEAR_OF_TOWN); i++) ({ w, d } = turn(w, d, bumps));
+  freeDrive(d);
+  const lead = haulerOf(ids[0]);
+  const rear = haulerOf(ids.at(-1)!);
+  rear.pos = { x: lead.pos.x - Math.cos(lead.heading) * HAULER_GAP, y: lead.pos.y - Math.sin(lead.heading) * HAULER_GAP };
+  rear.heading = lead.heading;
+  rear.speed = lead.speed;
+  const me = playerOf();
+  me.pos = { x: rear.pos.x - Math.cos(rear.heading) * SCOUT_BACK, y: rear.pos.y - Math.sin(rear.heading) * SCOUT_BACK };
+  me.heading = rear.heading;
+  me.speed = 3;
+  d = buildDrive(w);
+  w = setMoveOrder(w, { kind: 'through', dest: { ...nose.pos } });
+  bumps.length = 0;
+  const ahead = (id: string) => {
+    const h = haulerOf(id);
+    const p = playerOf();
+    return (p.pos.x - h.pos.x) * Math.cos(h.heading) + (p.pos.y - h.pos.y) * Math.sin(h.heading) > 0;
+  };
+  let passedIn: number | null = null;
+  let swerved = false;
+  let slowTurns = 0;
+  for (let i = 1; i <= OVERTAKE_TURNS && passedIn === null; i++) {
+    ({ w, d } = turn(w, d, bumps));
+    const p = playerOf();
+    const h = haulerOf(ids[0]);
+    swerved ||= !!p.yieldsTo;
+    if (swerved && p.speed < Math.min(...ids.map((id) => haulerOf(id).speed))) slowTurns++;
+    if (ids.every(ahead)) passedIn = i;
+  }
+  freeDrive(d);
+  const pair = [playerOf().id, ...ids];
+  return { passedIn, impacts: bumps.filter((c) => pair.includes(c.a) && pair.includes(c.b)).map((c) => c.impact), slowTurns };
 }
