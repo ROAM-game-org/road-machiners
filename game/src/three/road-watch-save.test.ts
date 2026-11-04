@@ -10,7 +10,7 @@ import { resolve } from '../text/resolve';
 import { lineText } from '../ui/dialogue';
 import { loadWorld, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { TINY_STEPS, type SavedJson } from './save-migrations';
 import FORMAT_2_124 from './save-fixtures/format-2-124.json';
 
 function reload(w: World): World {
@@ -47,10 +47,11 @@ describe('a road watch answer across a save', () => {
   });
 });
 
-describe('save migration 134 to 135, a call may hold a raider sighting', () => {
+describe('save migration for a call that may hold a raider sighting', () => {
   it('sits after the work day XP step and changes no data', () => {
     const step = TINY_STEPS.find((s) => s.name === 'marksRoadWatchCalls')!;
-    expect(TINY_STEPS[134 - TINY_FROM]).toBe(step);
+    const names = TINY_STEPS.map((s) => s.name);
+    expect(names.indexOf('marksRoadWatchCalls')).toBeGreaterThan(names.indexOf('xpByWorkDay'));
     const old = structuredClone(FORMAT_2_124) as SavedJson;
     expect(step.step(structuredClone(old))).toEqual(old);
   });

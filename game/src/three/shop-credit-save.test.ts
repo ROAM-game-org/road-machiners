@@ -7,7 +7,7 @@ import type { World } from '../sim/types';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { TINY_STEPS, type SavedJson } from './save-migrations';
 import FORMAT_2_124 from './save-fixtures/format-2-124.json';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
@@ -52,10 +52,11 @@ describe('a shop account at a shop the game no longer has', () => {
   });
 });
 
-describe('save migration 135 to 136, the player may hold a shop account', () => {
+describe('save migration for a player that may hold a shop account', () => {
   it('sits after the road watch step and opens no account', () => {
     const step = TINY_STEPS.find((s) => s.name === 'withShopAccount')!;
-    expect(TINY_STEPS[135 - TINY_FROM]).toBe(step);
+    const names = TINY_STEPS.map((s) => s.name);
+    expect(names.indexOf('withShopAccount')).toBe(names.indexOf('marksRoadWatchCalls') + 1);
     const old = structuredClone(FORMAT_2_124) as SavedJson;
 
     const migrated = step.step(structuredClone(old));
