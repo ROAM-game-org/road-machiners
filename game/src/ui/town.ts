@@ -198,7 +198,7 @@ export class TownScreen {
     this.inventory.clearSelection();
     this.band.clear();
     this.root.style.display = "none";
-    this.root.classList.remove("under-quest");
+    this.root.classList.remove("under-quest", "front-page");
     this.root.replaceChildren();
   }
 
@@ -282,6 +282,7 @@ export class TownScreen {
     }
     const underQuest = w.player.quests.live !== null;
     this.root.classList.toggle("under-quest", underQuest);
+    this.root.classList.toggle("front-page", !underQuest && this.page === null);
     if (!underQuest) this.drawPage(w, shopId, this.page);
   }
 
@@ -313,6 +314,7 @@ export class TownScreen {
   private drawDesk(w: World, desk: string): void {
     const underQuest = w.player.quests.live !== null;
     this.root.classList.toggle("under-quest", underQuest);
+    this.root.classList.remove("front-page");
     if (underQuest) return;
     this.choices = this.deskChoices(desk);
     const people = this.page === "people";
