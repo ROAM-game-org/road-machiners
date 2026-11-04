@@ -238,7 +238,7 @@ describe("the in-game Load panel", () => {
       const confirm = vi.fn(() => answer);
       vi.stubGlobal("window", Object.assign(new FakeNode("window"), { confirm }));
       const save = vi.fn();
-      const panel = new SavePanel({ list: () => saves, manualSlots: () => ["slot1"], save, mode: () => mode, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn() });
+      const panel = new SavePanel({ list: () => saves, manualSlots: () => ["slot1"], save, mode: () => mode, reboot: vi.fn(), exportSave: vi.fn(), exportLog: vi.fn(), importSave });
       panel.openSave();
       ui.byClass("save-row")[0].fire("click");
       return { confirm, save };
