@@ -15,7 +15,7 @@ export type Meeting = { impacts: number[]; arrivedIn: number | null };
 
 type Bump = { a: string; b: string; impact: number };
 
-const MEETING_TURNS = 12;
+const MEETING_TURNS = 14;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
