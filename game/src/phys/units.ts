@@ -1,5 +1,6 @@
 import { vehicleStats, type VehicleStats } from '../sim/stats';
 import { combatState, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
+import { isKnockedOut } from '../sim/defeat';
 import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
@@ -8,7 +9,7 @@ import { unitMasses } from '../sim/mass';
 import { unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
 import { angleDiff, clamp } from '../sim/vec';
-import { toMps, rearKey, type Car, type Drive, type Trailer } from './drive';
+import { toMps, toTilesPerTurn, forwardSpeed, rearKey, type Car, type Drive, type Trailer } from './drive';
 import { wheelMounts } from './body';
 import { seatUnits, type Seat } from './seat';
 import { headingOf, TURN_STEPS, type V3, type VehicleFrame, type WheelFrame } from './frames';
@@ -223,12 +224,12 @@ export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body
 
 export class TimedDrive {
   private state: TimedCombatState | undefined;
-  private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number }[] = [];
+  private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number; speed: number; bend: number | undefined }[] = [];
   constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
     const state = combatState(world);
     if (steps !== TURN_STEPS || !state.active) return;
     this.state = state;
-    this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading }));
+    this.starts = cars.map(c => ({ v: c.v, pos: c.v.pos, heading: c.v.heading, speed: c.v.speed, bend: c.v.bend }));
   }
   step(): void {
     if (!this.state) return;
@@ -236,12 +237,18 @@ export class TimedDrive {
       const p = c.body.translation();
       c.v.pos = { x: p.x / PHYSICS.metersPerTile, y: p.z / PHYSICS.metersPerTile };
       c.v.heading = headingOf(c.body.rotation());
+      c.v.speed = toTilesPerTurn(forwardSpeed(c.body));
+      if (c.rear) c.v.bend = liveBend(c);
     }
     stepTimedCombat(this.world, this.state, 1000 / PHYSICS.stepsPerSecond);
     for (const c of this.cars) this.refreshCar(c);
   }
   private refreshCar(car: Car): void {
-    if (this.world.vehicles.includes(car.v)) return this.refreshStats(car);
+    if (!this.world.vehicles.includes(car.v)) return this.stopRemovedCar(car);
+    if (!isKnockedOut(car.v) && this.world.player.state !== 'dead') return this.refreshStats(car);
+    car.plan = { ...car.plan, engine: false, target: 0, dest: null };
+  }
+  private stopRemovedCar(car: Car): void {
     car.plan = { ...car.plan, engine: false, target: 0, dest: null };
     car.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
   }
@@ -257,6 +264,8 @@ export class TimedDrive {
       if (!this.world.vehicles.includes(start.v)) continue;
       start.v.pos = start.pos;
       start.v.heading = start.heading;
+      start.v.speed = start.speed;
+      if (start.bend !== undefined) start.v.bend = start.bend;
     }
   }
 }

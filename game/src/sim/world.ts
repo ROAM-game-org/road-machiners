@@ -439,7 +439,8 @@ export function endTurnInPlace(
     leakFuel(w);
     fitAllStores(w);
     applyGodMode(w);
-    resolveDestroyed(w, new Set(w.combat.records.flatMap(record => record.event ? [record.event] : [])));
+    const landedShots = new Set<World['events'][number]>(w.combat.records.flatMap(record => record.event ? [record.event] : []));
+    resolveDestroyed(w, landedShots);
     settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);
@@ -459,7 +460,7 @@ export function endTurnInPlace(
     discoverSites(w);
     checkDeath(w);
     wakeInTown(w, advanceKnockout(w));
-    checkKnockout(w);
+    checkKnockout(w, w.events.filter(event => !landedShots.has(event)));
     advanceNpcKnockouts(w);
     advanceChaosHighway(w);
     openRoadScene(w);

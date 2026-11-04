@@ -253,3 +253,31 @@ function checkHulk(id: string, hulk: Hulk): void {
   if ((couplingOf(hulk.chassisId) !== null) === (hulk.bend !== undefined)) return;
   throw new Error(`Hulk ${id} of ${hulk.chassisId} ${hulk.bend === undefined ? 'has no bend' : 'has a bend but is no rig'}`);
 }
+
+export function segmentTruckEntry(v: Posed, from: Vec, to: Vec): number | null {
+  const entries = rigBoxes(v).flatMap(box => {
+    const entry = segmentBoxEntry(box, from, to);
+    return entry === null ? [] : [entry];
+  });
+  return entries.length > 0 ? Math.min(...entries) : null;
+}
+
+function segmentBoxEntry(box: RigBox, from: Vec, to: Vec): number | null {
+  const local = (p: Vec) => ({ x: (p.x - box.center.x) * box.axis.x + (p.y - box.center.y) * box.axis.y, y: -(p.x - box.center.x) * box.axis.y + (p.y - box.center.y) * box.axis.x });
+  const a = local(from), b = local(to);
+  let lo = 0, hi = 1;
+  for (const axis of ['x', 'y'] as const) {
+    const interval = segmentSlab(a[axis], b[axis] - a[axis], box.half[axis]);
+    if (interval === null) return null;
+    lo = Math.max(lo, interval[0]);
+    hi = Math.min(hi, interval[1]);
+    if (lo > hi) return null;
+  }
+  return lo;
+}
+
+function segmentSlab(start: number, delta: number, half: number): [number, number] | null {
+  if (delta === 0) return Math.abs(start) <= half ? [0, 1] : null;
+  const a = (-half - start) / delta, b = (half - start) / delta;
+  return [Math.min(a, b), Math.max(a, b)];
+}

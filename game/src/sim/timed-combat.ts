@@ -1,12 +1,13 @@
 import type { WeaponRound } from '../data/parts';
+import { applyGodMode } from './cheats';
 import { attachLine } from './harpoon';
 import { PROJECTILE_FLIGHT } from '../data/weapons';
-import { spanOf } from './body';
+import { segmentTruckEntry } from './rig';
 import { PHYSICS } from '../data/physics';
 import { aiming, rollRound, spendShot, noteStrayHits, practiceLandedHits, directRound, explode, burstPoint, npcFate, tickGuns, fireBlock, targetBlock, hitOdds, noteAttack, isHostile, missPoint, laneOfOffset, shotDamage, wreckVehicle, type Shot, type Landing } from './combat';
 import { type MountedWeapon, vehicleStats } from './stats';
 import { corePart, mountedParts } from './grid';
-import { isKnockedOut, knockOutNpc } from './defeat';
+import { checkDeath, checkKnockout, isKnockedOut, knockOutNpc } from './defeat';
 import { isShutDown } from './utility';
 import { walkLane, heldPart, type Side } from './armor';
 import { bearing, type Vec } from './vec';
@@ -37,9 +38,7 @@ export function stepTimedCombat(world: World, state: TimedCombatState, ms: numbe
   if (!(Number.isFinite(ms) && ms > 0)) throw new Error('Combat step must be positive');
   const end = state.now + ms;
   while (attemptDue(state)) launchAttempt(world, state, state.attempts.shift()!);
-  const due = state.flights.filter(f => f.landsAt <= end).sort((a, b) => a.landsAt - b.landsAt);
-  state.flights = state.flights.filter(f => f.landsAt > end);
-  for (const flight of due) impactFlight(world, state, flight, end);
+  advanceFlights(world, state, end);
   state.now = end;
 }
 
@@ -92,8 +91,8 @@ function launchAttempt(world: World, state: TimedCombatState, attempt: TimedAtte
     if (!state.fired.includes(attempt.weapon)) state.fired.push(attempt.weapon);
     state.records.push({ at: state.now, kind: 'launch', flight: pending, event: null });
 }
-function impactFlight(world: World, state: TimedCombatState, flight: TimedFlight, end: number): void {
-    const event = landTimedRound(world, flight);
+function impactFlight(world: World, state: TimedCombatState, flight: TimedFlight, end: number, struck: string | null): void {
+    const event = landTimedRound(world, flight, struck);
     state.records.push({ at: end, kind: 'impact', flight, event });
     if (event) {
       const from = world.events.length;
@@ -117,16 +116,13 @@ export function launchTimedRound(world: World, shooter: Vehicle, weapon: string,
   return { shooterId: shooter.id, targetId: target.id, weaponId: weapon, weaponDefId: mw.def.id, aim, chance: odds.chance, damageChance: odds.damageChance, round: { ...mw.def.round }, lineTurns: mw.def.line?.turns ?? null, targetSide: a.side, roll: shot.rolls[0], from: { ...shooter.pos }, aimedAt: { ...target.pos }, impactAt: missPoint(shooter.pos, target.pos, a.center + shot.rolls[0].error * odds.distance), launchedMs, speed };
 }
 
-export function landTimedRound(world: World, flight: TimedShot): Extract<GameEvent, { t: 'shot' }> | null {
-  const target = world.vehicles.find(v => v.id === flight.targetId);
+export function landTimedRound(world: World, flight: TimedShot, struck?: string | null): Extract<GameEvent, { t: 'shot' }> | null {
+  const target = impactTarget(world, flight, struck);
   const a = target ? aiming({ pos: flight.from }, target, 'body') : null;
-  const { landing, offset } = timedLanding(world, flight, target, a);
+  const { landing, offset } = timedLanding(world, flight, target, a, struck !== undefined);
   const rounds = timedRounds(world, flight, landing, offset);
   const event = { t: 'shot' as const, shooter: flight.shooterId, weapon: flight.weaponId, target: flight.targetId, aim: flight.aim, chance: flight.chance, damageChance: flight.damageChance, side: a?.side ?? flight.targetSide, rounds };
-  for (const id of shotDamage(event).keys()) requiredVehicle(world, id).lastHitBy = flight.shooterId;
-  const shooter = world.vehicles.find(v => v.id === flight.shooterId);
-  if (shooter) noteStrayHits(world, shooter, flight.targetId, event);
-  practiceLandedHits(world, flight.shooterId, flight.targetId, Number(rounds[0].hit), flight.chance);
+  attributeImpact(world, flight, event);
   hookFlight(world, flight, landing, event.side);
   world.events.push(event);
   return event;
@@ -137,6 +133,9 @@ export function finishTimedGuns(world: World, fired: readonly string[]): void {
 }
 
 export function settleTimedImpact(world: World, event: Extract<GameEvent, { t: 'shot' }>): void {
+  applyGodMode(world);
+  checkDeath(world);
+  checkKnockout(world, [event]);
   const hit = new Set(shotDamage(event).keys());
   for (const id of hit) {
     const v = world.vehicles.find(v => v.id === id);
@@ -166,25 +165,22 @@ function canLaunch(world: World, shooter: Vehicle, target: Vehicle, mw: MountedW
   return continuing ? targetBlock(world, shooter, mw, target) === null : fireBlock(world, shooter, mw, target) === null;
 }
 function canOperate(world: World, shooter: Vehicle, mw: MountedWeapon): boolean {
-  return corePart(shooter, 'cab').hp > 0 && mw.part.hp > 0 && !isKnockedOut(shooter) && !isShutDown(world, shooter);
+  if (shooter.id === world.player.vehicleId && world.player.state !== 'active') return false;
+  return mw.part.hp > 0 && !isKnockedOut(shooter) && !isShutDown(world, shooter);
 }
-function impactGeometry(flight: TimedShot, target: Vehicle): { inside: boolean; offset: number } {
-  const rel = { x: (flight.impactAt.x - target.pos.x) * PHYSICS.metersPerTile, y: (flight.impactAt.y - target.pos.y) * PHYSICS.metersPerTile };
-  const half = spanOf(target.chassisId).half;
-  const along = rel.x * Math.cos(target.heading) + rel.y * Math.sin(target.heading);
-  const across = -rel.x * Math.sin(target.heading) + rel.y * Math.cos(target.heading);
-  const inside = Math.abs(along) <= half.x && Math.abs(across) <= half.z;
+function impactGeometry(flight: TimedShot, target: Vehicle, contacted: boolean): { inside: boolean; offset: number } {
   const angle = bearing(flight.from, target.pos);
-  const offset = -rel.x * Math.sin(angle) + rel.y * Math.cos(angle);
-  return { inside, offset };
+  const rel = { x: (flight.impactAt.x - target.pos.x) * PHYSICS.metersPerTile, y: (flight.impactAt.y - target.pos.y) * PHYSICS.metersPerTile };
+  const inside = contacted || segmentTruckEntry(target, flight.impactAt, flight.impactAt) !== null;
+  return { inside, offset: -rel.x * Math.sin(angle) + rel.y * Math.cos(angle) };
 }
-function timedLanding(world: World, flight: TimedShot, target: Vehicle | undefined, a: ReturnType<typeof aiming> | null): { landing: Landing; offset: number } {
+function timedLanding(world: World, flight: TimedShot, target: Vehicle | undefined, a: ReturnType<typeof aiming> | null, contacted: boolean): { landing: Landing; offset: number } {
   if (!target || !a) return missedLanding(flight, 0);
-  const { inside, offset } = impactGeometry(flight, target);
+  const { inside, offset } = impactGeometry(flight, target, contacted);
   if (!inside) return missedLanding(flight, offset);
   const filled = a.filled[laneOfOffset(a.side, a.body, a.lanes, offset)];
   if (filled === undefined) return missedLanding(flight, offset);
-  const hits = walkLane(world, target, a.side, filled, directRound(world, flight.round, flight.roll.crit));
+  const hits = walkLane(world, target, a.side, filled, directRound(world, flight.round, flight.roll.crit && target.id === flight.targetId));
   return { landing: { struck: target, lane: filled, hits, point: flight.impactAt }, offset };
 }
 function missedLanding(flight: TimedShot, offset: number): { landing: Landing; offset: number } {
@@ -224,4 +220,45 @@ function transformedFlight(now: number, flight: TimedFlight, point: (position: V
   moved.launchedMs = now;
   moved.landsAt = now + Math.max(0, flight.landsAt - now) * scale;
   return moved;
+}
+
+function flightPoint(flight: TimedFlight, at: number): Vec {
+  const share = Math.max(0, Math.min(1, (at - flight.launchedMs) / (flight.landsAt - flight.launchedMs)));
+  return { x: flight.from.x + (flight.impactAt.x - flight.from.x) * share, y: flight.from.y + (flight.impactAt.y - flight.from.y) * share };
+}
+
+function advanceFlights(world: World, state: TimedCombatState, end: number): void {
+  const due = state.flights.flatMap(flight => flightContact(world, flight, state.now, end));
+  due.sort((a, b) => a.at - b.at);
+  for (const contact of due) {
+    const flight = contact.flight;
+    flight.impactAt = flightPoint(flight, contact.at);
+    flight.landsAt = contact.at;
+    state.flights = state.flights.filter(f => f !== flight);
+    impactFlight(world, state, flight, contact.at, contact.struck);
+  }
+}
+
+type FlightContact = { flight: TimedFlight; at: number; struck: string | null };
+function flightContact(world: World, flight: TimedFlight, now: number, end: number): FlightContact[] {
+  const from = flightPoint(flight, now), to = flightPoint(flight, end);
+  const contacts = world.vehicles.filter(v => v.id !== flight.shooterId).flatMap(v => {
+    const entry = segmentTruckEntry(v, from, to);
+    return entry === null ? [] : [{ flight, at: Math.max(now, flight.launchedMs) + entry * (Math.min(end, flight.landsAt) - Math.max(now, flight.launchedMs)), struck: v.id }];
+  });
+  contacts.sort((a, b) => a.at - b.at);
+  if (contacts.length > 0) return [contacts[0]];
+  return flight.landsAt <= end ? [{ flight, at: flight.landsAt, struck: null }] : [];
+}
+
+function impactTarget(world: World, flight: TimedShot, struck: string | null | undefined): Vehicle | undefined {
+  const id = struck === undefined ? flight.targetId : struck;
+  return world.vehicles.find(v => v.id === id);
+}
+
+function attributeImpact(world: World, flight: TimedShot, event: Extract<GameEvent, { t: 'shot' }>): void {
+  for (const id of shotDamage(event).keys()) requiredVehicle(world, id).lastHitBy = flight.shooterId;
+  const shooter = world.vehicles.find(v => v.id === flight.shooterId);
+  if (shooter) noteStrayHits(world, shooter, flight.targetId, event);
+  practiceLandedHits(world, flight.shooterId, flight.targetId, Number(event.rounds[0].hit), flight.chance);
 }
