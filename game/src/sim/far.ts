@@ -1,3 +1,6 @@
+import { isKnockedOut } from './defeat';
+import { PHYSICS } from '../data/physics';
+import { combatStepRoundoff, hasTimedFire, stepTimedCombat } from './timed-combat';
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -57,8 +60,9 @@ function wantedSpeed(s: DriveStats, v: Vehicle, speed: number, order: Exclude<Mo
   return setSpeedTarget(v, s, order) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
 }
 
-export function advanceFar(w: World, v: Vehicle): void {
-  const full = driveStats(w, v);
+export function advanceFar(w: World, v: Vehicle, fraction?: number): void {
+  const step = stepDriveStats(w, v, fraction);
+  const full = step.stats;
   const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
@@ -72,7 +76,7 @@ export function advanceFar(w: World, v: Vehicle): void {
   const style = { route: routeStyle(w, v), night: avoidsCrater(w, v) };
   const { points, partial } = farPoints(w, v, order.dest, style, full, s);
 
-  const planned = follow(v.pos, points, (v.speed + next) / 2);
+  const planned = follow(v.pos, points, (v.speed + next) / 2 * step.fraction);
   const { block, walk } = walkFar(w, v, order, points, planned, full.radius);
   const end = walk.path[walk.path.length - 1];
   const { done, windowEnds } = farOutcome(order, end, walk, block, partial);
@@ -371,4 +375,66 @@ function sample(chassisId: string, start: Pose, path: Vec[], moved: number): Pos
     trail.push(followPose(chassisId, trail[trail.length - 1], { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading }));
   }
   return trail;
+}
+
+export function completeCombatMovement(world: World, startedMs: number): void {
+  const duration = PHYSICS.turnSeconds * 1000;
+  const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+  if (world.combat.now === startedMs) {
+    for (let step = 0; step < steps; step++) stepTimedCombat(world, world.combat, duration / steps);
+  }
+  const rounding = combatStepRoundoff(startedMs, world.combat.now);
+  if (Math.abs(world.combat.now - startedMs - duration) > rounding) throw new Error('Movement did not advance one full combat turn');
+}
+
+function stepDriveStats(world: World, v: Vehicle, fraction = 1): { stats: DriveStats; fraction: number } {
+  if (!(fraction > 0 && fraction <= 1)) throw new Error('Coarse movement needs a positive fraction of one turn');
+  const full = driveStats(world, v);
+  return { stats: { ...full, accel: full.accel * fraction, limpAccel: full.limpAccel * fraction, brake: full.brake * fraction, fuelPerTile: full.fuelPerTile * fraction }, fraction };
+}
+
+type FarMotion = { v: Vehicle; trail: Pose[] };
+
+export class FarCombatMotion {
+  private moves: FarMotion[];
+  private phase = 0;
+
+  constructor(private world: World, vehicles: Vehicle[]) {
+    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => ({ v, trail: [poseOf(v)] }));
+  }
+
+  at(phase: number): void {
+    const fraction = phase - this.phase;
+    if (fraction < 0) throw new Error('Coarse combat movement cannot go backward');
+    if (fraction === 0) return;
+    for (const move of this.moves) this.advance(move, fraction);
+    this.phase = phase;
+  }
+
+  private advance(move: FarMotion, fraction: number): void {
+    if (this.world.combat.destroyedAt[move.v.id] !== undefined || isKnockedOut(move.v)) move.v.speed = 0;
+    else advanceFar(this.world, move.v, fraction);
+    move.trail.push(poseOf(move.v));
+  }
+
+  finish(): void {
+    this.at(1);
+    for (const move of this.moves) move.v.trail = move.trail;
+  }
+}
+
+export function moveFarCombat(world: World, vehicles: Vehicle[] = world.vehicles): void {
+  if (!hasTimedFire(world.combat)) {
+    for (const vehicle of vehicles) if (!isOnRope(world, vehicle.id)) advanceFar(world, vehicle);
+    completeCombatMovement(world, world.combat.now);
+    return;
+  }
+  const motion = new FarCombatMotion(world, vehicles);
+  const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+  const duration = PHYSICS.turnSeconds * 1000;
+  for (let step = 0; step < steps; step++) {
+    motion.at(step / steps);
+    stepTimedCombat(world, world.combat, duration / steps);
+  }
+  motion.finish();
 }

@@ -233,7 +233,7 @@ describe("the garage grid's layers and marks", () => {
 });
 
 describe("the garage looks of a truck whose picture failed (issue 1404)", () => {
-  const rendering = (body: unknown) => ({ ensureNow: () => {}, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
+  const rendering = (body: unknown) => ({ ensureNow: () => {}, suspended: () => false, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
 
   it("are missing, so the grid draws its plain outline", () => {
     const w = emptyWorld();

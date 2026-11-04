@@ -17,7 +17,7 @@ import { noteHurt, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn, trackOf } from './tracks';
 import { addState, endState, stateOf } from './states';
 import { playerVehicle } from './damage';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp } from './testkit';
+import { addVehicle, chaosHighwayWorld, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp } from './testkit';
 import { watchPost } from './watch-posts';
 import type { TraitId } from '../data/npcs';
 import type { Faction, NpcActivity, Vehicle, World } from './types';
@@ -822,12 +822,14 @@ describe('raider grounds', () => {
   });
 
   it('lie past the lawmen gate reach of a lawman town, which no raider camp gate has', () => {
+    const w = emptyWorld();
     const gate = lawGates()[0];
     const town = lawmanTowns().find((t) => siteGates(t).some((g) => g.x === gate.x && g.y === gate.y))!;
     const out = (d: number) => ({ x: gate.x + ((gate.x - town.pos.x) / town.radius) * d, y: gate.y + ((gate.y - town.pos.y) / town.radius) * d });
-    expect(nearLawGate(out(NPC_BEHAVIOR.lawGateReach - 1))).toBe(true);
-    expect(nearLawGate(out(NPC_BEHAVIOR.lawGateReach + 1))).toBe(false);
-    for (const camp of [scrapjaw, kiln]) for (const g of siteGates(camp)) expect(nearLawGate(g)).toBe(false);
+    expect(nearLawGate(w, out(NPC_BEHAVIOR.lawGateReach - 1))).toBe(true);
+    expect(nearLawGate(w, out(NPC_BEHAVIOR.lawGateReach + 1))).toBe(false);
+    for (const g of lawGates()) expect(nearLawGate(chaosHighwayWorld(), g)).toBe(false);
+    for (const camp of [scrapjaw, kiln]) for (const g of siteGates(camp)) expect(nearLawGate(w, g)).toBe(false);
   });
 
   it('belong to one camp alone', () => {

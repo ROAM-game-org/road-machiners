@@ -1,0 +1,1478 @@
+[
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "won",
+    "turns": 16,
+    "crashes": 0,
+    "a": {
+      "rounds": 69,
+      "hits": 54,
+      "odds": 50.75556260447471,
+      "damage": 192,
+      "speed": 35.002266564313935,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 2,
+      "hits": 1,
+      "odds": 0.8856398675481295,
+      "damage": 78,
+      "speed": 10.117973369478092,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": 0.6,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 0,
+        "out": 1,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 3,
+    "crashes": 0,
+    "a": {
+      "rounds": 12,
+      "hits": 3,
+      "odds": 4.240741430132246,
+      "damage": 10,
+      "speed": 1.9962575601072088,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 2,
+      "hits": 1,
+      "odds": 0.7077744767712552,
+      "damage": 136,
+      "speed": 2.337446393345973,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "a fled",
+    "turns": 27,
+    "crashes": 0,
+    "a": {
+      "rounds": 6,
+      "hits": 0,
+      "odds": 1.3949104731023092,
+      "damage": 0,
+      "speed": 159.22816813557725,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 3,
+      "hits": 1,
+      "odds": 0.8714042956831627,
+      "damage": 133,
+      "speed": 129.2289408425273,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 0,
+        "out": 0,
+        "fled": 1
+      },
+      "b": {
+        "left": 0,
+        "out": 0,
+        "fled": 1
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "lost",
+    "turns": 6,
+    "crashes": 2,
+    "a": {
+      "rounds": 30,
+      "hits": 19,
+      "odds": 21.205789812524905,
+      "damage": 61,
+      "speed": 2.9652286167641577,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 40,
+      "hits": 22,
+      "odds": 22.169465787904187,
+      "damage": 214,
+      "speed": 5.916447179698106,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 0,
+        "out": 1,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 24,
+    "crashes": 0,
+    "a": {
+      "rounds": 80,
+      "hits": 38,
+      "odds": 38.83128987483164,
+      "damage": 128,
+      "speed": 68.19278807772726,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 60,
+      "hits": 17,
+      "odds": 15.720064656908438,
+      "damage": 164,
+      "speed": 61.10986268207981,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 17,
+    "crashes": 0,
+    "a": {
+      "rounds": 69,
+      "hits": 18,
+      "odds": 20.88440979766032,
+      "damage": 67,
+      "speed": 67.73583141305352,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 20,
+      "hits": 4,
+      "odds": 2.838685250997146,
+      "damage": 60,
+      "speed": 56.664492469271714,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 3,
+    "crashes": 0,
+    "a": {
+      "rounds": 2,
+      "hits": 1,
+      "odds": 0.911715096053672,
+      "damage": 78,
+      "speed": 2.3374460714891003,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 20,
+      "hits": 2,
+      "odds": 2.7558565148505263,
+      "damage": 21,
+      "speed": 3.02646643317671,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "won",
+    "turns": 18,
+    "crashes": 1,
+    "a": {
+      "rounds": 6,
+      "hits": 3,
+      "odds": 2.35490799810526,
+      "damage": 307,
+      "speed": 51.80125547855479,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 30,
+      "hits": 10,
+      "odds": 9.778680417533701,
+      "damage": 109,
+      "speed": 46.429754190392885,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": 0.2282051282051282,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 0,
+        "out": 1,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/bare@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": null,
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/bare@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 37,
+    "crashes": 0,
+    "a": {
+      "rounds": 2,
+      "hits": 0,
+      "odds": 0.7079513993436882,
+      "damage": 0,
+      "speed": 143.10415921665353,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 30,
+      "hits": 5,
+      "odds": 8.063812179534162,
+      "damage": 55,
+      "speed": 153.7029241142536,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 2,
+    "crashes": 0,
+    "a": {
+      "rounds": 6,
+      "hits": 2,
+      "odds": 1.340618325685122,
+      "damage": 7,
+      "speed": 2.4010219042178385,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 1,
+      "hits": 1,
+      "odds": 0.31817503760042076,
+      "damage": 40,
+      "speed": 1.9015005391472055,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 10,
+    "crashes": 0,
+    "a": {
+      "rounds": 30,
+      "hits": 23,
+      "odds": 20.176867467760644,
+      "damage": 101,
+      "speed": 14.292312995998335,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 4,
+      "hits": 3,
+      "odds": 2.091492079862534,
+      "damage": 97,
+      "speed": 14.595180349953736,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 33,
+    "crashes": 1,
+    "a": {
+      "rounds": 141,
+      "hits": 60,
+      "odds": 73.85425651703463,
+      "damage": 247,
+      "speed": 111.04047500428469,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 3,
+      "hits": 2,
+      "odds": 1.5323610167645052,
+      "damage": 34,
+      "speed": 62.57068815670416,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 19,
+    "crashes": 3,
+    "a": {
+      "rounds": 84,
+      "hits": 74,
+      "odds": 71.4085409207353,
+      "damage": 296,
+      "speed": 24.57300650466724,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 80,
+      "hits": 55,
+      "odds": 57.440496213703454,
+      "damage": 57,
+      "speed": 7.776411220104952,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 63,
+    "crashes": 4,
+    "a": {
+      "rounds": 185,
+      "hits": 100,
+      "odds": 113.61013576588107,
+      "damage": 414,
+      "speed": 186.4397437174884,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 70,
+      "hits": 34,
+      "odds": 32.108304037554,
+      "damage": 63,
+      "speed": 197.08132298818558,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 0,
+        "out": 0,
+        "fled": 1
+      },
+      "b": {
+        "left": 0,
+        "out": 0,
+        "fled": 1
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "mg",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:mg/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 43,
+    "crashes": 8,
+    "a": {
+      "rounds": 146,
+      "hits": 94,
+      "odds": 85.11803800587091,
+      "damage": 407,
+      "speed": 79.87777751917908,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 70,
+      "hits": 39,
+      "odds": 31.321845945375433,
+      "damage": 96,
+      "speed": 96.30775218149384,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 1337,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 38,
+    "crashes": 5,
+    "a": {
+      "rounds": 5,
+      "hits": 3,
+      "odds": 3.0652862252163176,
+      "damage": 81,
+      "speed": 64.50536816688627,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 80,
+      "hits": 29,
+      "odds": 32.1370688625141,
+      "damage": 64,
+      "speed": 71.79409312014464,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 41,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 22,
+    "crashes": 0,
+    "a": {
+      "rounds": 2,
+      "hits": 1,
+      "odds": 0.7199289717030806,
+      "damage": 41,
+      "speed": 57.78028481223799,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 30,
+      "hits": 2,
+      "odds": 3.7521139876109864,
+      "damage": 2,
+      "speed": 57.76798888174795,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  },
+  {
+    "fight": {
+      "a": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "cannon",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:cannon/plates@hauler~0"
+        }
+      ],
+      "b": [
+        {
+          "driver": "buggy",
+          "gear": {
+            "kind": "outfit",
+            "outfit": {
+              "gun": "shotgun",
+              "guns": 1,
+              "armor": "plates",
+              "chassis": "hauler"
+            }
+          },
+          "wear": 0,
+          "label": "buggy:shotgun/plates@hauler~0"
+        }
+      ],
+      "seed": 73,
+      "gap": 8,
+      "orbit": 6,
+      "maxTurns": 120,
+      "arena": null,
+      "road": null,
+      "crew": null,
+      "guard": false,
+      "late": null,
+      "bystander": null
+    },
+    "outcome": "truce",
+    "turns": 36,
+    "crashes": 2,
+    "a": {
+      "rounds": 2,
+      "hits": 1,
+      "odds": 0.7199289717030806,
+      "damage": 46,
+      "speed": 81.34010077390239,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "b": {
+      "rounds": 80,
+      "hits": 33,
+      "odds": 31.275767691381855,
+      "damage": 61,
+      "speed": 78.89572227341182,
+      "ramCrashes": 0,
+      "ramsLanded": 0
+    },
+    "bHpLeft": null,
+    "spread": null,
+    "tally": {
+      "a": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      },
+      "b": {
+        "left": 1,
+        "out": 0,
+        "fled": 0
+      }
+    },
+    "bystander": null
+  }
+]

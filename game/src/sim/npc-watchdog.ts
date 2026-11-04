@@ -11,7 +11,7 @@ import { isShutDown } from './utility';
 import { route } from './path';
 import { randRange } from './rng';
 import { nearestPad } from './sites';
-import { modeRules } from './settings';
+import { hasExplorationMap, modeRules } from './settings';
 import { isFree } from './spawn';
 import { isStranded, vehicleStats } from './stats';
 import { escortsOf, isOnRope, npcHomeSite } from './tow';
@@ -96,7 +96,7 @@ function freshGoal(world: World, v: Vehicle): void {
   if (isSunwardMember(v)) return planSunward(world, v);
   if (isMarshal(v)) return;
   const next = hasSaleCargo(v) ? saleGoal(world, v, npcProfile(v)) : idleGoal(world, v);
-  const goal = next.kind === 'wait' ? exploreGoal(world, v) : next;
+  const goal = next.kind === 'wait' && hasExplorationMap(world) ? exploreGoal(world, v) : next;
   if (goal.kind !== 'wait') pushGoal(world, v, goal);
 }
 

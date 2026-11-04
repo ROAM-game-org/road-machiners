@@ -1,3 +1,4 @@
+import { combatFrameMs, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG, PLAY_EASE } from "../config";
@@ -81,6 +82,7 @@ import type { ShadeView } from "./render/shade";
 import { BeaconPulseView } from "./render/beaconPulse";
 import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
+import type { GpuContext } from "./gpu-context";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
 import { unstuckReason } from "../ui/unstuck-reason";
@@ -209,8 +211,9 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, private readonly travel: Travel) {
+  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
+    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
@@ -225,7 +228,7 @@ export class Game {
     container.appendChild(this.renderer.domElement);
     this.view = container;
     this.rig = new CameraRig(this.renderer.domElement);
-    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError);
+    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError, this.gpu);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
     this.renderer.domElement.classList.add("view");
@@ -290,7 +293,7 @@ export class Game {
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
-    }, radio, this.renderer);
+    }, radio, this.renderer, this.gpu);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -406,7 +409,7 @@ export class Game {
   }
 
   private displayWorld(): World {
-    return this.anim && !this.anim.impacts ? this.anim.before : this.world;
+    return playbackWorld(this.world, this.anim);
   }
 
   private refreshUi(): void {
@@ -856,7 +859,7 @@ export class Game {
     this.phase = "results";
     this.craters.revealAll(this.world.turn);
     for (const e of this.world.events) {
-      if (e.t !== "destroyed") continue;
+      if (!untimedDestroyed(this.world, e)) continue;
       const p = this.eventPoint(e.vehicle);
       if (p) this.fx.explode(p);
     }
@@ -913,7 +916,7 @@ export class Game {
 
   private playImpactSounds(): void {
     for (const e of this.world.events) {
-      const p = e.t === "destroyed" && this.eventPoint(e.vehicle);
+      const p = untimedDestroyed(this.world, e) && this.eventPoint(e.vehicle);
       if (p) this.sound.at("explosion", p, 0);
     }
     const sting = stingOf(this.world.events, playerVehicle(this.world).id);
@@ -960,14 +963,7 @@ export class Game {
     };
   }
 
-  private eventPoint(id: string): V3 | null {
-    const v =
-      this.world.vehicles.find((x) => x.id === id) ??
-      this.world.removed.find((x) => x.id === id);
-    const f = this.frames[id] ?? (v ? restFrame(this.world, v) : null);
-    if (!v || !f || !this.canShowCombatVehicle(v)) return null;
-    return { x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z };
-  }
+  private eventPoint = (id: string): V3 | null => combatEventPoint(this.world, this.frames, id, GUN_HEIGHT, v => this.canShowCombatVehicle(v));
 
   private combatHost(startMs = 0): CombatHost {
     const frames = this.anim?.result.frames ?? {};
@@ -1011,28 +1007,29 @@ export class Game {
     if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
 
-  private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
+  private advanceTurn(now: number, dt: number): { at: number | null; playMs: number; combatMs: number } {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
+    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();
-    this.travel.tickCreep(playMs);
-    let at = this.animStep(now, speed, playMs);
+    this.travel.tickCreep(clock.playMs);
+    let at = this.animStep(now, speed, clock.playMs);
     this.updateLiveVision(at);
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying);
-    if (began === "failed") return { at, playMs };
+    if (began === "failed") return { at, ...clock };
     if (began === "began") {
+      clock.combatMs = 0;
       at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
     this.settleLateStop(now);
     if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
     timed("flush-ui", () => this.flushUi(began, phase));
-    return { at, playMs };
+    return { at, ...clock };
   }
 
   private holdsTime(): boolean {
@@ -1040,13 +1037,13 @@ export class Game {
   }
 
   private timeHeld(): boolean {
-    return this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden;
+    return this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden || this.gpu.lost();
   }
 
-  private tickWorldClock(realMs: number, speed: number, now: number): number {
+  private tickWorldClock(realMs: number, speed: number, now: number): { playMs: number; combatMs: number } {
     const wanted = (this.anim !== null && !this.anim.moved) || this.travel.timeWanted(this.world, now);
     this.play.coast(realMs, wanted, wanted ? speed : 1);
-    return this.play.frameMs();
+    return { playMs: this.play.frameMs(), combatMs: combatFrameMs(this.anim, this.play.frameMs(), MOVE_MS) };
   }
 
   private tick(now: number): void {
@@ -1060,7 +1057,7 @@ export class Game {
     this.last = now;
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
-    const { at, playMs } = timed("turn-frame", () => {
+    const { at, playMs, combatMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
       return turn;
@@ -1085,7 +1082,7 @@ export class Game {
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);
     this.siteLights.sync(!sunAt(this.world.turn), lightTurnOf(this.world, this.anim), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now, this.world);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));
-    this.fx.tick(this.play.frameMs(), dt, this.world);
+    this.fx.tick(this.play.frameMs(), dt, this.world, combatMs);
     this.playPanelSounds();
     this.updateLoops();
     this.weather.sync(this.world, turnClockOf(this.anim));
@@ -1129,6 +1126,7 @@ export class Game {
     const a = this.anim;
     if (!a) return null;
     const elapsed = (a.elapsed += ms);
+    this.uiStale = timedUiStale(this.world, elapsed, ms, this.uiStale);
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
@@ -1146,7 +1144,7 @@ export class Game {
     const glass = daylightAt(lightTurnOf(this.world, this.anim)).glass;
     const now = performance.now();
     this.radioLights.note(this.world, now, this.callShown());
-    const shown = [...this.world.vehicles, ...(landed ? [] : this.world.removed)];
+    const shown = shownTimedVehicles(this.world, landed, this.anim);
     const hidden: Vehicle[] = [];
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);

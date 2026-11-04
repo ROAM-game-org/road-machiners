@@ -80,6 +80,7 @@ export function onReport(sink: (err: unknown) => void): void {
 }
 
 export function noteError(err: unknown): void {
+  if (faultKind(err) === 'unreachable') return warnUnreachable(err as AssetUnreachable);
   console.warn(err);
   for (const sink of sinks) sink(err);
 }

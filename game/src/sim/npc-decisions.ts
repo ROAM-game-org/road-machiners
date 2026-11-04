@@ -13,11 +13,11 @@ import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
-  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, ICARUS_OPTIONS, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
-import { modeRules } from './settings';
+import { hasExplorationMap, modeRules, requireExplorationMap } from './settings';
 import { RULES } from '../data/rules';
 import { awakeFoesOf, fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
 import { ramFactor, ramImpact } from './crash-contact';
@@ -463,7 +463,8 @@ export function lawmanTowns(): readonly Site[] {
 
 let lawGates: readonly Vec[] | null = null;
 
-export function nearLawGate(pos: Vec): boolean {
+export function nearLawGate(world: World, pos: Vec): boolean {
+  if (!hasExplorationMap(world)) return false;
   if (!lawGates) {
     const towns = lawmanTowns();
     if (towns.length === 0) throw new Error('No lawman town: lawman gates would mean nothing');
@@ -477,6 +478,7 @@ export function raiderGrounds(world: World, camp: Site): readonly Vec[] {
 }
 
 function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: string): readonly Vec[] {
+  requireExplorationMap(world, 'camp', camp.id);
   const posts = postsOf(world, `${kind}:${camp.id}`, grounds);
   if (grounds.length > 0 && posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
   return posts;
@@ -539,6 +541,7 @@ export function raiderPatrolPosts(world: World, camp: Site): readonly Vec[] {
 }
 
 export function patrolStopsOf(world: World, vehicle: Vehicle): readonly Vec[] {
+  requireExplorationMap(world, 'patrol', vehicle.id);
   const site = patrolSite(vehicle);
   return hasTrait(vehicle, 'raider') ? raiderPatrolPosts(world, site) : patrolPoints(site);
 }
@@ -845,18 +848,18 @@ function robFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject
   const seen = danger === null ? null : danger * (1 + skillEffect(world, target, 'social', 'robberyDanger'));
   const stronger = seen !== null && seen >= npcProfile(vehicle).boldness;
   const appeal = appealOf(world, vehicle, target, NPC_BEHAVIOR.lootAppeal.rob);
-  return (stronger ? NPC_BEHAVIOR.robStronger : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.robNearGuards);
+  return (stronger ? NPC_BEHAVIOR.robStronger : 1) * appeal * guardFactor(world, vehicle, target, NPC_BEHAVIOR.robNearGuards);
 }
 
 function raidFactor(world: World, vehicle: Vehicle, target: Vehicle, danger: number | null): number {
   const eager = danger !== null && isManageable(vehicle, danger);
   const appeal = appealOf(world, vehicle, target, huntCurve(vehicle));
-  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(world, vehicle, target, NPC_BEHAVIOR.fightNearGuards);
 }
 
-function guardFactor(vehicle: Vehicle, subject: Vehicle, nearGuards: number): number {
+function guardFactor(world: World, vehicle: Vehicle, subject: Vehicle, nearGuards: number): number {
   if (hasTrait(vehicle, 'lawman')) return 1;
-  return nearLawGate(vehicle.pos) || nearLawGate(subject.pos) ? nearGuards : 1;
+  return nearLawGate(world, vehicle.pos) || nearLawGate(world, subject.pos) ? nearGuards : 1;
 }
 
 export function huntCurve(vehicle: Vehicle): AppealCurve {
@@ -876,7 +879,7 @@ function fightFactor(world: World, vehicle: Vehicle, decision: DecisionId, subje
   const eager = !isBusy(vehicle) && danger !== null && isManageable(vehicle, danger);
   const lootOnly = decision === 'hostileSeen' && huntsForLoot(world, vehicle, target);
   const appeal = lootOnly ? appealOf(world, vehicle, target, huntCurve(vehicle)) : 1;
-  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * crewHold(world, vehicle, decision, target) * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * crewHold(world, vehicle, decision, target) * guardFactor(world, vehicle, target, NPC_BEHAVIOR.fightNearGuards);
 }
 
 function crewHold(world: World, vehicle: Vehicle, decision: DecisionId, target: Vehicle): number {
@@ -1166,7 +1169,7 @@ function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subjec
 
 function allowedByMode(world: World, option: OptionName): boolean {
   const rules = modeRules(world);
-  return (rules.yielding || !YIELD_OPTIONS.includes(option)) && (rules.rescue || !RESCUE_OPTIONS.includes(option));
+  return (rules.yielding || !YIELD_OPTIONS.includes(option)) && (rules.rescue || !RESCUE_OPTIONS.includes(option)) && (hasExplorationMap(world) || !ICARUS_OPTIONS.includes(option));
 }
 
 export function optionChances<O extends string>(weights: Partial<Record<O, number>>): Partial<Record<O, number>> {

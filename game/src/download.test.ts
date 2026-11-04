@@ -81,6 +81,11 @@ describe('download', () => {
     expect((await download(URL, d)).byteLength).toBe(3);
   });
 
+  it('tries again after a 520', async () => {
+    const d = setup(status(520), ok());
+    expect((await download(URL, d)).byteLength).toBe(3);
+  });
+
   it('throws the plain HTTP error when every try got a 503', async () => {
     const d = setup(status(503), status(503), status(503));
     const err = await download(URL, d).catch((e) => e);
