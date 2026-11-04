@@ -940,3 +940,7 @@ export function withEliteTrucks(world: SavedJson): SavedJson {
   if (run === null) return world;
   return { ...world, chaosHighway: { ...run, groups: (run.groups as SavedJson[]).map(eliteTrucks) } };
 }
+
+export function withGoodsStore(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), storedGoods: {} } };
+}
