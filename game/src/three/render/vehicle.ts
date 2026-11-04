@@ -12,7 +12,7 @@ import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spa
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
+import { baseGrid, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
@@ -120,6 +120,7 @@ export class VehicleView {
   private body = new THREE.Group();
 
   private sig = '';
+  private settled: { items: GridItem[]; chassisId: string; body: number; cab: number; gear: number } | null = null;
   private pending: { sig: string; twin: VehicleView; steps: Generator<void, void>; built: boolean } | null = null;
   private units: UnitView[] = [];
   private running = false;
@@ -146,10 +147,19 @@ export class VehicleView {
   }
 
   update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
-    const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+    const paint = paintOf(v, playerPaint);
+    if (!this.settledOn(v, paint)) {
+      const sig = signatureOf(v, playerPaint);
+      if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+      this.running = engineRuns(v);
+      this.settled = sig === this.sig ? { items: v.items, chassisId: v.chassisId, body: paint.body, cab: paint.cab, gear: paint.gear } : null;
+    }
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
-    this.running = engineRuns(v);
+  }
+
+  private settledOn(v: Vehicle, paint: TruckColors): boolean {
+    const s = this.settled;
+    return s !== null && s.items === v.items && s.chassisId === v.chassisId && s.body === paint.body && s.cab === paint.cab && s.gear === paint.gear;
   }
 
   pose(f: VehicleFrame, dt: number): void {
@@ -579,7 +589,7 @@ export class VehicleView {
   }
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
-    const obj = fitInto(model(itemModel(item)), rectOf(v, item), engineFloor(v.chassisId), item.rot % 2 === 0 ? 0 : ROT_YAW);
+    const obj = fitInto(model(itemModel(item)), rectOf(v, item), engineFloor(v.chassisId), cellsTurned(item) ? ROT_YAW : 0);
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -629,7 +639,7 @@ export class VehicleView {
     const mount = model(look.mount);
     place(mount, stand.at);
     mount.updateMatrix();
-    const across = item.rot % 2 === 0 ? 'z' : 'x';
+    const across = laneAxis(facing);
     const pivot = headAt.clone().applyMatrix4(mount.matrix);
     const own = rectOf(v, item);
     const fit = laneFit(head, pivot, facing, own, across, weaponReach(item));
@@ -894,6 +904,10 @@ function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vecto
 
 const FORWARD = [{ x: 1, z: 0 }, { x: 0, z: 1 }, { x: -1, z: 0 }, { x: 0, z: -1 }] as const;
 
+export function laneAxis(facing: number): 'x' | 'z' {
+  return Math.abs(facing) % 180 === 0 ? 'z' : 'x';
+}
+
 export function laneFit(head: THREE.Object3D, pivot: { x: number; z: number }, facing: number, lane: CellRect, across: 'x' | 'z', reach: number): { scale: number; shift: number; slide: number } {
   const box = new THREE.Box3().setFromObject(head);
   const turn = headingQuat(facing * DEG);
@@ -1005,7 +1019,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
   const dz = rect.z1 - rect.z0 > 0 ? rect.z1 - rect.z0 : size.w * CELL.across;
   const own = item.kind === 'part' ? partDef(item.part.defId).bulk : { w: 1, h: 1 };
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  if (item.rot % 2 === 0) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
+  if (!cellsTurned(item)) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
   return { pos, yaw: ROT_YAW, scale: new THREE.Vector3(dz / (own.h * CELL.along), 1, dx / (own.w * CELL.across)) };
 }
 

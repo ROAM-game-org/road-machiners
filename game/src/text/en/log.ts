@@ -591,6 +591,7 @@ export const LOG = {
   'refusal.notAtDesk': 'Only at the Roadhouse',
   'refusal.payBountiesFirst': m('Pay the bounties for {faction} first', { faction: 'text' }),
   'refusal.noCargoRoom': 'Not enough cargo space',
+  'refusal.storeFull': m('The store here is full: {cap, plural, one {# crate} other {# crates}}', { cap: 'count' }),
   'refusal.noStock': 'Not that many in stock',
   'refusal.onOrder': 'Held for an order',
   'refusal.theyHaveNoRoom': 'No room on their truck',

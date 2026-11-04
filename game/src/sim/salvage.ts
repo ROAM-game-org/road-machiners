@@ -25,6 +25,7 @@ import { getResources } from './resources';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { inCombat } from './combat';
 import { cancelJob } from './jobs';
+import { heldCrates } from './goods-store';
 import type { GoalReason, GridItem, HiddenLoot, Refusal, NpcActivity, Obstacle, PartInstance, Pile, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { estimateCrashGeometry } from './crash-contact';
 import { walkLane } from './armor';
@@ -288,7 +289,7 @@ function collectGoods(world: World, vehicle: Vehicle, stock: SalvageStock, units
   for (const [good, count] of Object.entries(stock.goods)) {
     if (moved >= units || count <= 0) continue;
     const want = Math.min(count, units - moved);
-    const held = goodsCount(vehicle)[good] ?? 0;
+    const held = heldCrates(world, good);
     const took = addGoods(world, vehicle, good, want);
     stock.goods[good] -= took;
     moved += took;
@@ -658,7 +659,7 @@ function queuePickup(world: World, looter: Vehicle, target: Vehicle, item: GridI
 
 function moveNow(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): void {
   target.items = target.items.filter((it) => it.id !== item.id);
-  if (placed.kind === 'good' && looter.id === world.player.vehicleId) addBasis(world, placed.good, goodsCount(looter)[placed.good] ?? 0, 1, GOODS[placed.good].value);
+  if (placed.kind === 'good' && looter.id === world.player.vehicleId) addBasis(world, placed.good, heldCrates(world, placed.good), 1, GOODS[placed.good].value);
   looter.items.push(placed);
 }
 

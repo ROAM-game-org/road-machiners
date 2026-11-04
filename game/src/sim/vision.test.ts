@@ -16,7 +16,7 @@ import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
 import { sunAt } from './sun';
-import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
+import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerSees, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
 import { DECKS, deckAt } from './bridge';
 import type { World } from './types';
@@ -575,5 +575,28 @@ describe('props the player sees', () => {
     const { seen } = hiddenOwnTiles(w);
 
     expect(seen).toContain(30 * w.size + 31);
+  });
+});
+
+describe('playerSees index', () => {
+  it('answers like a scan of the visible tiles, before and after the list is replaced', () => {
+    const world = emptyWorld();
+    const tile = (x: number, y: number) => y * world.size + x;
+    world.player.visible = [tile(3, 3), tile(4, 3)];
+
+    expect(playerSees(world, { x: 3.5, y: 3.5 })).toBe(true);
+    expect(playerSees(world, { x: 9.5, y: 3.5 })).toBe(false);
+    world.player.visible = [tile(9, 3)];
+    expect(playerSees(world, { x: 3.5, y: 3.5 })).toBe(false);
+    expect(playerSees(world, { x: 9.5, y: 3.5 })).toBe(true);
+  });
+
+  it('throws when the visible list is changed in place after it was read', () => {
+    const world = emptyWorld();
+    world.player.visible = [5];
+    playerSees(world, { x: 0.5, y: 0.5 });
+    world.player.visible.push(6);
+
+    expect(() => playerSees(world, { x: 0.5, y: 0.5 })).toThrow('changed in place');
   });
 });

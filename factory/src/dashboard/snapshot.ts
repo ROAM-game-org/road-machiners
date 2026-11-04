@@ -9,7 +9,7 @@ import { readState } from '../state';
 import { toFeatures, type Feature } from '../stages/release-common';
 import { LABELS, type Labels } from './labels';
 import { createWorkerKey, readLiveOperations } from './live';
-import { ADHOC_LABEL, QUEUE_OF, RELEASE_TASK_LABEL, STUCK_LABEL } from '../types';
+import { ADHOC_LABEL, QUEUE_OF, STUCK_LABEL } from '../types';
 import type { Card, FactoryState, GitHub, Queue, Run, RunResult } from '../types';
 import { waitingMerges } from '../stages/merge';
 import type { AnalyticsRunner, Analytics } from './analytics';
@@ -20,8 +20,8 @@ const runFile = promisify(execFile);
 export type Source<T> = { value: T | null; at: string | null; status: 'ok' | 'stale' | 'unavailable' };
 type PauseReason = 'agent-usage-limit' | 'operator';
 export type Operations = ReturnType<typeof buildOperations> & { pauseReason: PauseReason | null };
-export type PublicCard = { issue: number; title: string; column: string; blocked: boolean; releaseTask: boolean };
-export type MergeState = 'merging' | 'next' | 'stuck' | 'held' | 'after-ship';
+export type PublicCard = { issue: number; title: string; column: string; blocked: boolean };
+export type MergeState = 'merging' | 'next' | 'stuck' | 'held';
 export type MergeQueueItem = { issue: number; title: string; state: MergeState };
 export type Part<T> = { value: T; error: null } | { value: null; error: string };
 export type GithubSnapshot = { cards: Part<PublicCard[]>; mergeQueue: Part<MergeQueueItem[]> };
@@ -47,9 +47,7 @@ function getPublicIssue(stage: string, issue: number | null): number | null {
   return stage === 'adhoc' ? null : issue;
 }
 function readNextFeatures(state: FactoryState): Feature[] {
-  if (state.release === null) return toFeatures(state.devMerges);
-  const { merges, removed } = state.release;
-  return toFeatures(merges.filter((merge) => !removed.includes(merge.issue)));
+  return toFeatures(state.devMerges);
 }
 function getFactoryStatus(state: FactoryState, paused: boolean): string {
   if (paused) return 'paused';
@@ -106,22 +104,20 @@ function selectPublicCards(cards: Card[], issues: PublicIssue[]): PublicCard[] {
     const issue = byNumber.get(card.issue);
     if (!issue || card.column === 'Done' || card.labels.includes(ADHOC_LABEL)) continue;
     if (issue.labels.some((label) => label.name === ADHOC_LABEL)) continue;
-    publicCards.push({ issue: card.issue, title: issue.title, column: card.column, blocked: card.labels.includes(STUCK_LABEL), releaseTask: card.labels.includes(RELEASE_TASK_LABEL) });
+    publicCards.push({ issue: card.issue, title: issue.title, column: card.column, blocked: card.labels.includes(STUCK_LABEL) });
   }
   return publicCards;
 }
-const MERGE_STATE_ORDER: MergeState[] = ['merging', 'next', 'stuck', 'held', 'after-ship'];
+const MERGE_STATE_ORDER: MergeState[] = ['merging', 'next', 'stuck', 'held'];
 function selectMergeQueue(state: FactoryState, cards: Card[], issues: PublicIssue[]): MergeQueueItem[] {
   const shown = new Map(selectPublicCards(cards, issues).filter((card) => card.column === 'Merging').map((card) => [card.issue, card]));
   const batch = state.jobs.filter((job) => job.stage === 'merge').flatMap((job) => job.batch ?? []);
   const waiting = new Set(waitingMerges(state, cards).map((card) => card.issue));
-  const shipping = state.jobs.some((job) => job.stage === 'ship');
   const tests: Record<MergeState, (card: Card) => boolean> = {
     merging: (card) => batch.includes(card.issue),
     next: (card) => waiting.has(card.issue),
     stuck: (card) => card.labels.includes(STUCK_LABEL),
     held: (card) => String(card.issue) in state.held,
-    'after-ship': (card) => shipping && card.labels.includes(RELEASE_TASK_LABEL),
   };
   const readMergeState = (card: Card): MergeState => {
     const found = MERGE_STATE_ORDER.find((mergeState) => tests[mergeState](card));

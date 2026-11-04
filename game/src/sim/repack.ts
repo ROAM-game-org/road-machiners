@@ -98,7 +98,7 @@ function place<T>(run: Run<T>, i: number, s: number): T | null {
 function pieceOf(g: Grid, fixed: GridItem[], item: PartItem, movable: PartItem[]): Piece {
   const held = movable.filter((it) => it.part.defId === item.part.defId);
   const isHeld = (s: Spot) => held.some((it) => it.x === s.x && it.y === s.y && it.rot === s.rot);
-  const all = mountSpots(g, fixed, item, mountCellsOf(item.part.defId));
+  const all = mountSpots(g, fixed, item, mountCellsOf(item.part.defId)).filter((s) => s.rot < 4 || isHeld(s));
   const spots = [...all.filter(isHeld), ...all.filter((s) => !isHeld(s))].map((spot) => placeOf(g, item, spot));
   return { item, shape: shapeOf(item), spots, area: spots[0]?.cells.length ?? Infinity, reach: [...new Set(spots.flatMap((s) => s.cells))] };
 }
