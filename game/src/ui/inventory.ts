@@ -164,7 +164,7 @@ function fitRoom(box: HTMLElement): FitRoom {
   const frame = scrollAncestor(box);
   const frames = [frame ?? box];
   return {
-    size: frame ? `frame ${frame.clientWidth}x${frame.clientHeight}` : `box ${box.clientWidth}x${box.clientHeight}`,
+    size: frame ? `frame ${frame.offsetWidth}x${frame.offsetHeight}` : `box ${box.offsetWidth}x${box.offsetHeight}`,
     overflow: (root) => Math.max(...frames.map((f) => overflowIn(f, root))),
   };
 }

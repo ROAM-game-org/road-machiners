@@ -12,6 +12,8 @@ class FakeNode {
   attrs = new Map<string, string>();
   isConnected = true;
   clientWidth = 400;
+  offsetWidth = 400;
+  offsetHeight = 300;
   clientHeight = 300;
   scrollTop = 0;
   parentElement: FakeNode | null = null;
