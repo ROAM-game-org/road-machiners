@@ -114,7 +114,7 @@ export function currentOptions(world: World): OfferedOption[] {
   if (!call.topic) return hubOptions(world, npc, call);
   const node = TOPICS[call.topic].nodes[call.node];
   const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o, short: optionShort(world, o) }));
-  return [...options, hangUp];
+  return options.some((o) => o.option.go === END) ? options : [...options, hangUp];
 }
 
 export function currentLine(world: World): LineId {

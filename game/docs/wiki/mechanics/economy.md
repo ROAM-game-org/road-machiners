@@ -74,7 +74,7 @@ Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below
 
 ## Odd jobs
 
-A player parked at any shop site with less than one work day of the tier 1 wage (56 M) can do odd jobs from the town page. The choice is off at 56 M or more, and it names that limit. A shift is 150 turns, eight game hours, and runs on its own: turns advance until the shift ends, as on the beacon. It pays 5.95 cents a turn, which nets about 20 M a work day after the supplies the driver eats. A shift that ends early pays for the turns worked and gives no XP. Moving, combat or any other order ends it. The pay shows in the ledger as odd jobs.
+A player parked at any shop site can do odd jobs from the town page, whatever money they hold. A shift is 150 turns, about 40 minutes on the clock, and runs on its own: turns advance until the shift ends, as on the beacon. It pays 5.95 cents a turn, which nets about 20 M a work day after the supplies the driver eats. A shift that ends early pays for the turns worked and gives no XP. Moving, combat or any other order ends it. The pay shows in the ledger as odd jobs.
 
 ## Charts
 

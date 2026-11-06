@@ -40,6 +40,13 @@ export function fuelLimit(w: World, v: Vehicle, burnsFuel: boolean): 'low' | 'em
 export function lowFuelSpeed(maxSpeed: number): number {
   return maxSpeed * RULES.lowFuelSpeedFactor;
 }
+
+export function fuelTopSpeed(w: World, v: Vehicle, s: { maxSpeed: number; limpSpeed: number }, burnsFuel: boolean): number {
+  const limit = fuelLimit(w, v, burnsFuel);
+  if (limit === 'empty') return Math.min(s.maxSpeed, s.limpSpeed);
+  return limit === 'low' ? lowFuelSpeed(s.maxSpeed) : s.maxSpeed;
+}
+
 export function plainFuelSpeed(w: World, v: Vehicle): number {
   const top = plainMaxSpeed(w, v);
   return fuelLimit(w, v, plainFuelPerTile(w, v) > 0) === 'low' ? lowFuelSpeed(top) : top;

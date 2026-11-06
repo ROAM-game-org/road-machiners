@@ -425,6 +425,15 @@
 .ink-page .ink-scroll > .ink-panel.wide {
   width: 100%;
 }
+.ink-page .ink-scroll:has(> .ink-panel.wide) > :is(.ink-head, .ink-choices) {
+  width: 100%;
+}
+.ink-page .ink-body:has(.ink-panel.wide) > .ink-foot {
+  grid-column: 1 / -1;
+}
+#ui:has(.town-page.ink-page:not([style*="display: none"])) > .right-column > .log {
+  visibility: hidden;
+}
 #ui:not(.narrow) .ink-page .ink-scroll:has(> .ink-panel.wide) {
   overflow: hidden;
 }

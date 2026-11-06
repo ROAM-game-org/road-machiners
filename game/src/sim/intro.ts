@@ -16,7 +16,7 @@ import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, freeToTalk, openWellScene, setIntroStep, setWorldVar, worldVar } from './quests';
+import { introStep, freeToTalk, openTowedWake, openWellScene, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
@@ -72,12 +72,11 @@ function strangerToHattie(w: World): boolean {
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
   if (foes === null || foes.length === 0 || introStep(w) !== 'ambush') return;
-  const met = worldVar(w, HATTIE_MET) === true;
   parkInWakeTown(w);
   stockLostKitParts(w);
   setIntroStep(w, 'done');
   setWorldVar(w, TOWED_TO_BOWL, true);
-  openWellScene(w, met ? 'again' : 'start');
+  openTowedWake(w);
 }
 
 function parkInWakeTown(w: World): void {

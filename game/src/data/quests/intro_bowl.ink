@@ -18,7 +18,7 @@ You're lying on a bench under a roof of woven reeds. Past the shade run canals f
 You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key. # page
 The bed is empty. {engine_missing(): Somebody went through the engine and left the bolts where they fell.|Somebody went through the cab and the toolbox, but the engine is still bolted in.} Well. At least they left you the truck.
 A broad woman with wet hands and rolled sleeves sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
-Slow sips, driver. You've been on that chain all morning. # speaker: Hattie
+Slow sips, driver. You've been on that chain all night. # speaker: Hattie
 The tow man left you on my bench at first light. He took your truck for a wreck nobody would come back for. He left no name and no M's. # speaker: Hattie
 She nods at the chain on your bumper.
 He left his chain on your bumper, though. He'll be back for it, if not for you. # speaker: Hattie

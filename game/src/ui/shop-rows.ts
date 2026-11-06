@@ -5,7 +5,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle, vehicleById } from "../sim/damage";
-import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
+import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyCharge, supplyRoom, type Supply } from "../sim/economy";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
@@ -53,8 +53,10 @@ export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
   const amount = (n: number) => supplyAmount(k, n);
   const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
   return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, price, shortBy(w.player.money, price) === null, [
-    buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason),
-    buttons.button(afford > 0 ? t("trade.fill", { amount: amount(afford) }) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
+    buttons.priceButton(w, t("trade.plusAmount", { amount: amount(1) }), supplyCharge(k, 1), (x) => buy(x, k, 1), reason),
+    afford > 0
+      ? buttons.priceButton(w, t("trade.fill", { amount: amount(afford) }), supplyCharge(k, afford), (x) => buy(x, k, afford), reason)
+      : buttons.button(t("trade.fillBare"), (x) => x, reason),
   ], limit.tag);
 }
 
@@ -89,7 +91,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       tag,
     ),
     theirs,
-    el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), priceEl(price, payable, { tone: "", title: supplyUnit(k) }), ...buttons),
+    el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), el("span", { class: `price ${priceTone(payable, null)}`.trim(), title: supplyUnit(k) }, moneyEl(price)), ...buttons),
   );
 }
 
@@ -330,7 +332,11 @@ function priceTipRow(label: Msg, amount: number, tone: "base" | "down"): HTMLEle
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
 
-export function goodsHead(withTheirs: boolean, withStock = false): HTMLElement {
+export function goodsClass(w: World, kind: "stocked" | "truck"): string {
+  return knowsMarket(w) ? `goods ${kind}` : `goods ${kind} no-profit`;
+}
+
+export function goodsHead(w: World, withTheirs: boolean, withStock = false): HTMLElement {
   const c = GOODS_COLUMNS;
   return el(
     "div",
@@ -341,7 +347,7 @@ export function goodsHead(withTheirs: boolean, withStock = false): HTMLElement {
     priceHead(c.sell),
     withStock ? el("span", { class: "end" }, c.stock) : null,
     el("span", { class: "end" }, c.held),
-    el("span", { class: "end", title: PROFIT_HEAD_TITLE, "aria-label": PROFIT_HEAD_TITLE }, c.profit, coinEl()),
+    knowsMarket(w) ? el("span", { class: "end", title: PROFIT_HEAD_TITLE, "aria-label": PROFIT_HEAD_TITLE }, c.profit, coinEl()) : null,
   );
 }
 

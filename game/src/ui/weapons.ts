@@ -1,4 +1,4 @@
-import { touchMode } from "./input-mode";
+import { keyLabel, touchMode } from "./input-mode";
 import { partDef } from "../data/parts";
 import { fireBlock, gunOf, hitOdds, roundDamage, type FireBlock } from "../sim/combat";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
@@ -70,7 +70,17 @@ export function vehicleMarks(w: World, hovered: string | null): Map<string, Vehi
   return marks;
 }
 
+function ownJob(w: World): JobMark | null {
+  const me = playerVehicle(w);
+  const work = workOf(w, me);
+  if (!work) return null;
+  const label = workLabel(w, me, work);
+  return { label: work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }), progress: workProgress(work) };
+}
+
 function markSeenNpcs(w: World, markOf: (id: string) => VehicleMark): void {
+  const own = ownJob(w);
+  if (own) markOf(w.player.vehicleId).job = own;
   for (const v of w.vehicles.filter((x) => x.brain && playerSees(w, x.pos))) {
     const job = seenNpcJob(w, v);
     if (job) markOf(v.id).job = job;
@@ -208,6 +218,10 @@ export function canForceReload(mw: MountedWeapon): boolean {
 
 export const NOTHING_TO_HOLD: Msg = t("weapon.noHoldTarget");
 
+function keyedReason(reason: Msg | null, key: number | null): Msg | null {
+  return reason !== null && key !== null ? keyLabel(reason, String(key)) : reason;
+}
+
 function disabledAttrs(reason: Msg | null, title: Msg): Record<string, Msg | string> {
   return reason === null ? { title } : { title: reason, "aria-disabled": "true" };
 }
@@ -332,7 +346,7 @@ export class UtilityRow {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           "aria-label": t("utility.slotLabel", { name, status: status.text }),
-          ...disabledAttrs(locked, key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
+          ...disabledAttrs(keyedReason(locked, key), key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
           onclick: () => locked === null && (key === null ? this.selectUtility(i) : this.host.runKey(`Digit${key}`)),
         },
         el("span", { class: "weapon-number" }, key === null ? null : num(key, "int")),
@@ -500,7 +514,7 @@ export class WeaponPanel {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           'aria-label': t("weapon.slotLabel", status),
-          ...disabledAttrs(locked, t("weapon.slotTitle", { ...status, rounds: mw.def.rounds, damage: roundDamage(w, mw.def), pen: mw.def.round.pen, range: meters(mw.def.range), cooldown: mw.def.cooldown, magazine: mw.def.magazine, reload: mw.def.reload })),
+          ...disabledAttrs(keyedReason(locked, i + 1), keyLabel(t("weapon.slotTitle", { ...status, rounds: mw.def.rounds, damage: roundDamage(w, mw.def), pen: mw.def.round.pen, range: meters(mw.def.range), cooldown: mw.def.cooldown, magazine: mw.def.magazine, reload: mw.def.reload }), String(i + 1))),
           onclick: () => locked === null && this.selectWeapon(selected ? null : mw.part.id),
         },
         el('span', { class: 'weapon-number' }, num(i + 1, 'int')),

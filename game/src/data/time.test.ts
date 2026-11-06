@@ -54,7 +54,6 @@ describe('the work day', () => {
     expect(now.deeds).toBe(450);
     expect(now.spotter).toBe(450);
     expect(now.oddJobs.shiftTurns).toBe(150);
-    expect(now.oddJobs.hireBelow).toBe(55);
     expect(now.oddJobs.payPerTurn).toBeCloseTo(20 / 450 + RULES.suppliesPerTurn * ECONOMY.supplyPrice.supplies, 10);
     expect(now.rations).toBeCloseTo(11.9, 1);
   });

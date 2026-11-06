@@ -53,7 +53,7 @@ import type {
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
-import { lookReason } from "./unstuck-reason";
+import { lookOrTurnReason, lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
@@ -1159,7 +1159,7 @@ export class InventoryView {
   }
 
   private look(): Msg | null {
-    return lookReason(this.host.world());
+    return lookOrTurnReason(this.host.world(), this.host.getTurnPhase() !== null);
   }
 
   private run(cmd: (w: World) => World, quiet = false): void {
@@ -1189,7 +1189,7 @@ function offGridCommand(target: string | null | undefined, itemId: string, truck
 
 export class InventoryScreen {
   readonly root = panel("modal dialog");
-  private view: InventoryView;
+  readonly view: InventoryView;
 
   constructor(private host: UiHost) {
     this.root.classList.add("inventory-screen");

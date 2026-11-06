@@ -18,6 +18,10 @@ export function keyCorner(key: string): HTMLElement {
   return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
 }
 
+function switchTitle(o: SwitchOptions, reason: Msg | null): Msg {
+  return o.key ? keyLabel(reason ?? o.title, o.key) : (reason ?? o.title);
+}
+
 export function createSwitch(o: SwitchOptions): HTMLElement {
   const reason = o.reason ?? null;
   return el(
@@ -27,7 +31,7 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
       role: "switch",
       "aria-checked": String(o.checked),
       "aria-disabled": reason === null ? undefined : "true",
-      title: reason ?? (o.key ? keyLabel(o.title, o.key) : o.title),
+      title: switchTitle(o, reason),
       onclick: () => reason === null && o.onclick(),
     },
     stackedLabel([o.on, o.off], o.checked ? 0 : 1, "switch-option"),

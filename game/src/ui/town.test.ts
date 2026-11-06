@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
+import { GARAGE_ONLY, townPageOnOpen } from "./town";
 import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
@@ -280,16 +280,6 @@ describe("the price of a case at the Marshalls desk", () => {
   });
 });
 
-describe("the odd jobs choice reason", () => {
-  it("names the hire limit for a driver with too much cash", () => {
-    expect(en(oddJobsReason(emptyWorld(), { id: "notHiring" }))).toBe("For drivers under 55 M's");
-  });
-
-  it("gives the refusal text for any other block", () => {
-    expect(en(oddJobsReason(emptyWorld(), { id: "stopFirst" }))).toBe("Stop the truck first");
-  });
-});
-
 describe("the supply rows of the front page", () => {
   beforeEach(() => {
     vi.stubGlobal("document", {
@@ -308,7 +298,10 @@ describe("the supply rows of the front page", () => {
         cmd(w);
         return new FakeNode("button") as unknown as HTMLElement;
       },
-      priceButton: () => new FakeNode("button") as unknown as HTMLElement,
+      priceButton: (_w: World, _verb: Msg, _price: number, cmd: (x: World) => World) => {
+        cmd(w);
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
     };
     const buy = (x: World, _k: string, n: number) => {
       asked.push(n);

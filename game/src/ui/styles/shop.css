@@ -896,6 +896,20 @@
     minmax(calc(var(--col-name) - var(--space-8)), 1fr) var(--col-trade) var(--col-trade) var(--icon-3xl) var(--icon-3xl)
     var(--col-profit);
 }
+.goods.truck.no-profit .goods-head,
+.goods.truck.no-profit .good-row {
+  grid-template-columns:
+    minmax(calc(var(--col-name) - var(--space-8)), 1fr) calc(var(--icon-3xl) + var(--space-2)) var(--col-trade) var(--col-trade)
+    var(--icon-3xl);
+}
+.goods.stocked.no-profit .goods-head,
+.goods.stocked.no-profit .good-row {
+  grid-template-columns:
+    minmax(calc(var(--col-name) - var(--space-8)), 1fr) var(--col-trade) var(--col-trade) var(--icon-3xl) var(--icon-3xl);
+}
+.goods.no-profit .good-row > .profit {
+  display: none;
+}
 .good-name .tag {
   margin-left: auto;
   white-space: nowrap;
@@ -1087,6 +1101,31 @@
   flex-direction: column;
   gap: var(--space-1);
   font: var(--text-dense) var(--font-mono);
+  white-space: nowrap;
+}
+.town-truck-supplies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+}
+.town-truck-supplies .good-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0;
+}
+.town-truck-supplies .good-name {
+  flex: 1;
+  min-width: 0;
+}
+.town-truck-supplies .trade {
+  flex: none;
+  width: auto;
+}
+.town-truck-supplies .caption,
+.town-truck-supplies .trade > .price {
+  display: none;
 }
 .service-meter .meter {
   height: var(--meter-l);

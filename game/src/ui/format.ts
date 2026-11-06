@@ -1,3 +1,4 @@
+import { volleyLine, volleyOfShot, type Volley } from './log';
 import { isShield, partDef } from '../data/parts';
 import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
@@ -32,7 +33,6 @@ import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
 import { MAP_GRID, REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { isJunk, maxHp } from '../sim/wear';
 import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
@@ -47,7 +47,7 @@ import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { compassText, damage, distanceText, fuelLiters, hp, kph, moneyM, moneyMsg } from './units';
+import { compassText, damage, distanceText, fuelLiters, kph, moneyM, moneyMsg } from './units';
 import { seesAll } from './see-all';
 import { bandAtLeast, isRaider } from '../sim/relations';
 
@@ -136,29 +136,6 @@ export function workProgress(work: WorkLeft): number {
   return 1 - work.turnsLeft / work.total;
 }
 
-export function wearLabel(part: PartInstance): Msg {
-  if (isJunk(part)) return t('cond.junk');
-  if (part.wear === 0) return t('cond.pristine');
-  return t('cond.rebuilt', { n: part.wear });
-}
-
-export type ConditionTier = 'pristine' | `w${number}` | 'junk';
-
-export function conditionTier(part: PartInstance): ConditionTier {
-  if (isJunk(part)) return 'junk';
-  if (part.wear === 0) return 'pristine';
-  return `w${part.wear}`;
-}
-
-export function showsCondition(part: PartInstance): boolean {
-  return partDef(part.defId).kind !== 'core';
-}
-
-export function conditionStatus(part: PartInstance): { text: Msg; tone: 'dim' | 'bad' } {
-  if (isJunk(part)) return { text: t('cond.scrapOnly'), tone: 'dim' };
-  if (part.hp === 0) return { text: t('cond.broken'), tone: 'bad' };
-  return { text: t('cond.hp', { hp: hp(part.hp), max: hp(maxHp(part)) }), tone: 'dim' };
-}
 
 const OBSTACLE_ID = new RegExp(`^(wreck|rock|bld|${OPENING_WRECK_ID}$)`);
 
@@ -273,15 +250,22 @@ export function formatNpcStates(world: World, vehicle: Vehicle): Msg[] {
   return out;
 }
 
-export function formatVehicleState(world: World, vehicle: Vehicle): Msg {
-  const motion = vehicle.speed > 0 ? t('state.moving', { n: kph(vehicle.speed) }) : t('state.parked');
+function shutDownText(world: World, vehicle: Vehicle): Msg | null {
   const left = shutDownTurnsLeft(world, vehicle);
-  const shutDown = left > 0 ? turnsText(t('state.shutDown'), left) : null;
+  return left > 0 ? turnsText(t('state.shutDown'), left) : null;
+}
+
+export function formatVehicleState(world: World, vehicle: Vehicle): Msg {
+  const shown = kph(vehicle.speed);
+  const motion = shown > 0 ? t('state.moving', { n: shown }) : t('state.parked');
   const brain = vehicle.brain ? [formatNpcActivity(world, vehicle), ...formatNpcStates(world, vehicle)] : [];
-  const parts = [motion, shutDown, ...brain].filter((part) => part !== null);
+  const parts = [motion, shutDownText(world, vehicle), ...brain].filter((part) => part !== null);
   return parts.reduce((first, rest) => t('state.join', { first, rest }));
 }
 
+export function formatCardState(world: World, vehicle: Vehicle): Msg | null {
+  return vehicle.id === world.player.vehicleId ? shutDownText(world, vehicle) : formatVehicleState(world, vehicle);
+}
 function turnsText(label: Msg, turnsLeft: number | null): Msg {
   return turnsLeft === null ? label : t('state.withTurns', { label, n: turnsLeft });
 }
@@ -295,7 +279,7 @@ function combatLine(world: World, vehicle: Vehicle): Msg | null {
 }
 
 export type LogSpan = { text: Msg; cls: string };
-export type LogLine = { text: Msg; cls: string; spans?: LogSpan[] };
+export type LogLine = { text: Msg; cls: string; spans?: LogSpan[]; volley?: Volley; stamp?: string };
 
 const line = (text: Msg, cls: string): LogLine => ({ text, cls });
 
@@ -354,11 +338,24 @@ function gunShotText(world: World, e: Extract<GameEvent, { t: 'shot' }>): LogLin
   const me = world.player.vehicleId;
   const damaged = shotDamage(e);
   if (e.shooter !== me && e.target !== me && !damaged.has(me)) return null;
+  return dealtNothing(e, damaged) ? missLine(world, e) : hitText(world, e, damaged);
+}
+
+function hitText(world: World, e: Extract<GameEvent, { t: 'shot' }>, damaged: Map<string, PartHit[]>): LogLine {
+  const me = world.player.vehicleId;
   const strays = [...damaged].filter(([id]) => id !== e.target).flatMap(([id, h]) => [
     { text: t('log.strayHits', { who: vehicleName(world, id) }), cls: '' },
     ...damageSpans(world, id, h),
   ]);
   return spanLine(hurts(damaged.get(me)) ? 'bad' : '', [...aimedSpans(world, e, damaged.get(e.target) ?? []), ...strays]);
+}
+
+function dealtNothing(e: Extract<GameEvent, { t: 'shot' }>, damaged: ReadonlyMap<string, PartHit[]>): boolean {
+  return ![...damaged.values()].some(hurts) && !e.rounds.some((r) => r.crit || hitsAim(e, r));
+}
+
+function missLine(world: World, e: Extract<GameEvent, { t: 'shot' }>): LogLine {
+  return volleyLine(volleyOfShot(`${e.shooter}/${e.weapon}/${e.target}/${e.aim}`, partName(world, e.shooter, e.weapon), vehicleName(world, e.target), e.aim === 'body' ? null : partName(world, e.target, e.aim), e.rounds.length, e.damageChance));
 }
 
 function firedWithLine(world: World, e: Extract<GameEvent, { t: 'shot' }>): boolean {

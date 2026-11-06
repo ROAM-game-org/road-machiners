@@ -9,7 +9,7 @@ import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, l
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
-import { startJob } from './jobs';
+import { cancelJob, startJob } from './jobs';
 import { RULES } from '../data/rules';
 import { canReachSalvage, dumpOnPile, pickupWork, truckPickupItem } from './salvage';
 import { modeRules } from './settings';
@@ -217,8 +217,56 @@ function layoutPlan(v: Vehicle, layout: RefitLayout): RefitPlan {
 
 function commitRefit(w: World, me: Vehicle, plan: RefitPlan): void {
   disarmMoving(me, plan.moves);
-  if (me.job?.kind === 'refit' || movesWork(w, me, plan.turns) > 0) queueRefit(w, me, { moves: plan.moves, pickup: null });
+  const job = me.job?.kind === 'refit' ? me.job : null;
+  if (job && mergeIntoLastStep(w, me, job, plan.moves)) return;
+  commitNewStep(w, me, plan, job !== null);
+}
+
+function commitNewStep(w: World, me: Vehicle, plan: RefitPlan, refitRunning: boolean): void {
+  if (refitRunning || movesWork(w, me, plan.turns) > 0) queueRefit(w, me, { moves: plan.moves, pickup: null });
   else applyRefitLayout(w, me, plan.items);
+}
+
+function mergedMoves(step: RefitStep, moves: readonly RefitMove[]): RefitMove[] | null {
+  if (!moves.some((move) => step.moves.some((held) => held.itemId === move.itemId))) return null;
+  const retargeted = step.moves.map((held) => {
+    const later = moves.find((move) => move.itemId === held.itemId);
+    return later ? { ...held, to: later.to } : held;
+  });
+  const added = moves.filter((move) => !step.moves.some((held) => held.itemId === move.itemId));
+  return [...retargeted, ...added].filter((move) => !sameSpot(move.from, move.to));
+}
+
+function sameSpot(a: Spot, b: Spot): boolean {
+  return a.x === b.x && a.y === b.y && a.rot === b.rot;
+}
+
+function mergeIntoLastStep(w: World, me: Vehicle, job: RefitJob, moves: readonly RefitMove[]): boolean {
+  const queued = job.queue.at(-1);
+  const merged = mergedMoves(queued ?? job, moves);
+  if (merged === null) return false;
+  if (queued) return mergeIntoQueuedStep(w, me, job, queued, merged);
+  if (merged.length === 0) {
+    cancelJob(w, me);
+    return true;
+  }
+  const step = { moves: merged, pickup: null };
+  if (refitStepLayout(w, me, step, NOTHING_TAKEN).error !== null) return false;
+  const spent = job.total - job.turnsLeft;
+  job.moves = merged;
+  job.total = refitStepWork(w, me, step);
+  job.turnsLeft = Math.max(1, job.total - spent);
+  return true;
+}
+
+function mergeIntoQueuedStep(w: World, me: Vehicle, job: RefitJob, queued: RefitStep, merged: RefitMove[]): boolean {
+  job.queue.pop();
+  if (merged.length === 0) return true;
+  const planned = plannedRefit(w, me);
+  const step = { moves: merged, pickup: null };
+  const fits = refitStepLayout(w, { ...me, items: planned.items }, step, planned.taken).error === null;
+  job.queue.push(fits ? step : queued);
+  return fits;
 }
 
 function disarmMoving(me: Vehicle, moves: RefitMove[]): void {

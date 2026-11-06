@@ -315,10 +315,11 @@ describe('the fall and the wake in Bowl', () => {
   it('plays the first fall, robs the cargo, spares the driver and parks the truck in Bowl', () => {
     const w = ambushed();
     knockedOutBy(w);
-    expect(w.player.quests.live?.quest).toBe('first_fall');
+    expect(w.player.quests.live).toBeNull();
     expect(introStep(w)).toBe('ambush');
-    let next = closeScene(w);
-    next = runUntilAwake(next);
+    const awake = runUntilAwake(w);
+    expect(awake.player.quests.live?.quest).toBe('first_fall');
+    const next = closeScene(awake);
     const me = playerVehicle(next);
     expect(next.player.state).toBe('active');
     expect(next.player.health).toBeGreaterThan(0);
@@ -337,7 +338,7 @@ describe('the fall and the wake in Bowl', () => {
     const bowl = w.shops[WAKE_TOWN];
     bowl.stock = bowl.stock.filter((part) => !kitPartIds(START_KITS.arrival).includes(part.defId));
     knockedOutBy(w);
-    let next = closeScene(runUntilAwake(closeScene(w)));
+    let next = closeScene(closeScene(runUntilAwake(w)));
     const stocked = next.shops[WAKE_TOWN].stock.filter((part) => kitPartIds(START_KITS.arrival).includes(part.defId));
     expect(stocked.map((part) => part.defId).sort()).toEqual([...kitPartIds(START_KITS.arrival)].sort());
     for (const part of stocked) next = buyStockPart(next, part.id);
@@ -358,7 +359,7 @@ describe('the fall and the wake in Bowl', () => {
   it('sets done when the Bowl scene opens and plays it once', () => {
     const w = ambushed();
     knockedOutBy(w);
-    let next = runUntilAwake(closeScene(w));
+    let next = closeScene(runUntilAwake(w));
     expect(introStep(next)).toBe('done');
     next = closeScene(next);
     next = endTurn(next, testDrive);
@@ -369,7 +370,7 @@ describe('the fall and the wake in Bowl', () => {
   it('wakes a driver who never met Hattie on the start checkpoint and marks her met', () => {
     const w = ambushed();
     knockedOutBy(w);
-    const next = runUntilAwake(closeScene(w));
+    const next = closeScene(runUntilAwake(w));
     expect(spokenIn(next)).toContain('left you on my bench at first light');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
   });
@@ -381,7 +382,7 @@ describe('the fall and the wake in Bowl', () => {
     met = pickText(met, "I'll go.");
     expect(met.player.quests.session).toBeNull();
     knockedOutBy(met);
-    const next = runUntilAwake(closeScene(met));
+    const next = closeScene(runUntilAwake(met));
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
     expect(spokenIn(next)).toContain('Back on my bench again');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
@@ -414,7 +415,7 @@ describe('the fall and the wake in Bowl', () => {
   it('keeps the knockout road to its own scenes', () => {
     const w = ambushed();
     knockedOutBy(w);
-    let next = runUntilAwake(closeScene(w));
+    let next = closeScene(runUntilAwake(w));
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
     next = closeScene(next);
     for (let i = 0; i < 3; i++) next = endTurn(next, testDrive);
@@ -448,7 +449,7 @@ describe('the fall and the wake in Bowl', () => {
     let spills = 0;
     for (let i = 0; i < 400 && !(introStep(w) === 'done' && w.player.state === 'active'); i++) {
       if (w.player.call) w = hangUp(w);
-      if (w.player.quests.session) w = closeScene(w);
+      if (w.player.quests.live) w = closeScene(w);
       const raider = raidersIn(w)[0];
       if (!broken && dist(raider.pos, playerVehicle(w).pos) < 12) {
         const me = playerVehicle(w);
@@ -464,6 +465,8 @@ describe('the fall and the wake in Bowl', () => {
     expect(spills).toBeGreaterThan(0);
     const full = w.salvage.filter((s) => s.id.startsWith(`spill-${w.player.vehicleId}-`) && (Object.values(s.goods).some((n) => n > 0) || s.parts.length > 0));
     expect(full).toEqual([]);
+    expect(w.player.quests.live?.quest).toBe('first_fall');
+    w = closeScene(w);
     expect(w.player.quests.live?.quest).toBe('intro_bowl');
     expect(w.player.quests.world[TOWED_TO_BOWL]).toBe(true);
   });
@@ -472,7 +475,7 @@ describe('the fall and the wake in Bowl', () => {
     const w = ambushed();
     setIntroStep(w, 'done');
     knockedOutBy(w);
-    const next = runUntilAwake(closeScene(w));
+    const next = closeScene(runUntilAwake(w));
     expect(next.player.quests.live).toBeNull();
     expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
     expect(canUseSite(playerVehicle(next).pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(false);

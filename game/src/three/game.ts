@@ -329,7 +329,7 @@ export class Game {
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
-      releaseTurn: () => this.releaseTurn(),
+      releaseTurn: () => this.travel.release(performance.now()),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
@@ -407,6 +407,10 @@ export class Game {
 
   private blockingModalOpen(): boolean {
     return this.screens.blockingOpen() || this.world.player.call !== null || this.menu.isOpen();
+  }
+
+  private turnRefused(): boolean {
+    return this.blockingModalOpen() || this.screens.inventoryTime.refuses(this.world);
   }
 
   private displayWorld(): World {
@@ -491,7 +495,7 @@ export class Game {
     canvas.addEventListener("pointerleave", () => this.picker.moveTo(null));
     canvas.addEventListener("wheel", (e) => this.rig.zoomBy(e.deltaY), { passive: true });
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") this.releaseTurn();
+      if (e.code === "Space") this.travel.release(performance.now());
     });
     window.addEventListener("blur", () => this.travel.pause());
     document.addEventListener("visibilitychange", () => {
@@ -499,7 +503,7 @@ export class Game {
     });
     window.addEventListener("keydown", (e) => {
       if (this.ignoresKey(e) || this.death.isShown()) return;
-      if (e.code === "Space" && !this.modalOpen()) {
+      if (e.code === "Space" && !this.turnRefused()) {
         e.preventDefault();
         if (!e.repeat) this.pressTurn();
       }
@@ -508,12 +512,9 @@ export class Game {
   }
 
   private pressTurn(): void {
-    if (this.death.isShown() || this.modalOpen()) return;
+    if (this.death.isShown() || this.turnRefused()) return;
+    this.screens.inventoryTime.press();
     if (this.travel.pressTurn(this.travel.isPlaying(this.anim), this.world)) this.endTurn();
-  }
-
-  private releaseTurn(): void {
-    this.travel.release(performance.now());
   }
 
   private searchFromLoot(stockId: string): void {
@@ -551,7 +552,7 @@ export class Game {
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
     KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true, screen: true },
-    KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true, screen: true },
+    KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
     Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
 
@@ -637,7 +638,7 @@ export class Game {
     switch (tap.kind) {
       case "pin":
         swallowNextClick();
-        return this.pinVehicle(tap.id);
+        return this.pin.click(tap.id);
       case "aim":
         return this.aimVehicle(tap.id);
       case "preview":
@@ -686,12 +687,8 @@ export class Game {
   }
 
   private clickVehicle(id: string): void {
-    this.pinVehicle(id);
-    this.aimVehicle(id);
-  }
-
-  private pinVehicle(id: string): void {
     this.pin.click(id);
+    this.aimVehicle(id);
   }
 
   private aimVehicle(id: string): void {
@@ -762,13 +759,14 @@ export class Game {
   }
 
   endTurn(): void {
-    if (this.travel.isPlaying(this.anim) || this.modalOpen() || this.world.player.state === "dead") return;
+    if (this.travel.isPlaying(this.anim) || this.turnRefused() || this.world.player.state === "dead") return;
     this.travel.request(this.world, this.drive);
   }
 
   private updateTravel(): void {
     const threats = threatsIn(this.world).filter((v) => this.isVehicleVisible(v)).map((v) => v.id);
     const { sighted } = this.hostileSighting.observe(this.world.turn, threats);
+    this.screens.inventoryTime.closeOn(this.world, sighted || this.blockingModalOpen());
     this.sightingToSound ||= sighted;
     this.follow.noteDanger(threats.length > 0);
     this.travel.updateWorld(this.world, sighted);
@@ -1045,7 +1043,7 @@ export class Game {
   }
 
   private timeHeld(): boolean {
-    return this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden || this.gpu.lost();
+    return this.screens.inventoryTime.holds() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden || this.gpu.lost();
   }
 
   private tickWorldClock(realMs: number, speed: number, now: number): { playMs: number; combatMs: number } {

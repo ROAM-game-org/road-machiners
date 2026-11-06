@@ -19,6 +19,7 @@ import { startSearch } from "../sim/search";
 import type { World } from "../sim/types";
 import { TEST_MAP } from "../test/map";
 import { openingStep } from "../sim/opening";
+import { addState } from "../sim/states";
 import { clearTips, doneTips, readSeen, setTipsOff, tipsOff, tipToShow, TipTurns, type TipId } from "./tips";
 
 describe("driving tips", () => {
@@ -128,9 +129,17 @@ describe("aim tip", () => {
     return { w, npc };
   }
 
-  it("shows for an armed player once a hostile is in sight, ahead of the horn tip", () => {
+  it("waits for a real fight, not for a hostile in sight", () => {
     const { w } = withRaider();
-    expect(tipToShow(w, false, driving, null)).toBe("aim");
+    expect(tipToShow(w, false, driving, null)).not.toBe("autoFire");
+    expect(tipToShow(w, false, new Set([...driving, "autoFire"]), null)).not.toBe("aim");
+  });
+
+  it("explains auto fire at the first fight, then aiming at the next", () => {
+    const { w, npc } = withRaider();
+    addState(w, "combat", npc.id, w.player.vehicleId, { kind: "none" });
+    expect(tipToShow(w, false, driving, null)).toBe("autoFire");
+    expect(tipToShow(w, false, new Set([...driving, "autoFire"]), null)).toBe("aim");
   });
 
   it("stays away from a neutral", () => {

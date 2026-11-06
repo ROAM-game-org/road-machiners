@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CONDITION } from "../data/wear";
 import type { PartInstance } from "../sim/types";
-import { conditionTier } from "./format";
+import { conditionTier } from "./cards";
 
 const styles = new URL("./styles/", import.meta.url);
 const css = [

@@ -5,7 +5,7 @@ import type { PartInstance, World } from "../sim/types";
 import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl, statChip, toneStyle } from "./cards";
 import type { Msg } from "../text/msg";
 import { el } from "./dom";
-import { conditionStatus, conditionTier } from "./format";
+import { conditionStatus, conditionTier } from "./cards";
 import { moneyEl } from "./units";
 import { SPENT_DROP, type RowSlots } from "./row-slots";
 import { uiSize } from "./ui-size";

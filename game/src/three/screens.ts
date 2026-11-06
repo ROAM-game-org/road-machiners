@@ -2,6 +2,7 @@ import { CharacterScreen, type CharacterTab } from "../ui/character";
 import type { UiHost } from "../ui/host";
 import { FullShopScreen } from "../ui/full-shop";
 import { InventoryScreen } from "../ui/inventory";
+import { InventoryTime } from "./inventory-time";
 import { JournalScreen } from "../ui/journal";
 import { OutpostScreen } from "../ui/outpost";
 import { QuestScreen } from "../ui/quest-screen";
@@ -19,6 +20,7 @@ export class ModalScreens {
   readonly character: CharacterScreen;
   readonly journal: JournalScreen;
   readonly inventory: InventoryScreen;
+  readonly inventoryTime: InventoryTime;
   readonly quest: QuestScreen;
 
   constructor(host: UiHost) {
@@ -29,6 +31,7 @@ export class ModalScreens {
     this.character = new CharacterScreen(host);
     this.journal = new JournalScreen(host);
     this.inventory = new InventoryScreen(host);
+    this.inventoryTime = new InventoryTime(this.inventory);
     this.quest = new QuestScreen(host, () => this.lookOver() || host.menuOpen(), () => (this.town.isOpen() ? this.town.frame() : null));
   }
 

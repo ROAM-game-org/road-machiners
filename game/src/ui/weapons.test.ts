@@ -655,22 +655,23 @@ describe("disabled reasons on the weapon bar", () => {
     const { host, find } = build("moving");
     for (const text of ["Auto fire", "All", "Hold"]) {
       expect(find(text).attrs.get("aria-disabled")).toBe("true");
-      expect(find(text).attrs.get("title")).toBe("Turn playing");
+      expect(find(text).attrs.get("title")).toMatch(/^Turn playing/);
     }
+    expect(find("Auto fire").attrs.get("title")).toBe("Turn playing [Q]");
     find("Auto fire").fire("click");
     expect(host.runKey).not.toHaveBeenCalled();
   });
 
   it("names a knocked out driver", () => {
     const { find } = build(null, (w) => { w.player.state = "knockedOut"; });
-    expect(find("Auto fire").attrs.get("title")).toBe("Knocked out");
+    expect(find("Auto fire").attrs.get("title")).toBe("Knocked out [Q]");
   });
 
   it("keeps the knockout reason steady while a turn plays", () => {
     const { find } = build("moving", (w) => { w.player.state = "knockedOut"; });
     for (const text of ["Auto fire", "All", "Hold"]) {
       expect(find(text).attrs.get("aria-disabled")).toBe("true");
-      expect(find(text).attrs.get("title")).toBe("Knocked out");
+      expect(find(text).attrs.get("title")).toMatch(/^Knocked out/);
     }
   });
 

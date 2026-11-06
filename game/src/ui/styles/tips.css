@@ -16,10 +16,10 @@
 #ui .tip .tip-close {
   justify-self: end;
 }
-#ui .tip .tip-actions {
+#ui .tip .tip-off-note {
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
+  font-size: var(--text-caption);
+  color: var(--ink-faint);
 }
 #ui .touch-tip {
   position: fixed;

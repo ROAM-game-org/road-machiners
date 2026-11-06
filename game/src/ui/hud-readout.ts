@@ -13,9 +13,9 @@ import { maxHealthOf } from "../sim/health";
 import { corePart, itemSize } from "../sim/grid";
 import { conditionItems, type Tier } from "../three/render/portraitPixels";
 import { keyLabel } from "./input-mode";
-import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { vehicleStats, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
 import { basicSkill } from "../sim/progress";
-import { fuelLimit, lowFuelSpeed } from "../sim/far";
+import { fuelLimit, fuelTopSpeed, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
 import { dragOf, playerTow } from "../sim/tow";
 import { heatAt } from "../sim/sun";
@@ -390,7 +390,7 @@ export function getHudReadout(w: World) {
   return {
     speed: kph(me.speed),
     heading: me.heading,
-    maxSpeed: kph(steps[steps.length - 1].speed),
+    maxSpeed: kph(fuelTopSpeed(w, me, { maxSpeed: steps[steps.length - 1].speed, limpSpeed: vehicleStats(w, me).limpSpeed }, steps.some((s) => s.kind === "guns"))),
     dialTop: kph(Math.max(...steps.filter((s) => s.kind !== "chassis").map((s) => s.speed))),
     maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(weather.text, steps), notes),
     manual: me.direct,

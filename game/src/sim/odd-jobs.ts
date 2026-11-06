@@ -10,8 +10,7 @@ type OddJobs = Extract<Job, { kind: "oddJobs" }>;
 export function oddJobsBlock(world: World): Refusal | null {
   const blocked = workBlocker(world, playerVehicle(world));
   if (blocked) return blocked;
-  if (shopAt(world) === null) return { id: "stopFirst" };
-  return world.player.money >= ODD_JOBS.hireBelow ? { id: "notHiring" } : null;
+  return shopAt(world) === null ? { id: "stopFirst" } : null;
 }
 
 export function oddJobsPay(turns: number): number {

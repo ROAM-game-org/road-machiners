@@ -53,9 +53,8 @@ describe('knocked-out truck interaction', () => {
     expect(actions(w)).toEqual([]);
     corePart(buggy, 'cab').hp = 0;
     knockOutNpc(w, buggy);
-    expect(actions(w)[0]).toMatchObject({ label: `Loot ${npcName(buggy)}`, ready: true });
-    w.vehicles[0].speed = RULES.parkedSpeed + 1;
-    expect(actions(w)[0]).toMatchObject({ label: `Loot ${npcName(buggy)}`, ready: false });
+    expect(actions(w)[0]).toMatchObject({ label: `Loot Scrapjaw outrider ${en(driverName(buggy))}`, ready: true });    w.vehicles[0].speed = RULES.parkedSpeed + 1;
+    expect(actions(w)[0]).toMatchObject({ label: `Loot Scrapjaw outrider ${en(driverName(buggy))}`, ready: false });
   });
 });
 

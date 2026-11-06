@@ -14,5 +14,5 @@ When you look again, the barrel has swung up and away on the whine of its motor.
 They walk to your truck slow, with a rifle slung across their back, and they don't even glance at the cab as they pass. Why would they? You're not going anywhere. The bed creaks under their weight. For a while you listen to them go through everything you own, unhurried, like somebody doing chores.
 { intro_step == "ambush": Then the hood creaks up, and a wrench works at something {engine_missing(): in the engine|under the hood} for a long while. You'd tell them to leave it, if you could talk. }
 On the way back they stop by your door. A dented canteen lands on the seat beside you, half full and sloshing. Then boots on gravel, a door slamming, and an engine pulling away across the flat until the wind covers it. # page
-You're alive. You didn't expect that. After a long while your hands come back to you, and you get the cap off the canteen and drink, and somewhere in the middle of it you pass out.
+You're alive. After a long while your hands come back to you, and you get the cap off the canteen and drink, and somewhere in the middle of it you pass out.
 -> END

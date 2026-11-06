@@ -194,7 +194,7 @@ export class DialoguePanel {
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line');
-    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, t('call.speaker', { who: vehicleTitle(w, npc) })), line, el('div', { class: 'dialogue-options' }, ...options));
+    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, vehicleTitle(w, npc)), line, el('div', { class: 'dialogue-options' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

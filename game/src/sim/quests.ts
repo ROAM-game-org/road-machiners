@@ -10,6 +10,7 @@ import {
   FIRST_FALL_SEEN,
   GAME_OPENED_QUESTS,
   INTRO_STEP,
+  TOWED_TO_BOWL,
   INTRO_STEPS,
   HATTIE_MET,
   type IntroStep,
@@ -368,9 +369,13 @@ export function freeToTalk(w: World): boolean {
 }
 
 export function openWellScene(w: World, checkpoint: WellCheckpoint): void {
-  if (w.player.quests.session) return;
+  if (w.player.quests.live) return;
   setWorldVar(w, HATTIE_MET, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, checkpoint);
+}
+
+export function openTowedWake(w: World): void {
+  openWellScene(w, worldVar(w, HATTIE_MET) === true ? 'again' : 'start');
 }
 
 export function introStep(w: World): IntroStep {
@@ -479,8 +484,10 @@ export function leaveQuest(world: World): World {
   return update(world, (w) => {
     if (!w.player.quests.live) throw new Error('No quest is on view');
     if (w.player.quests.session) throw new Error(`Quest ${w.player.quests.live.quest} has not ended, and a quest can be left only once it ends`);
+    const left = w.player.quests.live.quest;
     w.player.quests.session = null;
     w.player.quests.live = null;
+    if (left === GAME_OPENED_QUESTS.firstFall && worldVar(w, TOWED_TO_BOWL) === true) openTowedWake(w);
   });
 }
 
