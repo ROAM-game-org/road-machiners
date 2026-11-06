@@ -510,10 +510,6 @@
 .cond-pristine {
   color: var(--cond-pristine);
 }
-.cond-pristine .icon svg {
-  fill: var(--cond-pristine);
-  stroke: var(--cond-pristine);
-}
 .cond-w1 {
   color: var(--cond-w1);
 }
@@ -850,10 +846,6 @@
 }
 .stat .delta {
   text-align: right;
-}
-.stat .icon svg,
-.chip .icon svg {
-  fill: none;
 }
 .delta {
   display: inline-flex;

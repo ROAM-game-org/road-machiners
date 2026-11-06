@@ -54,7 +54,7 @@ describe("condition colors", () => {
       for (const bg of ["#22292d", "#272b2e"]) expect(contrast(colorOf(t), bg)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("fills the pristine star", () => {
-    expect(css).toMatch(/\.cond-pristine \.icon svg\s*\{[^}]*fill:/);
+  it("colors the pristine star", () => {
+    expect(css).toMatch(/\.cond-pristine\s*\{[^}]*color:/);
   });
 });

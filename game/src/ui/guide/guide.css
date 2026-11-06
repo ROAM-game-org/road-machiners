@@ -57,3 +57,10 @@
 .guide-sample {
   margin: 0;
 }
+.guide-icon-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  width: fit-content;
+}

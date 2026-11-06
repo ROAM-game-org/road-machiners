@@ -1,5 +1,6 @@
 import "../style.css";
 import "./guide.css";
+import { createIcon, ICON_NAMES, type IconName } from "../cards";
 import { devEl as el, uiRoot } from "../dom";
 import { TOKENS } from "../tokens";
 import { PIECES } from "./pieces";
@@ -112,6 +113,32 @@ function pieces(): HTMLElement {
   return el("section", {}, el("h2", {}, "Shared pieces"), el("div", { class: "guide-grid" }, ...cells));
 }
 
+const ICON_SIZES = ["--icon-xs", "--icon-s", "--icon-m", "--icon-xl"];
+const ICON_BACKGROUNDS = [
+  { cls: "panel", label: "panel" },
+  { cls: "chip", label: "chip" },
+  { cls: "tab", label: "tab" },
+  { cls: "resource", label: "LCD" },
+  { cls: "resource alert", label: "alert" },
+];
+
+function iconSwatch(name: IconName, cls: string): HTMLElement {
+  const icons = ICON_SIZES.map((size) => {
+    const icon = createIcon(name);
+    icon.style.width = `var(${size})`;
+    icon.style.height = `var(${size})`;
+    return icon;
+  });
+  return el("span", { class: `guide-icon-swatch ${cls}` }, ...icons);
+}
+
+function icons(): HTMLElement {
+  const cells = ICON_NAMES.map((name) =>
+    el("div", { class: "guide-cell" }, el("span", {}, name), ...ICON_BACKGROUNDS.map((b) => iconSwatch(name, b.cls))),
+  );
+  return el("section", {}, el("h2", {}, "Icons"), el("div", { class: "guide-grid" }, ...cells));
+}
+
 function ungrouped(): string[] {
   const prefixes = GROUPS.flatMap((g) => g.prefixes);
   return [...TOKENS.keys()].filter((n) => !prefixes.some((p) => n.startsWith(p)));
@@ -122,7 +149,7 @@ function render(): void {
   if (missed.length > 0) throw new Error(`ui.html shows no group for: ${missed.join(", ")}`);
   const root = uiRoot();
   root.classList.add("guide");
-  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), pieces());
+  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), icons(), pieces());
 }
 
 render();

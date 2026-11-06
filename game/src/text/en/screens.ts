@@ -389,6 +389,8 @@ export const SCREENS = {
   'icon.money': "M's",
   'icon.fuel': 'Fuel',
   'icon.supplies': 'Supplies',
+  'icon.gun': 'Weapon',
+  'icon.store': 'Store',
   'icon.driver': 'Driver',
   'icon.truck': 'Truck inventory',
   'icon.engine': 'Engine',
