@@ -279,6 +279,7 @@ async function freshStart(session, orientation, step) {
   await step('skip-intro', () => touch.tapOn('#ui .new-game .intro-toggle'), async () => ((await page.locator('#ui .intro-toggle').getAttribute('aria-checked')) === 'true' ? true : 'intro not skipped'), { scope: '#ui .new-game' });
   await step('start', async () => {
     await touch.tapOn('#ui .new-game .start');
+    if (await page.locator('.confirm-dialog .btn-danger').isVisible()) await touch.tapOn('.confirm-dialog .btn-danger');
     await sleep(1500);
     await waitGame(page);
     await hideCanvasForSpeed(page);

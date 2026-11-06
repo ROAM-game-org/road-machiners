@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { CRATE_MASS } from "../data/goods";
 import { makePart } from "../sim/factory";
 import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import type { GridItem, Rot, World } from "../sim/types";
@@ -10,31 +9,21 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
-import { kg } from "./units";
 import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
 import type { GarageSprite } from "../three/render/garageRender";
 import { partDef } from "../data/parts";
 
 const world = emptyWorld();
 const item = (defId: string, rot: Rot): GridItem => ({ kind: "part", id: "i", x: 0, y: 0, rot, part: makePart(world, defId, 0) });
-const crate = (good: string): GridItem => ({ id: good, x: 0, y: 0, rot: 0, kind: "good", good });
-
-describe("goods cells", () => {
-  it("say every good is a crate of the one crate mass", () => {
-    for (const good of ["electronics", "tools"]) expect(resolve(itemState(crate(good), false), "en")).toBe(`Crate, ${resolve(kg(CRATE_MASS), "en")}`);
-    expect(resolve(kg(CRATE_MASS), "en")).toBe("50 kg");
-  });
-});
 
 describe("the parcel cell", () => {
-  it("names a parcel and gives only its mass below the name", () => {
+  it("names a parcel", () => {
     const parcel: GridItem = { id: "p", x: 0, y: 0, rot: 0, kind: "parcel", contract: "ct" };
     expect(resolve(itemName(parcel), "en")).toBe("Parcel");
     expect(resolve(itemLabel(parcel).short, "en")).toBe("Parcel");
-    expect(resolve(itemState(parcel, false), "en")).toBe("5 kg");
   });
 });
 

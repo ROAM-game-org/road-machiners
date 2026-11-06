@@ -1,5 +1,4 @@
 
-import { CRATE_MASS, PARCEL } from "../data/goods";
 import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
@@ -14,7 +13,6 @@ import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
 import { coreArt, dressGrid, drawnSprite, hiddenArt, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
-import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
 import { goodName, partName } from "../text/names";
 
@@ -459,13 +457,6 @@ export function itemLabel(it: GridItem): { short: Msg } {
 export function itemName(it: GridItem): Msg {
   if (it.kind === "parcel") return t("item.parcel");
   return it.kind === "good" ? goodName(it.good) : partName(it.part.defId);
-}
-
-export function itemState(it: GridItem, mounted: boolean): Msg {
-  if (it.kind === "parcel") return kg(PARCEL.mass);
-  if (it.kind === "good") return t("item.cargo", { mass: kg(CRATE_MASS) });
-  if (partDef(it.part.defId).kind === "core") return t("item.builtIn");
-  return mounted ? t("item.mounted") : t("item.spare");
 }
 
 const SVG = "http://www.w3.org/2000/svg";

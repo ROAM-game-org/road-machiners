@@ -840,3 +840,6 @@
 .inv-bench .inv-item:not(.drawn):not(.selected) {
   border: 1px solid var(--line-soft);
 }
+.well .meter {
+  background: var(--surface-raised);
+}

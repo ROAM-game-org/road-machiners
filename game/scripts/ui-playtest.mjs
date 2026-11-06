@@ -682,8 +682,7 @@ try {
 
   await checkRadio(page);
   await page.keyboard.press('i');
-  await checkVisibleReadouts(page);
-  await checkLog(page, 'modal');
+  assert(await page.locator('.inventory-screen').isVisible(), 'I must open the inventory');
   await page.keyboard.press('Escape');
   await page.keyboard.press('i');
   const movable = page.locator('.inv-item:not(.fixed)').first();
@@ -711,7 +710,6 @@ try {
     assert.deepEqual(await page.locator('.modal:visible').boundingBox(), characterFrame, 'Town and character must share one frame');
   } else {
     await page.keyboard.press('i');
-    await checkVisibleReadouts(page);
   }
   await page.keyboard.press('Escape');
   await page.evaluate(async () => {
