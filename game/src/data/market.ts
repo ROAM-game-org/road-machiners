@@ -4,10 +4,10 @@ import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
 import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
-import { MAP_SCALE } from './region';
+import { MAP_SCALE, MAP_SPREAD } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
-import { itemValue } from './units';
+import { itemValue, TIER_VALUE } from './units';
 import { fairM } from '../sim/money';
 import type { WitnessedOffense } from '../sim/types';
 
@@ -37,34 +37,34 @@ export const EFFORT = {
       good: [40, 100],
     },
     2: {
-      weapon: [180, 480],
-      engine: [180, 480],
-      armor: [180, 480],
-      accessory: [180, 480],
-      cargo: [180, 480],
-      scanner: [180, 480],
-      store: [180, 480],
-      utility: [180, 480],
-      chassis: [2800, 4200],
+      weapon: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      engine: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      armor: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      accessory: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      cargo: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      scanner: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      store: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      utility: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      chassis: [2800 * TIER_VALUE[2], 4200 * TIER_VALUE[2]],
       good: [50, 100],
     },
     3: {
-      weapon: [180, 380],
-      engine: [180, 380],
-      armor: [180, 380],
-      accessory: [180, 380],
-      cargo: [180, 380],
-      scanner: [180, 380],
-      store: [180, 380],
-      utility: [180, 380],
-      chassis: [1900, 2800],
+      weapon: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      engine: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      armor: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      accessory: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      cargo: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      scanner: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      store: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      utility: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      chassis: [1900 * TIER_VALUE[3], 2800 * TIER_VALUE[3]],
       good: [40, 80],
     },
   } as Record<Tier, Record<ItemKind, [number, number]>>,
 
-  haulWages: 4,
+  haulWages: 5.5,
 
-  refSpeed: 4,
+  refSpeed: 4 * MAP_SPREAD,
 
   routeFactor: 1.3,
 
@@ -80,16 +80,17 @@ export const CONTRACTS = {
   warnTurns: Math.round(TIME.workDayTurns / 12),
 
   haul: {
-    durationFactor: 3,
+    durationFactor: 3 * MAP_SPREAD,
     slackTurns: Math.round(TIME.workDayTurns / 4),
-    rewardFactor: 24,
+    rewardFactor: 4,
+    crateFactor: 0.15,
     valueShare: 0.05,
     units: [3, 12] as [number, number],
     lateShare: 1,
-    xpPerEffort: 0.3,
+    xpPerEffort: 3,
     rush: {
       chance: 0.25,
-      durationFactor: 1.5,
+      durationFactor: 1.5 * MAP_SPREAD,
       premium: 1.75,
     },
   },
@@ -105,7 +106,7 @@ export const CONTRACTS = {
     clue: { nearby: 10, shopBand: 62.5, besideTiles: 6.25, offsetStepTiles: 6.25, offsetBand: 6.25, offsetRange: 50 },
     leadStepTiles: 12.5,
     rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
-    durationFactor: 2.5,
+    durationFactor: 2.5 * MAP_SPREAD,
     slackTurns: Math.round(TIME.workDayTurns / 2),
     xpPerEffort: 0.3,
   },
@@ -134,19 +135,19 @@ export const CONTRACTS = {
     surveyTurns: 10,
     searchTurns: 20,
     clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
-    rewardFactor: 15,
+    rewardFactor: 2.5,
     knowledgeRange: 12,
-    xpPerEffort: 0.3,
+    xpPerEffort: 3.7,
   },
   escort: {
-    xpPerEffort: 0.3,
+    xpPerEffort: 4.3,
   },
 
   rescue: {
     range: 26.4 * MAP_SCALE,
     areaRadius: 13,
     areaOffset: 11,
-    xpPerEffort: 0.3,
+    xpPerEffort: 4.3,
   },
 };
 
@@ -181,7 +182,7 @@ export type ShopKind = 'garage' | 'stall';
 
 export const PRICE_FACTOR = { make: 0.75 };
 
-export const DISTANCE_PREMIUM = { perTile: 0.0016 };
+export const DISTANCE_PREMIUM = { perTile: 0.00093 };
 
 const GARAGE_WEAR: Weighted<number>[] = [
   { value: 0, weight: 1 },

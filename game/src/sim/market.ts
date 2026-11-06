@@ -287,11 +287,13 @@ export function estimateTurns(from: Vec, to: Vec): number {
   return (dist(from, to) * EFFORT.routeFactor) / EFFORT.refSpeed + EFFORT.handlingTurns;
 }
 
-export function contractReward(turns: number, cargoValue: number, rush: boolean): number {
+export function contractReward(turns: number, cargoValue: number, rush: boolean, crates = 0): number {
   requireNonNegative('turns', turns);
   requireNonNegative('cargo value', cargoValue);
+  requireNonNegative('crates', crates);
   const commission = cargoValue * CONTRACTS.haul.valueShare;
-  const standard = turns * EFFORT.wage[1] * CONTRACTS.haul.rewardFactor + commission;
+  const perTurn = CONTRACTS.haul.rewardFactor + CONTRACTS.haul.crateFactor * crates;
+  const standard = turns * EFFORT.wage[1] * perTurn + commission;
   return fairM(rush ? standard * CONTRACTS.haul.rush.premium : standard);
 }
 
@@ -355,7 +357,7 @@ function rollHaul(world: World, input: RollInput, id: string): Contract {
   const units = randInt(world.marketRng, CONTRACTS.haul.units[0], Math.min(CONTRACTS.haul.units[1], leg.units));
   const turns = estimateTurns(input.shop.pos, leg.to.pos);
   const rush = chance(world.marketRng, CONTRACTS.haul.rush.chance);
-  const reward = contractReward(turns, units * goodValue(leg.good), rush);
+  const reward = contractReward(turns, units * goodValue(leg.good), rush, units);
   const window = haulWindow(turns, rush);
   return { id, shop: input.shop.id, kind: 'haul', good: leg.good, units, to: leg.to.id, reward, deadline: world.turn + window, window, rush, tier };
 }

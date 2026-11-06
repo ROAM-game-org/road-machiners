@@ -640,7 +640,7 @@ describe("garage", () => {
 
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
-    w.player.money = 1667;
+    w.player.money = Math.ceil(CHASSIS.tractor.value);
     w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);

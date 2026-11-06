@@ -59,7 +59,7 @@ describe('charts', () => {
     };
     const biggest = gridSquares().reduce((a, b) => (area(b) > area(a) ? b : a));
     expect(area(biggest)).toBe(234 * 234);
-    expect(chartPrice(unexploredIn(w, biggest))).toBe(34);
+    expect(chartPrice(unexploredIn(w, biggest))).toBe(14);
   });
 
   it('prices by the unexplored share', () => {

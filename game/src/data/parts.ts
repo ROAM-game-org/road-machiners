@@ -1,6 +1,6 @@
 import type { Tier } from './market';
 import { UNPRICED_WEAPONS } from './weapons';
-import { itemValue } from './units';
+import { gearValue } from './units';
 import { CLAYMORE, oilSlickLength, UNPRICED_UTILITIES } from './utilities';
 import { MASS_SCALE } from './mass-scale';
 
@@ -230,7 +230,7 @@ export function partModifier(def: Unpriced<PartDef>): number {
 }
 
 function pricePart(def: Unpriced<PartDef>): PartDef {
-  const value = itemValue(def.base + partModifier(def));
+  const value = gearValue(def.base + partModifier(def), def.tier);
   if (value <= 0) throw new Error(`Part ${def.id} prices at ${value}. Raise its base.`);
   return { ...def, value };
 }

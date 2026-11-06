@@ -7,7 +7,7 @@ import { TOW } from './tow';
 import { ECONOMY, GOODS } from './goods';
 import { START_KITS } from './start';
 import { GEAR_LEVELS } from './npcs';
-import { itemValue, UNITS } from './units';
+import { gearValue, TIER_VALUE, UNITS } from './units';
 import { XP_SOURCES } from './skills';
 import { CONTRACTS, EFFORT } from './market';
 
@@ -47,9 +47,15 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
 };
 
 describe('item prices', () => {
-  it('prices every part at its base plus its stat modifier', () => {
-    for (const def of Object.values(PARTS)) expect(def.value, def.id).toBe(itemValue(def.base + partModifier(def)));
-    for (const def of Object.values(CHASSIS)) expect(def.value, def.id).toBe(itemValue(def.base + chassisModifier(def)));
+  it('prices every part and chassis at its base plus its stat modifier, times its tier factor', () => {
+    for (const def of Object.values(PARTS)) expect(def.value, def.id).toBe(gearValue(def.base + partModifier(def), def.tier));
+    for (const def of Object.values(CHASSIS)) expect(def.value, def.id).toBe(gearValue(def.base + chassisModifier(def), def.tier));
+  });
+
+  it('leaves tier 1 gear at its base plus modifier and grows the factor with each tier', () => {
+    expect(TIER_VALUE[1]).toBe(1);
+    expect(TIER_VALUE[2]).toBeGreaterThan(TIER_VALUE[1]);
+    expect(TIER_VALUE[3]).toBeGreaterThan(TIER_VALUE[2]);
   });
 
   it('raises the value when a priced stat grows', () => {
@@ -121,11 +127,18 @@ describe('money in whole M', () => {
 describe('XP per M', () => {
   const PER_M = 3;
 
-  it('pays profit, free tow and aid XP at 0.8 of the base rate', () => {
-    for (const source of ['profit', 'freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * PER_M, 10);
+  const PROFIT_MARGIN_RATIO_OLD_TO_NEW = 1.75;
+  const HAUL_PAY_RATIO_OLD_TO_NEW = 9.9;
+
+  it('pays free tow and aid XP at 0.8 of the base rate, since tows and aid values did not move', () => {
+    for (const source of ['freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * PER_M, 10);
   });
 
-  it('pays contract XP at 0.1 of the base rate', () => {
-    expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * PER_M, 10);
+  it('pays profit XP at 0.8 of the base rate times the old to new margin of the trade calibration load', () => {
+    expect(XP_SOURCES.profit.weight).toBeCloseTo(0.8 * PER_M * PROFIT_MARGIN_RATIO_OLD_TO_NEW, 10);
+  });
+
+  it('pays haul contract XP at 0.1 of the base rate times the old to new mean haul pay', () => {
+    expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * PER_M * HAUL_PAY_RATIO_OLD_TO_NEW, 0);
   });
 });

@@ -1,7 +1,7 @@
 
 import type { Tier } from './market';
 import { PARTS } from './parts';
-import { itemValue } from './units';
+import { gearValue } from './units';
 
 export type AbilityId = 'bed' | 'nimble' | 'racing' | 'offRoad' | 'armored' | 'gunMounts' | 'battle' | 'springs' | 'openTop' | 'tourer' | 'trailer';
 
@@ -91,7 +91,7 @@ export function ratedMassOf(def: ChassisInput): number {
 }
 
 function finishChassis(def: ChassisInput): ChassisDef {
-  const value = itemValue(def.base + chassisModifier(def));
+  const value = gearValue(def.base + chassisModifier(def), def.tier);
   if (value <= 0) throw new Error(`Chassis ${def.id} prices at ${value}. Raise its base.`);
   const cell = OLD_CELL[def.id];
   if (!cell) throw new Error(`Chassis ${def.id} has no old cell size`);
