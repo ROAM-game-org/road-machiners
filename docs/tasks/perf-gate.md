@@ -48,6 +48,8 @@ TDD: yes for the pure report code and the drive gap tracker. The remote script i
 
 ## Verify
 
+One full run on the Ally at c2b8dd75c took about 14 minutes and was trusted. All 20 timed turn starts are in the report: 8 of 8 fight presses found no ready turn and waited 0.8 to 1.6 s, the first drive press waited 1.7 s, and 11 of the 12 drive turn starts were ready. ANGLE D3D11 was not usable: in town-night one frame's timer query never returned, which stopped the bench twice, so Windows uses ANGLE Vulkan as Linux does.
+
 ## Conclusion
 
 ### Hands-off decisions

@@ -1,0 +1,137 @@
+{
+  "machines": {
+    "Ally": {
+      "commit": "c2b8dd75c",
+      "machine": "Ally",
+      "renderer": "ANGLE (AMD, Vulkan 1.4.315 (AMD Radeon(TM) Graphics (0x0000163F)), AMD proprietary driver)",
+      "reports": 3,
+      "measures": {
+        "town-day median": {
+          "value": 16.40000000037253,
+          "noise": 1.0499999998137355,
+          "limit": 17.450000000186265
+        },
+        "town-day p99": {
+          "value": 21.40000000037253,
+          "noise": 14.400000000139698,
+          "limit": 35.80000000051223
+        },
+        "town-day over100": {
+          "value": 0,
+          "noise": 1,
+          "limit": 1
+        },
+        "town-day-far median": {
+          "value": 31.600000000093132,
+          "noise": 2.299999999580905,
+          "limit": 33.89999999967404
+        },
+        "town-day-far p99": {
+          "value": 36.89999999990687,
+          "noise": 5.800000000046566,
+          "limit": 42.699999999953434
+        },
+        "town-day-far over100": {
+          "value": 0,
+          "noise": 1,
+          "limit": 1
+        },
+        "town-night median": {
+          "value": 25.700000000186265,
+          "noise": 0.9999999990686774,
+          "limit": 26.699999999254942
+        },
+        "town-night p99": {
+          "value": 30.200000000186265,
+          "noise": 2.6000000000931323,
+          "limit": 32.8000000002794
+        },
+        "town-night over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0
+        },
+        "town-night-far median": {
+          "value": 37.89999999990687,
+          "noise": 2.0999999998603016,
+          "limit": 39.99999999976717
+        },
+        "town-night-far p99": {
+          "value": 41.700000000186265,
+          "noise": 2,
+          "limit": 43.700000000186265
+        },
+        "town-night-far over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0
+        },
+        "fight median": {
+          "value": 44,
+          "noise": 3.7499999998835847,
+          "limit": 47.749999999883585
+        },
+        "fight p99": {
+          "value": 89.30000000004657,
+          "noise": 9.09999999916181,
+          "limit": 98.39999999920838
+        },
+        "fight over100": {
+          "value": 2,
+          "noise": 3,
+          "limit": 5
+        },
+        "drive pass 1 median": {
+          "value": 20.59999999962747,
+          "noise": 1.8999999999068677,
+          "limit": 22.49999999953434
+        },
+        "drive pass 1 p99": {
+          "value": 63.60000000009313,
+          "noise": 3.6000000000931323,
+          "limit": 67.20000000018626
+        },
+        "drive pass 1 over100": {
+          "value": 0,
+          "noise": 1,
+          "limit": 1
+        },
+        "drive pass 2 median": {
+          "value": 18,
+          "noise": 1.2999999995809048,
+          "limit": 19.299999999580905
+        },
+        "drive pass 2 p99": {
+          "value": 62.799999999813735,
+          "noise": 14.300000000279397,
+          "limit": 77.10000000009313
+        },
+        "drive pass 2 over100": {
+          "value": 1,
+          "noise": 1,
+          "limit": 2
+        },
+        "turn wait median": {
+          "value": 1145.8000000000466,
+          "noise": 181.25000000034925,
+          "limit": 1327.0500000003958
+        },
+        "turn wait p99": {
+          "value": 1482.3999999999069,
+          "noise": 216.99999999953434,
+          "limit": 1699.3999999994412
+        },
+        "plan preview p99": {
+          "value": 1184.7999999998137,
+          "noise": 123.5,
+          "limit": 1308.2999999998137
+        },
+        "boot": {
+          "value": 16670.5,
+          "noise": 1020.8000000002794,
+          "limit": 17691.30000000028
+        }
+      }
+    }
+  }
+}
