@@ -19,7 +19,7 @@ import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlight
 import { markError, markVehicle } from "../sim/detect";
 import { lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
-import { type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
+import { actionBlockReason, contextKey, type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
 import { ContextPicker, getContextActions } from "../ui/hud-readout";
 
 export type ControlsHost = {
@@ -139,7 +139,11 @@ export class TruckContext {
     const w = this.host.world();
     if (this.host.playing() || !playerCanAct(w)) return;
     const action = this.picker.pick(getContextActions(w, false));
-    if (action) this.run(action);
+    if (!action) return;
+    if (action.ready) return this.run(action);
+    const reason = actionBlockReason(action);
+    if (!reason) throw new Error(`Context action ${contextKey(action.target)} is not ready and gives no reason`);
+    this.host.note(reason);
   }
 
   private run(action: ContextAction): void {
