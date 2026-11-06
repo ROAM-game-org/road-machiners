@@ -64,7 +64,7 @@ Done so far, all with no picture change intended:
 Open:
 - Frames in motion gain little from the shadow cache, since the sun's map follows the camera. Driving at night has no bench scene.
 - Merging props into larger groups is not a one-line change: `scope.ts` widens the view test for every cell by the largest overhang, so a bigger group draws more cells. It goes to far-props.
-- Fight frames still spend most non-draw time in `refreshUi`.
+- Fight frames still spend most non-draw time in `refreshUi`, about 1.8 s of the 11.6 s of slow frames. It runs only on frames where a shot lands, and shots already land under 10 times a second, so limiting how often it runs saves little. Any gain has to come from cheaper panel updates, which needs a bench run to pick by PC1.
 - boot is untouched at 15 to 16 s on the Ally.
 
 TDD: yes. Work counts per system, such as draws and lights per pixel, are deterministic and get failing tests first. Times are checked by the bench and the gate.
