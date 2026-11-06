@@ -58,11 +58,7 @@ function label(v: Vehicle, name: string): string {
   return `${what} ${role} ${mounted} @${item.x},${item.y} r${item.rot}`;
 }
 
-const FLOATING_BOX_CELLS: Record<string, string[]> = {
-  loader: ['loader unit 0 caltrops  mounted @6,13 r1 stands on 75% with up to Infinity cm of air at -3.07,-0.30,1.03', 'loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
-};
-
-export function boxFaultsOnEveryDeckCell(chassisId: string): { faults: string[]; known: string[] } {
+export function boxFaultsOnEveryDeckCell(chassisId: string): string[] {
   const faults: string[] = [];
   const w = emptyWorld();
   const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
@@ -71,5 +67,5 @@ export function boxFaultsOnEveryDeckCell(chassisId: string): { faults: string[];
   for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store)) {
     faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }).map((f) => f.replace(/ v\d+ /, ' ')));
   }
-  return { faults, known: FLOATING_BOX_CELLS[chassisId] ?? [] };
+  return faults;
 }

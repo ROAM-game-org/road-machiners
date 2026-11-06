@@ -137,7 +137,6 @@ Grids, below-deck layer, hit order, legs, garage press and save step are committ
 
 ### Known risks
 
-- Gear floats at these spots, listed in `FLOATING_EDGE_CELLS`: courier panniers at 1,2 and 4,2 with 9.6 cm of air, van oil spiller on row 1 with 5.2 cm, jeep frames at 1,1 and 2,1 turned with 10 cm, buggy supply locker at 1,2 and 4,2 turned with 34 cm, loader caltrops at 6,13 turned.
 - Market curve tests hold the old loads of scout 23 and hauler 53. A full hauler now moves prices past the tested limit, and trader income is higher until the retune.
 - Single gun cases on the longbed and sorokonoga used 22 to 25 s of CPU under the memory pressure, near the per-test limit.
 
@@ -145,7 +144,7 @@ Grids, below-deck layer, hit order, legs, garage press and save step are committ
 
 - uplan: plan auto-approved.
 - uexecute: closed cells with no surface rather than float parts on them.
-- uexecute: listed the remaining floating spots as known faults rather than close whole rows for one part shape.
+- uexecute: a part on legs now gets a leg or brace at all four corners, and a part on a slope needs a closer fit, so no known floating spot remains.
 - ureview: reviewer found nothing at confidence 80 or higher.
 
 ### Deferred (needs user input)

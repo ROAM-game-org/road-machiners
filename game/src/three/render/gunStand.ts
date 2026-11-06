@@ -217,7 +217,7 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   const shifts = shiftsWithin(reach, FACE_COLUMN);
   const flat = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, flatSupports(stilts), exact, tops), reach, exact, tops);
   const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
-  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, supports: [], held: [] } : null);
+  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops, MIN_SUPPORT, SLOPE_TOLERANCE) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, supports: [], held: [] } : null);
   const wellHeld = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, [SHIFT_SUPPORT], exact, tops), reach, exact, tops);
   const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [wellHeld, onLegSpots, resting, flat];
   const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
@@ -268,7 +268,7 @@ function fittedSpot(rect: CellRect, points: Sample[], rest: Rest, feet: Footing,
   const under = spots.map(([x, z]) => feet(x, z));
   if (!under.every((foot, i) => foot !== null && Math.abs(plane(spots[i][0], spots[i][1]) - foot.y) <= CLIP_TOLERANCE)) return null;
   const fitted = planeOf(under as THREE.Vector3[]);
-  return heldOn(points, planeAt(rect, fitted), exact, tops) ? { dx: 0, dz: 0, ...fitted, supports: [], held: [] } : null;
+  return heldOn(points, planeAt(rect, fitted), exact, tops, MIN_SUPPORT, SLOPE_TOLERANCE) ? { dx: 0, dz: 0, ...fitted, supports: [], held: [] } : null;
 }
 
 type Stilts = { spot: ItemSpot; braces: number };
@@ -287,9 +287,8 @@ function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [n
 
 function stiltsAt(body: THREE.Object3D, over: Sample[], y: number, dx: number, dz: number): Stilts | null {
   const held = itemSupports(body, over.map(([x, z]): [number, number] => [x, z]), y);
-  const supports = held?.filter((s) => s.needed) ?? [];
-  if (!held || supports.length === 0) return null;
-  return { spot: { dx, dz, y, slope: FLAT, supports, held: held.map((s) => s.head) }, braces: supports.filter((s) => s.role === 'brace').length };
+  if (!held?.some((s) => s.needed)) return null;
+  return { spot: { dx, dz, y, slope: FLAT, supports: held, held: held.map((s) => s.head) }, braces: held.filter((s) => s.role === 'brace').length };
 }
 
 function stiltsBeat(braces: number, y: number, best: Stilts | null): boolean {
@@ -311,17 +310,24 @@ function shiftRange(rect: CellRect, cells: CellRect, sides: Sides): { x0: number
 }
 
 const SHIFT_SUPPORT = MIN_SUPPORT + 0.05;
+const SLOPE_TOLERANCE = CLIP_TOLERANCE * 0.8;
 
-function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT): boolean {
+function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT, tolerance = CLIP_TOLERANCE): boolean {
   let held = 0;
   for (const [x, z, lift] of points) {
     const bottom = plane(x, z) + lift;
-    const top = tops(x, z);
-    if (top && top.y > bottom + CLIP_TOLERANCE) return false;
-    const foot = feet(x, z);
-    if (foot && Math.abs(foot.y - bottom) <= CLIP_TOLERANCE) held++;
+    if (cutsInto(tops(x, z), bottom)) return false;
+    if (restsOn(feet(x, z), bottom, tolerance)) held++;
   }
   return held / points.length >= support;
+}
+
+function cutsInto(top: THREE.Vector3 | null, bottom: number): boolean {
+  return top !== null && top.y > bottom + CLIP_TOLERANCE;
+}
+
+function restsOn(foot: THREE.Vector3 | null, bottom: number, tolerance: number): boolean {
+  return foot !== null && Math.abs(foot.y - bottom) <= tolerance;
 }
 
 function highestTop(points: Sample[], tops: Footing): number {

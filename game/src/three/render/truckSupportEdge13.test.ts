@@ -10,7 +10,6 @@ SURFACE_ATLAS.value = new THREE.Texture();
 
 describe.each(['van'])('mounted small parts on every edge cell of the %s', (chassisId) => {
   it.each(EDGE_PART_IDS)('a %s on every legal edge cell and turn stands on the truck', (defId) => {
-    const { faults, known } = faultsOnEveryEdgeCell(chassisId, defId);
-    expect(faults).toEqual(known);
+    expect(faultsOnEveryEdgeCell(chassisId, defId)).toEqual([]);
   });
 });
