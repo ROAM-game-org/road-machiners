@@ -5,10 +5,12 @@ import { DEFAULT_ZOOM } from '../data/view';
 import { driveSnapshotOf } from '../phys/turn';
 import { perfSnapshot } from '../perf';
 import { skipToHour, spawnNear, teleport, toggleGod } from '../sim/cheats';
+import { hangUp } from '../sim/dialogue';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
+import type { Travel } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
 import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
@@ -209,8 +211,15 @@ function tapTurnKey(game: Game): void {
   keys.releaseTurn();
 }
 
+export function closeBenchCall(game: Pick<Game, 'state' | 'busy' | 'apply'>): boolean {
+  if (game.busy || game.state.player.call === null) return false;
+  game.apply(hangUp(game.state));
+  return true;
+}
+
 async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () => void): Promise<void> {
   const { game, probe } = ctx;
+  closeBenchCall(game);
   const turn = game.state.turn;
   const start = performance.now();
   let started = start;
@@ -245,10 +254,21 @@ async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   }
 }
 
+export function finishBenchDrive(game: Pick<Game, 'state' | 'busy'>, target: number, travel: Pick<Travel, 'stopAuto'>): boolean {
+  if (game.state.turn < target) return false;
+  travel.stopAuto(game.state);
+  if (game.state.turn > target) throw new Error(`Drive pass overshot turn ${target}: reached ${game.state.turn}`);
+  return !game.busy;
+}
+
 async function playDrive(ctx: Ctx, log: TurnLog): Promise<void> {
   const target = ctx.game.state.turn + DRIVE_TURNS;
   await startTurn(ctx, log, 'drive', () => tapTurnKey(ctx.game));
-  await ctx.probe.until(() => ctx.game.state.turn >= target && !ctx.game.busy, DRIVE_MS, `${DRIVE_TURNS} turns of automatic travel`).catch((error: Error) => {
+  await ctx.probe.until(() => {
+    if (ctx.game.state.turn >= target) return finishBenchDrive(ctx.game, target, Reflect.get(ctx.game, 'travel') as Travel);
+    if (closeBenchCall(ctx.game)) tapTurnKey(ctx.game);
+    return false;
+  }, DRIVE_MS, `${DRIVE_TURNS} turns of automatic travel`).catch((error: Error) => {
     throw new Error(`${error.message} (turn ${ctx.game.state.turn} of ${target}, busy ${ctx.game.busy})`, { cause: error });
   });
 }
