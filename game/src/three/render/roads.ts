@@ -275,12 +275,14 @@ const ROAD_FRAGMENT = `{
 #endif
 #if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
-    vec2 padOff = roadAt - padCenters[i];
+    vec2 padOff = vRoadXZ - padCenters[i];
     vec2 padIn = padHalf - abs(vec2(dot(padOff, padAxes[i]), dot(padOff, vec2(-padAxes[i].y, padAxes[i].x))));
     float padDepth = min(padIn.x, padIn.y);
     if (padDepth <= 0.0) continue;
-    diffuseColor.rgb = mix(roadColor, padDust * groundShade, 0.35);
-    if (padDepth < padBorder && roadLook.a > 0.12) diffuseColor.rgb = padMark * groundShade;
+    float padSoft = fwidth(padDepth);
+    float padLine = 1.0 - smoothstep(padBorder - padSoft, padBorder + padSoft, padDepth);
+    vec3 padLook = mix(mix(roadColor, padDust * groundShade, 0.35), padMark * groundShade, padLine);
+    diffuseColor.rgb = mix(diffuseColor.rgb, padLook, smoothstep(0.0, padSoft, padDepth));
   }
 #endif
 }`;
