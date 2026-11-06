@@ -380,6 +380,7 @@ export class GarageRenders {
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly gpu: GpuContext,
+    private readonly readback: { honest(): boolean },
     private readonly build: BuildGarageJob = buildGarageJob,
     private readonly now: () => number = () => performance.now(),
     private readonly report: (error: unknown) => void = noteError,
@@ -402,11 +403,17 @@ export class GarageRenders {
     this.listeners.push(listener);
   }
 
+  private refused(): boolean {
+    return !this.gpu.lost() && !this.readback.honest();
+  }
+
   body(truck: Vehicle, paint: TruckPaint): GarageBody | null {
+    if (this.refused()) return null;
     return this.bodies.get(bodyKey(truck, paint)) ?? this.latestBody.get(truck.chassisId) ?? null;
   }
 
   sprite(truck: Vehicle, paint: TruckPaint, part: PartInstance, spot: Spot): GarageSprite | null {
+    if (this.refused()) return null;
     return this.sprites.get(spriteKey(truck, paint, part, spot)) ?? this.latestSprite.get(looseKey(truck.chassisId, part, spot)) ?? null;
   }
 
@@ -430,6 +437,7 @@ export class GarageRenders {
   }
 
   step(budgetMs: number): void {
+    if (this.refused()) return;
     const start = this.now();
     for (;;) {
       if (this.gpu.lost()) return;
@@ -441,7 +449,7 @@ export class GarageRenders {
   ensureNow(needs: readonly GarageNeed[], later: readonly GarageNeed[] = []): void {
     this.screenNow = needs;
     this.screenLater = later;
-    if (!this.gpu.lost()) this.drawNow(needs);
+    if (!this.gpu.lost() && !this.refused()) this.drawNow(needs);
   }
 
   private drawNow(needs: readonly GarageNeed[]): void {
