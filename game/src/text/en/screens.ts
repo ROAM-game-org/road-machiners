@@ -505,7 +505,6 @@ export const SCREENS = {
   'inv.equipment': 'Equipment',
   'inv.selectHint': 'Select a part or cargo to inspect it.',
   'inv.cancelRefitTitle': 'Stop the refit and leave every part where it was',
-  'inv.cancelRefit': 'Cancel refit',
   'inv.refitHint': 'Drag onto a mount or off it to start a refit.',
   'inv.patchTitle': m('Patch: {turns, plural, one {# turn} other {# turns}}, {parts} of {needed} parts, +{hp} HP', { turns: 'count', parts: 'int', needed: 'int', hp: 'int' }),
   'inv.patchBlocked': m('Patch ({reason})', { reason: 'text' }),

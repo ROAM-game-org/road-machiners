@@ -4,7 +4,7 @@ import { reachedOutpostAt } from "../sim/chaos-highway";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
 import { atGarage } from "../sim/garage";
 import type { Spot } from "../sim/grid";
-import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
+import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, plannedRefit, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
 import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
 import { outpostRepairPart } from "../sim/outposts";
 import { vehicleHasPerk } from "../sim/progress";
@@ -209,22 +209,23 @@ export function itemFacts(w: World, me: Vehicle, item: GridItem, mounted: boolea
 }
 
 function queuedSteps(w: World, me: Vehicle): HTMLElement[] {
-  if (me.job?.kind !== "refit") return [];
-  return me.job.queue.map((step) => el("div", { class: "job-row queued" }, el("span", { class: "job-name" }, jobLabel(w, me, { ...step, kind: "refit", queue: [], turnsLeft: 0, total: 0 }))));
+  return plannedRefit(w, me).steps.map(({ step, work }) => el("div", { class: "job-row queued" }, el("span", { class: "job-name" }, jobLabel(w, me, { ...step, kind: "refit", queue: [], turnsLeft: 0, total: 0 })), costItem("clock", num(work, "int"))));
 }
 
-function cancelRefitRows(h: CardHost): HTMLElement[] {
-  if (h.me.job?.kind !== "refit") return [];
-  const left = refitTurnsLeft(h.world, h.me);
-  const button = el("button", { class: "btn-s", title: t("inv.cancelRefitTitle"), ...disabledWith(h.look, () => h.run(cancelRefit)) }, t("inv.cancelRefit"));
-  return [el("div", { class: "action-rows" }, ...actionRow(button, [costItem("clock", num(left, "int"))], t("inv.refitLeft", { n: left })))];
+function cancelRefitButton(h: CardHost): HTMLElement | null {
+  if (h.me.job?.kind !== "refit") return null;
+  return el("button", { class: "btn-s", title: t("inv.cancelRefitTitle"), ...disabledWith(h.look, () => h.run(cancelRefit)) }, t("inv.cancelPlan"));
+}
+
+function jobTitle(h: CardHost): Msg | undefined {
+  return h.me.job?.kind === "refit" ? t("inv.refitLeft", { n: refitTurnsLeft(h.world, h.me) }) : undefined;
 }
 
 function runningRows(h: CardHost): HTMLElement[] {
   const work = workOf(h.world, h.me);
   if (!work) return [];
   const done = work.from === "job" ? jobDone(work.job) : workProgress(work);
-  return [el("div", { class: "job-row" }, el("span", { class: "job-name" }, workLabel(h.world, h.me, work)), costItem("clock", num(work.turnsLeft, "int"))), workMeterEl(done), ...queuedSteps(h.world, h.me), ...cancelRefitRows(h)];
+  return [el("div", { class: "job-row", title: jobTitle(h) }, el("span", { class: "job-name" }, workLabel(h.world, h.me, work)), costItem("clock", num(work.turnsLeft, "int")), cancelRefitButton(h)), workMeterEl(done), ...queuedSteps(h.world, h.me)];
 }
 
 function planRows(h: CardHost): HTMLElement[] {

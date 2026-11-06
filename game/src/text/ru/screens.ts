@@ -519,7 +519,6 @@ export const SCREENS: Translation<typeof EN> = {
   'inv.equipment': 'Снаряжение',
   'inv.selectHint': 'Выберите деталь или груз, чтобы осмотреть.',
   'inv.cancelRefitTitle': 'Прервать переоснащение и оставить все детали на местах',
-  'inv.cancelRefit': 'Отменить переоснащение',
   'inv.refitHint': 'Перетащите на крепление или с него, чтобы начать переоснащение.',
   'inv.patchTitle': 'Ремонт: {turns, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}, запчастей {parts} из {needed}, +{hp} прочн.',
   'inv.patchBlocked': 'Ремонт ({reason})',

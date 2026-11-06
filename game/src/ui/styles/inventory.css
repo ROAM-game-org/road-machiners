@@ -823,6 +823,8 @@
   min-height: var(--btn-h-s);
 }
 .job-name {
+  flex: 1;
+  min-width: 0;
   color: var(--ink);
 }
 .job-row.queued {
