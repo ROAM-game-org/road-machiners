@@ -6,7 +6,8 @@ import { addVehicle, emptyWorld } from '../testkit';
 import type { GameEvent, World } from '../types';
 import { refreshVision } from '../vision';
 import { cloneWorld } from '../world';
-import { linearize, skippedBeforeSession, STALL_TURNS, timeline } from './run-timeline';
+import { duskTurn } from '../sunward';
+import { linearize, paceLines, skippedBeforeSession, STALL_TURNS, timeline } from './run-timeline';
 
 const CTX = { runId: 'test', version: 'test', sessionId: 's1' };
 
@@ -121,5 +122,25 @@ describe('timeline', () => {
   it('splits the story at each road opening when grouped by stretch', () => {
     const lines = [line('session', 1, { from: 'new', mode: 'x', seed: 1, version: 'v' }), line('event', 4, { t: 'roadOpened', stretch: 2 })];
     expect(timeline(lines, 'stretch').filter((l) => l.startsWith('=='))).toEqual(['== Before the first road opening ==', '== Stretch 2 ==']);
+  });
+
+  it('prints real minutes, turns, the longest gap and the first sunset for each session', () => {
+    const sunset = duskTurn(1);
+    const lines = [
+      line('session', sunset - 10, { sid: 'a', at: 0 }),
+      line('moves', sunset - 1, { sid: 'a', at: 60000 }),
+      line('moves', sunset, { sid: 'a', at: 240000 }),
+      line('moves', sunset + 50, { sid: 'a', at: 300000 }),
+    ];
+    expect(paceLines(lines)).toEqual(['Pace a: 5.0 real min, 60 turns, 12.0 turns a real min, longest gap 3.0 min, first sunset at real min 4.0']);
+  });
+
+  it('counts only forward turns across a load, and says when no sunset came', () => {
+    const lines = [line('session', 10, { sid: 'a', at: 0 }), line('moves', 30, { sid: 'a', at: 60000 }), line('session', 20, { sid: 'a', at: 120000 }), line('moves', 25, { sid: 'a', at: 180000 })];
+    expect(paceLines(lines)).toEqual(['Pace a: 3.0 real min, 25 turns, 8.3 turns a real min, longest gap 1.0 min, no sunset']);
+  });
+
+  it('prints no pace for a session from a build without real time', () => {
+    expect(paceLines([line('session', 1, { sid: 'old' }), line('moves', 2, { sid: 'old' })])).toEqual([]);
   });
 });

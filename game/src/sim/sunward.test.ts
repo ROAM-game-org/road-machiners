@@ -81,6 +81,17 @@ describe('the Sunward clock', () => {
     expect(SUNWARD.rideLeadTurns).toBeLessThan(TIME.turnsPerDay - (dawnAfter(duskTurn(2)) - duskTurn(2)));
     expect(SUNWARD.rideLeadTurns).toBeGreaterThan(0);
     expect(SUNWARD.returnMarginTurns).toBeLessThan(dawnAfter(duskTurn(2)) - duskTurn(2));
+    const rideHomeEnds = returnTurn(duskTurn(2)) + SUNWARD.rideLeadTurns;
+    expect(rideHomeEnds).toBeLessThan(rideOutTurn(duskTurn(3)));
+  });
+
+  it('opens a fresh night for a save whose stored dusk came from another clock', () => {
+    const w = standardWorld(5);
+    w.turn = rideOutTurn(duskTurn(2)) + 1;
+    sunwardFacts(w).night = { dusk: w.turn - 77, roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
+    advanceSunward(w);
+    expect(sunwardFacts(w).night!.dusk).toBe(duskTurn(2));
+    expect(sunwardFacts(w).night!.roster.length).toBeGreaterThan(0);
   });
 
   it('starts every night rule at dusk and ends it at dawn, while the column rides from its ride-out', () => {

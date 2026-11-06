@@ -429,7 +429,7 @@ export class RunStream {
 }
 
 
-const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid', 'came']);
+const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid', 'came', 'at']);
 
 function fieldsOf(line: StreamLine): Fields {
   return Object.fromEntries(Object.entries(line).filter(([key]) => !NON_FIELDS.has(key)));

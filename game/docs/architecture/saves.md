@@ -53,6 +53,7 @@
 - The turn that moves the highway window is logged before the page reloads. The next boot starts a new `session` at the same turn.
 - The log is append-only. After a load the turns can run backwards. A reader drops the records after the load's turn that came before it. `npm run run:timeline` does this.
 - Every line carries `sid`, a session id that is new at each boot of the log. Two tabs on one run write two streams with two session ids, and their lines interleave in the store. Each stream starts with its own keyframe, so a reader rebuilds state per session id and never mixes deltas from two tabs. `replayBySession` and `npm run run:timeline` do this.
+- A line the game writes also carries `at`, the real time of the write in epoch milliseconds. `RunLog` adds it, so the pure writer and the recorder's logs hold no real time. `at` is never a truck or player field.
 - A write that fails leaves the log without lines the stream already counted as written. The next world after a failed write starts a new `session` keyframe with `from` set to `resync`, so no delta sits on a base the log never stored.
 - A load or a new boot has a new session id. The reader drops the earlier session's records after the load's turn only when that session wrote nothing after the load began. A session that goes on writing is another tab, and its records stay.
 - A run that began on an older build keeps its old records, such as `start`, `loaded`, `day` and `change` without a truck id, before the first `session` line. `npm run run:timeline` skips them and says how many.

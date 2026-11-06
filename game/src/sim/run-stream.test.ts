@@ -370,3 +370,12 @@ describe('writing the stream', () => {
     expect(readers.get('b')!.trucks.get(playerVehicle(money).id)!.pos).toEqual(worldPos(money, playerVehicle(money).pos));
   });
 });
+
+describe('the pure writer', () => {
+  it('writes no real time, so recorder and bot logs stay the same on every run', () => {
+    const world = emptyWorld();
+    const lines = new RunStream({ runId: 'r', version: 'v', sessionId: 's' }).begin(world, 'record');
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line).not.toHaveProperty('at');
+  });
+});

@@ -1,5 +1,5 @@
 import { StreamReader, type Fields, type StreamLine } from '../run-stream';
-import { clockOf } from '../sun';
+import { clockOf, sunAt } from '../sun';
 import { dist } from '../vec';
 
 export const STALL_TURNS = 20;
@@ -321,6 +321,45 @@ function timelinesBySession(records: readonly StreamLine[]): Timeline[] {
   const all = [...bySession.values()];
   all.forEach((tl) => tl.finish());
   return all;
+}
+
+const MS_PER_MINUTE = 60000;
+type TimedLine = StreamLine & { at: number };
+
+function realMinutes(ms: number): string {
+  return (ms / MS_PER_MINUTE).toFixed(1);
+}
+
+function turnsPlayed(lines: readonly TimedLine[]): number {
+  return lines.slice(1).reduce((turns, line, i) => turns + Math.max(0, line.turn - lines[i].turn), 0);
+}
+
+function longestGap(lines: readonly TimedLine[]): number {
+  return lines.slice(1).reduce((gap, line, i) => Math.max(gap, line.at - lines[i].at), 0);
+}
+
+function firstSunset(lines: readonly TimedLine[]): TimedLine | undefined {
+  return lines.find((line, i) => i > 0 && sunAt(lines[i - 1].turn) !== null && sunAt(line.turn) === null);
+}
+
+function paceLine(sid: string, lines: readonly TimedLine[]): string {
+  const start = lines[0].at;
+  const minutes = (lines[lines.length - 1].at - start) / MS_PER_MINUTE;
+  const turns = turnsPlayed(lines);
+  const rate = minutes > 0 ? `${(turns / minutes).toFixed(1)} turns a real min` : 'no real time passed';
+  const sunset = firstSunset(lines);
+  const dusk = sunset ? `first sunset at real min ${realMinutes(sunset.at - start)}` : 'no sunset';
+  return `Pace ${sid}: ${minutes.toFixed(1)} real min, ${turns} turns, ${rate}, longest gap ${realMinutes(longestGap(lines))} min, ${dusk}`;
+}
+
+export function paceLines(records: readonly StreamLine[]): string[] {
+  const bySession = new Map<string, TimedLine[]>();
+  for (const record of records) {
+    if (typeof record.at !== 'number') continue;
+    const sid = String(record.sid);
+    bySession.set(sid, [...(bySession.get(sid) ?? []), record as TimedLine]);
+  }
+  return [...bySession].map(([sid, lines]) => paceLine(sid, lines));
 }
 
 export function timeline(records: readonly StreamLine[], by: Grouping): string[] {

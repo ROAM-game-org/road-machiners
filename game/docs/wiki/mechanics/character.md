@@ -26,7 +26,7 @@ At rank 2 and rank 4 of each skill the player picks one of two perks. The bought
 
 - Driving 2, rammer or ghost. Rammer: a ram on a hostile truck stalls its engine for one turn. Cold running: below half speed, your engine is heard only by trucks that can see you.
 - Driving 4, run and gun or run away. Steady aim: your own speed adds no scatter to your shots. Dust screen: at top speed on dusty ground, your dust blocks sight like a hill.
-- Perception 2, read people or track trucks. Read the driver: you see the traits of other drivers. Spotter: the N key marks a seen truck, and it stays tracked for a work day, about two game hours.
+- Perception 2, read people or track trucks. Read the driver: you see the traits of other drivers. Spotter: the N key marks a seen truck, and it stays tracked for a work day, about four game hours.
 - Perception 4, loot sight or night sight. Cargo eye: you see the goods and spare parts in any seen truck. Night eyes: night does not halve your sight.
 - Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap armor plate. Teardown: a knocked-out truck does not come to while you are taking a part off it.
 - Machining 4, pristine hunter or hired mechanic. Rebuild: a town garage can repair a junk part back to its last wear step, once per part. Road mechanic: stranded drivers radio you for patches and pay double.
