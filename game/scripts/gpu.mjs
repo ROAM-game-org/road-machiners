@@ -1,6 +1,7 @@
 const ANGLE = {
   darwin: ['--use-angle=metal'],
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
+  win32: ['--use-angle=d3d11'],
 };
 const SOFTWARE_RENDERERS = /SwiftShader|llvmpipe/;
 const SOFTWARE_LAUNCH_ATTEMPTS = 4;
