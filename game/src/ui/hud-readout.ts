@@ -13,7 +13,7 @@ import { maxHealthOf } from "../sim/health";
 import { corePart, itemSize } from "../sim/grid";
 import { conditionItems, type Tier } from "../three/render/portraitPixels";
 import { keyLabel } from "./input-mode";
-import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { fuelCap, suppliesCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
 import { basicSkill } from "../sim/progress";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
@@ -362,7 +362,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   return { ratio: t("power.ratio", power), cost: cost.short, detail, over, words: false };
 }
 
-export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; idle?: boolean; icon?: IconName; balance?: number; tip?: Msg };
+export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; weather?: Msg; weatherWarning?: boolean; icon?: IconName; balance?: number; tip?: Msg };
 
 export function getHudReadout(w: World) {
   const me = playerVehicle(w);
@@ -374,18 +374,26 @@ export function getHudReadout(w: World) {
   const steps = maxSpeedSteps(w, me);
   const notes = speedNotes(w, me, steps);
   const fuelTip = notes.length > 0 ? t("speed.line", { label: notes[0].label, effect: notes[0].value }) : t("readout.fuel");
+  const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
   const resources: Readout[] = [
-    { id: "money", label: t("readout.money"), value: moneyLabel(p.money), balance: p.money, warning: p.money < 0 },
     { id: "fuel", label: t("readout.fuel"), value: t("readout.litersShort", { n: fuelLiters(p.fuel) }), warning: p.fuel < capacity * RULES.lowFuelThreshold, icon: "fuel", tip: fuelTip },
-    { id: "supplies", label: t("readout.supplies"), value: t("readout.kgShort", { n: Math.round(p.supplies) }), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
     { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, danger: coreBurning(w, me), icon: "health" },
+    { id: "supplies", label: t("readout.supplies"), value: t("readout.ofCap", { n: Math.round(p.supplies), max: suppliesCap(me) }), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
+    { id: "money", label: t("readout.money"), value: moneyLabel(p.money), balance: p.money, warning: p.money < 0 },
     ...runResources(w),
   ];
-  const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
   const survival: Readout[] = [
-    { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" },
     { id: "engine", label: t("readout.engine"), value: t("readout.celsius", { n: engineCelsius(p.engineHeat) }), warning: p.engineHeat >= ENGINE_HEAT.warnAt, progress: p.engineHeat, icon: "engineHeat" },
-    { id: "weather", label: t("readout.weather"), value: weather.text, warning: storm, idle: weather.clear, tip: weather.text },
+    {
+      id: "heat",
+      label: t("readout.heat"),
+      value: t("readout.celsius", { n: celsius(heat) }),
+      warning: heat >= HOT,
+      icon: "heat",
+      weather: weather.clear ? undefined : weather.text,
+      weatherWarning: storm,
+      tip: weather.clear ? undefined : weather.text,
+    },
   ];
   return {
     speed: kph(me.speed),

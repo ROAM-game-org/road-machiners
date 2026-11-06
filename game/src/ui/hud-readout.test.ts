@@ -328,22 +328,29 @@ describe("critical vehicle readout", () => {
     w.player.money = 1235;
     w.player.fuel = 18.5;
     w.player.supplies = 7.25;
-    expect(getHudReadout(w).resources.map((r) => en(r.label))).toEqual([
-      "M's",
-      "Fuel",
-      "Supplies",
-      "Driver",
-    ]);
-    expect(
-      getHudReadout(w)
-        .resources.slice(0, 3)
-        .map((r) => en(r.value)),
-    ).toEqual(["1,235 M's", "93 L", "7 kg"]);
+    const { resources, survival } = getHudReadout(w);
+    expect([...resources, ...survival].map((r) => r.id)).toEqual(["fuel", "driver", "supplies", "money", "engine", "heat"]);
+    const value = (id: string) => en([...resources, ...survival].find((r) => r.id === id)!.value);
+    expect([value("money"), value("fuel"), value("supplies")]).toEqual(["1,235 M's", "93 L", "7/20"]);
+  });
+  it("shows supplies against the capacity the lockers raise", () => {
+    const w = emptyWorld();
+    w.player.supplies = 3;
+    const supplies = () => en(getHudReadout(w).resources.find((r) => r.id === "supplies")!.value);
+    expect(supplies()).toBe(`3/${suppliesCap(w.vehicles[0])}`);
+  });
+  it("warns on supplies at the low mark and not above it", () => {
+    const w = emptyWorld();
+    const supplies = () => getHudReadout(w).resources.find((r) => r.id === "supplies")!.warning;
+    w.player.supplies = RULES.suppliesLow + 1;
+    expect(supplies()).toBe(false);
+    w.player.supplies = RULES.suppliesLow;
+    expect(supplies()).toBe(true);
   });
   it("shows fractional driver health as a whole number", () => {
     const w = emptyWorld();
     w.player.health = 41.123456789;
-    const [, , , driver] = getHudReadout(w).resources.map((r) => en(r.value));
+    const driver = en(getHudReadout(w).resources.find((r) => r.id === "driver")!.value);
     expect(driver).toBe('42');
   });
   it("warns at the actual fuel speed-limit threshold", () => {
@@ -351,9 +358,9 @@ describe("critical vehicle readout", () => {
     const threshold =
       chassisDef(w.vehicles[0].chassisId).fuelCap * RULES.lowFuelThreshold;
     w.player.fuel = threshold;
-    expect(getHudReadout(w).resources[1].warning).toBe(false);
+    expect(getHudReadout(w).resources.find((r) => r.id === "fuel")!.warning).toBe(false);
     w.player.fuel = threshold - 0.1;
-    expect(getHudReadout(w).resources[1].warning).toBe(true);
+    expect(getHudReadout(w).resources.find((r) => r.id === "fuel")!.warning).toBe(true);
   });
   it("exposes damaged parts and injured driver without opening a window", () => {
     const w = emptyWorld();
@@ -361,7 +368,7 @@ describe("critical vehicle readout", () => {
     w.player.health = 25;
     w.player.supplies = 0;
     const r = getHudReadout(w);
-    expect(r.resources.slice(2).every((r) => r.warning)).toBe(true);
+    expect(r.resources.filter((r) => r.id === "driver" || r.id === "supplies").every((r) => r.warning)).toBe(true);
   });
   it("shows driver health against the raised max health and warns below it", () => {
     const w = emptyWorld();
@@ -380,30 +387,39 @@ describe("critical vehicle readout", () => {
       turnsLeft: 2,
       total: 4,
     };
-    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Heat", "Engine", "Weather"]);
+    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Engine", "Heat"]);
   });
-  it("keeps the weather slot when the weather is clear", () => {
+  it("has no weather cell and no empty readout", () => {
     const w = emptyWorld();
-    const clear = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect({ value: en(clear.value), idle: clear.idle, warning: clear.warning }).toEqual({ value: "Clear", idle: true, warning: false });
-    w.weather = [{ id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number]];
-    const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect({ label: en(weather.label), value: en(weather.value), warning: weather.warning, idle: weather.idle }).toEqual({ label: "Weather", value: "Heat wave", warning: false, idle: false });
+    const all = [...getHudReadout(w).resources, ...getHudReadout(w).survival];
+    expect(all.some((r) => r.id === "weather" || "idle" in r)).toBe(false);
   });
-  it("lists the weather words most severe first", () => {
+  it("keeps clear weather out of the heat readout", () => {
+    const heat = getHudReadout(emptyWorld()).survival.find((r) => r.id === "heat")!;
+    expect({ weather: heat.weather, weatherWarning: heat.weatherWarning }).toEqual({ weather: undefined, weatherWarning: false });
+  });
+  it("puts the weather words on the heat readout", () => {
+    const w = emptyWorld();
+    w.weather = [{ id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number]];
+    const heat = getHudReadout(w).survival.find((r) => r.id === "heat")!;
+    expect({ weather: en(heat.weather!), warning: heat.weatherWarning, tip: en(heat.tip!) }).toEqual({ weather: "Heat wave", warning: false, tip: "Heat wave" });
+  });
+  it("lists the weather words most severe first and warns in a storm", () => {
     const w = emptyWorld();
     const pos = playerVehicle(w).pos;
     w.weather = [
       { id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number],
       { id: "s", kind: "storm", turnsLeft: 9, born: w.turn, pos: { ...pos }, radius: 5 } as World["weather"][number],
     ];
-    const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect(en(weather.value).indexOf("storm")).toBeLessThan(en(weather.value).indexOf("Heat wave"));
+    const heat = getHudReadout(w).survival.find((r) => r.id === "heat")!;
+    const words = en(heat.weather!);
+    expect(words.indexOf("storm")).toBeLessThan(words.indexOf("Heat wave"));
+    expect(heat.weatherWarning).toBe(true);
   });
   it("marks low fuel on the fuel readout with its cause", () => {
     const w = emptyWorld();
     w.player.fuel = 1;
-    const fuel = getHudReadout(w).resources[1];
+    const fuel = getHudReadout(w).resources.find((r) => r.id === "fuel")!;
     expect(fuel).toMatchObject({ warning: true, icon: "fuel" });
     expect(en(fuel.tip!)).toMatch(/^Low fuel: max \d+ km\/h$/);
   });
@@ -454,13 +470,13 @@ describe("rescue readout", () => {
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
     w.player.money = -1201;
-    const money = getHudReadout(w).resources[0];
+    const money = getHudReadout(w).resources.find((r) => r.id === "money")!;
     expect({ value: en(money.value), balance: money.balance, warning: money.warning }).toEqual({ value: "\u22121,201 M's", balance: -1201, warning: true });
   });
   it("gives only the M's entry a balance", () => {
     const { resources } = getHudReadout(emptyWorld());
-    expect(resources[0]).toHaveProperty("balance");
-    expect(resources.slice(1).every((r) => !("balance" in r))).toBe(true);
+    expect(resources.find((r) => r.id === "money")).toHaveProperty("balance");
+    expect(resources.filter((r) => r.id !== "money").every((r) => !("balance" in r))).toBe(true);
   });
   it("names a missing engine without telling the player what to do", () => {
     const w = newWorld(1337, startKit("combat"), TEST_MAP, defaultSetup('roaming'));
