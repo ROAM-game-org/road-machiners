@@ -247,7 +247,7 @@ describe('recoverBank', () => {
     vi.stubGlobal('fetch', async (url: string) => (url.includes('hit-2.') ? reply({ ok: false, status: 404 }) : ok));
     vi.useFakeTimers();
     const run = loadBank(rejecting, PAIR, options({ support: { ogg: '', m4a: '' } }));
-    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b) * 2);
+    await vi.runAllTimersAsync();
     const loaded = await run;
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
@@ -324,7 +324,7 @@ describe('reportFailures', () => {
     const named = ctxOf(async () => { throw Object.assign(new Error('The buffer is bad'), { name: 'EncodingError' }); });
     vi.useFakeTimers();
     const run = loadBank(named, PAIR, options());
-    await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAYS_MS.reduce((a, b) => a + b) * 2);
+    await vi.runAllTimersAsync();
     const loaded = await run;
     const reports = reportFailures(loaded.failures, 104, new Set(['hit-1.ogg']), SUPPORT);
     expect(reports.map((r) => r.message)).toEqual([

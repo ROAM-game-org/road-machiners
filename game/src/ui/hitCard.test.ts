@@ -215,3 +215,14 @@ describe('hover card harpoon row', () => {
     expect(en(row!.text)).toBe('reloading 3 turns');
   });
 });
+
+describe('hover card on my own hauler', () => {
+  it('shows no card for the hauler and a card for a group truck', async () => {
+    const { chaosHighwayWorld } = await import('../sim/testkit');
+    const { haulerOf } = await import('../sim/damage');
+    const w = chaosHighwayWorld();
+    const group = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, 0);
+    expect(hitCardRows(w, haulerOf(w).id)).toBeNull();
+    expect(hitCardRows(w, group.id)).not.toBeNull();
+  });
+});

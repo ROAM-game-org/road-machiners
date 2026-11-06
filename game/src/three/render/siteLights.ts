@@ -127,6 +127,10 @@ export class SiteLights {
     });
   }
 
+  contextRestored(): void {
+    for (const { spot } of this.slots) if (spot.castShadow) spot.shadow.needsUpdate = true;
+  }
+
   private syncHollow(world: World | undefined): void {
     this.hollow?.sync(world && hollowLampsLit(world) ? this.level : 0);
   }

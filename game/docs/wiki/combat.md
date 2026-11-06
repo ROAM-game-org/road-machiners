@@ -1,10 +1,14 @@
 # Combat
 
-Weapons and armor are in [items.md](items.md). This page says how they work together. The owner code is `src/sim/combat.ts` for fire and hostility, `src/sim/armor.ts` for rounds through the part grid, `src/sim/crash-contact.ts` for crashes and `src/sim/defeat.ts` for knockouts.
+Weapons and armor are in [items.md](items.md). This page says how they work together. The owner code is `src/sim/timed-combat.ts` for firing schedules and flights, `src/sim/combat.ts` for aim and hostility, `src/sim/armor.ts` for rounds through the part grid, `src/sim/crash-contact.ts` for crashes and `src/sim/defeat.ts` for knockouts.
 
 ## The turn
 
-Both sides fire at the same time. Every weapon shoots when it is loaded, has a target in range and arc, and no tall part on its truck hides that bearing. A shot spends one round of the weapon's `magazine` and starts its `cooldown`, so a cooldown of 1 fires every turn. An empty weapon works `reload` turns without firing, then fires again with a full magazine. A weapon that holds fire and is not cooling down also works its reload, and firing resets that progress. Every value in the tables is multiplied by `RULES.weaponDamage` for rounds and `RULES.crashDamage` for crashes.
+Both sides move and fire on one clock. Each gun has fixed attempts spread across the turn. Shotgun pellets share one attempt time.
+
+Each attempt checks load, range, arc and cover at its scheduled time. A blocked attempt is lost. It is never packed into a later firing window. The first successful attempt spends one round of the weapon's `magazine` and starts its `cooldown`, so a cooldown of 1 fires every turn. An empty weapon works `reload` turns without firing, then fires again with a full magazine. A weapon that holds fire and is not cooling down also works its reload, and firing resets that progress. Every value in the tables is multiplied by `RULES.weaponDamage` for rounds and `RULES.crashDamage` for crashes.
+
+Projectiles travel at the speed registered in `src/data/weapons.ts`. They can cross turn boundaries and survive save loads. Damage, splash, part failures and defeat happen at impact.
 
 ## Aim and spread
 

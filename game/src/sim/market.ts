@@ -24,6 +24,7 @@ import { isDefeated } from './defeat';
 import { recall } from './memory';
 import { playerCommand, Refused } from './world';
 import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
+import { heldCrates } from './goods-store';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { partValue } from './wear';
 import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyPoint, type SurveySite } from './survey';
@@ -393,7 +394,7 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
   const shortfall = procureShortfall(world, shopId, state, good);
   if (shortfall === 0) throw new Error(`${shopId} cannot order ${good}: it is not short of it, makes it or has it on order`);
   const units = randInt(world.marketRng, CONTRACTS.procure.units[0], Math.min(CONTRACTS.procure.units[1], shortfall));
-  const cratePay = fairM(standingPrice(shopId, good, pressureOf(shopId, good, goodStock(state, good))));
+  const cratePay = fairM(standingPrice(shopId, good, 0));
   const trip = procureTrip(shopId, good);
   const window = procureWindow(trip);
   return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward: procureReward(units, cratePay, trip), deadline: world.turn + window, window, tier: GOODS[good].tier };
@@ -499,8 +500,16 @@ export function haulLegs(world: World, shopId: string): HaulLeg[] {
   });
 }
 
+export function dueTurn(c: Contract): number {
+  return c.deadline + 1;
+}
+
+export function bountyTurn(c: HaulContract): number {
+  return lateBy(c) + 1;
+}
+
 export function isExpired(world: World, c: Contract): boolean {
-  return world.turn > c.deadline;
+  return world.turn >= dueTurn(c);
 }
 
 export function searchLapsed(world: World, c: Contract): boolean {
@@ -731,7 +740,7 @@ function loadHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
   const v = playerVehicle(world);
   if (freeCells(v) < c.units) throw new Error(`Needs ${c.units} free cells for the cargo`);
   moveStock(shopState(world, c.shop), c.shop, c.good, -c.units, 'contract');
-  const held = goodsCount(v)[c.good] ?? 0;
+  const held = heldCrates(world, c.good);
   if (addGoods(world, v, c.good, c.units) !== c.units) throw new Error('Cargo capacity invariant failed');
   const paid = world.player.costBasis[c.good] ?? 0;
   world.player.costBasis[c.good] = (paid * held + goodValue(c.good) * c.units) / (held + c.units);
@@ -882,7 +891,7 @@ function warnContract(world: World, c: Contract): void {
 }
 
 function warnLateHaul(world: World, c: HaulContract): void {
-  const outcome = world.turn === c.deadline + 1 ? 'overdue' : lateBy(c) - world.turn === CONTRACTS.warnTurns ? 'expiring' : null;
+  const outcome = world.turn === dueTurn(c) ? 'overdue' : lateBy(c) - world.turn === CONTRACTS.warnTurns ? 'expiring' : null;
   if (outcome) world.events.push({ t: 'contract', contract: { ...c }, outcome });
 }
 
@@ -890,6 +899,6 @@ function contractOutcome(world: World, c: Contract): 'failed' | 'lapsed' | null 
   if (c.kind === 'rescue') return null;
   if (c.kind === 'search' && searchLapsed(world, c)) return 'lapsed';
   if (claimGone(world, c)) return 'lapsed';
-  if (c.kind === 'haul' && isLate(world, c)) return haulCratesAboard(world, c) === 0 || world.turn > lateBy(c) ? 'failed' : null;
+  if (c.kind === 'haul' && isLate(world, c)) return haulCratesAboard(world, c) === 0 || world.turn >= bountyTurn(c) ? 'failed' : null;
   return isExpired(world, c) ? 'failed' : null;
 }

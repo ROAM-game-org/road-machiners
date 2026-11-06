@@ -1,21 +1,21 @@
 import { DOWNLOAD } from './config';
-import { attemptWithin, type Body } from './download';
+import { attemptWithin, isTransientStatus, retryable, type Body } from './download';
 import { REAL_TIMERS } from './stall';
 
 export const ASSET_RETRY_DELAYS_MS: readonly number[] = [1000, 3000, 9000];
-
-const TRANSIENT_STATUS: ReadonlySet<number> = new Set([408, 429, 500, 502, 503, 504]);
 
 export type AssetNet = {
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
   wait: (ms: number) => Promise<void>;
   delaysMs: readonly number[];
+  page: () => string | null;
 };
 
 export const BROWSER_NET: AssetNet = {
   fetch: (url, init) => (init ? globalThis.fetch(url, init) : globalThis.fetch(url)),
   wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   delaysMs: ASSET_RETRY_DELAYS_MS,
+  page: () => globalThis.location?.href ?? null,
 };
 
 export class AssetStatusError extends Error {
@@ -49,7 +49,31 @@ export class DownloadFailed extends AssetUnreachable {
   }
 }
 
-type Attempt = { body: AssetBody } | { transient: unknown };
+export class BuildGone extends AssetUnreachable {
+  constructor(label: string, url: string, attempts: number, cause: AssetStatusError, page: string) {
+    super(label, url, attempts, cause);
+    this.message = `${label} ${url} answered ${cause.message} and the page's own build ${page} is gone from the host`;
+    this.name = 'BuildGone';
+  }
+}
+
+type Attempt = { body: AssetBody } | { transient: unknown } | { missing: AssetStatusError };
+
+const goneNets = new WeakSet<AssetNet>();
+
+async function buildGone(net: AssetNet): Promise<string | null> {
+  const page = net.page();
+  if (page === null) return null;
+  if (goneNets.has(net)) return page;
+  try {
+    const outcome = await attemptWithin(page, { cache: 'no-store' }, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
+    if ('body' in outcome || isTransientStatus(outcome.status)) return null;
+  } catch {
+    return null;
+  }
+  goneNets.add(net);
+  return page;
+}
 
 async function attempt(label: string, url: string, init: RequestInit | undefined, net: AssetNet): Promise<Attempt> {
   let outcome: Awaited<ReturnType<typeof attemptWithin>>;
@@ -59,8 +83,8 @@ async function attempt(label: string, url: string, init: RequestInit | undefined
     return { transient: e };
   }
   if ('body' in outcome) return { body: outcome.body };
-  if (TRANSIENT_STATUS.has(outcome.status)) return { transient: new AssetStatusError(`HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
-  throw new AssetStatusError(`${label} ${url} failed to load: HTTP ${outcome.status} ${outcome.statusText}`, outcome.status);
+  if (isTransientStatus(outcome.status)) return { transient: new AssetStatusError(`HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
+  return { missing: new AssetStatusError(`${label} ${url} failed to load: HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
 }
 
 export async function fetchAssetBody(label: string, url: string, init?: RequestInit, net: AssetNet = BROWSER_NET): Promise<AssetBody> {
@@ -69,6 +93,12 @@ export async function fetchAssetBody(label: string, url: string, init?: RequestI
     if (i > 0) await net.wait(net.delaysMs[i - 1]);
     const result = await attempt(label, url, init, net);
     if ('body' in result) return result.body;
+    if ('missing' in result) {
+      const page = await buildGone(net);
+      if (page !== null) throw new BuildGone(label, url, i + 1, result.missing, page);
+      if (!retryable(result.missing.status) || i === net.delaysMs.length) throw result.missing;
+      continue;
+    }
     last = result.transient;
   }
   throw new AssetUnreachable(label, url, net.delaysMs.length + 1, last);

@@ -1,5 +1,5 @@
 import { isShield, partDef } from '../data/parts';
-import { isLate, isMet, lateBy, siteOf, type Contract } from '../sim/market';
+import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
@@ -651,7 +651,7 @@ function contractText(world: World, c: Contract, outcome: Exclude<keyof typeof C
 function haulLateText(c: Contract, outcome: 'overdue' | 'late', what: Msg): Msg {
   if (c.kind !== 'haul') throw new Error(`Only a haul is ${outcome}, not a ${c.kind} contract`);
   if (outcome === 'late') return t('log.contract.late', { what });
-  return t('log.contract.overdue', { what, when: clock(lateBy(c) + 1).full, shop: siteName(c.shop) });
+  return t('log.contract.overdue', { what, when: clock(bountyTurn(requireHaul(c))).full, shop: siteName(c.shop) });
 }
 
 const SEARCH_ENDS = { failed: 'log.contract.searchFailed', lapsed: 'log.contract.searchLapsed' } as const;
@@ -819,25 +819,55 @@ export function contractWindow(c: Contract): Msg {
 }
 
 export function contractDue(c: Contract): Msg {
-  return t('contract.due', { when: clock(c.deadline + 1).full });
+  return t('contract.due', { when: clock(dueTurn(c)).full });
+}
+
+function requireHaul(c: Contract): Extract<Contract, { kind: 'haul' }> {
+  if (c.kind !== 'haul') throw new Error(`Only a haul is late, not a ${c.kind} contract`);
+  return c;
 }
 
 export function lateDue(c: Contract): Msg {
-  if (c.kind !== 'haul') throw new Error(`Only a haul is late, not a ${c.kind} contract`);
-  return t('contract.bountyAt', { when: clock(lateBy(c) + 1).full });
+  return t('contract.bountyAt', { when: clock(bountyTurn(requireHaul(c))).full });
 }
 
-export function heldContractDue(c: Contract): Msg {
-  if (c.kind === 'escort') return t('contract.noDeadline');
-  return isMet(c) ? t('contract.ready') : contractDue(c);
+export function timeSpanText(from: number, to: number): Msg {
+  if (to < from) throw new Error(`Turn ${to} comes before turn ${from}`);
+  const minutes = clockMinutes(to) - clockMinutes(from);
+  const days = Math.floor(minutes / MINUTES_PER_DAY);
+  const rest = minutes % MINUTES_PER_DAY;
+  const time = verbatim(`${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`);
+  return days > 0 ? t('clock.spanDays', { d: days, time }) : time;
 }
 
 export function heldContractClock(world: World, c: Contract): Msg {
-  return isLate(world, c) ? lateDue(c) : heldContractDue(c);
+  if (c.kind === 'escort') return t('contract.noDeadline');
+  if (isLate(world, c)) return t('contract.bountyIn', { span: timeSpanText(world.turn, bountyTurn(requireHaul(c))) });
+  if (isMet(c)) return t('contract.ready');
+  return t('contract.left', { span: timeSpanText(world.turn, dueTurn(c)) });
+}
+
+export function heldContractDeadline(world: World, c: Contract): Msg | null {
+  if (c.kind === 'escort' || isMet(c)) return null;
+  return isLate(world, c) ? lateDue(c) : contractDue(c);
 }
 
 export function escortLeaves(c: Contract): Msg {
-  return t('contract.leaves', { when: clock(c.deadline + 1).full });
+  return t('contract.leaves', { when: clock(dueTurn(c)).full });
+}
+
+export function escortLeavesIn(world: World, c: Contract): Msg {
+  return t('contract.leavesIn', { span: timeSpanText(world.turn, dueTurn(c)) });
+}
+
+export function guardLeavesIn(world: World, turnsLeft: number): Msg {
+  return t('contract.leavesIn', { span: timeSpanText(world.turn, world.turn + turnsLeft) });
+}
+
+export function dockSummary(c: Contract): Msg {
+  if (c.kind !== 'claim' || isMet(c)) return contractSummary(c);
+  const clue = claimClue(c);
+  return t('contract.salvageShort', { part: partNameOf(c.defId), wreck: claimLookText(clue.look), square: gridSquareText(clue.square) });
 }
 
 export function escortStatusText(world: World, c: Contract): Msg | null {
@@ -852,6 +882,14 @@ const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knoc
 
 function escortEndedText(world: World, e: Extract<GameEvent, { t: 'escortEnded' }>): LogLine {
   return line(t(`log.escortEnded.${e.end}`, { who: vehicleName(world, e.client) }), ESCORT_ENDED_CLS[e.end]);
+}
+
+const MINUTES_PER_DAY = 24 * 60;
+
+function clockMinutes(turn: number): number {
+  const { day, hour } = clockOf(turn);
+  const hh = Math.floor(hour);
+  return (day - 1) * MINUTES_PER_DAY + hh * 60 + Math.floor((hour - hh) * 60);
 }
 
 export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full: Msg } {

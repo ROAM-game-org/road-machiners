@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
-import { askOf, loadArt, scrollTarget, questFrameFits, questPageStacks } from './quest-screen';
+import { askOf, loadArt, sameScene, scrollTarget, questFrameFits, questPageStacks } from './quest-screen';
 import { QUEST_ART } from '../data/quest-art';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
@@ -173,5 +173,19 @@ describe('scrollTarget', () => {
 
   it('gives 0 for a box with no size', () => {
     expect(scrollTarget('append', 0, { scrollHeight: 0, clientHeight: 0 })).toBe(0);
+  });
+});
+
+describe('sameScene', () => {
+  const scene = live('bowl_hattie', 'x');
+  it.each([
+    ['same scene', scene, { ...scene }, true],
+    ['other ink', scene, { ...scene, ink: '{1}' }, false],
+    ['other language', scene, { ...scene, lang: 'ru' as const }, false],
+    ['other quest', scene, { ...scene, quest: 'other' }, false],
+    ['nothing drawn', null, scene, false],
+    ['nothing live', scene, null, false],
+  ])('%s', (_name, drawn, now, expected) => {
+    expect(sameScene(drawn, now)).toBe(expected);
   });
 });

@@ -1,4 +1,5 @@
 
+import { prototypeFightFromSearch } from './prototype-fight';
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
@@ -38,17 +39,20 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
+import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
 import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
+import { GpuContext } from './gpu-context';
 import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
+import { errorText } from '../stall';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -59,7 +63,7 @@ function element(id: string): HTMLElement {
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
 
 async function bootWorld(): Promise<Booted> {
-  if (questJump) return boot.track('world', () => jumpedRun(questJump), BOOT_TEXT.newGame);
+  if (specialBoot()) return bootSpecial();
   const request = takeBootRequest(window.sessionStorage, saveKey);
   if (typeof request === 'object' && request !== null) return bootRequested(request);
   const slot = request ?? (await startSlot());
@@ -136,7 +140,7 @@ async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): P
 
 function openRunSaves(): Promise<SaveSlots> {
   const slotIds = allSlots(CONFIG.saveSlots);
-  return benchMode ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds, desktopHost());
+  return benchMode || combatPrototype ? SaveSlots.open(memoryBackend(), null, saveKey, slotIds) : openSaves(saveKey, window.localStorage, slotIds, desktopHost());
 }
 
 type BenchState = { done: boolean; report: unknown; error: string | null };
@@ -147,10 +151,6 @@ function positiveParam(params: URLSearchParams, name: string): number | null {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) throw new Error(`?${name}=${raw} is no positive number`);
   return value;
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
 }
 
 function benchFailure(error: unknown, faults: readonly unknown[]): string | null {
@@ -189,6 +189,7 @@ function newGameWorld(setup: WorldSetup, intro: boolean): World {
   return newGame(seed, modeKit(setup.mode, CONFIG.startKit), intro, newMapFor(setup, seed, map), setup);
 }
 
+const combatPrototype = import.meta.env.DEV && new URLSearchParams(window.location.search).has('combatPrototype');
 const benchMode = new URLSearchParams(window.location.search).has('bench');
 const BENCH_SEED = 1337;
 
@@ -238,7 +239,8 @@ function whenVisible(run: () => void): void {
 }
 function reportStandIns(failures: ModelFailure[]): void {
   for (const { name, error } of failures) {
-    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+    if (error instanceof AssetUnreachable) noteError(error);
+    else noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
   }
 }
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
@@ -257,6 +259,7 @@ const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
+const gpu = new GpuContext(surface.canvas, surface.context, reportError);
 const mixer = new Mixer(MIX);
 if (!benchMode) mixer.unlockOn(window);
 const soundSettings = new SoundSettings(mixer, window.localStorage);
@@ -267,7 +270,7 @@ let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
 let bankSettled!: () => void;
 const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
-const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support });
+const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }, (err) => reportMusicFault(err));
 const music = new CombatMusic(mixer.ctx, mixer.input('music'), (name) => afterBank.then(() => kitLoader(name)), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
@@ -280,11 +283,10 @@ const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS
 travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
-if (!benchMode) persistSaves().catch(reportError);
+if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
-  confirm: (text) => window.confirm(text),
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
@@ -299,7 +301,7 @@ bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, travel));
+const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
@@ -334,4 +336,18 @@ function freshSeed(): number {
 
 function freshRunId(): string {
   return [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function bootPrototype(): Booted {
+    const world = prototypeFightFromSearch(map, window.location.search);
+    const runId = freshRunId();
+    writeSave(slots, 'auto', world, runId, Date.now());
+    return { world, runId, loadedFrom: null, fresh: true };
+}
+
+function specialBoot(): boolean { return combatPrototype || questJump !== null; }
+function bootSpecial(): Booted | Promise<Booted> {
+  if (combatPrototype) return bootPrototype();
+  if (!questJump) throw new Error('Missing quest jump');
+  return boot.track('world', () => jumpedRun(questJump), BOOT_TEXT.newGame);
 }

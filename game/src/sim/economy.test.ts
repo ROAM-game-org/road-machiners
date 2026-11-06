@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CHASSIS } from "../data/chassis";
 import { CRATE_MASS, ECONOMY, GOOD_IDS } from "../data/goods";
 import { vehicleMass } from "./mass";
-import { SHOPS } from "../data/market";
+import { GOODS_STORE, SHOPS } from "../data/market";
 import { goodBasePrice, lotPrice, shopState, stockTarget } from "./market";
 import { PARTS, partDef } from "../data/parts";
 import { REGION } from "../data/region";
@@ -46,14 +46,14 @@ import {
 } from "./grid";
 import { makePart } from "./factory";
 import { maxHp, partValue, scrapValue } from "./wear";
-import { addGoods, canStowPart, spareParts, stowPart } from "./inventory";
+import { addGoods, canStowPart, mountPart, spareParts, stowPart } from "./inventory";
 import { canScavenge, salvageNear, scavenge } from "./locations";
 import { consumeSupplies } from "./supplies";
 import { heatAt } from "./sun";
 import { sitePads, townAt, townNear } from "./sites";
 import { addVehicle, emptyWorld, spotWorld, testDrive } from "./testkit";
 import { endTurn, newWorld } from "./world";
-import { fuelCap, suppliesCap } from "./stats";
+import { fuelCap, isStranded, suppliesCap } from "./stats";
 import { TEST_MAP } from "../test/map";
 import { defaultSetup } from "./settings";
 
@@ -389,7 +389,7 @@ describe("garage", () => {
     const part = shopState(w, id).stock[0];
     const bought = buyStockPart(w, part.id);
     expect(bought.player.money).toBe(w.player.money - partTradePrice(w, w.vehicles[0], part, "buy"));
-    expect([...bought.vehicles[0].items.map((it) => (it.kind === "part" ? it.part.id : "")), ...bought.player.storage.map((p) => p.id)]).toContain(part.id);
+    expect(bought.player.storage.map((p) => p.id)).toContain(part.id);
   });
 
   it.each(["dustwell", "green-pit"])("refuses a buy at %s beyond money or room and changes nothing", (id) => {
@@ -581,7 +581,7 @@ describe("garage", () => {
     expect(cab.hp).toBe(10);
   });
 
-  it("chassis swap keeps fitting parts and stores the rest", () => {
+  it("chassis swap keeps the engine, frames and stores fitted and stores the rest (issue 1345)", () => {
     let w = pristineAtBowl();
     w.player.money = 667;
     w = buyChassis(w, "hauler");
@@ -592,7 +592,8 @@ describe("garage", () => {
         .map((p) => p.defId)
         .filter((id) => partDef(id).kind !== "core")
         .sort(),
-    ).toEqual(["cage", "mg", "panniers", "stockEngine"]);
+    ).toEqual(["panniers", "stockEngine"]);
+    expect(w.player.storage.map((p) => p.defId).sort()).toEqual(["cage", "mg"]);
     expect(goodsCount(me)).toEqual({ scrap: 2, parts: 2 });
     expect(w.player.money).toBe(
       667 -
@@ -600,13 +601,37 @@ describe("garage", () => {
           Math.floor(CHASSIS.scout.value * (1 - ECONOMY.spread))),
     );
     w = buyChassis(w, "scout");
-    expect(w.player.storage.length).toBe(0);
+    expect(w.player.storage.map((p) => p.defId).sort()).toEqual(["cage", "mg"]);
   });
 
-  it("refuses a swap whose goods would not fit the new chassis and changes nothing", () => {
+  it("chassis swap stores an armed claymore ram disarmed and keeps every part once (issue 1345)", () => {
+    const w = pristineAtBowl();
+    w.player.money = 100000;
+    const ram = makePart(w, "claymoreRam", 0);
+    expect(mountPart(w, w.vehicles[0], ram)).toBe(true);
+    ram.charge = { ...ram.charge, armed: true } as typeof ram.charge;
+    const heldIds = (world: typeof w) =>
+      [...world.vehicles[0].items.flatMap((it) => (it.kind === "part" && partDef(it.part.defId).kind !== "core" ? [it.part.id] : [])), ...world.player.storage.map((p) => p.id)].sort();
+    const before = heldIds(w);
+    const next = buyChassis(w, "hauler");
+    expect(next.player.storage.find((p) => p.defId === "claymoreRam")?.charge?.armed).toBeFalsy();
+    expect(heldIds(next)).toEqual(before);
+  });
+
+  it.each(garageChassis("bowl"))("chassis swap to %s keeps the truck able to drive (issue 1345)", (id) => {
+    const w = pristineAtBowl();
+    w.player.money = 1_000_000;
+    if (w.vehicles[0].chassisId === id) return;
+    const next = buyChassis(w, id);
+    expect(isStranded(next, next.vehicles[0])).toBe(false);
+    expect(mountedParts(next.vehicles[0], "engine")).toHaveLength(1);
+  });
+
+  it("refuses a swap whose goods would fit neither the new chassis nor the shop store, and changes nothing", () => {
     const w = longbedAtBowl();
     w.player.money = CHASSIS.buggy.value * 10;
     addGoods(w, w.vehicles[0], "parts", 1000);
+    w.player.storedGoods = { bowl: { salt: GOODS_STORE.crates } };
     const before = structuredClone(w);
 
     expect(() => buyChassis(w, "buggy")).toThrow("Refused: noCargoRoom");
@@ -873,6 +898,17 @@ describe("garage storage at a stall", () => {
     expect(next.player.storage.filter((p) => p.id === part.id)).toHaveLength(1);
     expect(next.shops["pump-station"].stock.some((p) => p.id === part.id)).toBe(false);
     expect(next.vehicles[0].items).toHaveLength(items);
+  });
+
+  it("sends a bought part that would fit the grid to storage and leaves the truck as it was (issue 1345)", () => {
+    const w = atPump();
+    w.player.money = 100000;
+    const part = w.shops["pump-station"].stock[0];
+    const spare = makePart(w, part.defId, 0);
+    while (!canStowPart(w.vehicles[0], spare)) w.vehicles[0].items.pop();
+    const next = buyStockPart(w, part.id);
+    expect(next.player.storage.map((p) => p.id)).toEqual([part.id]);
+    expect(next.vehicles[0].items).toEqual(w.vehicles[0].items);
   });
 
   it("still refuses a part the player cannot pay for", () => {

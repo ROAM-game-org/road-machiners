@@ -11,7 +11,7 @@ import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type F
 
 const killed: string[] = [];
 vi.mock('./jobs', async (original) => ({ ...(await original<object>()), killJob: async (_run: unknown, pid: number, id: string) => { killed.push(`${pid} ${id}`); } }));
-const { applyControl, isGated, parseControl, resolveActor, writeControl } = await import('./control');
+const { applyControl, isGated, parseControl, resolveActor, resolveOwner, writeControl } = await import('./control');
 type Command = Parameters<typeof applyControl>[1];
 
 const ROOT = resolve('tmp/factory-control-test');
@@ -199,6 +199,28 @@ describe('resolveActor', () => {
 
   it('throws for an unknown actor', () => {
     expect(() => resolveActor(fakeCtx(), 'mallory', false)).toThrow('mallory');
+  });
+});
+
+describe('resolveOwner', () => {
+  const committee = (members: object[]) => writeFileSync(join(ROOT, 'committee', 'committee.json'), JSON.stringify({ members }));
+
+  it('accepts the bootstrap member by Telegram id or GitHub login', () => {
+    committee([{ telegram: '11', github: 'boss', name: 'Ann' }, { telegram: '12', github: 'bob-gh', name: 'Bob' }]);
+    expect(resolveOwner(fakeCtx(), '11')).toBe('Ann');
+    expect(resolveOwner(fakeCtx(), 'boss')).toBe('Ann');
+  });
+
+  it('refuses another member, Hermes, a name, an unknown id and a removed owner', () => {
+    committee([{ telegram: '11', github: 'boss', name: 'Ann' }, { telegram: '12', github: 'bob-gh', name: 'Bob' }]);
+    for (const by of ['12', 'bob-gh', 'Bob', 'hermes', 'Ann', 'Dr. Boris', '99']) expect(() => resolveOwner(fakeCtx(), by)).toThrow('Only the committee owner');
+    committee([{ telegram: '12', github: 'boss', name: 'Bob' }]);
+    expect(() => resolveOwner(fakeCtx(), 'boss')).toThrow('Only the committee owner');
+  });
+
+  it('uses the bootstrap member when no committee file exists', () => {
+    rmSync(join(ROOT, 'committee'), { recursive: true });
+    expect(resolveOwner(fakeCtx(), '11')).toBe('boss');
   });
 });
 
@@ -656,14 +678,14 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'ship', by: '11' }))).rejects.toThrow('no current candidate post');
   });
 
-  it('orders a playtest by recording the order, and refuses with no open release', async () => {
+  it('orders a playtest by recording the owner order, and refuses with no open release', async () => {
     seed({ release: RELEASE, lastRelease: '2026-09-28T00:00:00Z' });
-    await applyControl(fakeCtx(), command({ action: 'playtest' }));
+    await applyControl(fakeCtx(), command({ action: 'playtest', by: '11' }));
     expect(readState(statePath).pendingPlaytest).toBe('Ann');
     expect(readState(statePath).lastRelease).toBe('2026-09-28T00:00:00Z');
-    expect(ctrlLines()[0]).toMatchObject({ action: 'playtest', issue: 20 });
+    expect(ctrlLines()[0]).toMatchObject({ action: 'playtest', issue: 20, by: 'Ann' });
     seed({ release: null });
-    await expect(applyControl(fakeCtx(), command({ action: 'playtest' }))).rejects.toThrow('No release is open');
+    await expect(applyControl(fakeCtx(), command({ action: 'playtest', by: '11' }))).rejects.toThrow('No release is open');
     expect(readState(statePath).pendingPlaytest).toBeNull();
   });
 
@@ -693,10 +715,13 @@ describe('ship, cut and remove', () => {
     expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
-  it('accepts a playtest order from Hermes', async () => {
+  it('refuses a playtest order from Hermes, another member or the owner name, and records nothing', async () => {
+    writeFileSync(join(ROOT, 'committee', 'committee.json'), JSON.stringify({ members: [{ telegram: '11', github: 'boss', name: 'Ann' }, { telegram: '12', github: 'bob-gh', name: 'Bob' }] }));
     seed({ release: RELEASE });
-    await expect(applyControl(fakeCtx(), command({ action: 'playtest', by: 'hermes' }))).resolves.toContain('playtest');
-    expect(ctrlLines()[0]).toMatchObject({ action: 'playtest', by: 'Hermes' });
+    for (const by of ['hermes', '12', 'bob-gh', 'Ann']) await expect(applyControl(fakeCtx(), command({ action: 'playtest', by }))).rejects.toThrow('Only the committee owner');
+    expect(readState(statePath).pendingPlaytest).toBeNull();
+    expect(ctrlLines()).toEqual([]);
+    expect(calls).toEqual([]);
   });
 
   it('refuses a removal with no open release', async () => {

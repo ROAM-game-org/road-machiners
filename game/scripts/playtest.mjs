@@ -18,7 +18,7 @@ const fpsGate = !process.argv.includes('--no-fps-gate');
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const CRASH_ATTEMPTS = 8;
-const CRASH_PAUSE_MS = 10000;
+const CRASH_PAUSE_MS = 30000;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 300000;
 const HIGHWAY_BOOT_LIMIT_MS = 300000;
@@ -34,7 +34,7 @@ if (software && fpsGate) {
 const turns = Number(arg('turns', software ? '4' : '12'));
 const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-if (timeoutsOff) page.setDefaultTimeout(0);
+page.setDefaultTimeout(timeoutsOff ? 0 : Math.max(30000, TURN_LIMIT_MS));
 const retryAfterBrowserCrash = async (cause) => {
   if (cause) console.log(`Crash cause: ${String(cause?.message ?? cause).split('\n')[0]}`);
   await browser.close().catch(() => {});
@@ -61,6 +61,7 @@ const afterCrashRetry = async (step) => step().catch(async (cause) => { if (cras
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+page.on('dialog', (d) => { errors.push(`native ${d.type()} dialog: ${d.message()}`); d.dismiss(); });
 await emulateWebGL2Floor(page);
 await afterCrashRetry(async () => {
   await page.goto(playUrl(url));
@@ -235,12 +236,13 @@ const reload = () => afterCrashRetry(async () => {
   await collectGarbage(page);
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
+  await page.waitForSelector('.game-menu .menu-button', { timeout: BOOT_LIMIT_MS });
   return languageReadout();
 });
-if ((await reload()).lang !== 'ru' || (await pressedLanguage()) !== 'ru') languageProblems.push('Russian did not survive a reload');
+if ((await reload()).lang !== 'ru' || (await afterCrashRetry(pressedLanguage)) !== 'ru') languageProblems.push('Russian did not survive a reload');
 await pickLanguageByMouse('en');
 const english = await reload();
-if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await pressedLanguage()) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
+if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await afterCrashRetry(pressedLanguage)) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
 await checkNoStrayControl('after the reload');
 await browser.close();
 nightProblems.push(...(await checkHighwayNightInSoftware(url, { shot: '.playtest/night-highway.png', bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
