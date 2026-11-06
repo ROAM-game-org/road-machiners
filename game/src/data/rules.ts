@@ -107,6 +107,13 @@ export const CHEATS = {
   searchRings: 20,
 };
 
+export const DEAD_TREE_LOOK = {
+  widths: [0.85, 1, 1.12],
+  heights: [1, 1.15, 1.3],
+  turns: 12,
+  tones: [0.82, 0.91, 1, 1.06, 1.12],
+} as const;
+
 export const BREAKABLE = {
   kinds: ['fence', 'junk', 'deadTree', 'roadSign', 'routeSign', 'barrel'] as readonly LandmarkLook[],
   breakSpeed: 3,

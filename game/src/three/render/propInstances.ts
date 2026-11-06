@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { propBase, propPose, propReach, type PropPose } from '../../sim/mapgen';
+import { deadTreeTone, propBase, propPose, propReach, type PropPose } from '../../sim/mapgen';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import { dist } from '../../sim/vec';
@@ -81,7 +81,8 @@ export class PropInstances {
       g.updateMatrix();
       return g.matrix;
     });
-    const group = instancedProp(name, placements, materialOf);
+    const tones = list.map((o) => (o.look === 'deadTree' ? deadTreeTone(o.id) : 1));
+    const group = instancedProp(name, placements, tones, materialOf);
     const meshes = group.children.map((m) => {
       if (!(m instanceof THREE.InstancedMesh)) throw new Error(`Instanced ${name} holds a mesh that is not instanced`);
       return m;
@@ -170,23 +171,24 @@ function mergedOf(name: ModelName): MergedModel {
   return merged;
 }
 
-export function instancedProp(name: ModelName, placements: THREE.Matrix4[], materialOf: MaterialOf): THREE.Group {
+export function instancedProp(name: ModelName, placements: THREE.Matrix4[], tones: readonly number[], materialOf: MaterialOf): THREE.Group {
   if (placements.length === 0) throw new Error(`Instanced ${name} needs at least one placement`);
+  if (tones.length !== placements.length) throw new Error(`Instanced ${name} has ${placements.length} placements and ${tones.length} tones`);
   const merged = mergedOf(name);
   const group = new THREE.Group();
-  if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, new THREE.Matrix4()));
-  for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, part.matrix));
+  if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, tones, new THREE.Matrix4()));
+  for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, tones, part.matrix));
   group.matrixAutoUpdate = false;
   return group;
 }
 
-function instancedPart(geometry: THREE.BufferGeometry, material: THREE.Material, placements: THREE.Matrix4[], local: THREE.Matrix4): THREE.InstancedMesh {
+function instancedPart(geometry: THREE.BufferGeometry, material: THREE.Material, placements: THREE.Matrix4[], tones: readonly number[], local: THREE.Matrix4): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
   const matrix = new THREE.Matrix4();
-  const tint = new THREE.Color(1, 1, 1);
+  const tint = new THREE.Color();
   placements.forEach((placement, i) => {
     mesh.setMatrixAt(i, matrix.multiplyMatrices(placement, local));
-    mesh.setColorAt(i, tint);
+    mesh.setColorAt(i, tint.setScalar(tones[i]));
   });
   mesh.castShadow = true;
   mesh.receiveShadow = true;

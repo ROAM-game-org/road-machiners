@@ -3,7 +3,7 @@ import { FORT_MODELS, type FortModel } from './fortress';
 import { PHYSICS } from '../data/physics';
 import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
-import { BREAKABLE } from '../data/rules';
+import { BREAKABLE, DEAD_TREE_LOOK } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
 import { groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
@@ -336,13 +336,36 @@ function landmarkModel(look: LandmarkLook): PropModel {
 }
 
 function landmarkPose(o: Landmark): PropPose {
+  return o.look === 'deadTree' ? deadTreePose(o) : plainLandmarkPose(o);
+}
+
+function plainLandmarkPose(o: Landmark): PropPose {
   const model = o.look === 'carWreck' ? carWreckModel(o.id) : landmarkModel(o.look);
   const pos = { ...o.pos };
   if (FORT_MODELS.get(o.look)?.piece === 'wall') return { model, pos, yaw: o.yaw, scale: { x: o.r / FORTRESS.wallLength * 2, y: 1, z: 1 } };
-  const yaw = o.look === 'pole' ? o.yaw + Math.PI / 2 : o.yaw;
+  const yaw = landmarkYaw(o);
   if (model === 'building') return { model, pos, yaw, scale: buildingScale(o) };
   const radius = MODEL_RADIUS[model];
   return { model, pos, yaw, scale: even(radius === undefined ? 1 : (o.r * M) / radius) };
+}
+
+function landmarkYaw(o: Landmark): number {
+  return o.look === 'pole' ? o.yaw + Math.PI / 2 : o.yaw;
+}
+
+function deadTreePose(o: Landmark): PropPose {
+  const { widths, heights, turns } = DEAD_TREE_LOOK;
+  const width = pickOf(widths, `${o.id}:width`);
+  const turn = Math.floor(hashId(`${o.id}:turn`) * turns);
+  return { model: landmarkModel(o.look), pos: { ...o.pos }, yaw: (turn / turns) * TURN, scale: { x: width, y: width, z: pickOf(heights, `${o.id}:height`) } };
+}
+
+export function deadTreeTone(id: string): number {
+  return pickOf(DEAD_TREE_LOOK.tones, `${id}:tone`);
+}
+
+function pickOf(steps: readonly number[], key: string): number {
+  return steps[Math.floor(hashId(key) * steps.length)];
 }
 
 function buildingScale(o: Obstacle): PropScale {

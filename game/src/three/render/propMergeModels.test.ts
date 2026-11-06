@@ -21,7 +21,7 @@ describe('instancedProp over every model', () => {
     const parts = sourceParts(name);
     const lit = parts.filter((p) => glows(p.material)).length;
 
-    const group = instancedProp(name, [new THREE.Matrix4()], keep);
+    const group = instancedProp(name, [new THREE.Matrix4()], [1], keep);
 
     const merged = lit < parts.length ? 1 : 0;
     expect(group.children).toHaveLength(merged + lit);
