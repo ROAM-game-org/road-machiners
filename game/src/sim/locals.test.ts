@@ -620,6 +620,7 @@ describe('locals at stalls', () => {
 
   it('charges double to buy off a patrolman who caught the lie', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
     expect(questView(bought, QUESTS).choices).toContain(SIGN);
@@ -628,6 +629,7 @@ describe('locals at stalls', () => {
 
   it('bills a failed glass window fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
     expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
@@ -647,6 +649,7 @@ describe('locals at stalls', () => {
 
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Hold the copy up in the market.']);
 

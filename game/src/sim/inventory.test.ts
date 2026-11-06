@@ -4,6 +4,7 @@ import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
+import { START_KITS } from '../data/start';
 import { makePart } from './factory';
 import { update } from './world';
 import { gunSpans, spanDegrees } from './armor';
@@ -25,10 +26,10 @@ const good = (w: World) => w.vehicles[0].items.find((it) => it.kind === 'good')!
 const rackRow = CHASSIS.scout.layout.length + bedRows('scout');
 
 describe('inventory grid', () => {
-  it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {
+  it('the standard kit starts with a scout, the arrival kit money, two cargo parts, and full resources', () => {
     const w = emptyWorld();
     expect(w.vehicles[0].chassisId).toBe('scout');
-    expect(w.player.money).toBe(333);
+    expect(w.player.money).toBe(START_KITS.arrival.money);
     expect(goodsCount(w.vehicles[0]).parts).toBe(2);
     expect(w.player.fuel).toBe(CHASSIS.scout.fuelCap);
     expect(w.player.supplies).toBe(RULES.baseSupplies);
