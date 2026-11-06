@@ -1,6 +1,6 @@
 # Skills
 
-Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and each family has its own daily cap. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
+Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and there is no daily cap. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
 
 ## Skills
 

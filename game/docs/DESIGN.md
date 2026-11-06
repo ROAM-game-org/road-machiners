@@ -56,7 +56,7 @@ Each section states what a system is for and the rules it must keep. The detaile
 
 ## Character
 
-The driver is the only thing that stays with the player when the truck changes. Doing things earns experience, and the player spends it freely on ranks of five broad skills, each touching several activities. Hard actions teach more than easy ones, repeating one action on one target teaches less and less, and each kind of activity has a daily limit, so grinding never pays. Perks split each skill into two playstyles. A perk adds an action, breaks a rule or reveals information. It never multiplies a number the skill already grows.
+The driver is the only thing that stays with the player when the truck changes. Doing things earns experience, and the player spends it freely on ranks of five broad skills, each touching several activities. Hard actions teach more than easy ones, repeating one action on one target teaches less and less, so grinding never pays. Perks split each skill into two playstyles. A perk adds an action, breaks a rule or reveals information. It never multiplies a number the skill already grows.
 
 Details: [character](wiki/mechanics/character.md), [skills tables](wiki/skills.md).
 
