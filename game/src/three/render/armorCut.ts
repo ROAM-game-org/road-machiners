@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { isShield, partDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
+import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { bodyFace, lowestFace } from './gunStand';
+import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
 export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
@@ -224,10 +224,52 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, seat + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
   const at = { pos, yaw: SIDE_YAW[side], scale };
-  const touch = nearestTouch(at, box, body, side, 2 * half.y);
-  if (touch === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
-  pos[axis] += outward * (Math.min(0, outward * touch - snug) + overArmor(v, item, def));
+  const placed = placedBounds(at, box);
+  const placedLateral: [number, number] = across ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
+  const profile = faceProfile(body, axis, outward, placedLateral);
+  const touchAt = (shift: number): number | null => bodyFace(body, axis, outward, placedLateral, [placed.min.y + shift, placed.max.y + shift]);
+  const fail = (): never => {
+    throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} finds no height at its face`);
+  };
+  const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), ram: def.look === 'ram', row: cellSteps(v.chassisId).row, fail });
+  pos.y += shift;
+  pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
   return at;
+}
+
+function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
+  return box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
+}
+
+type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; ram: boolean; row: number; fail: () => never };
+
+const LONG_NOSE_ROWS = 5;
+
+function standShift({ profile, placed, touchAt, floor, glassMatters, ram, row, fail }: Stand): number {
+  const face = profileFace(profile, floor);
+  if (face === null) return fail();
+  const glass = glassMatters ? profileGlassLine(profile, floor, row) : null;
+  const setback = glassMatters ? profileGlassSetback(profile, floor, row) : null;
+  const nose = !ram && setback !== null && setback > LONG_NOSE_ROWS * row ? profileNoseTop(profile, floor, row) : null;
+  const standsUnder = (ceiling: number | null) => (shift: number): boolean => {
+    const touch = touchAt(shift);
+    const atFace = touch !== null && profile.outward * (face - touch) <= row;
+    return atFace && (ceiling === null || placed.max.y + shift <= ceiling);
+  };
+  const shifts = candidateShifts(profile, placed);
+  const hood = nose === null || glass === null ? undefined : shifts.find(standsUnder(Math.min(nose + TRUCK_LOOK.armorRise, glass + row)));
+  const found = hood ?? shifts.find(standsUnder(glass === null ? null : glass + row));
+  if (found === undefined) return fail();
+  return found;
+}
+
+function candidateShifts(profile: FaceProfile, placed: THREE.Box3): number[] {
+  const top = profile.bottom + profile.reach.length * FACE_COLUMN;
+  const down: number[] = [0];
+  for (let shift = -FACE_COLUMN; placed.min.y + shift >= profile.bottom; shift -= FACE_COLUMN) down.push(shift);
+  const up: number[] = [];
+  for (let shift = FACE_COLUMN; placed.max.y + shift <= top + TRUCK_LOOK.armorRise; shift += FACE_COLUMN) up.push(shift);
+  return [...down, ...up];
 }
 
 function ramSeat(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], box: THREE.Box3, hull: number): number {
@@ -265,26 +307,6 @@ function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def:
 function armorUnder(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem): boolean {
   const cells = new Set(itemCells(item).map((c) => `${c.x},${c.y}`));
   return v.items.some((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)));
-}
-
-function nearestTouch(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, reach: number): number | null {
-  const start = at.pos.y;
-  for (let step = 0; step * CLIP_TOLERANCE <= reach; step++) {
-    for (const dy of step === 0 ? [0] : [step * CLIP_TOLERANCE, -step * CLIP_TOLERANCE]) {
-      at.pos.y = start + dy;
-      const touch = touchBehind(at, box, body, side);
-      if (touch !== null) return touch;
-    }
-  }
-  at.pos.y = start;
-  return null;
-}
-
-function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number | null {
-  const { axis, outward } = SIDE_FACE[side];
-  const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
-  const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
-  return bodyFace(body, axis, outward, lateral, [placed.min.y, placed.max.y]);
 }
 
 function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {
