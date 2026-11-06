@@ -220,7 +220,7 @@ export class TownScreen {
     const place = shopId ?? deskAt(w);
     if (!place) throw new Error("The town page is open away from a shop and the desk");
     const art = shopId ? this.artKey(shopId) : (TOWN_ART[place]?.band ?? null);
-    const band = this.bandOf(w, art, shopId ? shopDef(shopId).kind !== "garage" : true);
+    const band = this.bandOf(w, art);
     const picture = band.querySelector<HTMLElement>(".art-band");
     if (!picture) throw new Error("The town band has no picture strip");
     return { band, picture, heading: this.heading(place), art };
@@ -292,7 +292,7 @@ export class TownScreen {
     const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, page === "garage" ? this.repairBar(w) : null, truckBody) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
-      this.bandOf(w, this.artKey(shopId), shopDef(shopId).kind !== "garage"),
+      this.bandOf(w, this.artKey(shopId)),
       this.bodyOf(
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(shopId)), el("p", { class: "qt-line" }, proseOf(shopId, page))),
         page === null ? this.suppliesPanel(w, shopId) : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
@@ -320,7 +320,7 @@ export class TownScreen {
     this.choices = this.deskChoices(desk);
     const people = this.page === "people";
     this.root.replaceChildren(
-      this.bandOf(w, TOWN_ART[desk]?.band ?? null, true),
+      this.bandOf(w, TOWN_ART[desk]?.band ?? null),
       this.bodyOf(
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
         people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd), this.slots)),
@@ -353,8 +353,8 @@ export class TownScreen {
     this.rows.toTop(this.root);
   }
 
-  private bandOf(w: World, art: string | null, freeCells: boolean): HTMLElement {
-    const chips = truckChips(w, { freeCells, feature: false });
+  private bandOf(w: World, art: string | null): HTMLElement {
+    const chips = truckChips(w, { feature: false });
     return el("div", { class: "ink-band" }, this.band.frame(art), el("div", { class: "ink-chips" }, chips));
   }
 

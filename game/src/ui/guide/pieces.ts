@@ -1,3 +1,4 @@
+import { actionRow, costItem, gaugeEl, statRow, statValueEl } from "../cards";
 import { chipEl } from "../chip";
 import { devEl as el } from "../dom";
 import { speedKey } from "../travel-speed";
@@ -19,6 +20,13 @@ const sample = (cls: string, words: string): HTMLElement => el("div", { class: c
 
 const confirmSample = (): HTMLElement =>
   el("div", { class: "dialog confirm-dialog" }, el("p", {}, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
+
+const wellRows = (): HTMLElement => statRow("mass", verbatim("Load"), statValueEl(verbatim("1,680 / 3,840 kg")));
+
+const gaugeSample = (): HTMLElement => gaugeEl(0.5, { share: { left: 0.3, width: 0.2 }, after: { left: 0.5, width: 0.15 } });
+
+const actionSample = (): HTMLElement =>
+  el("div", { class: "action-rows" }, ...actionRow(text("button", "btn-s", "Patch"), [costItem("clock", verbatim("4")), costItem("parts", verbatim("−2"), "bad")]), ...actionRow(text("button", "btn-s", "Rotate"), []));
 
 export const PIECES: Piece[] = [
   { name: ".panel", note: "The base of every HUD box.", build: () => sample("panel", "A panel") },
@@ -43,6 +51,14 @@ export const PIECES: Piece[] = [
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
+  { name: ".well", note: "The sunk surface of a thin side column on a working screen, holding .well-group blocks. The middle column stays open.", build: () => el("div", { class: "well" }, el("div", { class: "well-group" }, wellRows())) },
+  { name: ".well-group", note: "One tight group of rows inside a well. Space between groups is wide.", build: () => el("div", { class: "well-group" }, wellRows()) },
+  { name: ".stat-row", note: "The one row form: icon, label, value at the right edge.", build: wellRows },
+  { name: ".meter-row", note: "A stat row with its bar under it.", build: () => el("div", { class: "meter-row" }, wellRows(), gaugeSample()) },
+  { name: ".gauge", note: "A bar on a well, with a track lighter than the well. An accent span marks the picked part's share, and a dashed one a share a choice would add.", build: gaugeSample },
+  { name: ".action-rows", note: "One same-width verb button per row, then the cost as icon and number, or the reason it is off.", build: actionSample },
+  { name: ".cost", note: "What an action costs: icons and numbers, with the words in its tooltip.", build: actionSample },
+  { name: ".cost-item", note: "One icon and number of a cost.", build: actionSample },
   { name: ".selected", note: "The one look of a chosen item. A pressed button.on uses it too.", build: () => sample("selected tile", "Selected") },
   { name: '[aria-disabled="true"]', note: "A control that cannot be used now. It keeps hover and focus.", build: () => disabled() },
   { name: ".tooltip", note: "A note that opens over its anchor. It also gives a disabled reason.", build: () => sample("tooltip", "Need 12 M's more") },

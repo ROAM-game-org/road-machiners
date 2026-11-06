@@ -6,7 +6,7 @@ import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
 import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
-import { maxHp, partValue, wornDef } from "../sim/wear";
+import { isJunk, maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
 import { GOODS, PARCEL } from "../data/goods";
@@ -20,7 +20,7 @@ import { num, t, type Msg } from "../text/msg";
 import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
 import { say } from "../text/language";
 import { roundDamage } from "../sim/combat";
-import { el } from "./dom";
+import { el, type Child } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
 import { fuelLiters, hp, kph, meters, mps2 } from "./units";
 import { canvasReadable } from "../three/render/pixelReadback";
@@ -75,6 +75,7 @@ const ART = {
   blast: '<path d="M20 4l3 9 9-4-4 9 9 2-9 3 4 9-9-4-3 9-3-9-9 4 4-9-9-3 9-2-4-9 9 4z"/>',
   heat: '<path d="M16 25V7a4 4 0 0 1 8 0v18a7 7 0 1 1-8 0zM20 13v15"/>',
   patch: '<path d="M8 14l14-9 11 17-14 9zM15 15l3 5M20 12l3 5M18 22l3 5"/>',
+  wrench: '<path d="M29 5a8 8 0 0 0-8 11L7 30a3.5 3.5 0 0 0 5 5l14-14a8 8 0 0 0 10-10l-5 5-5-1-1-5z"/>',
   tall: '<path d="M14 36V8h12v28M6 36h28M20 8V3"/>',
   clock: '<circle cx="20" cy="20" r="15"/><path d="M20 10v10l7 5"/>',
   paint: '<path d="M11 15h14v21H11zM14 15v-5h8v5M16 10V5h4v5M29 7l5-2M29 12h6M29 17l5 2"/>',
@@ -415,6 +416,55 @@ export function conditionMeter(part: PartInstance): HTMLElement {
   );
 }
 
+export type GaugeSpan = { left: number; width: number };
+
+function gaugeSpan(cls: string, span: GaugeSpan): HTMLElement {
+  const left = Math.min(1, Math.max(0, span.left));
+  const width = Math.min(1 - left, Math.max(0, span.width));
+  return el("i", { class: cls, style: `left:${left * 100}%;width:${width * 100}%` });
+}
+
+export function gaugeEl(fill: number, opts: { share?: GaugeSpan | null; after?: GaugeSpan | null; health?: boolean } = {}): HTMLElement {
+  return el(
+    "div",
+    { class: opts.health ? "gauge health" : "gauge" },
+    gaugeSpan("fill", { left: 0, width: fill }),
+    opts.share ? gaugeSpan("share", opts.share) : null,
+    opts.after ? gaugeSpan("after", opts.after) : null,
+  );
+}
+
+export function statRow(icon: IconName, label: Msg, value: Child, title?: Msg): HTMLElement {
+  return el("div", { class: "stat-row", title }, createIcon(icon), el("span", { class: "stat-name" }, label), value);
+}
+
+export function statValueEl(value: Child, tone = ""): HTMLElement {
+  return el("span", { class: `stat-val ${tone}`.trim() }, value);
+}
+
+export function meterRow(row: HTMLElement, gauge: HTMLElement): HTMLElement {
+  return el("div", { class: "meter-row" }, row, gauge);
+}
+
+export function partHealthRow(part: PartInstance): HTMLElement | null {
+  if (!showsCondition(part)) return null;
+  const status = conditionStatus(part);
+  const value = status.tone === "dim" && !isJunk(part) ? t("cond.value", { hp: hp(part.hp), max: hp(maxHp(part)) }) : status.text;
+  return meterRow(statRow("wrench", t("inv.condition"), statValueEl(value, status.tone === "bad" ? "bad" : "")), gaugeEl(part.hp / maxHp(part), { health: true }));
+}
+
+export function costItem(icon: IconName, value: Child, tone = ""): HTMLElement {
+  return el("span", { class: `cost-item ${tone}`.trim() }, createIcon(icon), value);
+}
+
+export function actionRow(button: HTMLElement, cost: readonly HTMLElement[], title?: Msg): HTMLElement[] {
+  return [button, el("span", { class: "cost", title }, ...cost)];
+}
+
+export function offActionRow(button: HTMLElement, reason: Msg): HTMLElement[] {
+  return [button, el("span", { class: "cost off" }, reason)];
+}
+
 export function jobDone(job: Job): number {
   return job.total > 0 ? Math.min(1, Math.max(0, 1 - job.turnsLeft / job.total)) : 0;
 }
@@ -440,10 +490,14 @@ export function conditionRow(part: PartInstance): HTMLElement | null {
   return el("div", { class: "card-cond" }, conditionTag(part), el("span", { class: status.tone }, status.text));
 }
 
+function headlineFirst(world: World, part: PartInstance, base: PartInstance | null): StatDiff[] {
+  const diffs = diffStats(partStats(world, part), base ? partStats(world, base) : null);
+  const at = Math.max(0, diffs.findIndex((d) => d.stat.icon !== "mass"));
+  return [diffs[at], ...diffs.slice(0, at), ...diffs.slice(at + 1)];
+}
+
 export function headlineStat(world: World, part: PartInstance, base: PartInstance | null): StatDiff {
-  const first = diffStats(partStats(world, part), base ? partStats(world, base) : null)[0];
-  if (!first) throw new Error(`${part.defId} has no stats to headline`);
-  return first;
+  return headlineFirst(world, part, base)[0];
 }
 
 export function statChip(d: StatDiff): HTMLElement {
@@ -492,7 +546,7 @@ export function partCard(o: PartCardOptions): HTMLElement {
 }
 
 export function partDetail(world: World, part: PartInstance, base: PartInstance | null): HTMLElement[] {
-  const rest = diffStats(partStats(world, part), base ? partStats(world, base) : null).slice(1);
+  const rest = headlineFirst(world, part, base).slice(1);
   const hpText = hpReadout(part);
   return [
     ...(base ? [compareLine(base)] : []),
@@ -592,7 +646,11 @@ function signed(value: number, decimals: 0 | 1): Msg {
 
 export function partStats(world: World, part: PartInstance): Stat[] {
   const def = partDef(part.defId);
-  return [...KIND_STATS[def.kind](world, part), stat("mass", t("stat.mass"), def.mass, "kg", "less")];
+  return [massStat(def.mass), ...KIND_STATS[def.kind](world, part)];
+}
+
+export function massStat(mass: number): Stat {
+  return stat("mass", t("stat.mass"), mass, "kg", "less");
 }
 
 const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]> = {

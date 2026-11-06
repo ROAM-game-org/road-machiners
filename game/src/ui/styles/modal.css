@@ -52,6 +52,23 @@
 #ui:has(.modal:not([style*="display: none"])) .truck-stack {
   display: none;
 }
+/* The working screen takes the full height down to the bottom edge, so the instruments and the log hide under it. */
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .bottom-left > .instruments,
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .right-column > .log {
+  visibility: hidden;
+}
+/* Its opening tip stays readable in the free margin beside the frame. */
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .top-center > .opening-tip {
+  left: var(--hud-inset);
+  width: max(var(--inv-side-min), calc((var(--layer-w) - var(--inv-frame-w, var(--modal-width))) / 2 - var(--hud-inset) * 2));
+  max-width: none;
+  box-sizing: border-box;
+}
+#ui:not(.phone):has(.inv-bench.two) > .top-center > .opening-tip {
+  left: auto;
+  right: var(--hud-inset);
+  width: var(--inv-side-width);
+}
 /* A look screen over a scene dims the scene under it with a scrim, so the scene's words never show through. */
 #ui .modal.over-scene {
   z-index: var(--z-over-scene);

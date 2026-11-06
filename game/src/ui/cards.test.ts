@@ -85,21 +85,23 @@ describe("cargo cards", () => {
   });
 
   it("marks a heavy frame better than panniers", () => {
-    const diff = diffStats(partStats(courierWorld, part("heavyFrame")), partStats(courierWorld, part("panniers")))[0];
+    const diff = diffStats(partStats(courierWorld, part("heavyFrame")), partStats(courierWorld, part("panniers"))).find((d) => d.stat.icon === "cells");
     expect(diff).toMatchObject({ verdict: "better" });
   });
 });
 
 describe("the headline stat of a shop row", () => {
-  it("is the first stat, with no change without a base", () => {
+  it("is the first stat after mass, with no change without a base", () => {
+    const stats = partStats(world, part("turbine"));
+    expect(stats[0].icon).toBe("mass");
     const head = headlineStat(world, part("turbine"), null);
-    expect(head.stat).toEqual(partStats(world, part("turbine"))[0]);
+    expect(head.stat).toEqual(stats[1]);
     expect(head.delta).toBeNull();
   });
 
   it("carries the change and verdict against a base of the same kind", () => {
     const head = headlineStat(world, part("turbine"), part("stockEngine"));
-    const same = diffStats(partStats(world, part("turbine")), partStats(world, part("stockEngine")))[0];
+    const same = diffStats(partStats(world, part("turbine")), partStats(world, part("stockEngine")))[1];
     expect(head).toEqual(same);
     expect(head.delta).not.toBeNull();
   });

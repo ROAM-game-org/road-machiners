@@ -54,11 +54,16 @@
 }
 :where(#ui.narrow) .town-split {
   grid-template-columns: 1fr;
+  grid-template-rows: none;
   grid-auto-rows: max-content;
   overflow: auto;
 }
 :where(#ui.narrow) .town-truck,
 :where(#ui.narrow) .town-shop {
+  overflow: visible;
+}
+:where(#ui.narrow) .town-truck .truck-body {
+  flex: none;
   overflow: visible;
 }
 :where(#ui.narrow) .town-truck {

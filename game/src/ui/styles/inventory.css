@@ -6,7 +6,7 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* Header chips: truck, money, free cells and load. */
+/* Header chips: truck, money and load. */
 #ui .town-screen > h3,
 #ui .inventory-screen > h3,
 #ui .character-screen > h3,
@@ -94,6 +94,19 @@
   margin-top: 0;
   justify-content: flex-start;
   gap: var(--space-9);
+}
+/* The grid fits this column on a desktop layer, so only the selection scrolls when the column is short. */
+:where(#ui:not(.narrow)) .truck-body {
+  overflow: hidden;
+}
+:where(#ui:not(.narrow)) .truck-body > .inv-view,
+:where(#ui:not(.narrow)) .truck-body .inv-wrap {
+  height: 100%;
+}
+:where(#ui:not(.narrow)) .truck-body .inv-side {
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .town-shop > .tabs {
   padding: 0 0 var(--space-4);
@@ -512,8 +525,17 @@
   min-width: var(--inv-side-min);
 }
 .inv-inspection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-9);
+  min-height: 0;
   border-top: 1px solid var(--line-strong);
   padding-top: var(--space-7);
+}
+.well > .inv-inspection {
+  flex: 0 1 auto;
+  border-top: none;
+  padding-top: 0;
 }
 .inv-inspection:empty {
   display: none;
@@ -523,9 +545,46 @@
   height: var(--icon-hero);
   margin-bottom: var(--space-5);
 }
-.inv-inspection p {
-  font-size: var(--text-dense);
-  line-height: 1.5;
+.inv-inspection .inv-against {
+  margin: 0;
+  font-size: var(--text-body);
+}
+.inv-details {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+.inv-details > * {
+  flex: none;
+}
+.inv-details > .stat-grid {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* One row form: a stat grid in a card prints like the rows of the truck column, with one value edge. */
+.inv-inspection .stat-grid {
+  grid-template-columns: var(--icon-m) 1fr auto auto;
+  gap: var(--space-3);
+  margin: 0;
+}
+.inv-inspection .card-head {
+  align-items: center;
+  margin: 0;
+}
+.inv-inspection .card-head > .icon {
+  width: var(--icon-l);
+  height: var(--icon-l);
+}
+.inv-inspection .card-name {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-4);
+  line-height: 1.15;
+}
+.inv-inspection .card-name b {
+  overflow: visible;
 }
 .inv-storage {
   min-height: calc(var(--icon-hero) + var(--space-7));
@@ -574,6 +633,7 @@
   top: var(--space-1);
   bottom: auto;
 }
+/* The dump box stays only on the phone, where the card can lie below the fold. */
 .inv-dump {
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
@@ -589,17 +649,6 @@
 }
 .inv-ghost.held {
   box-shadow: 0 0 0 2px var(--accent);
-}
-.inv-refit {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-well);
-  border: 1px solid var(--line-soft);
-  font-size: var(--text-dense);
 }
 .inv-ghost {
   position: fixed;
@@ -643,4 +692,151 @@
 }
 .inv-chip.stored > .trade {
   margin-left: auto;
+}
+/* The working screen of the road: truck stats, the open truck and the selection. The frame shrinks to its columns. */
+#ui:not(.phone) .modal.inventory-screen {
+  width: fit-content;
+  max-width: calc(var(--layer-w) - var(--space-10));
+  height: calc(var(--layer-h) - var(--modal-top) - var(--space-4));
+}
+.inventory-screen > .inv-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inv-bench {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: calc(var(--inv-side-width) + var(--space-6) * 2) auto calc(var(--inv-side-width) + var(--space-6) * 2);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: var(--space-10);
+  justify-content: center;
+  font: var(--text-dense) var(--font-ui);
+}
+.inv-bench.two {
+  grid-template-columns: auto calc(var(--inv-side-width) + var(--space-6) * 2);
+}
+.inv-side-column,
+.inv-middle {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inv-side-column {
+  gap: var(--space-9);
+}
+.inv-middle > .inv-band {
+  margin-bottom: var(--space-9);
+}
+.inv-band {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--btn-h-m);
+}
+.inv-band.close-band {
+  justify-content: flex-end;
+}
+#ui .modal .inv-band .close {
+  position: static;
+}
+#ui .modal .inv-band .inv-title {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-heading);
+  line-height: 1;
+  white-space: nowrap;
+}
+#ui .modal .inv-truck-name {
+  flex: none;
+  margin: 0;
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-5);
+  font: 700 var(--text-body) / 1.15 var(--font-ui);
+  color: var(--ink);
+  white-space: nowrap;
+}
+#ui .inv-bench .inv-truck {
+  flex: none;
+  margin: 0;
+}
+.inv-bench .inv-target {
+  flex: 0 1 auto;
+}
+.inv-bench .truck-shell,
+.inv-bench .inv-target .truck-shell {
+  padding: 0;
+}
+.inv-bench .well .inv-storage {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.inv-bench.two .well {
+  gap: var(--space-6);
+}
+.inv-bench.two .well-group,
+.inv-bench.two .inv-inspection .stat-grid {
+  gap: var(--space-2);
+}
+.inv-bench.two .inv-inspection {
+  gap: var(--space-6);
+}
+.inv-bench .well > .bad:empty {
+  display: none;
+}
+.inv-bench .ability-name {
+  color: var(--ink);
+  font-size: var(--text-body);
+}
+.has-cause {
+  position: relative;
+  text-decoration: underline dotted;
+  text-underline-offset: var(--space-1);
+  cursor: help;
+}
+.cause-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + var(--space-1));
+  z-index: var(--z-popup);
+  width: max-content;
+  text-decoration: none;
+  font-family: var(--font-ui);
+}
+.has-cause:hover > .cause-tip,
+.has-cause:focus-within > .cause-tip {
+  display: block;
+}
+.job-block {
+  margin-top: auto;
+}
+.job-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--btn-h-s);
+}
+.job-name {
+  color: var(--ink);
+}
+.job-row.queued {
+  padding: 0 var(--space-3);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+.job-row .cost-item {
+  margin-right: 0;
+}
+/* A tile of goods or loose parts sits flush on its quiet cell, and full health is not news. */
+.inv-bench .inv-grid.drawn .inv-cell.spare.c-plain {
+  border-color: var(--line-faint);
+}
+.inv-bench .inv-item:not(.drawn):not(.selected) {
+  border: 1px solid var(--line-soft);
 }

@@ -115,7 +115,7 @@ export class OutpostScreen {
       el("div", { class: "shop-body" }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
-    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
+    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, {}, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truckBody);
   }
 

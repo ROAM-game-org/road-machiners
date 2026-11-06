@@ -466,10 +466,61 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+const BENCH_AUDIT = () => {
+  const frame = document.querySelector('.inventory-screen');
+  const m = frame.getBoundingClientRect();
+  const all = (sel) => [...frame.querySelectorAll(sel)];
+  const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
+  const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
+  const tops = all('.well, .inv-truck-name').map((n) => Math.round(n.getBoundingClientRect().top));
+  const title = frame.querySelector('.inv-title');
+  const close = frame.querySelector('.close');
+  return [
+    m.bottom > innerHeight + 1 || m.right > innerWidth + 1 || m.left < -1 ? ['frame outside the window'] : [],
+    all('.inv-side-column, .inv-middle, .well, .inv-details > .stat-grid').concat(frame).filter(scrolls).map((n) => `scroll in ${n.className}`),
+    all('.well > *, .inv-grid').filter((n) => n.getBoundingClientRect().bottom > m.bottom + 1).map((n) => `cut off ${n.className}`),
+    Math.abs(middle(title) - middle(close)) > 2 ? ['Close is off the title row'] : [],
+    Math.max(...tops) - Math.min(...tops) > 1 ? [`column tops ${tops}`] : [],
+    all('.inv-inspection .action-rows').filter((rows) => widths(rows) > 1).map(() => 'action buttons differ in width'),
+    all('button, b, .stat-val, .stat-name').filter((n) => n.scrollWidth > n.clientWidth + 1 && n.clientWidth > 0).map((n) => `clipped ${n.textContent.slice(0, 24)}`),
+  ].flat();
+};
+
+async function benchFaultsOn(page, where) {
+  const found = [];
+  const ids = await page.evaluate(() => [...new Set([...document.querySelectorAll('.inv-grid [data-item-id]')].map((n) => n.dataset.itemId))]);
+  for (const id of [null, ...ids]) {
+    if (id) await page.evaluate((i) => document.querySelector(`.inv-grid [data-item-id="${i}"]`)?.click(), id);
+    for (const text of await page.evaluate(BENCH_AUDIT)) found.push(`${where} ${id ?? 'nothing picked'}: ${text}`);
+  }
+  return found;
+}
+
+async function inventoryBenchFaults(page) {
+  if (await page.evaluate(() => document.querySelector('#ui').classList.contains('phone'))) return [];
+  await page.evaluate(() => { window.__layoutWorld = window.__ROAM__.state; });
+  const found = await benchFaultsOn(page, 'start truck');
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const cheats = await import('/src/sim/cheats.ts');
+    let w = g.state;
+    const chassis = (x) => x.vehicles.find((v) => v.id === x.player.vehicleId).chassisId;
+    for (let i = 0; i < 2000 && chassis(w) !== 'sorokonoga'; i++) w = cheats.randomKit(w, 3);
+    if (chassis(w) !== 'sorokonoga') throw new Error('No sorokonoga kit in 2000 rolls');
+    g.apply(w);
+  });
+  await frames(page);
+  found.push(...(await benchFaultsOn(page, 'sorokonoga')));
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+  await frames(page);
+  return found.map((text) => ({ kind: 'inventory-bench', path: '', text, sizes: '' }));
+}
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },

@@ -128,7 +128,7 @@ describe("character screen", () => {
 describe("truck chips", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  const chipsOf = (opts?: { freeCells: boolean; feature?: boolean }): FakeNode[] => {
+  const chipsOf = (opts?: { feature?: boolean }): FakeNode[] => {
     stubDom();
     return (truckChips(emptyWorld(), opts) as unknown as FakeNode).all((n) => n.className.split(" ").includes("chip"));
   };
@@ -148,9 +148,13 @@ describe("truck chips", () => {
   });
 
   it("leaves the chassis feature off the chips when asked", () => {
-    const withFeature = chipsOf({ freeCells: true });
-    const without = chipsOf({ freeCells: true, feature: false });
+    const withFeature = chipsOf();
+    const without = chipsOf({ feature: false });
     expect(without.length).toBe(withFeature.length - 1);
+  });
+
+  it("never counts the player's free cells", () => {
+    expect(chipsOf().some((c) => hasIcon(c, "cells"))).toBe(false);
   });
 
   it("keeps words out of the mono class", () => {

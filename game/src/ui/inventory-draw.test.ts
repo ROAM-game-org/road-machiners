@@ -10,7 +10,7 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, drawnLayer, GridScale, iconBox, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
@@ -279,35 +279,94 @@ describe("the pivot a fan starts from", () => {
 describe("the grid scale fit", () => {
   const w = emptyWorld();
   const truck = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine", "scrapSheet"], { x: 30, y: 30 });
-  const heightAt = (scale: GridScale) => gridSize(scale.measure(truck, true)).height;
 
-  it("shrinks until the measured overflow is gone, counting the fixed padding", () => {
+  it("holds its layout for the same key and refits for another", () => {
     const scale = new GridScale();
-    const full = heightAt(scale);
-    const room = full * 0.85 - 10;
-    const padding = 30;
-    scale.settle("a", () => heightAt(scale) + padding - room, () => scale.measure(truck, true));
-    expect(heightAt(scale) + padding).toBeLessThanOrEqual(room + 1);
-  });
-
-  it("holds its size for the same key and refits for another", () => {
-    const scale = new GridScale();
-    scale.measure(truck, true);
-    scale.settle("a", () => heightAt(scale) - 100, () => scale.measure(truck, true));
-    const fitted = heightAt(scale);
+    const layout = { columns: 3, cargoBeside: false, pxPerMeter: 20 };
+    scale.apply("a", layout, null);
+    const fitted = gridSize(scale.measure(truck, true)).height;
     expect(scale.holds("a")).toBe(true);
-    expect(heightAt(scale)).toBe(fitted);
+    expect(gridSize(scale.measure(truck, true)).height).toBe(fitted);
     expect(scale.holds("b")).toBe(false);
     scale.reset();
     expect(scale.holds("a")).toBe(false);
   });
 
-  it("stops at the smallest cell when the room is too short", () => {
+  it("gives the other truck its own layout", () => {
     const scale = new GridScale();
-    scale.measure(truck, true);
-    scale.settle("a", () => heightAt(scale), () => scale.measure(truck, true));
-    const m = scale.mine;
-    expect(Math.sqrt(m.cellW * m.cellH)).toBeGreaterThanOrEqual(27.9);
+    scale.apply("a", { columns: 3, cargoBeside: false, pxPerMeter: 20 }, { columns: 1, cargoBeside: false, pxPerMeter: 10 });
+    expect(scale.measure(truck, true).pxPerMeter).toBe(20);
+    expect(scale.measure(truck, false).pxPerMeter).toBe(10);
+  });
+});
+
+describe("the choice of a layout", () => {
+  const long = { width: 6, truckHeight: 20, spareHeight: 4, col: 1 };
+  const room = (columns: number, width: number, height: number): FitRoom => ({ columns, width, height });
+
+  it("keeps cargo below in three columns when the cells stay clickable", () => {
+    const short = { width: 3, truckHeight: 5, spareHeight: 2, col: 1 };
+    expect(chooseLayout([room(3, 800, 600), room(2, 1000, 600)], short)).toMatchObject({ columns: 3, cargoBeside: false });
+  });
+
+  it("caps a cell at the full size in any large room", () => {
+    const short = { width: 3, truckHeight: 5, spareHeight: 0, col: 1 };
+    expect(chooseLayout([room(3, 5000, 5000)], short).pxPerMeter).toBe(42);
+  });
+
+  it("moves cargo beside the truck before it drops a column", () => {
+    const layout = chooseLayout([room(3, 400, 500), room(2, 700, 500)], long);
+    expect(layout).toMatchObject({ columns: 3, cargoBeside: true });
+    expect(layout.pxPerMeter).toBeCloseTo(500 / 20);
+  });
+
+  it("drops to two columns when three leave the cells too small", () => {
+    const layout = chooseLayout([room(3, 200, 500), room(2, 500, 500)], long);
+    expect(layout.columns).toBe(2);
+    expect(layout.pxPerMeter).toBeGreaterThanOrEqual(24);
+  });
+
+  it("takes the largest cells when no try reaches the click minimum", () => {
+    const layout = chooseLayout([room(3, 100, 300), room(2, 200, 300)], long);
+    expect(layout).toEqual({ columns: 2, cargoBeside: true, pxPerMeter: 15 });
+  });
+
+  it("never tries cargo beside a truck with no cargo rows", () => {
+    const bare = { width: 6, truckHeight: 40, spareHeight: 0, col: 1 };
+    expect(chooseLayout([room(3, 1000, 400)], bare).cargoBeside).toBe(false);
+  });
+
+  it("keeps the old floor on a stacked screen, since it scrolls", () => {
+    expect(stackedLayout(100, long).pxPerMeter).toBe(28);
+    expect(stackedLayout(10000, long).pxPerMeter).toBe(42);
+  });
+});
+
+describe("cargo beside the truck", () => {
+  const w = emptyWorld();
+  const g = { ...gridOf(w.vehicles[0]), h: gridOf(w.vehicles[0]).chassisH + 3 };
+  const m = gridMetrics(w.vehicles[0].chassisId, g, 20, true);
+
+  it("finds every cell again from its rect", () => {
+    for (let y = 0; y < m.rows; y++)
+      for (let x = 0; x < m.cols; x++) {
+        const r = rectOf(m, x, y, 1, 1);
+        expect(cellAt(m, r.left + r.width / 2, r.top + r.height / 2)).toEqual({ x, y });
+      }
+  });
+
+  it("starts the cargo level with the truck, one gap to its right", () => {
+    expect(rectOf(m, 0, m.chassisRows, 1, 1).top).toBe(0);
+    expect(rectOf(m, 0, m.chassisRows, 1, 1).left).toBe(m.cols * m.cellW + m.spareGap);
+  });
+
+  it("counts both blocks in the grid size and only the truck in the gun's area", () => {
+    expect(gridSize(m).width).toBe(2 * m.cols * m.cellW + m.spareGap);
+    expect(truckArea(m).width).toBe(m.cols * m.cellW);
+  });
+
+  it("stays below the truck when the truck has no cargo rows", () => {
+    expect(gridMetrics(w.vehicles[0].chassisId, { ...g, h: g.chassisH }, 20, true).cargoBeside).toBe(false);
   });
 });
 

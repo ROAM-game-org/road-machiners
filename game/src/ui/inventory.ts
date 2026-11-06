@@ -1,18 +1,14 @@
 
 import { runCommand } from "./run-command";
 import { chassisDef } from "../data/chassis";
-import { isShield, partDef } from "../data/parts";
-import { isJunk, maxHp } from "../sim/wear";
+import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { canRebuild, getLotTradePrice, partRepairCost, repairPart, sellPrice } from "../sim/economy";
+import { getLotTradePrice, sellPrice } from "../sim/economy";
 import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
 import { priceEl, reasonButton } from "./shop-rows";
-import { reachedOutpostAt } from "../sim/chaos-highway";
-import { outpostRepairPart } from "../sim/outposts";
 import {
-  freeCells,
   gridOf,
   isMounted,
   nextTurn,
@@ -25,18 +21,12 @@ import {
   fieldMoveIsInstant,
   moveItem,
   planItemMove,
-  plannedRefitTurns,
   plannedTruck,
-  refitTurnsLeft,
   plannedVehicle,
   startRefit,
   stowSpot,
   type RefitLayout,
 } from "../sim/inventory";
-import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
-import { vehicleHasPerk } from "../sim/progress";
-import { PERK_NUMBERS } from "../data/skills";
-import { repairPlan } from "../sim/repair";
 import { shopAt } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
@@ -57,7 +47,9 @@ import { lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
-import { baselinePart, conditionMeter, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
+import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
+import { budgetGroup, truckGroups } from "./truck-panel";
+import { itemActions, itemFacts, jobBlock, rotateButton, ROTATE_KEYCAP, type CardHost } from "./item-card";
 import { loadMass } from "../sim/mass";
 import {
   blockerIds,
@@ -67,7 +59,17 @@ import {
   gridEl,
   itemBox,
   itemName,
-  itemState,
+  chooseLayout,
+  stackedLayout,
+  truckMeters,
+  benchRooms,
+  hostedWidth,
+  overflowIn,
+  scrollAncestor,
+  targetRoom,
+  trimFrame,
+  gridSize,
+  type GridLayout,
   lootGoodItem,
   lootPartItem,
   markWorking,
@@ -86,15 +88,10 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
-import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
-  canFieldPatch,
-  patchBlocker,
-  stripBlocker,
-  stripRoomText,
-  weldBlocker,
   doubleClickCommand,
   dragStartOf,
   planAfterMove,
@@ -137,38 +134,7 @@ type Tap = { pointerId: number; x: number; y: number };
 
 type Press = { timer: number; source: ItemSource; id: string; item: GridItem; grab: { x: number; y: number } };
 
-interface FitRoom {
-  size: string;
-  overflow: (root: HTMLElement) => number;
-}
-
-function scrollAncestor(box: HTMLElement): HTMLElement | null {
-  let outermost: HTMLElement | null = null;
-  for (let node = box.parentElement; node; node = node.parentElement) {
-    const y = getComputedStyle(node).overflowY;
-    if (y === "auto" || y === "scroll") outermost = node;
-  }
-  return outermost;
-}
-
-function lowestGrid(root: HTMLElement): number {
-  const trucks = [...root.querySelectorAll(".inv-truck")];
-  return Math.max(...trucks.map((t) => t.getBoundingClientRect().bottom));
-}
-
-function overflowIn(frame: HTMLElement, root: HTMLElement): number {
-  const padding = parseFloat(getComputedStyle(frame).paddingBottom) || 0;
-  return uiSize().toLayer(lowestGrid(root) - frame.getBoundingClientRect().top) + frame.scrollTop - (frame.clientHeight - padding);
-}
-
-function fitRoom(box: HTMLElement): FitRoom {
-  const frame = scrollAncestor(box);
-  const frames = [frame ?? box];
-  return {
-    size: frame ? `frame ${frame.offsetWidth}x${frame.offsetHeight}` : `box ${box.offsetWidth}x${box.offsetHeight}`,
-    overflow: (root) => Math.max(...frames.map((f) => overflowIn(f, root))),
-  };
-}
+export type BenchHead = { title: HTMLElement; close: HTMLElement };
 
 export class InventoryView {
   private drag: Drag | null = null;
@@ -182,7 +148,7 @@ export class InventoryView {
   holdChanged: () => void = () => {};
   private error: Msg | null = null;
   private gridEl: HTMLElement | null = null;
-  private root: HTMLElement = el("div");
+  private root: HTMLElement = el("div", { class: "inv-view" });
   private inspection = el("div", { class: "inv-inspection" });
   private selectedItem: string | null = null;
   private loot: string | null = null;
@@ -191,6 +157,7 @@ export class InventoryView {
   private scale = new GridScale();
   private looks: GarageLooks = { own: null, other: null };
   private plan: RefitLayout = {};
+  private head: BenchHead | null = null;
 
   constructor(
     private host: UiHost,
@@ -218,22 +185,56 @@ export class InventoryView {
     });
   }
 
+  setHead(head: BenchHead | null): void {
+    this.head = head;
+  }
+
   fitTo(box: HTMLElement): void {
-    const room = fitRoom(box);
-    const key = this.fitKeyOf(room.size);
+    const key = this.fitKeyOf(box);
     if (this.scale.holds(key)) {
       this.render();
       return;
     }
+    if (this.head) box.style.removeProperty("height");
     this.scale.reset();
     this.render();
     if (this.root.querySelector(".inv-truck") === null) throw new Error("Inventory view is not rendered");
-    this.scale.settle(key, () => room.overflow(this.root), () => this.render());
+    if (this.head) this.fitBench(box, key);
+    else this.fitHosted(box, key);
   }
 
-  private fitKeyOf(size: string): string {
+  private fitKeyOf(box: HTMLElement): string {
     const w = this.host.world();
-    return [this.mine(w).id, this.shown(w).chassisId, this.truck ?? "", this.loot ?? "", uiSize().toLayer(1), size].join("|");
+    const me = gridOf(this.shown(w));
+    const layer = uiSize().layerSize();
+    const room = this.head ? `${layer.width}x${layer.height}` : `${box.offsetHeight}`;
+    return [this.mine(w).id, me.w, me.h, this.shown(w).chassisId, this.truck ?? "", this.loot ?? "", uiSize().toLayer(1), layer.width, room, this.head ? "bench" : "hosted"].join("|");
+  }
+
+  private fitHosted(box: HTMLElement, key: string): void {
+    const me = this.shown(this.host.world());
+    const truck = truckMeters(me.chassisId, gridOf(me));
+    const height = gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
+    const stacked = phoneMode() || uiRoot().classList.contains("narrow");
+    this.scale.apply(key, stacked ? stackedLayout(height, truck) : chooseLayout([{ columns: 1, width: hostedWidth(box, this.root), height }], truck), null);
+    this.render();
+  }
+
+  private fitBench(frame: HTMLElement, key: string): void {
+    const w = this.host.world();
+    const me = this.shown(w);
+    const rooms = benchRooms(frame, this.root, this.gridEl);
+    const layout = chooseLayout(rooms, truckMeters(me.chassisId, gridOf(me)));
+    this.scale.apply(key, layout, this.targetLayout(w, layout));
+    this.render();
+    trimFrame(frame, rooms[0].height - gridSize(this.scale.mine).height);
+    uiRoot().style.setProperty("--inv-frame-w", `${frame.offsetWidth}px`);
+  }
+
+  private targetLayout(w: World, layout: GridLayout): GridLayout | null {
+    const target = w.vehicles.find((v) => v.id === this.truck);
+    const room = target ? targetRoom(this.root, layout.columns === 2 ? 0.5 : 1) : null;
+    return target && room ? chooseLayout([room], truckMeters(target.chassisId, gridOf(target))) : null;
   }
 
   setLoot(stockId: string | null): void {
@@ -257,28 +258,56 @@ export class InventoryView {
     this.gridEl = grid;
     this.showFan(me, this.selectedGun(me));
     this.drawPreview(grid, me);
-    this.root.replaceChildren(
+    const error = this.error ? el("div", { class: "bad" }, this.error) : el("div");
+    this.root.replaceChildren(...(this.head ? [this.benchEl(w, this.head, grid, error)] : [this.hostedEl(w, grid), error]));
+    return this.root;
+  }
+
+  private hostedEl(w: World, grid: HTMLElement): HTMLElement {
+    return el(
+      "div",
+      { class: "inv-wrap" },
+      el("div", { class: "inv-truck" }, el("div", { class: "truck-shell" }, grid)),
       el(
         "div",
-        { class: "inv-wrap" },
-        el(
-          "div",
-          { class: "inv-truck" },
-          el("div", { class: "truck-shell" }, grid),
-        ),
-        el(
-          "div",
-          { class: "inv-side" },
-          ...this.refitBanner(w),
-          ...this.sideList(w),
-          ...(this.dumpZone ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
-          this.inspection,
-        ),
-        ...(this.truck ? [this.truckEl(w, this.truck)] : []),
+        { class: "inv-side" },
+        ...this.jobBlock(w),
+        ...this.sideList(w),
+        ...(this.dumpZone && phoneMode() ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
+        this.inspection,
       ),
-      this.error ? el("div", { class: "bad" }, this.error) : el("div"),
+      ...(this.truck ? [this.truckEl(w, this.truck)] : []),
     );
-    return this.root;
+  }
+
+  private benchEl(w: World, head: BenchHead, grid: HTMLElement, error: HTMLElement): HTMLElement {
+    const me = this.mine(w);
+    const budget = budgetGroup(w, me, this.selection(w)?.item ?? null);
+    const two = this.scale.columns === 2;
+    const name = el("h3", { class: "inv-truck-name" }, chassisName(chassisDef(me.chassisId).id));
+    const middle = el("div", { class: "inv-middle" }, el("div", { class: "inv-band" }, two ? head.title : null), name, el("div", { class: "inv-truck" }, grid));
+    const close = el("div", { class: "inv-band close-band" }, head.close);
+    return two ? this.twoColumns(w, me, middle, close, budget, error) : this.threeColumns(w, me, head, middle, close, budget, error);
+  }
+
+  private threeColumns(w: World, me: Vehicle, head: BenchHead, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
+    return el(
+      "div",
+      { class: "inv-bench" },
+      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
+      middle,
+      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
+    );
+  }
+
+  private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
+    const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)));
+  }
+
+  private sourceList(w: World): HTMLElement[] | null {
+    if (!this.loot && !this.truck) return null;
+    return [...this.sideList(w), ...(this.truck ? [this.truckEl(w, this.truck)] : [])];
   }
 
   private itemEl(w: World, it: GridItem): HTMLElement {
@@ -389,7 +418,7 @@ export class InventoryView {
       this.selectedItem = null;
       this.inspection.replaceChildren();
     } else if (selection.own) this.showItem(w, selection.item, selection.mounted);
-    else this.showTruckItem(w, selection.item, false);
+    else this.showTruckItem(w, selection.item);
   }
 
   selectedPart(): PartInstance | null {
@@ -440,23 +469,12 @@ export class InventoryView {
     return truckFor(w, this.gridTruck ?? undefined);
   }
 
-  private refitBanner(w: World): HTMLElement[] {
-    const me = this.mine(w);
-    const running = me.job?.kind === "refit" ? [this.bannerEl(t("inv.refitLeft", { n: refitTurnsLeft(w, me) }), t("inv.cancelRefit"), disabledWith(this.look(), () => this.run(cancelRefit)), t("inv.cancelRefitTitle"))] : [];
-    if (Object.keys(this.plan).length === 0) return running;
-    return [
-      ...running,
-      el(
-        "div",
-        { class: "inv-refit" },
-        el("button", { class: "btn-s", ...disabledWith(this.look(), () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined))) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
-        el("button", { class: "btn-s", onclick: () => this.cancelPlan() }, t("inv.cancelPlan")),
-      ),
-    ];
+  private jobBlock(w: World): HTMLElement[] {
+    return jobBlock(this.cardHost(w));
   }
 
-  private bannerEl(text: Msg, label: Msg, action: ReturnType<typeof disabledWith>, title?: Msg): HTMLElement {
-    return el("div", { class: "inv-refit" }, el("span", {}, text), el("button", { title, ...action }, label));
+  private cardHost(w: World): CardHost {
+    return { world: w, me: this.mine(w), shown: this.shown(w), plan: this.plan, truckId: this.gridTruck ?? undefined, look: this.look(), instant: this.instant, dumpZone: this.dumpZone, run: (cmd) => this.run(cmd), rotate: () => this.rotateHeld(), cancelPlan: () => this.cancelPlan() };
   }
 
   private cancelPlan(): void {
@@ -483,18 +501,17 @@ export class InventoryView {
     return !this.instant && truckFor(w, this.gridTruck ?? undefined).id === w.player.vehicleId ? shopAt(w) : null;
   }
 
-  private loreParagraph(item: GridItem): HTMLElement {
-    return el("p", { class: "dim" }, itemLore(itemLookId(item)));
+  private cardHead(w: World, item: GridItem): HTMLElement {
+    return el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), item.kind === "part" ? conditionTag(item.part) : null));
+  }
+
+  private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
+    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted)), ...(actions.length ? [el("div", { class: "action-rows" }, ...actions)] : []));
+    if (!phoneMode() && !this.head) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
-    this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
-      el("div", { class: "inv-actions" }, ...this.itemActions(w, item, mounted)),
-      ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
-      this.loreParagraph(item),
-    );
-    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    this.showCard(w, this.mine(w), item, mounted, itemActions(this.cardHost(w), item, mounted));
   }
 
   hintMounts(cells: readonly Cell[] | null): void {
@@ -503,106 +520,8 @@ export class InventoryView {
     else delete this.gridEl.dataset.hint;
   }
 
-  private itemActions(w: World, item: GridItem, mounted: boolean): HTMLElement[] {
-    if (item.kind !== "part") return this.cargoActions(w, item);
-    if (!this.mine(w).items.some((it) => it.id === item.id)) return [];
-    const buttons: (HTMLElement | null)[] = [
-      canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
-      shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
-      partDef(item.part.defId).kind !== "core" && this.mine(w).id === w.player.vehicleId
-        ? this.stripButton(w, this.mine(w), item.part)
-        : null,
-    ];
-    return buttons.filter((b): b is HTMLElement => b !== null);
-  }
-
-  private patchButton(
-    w: World,
-    me: Vehicle,
-    part: PartInstance,
-  ): HTMLElement | null {
-    if (isJunk(part)) return null;
-    if (!fieldPatchable(part)) return shopOnlyPatch(part);
-    const plan = repairPlan(w, me, part.id);
-    if (plan.needed === 0) return null;
-    const reason = patchBlocker(w, me, part);
-    return el(
-      "button",
-      {
-        class: "inv-patch",
-        title: reason ? undefined : t("inv.patchYield", { parts: plan.parts, needed: plan.needed, hp: Math.round(plan.hp) }),
-        onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? reason, () => this.run((world) => startRepair(world, part.id))),
-      },
-      t("inv.patchLabel", { turns: plan.turns, parts: plan.parts }),
-    );
-  }
-
-  private atOutpost(w: World): boolean {
-    return reachedOutpostAt(w, this.mine(w)) !== null;
-  }
-
-  private repairButton(w: World, part: PartInstance): HTMLElement | null {
-    if (!isJunk(part)) return this.garageButton(w, part, "repair", t("inv.repairTitle", { hp: maxHp(part) }));
-    return canRebuild(w, part) ? this.garageButton(w, part, "rebuild", t("inv.rebuildTitle")) : null;
-  }
-
-  private garageButton(w: World, part: PartInstance, action: "repair" | "rebuild", title: Msg): HTMLElement | null {
-    const cost = partRepairCost(w, part);
-    if (cost === 0) return null;
-    const short = w.player.money < cost;
-    return el(
-      "button",
-      {
-        class: "inv-patch",
-        title: short ? undefined : title,
-        onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? (short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null), () =>
-          this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
-        ),
-      },
-      pricedEl(t(`inv.verb.${action}`), cost),
-    );
-  }
-
-  private stripButton(
-    w: World,
-    me: Vehicle,
-    part: PartInstance,
-  ): HTMLElement {
-    return el(
-      "button",
-      {
-        class: "inv-patch",
-        onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? stripBlocker(w, me) ?? stripRoomText(w, me, part), () => this.run((world) => startStrip(world, part.id))),
-      },
-      t("inv.stripLabel", { turns: stripTurns(w, me, part.id), parts: stripYield(me, part) }),
-    );
-  }
-
   private itemTitle(w: World, item: GridItem): Msg {
     return item.kind === "parcel" ? parcelTitle(w, item) : itemName(item);
-  }
-
-  private cargoActions(w: World, item: Exclude<GridItem, { kind: "part" }>): HTMLElement[] {
-    const me = this.mine(w);
-    return item.kind === "good" && item.good === "scrap" && vehicleHasPerk(w, me, "welder") ? [this.weldButton(w, me)] : [];
-  }
-
-  private weldButton(w: World, me: Vehicle): HTMLElement {
-    const { scrap, turns } = PERK_NUMBERS.welder;
-    const reason = weldBlocker(w, me);
-    return el(
-      "button",
-      {
-        class: "inv-patch",
-        title: reason ? undefined : t("inv.weldSpends", { scrap }),
-        onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(this.look() ?? reason, () => this.run((world) => startWeld(world))),
-      },
-      t("inv.weldLabel", { part: partName(PERK_NUMBERS.welder.part), turns }),
-    );
   }
 
   private storageEl(w: World): HTMLElement {
@@ -803,13 +722,9 @@ export class InventoryView {
     return node;
   }
 
-  private showTruckItem(w: World, item: GridItem, mounted: boolean): void {
-    this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
-      ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
-      this.loreParagraph(item),
-    );
-    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+  private showTruckItem(w: World, item: GridItem): void {
+    const rotates = touchMode() && !phoneMode();
+    this.showCard(w, playerVehicle(w), item, false, rotates ? actionRow(rotateButton(() => this.rotateHeld(), this.look()), []) : []);
   }
 
   private startDrag(
@@ -883,7 +798,15 @@ export class InventoryView {
     this.holdId = at.pointerId;
     this.holdChanged();
     this.error = null;
+    this.showDragged(source, item);
     this.onMove(at);
+  }
+
+  private showDragged(source: ItemSource, item: GridItem): void {
+    if (source !== "grid" || phoneMode()) return;
+    const w = this.host.world();
+    const shown = this.shown(w);
+    this.showItem(w, item, item.kind === "part" && isMounted(shown.chassisId, item));
   }
 
   private markSelected(node: HTMLElement, item: GridItem): void {
@@ -1247,6 +1170,24 @@ export class InventoryScreen {
 
   render(): void {
     if (!this.isOpen()) return;
+    if (phoneMode()) this.renderStacked();
+    else this.renderBench();
+  }
+
+  private closeButton(): HTMLElement {
+    return el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("inv.close"), "I"));
+  }
+
+  private renderBench(): void {
+    this.view.holdChanged = () => {};
+    this.view.setHead({ title: el("h3", { class: "inv-title" }, t("inv.title")), close: this.closeButton() });
+    this.root.replaceChildren(this.view.render());
+    this.view.fitTo(this.root);
+  }
+
+  private renderStacked(): void {
+    this.view.setHead(null);
+    this.root.style.removeProperty("height");
     const truck = el("div", { class: "inv-body" }, this.view.render());
     const rotate = el(
       "button",
@@ -1263,11 +1204,7 @@ export class InventoryScreen {
     );
     this.view.holdChanged = () => this.markRotate(rotate);
     this.markRotate(rotate);
-    this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("inv.close"), "I")),
-      el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate),
-      truck,
-    );
+    this.root.replaceChildren(this.closeButton(), el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate), truck);
     this.view.fitTo(truck);
   }
 }
@@ -1277,7 +1214,7 @@ function featureChip(chassisId: string): HTMLElement | null {
   return name ? chipEl(name, { title: chassisAbilityLine(chassisId) ?? name }) : null;
 }
 
-export function truckChips(w: World, opts: { freeCells: boolean; feature?: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
+export function truckChips(w: World, opts: { feature?: boolean } = {}, truckId?: string): HTMLElement {
   const me = truckFor(w, truckId);
   const mass = loadMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
@@ -1287,7 +1224,6 @@ export function truckChips(w: World, opts: { freeCells: boolean; feature?: boole
     chipEl(chassisName(chassisDef(me.chassisId).id), { icon: "truck" }),
     opts.feature === false ? null : featureChip(me.chassisId),
     chipEl(moneyEl(w.player.money)),
-    opts.freeCells ? chipEl(t("inv.freeCells", { n: freeCells(me) }), { icon: "cells", title: t("inv.freeCellsTitle") }) : null,
     chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
       icon: "mass",
       readout: true,
@@ -1302,29 +1238,6 @@ function powerChipNode(w: World, me: Vehicle): HTMLElement {
   const chip = powerChip(maxSpeedSteps(w, me), me);
   const cost = chip.cost ? [createIcon("speed"), el("span", { class: "num" }, chip.cost)] : [];
   return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost });
-}
-
-const ROTATE_KEYCAP = "R";
-
-function fieldPatchable(part: PartInstance): boolean {
-  const def = partDef(part.defId);
-  return !isShield(def) || def.fieldRepair !== "none";
-}
-
-function shopOnlyPatch(part: PartInstance): HTMLElement | null {
-  return part.hp < maxHp(part) ? el("button", { class: "inv-patch", ...disabledWith(t("inv.shopOnly"), () => {}) }, t("inv.verb.patch")) : null;
-}
-
-function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: boolean): HTMLElement[] {
-  const kind = partDef(part.defId).kind;
-  const base = mounted ? null : baselinePart(me, kind);
-  const row = conditionRow(part);
-  return [
-    ...(row ? [row] : []),
-    conditionMeter(part),
-    statGrid(diffStats(partStats(w, part), base ? partStats(w, base) : null)),
-    base ? el("p", { class: "dim" }, t("inv.against", { part: partName(base.defId) }), conditionTag(base)) : el("span"),
-  ];
 }
 
 function fromButton(e: Event): boolean {

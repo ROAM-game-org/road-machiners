@@ -518,3 +518,110 @@
 :is(#ui, #report) .quest-choice.seen:hover {
   background: var(--surface-hover);
 }
+
+/* A well: the sunk surface of a thin side column. The middle column of a working screen stays open. */
+.well {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-9);
+  padding: var(--space-6);
+  background: var(--surface-sunk);
+}
+.well-group {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* One row form: icon, label, value at the right edge. */
+.stat-row {
+  display: grid;
+  grid-template-columns: var(--icon-m) 1fr auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  font: var(--text-dense) / 1.15 var(--font-mono);
+}
+.stat-row .icon {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
+.stat-row .icon svg {
+  fill: none;
+}
+.stat-row .stat-name {
+  font-family: var(--font-ui);
+}
+.stat-row .stat-val {
+  text-align: right;
+}
+/* A stat row with its bar under it. */
+.meter-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+/* A bar on a well: its track is lighter than the well, so the bar's full length shows. */
+.gauge {
+  position: relative;
+  height: var(--meter-m);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.gauge > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.gauge > .fill {
+  background: var(--ink);
+}
+.gauge.health > .fill {
+  background: var(--good);
+}
+.gauge > .share {
+  background: var(--accent);
+}
+.gauge > .after {
+  background: var(--accent-wash);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+/* An action row: one verb button of a width shared by the list, then its cost or the reason it is off. */
+.action-rows {
+  flex: none;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.action-rows > button {
+  width: 100%;
+  white-space: nowrap;
+}
+.cost {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  min-width: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-dense);
+}
+.cost.off {
+  color: var(--ink-faint);
+}
+.cost-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+}
+.cost-item .icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.cost-item .icon svg {
+  fill: none;
+}
