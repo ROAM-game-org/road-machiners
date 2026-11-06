@@ -54,7 +54,7 @@ function zeroBySkill(): Record<SkillId, number> {
 }
 
 function freshProgress(): SkillProgress {
-  return { xp: 0, xpToday: zeroBySkill(), xpWindow: 0, repeats: {} };
+  return { xp: 0, xpWindow: 0, repeats: {} };
 }
 
 export function parseTraceLine(value: unknown): TraceLine {
@@ -90,9 +90,11 @@ export function parseRunEnd(value: unknown): RunEnd | RunFailure | null {
 
 export function targetMisses(curve: Curve, archetype: Archetype, turns: number): string[] {
   if (!Object.hasOwn(MAIN_SKILL, archetype)) throw new Error(`No main skill entry for archetype ${archetype}`);
-  const kind = MAIN_SKILL[archetype] === null ? 'every' : 'one';
-  const table: Partial<Record<number, number>> = TARGET_DAYS[kind];
-  return Object.entries(table).flatMap(([rank, day]) => levelMiss(kind, Number(rank), day!, curve.pooled[kind][Number(rank) - 1], turns));
+  const kinds: ('one' | 'every')[] = MAIN_SKILL[archetype] === null ? ['every'] : ['every', 'one'];
+  return kinds.flatMap((kind) => {
+    const table: Partial<Record<number, number>> = TARGET_DAYS[kind];
+    return Object.entries(table).flatMap(([rank, day]) => levelMiss(kind, Number(rank), day!, curve.pooled[kind][Number(rank) - 1], turns));
+  });
 }
 
 function levelMiss(kind: 'one' | 'every', level: number, day: number, reached: number | null, turns: number): string[] {

@@ -558,7 +558,6 @@ function repairPlayer(world: World): void {
   player.notes = player.notes.filter((n) => isNoteId(n.id));
   for (const skill of SKILL_IDS) {
     if (player.ranks[skill] === undefined) player.ranks[skill] = 0;
-    if (player.xpToday[skill] === undefined) player.xpToday[skill] = 0;
   }
   player.perks = player.perks.filter(isPerkId);
   dropGoneSources(player);

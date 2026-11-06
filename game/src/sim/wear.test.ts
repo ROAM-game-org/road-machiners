@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type ArmorDef, type CargoDef, type EngineDef, type ScannerDef, type WeaponDef } from '../data/parts';
+import { XP_RULES, XP_SOURCES } from '../data/skills';
 import { CONDITION, WEAR } from '../data/wear';
 import { REGION } from '../data/region';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
@@ -377,12 +378,26 @@ describe('rough ground practice', () => {
     expect(event.difficulty).toBeCloseTo(roughness('hardpan'));
   });
 
-  it('pays nothing on the road', () => {
+  it('pays the player for tiles driven on the road, at the easiest difficulty', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     drive(me, 6);
     applyWear(w);
-    expect(practiceOf(w, 'roughTiles')).toEqual([]);
+    const [event] = practiceOf(w, 'roughTiles');
+    expect(event.amount).toBeCloseTo(6);
+    expect(event.difficulty).toBe(0);
+    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.easy);
+  });
+
+  it('pays the roughest ground at the hardest difficulty', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    setTerrainUnder(w, me, 6, 'scree');
+    drive(me, 6);
+    applyWear(w);
+    const [event] = practiceOf(w, 'roughTiles');
+    expect(event.difficulty).toBe(1);
+    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.hard);
   });
 
   it('pays nothing while the player is towed', () => {

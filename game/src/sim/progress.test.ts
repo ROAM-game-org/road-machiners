@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { TIME, workDayOf } from '../data/time';
 import { BASIC_IDS, BASICS, MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import {
-  affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, skillEffect,
-  skillLevel, vehicleHasPerk, xpFor, xpTodayOf, xpWindowStart,
+  accrueXp, affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, skillEffect,
+  skillLevel, vehicleHasPerk, xpFor,
 } from './progress';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld } from './testkit';
@@ -122,7 +122,7 @@ describe('buying a rank', () => {
 });
 
 describe('xpFor', () => {
-  const fresh = { xp: 0, xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 }, xpWindow: 0, repeats: {} };
+  const fresh = { xp: 0, xpWindow: 0, repeats: {} };
 
   it('pays an unscaled source its weight per unit', () => {
     expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
@@ -132,20 +132,8 @@ describe('xpFor', () => {
     expect(() => xpFor(fresh, 'profit', 100, 0.5, 'bowl:salt', 1)).toThrow();
   });
 
-  it('pays past the daily cap at the over-cap rate', () => {
-    const capped = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap } };
-    expect(xpFor(capped, 'profit', 100, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 100 * XP_RULES.overCap);
-  });
-
-  it('splits a gain that crosses the daily cap', () => {
-    const near = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap - 10 } };
-    const units = 100 / XP_SOURCES.profit.weight;
-    expect(xpFor(near, 'profit', units, null, 'bowl:salt', 1)).toBeCloseTo(10 + 90 * XP_RULES.overCap);
-  });
-
-  it('forgets the cap on a new day', () => {
-    const capped = { ...fresh, xpToday: { ...fresh.xpToday, social: XP_RULES.dailyCap } };
-    expect(xpFor(capped, 'profit', 10, null, 'bowl:salt', 1 + TIME.workDayTurns)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
+  it('pays a gain in full however much the same family earned already', () => {
+    expect(xpFor(fresh, 'profit', 2000, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 2000);
   });
 
   it('rejects negative amounts', () => {
@@ -216,11 +204,10 @@ describe('repeats on one target', () => {
 });
 
 describe('practice', () => {
-  it('adds XP to the pool and the family day and logs it', () => {
+  it('adds XP to the pool and logs it', () => {
     const w = emptyWorld();
     practice(w, 'discover', 1, null, 'bowl');
     expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight);
-    expect(w.player.xpToday.perception).toBeCloseTo(XP_SOURCES.discover.weight);
     expect(w.player.xpBySource.discover).toBeCloseTo(XP_SOURCES.discover.weight);
     expect(w.events).toContainEqual({ t: 'practice', source: 'discover', amount: 1, difficulty: null, target: 'bowl', xp: XP_SOURCES.discover.weight });
   });
@@ -233,21 +220,22 @@ describe('practice', () => {
     expect(w.events.some((e) => e.t === 'skillUp')).toBe(false);
   });
 
-  it('keeps the daily cap per activity family', () => {
+  it('pays every practice of a day in full', () => {
     const w = emptyWorld();
-    w.player.xpToday.social = XP_RULES.dailyCap;
     practice(w, 'discover', 1, null, 'bowl');
-    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight);
     practice(w, 'call', 1, null, 'v2:directions');
-    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight + XP_SOURCES.call.weight * XP_RULES.overCap);
+    practice(w, 'profit', 2000, null, 'bowl:salt');
+    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight + XP_SOURCES.call.weight + XP_SOURCES.profit.weight * 2000);
   });
 
-  it('resets the daily count on a new day', () => {
-    const w = emptyWorld();
-    w.player.xpToday.social = XP_RULES.dailyCap;
-    w.turn += TIME.workDayTurns;
-    practice(w, 'profit', 10, null, 'bowl:salt');
-    expect(w.player.xpToday.social).toBeCloseTo(XP_SOURCES.profit.weight * 10);
+  it('pays driving one region all day less than a quarter of the same tiles over new regions', () => {
+    const grinder = { xp: 0, xpWindow: 0, repeats: {} };
+    const walker = { xp: 0, xpWindow: 0, repeats: {} };
+    for (let turn = 1; turn <= 450; turn++) {
+      accrueXp(grinder, 'roughTiles', 3, 0.5, 'home', turn);
+      accrueXp(walker, 'roughTiles', 3, 0.5, `region${turn % 150}`, turn);
+    }
+    expect(grinder.xp).toBeLessThan(walker.xp / 4);
   });
 });
 
@@ -340,33 +328,15 @@ describe('perks on vehicles', () => {
 });
 
 describe('the XP window', () => {
-  const FULL = XP_SOURCES.profit.weight * 10;
-
-  it('holds the cap through a whole work day of turns and opens a new window on its next turn', () => {
+  it('prunes the repeats once the work day changes and keeps the XP', () => {
     const w = emptyWorld();
-    w.player.xpToday.social = XP_RULES.dailyCap;
-    w.player.xpWindow = workDayOf(1);
-    w.turn = TIME.workDayTurns;
+    practice(w, 'contract', 1, null, 'bowl');
+    const xp = w.player.xp;
+    expect(w.player.repeats).toHaveProperty('contract:bowl');
+    w.turn += TIME.workDayTurns * 40;
     practice(w, 'profit', 10, null, 'bowl:salt');
-    expect(w.player.xpToday.social).toBeCloseTo(XP_RULES.dailyCap + FULL * XP_RULES.overCap);
-    w.turn = TIME.workDayTurns + 1;
-    practice(w, 'profit', 10, null, 'bowl:salt2');
-    expect(w.player.xpToday.social).toBeCloseTo(FULL);
-  });
-
-  it('starts at the first turn of the work day the turn is in', () => {
-    const w = emptyWorld();
-    w.turn = TIME.workDayTurns + 40;
-    expect(xpWindowStart(w)).toBe(TIME.workDayTurns + 1);
-  });
-});
-
-describe('xpTodayOf', () => {
-  it('counts only XP earned on the current day', () => {
-    const w = emptyWorld();
-    practice(w, 'discover', 1, null, 'bowl');
-    expect(xpTodayOf(w, 'perception')).toBeCloseTo(XP_SOURCES.discover.weight);
-    w.turn += TIME.workDayTurns;
-    expect(xpTodayOf(w, 'perception')).toBe(0);
+    expect(w.player.xpWindow).toBe(workDayOf(w.turn));
+    expect(w.player.repeats).not.toHaveProperty('contract:bowl');
+    expect(w.player.xp).toBeGreaterThan(xp);
   });
 });

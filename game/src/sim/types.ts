@@ -518,7 +518,6 @@ export type Player = {
   deeds: Deed[];
   xp: number;
   ranks: Record<SkillId, number>;
-  xpToday: Record<SkillId, number>;
   xpWindow: number;
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;

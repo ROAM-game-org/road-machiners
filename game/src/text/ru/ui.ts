@@ -277,7 +277,6 @@ export const UI: Translation<typeof EN> = {
   'character.buyShort': 'Купить за {cost} опыта',
   'character.colPerk': 'Навык {rank} ранга',
   'character.colBasic': 'Прием {rank} ранга',
-  'character.colToday': 'С {time}, до {cap} опыта',
   'stat.value': '{text} {unit}',
   'stat.valueTight': '{text}{unit}',
   'actBlock.knockedOut': 'Без сознания',

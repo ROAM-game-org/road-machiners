@@ -948,3 +948,9 @@ export function withGoodsStore(world: SavedJson): SavedJson {
 export function withProjectileFlights(world: SavedJson): SavedJson {
   return { ...world, combat: { now: 0, flights: [] } };
 }
+
+export function withoutXpToday(world: SavedJson): SavedJson {
+  const player = { ...(world.player as SavedJson) };
+  delete player.xpToday;
+  return { ...world, player };
+}
