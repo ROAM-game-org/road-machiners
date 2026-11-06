@@ -130,3 +130,48 @@
 #ui .condition-tip[data-side="below"] {
   transform: translate(-50%, var(--space-4));
 }
+.cond-plan,
+.cond-plan-turned {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cond-plan-turned {
+  transform-origin: 50% 50%;
+  transform: rotate(180deg);
+}
+.cond-plan-part {
+  position: absolute;
+  box-sizing: border-box;
+  filter: var(--cond-glow-edge);
+}
+.cond-plan-part > .icon {
+  width: 100%;
+  height: 100%;
+  transform: rotate(180deg);
+}
+.cond-plan-part[data-tier="hurt"] {
+  background: var(--garage-tint-hurt);
+  filter: var(--cond-glow-edge-damaged) var(--cond-halo-hurt);
+}
+.cond-plan-part[data-tier="crit"] {
+  background: var(--garage-tint-crit);
+  filter: var(--cond-glow-edge-damaged) var(--cond-halo-crit);
+}
+.cond-plan-part[data-tier="broken"] {
+  background: var(--cond-hatch), var(--garage-tint-broken);
+  filter: var(--cond-glow-edge-damaged) var(--cond-halo-broken);
+}
+.cond-plan-flash,
+.cond-plan-pick {
+  position: absolute;
+  pointer-events: none;
+}
+.cond-plan-flash {
+  background: var(--alarm);
+}
+.cond-plan-pick {
+  background: var(--cond-cells);
+  box-shadow: inset 0 0 0 var(--space-1) var(--ink-bright);
+}
