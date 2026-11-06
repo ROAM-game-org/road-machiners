@@ -392,6 +392,17 @@ describe('shadows of tall parts', () => {
     expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans([{ from: shadow.to, to: 135 }]));
   });
 
+  it('a gun ghost held past the grid edge still gets spans and blockers', () => {
+    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
+    const gun = itemOf(v, 'mg');
+    for (const [x, y] of [[-2, 17], [-1, 12], [3, -1], [200, 5], [4, 300]]) {
+      const ghost = { ...gun, x, y };
+      expect(() => gunSpans(v, ghost)).not.toThrow();
+      expect(gunSpans(v, ghost)).toEqual(gunSpans(v, ghost));
+      expect(() => gunBlockers(v, ghost)).not.toThrow();
+    }
+  });
+
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
     const w = emptyWorld();
     const v = truckWith(w, 'hauler', []);

@@ -551,13 +551,10 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   }));
 }
 
-const SHADOW_KEY_RANGE = 128;
-const cellShadows = new Map<number, readonly FireSpan[]>();
+const cellShadows = new Map<string, readonly FireSpan[]>();
 
 function cellShadow(x: number, y: number, ox: number, oy: number): readonly FireSpan[] {
-  const parts = [x, y, ox * 2, oy * 2];
-  if (!parts.every((n) => Number.isInteger(n) && n >= 0 && n < SHADOW_KEY_RANGE)) throw new Error(`Shadow cell ${x},${y} from ${ox},${oy} is off the grid`);
-  const key = parts.reduce((acc, n) => acc * SHADOW_KEY_RANGE + n, 0);
+  const key = `${x},${y},${ox},${oy}`;
   let pieces = cellShadows.get(key);
   if (!pieces) {
     pieces = Object.freeze(buildCellShadow(x, y, ox, oy).map((piece) => Object.freeze(piece)));
@@ -599,9 +596,14 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
   return merged;
 }
 
+function cellsOnGrid(chassisId: string, item: GridItem): { x: number; y: number }[] {
+  const { w, h } = baseGrid(chassisId);
+  return itemCells(item).filter((c) => c.x >= 0 && c.x < w && c.y >= 0 && c.y < h);
+}
+
 function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
   const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
-  if (tall.length === 0) return tall;
+  if (tall.length === 0 || cellsOnGrid(v.chassisId, gun).length === 0) return [];
   const reach = floorUnder(v.chassisId, gun) + GUN_CLEARANCE;
   return tall.filter((it) => topOf(v.chassisId, it) > reach);
 }
@@ -620,7 +622,7 @@ function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, 
 
 function floorUnder(chassisId: string, item: GridItem): number {
   return cachedHeight('floor', chassisId, item, () => {
-    const floor = highestUnder(chassisId, cellRect(chassisId, itemCells(item)));
+    const floor = highestUnder(chassisId, cellRect(chassisId, cellsOnGrid(chassisId, item)));
     if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
     return floor;
   });
