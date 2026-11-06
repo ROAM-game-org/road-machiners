@@ -40,8 +40,16 @@ function stubDom(): void {
     createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
     getElementById: () => new FakeNode("div"),
   });
+  vi.stubGlobal("getComputedStyle", () => ({ borderLeftWidth: "0", borderRightWidth: "0" }));
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("performance", { now: () => 0 });
   vi.stubGlobal("window", { addEventListener: (type: string, fn: (e: unknown) => void) => type === "keydown" && keyHandlers.push(fn), innerWidth: 1280, innerHeight: 720 });
 }
+
+const line = (text: string, tags: string[] = []) => ({ text, tags });
+const sceneOf = (lines: QuestLive["lines"], choices: string[] = [], lang: QuestLive["lang"] = "en", ink = "{}"): QuestLive => ({ quest: "bowl_hattie", lang, ink, lines, choices, costs: choices.map(() => null), checks: choices.map(() => null) });
+const THREE_PAGES = sceneOf([line("a1"), line("a2", ["page"]), line("a3", ["page"])]);
+const textOf = (node: FakeNode | string): string => (typeof node === "string" ? node : node.children.map(textOf).join(" "));
 
 const ENDED: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 
@@ -66,11 +74,59 @@ describe("quest window and the world", () => {
 
   it("lets a failing commit propagate and hides the window", () => {
     const boom = new Error("refresh broke");
-    const { root, world } = build(() => { throw boom; });
+    const { screen, root, world } = build(() => { throw boom; });
+    screen.render();
     const press = () => { for (const fn of keyHandlers) fn({ code: "Digit1", ctrlKey: false, metaKey: false, altKey: false, stopImmediatePropagation: () => {}, preventDefault: () => {} }); };
     expect(press).toThrow(boom);
     expect(world().player.quests.live).toBeNull();
     expect(root.style.display).toBe("none");
+  });
+
+  const space = () => { const seen = { stopped: false }; for (const fn of keyHandlers) fn({ code: "Space", ctrlKey: false, metaKey: false, altKey: false, stopImmediatePropagation: () => void (seen.stopped = true), preventDefault: () => {} }); return seen; };
+  const digit = (code: string) => { for (const fn of keyHandlers) fn({ code, ctrlKey: false, metaKey: false, altKey: false, stopImmediatePropagation: () => {}, preventDefault: () => {} }); };
+  const withLive = (live: QuestLive | null) => { const b = build(() => {}); const w = b.world(); w.player.quests.live = live; return b; };
+  const setLive = (b: ReturnType<typeof build>, live: QuestLive | null) => { b.world().player.quests.live = live; };
+
+  it("draws a scene the window has not drawn yet and acts on no press until it shows", () => {
+    const b = withLive(THREE_PAGES);
+    b.screen.render();
+    const reading = b.screen as unknown as { page: number };
+    reading.page = 2;
+    setLive(b, null);
+    b.screen.render();
+    setLive(b, sceneOf([line("b1")]));
+    expect(space).not.toThrow();
+    expect(textOf(b.root)).toContain("b1");
+    expect(reading.page).toBe(0);
+    expect(b.world().player.quests.live?.lines[0].text).toBe("b1");
+  });
+
+  it("never picks a choice of a scene the player has not seen", () => {
+    const b = withLive(THREE_PAGES);
+    b.screen.render();
+    setLive(b, null);
+    b.screen.render();
+    const offer = sceneOf([line("b1")], ["go"]);
+    setLive(b, offer);
+    digit("Digit1");
+    expect(b.world().player.quests.live).toBe(offer);
+    expect(textOf(b.root)).toContain("b1");
+    setLive(b, null);
+    b.screen.render();
+    setLive(b, offer);
+    expect(space().stopped).toBe(true);
+    expect(b.world().player.quests.live).toBe(offer);
+  });
+
+  it("redraws a scene relanguaged with the same ink", () => {
+    const b = withLive(sceneOf([line("hello"), line("more", ["page"])]));
+    b.screen.render();
+    const reading = b.screen as unknown as { page: number };
+    reading.page = 1;
+    setLive(b, sceneOf([line("privet")], [], "ru"));
+    b.screen.render();
+    expect(textOf(b.root)).toContain("privet");
+    expect(reading.page).toBe(0);
   });
 
   it("refuses a click with no quest on view, hides the window and names the fault", () => {

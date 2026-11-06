@@ -134,6 +134,10 @@ async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLIma
 
 const LOOK_KEYS = ['KeyI', 'KeyC', 'KeyJ'];
 
+export function sameScene(drawn: QuestLive | null, live: QuestLive | null): boolean {
+  return !!drawn && !!live && drawn.quest === live.quest && drawn.lang === live.lang && drawn.ink === live.ink;
+}
+
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
@@ -160,7 +164,7 @@ export class QuestScreen {
   ) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
-    this.root.addEventListener('click', (e) => this.refuseClosed(e), true);
+    this.root.addEventListener('click', (e) => this.gateClick(e), true);
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
     window.addEventListener('resize', () => this.restack());
@@ -186,13 +190,12 @@ export class QuestScreen {
   render(): void {
     const live = this.host.world().player.quests.live;
     if (!live) return this.hide();
-    if (live.quest === this.shown?.quest && live.ink === this.shown.ink) return;
+    if (sameScene(this.shown, live)) return;
     this.carry(live);
     this.lastAsk = askOf(this.shown, live, this.asked);
     this.shown = live;
     this.asked = null;
-    this.page = 0;
-    this.paragraph = 0;
+    this.restart();
     this.draw();
   }
 
@@ -205,9 +208,32 @@ export class QuestScreen {
     this.render();
     const pages = pagesOf(questView(this.host.world(), QUESTS).lines).length;
     if (page >= pages) throw new Error(`Quest jump page ${page + 1} is past the last page ${pages}`);
+    this.restart();
     this.page = page;
-    this.paragraph = 0;
     this.draw();
+  }
+
+  private restart(): void {
+    this.page = 0;
+    this.paragraph = 0;
+    this.revealEnd = 0;
+  }
+
+  private drawnIsLive(): boolean {
+    return sameScene(this.shown, this.host.world().player.quests.live);
+  }
+
+  private catchUp(e: Event): void {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    this.render();
+  }
+
+  private pageAt(view: QuestView): readonly QuestLine[] {
+    const pages = pagesOf(view.lines);
+    const page = pages[this.page];
+    if (!page) throw new Error(`Quest ${view.quest} has no page ${this.page + 1}; it has ${pages.length}`);
+    return page;
   }
 
   private carry(live: QuestLive): void {
@@ -231,6 +257,7 @@ export class QuestScreen {
     this.shown = null;
     this.lastAsk = null;
     this.error = null;
+    this.restart();
     this.root.style.display = 'none';
     this.root.replaceChildren();
     this.termTip.hide();
@@ -273,7 +300,7 @@ export class QuestScreen {
 
   private drawInTown(w: World, view: QuestView, town: TownFrame): number {
     const page = view.view === 'page';
-    const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], !page);
+    const drawn = this.drawParagraphs(w, this.pageAt(view), !page);
     const parts = page ? this.townPageParts(w, view, town) : this.townTalkParts(view, town);
     this.root.replaceChildren(
       town.band,
@@ -324,7 +351,7 @@ export class QuestScreen {
 
   private shownLines(view: QuestView): QuestLine[] {
     const pages = pagesOf(view.lines);
-    return [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
+    return [...pages.slice(0, this.page).flat(), ...paragraphsOf(this.pageAt(view)).slice(0, this.paragraph + 1).flat()];
   }
 
   private lookRow(): HTMLElement {
@@ -334,7 +361,7 @@ export class QuestScreen {
 
   private drawTalk(w: World, view: QuestView): number {
     this.artStage.clear();
-    const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], true);
+    const drawn = this.drawParagraphs(w, this.pageAt(view), true);
     const text = el('div', { class: 'quest-talk' }, this.askLine(), ...drawn.nodes);
     this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     return drawn.endMs;
@@ -351,9 +378,8 @@ export class QuestScreen {
   }
 
   private drawPage(w: World, view: QuestView): number {
-    const pages = pagesOf(view.lines);
     const shown = this.shownLines(view);
-    const drawn = this.drawParagraphs(w, pages[this.page], false);
+    const drawn = this.drawParagraphs(w, this.pageAt(view), false);
     const place = this.placeOf(shown, view);
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), text, this.side(w, view));
@@ -388,7 +414,7 @@ export class QuestScreen {
   }
 
   private onLastParagraph(view: QuestView): boolean {
-    return this.paragraph >= paragraphsOf(pagesOf(view.lines)[this.page]).length - 1;
+    return this.paragraph >= paragraphsOf(this.pageAt(view)).length - 1;
   }
 
   private advance(): void {
@@ -435,8 +461,8 @@ export class QuestScreen {
     }
   }
 
-  private refuseClosed(e: MouseEvent): void {
-    if (this.isOpen()) return;
+  private gateClick(e: MouseEvent): void {
+    if (this.isOpen()) return this.drawnIsLive() ? undefined : this.catchUp(e);
     e.stopImmediatePropagation();
     this.hide();
     throw new Error('The quest window took a click with no quest on view');
@@ -454,7 +480,12 @@ export class QuestScreen {
 
   private onKey(e: KeyboardEvent): void {
     if (!this.isOpen() || isBrowserChord(e) || LOOK_KEYS.includes(e.code) || this.lookOver()) return;
+    if (!this.drawnIsLive()) return this.catchUp(e);
     e.stopImmediatePropagation();
+    this.act(e);
+  }
+
+  private act(e: KeyboardEvent): void {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);
     if (index >= 0) this.pickKey(index);
