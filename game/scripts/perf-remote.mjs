@@ -51,7 +51,7 @@ function playOnce(host, scenes) {
   try {
     out = remote(host, `cd ${REMOTE_GAME} & npm run perf -- ${scenes.join(' ')}`.trimEnd());
   } catch (error) {
-    if (!String(error.stdout).includes('\nreport perf-reports')) throw error;
+    if (!String(error.stdout).includes('\nreport perf-reports')) throw new Error(`The bench failed on ${host}, see the lines above`, { cause: error });
     out = String(error.stdout).replaceAll('\r', '');
   }
   console.log(out);

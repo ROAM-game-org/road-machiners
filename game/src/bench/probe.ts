@@ -493,7 +493,15 @@ export class Probe {
   private async settleGpu(records: readonly FrameRecord[]): Promise<void> {
     if (records.some((r) => !this.drew.get(r))) throw new Error('A timed frame drew nothing, so it has no render cost and no GPU time');
     if (!this.gpu.available) return;
-    await this.until(() => records.every((r) => r.gpu !== null), GPU_WAIT_MS, 'GPU timer results');
+    const gl = this.renderer.getContext();
+    const settled = () => {
+      gl.flush();
+      return records.every((r) => r.gpu !== null);
+    };
+    await this.until(settled, GPU_WAIT_MS, 'GPU timer results').catch((error: Error) => {
+      const open = records.filter((r) => r.gpu === null).length;
+      throw new Error(`${error.message}: ${open} of ${records.length} frames open, ${this.pending.length} waiting, ${this.rounds} rounds, context lost ${gl.isContextLost()}`, { cause: error });
+    });
   }
 
   private checkWatchers(): void {
