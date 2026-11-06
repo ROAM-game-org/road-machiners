@@ -1,7 +1,7 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(3, minmax(var(--lcd-cell-w), 1fr)) minmax(var(--lcd-cell-w), auto);
+  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(2, minmax(var(--lcd-cell-w), 1fr)) minmax(var(--lcd-cell-w), 2fr) minmax(var(--lcd-cell-w), auto);
   grid-template-rows: auto auto;
   column-gap: var(--space-5);
   row-gap: var(--space-2);
@@ -9,7 +9,6 @@
   border-top: 2px solid var(--line-bright);
 }
 .instrument-clock {
-  grid-area: clock;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,7 +55,7 @@
 }
 
 .speedometer {
-  grid-area: dial;
+  grid-area: 1 / 1 / span 2;
   align-self: center;
   position: relative;
   display: flex;
@@ -112,17 +111,29 @@
   row-gap: var(--space-2);
   min-width: 0;
 }
+.readout-group[data-group="truck"] {
+  grid-column: 2;
+}
+.readout-group[data-group="driver"] {
+  grid-column: 3;
+}
+.readout-group[data-group="day"] {
+  grid-column: 4;
+}
 .readout-group[data-group="money"] {
+  grid-column: 5;
   align-content: center;
 }
 .readout-group[data-group="money"] .resource {
   grid-row: 1 / span 2;
 }
 .resource[data-resource="heat"] {
-  grid-template-columns: var(--icon-s) minmax(var(--value-w), auto) minmax(0, 10ch);
+  grid-template-columns: var(--icon-s) minmax(var(--value-w), auto) minmax(var(--weather-w), 1fr);
+  --weather-w: 12ch;
 }
 .resource .weather {
   min-width: 0;
+  contain: inline-size;
   overflow: hidden;
   text-overflow: ellipsis;
 }

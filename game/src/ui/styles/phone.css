@@ -205,7 +205,7 @@
   flex-wrap: nowrap;
 }
 #ui.phone .instruments .instrument-actions :is(.truck-controls, .screen-buttons) > * {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   height: var(--touch-target);
   display: flex;
