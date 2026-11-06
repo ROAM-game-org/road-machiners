@@ -147,6 +147,10 @@ async function freshGame(browser, viewport) {
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#report .feedback')).display === 'none'), `${viewport.name}: the page report corner is hidden in play`);
+  const turn = await page.evaluate(() => window.__ROAM__.state.turn);
+  await page.evaluate(() => window.__ROAM__.endTurn());
+  await page.waitForFunction((from) => window.__ROAM__.state.turn > from || document.body.innerText.includes('The game crashed'), turn, { timeout: BOOT_LIMIT_MS });
+  expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen after the first turn`);
   expect(errors.length === 0, `${viewport.name}: no page errors ${errors.join('; ')}`);
   return page;
 }
@@ -165,7 +169,7 @@ async function savedGame(page, viewport) {
 async function rescue(browser, viewport) {
   const errors = [];
   const page = await open(browser, viewport, errors);
-  page.on('dialog', (d) => d.accept());
+  page.on('dialog', (d) => { errors.push(`native ${d.type()} dialog: ${d.message()}`); d.dismiss(); });
   await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(async () => {
@@ -190,6 +194,7 @@ async function rescue(browser, viewport) {
   await reportReachable(page, viewport, 'rescue');
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.locator('.confirm-dialog').getByRole('button', { name: 'Start new game' }).click();
   await cleared(page);
   const log = await bootLog(page);
   expect(stages(log).includes('Starting a new game'), `${viewport.name}: #boot returns after the choice and reads "Starting a new game"`);
@@ -200,7 +205,7 @@ async function rescue(browser, viewport) {
 async function startMenu(browser, viewport) {
   const errors = [];
   const page = await open(browser, viewport, errors);
-  page.on('dialog', (d) => d.accept());
+  page.on('dialog', (d) => { errors.push(`native ${d.type()} dialog: ${d.message()}`); d.dismiss(); });
   const continueOff = () => page.getByRole('button', { name: 'Continue' }).getAttribute('aria-disabled');
   await page.goto(url);
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
@@ -211,8 +216,10 @@ async function startMenu(browser, viewport) {
   await reportReachable(page, viewport, 'start-menu');
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.locator('.confirm-dialog').getByRole('button', { name: 'Start new game' }).click();
   await cleared(page);
   expect(stages(await bootLog(page)).includes('Starting a new game'), `${viewport.name}: New game from the start menu reads "Starting a new game"`);
+  expect(errors.length === 0, `${viewport.name}: start menu has no page errors ${errors.join('; ')}`);
   await page.evaluate(() => (window.__bootLog = []));
   await page.reload();
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });

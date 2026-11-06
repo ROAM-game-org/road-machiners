@@ -2,42 +2,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WORLD_SETTINGS } from "../data/modes";
 import type { WorldSettings } from "../sim/types";
 import { settingDescription, settingName } from "../text/names";
-import { resolve } from "../text/resolve";
 import type { BootRequest } from "../three/save-slots";
-import { CONFIRM_NEW_GAME, isNewGameOpen, openNewGame } from "./new-game";
+import { resolve } from "../text/resolve";
+import { FakeNode } from "../test/fake-dom";
+import { isConfirmOpen } from "./confirm-dialog";
+import { isNewGameOpen, openNewGame } from "./new-game";
 
-class FakeNode {
-  attrs: Record<string, string> = {};
-  className = "";
-  children: (FakeNode | string)[] = [];
-  listeners = new Map<string, ((e: unknown) => void)[]>();
-  parent: FakeNode | null = null;
-  hidden = false;
-  focused = 0;
-  constructor(readonly tag: string) {}
-  get textContent(): string { return this.children.map((c) => (typeof c === "string" ? c : c.textContent)).join(""); }
-  set textContent(text: string) { this.children = [text]; }
-  append(...c: (FakeNode | string)[]) { for (const n of c) if (typeof n !== "string") n.parent = this; this.children.push(...c); }
-  replaceChildren(...c: (FakeNode | string)[]) { this.children = []; this.append(...c); }
-  remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
-  setAttribute(k: string, v: string) { this.attrs[k] = v; if (k === "hidden") this.hidden = true; }
-  addEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]); }
-  removeEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, (this.listeners.get(type) ?? []).filter((f) => f !== fn)); }
-  focus() { this.focused++; }
-  fire(type: string, e: object = {}) { for (const f of this.listeners.get(type) ?? []) f({ stopPropagation: () => {}, ...e }); }
-  all(pred: (n: FakeNode) => boolean): FakeNode[] {
-    return [...(pred(this) ? [this] : []), ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
-  }
-  button(text: string): FakeNode {
-    const found = this.all((n) => n.tag === "button" && n.textContent.includes(text))[0];
-    if (!found) throw new Error(`No ${text} button`);
-    return found;
-  }
-  slider(id: string): FakeNode {
-    const found = this.all((n) => n.tag === "input" && n.attrs.id === `setting-${id}`)[0];
-    if (!found) throw new Error(`No ${id} slider`);
-    return found;
-  }
+function sliderOf(screen: FakeNode, id: string): FakeNode {
+  const found = screen.all((n) => n.tag === "input" && n.attrs.id === `setting-${id}`)[0];
+  if (!found) throw new Error(`No ${id} slider`);
+  return found;
+}
+
+async function settle(): Promise<void> {
+  await new Promise((r) => setTimeout(r));
+}
+
+async function startAndAnswer(ui: FakeNode, screen: FakeNode, answer: "Start new game" | "Cancel"): Promise<void> {
+  screen.button("Start").fire("click");
+  ui.withClass("confirm-dialog")!.button(answer).fire("click");
+  await settle();
 }
 
 function spyStorage() {
@@ -46,22 +30,23 @@ function spyStorage() {
 
 let last: FakeNode | null = null;
 
-function open(confirmed = true) {
+function open() {
   const ui = new FakeNode("div");
   const win = new FakeNode("window");
   const opener = new FakeNode("button");
   const local = spyStorage();
   const session = spyStorage();
-  vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, activeElement: opener });
+  FakeNode.active = opener;
+  vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, get activeElement() { return FakeNode.active; } });
   vi.stubGlobal("window", Object.assign(win, { localStorage: local, sessionStorage: session }));
   const requests: BootRequest[] = [];
-  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn(), confirm: vi.fn(() => confirmed) };
+  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
   const onClose = vi.fn();
   openNewGame(actions, onClose);
   const screen = ui.all((n) => n.className.split(" ").includes("new-game"))[0];
   last = screen;
   const slide = (id: string, value: number) => {
-    const input = screen.slider(id);
+    const input = sliderOf(screen, id);
     input.fire("input", { target: { value: String(value) } });
   };
   const wroteStorage = () => [local, session].some((s) => s.setItem.mock.calls.length + s.removeItem.mock.calls.length + s.clear.mock.calls.length > 0);
@@ -96,7 +81,7 @@ describe("the New game screen", () => {
     expect(screen.all((n) => n.attrs["data-setting"] === "enemyGearGrowth")).toEqual([]);
     screen.all((n) => n.attrs["data-mode"] === "chaosHighway")[0].fire("click");
     for (const [id, def] of Object.entries(WORLD_SETTINGS)) {
-      const slider = screen.slider(id);
+      const slider = sliderOf(screen, id);
       expect([slider.attrs.min, slider.attrs.max, slider.attrs.step, slider.attrs.value]).toEqual([def.min, def.max, def.step, def.default].map(String));
       const row = screen.all((n) => n.attrs["data-setting"] === id)[0];
       expect(row.textContent).toContain(resolve(settingName(id as keyof WorldSettings), "en"));
@@ -146,62 +131,91 @@ describe("the New game screen", () => {
     expect(stop).toHaveBeenCalled();
   });
 
-  it("restores every default on Reset to defaults", () => {
-    const { screen, slide, requests } = open();
+  it("restores every default on Reset to defaults", async () => {
+    const { ui, screen, slide, requests } = open();
     slide("damage", 2);
     slide("fuelUse", 0.5);
     screen.button("Reset to defaults").fire("click");
-    screen.button("Start").fire("click");
+    await startAndAnswer(ui, screen, "Start new game");
 
     expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
   });
 
-  it("starts without the intro when the Skip the intro switch is on", () => {
-    const { screen, requests } = open();
+  it("starts without the intro when the Skip the intro switch is on", async () => {
+    const { ui, screen, requests } = open();
     expect(screen.button("Skip the intro").attrs["aria-checked"]).toBe("false");
     screen.button("Skip the intro").fire("click");
     expect(screen.button("Skip the intro").attrs["aria-checked"]).toBe("true");
-    screen.button("Start").fire("click");
+    await startAndAnswer(ui, screen, "Start new game");
 
     expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: false }]);
   });
 
-  it("asks before Start and stays open with nothing written when the player says no", () => {
-    const { screen, slide, requests, actions, wroteStorage } = open(false);
+  it("asks before Start and stays open with nothing written when the player says no", async () => {
+    const { ui, screen, slide, requests, actions, wroteStorage } = open();
     slide("damage", 1.5);
     screen.button("Start").fire("click");
+    const dialog = ui.withClass("confirm-dialog")!;
+    expect(dialog.textContent).toContain("Start a new game?");
+    dialog.button("Cancel").fire("click");
+    await settle();
 
-    expect(actions.confirm).toHaveBeenCalledWith(resolve(CONFIRM_NEW_GAME, "en"));
     expect(requests).toEqual([]);
     expect(actions.reload).not.toHaveBeenCalled();
     expect(wroteStorage()).toBe(false);
     expect(isNewGameOpen()).toBe(true);
+    expect(isConfirmOpen()).toBe(false);
   });
 
-  it("leaves exactly one request with the picked values and reloads on a confirmed Start", () => {
-    const { screen, slide, requests, actions } = open(true);
+  it("keeps New game open when Escape answers the dialog", async () => {
+    const { ui, win, screen, requests, actions, onClose } = open();
+    screen.button("Start").fire("click");
+    win.fire("keydown", { code: "Escape" });
+    await settle();
+
+    expect(ui.withClass("confirm-dialog")).toBeNull();
+    expect(isNewGameOpen()).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(requests).toEqual([]);
+    expect(actions.reload).not.toHaveBeenCalled();
+  });
+
+  it("asks once even when Start is pressed twice before the answer", async () => {
+    const { ui, screen, requests, actions } = open();
+    screen.button("Start").fire("click");
+    screen.button("Start").fire("click");
+    ui.withClass("confirm-dialog")!.button("Start new game").fire("click");
+    await settle();
+
+    expect(requests).toHaveLength(1);
+    expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves exactly one request with the picked values and reloads on a confirmed Start", async () => {
+    const { ui, screen, slide, requests, actions } = open();
     slide("damage", 1.5);
     slide("fuelUse", 2);
-    screen.button("Start").fire("click");
+    await startAndAnswer(ui, screen, "Start new game");
 
     expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
     expect(actions.reload).toHaveBeenCalledTimes(1);
   });
 
-  it("starts a Chaos Highway run with the picked enemy gear growth", () => {
-    const { screen, slide, requests } = open(true);
+  it("starts a Chaos Highway run with the picked enemy gear growth", async () => {
+    const { ui, screen, slide, requests } = open();
     screen.all((n) => n.attrs["data-mode"] === "chaosHighway")[0].fire("click");
     slide("enemyGearGrowth", 0.5);
-    screen.button("Start").fire("click");
+    await startAndAnswer(ui, screen, "Start new game");
 
     expect(requests).toEqual([{ new: { mode: "chaosHighway", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 0.5 } }, intro: true }]);
   });
 
-  it("refuses to start with a value off the slider's grid", () => {
-    const { screen, slide, requests } = open(true);
+  it("refuses to start with a value off the slider's grid, before it asks", () => {
+    const { ui, screen, slide, requests } = open();
     slide("supplyUse", 1.1);
 
     expect(() => screen.button("Start").fire("click")).toThrow(/supplyUse/);
+    expect(ui.withClass("confirm-dialog")).toBeNull();
     expect(requests).toEqual([]);
   });
 });

@@ -10,11 +10,14 @@ import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { endTurn, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback } from "./travel";
-import { headingQuat, type VehicleFrame } from "../phys/frames";
+import { headingQuat, restFrames, restWheels, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
 import { standardWorld } from "../test/world-cache";
 import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
+
+const reported = vi.hoisted(() => [] as unknown[]);
+vi.mock("./crash", async (original) => ({ ...(await original<typeof import("./crash")>()), reportError: (error: unknown) => void reported.push(error) }));
 
 const TAIL = 11;
 const NO_DRIVE = {} as DriveSnapshot;
@@ -276,6 +279,17 @@ describe("picked travel speed", () => {
       const turns = new TurnPreparation(TAIL);
       (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
       expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
+    });
+  });
+
+  describe("turn worker failures", () => {
+    it("reports a failure nobody waits for with the worker's message and frames", () => {
+      const turns = new TurnPreparation(TAIL);
+      reported.length = 0;
+      (turns as unknown as { fail(id: number | null, message: string): void }).fail(null, "Error: no route\nrun@worker.js:1:2");
+      const [error] = reported as Error[];
+      expect(error.message).toBe("no route");
+      expect(error.stack).toContain("run@worker.js:1:2");
     });
   });
 
@@ -1043,10 +1057,10 @@ describe("nextSightSample", () => {
 
 describe("the slowdown after a stopped turn", () => {
   const STEP = 1000 / PHYSICS.stepsPerSecond;
-  const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: [{ steer: 0, spin: x, suspension: 0, ground: true }] });
+  const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: restWheels("scout").front.map((w) => ({ ...w, spin: x })) });
   const pose = { pos: { x: TAIL / PHYSICS.metersPerTile, y: 0 }, heading: 0, speed: 1 };
   const tail: Tail = { frames: { a: Array.from({ length: TAIL }, (_, i) => at(i + 1)) }, next: { snapshot: new Uint8Array() } as DriveSnapshot, poses: { a: pose } };
-  const truck = { id: "a", pos: { ...pose.pos }, heading: 0 } as Vehicle;
+  const truck = { id: "a", chassisId: "scout", pos: { ...pose.pos }, heading: 0 } as Vehicle;
   const shownX = (creep: Creep, v = truck) => creep.frameOf(v)!.pos.x;
   const creepOf = (overshootMs = 0) => new Creep(tail, { a: at(0) }, overshootMs);
 
@@ -1087,6 +1101,35 @@ describe("the slowdown after a stopped turn", () => {
   it("stops showing a truck that a rule moved off its tail end", () => {
     expect(creepOf().frameOf({ ...truck, pos: { x: 0, y: 0 } })).toBeUndefined();
     expect(creepOf().frameOf({ ...truck, id: "b" })).toBeUndefined();
+  });
+
+  it("stops showing a truck whose body changed in place", () => {
+    expect(creepOf().frameOf({ ...truck, chassisId: "sorokonoga" })).toBeUndefined();
+  });
+
+  it("starts a turn on its own first frame for a truck swapped to another body, in both directions", () => {
+    for (const [from, to] of [["scout", "sorokonoga"], ["sorokonoga", "scout"]]) {
+      const world = makeSafeWorld();
+      const me = playerVehicle(world);
+      const rebody = (chassisId: string) => Object.assign(me, { chassisId, bend: chassisId === "sorokonoga" ? 0 : undefined });
+      rebody(from);
+      const old = restFrame(world, me);
+      rebody(to);
+      const frames = restFrames(world, me);
+      const travel = new Travel(250, TAIL);
+      const { playback } = travel.beginPlayback(world, { world, result: { frames: { [me.id]: frames }, next: {} } } as never, 0, { [me.id]: old });
+      expect(playback.starts[me.id]).toBeUndefined();
+      expect(travel.playedFrame(me, playback, -0.5)).toEqual(frames[0]);
+    }
+  });
+
+  it("keeps a shown frame that fits the truck's body as the start of the next turn", () => {
+    const world = makeSafeWorld();
+    const me = playerVehicle(world);
+    const shown = restFrame(world, me);
+    const travel = new Travel(250, TAIL);
+    const { playback } = travel.beginPlayback(world, { world, result: { frames: { [me.id]: restFrames(world, me) }, next: {} } } as never, 0, { [me.id]: shown });
+    expect(playback.starts[me.id]).toBe(shown);
   });
 
   it("commits the tail end into the world and the drive", () => {

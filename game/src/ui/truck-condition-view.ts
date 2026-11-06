@@ -1,6 +1,6 @@
 import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
-import { PX_PER_METER } from "../three/render/portraitPixels";
+import { conditionItems, PX_PER_METER } from "../three/render/portraitPixels";
 import { spanOf } from "../sim/body";
 import type { Vehicle } from "../sim/types";
 import { chassisSize, type Glow, type Portrait, type TruckPortraits } from "../three/render/truckPortrait";
@@ -8,6 +8,7 @@ import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { workMeterEl } from "./cards";
 import { el } from "./dom";
+import { ConditionPlan } from "./condition-plan";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
 import { token } from "./tokens";
 import { registerTipSource } from "./touch-tip";
@@ -21,6 +22,7 @@ const FLASH_HOLD = 0.65;
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
+type Drawing = Portrait | ConditionPlan;
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
 function encoded(canvas: HTMLCanvasElement): Promise<string> {
@@ -135,10 +137,11 @@ export class TruckConditionView {
   private readonly hit = el("div", { class: "condition-hit" });
   private readonly tip = el("div", { class: "condition-tip tooltip" });
   private readonly readout = new TruckConditionReadout();
-  private portrait: Portrait | null = null;
+  private drawing: Drawing | null = null;
+  private plan: { key: string; plan: ConditionPlan } | null = null;
   private size: { width: number; height: number } | null = null;
   private last: { vehicle: Vehicle; playerPaint: TruckPaint; aim: ConditionAim | undefined; working: PartWork | null | undefined } | null = null;
-  private layered: Portrait | null = null;
+  private layered: Drawing | null = null;
   private layerKey = "";
   private parts: ConditionPart[] = [];
   private aim: ConditionAim | undefined;
@@ -181,47 +184,58 @@ export class TruckConditionView {
   }
 
   render(vehicle: Vehicle, playerPaint: TruckPaint, aim?: ConditionAim, working?: PartWork | null): void {
-    const portrait = this.portraits.shown(vehicle, playerPaint);
-    this.portrait = portrait;
+    const drawing = this.portraits.refused() ? this.planOf(vehicle) : this.portraits.shown(vehicle, playerPaint);
+    this.drawing = drawing;
     this.last = { vehicle, playerPaint, aim, working };
     this.aim = aim;
     this.parts = this.readout.update(vehicle);
-    const drawn = portrait ? this.parts.filter((part) => portrait.has(part.id)) : [];
+    const drawn = drawing ? this.parts.filter((part) => drawing.has(part.id)) : [];
     const length = 2 * spanOf(vehicle.chassisId).half.x;
     this.scale = CELL / (PX_PER_METER * METERS_PER_CELL);
     if (this.maxLength !== null) this.root.style.zoom = String(Math.min(1, this.maxLength / length));
-    this.size = portrait ?? chassisSize(vehicle.chassisId);
+    this.size = drawing ?? chassisSize(vehicle.chassisId);
     this.stage.style.width = `${this.size.width * this.scale}px`;
     this.stage.style.height = `${this.size.height * this.scale}px`;
     this.root.classList.toggle("aimable", aim !== undefined);
-    this.paintLayers(portrait, drawn);
-    this.paintMarks(portrait, drawn, aim, working);
-    if (portrait) for (const part of drawn.filter((p) => p.hit)) this.flash(portrait, part);
+    this.paintLayers(drawing, drawn);
+    this.paintMarks(drawing, drawn, aim, working);
+    if (drawing) for (const part of drawn.filter((p) => p.hit)) this.flash(drawing, part);
     this.focus(this.parts.some((p) => p.id === this.hoverId) ? this.hoverId : null);
   }
 
-  private paintLayers(portrait: Portrait | null, drawn: ConditionPart[]): void {
-    const key = drawn.map((part) => `${part.id}:${part.tier}`).join(",");
-    if (this.layered === portrait && this.layerKey === key) return;
-    this.layered = portrait;
-    this.layerKey = key;
-    this.layers.replaceChildren(...(portrait ? layersFor(portrait, drawn) : []));
+  private planOf(vehicle: Vehicle): ConditionPlan {
+    const items = conditionItems(vehicle);
+    const key = `${vehicle.id}|${vehicle.chassisId}|${items.map((item) => `${item.part.id}:${item.x}:${item.y}:${item.rot}`).join(",")}`;
+    if (this.plan?.key !== key) this.plan = { key, plan: new ConditionPlan(vehicle.chassisId, items) };
+    return this.plan.plan;
   }
 
-  private paintMarks(portrait: Portrait | null, drawn: ConditionPart[], aim: ConditionAim | undefined, working: PartWork | null | undefined): void {
-    if (!portrait) return this.marks.replaceChildren();
+  private paintLayers(drawing: Drawing | null, drawn: ConditionPart[]): void {
+    const key = drawn.map((part) => `${part.id}:${part.tier}`).join(",");
+    if (this.layered === drawing && this.layerKey === key) return;
+    this.layered = drawing;
+    this.layerKey = key;
+    this.layers.replaceChildren(...(drawing ? this.layersOf(drawing, drawn) : []));
+  }
+
+  private layersOf(drawing: Drawing, drawn: ConditionPart[]): HTMLElement[] {
+    return drawing instanceof ConditionPlan ? drawing.layers(drawn, this.scale) : layersFor(drawing, drawn);
+  }
+
+  private paintMarks(drawing: Drawing | null, drawn: ConditionPart[], aim: ConditionAim | undefined, working: PartWork | null | undefined): void {
+    if (!drawing) return this.marks.replaceChildren();
     const nodes: HTMLElement[] = [];
     for (const part of drawn) {
       const mark = markFor(aim?.marks.get(part.id), doneOf(working, part.id));
       if (!mark) continue;
-      placeAt(mark, portrait.centerOf(part.id), this.scale);
+      placeAt(mark, drawing.centerOf(part.id), this.scale);
       nodes.push(mark);
     }
     this.marks.replaceChildren(...nodes);
   }
 
-  private flash(portrait: Portrait, part: ConditionPart): void {
-    const flash = maskedLayer("cond-flash", portrait, portrait.glow(part.id, part.tier));
+  private flash(drawing: Drawing, part: ConditionPart): void {
+    const flash = drawing instanceof ConditionPlan ? drawing.flashOf(part.id) : maskedLayer("cond-flash", drawing, drawing.glow(part.id, part.tier));
     this.flashes.append(flash);
     const run = flash.animate(
       [
@@ -235,9 +249,9 @@ export class TruckConditionView {
   }
 
   private partUnder(e: MouseEvent): string | null {
-    if (!this.portrait) return null;
+    if (!this.drawing) return null;
     const rect = this.hit.getBoundingClientRect();
-    return this.portrait.partAt(((e.clientX - rect.left) / rect.width) * this.portrait.width, ((e.clientY - rect.top) / rect.height) * this.portrait.height);
+    return this.drawing.partAt(((e.clientX - rect.left) / rect.width) * this.drawing.width, ((e.clientY - rect.top) / rect.height) * this.drawing.height);
   }
 
   private pressed(e: PointerEvent): void {
@@ -281,7 +295,7 @@ export class TruckConditionView {
   }
 
   private hovered(): ConditionPart | undefined {
-    return this.parts.find((p) => p.id === this.hoverId && this.portrait?.has(p.id));
+    return this.parts.find((p) => p.id === this.hoverId && this.drawing?.has(p.id));
   }
 
   private tipRowsOfPress(): HTMLElement[] {
@@ -291,26 +305,27 @@ export class TruckConditionView {
 
   private showTip(): void {
     const part = this.hovered();
-    this.tip.style.display = part && this.portrait ? "" : "none";
-    if (!part || !this.portrait) return;
-    const center = this.portrait.centerOf(part.id);
+    this.tip.style.display = part && this.drawing ? "" : "none";
+    if (!part || !this.drawing) return;
+    const center = this.drawing.centerOf(part.id);
     this.tip.replaceChildren(...tipRows(part));
-    this.tip.dataset.side = center.y < this.portrait.height / 2 ? "below" : "above";
+    this.tip.dataset.side = center.y < this.drawing.height / 2 ? "below" : "above";
     placeAt(this.tip, { x: this.tipX(center.x), y: center.y }, this.scale);
   }
 
   private tipX(x: number): number {
-    if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
+    if (!this.drawing) throw new Error("The condition view has no truck drawn yet");
     const half = this.tip.offsetWidth / 2 / this.scale;
-    return Math.min(Math.max(x, half), Math.max(half, this.portrait.width - half));
+    return Math.min(Math.max(x, half), Math.max(half, this.drawing.width - half));
   }
 
   private showOutline(): void {
     const part = this.hovered();
-    if (!part || !this.portrait) return this.outline.replaceChildren();
+    if (!part || !this.drawing) return this.outline.replaceChildren();
+    if (this.drawing instanceof ConditionPlan) return this.outline.replaceChildren(this.drawing.pickOf(part.id));
     this.outline.replaceChildren(
-      maskedLayer("cond-cells", this.portrait, this.portrait.footprint(part.id)),
-      layerImage("cond-pick", this.portrait, this.portrait.glow(part.id, part.tier), part.tier),
+      maskedLayer("cond-cells", this.drawing, this.drawing.footprint(part.id)),
+      layerImage("cond-pick", this.drawing, this.drawing.glow(part.id, part.tier), part.tier),
     );
   }
 }

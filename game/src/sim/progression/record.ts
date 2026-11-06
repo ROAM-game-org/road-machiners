@@ -7,7 +7,7 @@ import type { Tier } from '../../data/market';
 import { isHostile } from '../combat';
 import { playerVehicle } from '../damage';
 import { chassisTradeIn, repairCost } from '../economy';
-import { advanceFar, clearFarRoutes } from '../far';
+import { moveFarCombat, clearFarRoutes } from '../far';
 import { setHeadless, setThinning } from '../fidelity';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { goodValue } from '../market';
@@ -200,7 +200,7 @@ function inContext<T>(label: string, world: World, fn: () => T): T {
 
 function moveAllFar(w: World): void {
   const towed = isTowed(w);
-  for (const v of w.vehicles) if (!(towed && v.id === w.player.vehicleId)) advanceFar(w, v);
+  moveFarCombat(w, w.vehicles.filter(v => !(towed && v.id === w.player.vehicleId)));
 }
 
 function traceOf(events: GameEvent[], turn: number): TraceLine[] {

@@ -1340,3 +1340,25 @@ describe('relations in a save', () => {
     expect(loaded.obstacles).toEqual(w.obstacles);
   });
 });
+
+it('saves in-flight projectile facts without turn playback state', async () => {
+  const { newTimedCombat, launchTimedRound } = await import('../sim/timed-combat');
+  const { declareFeud } = await import('../sim/states');
+  const world = emptyWorld();
+  const shooter = addVehicle(world, 'player', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+  const target = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
+  world.player.vehicleId = shooter.id;
+  world.vehicles = [shooter, target];
+  declareFeud(world, target, shooter.id); refreshVision(world);
+  const flight = launchTimedRound(world, shooter, mountedParts(shooter, 'weapon')[0].id, target, 'body', 0, 220, false)!;
+  expect(flight).not.toBeNull();
+  const state = newTimedCombat(); state.flights.push({ ...flight, landsAt: 100 });
+  Object.assign(world, { combat: state });
+  const saved = saveOf(world);
+  expect(saved.world).toHaveProperty('combat', { now: state.now, flights: state.flights });
+  const slots = makeSlots();
+  slots.put('auto', JSON.parse(JSON.stringify({ ...saved, savedAt: 1000, runId: RUN })));
+  const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+  expect(loaded).not.toBeNull();
+  expect(Reflect.get(loaded, 'combat')).toMatchObject({ now: state.now, flights: state.flights, records: [], attempts: [], active: false });
+});

@@ -6,7 +6,7 @@ import { RULES } from "../data/rules";
 import { isJunk, maxHp, restorePart } from "./wear";
 import { haulerOf, playerVehicle } from "./damage";
 import { beatenBy, crashOnly, isHostile } from "./combat";
-import { rollCabKnock } from "./cab-knock";
+import { rollCabKnock, cabDamageThisTurn } from "./cab-knock";
 import { openCoreDeath, openFirstFall } from "./quests";
 import { corePart, mountedParts } from "./grid";
 import { cancelJob } from "./jobs";
@@ -26,7 +26,7 @@ import { holdsRearm } from "./npc-service";
 import { isWeak, wantsLoot } from "./npc-decisions";
 import { endRun } from "./chaos-highway";
 import { modeRules } from "./settings";
-import type { SalvageStock, Vehicle, World } from "./types";
+import type { GameEvent, SalvageStock, Vehicle, World } from "./types";
 import { wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
@@ -43,15 +43,15 @@ export function checkDeath(world: World): void {
   if (cause === "core") openCoreDeath(world);
 }
 
-export function checkKnockout(world: World): void {
+export function checkKnockout(world: World, events?: readonly GameEvent[]): void {
   const me = playerVehicle(world);
   if (world.player.state !== "active") return;
-  if (knockedNow(world, me)) {
+  if (knockedNow(world, me, events)) {
     if (modeRules(world).playerKnockouts) knockOutPlayer(world, me);
     else endRun(world, "wrecked");
     return;
   }
-  if (world.chaosHighway && knockedNow(world, haulerOf(world))) endRun(world, "haulerLost");
+  if (world.chaosHighway && knockedNow(world, haulerOf(world), events)) endRun(world, "haulerLost");
 }
 
 function knockOutPlayer(world: World, me: Vehicle): void {
@@ -79,10 +79,10 @@ function layPlayerDown(world: World, me: Vehicle, foes: string[], gaveUp: boolea
   sendToLoot(world, me, robbersOf(world, me));
 }
 
-function knockedNow(world: World, truck: Vehicle): boolean {
+function knockedNow(world: World, truck: Vehicle, events: readonly GameEvent[] | undefined): boolean {
   if (fightsThrough(world, truck)) return false;
   if (corePart(truck, "cab").hp <= 0) return true;
-  return getResources(world, truck).health < RULES.cabKnock.playerHealth && rollCabKnock(world, truck);
+  return getResources(world, truck).health < RULES.cabKnock.playerHealth && rollCabKnock(world, truck, cabDamageThisTurn(world, truck, events));
 }
 
 function fightsThrough(world: World, truck: Vehicle): boolean {

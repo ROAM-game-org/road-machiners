@@ -1,3 +1,4 @@
+import { transformedCombat } from './timed-combat';
 import { CHAOS_HIGHWAY } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
@@ -402,6 +403,7 @@ function removeVehicles(world: World, ids: string[]): void {
 type Move = 'shift' | 'rebuild' | 'drop' | 'keep';
 
 export const WINDOW_MOVE = {
+  combat: 'shift',
   seed: 'keep',
   rngState: 'keep',
   marketRng: 'keep',
@@ -468,6 +470,7 @@ export function moveWindow(world: World): void {
   shiftVehicles(world, shift);
   shiftPlayer(world, shift);
   shiftStorms(world, shift);
+  world.combat = transformedCombat(world.combat, position => shifted(position, shift), 1);
   world.terrain = map.terrain;
   world.mapHash = map.hash;
   world.obstacles = mapObstacles(map);

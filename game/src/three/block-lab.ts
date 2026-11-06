@@ -73,9 +73,10 @@ root.append(el("div", { class: "dim" }, "Loading the song..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const ctx = mixer.ctx;
-const music = new CombatMusic(ctx, mixer.input("music"), bankKitLoader(ctx, { expectedBytes: SFX_BYTES, support: formatSupport() }), Math.random, (e) => {
+function rethrow(e: unknown): never {
   throw e;
-});
+}
+const music = new CombatMusic(ctx, mixer.input("music"), bankKitLoader(ctx, { expectedBytes: SFX_BYTES, support: formatSupport() }, rethrow), Math.random, rethrow);
 await music.ready();
 const idle = new BlockSession(Object.values(COMBAT_SONGS)[0], { voice: silent, lean: silent }, Math.random);
 

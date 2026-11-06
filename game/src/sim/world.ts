@@ -1,3 +1,6 @@
+import { PHYSICS } from '../data/physics';
+import { completeCombatMovement } from './far';
+import { newTimedCombat, beginTimedCombat, closeTimedCombat, finishWrecks } from './timed-combat';
 
 import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
@@ -12,7 +15,7 @@ import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
 import { restoreStores, storedCrates } from './goods-store';
 import type { StartKit } from '../data/start';
-import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
+import { findPart, haulerOf, isPlayerTruck, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods, mountPart } from './inventory';
@@ -25,7 +28,7 @@ import type { BakedMap } from './terrain';
 import { planNpcOrders, settleMeetings } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
-import { assignAutoOrders, dropMagazine, fireWeapons, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { assignAutoOrders, dropMagazine, huntGaps, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
 import { advanceIntro, greetAtWell, wakeInTown } from './intro';
@@ -93,6 +96,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   requireMapFits(map, setup);
   const size = map.terrain.size;
   const world: World = {
+    combat: newTimedCombat(),
     ...seedStreams(seed),
     turn: 1,
     size,
@@ -405,7 +409,15 @@ export function endTurnInPlace(
     assignUtilityOrders(w);
     activateUtilities(w);
     const gaps = huntGaps(w);
+    raiseCalls(w);
+    assignAutoOrders(w);
+    freezeFire(w);
+    settleAims(w);
+    const combatStart = w.combat.now;
+    beginTimedCombat(w, w.combat, PHYSICS.turnSeconds * 1000);
     move(w);
+    completeCombatMovement(w, combatStart);
+    closeTimedCombat(w, w.combat);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
     caltropHits(w);
@@ -426,7 +438,6 @@ export function endTurnInPlace(
     freezeFire(w);
     settleAims(w);
     tickCharges(w);
-    fireWeapons(w);
     cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
@@ -436,7 +447,9 @@ export function endTurnInPlace(
     leakFuel(w);
     fitAllStores(w);
     applyGodMode(w);
-    resolveDestroyed(w);
+    const landedShots = new Set<World['events'][number]>(w.combat.records.flatMap(record => record.event ? [record.event] : []));
+    finishWrecks(w, w.combat);
+    resolveDestroyed(w, landedShots);
     settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);
@@ -456,7 +469,7 @@ export function endTurnInPlace(
     discoverSites(w);
     checkDeath(w);
     wakeInTown(w, advanceKnockout(w));
-    checkKnockout(w);
+    checkKnockout(w, w.events.filter(event => !landedShots.has(event)));
     advanceNpcKnockouts(w);
     parkOverdrive(w);
     advanceChaosHighway(w);
@@ -496,7 +509,7 @@ export function setWeaponOrder(
       return;
     }
     const target = w.vehicles.find((v) => v.id === order.targetId);
-    if (!target || target.id === me.id)
+    if (!target || isPlayerTruck(w, target))
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
       throw new Refused({ id: "unseen" });

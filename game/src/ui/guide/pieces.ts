@@ -17,9 +17,13 @@ const chipSample = (): HTMLElement =>
 
 const sample = (cls: string, words: string): HTMLElement => el("div", { class: cls }, words);
 
+const confirmSample = (): HTMLElement =>
+  el("div", { class: "dialog confirm-dialog" }, el("p", {}, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
+
 export const PIECES: Piece[] = [
   { name: ".panel", note: "The base of every HUD box.", build: () => sample("panel", "A panel") },
   { name: ".dialog", note: "The frame of a modal, the save panel and New game.", build: () => sample("dialog", "A dialog") },
+  { name: ".confirm-dialog", note: "The yes or no question of a command that throws away progress, in the center, with Cancel and a danger yes button.", build: confirmSample },
   { name: ".dock-panel", note: "A panel of the right dock.", build: () => sample("dock-panel", "A dock panel") },
   { name: ".notice", note: "A box at the top middle that waits for a choice.", build: () => sample("notice panel", "A notice") },
   { name: ".panel-title", note: "The heading of a small HUD panel.", build: () => text("h3", "panel-title", "Title") },

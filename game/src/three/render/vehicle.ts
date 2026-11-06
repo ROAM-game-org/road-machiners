@@ -16,7 +16,7 @@ import { baseGrid, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from 
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { bottomOf, highestAhead, itemLegs, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
+import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -120,6 +120,7 @@ export class VehicleView {
   private body = new THREE.Group();
 
   private sig = '';
+  private settled: { items: GridItem[]; chassisId: string; body: number; cab: number; gear: number } | null = null;
   private pending: { sig: string; twin: VehicleView; steps: Generator<void, void>; built: boolean } | null = null;
   private units: UnitView[] = [];
   private running = false;
@@ -133,7 +134,7 @@ export class VehicleView {
   private radioMat = new THREE.MeshBasicMaterial({ color: PAL.radioLight.off });
   private halo: THREE.Sprite | null = null;
   private radioOn = false;
-  private glassMat = new THREE.MeshLambertMaterial({ flatShading: true });
+  private glassMat = new THREE.MeshLambertMaterial({ name: GLASS, flatShading: true });
   private readonly glassGlow = new THREE.Color(0);
   private silhouettes: THREE.MeshBasicMaterial[] = [];
   private contactShadows: ContactShadow[] = [];
@@ -146,10 +147,19 @@ export class VehicleView {
   }
 
   update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
-    const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+    const paint = paintOf(v, playerPaint);
+    if (!this.settledOn(v, paint)) {
+      const sig = signatureOf(v, playerPaint);
+      if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
+      this.running = engineRuns(v);
+      this.settled = sig === this.sig ? { items: v.items, chassisId: v.chassisId, body: paint.body, cab: paint.cab, gear: paint.gear } : null;
+    }
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
-    this.running = engineRuns(v);
+  }
+
+  private settledOn(v: Vehicle, paint: TruckColors): boolean {
+    const s = this.settled;
+    return s !== null && s.items === v.items && s.chassisId === v.chassisId && s.body === paint.body && s.cab === paint.cab && s.gear === paint.gear;
   }
 
   pose(f: VehicleFrame, dt: number): void {
@@ -361,7 +371,7 @@ export class VehicleView {
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
     this.halo = null;
-    this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
+    this.glassMat = new THREE.MeshLambertMaterial({ name: GLASS, flatShading: true, emissive: this.glassGlow });
   }
 
   private *drawItems(v: Vehicle, onBody: GridItem[], paint: number): Generator<void, { wheelItems: PartItem[]; guns: PartItem[] }> {
@@ -458,7 +468,7 @@ export class VehicleView {
     const obj = this.placedPart(v, unit.b, item, def, paint);
     obj.name = item.id;
     const spot = this.spots.get(item);
-    if (spot?.legs) for (const leg of itemLegs(unit.base, obj, spot.y, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
+    for (const s of spot?.supports ?? []) unit.still.add(strut(this.legModel(item, paint, s.role), s.foot, s.head));
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -574,7 +584,7 @@ export class VehicleView {
     at.pos.z += spot.dz;
     place(obj, at);
     lean(obj, spot.slope);
-    tint(obj, paint, lookOf(item));
+    tint(obj, paint, lookOf(item), heldBoxes(obj, spot.held));
     return obj;
   }
 
@@ -954,7 +964,7 @@ function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
 }
 
 function levelSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): ItemSpot {
-  return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, legs: false };
+  return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, supports: [], held: [] };
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -1038,7 +1048,7 @@ function place(obj: THREE.Object3D, at: Placement): void {
   obj.scale.copy(at.scale);
 }
 
-function tint(obj: THREE.Object3D, paint: number, look: Look): void {
+function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[] = []): void {
   const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
@@ -1049,7 +1059,7 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
   });
-  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step);
+  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step, { top: false, keepOut });
 }
 
 const WELD_MM = 1000;

@@ -1,5 +1,5 @@
 import MANIFEST from '../data/survey-pictures.json';
-import { AssetUnreachable, fetchAsset } from '../fetch-asset';
+import { AssetStatusError, AssetUnreachable, fetchAsset } from '../fetch-asset';
 import { publicUrl } from '../public-url';
 import { el } from './dom';
 
@@ -18,8 +18,9 @@ async function download(label: string, path: string): Promise<string | null> {
     return url;
   } catch (e) {
     arrivals.delete(path);
-    if (!(e instanceof AssetUnreachable)) throw e;
-    console.warn(`${e.label} ${e.url} did not arrive after ${e.attempts} attempts`);
+    if (e instanceof AssetUnreachable) console.warn(`${e.label} ${e.url} did not arrive after ${e.attempts} attempts`);
+    else if (e instanceof AssetStatusError) console.warn(e.message);
+    else throw e;
     return null;
   }
 }

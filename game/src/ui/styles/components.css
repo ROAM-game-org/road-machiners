@@ -342,7 +342,7 @@
   flex: none;
 }
 .ink-page .ink-band > .art-band {
-  height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
+  height: var(--ink-band-height);
   border-width: 0 0 1px;
 }
 .ink-page .ink-chips {
