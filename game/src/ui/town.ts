@@ -56,8 +56,8 @@ import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
 import { TOWN_ART } from "../data/quest-art";
-import { TOWN_SECTIONS, type TownSection } from "../data/quests";
-import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
+import type { TownSection } from "../data/quests";
+import { barDrivers, pickTownSection, townPlaces } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
 import { escortStatusText, gameHours, GOODS_COLUMNS, lotTitle, surveyPlacesLeft } from "./format";
@@ -70,13 +70,13 @@ import { mapScene, MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
 import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
-import { localsAt } from "../sim/dialogue-rules";
+import { localsAt, localsIn } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
 import { moneyEl, moneyMsg } from "./units";
 import { ODD_JOBS } from "../data/odd-jobs";
 import { oddJobsBlock, oddJobsPay, startOddJobs } from "../sim/odd-jobs";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
-import { driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
+import { canteenName, driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, townHeading, vehicleTitle } from "../text/names";
 import { commandFailure, stanceTag } from "./format";
 import { seesAll } from "./see-all";
 import { ESCAPE, keyLabel } from "./input-mode";
@@ -88,7 +88,6 @@ type ShopColumn = { head: HTMLElement[]; body: HTMLElement };
 
 export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
-export type MarketTab = "goods" | "charts";
 
 export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
 
@@ -115,10 +114,9 @@ type TownChoice = { id: string; label: Msg; reason: Msg | null; pay?: number; go
 
 export type TownFrame = { band: HTMLElement; picture: HTMLElement; heading: Msg; art: string | null };
 
-export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId: string, turn: number, access: Record<TownSection, SectionAccess>): TownPage {
+export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId: string, turn: number): TownPage {
   if (kept === null || closedAt === null) return null;
-  if (closedAt.shopId !== shopId || closedAt.turn !== turn) return null;
-  return access[kept].open ? kept : null;
+  return closedAt.shopId === shopId && closedAt.turn === turn ? kept : null;
 }
 
 export class TownScreen {
@@ -126,7 +124,6 @@ export class TownScreen {
   private page: TownPage = null;
   private closedAt: ClosedAt | null = null;
   private garageTab: GarageTab = "buyParts";
-  private marketTab: MarketTab = "goods";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
@@ -182,7 +179,7 @@ export class TownScreen {
     this.paintPlan = null;
     this.fresh();
     const w = this.host.world();
-    this.page = shopId ? townPageOnOpen(this.page, this.closedAt, shopId, w.turn, townSections(w, shopId)) : null;
+    this.page = shopId ? townPageOnOpen(this.page, this.closedAt, shopId, w.turn) : null;
     this.normalizeGarageTab();
     const page = this.page;
     if (page === null) return this.render();
@@ -260,14 +257,7 @@ export class TownScreen {
   }
 
   private go(to: TownSection): void {
-    const w = this.host.world();
-    const shopId = shopAt(w);
-    if (!shopId) throw new Error("A town page choice was picked away from a shop");
-    const access = townSections(w, shopId)[to];
-    if (!access.open) {
-      this.error = sectionReason(access.reason);
-      return this.render();
-    }
+    if (!shopAt(this.host.world())) throw new Error("A town page choice was picked away from a shop");
     this.page = to;
     this.fresh();
     this.run((x) => pickTownSection(x, null, to), true);
@@ -322,7 +312,7 @@ export class TownScreen {
     this.root.replaceChildren(
       this.bandOf(w, TOWN_ART[desk]?.band ?? null, true),
       this.bodyOf(
-        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
+        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, deskHeading(desk, people)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
         people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd), this.slots)),
       ),
     );
@@ -359,16 +349,12 @@ export class TownScreen {
   }
 
   private heading(shopId: string): Msg {
-    return this.page === null ? siteName(shopId) : t(`town.section.${this.page}`);
+    return this.page === null ? townHeading(shopId) : placeName(shopId, this.page);
   }
 
   private frontChoices(w: World, shopId: string): TownChoice[] {
-    const access = townSections(w, shopId);
-    const sections = TOWN_SECTIONS.map((section): TownChoice => {
-      const a = access[section];
-      return { id: section, label: t(`town.go.${section}`), reason: a.open ? null : sectionReason(a.reason), go: () => this.go(section) };
-    });
-    return [...sections, this.oddJobsChoice(w), { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.back() }];
+    const places = townPlaces(shopId).map((section): TownChoice => ({ id: section, label: placeName(shopId, section), reason: null, go: () => this.go(section) }));
+    return [...places, this.oddJobsChoice(w), { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.back() }];
   }
 
   private oddJobsChoice(w: World): TownChoice {
@@ -388,7 +374,7 @@ export class TownScreen {
   }
 
   private sectionChoices(shopId: string, page: TownSection): TownChoice[] {
-    const locals = page === "people" ? localsAt(shopId).map((l): TownChoice => ({
+    const locals = page === "people" || page === "maps" ? localsIn(shopId, page).map((l): TownChoice => ({
       id: `local:${l.id}`,
       label: list([localName(l.id), localRole(l.id)]),
       reason: null,
@@ -397,18 +383,14 @@ export class TownScreen {
     return [...locals, { id: "back", label: t("town.back"), reason: null, go: () => this.back() }];
   }
 
-  private chartsShown(shopId: string): boolean {
-    return this.marketTab === "charts" && shopDef(shopId).charts;
-  }
-
   private sectionPanel(w: World, shopId: string, def: ShopDef, page: TownSection, truck: HTMLElement | null): HTMLElement | null {
     if (truck) {
       const { head, body } = page === "garage" ? this.garage(w, shopId, def) : this.market(w, shopId, def);
       return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...head, el("div", { class: "shop-body" }, body))));
     }
     if (page === "board") return el("div", { class: "ink-panel" }, this.contracts(w, shopId));
-    if (page === "bar") return el("div", { class: "ink-panel" }, this.bar(w, shopId));
-    return null;
+    if (page === "people") return el("div", { class: "ink-panel" }, this.parkedDrivers(w, shopId));
+    return el("div", { class: "ink-panel" }, this.charts(w, shopId));
   }
 
   private garage(w: World, shopId: string, def: ShopDef): ShopColumn {
@@ -438,9 +420,9 @@ export class TownScreen {
     return { head: [el("div", { class: "tabs sub" }, ...buttons), ...column.head], body: column.body };
   }
 
-  private bar(w: World, shopId: string): HTMLElement {
+  private parkedDrivers(w: World, shopId: string): HTMLElement {
     const drivers = barDrivers(w, shopId);
-    if (drivers.length === 0) return el("div", { class: "dim" }, sectionReason("noDrivers"));
+    if (drivers.length === 0) return el("div", { class: "dim" }, t("town.reason.noDrivers"));
     return el("div", { class: "bar-list" }, ...drivers.map((v) => this.barRow(w, v)));
   }
 
@@ -489,34 +471,10 @@ export class TownScreen {
     return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
-  private marketTabs(def: ShopDef): HTMLElement | null {
-    if (!def.charts) return null;
-    const tabs: MarketTab[] = ["goods", "charts"];
-    const buttons = tabs.map((tab) =>
-      el(
-        "button",
-        {
-          class: this.marketTab === tab ? "on" : "",
-          "data-market-tab": tab,
-          onclick: () => {
-            this.marketTab = tab;
-            this.showList();
-          },
-        },
-        createIcon(tab === "charts" ? TAB_ICON.charts : TAB_ICON.market),
-        t(`trade.tab.${tab === "charts" ? "charts" : "market"}`),
-      ),
-    );
-    return el("div", { class: "tabs sub" }, ...buttons);
-  }
-
   private market(w: World, shopId: string, def: ShopDef): ShopColumn {
     const state = shopState(w, shopId);
-    const tabs = this.marketTabs(def);
-    const head = tabs ? [tabs] : [];
-    if (this.chartsShown(shopId)) return { head, body: this.charts(w, shopId) };
     return {
-      head,
+      head: [],
       body: el(
         "div",
         {},
@@ -525,7 +483,6 @@ export class TownScreen {
           "div",
           { class: "goods stocked" },
           goodsHead(false, true),
-          ...def.supplies.map((k) => this.shopSupplyRow(w, shopId, k)),
           ...def.goods.map((g) => this.goodRow(w, shopId, def, state, g)),
         ),
         newsWell(w),
@@ -843,8 +800,12 @@ function theyLack(npc: Vehicle, price: number): Msg | null {
   return money >= price ? null : t("trade.theyLack", { price: moneyMsg(price - money) });
 }
 
-function sectionReason(reason: "noLocals" | "noDrivers"): Msg {
-  return t(reason === "noLocals" ? "town.reason.noLocals" : "town.reason.noDrivers");
+function deskHeading(desk: string, people: boolean): Msg {
+  return people ? t("town.section.people") : siteName(desk);
+}
+
+function placeName(shopId: string, section: TownSection): Msg {
+  return section === "people" ? canteenName(shopId) : t(`town.section.${section}`);
 }
 
 function stockCount(stock: PartInstance[], f: StockFilter): number {

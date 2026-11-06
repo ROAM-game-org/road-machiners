@@ -576,16 +576,16 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 ## Hattie
 
 - Way: fear.
-- High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
+- High concept: The tenant who runs the canteen for outsider drivers in the Bowl gateway.
 - Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
 - Aspects: The first water an outsider can buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
-- Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
+- Fears: An empty cistern, or a driver dying of thirst within sight of her canteen.
 - Habit: She sounds the cistern with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their barrels fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+Hattie runs the canteen at the cistern house in the Bowl gateway, the section where outsiders are kept. Every driver who is not let past the gateway eats and buys water at her benches, so she is the first and the last person of Bowl they speak to. Drivers talk while their barrels fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
 Her line is "Sit down before you fall down."
 
@@ -682,6 +682,38 @@ His line is "I'll write what you say happened. Then I'll ask him."
 Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her eyes on the plain and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
 
 Her line is "I'll hear a man out before I say what he owes."
+
+## Renata Sayle
+
+- Way: embrace.
+- High concept: The Guidestar manager who sells map sheets at the post in the Bowl gateway.
+- Trouble: Every driver she sells to is also someone the Guild sells news about.
+- Aspects: Draws every sheet from the couriers' logs; Same price for a patrolman and a raider.
+- Skills: best social, worst toughness.
+- Wants: The post to pay its share to the trust every season.
+- Fears: The Senate deciding the trust's post has no place at its gate.
+- Habit: She lays a sheet flat and weighs its corners before she talks about it.
+- Secret: She knows which sheets the Bowl patrol bought, and she has sold that fact twice.
+
+Renata runs the Guild's post in the Bowl gateway. The couriers log what they pass on every run, and the post turns those logs into map sheets for drivers who have not driven a square themselves. Bowl holds shares in the trust, so it lets the post stand in the gateway, and strangers who cannot go past the gate are the ones who need a sheet.
+
+Her line is "Same sheet, same price, whoever you are."
+
+## Emil Tarn
+
+- Way: embrace.
+- High concept: The Guidestar manager who sells map sheets at the post in the Nose compound.
+- Trouble: The Order Bureau reads over his shoulder, and the trust cannot stop it from doing so.
+- Aspects: Keeps the relay hours by the stamp; Speaks under the sound of the press.
+- Skills: best perception, worst social.
+- Wants: The Bureau to leave the post alone.
+- Fears: A sealed message he passed on getting someone shot.
+- Habit: He stamps a sheet twice, once for the buyer and once for his ledger.
+- Secret: He lets the Bureau read the ledger, and he keeps a second one it has never seen.
+
+Emil runs the Guild's post in the outsiders' compound at Nose. Nose holds shares in the trust, so the post stands there by right, and the Committee lets it stay because outsiders with sheets spend less time asking soldiers the way.
+
+His line is "That part is not mine to say."
 
 ## Jonah Feld
 

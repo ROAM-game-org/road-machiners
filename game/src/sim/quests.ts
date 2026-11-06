@@ -32,6 +32,7 @@ import {
   type QuestViewKind,
   WAGON_SEEN,
   TOWN_SCENES,
+  TOWN_SECTIONS,
   type TownScene,
   type TownSceneCondition,
   type TownSection,
@@ -40,14 +41,14 @@ import { SALVAGE_GOODS } from '../data/intro';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
 import { GOODS } from '../data/goods';
-import { CRIME } from '../data/market';
+import { CRIME, shopDef } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { playerVehicle } from './damage';
 import { mountedParts } from './grid';
 import { skillLevel } from './progress';
-import { boardFull, holdsNote, localsAt, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './chaos-highway';
 import { payOf } from './chaos-highway-director';
 import { heldSearch, noteSearchLead, requireShop, shortHere, siteOf } from './market';
@@ -733,8 +734,6 @@ function questSeed(w: World, questId: string): number {
   return Math.floor(hashRandom(w.seed, w.turn, ...codes) * INK_SEED_RANGE);
 }
 
-export type SectionAccess = { open: true } | { open: false; reason: 'noLocals' | 'noDrivers' };
-
 const TOWN_SCENE_CONDITIONS: Record<TownSceneCondition, (w: World) => boolean> = {
   newSeller: (w) => w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)),
 };
@@ -752,28 +751,21 @@ export function barDrivers(w: World, shopId: string): Vehicle[] {
     .sort((a, b) => dist(a.pos, me.pos) - dist(b.pos, me.pos));
 }
 
-export function townSections(w: World, shopId: string): Record<TownSection, SectionAccess> {
-  return {
-    garage: { open: true },
-    market: { open: true },
-    board: { open: true },
-    people: localsAt(shopId).length > 0 ? { open: true } : { open: false, reason: 'noLocals' },
-    bar: barDrivers(w, shopId).length > 0 ? { open: true } : { open: false, reason: 'noDrivers' },
-  };
+export function townPlaces(shopId: string): TownSection[] {
+  return TOWN_SECTIONS.filter((section) => section !== 'maps' || shopDef(shopId).charts);
 }
 
 export function pickTownSection(world: World, from: TownSection | null, to: TownSection | null): World {
   return update(world, (w) => {
     const shopId = requireShop(w);
-    if (to !== null) requireOpenSection(w, shopId, to);
+    if (to !== null) requirePlace(shopId, to);
     const scene = freeToTalk(w) ? sceneFor(w, shopId, from, to) : null;
     if (scene) openTownScene(w, scene);
   });
 }
 
-function requireOpenSection(w: World, shopId: string, section: TownSection): void {
-  const access = townSections(w, shopId)[section];
-  if (!access.open) throw new Error(`The ${section} section is off at ${shopId}: ${access.reason}`);
+function requirePlace(shopId: string, section: TownSection): void {
+  if (!townPlaces(shopId).includes(section)) throw new Error(`${shopId} has no ${section}`);
 }
 
 function sceneFor(w: World, shopId: string, from: TownSection | null, to: TownSection | null): TownScene | null {

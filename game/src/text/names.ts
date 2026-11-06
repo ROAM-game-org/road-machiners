@@ -57,6 +57,8 @@ export const siteName = (id: string): Msg => {
 };
 export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
 export const placeProse = (shopId: string): Msg => byId(`town.place.${shopId}`);
+export const canteenName = (shopId: string): Msg => byId(`town.canteen.${shopId}`);
+export const townHeading = (shopId: string): Msg => (shopId === 'bowl' || shopId === 'nose' ? t(`town.heading.${shopId}`) : siteName(shopId));
 export const propName = (look: string): Msg => byId(`way.prop.${look}`);
 export const compassName = (octant: Octant): Msg => t(`compass.${octant}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);

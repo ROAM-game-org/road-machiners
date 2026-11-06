@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_WORLD_VARS, TOWN_SCENES, TOWN_SECTIONS } from '../data/quests';
+import { SHOPS, shopDef } from '../data/market';
 import { RULES } from '../data/rules';
 import { startKit } from '../data/start';
 import { playerVehicle } from './damage';
+import { localsIn } from './dialogue-rules';
 import { siteOf } from './market';
-import { barDrivers, pickTownSection, QUESTS, townSections } from './quests';
+import { barDrivers, pickTownSection, QUESTS, townPlaces } from './quests';
 import { defaultSetup } from './settings';
 import { nearestPad } from './sites';
 import { addVehicle, finishQuest, npcBrain } from './testkit';
@@ -40,26 +42,25 @@ function see(w: World, v: Vehicle): void {
   if (!w.player.visible.includes(index)) w.player.visible = [...w.player.visible, index];
 }
 
-describe('town sections', () => {
-  it('opens Garage, Market and Board at every shop and People where locals live', () => {
-    const w = quietWorld();
-    const bowl = townSections(parkAt(w, 'bowl'), 'bowl');
-    expect(bowl).toMatchObject({ garage: { open: true }, market: { open: true }, board: { open: true }, people: { open: true } });
-    expect(townSections(w, 'orchard').people).toEqual({ open: false, reason: 'noLocals' });
+describe('town places', () => {
+  it('lists the sections in a fixed order', () => {
+    expect(TOWN_SECTIONS).toEqual(['garage', 'market', 'board', 'people', 'maps']);
   });
 
-  it('keeps the Bar off while no driver is in sight', () => {
-    const w = parkAt(quietWorld(), 'bowl');
-    expect(townSections(w, 'bowl').bar).toEqual({ open: false, reason: 'noDrivers' });
+  it('has maps only where the shop sells charts', () => {
+    for (const shopId of Object.keys(SHOPS)) {
+      const places = townPlaces(shopId);
+      expect(places.includes('maps'), shopId).toBe(shopDef(shopId).charts);
+      expect(places.filter((p) => p !== 'maps'), shopId).toEqual(['garage', 'market', 'board', 'people']);
+    }
   });
 
-  it('lists the five sections in a fixed order', () => {
-    expect(TOWN_SECTIONS).toEqual(['garage', 'market', 'board', 'people', 'bar']);
-    expect(Object.keys(townSections(parkAt(quietWorld(), 'bowl'), 'bowl'))).toEqual([...TOWN_SECTIONS]);
+  it('gives every shop someone to talk to in its canteen', () => {
+    for (const shopId of Object.keys(SHOPS)) expect(localsIn(shopId, 'people').length, shopId).toBeGreaterThan(0);
   });
 });
 
-describe('the Bar list', () => {
+describe('the parked driver list', () => {
   it('holds parked drivers in sight on this place, nearest first', () => {
     const w = parkAt(quietWorld(), 'bowl');
     const far = parkNeighbor(w, 'bowl', 1.2);
@@ -67,7 +68,6 @@ describe('the Bar list', () => {
     see(w, far);
     see(w, near);
     expect(barDrivers(w, 'bowl').map((v) => v.id)).toEqual([near.id, far.id]);
-    expect(townSections(w, 'bowl').bar).toEqual({ open: true });
   });
 
   it('leaves out moving, knocked-out, brainless and other-place trucks', () => {
@@ -94,11 +94,11 @@ describe('the Bar list and sight', () => {
 });
 
 describe('picking a section', () => {
-  it('throws away from a shop and into an off section', () => {
+  it('throws away from a shop and into a place the site does not have', () => {
     const w = quietWorld();
     playerVehicle(w).pos = { x: 1, y: 1 };
     expect(() => pickTownSection(w, null, 'market')).toThrow('Not parked at a shop');
-    expect(() => pickTownSection(parkAt(quietWorld(), 'bowl'), null, 'bar')).toThrow('off');
+    expect(() => pickTownSection(parkAt(quietWorld(), 'dustwell'), null, 'maps')).toThrow('no maps');
   });
 
   it('changes nothing but the scene gate and the quest session', () => {

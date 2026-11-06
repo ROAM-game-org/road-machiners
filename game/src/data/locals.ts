@@ -27,25 +27,27 @@ export function isNoteId(id: string): id is NoteId {
 
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis' | 'petra';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis' | 'petra' | 'renata' | 'emil';
 
-export type LocalDef = { id: LocalId; town: string; quest: string };
+export type LocalDef = { id: LocalId; town: string; section: 'people' | 'maps'; quest: string };
 
 export const LOCALS: Record<LocalId, LocalDef> = {
-  ruben: { id: 'ruben', town: 'bowl', quest: 'bowl_ruben' },
-  hattie: { id: 'hattie', town: 'bowl', quest: 'bowl_hattie' },
-  dag: { id: 'dag', town: 'bowl', quest: 'bowl_dag' },
-  kovac: { id: 'kovac', town: 'nose', quest: 'nose_kovac' },
-  lena: { id: 'lena', town: 'nose', quest: 'nose_lena' },
-  ibo: { id: 'ibo', town: 'nose', quest: 'nose_ibo' },
-  edda: { id: 'edda', town: 'nose', quest: 'nose_edda' },
-  jory: { id: 'jory', town: 'bowl', quest: 'bowl_jory' },
-  sefa: { id: 'sefa', town: 'salvage-yard', quest: 'yard_sefa' },
-  agnes: { id: 'agnes', town: 'dustwell', quest: 'pump_agnes' },
-  odile: { id: 'odile', town: 'granary', quest: 'granary_odile' },
-  hadiza: { id: 'hadiza', town: 'green-pit', quest: 'pit_hadiza' },
-  hollis: { id: 'hollis', town: 'pump-station', quest: 'station_still' },
-  petra: { id: 'petra', town: 'marshal-post', quest: 'roadhouse_petra' },
+  ruben: { id: 'ruben', town: 'bowl', section: 'people', quest: 'bowl_ruben' },
+  hattie: { id: 'hattie', town: 'bowl', section: 'people', quest: 'bowl_hattie' },
+  dag: { id: 'dag', town: 'bowl', section: 'people', quest: 'bowl_dag' },
+  kovac: { id: 'kovac', town: 'nose', section: 'people', quest: 'nose_kovac' },
+  lena: { id: 'lena', town: 'nose', section: 'people', quest: 'nose_lena' },
+  ibo: { id: 'ibo', town: 'nose', section: 'people', quest: 'nose_ibo' },
+  edda: { id: 'edda', town: 'nose', section: 'people', quest: 'nose_edda' },
+  jory: { id: 'jory', town: 'bowl', section: 'people', quest: 'bowl_jory' },
+  sefa: { id: 'sefa', town: 'salvage-yard', section: 'people', quest: 'yard_sefa' },
+  agnes: { id: 'agnes', town: 'dustwell', section: 'people', quest: 'pump_agnes' },
+  odile: { id: 'odile', town: 'granary', section: 'people', quest: 'granary_odile' },
+  hadiza: { id: 'hadiza', town: 'green-pit', section: 'people', quest: 'pit_hadiza' },
+  hollis: { id: 'hollis', town: 'pump-station', section: 'people', quest: 'station_still' },
+  petra: { id: 'petra', town: 'marshal-post', section: 'people', quest: 'roadhouse_petra' },
+  renata: { id: 'renata', town: 'bowl', section: 'maps', quest: 'bowl_guild' },
+  emil: { id: 'emil', town: 'nose', section: 'maps', quest: 'nose_guild' },
 };
 
 export const TERM_IDS = [

@@ -230,7 +230,7 @@ export const LOG = {
   'log.someDriver': 'a driver',
   'log.siteEvent.surge': m('{site} turns out extra {good} today.', { site: 'text', good: 'text' }),
   'log.siteEvent.breakdown': m('The works at {site} break down. Little {good} comes out until they are fixed.', { site: 'text', good: 'text' }),
-  'log.engineCredit': m('The garage fits a {part} on credit.', { part: 'text' }),
+  'log.engineCredit': m("The Machiners' yard fits a {part} on credit.", { part: 'text' }),
   'log.scrapPatch': 'You patch your truck with scrap until it moves again.',
   'log.scrapPatchFuel': m('You patch your truck with scrap until it moves again. The locals spare you {liters} L of fuel.', { liters: 'int' }),
   'log.npcKnockout': m('{who} knocked out', { who: 'text' }),

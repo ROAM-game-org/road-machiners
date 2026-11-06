@@ -9,7 +9,7 @@ import { RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
-import { placeProse } from "../text/names";
+import { canteenName, placeProse } from "../text/names";
 import type { World } from "../sim/types";
 import type { CrimeCase } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
@@ -155,23 +155,31 @@ describe("the paint tab", () => {
 });
 
 describe("the town page on open", () => {
-  const open = { open: true } as const;
-  const access = { garage: open, market: open, board: open, people: open, bar: { open: false, reason: "noDrivers" } } as const;
   const closedAt = { shopId: "nose", turn: 40 };
 
   it("keeps the page the player left when the place and the turn are the same", () => {
-    expect(townPageOnOpen("garage", closedAt, "nose", 40, access)).toBe("garage");
+    expect(townPageOnOpen("garage", closedAt, "nose", 40)).toBe("garage");
   });
 
-  it("opens on the front page after a turn, at another place or into a section now off", () => {
-    expect(townPageOnOpen("garage", closedAt, "nose", 41, access)).toBeNull();
-    expect(townPageOnOpen("garage", closedAt, "bowl", 40, access)).toBeNull();
-    expect(townPageOnOpen("bar", closedAt, "nose", 40, access)).toBeNull();
+  it("opens on the front page after a turn or at another place", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 41)).toBeNull();
+    expect(townPageOnOpen("garage", closedAt, "bowl", 40)).toBeNull();
   });
 
   it("opens on the front page on a first visit", () => {
-    expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
-    expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
+    expect(townPageOnOpen("garage", null, "nose", 40)).toBeNull();
+    expect(townPageOnOpen(null, closedAt, "nose", 40)).toBeNull();
+  });
+});
+
+describe("the canteen name", () => {
+  it("is different at every shop, in English and Russian", () => {
+    const ids = Object.keys(SHOPS);
+    for (const lang of ["en", "ru"] as const) {
+      const names = ids.map((id) => resolve(canteenName(id), lang));
+      expect(names.every((name) => name.length > 0)).toBe(true);
+      expect(new Set(names).size).toBe(ids.length);
+    }
   });
 });
 
