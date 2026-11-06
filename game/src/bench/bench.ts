@@ -45,6 +45,7 @@ const DRIVE_TURNS = 6;
 const PREVIEW_OFFSETS: readonly (readonly [number, number])[] = [[12, 4], [40, 25], [-30, 60], [150, 150]];
 
 const HELD_SHARE = 0.25;
+const THINK_MS = 2000;
 const GAME_FIELDS = [
   'drive', 'siteLights', 'vehicleLights', 'travel', 'death', 'screens', 'menu', 'isEditingControl', 'modalOpen', 'timeHeld',
   'pressTurn', 'releaseTurn', 'trucks', 'sun', 'sky', 'ground', 'props', 'fx', 'weather', 'clouds', 'craters', 'streamer', ...OVERLAY_FIELDS,
@@ -255,8 +256,14 @@ async function finishPlayback(ctx: Ctx): Promise<void> {
   await ctx.probe.until(() => !ctx.game.busy, TURN_MS, 'the turn to finish playing');
 }
 
+async function playerThinks(ctx: Ctx): Promise<void> {
+  const until = performance.now() + THINK_MS;
+  await ctx.probe.until(() => performance.now() >= until, 2 * THINK_MS, 'the player to think');
+}
+
 async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
+    if (i % 2 === 1) await playerThinks(ctx);
     await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }

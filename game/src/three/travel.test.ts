@@ -700,11 +700,60 @@ describe("turns on a tow rope", () => {
   function travelWithPrepared() {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take: () => null } });
-    return { travel, prepare };
+    const computing = { now: false };
+    Object.assign(travel, { turns: { prepare, take: () => null, computing: () => computing.now } });
+    return { travel, prepare, computing };
   }
 
   const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+
+  function fightWorld(): World {
+    const world = makeSafeWorld();
+    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
+    return world;
+  }
+
+  it("prepare the fight turn once the player's plan has settled", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs - 1, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE, false);
+  });
+
+  it("wait again when the player changes the fight plan", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    const changed = { ...world };
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(changed, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    travel.prepareNext(changed, null, 1000 + 2 * CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE, false);
+  });
+
+  it("leave the worker to finish before it prepares another fight turn", () => {
+    const { travel, prepare, computing } = travelWithPrepared();
+    const world = fightWorld();
+    computing.now = true;
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    computing.now = false;
+    travel.prepareNext(world, null, 1001 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("prepare no fight turn while the player drives by hand", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    playerVehicle(world).direct = true;
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+  });
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
@@ -735,13 +784,9 @@ describe("turns on a tow rope", () => {
     expect(prepare).not.toHaveBeenCalled();
   });
 
-  it("prepare nothing ahead with no route or in a fight", () => {
+  it("prepare nothing ahead with no route and no fight", () => {
     const { travel, prepare } = travelWithPrepared();
-    const start = makeSafeWorld();
-    const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
-    travel.prepareNext(start, null, 0, NO_DRIVE);
-    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
-    travel.prepareNext(world, null, 0, NO_DRIVE);
+    travel.prepareNext(makeSafeWorld(), null, 0, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
   });
 

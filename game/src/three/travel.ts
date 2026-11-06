@@ -215,7 +215,13 @@ function followsOrder(world: World): boolean {
   return mayResume(world) && order !== null && order.kind !== "brake";
 }
 
+function plansFight(world: World): boolean {
+  const me = playerVehicle(world);
+  return playerCanAct(world) && !me.direct && inCombat(world, me);
+}
+
 export class Travel {
+  private plan: { world: World; since: number } | null = null;
   private automatic = false;
   private speedIndex = 0;
   private pressedAt: number | null = null;
@@ -414,7 +420,16 @@ export class Travel {
 
   private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
     if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
-    if (followsOrder(world)) this.turns.prepare(world, drive, this.fastTravel());
+    if (followsOrder(world) || this.fightPlanReady(world, now)) this.turns.prepare(world, drive, this.fastTravel());
+  }
+
+  private fightPlanReady(world: World, now: number): boolean {
+    return plansFight(world) && this.planSettled(world, now) && !this.turns.computing();
+  }
+
+  private planSettled(world: World, now: number): boolean {
+    if (this.plan?.world !== world) this.plan = { world, since: now };
+    return now - this.plan.since >= CONFIG.fightPlanSettleMs;
   }
 
   beginPlayback(
@@ -647,6 +662,10 @@ export class TurnPreparation {
 
   isReady(world: World): boolean {
     return this.isFresh(world) && !!this.pending?.ready;
+  }
+
+  computing(): boolean {
+    return this.pending !== null && !this.pending.ready && !this.pending.failure;
   }
 
   take(world: World): PreparedTurn | null {
