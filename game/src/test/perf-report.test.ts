@@ -317,16 +317,20 @@ describe('gate', () => {
     const town = { frame: pass(realStats(median, median * 2)), passes: [pass(realStats(median, median * 2)), pass(realStats(median + passGap, median * 2 + passGap))], spread: 0 };
     return wrap(withScene('town-day', town), { machine: 'ally', ...extra });
   };
-  const landed = () => ({ machines: { ally: landedFrom([run(10), run(11), run(12)]) } });
+  const landed = () => ({ machines: { ally: landedFrom([run(10), run(10.5), run(11)]) } });
 
   it('takes the median of the reports as the value and their range as the noise', () => {
-    const { measures } = landedFrom([run(10), run(11), run(12)]);
-    expect(measures['town-day mean']).toEqual({ value: 11, noise: 2, limit: 13 });
+    const { measures } = landedFrom([run(10), run(10.5), run(11)]);
+    expect(measures['town-day mean']).toEqual({ value: 10.5, noise: 1, limit: 11.5 });
   });
 
   it('uses the pass difference inside a report when it is larger than the range', () => {
-    const { measures } = landedFrom([run(10, {}, 3), run(10, {}, 3), run(10, {}, 3)]);
-    expect(measures['town-day mean']).toEqual({ value: 10, noise: 3, limit: 13 });
+    const { measures } = landedFrom([run(10, {}, 1), run(10, {}, 1), run(10, {}, 1)]);
+    expect(measures['town-day mean']).toEqual({ value: 10, noise: 1, limit: 11 });
+  });
+
+  it('refuses stored numbers whose frame time varies too much to catch a slowdown', () => {
+    expect(() => landedFrom([run(10), run(11), run(12)])).toThrow('town-day mean');
   });
 
   it('judges each drive pass alone and ignores the difference between its routes', () => {
@@ -344,7 +348,7 @@ describe('gate', () => {
   });
 
   it('passes unchanged code at its stored numbers', () => {
-    expect(gateLines(run(11), landed()).status).toBe('pass');
+    expect(gateLines(run(10.5), landed()).status).toBe('pass');
   });
 
   it('fails a measure over its limit and names it', () => {
@@ -354,10 +358,12 @@ describe('gate', () => {
     expect(gateSummary(result)).toContain('town-day mean');
   });
 
-  it('fails a new frame over 100 ms when the stored runs had none', () => {
-    const town = { frame: pass(realStats(11, 22, 1)), passes: [pass(realStats(11, 22)), pass(realStats(11, 22))], spread: 0 };
+  it('shows a worse p99 or a new frame over 100 ms without failing, since their noise is too wide to judge', () => {
+    const town = { frame: pass(realStats(10.5, 99, 1)), passes: [pass(realStats(10.5, 21)), pass(realStats(10.5, 21))], spread: 0 };
     const result = gateLines(wrap(withScene('town-day', town), { machine: 'ally' }), landed());
-    expect(result.lines.find((l) => l.key === 'town-day over100')?.pass).toBe(false);
+    expect(result.status).toBe('pass');
+    expect(result.lines.filter((l) => l.watched && !l.pass).map((l) => l.key)).toEqual(['town-day p99', 'town-day over100']);
+    expect(gateSummary(result)).toContain('watch  town-day p99');
   });
 
   it('never passes an untrusted run, another renderer, an unknown machine or a missing measure', () => {
@@ -370,9 +376,9 @@ describe('gate', () => {
 
   it('lets stored numbers fall and refuses to raise a value past its old limit', () => {
     const file = landed();
-    const faster = landedFrom([run(8), run(9), run(10)]);
-    expect(landInto(file, faster).machines.ally.measures['town-day mean'].value).toBe(9);
-    const slower = landedFrom([run(20), run(21), run(22)]);
+    const faster = landedFrom([run(9), run(9.25), run(9.5)]);
+    expect(landInto(file, faster).machines.ally.measures['town-day mean'].value).toBe(9.25);
+    const slower = landedFrom([run(20), run(20.5), run(21)]);
     expect(() => landInto(file, slower)).toThrow('town-day mean');
   });
 

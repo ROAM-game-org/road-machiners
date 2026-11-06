@@ -348,7 +348,9 @@ export function compare(a, b) {
   return [...head, textRow('measure', 'A', 'B'), ...body, '', `${flags} lines changed`].join('\n');
 }
 
-const GATE_STATS = ['mean', 'p99', 'over100'];
+const JUDGED_STAT = 'mean';
+const GATE_STATS = [JUDGED_STAT, 'p99', 'over100'];
+const FRAME_NOISE_SHARE_MAX = 0.1;
 const GATE_MIN_REPORTS = 3;
 
 const rangeOf = (values) => Math.max(...values) - Math.min(...values);
@@ -356,9 +358,9 @@ const medianValue = (values) => [...values].sort((a, b) => a - b)[Math.floor(val
 
 function sceneMeasures(scene) {
   if (scene.id === 'drive') {
-    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `drive pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0 })));
+    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `drive pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
   }
-  return GATE_STATS.map((stat) => ({ key: `${scene.id} ${stat}`, value: scene.frame.real[stat], within: rangeOf(scene.passes.map((pass) => pass.real[stat])) }));
+  return GATE_STATS.map((stat) => ({ key: `${scene.id} ${stat}`, value: scene.frame.real[stat], within: rangeOf(scene.passes.map((pass) => pass.real[stat])), watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT }));
 }
 
 function gateMeasures(report) {
@@ -376,7 +378,12 @@ function landedMeasure(rows) {
   const values = rows.map((row) => row.value);
   const value = medianValue(values);
   const noise = Math.max(rangeOf(values), ...rows.map((row) => row.within));
-  return { value, noise, limit: value + noise };
+  return { value, noise, limit: value + noise, ...(rows[0].watched ? { watched: true } : {}) };
+}
+
+function tooNoisy(perReport, measures) {
+  const means = perReport[0].filter((row) => row.frameMean).map((row) => row.key);
+  return means.filter((key) => measures[key].noise > FRAME_NOISE_SHARE_MAX * measures[key].value);
 }
 
 export function landedFrom(reports) {
@@ -386,12 +393,15 @@ export function landedFrom(reports) {
   const perReport = reports.map((wrapped) => gateMeasures(wrapped.bench));
   const keys = perReport[0].map((row) => row.key);
   const measures = Object.fromEntries(keys.map((key) => [key, landedMeasure(perReport.map((rows) => rows.find((row) => row.key === key)))]));
-  return { commit: oneOf(reports, 'commit', (r) => r.run.commit), machine: oneOf(reports, 'machine', (r) => r.run.machine), renderer: oneOf(reports, 'renderer', (r) => r.bench.renderer), reports: reports.length, measures };
+  const landed = { commit: oneOf(reports, 'commit', (r) => r.run.commit), machine: oneOf(reports, 'machine', (r) => r.run.machine), renderer: oneOf(reports, 'renderer', (r) => r.bench.renderer), reports: reports.length, measures };
+  const noisy = tooNoisy(perReport, measures);
+  if (noisy.length) throw new Error(`Stored numbers would hide a slowdown, since these vary by over ${FRAME_NOISE_SHARE_MAX * 100} percent: ${noisy.join(', ')}. Run the bench again.`);
+  return landed;
 }
 
 export function landInto(file, landed) {
   const old = file.machines[landed.machine]?.measures ?? {};
-  const raised = Object.entries(landed.measures).filter(([key, m]) => old[key] && m.value > old[key].limit).map(([key]) => key);
+  const raised = Object.entries(landed.measures).filter(([key, m]) => !m.watched && old[key] && m.value > old[key].limit).map(([key]) => key);
   if (raised.length) throw new Error(`Stored numbers would rise past their limits: ${raised.join(', ')}. Edit scripts/perf-landed.json by hand if this slowdown is accepted.`);
   return { machines: { ...file.machines, [landed.machine]: landed } };
 }
@@ -412,14 +422,19 @@ export function gateLines(wrapped, file) {
   const problems = gateProblems(wrapped, landed);
   if (problems.length) return { status: 'untrusted', problems, lines: [] };
   const lines = gateMeasures(wrapped.bench).filter((row) => landed.measures[row.key]).map((row) => {
-    const { limit } = landed.measures[row.key];
-    return { key: row.key, value: row.value, limit, pass: row.value <= limit };
+    const { limit, watched = false } = landed.measures[row.key];
+    return { key: row.key, value: row.value, limit, watched, pass: row.value <= limit };
   });
-  return { status: lines.every((line) => line.pass) ? 'pass' : 'slower', problems, lines };
+  return { status: lines.every((line) => line.watched || line.pass) ? 'pass' : 'slower', problems, lines };
+}
+
+function gateMark(line) {
+  if (line.pass) return 'pass  ';
+  return line.watched ? 'watch ' : 'SLOWER';
 }
 
 export function gateSummary({ status, problems, lines }) {
   if (status === 'untrusted') return ['GATE UNTRUSTED, this run judges nothing:', ...problems.map((problem) => `  ${problem}`)].join('\n');
-  const rows = lines.map((line) => `${line.pass ? 'pass  ' : 'SLOWER'} ${line.key.padEnd(34)} ${fmt(line.value).padStart(9)} of ${fmt(line.limit).padStart(9)}`);
-  return [...rows, '', status === 'pass' ? 'GATE PASS' : `GATE FAIL: ${lines.filter((line) => !line.pass).length} measures over their limits`].join('\n');
+  const rows = lines.map((line) => `${gateMark(line)} ${line.key.padEnd(34)} ${fmt(line.value).padStart(9)} of ${fmt(line.limit).padStart(9)}`);
+  return [...rows, '', status === 'pass' ? 'GATE PASS' : `GATE FAIL: ${lines.filter((line) => !line.watched && !line.pass).length} measures over their limits`].join('\n');
 }

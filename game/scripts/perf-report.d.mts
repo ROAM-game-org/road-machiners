@@ -38,10 +38,10 @@ export function fixNext(report: unknown, lines: BudgetLine[]): FixEntry[];
 export function summary(wrapped: Wrapped, lines: BudgetLine[]): string;
 export function compare(a: Wrapped, b: Wrapped): string;
 
-export type GateMeasure = { value: number; noise: number; limit: number };
+export type GateMeasure = { value: number; noise: number; limit: number; watched?: boolean };
 export type Landed = { commit: string; machine: string; renderer: string; reports: number; measures: Record<string, GateMeasure> };
 export type LandedFile = { machines: Record<string, Landed> };
-export type GateLine = { key: string; value: number; limit: number; pass: boolean };
+export type GateLine = { key: string; value: number; limit: number; watched: boolean; pass: boolean };
 export type GateResult = { status: 'pass' | 'slower' | 'untrusted'; problems: string[]; lines: GateLine[] };
 export function landedFrom(reports: Wrapped[]): Landed;
 export function landInto(file: LandedFile, landed: Landed): LandedFile;

@@ -1,5 +1,5 @@
 import type { Camera, Material, Object3D, SpotLight } from 'three';
-import { GAME_VERSION } from '../config';
+import { CONFIG, GAME_VERSION } from '../config';
 import { REGION, type TownDef } from '../data/region';
 import { DEFAULT_ZOOM } from '../data/view';
 import { driveSnapshotOf } from '../phys/turn';
@@ -46,6 +46,7 @@ const PREVIEW_OFFSETS: readonly (readonly [number, number])[] = [[12, 4], [40, 2
 
 const HELD_SHARE = 0.25;
 const THINK_MS = 2000;
+const STALE_JOB_RUNS_MS = 100;
 const GAME_FIELDS = [
   'drive', 'siteLights', 'vehicleLights', 'travel', 'death', 'screens', 'menu', 'isEditingControl', 'modalOpen', 'timeHeld',
   'pressTurn', 'releaseTurn', 'trucks', 'sun', 'sky', 'ground', 'props', 'fx', 'weather', 'clouds', 'craters', 'streamer', ...OVERLAY_FIELDS,
@@ -256,14 +257,21 @@ async function finishPlayback(ctx: Ctx): Promise<void> {
   await ctx.probe.until(() => !ctx.game.busy, TURN_MS, 'the turn to finish playing');
 }
 
-async function playerThinks(ctx: Ctx): Promise<void> {
-  const until = performance.now() + THINK_MS;
-  await ctx.probe.until(() => performance.now() >= until, 2 * THINK_MS, 'the player to think');
+async function playerThinks(ctx: Ctx, ms: number): Promise<void> {
+  const until = performance.now() + ms;
+  await ctx.probe.until(() => performance.now() >= until, 2 * ms, 'the player to think');
+}
+
+async function beforeFightPress(ctx: Ctx, turn: number): Promise<void> {
+  if (turn % 4 === 1) await playerThinks(ctx, THINK_MS);
+  if (turn % 4 !== 3) return;
+  await playerThinks(ctx, CONFIG.fightPlanSettleMs + STALE_JOB_RUNS_MS);
+  ctx.game.apply({ ...ctx.game.state });
 }
 
 async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
-    if (i % 2 === 1) await playerThinks(ctx);
+    await beforeFightPress(ctx, i);
     await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }
