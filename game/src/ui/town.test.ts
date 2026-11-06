@@ -324,7 +324,7 @@ describe("the supply rows of the front page", () => {
       return x;
     };
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
-    limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
+    limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null, pricedButtons: true });
     expect(asked).toEqual([1, 3]);
   });
 
@@ -340,7 +340,22 @@ describe("the supply rows of the front page", () => {
     };
     const price = ECONOMY.supplyPrice.fuel;
     w.player.money = price * 3;
-    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null });
+    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null, pricedButtons: true });
     expect(labels).toEqual([`+${resolve(supplyAmount("fuel", 1), "en")}, ${resolve(moneyMsg(price), "en")}`, `Fill ${resolve(supplyAmount("fuel", 3), "en")}, ${resolve(moneyMsg(price * 3), "en")}`]);
+  });
+
+  it("leave the outpost buttons without a price", () => {
+    const w = emptyWorld();
+    const labels: string[] = [];
+    const buttons = {
+      button: (label: Msg) => {
+        labels.push(resolve(label, "en"));
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
+      priceButton: () => new FakeNode("button") as unknown as HTMLElement,
+    };
+    w.player.money = ECONOMY.supplyPrice.fuel * 3;
+    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null, pricedButtons: false });
+    expect(labels).toEqual([`+${resolve(supplyAmount("fuel", 1), "en")}`, `Fill ${resolve(supplyAmount("fuel", 3), "en")}`]);
   });
 });

@@ -493,7 +493,7 @@ export class TownScreen {
   private shopSupplyRow(w: World, shopId: string, k: Supply): HTMLElement {
     const short = rationing(w, shopId, k);
     const tag = short ? el("span", { class: "tag bad", title: rationingTip(k) }, t("trade.rationing")) : null;
-    return limitedSupplyRow(w, k, this, buySupply, playerVehicle(w), { room: serviceRoom(w, shopId, k), tag });
+    return limitedSupplyRow(w, k, this, buySupply, playerVehicle(w), { room: serviceRoom(w, shopId, k), tag, pricedButtons: true });
   }
 
   private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {

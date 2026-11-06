@@ -38,12 +38,12 @@ export function repairBar(w: World, buttons: ShopButtons, repair: { basics: Shop
   );
 }
 
-export type SupplyLimit = { room: number; tag: HTMLElement | null };
+export type SupplyLimit = { room: number; tag: HTMLElement | null; pricedButtons: boolean };
 
 type SupplyBuy = (w: World, k: Supply, n: number) => World;
 
 export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  return limitedSupplyRow(w, k, buttons, buy, truck, { room: supplyRoom(w, k, truck), tag: null });
+  return limitedSupplyRow(w, k, buttons, buy, truck, { room: supplyRoom(w, k, truck), tag: null, pricedButtons: false });
 }
 
 export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
@@ -52,9 +52,10 @@ export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
   const afford = Math.min(room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
   const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, null, shortBy(w.player.money, price) === null, [
-    buttons.button(list([t("trade.plusAmount", { amount: amount(1) }), moneyMsg(supplyCharge(k, 1))]), (x) => buy(x, k, 1), reason),
-    buttons.button(afford > 0 ? list([t("trade.fill", { amount: amount(afford) }), moneyMsg(supplyCharge(k, afford))]) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
+  const label = (verb: Msg, n: number) => (limit.pricedButtons ? list([verb, moneyMsg(supplyCharge(k, n))]) : verb);
+  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, limit.pricedButtons ? null : price, shortBy(w.player.money, price) === null, [
+    buttons.button(label(t("trade.plusAmount", { amount: amount(1) }), 1), (x) => buy(x, k, 1), reason),
+    buttons.button(afford > 0 ? label(t("trade.fill", { amount: amount(afford) }), afford) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
   ], limit.tag);
 }
 

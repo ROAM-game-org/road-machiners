@@ -1,6 +1,6 @@
 # Town pages as places
 
-Status: executing
+Status: validating
 Branch: town-places
 Worktree: .worktrees/town-places
 Goal: A player who opens any town page sees the settlement's outsider area as a list of named places they can visit, starts on Bowl gateway, and finds parts, goods, jobs, people and maps with one click each, as fast as today. Useless if: only the button labels change while charts stay inside the market; a place has nothing to do; a place adds walking or an extra screen; Russian text is missing; the text still says "gate yard" in Bowl; or a screenshot check passes while the names were never approved by the user.
@@ -185,7 +185,28 @@ Notes:
 
 ## Conclusion
 
+Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the user to read the text and the three browser checks to rerun.
+
+Invariants:
+- IV1 — Every place opens from a front page row, and the number keys were checked on screen.
+- IV2 — `townPlaces()` drops `maps` where `charts` is false, and a test confirms every shop has a local in its canteen.
+- IV3 — `TOWN_SECTIONS` sets one order, and a test checks it on every shop.
+- IV4 — No sim rule, price, stock or contract changed. Town scene tests pass.
+- IV5 — Section ids are not in the saved world types. The new locals' quests add nothing to old saves, but no old save was loaded in a browser.
+
+### Assumptions check
+- AS1 — unverifiable by the agent — the Bowl band art stays, and the user judges the fit on the screenshots.
+- AS2 — held — no art was added.
+
+Plan adherence: PH1 to PH6 went into one commit, since the type check needs code and both languages together. Fuel and supplies buttons gained totals only after verify showed them missing, and `SupplyLimit.pricedButtons` keeps the outpost rows as they were.
+
+Review findings:
+- Important: the price change also altered the outpost rows through the shared `limitedSupplyRow`. Fixed with `pricedButtons`, and a test covers both callers.
+
+Verified by: `tmp/town-check.mjs` on all sites in both languages, and screenshots read by the agent. Layout, playtest and mobile checks did not finish.
+
 ### Hands-off decisions
+- ureview: fixed the outpost supply rows changing by accident — added `pricedButtons`, on for the town front page only.
 - uplan: plan auto-approved — the user switched to hands-off after reading the plan.
 
 - uexecute: all phases went into one commit — the pre-commit type check needs code and both languages together.
