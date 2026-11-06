@@ -22,7 +22,7 @@ import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangU
 import { type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
-import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
+import { cellKey, corePart, engineCells, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
@@ -392,8 +392,8 @@ function sellGearFor(o: Orders, shopId: string, price: number): void {
 }
 
 function onEngineCells(v: Vehicle): string {
-  const g = gridOf(v);
-  const onEngine = (it: GridItem) => itemCells(it).some((c) => MOUNT_CELLS.engine.includes(g.cells[c.y]?.[c.x] ?? '.'));
+  const bay = new Set(engineCells(v.chassisId).map((c) => cellKey(c.x, c.y)));
+  const onEngine = (it: GridItem) => itemCells(it).some((c) => bay.has(cellKey(c.x, c.y)));
   const names = v.items.filter(onEngine).map((it) => (it.kind === 'part' ? `${it.part.defId} hp ${it.part.hp}${isMounted(v.chassisId, it) ? ' mounted' : ''}` : `${it.kind} ${it.kind === 'good' ? it.good : it.contract}`));
   return names.length > 0 ? names.join(', ') : 'nothing';
 }

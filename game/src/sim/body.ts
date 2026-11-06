@@ -1,7 +1,7 @@
 import { chassisDef, type ChassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
-import { baseGrid } from './grid';
+import { baseGrid, engineCells } from './grid';
 import type { ShapeBox } from './mapgen';
 
 export type BodyBox = { at: { x: number; y: number; z: number }; half: { x: number; y: number; z: number } };
@@ -478,7 +478,7 @@ export function engineFloor(chassisId: string): number {
 }
 
 export function engineBay(chassisId: string): CellRect {
-  const cells = chassisDef(chassisId).layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+  const cells = engineCells(chassisId);
   if (cells.length === 0) throw new Error(`Chassis ${chassisId} has no engine cells`);
   return cellRect(chassisId, cells);
 }

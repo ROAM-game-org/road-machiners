@@ -24,7 +24,7 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
 
-export type Layer = 'base' | 'accessory';
+export type Layer = 'base' | 'accessory' | 'below';
 
 export function mountCellsOf(defId: string): Cell[] {
   const def = partDef(defId);
@@ -36,7 +36,42 @@ function isAccessoryItem(item: GridItem): item is Extract<GridItem, { kind: 'par
 }
 
 export function layerOf(g: Grid, item: GridItem): Layer {
-  return isAccessoryItem(item) && onOwnMounts(g, item) ? 'accessory' : 'base';
+  if (isAccessoryItem(item) && onOwnMounts(g, item)) return 'accessory';
+  return belowDeck(g.chassisId, item) ? 'below' : 'base';
+}
+
+export function belowDeck(chassisId: string, item: GridItem): boolean {
+  if (item.kind !== 'part') return false;
+  const def = partDef(item.part.defId);
+  if (def.kind === 'engine') return inHiddenBay(chassisId, itemCells(item));
+  return def.kind === 'core' && hidesBelow(chassisId, def) && onCoreSpot(chassisId, item);
+}
+
+function hidesBelow(chassisId: string, def: CoreDef): boolean {
+  if (def.role === 'cab') return false;
+  return def.role === 'wheel' || !chassisDef(chassisId).showsCores;
+}
+
+function onCoreSpot(chassisId: string, item: GridItem & { kind: 'part' }): boolean {
+  return chassisDef(chassisId).core.some((c) => c.defId === item.part.defId && c.x === item.x && c.y === item.y && (c.rot ?? 0) === item.rot);
+}
+
+function inHiddenBay(chassisId: string, cells: readonly { x: number; y: number }[]): boolean {
+  const bay = chassisDef(chassisId).hiddenBay;
+  return bay !== undefined && cells.every((c) => c.x >= bay.x && c.x < bay.x + bay.w && c.y >= bay.y && c.y < bay.y + bay.h);
+}
+
+function mountLayer(g: Grid, item: GridItem): Layer {
+  const kind = item.kind === 'part' ? partDef(item.part.defId).kind : null;
+  if (kind === 'accessory') return 'accessory';
+  return kind === 'engine' && chassisDef(g.chassisId).hiddenBay ? 'below' : 'base';
+}
+
+export function engineCells(chassisId: string): { x: number; y: number }[] {
+  const chassis = chassisDef(chassisId);
+  const bay = chassis.hiddenBay;
+  if (!bay) return chassis.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+  return Array.from({ length: bay.w * bay.h }, (_, at) => ({ x: bay.x + (at % bay.w), y: bay.y + Math.floor(at / bay.w) }));
 }
 
 function onOwnMounts(g: Grid, item: Extract<GridItem, { kind: 'part' }>): boolean {
@@ -149,6 +184,7 @@ function mountLetterTable(chassisId: string, defId: string): (Cell | null)[] {
 }
 
 function computeMountLetter(base: Grid, item: GridItem & { kind: 'part' }): Cell | null {
+  if (belowDeck(base.chassisId, item)) return partDef(item.part.defId).kind === 'engine' ? 'E' : 'X';
   const first = letterAt(base, item.x, item.y);
   if (first === null || !mountCellsOf(item.part.defId).includes(first)) return null;
   return coversOnly(base, item, first) ? first : null;
@@ -364,7 +400,7 @@ export function placementErrorIn(g: Grid, occupied: Occupied, item: GridItem, ba
 }
 
 export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null {
-  const held: Record<Layer, Map<number, number>> = { base: new Map(), accessory: new Map() };
+  const held: Record<Layer, Map<number, number>> = { base: new Map(), accessory: new Map(), below: new Map() };
   for (const it of items) {
     const counts = held[layerOf(g, it)];
     for (const c of itemCells(it)) counts.set(cellKey(c.x, c.y), (counts.get(cellKey(c.x, c.y)) ?? 0) + 1);
@@ -418,7 +454,7 @@ function isWeapon(item: GridItem): boolean {
 }
 
 export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Cell[]): Spot[] {
-  const taken = occupiedCells(g, items, item.id)[isAccessoryItem(item) ? 'accessory' : 'base'];
+  const taken = occupiedCells(g, items, item.id)[mountLayer(g, item)];
   const turns = turnsOf(item).length as 2 | 8;
   const sizes = turnsOf(item).map((rot) => itemSize({ ...item, rot }));
   const free = (s: Spot) => {
@@ -441,12 +477,17 @@ function spotsOnLetter(g: Grid, letter: Cell, turns: 2 | 8, sizes: { w: number; 
   if (known) return known;
   const covers = (s: Spot) => {
     const { w, h } = sizes[s.rot];
-    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (g.cells[s.y + dy]?.[s.x + dx] !== letter) return false;
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (mountLetterAt(g, letter, s.x + dx, s.y + dy) !== letter) return false;
     return true;
   };
   const spots = allSpots(g, turns).filter(covers);
   byKey.set(key, spots);
   return spots;
+}
+
+function mountLetterAt(g: Grid, letter: Cell, x: number, y: number): Cell | null {
+  if (letter === 'E' && chassisDef(g.chassisId).hiddenBay) return inHiddenBay(g.chassisId, [{ x, y }]) ? 'E' : null;
+  return g.cells[y]?.[x] ?? null;
 }
 
 const KEY_ROW = 1024;
@@ -458,7 +499,7 @@ export function cellKey(x: number, y: number): number {
 export type Occupied = Record<Layer, Set<number>>;
 
 export function occupiedCells(g: Grid, items: GridItem[], ignoreId: string | null): Occupied {
-  const occupied: Occupied = { base: new Set(), accessory: new Set() };
+  const occupied: Occupied = { base: new Set(), accessory: new Set(), below: new Set() };
   for (const it of items) {
     if (it.id === ignoreId) continue;
     const taken = occupied[layerOf(g, it)];

@@ -60,6 +60,7 @@ export type ChassisDef = {
   radius: number;
   layout: string[];
   core: { defId: string; x: number; y: number; rot?: 0 | 1 }[];
+  hiddenBay?: { x: number; y: number; w: number; h: number };
   fuelCap: number;
   fuelPerTile: number;
   base: number;
@@ -197,6 +198,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 4, y: 7 },
     ],
     oldGrid: { deck: 4, armor: 26, width: 7 },
+    hiddenBay: { x: 2, y: 2, w: 2, h: 3 },
     spareRows: 2,
     fuelCap: 30,
     fuelPerTile: 0.2,
