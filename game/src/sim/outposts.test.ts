@@ -114,7 +114,7 @@ describe('outpost services', () => {
     expect(after.player.money).toBe(money - ECONOMY.supplyPrice.fuel * 10);
   });
 
-  it('sells a stock part onto the truck and off the shelf', () => {
+  it('sells a stock part into storage and off the shelf', () => {
     const w = atOutpost();
     w.player.money = 10_000_000;
     const part = fittingStock(w);
@@ -123,7 +123,7 @@ describe('outpost services', () => {
     const after = outpostBuyPart(w, part.id);
 
     expect(after.chaosHighway!.outposts[1].stock.map((p) => p.id)).not.toContain(part.id);
-    expect(playerVehicle(after).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
+    expect(after.player.storage.map((p) => p.id)).toEqual([part.id]);
     expect(after.player.money).toBe(w.player.money - price);
   });
 
@@ -138,7 +138,7 @@ describe('outpost services', () => {
     expect(outpostGoodPrice()).toBe(Math.ceil(GOODS.parts.value * CHAOS_HIGHWAY.goodsMarkup));
   });
 
-  it('carries a bought part into the next stretch', () => {
+  it('carries a bought part in storage into the next stretch', () => {
     let w = atOutpost();
     w.player.money = 10_000_000;
     const part = fittingStock(w);
@@ -149,7 +149,7 @@ describe('outpost services', () => {
     w = endTurn(w, still);
 
     expect(w.chaosHighway!.window).toBe(1);
-    expect(playerVehicle(w).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
+    expect(w.player.storage.map((p) => p.id)).toEqual([part.id]);
   });
 
   it('patches a broken engine in the field with bought parts, up to the field cap', () => {

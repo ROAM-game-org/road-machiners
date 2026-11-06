@@ -6,9 +6,8 @@ import { craterRimPoints } from "../sim/craters";
 import { playerVehicle } from "../sim/damage";
 import { LIVE_REACH } from "../sim/fidelity";
 import { rideOf, unitBody, unitsOf } from "../sim/body";
-import { unitPoses, type UnitPose } from "../sim/rig";
-import { propBase } from "../sim/bridge";
-import { propPose, RAMP_MODELS, rampSpan } from "../sim/mapgen";
+import { trailPoseAt, unitPoses, type UnitPose } from "../sim/rig";
+import { propBase, propPose, RAMP_MODELS, rampSpan } from "../sim/mapgen";
 import { groundAt, heightAt, type Terrain } from "../sim/terrain";
 import type { Crater, Obstacle, Pose, Vehicle, World } from "../sim/types";
 import { angleDiff, type Vec } from "../sim/vec";
@@ -221,15 +220,6 @@ function posesOf(chassisId: string, p: Pose): UnitPose[] {
   return unitPoses({ chassisId, pos: { x: p.x, y: p.y }, heading: p.heading, bend: p.bend });
 }
 
-function trailPoseAt(trail: readonly Pose[], t: number): Pose {
-  const k = Math.min(Math.floor(t), trail.length - 2);
-  const f = t - k;
-  const a = trail[k];
-  const c = trail[k + 1];
-  const pose: Pose = { x: a.x + (c.x - a.x) * f, y: a.y + (c.y - a.y) * f, heading: a.heading + angleDiff(a.heading, c.heading) * f };
-  if (a.bend !== undefined && c.bend !== undefined) pose.bend = a.bend + (c.bend - a.bend) * f;
-  return pose;
-}
 
 function rollFrame(w: World, v: Vehicle, pose: Pose, rolls: Roll[]): VehicleFrame {
   const posed = posesOf(v.chassisId, pose);

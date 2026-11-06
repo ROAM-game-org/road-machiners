@@ -5,12 +5,13 @@ import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import type { GridItem, Rot, World } from "../sim/types";
 import { chassisDef } from "../data/chassis";
 import { knockOutNpc } from "../sim/defeat";
-import { bareGrid, baseGrid, corePart, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
+import { bareGrid, baseGrid, cellsTurned, corePart, facingOf, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
 import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, drawnLayer, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, GridScale, iconBox, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, itemLabel, itemName, itemState, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
 import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
@@ -34,28 +35,6 @@ describe("the parcel cell", () => {
     expect(resolve(itemName(parcel), "en")).toBe("Parcel");
     expect(resolve(itemLabel(parcel).short, "en")).toBe("Parcel");
     expect(resolve(itemState(parcel, false), "en")).toBe("5 kg");
-  });
-});
-
-describe("nextRot", () => {
-  it("turns a gun through all four quarters", () => {
-    const seen: Rot[] = [];
-    let rot: Rot = 0;
-    for (let i = 0; i < 4; i++) {
-      rot = nextRot(item("mg", rot));
-      seen.push(rot);
-    }
-    expect(seen).toEqual([1, 2, 3, 0]);
-  });
-
-  it("toggles any other part between 0 and 1", () => {
-    expect(nextRot(item("stockEngine", 0))).toBe(1);
-    expect(nextRot(item("stockEngine", 1))).toBe(0);
-  });
-
-  it("sends a non-gun at 2 or 3 back into the 0 and 1 toggle", () => {
-    expect(nextRot(item("stockEngine", 2))).toBe(0);
-    expect(nextRot(item("stockEngine", 3))).toBe(0);
   });
 });
 
@@ -254,7 +233,7 @@ describe("the garage grid's layers and marks", () => {
 });
 
 describe("the garage looks of a truck whose picture failed (issue 1404)", () => {
-  const rendering = (body: unknown) => ({ ensureNow: () => {}, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
+  const rendering = (body: unknown) => ({ ensureNow: () => {}, suspended: () => false, body: () => body }) as unknown as Parameters<typeof garageLooks>[0];
 
   it("are missing, so the grid draws its plain outline", () => {
     const w = emptyWorld();
@@ -294,5 +273,70 @@ describe("the pivot a fan starts from", () => {
   it("throws for a drawn gun that carries no pivot", () => {
     const { look, gun } = lookWith(sprite(undefined));
     expect(() => pivotPx(look, gun, m)).toThrow(/no pivot/);
+  });
+});
+
+describe("the grid scale fit", () => {
+  const w = emptyWorld();
+  const truck = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine", "scrapSheet"], { x: 30, y: 30 });
+  const heightAt = (scale: GridScale) => gridSize(scale.measure(truck, true)).height;
+
+  it("shrinks until the measured overflow is gone, counting the fixed padding", () => {
+    const scale = new GridScale();
+    const full = heightAt(scale);
+    const room = full * 0.85 - 10;
+    const padding = 30;
+    scale.settle("a", () => heightAt(scale) + padding - room, () => scale.measure(truck, true));
+    expect(heightAt(scale) + padding).toBeLessThanOrEqual(room + 1);
+  });
+
+  it("holds its size for the same key and refits for another", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale) - 100, () => scale.measure(truck, true));
+    const fitted = heightAt(scale);
+    expect(scale.holds("a")).toBe(true);
+    expect(heightAt(scale)).toBe(fitted);
+    expect(scale.holds("b")).toBe(false);
+    scale.reset();
+    expect(scale.holds("a")).toBe(false);
+  });
+
+  it("stops at the smallest cell when the room is too short", () => {
+    const scale = new GridScale();
+    scale.measure(truck, true);
+    scale.settle("a", () => heightAt(scale), () => scale.measure(truck, true));
+    const m = scale.mine;
+    expect(Math.sqrt(m.cellW * m.cellH)).toBeGreaterThanOrEqual(27.9);
+  });
+});
+
+describe("the icon of a gun lying across its cells", () => {
+  const metrics = { cellW: 20, cellH: 20 } as GridMetrics;
+  const at = (rot: Rot) => iconBox(item("mg", rot), metrics);
+
+  it("keeps the footprint for a gun that points along its cells", () => {
+    expect(at(0)).toEqual({ width: 18, height: 58 });
+    expect(at(1)).toEqual({ width: 18, height: 58 });
+  });
+
+  it("keeps the gun's own proportions inside the footprint when it points across", () => {
+    const { width, height } = at(4);
+    expect(height).toBeCloseTo(18);
+    expect(width).toBeCloseTo(6);
+    expect(at(5).width).toBeCloseTo(6);
+    expect(at(5).height).toBeCloseTo(18);
+  });
+});
+
+describe("the turns the Rotate button tries", () => {
+  it("steps a lying gun's barrel clockwise through the poses that keep its cells lying", () => {
+    const lying = (rot: Rot) => turnsToTry(item("mg", rot)).filter((r) => cellsTurned({ rot: r })).map((r) => facingOf({ ...item("mg", r) }));
+    expect(lying(4)).toEqual([90, 180, 270]);
+  });
+
+  it("ends one turn short of the start", () => {
+    expect(turnsToTry(item("mg", 0))).toEqual([4, 1, 5, 2, 6, 3, 7]);
+    expect(turnsToTry(item("stockEngine", 0))).toEqual([1]);
   });
 });

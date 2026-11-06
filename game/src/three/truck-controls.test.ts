@@ -4,7 +4,12 @@ import { maxHealthOf } from '../sim/health';
 import { mountedParts } from '../sim/grid';
 import { aidData, addState } from '../sim/states';
 import { playerAid } from '../sim/aid';
-import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain, spotWorld } from '../sim/testkit';
+import { emptyHidden } from '../sim/salvage';
+import { beginSearch } from '../sim/search';
+import { surveySites } from '../sim/survey';
+import { TEST_MAP } from '../test/map';
+import { resolve } from '../text/resolve';
 import type { World } from '../sim/types';
 import { TruckContext, TruckControls, type ContextHost } from './truck-controls';
 
@@ -18,18 +23,18 @@ function scene(aidX: number) {
 }
 
 function host(w: World) {
-  const calls = { applied: [] as World[], trades: [] as string[] };
+  const calls = { applied: [] as World[], trades: [] as string[], loots: [] as string[], notes: [] as string[] };
   const h = {
     world: () => w,
     playing: () => false,
     apply: (next: World) => { calls.applied.push(next); },
     pushEvents: () => undefined,
-    note: () => undefined,
+    note: (text) => { calls.notes.push(resolve(text, 'en')); },
     openTrade: (id: string) => { calls.trades.push(id); },
     openTown: () => undefined,
     openOutpost: () => undefined,
     openDowned: () => undefined,
-    openLoot: () => undefined,
+    openLoot: (id: string) => { calls.loots.push(id); },
   } satisfies ContextHost;
   return { h, calls };
 }
@@ -58,6 +63,55 @@ describe('the E key on a deal', () => {
     const { h, calls } = host(w);
     new TruckContext(h).use();
     expect(calls.trades).toEqual([b.id]);
+  });
+});
+
+describe('the E key on a place that is not ready', () => {
+  function surveyScene(speed: number) {
+    const [site] = surveySites(TEST_MAP);
+    const { w } = spotWorld();
+    const me = playerVehicle(w);
+    me.pos = { x: site.pos.x + 1, y: site.pos.y };
+    me.speed = speed;
+    me.order = null;
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    return { w, site };
+  }
+
+  it('notes Stop to use and starts nothing while the truck still rolls', () => {
+    const { w } = surveyScene(1);
+    const { h, calls } = host(w);
+    expect(() => new TruckContext(h).use()).not.toThrow();
+    expect(calls.applied).toEqual([]);
+    expect(calls.notes).toEqual(['Stop to use']);
+  });
+
+  it('starts the survey once the truck is parked', () => {
+    const { w, site } = surveyScene(0);
+    const { h, calls } = host(w);
+    new TruckContext(h).use();
+    expect(calls.applied).toHaveLength(1);
+    expect(playerVehicle(calls.applied[0]).job).toMatchObject({ kind: 'survey' });
+    expect(JSON.stringify(playerVehicle(calls.applied[0]).job)).toContain(site.id);
+    expect(calls.notes).toEqual([]);
+  });
+
+  it('does not open the loot of a wreck another truck is looting', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.salvage.push({ id: 'wreck901', pos: { x: 30.5, y: 30 }, radius: 1, goods: { scrap: 1 }, parts: [], hidden: { ...emptyHidden(), goods: { scrap: 2 } } });
+    w.player.scavenged.push('wreck901');
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 31.5, y: 30 });
+    npc.speed = 0;
+    beginSearch(w, npc, 'wreck901');
+    const { h, calls } = host(w);
+    const context = new TruckContext(h);
+    context.use();
+    context.cycle(1);
+    context.use();
+    expect(calls.loots).toEqual([]);
+    expect(calls.applied).toEqual([]);
+    expect(calls.notes).toHaveLength(2);
+    expect(calls.notes[1]).toContain('is looting it');
   });
 });
 

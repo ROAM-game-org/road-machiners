@@ -1,3 +1,4 @@
+import { isPlayerTruck, playerVehicle } from './damage';
 import { releaseGoneHolders } from './moments';
 import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -29,6 +30,7 @@ import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, J
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 import { payoutM } from './money';
+import { restoreStores } from './goods-store';
 import { queuedSpawnFits } from './spawn';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
@@ -183,6 +185,7 @@ function dropGoneContent(world: World): void {
   dropOwnContracts(world);
   world.player.pastContracts = world.player.pastContracts.filter((p) => contractFits(p.contract));
   dropUnknownKeys(world.player.costBasis);
+  restoreStores(world, world.player.storedGoods);
   dropHulks(world);
   world.spawnQueue = world.spawnQueue.filter(queuedSpawnFits);
 }
@@ -559,6 +562,15 @@ function repairPlayer(world: World): void {
   }
   player.perks = player.perks.filter(isPerkId);
   dropGoneSources(player);
+  dropOwnTruckOrders(world);
+}
+
+function dropOwnTruckOrders(world: World): void {
+  const me = playerVehicle(world);
+  for (const [weaponId, order] of Object.entries(me.weaponOrders)) {
+    const target = world.vehicles.find((v) => v.id === order.targetId);
+    if (target && isPlayerTruck(world, target)) delete me.weaponOrders[weaponId];
+  }
 }
 
 function dropGoneSources(player: World['player']): void {

@@ -338,8 +338,10 @@ export function standingBlockers(world: World, v: Vehicle): Blocker[] {
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
   const standing = standingBlockers(world, v);
   if (!followsTraffic(world, v)) return standing;
-  const swerves = conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v));
-  const kept = heldHolders(world, v).filter((x) => !swerves.includes(x));
+  const dest = v.order && v.order.kind !== "brake" ? v.order.dest : null;
+  const followed = (x: Vehicle): boolean => !!dest && leads(world, v, x) && !passes(world, v, x, dest);
+  const swerves = conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v) && !followed(x));
+  const kept = heldHolders(world, v).filter((x) => !swerves.includes(x) && !followed(x));
   return [...standing, ...[...swerves, ...kept].flatMap((x) => sweptPath(world, v, x))];
 }
 
@@ -356,14 +358,18 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   if (!isNear(world, v)) return false;
   const moving = meeting(world, v);
   if (moving.length === 0) return false;
+  return !clearWayAround(world, v, dest, moving);
+}
+
+function clearWayAround(world: World, v: Vehicle, dest: Vec, trucks: Vehicle[]): boolean {
   const parked = parkedVehicles(world, v.id, getHitchedTowIds(world));
   const radius = vehicleRadius(v);
   const goal = aheadGoal(world, v.pos, dest, radius, parked, v, REGION.navigation.farWindow);
   const open = route(world, v.pos, goal, radius, parked, v);
-  const around = route(world, v.pos, goal, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
-  if (dist(open.at(-1)!, around.at(-1)!) > 0) return true;
-  if (detourTooHard(world, v, open, around, moving)) return true;
-  return moving.some((x) => !passesClear(world, v, x, around));
+  const around = route(world, v.pos, goal, radius, [...parked, ...trucks.flatMap((x) => sweptPath(world, v, x))], v);
+  if (dist(open.at(-1)!, around.at(-1)!) > 0) return false;
+  if (detourTooHard(world, v, open, around, trucks)) return false;
+  return trucks.every((x) => passesClear(world, v, x, around));
 }
 
 function detourTooHard(world: World, v: Vehicle, open: Vec[], around: Vec[], moving: Vehicle[]): boolean {
@@ -408,9 +414,19 @@ function others(world: World, v: Vehicle): Vehicle[] {
   return world.vehicles.filter((x) => x.id !== v.id && x.id !== v.brain?.ramTarget && !onOwnRope(world, v, x));
 }
 
+function leads(world: World, v: Vehicle, x: Vehicle): boolean {
+  if (x.speed < RULES.parkedSpeed || gapAhead(world, v, x, RULES.traffic.crossCone) === null) return false;
+  if (Math.abs(angleDiff(x.heading, v.heading)) >= RULES.traffic.followCone) return false;
+  return x.speed * Math.cos(angleDiff(x.heading, bearing(v.pos, x.pos))) > 0;
+}
+
+function comesFromBehind(world: World, v: Vehicle, x: Vehicle): boolean {
+  return gapAhead(world, v, x, RULES.traffic.crossCone) === null && Math.abs(angleDiff(x.heading, v.heading)) < RULES.traffic.followCone;
+}
+
 function meeting(world: World, v: Vehicle): Vehicle[] {
-  const closing = conflicts(world, v, 0);
-  const stopped = v.speed < RULES.parkedSpeed ? others(world, v).filter((x) => x.speed >= RULES.parkedSpeed && closesOn(world, x, v, 0) && !closing.includes(x)) : [];
+  const closing = conflicts(world, v, 0).filter((x) => !leads(world, v, x));
+  const stopped = v.speed < RULES.parkedSpeed ? others(world, v).filter((x) => x.speed >= RULES.parkedSpeed && closesOn(world, x, v, 0) && !closing.includes(x) && !comesFromBehind(world, v, x)) : [];
   return [...closing, ...stopped].filter((x) => !givesWayTo(world, x, v));
 }
 
@@ -581,6 +597,19 @@ function aimOf(world: World, x: Vehicle, dest: Vec): Vec {
   const at = aheadGoal(world, x.pos, dest, vehicleRadius(x), [], x, REGION.navigation.farWindow);
   AIMS.set(x, { world, turn: world.turn, from: { ...x.pos }, dest: { ...dest }, at });
   return at;
+}
+
+type Pass = { world: World; turn: number; from: Vec; leaderId: string; leaderFrom: Vec; dest: Vec; clear: boolean };
+
+const PASSES = new WeakMap<Vehicle, Pass[]>();
+
+function passes(world: World, v: Vehicle, leader: Vehicle, dest: Vec): boolean {
+  const kept = (PASSES.get(v) ?? []).filter((p) => p.world === world && p.turn === world.turn && samePoint(p.from, v.pos));
+  const same = kept.find((p) => p.leaderId === leader.id && samePoint(p.leaderFrom, leader.pos) && samePoint(p.dest, dest));
+  if (same) return same.clear;
+  const clear = clearWayAround(world, v, dest, [leader]);
+  PASSES.set(v, [...kept, { world, turn: world.turn, from: { ...v.pos }, leaderId: leader.id, leaderFrom: { ...leader.pos }, dest: { ...dest }, clear }]);
+  return clear;
 }
 
 function samePoint(a: Vec, b: Vec): boolean {

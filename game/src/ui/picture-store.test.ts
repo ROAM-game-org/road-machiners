@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as StoreModule from './picture-store';
-import { AssetUnreachable } from '../fetch-asset';
+import { AssetStatusError, AssetUnreachable } from '../fetch-asset';
 
 const { fetchAsset } = vi.hoisted(() => ({ fetchAsset: vi.fn() }));
 vi.mock('../fetch-asset', async (original) => {
@@ -50,6 +50,33 @@ describe('picture store', () => {
     expect(await store.askPicture('Quest art', 'quest-art/a.webp')).toMatch(/^blob:/);
     expect(fetchAsset).toHaveBeenCalledTimes(2);
     warn.mockRestore();
+  });
+
+  it('draws around a missing picture, warns once and asks again next time', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    fetchAsset.mockRejectedValueOnce(new AssetStatusError('Quest art x failed to load: HTTP 404', 404));
+    expect(await store.askPicture('Quest art', 'quest-art/a.webp')).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(store.pictureUrl('quest-art/a.webp')).toBeNull();
+    fetchAsset.mockResolvedValueOnce(new ArrayBuffer(4));
+    expect(await store.askPicture('Quest art', 'quest-art/a.webp')).toMatch(/^blob:/);
+    expect(fetchAsset).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it('keeps preloading past a missing picture', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    fetchAsset.mockRejectedValueOnce(new AssetStatusError('gone', 404));
+    fetchAsset.mockResolvedValueOnce(new ArrayBuffer(4));
+    await store.preloadPictures('Quest art', ['p/1', 'p/2']);
+    expect(store.pictureUrl('p/1')).toBeNull();
+    expect(store.pictureUrl('p/2')).toMatch(/^blob:/);
+    warn.mockRestore();
+  });
+
+  it('still rejects on an error that is not a missing asset', async () => {
+    fetchAsset.mockRejectedValueOnce(new Error('bad blob'));
+    await expect(store.askPicture('Quest art', 'p/1')).rejects.toThrow('bad blob');
   });
 
   it('preloads one picture at a time, in list order', async () => {

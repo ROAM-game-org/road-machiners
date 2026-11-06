@@ -311,12 +311,13 @@ function padUniforms(sites: readonly Site[], pixel: number) {
   };
 }
 
-function maskTexture(c: PaintCanvas): THREE.DataTexture {
-  const cover = new Uint8Array(c.ctx.getImageData(0, 0, c.size, c.size).data.buffer);
-  const texture = new THREE.DataTexture(cover, c.size, c.size, THREE.RGBAFormat);
+function maskTexture(c: PaintCanvas): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(c.ctx.canvas);
+  texture.flipY = false;
+  texture.colorSpace = THREE.NoColorSpace;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
+  texture.generateMipmaps = false;
   return texture;
 }
 

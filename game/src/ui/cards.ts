@@ -23,6 +23,7 @@ import { roundDamage } from "../sim/combat";
 import { el } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
 import { fuelLiters, hp, kph, meters, mps2 } from "./units";
+import { canvasReadable } from "../three/render/pixelReadback";
 
 const ART = {
   trade: '<ellipse cx="18" cy="9" rx="11" ry="5"/><path d="M7 9v15c0 7 22 7 22 0V9M7 16c0 7 22 7 22 0"/>',
@@ -315,7 +316,7 @@ export function gridItemIcon(item: GridItem): HTMLElement {
 export function chassisPortrait(chassisId: string, paint: TruckPaint): HTMLElement {
   const cell = chassisPortraitCell(chassisId, paint);
   const portrait = sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
-  if (!samePaint(paint, PAINT.standard)) void showPainted(portrait, paint);
+  if (!samePaint(paint, PAINT.standard) && canvasReadable()) void showPainted(portrait, paint);
   return portrait;
 }
 

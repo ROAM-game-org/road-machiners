@@ -259,6 +259,7 @@
   --page-bottom: 40px;
   --art-band-height: 200px;
   --art-band-phone-height: 72px;
+  --ink-band-height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
   --survey-picture-w: 132px;
   --quest-text-width: 680px;
   --quest-text-min: 620px;
@@ -325,6 +326,7 @@
   --z-new-game-block: 59;
   --z-save: 60;
   --z-new-game: 70;
+  --z-confirm: 75;
   --z-tip: 80;
   --z-boot: 1000;
   --z-drag: 1000;

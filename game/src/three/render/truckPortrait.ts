@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { GpuContext } from '../gpu-context';
 import { isShield, partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
@@ -114,7 +115,7 @@ export function chassisSize(chassisId: string): PixelSize {
 
 type Wanted = { vehicleId: string; key: string; pristine: Vehicle; paint: TruckPaint; ahead: boolean };
 type Ready = { vehicleId: string; portrait: Portrait; seen: number };
-type Job = { wanted: Wanted; build: PortraitBuild; waiting: boolean; failure: { error: unknown } | null };
+type Job = { wanted: Wanted; epoch: number; build: PortraitBuild; waiting: boolean; failure: { error: unknown } | null };
 
 export class TruckPortraits {
   private readonly ready = new Map<string, Ready>();
@@ -128,11 +129,31 @@ export class TruckPortraits {
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
+    private readonly gpu: GpuContext,
+    private readonly readback: { honest(): boolean },
     private readonly build: BuildPortrait = startPortrait,
     private readonly now: () => number = () => performance.now(),
-  ) {}
+  ) {
+    gpu.onRestored(() => {
+      for (const w of this.order) for (const listener of this.listeners) listener(w.vehicleId);
+    });
+  }
+
+  private stale(job: Job): boolean {
+    return this.gpu.lost() || this.gpu.epoch() !== job.epoch;
+  }
+
+  private abandon(job: Job): void {
+    if (this.jobs.get(job.wanted.vehicleId) === job) this.jobs.delete(job.wanted.vehicleId);
+    job.build.dispose();
+  }
+
+  refused(): boolean {
+    return !this.gpu.lost() && !this.readback.honest();
+  }
 
   shown(v: Vehicle, playerPaint: TruckPaint): Portrait | null {
+    if (this.refused()) return null;
     const current = this.ready.get(keyOf(pristineOf(v), playerPaint));
     if (current) return current.portrait;
     const last = this.latest.get(v.id);
@@ -171,9 +192,11 @@ export class TruckPortraits {
   }
 
   step(budgetMs: number, aheadOnly: boolean): void {
+    if (this.refused()) return;
     const start = this.now();
     let ran = 0;
     for (;;) {
+      if (this.gpu.lost()) return;
       if (ran > 0 && this.now() - start >= budgetMs) return;
       const job = this.nextJob(aheadOnly);
       if (!job) return;
@@ -219,12 +242,13 @@ export class TruckPortraits {
   }
 
   private start(wanted: Wanted): Job {
-    const job: Job = { wanted, build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, failure: null };
+    const job: Job = { wanted, epoch: this.gpu.epoch(), build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, failure: null };
     this.jobs.set(wanted.vehicleId, job);
     return job;
   }
 
   private advance(job: Job): void {
+    if (this.stale(job)) return this.abandon(job);
     if (job.failure) return this.fail(job, job.failure.error);
     let result: IteratorResult<PortraitWait, Portrait>;
     try {
@@ -249,7 +273,8 @@ export class TruckPortraits {
     );
   }
 
-  private fail(job: Job, error: unknown): never {
+  private fail(job: Job, error: unknown): void {
+    if (this.stale(job)) return this.abandon(job);
     this.failed.add(job.wanted.key);
     this.jobs.delete(job.wanted.vehicleId);
     job.build.dispose();
@@ -257,6 +282,10 @@ export class TruckPortraits {
   }
 
   private finish(job: Job, portrait: Portrait): void {
+    if (this.stale(job)) {
+      portrait.release();
+      return this.abandon(job);
+    }
     const { vehicleId, key } = job.wanted;
     this.jobs.delete(vehicleId);
     job.build.dispose();

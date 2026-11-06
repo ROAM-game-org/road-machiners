@@ -247,16 +247,18 @@ function rankGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
     const bare = { ...core, items: [...core.items, gun] };
     return { spot, sides: spanSides(gunSpans(bare, gun)), share: openArcShares(bare)[0] };
   };
-  return mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
+  return alongSpots(mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon)).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
 }
 
 function orderedGunSpots(v: Vehicle, item: PartItem): Spot[] {
-  const open = new Set(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon).map(spotKey));
+  const open = new Set(alongSpots(mountSpots(gridOf(v), v.items, item, MOUNT_CELLS.weapon)).map(spotKey));
   const guns = gunsBySide(v);
   const bare = (side: Side) => !guns[side].some((def) => !isLineGun(def));
   const free = rankedGunSpots(v, item).filter((r) => open.has(spotKey(r.spot)));
   return [...free.filter((r) => r.sides.some(bare)), ...free.filter((r) => !r.sides.some(bare))].map((r) => r.spot);
 }
+
+const alongSpots = (spots: Spot[]) => spots.filter((s) => s.rot < 4);
 
 const spotKey = (s: Spot) => `${s.x},${s.y},${s.rot}`;
 

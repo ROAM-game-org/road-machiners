@@ -10,7 +10,7 @@ import { abandonHopelessSizing, abandonLostSizing, joinSideFight, lookOverPrey, 
 import { reportIncident } from './relations';
 import { fileReports, openCasesOn } from './crime';
 import { huntedCases, isMarshal, planMarshal } from './marshals';
-import { cargoSaleValue } from './economy';
+import { cargoSaleValue, sellsAnythingAt } from './economy';
 import { corePart, goodsCount } from './grid';
 import { cancelJob } from './jobs';
 import { businessBelongs, resolveSell, resolveTrade } from './npc-business';
@@ -164,12 +164,12 @@ export function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProf
 export function saleGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
   const buyers = saleBuyers(world, vehicle, profile);
   buyers.sort((a, b) => cargoSaleValue(world, vehicle, b.id) - cargoSaleValue(world, vehicle, a.id) || dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-  if (!buyers[0]) throw new Error(`${vehicle.id} knows no buyer`);
+  if (!buyers[0]) throw new Error(`${vehicle.id} knows no buyer that takes its cargo`);
   return createSiteActivity('sell', buyers[0].id, 'sellCargo');
 }
 
 function saleBuyers(world: World, vehicle: Vehicle, profile: NpcProfile): Site[] {
-  const markets = profile.markets.map(getKnownSite);
+  const markets = profile.markets.filter((id) => sellsAnythingAt(vehicle, id, NPC_UPKEEP.repairParts)).map(getKnownSite);
   const onTheBeat = markets.filter((site) => onBeat(vehicle, site.pos));
   const pays = (sites: Site[]) => sites.some((site) => cargoSaleValue(world, vehicle, site.id) > 0);
   return onTheBeat.length > 0 && (pays(onTheBeat) || !pays(markets)) ? onTheBeat : markets;
@@ -990,7 +990,7 @@ function fixedNext(world: World, vehicle: Vehicle): NpcActivity | null {
 }
 
 function leaveGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
-  return hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle);
+  return hasSaleCargo(vehicle, profile) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle);
 }
 
 function roadNext(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {

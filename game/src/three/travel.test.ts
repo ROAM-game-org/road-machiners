@@ -16,6 +16,9 @@ import { standardWorld } from "../test/world-cache";
 import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 
+const reported = vi.hoisted(() => [] as unknown[]);
+vi.mock("./crash", async (original) => ({ ...(await original<typeof import("./crash")>()), reportError: (error: unknown) => void reported.push(error) }));
+
 const TAIL = 11;
 const NO_DRIVE = {} as DriveSnapshot;
 
@@ -121,10 +124,10 @@ describe("picked travel speed", () => {
     expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[2]);
   });
 
-  it("plays 1 when no travel runs, whatever is picked", () => {
+  it("plays the pick when no travel runs", () => {
     const travel = new Travel(250, TAIL);
     travel.setSpeedIndex(LAST);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
   it("plays only listed speeds, picked", () => {
@@ -135,26 +138,63 @@ describe("picked travel speed", () => {
     const travel = travelling(LAST);
     travel.pause();
     expect(travel.getSpeedIndex()).toBe(LAST);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
     travel.update(true, true);
     travel.press(5000, false, true);
     travel.release();
     expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("drops to 1 when travel stops on its own", () => {
+  it("keeps the pick when travel stops on its own", () => {
     const travel = travelling(LAST);
     travel.update(false, true);
-    expect(travel.getSpeed()).toBe(1);
+    expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[LAST]);
   });
 
-  it("leaves turns that run on their own at 1", () => {
-    const travel = new Travel(250, TAIL);
-    travel.setSpeedIndex(LAST);
+  function towedWorld() {
+    const world = makeSafeWorld();
+    const me = playerVehicle(world);
+    world.vehicles.push({ ...me, id: "tower", pos: { x: me.pos.x + 3, y: me.pos.y } });
+    addState(world, "tow", "tower", me.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
+    return world;
+  }
+
+  function oddJobsWorld() {
+    const world = makeSafeWorld();
+    playerVehicle(world).job = { kind: "oddJobs", turnsLeft: 10, total: 10 };
+    return world;
+  }
+
+  function beaconWorld() {
+    const world = makeSafeWorld();
+    world.player.beacon = true;
+    return world;
+  }
+
+  function knockedOutWorld() {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    expect(travel.isAuto(world)).toBe(true);
-    expect(travel.getSpeed()).toBe(1);
+    return world;
+  }
+
+  const runs: [string, () => World][] = [
+    ["an idle world", makeSafeWorld],
+    ["an odd jobs shift", oddJobsWorld],
+    ["a beacon wait", beaconWorld],
+    ["a knocked-out run", knockedOutWorld],
+    ["a towed run", towedWorld],
+  ];
+
+  describe.each(runs)("during %s", (_name, build) => {
+    it.each(CONFIG.travelSpeeds.map((_, i) => i))("plays pick %i", (index) => {
+      const travel = new Travel(250, TAIL);
+      travel.setSpeedIndex(index);
+      const world = build();
+      expect(travel.getSpeed()).toBe(CONFIG.travelSpeeds[index]);
+      let pace = 1;
+      for (let i = 0; i < 80; i++) pace = travel.paceSpeed(world, 1000, 35, 4);
+      expect(pace).toBe(CONFIG.travelSpeeds[index]);
+    });
   });
 
   it("steps one speed at a time and stops at both ends", () => {
@@ -239,6 +279,17 @@ describe("picked travel speed", () => {
       const turns = new TurnPreparation(TAIL);
       (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
       expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
+    });
+  });
+
+  describe("turn worker failures", () => {
+    it("reports a failure nobody waits for with the worker's message and frames", () => {
+      const turns = new TurnPreparation(TAIL);
+      reported.length = 0;
+      (turns as unknown as { fail(id: number | null, message: string): void }).fail(null, "Error: no route\nrun@worker.js:1:2");
+      const [error] = reported as Error[];
+      expect(error.message).toBe("no route");
+      expect(error.stack).toContain("run@worker.js:1:2");
     });
   });
 

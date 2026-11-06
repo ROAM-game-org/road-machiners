@@ -248,7 +248,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     fuelCap: 24, fuelPerTile: 0.18, base: 73.33, showsCores: false, showsEngine: true, tier: 1, look: 'courier',
   },
   van: {
-    id: 'van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
+    id: 'van', maxSpeed: 5.4, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
     mass: 1100, handlingMass: 3000, radius: 0.7,
     layout: [' FFFFF ', 'L     R', 'LXDDDXR', 'LXDDDXR', 'LDDEEDR', 'LDDEEDR', 'L  EEDR', 'LXXXDDR', 'LXXXDDR', 'LXXXDDR', 'LDDDDDR', 'LXXXXXR', 'LXXXXXR', 'LD   DR', ' BBBBB '],
     core: [

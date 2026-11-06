@@ -3,7 +3,7 @@ import { budget } from '../test/budget';
 import { startKit } from '../data/start';
 import { cloneWorld, newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
-import { gridOf, mountedParts, placementError } from '../sim/grid';
+import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, comparableWorld, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
@@ -164,6 +164,29 @@ describe('game save', () => {
     expect(back.utilityOrders[ram.id]).toEqual({ kind: 'disarm' });
     expect(mountedParts(back).find((p) => p.id === ram.id)!.charge).toEqual({ reload: 0, armed: true });
     expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps a gun pointed across its cells through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const truck = addVehicle(world, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 });
+    const poses = [4, 6] as const;
+    const guns = poses.map((rot, i) => {
+      const gun: GridItem = { id: `cross${i}`, kind: 'part', x: 0, y: 0, rot, part: makePart(world, 'mg', 0) };
+      const spot = mountSpots(gridOf(truck), truck.items, gun, MOUNT_CELLS.weapon).find((s) => s.rot === rot)!;
+      const placed = { ...gun, ...spot };
+      truck.items.push(placed);
+      return placed;
+    });
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const back = loaded.vehicles.find((v) => v.id === truck.id)!;
+    for (const gun of guns) expect(back.items.find((it) => it.id === gun.id)).toMatchObject({ x: gun.x, y: gun.y, rot: gun.rot });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
     expect(loaded.events).toEqual([]);
   });
 
@@ -1316,4 +1339,26 @@ describe('relations in a save', () => {
     expect(loaded.obstacles.filter((o) => o.id.startsWith('hollow-'))).toEqual(w.obstacles.filter((o) => o.id.startsWith('hollow-')));
     expect(loaded.obstacles).toEqual(w.obstacles);
   });
+});
+
+it('saves in-flight projectile facts without turn playback state', async () => {
+  const { newTimedCombat, launchTimedRound } = await import('../sim/timed-combat');
+  const { declareFeud } = await import('../sim/states');
+  const world = emptyWorld();
+  const shooter = addVehicle(world, 'player', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+  const target = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
+  world.player.vehicleId = shooter.id;
+  world.vehicles = [shooter, target];
+  declareFeud(world, target, shooter.id); refreshVision(world);
+  const flight = launchTimedRound(world, shooter, mountedParts(shooter, 'weapon')[0].id, target, 'body', 0, 220, false)!;
+  expect(flight).not.toBeNull();
+  const state = newTimedCombat(); state.flights.push({ ...flight, landsAt: 100 });
+  Object.assign(world, { combat: state });
+  const saved = saveOf(world);
+  expect(saved.world).toHaveProperty('combat', { now: state.now, flights: state.flights });
+  const slots = makeSlots();
+  slots.put('auto', JSON.parse(JSON.stringify({ ...saved, savedAt: 1000, runId: RUN })));
+  const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+  expect(loaded).not.toBeNull();
+  expect(Reflect.get(loaded, 'combat')).toMatchObject({ now: state.now, flights: state.flights, records: [], attempts: [], active: false });
 });

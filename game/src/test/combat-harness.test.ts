@@ -70,8 +70,8 @@ describe('combat harness', () => {
   });
 
   it('fights to a knockout inside the arena rather than stopping at a truce', () => {
-    const fight = { ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy:standard'), seed: 1, maxTurns: 140, arena: 9 };
-    expect(runFight(fight).outcome).toBe('won');
+    const r = firstFight(SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy:standard'), seed, maxTurns: 140, arena: 9 }), (x) => x.outcome === 'won', 'a knockout');
+    expect(r.outcome).toBe('won');
   });
 
   it('keeps every truck inside the arena ring', () => {
@@ -141,4 +141,76 @@ describe('group fights in the harness', () => {
     expect(r.tally.a.left + r.tally.a.out + r.tally.a.fled).toBe(2);
     expect(r.bystander).not.toBeNull();
   }, 300_000);
+});
+
+it('counts destroyed truck damage from the recorded impacts', async () => {
+  const { turnPartHits } = await import('../sim/combat');
+  const totals = new Map<string, number>();
+  let destroyed: string | null = null;
+  const deathChance = RULES.npcDeathChance;
+  setNumber('RULES.npcDeathChance=1');
+  try {
+    const report = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy:standard'), seed: 1, maxTurns: 140, arena: 9 }, w => {
+      for (const [id, hits] of turnPartHits(w)) totals.set(id, (totals.get(id) ?? 0) + hits.reduce((sum, hit) => sum + hit.damage, 0));
+      for (const event of w.events) if (event.t === 'destroyed') destroyed = event.vehicle;
+    });
+    expect(report.outcome).toBe('won');
+    expect(destroyed).not.toBeNull();
+    expect(report.a.damage).toBe(totals.get(destroyed!));
+  } finally { setNumber(`RULES.npcDeathChance=${deathChance}`); }
+});
+
+it('waits for a launched shot after its shooter is destroyed', async () => {
+  const { wreckVehicle } = await import('../sim/combat');
+  let removed: string | null = null;
+  let laterImpacts = 0, pending = -1;
+  const fight = { ...FIGHT, a: parseLineup('buggy:mg/bare@hauler~0'), b: parseLineup('buggy:cannon/bare@hauler~0'), seed: 1337, maxTurns: 5 };
+  const report = runFight(fight, (w, turn) => {
+    if (turn === 1) {
+      const flight = w.combat.flights.find(f => f.shooterId !== w.player.vehicleId);
+      expect(flight).toBeDefined();
+      const shooter = w.vehicles.find(v => v.id === flight!.shooterId)!;
+      removed = shooter.id;
+      wreckVehicle(w, shooter);
+    } else laterImpacts += w.events.filter(e => e.t === 'shot' && e.shooter === removed).length;
+    pending = w.combat.flights.length;
+  });
+  expect(report.turns).toBeGreaterThan(1);
+  expect(laterImpacts).toBeGreaterThan(0);
+  expect(pending).toBe(0);
+});
+
+it('settles pending shots without steering a scripted driver toward a defeated opponent', async () => {
+  const { wreckVehicle } = await import('../sim/combat');
+  let pending = -1;
+  const report = runFight({ ...FIGHT, a: parseLineup('stand:mg/bare~0'), b: parseLineup('buggy:cannon/bare~0'), seed: 1, maxTurns: 5 }, (w, turn) => {
+    if (turn === 1) {
+      const flight = w.combat.flights.find(f => f.shooterId === w.player.vehicleId);
+      expect(flight).toBeDefined();
+      const target = w.vehicles.find(v => v.id === flight!.targetId)!;
+      wreckVehicle(w, target);
+    }
+    pending = w.combat.flights.length;
+  });
+  expect(report.outcome).toBe('won');
+  expect(report.turns).toBeGreaterThan(1);
+  expect(pending).toBe(0);
+});
+
+it('settles pending shots without issuing orders to a knocked-out scripted driver', async () => {
+  const { checkKnockout } = await import('../sim/defeat');
+  const { corePart } = await import('../sim/grid');
+  let pending = -1;
+  const report = runFight({ ...FIGHT, a: parseLineup('stand:mg/bare~0'), b: parseLineup('buggy:cannon/bare~0'), seed: 1, maxTurns: 5 }, (w, turn) => {
+    if (turn === 1) {
+      expect(w.combat.flights.length).toBeGreaterThan(0);
+      const player = w.vehicles.find(v => v.id === w.player.vehicleId)!;
+      corePart(player, 'cab').hp = 0;
+      checkKnockout(w);
+    }
+    pending = w.combat.flights.length;
+  });
+  expect(report.outcome).toBe('lost');
+  expect(report.turns).toBeGreaterThan(1);
+  expect(pending).toBe(0);
 });

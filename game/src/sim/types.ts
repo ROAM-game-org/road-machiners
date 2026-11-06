@@ -1,3 +1,4 @@
+import type { TimedCombatState } from './timed-combat';
 
 import type { MomentId } from '../data/moments';
 import type { PartHit, Side } from "./armor";
@@ -51,7 +52,7 @@ export type GunState = { cooldown: number; ammo: number; reloadWork: number };
 
 export type ChargeState = { reload: number; armed?: true };
 
-export type Rot = 0 | 1 | 2 | 3;
+export type Rot = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type GridItem =
   | {
@@ -270,6 +271,7 @@ export type Refusal =
   | { id: 'notAtDesk' }
   | { id: 'payBountiesFirst'; faction: StandingFactionId }
   | { id: 'noCargoRoom' }
+  | { id: 'storeFull'; cap: number }
   | { id: 'unhurt' }
   | { id: 'noSupplies' }
   | { id: 'noStock' }
@@ -534,6 +536,7 @@ export type Player = {
   discovered: string[];
   scavenged: string[];
   storage: PartInstance[];
+  storedGoods: Record<string, Record<string, number>>;
   contracts: Contract[];
   pastContracts: PastContract[];
   costBasis: Record<string, number>;
@@ -740,6 +743,7 @@ export type CrimeCase = {
 export type CasePosse = 'lone' | 'pair' | 'spent';
 
 export type World = {
+  combat: TimedCombatState;
   seed: number;
   rngState: number;
   marketRng: Rng;

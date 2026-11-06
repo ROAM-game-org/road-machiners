@@ -49,6 +49,7 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
   let bestScore = -1;
   for (const spot of mountSpots(gridOf(v), v.items, item, mount)) {
+    if (spot.rot >= 4) continue;
     const score = gunLayoutScore({ ...v, items: [...v.items, { ...item, ...spot }] });
     if (score > bestScore) [best, bestScore] = [spot, score];
   }
@@ -306,6 +307,11 @@ export function refitTurns(world: World, v: Vehicle, planned: number): number {
   return Math.max(1, Math.ceil(planned * workTimeMult(v) * (1 - skillEffect(world, v, 'machining', 'refit'))));
 }
 
+export function keepInStorage(world: World, part: PartInstance): void {
+  disarm(part);
+  world.player.storage.push(part);
+}
+
 export function storePart(world: World, itemId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
     requireGarage(w, truckId);
@@ -315,8 +321,7 @@ export function storePart(world: World, itemId: string, truckId?: string): World
     if (item.kind !== 'part') throw new Error('Only parts go into garage storage');
     requireRemovable(item);
     me.items = me.items.filter((it) => it.id !== itemId);
-    disarm(item.part);
-    w.player.storage.push(item.part);
+    keepInStorage(w, item.part);
     afterRefit(w, me);
   });
 }

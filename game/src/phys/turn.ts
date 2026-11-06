@@ -1,5 +1,6 @@
 
 import { PHYSICS } from '../data/physics';
+import { hasTimedFire } from '../sim/timed-combat';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
@@ -27,6 +28,7 @@ import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initP
 import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
+import { ownExplored } from '../sim/explored';
 import { errorText } from '../stall';
 
 export type TurnState = Omit<World, 'terrain'>;
@@ -66,7 +68,7 @@ export function sightAlong(world: World, points: readonly Vec[]): LiveSight {
 }
 
 function exploreSight(w: World, sight: LiveSight): void {
-  for (const tiles of sight.tiles) for (const idx of tiles) w.player.explored[idx] = 1;
+  for (const tiles of sight.tiles) for (const idx of tiles) if (w.player.explored[idx] === 0) ownExplored(w.player)[idx] = 1;
 }
 export type PreviewTask = LanguageTask & { meId: string };
 type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync; terrain: World['terrain'] | null };
@@ -319,11 +321,12 @@ export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World)
   return (w) => {
     settleWoken(w, (id) => d.bodies[id] !== undefined);
     syncDrive(d, w);
+    const timedFar = w.combat.active && hasTimedFire(w.combat);
     const r = simulateTurn(d, w);
     const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));
     applyTurn(w, r);
     for (const v of far) {
-      advanceFar(w, v);
+      if (!timedFar) advanceFar(w, v);
       r.frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
     }
     done({ ...r, sight: timed('live-sight', () => playerSight(w, r.frames[w.player.vehicleId])) });
@@ -349,6 +352,7 @@ function exploreBodiless(w: World): void {
 export function applyTurn(w: World, r: TurnResult): void {
   applyBreaks(w, r);
   for (const v of w.vehicles) {
+    if (w.combat.active && w.combat.destroyedAt[v.id] !== undefined) continue;
     const frames = r.frames[v.id];
     if (frames) applyDriven(w, r, v, frames);
   }

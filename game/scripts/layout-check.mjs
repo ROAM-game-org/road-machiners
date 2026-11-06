@@ -64,7 +64,7 @@ async function openTown(page, tab) {
 const closeTown = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
   g.screens.town.close();
-  const world = structuredClone(g.state);
+  const world = g.state;
   world.player.quests.session = null;
   world.player.quests.live = null;
   g.apply(world);
@@ -246,7 +246,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {} }, sound);
 });
 
 const openStartOptions = async (page) => {
@@ -277,14 +277,14 @@ const closeStartMenu = (page) => page.evaluate(() => {
 const openQuestPage = (page) => page.evaluate(async () => {
   const g = window.__ROAM__;
   const q = await import('/src/sim/quests.ts');
-  const world = structuredClone(g.state);
+  const world = g.state;
   q.openQuest(world, q.QUESTS, 'intro_arrival', 'start');
   g.apply(world);
 });
 
 const closeQuestPage = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
-  const world = structuredClone(g.state);
+  const world = g.state;
   world.player.quests.session = null;
   world.player.quests.live = null;
   g.apply(world);
@@ -296,7 +296,7 @@ const openSurveyJournal = async (page) => {
   await page.evaluate(async (id) => {
     const g = window.__ROAM__;
     const { surveySites } = await import('/src/sim/survey.ts');
-    const world = structuredClone(g.state);
+    const world = g.state;
     const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
     const points = sites.map((s, i) => ({ site: s.id, found: i > 0, done: i > 1 }));
     world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 30, deadline: 9000, window: 600, tier: 1 });
@@ -310,7 +310,7 @@ const closeSurveyJournal = async (page) => {
   await escape(page);
   await page.evaluate((id) => {
     const g = window.__ROAM__;
-    const world = structuredClone(g.state);
+    const world = g.state;
     world.player.contracts = world.player.contracts.filter((c) => c.id !== id);
     g.apply(world);
   }, SURVEY_CONTRACT_ID);
@@ -335,7 +335,7 @@ async function openTownClear(page) {
     const { setWorldVar } = await import('/src/sim/quests.ts');
     const { TOWN_SCENES } = await import('/src/data/quests.ts');
     g.screens.town.close();
-    const world = structuredClone(g.state);
+    const world = g.state;
     world.player.quests.session = null;
     world.player.quests.live = null;
     for (const scene of TOWN_SCENES) setWorldVar(world, scene.gate, true);
@@ -359,10 +359,16 @@ function townMarks(page, withError) {
       heading: box(root.querySelector('.ink-head .quest-place')),
       page: box(root),
     };
-    return { ...marks, withError };
+    const ui = document.querySelector('#ui');
+    const grows = !ui.classList.contains('phone') && !ui.classList.contains('narrow');
+    const choices = root.querySelector('.ink-choices');
+    const above = choices?.previousElementSibling;
+    const spare = above ? choices.getBoundingClientRect().top - above.getBoundingClientRect().bottom : 0;
+    return { ...marks, grows, spare, withError };
   }, withError);
 }
 
+const FRONT_GAP = 24;
 const sameWithin = (a, b) => Math.abs(a - b) <= 1;
 const rounded = (n) => Math.round(n);
 
@@ -376,14 +382,21 @@ function exitOutside(now) {
   return inside ? [] : [`exit outside the page (${rounded(exit.bottom)} of ${rounded(page.bottom)})`];
 }
 
-function navDiffs(first, now) {
+function navDiffs(front, section, now) {
   if (!now.exit) return ['no way out in the foot'];
-  return [
-    ...exitOutside(now),
-    ...moved('exit', ['x', 'bottom', 'h'], first.exit, now.exit),
-    ...moved('band', ['h'], first.band, now.band),
-    ...moved('heading', ['x', 'y'], first.heading, now.heading),
+  const same = now.front && now.grows ? [] : [
+    ...moved('band', ['h'], section.band, now.band),
+    ...moved('heading', ['x', 'y'], section.heading, now.heading),
   ];
+  return [...exitOutside(now), ...moved('exit', ['x', 'bottom', 'h'], front.exit, now.exit), ...same];
+}
+
+function frontBandFaults(front, section) {
+  if (!front.grows) return [];
+  const faults = [];
+  if (front.band.h < section.band.h - 1) faults.push(`band.h ${rounded(front.band.h)} under section ${rounded(section.band.h)}`);
+  if (front.spare > FRONT_GAP) faults.push(`spare ${rounded(front.spare)} above the choices`);
+  return faults;
 }
 
 const clickIn = (page, step) => page.evaluate(({ go, tab }) => {
@@ -396,17 +409,21 @@ const clickIn = (page, step) => page.evaluate(({ go, tab }) => {
 
 async function townNavFaults(page) {
   const faults = [];
-  const note = (path, text) => faults.push({ kind: 'nav-moved', path, text, sizes: '' });
+  const note = (path, text, kind = 'nav-moved') => faults.push({ kind, path, text, sizes: '' });
   await openTownClear(page);
-  let first = null;
+  let front = null;
+  let section = null;
   for (const step of NAV_STEPS) {
     await clickIn(page, step);
     await frames(page);
-    const marks = await townMarks(page, false);
+    const isFront = step.name === 'front';
+    const marks = { ...(await townMarks(page, false)), front: isFront };
     await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
-    first ??= marks;
-    for (const d of navDiffs(first, marks)) note(step.name, d);
+    if (isFront) front = marks;
+    if (!isFront || !marks.grows) section ??= marks;
+    for (const d of navDiffs(front, section ?? marks, marks)) note(step.name, d);
   }
+  for (const d of frontBandFaults(front, section)) note('front', d, 'front-band');
   await clickIn(page, NAV_STEPS[0]);
   await frames(page);
   await page.evaluate(async () => {
@@ -416,8 +433,8 @@ async function townNavFaults(page) {
     town.render();
   });
   await frames(page);
-  const errored = await townMarks(page, true);
-  for (const d of navDiffs(first, errored)) note('status-line', d);
+  const errored = { ...(await townMarks(page, true)), front: true };
+  for (const d of navDiffs(front, section, errored)) note('status-line', d);
   await openTownClear(page);
   return faults;
 }
@@ -466,7 +483,7 @@ const STATES = {
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
-  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },

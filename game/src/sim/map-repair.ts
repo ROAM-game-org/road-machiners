@@ -1,3 +1,4 @@
+import { transformedCombat } from './timed-combat';
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
@@ -28,6 +29,7 @@ type Ctx = { ratio: number; fromSize: number; toSize: number; playerId: string; 
 type Handlers<T, M extends Table<T>> = { [K in keyof T as M[K] extends 'shift' | 'drop' ? K : never]-?: (value: T[K], ctx: Ctx) => T[K] };
 
 export const REBAKE_MOVE = {
+  combat: 'shift',
   seed: 'keep',
   rngState: 'keep',
   marketRng: 'keep',
@@ -171,6 +173,7 @@ const PLAYER_MOVE = {
   discovered: 'keep',
   scavenged: 'keep',
   storage: 'keep',
+  storedGoods: 'keep',
   contracts: 'shift',
   pastContracts: 'keep',
   costBasis: 'keep',
@@ -364,6 +367,7 @@ const PLAYER_HANDLERS: Handlers<Player, typeof PLAYER_MOVE> = {
 };
 
 const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
+  combat: (combat, ctx) => transformedCombat(combat, position => at(ctx, position), ctx.ratio),
   vehicles: (vehicles, ctx) => {
     for (const v of vehicles) applyMoves(v, VEHICLE_MOVE, VEHICLE_HANDLERS, { ...ctx, self: v.id });
     return vehicles;

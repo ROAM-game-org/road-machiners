@@ -6,7 +6,8 @@ type SavedPlayer = Omit<Player, 'visible' | 'contacts' | 'clouds' | 'quests' | '
   explored: string;
 };
 
-export type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'vehicles' | 'sheltered' | 'broken' | 'player'> & {
+export type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'vehicles' | 'sheltered' | 'broken' | 'player' | 'combat'> & {
+  combat: Pick<World['combat'], 'now' | 'flights'>;
   vehicles: Omit<Vehicle, 'trail'>[];
   sheltered: { vehicle: Omit<Vehicle, 'trail'>; site: ShelteredTruck['site'] }[];
   broken: { id: BrokenProp['obstacle']['id']; turn: number }[];
