@@ -1,6 +1,6 @@
 # Perf rework
 
-Status: design under review; next is the perf-gate child task
+Status: executing; perf-gate waits on 3 runs to store numbers, and three fixes are in with their measured results below
 
 Branch: perf-rework, from origin/dev 74c51d3b6
 
@@ -24,8 +24,9 @@ Numbers come from the factory laptop, GTX 1660 Ti, 1600 by 1000 at pixel ratio 2
 - Fixes wear off. All four six-scene reports fail 12 of 22 budget lines, before and after the stop-redoing-work branch made turns slower, so a new slowdown never shows as a new failure. No workflow runs the bench by itself. `--compare` prints changes and sets no pass or fail.
 - The same code differs between runs by more than it differs within a run. Between the two main reports, town-day-far median is 9.5 and 11.0 ms, and fight p99 is 22.6 and 29.7 ms. Pass spread inside those scenes is at most 3.2 percent. One of the two runs was untrusted for factory load.
 - The drive scene fails the 10 percent spread check in every run, at 29 to 79 percent. Its two passes drive opposite sides of town on purpose, so both are cold and both build new cells, which its content check requires. Repeating one route would make the second pass warm.
-- The Ally, a ROG Xbox Ally with a Ryzen Z2 A, plays town-day at 16.3 to 17.9 ms median and 19.5 to 24.8 ms p99 over 4 runs of one commit, about 2.2 times slower than the factory laptop. It shows no frame over 100 ms. Quarter the pixels saves at most 0.5 ms there, so the town-day frame on the Ally is not limited by pixels.
-- dev has 35 to 47 landings a day at its busiest. The factory laptop also hosts the factory and has stalled it under heavy perf runs. The bench's own limit is 15 minutes per run.
+- The Ally, a ROG Xbox Ally with a Ryzen Z2 A, is the gate host, since it has no factory on it. On ANGLE Vulkan before any fix it played town-day at 16.4 ms median, about 2.2 times slower than the factory laptop, town-night at 25.7 ms and town-night-far at 37.9 ms. At town-night, hiding props saved 14.4 ms, shadow maps 11.9 ms and lamps 7.5 ms, while quarter pixels changed the frame by -2.3 to +1.5 ms. So night on the Ally was limited by draws, not by pixels or lights. The bench reports the frame as CPU bound in every scene on the Ally.
+- A function profile of fight on the Ally shows, per slow frame, about 6.7 ms in `refreshUi`, about 4 ms of layout read through `screenOf`, and about 2 ms rebuilding the shown world. The worker's fight turn has no single large cost: its top function, `matches`, is 7 percent.
+- dev has 35 to 47 landings a day at its busiest. The factory laptop also hosts the factory and has stalled it under heavy perf runs. A full bench run takes about 13 minutes on the Ally, and the bench's own limit is 15 minutes per run.
 - The stop-redoing-work branch cached repeated CPU work and saved no measured time. Its bench fixes `2e186895d`, radio calls hung up, and `6eeac3a34`, travel stops at the requested turn, are the only parts carried over. Neither applies cleanly to dev, and the helpers they call exist there, so they are ported by hand.
 
 ## Design
@@ -53,6 +54,19 @@ Child tasks, each its own task file with a trusted before and after:
 
 Steps 2 to 6 run in order of measured size once the gate exists. Each step that changes the far picture or far behavior stops for the user's sign-off.
 
+Ally measures reorder them. Draws come first, then fight turns and fight frames. night-light drops, since pixels did not limit night there. shader-stalls drops on the Ally, which shows 0 to 2 frames over 100 ms in town-day at most 110 ms. It stays open for the factory laptop, where the stall was measured.
+
+Done so far, all with no picture change intended:
+- Shadow maps redraw only when their light or a caster in their view changed, in `shadowRefresh.ts`. This follows PC3. A still frame draws 319 calls in town-night in place of 741.
+- A fight turn is computed ahead once the plan has not changed for 400 ms. A press after a pause waited 30 to 43 ms in place of 0.7 to 1.2 s. A press right after a turn ends still waits 0.7 to 1.2 s.
+- The shown fight world is built once per frame.
+
+Open:
+- Frames in motion gain little from the shadow cache, since the sun's map follows the camera. Driving at night has no bench scene.
+- Merging props into larger groups is not a one-line change: `scope.ts` widens the view test for every cell by the largest overhang, so a bigger group draws more cells. It goes to far-props.
+- Fight frames still spend most non-draw time in `refreshUi`.
+- boot is untouched at 15 to 16 s on the Ally.
+
 TDD: yes. Work counts per system, such as draws and lights per pixel, are deterministic and get failing tests first. Times are checked by the bench and the gate.
 
 ### Invariants
@@ -70,13 +84,13 @@ TDD: yes. Work counts per system, such as draws and lights per pixel, are determ
 
 ### Assumptions
 
-- AS1 — Bench noise on the factory laptop is small enough for a useful gate. Two runs of the same code are the only evidence today, and they differ by up to 16 percent on a median and 31 percent on a p99.
+- AS1 — Bench noise is small enough for a useful gate. On the Ally it holds for mean frame time, within 7 percent between runs, and does not hold for p99 or medians.
 - AS2 — The Mac feel follows the factory laptop numbers. The user confirms it by playing.
 - AS3 — Every light but the sun has a finite range.
 
 ### Unknowns
 
-- UK1 — Whether a player's turn press in a fight or on the road takes a turn computed ahead, and what the wait is when it does not. perf-gate answers it.
+- UK1 — Answered. Before the fix, fight presses never took a turn computed ahead and waited 0.7 to 1.6 s on the Ally. On the road, 11 of 12 starts were ready, and the first press waited up to 1.7 s.
 - UK2 — The noise band per scene, which sets the gate's tolerance. perf-gate measures it from repeated runs of one commit, each approved first.
 - UK3 — How long a gate run takes, and whether a run per landing fits 35 to 47 landings a day on a laptop shared with the factory. perf-gate answers it, and a change to when the gate runs goes back to the user.
 - UK4 — How much of the night cost scales with pixels and lights. The one replay of each gives wide or overlapping savings, and town-day has none to compare. night-light answers it with replays forced on both town scenes.
