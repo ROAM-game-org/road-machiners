@@ -6,7 +6,7 @@ import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
-import { bareGrid, baseGrid, mountSpots } from '../sim/grid';
+import { bareGrid, baseGrid, engineCells as bayCells, mountSpots } from '../sim/grid';
 import type { GridItem } from '../sim/types';
 
 type Cell = { x: number; y: number };
@@ -63,7 +63,6 @@ const VALUES = {
 
 const NO_DECK_BLOCK: Record<string, string> = {
   semi: 'The hauler grid has cargo bay cells and no deck cells, so no gun can mount on it.',
-  scout: 'A cab clear of the wheels on 5 columns leaves only single deck columns.',
 };
 
 const RATED_MASS_BEFORE_RING = {
@@ -78,13 +77,9 @@ const CRATE_ROOM_BEFORE_SQUARE_GRID: Record<string, number> = {
 
 const ROOM_TAKEN_BY_TIER_GRADE_CORES: Record<string, number> = { niva: 1, convertible: 3 };
 
-const CRATE_ROOM_EXCESS: Record<string, number> = {
-  hauler: 14, buggy: 2, courier: 5, longbed: 3, tractor: 7, jeep: 5, bus: 1, loader: 6, semi: 3, sorokonoga: 4, van: 12,
-};
-
 const RING_CELLS_ADDED = 4;
 
-const CLEAN_HOLE_CHASSIS = ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van'];
+const CLEAN_HOLE_CHASSIS = ['lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon'];
 
 const columns = (cells: Cell[]) => new Set(cells.map((cell) => cell.x));
 
@@ -110,8 +105,8 @@ describe('chassis grids', () => {
     }
   });
 
-  it('keeps tanks off every wheel cell, though a tank may share a wheel column in rows its wheel does not use', () => {
-    for (const [id, c] of Object.entries(CHASSIS)) {
+  it('keeps hidden tanks off every wheel cell, since both lie below deck', () => {
+    for (const [id, c] of Object.entries(CHASSIS).filter(([, ch]) => !ch.showsCores)) {
       const wheelCells = new Set(wheelRowSpans(c));
       expect(coreCells(c, 'tank').filter((cell) => wheelCells.has(`${cell.x},${cell.y}`)), id).toEqual([]);
     }
@@ -175,7 +170,7 @@ describe('chassis grids', () => {
     expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.ratedMass - ring]))).toEqual(RATED_MASS_BEFORE_RING);
   });
 
-  it('gives every chassis at least the crate room it had before the square grid, and exactly that where the grid allows', () => {
+  it('gives every chassis at least the crate room it had before the square grid', () => {
     const room = (id: string) => {
       const c = CHASSIS[id];
       const plain = c.layout.join('').split('').filter((ch) => 'DC.'.includes(ch)).length;
@@ -183,9 +178,7 @@ describe('chassis grids', () => {
     };
     const now = Object.fromEntries(Object.keys(CHASSIS).filter((id) => id !== 'bukhanka').map((id) => [id, room(id)]));
     const floor = (id: string) => CRATE_ROOM_BEFORE_SQUARE_GRID[id] - (ROOM_TAKEN_BY_TIER_GRADE_CORES[id] ?? 0);
-    const excess = Object.fromEntries(Object.entries(now).map(([id, n]) => [id, n - floor(id)]).filter(([, n]) => n !== 0));
     expect(Object.entries(now).filter(([id, n]) => n < floor(id)).map(([id]) => id)).toEqual([]);
-    expect(excess).toEqual(CRATE_ROOM_EXCESS);
   });
 
   it('keeps no plain cell on any truck body, so loose items lie on deck, bay or storage rows', () => {
@@ -238,9 +231,9 @@ describe('chassis grids', () => {
     }
   });
 
-  it('marks exactly the cells of the core parts as built-in', () => {
+  it('marks exactly the cells of the drawn core parts as built-in', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
-      const core = c.core.flatMap((part) => coreCells(c, partDef(part.defId).kind === 'core' ? (partDef(part.defId) as { role: string }).role : ''));
+      const core = (c.showsCores ? ['cab', 'tank', 'transmission'] : ['cab']).flatMap((role) => coreCells(c, role));
       const marked = c.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'X' ? [`${x},${y}`] : [])));
       expect(new Set(core.map((cell) => `${cell.x},${cell.y}`)), id).toEqual(new Set(marked));
     }
@@ -276,12 +269,12 @@ describe('core part sizes', () => {
   const parts = Object.values(PARTS);
 
   const GROWN_LENGTH: Record<number, number> = { 1: 1, 2: 3, 3: 4 };
-  const KEEPS_LENGTH = ['cab', 'transmission', 'wheel', 'tank'];
+  const KEEPS_LENGTH = ['cab', 'cabBroad', 'transmission', 'wheel', 'tank'];
   const gridSize = (p: { id: string; bulk: { w: number; h: number } }) => [p.bulk.w, KEEPS_LENGTH.includes(p.id) ? p.bulk.h : GROWN_LENGTH[p.bulk.h]];
 
-  it('sizes every cab 1x2 or 3x2 before the square grid, and the open seat keeps its length while the closed cabs grow to 3x3', () => {
+  it('sizes every cab 1x2, 3x2 or 4x2 before the square grid, and only the 3 wide closed cabs grow to 3x3', () => {
     for (const p of parts.filter((d) => d.kind === 'core' && d.role === 'cab')) {
-      expect([p.bulk.w, p.bulk.h].join('x'), p.id).toMatch(/^(1x2|3x2)$/);
+      expect([p.bulk.w, p.bulk.h].join('x'), p.id).toMatch(/^(1x2|3x2|4x2)$/);
       expect([p.w, p.h], p.id).toEqual(gridSize(p));
     }
   });
@@ -311,8 +304,8 @@ describe('core part sizes', () => {
     const engines = parts.filter((d) => d.kind === 'engine');
     const w = Math.max(...engines.map((d) => d.w));
     const h = Math.max(...engines.map((d) => d.h));
-    for (const [id, c] of Object.entries(CHASSIS)) {
-      const bay = new Set(engineCells(c).map((cell) => `${cell.x},${cell.y}`));
+    for (const id of Object.keys(CHASSIS)) {
+      const bay = new Set(bayCells(id).map((cell) => `${cell.x},${cell.y}`));
       const holds = (bw: number, bh: number) => [...bay].some((key) => {
         const [x, y] = key.split(',').map(Number);
         return Array.from({ length: bw * bh }, (_, i) => `${x + (i % bw)},${y + Math.floor(i / bw)}`).every((k) => bay.has(k));

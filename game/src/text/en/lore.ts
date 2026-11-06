@@ -61,6 +61,7 @@ export const LORE = {
   'lore.part.supplyLocker': 'A steel locker bolted on for the road\'s small necessities: bread, rope, bandages, spares. Drivers fit the lock first and fill it second.',
   'lore.part.cab': 'The seat the whole truck is built around. Old patches in the upholstery tell you who sat there before.',
   'lore.part.cabPickup': 'A pickup cab with a different color on each door, and glass from three other trucks. It has outlived every owner.',
+  'lore.part.cabBroad': 'A wide cab welded together from two wrecks. The seam lets the dust in, and the driver gets the whole bench.',
   'lore.part.cabHardtop': 'A cab with a solid roof, which counts as luxury in a basin of sun. Rain is rare, so drivers pay for the shade.',
   'lore.part.transmission': 'Gears in an oiled case. Nobody thinks about one until it stops, and then nobody thinks about anything else.',
   'lore.part.transmissionMid': 'A truck gearbox with more teeth than a car\'s. Mechanics press an ear to the case and tell you its age.',

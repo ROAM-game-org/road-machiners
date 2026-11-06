@@ -41,7 +41,7 @@ export type Intro = {
 const STANDARD_OPENING: Opening = {
   log: 'stranded',
   wreck: REGION.playerStart.wreck,
-  condition: { stockEngine: 0.18, cabPickup: 0.3 },
+  condition: { stockEngine: 0.18, cabBroad: 0.3 },
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
 };
 
@@ -55,7 +55,7 @@ export const HAULER_KIT: HaulerKit = {
   supplies: RULES.baseSupplies,
 };
 
-const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 5, rot: 0 }];
+const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 3, rot: 0 }];
 
 const SNOWBALL_GUNS: NonNullable<StartKit['placed']> = [
   { defId: 'mg', x: 1, y: 5, rot: 0 },

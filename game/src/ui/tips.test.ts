@@ -308,7 +308,7 @@ describe("opening tips", () => {
     const seen = new Set<TipId>();
     let w = looted();
     expect(refresh(w, seen)).toBe("patch");
-    const cab = mountedParts(playerVehicle(w)).find((p) => p.defId === "cabPickup")!;
+    const cab = mountedParts(playerVehicle(w)).find((p) => p.defId === "cabBroad")!;
     w = untilIdle(startRepair(w, cab.id));
     expect(refresh(w, seen)).toBe("patch");
 

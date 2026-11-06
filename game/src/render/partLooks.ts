@@ -579,7 +579,7 @@ export function iconCatalog(
 
 type IconDraft = { entry: Omit<IconEntry, 'rank'>; hp: number };
 
-const CAB_ICON_MODELS: Record<string, ModelName> = { cab: 'cab_seat', cabPickup: 'cab_pickup', cabHardtop: 'cab_hardtop' };
+const CAB_ICON_MODELS: Record<string, ModelName> = { cab: 'cab_seat', cabPickup: 'cab_pickup', cabHardtop: 'cab_hardtop', cabBroad: 'cab_pickup' };
 
 function iconModel(defId: string): ModelName {
   if (!BODY_PARTS.has(defId)) return partModel(defId);

@@ -55,6 +55,7 @@ export const NAMES = {
   'part.cab': 'Driver seat',
   'part.cabPickup': 'Cab',
   'part.cabHardtop': 'Hardtop cab',
+  'part.cabBroad': 'Cab',
   'part.transmission': 'Transmission',
   'part.transmissionMid': 'Truck transmission',
   'part.transmissionHeavy': 'Heavy transmission',

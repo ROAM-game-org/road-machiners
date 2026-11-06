@@ -395,7 +395,7 @@ export function placementError(g: Grid, items: GridItem[], item: GridItem, ignor
 
 export function placementErrorIn(g: Grid, occupied: Occupied, item: GridItem, barrels: BarrelField): PlacementRefusal | null {
   const cells = itemCells(item);
-  if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
+  if (outOfPlace(g, item, cells)) return { id: 'noFit' };
   return clashIn(g, occupied[layerOf(g, item)], item, cells) ?? (barrels.clashes(item) ? { id: 'barrel' } : null);
 }
 
@@ -407,12 +407,17 @@ export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null
   }
   for (const item of items) {
     const cells = itemCells(item);
-    if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
+    if (outOfPlace(g, item, cells)) return { id: 'noFit' };
     const counts = held[layerOf(g, item)];
     if (cells.some((c) => (counts.get(cellKey(c.x, c.y)) ?? 0) > 1)) return { id: 'inTheWay' };
     if (armorClash(g, item, cells)) return { id: 'armorOnly' };
   }
   return items.some((it) => isWeapon(it) && barrelField(g.chassisId, items, it.id).clashes(it)) ? { id: 'barrel' } : null;
+}
+
+function outOfPlace(g: Grid, item: GridItem, cells: { x: number; y: number }[]): boolean {
+  if (belowDeck(g.chassisId, item)) return false;
+  return crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c));
 }
 
 function clashIn(g: Grid, taken: Set<number>, item: GridItem, cells: { x: number; y: number }[]): PlacementRefusal | null {
