@@ -53,6 +53,8 @@ const radiusSample: Sample = (name) => {
 
 const zSample: Sample = (name) => el("div", {}, `layer ${TOKENS.get(name)}`);
 
+const valueSample: Sample = (name) => el("div", {}, TOKENS.get(name) ?? "");
+
 const GROUPS: Group[] = [
   { title: "Fonts", prefixes: ["--font-"], sample: fontSample },
   { title: "Type", prefixes: ["--text-"], sample: typeSample },
@@ -76,6 +78,20 @@ const GROUPS: Group[] = [
   {
     title: "Screen sizes",
     prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-"],
+    sample: boxSample,
+  },
+  { title: "Garage and plan colors", prefixes: ["--plan-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
+  {
+    title: "Filters and factors",
+    prefixes: ["--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
+    sample: valueSample,
+  },
+  {
+    title: "Page and phone sizes",
+    prefixes: [
+      "--compass-w", "--slider-", "--info-lists-height", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
+      "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target", "--phone-",
+    ],
     sample: boxSample,
   },
   { title: "HUD placement", prefixes: ["--hud-"], sample: spaceSample },
