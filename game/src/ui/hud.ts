@@ -42,11 +42,11 @@ import {
 import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
-import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
+import { getHudReadout, type Readout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch, lockSlot, stackedLabel } from "./switch";
+import { createSwitch, stackedLabel } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { kph, moneyEl } from "./units";
 import { isPlayerTruck, playerVehicle } from "../sim/damage";
@@ -174,12 +174,13 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
       "button",
       { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
       t("map.full"),
+      keyCap("M"),
     ),
   ];
 }
 
-function readoutClass(r: { warning: boolean; danger?: boolean; idle?: boolean }): string {
-  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : "", r.idle ? "idle" : ""].filter(Boolean).join(" ");
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
 }
 
 export class Hud {
@@ -189,7 +190,14 @@ export class Hud {
   private compassSlot = el("div", { class: "compass-slot" });
   private maxSpeed = new MaxSpeedView();
   private speedSlot = el("div", { class: "speedometer" }, this.compassSlot, this.dialSlot, this.maxSpeed.root);
-  private readoutSlot = el("div", { class: "readouts" });
+  private readonly groups = {
+    truck: el("div", { class: "readout-group", "data-group": "truck" }),
+    driver: el("div", { class: "readout-group", "data-group": "driver" }),
+    day: el("div", { class: "readout-group", "data-group": "day" }),
+    money: el("div", { class: "readout-group", "data-group": "money" }),
+  };
+  private runSlot = el("div", { class: "run-slot" });
+  private readoutSlot = el("div", { class: "readouts" }, this.groups.truck, this.groups.driver, this.groups.day, this.groups.money, this.runSlot);
   private actionSlot = el("div", { class: "instrument-actions" });
   private readonly portraits: TruckPortraits;
   readonly garage: GarageRenders;
@@ -504,18 +512,17 @@ export class Hud {
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
-      locked: od.locked,
       title: od.title,
       onclick: () => this.actions.toggleOverdrive(),
     });
-    const douse = this.douseButton(w, lock);
-    return [headlights, overdrive, douse, this.firstAidButton(w, lock)];
+    return [headlights, ...(od.locked ? [] : [overdrive]), ...this.douseButton(w, lock), ...this.firstAidButton(w, lock)];
   }
 
-  private douseButton(w: World, lock: Msg | null): HTMLElement {
+  private douseButton(w: World, lock: Msg | null): HTMLElement[] {
     const block = douseBlock(w);
+    if (block === "noBasic") return [];
     const reason = lock ?? douseMsg(w, block);
-    return el(
+    return [el(
       "button",
       {
         class: "instrument-button",
@@ -523,16 +530,16 @@ export class Hud {
         onclick: () => reason === null && this.actions.douseEngine(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
-      lockSlot(block === "noBasic"),
       t("hud.douse"),
-    );
+    )];
   }
 
-  private firstAidButton(w: World, lock: Msg | null): HTMLElement {
+  private firstAidButton(w: World, lock: Msg | null): HTMLElement[] {
     const block = firstAidBlock(w);
+    if (block === "noBasic") return [];
     const reason = lock ?? firstAidMsg(w, block);
     const cost = Math.ceil(firstAidTurns(w) * firstAidTurnSupplies(w));
-    return el(
+    return [el(
       "button",
       {
         class: "instrument-button",
@@ -540,9 +547,8 @@ export class Hud {
         onclick: () => reason === null && this.actions.firstAid(),
         title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
       },
-      lockSlot(block === "noBasic"),
       t("hud.firstAid"),
-    );
+    )];
   }
 
   private characterButton(w: World, busy: boolean): HTMLElement {
@@ -557,6 +563,22 @@ export class Hud {
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       stackedLabel([t("hud.driver"), t("hud.driverMarked")], marked ? 1 : 0),
+      keyCap("C"),
+    );
+  }
+
+  private inventoryButton(busy: boolean): HTMLElement {
+    return el(
+      "button",
+      {
+        class: "instrument-button",
+        "data-action": "inventory",
+        "aria-disabled": busy ? "true" : undefined,
+        onclick: () => !busy && this.actions.openInventory(),
+        title: busy ? TURN_PLAYING : keyLabel(t("hud.inventoryTitle"), "I"),
+      },
+      t("hud.inventory"),
+      keyCap("I"),
     );
   }
 
@@ -570,6 +592,7 @@ export class Hud {
       "button",
       { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
+      keyCap("J"),
     );
   }
 
@@ -581,7 +604,7 @@ export class Hud {
     this.renderContracts(w);
     this.renderWanted(w);
     this.tips.update(w, this.actions.autoTravel());
-    if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
+    if (!this.top.firstChild) this.top.append(this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
     const me = playerVehicle(live);
     const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
@@ -601,17 +624,10 @@ export class Hud {
 
   private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
     const dial = el(
-      "button",
-      {
-        class: "truck-instrument",
-        title: keyLabel(t("hud.inventoryTitle"), "I"),
-        "aria-label": t("hud.inventoryLabel"),
-        disabled: busy,
-        onclick: () => this.actions.openInventory(),
-      },
+      "div",
+      { class: "truck-instrument" },
       createSpeedDial(readout.speed, readout.maxSpeed, readout.dialTop, pace),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
-      createIcon("truck"),
     );
     this.dialSlot.replaceChildren(dial);
     this.compassSlot.replaceChildren(createCompassDial(readout.heading));
@@ -619,72 +635,77 @@ export class Hud {
   }
 
   private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
-    this.readoutSlot.replaceChildren(
-      ...readout.resources.map((resource) =>
-        el(
-          "span",
-          {
-            class: readoutClass(resource),
-            title: resource.tip ?? resource.label,
-            "aria-label": resource.warning ? t("hud.readoutWarning", { label: resource.label, value: resource.value }) : t("hud.readout", { label: resource.label, value: resource.value }),
-            "data-resource": resource.id,
-          },
-          resource.icon ? createIcon(resource.icon) : null,
-          el("strong", {}, resource.balance !== undefined ? moneyEl(resource.balance) : resource.value),
-        ),
-      ),
-      ...readout.survival.map((entry) =>
-        el(
-          "span",
-          {
-            class: readoutClass(entry),
-            title: entry.tip ?? entry.label,
-            "data-resource": entry.id,
-          },
-          entry.icon ? createIcon(entry.icon) : null,
-          el("strong", {}, entry.value),
-          entry.progress !== undefined
-            ? el(
-                "span",
-                {
-                  class: "meter s progress",
-                  role: "progressbar",
-                  "aria-label": t("readout.engineHeat"),
-                  "aria-valuenow": String(Math.round(entry.progress * 100)),
-                },
-                el("span", { style: `width:${Math.round(entry.progress * 100)}%` }),
-              )
-            : null,
-        ),
-      ),
+    const cell = (id: string) => [...readout.resources, ...readout.survival].find((r) => r.id === id);
+    const cells = (ids: string[]) => ids.map(cell).filter((r): r is Readout => r !== undefined).map((r) => this.readoutCell(r, readout.resources.includes(r)));
+    this.groups.truck.replaceChildren(...cells(["fuel", "engine"]));
+    this.groups.driver.replaceChildren(...cells(["driver", "supplies"]));
+    this.groups.day.replaceChildren(this.clockSlot, ...cells(["heat"]));
+    this.groups.money.replaceChildren(...cells(["money"]));
+    this.runSlot.replaceChildren(...cells(["run"]));
+  }
+
+  private readoutCell(r: Readout, spoken: boolean): HTMLElement {
+    return el(
+      "span",
+      {
+        class: readoutClass(r),
+        title: r.tip ?? r.label,
+        "aria-label": spoken ? t(r.warning ? "hud.readoutWarning" : "hud.readout", { label: r.label, value: r.value }) : undefined,
+        "data-resource": r.id,
+        "data-storm": r.weatherWarning ? "true" : undefined,
+      },
+      r.icon ? createIcon(r.icon) : null,
+      el("strong", {}, r.balance !== undefined ? moneyEl(r.balance) : r.value),
+      r.weather ? el("span", { class: r.weatherWarning ? "weather alert" : "weather" }, r.weather) : null,
+      r.progress !== undefined
+        ? el(
+            "span",
+            {
+              class: "meter s progress",
+              role: "progressbar",
+              "aria-label": t("readout.engineHeat"),
+              "aria-valuenow": String(Math.round(r.progress * 100)),
+            },
+            el("span", { style: `width:${Math.round(r.progress * 100)}%` }),
+          )
+        : null,
     );
   }
 
   private renderActions(w: World, manual: boolean, busy: boolean): void {
     this.actionSlot.replaceChildren(
-      createSwitch({
-        on: t("hud.manual"),
-        off: t("hud.route"),
-        checked: manual,
-        key: "R",
-        reason: orderLock(w, busy),
-        title: t("hud.manualTitle"),
-        onclick: () => this.actions.toggleManual(),
-      }),
-      createSwitch({
-        on: t("hud.autoPatch"),
-        off: t("hud.noPatch"),
-        checked: w.player.autoRepair,
-        key: "P",
-        reason: orderLock(w, busy),
-        title: t("hud.autoPatchTitle"),
-        onclick: () => this.actions.toggleAutoRepair(),
-      }),
-      ...this.engineButtons(w, busy),
-      this.characterButton(w, busy),
-      ...mapInstrument(w, busy, () => this.actions.openMap()),
-      this.journalButton(busy),
-      ...(modeRules(w).radio ? [this.hornButton(w, busy)] : []),
+      el(
+        "div",
+        { class: "truck-controls" },
+        createSwitch({
+          on: t("hud.manual"),
+          off: t("hud.route"),
+          checked: manual,
+          key: "R",
+          reason: orderLock(w, busy),
+          title: t("hud.manualTitle"),
+          onclick: () => this.actions.toggleManual(),
+        }),
+        createSwitch({
+          on: t("hud.autoPatch"),
+          off: t("hud.noPatch"),
+          checked: w.player.autoRepair,
+          key: "P",
+          reason: orderLock(w, busy),
+          title: t("hud.autoPatchTitle"),
+          onclick: () => this.actions.toggleAutoRepair(),
+        }),
+        ...this.engineButtons(w, busy),
+        ...(modeRules(w).radio ? [this.hornButton(w, busy)] : []),
+      ),
+      el(
+        "div",
+        { class: "screen-buttons" },
+        this.inventoryButton(busy),
+        this.characterButton(w, busy),
+        ...mapInstrument(w, busy, () => this.actions.openMap()),
+        this.journalButton(busy),
+      ),
     );
   }
 

@@ -9,7 +9,7 @@ vi.mock("./dom", () => ({
 vi.mock("./cards", () => ({ createIcon: (name: string) => ({ tag: "svg", props: { class: `icon-${name}` }, children: [] }) }));
 vi.mock("./input-mode", () => ({ keyLabel: (title: unknown) => title }));
 
-const { createSwitch, lockSlot, stackedLabel } = await import("./switch");
+const { createSwitch, stackedLabel } = await import("./switch");
 
 function find(node: unknown, test: (n: Node) => boolean): Node[] {
   if (typeof node !== "object" || node === null || !("children" in node)) return [];
@@ -41,9 +41,5 @@ describe("switch", () => {
     const stack = stackedLabel([t("hud.driver"), t("hud.driverMarked")], 1) as unknown as Node;
     expect(hasClass(stack.children[0] as Node, "label-reserve")).toBe(true);
     expect(hasClass(stack.children[1] as Node, "label-reserve")).toBe(false);
-  });
-  it("keeps the lock slot when unlocked", () => {
-    expect(hasClass(lockSlot(false) as unknown as Node, "label-reserve")).toBe(true);
-    expect(hasClass(lockSlot(true) as unknown as Node, "label-reserve")).toBe(false);
   });
 });

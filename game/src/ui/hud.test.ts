@@ -12,6 +12,7 @@ import { resolve } from '../text/resolve';
 import { Hud, cardActions, firstAidMsg, heldContractLine } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
+import { basicSkill } from '../sim/progress';
 import type { CrimeCase, World } from '../sim/types';
 
 class FakeNode {
@@ -235,14 +236,16 @@ describe('order controls while knocked out', () => {
     append(...children: (Node | string)[]) { this.children.push(...children); }
     replaceChildren(...children: (Node | string)[]) { this.children = children; }
     setAttribute(name: string, value: string) { this.attrs[name] = value; }
-    addEventListener() {}
+    handler: (() => void) | null = null;
+    addEventListener(_type: string, handler: () => void) { this.handler = handler; }
+    click() { this.handler?.(); }
     text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
     buttons(): Node[] { return [...(this.tag === 'button' ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.buttons())]; }
   }
 
   afterEach(() => vi.unstubAllGlobals());
 
-  function actionButtons(w: World, busy: boolean) {
+  function actionButtons(w: World, busy: boolean, actions: Record<string, () => void> = {}) {
     vi.stubGlobal('document', {
       createElement: (tag: string) => new Node(tag),
       createElementNS: (_ns: string, tag: string) => new Node(tag),
@@ -251,19 +254,68 @@ describe('order controls while knocked out', () => {
     const actionSlot = new Node('div');
     const hud = Object.assign(Object.create(Hud.prototype), {
       actionSlot,
-      actions: { headlightsOn: () => false },
+      actions: { headlightsOn: () => false, ...actions },
       dialogue: {},
     }) as Hud;
     (hud as unknown as { renderActions(w: World, manual: boolean, busy: boolean): void }).renderActions(w, false, busy);
     return actionSlot.buttons();
   }
 
-  const orderLabels = ['Route', 'Patch', 'Lights', 'Overdrive', 'Cool', 'First aid'];
-  const lookLabels = ['Driver', 'Map', 'Journal'];
+  const alwaysLabels = ['Route', 'Patch', 'Lights'];
+  const rankLabels = ['Overdrive', 'Cool', 'First aid'];
+  const orderLabels = [...alwaysLabels, ...rankLabels];
+  const lookLabels = ['Inventory', 'Driver', 'Map', 'Journal'];
   const find = (buttons: Node[], label: string) => buttons.find((b) => b.text().includes(label));
+  const labelsOf = (buttons: Node[]) => buttons.map((b) => b.text().replace(/\s+/g, ' ').trim());
+  const withBasics = (w: World) => {
+    for (const basic of ['overdrive', 'firstAid'] as const) w.player.ranks[basicSkill(basic)] = 1;
+  };
+
+  it('hides Overdrive, Cool and First aid until their rank is bought', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    for (const basic of ['overdrive', 'firstAid'] as const) w.player.ranks[basicSkill(basic)] = 0;
+    const labels = labelsOf(actionButtons(w, false));
+    for (const label of alwaysLabels) expect(labels.some((l) => l.includes(label)), label).toBe(true);
+    for (const label of rankLabels) expect(labels.some((l) => l.includes(label)), label).toBe(false);
+    withBasics(w);
+    const unlocked = labelsOf(actionButtons(w, false));
+    for (const label of rankLabels) expect(unlocked.some((l) => l.includes(label)), label).toBe(true);
+  });
+
+  it('lists the truck controls before the screen buttons, with Inventory first of the screens', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    withBasics(w);
+    const labels = labelsOf(actionButtons(w, false));
+    const at = (label: string) => labels.findIndex((l) => l.includes(label));
+    expect(at('Inventory')).toBeGreaterThan(at('First aid'));
+    expect(at('Driver')).toBeGreaterThan(at('Inventory'));
+    expect(at('Journal')).toBeGreaterThan(at('Driver'));
+  });
+
+  it('opens the inventory from its button only when idle', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    let opened = 0;
+    const open = (busy: boolean) => {
+      const buttons = actionButtons(w, busy, { openInventory: () => opened++ });
+      find(buttons, 'Inventory')!.click();
+    };
+    open(true);
+    expect(opened).toBe(0);
+    open(false);
+    expect(opened).toBe(1);
+  });
+
+  it('keeps Cool and First aid in view with their reason when a block other than rank holds them', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    withBasics(w);
+    w.player.supplies = 0;
+    const buttons = actionButtons(w, false);
+    for (const label of ['Cool', 'First aid']) expect(find(buttons, label)!.attrs['aria-disabled'], label).toBe('true');
+  });
 
   it('dims every order control with Knocked out, whether or not a turn plays', () => {
     const w = emptyWorld({ x: 30, y: 30 });
+    withBasics(w);
     w.player.state = 'knockedOut';
     for (const busy of [false, true]) {
       const buttons = actionButtons(w, busy);

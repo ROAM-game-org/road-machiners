@@ -121,16 +121,53 @@
   grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(3, auto) 1fr;
   grid-template-areas:
-    "dial driver fuel supplies"
-    "dial engine heat weather"
-    "dial money clock run"
+    "dial fuel driver clock"
+    "dial engine supplies heat"
+    "dial money . run"
     "actions actions actions actions";
 }
 #ui.phone .instruments .speedometer {
   grid-row: 1 / span 3;
 }
-#ui.phone .instruments .resource[data-resource="weather"] {
-  grid-area: weather;
+#ui.phone .instruments :is(.readouts, .readout-group, .run-slot, .truck-controls, .screen-buttons) {
+  display: contents;
+}
+#ui.phone .instruments .instrument-clock {
+  grid-area: clock;
+}
+#ui.phone .instruments .resource[data-resource="fuel"] {
+  grid-area: fuel;
+}
+#ui.phone .instruments .resource[data-resource="engine"] {
+  grid-area: engine;
+}
+#ui.phone .instruments .resource[data-resource="driver"] {
+  grid-area: driver;
+}
+#ui.phone .instruments .resource[data-resource="supplies"] {
+  grid-area: supplies;
+}
+#ui.phone .instruments .resource[data-resource="heat"] {
+  grid-area: heat;
+  grid-template-columns: var(--icon-xs) minmax(0, 1fr);
+}
+#ui.phone .instruments .resource[data-resource="money"] {
+  grid-area: money;
+  grid-row: auto;
+}
+#ui.phone .instruments .resource[data-resource="heat"][data-storm] {
+  background: var(--lcd-ink);
+  color: var(--lcd);
+}
+#ui.phone .instruments .resource[data-resource="heat"][data-storm] .icon svg {
+  fill: var(--lcd);
+  stroke: var(--lcd);
+}
+#ui.phone .instruments .resource .weather {
+  display: none;
+}
+#ui.phone .instruments .resource[data-resource="heat"] strong {
+  justify-self: end;
 }
 #ui.phone .instruments .resource[data-resource="run"] {
   grid-area: run;
@@ -167,7 +204,7 @@
   justify-content: center;
   flex-wrap: nowrap;
 }
-#ui.phone .instruments .instrument-actions > * {
+#ui.phone .instruments .instrument-actions :is(.truck-controls, .screen-buttons) > * {
   flex: 1 1 0;
   min-width: 0;
   height: var(--touch-target);

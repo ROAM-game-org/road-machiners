@@ -44,10 +44,6 @@ export function stackedLabel(variants: Msg[], shown: number, className?: string)
   );
 }
 
-export function lockSlot(locked: boolean): HTMLElement {
-  return el("span", { class: locked ? "lock-slot" : "lock-slot label-reserve", "aria-hidden": locked ? undefined : "true" }, createIcon("lock"));
-}
-
 function switchHandle(o: SwitchOptions): HTMLElement {
   return el("span", { class: "switch-handle" }, o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down"));
 }
