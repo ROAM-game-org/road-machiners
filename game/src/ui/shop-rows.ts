@@ -5,7 +5,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle, vehicleById } from "../sim/damage";
-import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
+import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyCharge, supplyRoom, type Supply } from "../sim/economy";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
@@ -52,9 +52,9 @@ export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
   const afford = Math.min(room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
   const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, price, shortBy(w.player.money, price) === null, [
-    buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason),
-    buttons.button(afford > 0 ? t("trade.fill", { amount: amount(afford) }) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
+  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, null, shortBy(w.player.money, price) === null, [
+    buttons.button(list([t("trade.plusAmount", { amount: amount(1) }), moneyMsg(supplyCharge(k, 1))]), (x) => buy(x, k, 1), reason),
+    buttons.button(afford > 0 ? list([t("trade.fill", { amount: amount(afford) }), moneyMsg(supplyCharge(k, afford))]) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
   ], limit.tag);
 }
 
@@ -76,7 +76,7 @@ export function supplyUnit(k: Supply): Msg {
   return k === "fuel" ? t("trade.perUnit", { unit: supplyAmount(k, 1) }) : t("trade.eachUnit");
 }
 
-export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number, payable: boolean, buttons: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
+export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number | null, payable: boolean, buttons: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
   const amount = (n: number) => supplyAmount(k, n);
   return el(
     "div",
@@ -89,7 +89,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       tag,
     ),
     theirs,
-    el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), priceEl(price, payable, { tone: "", title: supplyUnit(k) }), ...buttons),
+    el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), price === null ? null : priceEl(price, payable, { tone: "", title: supplyUnit(k) }), ...buttons),
   );
 }
 

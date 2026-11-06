@@ -23,6 +23,10 @@
   min-height: 0;
   overflow: visible;
 }
+.town-page .ink-panel.fit {
+  flex: none;
+  min-height: 0;
+}
 .town-page .ink-head:has(+ .ink-panel.supplies) .qt-line {
   margin-bottom: 0;
 }

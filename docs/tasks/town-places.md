@@ -158,11 +158,28 @@ Approach: since every shop site offers every place except maps, section access h
 
 ## Verify
 
-- Run only the touched test files, never the full suite. Run `npm run layout` and `npm run playtest` from `game/`.
-- Every browser window an agent opens stays hidden and muted.
-- Take screenshots of each site's front page and of each Bowl place, in English and Russian, and look at them.
-- Check by hand that buying a chart at the Guidestar post, opening `bowl_scale` at the Trading post, and talking to a local and a parked driver at the canteen all work.
-- The user reads every new or changed line of game text before merge.
+Result: failed once, then fixed. Three checks are deferred and listed below.
+
+Happy-path:
+- CK1 — A site shows the wrong heading, names or order, in either language — held on all 7 sites in English and Russian.
+- CK2 — A chart cannot be bought at the Guidestar post — held: a picked square showed Buy 34, and money fell by 34.
+- CK3 — The manager does not open, or the scale scene no longer fires at the Trading post — held on screen, with no page errors.
+
+Negative:
+- CK4 (IV2) — A site with no maps can reach a post — held: `pickTownSection()` throws, and the front page has no row.
+- CK5 (IV1) — Number keys point at the wrong place — held: key 5 opens the post at Bowl, and key 4 opens the canteen at Dustwell.
+
+Purpose:
+- CK6 — Fuel and supplies show no price before the click — broke: buttons read "+5 L" with a unit price beside them. Fixed: they read "+5 L, 1 M" and "Fill 155 L, 31 M's", priced by `supplyCharge()`.
+- CK7 — The canteen hides its locals — broke at 1280x720: the panel's minimum height pushed Hattie below the fold. Fixed with `.ink-panel.fit`, confirmed on a screenshot.
+- CK8 — The text still says "gate yard", or code still names the old tab and bar labels — held by grep over `src`, `docs` and `scripts`.
+
+Smoke: `tmp/town-check.mjs` drove every site and Bowl place in headless Chromium, with no page errors. Touched tests, `quests:check`, `typecheck` and `src/text` tests pass.
+
+Notes:
+- Deferred: `npm run layout`, `npm run playtest` and `npm run mobile`. The harness stopped them because the machine ran low on memory. Layout reached the 700x800 English pass and gave no verdict. They need a rerun when memory allows.
+- Deferred: pressing Radio on a parked driver. The row and button show on the canteen page, and `callVehicle` is unchanged.
+- Deferred: the user reads every new or changed line of game text before merge.
 
 ## Code smells
 
@@ -171,4 +188,11 @@ Approach: since every shop site offers every place except maps, section access h
 ### Hands-off decisions
 - uplan: plan auto-approved — the user switched to hands-off after reading the plan.
 
+- uexecute: all phases went into one commit — the pre-commit type check needs code and both languages together.
+- uexecute: manager names Renata Sayle and Emil Tarn were picked by the agent — the design left them open, and the user reads them before merge.
+- uexecute: Hattie's existing lines got single-word swaps without a codex call — only place names changed, and the character line process allows edits.
+- uexecute: agy's Nose heading in Russian is "Огороженный двор" — "Компаунд" was too obscure, and this is the word the game already uses.
+
 ### Deferred (needs user input)
+- Run `npm run layout`, `npm run playtest` and `npm run mobile` — the harness stopped them on low memory and said not to restart unasked — the user says when memory allows.
+- Read all new and changed game text, in `docs/tasks/town-places.md` scope — the Goal requires user sign-off on the words — the user approves or edits them.

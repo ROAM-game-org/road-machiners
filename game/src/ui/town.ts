@@ -389,8 +389,8 @@ export class TownScreen {
       return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...head, el("div", { class: "shop-body" }, body))));
     }
     if (page === "board") return el("div", { class: "ink-panel" }, this.contracts(w, shopId));
-    if (page === "people") return el("div", { class: "ink-panel" }, this.parkedDrivers(w, shopId));
-    return el("div", { class: "ink-panel" }, this.charts(w, shopId));
+    if (page === "people") return el("div", { class: "ink-panel fit" }, this.parkedDrivers(w, shopId));
+    return el("div", { class: "ink-panel fit" }, this.charts(w, shopId));
   }
 
   private garage(w: World, shopId: string, def: ShopDef): ShopColumn {

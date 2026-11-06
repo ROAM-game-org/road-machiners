@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
-import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
+import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, supplyAmount, tradeEstimate } from "./shop-rows";
+import { moneyMsg } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
@@ -325,5 +326,21 @@ describe("the supply rows of the front page", () => {
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
     limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
     expect(asked).toEqual([1, 3]);
+  });
+
+  it("show the price of each purchase on its button", () => {
+    const w = emptyWorld();
+    const labels: string[] = [];
+    const buttons = {
+      button: (label: Msg) => {
+        labels.push(resolve(label, "en"));
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
+      priceButton: () => new FakeNode("button") as unknown as HTMLElement,
+    };
+    const price = ECONOMY.supplyPrice.fuel;
+    w.player.money = price * 3;
+    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null });
+    expect(labels).toEqual([`+${resolve(supplyAmount("fuel", 1), "en")}, ${resolve(moneyMsg(price), "en")}`, `Fill ${resolve(supplyAmount("fuel", 3), "en")}, ${resolve(moneyMsg(price * 3), "en")}`]);
   });
 });
