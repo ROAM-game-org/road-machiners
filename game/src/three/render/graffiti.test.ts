@@ -7,7 +7,7 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseRegionGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
+import { chooseRegionGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, keepAlphas, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -127,5 +127,18 @@ describe('graffitiLift', () => {
       expect(lift).toBeLessThanOrEqual(1);
       last = lift;
     }
+  });
+});
+
+describe('graffiti weathering mask', () => {
+  it('is the same for the same seed and differs between seeds', () => {
+    expect(keepAlphas(1)).toEqual(keepAlphas(1));
+    expect(keepAlphas(1)).not.toEqual(keepAlphas(2));
+  });
+
+  it('keeps some paint and wears some away', () => {
+    const alphas = keepAlphas(3);
+    expect(alphas.some((a) => a === 255)).toBe(true);
+    expect(alphas.some((a) => a < 128)).toBe(true);
   });
 });
