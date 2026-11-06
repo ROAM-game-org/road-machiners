@@ -134,7 +134,7 @@ export class VehicleView {
   private radioMat = new THREE.MeshBasicMaterial({ color: PAL.radioLight.off });
   private halo: THREE.Sprite | null = null;
   private radioOn = false;
-  private glassMat = new THREE.MeshLambertMaterial({ flatShading: true });
+  private glassMat = new THREE.MeshLambertMaterial({ name: GLASS, flatShading: true });
   private readonly glassGlow = new THREE.Color(0);
   private silhouettes: THREE.MeshBasicMaterial[] = [];
   private contactShadows: ContactShadow[] = [];
@@ -371,7 +371,7 @@ export class VehicleView {
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
     this.halo = null;
-    this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
+    this.glassMat = new THREE.MeshLambertMaterial({ name: GLASS, flatShading: true, emissive: this.glassGlow });
   }
 
   private *drawItems(v: Vehicle, onBody: GridItem[], paint: number): Generator<void, { wheelItems: PartItem[]; guns: PartItem[] }> {
