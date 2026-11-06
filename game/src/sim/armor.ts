@@ -603,8 +603,10 @@ function cellsOnGrid(chassisId: string, item: GridItem): { x: number; y: number 
 
 function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
   const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
-  if (tall.length === 0 || cellsOnGrid(v.chassisId, gun).length === 0) return [];
-  const reach = floorUnder(v.chassisId, gun) + GUN_CLEARANCE;
+  if (tall.length === 0) return tall;
+  const floor = surfaceUnder(v.chassisId, gun);
+  if (!Number.isFinite(floor)) return [];
+  const reach = floor + GUN_CLEARANCE;
   return tall.filter((it) => topOf(v.chassisId, it) > reach);
 }
 
@@ -620,12 +622,16 @@ function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, 
   return height;
 }
 
+function surfaceUnder(chassisId: string, item: GridItem): number {
+  const cells = cellsOnGrid(chassisId, item);
+  if (cells.length === 0) return -Infinity;
+  return cachedHeight('floor', chassisId, item, () => highestUnder(chassisId, cellRect(chassisId, cells)));
+}
+
 function floorUnder(chassisId: string, item: GridItem): number {
-  return cachedHeight('floor', chassisId, item, () => {
-    const floor = highestUnder(chassisId, cellRect(chassisId, cellsOnGrid(chassisId, item)));
-    if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
-    return floor;
-  });
+  const floor = surfaceUnder(chassisId, item);
+  if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
+  return floor;
 }
 
 function topOf(chassisId: string, item: GridItem): number {

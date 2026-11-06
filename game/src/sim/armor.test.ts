@@ -403,6 +403,13 @@ describe('shadows of tall parts', () => {
     }
   });
 
+  it('a gun ghost over bare grid cells at the corner of a scout gets spans and blockers', () => {
+    const v = truckWith(emptyWorld(), 'scout', [{ defId: 'mg', x: 2, y: 5 }]);
+    const ghost = { ...v.items[v.items.length - 1]!, x: 0, y: -1 };
+    expect(() => gunSpans(v, ghost)).not.toThrow();
+    expect(gunBlockers(v, ghost)).toEqual([]);
+  });
+
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
     const w = emptyWorld();
     const v = truckWith(w, 'hauler', []);
