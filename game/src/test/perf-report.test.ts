@@ -5,8 +5,8 @@ import { budgetsFor, bundleProblems, checkBudgets, compare, fixNext, gateLines, 
 const SYSTEMS = ['terrain', 'props', 'vehicles', 'lights', 'effects', 'overlays', 'other'];
 const IDS = ['town-day', 'town-day-far', 'town-night', 'town-night-far', 'fight', 'drive'];
 
-const stats = (median: number, p99: number, over33 = 0, over100 = 0) => ({ median, p99, worst: p99 * 1.2, over33, over100, frames: 1200 });
-const emptyStats = { median: 0, p99: 0, worst: 0, over33: 0, over100: 0, frames: 0 };
+const stats = (median: number, p99: number, over33 = 0, over100 = 0) => ({ median, mean: median, p99, worst: p99 * 1.2, over33, over100, frames: 1200 });
+const emptyStats = { median: 0, mean: 0, p99: 0, worst: 0, over33: 0, over100: 0, frames: 0 };
 const pass = (real: ReturnType<typeof stats>, gpu: ReturnType<typeof stats> | null = null) => ({ real, tickCpu: stats(2, 4), renderCpu: stats(3, 6), gpu });
 
 function draws(propDraws: number, otherDraws = 0) {
@@ -321,20 +321,20 @@ describe('gate', () => {
 
   it('takes the median of the reports as the value and their range as the noise', () => {
     const { measures } = landedFrom([run(10), run(11), run(12)]);
-    expect(measures['town-day median']).toEqual({ value: 11, noise: 2, limit: 13 });
+    expect(measures['town-day mean']).toEqual({ value: 11, noise: 2, limit: 13 });
   });
 
   it('uses the pass difference inside a report when it is larger than the range', () => {
     const { measures } = landedFrom([run(10, {}, 3), run(10, {}, 3), run(10, {}, 3)]);
-    expect(measures['town-day median']).toEqual({ value: 10, noise: 3, limit: 13 });
+    expect(measures['town-day mean']).toEqual({ value: 10, noise: 3, limit: 13 });
   });
 
   it('judges each drive pass alone and ignores the difference between its routes', () => {
     const drive = { passes: [pass(realStats(8, 12)), pass(realStats(16, 24))], spread: 0.5 };
     const { measures } = landedFrom([0, 1, 2].map(() => wrap(withScene('drive', drive), { machine: 'ally' })));
-    expect(measures['drive pass 1 median']).toEqual({ value: 8, noise: 0, limit: 8 });
-    expect(measures['drive pass 2 median']).toEqual({ value: 16, noise: 0, limit: 16 });
-    expect(measures['drive median']).toBeUndefined();
+    expect(measures['drive pass 1 mean']).toEqual({ value: 8, noise: 0, limit: 8 });
+    expect(measures['drive pass 2 mean']).toEqual({ value: 16, noise: 0, limit: 16 });
+    expect(measures['drive mean']).toBeUndefined();
   });
 
   it('refuses too few, untrusted or mixed reports', () => {
@@ -350,8 +350,8 @@ describe('gate', () => {
   it('fails a measure over its limit and names it', () => {
     const result = gateLines(run(14), landed());
     expect(result.status).toBe('slower');
-    expect(result.lines.filter((l) => !l.pass).map((l) => l.key)).toContain('town-day median');
-    expect(gateSummary(result)).toContain('town-day median');
+    expect(result.lines.filter((l) => !l.pass).map((l) => l.key)).toContain('town-day mean');
+    expect(gateSummary(result)).toContain('town-day mean');
   });
 
   it('fails a new frame over 100 ms when the stored runs had none', () => {
@@ -371,9 +371,9 @@ describe('gate', () => {
   it('lets stored numbers fall and refuses to raise a value past its old limit', () => {
     const file = landed();
     const faster = landedFrom([run(8), run(9), run(10)]);
-    expect(landInto(file, faster).machines.ally.measures['town-day median'].value).toBe(9);
+    expect(landInto(file, faster).machines.ally.measures['town-day mean'].value).toBe(9);
     const slower = landedFrom([run(20), run(21), run(22)]);
-    expect(() => landInto(file, slower)).toThrow('town-day median');
+    expect(() => landInto(file, slower)).toThrow('town-day mean');
   });
 
   it('trusts a drive scene whose two routes differ', () => {

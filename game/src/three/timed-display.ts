@@ -17,9 +17,18 @@ export function timedDisplay(before: World, after: World, elapsedMs: number): Wo
   return { ...before, vehicles };
 }
 
+let lastShown: { world: World; before: World; elapsed: number; shown: World } | null = null;
+
+function timedDisplayOnce(before: World, world: World, elapsed: number): World {
+  if (lastShown?.world === world && lastShown.before === before && lastShown.elapsed === elapsed) return lastShown.shown;
+  const shown = timedDisplay(before, world, elapsed);
+  lastShown = { world, before, elapsed, shown };
+  return shown;
+}
+
 export function playbackWorld(world: World, playback: { impacts: boolean; before: World; elapsed: number } | null): World {
   if (!playback || playback.impacts) return world;
-  return combatState(world) ? timedDisplay(playback.before, world, playback.elapsed) : playback.before;
+  return combatState(world) ? timedDisplayOnce(playback.before, world, playback.elapsed) : playback.before;
 }
 export function timedUiStale(world: World, elapsed: number, ms: number, stale: boolean): boolean {
   const state = combatState(world);

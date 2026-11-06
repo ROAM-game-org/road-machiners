@@ -1,4 +1,4 @@
-export type FrameStats = { median: number; p99: number; worst: number; over33: number; over100: number; frames: number };
+export type FrameStats = { median: number; mean: number; p99: number; worst: number; over33: number; over100: number; frames: number };
 export type PassStats = { real: FrameStats; tickCpu: FrameStats; renderCpu: FrameStats; gpu: FrameStats | null };
 export type RenderPass = 'main' | 'shadow';
 export type BenchSystem = 'terrain' | 'props' | 'vehicles' | 'lights' | 'effects' | 'overlays' | 'other';
@@ -92,6 +92,7 @@ export function frameStats(samples: readonly number[]): FrameStats {
   const sorted = sortedSamples(samples);
   return {
     median: medianOf(sorted),
+    mean: sorted.reduce((sum, s) => sum + s, 0) / sorted.length,
     p99: nearestRank(sorted, 0.99),
     worst: sorted[sorted.length - 1],
     over33: sorted.filter((s) => s > SLOW_FRAME_MS).length,
@@ -122,9 +123,9 @@ export function poolFrames(passes: readonly (readonly FrameRecord[])[]): FrameRe
 
 export function spreadOf(passes: readonly PassStats[]): number {
   if (passes.length !== 2) throw new Error(`Spread needs exactly 2 passes, got ${passes.length}`);
-  const [a, b] = passes.map((p) => p.real.median);
+  const [a, b] = passes.map((p) => p.real.mean);
   const smaller = Math.min(a, b);
-  if (!(smaller > 0)) throw new Error(`Spread needs positive medians, got ${a} and ${b}`);
+  if (!(smaller > 0)) throw new Error(`Spread needs positive means, got ${a} and ${b}`);
   return Math.abs(a - b) / smaller;
 }
 

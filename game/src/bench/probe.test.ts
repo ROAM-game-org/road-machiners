@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Group, Mesh, OrthographicCamera, Scene, type Object3D, type WebGLRenderer } from 'three';
-import { attribute, DrawCounter, GpuPacer, reachableObjects, systemMap, topLevelOf, uploadBytes, type SystemRoots } from './probe';
+import { attribute, DrawCounter, reachableObjects, systemMap, topLevelOf, uploadBytes, type SystemRoots } from './probe';
 
 const named = (object: Object3D, name: string): Object3D => Object.assign(object, { name });
 
@@ -159,58 +159,5 @@ describe('uploadBytes', () => {
 
   it('counts an allocation without data as zero bytes', () => {
     expect(uploadBytes('texImage2D', [1, 0, 2, 64, 64, 0, 3, 4, null])).toBe(0);
-  });
-});
-
-describe('GpuPacer', () => {
-  function pacer() {
-    const signaled = new Set<object>();
-    const fences: object[] = [];
-    const gl = {
-      SYNC_GPU_COMMANDS_COMPLETE: 1,
-      SYNC_STATUS: 2,
-      SIGNALED: 3,
-      lost: false,
-      fenceSync: () => {
-        const fence = {};
-        fences.push(fence);
-        return fence as WebGLSync;
-      },
-      getSyncParameter: (sync: WebGLSync) => (signaled.has(sync as object) ? 3 : 0),
-      deleteSync: () => {},
-      flush: () => {},
-      isContextLost: () => gl.lost,
-    };
-    return { gl, fences, signaled, pacer: new GpuPacer(gl as unknown as ConstructorParameters<typeof GpuPacer>[0]) };
-  }
-
-  it('lets the next frame start while one frame is still on the GPU', () => {
-    const { pacer: p } = pacer();
-    p.rendered(0);
-    expect(p.free(1)).toBe(true);
-  });
-
-  it('holds the next frame while two frames are on the GPU, until the older finishes', () => {
-    const { pacer: p, fences, signaled } = pacer();
-    p.rendered(0);
-    p.rendered(1);
-    expect(p.free(2)).toBe(false);
-    signaled.add(fences[0]);
-    expect(p.free(3)).toBe(true);
-  });
-
-  it('never holds a frame after the context is lost', () => {
-    const { pacer: p, gl } = pacer();
-    p.rendered(0);
-    p.rendered(1);
-    gl.lost = true;
-    expect(p.free(2)).toBe(true);
-  });
-
-  it('fails loudly when the GPU never finishes a frame', () => {
-    const { pacer: p } = pacer();
-    p.rendered(0);
-    p.rendered(1);
-    expect(() => p.free(100000)).toThrow('The GPU did not finish a frame');
   });
 });

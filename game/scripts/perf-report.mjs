@@ -348,7 +348,7 @@ export function compare(a, b) {
   return [...head, textRow('measure', 'A', 'B'), ...body, '', `${flags} lines changed`].join('\n');
 }
 
-const GATE_STATS = ['median', 'p99', 'over100'];
+const GATE_STATS = ['mean', 'p99', 'over100'];
 const GATE_MIN_REPORTS = 3;
 
 const rangeOf = (values) => Math.max(...values) - Math.min(...values);

@@ -79,7 +79,15 @@ describe('poolFrames and spreadOf', () => {
     expect(poolFrames([[frame(1)], [frame(2), frame(3)]]).map((f) => f.real)).toEqual([1, 2, 3]);
   });
 
-  it('divides the gap between two pass medians by the smaller one', () => {
+  it('judges the passes by mean, since GPU backlog stalls move the median without moving the time played', () => {
+    const steady = passStats([frame(20), frame(20), frame(20), frame(20)]);
+    const bursty = passStats([frame(5), frame(5), frame(5), frame(65)]);
+    expect(bursty.real.median).toBe(5);
+    expect(bursty.real.mean).toBe(20);
+    expect(spreadOf([steady, bursty])).toBe(0);
+  });
+
+  it('divides the gap between two pass means by the smaller one', () => {
     const slow = passStats([frame(22)]);
     const fast = passStats([frame(20)]);
     expect(spreadOf([slow, fast])).toBeCloseTo(0.1);
