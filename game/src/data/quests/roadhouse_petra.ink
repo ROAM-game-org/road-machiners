@@ -24,7 +24,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
 + {petra_book and not petra_how} [How do I put a wrong in the book?]
   Park here or at a town pad and tell what you saw while it's fresh.
   ~ petra_how = true
-  ~ note("roadhouseBook")
   -> hub
 + {petra_how and not petra_cost} [Who pays the price?]
   Whoever did the wrong pays what Wim sets.
@@ -35,7 +34,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
   A town's grudge has a price, and the Roadhouse can pay the town to settle it.
   You pay the Roadhouse at Wim's counter.
   ~ petra_buyoff = true
-  ~ note("roadhouseBuyOff")
   -> hub
 + {not petra_riders} [Who goes after the wrongdoers?]
   Rook Halloran's <term=marshals>Marshalls</term> ride after them, two Lincolns at a time.

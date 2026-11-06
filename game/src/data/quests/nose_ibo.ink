@@ -27,7 +27,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   -> about_old_world
 + [About the air…]
   -> about_air
-+ {heard_couriers or heard_convoy or has_note("burntConvoy") or (depot_thief != "none" and depot_thief != "open")} [About couriers and the depot…]
++ {heard_couriers or heard_convoy or (depot_thief != "none" and depot_thief != "open")} [About couriers and the depot…]
   -> about_couriers
 + [Goodbye.]
   -> END
@@ -44,12 +44,10 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 + {heard_army} [How did the Old Army end?]
   Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, until command came for them.
   Some say the Army didn't run out of food. They say it was starved on purpose. I would wager a man who starts a rumor like that wants a seat on Nose's Central Committee.
-  ~ note("talkArmyStarved")
   ~ heard_tools = true
   -> about_old_world
 + {heard_tools} [Who took the Old Orchard tools?]
   Command hauled them up the mountain once the Army was gone. Nobody asked the Bowl, and nobody asked the dead. I hear things on the air about who wanted the Army gone. I won't repeat them.
-  ~ note("talkCommitteeRent")
   -> about_old_world
 + [Back.]
   -> hub
@@ -57,8 +55,8 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 = about_air
 + [Heard anything interesting on the air?]
   Scavengers gab about the Burnt Convoy now and then, that row of burnt trucks the road crews hauled off. Picked clean, they say. The stretch is all ash and bent rims, and not worth the fuel to go and look.
-  ~ note("burntConvoy")
   ~ heard_convoy = true
+  ~ convoy_rumor = true
   -> about_air
 + {heard_jj} [Where does Jill Jane broadcast from?]
   Nobody knows, but I'd wager she moves it. Her signal's strongest at night, and it drifts like the mast is on wheels. Don't tell the Sergeant I listen to her. He thinks this shack is for the Army alone.
@@ -71,7 +69,6 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
     Eh? Quieter than it's been in years. A line of lamps used to cross to the crater every dusk, and if you called them you got an open channel and somebody breathing on it. Now there's nothing at all. I'd wager somebody finally stopped them. Do not tell the Sergeant I was glad.
   - else:
     Eh? Nobody out there talks, that's the odd part. Every dusk a line of lamps goes out to the crater, and if you call them you get an open channel and somebody breathing on it, nothing more. Joss Ardo, who sings with the Children of Noah now, rode with them once and got out. I'd wager he's the only one who ever did.
-    ~ note("sunwardLamps")
   }
   -> about_air
 + [Back.]
@@ -81,7 +78,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 + {heard_couriers} [Who are the Guild couriers?]
   They carry the mail between the towns. They run in pairs now, two trucks together. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
   -> about_couriers
-+ {(heard_convoy or has_note("burntConvoy"))} [What happened at Burnt Convoy?]
++ {heard_convoy} [What happened at Burnt Convoy?]
   A whole convoy went up in one night, years back. Some say raiders did it. Some say a truck full of fuel drums blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
   -> about_couriers
 + {depot_thief != "none" and depot_thief != "open"} [Heard about the depot business?]

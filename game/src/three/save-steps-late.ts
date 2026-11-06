@@ -948,3 +948,13 @@ export function withGoodsStore(world: SavedJson): SavedJson {
 export function withProjectileFlights(world: SavedJson): SavedJson {
   return { ...world, combat: { now: 0, flights: [] } };
 }
+
+const CONVOY_NOTE = 'burntConvoy';
+
+export function withConvoyRumor(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const heard = (player.notes as { id: string }[]).some((n) => n.id === CONVOY_NOTE);
+  if (!heard) return world;
+  const quests = player.quests as { world: SavedJson };
+  return { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, convoy_rumor: true } } } };
+}

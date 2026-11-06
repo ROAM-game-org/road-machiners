@@ -83,19 +83,16 @@ Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do
 + {not hattie_flats} [Any local legends?]
   One driver swears an Old World tank still runs out on the <term=glass_flats>Glass Flats</term>. Comes out at night with its lights off.
   I only ever saw him drink.
-  ~ note("glassTank")
   ~ hattie_flats = true
   -> about_sunward
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
   People say every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
   That's what I've heard. I won't stand on it at noon.
-  ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> about_sunward
 + {hattie_glass and not hattie_sunward} [What's down in that crater?]
   I don't know. I've never been down there, and I never will.
   Strangers get taken in. The few who come out are green at the edges and quiet.
-  ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> about_sunward
 + {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]

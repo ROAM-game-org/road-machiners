@@ -1,0 +1,17 @@
+{
+  "turn": 2153,
+  "player": {
+    "money": 412,
+    "notes": [
+      { "id": "talkKilnFight", "turn": 300 },
+      { "id": "burntConvoy", "turn": 1210 },
+      { "id": "pipeOffer", "turn": 1400 }
+    ],
+    "quests": {
+      "world": { "depot_thief": "vance" },
+      "local": { "nose_ibo": { "heard_convoy": true } },
+      "seen": {},
+      "session": null
+    }
+  }
+}

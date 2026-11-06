@@ -1,5 +1,5 @@
 {
- "format": "2.138",
+ "format": "2.139",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -2710,6 +2710,7 @@
   "world": {
    "ala_hired": "boolean",
    "ambush_raider": "string",
+   "convoy_rumor": "boolean",
    "counter_seen": "boolean",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
@@ -3057,8 +3058,6 @@
      ]
     },
     "notes": [
-     "sunwardDragged",
-     "talkKilnFight",
      "wagonDag"
     ],
     "begins": []
@@ -3073,9 +3072,6 @@
     "readsNotes": [],
     "writes": {},
     "notes": [
-     "glassTank",
-     "talkGlassLean",
-     "talkSunwardTake",
      "wagonBowl"
     ],
     "begins": []
@@ -3087,10 +3083,7 @@
     "reads": [],
     "readsNotes": [],
     "writes": {},
-    "notes": [
-     "talkGranaryGate",
-     "talkSeepPipe"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3188,13 +3181,9 @@
    "revision": 1,
    "links": {
     "reads": [],
-    "readsNotes": [
-     "talkBrakeRod"
-    ],
+    "readsNotes": [],
     "writes": {},
-    "notes": [
-     "talkBrakeRod"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3234,16 +3223,13 @@
     "reads": [
      "depot_thief"
     ],
-    "readsNotes": [
-     "burntConvoy"
-    ],
-    "writes": {},
-    "notes": [
-     "burntConvoy",
-     "sunwardLamps",
-     "talkArmyStarved",
-     "talkCommitteeRent"
-    ],
+    "readsNotes": [],
+    "writes": {
+     "convoy_rumor": [
+      true
+     ]
+    },
+    "notes": [],
     "begins": []
    }
   },
@@ -3279,8 +3265,7 @@
     "readsNotes": [],
     "writes": {},
     "notes": [
-     "greenPit",
-     "talkBrakeRod"
+     "greenPit"
     ],
     "begins": [
      "wagon_bench"
@@ -3375,10 +3360,7 @@
     "reads": [],
     "readsNotes": [],
     "writes": {},
-    "notes": [
-     "roadhouseBook",
-     "roadhouseBuyOff"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3447,22 +3429,19 @@
    "revision": 1,
    "links": {
     "reads": [
+     "convoy_rumor",
      "wagon_fate",
      "wagon_rod",
      "wagon_watched"
     ],
-    "readsNotes": [
-     "burntConvoy"
-    ],
+    "readsNotes": [],
     "writes": {
      "wagon_fate": [
       "sold"
      ]
     },
     "notes": [
-     "talkConvoyNotClean",
-     "talkCraneBook",
-     "talkPierceGuns"
+     "talkConvoyNotClean"
     ],
     "begins": []
    }

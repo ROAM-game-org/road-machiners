@@ -45,12 +45,10 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
 + {jory_filled} [What do the raiders have to do with the Granary?]
   Kiln Camp, the raiders in the south, eat <term=granary>Granary</term> rations, and in return they let Granary trucks cross their road. The patrol is paid out of the tenants' share of the same harvest.
   The harvest leaves the terraces once and the Senate spends it twice. The Senate says the harvest stretches to cover both, and I've read its rules slowly and found nothing on breeding sacks.
-  ~ note("talkGranaryGate")
   -> about_grain
 + {jory_green} [Why do the top terraces stay green?]
   Because, if the word's right, the household's own truck fills its barrels at Dustwell every week and drives straight up to the top gardens. Nobody at the pump is allowed to ask where that truck's water goes. If you say so in the market, they'll ask who told you, and names are the one crop the Senate knows how to harvest.
   Have I seen the truck unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the truck exists or those cabbages are saints.
-  ~ note("talkSeepPipe")
   -> about_grain
 + {jory_nose and found("nose")} [What do you make of Nose?]
   They ration everyone and call it kindness. A fed man in a line is still a man in a line. Ask me again in a famine and I might change my mind, or I might not, because I'm a stubborn fellow when I'm hungry.

@@ -83,19 +83,16 @@ VAR hattie_unarmed = false
 + {not hattie_flats} [Местные легенды есть?]
   Один водила клянется, что по <term=glass_flats>Стеклянной равнине</term> до сих пор ездит танк старого мира. По ночам выезжает, без огней.
   А я только и видела, как он пьет.
-  ~ note("glassTank")
   ~ hattie_flats = true
   -> about_sunward
 + {hattie_flats and not hattie_glass} [Что со стеклом на Стеклянной равнине?]
   Говорят, все волны на стекле клонятся в одну сторону, к кратеру <term=fallen_sun>Павшего солнца</term>.
   А я в полдень на это стекло ни ногой. И проверять, опасно ли, не собираюсь.
-  ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> about_sunward
 + {hattie_glass and not hattie_sunward} [Что там, в кратере?]
   Не знаю. Я туда не ходила и не пойду.
   Чужаков уводят в кратер. Те немногие, кто выходит, зеленые по краям и тихие.
-  ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> about_sunward
 + {hattie_sunward and cult_broken()} [Обращенные к Солнцу затихли?]
