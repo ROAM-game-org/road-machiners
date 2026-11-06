@@ -9,24 +9,24 @@ import { dropClearance } from '../../sim/hazards';
 import { heightAt, tileAt, type Terrain } from '../../sim/terrain';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
-import { trailPassed, type TurnClock } from './hazards';
+import { cutShare, trailPassed, type Cutaway, type TurnClock } from './hazards';
 import { BeforeTurn, driftAt, turnShare } from './turn-blend';
 import type { VehicleView } from './vehicle';
 import type { Card, FxCards } from './particles/cards';
-import { CARD_SHAPES } from './particles/cards';
+import { clumpShape } from './particles/cards';
 
 const S = PHYSICS.metersPerTile;
 
 export const DUST_LOOK = {
   maxCards: 800,
-  puffs: 7,
+  puffs: 14,
   spread: 0.5,
   spreadGrowth: 3,
-  size: 1.8,
+  size: 0.8,
   birthSize: 0.5,
   buildTurns: 3,
-  sizeGrowth: 2.5,
-  opacity: 0.4,
+  sizeGrowth: 1.8,
+  opacity: 0.6,
   fadeIn: 2,
   wobble: 0.8,
   wobbleSeconds: 3.5,
@@ -91,7 +91,7 @@ export class DustCloudsView {
     for (const card of this.cards) cards.lit.push(card);
   }
 
-  update(world: World, terrain: Terrain, nowMs: number, views: ReadonlyMap<string, VehicleView> = new Map(), clock: TurnClock | null = null): void {
+  update(world: World, terrain: Terrain, nowMs: number, views: ReadonlyMap<string, VehicleView> = new Map(), clock: TurnClock | null = null, camera: THREE.Camera | null = null): void {
     if (world !== this.lastWorld) {
       this.lastWorld = world;
       this.vehicles = new Map(world.vehicles.map((v) => [v.id, v]));
@@ -103,10 +103,11 @@ export class DustCloudsView {
     const shown = world.dustClouds.filter((c) => seenAfter.has(c.id) || (share < 1 && seenBefore.has(c.id)));
     const clouds = shown.filter((c) => this.revealed(c, clock)).slice(0, DUST_LOOK.maxCards);
     const puffs = puffsPerCloud(clouds.length);
+    const cuts = cutawaysOf(views, camera);
     this.cards = [];
     for (const c of clouds) {
       const drawn = this.drawnOf(terrain, c, clock, share, seenAfter.has(c.id), seenBefore.has(c.id));
-      this.place(terrain, drawn, puffs, nowMs / 1000, this.fitOf(drawn, views));
+      this.place(terrain, drawn, puffs, nowMs / 1000, this.fitOf(drawn, views), cutsNear(cuts, drawn));
     }
   }
 
@@ -143,7 +144,7 @@ export class DustCloudsView {
     return fitToTruck(center, truck, tailReach(source.chassisId) * S, reachAt(d.age));
   }
 
-  private place(terrain: Terrain, d: Drawn, puffs: number, seconds: number, fit: number): void {
+  private place(terrain: Terrain, d: Drawn, puffs: number, seconds: number, fit: number, cuts: readonly Cutaway[]): void {
     const shape = plumeShape(d.age);
     const cx = d.pos.x * S;
     const cy = (heightAt(terrain, d.pos.x, d.pos.y) + d.age * DETECT.dust.riseHeight) * S;
@@ -158,17 +159,21 @@ export class DustCloudsView {
       const wx = (valueNoise(k * 0.13 + t, 1.7) - 0.5) * 2 * shape.wobble * fit;
       const wz = (valueNoise(4.3, k * 0.13 + t) - 0.5) * 2 * shape.wobble * fit;
       const breathe = 0.75 + 0.5 * valueNoise(k * 0.29 + t * 1.3, 8.1);
+      const x = cx + ((hash2(k, 3) - 0.5) * span + wx) * S;
+      const y = cy + hash2(k, 7) * shape.scatter * fit * S;
+      const z = cz + ((hash2(k, 11) - 0.5) * span + wz) * S;
+      const size = shape.size * breathe * fit * S;
       this.cards.push({
-        x: cx + ((hash2(k, 3) - 0.5) * span + wx) * S,
-        y: cy + hash2(k, 7) * shape.scatter * fit * S,
-        z: cz + ((hash2(k, 11) - 0.5) * span + wz) * S,
-        size: shape.size * breathe * fit * S,
+        x,
+        y,
+        z,
+        size,
         spin: hash2(k, 19) * DUST_LOOK.spinRange,
-        shape: Math.min(CARD_SHAPES - 1, Math.floor(hash2(k, 23) * CARD_SHAPES)),
+        shape: clumpShape(hash2(k, 23)),
         r: tint.r,
         g: tint.g,
         b: tint.b,
-        alpha: DUST_LOOK.opacity * shape.fade * d.presence * (0.6 + 0.8 * hash2(k, 13)),
+        alpha: DUST_LOOK.opacity * shape.fade * d.presence * (0.6 + 0.8 * hash2(k, 13)) * clearOfTrucks(cuts, x, y, z, size / 2),
         sx: 0,
         sy: 0,
         sz: 0,
@@ -185,6 +190,27 @@ export class DustCloudsView {
     }
     return tint;
   }
+}
+
+const PUFF_SPOT = new THREE.Vector3();
+const TRUCK_CUT_TILES = 2;
+
+function cutawaysOf(views: ReadonlyMap<string, VehicleView>, camera: THREE.Camera | null): Cutaway[] {
+  if (!camera) return [];
+  const look = camera.getWorldDirection(new THREE.Vector3());
+  return [...views.values()].map((view) => ({ at: new THREE.Vector3().copy(view.center()), look }));
+}
+
+function cutsNear(cuts: readonly Cutaway[], d: Drawn): readonly Cutaway[] {
+  if (cuts.length === 0) return cuts;
+  const reach = reachAt(d.age) + TRUCK_CUT_TILES * S;
+  return cuts.filter((cut) => Math.hypot(cut.at.x - d.pos.x * S, cut.at.z - d.pos.y * S) < reach);
+}
+
+function clearOfTrucks(cuts: readonly Cutaway[], x: number, y: number, z: number, half: number): number {
+  let share = 1;
+  for (const cut of cuts) share = Math.min(share, cutShare(cut, PUFF_SPOT.set(x, y, z), half));
+  return share;
 }
 
 function seenSet(world: World): Set<string> {

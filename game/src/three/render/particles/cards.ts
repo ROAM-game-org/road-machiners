@@ -3,17 +3,29 @@ import { count } from '../../../perf';
 
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
-const ATLAS_PX = 256;
-const ATLAS_CELLS = 2;
-const SHAPE_LUMPS = { min: 4, spread: 3 };
-const SHAPE_BLUR_PX = 6;
+export const CLUMP_FIRST = ROUND_SHAPE + 1;
+export const CLUMP_SHAPES = 4;
+const ATLAS_CELL_PX = 128;
+const ATLAS_CELLS = 3;
+const ATLAS_PX = ATLAS_CELL_PX * ATLAS_CELLS;
+const CLOUD_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.1, reachSpread: 0.08, blurPx: 6 };
+const CLUMP_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.16, reachSpread: 0.1, blurPx: 2 };
+const CLUMP_EDGE = { from: 0.3, to: 0.6 };
 const CARD_LIGHT = { scatter: 0.7 };
 const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
-const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
+const SHAPE_ALPHA = `mix(texture2D(shapes, vUv).a, smoothstep(${CLUMP_EDGE.from.toFixed(2)}, ${CLUMP_EDGE.to.toFixed(2)}, texture2D(shapes, vUv).a), vClump)`;
+const CARD_BODY = `mix(${SHAPE_ALPHA}, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)`;
 const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
+
+type LumpLook = { min: number; spread: number; reachFrom: number; reachSpread: number; blurPx: number };
+
+export function clumpShape(pick: number): number {
+  if (!(pick >= 0 && pick < 1)) throw new Error(`Clump pick must be in 0 to 1, got ${pick}`);
+  return CLUMP_FIRST + Math.floor(pick * CLUMP_SHAPES);
+}
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
@@ -49,6 +61,7 @@ const VERTEX = `
   varying vec2 vUv;
   varying vec2 vBall;
   varying float vRound;
+  varying float vClump;
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
@@ -61,7 +74,8 @@ const VERTEX = `
     float row = floor(shape / ${ATLAS_CELLS}.0);
     vUv = (turned + vec2(col, row)) / ${ATLAS_CELLS}.0;
     vBall = (uv - 0.5) * 2.0;
-    vRound = shape > ${CARD_SHAPES - 0.5} ? 1.0 : 0.0;
+    vRound = abs(shape - ${ROUND_SHAPE.toFixed(1)}) < 0.5 ? 1.0 : 0.0;
+    vClump = shape > ${(CLUMP_FIRST - 0.5).toFixed(1)} ? 1.0 : 0.0;
     vTint = tint;
     vSun = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
     vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
@@ -85,6 +99,7 @@ const LIT_FRAGMENT = `
   varying vec2 vUv;
   varying vec2 vBall;
   varying float vRound;
+  varying float vClump;
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
@@ -108,6 +123,7 @@ const GLOW_FRAGMENT = `
   varying vec2 vUv;
   varying vec2 vBall;
   varying float vRound;
+  varying float vClump;
   varying vec4 vTint;
   varying vec2 vDepth;
   void main() {
@@ -271,29 +287,34 @@ export function createCardShapes(random: () => number): THREE.CanvasTexture {
   canvas.width = canvas.height = ATLAS_PX;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not create the card shape atlas');
-  const cell = ATLAS_PX / ATLAS_CELLS;
-  ctx.filter = `blur(${SHAPE_BLUR_PX}px)`;
   ctx.fillStyle = '#fff';
-  for (let i = 0; i < CARD_SHAPES; i++) {
-    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
-    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
-    for (const lump of lumpsOf(random)) {
-      ctx.beginPath();
-      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  drawShapes(ctx, random, 0, CARD_SHAPES, CLOUD_LUMPS);
+  drawShapes(ctx, random, CLUMP_FIRST, CLUMP_SHAPES, CLUMP_LUMPS);
   const texture = new THREE.CanvasTexture(canvas);
   texture.flipY = false;
   return texture;
 }
 
-function lumpsOf(random: () => number): { x: number; y: number; r: number }[] {
-  const n = SHAPE_LUMPS.min + Math.floor(random() * SHAPE_LUMPS.spread);
+function drawShapes(ctx: CanvasRenderingContext2D, random: () => number, first: number, shapes: number, look: LumpLook): void {
+  const cell = ATLAS_CELL_PX;
+  ctx.filter = `blur(${look.blurPx}px)`;
+  for (let i = first; i < first + shapes; i++) {
+    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
+    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
+    for (const lump of lumpsOf(random, look)) {
+      ctx.beginPath();
+      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function lumpsOf(random: () => number, look: LumpLook): { x: number; y: number; r: number }[] {
+  const n = look.min + Math.floor(random() * look.spread);
   const lumps = [{ x: 0, y: 0, r: 0.24 }];
   for (let i = 1; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + random();
-    const reach = 0.1 + random() * 0.08;
+    const reach = look.reachFrom + random() * look.reachSpread;
     lumps.push({ x: Math.cos(a) * reach, y: Math.sin(a) * reach, r: 0.12 + random() * 0.08 });
   }
   return lumps;

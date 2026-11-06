@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { DETECT } from '../../data/detect';
 import { PHYSICS } from '../../data/physics';
@@ -9,7 +10,7 @@ import { addVehicle, emptyWorld, flatTerrain } from '../../sim/testkit';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
 import type { VehicleView } from './vehicle';
-import type { Card, FxCards } from './particles/cards';
+import { CLUMP_FIRST, CLUMP_SHAPES, type Card, type FxCards } from './particles/cards';
 import { DUST_LOOK, DustCloudsView, plumeShape, puffsPerCloud } from './dust';
 
 const S = PHYSICS.metersPerTile;
@@ -128,6 +129,42 @@ describe('DustCloudsView fit', () => {
     expect(largest(3)).toBeGreaterThanOrEqual(largest(1));
     expect(largest(8)).toBeGreaterThanOrEqual(largest(3));
     expect(largest(8)).toBe(largest(null));
+  });
+});
+
+describe('DustCloudsView look', () => {
+  const lookingDown = () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(27.5 * S, 100, 30 * S);
+    camera.lookAt(27.5 * S, 0, 30 * S);
+    camera.updateMatrixWorld();
+    return camera;
+  };
+
+  const alphaWith = (truck: VehicleView | null) => {
+    const { world } = drove('scout');
+    world.dustClouds[0].age = 3;
+    const view = new DustCloudsView();
+    view.update(world, world.terrain, 0, new Map(truck ? [['other', truck]] : []), null, lookingDown());
+    return drawn(view).map((c) => c.alpha);
+  };
+
+  it('draws every puff with a clump shape, never a smoke shape', () => {
+    const { world } = drove('scout');
+    const shapes = updated(world, new Map(), null).map((c) => c.shape);
+    expect(Math.min(...shapes)).toBeGreaterThanOrEqual(CLUMP_FIRST);
+    expect(Math.max(...shapes)).toBeLessThan(CLUMP_FIRST + CLUMP_SHAPES);
+  });
+
+  it('thins the puffs between the camera and a truck in the cloud, and only those', () => {
+    const open = alphaWith(null);
+    const under = alphaWith(viewAt(27.5 * S, 30 * S));
+    expect(Math.min(...under.map((alpha, i) => alpha / open[i]))).toBeLessThan(0.2);
+    expect(Math.max(...under.map((alpha, i) => alpha / open[i]))).toBe(1);
+  });
+
+  it('leaves the cloud alone when the truck is far from it', () => {
+    expect(alphaWith(viewAt(60 * S, 60 * S))).toEqual(alphaWith(null));
   });
 });
 
