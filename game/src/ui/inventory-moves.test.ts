@@ -8,7 +8,7 @@ import { sitePads } from "../sim/sites";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, itemBeneath, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, itemBeneath, selectionAfterPress, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
 import { goodsCount } from "../sim/grid";
 import { storedGoodItem } from "./inventory-draw";
 import { emptyHidden } from "../sim/salvage";
@@ -27,6 +27,15 @@ describe("itemBeneath", () => {
   it("finds the part below gear on the pressed cell", () => {
     const { v, wheel, crate } = stacked();
     expect(itemBeneath(v, crate, { x: wheel.x, y: wheel.y })?.id).toBe(wheel.id);
+  });
+
+  it("walks a stack on repeated presses: top, beneath, then nothing, then top again", () => {
+    const { v, wheel, crate } = stacked();
+    const cell = { x: wheel.x, y: wheel.y };
+    const first = selectionAfterPress(v, null, crate, cell);
+    const second = selectionAfterPress(v, first, crate, cell);
+    const third = selectionAfterPress(v, second, crate, cell);
+    expect([first, second, third, selectionAfterPress(v, third, crate, cell)]).toEqual([crate.id, wheel.id, null, crate.id]);
   });
 
   it("finds nothing beneath the lowest part", () => {

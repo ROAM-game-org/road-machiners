@@ -57,6 +57,12 @@ export type GridPoint = { x: number; y: number };
 
 const STACK_HEIGHT: Record<Layer, number> = { accessory: 2, base: 1, below: 0 };
 
+export function selectionAfterPress(v: Vehicle, selected: string | null, item: GridItem, cell: GridPoint): string | null {
+  const beneath = itemBeneath(v, item, cell)?.id ?? null;
+  if (selected === item.id) return beneath;
+  return selected === beneath && beneath !== null ? null : item.id;
+}
+
 export function itemBeneath(v: Vehicle, item: GridItem, cell: GridPoint): GridItem | null {
   const g = gridOf(v);
   const height = (it: GridItem) => STACK_HEIGHT[layerOf(g, it)];

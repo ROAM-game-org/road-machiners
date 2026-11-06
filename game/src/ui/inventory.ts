@@ -82,7 +82,7 @@ import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw
 import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
-import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, itemBeneath, selectionAfterClick, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
+import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
@@ -399,9 +399,8 @@ export class InventoryView {
   }
 
   private pressedSelection(c: ClickedItem): string | null {
-    const again = c.source === "grid" && this.selectedItem === c.item.id && this.pressedCell;
-    const beneath = again ? itemBeneath(this.shown(this.host.world()), c.item, again) : null;
-    return beneath?.id ?? selectionAfterClick(this.selectedItem, c.item.id);
+    if (c.source !== "grid" || !this.pressedCell) return selectionAfterClick(this.selectedItem, c.item.id);
+    return selectionAfterPress(this.shown(this.host.world()), this.selectedItem, c.item, this.pressedCell);
   }
 
   private clicked(source: ItemSource, id: string, item: GridItem): ClickedItem {
