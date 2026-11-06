@@ -5,7 +5,6 @@ export const READBACK_MATCH = 0.9;
 export const READBACK_TOLERANCE = 4;
 
 const PROBE_SIZE = 16;
-const REFUSED_NOTE = 'Pixel readback is refused by this browser; truck drawings use the plain plan';
 
 type Block = { x: number; y: number; size: number; rgb: readonly [number, number, number] };
 
@@ -116,7 +115,7 @@ export class PixelReadback {
   }
 
   private refuse(): false {
-    if (!this.warned) console.warn(REFUSED_NOTE);
+    if (!this.warned) console.warn('Pixel readback is refused by this browser; truck drawings use the plain plan');
     this.warned = true;
     return false;
   }
