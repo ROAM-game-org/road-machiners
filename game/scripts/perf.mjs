@@ -1,11 +1,11 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
 import { allocationReport, profileReport } from './perf-profile.mjs';
-import { budgetsFor, bundleProblems, checkBudgets, compare, LOAD_SHARE_MAX, OTHERS_CPU_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
+import { budgetsFor, bundleProblems, checkBudgets, compare, gateLines, gateSummary, landedFrom, landInto, LOAD_SHARE_MAX, OTHERS_CPU_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
 
 const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
 const BUILD_TIMEOUT_MS = 300000;
@@ -20,7 +20,9 @@ const WINDOWS_LOAD_SAMPLE_MS = 1000;
 const HEAP_SAMPLE_BYTES = 16384;
 const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing', 'devtools.timeline', 'v8', 'disabled-by-default-v8.gc'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
-const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>';
+const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>\n       npm run perf -- --gate <report.json>\n       npm run perf -- --land <report.json> <report.json> <report.json> [...]';
+const LANDED_URL = new URL('./perf-landed.json', import.meta.url);
+const GATE_EXIT = { pass: 0, slower: 1, untrusted: 2 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
@@ -32,6 +34,11 @@ function parseArgs(argv) {
     if (rest.length !== 2) throw new Error(`--compare needs two report files\n${USAGE}`);
     return { compare: rest };
   }
+  if (first === '--gate') {
+    if (rest.length !== 1) throw new Error(`--gate needs one report file\n${USAGE}`);
+    return { gate: rest[0] };
+  }
+  if (first === '--land') return { land: rest };
   return runArgs(argv);
 }
 
@@ -340,12 +347,30 @@ async function perf(args) {
   }
 }
 
+function gate(reportPath) {
+  const result = gateLines(readJson(reportPath), readJson(LANDED_URL));
+  console.log(gateSummary(result));
+  return GATE_EXIT[result.status];
+}
+
+function land(reportPaths) {
+  const file = existsSync(LANDED_URL) ? readJson(LANDED_URL) : { machines: {} };
+  const landed = landedFrom(reportPaths.map(readJson));
+  const next = `${LANDED_URL.pathname}.tmp`;
+  writeFileSync(next, `${JSON.stringify(landInto(file, landed), null, 2)}\n`);
+  renameSync(next, LANDED_URL);
+  console.log(`Stored ${Object.keys(landed.measures).length} numbers for ${landed.machine} at ${landed.commit} from ${landed.reports} reports`);
+  return 0;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.compare) {
     console.log(compare(readJson(args.compare[0]), readJson(args.compare[1])));
     return 0;
   }
+  if (args.gate) return gate(args.gate);
+  if (args.land) return land(args.land);
   return perf(args);
 }
 

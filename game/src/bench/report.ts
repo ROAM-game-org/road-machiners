@@ -16,6 +16,7 @@ export type SceneReport = {
   savings: Record<string, number> | null;
   check: { name: string; passed: boolean; detail: string };
 };
+export type TurnStart = { scene: 'fight' | 'drive'; ms: number; ready: boolean };
 export type BenchReport = {
   schema: 1;
   version: string;
@@ -27,7 +28,7 @@ export type BenchReport = {
   town: string;
   only: string[] | null;
   scenes: SceneReport[];
-  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number }> };
+  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; starts: TurnStart[]; steps: Record<string, { total: number; calls: number }> };
   bootMs: number;
   bootSteps: Record<string, { startMs: number; endMs: number }>;
 };
@@ -64,12 +65,27 @@ function nearestRank(sorted: readonly number[], share: number): number {
   return sorted[Math.max(0, Math.ceil(sorted.length * share) - 1)];
 }
 
-type TurnSamples = { waits: number[]; workers: number[]; previews: number[]; steps: BenchReport['turns']['steps'] };
+type TurnSamples = { waits: number[]; workers: number[]; previews: number[]; starts: TurnStart[]; steps: BenchReport['turns']['steps'] };
+
+export function driveTurnGaps(firstTurn: number): (turn: number, busy: boolean, now: number) => TurnStart | null {
+  let last = firstTurn;
+  let idleSince: number | null = null;
+  return (turn, busy, now) => {
+    if (turn === last) {
+      if (!busy && idleSince === null) idleSince = now;
+      return null;
+    }
+    const start: TurnStart = { scene: 'drive', ms: idleSince === null ? 0 : now - idleSince, ready: idleSince === null };
+    last = turn;
+    idleSince = null;
+    return start;
+  };
+}
 
 export function turnStats(sceneIds: readonly string[], log: TurnSamples): BenchReport['turns'] {
   const turned = sceneIds.includes('fight') || sceneIds.includes('drive');
   const statsIf = (wanted: boolean, samples: number[]) => (wanted ? frameStats(samples) : null);
-  return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), steps: log.steps };
+  return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), starts: log.starts, steps: log.steps };
 }
 
 export function frameStats(samples: readonly number[]): FrameStats {

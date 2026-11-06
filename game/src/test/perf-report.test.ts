@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import budgetFile from '../../scripts/perf-budgets.json';
-import { budgetsFor, bundleProblems, checkBudgets, compare, fixNext, notes, summary, trustProblems } from '../../scripts/perf-report.mjs';
+import { budgetsFor, bundleProblems, checkBudgets, compare, fixNext, gateLines, gateSummary, landedFrom, landInto, notes, summary, trustProblems } from '../../scripts/perf-report.mjs';
 
 const SYSTEMS = ['terrain', 'props', 'vehicles', 'lights', 'effects', 'overlays', 'other'];
 const IDS = ['town-day', 'town-day-far', 'town-night', 'town-night-far', 'fight', 'drive'];
@@ -308,5 +308,76 @@ describe('bundle', () => {
   it('rejects a build with no bench chunk', () => {
     const { 'src/bench/bench.ts': _gone, ...rest } = manifest;
     expect(bundleProblems(rest)).toEqual(['the build has no bench chunk']);
+  });
+});
+
+describe('gate', () => {
+  const realStats = (median: number, p99: number, over100 = 0) => ({ ...stats(median, p99, 0, over100) });
+  const run = (median: number, extra: Record<string, unknown> = {}, passGap = 0) => {
+    const town = { frame: pass(realStats(median, median * 2)), passes: [pass(realStats(median, median * 2)), pass(realStats(median + passGap, median * 2 + passGap))], spread: 0 };
+    return wrap(withScene('town-day', town), { machine: 'ally', ...extra });
+  };
+  const landed = () => ({ machines: { ally: landedFrom([run(10), run(11), run(12)]) } });
+
+  it('takes the median of the reports as the value and their range as the noise', () => {
+    const { measures } = landedFrom([run(10), run(11), run(12)]);
+    expect(measures['town-day median']).toEqual({ value: 11, noise: 2, limit: 13 });
+  });
+
+  it('uses the pass difference inside a report when it is larger than the range', () => {
+    const { measures } = landedFrom([run(10, {}, 3), run(10, {}, 3), run(10, {}, 3)]);
+    expect(measures['town-day median']).toEqual({ value: 10, noise: 3, limit: 13 });
+  });
+
+  it('judges each drive pass alone and ignores the difference between its routes', () => {
+    const drive = { passes: [pass(realStats(8, 12)), pass(realStats(16, 24))], spread: 0.5 };
+    const { measures } = landedFrom([0, 1, 2].map(() => wrap(withScene('drive', drive), { machine: 'ally' })));
+    expect(measures['drive pass 1 median']).toEqual({ value: 8, noise: 0, limit: 8 });
+    expect(measures['drive pass 2 median']).toEqual({ value: 16, noise: 0, limit: 16 });
+    expect(measures['drive median']).toBeUndefined();
+  });
+
+  it('refuses too few, untrusted or mixed reports', () => {
+    expect(() => landedFrom([run(10), run(11)])).toThrow('at least 3');
+    expect(() => landedFrom([run(10), run(11), run(12, { frameCapOff: false })])).toThrow('frame cap');
+    expect(() => landedFrom([run(10), run(11), run(12, { commit: 'other' })])).toThrow('one commit');
+  });
+
+  it('passes unchanged code at its stored numbers', () => {
+    expect(gateLines(run(11), landed()).status).toBe('pass');
+  });
+
+  it('fails a measure over its limit and names it', () => {
+    const result = gateLines(run(14), landed());
+    expect(result.status).toBe('slower');
+    expect(result.lines.filter((l) => !l.pass).map((l) => l.key)).toContain('town-day median');
+    expect(gateSummary(result)).toContain('town-day median');
+  });
+
+  it('fails a new frame over 100 ms when the stored runs had none', () => {
+    const town = { frame: pass(realStats(11, 22, 1)), passes: [pass(realStats(11, 22)), pass(realStats(11, 22))], spread: 0 };
+    const result = gateLines(wrap(withScene('town-day', town), { machine: 'ally' }), landed());
+    expect(result.lines.find((l) => l.key === 'town-day over100')?.pass).toBe(false);
+  });
+
+  it('never passes an untrusted run, another renderer, an unknown machine or a missing measure', () => {
+    expect(gateLines(run(11, { frameCapOff: false }), landed()).status).toBe('untrusted');
+    expect(gateLines(wrap(benchReport({ renderer: 'other' }), { machine: 'ally' }), landed()).status).toBe('untrusted');
+    expect(gateLines(run(11, { machine: 'mac' }), landed()).status).toBe('untrusted');
+    const part = wrap(benchReport({ scenes: [scene('town-day')] }), { machine: 'ally' });
+    expect(gateLines(part, landed()).status).toBe('untrusted');
+  });
+
+  it('lets stored numbers fall and refuses to raise a value past its old limit', () => {
+    const file = landed();
+    const faster = landedFrom([run(8), run(9), run(10)]);
+    expect(landInto(file, faster).machines.ally.measures['town-day median'].value).toBe(9);
+    const slower = landedFrom([run(20), run(21), run(22)]);
+    expect(() => landInto(file, slower)).toThrow('town-day median');
+  });
+
+  it('trusts a drive scene whose two routes differ', () => {
+    const report = wrap(withScene('drive', { spread: 0.5 }));
+    expect(trustProblems(report)).toEqual([]);
   });
 });

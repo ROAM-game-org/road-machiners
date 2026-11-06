@@ -10,12 +10,12 @@ import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
-import type { Travel } from '../three/travel';
+import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
 import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
-  boundOf, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
-  type BenchReport, type BenchSystem, type FrameRecord, type SceneReport,
+  boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
+  type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
 } from './report';
 
 export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean; scenes: string[] | null };
@@ -51,7 +51,7 @@ const GAME_FIELDS = [
 ];
 
 type Steps = BenchReport['turns']['steps'];
-type TurnLog = { waits: number[]; workers: number[]; previews: number[]; passShots: number[]; recording: boolean; steps: Steps; spans: { scene: SceneReport['id']; start: number; end: number }[] };
+type TurnLog = { waits: number[]; workers: number[]; previews: number[]; starts: TurnStart[]; passShots: number[]; recording: boolean; steps: Steps; spans: { scene: SceneReport['id']; start: number; end: number }[] };
 type Ctx = { game: Game; probe: Probe; options: BenchOptions; passFrames: number; log: TurnLog };
 type Check = SceneReport['check'];
 type Evidence = { draws: DrawReport; frames: FrameRecord[]; passes: FrameRecord[][]; shadowDraws: ReadonlyMap<Camera, number> };
@@ -211,6 +211,11 @@ function tapTurnKey(game: Game): void {
   keys.releaseTurn();
 }
 
+function turnIsReady(game: Game): boolean {
+  const turns = Reflect.get(Reflect.get(game, 'travel') as Travel, 'turns') as TurnPreparation;
+  return turns.isReady(game.state);
+}
+
 export function closeBenchCall(game: Pick<Game, 'state' | 'busy' | 'apply'>): boolean {
   if (game.busy || game.state.player.call === null) return false;
   game.apply(hangUp(game.state));
@@ -221,6 +226,7 @@ async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () 
   const { game, probe } = ctx;
   closeBenchCall(game);
   const turn = game.state.turn;
+  const ready = turnIsReady(game);
   const start = performance.now();
   let started = start;
   trigger();
@@ -239,6 +245,7 @@ async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () 
   if (!log.recording) return;
   log.spans.push({ scene, start, end: started });
   log.waits.push(started - start);
+  log.starts.push({ scene: scene === 'fight' ? 'fight' : 'drive', ms: started - start, ready });
   log.passShots[log.passShots.length - 1] += shotsIn(game.state);
   log.workers.push(workerTurnMs());
 }
@@ -264,7 +271,10 @@ export function finishBenchDrive(game: Pick<Game, 'state' | 'busy'>, target: num
 async function playDrive(ctx: Ctx, log: TurnLog): Promise<void> {
   const target = ctx.game.state.turn + DRIVE_TURNS;
   await startTurn(ctx, log, 'drive', () => tapTurnKey(ctx.game));
+  const gaps = driveTurnGaps(ctx.game.state.turn);
   await ctx.probe.until(() => {
+    const start = gaps(ctx.game.state.turn, ctx.game.busy, performance.now());
+    if (start && log.recording) log.starts.push(start);
     if (ctx.game.state.turn >= target) return finishBenchDrive(ctx.game, target, Reflect.get(ctx.game, 'travel') as Travel);
     if (closeBenchCall(ctx.game)) tapTurnKey(ctx.game);
     return false;
@@ -587,7 +597,7 @@ export async function runBench(game: Game, options: BenchOptions): Promise<Bench
   checkGameFields(game);
   const probe = new Probe(game);
   const passFrames = options.passFrames ?? PASS_FRAMES;
-  const log: TurnLog = { waits: [], workers: [], previews: [], passShots: [], recording: false, steps: {}, spans: [] };
+  const log: TurnLog = { waits: [], workers: [], previews: [], starts: [], passShots: [], recording: false, steps: {}, spans: [] };
   const ctx: Ctx = { game, probe, options, passFrames, log };
   const start = { pixelRatio: window.devicePixelRatio, scale: game.renderer.getPixelRatio() / window.devicePixelRatio };
   const base = game.state;

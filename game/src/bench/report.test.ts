@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { boundOf, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
+import { boundOf, driveTurnGaps, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
 
 const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, calls: 0, timers: {}, ...extra });
 
 describe('turnStats', () => {
-  const log = { waits: [40, 60], workers: [30], previews: [], steps: {} };
+  const log = { waits: [40, 60], workers: [30], previews: [], starts: [], steps: {} };
 
   it('gives no turn stats when no turn scene ran, and no preview stats without the drive', () => {
     expect(turnStats(['town-day'], { ...log, waits: [], workers: [] })).toMatchObject({ waitMs: null, workerTurnMs: null, previewMs: null });
@@ -13,6 +13,23 @@ describe('turnStats', () => {
 
   it('fails when a scene that measures turns ran but nothing was measured', () => {
     expect(() => turnStats(['drive'], log)).toThrow();
+  });
+});
+
+describe('driveTurnGaps', () => {
+  it('counts a turn that starts while the last one still plays as no wait', () => {
+    const gaps = driveTurnGaps(5);
+    expect(gaps(5, true, 100)).toBeNull();
+    expect(gaps(6, true, 200)).toEqual({ scene: 'drive', ms: 0, ready: true });
+  });
+
+  it('times a turn from the moment playback ended', () => {
+    const gaps = driveTurnGaps(5);
+    expect(gaps(5, false, 100)).toBeNull();
+    expect(gaps(5, false, 150)).toBeNull();
+    expect(gaps(6, true, 340)).toEqual({ scene: 'drive', ms: 240, ready: false });
+    expect(gaps(6, false, 400)).toBeNull();
+    expect(gaps(7, true, 410)).toEqual({ scene: 'drive', ms: 10, ready: false });
   });
 });
 

@@ -15,6 +15,7 @@
     "mobile": "node scripts/mobile-check.mjs --url http://localhost:5173",
     "layout": "node scripts/layout-check.mjs http://localhost:5173",
     "perf": "node scripts/perf.mjs",
+    "perf:remote": "node scripts/perf-remote.mjs",
     "census": "node scripts/census.mjs",
     "site:shot": "node scripts/site-shot.mjs",
     "shot": "node scripts/shot.mjs",
