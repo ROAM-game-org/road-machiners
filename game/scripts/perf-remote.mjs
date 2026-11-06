@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-const USAGE = 'Usage: npm run perf:remote -- <runs> [--scenes <id,id>]. Set PERF_HOST in .env to the ssh target of a Windows bench machine with node and git.';
+const USAGE = 'Usage: npm run perf:remote -- <runs> [--profile] [--scenes <id,id>]. Set PERF_HOST in .env to the ssh target of a Windows bench machine with node and git.';
 const REMOTE_PATH = 'set "PATH=C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;%PATH%"';
 const REMOTE_GAME = 'roam\\game';
 const BUNDLE = 'tmp/perf-remote.bundle';
@@ -18,9 +18,14 @@ function envHost() {
 function parseArgs(argv) {
   const runs = Number(argv[0]);
   if (!Number.isInteger(runs) || runs < 1) throw new Error(USAGE);
-  if (argv.length === 1) return { runs, scenes: [] };
-  if (argv.length !== 3 || argv[1] !== '--scenes') throw new Error(USAGE);
-  return { runs, scenes: ['--scenes', argv[2]] };
+  return { runs, benchArgs: benchArgsOf(argv.slice(1)) };
+}
+
+function benchArgsOf(argv) {
+  const scenes = argv.filter((arg) => arg !== '--profile');
+  const known = scenes.length === 0 || (scenes.length === 2 && scenes[0] === '--scenes');
+  if (!known) throw new Error(USAGE);
+  return argv;
 }
 
 const local = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -46,10 +51,10 @@ function sendCommit(host, commit) {
   return local('diff', '--name-only', had, commit, '--', 'package-lock.json') !== '';
 }
 
-function playOnce(host, scenes) {
+function playOnce(host, benchArgs) {
   let out = '';
   try {
-    out = remote(host, `cd ${REMOTE_GAME} & npm run perf -- ${scenes.join(' ')}`.trimEnd());
+    out = remote(host, `cd ${REMOTE_GAME} & npm run perf -- ${benchArgs.join(' ')}`.trimEnd());
   } catch (error) {
     if (!String(error.stdout).includes('\nreport perf-reports')) throw new Error(`The bench failed on ${host}, see the lines above`, { cause: error });
     out = String(error.stdout).replaceAll('\r', '');
@@ -63,14 +68,14 @@ function playOnce(host, scenes) {
 }
 
 function main() {
-  const { runs, scenes } = parseArgs(process.argv.slice(2));
+  const { runs, benchArgs } = parseArgs(process.argv.slice(2));
   if (local('status', '--porcelain', '--', 'src', 'scripts', 'index.html', 'public', 'package-lock.json') !== '') throw new Error('Commit the game first, since the bench plays HEAD');
   const host = envHost();
   mkdirSync('tmp', { recursive: true });
   mkdirSync('perf-reports', { recursive: true });
   const commit = local('rev-parse', 'HEAD');
   if (sendCommit(host, commit)) remote(host, `cd ${REMOTE_GAME} & npm ci --no-audit --no-fund`);
-  const reports = Array.from({ length: runs }, () => playOnce(host, scenes));
+  const reports = Array.from({ length: runs }, () => playOnce(host, benchArgs));
   console.log(`\nreports ${reports.join(' ')}`);
 }
 

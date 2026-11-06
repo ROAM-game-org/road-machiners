@@ -12,6 +12,7 @@ import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 import { MODEL_FILL } from "./modelFill";
 export { enableSunShadows } from "./shadowFilter";
+export { refreshShadows } from "./shadowRefresh";
 
 const MIN_LIGHT_ELEVATION = 6;
 const TWILIGHT = 10;
@@ -304,10 +305,6 @@ export class VehicleLights {
 
   constructor(private readonly scene: THREE.Scene) {}
 
-  contextRestored(): void {
-    for (const light of this.shadowed) light.shadow.needsUpdate = true;
-  }
-
   sync(world: World, frames: Record<string, VehicleFrame>, lightTurn: number, reaches: (pos: V3) => boolean, truck: V3): void {
     const lit = world.vehicles
       .filter((v) => frames[v.id] && reaches(frames[v.id].pos))
@@ -368,7 +365,6 @@ export class VehicleLights {
     pool.forEach((beam, i) => {
       const v = vehicles[i];
       beam.intensity = v ? BEAM_INTENSITY * share : 0;
-      if (shadows) beam.shadow.autoUpdate = v !== undefined;
       if (v) this.aimAt(beam, v);
     });
   }

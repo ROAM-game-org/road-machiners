@@ -54,15 +54,6 @@ describe('SiteLights', () => {
     pool.sync(true, NIGHT, camera, all, FOCUS, 100);
     expect(spotsIn(scene)).toHaveLength(SITE_LIGHT_POOL);
     expect(spots(pool).map((s) => s.castShadow)).toEqual(Array.from({ length: SITE_LIGHT_POOL }, (_, i) => i < SITE_SHADOW_SLOTS));
-    expect(spots(pool).filter((s) => s.castShadow).every((s) => s.shadow.needsUpdate)).toBe(true);
-  });
-
-  it('asks every shadow slot for a fresh shadow map once the context is restored', () => {
-    const { camera, pool } = setup(many);
-    pool.sync(true, NIGHT, camera, all, FOCUS, 100);
-    for (const s of spots(pool)) s.shadow.needsUpdate = false;
-    pool.contextRestored();
-    expect(spots(pool).filter((s) => s.shadow.needsUpdate)).toHaveLength(SITE_SHADOW_SLOTS);
   });
 
   it('ramps its night level up over the fade time at night and back down by day', () => {

@@ -149,8 +149,9 @@ function medianCalls(frames: readonly FrameRecord[]): number {
 function held(evidence: Evidence): { passed: boolean; detail: string } {
   const timed = medianCalls(evidence.frames);
   const counted = evidence.draws.total;
-  const passed = counted > 0 && Math.abs(timed - counted) / counted <= HELD_SHARE;
-  return { passed, detail: `timed frames drew a median of ${timed} draws against ${counted} in the counted frame` };
+  const main = evidence.draws.byPass.main.draws;
+  const passed = main > 0 && timed >= main * (1 - HELD_SHARE) && timed <= counted * (1 + HELD_SHARE);
+  return { passed, detail: `timed frames drew a median of ${timed} draws, between ${main} with no shadow map redrawn and ${counted} with all of them` };
 }
 
 function leadsMainPass(draws: DrawReport, system: BenchSystem): boolean {

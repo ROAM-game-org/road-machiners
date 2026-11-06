@@ -56,7 +56,6 @@ describe('VehicleLights', () => {
     lights.update(true, 1, origin, xs.map((x) => litAt(x)));
     const shadowed = () => spots(scene).filter((b) => b.castShadow);
     expect(shadowed()).toHaveLength(3);
-    expect(shadowed().every((b) => b.shadow.autoUpdate)).toBe(true);
     const nearNoses = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
     const nose = bodyOf('scout').half.x;
     expect(nearNoses).toEqual([10, 20, 30].map((x) => Math.round(x + nose)));
@@ -65,17 +64,6 @@ describe('VehicleLights', () => {
     expect(shadowed()).toHaveLength(3);
     const moved = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
     expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
-  });
-
-  it('asks every shadowed beam for a fresh shadow map once the context is restored', () => {
-    const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
-    lights.update(true, 1, origin, [10, 20, 30, 40].map((x) => litAt(x)));
-    const shadowed = spots(scene).filter((b) => b.castShadow);
-    for (const b of shadowed) b.shadow.needsUpdate = false;
-    lights.contextRestored();
-    expect(shadowed).toHaveLength(3);
-    expect(shadowed.every((b) => b.shadow.needsUpdate)).toBe(true);
   });
 
   it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
@@ -92,7 +80,7 @@ describe('VehicleLights', () => {
     expect(spots(scene)).toHaveLength(12);
   });
 
-  it('zeroes idle beams and stops their shadow passes', () => {
+  it('zeroes idle beams', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
     lights.update(true, 1, origin, [litAt(0), litAt(10), litAt(20)]);
@@ -100,7 +88,6 @@ describe('VehicleLights', () => {
     const beams = spots(scene);
     expect(beams.length).toBeGreaterThan(0);
     expect(beams.every((b) => b.intensity === 0)).toBe(true);
-    expect(beams.filter((b) => b.castShadow).every((b) => !b.shadow.autoUpdate)).toBe(true);
   });
 
   it('removes every beam and frees shadow maps at dawn', () => {

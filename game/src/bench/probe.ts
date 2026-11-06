@@ -2,6 +2,7 @@ import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRende
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { shadowRefreshOf } from '../three/render/shadowRefresh';
 
 export const FRAME_STEP_MS = 16.67;
 const GPU_WAIT_MS = 5000;
@@ -408,6 +409,7 @@ export class Probe {
 
   async countDraws(): Promise<DrawReport> {
     const counter = new DrawCounter(this.renderer, this.game.scene, this.game.rig.camera);
+    shadowRefreshOf(this.game.scene).forget();
     this.counter = counter;
     counter.start(systemMap(systemRootsOf(this.game)));
     try {

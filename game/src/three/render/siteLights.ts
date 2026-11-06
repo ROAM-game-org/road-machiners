@@ -122,13 +122,8 @@ export class SiteLights {
     const plain = order.filter((l) => !lookOf(l).shadow);
     this.slots.forEach((slot, i) => {
       const light = slot.spot.castShadow ? shadowed[i] : plain[i - SITE_SHADOW_SLOTS];
-      if (slot.spot.castShadow) slot.spot.shadow.autoUpdate = light !== undefined;
       this.drive(slot, light, lightTurn, dt);
     });
-  }
-
-  contextRestored(): void {
-    for (const { spot } of this.slots) if (spot.castShadow) spot.shadow.needsUpdate = true;
   }
 
   private syncHollow(world: World | undefined): void {
@@ -142,7 +137,6 @@ export class SiteLights {
       if (spot.castShadow) {
         spot.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
         spot.shadow.normalBias = SHADOW_BIAS;
-        spot.shadow.needsUpdate = true;
       }
       this.scene.add(spot, spot.target);
       this.slots.push({ spot, anchor: null, look: null });
