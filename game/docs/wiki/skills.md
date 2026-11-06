@@ -31,7 +31,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 <!-- wiki:xp-sources -->
 | source | activity family | weight (xp per unit) | scaled by difficulty | repeat factor |
 | --- | --- | --- | --- | --- |
-| roughTiles | driving | 0.5 | true | 0.9 |
+| roughTiles | driving | 0.75 | true | 0.9 |
 | ram | driving | 0.25 | true | 0.7 |
 | escape | driving | 8 | true | 0.25 |
 | hit | perception | 6 | true | 0.95 |
@@ -39,8 +39,8 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | discover | perception | 10 | false | 0 |
 | fieldJob | machining | 0.75 | false | 0.7 |
 | patch | machining | 75 | false | 0.5 |
-| search | machining | 80 | false | 0 |
-| heat | toughness | 0.3 | true | 0.9 |
+| search | machining | 15 | false | 0 |
+| heat | toughness | 0.2 | true | 0.9 |
 | damage | toughness | 1.5 | false | 0.95 |
 | knockout | toughness | 100 | false | 0.5 |
 | profit | social | 2.4 | false | 0.8 |

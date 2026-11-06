@@ -48,7 +48,7 @@ export const MAX_RANK = RANK_COSTS.length;
 export type XpSourceDef = { skill: SkillId; weight: number; scaled: boolean; repeat: number };
 
 export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
-  roughTiles: { skill: 'driving', weight: 0.5, scaled: true, repeat: 0.9 },
+  roughTiles: { skill: 'driving', weight: 0.75, scaled: true, repeat: 0.9 },
   ram: { skill: 'driving', weight: 0.25, scaled: true, repeat: 0.7 },
   escape: { skill: 'driving', weight: 8, scaled: true, repeat: 0.25 },
   hit: { skill: 'perception', weight: 6, scaled: true, repeat: 0.95 },
@@ -56,8 +56,8 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
   discover: { skill: 'perception', weight: 10, scaled: false, repeat: 0 },
   fieldJob: { skill: 'machining', weight: 0.75, scaled: false, repeat: 0.7 },
   patch: { skill: 'machining', weight: 75, scaled: false, repeat: 0.5 },
-  search: { skill: 'machining', weight: 80, scaled: false, repeat: 0 },
-  heat: { skill: 'toughness', weight: 0.3, scaled: true, repeat: 0.9 },
+  search: { skill: 'machining', weight: 15, scaled: false, repeat: 0 },
+  heat: { skill: 'toughness', weight: 0.2, scaled: true, repeat: 0.9 },
   damage: { skill: 'toughness', weight: 1.5, scaled: false, repeat: 0.95 },
   knockout: { skill: 'toughness', weight: 100, scaled: false, repeat: 0.5 },
   profit: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.8 },
