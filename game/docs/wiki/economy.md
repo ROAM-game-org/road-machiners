@@ -137,11 +137,11 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `ECONOMY.spread` | 0.2 |
 | `ECONOMY.roadSpread` | 0.3 |
 | `PRICE_FACTOR.make` | 0.75 |
-| `DISTANCE_PREMIUM.perTile` | 0.0016 |
+| `DISTANCE_PREMIUM.perTile` | 0.00093 |
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
 | `ECONOMY.scrapPerKg` | 0.0633 |
 | `EFFORT.wage` | {"1":0.1233,"2":0.3333,"3":0.7333} |
-| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"accessory":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"accessory":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"utility":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"accessory":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"utility":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
+| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"accessory":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[270,720],"engine":[270,720],"armor":[270,720],"accessory":[270,720],"cargo":[270,720],"scanner":[270,720],"store":[270,720],"utility":[270,720],"chassis":[4200,6300],"good":[50,100]},"3":{"weapon":[405,855],"engine":[405,855],"armor":[405,855],"accessory":[405,855],"cargo":[405,855],"scanner":[405,855],"store":[405,855],"utility":[405,855],"chassis":[4275,6300],"good":[40,80]}} |
 | `PRODUCTION.elasticity` | 0.6 |
 | `ECONOMY.supplyPrice.fuel` | 1 |
 | `ECONOMY.supplyPrice.supplies` | 1.67 |
@@ -156,17 +156,17 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `REPAIR.turnsPerPart` | 2 |
 | `PATCH.share` | 0.25 |
 | `CONTRACTS.maxActive` | 3 |
-| `CONTRACTS.haul.durationFactor` | 3 |
-| `CONTRACTS.haul.rewardFactor` | 24 |
+| `CONTRACTS.haul.durationFactor` | 7.199999999999999 |
+| `CONTRACTS.haul.rewardFactor` | 4 |
 | `CONTRACTS.haul.rush.chance` | 0.25 |
-| `CONTRACTS.haul.rush.durationFactor` | 1.5 |
+| `CONTRACTS.haul.rush.durationFactor` | 3.5999999999999996 |
 | `CONTRACTS.haul.rush.premium` | 1.75 |
 | `CONTRACTS.procure.units` | 3, 12 |
 | `CONTRACTS.procure.travelFactor` | 0.5 |
 | `CONTRACTS.procure.slackTurns` | 6 |
 | `CONTRACTS.survey.surveyTurns` | 10 |
 | `CONTRACTS.survey.searchTurns` | 20 |
-| `CONTRACTS.survey.rewardFactor` | 15 |
+| `CONTRACTS.survey.rewardFactor` | 2.5 |
 | `CONTRACTS.survey.range` | 561.6 |
 | `CONTRACTS.survey.clue.roundTiles` | 25 |
 | `CONTRACTS.survey.clue.range` | 561.6 |

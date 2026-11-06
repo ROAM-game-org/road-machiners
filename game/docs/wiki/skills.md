@@ -43,7 +43,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | heat | toughness | 0.3 | true | 0.9 |
 | damage | toughness | 1.5 | false | 0.95 |
 | knockout | toughness | 100 | false | 0.5 |
-| profit | social | 2.4 | false | 0.8 |
+| profit | social | 4.2 | false | 0.8 |
 | deal | social | 30 | false | 0.5 |
 | call | social | 8 | false | 0 |
 | honk | social | 2 | false | 0 |
