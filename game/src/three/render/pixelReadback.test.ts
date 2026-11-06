@@ -37,6 +37,12 @@ describe('readbackMatches', () => {
     expect(readbackMatches(drawn, read)).toBeGreaterThanOrEqual(READBACK_MATCH);
   });
 
+  it('stays honest when every pixel is off by a little, as under light canvas randomization', () => {
+    const drawn = probePattern(16);
+    const read = drawn.map((byte, i) => (drawn[i] === 255 ? byte - 2 : byte + 2));
+    expect(readbackMatches(drawn, read)).toBe(1);
+  });
+
   it('rejects arrays of different length', () => {
     expect(() => readbackMatches(new Uint8Array(4), new Uint8Array(8))).toThrow();
   });
@@ -80,6 +86,15 @@ describe('PixelReadback', () => {
     expect(readback.honest()).toBe(false);
     expect(readback.honest()).toBe(false);
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the 2D check while the browser holds canvas reads until the first user input', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let verdict: boolean | null = null;
+    const readback = new PixelReadback(RENDERER, fakeGpu(), () => true, () => verdict);
+    expect(readback.honest()).toBe(true);
+    verdict = false;
+    expect(readback.honest()).toBe(false);
   });
 
   it('refuses when only the 2D check fails', () => {

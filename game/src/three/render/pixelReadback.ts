@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { GpuContext } from '../gpu-context';
 
 export const READBACK_MATCH = 0.9;
+export const READBACK_TOLERANCE = 4;
 
 const PROBE_SIZE = 16;
 const REFUSED_NOTE = 'Pixel readback is refused by this browser; truck drawings use the plain plan';
@@ -12,7 +13,7 @@ const COLORS: readonly (readonly [number, number, number])[] = [
   [255, 0, 0],
   [0, 255, 0],
   [0, 0, 255],
-  [90, 120, 150],
+  [255, 255, 0],
 ];
 
 function probeBlocks(size: number): Block[] {
@@ -34,19 +35,28 @@ export function probePattern(size: number): Uint8Array {
   return out;
 }
 
+function near(a: number, b: number): boolean {
+  return Math.abs(a - b) <= READBACK_TOLERANCE;
+}
+
 export function readbackMatches(drawn: Uint8Array, read: ArrayLike<number>): number {
   if (drawn.length !== read.length) throw new Error(`readback probe expected ${drawn.length} bytes and got ${read.length}`);
   let same = 0;
   for (let i = 0; i < drawn.length; i += 4) {
-    if (drawn[i] === read[i] && drawn[i + 1] === read[i + 1] && drawn[i + 2] === read[i + 2] && drawn[i + 3] === read[i + 3]) same++;
+    if (near(drawn[i], read[i]) && near(drawn[i + 1], read[i + 1]) && near(drawn[i + 2], read[i + 2]) && near(drawn[i + 3], read[i + 3])) same++;
   }
   return same / (drawn.length / 4);
 }
 
 let canvasVerdict: boolean | null = null;
 
-export function canvasReadable(): boolean {
+function awaitsUserInput(): boolean {
+  return typeof navigator !== 'undefined' && navigator.userActivation !== undefined && !navigator.userActivation.hasBeenActive;
+}
+
+export function canvasVerdictNow(): boolean | null {
   if (canvasVerdict !== null) return canvasVerdict;
+  if (awaitsUserInput()) return null;
   const canvas = document.createElement('canvas');
   canvas.width = PROBE_SIZE;
   canvas.height = PROBE_SIZE;
@@ -57,6 +67,10 @@ export function canvasReadable(): boolean {
   const read = ctx.getImageData(0, 0, PROBE_SIZE, PROBE_SIZE).data;
   canvasVerdict = readbackMatches(drawn, read) >= READBACK_MATCH;
   return canvasVerdict;
+}
+
+export function canvasReadable(): boolean {
+  return canvasVerdictNow() === true;
 }
 
 export function webglReadable(renderer: THREE.WebGLRenderer): boolean {
@@ -83,20 +97,27 @@ export function webglReadable(renderer: THREE.WebGLRenderer): boolean {
 }
 
 export class PixelReadback {
-  private verdict: boolean | null = null;
+  private webglVerdict: boolean | null = null;
+  private warned = false;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly gpu: GpuContext,
     private readonly webgl: (renderer: THREE.WebGLRenderer) => boolean = webglReadable,
-    private readonly canvas: () => boolean = canvasReadable,
+    private readonly canvas: () => boolean | null = canvasVerdictNow,
   ) {}
 
   honest(): boolean {
-    if (this.verdict !== null) return this.verdict;
-    if (this.gpu.lost()) return false;
-    this.verdict = this.canvas() && this.webgl(this.renderer);
-    if (!this.verdict) console.warn(REFUSED_NOTE);
-    return this.verdict;
+    if (this.webglVerdict === null) {
+      if (this.gpu.lost()) return false;
+      this.webglVerdict = this.webgl(this.renderer);
+    }
+    return (this.webglVerdict && this.canvas() !== false) || this.refuse();
+  }
+
+  private refuse(): false {
+    if (!this.warned) console.warn(REFUSED_NOTE);
+    this.warned = true;
+    return false;
   }
 }
