@@ -671,13 +671,11 @@
 #ui .modal.character-screen {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-.skill-table {
-  flex: 0 1 auto;
-  min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
+}
+.skill-table {
+  flex: 0 0 auto;
   align-content: start;
   display: grid;
   grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) max-content;
