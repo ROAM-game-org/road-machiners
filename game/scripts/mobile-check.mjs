@@ -455,8 +455,7 @@ async function townAndShop(session, step) {
 async function inventoryByTouch(session, step) {
   const { page, touch } = session;
   await step('open-inventory', async () => {
-    await openDrawer(page, touch, 'truck');
-    await touch.tapOn('.truck-instrument');
+    await touch.tapOn('.instrument-actions [data-action=inventory]');
   }, () => game(page, () => window.__ROAM__.screens.inventory.isOpen() || 'the inventory did not open'));
   const geometry = async () => {
     const storage = await touch.box('[data-drop=storage]');
@@ -634,8 +633,14 @@ async function drawersAndMenus(session, step) {
 
 async function longPressReason(session, step) {
   const { page, touch } = session;
+  await page.evaluate(() => {
+    const world = structuredClone(window.__ROAM__.state);
+    world.player.ranks.driving = Math.max(world.player.ranks.driving, 1);
+    window.__ROAM__.apply(world);
+  });
   await openDrawer(page, touch, 'truck');
   const disabled = page.locator('#ui .instrument-actions [aria-disabled="true"]').first();
+  await disabled.waitFor();
   const box = await disabled.boundingBox();
   const reason = await disabled.evaluate((el) => el.getAttribute('data-reason') ?? el.getAttribute('title'));
   await step('long-press-reason', () => touch.hold(box.x + box.width / 2, box.y + box.height / 2, 800), async () => {

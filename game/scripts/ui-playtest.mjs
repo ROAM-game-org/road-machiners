@@ -122,8 +122,15 @@ async function checkSpeedTip(page, width) {
 
 function checkClockSpan(m) {
   const span = `clock ${m.clock.x}-${m.clock.right} vs cell ${m.clockCells.x}-${m.clockCells.right}`;
-  assert(Math.abs(m.clock.x - m.clockCells.x) <= 1 && Math.abs(m.clock.right - m.clockCells.right) <= 1, `Clock must sit over the engine cell: ${span}`);
-  assert(m.belowRows === 0, `Roaming instruments must have two rows, found ${m.belowRows} cells below them`);
+  assert(Math.abs(m.clock.x - m.clockCells.x) <= 1 && Math.abs(m.clock.right - m.clockCells.right) <= 1, `Clock must sit over the heat cell: ${span}`);
+  assert(m.rowCount === 2, `Roaming instruments must have two rows, found ${m.rowCount}`);
+  for (const [top, bottom] of [['fuel', 'engine'], ['driver', 'supplies']]) {
+    const [a, b] = [m.cells[top], m.cells[bottom]];
+    assert(Math.abs(a.x - b.x) <= 1 && a.bottom <= b.y, `${top} must sit over ${bottom} in one group: ${JSON.stringify([a, b])}`);
+  }
+  assert(m.cells.money.y <= m.cells.fuel.y + 1 && m.cells.money.bottom >= m.cells.engine.bottom - 1, 'Money must span both rows');
+  assert(m.cells.engine.right < m.cells.driver.x && m.cells.supplies.right < m.clock.x && m.clock.right < m.cells.money.x, 'The groups must run truck, driver, day, money from left to right');
+  assert(m.actions.screens.x > m.actions.trucks.right, 'The screen buttons must sit right of the truck controls');
 }
 
 async function moneyCellWidth(page, whole) {
@@ -166,16 +173,20 @@ async function checkInstruments(page) {
       panelText: document.querySelector('.instruments').innerText,
       actionsText: document.querySelector('.instrument-actions').innerText,
       speedoText: document.querySelector('.speedometer').innerText,
-      heights: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).map(node => node.getBoundingClientRect().height),
-      lines: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).every(node => node.scrollHeight <= node.clientHeight + 1),
-      horn: [...document.querySelectorAll('.instrument-actions > button')].some(node => node.textContent.trim() === 'Horn' && node.offsetParent !== null),
+      heights: [...document.querySelectorAll('.instrument-actions button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).map(node => node.getBoundingClientRect().height),
+      lines: [...document.querySelectorAll('.instrument-actions button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).every(node => node.scrollHeight <= node.clientHeight + 1),
+      horn: [...document.querySelectorAll('.instrument-actions button')].some(node => node.textContent.trim() === 'Horn' && node.offsetParent !== null),
       buttonHeight: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s')),
       clockCells: (() => {
-        const cells = [...document.querySelectorAll('.instruments .resource')].map(node => node.getBoundingClientRect().toJSON());
-        const lower = cells.filter(cell => cell.y > document.querySelector('.instrument-clock').getBoundingClientRect().bottom - 1).sort((a, b) => a.x - b.x);
-        return { x: lower[2].x, right: lower[2].right };
+        const heat = document.querySelector('.resource[data-resource="heat"]').getBoundingClientRect();
+        return { x: heat.x, right: heat.right };
       })(),
-      belowRows: document.querySelector('.resource[data-resource="run"]') ? 0 : [...document.querySelectorAll('.instruments .resource')].filter(node => node.getBoundingClientRect().y > document.querySelector('.resource[data-resource="fuel"]').getBoundingClientRect().bottom).length,
+      rowCount: new Set([...document.querySelectorAll('.instruments .resource:not([data-resource="run"])')].filter(node => node.dataset.resource !== 'money').map(node => Math.round(node.getBoundingClientRect().y))).size,
+      cells: Object.fromEntries([...document.querySelectorAll('.instruments .resource')].map(node => [node.dataset.resource, node.getBoundingClientRect().toJSON()])),
+      actions: {
+        trucks: document.querySelector('.truck-controls').getBoundingClientRect().toJSON(),
+        screens: document.querySelector('.screen-buttons').getBoundingClientRect().toJSON(),
+      },
       dayGap: (() => { const day = document.querySelector('.clock-day').getBoundingClientRect(); const time = document.querySelector('.clock-time').getBoundingClientRect(); return time.x - day.right; })(),
       lcdGap: parseFloat(getComputedStyle(document.querySelector('.instrument-clock')).columnGap),
     };
