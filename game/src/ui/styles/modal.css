@@ -12,9 +12,12 @@
 }
 #ui:has(.modal:not([style*="display: none"]))
   > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.confirm-block):not(.toast):not(.instruments):not(.log),
-#ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip):not(.dialogue) {
   visibility: hidden;
+}
+/* The hidden commit leaves the stack, so the log drops to the bottom line, clear of the modal. */
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control {
+  display: none;
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .dialogue {
   position: relative;
