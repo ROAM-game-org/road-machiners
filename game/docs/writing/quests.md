@@ -35,7 +35,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
-6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town and pick Look for locals.
+6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town and pick the canteen. A local with `section: 'maps'` is at the Guidestar post instead.
 
 ## A new quest
 
@@ -63,7 +63,7 @@ Mira wipes flour off her hands. # speaker: Mira
 
 Every quest needs a way in. The voice test fails on a quest that nothing starts.
 
-- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. The People tab lists them.
+- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id and its section, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. Section `people` lists them in the site's canteen, or on the People page at the Roadhouse, and section `maps` lists them at the Guidestar post.
 - A radio call: give a radio option `go: questGo('<quest>')` in `src/data/dialogue.ts`. The call ends and the quest opens.
 - Another quest: call `~ begin("<quest>")` right before `-> END`. Kovac opens the depot quest this way.
 

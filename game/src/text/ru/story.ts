@@ -24,7 +24,7 @@ export const STORY: Translation<typeof EN> = {
   'town.line.people': 'Местные и водители делят лавки и оценивают каждого чужака, кто встает на стоянку.',
   'town.line.maps': 'За прилавком гудит радио. На стене висят квадраты котловины, каждый продается.',
   'town.heading.bowl': 'Предвратье Чаши',
-  'town.heading.nose': 'Огороженный двор',
+  'town.heading.nose': 'Предвратье Носа',
   'town.canteen.bowl': 'Столовая Хэтти',
   'town.canteen.nose': 'Водительская столовая',
   'town.canteen.salvage-yard': 'Столовая резчиков',

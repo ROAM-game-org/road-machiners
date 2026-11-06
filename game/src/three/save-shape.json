@@ -2734,6 +2734,11 @@
     "dag_road": "boolean",
     "dag_wagon": "boolean"
    },
+   "bowl_guild": {
+    "renata_drawn": "boolean",
+    "renata_news": "boolean",
+    "renata_sheets": "boolean"
+   },
    "bowl_hattie": {
     "hattie_came_out": "boolean",
     "hattie_flats": "boolean",
@@ -2815,6 +2820,11 @@
     "edda_asked_marks": "boolean",
     "edda_asked_origin": "boolean",
     "edda_heard_links": "boolean"
+   },
+   "nose_guild": {
+    "emil_here": "boolean",
+    "emil_news": "boolean",
+    "emil_sheets": "boolean"
    },
    "nose_ibo": {
     "heard_army": "boolean",
@@ -2929,6 +2939,10 @@
     "start",
     "start.hub"
    ],
+   "bowl_guild": [
+    "start",
+    "start.hub"
+   ],
    "bowl_hattie": [
     "start",
     "start.hub"
@@ -2980,6 +2994,10 @@
     "last_call"
    ],
    "nose_edda": [
+    "start",
+    "start.hub"
+   ],
+   "nose_guild": [
     "start",
     "start.hub"
    ],
@@ -3061,6 +3079,16 @@
      "talkKilnFight",
      "wagonDag"
     ],
+    "begins": []
+   }
+  },
+  "bowl_guild": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
     "begins": []
    }
   },
@@ -3219,6 +3247,16 @@
    }
   },
   "nose_edda": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "nose_guild": {
    "revision": 1,
    "links": {
     "reads": [],

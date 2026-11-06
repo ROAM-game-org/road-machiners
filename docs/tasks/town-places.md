@@ -212,8 +212,8 @@ Verified by: `tmp/town-check.mjs` on all sites in both languages, and screenshot
 - uexecute: all phases went into one commit — the pre-commit type check needs code and both languages together.
 - uexecute: manager names Renata Sayle and Emil Tarn were picked by the agent — the design left them open, and the user reads them before merge.
 - uexecute: Hattie's existing lines got single-word swaps without a codex call — only place names changed, and the character line process allows edits.
-- uexecute: agy's Nose heading in Russian is "Огороженный двор" — "Компаунд" was too obscure, and this is the word the game already uses.
+- uexecute: agy's Nose heading in Russian is "Предвратье Носа" — "Компаунд" was too obscure and "двор" already names the Machiners' yard, so it shares Bowl's word.
 
 ### Deferred (needs user input)
 - Run `npm run layout`, `npm run playtest` and `npm run mobile` — the harness stopped them on low memory and said not to restart unasked — the user says when memory allows.
-- Read all new and changed game text, in `docs/tasks/town-places.md` scope — the Goal requires user sign-off on the words — the user approves or edits them.
+- Read all new and changed game text in `game/tmp/town-places-text.md`, including the new managers Renata Sayle and Emil Tarn and their sheets in `characters.md` and `voices.md` — the Goal requires user sign-off on the words — the user approves or edits them.
