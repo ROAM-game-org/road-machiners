@@ -287,6 +287,37 @@ class LongTasks {
 
 type LoopHooks = { closed: (realMs: number, tickMs: number, startMs: number) => void; callbackDone: () => void };
 
+const FRAMES_IN_FLIGHT = 2;
+const GPU_WAIT_LIMIT_MS = 10000;
+
+type PacedGl = Pick<WebGL2RenderingContext, 'fenceSync' | 'getSyncParameter' | 'deleteSync' | 'flush' | 'isContextLost' | 'SYNC_GPU_COMMANDS_COMPLETE' | 'SYNC_STATUS' | 'SIGNALED'>;
+
+export class GpuPacer {
+  private fences: { sync: WebGLSync; at: number }[] = [];
+
+  constructor(private readonly gl: PacedGl) {}
+
+  rendered(now: number): void {
+    const sync = this.gl.fenceSync(this.gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (!sync) throw new Error('The GPU gave no fence, so the bench cannot pace its frames');
+    this.fences.push({ sync, at: now });
+    this.gl.flush();
+  }
+
+  free(now: number): boolean {
+    if (this.gl.isContextLost()) return true;
+    while (this.fences.length > 0 && this.signaled(this.fences[0].sync)) this.gl.deleteSync(this.fences.shift()!.sync);
+    if (this.fences.length < FRAMES_IN_FLIGHT) return true;
+    const waited = now - this.fences[0].at;
+    if (waited > GPU_WAIT_LIMIT_MS) throw new Error(`The GPU did not finish a frame in ${Math.round(waited)} ms`);
+    return false;
+  }
+
+  private signaled(sync: WebGLSync): boolean {
+    return this.gl.getSyncParameter(sync, this.gl.SYNC_STATUS) === this.gl.SIGNALED;
+  }
+}
+
 class FrameLoop {
   private readonly native = window.requestAnimationFrame.bind(window);
   private clock: number | null = null;
@@ -294,7 +325,7 @@ class FrameLoop {
   private roundStart = 0;
   private tickMs = 0;
 
-  constructor(private readonly hooks: LoopHooks) {}
+  constructor(private readonly hooks: LoopHooks, private readonly pacer: GpuPacer) {}
 
   install(): void {
     window.requestAnimationFrame = (callback) => this.native((stamp) => this.run(callback, stamp));
@@ -302,6 +333,10 @@ class FrameLoop {
 
   private run(callback: FrameRequestCallback, stamp: number): void {
     const arrived = performance.now();
+    if (!this.pacer.free(arrived)) {
+      this.native((later) => this.run(callback, later));
+      return;
+    }
     if (stamp !== this.round) this.open(stamp, arrived);
     const start = performance.now();
     callback(this.clock as number);
@@ -330,7 +365,8 @@ export class Probe {
   rounds = 0;
   shadowDraws: ReadonlyMap<Camera, number> = new Map();
   private readonly renderer: WebGLRenderer;
-  private readonly loop = new FrameLoop({ closed: (real, tick, start) => this.onClosed(real, tick, start), callbackDone: () => this.onCallbackDone() });
+  private readonly pacer: GpuPacer;
+  private readonly loop: FrameLoop;
   private failure: Error | null = null;
   private collecting: Collecting | null = null;
   private gated = false;
@@ -352,7 +388,10 @@ export class Probe {
 
   constructor(private readonly game: Game) {
     this.renderer = game.renderer;
-    this.gpu = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext);
+    const gl = this.renderer.getContext() as WebGL2RenderingContext;
+    this.gpu = new GpuTimer(gl);
+    this.pacer = new GpuPacer(gl);
+    this.loop = new FrameLoop({ closed: (real, tick, start) => this.onClosed(real, tick, start), callbackDone: () => this.onCallbackDone() }, this.pacer);
   }
 
   install(): void {
@@ -535,6 +574,7 @@ export class Probe {
       this.renderMs += performance.now() - start;
       this.calls += info.render.calls - before;
       this.gpu.end();
+      this.pacer.rendered(performance.now());
       this.renders++;
       if (query) this.queries.push(query);
       this.counter?.afterRender();
