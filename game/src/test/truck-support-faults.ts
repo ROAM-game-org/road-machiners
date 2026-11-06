@@ -59,7 +59,7 @@ function label(v: Vehicle, name: string): string {
 }
 
 const FLOATING_BOX_CELLS: Record<string, string[]> = {
-  loader: ['loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
+  loader: ['loader unit 0 caltrops  mounted @6,13 r1 stands on 75% with up to Infinity cm of air at -3.07,-0.30,1.03', 'loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
 };
 
 export function boxFaultsOnEveryDeckCell(chassisId: string): { faults: string[]; known: string[] } {

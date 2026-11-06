@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem } from '../sim/types';
 import { faultsOf } from './truck-support-faults';
 
-export const GUN_FILES = 80;
+export const GUN_FILES = 160;
 
 function lookIds(defId: string): string[] {
   const slots = ['receiver', 'barrel', 'extra'] as const;

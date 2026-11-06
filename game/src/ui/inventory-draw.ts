@@ -3,7 +3,7 @@ import { CRATE_MASS, PARCEL } from "../data/goods";
 import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
-import { baseGrid, cellsTurned, facingOf, gridOf, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
+import { baseGrid, cellsTurned, facingOf, gridOf, inEngineBay, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
@@ -182,9 +182,14 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
 
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
   const c = g.cells[y][x];
-  if (c !== null) return cellEl(c, x, y, m);
+  if (c !== null) return withBayMark(cellEl(c, x, y, m), g.chassisId, x, y);
   if (y < g.deadFrom) return null;
   return el("div", { class: "inv-cell c-dead", style: pxStyle(rectOf(m, x, y, 1, 1)), title: t("cell.deadRows") });
+}
+
+function withBayMark(node: HTMLElement, chassisId: string, x: number, y: number): HTMLElement {
+  if (inEngineBay(chassisId, x, y)) node.classList.add("bay");
+  return node;
 }
 
 export function cellEl(c: Cell, x: number, y: number, m: GridMetrics): HTMLElement {
@@ -215,13 +220,14 @@ export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
 }
 
 export function itemBox(it: GridItem, chassisId: string, mounted: boolean, m: GridMetrics, look: GarageLook | null): HTMLElement {
-  const outer = mounted && layerOf(baseGrid(chassisId), it) === "accessory";
+  const layer = mounted ? layerOf(baseGrid(chassisId), it) : "base";
+  const outer = layer === "accessory";
   const rect = boxOf(it, chassisId, outer, m);
   const art = look ? artOf(look, it, m, rect) : null;
   const id = itemLookId(it);
   return el(
     "div",
-    { class: itemClasses(it, mounted, outer, art !== null), "data-hold": "", "data-item-id": it.id, "data-tier": tierAttr(it), style: `${pxStyle(rect)};${toneStyle(id)}${drawnLayer(it, art)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: itemClasses(it, mounted, outer, art !== null), "data-hold": "", "data-item-id": it.id, "data-tier": tierAttr(it), style: `${pxStyle(rect)};${toneStyle(id)}${layer === "below" ? ";z-index:0" : drawnLayer(it, art)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
     art ?? turnedIcon(it, m),
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
     ...meterOf(it, art),

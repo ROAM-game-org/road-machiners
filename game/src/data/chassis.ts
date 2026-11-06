@@ -369,7 +369,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   loader: {
     id: 'loader', maxSpeed: 3.6, accel: 1.6, brake: 2.5, turnSlow: 85, turnFast: 30, reverseTurn: 60,
     mass: 4200, handlingMass: 7000, radius: 0.9,
-    layout: [' FFFFFF ', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDXXXXDR', 'LDXXXXDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDEEDDR', 'LDDEEDDR', 'LDDEEDDR', 'LDDDDDDR', ' BBBBBB '],
+    layout: [' FFFFFF ', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDXXXXDR', 'LDXXXXDR', 'L DDDD R', 'LDDDDDDR', 'LDDEEDDR', 'LDDEEDDR', 'LDDEEDDR', 'LDDDDDDR', ' BBBBBB '],
     core: [
       { defId: 'cabBroad', x: 2, y: 7 },
       { defId: 'transmissionHeavy', x: 3, y: 3 },
@@ -386,9 +386,9 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   niva: {
     id: 'niva', maxSpeed: 7.6, accel: 2.2, brake: 3, turnSlow: 115, turnFast: 40, reverseTurn: 80,
     mass: 520, handlingMass: 1700, radius: 0.55,
-    layout: [' FFFF ', 'LDDDDR', 'LDEEDR', 'LDEEDR', 'LDEEDR', 'LDXXDR', 'LDDDDR', 'LDDDDR', 'LDDDDR', 'LDDDDR', 'LDDDDR', ' BBBB '],
+    layout: [' FFFF ', 'LDDDDR', 'LDEEDR', 'LDEEDR', 'LDEEDR', 'LDDDDR', 'LDXXDR', 'LDDDDR', 'LDDDDR', 'LDDDDR', 'LDDDDR', ' BBBB '],
     core: [
-      { defId: 'cab', x: 2, y: 5, rot: 1 },
+      { defId: 'cab', x: 2, y: 6, rot: 1 },
       { defId: 'transmissionMid', x: 2, y: 8 },
       { defId: 'tankMid', x: 4, y: 4 },
       { defId: 'wheelMid', x: 1, y: 1 },

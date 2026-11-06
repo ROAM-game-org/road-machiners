@@ -249,7 +249,6 @@ describe('the convertible antenna', () => {
   });
 });
 
-const HANGS_OVER_MODEL = new Set(['loader 1,9', 'loader 7,9']);
 const AXLE_UNDER_COUPLING = new Set(['semi 1,12', 'semi 7,12', 'semi 1,15', 'semi 7,15']);
 
 describe('grid and model correspondence', () => {
@@ -343,7 +342,7 @@ describe('grid and model correspondence', () => {
           const hang = GRID_CELL / 2 + 1e-9;
           const inside = rect.x0 >= -half.x - hang && rect.x1 <= half.x + hang && rect.z0 >= -half.z - hang && rect.z1 <= half.z + hang;
           expect(inside, `${id} cell ${x},${y} projects outside the model outline`).toBe(true);
-          if ('DECX'.includes(CHASSIS[id].layout[y][x]) && !HANGS_OVER_MODEL.has(`${id} ${x},${y}`)) expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
+          if ('DECX'.includes(CHASSIS[id].layout[y][x])) expect(() => surfaceAt(id, rect), `${id} cell ${x},${y} has no model surface under it`).not.toThrow();
         }
       }
     }

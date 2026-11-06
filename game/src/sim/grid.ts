@@ -61,6 +61,14 @@ function inHiddenBay(chassisId: string, cells: readonly { x: number; y: number }
   return bay !== undefined && cells.every((c) => c.x >= bay.x && c.x < bay.x + bay.w && c.y >= bay.y && c.y < bay.y + bay.h);
 }
 
+export function inEngineBay(chassisId: string, x: number, y: number): boolean {
+  return inHiddenBay(chassisId, [{ x, y }]);
+}
+
+export function deepestFirst<T extends GridItem>(chassisId: string, items: readonly T[]): T[] {
+  return [...items].sort((a, b) => Number(belowDeck(chassisId, b)) - Number(belowDeck(chassisId, a)));
+}
+
 function mountLayer(g: Grid, item: GridItem): Layer {
   const kind = item.kind === 'part' ? partDef(item.part.defId).kind : null;
   if (kind === 'accessory') return 'accessory';

@@ -298,7 +298,7 @@ export function surfaceSamples(chassisId: string, unit: number, center: { x: num
 }
 
 export const CLIP_TOLERANCE = 0.05;
-const MIN_KEEP = 0.3;
+const MIN_KEEP = 0.7;
 export const MIN_SUPPORT = 0.9;
 
 export type Rest = { y: number; rect: CellRect; perched: boolean; slope: { x: number; z: number } };

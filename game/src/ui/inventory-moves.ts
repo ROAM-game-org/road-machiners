@@ -8,7 +8,7 @@ import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { gridOf, isMounted, mountedParts, nextTurn, placementError, turnsOf, type Spot } from "../sim/grid";
+import { gridOf, isMounted, itemCells, layerOf, mountedParts, nextTurn, placementError, turnsOf, type Layer, type Spot } from "../sim/grid";
 import { installSpot, moveItem, planItemMove, plannedTruck, plannedVehicle, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
@@ -54,6 +54,15 @@ export function selectionAfterClick(selected: string | null, clicked: string): s
 }
 
 export type GridPoint = { x: number; y: number };
+
+const STACK_HEIGHT: Record<Layer, number> = { accessory: 2, base: 1, below: 0 };
+
+export function itemBeneath(v: Vehicle, item: GridItem, cell: GridPoint): GridItem | null {
+  const g = gridOf(v);
+  const height = (it: GridItem) => STACK_HEIGHT[layerOf(g, it)];
+  const under = v.items.filter((it) => it.id !== item.id && height(it) < height(item) && itemCells(it).some((c) => c.x === cell.x && c.y === cell.y));
+  return under.sort((a, b) => height(b) - height(a))[0] ?? null;
+}
 
 export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" };
 

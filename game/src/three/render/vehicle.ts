@@ -12,7 +12,7 @@ import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spa
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
+import { baseGrid, belowDeck, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
@@ -867,7 +867,7 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
 
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   const grid = baseGrid(v.chassisId);
-  return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
+  return !belowDeck(v.chassisId, item) && itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body: THREE.Object3D): { at: Placement; bottom: number; top: number; foot: number; plate: CellRect } {
