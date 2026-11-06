@@ -21,23 +21,23 @@ describe('planRects', () => {
     expect(plan.height).toBeCloseTo(grid.h * cell.h);
   });
 
-  it('puts the front row at the bottom', () => {
+  it('puts the front row at the top', () => {
     const cell = cellsOf('scout');
     const front: PlanPart = { id: 'front', x: 1, y: 0, w: 1, h: 1 };
     const grid = baseGrid('scout');
     const rear: PlanPart = { id: 'rear', x: 1, y: grid.h - 1, w: 1, h: 1 };
     const { rects } = planRects('scout', [front, rear], PX);
     const [frontRect, rearRect] = rects;
-    expect(frontRect.y).toBeGreaterThan(rearRect.y);
-    expect(frontRect.y + frontRect.h).toBeCloseTo(planRects('scout', [], PX).height);
+    expect(frontRect.y).toBeLessThan(rearRect.y);
+    expect(frontRect.y).toBeCloseTo(0);
     expect(frontRect.h).toBeCloseTo(cell.h);
   });
 
   it('covers exactly the cells of a part wider than one cell', () => {
     const cell = cellsOf('scout');
-    const { rects, width } = planRects('scout', [{ id: 'wide', x: 1, y: 2, w: 2, h: 1 }], PX);
+    const { rects } = planRects('scout', [{ id: 'wide', x: 1, y: 2, w: 2, h: 1 }], PX);
     expect(rects[0].w).toBeCloseTo(2 * cell.w);
-    expect(rects[0].x + rects[0].w).toBeCloseTo(width - cell.w);
+    expect(rects[0].x).toBeCloseTo(cell.w);
   });
 
   it('throws on a part outside the chassis grid', () => {

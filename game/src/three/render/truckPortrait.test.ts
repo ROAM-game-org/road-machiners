@@ -12,7 +12,7 @@ import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { HONEST_READBACK, REFUSED_READBACK, fakeGpu } from '../../test/fake-gpu';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, chassisSize, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
+import { PORTRAIT_KEEP, TruckPortraits, chassisSize, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const isCabDef = (def: ReturnType<typeof partDef>): boolean => def.kind === 'core' && def.role === 'cab';
@@ -283,8 +283,7 @@ describe('truck portrait scene on every chassis', () => {
     });
     const own = new Set(solid.map((m) => m.userData.partId).filter(Boolean));
     const cabIds = new Set(conditionItems(v).filter((it) => isCabDef(partDef(it.part.defId))).map((it) => it.part.id));
-    const tilt = THREE.MathUtils.degToRad(PORTRAIT_TILT_DEG);
-    const toward = new THREE.Vector3(-Math.sin(tilt), -Math.cos(tilt), 0);
+    const toward = new THREE.Vector3(0, -1, 0);
     const caster = new THREE.Raycaster();
     for (const item of conditionItems(v)) {
       if (own.has(item.part.id)) continue;

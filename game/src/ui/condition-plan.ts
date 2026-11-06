@@ -17,7 +17,7 @@ export function planRects(chassisId: string, parts: readonly PlanPart[], pxPerMe
   const rects = parts.map((part) => {
     if (part.x < 0 || part.y < 0 || part.x + part.w > grid.w || part.y + part.h > grid.h) throw new Error(`Condition part ${part.id} lies outside the ${chassisId} grid`);
     const r = rectOf(m, part.x, part.y, part.w, part.h);
-    return { id: part.id, x: width - r.left - r.width, y: height - r.top - r.height, w: r.width, h: r.height };
+    return { id: part.id, x: r.left, y: r.top, w: r.width, h: r.height };
   });
   return { width, height, rects };
 }
@@ -55,8 +55,8 @@ export class ConditionPlan {
 
   partAt(x: number, y: number): string | null {
     const m = this.metrics;
-    const cellX = Math.floor((this.width - x) / m.cellW);
-    const cellY = Math.floor((this.height - y) / m.cellH);
+    const cellX = Math.floor(x / m.cellW);
+    const cellY = Math.floor(y / m.cellH);
     return this.cellOwner.get(`${cellX},${cellY}`) ?? null;
   }
 
@@ -67,9 +67,7 @@ export class ConditionPlan {
 
   layers(drawn: readonly Tiered[], scale: number): HTMLElement[] {
     const boxes = drawn.map((part) => this.boxOf(part));
-    const turned = el("div", { class: "cond-plan-turned" }, truckOutline(this.chassisId, this.metrics), ...boxes);
-    turned.style.cssText = `width:${this.width}px;height:${this.height}px`;
-    const root = el("div", { class: "cond-plan", "aria-hidden": "true" }, turned);
+    const root = el("div", { class: "cond-plan", "aria-hidden": "true" }, truckOutline(this.chassisId, this.metrics), ...boxes);
     root.style.cssText = `width:${this.width}px;height:${this.height}px;transform:scale(${scale})`;
     return [root];
   }
@@ -86,8 +84,7 @@ export class ConditionPlan {
     const item = this.items.get(part.id);
     if (!item) throw new Error(`Condition part ${part.id} is not on the plan`);
     const r = this.rectOf(part.id);
-    const turned = { left: this.width - r.x - r.w, top: this.height - r.y - r.h, width: r.w, height: r.h };
-    return el("div", { class: "cond-plan-part", "data-tier": part.tier, style: pxStyle(turned) }, turnedIcon(item, this.metrics));
+    return el("div", { class: "cond-plan-part", "data-tier": part.tier, style: pxStyle({ left: r.x, top: r.y, width: r.w, height: r.h }) }, turnedIcon(item, this.metrics));
   }
 
   private placed(node: HTMLElement, partId: string): HTMLElement {
