@@ -88,7 +88,7 @@ export function contextKey(target: ContextTarget): string {
   return 'id' in target ? `${target.kind}:${target.id}` : target.kind;
 }
 
-function actionTitle(action: ContextAction): Msg | undefined {
+export function actionBlockReason(action: ContextAction): Msg | undefined {
   if (action.hint) return action.hint;
   if (action.combat !== undefined) return combatBlocked(action.combat);
   return action.ready ? undefined : t("hud.stopToUse");
@@ -398,7 +398,7 @@ export class Hud {
     const use = el(
       "button",
       {
-        ...disabledWith(action.ready ? null : (actionTitle(action) ?? null), onUse),
+        ...disabledWith(action.ready ? null : (actionBlockReason(action) ?? null), onUse),
         class: action.combat !== undefined ? "btn-danger" : "",
       },
       action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
