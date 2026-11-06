@@ -10,7 +10,7 @@ import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { baseGrid, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
@@ -161,7 +161,7 @@ export function lanePoint(v: Vehicle, side: Side, lane: number): Vec {
   return poseToWorld(unitPose(v, face.unit), { x: face.at.fwd, z: face.at.right });
 }
 
-type BlastCell = { part: PartInstance; pose: UnitPose; center: Vec; rect: CellRect };
+type BlastCell = { part: PartInstance; pose: UnitPose; center: Vec; rect: CellRect; below: boolean };
 
 export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): { part: PartInstance; amount: number }[] {
   checkRound(round);
@@ -181,7 +181,7 @@ function blastCells(v: Vehicle): BlastCell[] {
   return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => itemCells(it).map((cell) => {
     const center = cellCenter(v.chassisId, cell.x, cell.y);
     const pose = unitPose(v, center.unit);
-    return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]) };
+    return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]), below: belowDeck(v.chassisId, it) };
   }));
 }
 
@@ -194,10 +194,13 @@ function localOf(pose: UnitPose, p: Vec): Local {
   return { fwd: l.x, right: l.z };
 }
 
+function canShield(cell: BlastCell, target: BlastCell): boolean {
+  return cell.part.id !== target.part.id && (target.below || !cell.below);
+}
+
 function shields(cells: BlastCell[], from: Vec, target: BlastCell): PartInstance[] {
   const entries = new Map<PartInstance, number>();
-  for (const c of cells) {
-    if (c.part.id === target.part.id) continue;
+  for (const c of cells.filter((cell) => canShield(cell, target))) {
     const t = segmentEntry(localOf(c.pose, from), localOf(c.pose, target.center), c.rect);
     if (t !== null && t < (entries.get(c.part) ?? Infinity)) entries.set(c.part, t);
   }
@@ -383,7 +386,7 @@ function lanesOutFrom(lane: number, lanes: number): number[] {
 
 function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   const owner = new Map<number, PartInstance[]>();
-  for (const it of outerFirst(mountedItems(v))) {
+  for (const it of outerFirst(v.chassisId, mountedItems(v))) {
     for (const c of itemCells(it)) {
       const key = cellKey(c.x, c.y);
       owner.set(key, [...(owner.get(key) ?? []), it.part]);
@@ -392,9 +395,12 @@ function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   return owner;
 }
 
-function outerFirst<T extends GridItem & { kind: 'part' }>(items: readonly T[]): T[] {
-  const outer = (it: T) => (partDef(it.part.defId).kind === 'accessory' ? 0 : 1);
-  return [...items].sort((a, b) => outer(a) - outer(b));
+function outerFirst<T extends GridItem & { kind: 'part' }>(chassisId: string, items: readonly T[]): T[] {
+  const depth = (it: T) => {
+    if (belowDeck(chassisId, it)) return 2;
+    return partDef(it.part.defId).kind === 'accessory' ? 0 : 1;
+  };
+  return [...items].sort((a, b) => depth(a) - depth(b));
 }
 
 function takesHit(part: PartInstance, pen: number, struck: Set<string>): boolean {
@@ -451,6 +457,7 @@ function sitsOnDeck(v: Vehicle, part: PartInstance): boolean {
   if (!chassisAbility(v.chassisId)?.deckArmor) return false;
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === part.id);
   if (!item) throw new Error(`Part ${part.id} is not on ${v.id}`);
+  if (belowDeck(v.chassisId, item)) return false;
   const base = baseGrid(v.chassisId);
   return itemCells(item).every((c) => base.cells[c.y]?.[c.x] === 'D');
 }
