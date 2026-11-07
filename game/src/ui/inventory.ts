@@ -134,6 +134,8 @@ type Tap = { pointerId: number; x: number; y: number };
 
 type Press = { timer: number; source: ItemSource; id: string; item: GridItem; grab: { x: number; y: number } };
 
+const SHORT_LAYER = 600;
+
 export type BenchHead = { title: HTMLElement; close: HTMLElement };
 
 export class InventoryView {
@@ -223,6 +225,7 @@ export class InventoryView {
   private fitBench(frame: HTMLElement, key: string): void {
     const w = this.host.world();
     const me = this.shown(w);
+    this.root.classList.toggle("short-layer", uiSize().layerSize().height < SHORT_LAYER);
     const rooms = benchRooms(frame, this.root, this.gridEl);
     const layout = chooseLayout(rooms, truckMeters(me.chassisId, gridOf(me)));
     this.scale.apply(key, layout, this.targetLayout(w, layout));

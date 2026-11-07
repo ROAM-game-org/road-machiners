@@ -845,3 +845,19 @@
 .well .meter {
   background: var(--surface-raised);
 }
+
+.inv-view.short-layer .inv-inspection .stat-grid {
+  grid-template-columns: var(--icon-s) 1fr auto auto;
+  gap: 0 var(--space-3);
+}
+.inv-view.short-layer .inv-inspection .stat .icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.inv-view.short-layer .inv-inspection .stat-name,
+.inv-view.short-layer .inv-inspection .stat-val {
+  line-height: 1.1;
+}
+.inv-view.short-layer .inv-inspection {
+  gap: var(--space-6);
+}
