@@ -255,12 +255,11 @@ function shutDownText(world: World, vehicle: Vehicle): Msg | null {
   return left > 0 ? turnsText(t('state.shutDown'), left) : null;
 }
 
-export function formatVehicleState(world: World, vehicle: Vehicle): Msg {
-  const shown = kph(vehicle.speed);
-  const motion = shown > 0 ? t('state.moving', { n: shown }) : t('state.parked');
+export function formatVehicleState(world: World, vehicle: Vehicle): Msg | null {
+  const parked = kph(vehicle.speed) > 0 ? null : t('state.parked');
   const brain = vehicle.brain ? [formatNpcActivity(world, vehicle), ...formatNpcStates(world, vehicle)] : [];
-  const parts = [motion, shutDownText(world, vehicle), ...brain].filter((part) => part !== null);
-  return parts.reduce((first, rest) => t('state.join', { first, rest }));
+  const parts = [parked, shutDownText(world, vehicle), ...brain].filter((part) => part !== null);
+  return parts.length === 0 ? null : parts.reduce((first, rest) => t('state.join', { first, rest }));
 }
 
 export function formatCardState(world: World, vehicle: Vehicle): Msg | null {

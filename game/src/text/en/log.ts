@@ -81,7 +81,6 @@ export const LOG = {
   'state.sizedUp': 'Knows your load',
   'state.bountyStop': 'Waits for your answer',
   'state.lootAgreed': 'You agreed to leave its loot',
-  'state.moving': m('Moving, {n} km/h', { n: 'int' }),
   'state.parked': 'Parked',
   'state.shutDown': 'Shut down',
   'state.join': m('{first}. {rest}', { first: 'text', rest: 'text' }),

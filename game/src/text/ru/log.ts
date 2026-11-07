@@ -99,7 +99,6 @@ export const LOG: Translation<typeof EN> = {
   'refusal.notAtDesk': 'Только на Постоялом дворе',
   'refusal.payBountiesFirst': 'Сначала уплатите долг за {faction, case, acc}',
   'state.lootAgreed': 'Вы согласились не трогать его добычу',
-  'state.moving': 'Едет, {n} км/ч',
   'state.parked': 'Стоит',
   'state.shutDown': 'Заглушен',
   'state.join': '{first}. {rest}',
