@@ -36,6 +36,44 @@ function steppedWith(w: World, parts: { defId: string; x: number; y: number; rot
 const plateAt = (v: Vehicle, x: number, y: number): Extract<GridItem, { kind: 'part' }> => mountedItems(v).find((it) => it.x === x && it.y === y)!;
 const strong = { damage: 10, pen: 20, blast: false, armorShare: 1 };
 
+describe('a stack of gear over a below-deck part', () => {
+  const DECK_OVER_WHEEL = {
+    ...CHASSIS.scout,
+    id: 'stacked',
+    layout: ['  F  ', ' FDF ', 'LDDDR', 'LDDDR', 'LDDDR', 'LDDDR', ' BDB ', '  B  '],
+    core: [{ defId: 'wheel', x: 1, y: 2 }, { defId: 'wheel', x: 3, y: 2 }, { defId: 'wheel', x: 1, y: 4 }, { defId: 'wheel', x: 3, y: 4 }],
+  };
+  beforeAll(() => { CHASSIS.stacked = DECK_OVER_WHEEL; SHAPES.base_stacked = TRUCK_SHAPES.base_scout; });
+  afterAll(() => { delete CHASSIS.stacked; delete SHAPES.base_stacked; });
+
+  const stacked = (w: World) => {
+    const v = addVehicle(w, 'player', 'stacked', [], { x: 40, y: 40 });
+    v.items.push({ id: 'i-gear', x: 1, y: 2, rot: 0, kind: 'part', part: makePart(w, 'jerrycans', 0) });
+    return v;
+  };
+
+  it('hits the gear before the wheel below it, and reaches the wheel', () => {
+    const w = emptyWorld();
+    const v = stacked(w);
+    const struck = walkLane(w, v, 'left', 2, strong).map((hit) => hit.part);
+    const at = (defId: string) => struck.indexOf(mountedItems(v).find((it) => it.part.defId === defId && it.x === 1 && it.y === 2)!.part.id);
+    expect(at('jerrycans')).toBeGreaterThanOrEqual(0);
+    expect(at('wheel')).toBeGreaterThan(at('jerrycans'));
+  });
+
+  it('never counts the wheel as cover for the gear above it in a blast', () => {
+    const w = emptyWorld();
+    const v = stacked(w);
+    const bare = stacked(w);
+    bare.items = bare.items.filter((it) => !(it.kind === 'part' && it.part.defId === 'wheel'));
+    const gearOn = (truck: Vehicle) => mountedItems(truck).find((it) => it.part.defId === 'jerrycans')!.part.id;
+    const near = lanePoint(v, 'left', 2);
+    const round = { damage: 10, pen: 20, blast: true, armorShare: 1 };
+    const gearHit = (truck: Vehicle) => planBlast(truck, near, 6, round, null).find((hit) => hit.part.id === gearOn(truck))!.amount;
+    expect(gearHit(v)).toBeCloseTo(gearHit(bare));
+  });
+});
+
 describe('a stepped outline', () => {
   it('lets a round from the front meet the nose armor before the parts behind it', () => {
     const w = emptyWorld();

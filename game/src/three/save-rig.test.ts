@@ -16,7 +16,7 @@ function slotsOf(world: World): SaveSlots {
   return slots;
 }
 
-type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
+type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number; items: { part?: { defId: string } }[] }[] } };
 
 describe('a saved rig', () => {
   it('gives back the bend of a folded hauler and awards nothing on load', () => {
@@ -41,6 +41,7 @@ describe('a saved rig', () => {
     const middle = { x: old.pos.x - Math.cos(old.heading) * frontAhead(hauler.chassisId), y: old.pos.y - Math.sin(old.heading) * frontAhead(hauler.chassisId) };
     old.pos = middle;
     delete old.bend;
+    for (const part of envelope.world.vehicles.flatMap((v) => v.items.flatMap((it) => (it.part ? [it.part] : [])))) if (part.defId === 'cabBroad') part.defId = 'cabPickup';
     beforeChaosHighwayName(envelope.world);
     const pivot = FOLDED_AND_TINY_STEPS.findIndex((named) => named.name === 'withTractorPivot');
     envelope.world = FOLDED_AND_TINY_STEPS.slice(pivot).reduce((saved, named) => named.step(saved), envelope.world as unknown as SavedJson) as never;

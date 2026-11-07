@@ -2,6 +2,7 @@
 import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
+import { withTruckGrids } from './save-step-truck-grids';
 import { withSquareGrid_128_129 } from './save-step-square-grid';
 import { withFourCellRams } from './save-step-four-cell-rams';
 
@@ -840,6 +841,7 @@ export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'goodsStore', step: withGoodsStore },
   { name: 'withProjectileFlights', step: withProjectileFlights },
   { name: 'withConvoyRumor', step: withConvoyRumor },
+  { name: 'withTruckGrids', step: withTruckGrids },
 ];
 
 export const RELEASE_STEPS: readonly ReleaseStep[] = [
