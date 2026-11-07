@@ -310,7 +310,7 @@ relocalizeGame = () => {
 };
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
 const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
-if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
+if (fresh && opening) for (const line of opening.log) game.hud.note(world, t(`opening.${line}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;

@@ -30,7 +30,7 @@ function lineText(line: LogLine): string {
   return english(line.text);
 }
 
-function doingOf(world: World, v: Vehicle): Msg {
+function doingOf(world: World, v: Vehicle): Msg | null {
   if (v.job) return jobLabel(world, v, v.job);
   if (isKnockedOut(v)) return t('npc.knockedOut');
   const goal = v.brain ? topGoal(v) : null;
@@ -241,7 +241,10 @@ function eventWords(world: World, e: GameEvent): Spoken {
 export const SIM_TEXT: SimText = {
   event: eventWords,
   truck: (world, v) => english(vehicleTitle(world, v)),
-  doing: (world, v) => english(doingOf(world, v)),
+  doing: (world, v) => {
+    const doing = doingOf(world, v);
+    return doing === null ? '' : english(doing);
+  },
   name: nameOf,
   target: targetName,
   goal: goalLine,

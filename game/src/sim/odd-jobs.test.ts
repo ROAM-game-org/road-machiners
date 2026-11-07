@@ -30,15 +30,11 @@ function moneyEvents(w: World): GameEvent[] {
 }
 
 describe("who is hired", () => {
-  it("hires a driver under a day of the tier 1 wage", () => {
-    expect(oddJobsBlock(brokeAtBowl(10))).toBeNull();
+  it("hires a driver with any money", () => {
     expect(oddJobsBlock(brokeAtBowl(-40))).toBeNull();
-  });
-
-  it("turns away a driver at the limit", () => {
-    expect(oddJobsBlock(brokeAtBowl(ODD_JOBS.hireBelow - 1))).toBeNull();
-    expect(oddJobsBlock(brokeAtBowl(ODD_JOBS.hireBelow))).toEqual({ id: "notHiring" });
-    expect(() => startOddJobs(brokeAtBowl(ODD_JOBS.hireBelow))).toThrow("Refused: notHiring");
+    expect(oddJobsBlock(brokeAtBowl(10))).toBeNull();
+    expect(oddJobsBlock(brokeAtBowl(100000))).toBeNull();
+    expect(startOddJobs(brokeAtBowl(100000)).vehicles[0].job?.kind).toBe("oddJobs");
   });
 
   it("needs a shop site, no combat, no other job and a stopped truck", () => {

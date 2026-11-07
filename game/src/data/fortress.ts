@@ -8,7 +8,7 @@ export type FortressRock = { from: number; to: number };
 export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
 
 export type FortressGate = { width: number; depth: number; height: number };
-export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[] };
+export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[]; padGap?: number };
 
 export const FORTRESS_SITES: Record<string, FortressSite> = {
   bowl: {
@@ -92,11 +92,11 @@ export const FORTRESS_STYLES: Record<FortressStyle, FortressStyleDef> = {
   pumpworks: { ...DEEP_GATE, pieces: DEEP_PIECES },
   cistern: { ...DEEP_GATE, pieces: DEEP_PIECES },
   scrap: { ...DEEP_GATE, pieces: DEEP_PIECES },
-  patchwork: { flush: true, gate: { width: 3, depth: 1.25, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
-  compound: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
-  ring: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'gate'] },
-  yard: { flush: true, gate: { width: 2.5, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
-  shipMetal: { flush: true, gate: { width: 6, depth: 1.5, height: 4.5 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
+  patchwork: { flush: true, gate: { width: 3, depth: 1.25, height: 3 }, gateFlare: 0, padGap: 0.45, pieces: ['wall', 'tower', 'gate'] },
+  compound: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, padGap: 0.95, pieces: ['wall', 'tower', 'gate'] },
+  ring: { flush: true, gate: { width: 2, depth: 1, height: 3 }, gateFlare: 0, padGap: 0.35, pieces: ['wall', 'gate'] },
+  yard: { flush: true, gate: { width: 2.5, depth: 1, height: 3 }, gateFlare: 0, padGap: 1, pieces: ['wall', 'tower', 'gate'] },
+  shipMetal: { flush: true, gate: { width: 6, depth: 1.5, height: 4.5 }, gateFlare: 0, padGap: 0.3, pieces: ['wall', 'tower', 'gate'] },
   outpost: { flush: true, gate: { width: 6, depth: 0.75, height: 4 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
 };
 

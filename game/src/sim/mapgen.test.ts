@@ -4,9 +4,10 @@ import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../data/region';
 import { FALLEN_SUN_DECKS, TERRITORIES } from '../data/territory';
 import { START_KITS } from '../data/start';
 import { PHYSICS } from '../data/physics';
+import { DEAD_TREE_LOOK } from '../data/rules';
 import { CAR_WRECK_LOOKS, ROCK_LOOKS } from '../data/terrain';
 import { deckAt, deckById, underDeck } from './bridge';
-import { anyLookBoxes, blockingBoxes, carWreckModel, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, obstacleReach, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
+import { anyLookBoxes, blockingBoxes, carWreckModel, deadTreeTone, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, obstacleReach, propBoxes, propKey, propPose, propReach, propShape, rockModel, segmentCrossesBox, touchesObstacle } from './mapgen';
 import { hulkBoxes } from './body';
 import { ROAD_INDEX } from './road-index';
 import { isFortress } from './sites';
@@ -567,5 +568,29 @@ describe('props under a deck', () => {
 
     expect(blockingBoxes(wreck, t)).toEqual(propBoxes(wreck).filter((b) => b.z0 < PHYSICS.truckClearance));
     expect(blockingBoxes(wreck, t).length).toBeGreaterThan(0);
+  });
+});
+
+describe('dead tree poses', () => {
+  const treeAt = (i: number): Obstacle => ({ id: `tree-${i}`, pos: { x: i, y: 0 }, r: 0.35, kind: 'landmark', look: 'deadTree', yaw: 0 });
+  const poses = Array.from({ length: 400 }, (_, i) => propPose(treeAt(i)));
+
+  it('gives one tree the same pose every time', () => {
+    expect(propPose(treeAt(7))).toEqual(poses[7]);
+  });
+
+  it('uses every size and turn step and nothing else, so shapes stay few', () => {
+    expect(new Set(poses.map((p) => p.scale.x))).toEqual(new Set(DEAD_TREE_LOOK.widths));
+    expect(new Set(poses.map((p) => p.scale.z))).toEqual(new Set(DEAD_TREE_LOOK.heights));
+    expect(new Set(poses.map((p) => p.yaw)).size).toBe(DEAD_TREE_LOOK.turns);
+  });
+
+  it('keeps a tree round in plan, with the same width both ways', () => {
+    for (const pose of poses) expect(pose.scale.y).toBe(pose.scale.x);
+  });
+
+  it('gives trees several tones from the fixed steps', () => {
+    const tones = new Set(poses.map((_, i) => deadTreeTone(`tree-${i}`)));
+    expect(tones).toEqual(new Set(DEAD_TREE_LOOK.tones));
   });
 });

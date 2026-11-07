@@ -12,16 +12,19 @@ import type { World } from "../sim/types";
 import { vehicleStats } from "../sim/stats";
 import { playerSees } from "../sim/vision";
 import { dist, type Vec } from "../sim/vec";
-import { playerCanAct, threatToPlayer } from "../sim/world";
+import { playerCanAct } from "../sim/world";
+import { inCombat } from "../sim/combat";
 import { startPose } from "../sim/start-pose";
 import { t } from "../text/msg";
 import { modeRules } from "../sim/settings";
+import { partDef } from "../data/parts";
 import { el, panel } from "./dom";
+import { uiSize } from "./ui-size";
 
 const TIPS_KEY = "roam.tips";
 const TIPS_OFF_KEY = "roam.tipsOff";
 
-export type TipId = OpeningStep | "waypoint" | "drive" | "autoStop" | "stop" | "stopAt" | "manual" | "zones" | "aim" | "honk" | "farewell";
+export type TipId = OpeningStep | "waypoint" | "drive" | "autoStop" | "stop" | "stopAt" | "manual" | "zones" | "autoFire" | "aim" | "honk" | "farewell";
 
 type Tip = {
   id: TipId;
@@ -42,8 +45,7 @@ const departureFrom = (w: World): Vec => openingStockOf(w)?.pos ?? spawn;
 const npcInSight = (w: World): boolean =>
   w.vehicles.some((v) => v.brain && !isKnockedOut(v) && playerSees(w, v.pos));
 
-const hostileInSight = (w: World): boolean =>
-  w.vehicles.some((v) => threatToPlayer(w, v) && playerSees(w, v.pos));
+const armedInFight = (w: World): boolean => vehicleStats(w, playerVehicle(w)).weapons.length > 0 && inCombat(w, playerVehicle(w));
 
 const moving = (w: World): boolean => playerVehicle(w).speed > RULES.parkedSpeed;
 
@@ -119,8 +121,15 @@ const TIPS: readonly Tip[] = [
     done: (w) => playerVehicle(w).direct,
   },
   {
+    id: "autoFire",
+    when: armedInFight,
+    done: () => false,
+    seenWhenOver: true,
+  },
+  {
     id: "aim",
-    when: (w) => vehicleStats(w, playerVehicle(w)).weapons.length > 0 && hostileInSight(w),
+    after: "autoFire",
+    when: armedInFight,
     done: (w) => Object.values(playerVehicle(w).weaponOrders).some((o) => o.aim !== "body"),
   },
   {
@@ -323,7 +332,43 @@ export class Tips {
     this.box.replaceChildren(
       el("span", { class: "tip-text" }, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)),
       el("button", { class: "tip-close", title: t("hint.closeThis"), "aria-label": t("hint.closeThis"), onclick: () => this.close() }, t("hint.closeMark")),
-      el("div", { class: "tip-actions" }, el("button", { class: "tip-off", onclick: () => this.setOn(false) }, t("hint.turnOff"))),
+      el("span", { class: "tip-off-note" }, t("hint.offInMenu")),
     );
+    this.place();
   }
+
+  place(): void {
+    if (this.shown === null) return;
+    const anchor = this.anchorNode();
+    this.box.style.setProperty("--tip-left", `${instrumentsEdge()}px`);
+    if (!anchor) {
+      this.box.style.left = this.box.style.top = this.box.style.bottom = "";
+      return;
+    }
+    const size = uiSize();
+    const part = size.layerRect(anchor);
+    const tip = size.layerRect(this.box);
+    const fitsRight = part.right + TIP_GAP + tip.width <= size.layerRect(document.body).right;
+    this.box.style.left = `${fitsRight ? part.right + TIP_GAP : Math.max(TIP_GAP, part.left - TIP_GAP - tip.width)}px`;
+    this.box.style.top = `${Math.max(TIP_GAP, part.top)}px`;
+    this.box.style.bottom = "auto";
+  }
+
+  private anchorNode(): HTMLElement | null {
+    const id = this.moment && this.shown ? anchorItem(this.moment.world, this.shown) : null;
+    return id === null ? null : document.querySelector<HTMLElement>(`.inventory-screen:not([style*="display: none"]) [data-item-id="${id}"]`);
+  }
+}
+
+const TIP_GAP = 8;
+
+function instrumentsEdge(): number {
+  const instruments = document.querySelector<HTMLElement>("#ui .instruments");
+  return instruments ? uiSize().layerRect(instruments).right + TIP_GAP : TIP_GAP;
+}
+
+function anchorItem(w: World, id: TipId): string | null {
+  const wanted = (kind: string, defId: string): boolean => (id === "patch" ? kind === "engine" : id === "install" && defId === "cage");
+  const item = playerVehicle(w).items.find((it) => it.kind === "part" && wanted(partDef(it.part.defId).kind, it.part.defId));
+  return item?.id ?? null;
 }
