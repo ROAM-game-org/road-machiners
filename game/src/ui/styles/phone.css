@@ -268,9 +268,6 @@
   padding-right: 0;
   line-height: var(--touch-target);
 }
-#ui.phone .character-screen > h3 {
-  padding-right: calc(var(--space-10) * 3);
-}
 #ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 > .chips {
   flex-basis: 100%;
   order: 2;
@@ -412,52 +409,57 @@
   font-size: var(--text-dense);
 }
 #ui.phone .modal.character-screen {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
   overflow: auto;
 }
-#ui.phone .skill-table {
-  display: block;
+#ui.phone .char-top {
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+}
+#ui.phone .char-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#ui.phone.slim .char-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#ui.phone .char-pool-row > .num {
+  white-space: nowrap;
+}
+#ui.phone .skill-tab {
+  height: auto;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+}
+#ui.phone .char-page,
+#ui.phone .rank-ladder {
+  flex: none;
   overflow: visible;
 }
-#ui.phone .skill-head {
+#ui.phone .effect-strip,
+#ui.phone .rank-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+#ui.phone .effect-strip > span:first-child {
   display: none;
 }
-#ui.phone .skill-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  grid-template-areas:
-    "name name name level"
-    "basic basic basic buy"
-    "perk-a perk-a perk-b perk-b";
-  gap: var(--space-3) var(--space-5);
-  margin-bottom: var(--space-3);
+#ui.phone .effect-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: var(--space-3);
 }
-#ui.phone.slim .skill-row {
-  grid-template-areas:
-    "name name name level"
-    "basic basic basic buy"
-    "perk-a perk-a perk-a perk-a"
-    "perk-b perk-b perk-b perk-b";
+#ui.phone .rank-row::before {
+  display: none;
 }
-#ui.phone .skill-name {
-  grid-area: name;
+#ui.phone .rank-cards {
+  grid-template-columns: minmax(0, 1fr);
 }
-#ui.phone .skill-level {
-  grid-area: level;
+#ui.phone .standing-page {
+  max-width: none;
 }
-#ui.phone .basic-cell {
-  grid-area: basic;
-}
-#ui.phone .skill-row > .perk-cell:nth-child(4) {
-  grid-area: perk-a;
-}
-#ui.phone .skill-row > .perk-cell:nth-child(5) {
-  grid-area: perk-b;
-}
-#ui.phone .skill-buy {
-  grid-area: buy;
-}
-#ui.phone .perk-rank {
-  display: block;
+#ui.phone .standing-tip {
+  left: 0;
+  top: 100%;
 }
 
 #ui:not(.phone) .quest-look {

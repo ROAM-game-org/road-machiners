@@ -587,12 +587,12 @@ async function characterByTouch(session, step) {
   await closeDrawer(page, touch);
   await step('open-character', () => touch.tapOn('#ui .instrument-actions button[data-action=character]'), () => game(page, () => !!document.querySelector('#ui .character-screen') && getComputedStyle(document.querySelector('#ui .character-screen')).display !== 'none' || 'the character screen did not open'));
   await step('character-reach', async () => {
-    await touch.box('.character-screen .skill-buy');
+    await touch.box('.character-screen .buy-rank');
   }, async () => game(page, () => {
-    const screen = document.querySelector('#ui .character-screen').getBoundingClientRect();
-    const table = document.querySelector('#ui .character-screen .skill-table');
-    if (table.scrollWidth > table.clientWidth) return `skill table scrolls sideways: ${table.scrollWidth} > ${table.clientWidth}`;
-    const outside = [...document.querySelectorAll('#ui .character-screen :is(.skill-buy, .perk-cell, .skill-level)')].filter((el) => {
+    const root = document.querySelector('#ui .character-screen');
+    const screen = root.getBoundingClientRect();
+    if (root.scrollWidth > root.clientWidth) return `character screen scrolls sideways: ${root.scrollWidth} > ${root.clientWidth}`;
+    const outside = [...document.querySelectorAll('#ui .character-screen :is(.skill-tab, .buy-rank, .perk-card, .rank-pips)')].filter((el) => {
       const r = el.getBoundingClientRect();
       return r.left < screen.left - 1 || r.right > screen.right + 1;
     });

@@ -20,7 +20,7 @@ Rank 1 of each skill opens one basic technique, with no pick. Until then the tec
 - Toughness 1, First aid: the U button, a timed job. Parked and out of combat, the driver heals as fast as in a town until at full health. Away from a town it costs extra supplies each turn, priced at the tier 1 wage for the turns it saves, about 0.3 supplies a turn, so a full heal from 30 health takes 14 turns and about 4 supplies instead of 70 turns of resting. It stops when the truck moves, combat starts or supplies run short. At Toughness 0 it shows locked with "Needs Toughness 1".
 - Social 1, Acumen: the trade screens tint the stock count short or flooded and the buy price cheap or dear, and show the profit on a sale. Without it they show bare prices and stock.
 
-The character screen shows each basic in a Rank 1 column before the perks. Chaos Highway starts every skill at rank 1.
+The character screen shows each basic as the card of rank 1 on its skill's tab, above the perks of ranks 2 and 4. Chaos Highway starts every skill at rank 1.
 
 At rank 2 and rank 4 of each skill the player picks one of two perks. The bought rank is the perk's only cost. A pick is permanent. Each pair splits the skill into two playstyles. A perk adds an action, breaks a rule or shows hidden information. It never multiplies a number the skill ranks already grow, and it never fires only after the player fails.
 
@@ -28,8 +28,8 @@ At rank 2 and rank 4 of each skill the player picks one of two perks. The bought
 - Driving 4, run and gun or run away. Steady aim: your own speed adds no scatter to your shots. Dust screen: at top speed on dusty ground, your dust blocks sight like a hill.
 - Perception 2, read people or track trucks. Read the driver: you see the traits of other drivers. Spotter: the N key marks a seen truck, and it stays tracked for a work day, about four game hours.
 - Perception 4, loot sight or night sight. Cargo eye: you see the goods and spare parts in any seen truck. Night eyes: night does not halve your sight.
-- Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap armor plate. Teardown: a knocked-out truck does not come to while you are taking a part off it.
-- Machining 4, pristine hunter or hired mechanic. Rebuild: a town garage can repair a junk part back to its last wear step, once per part. Road mechanic: stranded drivers radio you for patches and pay double.
+- Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap sheet. Teardown: a knocked-out truck does not come to while you are taking a part off it.
+- Machining 4, pristine hunter or hired mechanic. Rebuild: a town garage can repair a junk part back to its last wear step, once per part. Road mechanic: drivers pay double for the patches you do. Stranded drivers radio you for patches already from Roadside patch at rank 1.
 - Toughness 2, heat runner or storm runner. Desert rat: noon sun heats your engine like morning sun. Storm rider: dust storms do not cut your sight or aim.
 - Toughness 4, brawler or long hauler. Fight through: a broken cab, or a hit on a cab below half, does not knock you out while health is above half. Hits on any part then hurt you. Long haul: you heal while driving, not only while parked.
 - Social 2, trader or explorer. Market ears: a trader you call tells you the prices of the last town it left, as they were then, for a day after it left. Rumor mill: a driver you call tells you of a wreck or site it passed, naming a wreck's map square.
