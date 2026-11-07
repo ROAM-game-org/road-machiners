@@ -94,7 +94,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at Hattie's canteen where they all drink. I'll stand next to you while you do.
   ++ [Say it at Hattie's canteen.]
      ~ wagon_fate = "told"
-     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he saw the same. # page
+     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he saw the same.
      A woman at the cistern puts her bucket down. Her son rode in the cab of that wagon, she says. Nobody had told her there was no fight.
      Two Nose soldiers with cups in their hands hear every word. They drink up and leave without talking to each other.
      -> about_wagon
