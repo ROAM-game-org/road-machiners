@@ -626,7 +626,7 @@ function chosenSpecs(specs: Spec[], only: string[] | null): Spec[] {
   if (only === null) return specs;
   const unknown = only.filter((id) => !specs.some((spec) => spec.id === id));
   if (unknown.length > 0) throw new Error(`No bench scene ${unknown.join(', ')}. Scenes are ${specs.map((spec) => spec.id).join(', ')}`);
-  return specs.filter((spec) => only.includes(spec.id));
+  return only.map((id) => specs.find((spec) => spec.id === id) as Spec);
 }
 
 async function playAll(ctx: Ctx, specs: Spec[], preview: () => Promise<void>): Promise<SceneReport[]> {
