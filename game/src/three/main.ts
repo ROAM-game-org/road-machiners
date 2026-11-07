@@ -50,7 +50,7 @@ import { GpuContext } from './gpu-context';
 import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
-import { bakeGroundOffThread } from './ground-off-thread';
+import { startGroundBaker } from './ground-off-thread';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
@@ -278,8 +278,9 @@ const loading = Promise.all([
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
 bootStep('loading the map');
+const bakeGround = startGroundBaker();
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
-const groundBaked = bakeGroundOffThread(map.terrain);
+const groundBaked = bakeGround(map.terrain);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
