@@ -69,11 +69,6 @@
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }
-.cond-flash {
-  background: var(--alarm);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
 .cond-pick {
   filter: var(--cond-pick-filter);
   opacity: var(--cond-pick-opacity);

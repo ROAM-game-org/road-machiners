@@ -64,6 +64,24 @@ function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLEle
   return placeGlow(layer, portrait, glow);
 }
 
+let alarmColor: string | null = null;
+
+function alarm(): string {
+  alarmColor ??= getComputedStyle(document.documentElement).getPropertyValue("--alarm").trim();
+  if (!alarmColor) throw new Error("The --alarm color is not set, so a hit cannot flash");
+  return alarmColor;
+}
+
+function flashLayer(portrait: Portrait, glow: Glow): HTMLElement {
+  const flash = layerImage("cond-flash", portrait, glow, "ok") as HTMLCanvasElement;
+  const ctx = flash.getContext("2d");
+  if (!ctx) throw new Error("No 2d canvas context for a hit flash");
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = alarm();
+  ctx.fillRect(0, 0, flash.width, flash.height);
+  return flash;
+}
+
 export function edgedWhenHealthy(defId: string): boolean {
   const def = partDef(defId);
   return isShield(def) || def.kind === "weapon" || (def.kind === "core" && def.role === "wheel");
@@ -221,7 +239,7 @@ export class TruckConditionView {
   }
 
   private flash(portrait: Portrait, part: ConditionPart): void {
-    const flash = maskedLayer("cond-flash", portrait, portrait.glow(part.id, part.tier));
+    const flash = flashLayer(portrait, portrait.glow(part.id, part.tier));
     this.flashes.append(flash);
     const run = flash.animate(
       [
