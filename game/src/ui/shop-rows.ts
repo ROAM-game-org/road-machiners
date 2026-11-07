@@ -17,7 +17,7 @@ import { el, type Child } from "./dom";
 import { caseVictimName, clock, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
 import { seesAll } from "./see-all";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum, pricedEl, priceTag } from "./units";
+import { coinEl, fuelLiters, moneyEl, moneyMsg, pricedEl, priceTag } from "./units";
 
 export type ShopCommand = (w: World) => World;
 
@@ -87,7 +87,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       tag,
     ),
     theirs,
-    el("div", { class: "trade buy wide supply-buy" }, caption(GOODS_COLUMNS.buy, true), ...buys),
+    el("div", { class: "trade buy wide supply-buy" }, caption(GOODS_COLUMNS.buy), ...buys),
   );
 }
 
@@ -108,8 +108,8 @@ export function reasonButton(label: Child[], click: () => void, reason: Msg | nu
   return el("button", { ...reasonAttrs(reason, title), "data-key": key || undefined, onclick: () => reason || click() }, ...label);
 }
 
-export function priceEl(price: number, payable = true, hint: PriceHint | null = null): HTMLElement {
-  return el("span", { class: `price ${priceTone(payable, hint)}`.trim(), title: hint?.title }, moneyNum(price));
+export function lotLabel(verb: Msg, price: number | null, payable = true, hint: PriceHint | null = null): Child {
+  return price === null ? verb : pricedEl(verb, el("span", { class: `price ${priceTone(payable, hint)}`.trim(), title: hint?.title }, moneyEl(price)));
 }
 
 export function priceTone(payable: boolean, hint: PriceHint | null): string {
@@ -121,7 +121,7 @@ export function caption(text: Msg, coin = false): HTMLElement {
 }
 
 export function priceHead(label: Msg): HTMLElement {
-  return el("span", { class: "price-head" }, label, coinEl());
+  return el("span", { class: "price-head" }, label);
 }
 
 export function keepFocus(root: HTMLElement, render: () => void): void {

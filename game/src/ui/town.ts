@@ -11,7 +11,6 @@ import {
   paintPrice,
   repaint,
   buyGood,
-  buyPrice,
   buyStockPart,
   buySupply,
   buyTruckGood,
@@ -50,7 +49,7 @@ import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, marketHints, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
+import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -60,7 +59,7 @@ import { TOWN_SECTIONS, type TownSection } from "../data/quests";
 import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
-import { escortStatusText, gameHours, GOODS_COLUMNS, lotTitle, surveyPlacesLeft } from "./format";
+import { escortStatusText, gameHours, GOODS_COLUMNS, surveyPlacesLeft } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, type SheetOffer } from "../sim/charts";
@@ -539,17 +538,13 @@ export class TownScreen {
   }
 
   private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {
-    const buy = buyPrice(w, shopId, g);
     const held = onOrder(w, shopId, g);
     const buyReason = (n: number) => (held ? t("trade.onOrder") : stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
-    return el(
-      "div",
-      { class: "trade buy" },
-      caption(GOODS_COLUMNS.buy, true),
-      stock > 0 && !held ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
-      this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
-      this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? lotTitle("buy", 5, getLotTradePrice(w, playerVehicle(w), shopId, g, 5, "buy")) : null),
-    );
+    const lot = (n: number) => {
+      const price = stock >= n && !held ? getLotTradePrice(w, playerVehicle(w), shopId, g, n, "buy") : null;
+      return reasonButton([lotLabel(t("trade.plus", { n }), price, price === null || w.player.money >= price, hint)], () => this.run((x) => buyGood(x, g, n)), buyReason(n), `${g}:buy${n}`);
+    };
+    return el("div", { class: "trade buy" }, caption(GOODS_COLUMNS.buy), lot(1), lot(5));
   }
 
   private lotReason(w: World, shopId: string, g: string, n: number): Msg | null {
@@ -573,10 +568,9 @@ export class TownScreen {
       el(
         "div",
         { class: "trade sell" },
-        caption(GOODS_COLUMNS.sell, true),
-        priceEl(sell),
-        this.button(t("trade.minus", { n: 1 }), (x) => sellGood(x, g, 1), sellReason, `${g}:sell1`),
-        this.button(t("trade.all"), (x) => sellGood(x, g, spare), sellReason, `${g}:sellAll`, spare ? lotTitle("sell", spare, getLotTradePrice(w, me, shopId, g, spare, "sell")) : null),
+        caption(GOODS_COLUMNS.sell),
+        reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell)], () => this.run((x) => sellGood(x, g, 1)), sellReason, `${g}:sell1`),
+        reasonButton([lotLabel(t("trade.all"), spare ? getLotTradePrice(w, me, shopId, g, spare, "sell") : null)], () => this.run((x) => sellGood(x, g, spare)), sellReason, `${g}:sellAll`),
       ),
       countCell("stock", stock, num(stock, "int"), hints.stock?.title ?? null, hints.stock?.tone ?? ""),
       countCell("held", held, num(held, "int"), owedTitle(held - spare)),
@@ -1019,18 +1013,16 @@ export class TruckTradeScreen {
       el(
         "div",
         { class: "trade buy" },
-        caption(GOODS_COLUMNS.buy, true),
-        priceEl(buy, shortBy(w.player.money, buy) === null),
-        this.button(t("trade.plus", { n: 1 }), (x) => buyTruckGood(x, npc.id, g, 1), buyReason(1), `${g}:buy1`),
-        this.button(t("trade.all"), (x) => buyTruckGood(x, npc.id, g, theirs), buyReason(Math.max(theirs, 1)), `${g}:buyAll`),
+        caption(GOODS_COLUMNS.buy),
+        reasonButton([lotLabel(t("trade.plus", { n: 1 }), theirs ? buy : null, w.player.money >= buy)], () => this.run((x) => buyTruckGood(x, npc.id, g, 1)), buyReason(1), `${g}:buy1`),
+        reasonButton([lotLabel(t("trade.all"), theirs ? truckGoodPrice(w, g, "buy", theirs) : null, w.player.money >= truckGoodPrice(w, g, "buy", Math.max(theirs, 1)))], () => this.run((x) => buyTruckGood(x, npc.id, g, theirs)), buyReason(Math.max(theirs, 1)), `${g}:buyAll`),
       ),
       el(
         "div",
         { class: "trade sell" },
-        caption(GOODS_COLUMNS.sell, true),
-        priceEl(sell),
-        this.button(t("trade.minus", { n: 1 }), (x) => sellTruckGood(x, npc.id, g, 1), sellReason(1), `${g}:sell1`),
-        this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, spare), sellReason(spare), `${g}:sellAll`),
+        caption(GOODS_COLUMNS.sell),
+        reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell)], () => this.run((x) => sellTruckGood(x, npc.id, g, 1)), sellReason(1), `${g}:sell1`),
+        reasonButton([lotLabel(t("trade.all"), spare ? truckGoodPrice(w, g, "sell", spare) : null)], () => this.run((x) => sellTruckGood(x, npc.id, g, spare)), sellReason(spare), `${g}:sellAll`),
       ),
       countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),

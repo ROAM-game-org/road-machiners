@@ -1009,6 +1009,10 @@
 .supply-buy > button {
   min-width: 13ch;
 }
+.good-row .trade:not(.supply-buy) > button {
+  flex: 1 1 0;
+  min-width: max-content;
+}
 .good-name.supply {
   min-width: 0;
 }

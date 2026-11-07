@@ -379,8 +379,6 @@ export const LOG: Translation<typeof EN> = {
   'goods.loss': '−{n}',
   'goods.noCost': 'Цена закупки неизвестна',
   'goods.avgCost': 'Средняя цена {cost}',
-  'goods.buyLot': 'Купить {n} за {total}',
-  'goods.sellLot': 'Продать все {n} за {total}',
   'log.stamped': '{time} {line}',
   'log.title': 'Журнал',
   'log.panel': 'Журнал событий',

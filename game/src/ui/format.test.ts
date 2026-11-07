@@ -14,7 +14,7 @@ import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotabl
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
 import { wearLabel, conditionTier, conditionStatus, showsCondition } from "./cards";
 import type { ClaimContract } from "../sim/salvage";
 import { bakedTier } from "../sim/claim-clue";
@@ -787,10 +787,6 @@ describe("goods table words", () => {
     expect(en(PROFIT_HEAD_TITLE)).not.toMatch(/turn/i);
   });
 
-  it("words lot totals", () => {
-    expect(en(lotTitle("buy", 5, 2))).toBe("Buy 5 for 2 M's total");
-    expect(en(lotTitle("sell", 11, 312))).toBe("Sell all 11 for 312 M's total");
-  });
 });
 
 describe("wake-up log", () => {

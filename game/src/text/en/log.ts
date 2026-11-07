@@ -367,8 +367,6 @@ export const LOG = {
   'goods.loss': m('−{n}', { n: 'int' }),
   'goods.noCost': 'No cost on record',
   'goods.avgCost': m('Avg cost {cost}', { cost: 'text' }),
-  'goods.buyLot': m('Buy {n} for {total} total', { n: 'int', total: 'text' }),
-  'goods.sellLot': m('Sell all {n} for {total} total', { n: 'int', total: 'text' }),
   'log.stamped': m('{time} {line}', { time: 'text', line: 'text' }),
   'log.title': 'Log',
   'log.panel': 'Event log',

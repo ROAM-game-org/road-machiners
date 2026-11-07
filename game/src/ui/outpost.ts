@@ -17,7 +17,7 @@ import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { buyButton, caption, keepFocus, priceEl, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
 const OUTPOST_TABS = ["market", "buyParts", "trucks"] as const satisfies readonly Tab[];
@@ -233,10 +233,9 @@ export class OutpostScreen {
       el(
         "div",
         { class: "trade buy wide" },
-        caption(GOODS_COLUMNS.buy, true),
-        priceEl(price, shortBy(w.player.money, price) === null),
-        this.button(t("trade.plus", { n: 1 }), (x) => outpostBuyGood(x, 1), reason(1), `${REPAIR_GOOD}:buy1`),
-        this.button(t("trade.plus", { n: GOOD_LOT }), (x) => outpostBuyGood(x, GOOD_LOT), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
+        caption(GOODS_COLUMNS.buy),
+        buyButton(w.player.money, t("trade.plus", { n: 1 }), price, () => this.run((x) => outpostBuyGood(x, 1)), reason(1), `${REPAIR_GOOD}:buy1`),
+        buyButton(w.player.money, t("trade.plus", { n: GOOD_LOT }), price * GOOD_LOT, () => this.run((x) => outpostBuyGood(x, GOOD_LOT)), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
       ),
       el("div", { class: "count held" }, caption(GOODS_COLUMNS.held), el("span", { class: held === 0 ? "num dim" : "num" }, num(held, "int"))),
     );

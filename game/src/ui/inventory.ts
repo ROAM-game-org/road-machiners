@@ -8,7 +8,7 @@ import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, getLotTradePrice, partRepairCost, repairPart, sellPrice } from "../sim/economy";
 import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
-import { priceEl, reasonButton } from "./shop-rows";
+import { lotLabel, reasonButton } from "./shop-rows";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import { outpostRepairPart } from "../sim/outposts";
 import {
@@ -120,7 +120,7 @@ import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
-import { commandFailure, lotTitle, parcelTitle } from "./format";
+import { commandFailure, parcelTitle } from "./format";
 
 
 type Drag = {
@@ -663,9 +663,8 @@ export class InventoryView {
     return el(
       "div",
       { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
-      priceEl(sellPrice(w, shopId, good)),
-      reasonButton([t("trade.minus", { n: 1 })], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
-      reasonButton([t("trade.all")], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`, lotTitle("sell", count, allTotal)),
+      reasonButton([lotLabel(t("trade.minus", { n: 1 }), sellPrice(w, shopId, good))], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
+      reasonButton([lotLabel(t("trade.all"), allTotal)], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`),
     );
   }
 

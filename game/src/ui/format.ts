@@ -1187,10 +1187,6 @@ export function estimateTitle(e: SaleEstimate): Msg | undefined {
   }
 }
 
-export function lotTitle(direction: "buy" | "sell", count: number, total: number): Msg {
-  return direction === "buy" ? t('goods.buyLot', { n: count, total: moneyMsg(total) }) : t('goods.sellLot', { n: count, total: moneyMsg(total) });
-}
-
 export function commandFailure(world: World, err: unknown): Msg {
   if (err instanceof Refused) return refusalText(world, err.refusal);
   console.error(err);
