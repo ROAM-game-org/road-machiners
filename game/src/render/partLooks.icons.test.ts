@@ -20,7 +20,7 @@ describe('icon catalog', () => {
 
   it('draws every cab from its icon-only model', () => {
     const models = [...BODY_PARTS].map((id) => catalog.find((e) => e.id === id)?.models);
-    expect(models).toEqual([['cab_seat'], ['cab_pickup'], ['cab_hardtop']]);
+    expect(models).toEqual([['cab_seat'], ['cab_pickup'], ['cab_hardtop'], ['cab_pickup']]);
   });
 
   it('gives no two entries the same render key once ranks count', () => {

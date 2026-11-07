@@ -28,8 +28,8 @@ describe('barrel lanes', () => {
   });
 
   it('refuses a gun behind another gun in its lane, whichever is placed second', () => {
-    const shotgun = part('shotgun', 5, 1, 0);
-    const slug = part('slugCannon', 5, 5, 0);
+    const shotgun = part('shotgun', 1, 1, 0);
+    const slug = part('slugCannon', 1, 5, 0);
     expect(refused([shotgun], slug)).toEqual({ id: 'barrel' });
     expect(refused([slug], shotgun)).toEqual({ id: 'barrel' });
   });
@@ -71,7 +71,7 @@ describe('barrel lanes', () => {
   });
 
   it('reports the clash in a layout', () => {
-    expect(layoutError(hauler, [part('shotgun', 5, 1, 0), part('slugCannon', 5, 5, 0)])).toEqual({ id: 'barrel' });
+    expect(layoutError(hauler, [part('shotgun', 1, 1, 0), part('slugCannon', 1, 5, 0)])).toEqual({ id: 'barrel' });
   });
 
   it('never lists a mount spot that placement refuses, on every chassis', () => {

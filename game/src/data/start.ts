@@ -59,7 +59,7 @@ const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 3, r
 
 const SNOWBALL_GUNS: NonNullable<StartKit['placed']> = [
   { defId: 'mg', x: 1, y: 5, rot: 0 },
-  { defId: 'mg', x: 2, y: 6, rot: 0 },
+  { defId: 'mg', x: 2, y: 3, rot: 0 },
   { defId: 'slugCannon', x: 3, y: 9, rot: 1 },
   { defId: 'shotgun', x: 4, y: 10, rot: 2 },
 ];
