@@ -234,7 +234,11 @@ export class Hud {
   placeSide = (node: HTMLElement | null = this.side): void => {
     this.side = node;
     if (this.side) this.side.style.visibility = "";
-    if (!this.sideShown()) return this.coverUnder(this.infoShown() ? uiSize().layerRect(this.info).bottom : null);
+    if (!this.sideShown()) {
+      this.side?.style.removeProperty("top");
+      this.side?.style.removeProperty("height");
+      return this.coverUnder(this.infoShown() ? uiSize().layerRect(this.info).bottom : null);
+    }
     const side = this.side!;
     side.style.visibility = this.infoShown() ? "hidden" : "";
     const top = uiSize().layerRect(topRight()).bottom + parseFloat(token("--hud-gap"));
