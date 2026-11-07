@@ -12,10 +12,13 @@
 }
 #ui:has(.modal:not([style*="display: none"]))
   > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.confirm-block):not(.toast):not(.instruments):not(.log),
-#ui:has(.modal:not(.inventory-screen):not([style*="display: none"])) > .right-column > .turn-control,
-#ui:has(.inventory-screen.over-scene:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip):not(.dialogue) {
   visibility: hidden;
+}
+/* The hidden commit leaves the stack, so the log drops to the bottom line, clear of the modal. */
+#ui:has(.modal:not(.inventory-screen):not([style*="display: none"])) > .right-column > .turn-control,
+#ui:has(.inventory-screen.over-scene:not([style*="display: none"])) > .right-column > .turn-control {
+  display: none;
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .dialogue {
   position: relative;
@@ -53,6 +56,23 @@
 /* The wide modal reaches under the condition panel, which stands above the instruments. */
 #ui:has(.modal:not([style*="display: none"])) .truck-stack {
   display: none;
+}
+/* The working screen takes the full height down to the bottom edge, so the instruments and the log hide under it. */
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .bottom-left > .instruments,
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .right-column > .log {
+  visibility: hidden;
+}
+/* Its opening tip stays readable in the free margin beside the frame. */
+#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .top-center > .opening-tip {
+  left: var(--hud-inset);
+  width: max(var(--inv-side-min), calc((var(--layer-w) - var(--inv-frame-w, var(--modal-width))) / 2 - var(--hud-inset) * 2));
+  max-width: none;
+  box-sizing: border-box;
+}
+#ui:not(.phone):has(.inv-bench.two) > .top-center > .opening-tip {
+  left: auto;
+  right: var(--hud-inset);
+  width: var(--inv-side-width);
 }
 /* A look screen over a scene dims the scene under it with a scrim, so the scene's words never show through. */
 #ui .modal.over-scene {

@@ -61,7 +61,7 @@ function stubDom(): void {
     body: { insertAdjacentHTML: () => {} },
     querySelector: () => null,
   });
-  vi.stubGlobal("getComputedStyle", () => ({ overflowY: "visible", paddingBottom: "0px" }));
+  vi.stubGlobal("getComputedStyle", () => ({ overflowY: "visible", paddingBottom: "0px", getPropertyValue: () => "" }));
   vi.stubGlobal("window", { addEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1280, innerHeight: 720 });
 }
 
@@ -74,25 +74,32 @@ function screenOver(world: World): { screen: InventoryScreen; applied: World[] }
   return { screen, applied };
 }
 
-function openInventory(world: World): FakeNode {
-  screenOver(world).screen.toggle();
-  return ui.children[ui.children.length - 1] as FakeNode;
-}
-
 describe("the inventory during a scene", () => {
   afterEach(() => {
     ui.children = [];
     vi.unstubAllGlobals();
   });
 
-  it("turns Rotate off with the scene reason", () => {
+  it("turns every action of the card off with the scene reason, printed beside it", () => {
     const world = emptyWorld();
     addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
     world.player.quests.live = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
-    const root = openInventory(world);
-    const rotate = root.all((n) => n.tag === "button" && n.className === "btn-s")[0];
-    expect(rotate.attrs.get("aria-disabled")).toBe("true");
-    expect(rotate.attrs.get("data-reason")).toBe("Not during a scene");
+    const { screen } = screenOver(world);
+    screen.toggle();
+    const view = (screen as unknown as { view: { selectedItem: string; onChange(): void } }).view;
+    const gun = world.vehicles[0].items.find((it) => it.kind === "part" && it.part.defId === "mg");
+    if (!gun) throw new Error("The start truck has no gun");
+    view.selectedItem = gun.id;
+    view.onChange();
+    const root = ui.children[ui.children.length - 1] as FakeNode;
+    const rows = root.all((n) => n.className.split(" ").includes("action-rows"));
+    const buttons = rows.flatMap((r) => r.all((n) => n.tag === "button"));
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button.attrs.get("aria-disabled")).toBe("true");
+      expect(button.attrs.get("data-reason")).toBe("Not during a scene");
+    }
+    expect(rows[0].all((n) => n.className === "cost off").length).toBe(buttons.length);
   });
 
   it("turns every world command of a loot screen off with the reason, and applies nothing on a click", () => {
