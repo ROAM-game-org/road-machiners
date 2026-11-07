@@ -334,14 +334,27 @@ describe('rescueSave', () => {
     const save = currentSave() as unknown as { quests: Record<string, number>; world: SavedWorld & { player: { quests: unknown; notes: unknown } } };
     save.world.mapHash = 'old-map';
     save.world.player.quests = { world: { pipe_fate: 'sold', depot_thief: 'vance' }, local: { pump_pipe: { taken: true } }, session: null };
-    save.world.player.notes = [{ id: 'pipeOffer', turn: 40 }, { id: 'burntConvoy', turn: 41 }, { id: 'retiredNote', turn: 42 }];
+    save.world.player.notes = [{ id: 'pipeOffer', turn: 40 }, { id: 'talkConvoyNotClean', turn: 41 }, { id: 'retiredNote', turn: 42 }];
     save.quests = { ...save.quests, pump_pipe: 0 };
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)!;
 
     expect(rescued.world.player.quests.world).toEqual({ depot_thief: 'vance' });
     expect(rescued.world.player.quests.local).toEqual({});
-    expect(rescued.world.player.notes).toEqual([{ id: 'burntConvoy', turn: rescued.world.turn }]);
+    expect(rescued.world.player.notes).toEqual([{ id: 'talkConvoyNotClean', turn: rescued.world.turn }]);
+  });
+
+  it('carries Ibo\'s old convoy rumor note as the world variable that opens Sefa\'s question', () => {
+    const slots = makeSlots();
+    const save = currentSave() as unknown as { world: SavedWorld & { player: { quests: unknown; notes: unknown } } };
+    save.world.mapHash = 'old-map';
+    save.world.player.quests = { world: {}, local: { nose_ibo: { heard_convoy: true } }, session: null };
+    save.world.player.notes = [{ id: 'burntConvoy', turn: 41 }];
+    slots.put('auto', save);
+    const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)!;
+
+    expect(rescued.world.player.quests.world).toEqual({ convoy_rumor: true });
+    expect(rescued.world.player.notes).toEqual([]);
   });
 
   it('gives nothing for an unparsable or non-object save', () => {
