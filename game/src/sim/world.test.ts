@@ -39,6 +39,10 @@ describe('townStart', () => {
     }
   });
 
+  it('starts a new game with auto fire on', () => {
+    expect(newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false).player.autoFire).toBe(true);
+  });
+
   it('leaves the default start where the new game puts it', () => {
     const world = newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
     expect(playerVehicle(world).pos).toEqual(startPose().pos);

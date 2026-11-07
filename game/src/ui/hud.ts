@@ -688,7 +688,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (isNotable(e)) this.toast(line.text);
+      if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
   }
