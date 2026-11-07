@@ -1,4 +1,4 @@
-import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Object3D, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport } from './report';
@@ -136,6 +136,8 @@ export class DrawCounter {
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
   private readonly byName = new Map<string, DrawCount>();
+  private readonly materials: Record<RenderPass, Set<Material>> = { main: new Set(), shadow: new Set() };
+  private readonly materialKinds: Record<string, number> = {};
   private rendererCalls = 0;
   private original: WebGLRenderer['renderBufferDirect'] | null = null;
   private finished = false;
@@ -173,6 +175,15 @@ export class DrawCounter {
     count.triangles += triangles;
     if (other !== null) this.other[other] = (this.other[other] ?? 0) + draws;
     this.addByName(pass, args[4], draws, triangles);
+    this.addMaterial(pass, args[3], system);
+  }
+
+  private addMaterial(pass: RenderPass, material: Material, system: BenchSystem): void {
+    const seen = this.materials[pass];
+    if (seen.has(material)) return;
+    seen.add(material);
+    const key = `${pass}|${system}|${material.name || material.type}`;
+    this.materialKinds[key] = (this.materialKinds[key] ?? 0) + 1;
   }
 
   private addByName(pass: RenderPass, object: Object3D, draws: number, triangles: number): void {
@@ -204,7 +215,7 @@ export class DrawCounter {
   report(): DrawReport {
     const { total, byPass } = drawTotals(this.bySystem);
     if (total !== this.rendererCalls) throw new Error(`IV7: the bench counted ${total} draws but renderer.info.render.calls says ${this.rendererCalls}`);
-    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest() };
+    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest(), materials: this.materialKinds };
   }
 }
 

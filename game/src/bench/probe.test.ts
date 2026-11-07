@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Group, Mesh, OrthographicCamera, Scene, type Object3D, type WebGLRenderer } from 'three';
+import { Group, Mesh, MeshBasicMaterial, OrthographicCamera, Scene, type Object3D, type WebGLRenderer } from 'three';
 import { attribute, DrawCounter, reachableObjects, systemMap, topLevelOf, uploadBytes, type SystemRoots } from './probe';
 
 const named = (object: Object3D, name: string): Object3D => Object.assign(object, { name });
@@ -86,7 +86,7 @@ describe('DrawCounter', () => {
   }
 
   function drawAll(renderer: WebGLRenderer, camera: unknown, objects: Object3D[]): void {
-    for (const object of objects) renderer.renderBufferDirect(camera as OrthographicCamera, null as never, null as never, null as never, object, null as never);
+    for (const object of objects) renderer.renderBufferDirect(camera as OrthographicCamera, null as never, null as never, new MeshBasicMaterial(), object, null as never);
   }
 
   it('counts draws and triangles by system and by pass', () => {
