@@ -31,7 +31,7 @@ import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import FORMAT_2_84 from './save-fixtures/format-2-84.json';
-import { RELEASE_STEPS, TINY_FROM, TINY_STEPS as STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as STEPS, RELEASE_STEPS, TINY_STEPS as LIVE_STEPS, type SavedJson } from './save-migrations';
 
 const TINY_STEPS: Record<number, (world: SavedJson) => SavedJson> = Object.fromEntries(STEPS.map((named, i) => [TINY_FROM + i, named.step]));
 
@@ -951,7 +951,7 @@ describe('xpByWorkDay', () => {
 
 describe('step names', () => {
   it('are unique camelCase words without digits across tiny steps and release steps', () => {
-    const names = [...STEPS.map((named) => named.name), ...RELEASE_STEPS.flatMap((release) => release.names ?? [])];
+    const names = [...LIVE_STEPS.map((named) => named.name), ...RELEASE_STEPS.flatMap((release) => release.names ?? [])];
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) expect(name, name).toMatch(/^[a-z][A-Za-z]*$/);
   });

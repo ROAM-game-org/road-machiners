@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const step = (world: SavedJson): SavedJson => TINY_STEPS[129 - TINY_FROM].step(structuredClone(world));
 

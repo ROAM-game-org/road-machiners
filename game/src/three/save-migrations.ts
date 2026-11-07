@@ -757,17 +757,17 @@ export type ReleaseStep = { from: number; to: number; step: Step; names: readonl
 
 export type NamedStep = { name: string; step: Step };
 
-export const RELEASE_STEPS: readonly ReleaseStep[] = [
-  { from: 1, to: 6, step: release_1_6, names: null },
-  { from: 6, to: 25, step: release_6_25, names: null },
-  { from: 25, to: 61, step: release_25_61, names: null },
-  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62, names: null },
-  { from: 62, to: 63, step: (world) => world, names: null },
-];
+export const FIRST_TINY = 63;
 
-export const TINY_FROM = 63;
+function chained(steps: readonly NamedStep[]): Step {
+  return (world) => steps.reduce((saved, named) => named.step(saved), world);
+}
 
-export const TINY_STEPS: readonly NamedStep[] = [
+function namesOf(steps: readonly NamedStep[]): readonly string[] {
+  return steps.map((named) => named.name);
+}
+
+export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'withRescueContracts', step: withRescueContracts_63_64 },
   { name: 'withEncounters', step: withEncounters_64_65 },
   { name: 'withProgressAnchor', step: withProgressAnchor_65_66 },
@@ -842,6 +842,21 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withConvoyRumor', step: withConvoyRumor },
   { name: 'withoutXpToday', step: withoutXpToday },
 ];
+
+export const RELEASE_STEPS: readonly ReleaseStep[] = [
+  { from: 1, to: 6, step: release_1_6, names: null },
+  { from: 6, to: 25, step: release_6_25, names: null },
+  { from: 25, to: 61, step: release_25_61, names: null },
+  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62, names: null },
+  { from: 62, to: 63, step: (world) => world, names: null },
+  { from: FIRST_TINY, to: 136, step: chained(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)) },
+  { from: 136, to: 138, step: chained(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)) },
+];
+
+export const TINY_FROM = 138;
+
+export const TINY_STEPS: readonly NamedStep[] = FOLDED_AND_TINY_STEPS.slice(TINY_FROM - FIRST_TINY);
+
 
 function withSpawnQueue_129_130(world: SavedJson): SavedJson {
   return { ...world, spawnQueue: [] };
