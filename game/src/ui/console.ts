@@ -30,11 +30,10 @@ import {
   toggleFullLog,
   toggleGod,
 } from "../sim/cheats";
-import { SKILL_IDS, XP_RULES } from "../data/skills";
+import { SKILL_IDS } from "../data/skills";
 import { playerVehicle } from "../sim/damage";
 import { mountedParts } from "../sim/grid";
 import { partDef } from "../data/parts";
-import { xpTodayOf } from "../sim/progress";
 import { dist } from "../sim/vec";
 import type { World, XpSource } from "../sim/types";
 import { devEl, el, panel } from "./dom";
@@ -219,7 +218,7 @@ export const COMMANDS: readonly Command[] = [
 function skillLines(world: World): string[] {
   const p = world.player;
   const skills = SKILL_IDS.map(
-    (id) => `${id}  rank ${p.ranks[id]}  today ${Math.round(xpTodayOf(world, id))}/${XP_RULES.dailyCap}`,
+    (id) => `${id}  rank ${p.ranks[id]}`,
   );
   const sources = (Object.keys(p.xpBySource) as XpSource[]).map((s) => `${s}  ${Math.round(p.xpBySource[s])} xp`);
   return [`pool  ${Math.floor(p.xp)} xp`, ...skills, ...sources];
