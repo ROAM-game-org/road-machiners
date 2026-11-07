@@ -152,7 +152,7 @@ describe('truck card actions', () => {
   it('draws Look over and Mark as buttons with keycaps off touch', () => {
     const { row } = card(5, true);
     const buttons = row!.withTag('button');
-    expect(buttons.map((b) => b.text())).toEqual(['CallT', 'Look overB', 'MarkN']);
+    expect(buttons.map((b) => b.text())).toEqual(['RadioT', 'Look overB', 'MarkN']);
     expect(row!.all('key')).toHaveLength(3);
     expect(row!.className).toBe('info-actions');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
@@ -160,7 +160,7 @@ describe('truck card actions', () => {
 
   it('shows no Mark button without the spotter perk', () => {
     const { row } = card(5, false);
-    expect(row!.withTag('button').map((b) => b.text())).toEqual(['CallT', 'Look overB']);
+    expect(row!.withTag('button').map((b) => b.text())).toEqual(['RadioT', 'Look overB']);
   });
 
   it('disables a refused button with the sim reason', () => {
@@ -271,7 +271,7 @@ describe('order controls while knocked out', () => {
         const b = find(buttons, label);
         expect(b, label).toBeDefined();
         expect(b!.attrs['aria-disabled'], label).toBe('true');
-        expect(b!.attrs.title, label).toBe('Knocked out');
+        expect(b!.attrs.title, label).toMatch(/^Knocked out/);
       }
     }
   });
@@ -291,6 +291,6 @@ describe('order controls while knocked out', () => {
   it('shows no Knocked out reason on an active player', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const buttons = actionButtons(w, false);
-    expect(buttons.filter((b) => b.attrs.title === 'Knocked out')).toEqual([]);
+    expect(buttons.filter((b) => String(b.attrs.title).startsWith('Knocked out'))).toEqual([]);
   });
 });

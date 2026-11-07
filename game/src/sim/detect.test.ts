@@ -8,7 +8,7 @@ import { addVehicle, editableTerrain, emptyWorld } from './testkit';
 import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, sensesOf, sharpSensesOf, soundRange } from './detect';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
-import { TERRAIN } from '../data/terrain';
+import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { dist } from './vec';
 import { farSightRadius, refreshVision, sightRadius } from './vision';
@@ -42,17 +42,21 @@ describe('soundRange and dustRange', () => {
     expect(crawl).toBeLessThan(soundRange(w, v) / 2);
   });
 
-  it('a road raises less dust than sand', () => {
+  it('scales dust by material: sand the most, then mud, then road, then rock', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
-    editableTerrain(w);
+    const types = editableTerrain(w).types;
     const idx = Math.floor(v.pos.y) * w.terrain.size + Math.floor(v.pos.x);
-    w.terrain.types[idx] = 'road';
-    const onRoad = dustRange(w, v);
-    w.terrain.types[idx] = 'sand';
-    const onSand = dustRange(w, v);
-    expect(onRoad).toBeLessThan(onSand);
+    const rangeOn = (type: TerrainTypeId) => {
+      types[idx] = type;
+      return dustRange(w, v);
+    };
+    expect(rangeOn('sand')).toBeGreaterThan(rangeOn('mud'));
+    expect(rangeOn('mud')).toBeGreaterThan(rangeOn('road'));
+    expect(rangeOn('road')).toBeGreaterThan(rangeOn('scree'));
+    expect(rangeOn('scree')).toBeGreaterThan(0);
+    expect(Math.max(...Object.values(TERRAIN_TYPES).map((t) => t.dust))).toBe(TERRAIN_TYPES.sand.dust);
   });
 
   it('own speed shortens hearing', () => {

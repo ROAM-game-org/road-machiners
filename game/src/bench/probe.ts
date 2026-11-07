@@ -1,4 +1,4 @@
-import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Object3D, type Camera, type Material, type Mesh, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
@@ -127,6 +127,8 @@ export class DrawCounter {
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
   private rendererCalls = 0;
+  private programChecks = 0;
+  private readonly versions = new Map<Material, number>();
   private original: WebGLRenderer['renderBufferDirect'] | null = null;
   private finished = false;
 
@@ -139,13 +141,29 @@ export class DrawCounter {
   start(map: ReadonlyMap<Object3D, BenchSystem>): void {
     const original = this.renderer.renderBufferDirect;
     this.original = original;
+    this.rememberVersions();
     this.renderer.renderBufferDirect = (...args: DirectArgs) => {
       if (this.finished) return original.apply(this.renderer, args);
+      this.checkProgram(args[3]);
       const { render } = this.renderer.info;
       const [calls, triangles] = [render.calls, render.triangles];
       original.apply(this.renderer, args);
       this.add(map, args, render.calls - calls, render.triangles - triangles);
     };
+  }
+
+  private rememberVersions(): void {
+    this.scene.traverse((object) => {
+      const { material } = object as Partial<Mesh>;
+      for (const each of Array.isArray(material) ? material : [material]) if (each) this.versions.set(each, each.version);
+    });
+  }
+
+  private checkProgram(material: Material | null): void {
+    if (!material) return;
+    const seen = this.versions.get(material);
+    if (seen !== undefined && seen !== material.version) this.programChecks += 1;
+    this.versions.set(material, material.version);
   }
 
   stop(): void {
@@ -177,7 +195,7 @@ export class DrawCounter {
   report(): DrawReport {
     const { total, byPass } = drawTotals(this.bySystem);
     if (total !== this.rendererCalls) throw new Error(`IV7: the bench counted ${total} draws but renderer.info.render.calls says ${this.rendererCalls}`);
-    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other };
+    return { total, rendererCalls: this.rendererCalls, programChecks: this.programChecks, byPass, bySystem: this.bySystem, other: this.other };
   }
 }
 

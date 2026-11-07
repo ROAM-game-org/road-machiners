@@ -137,7 +137,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       health: startHealth(kit),
       fuel: kit.fuel,
       supplies: kit.supplies,
-      autoFire: false,
+      autoFire: true,
       autoRepair: kit.autoRepair,
       townPatched: false,
       engineHeat: 0,

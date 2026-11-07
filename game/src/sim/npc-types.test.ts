@@ -18,7 +18,8 @@ import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain, spotWith
 import { TEST_MAP } from '../test/map';
 import { roadNetworkOf } from './road-network';
 import type { NpcActivity, Vehicle, World } from './types';
-import { dist, polylineDist, type Vec } from './vec';
+import { fortressOutline } from './fortress';
+import { dist, pointInPolygon, polylineDist, type Vec } from './vec';
 import { cloneWorld } from './world';
 import { emptyHidden } from './salvage';
 import { budget } from '../test/budget';
@@ -57,7 +58,7 @@ describe('patrols', () => {
     for (const goal of goals) {
       const nearestGate = Math.min(...siteGates(bowl).map((gate) => dist(gate, goal.destination!)));
       expect(nearestGate).toBeLessThanOrEqual(NPC_BEHAVIOR.patrolRadius);
-      expect(dist(goal.destination!, bowl.pos)).toBeGreaterThan(bowl.radius);
+      expect(pointInPolygon(goal.destination!, fortressOutline(bowl))).toBe(false);
     }
     expect(new Set(goals.map((g) => `${g.destination!.x},${g.destination!.y}`)).size).toBeGreaterThan(3);
   });

@@ -1086,13 +1086,17 @@ function opensFireOn(goals: NpcActivity[], target: Vehicle): boolean {
   return top?.kind === 'fight' && top.targetId === target.id;
 }
 
+function autoFireAllows(world: World, v: Vehicle, target: Vehicle): boolean {
+  return v.id !== world.player.vehicleId || inCombatWith(world, v, target);
+}
+
 export function autoOrders(world: World, v: Vehicle): void {
   v.weaponOrders = {};
   const seen = (x: Vehicle) => canVehicleSee(world, v, x.pos);
   const prey = preyOf(world, v);
   const rank = (x: Vehicle) => (x.id === prey ? 0 : 1);
   const hostiles = world.vehicles
-    .filter((x) => x.id !== v.id && seen(x) && isHostile(world, v, x) && canNpcEngage(world, v, x))
+    .filter((x) => x.id !== v.id && seen(x) && isHostile(world, v, x) && canNpcEngage(world, v, x) && autoFireAllows(world, v, x))
     .sort((a, b) => rank(a) - rank(b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
   if (hostiles.length === 0) return;
   for (const mw of vehicleStats(world, v).weapons) {
