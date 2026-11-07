@@ -154,7 +154,7 @@
 .meter.notched > i {
   flex: 1;
   height: 100%;
-  background: var(--surface-sunk);
+  background: var(--line-soft);
 }
 .meter.notched > i.on {
   background: var(--accent);
