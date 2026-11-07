@@ -3,9 +3,9 @@ export type PassStats = { real: FrameStats; tickCpu: FrameStats; renderCpu: Fram
 export type RenderPass = 'main' | 'shadow';
 export type BenchSystem = 'terrain' | 'props' | 'vehicles' | 'lights' | 'effects' | 'overlays' | 'other';
 export type DrawCount = { draws: number; triangles: number };
-export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number };
+export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number; newPrograms: number; over100WithNewPrograms: number };
 export type SceneReport = {
-  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'drive';
+  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'fight-night' | 'drive';
   passes: PassStats[];
   frame: PassStats;
   spread: number;
@@ -40,7 +40,8 @@ export type FrameRecord = {
   gpu: number | null;
   uploadBytes: number;
   chunkBuilds: number;
-  calls: number;
+  newPrograms: number;
+calls: number;
   timers: Record<string, number>;
 };
 
@@ -143,7 +144,7 @@ function addTimers(into: Record<string, number>, timers: Record<string, number>)
 }
 
 export function slowFrameSums(frames: readonly FrameRecord[]): SlowFrames {
-  const sums: SlowFrames = { count: 0, renderMs: 0, tickRestMs: 0, timers: {}, uploadBytes: 0, chunkBuilds: 0, over100WithChunkBuild: 0 };
+  const sums: SlowFrames = { count: 0, renderMs: 0, tickRestMs: 0, timers: {}, uploadBytes: 0, chunkBuilds: 0, over100WithChunkBuild: 0, newPrograms: 0, over100WithNewPrograms: 0 };
   for (const f of frames.filter((x) => x.real > SLOW_FRAME_MS)) {
     sums.count++;
     sums.renderMs += f.render;
@@ -151,6 +152,8 @@ export function slowFrameSums(frames: readonly FrameRecord[]): SlowFrames {
     sums.uploadBytes += f.uploadBytes;
     sums.chunkBuilds += f.chunkBuilds;
     if (f.real > HITCH_MS && f.chunkBuilds > 0) sums.over100WithChunkBuild++;
+    sums.newPrograms += f.newPrograms;
+    if (f.real > HITCH_MS && f.newPrograms > 0) sums.over100WithNewPrograms++;
     addTimers(sums.timers, f.timers);
   }
   return sums;

@@ -246,10 +246,11 @@ async function startTurn(ctx: Ctx, log: TurnLog, scene: Spec['id'], trigger: () 
     throw new Error(`${error.message} (turn ${turn}, busy ${game.busy}, player ${player.state}, call ${JSON.stringify(player.call)}, quest ${player.quests.live?.quest ?? null}, order ${order}, travel ${travel}, ${asks}, death screen ${dead})`, { cause: error });
   });
   if (!log.recording) return;
+  log.passShots[log.passShots.length - 1] += shotsIn(game.state);
+  if (scene === 'fight-night') return;
   log.spans.push({ scene, start, end: started });
   log.waits.push(started - start);
   log.starts.push({ scene: scene === 'fight' ? 'fight' : 'drive', ms: started - start, ready });
-  log.passShots[log.passShots.length - 1] += shotsIn(game.state);
   log.workers.push(workerTurnMs());
 }
 
@@ -269,10 +270,10 @@ async function beforeFightPress(ctx: Ctx, turn: number): Promise<void> {
   ctx.game.apply({ ...ctx.game.state });
 }
 
-async function playFightTurns(ctx: Ctx, log: TurnLog): Promise<void> {
+async function playFightTurns(ctx: Ctx, log: TurnLog, scene: 'fight' | 'fight-night'): Promise<void> {
   for (let i = 0; i < FIGHT_TURNS; i++) {
     await beforeFightPress(ctx, i);
-    await startTurn(ctx, log, 'fight', () => ctx.game.endTurn());
+    await startTurn(ctx, log, scene, () => ctx.game.endTurn());
     await finishPlayback(ctx);
   }
 }
@@ -310,7 +311,7 @@ async function countDuringTurns(ctx: Ctx, run: () => Promise<void>): Promise<Dra
   return draws;
 }
 
-type TurnScene = { id: Spec['id']; warm: boolean; start: (pass: number) => World; run: () => Promise<void>; check: Spec['check'] };
+type TurnScene = { id: Spec['id']; warm: boolean; night?: boolean; start: (pass: number) => World; run: () => Promise<void>; check: Spec['check'] };
 
 function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
   const { game, probe } = ctx;
@@ -318,7 +319,7 @@ function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
     await place(ctx, scene.start(pass));
     game.rig.setZoom(DEFAULT_ZOOM);
     game.follow.recenter();
-    await settle(ctx, false);
+    await settle(ctx, scene.night ?? false);
   };
   const play = async (): Promise<FrameRecord[]> => {
     let finished = false;
@@ -333,17 +334,17 @@ function turnSpec(ctx: Ctx, scene: TurnScene): Spec {
     await setup();
     return countDuringTurns(ctx, scene.run);
   };
-  return { id: scene.id, night: false, warm: scene.warm, turns: true, setup, play, count, check: scene.check };
+  return { id: scene.id, night: scene.night ?? false, warm: scene.warm, turns: true, setup, play, count, check: scene.check };
 }
 
-function outsideBase(base: World, town: Town, side = 1): World {
+function outsideBase(base: World, town: Town, side = 1, hour = DAY_HOUR): World {
   const clamp = (v: number) => Math.max(1, Math.min(base.size - 1, v));
   const outside = { x: clamp(town.def.pos.x + side * (town.def.radius + OUTSIDE_TILES)), y: clamp(town.def.pos.y) };
-  return teleport(skipToHour(base, DAY_HOUR), outside);
+  return teleport(skipToHour(base, hour), outside);
 }
 
-function fightStart(base: World, town: Town): World {
-  const moved = toggleGod(outsideBase(base, town));
+function fightStart(base: World, town: Town, hour = DAY_HOUR): World {
+  const moved = toggleGod(outsideBase(base, town, 1, hour));
   return FIGHT_TEMPLATES.reduce((world, template) => spawnNear(world, template, true), moved);
 }
 
@@ -571,10 +572,13 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
   const still = { zoom: NEAR_ZOOM, pan: 0 };
   const stillFar = { zoom: FAR_ZOOM, pan: 0 };
   const fightWorld = fightStart(base, town);
-  const fight: TurnScene = { id: 'fight', warm: true, start: () => fightWorld, run: () => playFightTurns(ctx, log), check: fightCheck(log) };
+  const fight: TurnScene = { id: 'fight', warm: true, start: () => fightWorld, run: () => playFightTurns(ctx, log, 'fight'), check: fightCheck(log) };
+  const nightFightWorld = fightStart(base, town, NIGHT_HOUR);
+  const fightNight: TurnScene = { id: 'fight-night', warm: false, night: true, start: () => nightFightWorld, run: () => playFightTurns(ctx, log, 'fight-night'), check: fightCheck(log) };
   const driveWorld = (pass: number) => driveStart(outsideBase(base, town, driveSide(pass)), driveSide(pass));
   const drive: TurnScene = { id: 'drive', warm: false, start: driveWorld, run: () => playDrive(ctx, log), check: driveCheck };
   return [
+    turnSpec(ctx, fightNight),
     townSpec(ctx, base, town, 'town-day', DAY_HOUR, near),
     townSpec(ctx, base, town, 'town-day-far', DAY_HOUR, far),
     townSpec(ctx, base, town, 'town-night', NIGHT_HOUR, still),

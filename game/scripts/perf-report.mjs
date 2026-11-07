@@ -76,9 +76,11 @@ function loadProblems(run) {
   return problems;
 }
 
+const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'fight-night']);
+
 function spreadProblems(scenes) {
   return scenes
-    .filter((scene) => scene.id !== 'drive' && (!isMeasure(scene.spread) || scene.spread > SPREAD_MAX))
+    .filter((scene) => !PASSES_DIFFER_ON_PURPOSE.has(scene.id) && (!isMeasure(scene.spread) || scene.spread > SPREAD_MAX))
     .map((scene) => `${scene.id} passes disagree by ${isMeasure(scene.spread) ? fmt(scene.spread * 100, 1) : 'n/a'} percent, over ${SPREAD_MAX * 100}`);
 }
 
@@ -356,8 +358,8 @@ const rangeOf = (values) => Math.max(...values) - Math.min(...values);
 const medianValue = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
 function sceneMeasures(scene) {
-  if (scene.id === 'drive') {
-    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `drive pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
+  if (PASSES_DIFFER_ON_PURPOSE.has(scene.id)) {
+    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `${scene.id} pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
   }
   return GATE_STATS.map((stat) => ({ key: `${scene.id} ${stat}`, value: scene.frame.real[stat], within: rangeOf(scene.passes.map((pass) => pass.real[stat])), watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT }));
 }

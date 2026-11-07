@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { boundOf, driveTurnGaps, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
 
-const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, calls: 0, timers: {}, ...extra });
+const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, newPrograms: 0, calls: 0, timers: {}, ...extra });
 
 describe('turnStats', () => {
   const log = { waits: [40, 60], workers: [30], previews: [], starts: [], steps: {} };
@@ -123,7 +123,7 @@ describe('slowFrameSums', () => {
     const frames = [
       frame(16, { uploadBytes: 999, chunkBuilds: 9, timers: { turn: 5 } }),
       frame(40, { render: 10, tick: 30, uploadBytes: 100, chunkBuilds: 1, timers: { route: 4 } }),
-      frame(120, { render: 20, tick: 25, uploadBytes: 50, chunkBuilds: 2, timers: { route: 6, fog: 1 } }),
+      frame(120, { render: 20, tick: 25, uploadBytes: 50, chunkBuilds: 2, newPrograms: 4, timers: { route: 6, fog: 1 } }),
       frame(150, { render: 5, tick: 6 }),
     ];
     expect(slowFrameSums(frames)).toEqual({
@@ -134,6 +134,8 @@ describe('slowFrameSums', () => {
       uploadBytes: 150,
       chunkBuilds: 3,
       over100WithChunkBuild: 1,
+      newPrograms: 4,
+      over100WithNewPrograms: 1,
     });
   });
 

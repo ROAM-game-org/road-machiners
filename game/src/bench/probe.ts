@@ -348,6 +348,7 @@ export class Probe {
   private builds = 0;
   private uploadMark = 0;
   private buildMark = 0;
+  private readonly seenPrograms = new WeakSet<object>();
   private perfMark: Record<string, PerfStat> = {};
 
   constructor(private readonly game: Game) {
@@ -359,6 +360,7 @@ export class Probe {
     this.perfMark = perfSnapshot();
     this.uploadMark = UPLOADS.bytes;
     this.buildMark = this.builds;
+    this.unseenPrograms();
     this.loop.install();
     this.wrapRender();
     this.wrapStreamer();
@@ -447,6 +449,7 @@ export class Probe {
       gpu: null,
       uploadBytes: UPLOADS.bytes - this.uploadMark,
       chunkBuilds: this.builds - this.buildMark,
+      newPrograms: this.unseenPrograms(),
       calls: this.calls,
       timers: this.timerDelta(),
     };
@@ -472,6 +475,13 @@ export class Probe {
     this.queries = [];
     this.uploadMark = UPLOADS.bytes;
     this.buildMark = this.builds;
+  }
+
+  private unseenPrograms(): number {
+    const programs = this.renderer.info.programs ?? [];
+    const unseen = programs.filter((program) => !this.seenPrograms.has(program));
+    for (const program of unseen) this.seenPrograms.add(program);
+    return unseen.length;
   }
 
   private timerDelta(): Record<string, number> {
