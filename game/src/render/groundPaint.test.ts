@@ -9,7 +9,7 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { desertWeight, glassField, lookTypes, paintGroundCanvas, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { adoptGroundBake, desertWeight, glassField, glassOf, lookTypes, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -327,5 +327,39 @@ describe('yardLook', () => {
     const far = t.types.findIndex((type, i) => type === 'hardpan' && REGION.towns.every((s) => Math.hypot((i % t.size) - s.pos.x, Math.floor(i / t.size) - s.pos.y) > 120));
     expect(far).toBeGreaterThanOrEqual(0);
     expect(fade[far]).toBe(0);
+  });
+});
+
+
+const terrain = (): Terrain => ({ size: 2, heights: new Array(9).fill(0), types: ["glass", "sand", "sand", "sand"], atlas: { kind: "none" } } as unknown as Terrain);
+
+describe("ground bake", () => {
+  it("serves the baked glass and look in place of working them out", () => {
+    const t = terrain();
+    const glass = new Uint8Array([9, 9, 9, 9]);
+    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look: ["mud", "mud", "mud", "mud"] });
+    expect(glassOf(t)).toBe(glass);
+    expect(lookTypes(t)).toEqual(["mud", "mud", "mud", "mud"]);
+  });
+
+  it("hands the baked pixels over once, since the canvas then owns them", () => {
+    const t = terrain();
+    const pixels = new Uint8ClampedArray(4);
+    adoptGroundBake(t, { pixels, glass: new Uint8Array(4), look: [] });
+    expect(takeBakedPixels(t)).toBe(pixels);
+    expect(takeBakedPixels(t)).toBeNull();
+  });
+
+  it("works out the glass when nothing was baked", () => {
+    const t = terrain();
+    expect(takeBakedPixels(t)).toBeNull();
+    expect(glassOf(t)).toEqual(glassField(t));
+  });
+
+  it("places map tiles on the canvas with the terrain margin", () => {
+    const c = paintCanvasOn({} as CanvasRenderingContext2D, 100, 80);
+    expect(c.res).toBe(1);
+    expect(c.toPx(-TERRAIN_MARGIN)).toBe(0);
+    expect(c.toPx(80 + TERRAIN_MARGIN)).toBe(100);
   });
 });

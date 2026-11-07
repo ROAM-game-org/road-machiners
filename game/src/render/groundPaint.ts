@@ -447,6 +447,41 @@ function polygon(c: PaintCanvas, points: readonly Vec[], style: string): void {
 const GLASS_BLUR = 0.75;
 const GLASS_REACH = Math.ceil(GLASS_BLUR * 3);
 
+export const GROUND_HILLSHADE = 0.35;
+
+export type GroundBake = { pixels: Uint8ClampedArray; glass: Uint8Array; look: readonly LookType[] };
+export type GroundBakeRequest = { terrain: Terrain; side: number };
+
+export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSize: number): PaintCanvas {
+  const from = -TERRAIN_MARGIN;
+  const res = side / (mapSize + 2 * TERRAIN_MARGIN);
+  return { ctx, size: side, res, from, toPx: (tile) => (tile - from) * res };
+}
+
+export function bakeGround(t: Terrain, ctx: CanvasRenderingContext2D, side: number): GroundBake {
+  paintGroundCanvas(paintCanvasOn(ctx, side, t.size), t, { hillshade: GROUND_HILLSHADE });
+  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: lookTypes(t) };
+}
+
+const glassBakes = new WeakMap<Terrain, Uint8Array>();
+const pixelBakes = new WeakMap<Terrain, Uint8ClampedArray>();
+
+export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
+  lookCache.set(t, bake.look);
+  glassBakes.set(t, bake.glass);
+  pixelBakes.set(t, bake.pixels);
+}
+
+export function takeBakedPixels(t: Terrain): Uint8ClampedArray | null {
+  const pixels = pixelBakes.get(t) ?? null;
+  pixelBakes.delete(t);
+  return pixels;
+}
+
+export function glassOf(t: Terrain): Uint8Array {
+  return glassBakes.get(t) ?? glassField(t);
+}
+
 export function glassField(t: Terrain): Uint8Array {
   const size = t.size;
   const kernel = gaussian();
