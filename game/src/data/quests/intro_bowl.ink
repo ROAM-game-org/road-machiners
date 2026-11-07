@@ -15,7 +15,7 @@ VAR asked_tips = false
 # checkpoint: start
 Somewhere close, a bucket is coming up out of a cistern on a creaking rope. You lie still and listen to it for a while, because it is the best sound in the world. # place: Bowl # img: town_bowl
 You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
-You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key. # page
+You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key.
 The bed is empty. {engine_missing(): Somebody went through the engine and left the bolts where they fell.|Somebody went through the cab and the toolbox, but the engine is still bolted in.} Well. At least they left you the truck.
 A broad woman with wet hands and rolled sleeves sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
 Slow sips, driver. You've been on that chain all morning. # speaker: Hattie
@@ -23,7 +23,7 @@ The tow man left you on my bench at first light. He took your truck for a wreck 
 She nods at the chain on your bumper.
 He left his chain on your bumper, though. He'll be back for it, if not for you. # speaker: Hattie
 {engine_missing(): The yard by the gate sells parts for that engine. I'll put the grain on your slate.|The yard by the gate buys what you carry. I'll put the grain on your slate.} # speaker: Hattie
-The water is cold and tastes of stone, and you drink it slow, because she's watching. A bowl of hot grain comes after it. # page
+The water is cold and tastes of stone, and you drink it slow, because she's watching. A bowl of hot grain comes after it.
 Hattie wipes her hands on her apron and waits. # page
 -> ask
 
@@ -94,7 +94,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 # checkpoint: meet
 You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up out of a cistern on a creaking rope. # place: Bowl # img: town_bowl
 Past the cistern house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
-A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way.
 I'm Hattie, this is my cistern. I heard your truck before I saw it. # speaker: Hattie
 She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
 Drinking water's in this can. Radiator water's in that one. Mind which goes in your mouth. # speaker: Hattie
@@ -103,12 +103,12 @@ Drinking water's in this can. Radiator water's in that one. Mind which goes in y
 === again ===
 # checkpoint: again
 Somewhere close, a bucket is coming up out of a cistern on a creaking rope. You know that sound now. # place: Bowl # img: town_bowl
-You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
+You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it.
 The bed is empty. {engine_missing(): Somebody went through the engine and left the bolts where they fell.|Somebody went through the cab and the toolbox, but the engine is still bolted in.}
 Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
 Back on my bench again. You're still letting someone else do the driving. # speaker: Hattie
 She nods at the chain on your bumper.
 Another tow man, another chain. He'll be back for this one too. # speaker: Hattie
 {engine_missing(): The yard by the gate sells engine parts. The grain goes on your slate.|The yard by the gate buys what you carry. The grain goes on your slate.} # speaker: Hattie
-The water is cold and tastes of stone. A bowl of hot grain comes after it. # page
+The water is cold and tastes of stone. A bowl of hot grain comes after it.
 -> start.ask
