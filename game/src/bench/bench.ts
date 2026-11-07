@@ -564,8 +564,15 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const draws = await spec.count();
   const state = gameState(ctx.game);
   const before = bufferVersions(ctx.game);
-  await ctx.probe.record((n) => n >= 10, () => true, RECORD_MS, 'ten frames to watch changed buffers');
+  const stepsBefore = perfSnapshot();
+  const calls: number[] = [];
+  await ctx.probe.record((n) => {
+    calls.push(ctx.game.renderer.info.render.calls);
+    return n >= 10;
+  }, () => true, RECORD_MS, 'ten frames to watch changed buffers');
   state.changedBuffers = changedBuffersSince(ctx.game, before);
+  state.renderCalls = calls;
+  state.steps = Object.fromEntries(Object.entries(perfSnapshot()).map(([name, after]) => [name, after.total - (stepsBefore[name]?.total ?? 0)]).filter(([, ms]) => (ms as number) > 0));
   const check = spec.check({ draws, frames: pooled, passes, shadowDraws: ctx.probe.shadowDraws });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
