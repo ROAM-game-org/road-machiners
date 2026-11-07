@@ -11,12 +11,18 @@ export type SupportFault = { name: string; share: number; air: number; at: THREE
 const DOWN = new THREE.Vector3(0, -1, 0);
 const EDGE = 1e-6;
 const CORNER_SIDE = 2 * CLIP_TOLERANCE;
+const HEAVY_TRIANGLES = 1000;
+const COLUMNS_ACROSS = 48;
+const MAX_CACHED_SOLIDS = 400;
+const COLUMNS = new Map<string, Columns>();
 
 export function supportFaults(pieces: Piece[], ground: THREE.Object3D[]): SupportFault[] {
   const faults: SupportFault[] = [];
-  for (const piece of pieces) {
-    const others = solids([...ground, ...pieces.filter((p) => p !== piece).map((p) => p.obj)]);
-    const own = solids([piece.obj]);
+  const groundSolids = solids(ground);
+  const pieceSolids = pieces.map((piece) => solids([piece.obj]));
+  for (const [at, piece] of pieces.entries()) {
+    const others = [...groundSolids, ...pieceSolids.filter((_, i) => i !== at).flat()];
+    const own = pieceSolids[at];
     const under = (piece.stand === 'underside' || piece.stand === 'corners' ? bottomSamples(piece.obj) : bottomPoints(piece.obj)).filter((p) => new THREE.Raycaster(p.clone().setY(p.y - CLIP_TOLERANCE / 2), DOWN).intersectObjects(own, false).length === 0);
     if (under.length === 0) throw new Error(`Piece ${piece.name} has no mesh`);
     const groups = { underside: under.map((p) => [p]), corners: cornersOf(under), tip: [[centerOf(under)]], brace: [[centerOf(under)]] }[piece.stand];
@@ -30,8 +36,74 @@ export function supportFaults(pieces: Piece[], ground: THREE.Object3D[]): Suppor
 }
 
 function gapUnder(p: THREE.Vector3, solids: THREE.Mesh[], down: THREE.Vector3): number {
-  const hit = new THREE.Raycaster(p.clone().addScaledVector(down, -CLIP_TOLERANCE), down).intersectObjects(solids, false)[0];
-  return hit ? hit.distance - CLIP_TOLERANCE : Infinity;
+  const origin = p.clone().addScaledVector(down, -CLIP_TOLERANCE);
+  const distance = Math.min(...solids.map((mesh) => hitDistance(mesh, origin, down)));
+  return Number.isFinite(distance) ? distance - CLIP_TOLERANCE : Infinity;
+}
+
+function hitDistance(mesh: THREE.Mesh, origin: THREE.Vector3, down: THREE.Vector3): number {
+  const key = mesh.userData.key as string | undefined;
+  if (key === undefined || !down.equals(DOWN)) return new THREE.Raycaster(origin, down).intersectObject(mesh, false)[0]?.distance ?? Infinity;
+  return columnsOf(key, mesh).distanceDown(origin);
+}
+
+class Columns {
+  private readonly cells = new Map<number, THREE.Vector3[][]>();
+  private readonly min: THREE.Vector2;
+  private readonly size: number;
+  private readonly across: number;
+
+  constructor(triangles: THREE.Vector3[][]) {
+    const box = new THREE.Box3().setFromPoints(triangles.flat());
+    this.min = new THREE.Vector2(box.min.x, box.min.z);
+    this.size = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / COLUMNS_ACROSS || 1;
+    this.across = COLUMNS_ACROSS + 2;
+    for (const tri of triangles) {
+      const xs = tri.map((v) => this.column(v.x - this.min.x));
+      const zs = tri.map((v) => this.column(v.z - this.min.y));
+      for (let x = Math.min(...xs); x <= Math.max(...xs); x++) {
+        for (let z = Math.min(...zs); z <= Math.max(...zs); z++) {
+          const at = x * this.across + z;
+          this.cells.set(at, [...(this.cells.get(at) ?? []), tri]);
+        }
+      }
+    }
+  }
+
+  distanceDown(origin: THREE.Vector3): number {
+    const x = this.column(origin.x - this.min.x);
+    const z = this.column(origin.z - this.min.y);
+    const ray = new THREE.Ray(origin, DOWN);
+    const hit = new THREE.Vector3();
+    let best = Infinity;
+    for (const [a, b, c] of this.cells.get(x * this.across + z) ?? []) {
+      if (ray.intersectTriangle(a, b, c, false, hit) !== null) best = Math.min(best, origin.distanceTo(hit));
+    }
+    return best;
+  }
+
+  private column(offset: number): number {
+    return Math.floor(offset / this.size) + 1;
+  }
+}
+
+function columnsOf(key: string, mesh: THREE.Mesh): Columns {
+  const known = COLUMNS.get(key);
+  if (known) return known;
+  if (COLUMNS.size >= MAX_CACHED_SOLIDS) COLUMNS.clear();
+  const fresh = new Columns(worldTriangles(mesh));
+  COLUMNS.set(key, fresh);
+  return fresh;
+}
+
+function worldTriangles(mesh: THREE.Mesh): THREE.Vector3[][] {
+  const pos = mesh.geometry.getAttribute('position');
+  const index = mesh.geometry.getIndex();
+  const at = (i: number) => new THREE.Vector3().fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(mesh.matrixWorld);
+  const count = index ? index.count : pos.count;
+  const tris: THREE.Vector3[][] = [];
+  for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2)]);
+  return tris;
 }
 
 function solids(objs: THREE.Object3D[]): THREE.Mesh[] {
@@ -44,6 +116,8 @@ function solids(objs: THREE.Object3D[]): THREE.Mesh[] {
       const mesh = new THREE.Mesh(o.geometry, both);
       mesh.matrixAutoUpdate = false;
       mesh.matrixWorld.copy(o.matrixWorld);
+      const triangles = (o.geometry.getIndex()?.count ?? o.geometry.getAttribute('position').count) / 3;
+      if (triangles >= HEAVY_TRIANGLES) mesh.userData = { key: `${o.geometry.uuid}:${o.matrixWorld.elements.join(',')}` };
       out.push(mesh);
     });
   }
