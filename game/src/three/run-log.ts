@@ -46,7 +46,9 @@ export class RunLog {
 
   private write(entries: StreamLine[]): void {
     if (entries.length === 0) return;
-    const done = Promise.resolve().then(() => this.logs.appendLog(this.runId, entries)).catch((err) => {
+    const at = Date.now();
+    const stamped = entries.map((entry) => ({ ...entry, at }));
+    const done = Promise.resolve().then(() => this.logs.appendLog(this.runId, stamped)).catch((err) => {
       this.lost = true;
       if (!(err instanceof DatabaseLost)) this.onError(err);
     }).finally(() => this.pending.delete(done));

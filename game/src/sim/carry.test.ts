@@ -74,8 +74,10 @@ describe('carriedWorld', () => {
 
   it('sends a part with an invalid spot to the garage', () => {
     const items = kitItems().map((it) => (it.kind === 'part' && it.part.defId === 'mg' ? { ...it, x: 99, y: 99 } : it));
+    const baseline = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items: kitItems() } }), KIT, () => TEST_MAP, fresh);
     const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items } }), KIT, () => TEST_MAP, fresh);
-    expect(world.player.storage.map((p) => p.defId)).toEqual(['mg']);
+    const stored = (w: typeof world) => w.player.storage.map((p) => p.defId).sort();
+    expect(stored(world)).toEqual([...stored(baseline), 'mg'].sort());
     expect(defIds(playerVehicle(world).items)).not.toContain('mg');
   });
 
