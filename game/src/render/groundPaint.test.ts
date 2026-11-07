@@ -9,7 +9,7 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { adoptGroundBake, desertWeight, glassField, glassOf, lookTypes, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { adoptGroundBake, packedLook, desertWeight, glassField, glassOf, lookTypes, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -337,7 +337,7 @@ describe("ground bake", () => {
   it("serves the baked glass and look in place of working them out", () => {
     const t = terrain();
     const glass = new Uint8Array([9, 9, 9, 9]);
-    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look: ["mud", "mud", "mud", "mud"] });
+    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look: packedLook(["mud", "mud", "mud", "mud"]) });
     expect(glassOf(t)).toBe(glass);
     expect(lookTypes(t)).toEqual(["mud", "mud", "mud", "mud"]);
   });
@@ -345,7 +345,7 @@ describe("ground bake", () => {
   it("hands the baked pixels over once, since the canvas then owns them", () => {
     const t = terrain();
     const pixels = new Uint8ClampedArray(4);
-    adoptGroundBake(t, { pixels, glass: new Uint8Array(4), look: [] });
+    adoptGroundBake(t, { pixels, glass: new Uint8Array(4), look: new Uint8Array(0) });
     expect(takeBakedPixels(t)).toBe(pixels);
     expect(takeBakedPixels(t)).toBeNull();
   });

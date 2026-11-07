@@ -449,7 +449,18 @@ const GLASS_REACH = Math.ceil(GLASS_BLUR * 3);
 
 export const GROUND_HILLSHADE = 0.35;
 
-export type GroundBake = { pixels: Uint8ClampedArray; glass: Uint8Array; look: readonly LookType[] };
+export type GroundBake = { pixels: Uint8ClampedArray; glass: Uint8Array; look: Uint8Array };
+
+const LOOK_NAMES = Object.keys(DESERT_WEIGHT) as LookType[];
+
+export function packedLook(look: readonly LookType[]): Uint8Array {
+  const index = new Map(LOOK_NAMES.map((name, i) => [name, i]));
+  return Uint8Array.from(look, (name) => {
+    const at = index.get(name);
+    if (at === undefined) throw new Error(`Look type ${name} has no pack index`);
+    return at;
+  });
+}
 export type GroundBakeRequest = { terrain: Terrain; side: number };
 
 export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSize: number): PaintCanvas {
@@ -460,14 +471,14 @@ export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSi
 
 export function bakeGround(t: Terrain, ctx: CanvasRenderingContext2D, side: number): GroundBake {
   paintGroundCanvas(paintCanvasOn(ctx, side, t.size), t, { hillshade: GROUND_HILLSHADE });
-  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: lookTypes(t) };
+  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: packedLook(lookTypes(t)) };
 }
 
 const glassBakes = new WeakMap<Terrain, Uint8Array>();
 const pixelBakes = new WeakMap<Terrain, Uint8ClampedArray>();
 
 export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
-  lookCache.set(t, bake.look);
+  lookCache.set(t, Array.from(bake.look, (at) => LOOK_NAMES[at]));
   glassBakes.set(t, bake.glass);
   pixelBakes.set(t, bake.pixels);
 }
