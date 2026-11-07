@@ -21,6 +21,7 @@ const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', line
 const texts = (w: World): string[] => [...currentOptions(w).map((o) => en(o.line)), ...asksOf(w)];
 const PAY = "Here are your M's. Now back off.";
 const DROP = 'Fine. Take it.';
+const CARRIED_CASH = 400;
 const REFUSE = 'Come and get it.';
 
 function pick(w: World, text: string): World {
@@ -29,6 +30,7 @@ function pick(w: World, text: string): World {
 
 function ambush(cargo: boolean, fullRobber = false): { w: World; raider: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
+  w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
   else bare(w);
@@ -136,6 +138,7 @@ describe('a cash-only demand', () => {
 describe('a robber truce with a price', () => {
   function holdup(cargo: boolean): { w: World; robber: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
+    w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
     else bare(w);
@@ -181,6 +184,7 @@ describe('a robber truce with a price', () => {
 describe('mercy with a price', () => {
   function atWar(cargo: boolean): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
+    w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
     else bare(w);
