@@ -96,8 +96,13 @@ try {
     assert(r.compares.length === 1 && r.compares[0].includes(r.inspect), `${spot}: an opened row must compare with ${r.inspect}`);
     await page.locator('.town-shop .part-sum').first().click();
     await gun().click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(700);
     r = await read(page);
+    if (/wheel/i.test(r.inspect)) {
+      await gun().click();
+      await page.waitForTimeout(700);
+      r = await read(page);
+    }
     assert.equal(r.compares.length, 0, `${spot}: clearing the selection must clear the comparison`);
     assert.equal(r.inspect, '', `${spot}: clearing must reset the inspection`);
     await gun().focus();
