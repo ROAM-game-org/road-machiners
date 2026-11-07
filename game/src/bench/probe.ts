@@ -149,19 +149,13 @@ export function changedBuffersSince(game: Game, before: ReadonlyMap<Sized, { ver
 
 export const bufferVersions = buffersOf;
 
-type KeyedMaterial = Material & { customProgramCacheKey: () => string };
-
-export function countProgramAsks(game: Game): () => Record<string, number> {
-  const asks: Record<string, number> = {};
+export function watchMixedMaterials(game: Game): () => string[] {
   const restores: (() => void)[] = [];
-  const seen = new Set<Material>();
   const kinds = new Map<Material, Set<string>>();
-  const phase = { now: 'other' };
-  restores.push(watchPhase(game.renderer, 'render', phase), watchPhase(game.renderer, 'compile', phase));
   game.scene.traverse((object) => {
+    if (object === game.scene) return;
     const ownBefore = Object.prototype.hasOwnProperty.call(object, 'onBeforeRender');
     const beforeRender = object.onBeforeRender;
-    if (object === game.scene) return;
     object.onBeforeRender = function watched(renderer, scene, camera, geometry, material, group) {
       const drawn = kinds.get(material) ?? new Set<string>();
       drawn.add(drawKind(object, geometry, material, renderer));
@@ -172,46 +166,10 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
       if (ownBefore) object.onBeforeRender = beforeRender;
       else delete (object as Partial<Object3D>).onBeforeRender;
     });
-    const { material } = object as Mesh;
-    for (const each of (Array.isArray(material) ? material : material ? [material] : []) as KeyedMaterial[]) {
-      if (seen.has(each)) continue;
-      seen.add(each);
-      const label = `${namedAncestor(object)}:${each.type}`;
-      const own = Object.prototype.hasOwnProperty.call(each, 'customProgramCacheKey');
-      const original = each.customProgramCacheKey;
-      each.customProgramCacheKey = function counted(this: KeyedMaterial) {
-        const key = `${phase.now} ${label}`;
-        asks[key] = (asks[key] ?? 0) + 1;
-        return original.call(this);
-      };
-      restores.push(() => {
-        if (own) each.customProgramCacheKey = original;
-        else delete (each as Partial<KeyedMaterial>).customProgramCacheKey;
-      });
-    }
   });
   return () => {
     for (const restore of restores) restore();
-    for (const [material, drawn] of kinds) {
-      if (drawn.size > 1) asks[`mixed ${material.type} ${material.name}: ${[...drawn].join(' ')}`] = drawn.size;
-    }
-    return asks;
-  };
-}
-
-function watchPhase(renderer: WebGLRenderer, name: 'render' | 'compile', phase: { now: string }): () => void {
-  const original = renderer[name] as (...args: unknown[]) => unknown;
-  (renderer as unknown as Record<string, unknown>)[name] = function phased(this: WebGLRenderer, ...args: unknown[]) {
-    const outer = phase.now;
-    phase.now = outer === 'other' ? name : outer;
-    try {
-      return original.apply(this, args);
-    } finally {
-      phase.now = outer;
-    }
-  };
-  return () => {
-    (renderer as unknown as Record<string, unknown>)[name] = original;
+    return [...kinds].filter(([, drawn]) => drawn.size > 1).map(([material, drawn]) => `${material.type} ${material.name}: ${[...drawn].join(' ')}`);
   };
 }
 
