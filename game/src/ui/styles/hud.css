@@ -34,6 +34,9 @@
   justify-items: end;
   font: italic var(--text-lead) / 1 var(--font-lcd);
 }
+#ui:not(.phone) :is(.clock-day, .clock-time) {
+  font-size: var(--text-heading);
+}
 .clock-day > span {
   display: inline-grid;
 }
@@ -146,7 +149,7 @@
 }
 .resource[data-resource="heat"] {
   grid-template-columns: var(--icon-s) minmax(var(--value-w), auto) minmax(var(--weather-w), 1fr);
-  --weather-w: 9ch;
+  --weather-w: 12ch;
 }
 .resource .weather {
   min-width: 0;
