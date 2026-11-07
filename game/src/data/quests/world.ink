@@ -16,6 +16,7 @@ VAR road_seen_1 = false
 VAR scale_seen = false
 VAR counter_seen = false
 VAR hattie_met = false
+VAR convoy_rumor = false
 
 EXTERNAL money()
 EXTERNAL engine_missing()
