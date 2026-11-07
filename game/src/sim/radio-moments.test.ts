@@ -125,7 +125,7 @@ describe('a raider shooting at the player', () => {
     w.player.talked[raider.id] = { demand: 'refused' };
     const call = chooseOption(callVehicle(w, raider.id), 0);
     expect(say(call)).toBe('Nothing from you. Just the fight.');
-    expect(optionTexts(call)).toEqual(['Enough shooting. Can we call a truce?', 'I give up. Let me go.', 'Then we finish this.', 'Hang up.']);
+    expect(optionTexts(call)).toEqual(['Enough shooting. Can we call a truce?', 'I give up. Let me go.', 'Then we finish this.']);
     const truce = chooseOption(call, 0);
     expect(truce.player.call?.topic).toBe('truce');
     expect(stateOf(truce, 'combat', raider.id, w.player.vehicleId)).not.toBeNull();
