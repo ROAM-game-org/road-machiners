@@ -179,7 +179,7 @@ export const STORY = {
   'journalNote.roadhouseRaiders.from': 'Petra Quell, the Roadhouse',
   'journalNote.roadhouseRaiders.text': 'The road book takes nothing against a raider. A raider has no town behind them and nothing a claim can make them pay, so a wrong done by one is written down as unanswered and left open.',
 
-  'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the cistern house sells it by the bucket.',
+  'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and Hattie\'s canteen sells it by the bucket.',
   'term.nose': "The town up the north road, built around a wreck on a mountain. Its soldiers keep order, and its workshop line builds the basin's engines and guns.",
   'term.pierce': 'The outfit that bets on trucks coming home. It insures a truck only with a gun on it, and pays the family when the truck does not come back.',
   'term.granary': 'Where Bowl\'s grain is cooked, salted and tinned into road rations. Bowl pays its patrols partly in Granary grain, and its farmers pay their debts in sorgut.',

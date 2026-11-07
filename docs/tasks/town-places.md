@@ -179,13 +179,13 @@ Smoke: `tmp/town-check.mjs` drove every site and Bowl place in headless Chromium
 Notes:
 - Deferred: `npm run layout`, `npm run playtest` and `npm run mobile`. The harness stopped them because the machine ran low on memory. Layout reached the 700x800 English pass and gave no verdict. They need a rerun when memory allows.
 - Deferred: pressing Radio on a parked driver. The row and button show on the canteen page, and `callVehicle` is unchanged.
-- Deferred: the user reads every new or changed line of game text before merge.
+- Text: the user replaced line reading with a Codex critique against `game/docs/writing/playtest-prompt.md`. The last round scored `bowl_guild` 2 of 5, `nose_guild` 2 of 5 and `bowl_guild` in Russian 3 of 5, below the 5 of 5 in `game/docs/writing/quests.md`. The scored text predates a last edit that points the player to a square for the price, and that edit was not scored.
 
 ## Code smells
 
 ## Conclusion
 
-Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the user to read the text and the three browser checks to rerun.
+Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the three browser checks to rerun and the user's decision on the talk scores.
 
 Invariants:
 - IV1 — Every place opens from a front page row, and the number keys were checked on screen.
@@ -212,8 +212,8 @@ Verified by: `tmp/town-check.mjs` on all sites in both languages, and screenshot
 - uexecute: all phases went into one commit — the pre-commit type check needs code and both languages together.
 - uexecute: manager names Renata Sayle and Emil Tarn were picked by the agent — the design left them open, and the user reads them before merge.
 - uexecute: Hattie's existing lines got single-word swaps without a codex call — only place names changed, and the character line process allows edits.
-- uexecute: agy's Nose heading in Russian is "Предвратье Носа" — "Компаунд" was too obscure and "двор" already names the Machiners' yard, so it shares Bowl's word.
+- uexecute: agy's Nose heading in Russian is "Сектор Носа" — "Компаунд" was too obscure and "двор" already names the Machiners' yard.
 
 ### Deferred (needs user input)
 - Run `npm run layout`, `npm run playtest` and `npm run mobile` — the harness stopped them on low memory and said not to restart unasked — the user says when memory allows.
-- Read all new and changed game text in `game/tmp/town-places-text.md`, including the new managers Renata Sayle and Emil Tarn and their sheets in `characters.md` and `voices.md` — the Goal requires user sign-off on the words — the user approves or edits them.
+- Accept the `bowl_guild` and `nose_guild` talks below 5 of 5, or order more rounds — the critic plays the talk alone and marks it down because the sale happens on the map page after the talk — the user decides.

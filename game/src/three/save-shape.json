@@ -2736,7 +2736,10 @@
    },
    "bowl_guild": {
     "renata_drawn": "boolean",
+    "renata_jill": "boolean",
     "renata_news": "boolean",
+    "renata_pair": "boolean",
+    "renata_price": "boolean",
     "renata_sheets": "boolean"
    },
    "bowl_hattie": {
@@ -2824,7 +2827,9 @@
    "nose_guild": {
     "emil_here": "boolean",
     "emil_news": "boolean",
-    "emil_sheets": "boolean"
+    "emil_price": "boolean",
+    "emil_sheets": "boolean",
+    "emil_watch": "boolean"
    },
    "nose_ibo": {
     "heard_army": "boolean",
