@@ -105,6 +105,22 @@ describe('clicks on a site', () => {
     expect(siteUnder(icarusAtlas(), sitePads(bowl)[0])).toBeNull();
   });
 
+  it('counts the ground outside a fort wall as open ground', () => {
+    const bowl = REGION.towns[0];
+    const pad = sitePads(bowl)[0];
+    const away = bowl.radius - 0.5;
+    const beside = { x: bowl.pos.x - ((pad.x - bowl.pos.x) / dist(pad, bowl.pos)) * away, y: bowl.pos.y - ((pad.y - bowl.pos.y) / dist(pad, bowl.pos)) * away };
+    expect(dist(beside, bowl.pos)).toBeLessThan(bowl.radius);
+    expect(siteUnder(icarusAtlas(), beside)).toBeNull();
+    expect(clickOrder(TEST_MAP.terrain, beside, false, { pos: { x: 1, y: 1 }, order: null })).toEqual({ kind: 'through', dest: beside });
+  });
+
+  it('never counts a pad as inside its site', () => {
+    for (const site of SITES) {
+      for (const pad of sitePads(site)) expect(siteUnder(icarusAtlas(), pad), site.id).toBeNull();
+    }
+  });
+
   it('turns a click inside a site into a stop at its pad nearest the truck', () => {
     const town = REGION.towns[0];
     const pad = sitePads(town)[1] ?? sitePads(town)[0];

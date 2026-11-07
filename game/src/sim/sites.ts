@@ -6,7 +6,7 @@ import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../da
 import { RULES } from '../data/rules';
 import { atlasOf, atlasSites, type Atlas } from './atlas';
 import { inCombat, settleAims } from './combat';
-import { fortressGates } from './fortress';
+import { fortressGates, fortressOutline } from './fortress';
 import { contractTruck, isMet } from './market';
 import { handOnMoments } from './moments';
 import { footprint, straighten } from './rig';
@@ -141,8 +141,12 @@ function onPad(pos: Vec, pad: Vec, center: Vec): boolean {
 }
 
 export function siteUnder(atlas: Atlas, pos: Vec): Site | null {
-  const under = (s: Site): boolean => siteGap(s, pos) < 0 && !canUseSite(pos, s);
-  return atlas.towns.find(under) ?? atlas.locations.find((s) => !isTerritory(s) && siteGap(s, pos) < 0) ?? null;
+  const under = (s: Site): boolean => standsWithin(s, pos) && !canUseSite(pos, s);
+  return atlas.towns.find(under) ?? atlas.locations.find((s) => !isTerritory(s) && under(s)) ?? null;
+}
+
+function standsWithin(site: Site, pos: Vec): boolean {
+  return isFortress(site) ? pointInPolygon(pos, fortressOutline(site)) : siteGap(site, pos) < 0;
 }
 
 export function townAt(world: World): TownDef | null {
