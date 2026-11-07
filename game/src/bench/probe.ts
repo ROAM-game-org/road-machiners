@@ -1,4 +1,4 @@
-import { Light, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Object3D, type InstancedMesh, type Mesh, type BufferGeometry, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
@@ -155,7 +155,20 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
   const asks: Record<string, number> = {};
   const restores: (() => void)[] = [];
   const seen = new Set<Material>();
+  const kinds = new Map<Material, Set<string>>();
   game.scene.traverse((object) => {
+    const ownBefore = Object.prototype.hasOwnProperty.call(object, 'onBeforeRender');
+    const beforeRender = object.onBeforeRender;
+    object.onBeforeRender = function watched(renderer, scene, camera, geometry, material, group) {
+      const drawn = kinds.get(material) ?? new Set<string>();
+      drawn.add(drawKind(object, geometry, material, renderer));
+      kinds.set(material, drawn);
+      beforeRender.call(this, renderer, scene, camera, geometry, material, group);
+    };
+    restores.push(() => {
+      if (ownBefore) object.onBeforeRender = beforeRender;
+      else delete (object as Partial<Object3D>).onBeforeRender;
+    });
     const { material } = object as Mesh;
     for (const each of (Array.isArray(material) ? material : material ? [material] : []) as KeyedMaterial[]) {
       if (seen.has(each)) continue;
@@ -175,8 +188,25 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
   });
   return () => {
     for (const restore of restores) restore();
+    for (const [material, drawn] of kinds) {
+      if (drawn.size > 1) asks[`mixed ${material.type} ${material.name}: ${[...drawn].join(' ')}`] = drawn.size;
+    }
     return asks;
   };
+}
+
+function drawKind(object: Object3D, geometry: BufferGeometry, material: Material, renderer: WebGLRenderer): string {
+  const instanced = object as Partial<InstancedMesh>;
+  return [
+    instanced.isInstancedMesh ? 'inst' : 'mesh',
+    instanced.instanceColor ? 'icolor' : '',
+    hasVertexAlpha(geometry, material) ? 'alpha' : '',
+    renderer.getRenderTarget() ? 'target' : 'screen',
+  ].join('');
+}
+
+function hasVertexAlpha(geometry: BufferGeometry, material: Material): boolean {
+  return (material as Material & { vertexColors?: boolean }).vertexColors === true && geometry.attributes.color?.itemSize === 4;
 }
 
 export function blurredElements(): HTMLElement[] {
