@@ -58,8 +58,8 @@
   display: none;
 }
 /* The working screen takes the full height down to the bottom edge, so the instruments and the log hide under it. */
-#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .right-column > .log {
+#ui:not(.phone):has(:is(.inventory-screen, .character-screen):not([style*="display: none"])) > .bottom-left > .instruments,
+#ui:not(.phone):has(:is(.inventory-screen, .character-screen):not([style*="display: none"])) > .right-column > .log {
   visibility: hidden;
 }
 /* Its opening tip stays readable in the free margin beside the frame. */
@@ -68,6 +68,9 @@
   width: max(var(--inv-side-min), calc((var(--layer-w) - var(--inv-frame-w, var(--modal-width))) / 2 - var(--hud-inset) * 2));
   max-width: none;
   box-sizing: border-box;
+}
+#ui:not(.phone):has(.character-screen:not([style*="display: none"])) > .top-center > .opening-tip {
+  visibility: hidden;
 }
 #ui:not(.phone):has(.inv-bench.two) > .top-center > .opening-tip {
   left: auto;

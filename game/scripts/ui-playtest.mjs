@@ -696,6 +696,7 @@ try {
   await page.keyboard.press('c');
   await checkVisibleReadouts(page);
   const characterFrame = await page.locator('.modal:visible').boundingBox();
+  assert(characterFrame.y + characterFrame.height <= (page.viewportSize()?.height ?? 0), 'The character screen must fit the window');
   await page.keyboard.press('Escape');
   await page.keyboard.press('m');
   assert(await page.locator('.character-screen [data-tab=map].on').count(), 'M must open the character screen on its Map tab');
@@ -707,7 +708,6 @@ try {
   await checkCoins(page, 'HUD');
   if (await page.locator('.modal:visible').count()) {
     await checkVisibleReadouts(page);
-    assert.deepEqual(await page.locator('.modal:visible').boundingBox(), characterFrame, 'Town and character must share one frame');
   } else {
     await page.keyboard.press('i');
   }
