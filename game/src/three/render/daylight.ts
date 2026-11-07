@@ -325,8 +325,8 @@ export class VehicleLights {
       this.trim(this.shadowed, Math.min(order.length, SHADOW_BEAMS));
       this.trim(this.plain, plainBeams.length);
     }
-    this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam);
-    this.aim(this.plain, plainBeams, false, beam);
+    this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam, night ? SHADOW_BEAMS : 0);
+    this.aim(this.plain, plainBeams, false, beam, night ? PLAIN_BEAMS : 0);
     if (!night) return;
     if (!this.glow) {
       this.glow = new THREE.PointLight(PAL.truckGlow, GLOW_INTENSITY, GLOW_RANGE, GLOW_DECAY);
@@ -360,8 +360,8 @@ export class VehicleLights {
     return beam;
   }
 
-  private aim(pool: THREE.SpotLight[], vehicles: LitVehicle[], shadows: boolean, share: number): void {
-    while (pool.length < vehicles.length) pool.push(this.newBeam(shadows));
+  private aim(pool: THREE.SpotLight[], vehicles: LitVehicle[], shadows: boolean, share: number, held: number): void {
+    while (pool.length < Math.max(vehicles.length, held)) pool.push(this.newBeam(shadows));
     pool.forEach((beam, i) => {
       const v = vehicles[i];
       beam.intensity = v ? BEAM_INTENSITY * share : 0;

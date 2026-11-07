@@ -80,6 +80,18 @@ describe('VehicleLights', () => {
     expect(spots(scene)).toHaveLength(12);
   });
 
+  it('holds the same lights all night however many trucks are lit, so no shader recompiles when headlights arrive', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    const counts = [0, 1, 2, 5, 12, 3].map((lit) => {
+      lights.update(true, 1, origin, Array.from({ length: lit }, (_, i) => litAt(i * 10)));
+      return spots(scene).length;
+    });
+    expect(counts).toEqual([12, 12, 12, 12, 12, 12]);
+    lights.update(true, 1, origin, [litAt(0)]);
+    expect(spots(scene).filter((b) => b.intensity > 0)).toHaveLength(1);
+  });
+
   it('zeroes idle beams', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
@@ -122,13 +134,13 @@ describe('VehicleLights', () => {
     const all = [{ ...litAt(0), player: true }, litAt(10), litAt(20)];
     const glow = () => scene.children.some((c) => c instanceof THREE.PointLight);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(3);
+    expect(spots(scene)).toHaveLength(12);
     expect(glow()).toBe(true);
     lights.update(false, 0.5, origin, [all[0], litAt(10, false), litAt(20, false)]);
     expect(spots(scene)).toHaveLength(1);
     expect(glow()).toBe(false);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(3);
+    expect(spots(scene)).toHaveLength(12);
     expect(glow()).toBe(true);
   });
 
