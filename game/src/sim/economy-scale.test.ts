@@ -72,8 +72,13 @@ describe('the purse at the first Bowl garage', () => {
 
   it('keeps the whole purse under the essentials plus the cheapest new tier 1 gun', () => {
     const e = essentials();
-    const purse = arrival.money + farmhouseFinds() + e.kitCargo;
+    const purse = arrival.money + farmhouseFinds();
     expect(purse).toBeLessThan(e.tank + e.supplies + e.repair + e.cheapestGun);
+  });
+
+  it('lets the kit money alone replace the engine the first fall strips and fill the tank', () => {
+    const e = essentials();
+    expect(arrival.money).toBeGreaterThanOrEqual(partPristineBuyPrice('stockEngine') * wearFactor(arrival.wear) + e.tank);
   });
 
   it('keeps the whole purse under the cheapest tier 3 gun at the worst garage wear', () => {
