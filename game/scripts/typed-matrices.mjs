@@ -11,6 +11,18 @@ export function typedMatrixCode(code, id) {
   return edits.reduce((text, edit) => text.replace(edit.from, edit.to), code);
 }
 
+export function typedMatricesWhilePrebundling() {
+  return {
+    name: 'typed-matrices',
+    setup(build) {
+      build.onLoad({ filter: /three[\\/]build[\\/]three\.(core|module)\.js$/ }, async ({ path }) => {
+        const { readFile } = await import('node:fs/promises');
+        return { contents: typedMatrixCode(await readFile(path, 'utf8'), path.replaceAll('\\', '/')), loader: 'js' };
+      });
+    },
+  };
+}
+
 export function typedMatrices() {
   return {
     name: 'typed-matrices',
