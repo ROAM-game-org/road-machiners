@@ -1,3 +1,3 @@
-import { SECOND_HALF, checkGunsOnTemplates } from '../../test/gun-side-samples';
+import { REST_PARTS, checkGunsOnTemplates } from '../../test/gun-side-samples';
 
-checkGunsOnTemplates(SECOND_HALF);
+checkGunsOnTemplates(REST_PARTS[0]);
