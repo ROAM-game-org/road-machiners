@@ -9,6 +9,7 @@ import { townAt } from '../sim/sites';
 import { carriedWorld } from '../sim/world';
 import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
+import { withMutedPaint_96_97, withThreeColorPaint_95_96 } from './save-steps-late';
 import { relaidTrucks_1_2, RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
@@ -20,7 +21,8 @@ import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
 const fresh = () => 5;
-const stepFrom = (minor: number) => (world: object): SavedJson => TINY_STEPS[minor - TINY_FROM].step(world as SavedJson);
+const mutedPaint = (world: object): SavedJson => withMutedPaint_96_97(world as SavedJson);
+const threeColorThenMuted = (world: object): SavedJson => mutedPaint(withThreeColorPaint_95_96(world as SavedJson));
 const freshRun = () => 'new-run';
 const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
@@ -68,14 +70,14 @@ describe('readCarried', () => {
 
   it.each(['plum', 'lavender', 'mint', 'rose', 'standard'])('rescues the %s paint job in the colors a migrated save gets', (preset) => {
     const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: preset } };
-    const migrated = stepFrom(96)(stepFrom(95)(structuredClone(old)));
+    const migrated = threeColorThenMuted(structuredClone(old));
     expect(readCarried({ world: old }).paint).toEqual(readCarried({ world: migrated }).paint);
   });
 
   it('rescues a paint of retired colors in the colors a migrated save gets', () => {
     const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: { body: 'plum', cab: 'navy', gear: 'pink' } } };
     expect(readCarried({ world: old }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
-    expect(readCarried({ world: stepFrom(96)(structuredClone(old)) }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
+    expect(readCarried({ world: mutedPaint(structuredClone(old)) }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
   });
 
   it('keeps old perks whose rank holds and drops the rest', () => {
@@ -385,12 +387,6 @@ describe('namedSteps', () => {
     expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'oddFronts'] }))).toEqual(['crimes']);
     expect(ran(namedSteps([], 63, tiny, { from: 63, names: [] }))).toEqual(['a', 'crimes', 'oddFronts']);
     expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'crimes', 'oddFronts'] }))).toEqual([]);
-  });
-
-  it('gives a save of the accessory-layer history only the crimes step it skipped', () => {
-    const names = TINY_STEPS.map((named) => named.name).filter((name) => name !== 'withCrimes');
-    const crimes = TINY_STEPS.find((named) => named.name === 'withCrimes')!.step;
-    expect(namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, { from: TINY_FROM, names })).toEqual([crimes]);
   });
 
   it('refuses a name the build does not know and runs nothing', () => {

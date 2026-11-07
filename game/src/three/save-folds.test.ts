@@ -14,6 +14,10 @@ const RECORDED: Record<string, string> = {
   '61-62 2-61-roaming.json': 'c0cda477a836b024b10c4fac258dc04a73967a3c7d4e242d5d216756051311b3',
   '62-63 2-62-highway.json': '4684a26465a5fe45a48e70b5235e99e7d3f249a600d6e81a8c1f662fed9a7fb0',
   '62-63 2-62-roaming.json': 'c0cda477a836b024b10c4fac258dc04a73967a3c7d4e242d5d216756051311b3',
+  '63-136 2-63-highway.json': '400ccc459d0f391f68012d47d23e45449a27daafb9250025b5a7f2af77279458',
+  '63-136 2-63-roaming.json': '00816bc6270e14ec8549b62ab892af4d8fbb14656c0c7351ea41983da0751afc',
+  '136-138 2-136-highway.json': '6b3b5cd04afc0364c5e18924659e04aa5100e816b23fb523077f466df3541b08',
+  '136-138 2-136-roaming.json': '80b93765d2dd4399b6f640ce57b3288915b587fc30cb166c521bd12ef5292366',
 };
 
 function savesAt(minor: number): { file: string; world: SavedJson }[] {

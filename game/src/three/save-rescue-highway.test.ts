@@ -11,9 +11,9 @@ import type { Vehicle, World } from '../sim/types';
 import { carriedWorld, endTurn, type Carried } from '../sim/world';
 import { maxHp } from '../sim/wear';
 import { TEST_MAP } from '../test/map';
-import { loadWorld, SaveError, stepsFrom } from './save';
+import { loadWorld, SaveError } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import type { SavedJson } from './save-migrations';
+import { RELEASE_STEPS, type SavedJson } from './save-migrations';
 import { readCarried, rescueSave } from './save-rescue';
 import MID_STRETCH from './save-fixtures/highway-3-mid-stretch.json';
 import PAID from './save-fixtures/highway-3-paid.json';
@@ -148,7 +148,7 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
   });
 
   it('carries a run saved under the new name as the steps carry one under the old name', () => {
-    const stepped = stepsFrom(MID_STRETCH.format.minor)!.reduce((world, step) => step(world), structuredClone(MID_STRETCH.world) as unknown as SavedJson);
+    const stepped = RELEASE_STEPS.filter((release) => release.from >= 63).reduce((world, release) => release.step(world), structuredClone(MID_STRETCH.world) as unknown as SavedJson);
     const named = { format: { major: 2, minor: 130 }, world: stepped };
 
     expect(stepped.chaosHighway).not.toBeUndefined();
