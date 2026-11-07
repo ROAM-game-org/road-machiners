@@ -367,6 +367,20 @@ describe('playtest', () => {
     expect(baselineEnded).toBe(true);
   });
 
+  it('waits for the release seed run to end before a failed baseline seed run fails the job', async () => {
+    const run = setup();
+    const shell = run.f.ctx.container.shell;
+    let releaseEnded = false;
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      if (script.includes('Playing the baseline seed')) throw new Error('exit 137');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await shell(kind, clone, script, log);
+      releaseEnded = true;
+    };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('exit 137');
+    expect(releaseEnded).toBe(true);
+  });
+
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;

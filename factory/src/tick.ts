@@ -231,6 +231,10 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
 function reservedGb(cfg: Due, stage: JobStage): number {
   return Math.min(cfg.stageMemoryGb[stage], cfg.jobsMemoryGb);
 }
+function wholeSliceFirst<T extends { stage: JobStage }>(cfg: Due, candidates: T[]): T[] {
+  const whole = (candidate: T): boolean => reservedGb(cfg, candidate.stage) >= cfg.jobsMemoryGb;
+  return [...candidates.filter(whole), ...candidates.filter((candidate) => !whole(candidate))];
+}
 function waitForMemory(pick: JobPick, running: JobPick[], waiting: JobPick[], cfg: Due): WaitReason[] {
   const held = [...running, ...waiting].reduce((sum, job) => sum + reservedGb(cfg, job.stage), 0);
   const needed = Math.round((held + reservedGb(cfg, pick.stage)) * 100) / 100;
@@ -273,7 +277,7 @@ export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, 
   const pickedForCard = new Map<number, number>();
   const hotfixes = new Set(cards.filter(has(HOTFIX_LABEL)).map((card) => card.issue));
   const decisions = cards.filter((card) => card.column !== 'Done' && !card.labels.includes(RELEASE_LABEL)).flatMap((card) => readCardWait(state, card));
-  for (const candidate of [...branchCandidates(state, cards, now, cfg, heads), ...wasteReview(state, now, cfg), ...cardCandidates(state, cards)]) {
+  for (const candidate of wholeSliceFirst(cfg, [...branchCandidates(state, cards, now, cfg, heads), ...wasteReview(state, now, cfg), ...cardCandidates(state, cards)])) {
     const pick = { stage: candidate.stage, issue: candidate.issue };
     const limited = !candidate.pastCardLimit && countsTowardCardLimit(pick.stage);
     const cardLeft = readCardLeft(state, now, cfg, pickedForCard, pick.issue);

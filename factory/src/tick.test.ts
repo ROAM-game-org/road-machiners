@@ -1171,6 +1171,13 @@ describe('chooseJobs memory', () => {
     expect(chooseJobs(ordered, [tracking(), card(4, 'Design')], NOW, MEMORY, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
   });
 
+  it('lets the slice drain for a job that needs all of it, so branch jobs ahead of it cannot keep it out', () => {
+    const draining = evaluateSchedule({ ...ordered, jobs: [running('catch-up', 7)] }, [tracking(), card(5, 'Merging')], NOW, MEMORY, MOVED);
+    expect(draining.picks).toEqual([]);
+    expect(draining.decisions.filter((item) => item.stage === 'playtest' || item.stage === 'merge').map((item) => [item.stage, item.reasons])).toEqual([['playtest', ['memory']], ['merge', ['memory']]]);
+    expect(chooseJobs(ordered, [tracking(), card(5, 'Merging')], NOW, MEMORY, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+  });
+
   it('shows memory only when nothing else holds the job', () => {
     const busy = state({ jobs: [running('implement', 8), running('verify', 9)] });
     const report = evaluateSchedule(busy, [card(2, 'Implementation')], NOW, { ...MEMORY, implementWorkers: 1 });
