@@ -517,7 +517,6 @@ export type Player = {
   deeds: Deed[];
   xp: number;
   ranks: Record<SkillId, number>;
-  xpToday: Record<SkillId, number>;
   xpWindow: number;
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
@@ -650,6 +649,7 @@ export type GameEvent =
   | { t: 'say'; speaker: string; to: string; line: LineId; vars: CallVars }
   | { t: 'call'; with: string; outcome: 'opened' | 'ended' }
   | { t: 'honk'; vehicle: string }
+  | { t: 'roadHorn'; vehicle: string; cause: RoadHornCause; other: string; at: Vec }
   | { t: 'aidStarted'; giver: string; receiver: string }
   | { t: 'patch'; patcher: string; client: string; outcome: 'started' | 'lapsed' | 'broken' }
   | { t: 'patch'; patcher: string; client: string; outcome: 'done'; price: number }
@@ -781,3 +781,5 @@ export type World = {
 };
 
 export type ShelteredTruck = { vehicle: Vehicle; site: string };
+
+export type RoadHornCause = 'sight' | 'brake';

@@ -17,7 +17,7 @@ Before the anchor, 5 L of fuel cost 3 money, so one old money number is now 1/3 
 | 5 L fuel from a truck, Trade 0 | 5 | 1.50 |
 | Supplies, one unit | 5 | 1.67 |
 | Scout full tank, 200 L | 120 | 40 |
-| Standard start cash | 1000 | 85 |
+| Standard start cash | 1000 | 200 |
 | Tier 1 part | 100 to 250 | 33.33 to 83.33 |
 | Chassis by tier | about 2000, 3000, 4500 | about 770, 1700, 3500 |
 | Tier 1 wage | 0.37 a turn, about 166 a day | 0.1233 a turn, about 55.5 a day |

@@ -70,22 +70,14 @@ describe('the purse at the first Bowl garage', () => {
     expect(arrival.money).toBeGreaterThanOrEqual(e.tank + e.repair);
   });
 
-  it('keeps the whole purse under the essentials plus the cheapest new tier 1 gun', () => {
-    const e = essentials();
-    const purse = arrival.money + farmhouseFinds();
-    expect(purse).toBeLessThan(e.tank + e.supplies + e.repair + e.cheapestGun);
-  });
-
   it('lets the kit money alone replace the engine the first fall strips and fill the tank', () => {
     const e = essentials();
     expect(arrival.money).toBeGreaterThanOrEqual(partPristineBuyPrice('stockEngine') * wearFactor(arrival.wear) + e.tank);
   });
 
-  it('keeps the whole purse under the cheapest tier 3 gun at the worst garage wear', () => {
-    const e = essentials();
-    const purse = arrival.money + farmhouseFinds() + e.kitCargo;
-    const cheapestTier3 = Math.min(...Object.values(PARTS).filter((d) => d.kind === 'weapon' && d.tier === 3).map((d) => partPristineBuyPrice(d.id) * wearFactor(3)));
-    expect(purse).toBeLessThan(cheapestTier3);
+  it('starts the arrival and standard kits at 200 M, as the committee set', () => {
+    expect(arrival.money).toBe(200);
+    expect(START_KITS.standard.money).toBe(200);
   });
 
   it('gives the standard kit the arrival kit money', () => {

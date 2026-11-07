@@ -525,14 +525,12 @@ describe('repairContent', () => {
     expect(() => practice(w, 'contract', 10, null, 'bowl')).not.toThrow();
   });
 
-  it('drops perks that left the data and gives a missing skill its xp of the day', () => {
+  it('drops perks that left the data', () => {
     const w = fresh();
     w.player.perks.push('ghostPerk' as never);
-    delete (w.player.xpToday as Partial<typeof w.player.xpToday>).perception;
 
     repairContent(w);
     expect(w.player.perks).not.toContain('ghostPerk');
-    expect(w.player.xpToday.perception).toBe(0);
   });
 
   it('drops player contracts whose shop or destination left the data', () => {

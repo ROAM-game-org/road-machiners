@@ -1,6 +1,3 @@
-// The player's emergency beacon, made visible: while it calls, red full rings spread out from the truck.
-// Sound arcs show what the player hears, from one bearing. These show what the player sends, in all
-// directions, so they are circles in their own color and draw under the sound arcs.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';

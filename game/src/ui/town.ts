@@ -46,7 +46,7 @@ import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, goodStock, haulShort, isMet, onOrder, spareGoods, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
+import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
@@ -755,18 +755,17 @@ function notReady(w: World, c: Contract): Msg {
   throw new Error(`An ${c.kind} contract is never handed in at a counter`);
 }
 
-const FILTER_ICON: Record<Exclude<StockFilter, "all" | "weapon">, IconName> = {
+export const FILTER_ICON: Record<Exclude<StockFilter, "all">, IconName> = {
   engine: "engine",
   armor: "armor",
   cargo: "cargo",
   scanner: "scanner",
-  store: "supplies",
+  store: "store",
   utility: "utility",
+  weapon: "gun",
 };
 
-export function filterIcon(f: Exclude<StockFilter, "all">): HTMLElement {
-  return f === "weapon" ? createBareItemIcon("mg") : createIcon(FILTER_ICON[f]);
-}
+export const filterIcon = (f: Exclude<StockFilter, "all">): HTMLElement => createIcon(FILTER_ICON[f]);
 
 export const TAB_ICON: Record<Tab, IconName> = {
   people: "driver",

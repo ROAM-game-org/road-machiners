@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as path from './path';
 import { PERF } from '../data/perf';
+import { ROAD_HORN } from '../data/personalities';
+import { charCodes, hashRandom } from './rng';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { givesWayTo, planNpcOrders, routeBlockers, settleMeetings, standingBlockers, stopTrack, trafficStops, yieldsToTraffic } from './ai';
@@ -345,6 +347,19 @@ describe('oncoming NPCs', () => {
     expect(second.order?.kind).toBe('stopAt');
     expect(routeBlockers(w, first).some((b) => dist(b.pos, second.pos) < 0.5)).toBe(true);
     expect(routeBlockers(w, second).some((b) => dist(b.pos, first.pos) < 0.5)).toBe(false);
+  });
+
+  it('the truck that starts braking at speed for a meeting sounds a brake horn at the other, once', () => {
+    const { w, first, second } = headOn();
+    corridor(w);
+    while (hashRandom(w.seed, ...charCodes(first.id), w.turn, ...charCodes(ROAD_HORN.brakeSalt)) >= ROAD_HORN.brakeChance) w.turn += 1;
+    planNpcOrders(w);
+    expect(first.order?.kind).toBe('brake');
+    const horns = w.events.filter((e) => e.t === 'roadHorn');
+    expect(horns).toEqual([{ t: 'roadHorn', vehicle: first.id, cause: 'brake', other: second.id, at: first.pos }]);
+    w.events = [];
+    planNpcOrders(w);
+    expect(w.events.filter((e) => e.t === 'roadHorn')).toEqual([]);
   });
 
   it('of two NPCs head-on in a corridor with no way around, the lower id brakes', () => {
