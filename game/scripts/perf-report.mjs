@@ -76,9 +76,11 @@ function loadProblems(run) {
   return problems;
 }
 
+const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'fight-night']);
+
 function spreadProblems(scenes) {
   return scenes
-    .filter((scene) => !isMeasure(scene.spread) || scene.spread > SPREAD_MAX)
+    .filter((scene) => !PASSES_DIFFER_ON_PURPOSE.has(scene.id) && (!isMeasure(scene.spread) || scene.spread > SPREAD_MAX))
     .map((scene) => `${scene.id} passes disagree by ${isMeasure(scene.spread) ? fmt(scene.spread * 100, 1) : 'n/a'} percent, over ${SPREAD_MAX * 100}`);
 }
 
@@ -352,4 +354,98 @@ export function compare(a, b) {
   const body = [...pairScenes(a, b).flatMap(pairRows), ...turnRows(a.bench.turns, b.bench.turns), numRow('boot ms', a.bench.bootMs, b.bench.bootMs)];
   const flags = body.filter((line) => line.endsWith('CHANGED')).length;
   return [...head, textRow('measure', 'A', 'B'), ...body, '', `${flags} lines changed`].join('\n');
+}
+
+const JUDGED_STAT = 'mean';
+const GATE_STATS = [JUDGED_STAT, 'p99', 'over100'];
+const GATE_MIN_REPORTS = 3;
+
+const rangeOf = (values) => Math.max(...values) - Math.min(...values);
+const medianValue = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+
+const judgesStutter = (scene, stat) => scene.id === 'fight-night' && stat === 'p99';
+
+function sceneMeasures(scene) {
+  if (PASSES_DIFFER_ON_PURPOSE.has(scene.id)) {
+    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `${scene.id} pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: !judgesStutter(scene, stat) && stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
+  }
+  return GATE_STATS.map((stat) => ({ key: `${scene.id} ${stat}`, value: scene.frame.real[stat], within: rangeOf(scene.passes.map((pass) => pass.real[stat])), watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT }));
+}
+
+function gateMeasures(report) {
+  const judged = [['turn wait mean', statOf(report.turns.waitMs, 'mean')], ['plan preview p99', statOf(report.turns.previewMs, 'p99')], ['boot', report.bootMs]];
+  const watched = [['turn wait median', statOf(report.turns.waitMs, 'median')], ['turn wait p99', statOf(report.turns.waitMs, 'p99')]];
+  const rows = (list, isWatched) => list.filter(([, value]) => isMeasure(value)).map(([key, value]) => ({ key, value, within: 0, watched: isWatched }));
+  return [...report.scenes.flatMap(sceneMeasures), ...rows(judged, false), ...rows(watched, true)];
+}
+
+function oneOf(reports, name, read) {
+  const found = new Set(reports.map(read));
+  if (found.size !== 1) throw new Error(`Stored numbers need one ${name}, got ${[...found].join(', ')}`);
+  return [...found][0];
+}
+
+function landedMeasure(rows) {
+  const values = rows.map((row) => row.value);
+  const value = medianValue(values);
+  const noise = Math.max(SPREAD_MAX * value, rangeOf(values), ...rows.map((row) => row.within));
+  return { value, noise, limit: value + noise, ...(rows[0].watched ? { watched: true } : {}) };
+}
+
+function tooNoisy(perReport, measures) {
+  const means = perReport[0].filter((row) => row.frameMean).map((row) => row.key);
+  return means.filter((key) => measures[key].noise > SPREAD_MAX * measures[key].value);
+}
+
+export function landedFrom(reports) {
+  if (reports.length < GATE_MIN_REPORTS) throw new Error(`Stored numbers need at least ${GATE_MIN_REPORTS} reports, got ${reports.length}`);
+  const problems = reports.flatMap(trustProblems);
+  if (problems.length) throw new Error(`Stored numbers need trusted reports: ${problems.join('; ')}`);
+  const perReport = reports.map((wrapped) => gateMeasures(wrapped.bench));
+  const keys = perReport[0].map((row) => row.key);
+  const measures = Object.fromEntries(keys.map((key) => [key, landedMeasure(perReport.map((rows) => rows.find((row) => row.key === key)))]));
+  const landed = { commit: oneOf(reports, 'commit', (r) => r.run.commit), machine: oneOf(reports, 'machine', (r) => r.run.machine), renderer: oneOf(reports, 'renderer', (r) => r.bench.renderer), reports: reports.length, measures };
+  const noisy = tooNoisy(perReport, measures);
+  if (noisy.length) throw new Error(`Stored numbers would hide a slowdown, since these vary by over ${SPREAD_MAX * 100} percent: ${noisy.join(', ')}. Run the bench again.`);
+  return landed;
+}
+
+export function landInto(file, landed) {
+  const old = file.machines[landed.machine]?.measures ?? {};
+  const raised = Object.entries(landed.measures).filter(([key, m]) => !m.watched && old[key] && m.value > old[key].limit).map(([key]) => key);
+  if (raised.length) throw new Error(`Stored numbers would rise past their limits: ${raised.join(', ')}. Edit scripts/perf-landed.json by hand if this slowdown is accepted.`);
+  return { machines: { ...file.machines, [landed.machine]: landed } };
+}
+
+function gateProblems(wrapped, landed) {
+  if (!landed) return [`no stored numbers for machine ${wrapped.run.machine}`];
+  const present = new Set(gateMeasures(wrapped.bench).map((row) => row.key));
+  const missing = Object.keys(landed.measures).filter((key) => !present.has(key));
+  return [
+    ...trustProblems(wrapped),
+    ...(wrapped.bench.renderer === landed.renderer ? [] : [`renderer ${wrapped.bench.renderer} is not the stored ${landed.renderer}`]),
+    ...(missing.length ? [`the report lacks ${missing.join(', ')}`] : []),
+  ];
+}
+
+export function gateLines(wrapped, file) {
+  const landed = file.machines[wrapped.run.machine];
+  const problems = gateProblems(wrapped, landed);
+  if (problems.length) return { status: 'untrusted', problems, lines: [] };
+  const lines = gateMeasures(wrapped.bench).filter((row) => landed.measures[row.key]).map((row) => {
+    const { limit, watched = false } = landed.measures[row.key];
+    return { key: row.key, value: row.value, limit, watched, pass: row.value <= limit };
+  });
+  return { status: lines.every((line) => line.watched || line.pass) ? 'pass' : 'slower', problems, lines };
+}
+
+function gateMark(line) {
+  if (line.pass) return 'pass  ';
+  return line.watched ? 'watch ' : 'SLOWER';
+}
+
+export function gateSummary({ status, problems, lines }) {
+  if (status === 'untrusted') return ['GATE UNTRUSTED, this run judges nothing:', ...problems.map((problem) => `  ${problem}`)].join('\n');
+  const rows = lines.map((line) => `${gateMark(line)} ${line.key.padEnd(34)} ${fmt(line.value).padStart(9)} of ${fmt(line.limit).padStart(9)}`);
+  return [...rows, '', status === 'pass' ? 'GATE PASS' : `GATE FAIL: ${lines.filter((line) => !line.watched && !line.pass).length} measures over their limits`].join('\n');
 }

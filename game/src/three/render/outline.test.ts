@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { describe, expect, it } from 'vitest';
-import { outlineOf } from './models';
+import { outlineOf, outlineProps } from './models';
 import { disposeTree } from './debris';
 
 function reference(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
@@ -45,5 +45,21 @@ describe('shared outline material', () => {
     holder.add(outline);
     disposeTree(holder);
     expect(disposed).toBe(0);
+  });
+
+  it('gives plain and instanced prop outlines different materials, so neither switches shader between draws', () => {
+    const material = new THREE.MeshLambertMaterial();
+    const prop = new THREE.Group();
+    prop.add(new THREE.Mesh(new THREE.BoxGeometry(), material), new THREE.InstancedMesh(new THREE.BoxGeometry(), material, 2));
+    outlineProps(prop);
+    const outlines: THREE.Mesh[] = [];
+    prop.traverse((o) => {
+      if (o.userData.outline) outlines.push(o as THREE.Mesh);
+    });
+    const plain = outlines.find((o) => !(o instanceof THREE.InstancedMesh));
+    const instanced = outlines.find((o) => o instanceof THREE.InstancedMesh);
+    expect(plain?.material).toBeDefined();
+    expect(instanced?.material).toBeDefined();
+    expect(plain?.material).not.toBe(instanced?.material);
   });
 });

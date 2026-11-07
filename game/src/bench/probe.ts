@@ -1,7 +1,8 @@
-import { Object3D, type Camera, type Material, type Mesh, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Object3D, type InstancedMesh, type Mesh, type BufferGeometry, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
-import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
+import { shadowRefreshOf } from '../three/render/shadowRefresh';
 
 export const FRAME_STEP_MS = 16.67;
 const GPU_WAIT_MS = 5000;
@@ -93,6 +94,100 @@ type BeamLights = { shadowed: SpotLight[]; plain: SpotLight[]; glow: PointLight 
 type SiteSlots = { slots: { spot: SpotLight }[] };
 type TruckViewMap = { views: Map<string, { root: Object3D }> };
 
+function lightKey(light: Light): string {
+  const lit = light.visible && light.intensity > 0 && light.color.getHex() !== 0;
+  return `${light.type}|${light.visible ? 'shown' : 'hidden'}|${lit ? 'lit' : 'dark'}|${light.castShadow ? 'shadow' : 'plain'}`;
+}
+
+export function gameState(game: Game): SceneState {
+  const lights: Record<string, number> = {};
+  const shadowMaps: number[] = [];
+  let objects = 0;
+  game.scene.traverse((object) => {
+    objects++;
+    if (!(object instanceof Light)) return;
+    const key = lightKey(object);
+    lights[key] = (lights[key] ?? 0) + 1;
+    if (object.castShadow) shadowMaps.push((object as SpotLight).shadow.mapSize.x);
+  });
+  const { domElement, info } = game.renderer;
+  return {
+    lights,
+    shadowMaps,
+    programs: info.programs?.length ?? 0,
+    textures: info.memory.textures,
+    geometries: info.memory.geometries,
+    objects,
+    canvas: `${domElement.width}x${domElement.height}`,
+    pixelRatio: game.renderer.getPixelRatio(),
+    domNodes: document.getElementsByTagName('*').length,
+    blurred: blurredElements().map(sizeLabel),
+  };
+}
+
+type Sized = { version: number; array: ArrayLike<number> & { byteLength: number } };
+
+function buffersOf(game: Game): Map<Sized, { name: string; version: number }> {
+  const buffers = new Map<Sized, { name: string; version: number }>();
+  game.scene.traverse((object) => {
+    const { geometry, instanceMatrix, instanceColor } = object as Mesh & Partial<InstancedMesh>;
+    const name = namedAncestor(object);
+    const attributes = geometry ? Object.entries(geometry.attributes) : [];
+    const all = [...attributes, ['index', geometry?.index], ['instanceMatrix', instanceMatrix], ['instanceColor', instanceColor]] as [string, Sized | null | undefined][];
+    for (const [key, attribute] of all) if (attribute?.array) buffers.set(attribute, { name: `${name}.${key}`, version: attribute.version });
+  });
+  return buffers;
+}
+
+export function changedBuffersSince(game: Game, before: ReadonlyMap<Sized, { version: number }>): Record<string, number> {
+  const changed: Record<string, number> = {};
+  for (const [buffer, { name, version }] of buffersOf(game)) {
+    if (before.get(buffer)?.version !== version) changed[name] = (changed[name] ?? 0) + buffer.array.byteLength;
+  }
+  return changed;
+}
+
+export const bufferVersions = buffersOf;
+
+export function watchMixedMaterials(game: Game): () => string[] {
+  const kinds = new Map<Material, Set<string>>();
+  const { renderer } = game;
+  const draw = renderer.renderBufferDirect;
+  renderer.renderBufferDirect = function watched(camera, scene, geometry, material, object, group) {
+    const drawn = kinds.get(material) ?? new Set<string>();
+    drawn.add(drawKind(object, geometry, material, renderer));
+    kinds.set(material, drawn);
+    draw.call(this, camera, scene, geometry, material, object, group);
+  };
+  return () => {
+    renderer.renderBufferDirect = draw;
+    return [...kinds].filter(([, drawn]) => drawn.size > 1).map(([material, drawn]) => `${material.type} ${material.name}: ${[...drawn].join(' ')}`);
+  };
+}
+
+function drawKind(object: Object3D, geometry: BufferGeometry, material: Material, renderer: WebGLRenderer): string {
+  const instanced = object as Partial<InstancedMesh>;
+  return [
+    instanced.isInstancedMesh ? 'inst' : 'mesh',
+    instanced.instanceColor ? 'icolor' : '',
+    hasVertexAlpha(geometry, material) ? 'alpha' : '',
+    renderer.getRenderTarget() ? 'target' : 'screen',
+  ].join('');
+}
+
+function hasVertexAlpha(geometry: BufferGeometry, material: Material): boolean {
+  return (material as Material & { vertexColors?: boolean }).vertexColors === true && geometry.attributes.color?.itemSize === 4;
+}
+
+export function blurredElements(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('body *')].filter((node) => getComputedStyle(node).backdropFilter !== 'none' && node.getClientRects().length > 0);
+}
+
+function sizeLabel(node: HTMLElement): string {
+  const { width, height } = node.getBoundingClientRect();
+  return `${node.className}:${Math.round(width)}x${Math.round(height)}`;
+}
+
 export function lampsOf(game: Game): Object3D[] {
   const beams = field(game, 'vehicleLights') as BeamLights;
   const sites = field(game, 'siteLights') as SiteSlots;
@@ -121,11 +216,22 @@ export function systemRootsOf(game: Game): SystemRoots {
 
 type CountedRenderer = Pick<WebGLRenderer, 'info' | 'renderBufferDirect'>;
 type DirectArgs = Parameters<WebGLRenderer['renderBufferDirect']>;
+const HEAVIEST_ROWS = 60;
+
+function namedAncestor(object: Object3D): string {
+  for (let node: Object3D | null = object; node !== null; node = node.parent) {
+    if (node.name && !node.name.startsWith('scope-chunk')) return node.name;
+  }
+  return `${object.type}:unnamed`;
+}
 
 export class DrawCounter {
   readonly shadowCameras = new Map<Camera, number>();
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
+  private readonly byName = new Map<string, DrawCount>();
+  private readonly materials: Record<RenderPass, Set<Material>> = { main: new Set(), shadow: new Set() };
+  private readonly materialKinds: Record<string, number> = {};
   private rendererCalls = 0;
   private programChecks = 0;
   private readonly versions = new Map<Material, number>();
@@ -180,6 +286,32 @@ export class DrawCounter {
     count.draws += draws;
     count.triangles += triangles;
     if (other !== null) this.other[other] = (this.other[other] ?? 0) + draws;
+    this.addByName(pass, args[4], draws, triangles);
+    this.addMaterial(pass, args[3], system);
+  }
+
+  private addMaterial(pass: RenderPass, material: Material | null, system: BenchSystem): void {
+    const seen = this.materials[pass];
+    if (material === null || seen.has(material)) return;
+    seen.add(material);
+    const key = `${pass}|${system}|${material.name || material.type}`;
+    this.materialKinds[key] = (this.materialKinds[key] ?? 0) + 1;
+  }
+
+  private addByName(pass: RenderPass, object: Object3D, draws: number, triangles: number): void {
+    const key = `${pass}|${namedAncestor(object)}`;
+    const count = this.byName.get(key) ?? { draws: 0, triangles: 0 };
+    count.draws += draws;
+    count.triangles += triangles;
+    this.byName.set(key, count);
+  }
+
+  private heaviest(): NonNullable<DrawReport['heaviest']> {
+    const rows = [...this.byName].map(([key, count]) => {
+      const [pass, name] = key.split('|');
+      return { name, pass: pass as RenderPass, ...count };
+    });
+    return rows.sort((a, b) => b.triangles - a.triangles).slice(0, HEAVIEST_ROWS);
   }
 
   private addShadow(camera: Camera, draws: number): void {
@@ -195,7 +327,7 @@ export class DrawCounter {
   report(): DrawReport {
     const { total, byPass } = drawTotals(this.bySystem);
     if (total !== this.rendererCalls) throw new Error(`IV7: the bench counted ${total} draws but renderer.info.render.calls says ${this.rendererCalls}`);
-    return { total, rendererCalls: this.rendererCalls, programChecks: this.programChecks, byPass, bySystem: this.bySystem, other: this.other };
+    return { total, rendererCalls: this.rendererCalls, programChecks: this.programChecks, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest(), materials: this.materialKinds };
   }
 }
 
@@ -212,9 +344,16 @@ function bufferDataBytes(args: readonly unknown[]): number {
   return typeof data === 'number' ? data : 0;
 }
 
+function viewBytes(call: string, args: readonly unknown[], view: ArrayBufferView): number {
+  const length = call === 'bufferSubData' ? args[4] : undefined;
+  if (typeof length !== 'number' || length === 0) return view.byteLength;
+  const element = (view as ArrayBufferView & { BYTES_PER_ELEMENT?: number }).BYTES_PER_ELEMENT ?? 1;
+  return length * element;
+}
+
 export function uploadBytes(call: string, args: readonly unknown[]): number {
   const view = args.find((arg): arg is ArrayBufferView => ArrayBuffer.isView(arg));
-  if (view) return view.byteLength;
+  if (view) return viewBytes(call, args, view);
   const image = args.find(isImageLike);
   if (image) return image.width * image.height * 4;
   return call === 'bufferData' ? bufferDataBytes(args) : 0;
@@ -365,6 +504,7 @@ export class Probe {
   private builds = 0;
   private uploadMark = 0;
   private buildMark = 0;
+  private readonly seenPrograms = new WeakSet<object>();
   private perfMark: Record<string, PerfStat> = {};
 
   constructor(private readonly game: Game) {
@@ -376,6 +516,7 @@ export class Probe {
     this.perfMark = perfSnapshot();
     this.uploadMark = UPLOADS.bytes;
     this.buildMark = this.builds;
+    this.unseenPrograms();
     this.loop.install();
     this.wrapRender();
     this.wrapStreamer();
@@ -426,6 +567,7 @@ export class Probe {
 
   async countDraws(): Promise<DrawReport> {
     const counter = new DrawCounter(this.renderer, this.game.scene, this.game.rig.camera);
+    shadowRefreshOf(this.game.scene).forget();
     this.counter = counter;
     counter.start(systemMap(systemRootsOf(this.game)));
     try {
@@ -463,6 +605,7 @@ export class Probe {
       gpu: null,
       uploadBytes: UPLOADS.bytes - this.uploadMark,
       chunkBuilds: this.builds - this.buildMark,
+      newPrograms: this.unseenPrograms(),
       calls: this.calls,
       timers: this.timerDelta(),
     };
@@ -490,6 +633,13 @@ export class Probe {
     this.buildMark = this.builds;
   }
 
+  private unseenPrograms(): number {
+    const programs = this.renderer.info.programs ?? [];
+    const unseen = programs.filter((program) => !this.seenPrograms.has(program));
+    for (const program of unseen) this.seenPrograms.add(program);
+    return unseen.length;
+  }
+
   private timerDelta(): Record<string, number> {
     const now = perfSnapshot();
     const delta: Record<string, number> = {};
@@ -511,7 +661,15 @@ export class Probe {
   private async settleGpu(records: readonly FrameRecord[]): Promise<void> {
     if (records.some((r) => !this.drew.get(r))) throw new Error('A timed frame drew nothing, so it has no render cost and no GPU time');
     if (!this.gpu.available) return;
-    await this.until(() => records.every((r) => r.gpu !== null), GPU_WAIT_MS, 'GPU timer results');
+    const gl = this.renderer.getContext();
+    const settled = () => {
+      gl.flush();
+      return records.every((r) => r.gpu !== null);
+    };
+    await this.until(settled, GPU_WAIT_MS, 'GPU timer results').catch((error: Error) => {
+      const open = records.filter((r) => r.gpu === null).length;
+      throw new Error(`${error.message}: ${open} of ${records.length} frames open, ${this.pending.length} waiting, ${this.rounds} rounds, context lost ${gl.isContextLost()}`, { cause: error });
+    });
   }
 
   private checkWatchers(): void {

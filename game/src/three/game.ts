@@ -74,7 +74,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
-import { backdropAt, daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
+import { backdropAt, daylightAt, lightScene, RadioLights, refreshShadows, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -216,7 +216,7 @@ export class Game {
 
   constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
-    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));
+    this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
@@ -225,7 +225,7 @@ export class Game {
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
-    enableSunShadows(this.renderer);
+    refreshShadows(this.renderer, this.scene, this.gpu);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
@@ -430,8 +430,7 @@ export class Game {
     }
     this.syncMinimap();
     timed("minimap", () => this.minimap?.update(this.displayWorld()));
-    if (!this.anim || this.anim.impacts)
-      this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
+    if (!this.anim || this.anim.impacts) this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld(), this.world);
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
@@ -1082,6 +1081,7 @@ export class Game {
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
     const { at, playMs, combatMs } = timed("turn-frame", () => {

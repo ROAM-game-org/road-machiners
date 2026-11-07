@@ -187,6 +187,8 @@ describe('the Wanted well', () => {
     tabIndex = -1;
     innerHTML = '';
     replaceChildren(...children: FakeNode[]) { this.children = children; }
+    get childNodes(): (FakeNode | string)[] { return this.children; }
+    isEqualNode(): boolean { return false; }
   }
 
   function renderWell(w: World): WellNode {
@@ -234,6 +236,8 @@ describe('order controls while knocked out', () => {
     constructor(readonly tag: string) {}
     append(...children: (Node | string)[]) { this.children.push(...children); }
     replaceChildren(...children: (Node | string)[]) { this.children = children; }
+    get childNodes(): (Node | string)[] { return this.children; }
+    isEqualNode(): boolean { return false; }
     setAttribute(name: string, value: string) { this.attrs[name] = value; }
     addEventListener() {}
     text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }

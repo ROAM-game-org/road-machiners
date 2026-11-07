@@ -2,7 +2,7 @@
 import { groundPoint, type VehicleFrame } from '../../phys/frames';
 import type { World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
-import { el } from '../../ui/dom';
+import { el, moveTo } from '../../ui/dom';
 import { keyLabel } from '../../ui/input-mode';
 import { createBareItemIcon } from '../../ui/cards';
 import type { JobMark, VehicleMark, WeaponMark } from '../../ui/weapons';
@@ -36,8 +36,7 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
   el.style.display = seen ? 'block' : 'none';
   if (!seen) return;
   const screen = layerPointOf(rig.screenOf(ground));
-  el.style.left = `${screen.x}px`;
-  el.style.top = `${screen.y - LABEL_LIFT_PX - extraLift}px`;
+  moveTo(el, screen.x, screen.y - LABEL_LIFT_PX - extraLift);
 }
 
 export class Labels {
@@ -130,8 +129,7 @@ export class VehicleMarkers {
       if (hideAll || !f) continue;
       node.classList.toggle('aims-hidden', hideAims);
       const p = layerPointOf(this.rig.screenOf({ x: f.pos.x, y: f.pos.y + MARKER_LIFT, z: f.pos.z }));
-      node.style.left = `${p.x}px`;
-      node.style.top = `${p.y}px`;
+      moveTo(node, p.x, p.y);
     }
   }
 }

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { desertWeight, glassField, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassOf, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
 import { sitePads, type Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
@@ -343,7 +343,7 @@ function maskTexture(c: PaintCanvas): THREE.CanvasTexture {
 }
 
 function glassTexture(t: Terrain): THREE.DataTexture {
-  const texture = new THREE.DataTexture(glassField(t), t.size, t.size, THREE.RedFormat);
+  const texture = new THREE.DataTexture(glassOf(t), t.size, t.size, THREE.RedFormat);
   texture.unpackAlignment = 1;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;
