@@ -40,7 +40,7 @@ describe('a saved rig', () => {
     const middle = { x: old.pos.x - Math.cos(old.heading) * frontAhead(hauler.chassisId), y: old.pos.y - Math.sin(old.heading) * frontAhead(hauler.chassisId) };
     old.pos = middle;
     delete old.bend;
-    envelope.format = { ...envelope.format, minor: 80 };
+    envelope.format = { ...envelope.format, minor: 63 };
     delete envelope.steps;
     beforeChaosHighwayName(envelope.world);
     slots.put('auto', envelope as never);
