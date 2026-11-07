@@ -26,7 +26,7 @@ export type StartKit = {
 export type HaulerKit = { chassis: string; parts: string[]; wear: number; fuel: number; supplies: number };
 
 export type Opening = {
-  log: 'stranded';
+  log: readonly ('stranded' | 'road')[];
   wreck: { ahead: number; side: number };
   condition: Record<string, number>;
   stock: { goods: Record<string, number>; parts: string[] };
@@ -39,7 +39,7 @@ export type Intro = {
 };
 
 const STANDARD_OPENING: Opening = {
-  log: 'stranded',
+  log: ['stranded', 'road'],
   wreck: REGION.playerStart.wreck,
   condition: { stockEngine: 0.18, cabPickup: 0.3 },
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },

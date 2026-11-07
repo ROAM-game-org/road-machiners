@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { startKit } from '../data/start';
+import { replay } from '../sim/run-stream';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
 import { cloneWorld, newWorld } from '../sim/world';
@@ -147,5 +148,24 @@ describe('RunLog', () => {
 
     expect(errors).toEqual([]);
     expect(records[0]).toMatchObject({ kind: 'session', from: 'resync' });
+  });
+
+  it('stamps every line with the real time of its write, and a rebuilt truck or player never holds it', async () => {
+    const backend = memoryBackend();
+    const world = start();
+    const log = new RunLog(backend, 'run', 'v', () => {});
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    log.begin(world, null);
+    now.mockReturnValue(61000);
+    log.note(after(world, (w) => { w.turn += 1; w.player.money += 10; }));
+    now.mockRestore();
+    await log.flush();
+
+    const records = await backend.readLog('run');
+    const rebuilt = replay(records);
+
+    expect(new Set(records.map((r) => r.at))).toEqual(new Set([1000, 61000]));
+    expect(rebuilt.player).not.toHaveProperty('at');
+    for (const truck of rebuilt.trucks.values()) expect(truck).not.toHaveProperty('at');
   });
 });

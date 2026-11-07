@@ -55,7 +55,7 @@ async function openTown(page, tab) {
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board', charts: 'maps' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
   }, tab);
@@ -215,7 +215,7 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
-    document.querySelector('.tip-off')?.click();
+    g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
     if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
@@ -321,11 +321,10 @@ const NAV_STEPS = [
   { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
   { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
   { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
-  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
-  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'market', go: ['market'] },
   { name: 'board', go: ['board'] },
   { name: 'people', go: ['people'] },
-  { name: 'bar', go: ['bar'] },
+  { name: 'maps', go: ['maps'] },
 ];
 
 async function openTownClear(page) {

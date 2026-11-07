@@ -20,7 +20,7 @@ He treats a stranger as a guest in the shade and answers without hurry.
 
 Samples: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed." "Safe is a word for a canal with good walls, and the north road has no walls at all."
 
-### Hattie, water seller at the gate yard
+### Hattie, runs the canteen in the gateway
 
 Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
@@ -104,7 +104,7 @@ She treats a stranger as a load that may or may not reach her bins.
 
 Sample: "The Senate wants the bins full and the Kiln crates cut. It can have one of those."
 
-### Mags Corrin, weigher at the gate yard
+### Mags Corrin, weigher at the gateway trading post
 
 Mags talks of weight, crates, rust and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
 
@@ -475,6 +475,34 @@ She treats a stranger as a truck she saw coming and a possible buyer of what the
 Sample: "You came over the rise with the sun behind you. I saw your dust before I heard your engine. Park inside the fence and the bell is free."
 
 Sample: "Wim writes the claim. I only say who crossed and when."
+
+### Renata Sayle, Guidestar manager at the Bowl gateway
+
+Renata talks of squares, sheets, courier logs and whoever paid last. She compares a place to how recently someone drove it.
+
+Her sentences are brisk and polite, with a clerk's care. She says how old a thing is before she says what it is.
+
+She lays a sheet flat before she speaks about it. She sells to anyone at the same price, and she mentions that sometimes.
+
+She wants the post to pay its share to the trust. She avoids talking about what the Guild has sold about the person in front of her.
+
+She treats a stranger as a customer with a blank sheet.
+
+Sample: "That square's from last month's run, so the road's right and the wrecks may not be. Same price for you as for the patrol."
+
+### Emil Tarn, Guidestar manager at the Nose compound
+
+Emil talks of relay hours, stamps and who is allowed to read what. He compares things to a message: sealed, opened, delivered late.
+
+His sentences are quiet and exact, and they stop early. He lets a question sit, then answers the part he can answer.
+
+He keeps his voice under the sound of the press. He names the Guild's trust when anyone from the Committee is mentioned.
+
+He wants the post left alone by the Order Bureau. He avoids talking about what he has been asked to pass on.
+
+He treats a stranger as a sealed envelope and does not guess at the contents.
+
+Sample: "The sheet is yours once it's paid for. Who you show it to is not my concern, and I would rather it stayed that way."
 
 ## Green Pit and the Pump Station
 

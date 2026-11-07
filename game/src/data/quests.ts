@@ -58,7 +58,7 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [ALA_HIRED]: { gates: null },
   ...Object.fromEntries(Object.values(ROAD_STORY).map((scene) => [scene.gate, { gates: scene.quest }])),
 };
-export const TOWN_SECTIONS = ['garage', 'market', 'board', 'people', 'bar'] as const;
+export const TOWN_SECTIONS = ['garage', 'market', 'board', 'people', 'maps'] as const;
 export type TownSection = (typeof TOWN_SECTIONS)[number];
 export type TownMoment = 'enter' | 'leave';
 export type TownSceneCondition = 'newSeller';

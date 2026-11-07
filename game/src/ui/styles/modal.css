@@ -12,7 +12,8 @@
 }
 #ui:has(.modal:not([style*="display: none"]))
   > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.confirm-block):not(.toast):not(.instruments):not(.log),
-#ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control,
+#ui:has(.modal:not(.inventory-screen):not([style*="display: none"])) > .right-column > .turn-control,
+#ui:has(.inventory-screen.over-scene:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip):not(.dialogue) {
   visibility: hidden;
 }
@@ -20,8 +21,8 @@
   position: relative;
   z-index: var(--z-over-modal);
 }
-/* An opening tip stays readable while a modal is open, since it names what to do in the inventory. It takes the hidden
-   weapons panel's place, between the instruments and the log. */
+/* An opening tip stays readable while a modal is open, since it names what to do in the inventory. Tips place it beside
+   the part it names, or else right of the instruments. */
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   position: fixed;
   top: auto;
@@ -41,7 +42,8 @@
   z-index: var(--z-feedback);
 }
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:has(.modal:not([style*="display: none"])) > .right-column > .log {
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .log,
+#ui:has(.inventory-screen:not([style*="display: none"])) > .right-column > .turn-control {
   z-index: var(--z-over-modal);
 }
 /* The hidden weapons leave the dock, so the instruments drop to the bottom line instead of wrapping above them. */
