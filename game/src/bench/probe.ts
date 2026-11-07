@@ -122,7 +122,30 @@ export function gameState(game: Game): SceneState {
     pixelRatio: game.renderer.getPixelRatio(),
     domNodes: document.getElementsByTagName('*').length,
     blurred: blurredElements().map(sizeLabel),
+    matrixKinds: matrixKinds(game),
   };
+}
+
+function matrixKinds(game: Game): Record<string, number> {
+  let kindOf: (array: unknown) => string;
+  try {
+    kindOf = new Function('a', 'return %HasDoubleElements(a) ? "double" : %HasSmiElements(a) ? "smi" : %HasObjectElements(a) ? "object" : "other";') as (array: unknown) => string;
+  } catch {
+    return {};
+  }
+  const kinds: Record<string, number> = {};
+  const note = (where: string, name: string, array: unknown) => {
+    const key = `${where}|${kindOf(array)}|${(array as number[]).length}${kindOf(array) === 'double' ? '' : `|${name}`}`;
+    kinds[key] = (kinds[key] ?? 0) + 1;
+  };
+  game.scene.traverse((object) => {
+    const name = namedAncestor(object);
+    note('matrix', name, object.matrix.elements);
+    note('world', name, object.matrixWorld.elements);
+    note('modelView', name, object.modelViewMatrix.elements);
+    note('normal', name, object.normalMatrix.elements);
+  });
+  return kinds;
 }
 
 type Sized = { version: number; array: ArrayLike<number> & { byteLength: number } };

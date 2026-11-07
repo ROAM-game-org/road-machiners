@@ -3,7 +3,7 @@ export type PassStats = { real: FrameStats; tickCpu: FrameStats; renderCpu: Fram
 export type RenderPass = 'main' | 'shadow';
 export type BenchSystem = 'terrain' | 'props' | 'vehicles' | 'lights' | 'effects' | 'overlays' | 'other';
 export type DrawCount = { draws: number; triangles: number };
-export type SceneState = { lights: Record<string, number>; shadowMaps: number[]; programs: number; textures: number; geometries: number; objects: number; canvas: string; pixelRatio: number; domNodes: number; blurred: string[]; changedBuffers?: Record<string, number>; renderCalls?: number[]; steps?: Record<string, number> };
+export type SceneState = { lights: Record<string, number>; shadowMaps: number[]; programs: number; textures: number; geometries: number; objects: number; canvas: string; pixelRatio: number; domNodes: number; blurred: string[]; matrixKinds: Record<string, number>; changedBuffers?: Record<string, number>; renderCalls?: number[]; steps?: Record<string, number> };
 export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number; newPrograms: number; over100WithNewPrograms: number };
 export type SceneReport = {
   id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'fight-night' | 'drive';
