@@ -510,10 +510,6 @@
 .cond-pristine {
   color: var(--cond-pristine);
 }
-.cond-pristine .icon svg {
-  fill: var(--cond-pristine);
-  stroke: var(--cond-pristine);
-}
 .cond-w1 {
   color: var(--cond-w1);
 }
@@ -666,16 +662,14 @@
 #ui .modal.character-screen {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-.skill-table {
-  flex: 0 1 auto;
-  min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
+}
+.skill-table {
+  flex: 0 0 auto;
   align-content: start;
   display: grid;
-  grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) minmax(var(--panel-s), 1fr) max-content;
+  grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) max-content;
   gap: var(--space-2) var(--space-7);
   align-items: center;
   margin-top: var(--space-4);
@@ -721,15 +715,6 @@
 .skill-level i.on {
   background: var(--accent);
   border-color: var(--accent);
-}
-.skill-today {
-  display: grid;
-  grid-template-columns: 1fr var(--icon-xl);
-  align-items: center;
-  gap: var(--space-4);
-}
-.skill-today .num {
-  text-align: right;
 }
 .skill-buy {
   justify-self: end;
@@ -845,10 +830,6 @@
 }
 .stat .delta {
   text-align: right;
-}
-.stat .icon svg,
-.chip .icon svg {
-  fill: none;
 }
 .delta {
   display: inline-flex;
@@ -1363,6 +1344,7 @@
 .inv-grid[data-hint~="D"] .c-D,
 .inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
+.inv-grid[data-hint~="E"] .bay,
 .inv-grid[data-hint~="F"] .c-F,
 .inv-grid[data-hint~="B"] .c-B,
 .inv-grid[data-hint~="L"] .c-L,
