@@ -758,7 +758,6 @@ export const SCREENS: Translation<typeof EN> = {
   'contract.status.holding': 'Стоит на месте, {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}',
   'contract.status.apart': 'Вы отстали, {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}',
   'contract.status.stuck': 'Вы застряли, {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}',
-  'contract.offers': 'Предложения',
   'contract.needMore': 'Не хватает: {good}, ещё {n}',
   'contract.accept': 'Взять',
   'contract.noStock': 'На складе только {n}',

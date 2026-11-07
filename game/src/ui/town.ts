@@ -61,7 +61,8 @@ import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
 import { escortStatusText, gameHours, GOODS_COLUMNS, surveyPlacesLeft } from "./format";
 import { InventoryView, truckChips } from "./inventory";
-import { contractRow } from "./contract-row";
+import { boardHeldRow, offerRow } from "./contract-row";
+import { acceptRefusal, boardFull, fullBoardReason, needCell } from "./contract-board";
 import { buyChart, chartsOnSale, type SheetOffer } from "../sim/charts";
 import { gridSquareArea, gridSquareOf, sameGridSquare, type GridSquare } from "../sim/map-grid";
 import { REGION } from "../data/region";
@@ -387,7 +388,7 @@ export class TownScreen {
       const { head, body } = page === "garage" ? this.garage(w, shopId, def) : this.market(w, shopId, def);
       return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...head, el("div", { class: "shop-body" }, body))));
     }
-    if (page === "board") return el("div", { class: "ink-panel" }, this.contracts(w, shopId));
+    if (page === "board") return el("div", { class: "ink-panel wide" }, this.contracts(w, shopId));
     if (page === "people") return el("div", { class: "ink-panel fit" }, this.parkedDrivers(w, shopId));
     return page === "maps" ? el("div", { class: "ink-panel fit" }, this.charts(w, shopId)) : null;
   }
@@ -689,28 +690,27 @@ export class TownScreen {
 
   private contracts(w: World, shopId: string): HTMLElement {
     const board = shopState(w, shopId).contracts;
-    const full = w.player.contracts.length >= CONTRACTS.maxActive;
-    const refusal = (c: Contract): Msg | null => {
-      if (full) return t("contract.full", { n: CONTRACTS.maxActive });
-      return haulStockReason(w, c) ?? escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
-    };
+    const full = boardFull(w);
     const offer = (c: Contract): SlotRow => {
-      const accept = this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
-      return { id: c.id, row: contractRow(w, c, accept, true), action: accept, done: t("trade.done.taken") };
+      const accept = this.button(t("contract.accept"), (x) => acceptContract(x, c.id), acceptRefusal(w, c, full));
+      return { id: c.id, row: offerRow(w, c, accept, needCell(w, c)), action: accept, done: t("trade.done.taken") };
     };
     const held = (c: Contract): SlotRow => {
       const cell = this.deliverCell(w, shopId, c);
-      return { id: c.id, row: contractRow(w, c, cell), action: cell.tagName === "BUTTON" ? cell : null, done: t("trade.done.delivered") };
+      return { id: c.id, row: boardHeldRow(w, c, cell), action: cell.tagName === "BUTTON" ? cell : null, done: t("trade.done.delivered") };
     };
     const offers = this.slots.place("board", board.map(offer));
     const yours = this.slots.place("yours", w.player.contracts.map(held));
     return el(
       "div",
-      {},
-      el("h3", {}, t("contract.offers")),
-      offers.length ? el("div", { class: "jobs" }, ...offers) : el("div", { class: "dim" }, t("contract.noOffers")),
-      el("h3", {}, t("contract.yours", { n: w.player.contracts.length, max: CONTRACTS.maxActive })),
-      yours.length ? el("div", { class: "jobs" }, ...yours) : null,
+      { class: "board" },
+      el(
+        "div",
+        { class: "board-offers" },
+        full ? el("div", { class: "dim" }, fullBoardReason()) : null,
+        offers.length ? el("div", { class: "jobs" }, ...offers) : el("div", { class: "dim" }, t("contract.noOffers")),
+      ),
+      el("div", { class: "well board-held" }, el("h3", {}, t("contract.yours", { n: w.player.contracts.length, max: CONTRACTS.maxActive })), yours.length ? el("div", { class: "jobs" }, ...yours) : el("div", { class: "dim" }, t("contract.none"))),
     );
   }
 
@@ -723,11 +723,6 @@ export class TownScreen {
   }
 }
 
-function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null {
-  if (refusal === null) return null;
-  return refusal === "oneSearch" ? t("contract.oneSearch") : refusalText(w, { id: refusal });
-}
-
 const DELIVER_VERBS = {
   haul: { now: "contract.deliver", at: "contract.deliverAt" },
   procure: { now: "contract.deliver", at: "contract.deliverAt" },
@@ -736,15 +731,6 @@ const DELIVER_VERBS = {
   survey: { now: "contract.report", at: "contract.reportAt" },
   claim: { now: "contract.deliver", at: "contract.deliverAt" },
 } as const;
-
-function escortRefusal(w: World, c: Contract): Msg | null {
-  if (c.kind !== "escort") return null;
-  const blocked = escortBlocked(w, c);
-  if (blocked === "escorting") return t("contract.alreadyEscorting");
-  if (blocked !== "weak") return null;
-  const fit = escortFit(w, c);
-  return t("contract.needsStronger", { win: Math.round(fit.win * 100), need: Math.round(fit.need * 100) });
-}
 
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "survey") return surveyPlacesLeft(c);
@@ -797,11 +783,6 @@ function placeName(shopId: string, section: TownSection): Msg {
 
 function stockCount(stock: PartInstance[], f: StockFilter): number {
   return f === "all" ? stock.length : stock.filter((p) => kindFilter(partDef(p.defId).kind) === f).length;
-}
-
-function haulStockReason(w: World, c: Contract): Msg | null {
-  if (c.kind !== "haul" || !haulShort(w, c)) return null;
-  return t("contract.noStock", { n: goodStock(shopState(w, c.shop), c.good) });
 }
 
 function rationingTip(k: Supply): Msg {

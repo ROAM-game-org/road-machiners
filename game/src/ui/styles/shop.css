@@ -1325,6 +1325,32 @@
 .job > .dim {
   max-width: 11em;
 }
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--inv-side-width);
+  gap: var(--space-6);
+  align-items: start;
+}
+.board-offers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.board-offers .jobs {
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto auto auto auto;
+}
+.board-held .jobs {
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto auto;
+}
+.job-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+:where(#ui.phone, #ui.narrow) .board {
+  grid-template-columns: minmax(0, 1fr);
+}
 .job-what {
   display: flex;
   flex-direction: column;

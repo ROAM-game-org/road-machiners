@@ -72,13 +72,13 @@ function offerCaption(w: World, c: Contract): HTMLElement | null {
   return claimRivalMark(w, c);
 }
 
-function titleEl(c: Contract, summary: Msg, title?: Msg): HTMLElement {
-  if (c.kind !== "rescue") return el("span", { class: "job-title", title }, summary);
+function titleEl(c: Contract, summary: Msg, title?: Msg, tagged = true): HTMLElement {
+  if (c.kind !== "rescue" || !tagged) return el("span", { class: "job-title", title }, summary);
   return el("span", { class: "job-title", title }, el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`)), SPACE, summary);
 }
 
 export function offerRow(w: World, c: Contract, accept: HTMLElement, need: HTMLElement | null): HTMLElement {
-  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c)), offerCaption(w, c)), need ?? el("span", {}), postedClock(w, c), payEl(w, c), accept);
+  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c), undefined, false), offerCaption(w, c)), need ?? el("span", {}), postedClock(w, c), payEl(w, c), accept);
 }
 
 export function boardHeldRow(w: World, c: Contract, action: HTMLElement): HTMLElement {
