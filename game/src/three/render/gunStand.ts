@@ -279,7 +279,9 @@ function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [n
     const moved = movedPlate(rect, { dx, dz, shrink: 1 });
     if (!tops((moved.x0 + moved.x1) / 2, (moved.z0 + moved.z1) / 2)) continue;
     const over = shifted(points, dx, dz);
-    const found = stiltsAt(body, over, highestTop(over, tops), dx, dz);
+    const y = highestTop(over, tops);
+    if (best && best.braces === 0 && y >= best.spot.y - CLIP_TOLERANCE) continue;
+    const found = stiltsAt(body, over, y, dx, dz);
     if (found && stiltsBeat(found.braces, found.spot.y, best)) best = found;
   }
   return best && best.spot;
@@ -314,10 +316,13 @@ const SLOPE_TOLERANCE = CLIP_TOLERANCE * 0.8;
 
 function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT, tolerance = CLIP_TOLERANCE): boolean {
   let held = 0;
+  let left = points.length;
   for (const [x, z, lift] of points) {
     const bottom = plane(x, z) + lift;
     if (cutsInto(tops(x, z), bottom)) return false;
     if (restsOn(feet(x, z), bottom, tolerance)) held++;
+    left--;
+    if ((held + left) / points.length < support) return false;
   }
   return held / points.length >= support;
 }
@@ -356,9 +361,9 @@ function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: 
   return { y: (a.y + b.y + c.y + d.y) / 4, slope: { x: (c.y + d.y - a.y - b.y) / 2 / dx, z: (b.y + d.y - a.y - c.y) / 2 / dz } };
 }
 
-type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean };
+type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean; span?: { u0: number; u1: number; v0: number; v1: number } };
 type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
-type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: Map<number, Map<number, { point: THREE.Vector3; face: Face } | null>> };
+type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: Map<number, { point: THREE.Vector3; face: Face } | null> };
 type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
 
 const LOOKS = {
@@ -456,7 +461,14 @@ function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
   return faces;
 }
 
+function spanOf(face: Face, look: Look): { u0: number; u1: number; v0: number; v1: number } {
+  const us = [face.a[look.u], face.b[look.u], face.c[look.u]];
+  const vs = [face.a[look.v], face.b[look.v], face.c[look.v]];
+  return { u0: Math.min(...us) - SPAN_MARGIN, u1: Math.max(...us) + SPAN_MARGIN, v0: Math.min(...vs) - SPAN_MARGIN, v1: Math.max(...vs) + SPAN_MARGIN };
+}
+
 function addFace(columns: Map<number, Face[]>, face: Face, look: Look): void {
+  face.span = spanOf(face, look);
   for (const key of columnsUnder(face, look)) {
     const column = columns.get(key);
     if (column) column.push(face);
@@ -465,6 +477,7 @@ function addFace(columns: Map<number, Face[]>, face: Face, look: Look): void {
 }
 
 const COLUMN_OFFSET = 1 << 15;
+const SPAN_MARGIN = 1e-6;
 
 function columnKey(i: number, j: number): number {
   return (i + COLUMN_OFFSET) * (COLUMN_OFFSET * 2) + j + COLUMN_OFFSET;
@@ -487,12 +500,15 @@ function topFooting(index: FaceIndex, x: number, z: number): THREE.Vector3 | nul
 const downRay = new THREE.Ray();
 const hitScratch = new THREE.Vector3();
 
+const HIT_RESOLUTION = 1e6;
+const HIT_OFFSET = 2 ** 25;
+
 function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
-  let row = index.nearest.get(u);
-  if (!row) index.nearest.set(u, (row = new Map()));
-  if (row.has(v)) return row.get(v)!;
+  const key = (Math.round(u * HIT_RESOLUTION) + HIT_OFFSET) * 2 ** 26 + Math.round(v * HIT_RESOLUTION) + HIT_OFFSET;
+  const known = index.nearest.get(key);
+  if (known !== undefined) return known;
   const found = scanFaces(index, u, v);
-  row.set(v, found);
+  index.nearest.set(key, found);
   return found;
 }
 
@@ -504,6 +520,8 @@ function scanFaces(index: FaceIndex, u: number, v: number): { point: THREE.Vecto
   downRay.direction.copy(look.normal).negate();
   let best: { point: THREE.Vector3; face: Face } | null = null;
   for (const face of index.columns.get(columnKey(Math.floor(u / FACE_COLUMN), Math.floor(v / FACE_COLUMN))) ?? []) {
+    const span = face.span!;
+    if (u < span.u0 || u > span.u1 || v < span.v0 || v > span.v1) continue;
     if (!downRay.intersectTriangle(face.a, face.b, face.c, false, hitScratch)) continue;
     if (!best) best = { point: hitScratch.clone(), face };
     else if (hitScratch.dot(look.normal) > best.point.dot(look.normal)) {

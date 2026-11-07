@@ -11,9 +11,8 @@ export type SupportFault = { name: string; share: number; air: number; at: THREE
 const DOWN = new THREE.Vector3(0, -1, 0);
 const EDGE = 1e-6;
 const CORNER_SIDE = 2 * CLIP_TOLERANCE;
-const HEAVY_TRIANGLES = 1000;
 const COLUMNS_ACROSS = 48;
-const MAX_CACHED_SOLIDS = 400;
+const MAX_CACHED_SOLIDS = 1200;
 const COLUMNS = new Map<string, Columns>();
 
 export function supportFaults(pieces: Piece[], ground: THREE.Object3D[]): SupportFault[] {
@@ -48,9 +47,8 @@ function mayHitBelow(mesh: THREE.Mesh, origin: THREE.Vector3): boolean {
 
 function hitDistance(mesh: THREE.Mesh, origin: THREE.Vector3, down: THREE.Vector3): number {
   if (down.equals(DOWN) && !mayHitBelow(mesh, origin)) return Infinity;
-  const key = mesh.userData.key as string | undefined;
-  if (key === undefined || !down.equals(DOWN)) return new THREE.Raycaster(origin, down).intersectObject(mesh, false)[0]?.distance ?? Infinity;
-  return columnsOf(key, mesh).distanceDown(origin);
+  if (!down.equals(DOWN)) return new THREE.Raycaster(origin, down).intersectObject(mesh, false)[0]?.distance ?? Infinity;
+  return columnsOf(mesh.userData.key as string, mesh).distanceDown(origin);
 }
 
 class Columns {
@@ -122,10 +120,9 @@ function solids(objs: THREE.Object3D[]): THREE.Mesh[] {
       const mesh = new THREE.Mesh(o.geometry, both);
       mesh.matrixAutoUpdate = false;
       mesh.matrixWorld.copy(o.matrixWorld);
-      const triangles = (o.geometry.getIndex()?.count ?? o.geometry.getAttribute('position').count) / 3;
       if (o.geometry.boundingBox === null) o.geometry.computeBoundingBox();
       const box = o.geometry.boundingBox!.clone().applyMatrix4(o.matrixWorld);
-      mesh.userData = triangles >= HEAVY_TRIANGLES ? { box, key: `${o.geometry.uuid}:${o.matrixWorld.elements.join(',')}` } : { box };
+      mesh.userData = { box, key: `${o.geometry.uuid}:${o.matrixWorld.elements.join(',')}` };
       out.push(mesh);
     });
   }
