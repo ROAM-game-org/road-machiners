@@ -7,7 +7,7 @@ import { launchChromium } from './gpu.mjs';
 import { allocationReport, profileReport } from './perf-profile.mjs';
 import { budgetsFor, bundleProblems, checkBudgets, compare, gateLines, gateSummary, landedFrom, landInto, LOAD_SHARE_MAX, OTHERS_CPU_SHARE_MAX, summary, trustProblems } from './perf-report.mjs';
 
-const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio', ...(process.env.PERF_CHROMIUM_FLAGS?.split(' ') ?? [])];
+const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
 const BUILD_TIMEOUT_MS = 300000;
 const SERVER_TIMEOUT_MS = 30000;
 const BENCH_TIMEOUT_MS = 1200000;

@@ -12,7 +12,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
-import { blurredElements, bufferVersions, changedBuffersSince, gameState, trapMatrixKinds, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
+import { blurredElements, bufferVersions, changedBuffersSince, gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
@@ -605,6 +605,10 @@ function rendererName(game: Game): string {
   return String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
 }
 
+function checkTypedMatrices(game: Game): void {
+  if (!(game.scene.matrixWorld.elements instanceof Float64Array)) throw new Error('Matrices are not typed, so the typed-matrices build step did not run');
+}
+
 function checkGameFields(game: Game): void {
   const missing = GAME_FIELDS.filter((name) => !Reflect.has(game, name) || Reflect.get(game, name) === undefined);
   if (missing.length > 0) throw new Error(`Game has no ${missing.join(', ')}, which the bench reads. Update the bench to the renamed fields`);
@@ -660,7 +664,7 @@ function timeHolders(game: Game): string {
 
 export async function runBench(game: Game, options: BenchOptions): Promise<BenchReport> {
   checkGameFields(game);
-  trapMatrixKinds();
+  checkTypedMatrices(game);
   const probe = new Probe(game);
   const passFrames = options.passFrames ?? PASS_FRAMES;
   const log: TurnLog = { waits: [], workers: [], previews: [], starts: [], passShots: [], recording: false, steps: {}, spans: [] };

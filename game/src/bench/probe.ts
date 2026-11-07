@@ -1,4 +1,4 @@
-import { Light, Matrix4, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
@@ -122,63 +122,7 @@ export function gameState(game: Game): SceneState {
     pixelRatio: game.renderer.getPixelRatio(),
     domNodes: document.getElementsByTagName('*').length,
     blurred: blurredElements().map(sizeLabel),
-    matrixKinds: matrixKinds(game),
   };
-}
-
-const TRAPPED: string[] = [];
-
-function kindReader(): ((array: unknown) => string) | null {
-  try {
-    return new Function('a', 'return %HasDoubleElements(a) ? "double" : %HasSmiElements(a) ? "smi" : %HasObjectElements(a) ? "object" : "other";') as (array: unknown) => string;
-  } catch {
-    return null;
-  }
-}
-
-function trapText(name: string, before: string, snapshot: number[], self: Matrix4, args: unknown[]): string {
-  return `${Math.round(performance.now())}ms ${name} was ${before} values ${snapshot.join(',')} now ${self.elements.join(',')} args ${JSON.stringify(args).slice(0, 240)} new ${String(kindReader()?.(new Matrix4().elements))} ${new Error().stack?.split('\n').slice(3, 7).map((line) => line.trim().replace(/https?:[^ ]*\/assets\//, '')).join(' < ')}`;
-}
-
-export function trapMatrixKinds(): void {
-  const kindOf = kindReader();
-  if (kindOf === null) return;
-  const proto = Matrix4.prototype as unknown as Record<string, (...args: unknown[]) => unknown>;
-  for (const name of Object.getOwnPropertyNames(proto).filter((key) => key !== 'constructor')) {
-    const original = proto[name];
-    proto[name] = function (this: Matrix4, ...args: unknown[]) {
-      const before = kindOf(this.elements);
-      const snapshot = [...this.elements];
-      const result = original.apply(this, args);
-      if (TRAPPED.length < 3 && kindOf(this.elements) === 'object') TRAPPED.push(trapText(name, before, snapshot, this, args));
-      return result;
-    };
-  }
-}
-
-function matrixKinds(game: Game): Record<string, number> {
-  let kindOf: (array: unknown) => string;
-  try {
-    kindOf = new Function('a', 'return %HasDoubleElements(a) ? "double" : %HasSmiElements(a) ? "smi" : %HasObjectElements(a) ? "object" : "other";') as (array: unknown) => string;
-  } catch {
-    return {};
-  }
-  const kinds: Record<string, number> = {};
-  TRAPPED.forEach((text, i) => {
-    kinds[`trap${i} ${text}`] = 1;
-  });
-  const note =(where: string, name: string, array: unknown) => {
-    const key = `${where}|${kindOf(array)}|${(array as number[]).length}${kindOf(array) === 'double' ? '' : `|${name}`}`;
-    kinds[key] = (kinds[key] ?? 0) + 1;
-  };
-  game.scene.traverse((object) => {
-    const name = namedAncestor(object);
-    note('matrix', name, object.matrix.elements);
-    note('world', name, object.matrixWorld.elements);
-    note('modelView', name, object.modelViewMatrix.elements);
-    note('normal', name, object.normalMatrix.elements);
-  });
-  return kinds;
 }
 
 type Sized = { version: number; array: ArrayLike<number> & { byteLength: number } };

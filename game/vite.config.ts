@@ -1,7 +1,8 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import { readdirSync, statSync } from 'node:fs'
 import { gameVersion } from './src/version'
 import { publicHashes } from './src/public-files'
+import { typedMatrices } from './scripts/typed-matrices.mjs'
 
 function sfxBytes(dirs: string[]): Record<string, number> {
   const sizes = dirs.flatMap((dir) => readdirSync(dir).filter((name) => /\.(ogg|m4a)$/.test(name)).map((name) => [name, statSync(`${dir}/${name}`).size]))
@@ -10,25 +11,6 @@ function sfxBytes(dirs: string[]): Record<string, number> {
 
 function envText(name: string): string {
   return JSON.stringify(process.env[name] ?? '')
-}
-
-const TYPED_MATRICES = [
-  { file: 'three/build/three.core.js', from: /(class Matrix3 \{[\s\S]*?this\.elements = )\[(\s*1, 0, 0,\s*0, 1, 0,\s*0, 0, 1\s*)\];/, to: '$1new Float64Array( [$2] );' },
-  { file: 'three/build/three.core.js', from: /(class Matrix4 \{[\s\S]*?this\.elements = )\[(\s*1, 0, 0, 0,\s*0, 1, 0, 0,\s*0, 0, 1, 0,\s*0, 0, 0, 1\s*)\];/, to: '$1new Float64Array( [$2] );' },
-  { file: 'three/build/three.module.js', from: /_m0\.elements\.map\( \( v \) => v\.toFixed\( 4 \) \)/, to: 'Array.from( _m0.elements, ( v ) => v.toFixed( 4 ) )' },
-]
-
-function typedMatrices(): Plugin {
-  return {
-    name: 'typed-matrices',
-    enforce: 'pre',
-    transform(code, id) {
-      const edits = TYPED_MATRICES.filter((edit) => id.includes(edit.file))
-      if (edits.length === 0) return null
-      for (const edit of edits) if (!edit.from.test(code)) throw new Error(`three no longer has ${edit.from} in ${edit.file}`)
-      return { code: edits.reduce((text, edit) => text.replace(edit.from, edit.to), code), map: null }
-    },
-  }
 }
 
 export default defineConfig(({ command }) => ({
