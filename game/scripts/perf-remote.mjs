@@ -22,7 +22,7 @@ function parseArgs(argv) {
 }
 
 function benchArgsOf(argv) {
-  const scenes = argv.filter((arg) => arg !== '--profile');
+  const scenes = argv.filter((arg) => !['--profile', '--quick', '--capped'].includes(arg));
   const known = scenes.length === 0 || (scenes.length === 2 && scenes[0] === '--scenes');
   if (!known) throw new Error(USAGE);
   return argv;

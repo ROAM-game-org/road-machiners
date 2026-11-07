@@ -20,7 +20,7 @@ const WINDOWS_LOAD_SAMPLE_MS = 1000;
 const HEAP_SAMPLE_BYTES = 16384;
 const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing', 'devtools.timeline', 'v8', 'disabled-by-default-v8.gc'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
-const USAGE = 'Usage: npm run perf [-- --profile] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>\n       npm run perf -- --gate <report.json>\n       npm run perf -- --land <report.json> <report.json> <report.json> [...]';
+const USAGE = 'Usage: npm run perf [-- --profile] [--quick] [--capped] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>\n       npm run perf -- --gate <report.json>\n       npm run perf -- --land <report.json> <report.json> <report.json> [...]';
 const LANDED_URL = new URL('./perf-landed.json', import.meta.url);
 const GATE_EXIT = { pass: 0, slower: 1, untrusted: 2 };
 
@@ -52,10 +52,12 @@ function takeValue(argv, flag) {
 
 function runArgs(argv) {
   const profile = argv.includes('--profile');
-  const scenes = takeValue(argv.filter((arg) => arg !== '--profile'), '--scenes');
+  const quick = argv.includes('--quick');
+  const capped = argv.includes('--capped');
+  const scenes = takeValue(argv.filter((arg) => !['--profile', '--quick', '--capped'].includes(arg)), '--scenes');
   const url = takeValue(scenes.rest, '--url');
   if (url.rest.length > 0) throw new Error(`Unknown arguments ${url.rest.join(' ')}\n${USAGE}`);
-  return { profile, scenes: scenes.value, url: url.value };
+  return { profile, quick, capped, scenes: scenes.value, url: url.value };
 }
 
 function commitName() {
@@ -276,9 +278,9 @@ async function stopHeapSampling(heap) {
   return heap ? (await heap.send('HeapProfiler.stopSampling')).profile : null;
 }
 
-async function playBench(base, budget, tracePath, scenes) {
+async function playBench(base, budget, tracePath, scenes, capped) {
   const others = new OthersCpu();
-  const { browser, software, renderer } = await launchChromium(chromium, { headless: true, args: CHROMIUM_FLAGS });
+  const { browser, software, renderer } = await launchChromium(chromium, { headless: true, args: capped ? ['--mute-audio'] : CHROMIUM_FLAGS });
   try {
     if (software) throw new Error(`Perf got the software renderer ${renderer}. It needs a GPU.`);
     const errors = [];
@@ -311,12 +313,12 @@ function readTrace(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-async function measure(base, budget, commit, { profile, scenes }) {
+async function measure(base, budget, commit, { profile, quick, capped, scenes }) {
   const idle = profile ? { load: await machineLoad(), waitedMs: 0 } : await idleLoad();
   const startedAt = new Date().toISOString();
   const path = reportBase(os.hostname(), commit, startedAt);
   const tracePath = profile ? `${path}.trace.json` : null;
-  const { report, frameCapOff, othersCores, sampling } = await playBench(base, budget, tracePath, scenes);
+  const { report, frameCapOff, othersCores, sampling } = await playBench(base, quick ? { ...budget, frameP99Ms: Number.MAX_SAFE_INTEGER } : budget, tracePath, scenes, capped);
   const loadEnd = await machineLoad();
   const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, othersCores, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };
