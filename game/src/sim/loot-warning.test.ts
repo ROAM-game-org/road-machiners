@@ -230,7 +230,7 @@ describe('a driver that reaches loot the player is looting', () => {
     raiseCalls(w);
     expect(w.player.call).toMatchObject({ with: npc.id, topic: 'lootWarning' });
     expect(w.player.call!.vars.warnLine).toEqual({ kind: 'line', line: 'thatsMyPick' });
-    expect(currentOptions(w).map((o) => o.line)).toEqual(['rollingOn', 'findYourOwn', 'makeMe', 'hangUp']);
+    expect(currentOptions(w).map((o) => o.line)).toEqual(['rollingOn', 'findYourOwn', 'makeMe']);
   });
 
   it('gets the loot when the player rolls on, and the player no longer holds it', () => {

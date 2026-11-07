@@ -1361,7 +1361,7 @@ describe('robber truce', () => {
     const { w, robber } = holdup();
     const next = askTruce(w, robber.id);
     expect(next.player.call?.node).toBe('tollCargo');
-    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here are your M's. Now back off.", 'Come and get it.', 'Hang up.']);
+    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here are your M's. Now back off.", 'Come and get it.']);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
   });
 
