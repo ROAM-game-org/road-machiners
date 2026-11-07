@@ -4,7 +4,6 @@ import { noteError } from "./crash";
 const DB = "roam-ground";
 const STORE = "bake";
 const ROW = "ground";
-const READ_LIMIT_MS = 1500;
 
 type Row = { key: string; bake: GroundBake };
 
@@ -29,17 +28,11 @@ async function read(key: string): Promise<GroundBake | null> {
 }
 
 export async function readGroundCache(key: string): Promise<GroundBake | null> {
-  let timer = 0;
-  const late = new Promise<null>((resolve) => {
-    timer = window.setTimeout(() => resolve(null), READ_LIMIT_MS);
-  });
   try {
-    return await Promise.race([read(key), late]);
+    return await read(key);
   } catch (err) {
     noteError(err);
     return null;
-  } finally {
-    window.clearTimeout(timer);
   }
 }
 
