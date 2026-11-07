@@ -714,7 +714,7 @@ describe("turns on a tow rope", () => {
     travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs - 1, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE, false);
+    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE);
   });
 
   it("wait again when the player changes the fight plan", () => {
@@ -725,7 +725,7 @@ describe("turns on a tow rope", () => {
     travel.prepareNext(changed, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     travel.prepareNext(changed, null, 1000 + 2 * CONFIG.fightPlanSettleMs, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE, false);
+    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE);
   });
 
   it("leave the worker to finish before it prepares another fight turn", () => {
