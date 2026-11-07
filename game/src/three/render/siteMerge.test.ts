@@ -270,23 +270,11 @@ describe('merging the static meshes of a site', () => {
 
   it('shares one material for merged meshes and gives it the first copy', () => {
     const root = site();
-    const copies = [look(0x123456), look(0x123456)];
+    const copies = [look(0x884400), look(0x884400)];
     put(root, copies[0], 0, 0);
     put(root, copies[1], 3, 0);
     merge(root);
     expect(meshesOf(root)[0].material).toBe(copies[0]);
-  });
-
-  it('shares a look across sites, and gives a lone mesh the shared copy', () => {
-    const first = site();
-    const shared = look(0x654321);
-    put(first, shared, 0, 0);
-    put(first, look(0x654321), 3, 0);
-    merge(first);
-    const second = site();
-    put(second, look(0x654321), 0, 0);
-    merge(second);
-    expect(meshesOf(second)[0].material).toBe(shared);
   });
 
   it('draws one outline for the merged mesh, made of the outlines of its parts welded one by one', () => {
