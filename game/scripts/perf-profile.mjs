@@ -1,8 +1,8 @@
-export const TOP_COUNT = 10;
+export const TOP_COUNT = 30;
 const US_PER_MS = 1000;
 const IDLE_NAMES = new Set(['(idle)', '(root)']);
 const WORKER_THREAD = /^DedicatedWorker/;
-const KINDS = { 'slow-frame': 'slowFrames', turn: 'turns' };
+const KINDS = { 'slow-frame': 'slowFrames', turn: 'turns', pass: 'wholePasses' };
 
 function eventsOf(trace) {
   const events = Array.isArray(trace) ? trace : trace.traceEvents;
@@ -149,7 +149,7 @@ function workerGroup(kind, scene, keys, threads, windows) {
 function groupsForScene(context, scene, windows) {
   const { threads, names, main } = context;
   const mainIntervals = intervalsFor(threads, main.key, 'the main thread');
-  if (windows[0].kind === 'slowFrames') return [groupOf('slowFrames', scene, `main ${main.key}`, mainIntervals, windows)];
+  if (windows[0].kind !== 'turns') return [groupOf(windows[0].kind, scene, `main ${main.key}`, mainIntervals, windows)];
   const keys = turnWorker(threads, names, main.pid);
   return [workerGroup('workerTurns', scene, keys, threads, windows), groupOf('mainTurns', scene, `main ${main.key}`, mainIntervals, windows)];
 }
@@ -165,7 +165,7 @@ export function profileReport(trace) {
   return { groups };
 }
 
-const TITLES = { slowFrames: 'Slow frames, main thread', workerTurns: 'Turns, worker thread', mainTurns: 'Turns, main thread' };
+const TITLES = { slowFrames: 'Slow frames, main thread', wholePasses: 'Whole passes, main thread', workerTurns: 'Turns, worker thread', mainTurns: 'Turns, main thread' };
 
 function groupLines(group) {
   const head = `${TITLES[group.kind]}, ${group.scene}: ${group.windows} windows, ${group.windowMs.toFixed(0)} ms, ${((group.busyMs / group.windowMs) * 100).toFixed(0)} percent busy`;

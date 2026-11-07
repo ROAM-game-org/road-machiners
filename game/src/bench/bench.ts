@@ -528,6 +528,7 @@ async function measurePasses(ctx: Ctx, spec: Spec): Promise<{ passes: FrameRecor
     const from = performance.now();
     const played = await timedPass(ctx, spec);
     if (ctx.options.marks) ctx.probe.markSlowFrames(spec.id, played);
+    if (ctx.options.marks) performance.measure(`bench:pass:${spec.id}`, { start: from, end: performance.now() });
     passes.push(played);
     longTasks += ctx.probe.longTasks.countBetween(from, performance.now());
   }
