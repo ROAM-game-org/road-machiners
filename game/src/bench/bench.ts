@@ -576,8 +576,7 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   state.steps = Object.fromEntries(Object.entries(perfSnapshot()).map(([name, after]) => [name, after.total - (stepsBefore[name]?.total ?? 0)]).filter(([, ms]) => (ms as number) > 0));
   const check = spec.check({ draws, frames: pooled, passes, shadowDraws: ctx.probe.shadowDraws });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
-  const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
-  const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
+  const savings = null;
   return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check, state };
 }
 
@@ -652,7 +651,16 @@ async function playAll(ctx: Ctx, specs: Spec[], preview: () => Promise<void>): P
       throw new Error(`Scene ${spec.id}: ${error.message} (${timeHolders(ctx.game)})`, { cause: error });
     }));
   }
+  await addSavings(ctx, specs, scenes);
   return scenes;
+}
+
+async function addSavings(ctx: Ctx, specs: Spec[], scenes: SceneReport[]): Promise<void> {
+  const { savingsAbove } = ctx.options;
+  if (savingsAbove === null) return;
+  for (const [i, scene] of scenes.entries()) {
+    if (scene.frame.real.p99 > savingsAbove) scene.savings = await measureSavings(ctx, specs[i], scene.draws);
+  }
 }
 
 function timeHolders(game: Game): string {

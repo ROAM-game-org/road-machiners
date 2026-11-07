@@ -371,6 +371,7 @@ const AXIS = new THREE.Vector3(1, 0, 0);
 export class Casings {
   readonly meshes: Record<CasingSize, THREE.InstancedMesh>;
   private casings: Casing[] = [];
+  private drawnTurn = Number.NaN;
   private matrix = new THREE.Matrix4();
   private quat = new THREE.Quaternion();
   private tumble = new THREE.Quaternion();
@@ -398,7 +399,10 @@ export class Casings {
 
   tick(dt: number, terrain: Terrain, turn: number): void {
     this.casings = this.casings.filter((c) => turn - c.turn < CASING.lifeTurns);
-    for (const c of this.casings) if (!c.resting) this.fly(c, dt, terrain);
+    const flying = this.casings.filter((c) => !c.resting);
+    for (const c of flying) this.fly(c, dt, terrain);
+    if (flying.length === 0 && turn === this.drawnTurn) return;
+    this.drawnTurn = turn;
     this.draw(turn);
   }
 
