@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { XP_RULES } from "../data/skills";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen } from "./character";
@@ -92,11 +91,11 @@ describe("character screen", () => {
     expect(button.attrs.has("aria-disabled")).toBe(false);
   });
 
-  it("has one row per skill and says when the XP window began and the cap once", () => {
+  it("has one row per skill and no daily XP column", () => {
     const root = openCharacter(emptyWorld());
     expect(root.all((n) => n.className.includes("skill-row"))).toHaveLength(5);
-    expect(root.text().match(/Since 7:00/g)).toHaveLength(1);
-    expect(root.text()).toContain(`max ${XP_RULES.dailyCap} XP`);
+    expect(root.all((n) => n.className.includes("skill-today"))).toHaveLength(0);
+    expect(root.text()).not.toMatch(/Since \d/);
     expect(root.all((n) => n.className === "skill-name")[0].attrs.get("title")).toMatch(/^Earns XP from /);
   });
 
