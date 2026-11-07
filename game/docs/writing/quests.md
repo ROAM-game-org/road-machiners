@@ -82,7 +82,15 @@ INCLUDE world.ink
 ```
 
 - Give each scene a `# place:` on its first line. The heading stays until another place.
-- Put `# page` on the first line of a hub that follows an outcome. The outcome then shows on its own page with Next, and the hub opens fresh.
+- A page holds one moment. A press already adds one paragraph at a time, so a scene needs no break to read in steps. Put `# page` on the first line of the new page only when:
+  - the line carries a new `# place`;
+  - the line carries a new `# img` that opens a new moment, such as a new person or view;
+  - the line cuts to a later time, like "By morning", and the scene plays on from there (a run of short time steps inside one telling stays on one page);
+  - the line opens a hub that follows an outcome, so the outcome shows on its own page with Next and the hub opens fresh;
+  - the page would scroll at 1280x720 in Russian without it. Put the break where the moment shifts most.
+- A dramatic beat is not a break. A paragraph and `<pause>` carry it.
+- A `# page` on the first line a pick prints does nothing, since a pick and a load always open a fresh page. Leave it off.
+- The Russian twin carries `# page` on the same lines as the English quest.
 - Write documents as tables with `# head` and `# row` lines, cells split by `;`. Use them for ledgers, logs and price boards.
 - `# img: <key>` shows a picture. Make it by [Quest art](../art/quest-art.md), which writes it to `public/quest-art/`, and add the key with its `file`, `focusX` and `focusY` to `src/data/quest-art.json`. `focusX` and `focusY` are the percents across and down the picture that every crop keeps in the same place. [Quest art](../art/quest-art.md#crop-sheet) says how to set them. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
 - A paid choice carries `# cost: <M>` inside its brackets. The runner charges it on the pick and greys the choice out when the player holds less.

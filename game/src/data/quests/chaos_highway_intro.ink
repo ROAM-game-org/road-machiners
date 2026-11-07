@@ -12,9 +12,9 @@ The three of you have been at this table for a while. Tibor is trying to sell yo
 
 Escort a mammoth eighteen-wheeler up the great Northern highway, don't ask where, don't ask what's inside. Good pay. Sounds like a routine job, but you have sat at enough tables to know it's anything but.
 
-Tibor smiles at you. His eyes are welcoming, but, as always, a little watery and darting in your presence. Like a ferret's. You saw a ferret in a book, once. # page
+Tibor smiles at you. His eyes are welcoming, but, as always, a little watery and darting in your presence. Like a ferret's. You saw a ferret in a book, once.
 
-Her name is Ala. # img: road_ala
+Her name is Ala. # img: road_ala # page
 
 The great mammoth eighteen-wheeler and the tiny woman that drives it attracted the attention of the whole <term=keepers>Keepers</term> fort as soon as they arrived. 
 
@@ -22,9 +22,9 @@ She is small, but there is a ferocity to her eyes and the constant slight frown 
 
 She looks at you and you see doubt.
 
-"Are you sure you are up for the job, old man? With that truck?" # speaker: Ala # page
+"Are you sure you are up for the job, old man? With that truck?" # speaker: Ala
 
-She has a point. # img: road_geezer
+She has a point. # img: road_geezer # page
 
 She sees a man past fifty, stuck in a shithole fort on the outskirts, driving a barely armed light pick-up truck. She can't know that just two weeks ago you drove one beautiful monster of a truck. Now it is nothing but a black patch beside a crater. All it takes is one unlucky landmine. As if there is such a thing as a lucky landmine.
 
