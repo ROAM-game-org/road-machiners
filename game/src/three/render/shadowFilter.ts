@@ -1,6 +1,3 @@
-// three's PCF shadow filter rotates 5 taps with screen-space noise. The noise is fixed to the screen, not the
-// ground, so it crawls under a moving camera and leaves grainy, stepped edges. This swaps it for a fixed 3x3
-// grid of compare taps, which gives a smooth penumbra that stays on the ground.
 import * as THREE from "three";
 
 const NOISY_TAPS = /float phi = interleavedGradientNoise\( gl_FragCoord\.xy \) \* PI2;[\s\S]*?\) \* 0\.2;/;
@@ -22,8 +19,25 @@ export function installShadowFilter(): void {
   THREE.ShaderChunk.shadowmap_pars_fragment = head.replace(NOISY_TAPS, () => GRID_TAPS) + chunk.slice(head.length);
 }
 
+function skipDarkInLoop(chunk: string, kind: "point" | "spot"): string {
+  const open = `${kind}Light = ${kind}Lights[ i ];`;
+  const start = chunk.indexOf(open);
+  const direct = start < 0 ? -1 : chunk.indexOf("RE_Direct(", start);
+  const end = direct < 0 ? -1 : chunk.indexOf(";", direct);
+  if (end < 0) throw new Error(`Dark light patch: three's ${kind} light loop was not found`);
+  const body = chunk.slice(start, end + 1);
+  return `${chunk.slice(0, start)}if ( ${kind}Lights[ i ].color != vec3( 0.0 ) ) {\n${body}\n}${chunk.slice(end + 1)}`;
+}
+
+export function installDarkLightSkip(): void {
+  const chunk: string = THREE.ShaderChunk.lights_fragment_begin;
+  if (chunk.includes("Lights[ i ].color != vec3( 0.0 )")) return;
+  THREE.ShaderChunk.lights_fragment_begin = skipDarkInLoop(skipDarkInLoop(chunk, "point"), "spot");
+}
+
 export function enableSunShadows(renderer: THREE.WebGLRenderer): void {
   installShadowFilter();
+  installDarkLightSkip();
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 }
