@@ -12,21 +12,21 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | scout | Scout pickup | 1 | 763 | 5.83 | 2 | 3 | 680 | 4240 | 0.6 | 40 | 0.25 | 6 x 14 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | bed |
 | hauler | Hauler | 1 | 901 | 5.2 | 1 | 2 | 2730 | 7990 | 0.8 | 80 | 0.4 | 8 x 16 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | bed |
 | buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3680 | 0.5 | 30 | 0.2 | 6 x 11 | tank, transmission, cab, wheel, wheel, wheel, wheel | bowl, nose | nimble |
-| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | gunMounts |
+| wagon | Gunwagon | 2 | 1,511 | 3.9 | 1 | 2 | 2130 | 7390 | 0.8 | 60 | 0.4 | 8 x 16 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | gunMounts |
 | courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 4150 | 0.5 | 24 | 0.18 | 6 x 11 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose | racing |
 | van | Utility van | 1 | 821 | 5.4 | 1.5 | 3 | 1100 | 5190 | 0.7 | 55 | 0.24 | 7 x 15 | wheel, wheel, wheel, wheel, cabPickup, transmission, tank | bowl | armored |
-| longbed | Longbed truck | 2 | 1,350 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
-| carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 8020 | 0.85 | 70 | 0.5 | 8 x 15 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | armored |
-| tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8860 | 0.9 | 120 | 0.6 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
+| longbed | Longbed truck | 2 | 2,025 | 4.55 | 0.8 | 1.8 | 2900 | 9330 | 0.95 | 100 | 0.48 | 8 x 18 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | bed |
+| carrier | Armored carrier | 3 | 3,658 | 5.2 | 1 | 2.5 | 3200 | 8020 | 0.85 | 70 | 0.5 | 8 x 15 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, transmissionHeavy, tankHeavy | nose | armored |
+| tractor | Heavy tractor | 3 | 3,287 | 3.9 | 1.8 | 2 | 3600 | 8860 | 0.9 | 120 | 0.6 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | battle |
 | jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 4320 | 0.55 | 35 | 0.2 | 6 x 12 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose | offRoad |
-| convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4840 | 0.6 | 45 | 0.26 | 7 x 15 | cabHardtop, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | openTop |
-| bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 9410 | 0.9 | 110 | 0.45 | 7 x 21 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | springs |
-| loader | Wheel loader | 3 | 1,696 | 3.6 | 1.6 | 2.5 | 4200 | 9460 | 0.9 | 130 | 0.65 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | gunMounts |
-| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
-| bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5760 | 0.65 | 78 | 0.3 | 7 x 14 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | armored |
-| lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabHardtop, transmissionHeavy, tankHeavy | nose | tourer |
-| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16980 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy |  |  |
-| sorokonoga | Sorokonoga | 3 | 1,766 | 3.4 | 0.7 | 1.6 | 4100 | 11200 | 1 | 140 | 0.55 | 7 x 27 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, tankHeavy, transmissionHeavy | bowl | trailer |
+| convertible | Convertible | 2 | 1,497 | 9.4 | 2.5 | 3 | 750 | 4840 | 0.6 | 45 | 0.26 | 7 x 15 | cabHardtop, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | openTop |
+| bus | Bus | 2 | 1,900 | 5.5 | 0.9 | 2 | 3000 | 9410 | 0.9 | 110 | 0.45 | 7 x 21 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | springs |
+| loader | Wheel loader | 3 | 3,816 | 3.6 | 1.6 | 2.5 | 4200 | 9460 | 0.9 | 130 | 0.65 | 8 x 16 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | gunMounts |
+| niva | Niva | 2 | 1,575 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
+| bukhanka | Bukhanka | 2 | 1,725 | 6 | 1.4 | 2.5 | 1250 | 5760 | 0.65 | 78 | 0.3 | 7 x 14 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | armored |
+| lincoln | Lincoln | 3 | 3,216 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabHardtop, transmissionHeavy, tankHeavy | nose | tourer |
+| semi | Semi | 3 | 3,150 | 6 | 0.8 | 1.5 | 9000 | 16980 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy |  |  |
+| sorokonoga | Sorokonoga | 3 | 3,973 | 3.4 | 0.7 | 1.6 | 4100 | 11200 | 1 | 140 | 0.55 | 7 x 27 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabPickup, tankHeavy, transmissionHeavy | bowl | trailer |
 <!-- /wiki:chassis -->
 
 ## Weapons
@@ -42,19 +42,19 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | flamer | Flamer | 1 | 69 | 1 x 3 | 100 | 34 | 2 | false | 8 | 1 | 3 | 2 | 90 | 7 | 8 | 0.3 | 0.6 |  |
 | pneumobolter | Pneumobolter | 1 | 69 | 2 x 3 | 150 | 44 | 3 | false | 14 | 1 | 2 | 1 | 60 | 1.6 | 1 | 1.5 | 1.5 |  |
 | slugCannon | Slug cannon | 1 | 67 | 1 x 3 | 160 | 46 | 3 | false | 16 | 1 | 3 | 2 | 180 | 2 | 2 | 3 | 1.5 |  |
-| heavyMg | Heavy MG | 2 | 88 | 1 x 3 | 95 | 50 | 4 | false | 13 | 1 | 5 | 2 | 270 | 4 | 6 | 1.5 | 0.6 |  |
-| cannon | Forward cannon | 2 | 114 | 2 x 3 | 270 | 60 | 3 | true | 13 | 1 | 2 | 2 | 60 | 3.5 | 1 | 6 | 1 |  |
-| amRifle | Anti-materiel rifle | 2 | 78 | 1 x 4 | 190 | 40 | 2 | false | 19 | 1 | 3 | 3 | 45 | 0.8 | 1 | 2 | 1.2 |  |
-| autocannon | Autocannon | 2 | 126 | 2 x 3 | 180 | 56 | 4 | false | 12 | 1 | 4 | 2 | 180 | 4 | 3 | 3 | 0.8 |  |
-| recoilless | Recoilless rifle | 2 | 109 | 1 x 4 | 150 | 40 | 2 | false | 15 | 1 | 2 | 2 | 45 | 1.4 | 1 | 1 | 2 |  |
-| battleRifle | Battle rifle | 2 | 117 | 1 x 4 | 150 | 44 | 3 | false | 17 | 1 | 5 | 1 | 180 | 1.6 | 3 | 2 | 1.4 |  |
-| gatling | Gatling MG | 3 | 170 | 2 x 3 | 150 | 70 | 5 | false | 14 | 1 | 6 | 3 | 270 | 5 | 12 | 2 | 0.7 |  |
-| rocketRack | Rocket rack | 3 | 165 | 2 x 3 | 110 | 32 | 1 | false | 14 | 1 | 1 | 3 | 90 | 6 | 4 | 1 | 1.2 |  |
-| sniperCannon | Sniper cannon | 3 | 205 | 2 x 4 | 180 | 40 | 2 | true | 20 | 1 | 3 | 3 | 30 | 0.6 | 1 | 2 | 1.4 |  |
-| grenadeLauncher | Grenade launcher | 3 | 196 | 2 x 3 | 130 | 50 | 4 | false | 12 | 1 | 4 | 3 | 180 | 5 | 3 | 2 | 1 |  |
-| tankGun | Tank gun | 3 | 202 | 2 x 4 | 210 | 90 | 8 | true | 16 | 1 | 2 | 2 | 45 | 2 | 1 | 8 | 2 |  |
-| flechette | Flechette gun | 3 | 219 | 2 x 3 | 120 | 44 | 3 | false | 18 | 1 | 4 | 2 | 180 | 1.2 | 4 | 1.5 | 1.5 |  |
-| harpoon | Harpoon | 2 | 96 | 1 x 3 | 120 | 40 | 4 | false | 8 | 1 | 1 | 5 | 270 | 1 | 1 | 0 | 0.3 | 10 |
+| heavyMg | Heavy MG | 2 | 132 | 1 x 3 | 95 | 50 | 4 | false | 13 | 1 | 5 | 2 | 270 | 4 | 6 | 1.5 | 0.6 |  |
+| cannon | Forward cannon | 2 | 170 | 2 x 3 | 270 | 60 | 3 | true | 13 | 1 | 2 | 2 | 60 | 3.5 | 1 | 6 | 1 |  |
+| amRifle | Anti-materiel rifle | 2 | 117 | 1 x 4 | 190 | 40 | 2 | false | 19 | 1 | 3 | 3 | 45 | 0.8 | 1 | 2 | 1.2 |  |
+| autocannon | Autocannon | 2 | 189 | 2 x 3 | 180 | 56 | 4 | false | 12 | 1 | 4 | 2 | 180 | 4 | 3 | 3 | 0.8 |  |
+| recoilless | Recoilless rifle | 2 | 164 | 1 x 4 | 150 | 40 | 2 | false | 15 | 1 | 2 | 2 | 45 | 1.4 | 1 | 1 | 2 |  |
+| battleRifle | Battle rifle | 2 | 175 | 1 x 4 | 150 | 44 | 3 | false | 17 | 1 | 5 | 1 | 180 | 1.6 | 3 | 2 | 1.4 |  |
+| gatling | Gatling MG | 3 | 381 | 2 x 3 | 150 | 70 | 5 | false | 14 | 1 | 6 | 3 | 270 | 5 | 12 | 2 | 0.7 |  |
+| rocketRack | Rocket rack | 3 | 370 | 2 x 3 | 110 | 32 | 1 | false | 14 | 1 | 1 | 3 | 90 | 6 | 4 | 1 | 1.2 |  |
+| sniperCannon | Sniper cannon | 3 | 462 | 2 x 4 | 180 | 40 | 2 | true | 20 | 1 | 3 | 3 | 30 | 0.6 | 1 | 2 | 1.4 |  |
+| grenadeLauncher | Grenade launcher | 3 | 441 | 2 x 3 | 130 | 50 | 4 | false | 12 | 1 | 4 | 3 | 180 | 5 | 3 | 2 | 1 |  |
+| tankGun | Tank gun | 3 | 454 | 2 x 4 | 210 | 90 | 8 | true | 16 | 1 | 2 | 2 | 45 | 2 | 1 | 8 | 2 |  |
+| flechette | Flechette gun | 3 | 492 | 2 x 3 | 120 | 44 | 3 | false | 18 | 1 | 4 | 2 | 180 | 1.2 | 4 | 1.5 | 1.5 |  |
+| harpoon | Harpoon | 2 | 144 | 1 x 3 | 120 | 40 | 4 | false | 8 | 1 | 1 | 5 | 270 | 1 | 1 | 0 | 0.3 | 10 |
 <!-- /wiki:weapons -->
 
 Each weapon's round:
@@ -89,12 +89,12 @@ Each weapon's round:
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | speed bonus | accel bonus | fuel mult | noise | heat |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | stockEngine | Stock engine | 1 | 50 | 2 x 3 | 360 | 50 | 4 | false | 0 | 0 | 1 | 1 | 1 |
-| tunedEngine | Tuned V8 | 2 | 116 | 2 x 3 | 300 | 40 | 4 | false | 1.3 | 1 | 1.4 | 1.3 | 1.2 |
+| tunedEngine | Tuned V8 | 2 | 174 | 2 x 3 | 300 | 40 | 4 | false | 1.3 | 1 | 1.4 | 1.3 | 1.2 |
 | flatFour | Light flat-four | 1 | 34 | 2 x 3 | 224 | 36 | 2 | false | -1.3 | 0 | 0.75 | 0.7 | 0.7 |
-| workhorseDiesel | Workhorse diesel | 2 | 84 | 2 x 3 | 320 | 80 | 6 | false | -0.65 | 0.5 | 0.7 | 1.2 | 0.6 |
-| racingV6 | Racing V6 | 2 | 139 | 2 x 3 | 240 | 32 | 2 | false | 1.95 | 0.5 | 1.25 | 1.4 | 1.6 |
-| heavyDiesel | Heavy diesel | 3 | 151 | 2 x 3 | 280 | 110 | 8 | false | -1.3 | 1.5 | 1.1 | 1.5 | 0.8 |
-| turbine | Turbine | 3 | 249 | 2 x 3 | 220 | 44 | 3 | false | 2.6 | 2 | 2.2 | 1.8 | 2 |
+| workhorseDiesel | Workhorse diesel | 2 | 126 | 2 x 3 | 320 | 80 | 6 | false | -0.65 | 0.5 | 0.7 | 1.2 | 0.6 |
+| racingV6 | Racing V6 | 2 | 209 | 2 x 3 | 240 | 32 | 2 | false | 1.95 | 0.5 | 1.25 | 1.4 | 1.6 |
+| heavyDiesel | Heavy diesel | 3 | 340 | 2 x 3 | 280 | 110 | 8 | false | -1.3 | 1.5 | 1.1 | 1.5 | 0.8 |
+| turbine | Turbine | 3 | 560 | 2 x 3 | 220 | 44 | 3 | false | 2.6 | 2 | 2.2 | 1.8 | 2 |
 <!-- /wiki:engines -->
 
 ## Armor
@@ -104,18 +104,18 @@ Each weapon's round:
 <!-- wiki:armor -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| plates | Steel plates | 2 | 68 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
+| plates | Steel plates | 2 | 102 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
 | cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
 | scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |
-| ceramicPlates | Ceramic plates | 2 | 140 | 1 x 2 | 18.75 | 44 | 14 | false | 8 | none | 1 |
-| spacedArmor | Spaced armor | 2 | 71 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
-| reinforcedCage | Reinforced cage | 2 | 78 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
-| steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
+| ceramicPlates | Ceramic plates | 2 | 209 | 1 x 2 | 18.75 | 44 | 14 | false | 8 | none | 1 |
+| spacedArmor | Spaced armor | 2 | 106 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
+| reinforcedCage | Reinforced cage | 2 | 117 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
+| steelPlate | Steel plate | 2 | 99 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
 | scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |
-| ceramicTile | Ceramic tile | 2 | 82 | 1 x 1 | 9.375 | 22 | 14 | false | 8 | none | 1 |
-| spacedTile | Spaced armor tile | 2 | 76 | 1 x 1 | 12.375 | 28 | 10 | false | 28 | capped | 1 |
+| ceramicTile | Ceramic tile | 2 | 123 | 1 x 1 | 9.375 | 22 | 14 | false | 8 | none | 1 |
+| spacedTile | Spaced armor tile | 2 | 113 | 1 x 1 | 12.375 | 28 | 10 | false | 28 | capped | 1 |
 | cageSection | Rebar cage section | 1 | 42 | 1 x 1 | 10.3125 | 30 | 2 | false | 20 | capped | 1 |
-| reinforcedSection | Reinforced cage section | 2 | 70 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
+| reinforcedSection | Reinforced cage section | 2 | 105 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
 <!-- /wiki:armor -->
 
 ## Accessories
@@ -125,9 +125,9 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 <!-- wiki:accessories -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult | mounts | claymore |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ram | Ram bar | 2 | 86 | 4 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
-| plowRam | Plow ram | 3 | 167 | 4 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
-| claymoreRam | Claymore ram | 2 | 140 | 4 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
+| ram | Ram bar | 2 | 128 | 4 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
+| plowRam | Plow ram | 3 | 376 | 4 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
+| claymoreRam | Claymore ram | 2 | 210 | 4 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
 | spikeCluster | Spike cluster | 1 | 34 | 1 x 1 | 11.25 | 20 | 3 | false | 3 | full | 1.5 | FBLR |  |
 | spikeStrip | Spike strip | 1 | 53 | 1 x 2 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
 <!-- /wiki:accessories -->
@@ -138,12 +138,12 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | extra rows |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | rack | Roof rack | 1 | 67 | 2 x 1 | 60 | 30 | 1 | false | 2 |
-| trailerBox | Cargo box | 2 | 120 | 2 x 3 | 135 | 60 | 1 | true | 5 |
+| trailerBox | Cargo box | 2 | 181 | 2 x 3 | 135 | 60 | 1 | true | 5 |
 | panniers | Panniers | 1 | 34 | 1 x 1 | 60 | 20 | 1 | false | 1 |
 | flatbed | Flatbed extension | 1 | 67 | 2 x 1 | 120 | 50 | 1 | false | 2 |
-| lightFrame | Light cargo frame | 2 | 127 | 2 x 3 | 90 | 24 | 1 | false | 5 |
-| enclosedFrame | Enclosed cargo frame | 2 | 134 | 2 x 3 | 165 | 110 | 8 | true | 5 |
-| heavyFrame | Heavy cargo frame | 3 | 160 | 2 x 3 | 150 | 90 | 3 | true | 6 |
+| lightFrame | Light cargo frame | 2 | 190 | 2 x 3 | 90 | 24 | 1 | false | 5 |
+| enclosedFrame | Enclosed cargo frame | 2 | 200 | 2 x 3 | 165 | 110 | 8 | true | 5 |
+| heavyFrame | Heavy cargo frame | 3 | 360 | 2 x 3 | 150 | 90 | 3 | true | 6 |
 <!-- /wiki:cargo -->
 
 ## Scanners
@@ -151,7 +151,7 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 <!-- wiki:scanners -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | range (tiles) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| scanner | Radio scanner | 2 | 117 | 1 x 1 | 30 | 30 | 2 | false | 160 |
+| scanner | Radio scanner | 2 | 175 | 1 x 1 | 30 | 30 | 2 | false | 160 |
 <!-- /wiki:scanners -->
 
 ## Stores
@@ -174,10 +174,10 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | caltrops | Caltrops | 1 | 47 | 1 x 1 | 70 | 30 | 3 | false | caltrops | 10 | {"radius":1.25,"turns":10,"behind":1} |
 | oilSpiller | Oil spiller | 1 | 57 | 1 x 1 | 90 | 30 | 3 | false | oil | 6 | {"slick":5.8,"turns":8,"behind":1,"fuel":2} |
 | patcherCrane | Patcher crane | 1 | 60 | 1 x 3 | 150 | 50 | 4 | false | crane |  | {} |
-| smokeMortar | Smoke mortar | 2 | 107 | 1 x 3 | 110 | 36 | 3 | false | mortar | 8 | {"radius":4,"turns":5,"minRange":5,"maxRange":16} |
-| flareCannon | Flare cannon | 2 | 74 | 1 x 1 | 50 | 28 | 2 | false | flare | 10 | {"radius":10,"turns":6,"minRange":4,"maxRange":24} |
-| scrapersKnife | Scraper's knife | 2 | 94 | 1 x 3 | 170 | 50 | 4 | false | scraper |  | {} |
-| emitter | Emitter | 3 | 250 | 2 x 3 | 200 | 44 | 4 | false | emitter | 10 | {"radius":6,"turns":2} |
+| smokeMortar | Smoke mortar | 2 | 161 | 1 x 3 | 110 | 36 | 3 | false | mortar | 8 | {"radius":4,"turns":5,"minRange":5,"maxRange":16} |
+| flareCannon | Flare cannon | 2 | 110 | 1 x 1 | 50 | 28 | 2 | false | flare | 10 | {"radius":10,"turns":6,"minRange":4,"maxRange":24} |
+| scrapersKnife | Scraper's knife | 2 | 140 | 1 x 3 | 170 | 50 | 4 | false | scraper |  | {} |
+| emitter | Emitter | 3 | 563 | 2 x 3 | 200 | 44 | 4 | false | emitter | 10 | {"radius":6,"turns":2} |
 <!-- /wiki:utilities -->
 
 ## Core parts

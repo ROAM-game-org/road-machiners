@@ -78,8 +78,8 @@ describe('NPC speed floor and wear odds', () => {
     expect(() => generateNpcLoadout(cloneWorld(fixture), slow)).toThrow('floor');
   });
 
-  it('rolls every other template as it did before the floor moved to the table', () => {
-    const hashes = {"buggy":"68db53235b7c","trader":"64dda8e7393a","scavenger":"568225afd5f9","bowlFarmer":"9e8bd312c36f","noseArmy":"4423c45cc39d","marshal":"1e65ae060f35","courier":"62134f0cdfc9","roamer":"f28cd2fcfce6","vulture":"43744cefa13a","convoy":"404004b727cb","convoyGuard":"cf7b14936d0c","merc":"0fcdb607e778","cavalcade":"748293983917","hunter":"acdb06757c77"};
+  it('rolls every other template at the rescaled prices as it did before the floor moved to the table', () => {
+    const hashes = {"buggy":"0ab1be6aa8a2","trader":"92ddbe06885a","scavenger":"205831e13058","bowlFarmer":"08c86fe81e12","noseArmy":"183a73cf5cce","marshal":"00d86de75802","courier":"4ecbc1e976d2","roamer":"10cf058c545f","vulture":"1f63221bb1c2","convoy":"c7342048d1ef","convoyGuard":"fe37567acf32","merc":"d9f710b4744a","cavalcade":"3d1d977c9c2a","hunter":"f01102c8677d"};
     for (const [id, hash] of Object.entries(hashes)) {
       const rolls = [1, 2, 3].map((seed) => describeLoadout(rolled(NPCS[id], 'standard', seed)));
       expect(createHash('sha1').update(rolls.join('|')).digest('hex').slice(0, 12), id).toBe(hash);

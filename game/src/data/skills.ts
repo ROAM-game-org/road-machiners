@@ -60,7 +60,7 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
   heat: { skill: 'toughness', weight: 0.3, scaled: true, repeat: 0.9 },
   damage: { skill: 'toughness', weight: 1.5, scaled: false, repeat: 0.95 },
   knockout: { skill: 'toughness', weight: 100, scaled: false, repeat: 0.5 },
-  profit: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.8 },
+  profit: { skill: 'social', weight: 4.2, scaled: false, repeat: 0.8 },
   deal: { skill: 'social', weight: 30, scaled: false, repeat: 0.5 },
   call: { skill: 'social', weight: 8, scaled: false, repeat: 0 },
   honk: { skill: 'social', weight: 2, scaled: false, repeat: 0 },

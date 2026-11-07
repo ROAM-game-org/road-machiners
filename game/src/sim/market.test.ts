@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
-import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
+import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
 import { chargeM } from './money';
 import { dist } from './vec';
 import { emptyWorld, addVehicle } from './testkit';
@@ -255,6 +255,12 @@ describe('market', () => {
     const target = turns * EFFORT.wage[1] * EFFORT.haulWages;
     expect(sell - buy).toBeGreaterThan(target * 0.7);
     expect(sell - buy).toBeLessThan(target * 1.3);
+  });
+
+  it('sets haulWages between the pay factor of a full 10 crate contract haul and 1.5 times it', () => {
+    const fullHaul = CONTRACTS.haul.rewardFactor + 10 * CONTRACTS.haul.crateFactor;
+    expect(EFFORT.haulWages).toBeGreaterThanOrEqual(fullHaul);
+    expect(EFFORT.haulWages).toBeLessThanOrEqual(1.5 * fullHaul);
   });
 
   it('pays a shorter haul less in total, but not less per turn, than a longer one', () => {

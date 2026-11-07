@@ -200,11 +200,11 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 <!-- wiki:gear-levels -->
 | level | gear money M | wear step odds | cargo mult |
 | --- | --- | --- | --- |
-| poor | 1,250 | 3:1 4:15 | 0.5 |
-| light | 1,460 | 2:1 3:3 4:12 | 0.75 |
-| standard | 1,710 | 2:1 3:3 4:12 | 1 |
-| heavy | 2,080 | 2:1 3:3 4:12 | 1 |
-| loaded | 2,750 | 2:1 3:3 4:12 | 1.5 |
+| poor | 1,856 | 3:1 4:15 | 0.5 |
+| light | 2,178 | 2:1 3:3 4:12 | 0.75 |
+| standard | 2,572 | 2:1 3:3 4:12 | 1 |
+| heavy | 3,151 | 2:1 3:3 4:12 | 1 |
+| loaded | 4,210 | 2:1 3:3 4:12 | 1.5 |
 <!-- /wiki:gear-levels -->
 
 <!-- wiki:loadout-priorities -->

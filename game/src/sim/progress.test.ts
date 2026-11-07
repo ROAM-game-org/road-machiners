@@ -172,17 +172,17 @@ describe('repeats on one target', () => {
 
   it('another target pays in full', () => {
     const w = emptyWorld();
-    practice(w, 'profit', 10, null, 'bowl:salt');
-    practice(w, 'profit', 10, null, 'nose:salt');
+    practice(w, 'profit', 5, null, 'bowl:salt');
+    practice(w, 'profit', 5, null, 'nose:salt');
     const pay = w.events.flatMap((e) => (e.t === 'practice' ? [e.xp] : []));
     expect(pay[1]).toBeCloseTo(pay[0]);
   });
 
   it('the count halves every half-life, so a target pays again with game time', () => {
     const w = emptyWorld();
-    practice(w, 'profit', 10, null, 'bowl:salt');
+    practice(w, 'profit', 5, null, 'bowl:salt');
     w.turn += XP_RULES.repeatHalfLife;
-    practice(w, 'profit', 10, null, 'bowl:salt');
+    practice(w, 'profit', 5, null, 'bowl:salt');
     const pay = w.events.flatMap((e) => (e.t === 'practice' ? [e.xp] : []));
     expect(pay[1] / pay[0]).toBeCloseTo(XP_SOURCES.profit.repeat ** 0.5);
   });

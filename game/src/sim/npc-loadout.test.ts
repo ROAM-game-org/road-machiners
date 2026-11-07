@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { CHASSIS } from '../data/chassis';
-import { GEAR_LEVELS, GEAR_SCORE, NPCS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_LEVELS, GEAR_SCORE, NPC_RESOURCES, NPCS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
 import { partDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { openArcShares } from './armor';
 import { makeVehicle } from './factory';
@@ -31,7 +31,7 @@ describe('NPC equipment generation', () => {
       expect(goodsCount(v)).toEqual(loadout.cargo);
       expect(vehicleMass(v)).toBeLessThanOrEqual(CHASSIS[v.chassisId].ratedMass);
       expect(gearCost(loadout.parts)).toBeLessThanOrEqual(GEAR_LEVELS[loadout.level].money);
-      expect(v.resources?.money).toBe(fixture.player.money);
+      expect(v.resources?.money).toBe(NPC_RESOURCES.money);
       expect(v.resources?.fuel).toBe(fuelCap(v));
     }
   });
