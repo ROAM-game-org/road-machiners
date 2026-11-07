@@ -12,7 +12,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
-import { blurredElements, gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
+import { blurredElements, bufferVersions, changedBuffersSince, gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
@@ -563,6 +563,9 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const frame = passStats(pooled);
   const draws = await spec.count();
   const state = gameState(ctx.game);
+  const before = bufferVersions(ctx.game);
+  await ctx.probe.record((n) => n >= 10, () => true, RECORD_MS, 'ten frames to watch changed buffers');
+  state.changedBuffers = changedBuffersSince(ctx.game, before);
   const check = spec.check({ draws, frames: pooled, passes, shadowDraws: ctx.probe.shadowDraws });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;

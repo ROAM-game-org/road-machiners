@@ -1,4 +1,4 @@
-import { Light, Object3D, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
@@ -124,6 +124,30 @@ export function gameState(game: Game): SceneState {
     blurred: blurredElements().map(sizeLabel),
   };
 }
+
+type Sized = { version: number; array: ArrayLike<number> & { byteLength: number } };
+
+function buffersOf(game: Game): Map<Sized, { name: string; version: number }> {
+  const buffers = new Map<Sized, { name: string; version: number }>();
+  game.scene.traverse((object) => {
+    const { geometry, instanceMatrix, instanceColor } = object as Mesh & Partial<InstancedMesh>;
+    const name = namedAncestor(object);
+    const attributes = geometry ? Object.entries(geometry.attributes) : [];
+    const all = [...attributes, ['index', geometry?.index], ['instanceMatrix', instanceMatrix], ['instanceColor', instanceColor]] as [string, Sized | null | undefined][];
+    for (const [key, attribute] of all) if (attribute?.array) buffers.set(attribute, { name: `${name}.${key}`, version: attribute.version });
+  });
+  return buffers;
+}
+
+export function changedBuffersSince(game: Game, before: ReadonlyMap<Sized, { version: number }>): Record<string, number> {
+  const changed: Record<string, number> = {};
+  for (const [buffer, { name, version }] of buffersOf(game)) {
+    if (before.get(buffer)?.version !== version) changed[name] = (changed[name] ?? 0) + buffer.array.byteLength;
+  }
+  return changed;
+}
+
+export const bufferVersions = buffersOf;
 
 export function blurredElements(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>('body *')].filter((node) => getComputedStyle(node).backdropFilter !== 'none' && node.getClientRects().length > 0);
