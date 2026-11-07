@@ -149,6 +149,36 @@ export function changedBuffersSince(game: Game, before: ReadonlyMap<Sized, { ver
 
 export const bufferVersions = buffersOf;
 
+type KeyedMaterial = Material & { customProgramCacheKey: () => string };
+
+export function countProgramAsks(game: Game): () => Record<string, number> {
+  const asks: Record<string, number> = {};
+  const restores: (() => void)[] = [];
+  const seen = new Set<Material>();
+  game.scene.traverse((object) => {
+    const { material } = object as Mesh;
+    for (const each of (Array.isArray(material) ? material : material ? [material] : []) as KeyedMaterial[]) {
+      if (seen.has(each)) continue;
+      seen.add(each);
+      const label = `${namedAncestor(object)}:${each.type}`;
+      const own = Object.prototype.hasOwnProperty.call(each, 'customProgramCacheKey');
+      const original = each.customProgramCacheKey;
+      each.customProgramCacheKey = function counted(this: KeyedMaterial) {
+        asks[label] = (asks[label] ?? 0) + 1;
+        return original.call(this);
+      };
+      restores.push(() => {
+        if (own) each.customProgramCacheKey = original;
+        else delete (each as Partial<KeyedMaterial>).customProgramCacheKey;
+      });
+    }
+  });
+  return () => {
+    for (const restore of restores) restore();
+    return asks;
+  };
+}
+
 export function blurredElements(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>('body *')].filter((node) => getComputedStyle(node).backdropFilter !== 'none' && node.getClientRects().length > 0);
 }
