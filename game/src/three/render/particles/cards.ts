@@ -9,8 +9,9 @@ const ATLAS_CELL_PX = 128;
 const ATLAS_CELLS = 3;
 const ATLAS_PX = ATLAS_CELL_PX * ATLAS_CELLS;
 const CLOUD_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.1, reachSpread: 0.08, blurPx: 6 };
-const CLUMP_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.16, reachSpread: 0.1, blurPx: 2 };
-const CLUMP_EDGE = { from: 0.3, to: 0.6 };
+const CLUMP_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.16, reachSpread: 0.1, blurPx: 7 };
+const CLUMP_EDGE = { from: 0, to: 1 };
+const GRAIN = { strength: 1.1, cut: 0.25, soft: 0.6, rim: 0.5, rimWidth: 0.14, layers: [[5, 0.4], [10, 0.3], [20, 0.2], [40, 0.1]] as const };
 const CARD_LIGHT = { scatter: 0.7 };
 const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
@@ -290,9 +291,44 @@ export function createCardShapes(random: () => number): THREE.CanvasTexture {
   ctx.fillStyle = '#fff';
   drawShapes(ctx, random, 0, CARD_SHAPES, CLOUD_LUMPS);
   drawShapes(ctx, random, CLUMP_FIRST, CLUMP_SHAPES, CLUMP_LUMPS);
+  ctx.filter = 'none';
+  for (let i = CLUMP_FIRST; i < CLUMP_FIRST + CLUMP_SHAPES; i++) grainCell(ctx, random, (i % ATLAS_CELLS) * ATLAS_CELL_PX, Math.floor(i / ATLAS_CELLS) * ATLAS_CELL_PX);
   const texture = new THREE.CanvasTexture(canvas);
   texture.flipY = false;
   return texture;
+}
+
+type GrainLayer = { cells: number; weight: number; heights: number[] };
+
+function grainCell(ctx: CanvasRenderingContext2D, random: () => number, left: number, top: number): void {
+  const cell = ATLAS_CELL_PX;
+  const layers: GrainLayer[] = GRAIN.layers.map(([cells, weight]) => ({ cells, weight, heights: Array.from({ length: (cells + 1) * (cells + 1) }, random) }));
+  const image = ctx.getImageData(left, top, cell, cell);
+  for (let y = 0; y < cell; y++) {
+    for (let x = 0; x < cell; x++) {
+      const k = (y * cell + x) * 4;
+      image.data.fill(255, k, k + 3);
+      image.data[k + 3] = Math.round(grainedAlpha(image.data[k + 3] / 255, x / cell, y / cell, layers) * 255);
+    }
+  }
+  ctx.putImageData(image, left, top);
+}
+
+function grainedAlpha(alpha: number, u: number, v: number, layers: readonly GrainLayer[]): number {
+  const rim = THREE.MathUtils.clamp((GRAIN.rim - Math.hypot(u - 0.5, v - 0.5)) / GRAIN.rimWidth, 0, 1);
+  const noise = layers.reduce((sum, layer) => sum + layerHeight(layer, u, v) * layer.weight, 0);
+  return THREE.MathUtils.clamp((alpha * rim + (noise - 0.5) * GRAIN.strength - GRAIN.cut) / GRAIN.soft, 0, 1);
+}
+
+function layerHeight(layer: GrainLayer, u: number, v: number): number {
+  const x = u * layer.cells;
+  const y = v * layer.cells;
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const at = (a: number, b: number) => layer.heights[b * (layer.cells + 1) + a];
+  const near = THREE.MathUtils.lerp(at(ix, iy), at(ix + 1, iy), x - ix);
+  const far = THREE.MathUtils.lerp(at(ix, iy + 1), at(ix + 1, iy + 1), x - ix);
+  return THREE.MathUtils.lerp(near, far, y - iy);
 }
 
 function drawShapes(ctx: CanvasRenderingContext2D, random: () => number, first: number, shapes: number, look: LumpLook): void {

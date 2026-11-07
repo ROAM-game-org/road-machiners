@@ -8,6 +8,7 @@ import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { frontBody, unitsOf } from '../../sim/body';
+import { raisesDust } from '../../sim/detect';
 import { corePart, mountedParts } from '../../sim/grid';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
@@ -127,7 +128,7 @@ const SPRAY = {
 } as const;
 
 export function sprayShare(ground: TerrainType): number {
-  return ground.dust ** SPRAY.surfacePower;
+  return raisesDust(ground) ? ground.dust ** SPRAY.surfacePower : 0;
 }
 
 export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLight };
@@ -401,13 +402,15 @@ export class TruckFx {
   private world: World | null = null;
   private traits = new Map<string, Traits>();
   private douseLeft = 0;
+  private readonly lastShown = new Map<string, { x: number; z: number }>();
 
   constructor(private fx: Fx3D) {}
 
   emit(world: World, v: Vehicle, f: VehicleFrame, moving: boolean, dt: number, seen: boolean): void {
     const traits = this.traitsOf(world, v);
     const pose: Pose = { f, h: headingOf(f.rot), half: frontBody(v.chassisId).half };
-    if (moving) this.driving(world, v, pose, traits, seen, dt);
+    const rolling = this.atShownSpeed(v, f, traits.maxSpeed, dt);
+    if (moving) this.driving(world, rolling, pose, traits, seen, dt);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
       this.steam(world.player.engineHeat, pose, dt);
@@ -415,6 +418,14 @@ export class TruckFx {
     }
     if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(onBody(pose, 0.5, 1, 0), motionOf(v, pose.h, moving)));
     else if (traits.hurt) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(f.pos, traits.damage));
+  }
+
+  private atShownSpeed(v: Vehicle, f: VehicleFrame, maxSpeed: number, dt: number): Vehicle {
+    const last = this.lastShown.get(v.id);
+    this.lastShown.set(v.id, { x: f.pos.x, z: f.pos.z });
+    if (!last || dt <= 0) return v;
+    const shown = Math.min(maxSpeed, Math.hypot(f.pos.x - last.x, f.pos.z - last.z) / dt / PHYSICS.metersPerTile);
+    return shown > v.speed ? { ...v, speed: shown } : v;
   }
 
   private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number): void {
