@@ -59,8 +59,6 @@ export const SCREENS: Translation<typeof EN> = {
   'character.grows': 'Опыт дают: {what}',
   'character.rankOf': 'Ранг {rank} из {max}',
   'character.rank': 'Ранг {rank}',
-  'character.today': 'Получено с {time}',
-  'character.todayXp': '{n} / {cap} опыта',
   'character.max': 'макс.',
   'character.spendTitle': '{skill}, ранг {rank}: потратить {cost} опыта',
   'character.buy': 'Купить ранг {rank} за {cost} опыта',
