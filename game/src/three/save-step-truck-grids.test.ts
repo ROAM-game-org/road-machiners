@@ -99,7 +99,8 @@ describe('a save from before the step, carried through load repair', () => {
     v.items.push({ id: 'gun', kind: 'part', x: covered.x, y: covered.y, rot: 0, part: mg });
     repairContent(w);
     const gun = v.items.find((it) => it.id === 'gun');
-    expect(Boolean(gun) || w.player.storage.some((p) => p.id === mg.id)).toBe(true);
+    expect(gun).toBeDefined();
+    expect(w.player.storage.some((p) => p.id === mg.id)).toBe(false);
     const cab = v.items.find((it) => it.kind === 'part' && it.part.defId === 'cabBroad')!;
     const onCab = (gun ? itemCells(gun) : []).filter((c) => itemCells(cab).some((d) => d.x === c.x && d.y === c.y));
     expect(onCab).toEqual([]);

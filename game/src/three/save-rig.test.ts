@@ -15,7 +15,7 @@ function slotsOf(world: World): SaveSlots {
   return slots;
 }
 
-type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
+type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number; items: { part?: { defId: string } }[] }[] } };
 
 describe('a saved rig', () => {
   it('gives back the bend of a folded hauler and awards nothing on load', () => {
@@ -42,6 +42,7 @@ describe('a saved rig', () => {
     delete old.bend;
     envelope.format = { ...envelope.format, minor: 80 };
     delete envelope.steps;
+    for (const part of envelope.world.vehicles.flatMap((v) => v.items.flatMap((it) => (it.part ? [it.part] : [])))) if (part.defId === 'cabBroad') part.defId = 'cabPickup';
     beforeChaosHighwayName(envelope.world);
     slots.put('auto', envelope as never);
 
