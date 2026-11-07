@@ -83,7 +83,7 @@ for (let i = 0; i < turns; i++) {
   }
   const before = perfSnapshot();
   const t = performance.now();
-  const prepared = computeTurn({ world: structuredClone(state), drive: captureDrive(drive), questLanguage: 'en', tailSteps: 11, fastTravel: false }, terrain);
+  const prepared = computeTurn({ world: structuredClone(state), drive: captureDrive(drive), questLanguage: 'en', tailSteps: 11 }, terrain);
   const ms = performance.now() - t;
   freeDrive(drive);
   const after = perfSnapshot();

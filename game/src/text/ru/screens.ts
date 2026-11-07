@@ -379,6 +379,7 @@ export const SCREENS: Translation<typeof EN> = {
   'turn.speed.slowest': 'Минимум',
   'turn.speed.fastest': 'Максимум',
   'turn.speed.value': '{n}x',
+  'turn.speed.held': 'Выбрано {pick}x. Устройство не успевает просчитывать ходы с такой скоростью.',
   'turn.endTitle': 'Закончить ход [Пробел]. Удерживайте для ускорения.',
   'turn.inProgress': 'Идет {phase}',
   'turn.end': 'Закончить ход',
