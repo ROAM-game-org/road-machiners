@@ -96,7 +96,7 @@ describe('the courier story, free help', () => {
   it('runs the thanks, the favor and the end, and never starts again', () => {
     const { w, npc } = askedWorld();
     expect(w.player.encounters.story).toMatchObject({ driver: npc.id, beat: 'asked' });
-    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No charge.', 'At the town price.', "Can't help, sorry.", 'Hang up.']);
+    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No charge.', 'At the town price.', "Can't help, sorry."]);
     const stock = supplies(w, npc.id);
     const money = wealth(w, npc.id);
     let next = pick(w, 'No charge.');

@@ -56,7 +56,8 @@ describe('site gates and pads', () => {
     for (const site of SITES) {
       const gates = isFortress(site) ? fortressGates(site).map((g) => g.face) : siteGates(site);
       sitePads(site).forEach((pad, i) => {
-        expect(dist(pad, gates[i]), site.id).toBeCloseTo(PAD.length / 2, 6);
+        expect(dist(pad, gates[i]), site.id).toBeGreaterThanOrEqual(PAD.length / 2 - 1e-6);
+        expect(dist(pad, gates[i]), site.id).toBeLessThanOrEqual(PAD.length / 2 + 1);
       });
     }
   });

@@ -6,7 +6,7 @@ import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../da
 import { RULES } from '../data/rules';
 import { atlasOf, atlasSites, type Atlas } from './atlas';
 import { inCombat, settleAims } from './combat';
-import { fortressGates, fortressOutline } from './fortress';
+import { fortressOutline, fortressPads } from './fortress';
 import { contractTruck, isMet } from './market';
 import { handOnMoments } from './moments';
 import { footprint, straighten } from './rig';
@@ -83,7 +83,7 @@ function givenGates(site: Site): Vec[] | null {
 
 function padsOf(site: Site): Vec[] {
   const half = REGION.sites.pad.length / 2;
-  if (isFortress(site)) return fortressGates(site).map((g) => ({ x: g.face.x + g.out.x * half, y: g.face.y + g.out.y * half }));
+  if (isFortress(site)) return fortressPads(site);
   const out = site.radius + half;
   return siteGates(site).map((g) => {
     const a = Math.atan2(g.y - site.pos.y, g.x - site.pos.x);
