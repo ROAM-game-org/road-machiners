@@ -9,10 +9,11 @@ This lists the game's screens by how much they need a redesign. It comes from re
 - Shop, `ui-redesign-shop.md`, images `shop`, `shop-row-open`, `shop-sell`, `garage`, `paint`, `full-shop`. The truck is small, the rows scroll and cut off, and storage boxes sit empty. It also covers the outpost and truck trade, which share its code.
 - Character, `ui-redesign-character.md`, images `character`, `world-map`. The Machining row and the Buy buttons clip, and the columns are far apart. Standing is squeezed at the left over an empty panel. The map lives under the title Character with an empty column.
 - Contract board, `ui-redesign-contract-board.md`, images `town-board`, `board-taken`. Taken contracts fall below the fold. Rewards are hard to compare, and the offers hold long prose.
-- Town shell, `ui-redesign-town-shell.md`, images `town-front`, `town-people`. Every town page shares this banner, head chips, narrow column and far Back button. The people list hangs at the bottom under a void.
 - Journal, `ui-redesign-journal.md`, image `journal-survey`. A narrow panel scrolls through long prose, and the empty state leaves a large blank box.
 
 ## Small fixes, no redesign
+
+- The town keeps its frame, with the art band at the top of every page. The people list hangs under a void, and the log shows through town pages.
 
 - Options covers the opening tip and the instruments, and the layout check reports the overlap.
 - The start menu stays visible behind its options and new game panels, and the layout check reports overlaps there. It is unclear whether a player can press through.
@@ -28,3 +29,7 @@ This lists the game's screens by how much they need a redesign. It comes from re
 ## Not reviewed
 
 The outpost, trade with a truck, a downed truck, phone layouts and Russian are not in the gallery.
+
+## Mockup verdict
+
+The user reviewed the first mockups in `game/tmp/ui-mockups/`, which is gitignored. None are great. Journal, enemy card, contract board and market are slight improvements. The rest failed: shop and the first character mockup. The town keeps its frame and art band, and the town shell plan is dropped. The later character mockup is much better: Skills and Standing as switches, a tab per skill with its rank and next cost, a table with effect totals on top and each rank's gain in the same columns, Buy on the next rank, and perks as cards. The character plan's table design is replaced by it.
