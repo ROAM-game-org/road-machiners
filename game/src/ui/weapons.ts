@@ -10,7 +10,7 @@ import { workOf } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, el, panel, rightColumn } from "./dom";
+import { bottomLeft, el, panel, replaceChanged, rightColumn } from "./dom";
 import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
@@ -409,9 +409,9 @@ export class WeaponPanel {
       this.expanded ? this.renderAllSwitch(locked) : null,
       createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
     );
-    this.root.replaceChildren(head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
+    replaceChanged(this.root, head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
     this.travelSpeed.sync();
-    this.turn.replaceChildren(this.travelSpeed.root, this.renderTurnButton(phase));
+    replaceChanged(this.turn, this.travelSpeed.root, this.renderTurnButton(phase));
   }
 
   stepTravelSpeed(delta: 1 | -1): void {

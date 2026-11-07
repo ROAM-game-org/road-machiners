@@ -12,7 +12,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, disabledWith, el, panel, replaceChanged, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
@@ -373,7 +373,8 @@ export class Hud {
 
   private renderWork(work: Work, label: Msg): void {
     const progress = Math.round(workProgress(work) * 100);
-    this.action.replaceChildren(
+    replaceChanged(
+      this.action,
       el(
         "span",
         { class: "job-label" },
@@ -405,7 +406,8 @@ export class Hud {
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
       el("button", { class: "cycle", title: touchMode() ? undefined : t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
-    this.action.replaceChildren(
+    replaceChanged(
+      this.action,
       ...(count > 1
         ? [cycle(-1, t("hud.prevMark"), "←"), use, el("span", { class: "count" }, t("hud.count", { n: index + 1, of: count })), cycle(1, t("hud.nextMark"), "→")]
         : [use]),
@@ -464,7 +466,8 @@ export class Hud {
     if (cases.length === 0) return this.wanted.replaceChildren();
     const owed = cases.reduce((sum, c) => sum + caseOwed(c), 0);
     this.wanted.tabIndex = 0;
-    this.wanted.replaceChildren(
+    replaceChanged(
+      this.wanted,
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
       el("div", { class: "wanted-head" }, el("span", { class: "panel-title" }, t("hud.wanted")), el("span", { class: "num wanted-owed" }, moneyEl(owed))),
     );
@@ -477,7 +480,8 @@ export class Hud {
       return;
     }
     this.contracts.style.display = "";
-    this.contracts.replaceChildren(
+    replaceChanged(
+      this.contracts,
       el("h3", { class: "panel-title" }, t("hud.contracts")),
       ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
@@ -591,7 +595,8 @@ export class Hud {
 
   private renderClock(clock: ReturnType<typeof getHudReadout>["clock"]): void {
     bindAttr(this.clockSlot, "aria-label", t("hud.clockLabel", { when: clock.full }));
-    this.clockSlot.replaceChildren(
+    replaceChanged(
+      this.clockSlot,
       el("span", { class: "clock-day" }, el("span", {}, el("span", {}, clock.dayLabel)), el("span", {}, el("span", {}, clock.day))),
       el("span", { class: "clock-time" }, el("span", {}, clock.time)),
     );
@@ -611,13 +616,14 @@ export class Hud {
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
-    this.dialSlot.replaceChildren(dial);
-    this.compassSlot.replaceChildren(createCompassDial(readout.heading));
+    replaceChanged(this.dialSlot, dial);
+    replaceChanged(this.compassSlot, createCompassDial(readout.heading));
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 
   private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
-    this.readoutSlot.replaceChildren(
+    replaceChanged(
+      this.readoutSlot,
       ...readout.resources.map((resource) =>
         el(
           "span",
@@ -659,7 +665,8 @@ export class Hud {
   }
 
   private renderActions(w: World, manual: boolean, busy: boolean): void {
-    this.actionSlot.replaceChildren(
+    replaceChanged(
+      this.actionSlot,
       createSwitch({
         on: t("hud.manual"),
         off: t("hud.route"),

@@ -407,6 +407,8 @@ class FakeNode {
   constructor(readonly tag: string) {}
   append(...c: (FakeNode | string)[]) { this.children.push(...c); }
   replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
+  get childNodes(): (FakeNode | string)[] { return this.children; }
+  isEqualNode(): boolean { return false; }
   setAttribute(k: string, v: string) { this.attrs.set(k, v); }
   removeAttribute(k: string) { this.attrs.delete(k); }
   querySelector(sel: string): FakeNode | undefined {

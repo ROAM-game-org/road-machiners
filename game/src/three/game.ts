@@ -424,8 +424,7 @@ export class Game {
     }
     this.syncMinimap();
     timed("minimap", () => this.minimap?.update(this.displayWorld()));
-    if (!this.anim || this.anim.impacts)
-      this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
+    if (!this.anim || this.anim.impacts) this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld(), this.world);
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
@@ -1063,6 +1062,7 @@ export class Game {
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
     const { at, playMs, combatMs } = timed("turn-frame", () => {
