@@ -68,7 +68,8 @@ function recordGeometry(values: Values, geometry: THREE.BufferGeometry): void {
 function recordCaster(values: Values, mesh: THREE.Mesh): void {
   for (const element of mesh.matrixWorld.elements) record(values, element);
   recordGeometry(values, mesh.geometry);
-  for (const material of [mesh.material].flat()) recordMaterial(values, material);
+  if (Array.isArray(mesh.material)) for (const material of mesh.material) recordMaterial(values, material);
+  else recordMaterial(values, mesh.material);
   record(values, mesh.customDepthMaterial ? materialId(mesh.customDepthMaterial) : EMPTY_ID);
   const instanced = mesh as unknown as THREE.InstancedMesh;
   record(values, instanced.isInstancedMesh ? instanced.count : EMPTY_ID);
@@ -87,7 +88,11 @@ function recordPose(values: Values, light: ShadowLight): void {
   if ('angle' in light) record(values, light.angle);
   if ('distance' in light) record(values, light.distance);
   const camera = light.shadow.camera as THREE.OrthographicCamera;
-  for (const side of [camera.left, camera.right, camera.top, camera.bottom, camera.near]) record(values, side ?? EMPTY_ID);
+  record(values, camera.left ?? EMPTY_ID);
+  record(values, camera.right ?? EMPTY_ID);
+  record(values, camera.top ?? EMPTY_ID);
+  record(values, camera.bottom ?? EMPTY_ID);
+  record(values, camera.near ?? EMPTY_ID);
   record(values, light.shadow.mapSize.x);
   record(values, light.shadow.mapSize.y);
 }
