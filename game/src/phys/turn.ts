@@ -34,7 +34,7 @@ import { errorText } from '../stall';
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
-export type TurnTask = LanguageTask & { tailSteps: number; fastTravel: boolean };
+export type TurnTask = LanguageTask & { tailSteps: number };
 export type LiveSight = { steps: number[]; tiles: number[][]; props: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };

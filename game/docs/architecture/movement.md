@@ -232,7 +232,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Travel speed
 
 - `Travel` holds the picked travel speed as an index into `CONFIG.travelSpeeds`. The speed control beside the turn button sets it through the `UiHost` hooks `travelSpeedIndex()`, `travelPlaySpeed()` and `stepTravelSpeed()`.
-- `TurnPreparation` measures the worker time of each turn and smooths it with `CONFIG.turnPrepSmoothing`. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
+- `TurnPreparation` times each turn the worker starts with nothing queued ahead of it and keeps the median of the last `CONFIG.turnPrepSamples`. A request that waited behind a superseded one does not count, and a speed pick never posts a turn again. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
 - Playback eases to that step over `playEaseMs`. A single late turn still shows as a short hitch.
 - The pick is the pace of every turn the player watches: waypoint travel, odd jobs shifts, beacon waits, knocked-out and towed runs, jobs advanced by taps, and combat. `Travel.paceSpeed()` and `getSpeed()` read only the pick, the worker time and the held Space, with no list of runs, so a new job or state follows it without a change.
 - The pick survives pauses and is never saved, like all travel state.

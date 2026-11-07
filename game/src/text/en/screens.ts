@@ -350,6 +350,7 @@ export const SCREENS = {
   'turn.speed.slowest': 'Slowest',
   'turn.speed.fastest': 'Fastest',
   'turn.speed.value': m('{n}x', { n: 'int' }),
+  'turn.speed.held': m("Picked {pick}x. This device can't work out turns fast enough for it.", { pick: 'int' }),
   'turn.endTitle': 'End turn [Space]. Hold to fast-forward.',
   'turn.inProgress': m('{phase} in progress', { phase: 'text' }),
   'turn.end': 'End turn',
