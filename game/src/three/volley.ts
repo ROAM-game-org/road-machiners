@@ -619,3 +619,30 @@ function flightHits(world: World, flight: TimedFlight): boolean {
   const impact = world.combat.records.find(record => record.kind === 'impact' && record.flight === flight);
   return impact?.event ? impact.event.rounds[0].struck !== null : flight.roll.hit;
 }
+
+export type RoadHornEvent = Extract<GameEvent, { t: "roadHorn" }>;
+
+export type TimedHorn = { event: RoadHornEvent; step: number };
+
+export function hornSteps(events: readonly GameEvent[], hears: (e: RoadHornEvent) => boolean, pick: () => number): TimedHorn[] {
+  const out: TimedHorn[] = [];
+  for (const event of events) {
+    if (event.t !== "roadHorn" || !hears(event)) continue;
+    out.push({ event, step: event.cause === "brake" ? MIX.roadHorn.brakeStep : Math.floor(pick() * MIX.roadHorn.sightSpanSteps) });
+  }
+  return out;
+}
+
+export class HornCues {
+  private pending: TimedHorn[];
+
+  constructor(timed: TimedHorn[]) {
+    this.pending = timed.slice();
+  }
+
+  due(step: number | null): RoadHornEvent[] {
+    const out = this.pending.filter((t) => step === null || t.step <= step);
+    this.pending = this.pending.filter((t) => !out.includes(t));
+    return out.map((t) => t.event);
+  }
+}
