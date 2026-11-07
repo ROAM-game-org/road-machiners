@@ -433,8 +433,8 @@ export class TruckFx {
     const last = this.lastShown.get(v.id);
     this.lastShown.set(v.id, { x: f.pos.x, z: f.pos.z });
     if (!last || dt <= 0) return v;
-    const shown = Math.min(maxSpeed, Math.hypot(f.pos.x - last.x, f.pos.z - last.z) / dt / PHYSICS.metersPerTile);
-    return shown > v.speed ? { ...v, speed: shown } : v;
+    const shown = Math.hypot(f.pos.x - last.x, f.pos.z - last.z) / dt / PHYSICS.metersPerTile;
+    return shown > v.speed && shown <= maxSpeed ? { ...v, speed: shown } : v;
   }
 
   private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number): void {
