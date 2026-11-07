@@ -3,7 +3,8 @@ import { TIME } from "../data/time";
 import { t, verbatim, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { clock } from "./format";
-import { LOG_HISTORY, LogBook, LogStrip, volleyLine, type Volley } from "./log";
+import { LOG_HISTORY, LogBook, LogStrip } from "./log";
+import { volleyLine, type Volley } from "./volley";
 
 const en = (msg: Msg): string => resolve(msg, "en");
 const ru = (msg: Msg): string => resolve(msg, "ru");

@@ -243,7 +243,8 @@ function sameSpot(a: Spot, b: Spot): boolean {
 
 function mergeIntoLastStep(w: World, me: Vehicle, job: RefitJob, moves: readonly RefitMove[]): boolean {
   const queued = job.queue.at(-1);
-  const merged = mergedMoves(queued ?? job, moves);
+  const target = queued ?? job;
+  const merged = target.pickup === null ? mergedMoves(target, moves) : null;
   if (merged === null) return false;
   if (queued) return mergeIntoQueuedStep(w, me, job, queued, merged);
   if (merged.length === 0) {
