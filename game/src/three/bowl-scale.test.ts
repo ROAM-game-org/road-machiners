@@ -53,7 +53,7 @@ function talkThrough(world: World): World {
   return w;
 }
 
-describe('the weigher at the Bowl gate yard', () => {
+describe('the weigher at the Bowl gateway', () => {
   it('opens the scene when the player enters Market at Bowl with salvage in the bed', () => {
     const w = enterMarket(parkAt(quietWorld(), 'bowl'));
     expect(w.player.quests.session).toEqual(expect.objectContaining({ quest: SCALE, checkpoint: 'start' }));

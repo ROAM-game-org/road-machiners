@@ -7,6 +7,7 @@ import { hash2, valueNoise } from '../../render/noise';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Contact } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 const RENDER_ORDER = 905;
@@ -178,7 +179,7 @@ function makeFront(k: number, seed: number): Front {
 }
 
 function makeBlip(): THREE.Group {
-  const mat = () => new THREE.MeshBasicMaterial({ color: PAL.radio, transparent: true, opacity: BLIP.opacity, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const mat = () => overlayMaterial({ color: PAL.radio, opacity: BLIP.opacity, depthTest: false, depthWrite: false });
   const ring = new THREE.Mesh(new THREE.RingGeometry(BLIP.radius * S * 0.8, BLIP.radius * S, 32).rotateX(-Math.PI / 2), mat());
   const dot = new THREE.Mesh(new THREE.CircleGeometry(BLIP.dot * S, 16).rotateX(-Math.PI / 2), mat());
   ring.renderOrder = dot.renderOrder = RENDER_ORDER;

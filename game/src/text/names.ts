@@ -57,6 +57,8 @@ export const siteName = (id: string): Msg => {
 };
 export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
 export const placeProse = (shopId: string): Msg => byId(`town.place.${shopId}`);
+export const canteenName = (shopId: string): Msg => byId(`town.canteen.${shopId}`);
+export const townHeading = (shopId: string): Msg => (shopId === 'bowl' || shopId === 'nose' ? t(`town.heading.${shopId}`) : siteName(shopId));
 export const propName = (look: string): Msg => byId(`way.prop.${look}`);
 export const compassName = (octant: Octant): Msg => t(`compass.${octant}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
@@ -98,7 +100,14 @@ export function setupText(setup: WorldSetup): Msg {
 export function vehicleTitle(world: World, v: Vehicle): Msg {
   if (v.id === world.player.vehicleId) return t('vehicle.yours');
   if (!v.brain) return chassisName(v.chassisId);
-  return t('vehicle.npc', { profession: professionName(v.brain.templateId), driver: driverName(v) });
+  return t('vehicle.npc', { profession: truckProfession(v, v.brain.templateId), driver: driverName(v) });
+}
+
+const RAIDER_TEMPLATES: readonly string[] = ['buggy', 'gunwagon'];
+
+function truckProfession(v: Vehicle, templateId: string): Msg {
+  if (!RAIDER_TEMPLATES.includes(templateId)) return professionName(templateId);
+  return t('npc.raiderTitle', { faction: factionName(v.faction), role: byId(`npc.${templateId}.role`) });
 }
 
 export function vehicleTitleOf(world: World, id: string): Msg {

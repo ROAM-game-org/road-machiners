@@ -100,7 +100,13 @@ export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) 
     });
     if (done) return;
     await page.keyboard.press('Escape');
+    await page.evaluate(endTurnIfNotPlayed, arg);
   }
+};
+
+const endTurnIfNotPlayed = (turn) => {
+  const g = window.__ROAM__;
+  if (g.state.turn < turn && !g.travel.isPlaying(g.anim)) g.endTurn();
 };
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
