@@ -39,6 +39,10 @@ function isShadowLight(o: THREE.Object3D): o is ShadowLight {
   return true;
 }
 
+function isBeam(light: ShadowLight): light is THREE.SpotLight {
+  return (light as THREE.SpotLight).isSpotLight === true;
+}
+
 function materialId(material: THREE.Material): number {
   return (material as THREE.Material & { id: number }).id;
 }
@@ -93,6 +97,7 @@ export class ShadowRefresh {
   private drawn = new WeakMap<THREE.Light, Values>();
   private lastStamp = 0;
   private readonly lights: ShadowLight[] = [];
+  private readonly waiting: ShadowLight[] = [];
   private readonly standing: { mesh: THREE.Mesh; stamp: number }[] = [];
   private standingCount = 0;
 
@@ -101,10 +106,19 @@ export class ShadowRefresh {
     this.standingCount = 0;
     this.visit(scene);
     for (const light of this.lights) this.settle(light);
+    this.drawNextWaiting();
   }
 
   forget(): void {
     this.drawn = new WeakMap();
+    this.waiting.length = 0;
+  }
+
+  private drawNextWaiting(): void {
+    const next = this.waiting.findIndex((light) => this.lights.includes(light) && light.intensity > 0);
+    if (next < 0) return;
+    const [light] = this.waiting.splice(next, 1);
+    light.shadow.needsUpdate = true;
   }
 
   private visit(o: THREE.Object3D): void {
@@ -144,7 +158,12 @@ export class ShadowRefresh {
     if (known && light.intensity <= 0) return;
     const values = known ?? { list: [], at: 0, changed: false };
     this.drawn.set(light, values);
-    if (this.sightChanged(values, light)) light.shadow.needsUpdate = true;
+    if (this.sightChanged(values, light)) this.owe(light, !known);
+  }
+
+  private owe(light: ShadowLight, isNew: boolean): void {
+    if (isNew || !isBeam(light)) light.shadow.needsUpdate = true;
+    else if (!this.waiting.includes(light)) this.waiting.push(light);
   }
 
   private sightChanged(values: Values, light: ShadowLight): boolean {

@@ -174,6 +174,47 @@ describe('ShadowRefresh', () => {
     expect(redraws(light, frame)).toBe(false);
   });
 
+  it('redraws one beam per frame, oldest first, and owes none after', () => {
+    const [a, b, c] = [spot(), spot(), spot()];
+    const near = caster(0);
+    const { scene, refresh } = stage(a, a.target, b, b.target, c, c.target, near);
+    const frame = (): THREE.SpotLight[] => {
+      scene.updateMatrixWorld(true);
+      refresh.update(scene);
+      const drawn = [a, b, c].filter((l) => l.shadow.needsUpdate);
+      for (const l of drawn) l.shadow.needsUpdate = false;
+      return drawn;
+    };
+    expect(frame()).toEqual([a, b, c]);
+    expect(frame()).toEqual([]);
+    near.position.setX(0.5);
+    expect(frame()).toEqual([a]);
+    expect(frame()).toEqual([b]);
+    expect(frame()).toEqual([c]);
+    expect(frame()).toEqual([]);
+  });
+
+  it('keeps a dark beam owed until it lights again', () => {
+    const [a, b] = [spot(), spot()];
+    const near = caster(0);
+    const { scene, refresh } = stage(a, a.target, b, b.target, near);
+    const frame = (): THREE.SpotLight[] => {
+      scene.updateMatrixWorld(true);
+      refresh.update(scene);
+      const drawn = [a, b].filter((l) => l.shadow.needsUpdate);
+      for (const l of drawn) l.shadow.needsUpdate = false;
+      return drawn;
+    };
+    frame();
+    near.position.setX(0.5);
+    frame();
+    a.intensity = 0;
+    b.intensity = 0;
+    expect(frame()).toEqual([]);
+    b.intensity = 1;
+    expect(frame()).toEqual([b]);
+  });
+
   it('covers a directional sun when its box changes', () => {
     const sun = new THREE.DirectionalLight(0xffffff, 1);
     sun.castShadow = true;
