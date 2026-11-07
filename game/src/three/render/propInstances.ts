@@ -122,6 +122,8 @@ function groupsOf(props: readonly Landmark[]): Map<string, [ModelName, Landmark[
 type MergedModel = { geometry: THREE.BufferGeometry | null; look: THREE.MeshLambertMaterial; special: readonly SourcePart[] };
 
 const mergedModels = new WeakMap<readonly SourcePart[], MergedModel>();
+const MERGED_LOOK = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, vertexColors: true, name: 'merged' });
+MERGED_LOOK.userData.shared = true;
 
 function isPlain(material: THREE.Material): material is THREE.MeshLambertMaterial {
   return material instanceof THREE.MeshLambertMaterial && isOnlyColor(material);
@@ -163,7 +165,7 @@ function mergedOf(name: ModelName): MergedModel {
   const plain = parts.filter((p): p is SourcePart & { material: THREE.MeshLambertMaterial } => isPlain(p.material));
   const merged: MergedModel = {
     geometry: plain.length > 0 ? mergePlain(name, plain) : null,
-    look: new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, vertexColors: true, name: 'merged' }),
+    look: MERGED_LOOK,
     special: parts.filter((p) => !isPlain(p.material)),
   };
   mergedModels.set(parts, merged);
