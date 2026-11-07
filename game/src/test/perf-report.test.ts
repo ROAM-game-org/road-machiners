@@ -321,12 +321,26 @@ describe('gate', () => {
 
   it('takes the median of the reports as the value and their range as the noise', () => {
     const { measures } = landedFrom([run(10), run(10.5), run(11)]);
-    expect(measures['town-day mean']).toEqual({ value: 10.5, noise: 1, limit: 11.5 });
+    expect(measures['town-day mean'].value).toBe(10.5);
+    expect(measures['town-day p99']).toMatchObject({ value: 21, noise: 2.1 });
+    expect(measures['town-day p99'].limit).toBeCloseTo(23.1);
+  });
+
+  it('allows at least the pass difference that a trusted run may have, since three runs understate the noise', () => {
+    const { measures } = landedFrom([run(10), run(10), run(10)]);
+    expect(measures['town-day mean']).toEqual({ value: 10, noise: 1, limit: 11 });
   });
 
   it('uses the pass difference inside a report when it is larger than the range', () => {
-    const { measures } = landedFrom([run(10, {}, 1), run(10, {}, 1), run(10, {}, 1)]);
-    expect(measures['town-day mean']).toEqual({ value: 10, noise: 1, limit: 11 });
+    const { measures } = landedFrom([run(100, {}, 8), run(100, {}, 8), run(100, {}, 8)]);
+    expect(measures['town-day p99'].noise).toBe(20);
+  });
+
+  it('judges the turn wait by its mean and only shows its median and p99', () => {
+    const { measures } = landedFrom([run(10), run(10), run(10)]);
+    expect(measures['turn wait mean'].watched).toBeUndefined();
+    expect(measures['turn wait median'].watched).toBe(true);
+    expect(measures['turn wait p99'].watched).toBe(true);
   });
 
   it('refuses stored numbers whose frame time varies too much to catch a slowdown', () => {
@@ -336,8 +350,8 @@ describe('gate', () => {
   it('judges each drive pass alone and ignores the difference between its routes', () => {
     const drive = { passes: [pass(realStats(8, 12)), pass(realStats(16, 24))], spread: 0.5 };
     const { measures } = landedFrom([0, 1, 2].map(() => wrap(withScene('drive', drive), { machine: 'ally' })));
-    expect(measures['drive pass 1 mean']).toEqual({ value: 8, noise: 0, limit: 8 });
-    expect(measures['drive pass 2 mean']).toEqual({ value: 16, noise: 0, limit: 16 });
+    expect(measures['drive pass 1 mean'].value).toBe(8);
+    expect(measures['drive pass 2 mean'].value).toBe(16);
     expect(measures['drive mean']).toBeUndefined();
   });
 

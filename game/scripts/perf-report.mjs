@@ -350,7 +350,6 @@ export function compare(a, b) {
 
 const JUDGED_STAT = 'mean';
 const GATE_STATS = [JUDGED_STAT, 'p99', 'over100'];
-const FRAME_NOISE_SHARE_MAX = 0.1;
 const GATE_MIN_REPORTS = 3;
 
 const rangeOf = (values) => Math.max(...values) - Math.min(...values);
@@ -364,8 +363,10 @@ function sceneMeasures(scene) {
 }
 
 function gateMeasures(report) {
-  const turns = [['turn wait median', statOf(report.turns.waitMs, 'median')], ['turn wait p99', statOf(report.turns.waitMs, 'p99')], ['plan preview p99', statOf(report.turns.previewMs, 'p99')], ['boot', report.bootMs]];
-  return [...report.scenes.flatMap(sceneMeasures), ...turns.filter(([, value]) => isMeasure(value)).map(([key, value]) => ({ key, value, within: 0 }))];
+  const judged = [['turn wait mean', statOf(report.turns.waitMs, 'mean')], ['plan preview p99', statOf(report.turns.previewMs, 'p99')], ['boot', report.bootMs]];
+  const watched = [['turn wait median', statOf(report.turns.waitMs, 'median')], ['turn wait p99', statOf(report.turns.waitMs, 'p99')]];
+  const rows = (list, isWatched) => list.filter(([, value]) => isMeasure(value)).map(([key, value]) => ({ key, value, within: 0, watched: isWatched }));
+  return [...report.scenes.flatMap(sceneMeasures), ...rows(judged, false), ...rows(watched, true)];
 }
 
 function oneOf(reports, name, read) {
@@ -377,13 +378,13 @@ function oneOf(reports, name, read) {
 function landedMeasure(rows) {
   const values = rows.map((row) => row.value);
   const value = medianValue(values);
-  const noise = Math.max(rangeOf(values), ...rows.map((row) => row.within));
+  const noise = Math.max(SPREAD_MAX * value, rangeOf(values), ...rows.map((row) => row.within));
   return { value, noise, limit: value + noise, ...(rows[0].watched ? { watched: true } : {}) };
 }
 
 function tooNoisy(perReport, measures) {
   const means = perReport[0].filter((row) => row.frameMean).map((row) => row.key);
-  return means.filter((key) => measures[key].noise > FRAME_NOISE_SHARE_MAX * measures[key].value);
+  return means.filter((key) => measures[key].noise > SPREAD_MAX * measures[key].value);
 }
 
 export function landedFrom(reports) {
@@ -395,7 +396,7 @@ export function landedFrom(reports) {
   const measures = Object.fromEntries(keys.map((key) => [key, landedMeasure(perReport.map((rows) => rows.find((row) => row.key === key)))]));
   const landed = { commit: oneOf(reports, 'commit', (r) => r.run.commit), machine: oneOf(reports, 'machine', (r) => r.run.machine), renderer: oneOf(reports, 'renderer', (r) => r.bench.renderer), reports: reports.length, measures };
   const noisy = tooNoisy(perReport, measures);
-  if (noisy.length) throw new Error(`Stored numbers would hide a slowdown, since these vary by over ${FRAME_NOISE_SHARE_MAX * 100} percent: ${noisy.join(', ')}. Run the bench again.`);
+  if (noisy.length) throw new Error(`Stored numbers would hide a slowdown, since these vary by over ${SPREAD_MAX * 100} percent: ${noisy.join(', ')}. Run the bench again.`);
   return landed;
 }
 
