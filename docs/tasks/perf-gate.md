@@ -18,6 +18,9 @@ See `docs/tasks/perf-rework.md`. The Ally is a ROG Xbox Ally, Ryzen Z2 A, with n
 
 - Turn starts: the report lists every turn start with its scene, wait and whether a turn was already computed. Fight and the first drive turn are timed from the press. Later drive turns are timed from the moment playback ended.
 - Drive trust: the two cold passes on opposite routes stay. The spread check skips drive, and the gate judges each pass by itself.
+- Night fight: `fight-night` plays first on a fresh page with no warm-up, at night, so first-use stalls count. Its passes differ on purpose, so the gate judges each pass and its p99 alone, like drive.
+- Cost replays run after every scene is timed, so toggling systems off cannot slow the scenes timed after them.
+- Quick looks: `--quick` skips the replays, `--capped` keeps the frame cap on to find what limits a GPU-bound scene, `--shots` saves a picture of each scene, and `--scenes a,b` plays those scenes in that order. Do not land from these runs.
 - Stored numbers: `game/scripts/perf-landed.json` holds per machine, per measure, a value and a limit. It comes from at least 3 trusted reports of one commit. The limit is the value plus the noise, which is the larger of the range between reports and the largest pass difference inside one report. Landing refuses a frame mean whose noise is over 10 percent of its value.
 - Measures: mean frame time per scene, each drive pass alone, turn wait, plan preview and boot can fail the gate. p99 and frames over 100 ms are shown and cannot fail it, since their noise reaches 67 percent.
 - Why mean: when frames outrun the GPU in the uncapped bench, the median falls while stalls of 100 ms or more grow. Town-night gave a 12 ms median and a 20 ms mean with a 20 ms GPU time. The mean agrees between passes within 3 percent there.

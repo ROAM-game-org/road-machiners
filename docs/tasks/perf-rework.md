@@ -1,6 +1,6 @@
 # Perf rework
 
-Status: executing; perf-gate is done, three fixes are in with their measured results below, and the night play check, boot and far-props are open
+Status: executing; perf-gate is done, the fixes below are in with their measured results, and the night play check, the scrub sign-off and far-props are open
 
 Branch: perf-rework, from origin/dev 74c51d3b6
 
@@ -67,6 +67,11 @@ Done so far, all with no picture change intended:
 - Beams take turns redrawing their shadow maps, one per frame. The sun still redraws as soon as it changes.
 - Scatter models draw as one merged mesh per chunk.
 - Ground paint, glass field and look types build on a worker that starts before the map loads. A new worker cannot start while the main thread is busy, so a later start made boot slower. Boot went from about 15.3 s to about 12 s.
+- The ground bake is cached in IndexedDB per game version and map. A repeat boot builds ground in 0.4 to 0.8 s.
+- Point and spot lights with a black color skip their per-pixel work in the shader. Capped town-night went from 28 to 19.3 ms, with graphics card time from 26 to 17 ms.
+- Glass blur skips empty lines, moving truck parts merge colors per surface, and merged props share one material.
+- Matrix arrays in three.js are typed with a build step in `scripts/typed-matrices.mjs`. After the first wheel track of a play session, V8 turned every three.js matrix array into a boxed array, which slowed all matrix math by about 25 percent for the rest of the session. Far town after a fight went from about 26 to 22.5 ms, and the day fight from 27.5 to 24.5 ms. The night fight is the first scene on a fresh page and lost about 1 ms, since plain arrays are faster until they turn boxed.
+- Idle effects no longer send their whole buffers every frame. An empty update range made three.js send the full buffer. Resting shell casings send nothing.
 
 Picture changes waiting for the user's sign-off:
 - The desert scrub went from 28 four-sided stems to 18 three-sided stems, 336 to 144 triangles. It was half of all triangles in a fight. The change shows at maximum zoom.
@@ -76,7 +81,10 @@ Open:
 - Frames in motion gain little from the shadow cache, since the sun's map follows the camera. Driving at night has no bench scene.
 - Merging props into larger groups is not a one-line change: `scope.ts` widens the view test for every cell by the largest overhang, so a bigger group draws more cells. It goes to far-props.
 - Fight frames still spend most non-draw time in `refreshUi`, about 1.8 s of the 11.6 s of slow frames. It runs only on frames where a shot lands, and shots already land under 10 times a second, so limiting how often it runs saves little. Any gain has to come from cheaper panel updates, which needs a bench run to pick by PC1.
-- boot is untouched at 15 to 16 s on the Ally.
+- Boot is about 14 s in the bench on a fresh profile.
+- A scene run alone with `--scenes` reads faster than in the full run, because the page has not played a fight yet. Compare lone scenes only with lone scenes. `--shots` and `--profile` runs read differently too: `--shots` passes are short, and the night fight reads 3.5 ms faster under tracing for a reason not found.
+- Each frame, three.js `getParameters` costs about 0.6 ms in far town, which means some material asks for its program again every frame. Which one is not known.
+- The town-night passes often disagree by over 10 percent, which makes about half of full runs untrusted. With the frame cap off, that scene has a fast mode with 0 frames over 100 ms and a slow mode with up to 27.
 
 TDD: yes. Work counts per system, such as draws and lights per pixel, are deterministic and get failing tests first. Times are checked by the bench and the gate.
 
