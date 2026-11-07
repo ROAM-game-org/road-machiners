@@ -347,6 +347,9 @@
   --dock-width: 246px;
 }
 
+:root:has(#ui.phone.narrow) {
+  --phone-readouts-h: calc(90px + 2 * var(--touch-target) + var(--space-1));
+}
 #ui:where(.narrow) {
   --dock-width: 200px;
   --lcd-cell-w: 0px;

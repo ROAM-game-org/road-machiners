@@ -217,6 +217,30 @@
   overflow-wrap: break-word;
   padding: 0 var(--space-1);
 }
+#ui.phone.narrow .instruments .instrument-actions {
+  flex-wrap: wrap;
+}
+#ui.phone.narrow .instruments .instrument-actions :is(.truck-controls, .screen-buttons) > * {
+  flex: 1 1 calc(25% - var(--space-1));
+  padding: 0;
+}
+#ui.phone .instruments .screen-buttons .key {
+  display: none;
+}
+@media (orientation: landscape) {
+  #ui.phone.narrow:has(.truck-controls > :nth-child(5)) {
+    --phone-readouts-h: calc(90px + 3 * var(--touch-target) + 2 * var(--space-1));
+    --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--phone-strip-h));
+  }
+  #ui.phone.narrow .top-center {
+    top: calc(var(--safe-top) + var(--touch-target) + var(--hud-gap));
+  }
+}
+@media (orientation: portrait) {
+  #ui.phone.narrow .instruments .instrument-actions :is(.truck-controls, .screen-buttons) > * {
+    flex-basis: calc(100% / 6 - var(--space-1));
+  }
+}
 #ui.phone .feedback {
   display: none;
 }
