@@ -152,6 +152,7 @@ describe('DrawCounter', () => {
 describe('uploadBytes', () => {
   it('sizes typed data, images and bufferData sizes', () => {
     expect(uploadBytes('bufferSubData', [1, 0, new Float32Array(10)])).toBe(40);
+    expect(uploadBytes('bufferSubData', [1, 0, new Float32Array(10), 2, 3])).toBe(12);
     expect(uploadBytes('texImage2D', [1, 0, 2, 3, 4, { width: 8, height: 4 }])).toBe(128);
     expect(uploadBytes('bufferData', [1, 256, 2])).toBe(256);
     expect(uploadBytes('bufferData', [1, new ArrayBuffer(12), 2])).toBe(12);

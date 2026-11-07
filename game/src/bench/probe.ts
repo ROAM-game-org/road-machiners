@@ -195,9 +195,16 @@ function bufferDataBytes(args: readonly unknown[]): number {
   return typeof data === 'number' ? data : 0;
 }
 
+function viewBytes(call: string, args: readonly unknown[], view: ArrayBufferView): number {
+  const length = call === 'bufferSubData' ? args[4] : undefined;
+  if (typeof length !== 'number' || length === 0) return view.byteLength;
+  const element = (view as ArrayBufferView & { BYTES_PER_ELEMENT?: number }).BYTES_PER_ELEMENT ?? 1;
+  return length * element;
+}
+
 export function uploadBytes(call: string, args: readonly unknown[]): number {
   const view = args.find((arg): arg is ArrayBufferView => ArrayBuffer.isView(arg));
-  if (view) return view.byteLength;
+  if (view) return viewBytes(call, args, view);
   const image = args.find(isImageLike);
   if (image) return image.width * image.height * 4;
   return call === 'bufferData' ? bufferDataBytes(args) : 0;
