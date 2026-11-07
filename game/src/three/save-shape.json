@@ -156,13 +156,6 @@
     "roughTiles": "number",
     "search": "number"
    },
-   "xpToday": {
-    "driving": "number",
-    "machining": "number",
-    "perception": "number",
-    "social": "number",
-    "toughness": "number"
-   },
    "xpWindow": "number"
   },
   "rngState": "number",
