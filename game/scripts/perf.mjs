@@ -10,7 +10,7 @@ import { budgetsFor, bundleProblems, checkBudgets, compare, gateLines, gateSumma
 const CHROMIUM_FLAGS = ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--mute-audio'];
 const BUILD_TIMEOUT_MS = 300000;
 const SERVER_TIMEOUT_MS = 30000;
-const BENCH_TIMEOUT_MS = 900000;
+const BENCH_TIMEOUT_MS = 1200000;
 const POLL_MS = 1000;
 const PROGRESS_MS = 30000;
 const OTHERS_SAMPLE_MS = 5000;
