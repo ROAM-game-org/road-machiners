@@ -1,21 +1,24 @@
-export type FrameStats = { median: number; p99: number; worst: number; over33: number; over100: number; frames: number };
+export type FrameStats = { median: number; mean: number; p99: number; worst: number; over33: number; over100: number; frames: number };
 export type PassStats = { real: FrameStats; tickCpu: FrameStats; renderCpu: FrameStats; gpu: FrameStats | null };
 export type RenderPass = 'main' | 'shadow';
 export type BenchSystem = 'terrain' | 'props' | 'vehicles' | 'lights' | 'effects' | 'overlays' | 'other';
 export type DrawCount = { draws: number; triangles: number };
-export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number };
+export type SceneState = { lights: Record<string, number>; shadowMaps: number[]; programs: number; textures: number; geometries: number; objects: number; canvas: string; pixelRatio: number; domNodes: number; blurred: string[]; changedBuffers?: Record<string, number>; renderCalls?: number[]; mixedMaterials?: string[]; steps?: Record<string, number> };
+export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number; newPrograms: number; over100WithNewPrograms: number };
 export type SceneReport = {
-  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'drive';
+  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'fight-night' | 'drive';
   passes: PassStats[];
   frame: PassStats;
   spread: number;
   bound: 'cpu' | 'gpu' | null;
   longTasks: number;
-  draws: { total: number; rendererCalls: number; programChecks: number; byPass: Record<RenderPass, DrawCount>; bySystem: Record<BenchSystem, Record<RenderPass, DrawCount>>; other: Record<string, number> };
+  draws: { total: number; rendererCalls: number; programChecks: number; byPass: Record<RenderPass, DrawCount>; bySystem: Record<BenchSystem, Record<RenderPass, DrawCount>>; other: Record<string, number>; heaviest?: (DrawCount & { name: string; pass: RenderPass })[]; materials?: Record<string, number> };
   slowFrames: SlowFrames;
   savings: Record<string, number> | null;
   check: { name: string; passed: boolean; detail: string };
+  state: SceneState;
 };
+export type TurnStart = { scene: 'fight' | 'drive'; ms: number; ready: boolean };
 export type BenchReport = {
   schema: 1;
   version: string;
@@ -27,7 +30,7 @@ export type BenchReport = {
   town: string;
   only: string[] | null;
   scenes: SceneReport[];
-  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; steps: Record<string, { total: number; calls: number }> };
+  turns: { waitMs: FrameStats | null; workerTurnMs: FrameStats | null; previewMs: FrameStats | null; starts: TurnStart[]; steps: Record<string, { total: number; calls: number }> };
   bootMs: number;
   bootSteps: Record<string, { startMs: number; endMs: number }>;
 };
@@ -39,7 +42,8 @@ export type FrameRecord = {
   gpu: number | null;
   uploadBytes: number;
   chunkBuilds: number;
-  calls: number;
+  newPrograms: number;
+calls: number;
   timers: Record<string, number>;
 };
 
@@ -64,18 +68,34 @@ function nearestRank(sorted: readonly number[], share: number): number {
   return sorted[Math.max(0, Math.ceil(sorted.length * share) - 1)];
 }
 
-type TurnSamples = { waits: number[]; workers: number[]; previews: number[]; steps: BenchReport['turns']['steps'] };
+type TurnSamples = { waits: number[]; workers: number[]; previews: number[]; starts: TurnStart[]; steps: BenchReport['turns']['steps'] };
+
+export function driveTurnGaps(firstTurn: number): (turn: number, busy: boolean, now: number) => TurnStart | null {
+  let last = firstTurn;
+  let idleSince: number | null = null;
+  return (turn, busy, now) => {
+    if (turn === last) {
+      if (!busy && idleSince === null) idleSince = now;
+      return null;
+    }
+    const start: TurnStart = { scene: 'drive', ms: idleSince === null ? 0 : now - idleSince, ready: idleSince === null };
+    last = turn;
+    idleSince = null;
+    return start;
+  };
+}
 
 export function turnStats(sceneIds: readonly string[], log: TurnSamples): BenchReport['turns'] {
   const turned = sceneIds.includes('fight') || sceneIds.includes('drive');
   const statsIf = (wanted: boolean, samples: number[]) => (wanted ? frameStats(samples) : null);
-  return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), steps: log.steps };
+  return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), starts: log.starts, steps: log.steps };
 }
 
 export function frameStats(samples: readonly number[]): FrameStats {
   const sorted = sortedSamples(samples);
   return {
     median: medianOf(sorted),
+    mean: sorted.reduce((sum, s) => sum + s, 0) / sorted.length,
     p99: nearestRank(sorted, 0.99),
     worst: sorted[sorted.length - 1],
     over33: sorted.filter((s) => s > SLOW_FRAME_MS).length,
@@ -106,9 +126,9 @@ export function poolFrames(passes: readonly (readonly FrameRecord[])[]): FrameRe
 
 export function spreadOf(passes: readonly PassStats[]): number {
   if (passes.length !== 2) throw new Error(`Spread needs exactly 2 passes, got ${passes.length}`);
-  const [a, b] = passes.map((p) => p.real.median);
+  const [a, b] = passes.map((p) => p.real.mean);
   const smaller = Math.min(a, b);
-  if (!(smaller > 0)) throw new Error(`Spread needs positive medians, got ${a} and ${b}`);
+  if (!(smaller > 0)) throw new Error(`Spread needs positive means, got ${a} and ${b}`);
   return Math.abs(a - b) / smaller;
 }
 
@@ -126,7 +146,7 @@ function addTimers(into: Record<string, number>, timers: Record<string, number>)
 }
 
 export function slowFrameSums(frames: readonly FrameRecord[]): SlowFrames {
-  const sums: SlowFrames = { count: 0, renderMs: 0, tickRestMs: 0, timers: {}, uploadBytes: 0, chunkBuilds: 0, over100WithChunkBuild: 0 };
+  const sums: SlowFrames = { count: 0, renderMs: 0, tickRestMs: 0, timers: {}, uploadBytes: 0, chunkBuilds: 0, over100WithChunkBuild: 0, newPrograms: 0, over100WithNewPrograms: 0 };
   for (const f of frames.filter((x) => x.real > SLOW_FRAME_MS)) {
     sums.count++;
     sums.renderMs += f.render;
@@ -134,6 +154,8 @@ export function slowFrameSums(frames: readonly FrameRecord[]): SlowFrames {
     sums.uploadBytes += f.uploadBytes;
     sums.chunkBuilds += f.chunkBuilds;
     if (f.real > HITCH_MS && f.chunkBuilds > 0) sums.over100WithChunkBuild++;
+    sums.newPrograms += f.newPrograms;
+    if (f.real > HITCH_MS && f.newPrograms > 0) sums.over100WithNewPrograms++;
     addTimers(sums.timers, f.timers);
   }
   return sums;

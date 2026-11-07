@@ -165,8 +165,11 @@ export class CameraRig {
     this.lead.set(0, 0, 0);
   }
 
+  readPlace(): void {
+    this.rect = this.view.getBoundingClientRect();
+  }
+
   tick(dtMs: number): void {
-    this.rect = null;
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
       const leadGoal = this.heading === null ? new THREE.Vector3() : this.leadOffset(this.heading);

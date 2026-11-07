@@ -123,6 +123,8 @@ function groupsOf(props: readonly Landmark[]): Map<string, [ModelName, Landmark[
 type MergedModel = { geometry: THREE.BufferGeometry | null; look: THREE.MeshLambertMaterial; special: readonly SourcePart[] };
 
 const mergedModels = new WeakMap<readonly SourcePart[], MergedModel>();
+const MERGED_LOOK = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, vertexColors: true, name: 'merged' });
+MERGED_LOOK.userData.shared = true;
 
 function isPlain(material: THREE.Material): material is THREE.MeshLambertMaterial {
   return material instanceof THREE.MeshLambertMaterial && isOnlyColor(material);
@@ -164,7 +166,7 @@ function mergedOf(name: ModelName): MergedModel {
   const plain = parts.filter((p): p is SourcePart & { material: THREE.MeshLambertMaterial } => isPlain(p.material));
   const merged: MergedModel = {
     geometry: plain.length > 0 ? mergePlain(name, plain) : null,
-    look: new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, vertexColors: true, name: 'merged' }),
+    look: MERGED_LOOK,
     special: parts.filter((p) => !isPlain(p.material)),
   };
   mergedModels.set(parts, merged);
@@ -176,6 +178,7 @@ export function instancedProp(name: ModelName, placements: THREE.Matrix4[], tone
   if (tones.length !== placements.length) throw new Error(`Instanced ${name} has ${placements.length} placements and ${tones.length} tones`);
   const merged = mergedOf(name);
   const group = new THREE.Group();
+  group.name = name;
   if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, tones, new THREE.Matrix4()));
   for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, tones, part.matrix));
   group.matrixAutoUpdate = false;

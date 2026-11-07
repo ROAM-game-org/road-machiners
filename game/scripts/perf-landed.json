@@ -1,0 +1,158 @@
+{
+  "machines": {
+    "Ally": {
+      "commit": "40111a4ab",
+      "machine": "Ally",
+      "renderer": "ANGLE (AMD, Vulkan 1.4.315 (AMD Radeon(TM) Graphics (0x0000163F)), AMD proprietary driver)",
+      "reports": 3,
+      "measures": {
+        "town-day mean": {
+          "value": 15.748999999999068,
+          "noise": 1.574899999999907,
+          "limit": 17.323899999998975
+        },
+        "town-day p99": {
+          "value": 22.300000000745058,
+          "noise": 2.2300000000745057,
+          "limit": 24.530000000819562,
+          "watched": true
+        },
+        "town-day over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0,
+          "watched": true
+        },
+        "town-day-far mean": {
+          "value": 27.61049999999969,
+          "noise": 2.761049999999969,
+          "limit": 30.371549999999658
+        },
+        "town-day-far p99": {
+          "value": 37.5,
+          "noise": 3.75,
+          "limit": 41.25,
+          "watched": true
+        },
+        "town-day-far over100": {
+          "value": 0,
+          "noise": 1,
+          "limit": 1,
+          "watched": true
+        },
+        "town-night mean": {
+          "value": 20.600416666666668,
+          "noise": 2.0600416666666668,
+          "limit": 22.660458333333334
+        },
+        "town-night p99": {
+          "value": 167.69999999925494,
+          "noise": 50.499999998137355,
+          "limit": 218.1999999973923,
+          "watched": true
+        },
+        "town-night over100": {
+          "value": 56,
+          "noise": 5.6000000000000005,
+          "limit": 61.6,
+          "watched": true
+        },
+        "town-night-far mean": {
+          "value": 23.49674999999969,
+          "noise": 2.349674999999969,
+          "limit": 25.84642499999966
+        },
+        "town-night-far p99": {
+          "value": 31.59999999962747,
+          "noise": 3.599999999627471,
+          "limit": 35.19999999925494,
+          "watched": true
+        },
+        "town-night-far over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0,
+          "watched": true
+        },
+        "fight mean": {
+          "value": 37.153171641793826,
+          "noise": 3.7153171641793827,
+          "limit": 40.86848880597321
+        },
+        "fight p99": {
+          "value": 72,
+          "noise": 7.2,
+          "limit": 79.2,
+          "watched": true
+        },
+        "fight over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0,
+          "watched": true
+        },
+        "drive pass 1 mean": {
+          "value": 21.688378378381397,
+          "noise": 2.1688378378381397,
+          "limit": 23.857216216219538
+        },
+        "drive pass 1 p99": {
+          "value": 55.29999999888241,
+          "noise": 5.699999999254942,
+          "limit": 60.999999998137355,
+          "watched": true
+        },
+        "drive pass 1 over100": {
+          "value": 0,
+          "noise": 0,
+          "limit": 0,
+          "watched": true
+        },
+        "drive pass 2 mean": {
+          "value": 19.71280653950852,
+          "noise": 1.971280653950852,
+          "limit": 21.684087193459373
+        },
+        "drive pass 2 p99": {
+          "value": 53.20000000111759,
+          "noise": 8.099999997764826,
+          "limit": 61.29999999888241,
+          "watched": true
+        },
+        "drive pass 2 over100": {
+          "value": 0,
+          "noise": 1,
+          "limit": 1,
+          "watched": true
+        },
+        "turn wait mean": {
+          "value": 669.9799999998883,
+          "noise": 66.99799999998883,
+          "limit": 736.977999999877
+        },
+        "plan preview p99": {
+          "value": 1103.8999999985099,
+          "noise": 222.80000000074506,
+          "limit": 1326.699999999255
+        },
+        "boot": {
+          "value": 15286.799999998882,
+          "noise": 1528.6799999998884,
+          "limit": 16815.47999999877
+        },
+        "turn wait median": {
+          "value": 755.8999999994412,
+          "noise": 75.58999999994413,
+          "limit": 831.4899999993853,
+          "watched": true
+        },
+        "turn wait p99": {
+          "value": 1228.5999999996275,
+          "noise": 122.85999999996275,
+          "limit": 1351.4599999995903,
+          "watched": true
+        }
+      }
+    }
+  }
+}

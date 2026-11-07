@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { readdirSync, statSync } from 'node:fs'
 import { gameVersion } from './src/version'
 import { publicHashes } from './src/public-files'
+import { typedMatrices, typedMatricesWhilePrebundling } from './scripts/typed-matrices.mjs'
 
 function sfxBytes(dirs: string[]): Record<string, number> {
   const sizes = dirs.flatMap((dir) => readdirSync(dir).filter((name) => /\.(ogg|m4a)$/.test(name)).map((name) => [name, statSync(`${dir}/${name}`).size]))
@@ -14,6 +15,8 @@ function envText(name: string): string {
 
 export default defineConfig(({ command }) => ({
   base: './',
+  plugins: [typedMatrices()],
+  optimizeDeps: { esbuildOptions: { plugins: [typedMatricesWhilePrebundling()] } },
   server: { hmr: false, ...(process.env.ROAM_NO_WATCH ? { watch: null } : {}) },
   define: {
     __GAME_VERSION__: JSON.stringify(gameVersion(process.cwd())),

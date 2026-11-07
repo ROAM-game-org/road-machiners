@@ -506,13 +506,13 @@ describe('camera canvas rect', () => {
     expect(reads.count - before).toBe(1);
   });
 
-  it('follows a moved canvas after the next tick or resize', () => {
+  it('follows a moved canvas after the next frame start or resize', () => {
     const { rig, box } = countedRig();
     rig.tick(0);
     const at = rig.screenOf({ x: 0, y: 0, z: 0 });
 
     box.left = 100;
-    rig.tick(0);
+    rig.readPlace();
     expect(rig.screenOf({ x: 0, y: 0, z: 0 }).x).toBeCloseTo(at.x + 100);
     box.left = 200;
     rig.resize();

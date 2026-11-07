@@ -49,7 +49,8 @@ interface Press {
   opened: boolean;
 }
 
-export function installTouchTips(root: HTMLElement, touch: () => boolean): void {
+export function installTouchTips(root: HTMLElement, touch: () => boolean, extraSurfaces: readonly HTMLElement[] = []): void {
+  const surfaces = [root, ...extraSurfaces];
   let press: Press | null = null;
   let shown: HTMLElement | null = null;
   const close = (): void => {
@@ -68,7 +69,7 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
     if (press) clearTimeout(press.timer);
     press = null;
   };
-  root.addEventListener("pointerdown", (e) => {
+  for (const surface of surfaces) surface.addEventListener("pointerdown", (e) => {
     close();
     if (e.pointerType !== "touch") return;
     end();
@@ -81,10 +82,10 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
     }, TOUCH.longPressMs);
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, target, timer, opened: false };
   }, true);
-  root.addEventListener("pointermove", (e) => {
+  for (const surface of surfaces) surface.addEventListener("pointermove", (e) => {
     if (press && press.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > TOUCH.slopPx) end();
   });
-  root.addEventListener("pointerup", (e) => {
+  for (const surface of surfaces) surface.addEventListener("pointerup", (e) => {
     if (!press || press.id !== e.pointerId) return;
     const { target, x, y, opened } = press;
     end();
@@ -100,7 +101,7 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
     const spot = e.detail === 0 ? (e.target as Element).getBoundingClientRect() : null;
     open(content, spot ? spot.left + spot.width / 2 : e.clientX, spot ? spot.top + spot.height / 2 : e.clientY);
   });
-  root.addEventListener("pointercancel", end);
+  for (const surface of surfaces) surface.addEventListener("pointercancel", end);
   root.addEventListener("scroll", close, true);
   document.addEventListener("keydown", close);
 }

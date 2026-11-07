@@ -16,6 +16,7 @@
     "layout": "node scripts/layout-check.mjs http://localhost:5173",
     "screens": "node scripts/screens.mjs",
     "perf": "node scripts/perf.mjs",
+    "perf:remote": "node scripts/perf-remote.mjs",
     "census": "node scripts/census.mjs",
     "site:shot": "node scripts/site-shot.mjs",
     "shot": "node scripts/shot.mjs",
