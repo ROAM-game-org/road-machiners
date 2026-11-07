@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_102 from './save-fixtures/format-2-102.json';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 type Part = { id: string; defId: string; hp: number; wear: number };
 type Item = { id: string; x: number; y: number; rot: number; kind: string; part?: Part };

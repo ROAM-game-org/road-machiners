@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { CardBatch, OVERFILL_COUNTER, type Card } from './cards';
+import { CardBatch, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes } from './cards';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
 camera.updateProjectionMatrix();
@@ -91,5 +91,45 @@ describe('lit card order', () => {
     put(batch, { ...card(0.5, 1), z: -9 });
     batch.flush(lookingDown);
     expect(offsetsZ(batch)).toEqual([-9]);
+  });
+});
+
+describe('card shape atlas', () => {
+  const CELL = 128;
+  const atlas = () => {
+    const alpha = new Uint8ClampedArray(CELL * 3 * CELL * 3).fill(255);
+    const ctx = {
+      filter: '',
+      fillStyle: '',
+      beginPath: () => undefined,
+      arc: () => undefined,
+      fill: () => undefined,
+      getImageData: (left: number, top: number, w: number, h: number) => {
+        const data = new Uint8ClampedArray(w * h * 4);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) data[(y * w + x) * 4 + 3] = alpha[(top + y) * CELL * 3 + left + x];
+        return { data };
+      },
+      putImageData: (image: { data: Uint8ClampedArray }, left: number, top: number) => {
+        for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) alpha[(top + y) * CELL * 3 + left + x] = image.data[(y * CELL + x) * 4 + 3];
+      },
+    };
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) });
+    let seed = 7;
+    createCardShapes(() => (seed = (seed * 16807) % 2147483647) / 2147483647);
+    vi.unstubAllGlobals();
+    return alpha;
+  };
+
+  it('fades clump shapes to nothing before the cell edge and breaks their rim with grain', () => {
+    const alpha = atlas();
+    const firstClump = { left: (CLUMP_FIRST % 3) * CELL, top: Math.floor(CLUMP_FIRST / 3) * CELL };
+    const at = (x: number, y: number) => alpha[(firstClump.top + y) * CELL * 3 + firstClump.left + x];
+    for (let i = 0; i < CELL; i++) {
+      expect(at(i, 0)).toBeLessThan(255 * 0.5);
+      expect(at(0, i)).toBeLessThan(255 * 0.5);
+    }
+    expect(at(CELL / 2, CELL / 2)).toBe(255);
+    const rim = Array.from({ length: 64 }, (_, i) => at(Math.round(CELL / 2 + Math.cos(i / 10) * CELL * 0.42), Math.round(CELL / 2 + Math.sin(i / 10) * CELL * 0.42)));
+    expect(new Set(rim).size).toBeGreaterThan(8);
   });
 });

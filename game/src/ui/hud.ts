@@ -27,13 +27,11 @@ import {
   surveyClueLines,
   eventText,
   formatNpcPass,
-  workLabel,
-  workProgress,
   formatNpcCargo,
   formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
-  formatVehicleState,
+  formatCardState,
   type LogLine,
   clock,
   stanceTag,
@@ -172,7 +170,7 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: keyLabel(busy ? TURN_PLAYING : t("map.full"), "M") },
       t("map.full"),
       keyCap("M"),
     ),
@@ -328,7 +326,7 @@ export class Hud {
     this.knockedOut.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
+    this.recenter.append(el("button", { onclick: () => actions.recenter(), title: keyLabel(t("hud.recenter"), RECENTER_KEY) }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
   }
 
   feedbackOpen(): boolean {
@@ -376,32 +374,8 @@ export class Hud {
   ): void {
     const me = playerVehicle(world);
     const shown = shownWork(action, workOf(world, me));
-    this.action.style.display = action || shown ? "" : "none";
-    if (shown) this.renderWork(shown, workLabel(world, me, shown));
-    else if (action) this.renderActionButton(action, count, index, onUse, onCycle);
-  }
-
-  private renderWork(work: Work, label: Msg): void {
-    const progress = Math.round(workProgress(work) * 100);
-    this.action.replaceChildren(
-      el(
-        "span",
-        { class: "job-label" },
-        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
-      ),
-      el(
-        "span",
-        {
-          class: "job-bar meter progress",
-          role: "progressbar",
-          "aria-label": t("hud.workProgress", { label }),
-          "aria-valuemin": "0",
-          "aria-valuemax": "100",
-          "aria-valuenow": String(progress),
-        },
-        el("span", { style: `width:${progress}%` }),
-      ),
-    );
+    this.action.style.display = action && !shown ? "" : "none";
+    if (action && !shown) this.renderActionButton(action, count, index, onUse, onCycle);
   }
 
   private renderActionButton(action: ContextAction, count: number, index: number, onUse: () => void, onCycle: (step: 1 | -1) => void): void {
@@ -409,6 +383,7 @@ export class Hud {
       "button",
       {
         ...disabledWith(action.ready ? null : (actionBlockReason(action) ?? null), onUse),
+        title: keyLabel(action.label, "E"),
         class: action.combat !== undefined ? "btn-danger" : "",
       },
       action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
@@ -528,7 +503,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": reason === null ? undefined : "true",
         onclick: () => reason === null && this.actions.douseEngine(),
-        title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        title: keyLabel(reason ?? t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
       t("hud.douse"),
     )];
@@ -545,7 +520,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": reason === null ? undefined : "true",
         onclick: () => reason === null && this.actions.firstAid(),
-        title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
+        title: keyLabel(reason ?? t("hud.costsSupplies", { n: cost }), "U"),
       },
       t("hud.firstAid"),
     )];
@@ -560,7 +535,7 @@ export class Hud {
         "data-action": "character",
         "aria-disabled": busy ? "true" : undefined,
         onclick: () => !busy && this.actions.openCharacter(),
-        title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
+        title: keyLabel(busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       stackedLabel([t("hud.driver"), t("hud.driverMarked")], marked ? 1 : 0),
       keyCap("C"),
@@ -604,6 +579,7 @@ export class Hud {
     this.renderContracts(w);
     this.renderWanted(w);
     this.tips.update(w, this.actions.autoTravel());
+    requestAnimationFrame(() => this.tips.place());
     if (!this.top.firstChild) this.top.append(this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
     const me = playerVehicle(live);
@@ -688,7 +664,7 @@ export class Hud {
         }),
         createSwitch({
           on: t("hud.autoPatch"),
-          off: t("hud.noPatch"),
+          off: t("hud.autoPatch"),
           checked: w.player.autoRepair,
           key: "P",
           reason: orderLock(w, busy),
@@ -733,7 +709,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (isNotable(e)) this.toast(line.text);
+      if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
   }
@@ -787,7 +763,7 @@ export class Hud {
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),
-      el("div", { class: "info-state" }, wantedMark(w, v), formatVehicleState(w, v)),
+      el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
     );
@@ -806,8 +782,7 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement |
     "div",
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
-    el("span", { class: "info-quiet", title: quietText }, quietText),
-    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
+    ...(v.faction === "player" ? [] : [el("span", { class: "info-quiet", title: quietText }, quietText), el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
     ...(buttons ? [buttons] : []),
   );
 }
@@ -819,7 +794,7 @@ export interface CardHandlers {
 }
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
-  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick) }, label, keyCap(key));
+  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick), title: keyLabel(refusal ?? label, key) }, label, keyCap(key));
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
