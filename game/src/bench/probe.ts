@@ -159,6 +159,7 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
   game.scene.traverse((object) => {
     const ownBefore = Object.prototype.hasOwnProperty.call(object, 'onBeforeRender');
     const beforeRender = object.onBeforeRender;
+    if (object === game.scene) return;
     object.onBeforeRender = function watched(renderer, scene, camera, geometry, material, group) {
       const drawn = kinds.get(material) ?? new Set<string>();
       drawn.add(drawKind(object, geometry, material, renderer));
