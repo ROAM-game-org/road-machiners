@@ -14,6 +14,7 @@
     "ui-playtest": "node scripts/ui-playtest.mjs http://localhost:5173",
     "mobile": "node scripts/mobile-check.mjs --url http://localhost:5173",
     "layout": "node scripts/layout-check.mjs http://localhost:5173",
+    "screens": "node scripts/screens.mjs",
     "perf": "node scripts/perf.mjs",
     "census": "node scripts/census.mjs",
     "site:shot": "node scripts/site-shot.mjs",

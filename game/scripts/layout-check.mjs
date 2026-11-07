@@ -11,7 +11,9 @@ const TALL = [1440, 900];
 const PHONE = [390, 844];
 const PHONE_LANDSCAPE = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
-const OUT = 'tmp/layout';
+const GALLERY = process.env.LAYOUT_GALLERY;
+const OUT = GALLERY ?? 'tmp/layout';
+const FADE_MS = 900;
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
 
 const key = (page, code) => page.evaluate((c) => window.__ROAM__.runKey(c), code);
@@ -44,20 +46,14 @@ async function openInventory(page) {
 }
 
 async function openTown(page, tab) {
-  await page.evaluate(async () => {
-    const g = window.__ROAM__;
-    if (g.screens.town.isOpen()) return;
-    const c = await import('/src/sim/cheats.ts');
-    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
-    g.screens.town.open();
-  });
-  await frames(page);
+  await openTownClear(page);
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', paint: 'garage', contracts: 'board', charts: 'market' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
+    if (tab === 'charts') document.querySelector('.town-page [data-market-tab="charts"]').click();
   }, tab);
 }
 
@@ -205,7 +201,8 @@ async function boot() {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl(`${url}/?seed=${SEED}`));
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
-  await page.addStyleTag({ content: '#game { display: none !important }' });
+  if (GALLERY) await page.waitForFunction(() => !document.getElementById('boot'));
+  else await page.addStyleTag({ content: '#game { display: none !important }' });
   return { browser, page, errors };
 }
 
@@ -418,7 +415,7 @@ async function townNavFaults(page) {
     await frames(page);
     const isFront = step.name === 'front';
     const marks = { ...(await townMarks(page, false)), front: isFront };
-    await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
+    await page.screenshot({ path: `tmp/layout/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
     if (isFront) front = marks;
     if (!isFront || !marks.grows) section ??= marks;
     for (const d of navDiffs(front, section ?? marks, marks)) note(step.name, d);
@@ -517,6 +514,52 @@ async function inventoryBenchFaults(page) {
   return found.map((text) => ({ kind: 'inventory-bench', path: '', text, sizes: '' }));
 }
 
+const ONE_WINDOW = [VIEWPORTS[0]];
+
+async function openInventoryGun(page) {
+  await key(page, 'KeyI');
+  await page.evaluate(() => document.querySelector('.inv-item.mounted.drawn').click());
+}
+
+async function openShopRow(page) {
+  await openTown(page, 'buyParts');
+  await page.evaluate(() => document.querySelector('.town-page .part-sum').click());
+}
+
+async function openBoardTaken(page) {
+  await page.evaluate(() => { window.__layoutWorld = structuredClone(window.__ROAM__.state); });
+  await openTown(page, 'contracts');
+  await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
+}
+
+const restoreWorld = (close) => async (page) => {
+  await close(page);
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+};
+
+async function openLoot(page) {
+  await page.evaluate(() => {
+    const g = window.__ROAM__;
+    g.screens.inventory.openLoot(g.state.salvage[0].id);
+  });
+}
+
+async function openNewGameScreen(page) {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l', { hasText: 'New game' }).click();
+}
+
+async function closeNewGameScreen(page) {
+  await escape(page);
+  await closeStartMenu(page);
+}
+
+const closeDeath = (page) => page.evaluate(() => {
+  const { death } = window.__ROAM__;
+  death.root.remove();
+  death.root = null;
+});
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
@@ -550,10 +593,22 @@ const STATES = {
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
+  'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
+  'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
+  'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
+  'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
+  'board-taken': { setup: openBoardTaken, teardown: restoreWorld(closeTown), viewports: ONE_WINDOW },
+  loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
+};
+
+const GALLERY_ONLY = {
+  'new-game': { setup: openNewGameScreen, teardown: closeNewGameScreen, viewports: ONE_WINDOW },
+  death: { setup: (page) => page.evaluate(() => { const g = window.__ROAM__; g.death.show(g.state); }), teardown: closeDeath, viewports: ONE_WINDOW },
 };
 
 const ONLY = process.env.LAYOUT_STATES?.split(',');
-const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
+const ALL_STATES = GALLERY ? { ...Object.fromEntries(Object.entries(STATES).filter(([name]) => name !== 'town-nav')), ...GALLERY_ONLY } : STATES;
+const PICKED = Object.entries(ALL_STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
 
 const ONLY_SIZES = process.env.LAYOUT_SIZES?.split(',').filter(Boolean);
 const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))].filter((v) => !ONLY_SIZES || ONLY_SIZES.includes(v.join('x')));
@@ -563,17 +618,36 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state], size = 1) {
-  await state.setup(page);
-  await page.evaluate(() => document.fonts.ready);
-  await frames(page);
-  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...(state.check ? await state.check(page) : [])]) report.push({ state: name, locale, viewport: label, ...f });
-  captures++;
-  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+async function takeShot(page, file) {
+  if (!GALLERY) return page.screenshot({ path: `${OUT}/${file}.png` });
+  await page.waitForTimeout(FADE_MS);
+  return page.screenshot({ path: `${OUT}/${file}.jpg`, type: 'jpeg', quality: 85 });
+}
+
+const isGalleryFiller = (name) => GALLERY && ONLY && !ONLY.includes(name);
+const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`);
+const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
+
+async function recordFaults(page, locale, label, name, state) {
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+}
+
+async function leaveState(page, state) {
   if (state.teardown) await state.teardown(page);
   await frames(page);
+}
+
+async function capture(page, locale, [width, height], [name, state], size = 1) {
+  await state.setup(page);
+  if (isGalleryFiller(name)) return;
+  await page.evaluate(() => document.fonts.ready);
+  await frames(page);
+  const label = windowLabel(width, height, size);
+  await takeShot(page, GALLERY ? name : `${name}-${locale}-${label}`);
+  await recordFaults(page, locale, label, name, state);
+  captures++;
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+  await leaveState(page, state);
 }
 
 async function checkLocale(page, locale) {
@@ -607,12 +681,12 @@ const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
-  if (!ONLY) await checkUiSizes(page);
+  if (!ONLY && !GALLERY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }
 for (const e of errors) report.push({ state: '-', locale: '-', viewport: '-', kind: 'page-error', path: '', text: e, sizes: '' });
-await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
+if (!GALLERY) await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
 for (const f of report) console.log(`${f.state} ${f.locale} ${f.viewport} ${f.kind} ${f.path}: ${JSON.stringify(f.text)} ${f.sizes}`);
 console.log(`${captures} captures, ${report.length} faults, ${seconds()} s. Screens in ${OUT}/.`);
 process.exit(report.length > 0 ? 1 : 0);

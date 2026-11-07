@@ -377,7 +377,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 6. Use the shared formatters, states and pieces. Put the screen's rules in one file under `src/ui/styles/` and import it in `style.css` after `components.css`. Write only layout there. A new shared piece goes in `components.css`, section 12 of this guide and `src/ui/guide/pieces.ts`, which draws it in `ui.html`. `src/ui/guide/guide.test.ts` fails when one of the three is missing.
 7. Take every value from a token. Run `npx vitest run src/ui/style-guard.test.ts`.
 8. Pick a level for every event the screen raises.
-9. Take a screenshot next to a neighboring screen and check it against the principle tests.
+9. Take a screenshot next to a neighboring screen and check it against the principle tests. The [screens gallery](screens/README.md) holds the neighbors. Rewrite the image of every screen the change alters with `npm run screens -- <name>`, and add a new screen to it. [The inventory before and after](ui-redesign-example.md) shows a redesign and its reasons.
 
 A large or disputed screen starts as a mockup that renders the real pieces with data captured from the real game, in a gitignored `tmp/` folder. It offers each state and window size on a floating control, it uses the real window so nothing is cut off, and a script presses every button and measures the states of step 3. Iterate with the user until settled, write down what was settled and why, and only then build it.
 
