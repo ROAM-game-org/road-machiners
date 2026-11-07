@@ -178,11 +178,14 @@ export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip
 }
 
 function blastCells(v: Vehicle): BlastCell[] {
-  return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => itemCells(it).map((cell) => {
-    const center = cellCenter(v.chassisId, cell.x, cell.y);
-    const pose = unitPose(v, center.unit);
-    return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]), below: belowDeck(v.chassisId, it) };
-  }));
+  return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => {
+    const below = belowDeck(v.chassisId, it);
+    return itemCells(it).map((cell) => {
+      const center = cellCenter(v.chassisId, cell.x, cell.y);
+      const pose = unitPose(v, center.unit);
+      return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]), below };
+    });
+  });
 }
 
 function meters(a: Vec, b: Vec): number {
@@ -200,7 +203,8 @@ function canShield(cell: BlastCell, target: BlastCell): boolean {
 
 function shields(cells: BlastCell[], from: Vec, target: BlastCell): PartInstance[] {
   const entries = new Map<PartInstance, number>();
-  for (const c of cells.filter((cell) => canShield(cell, target))) {
+  for (const c of cells) {
+    if (!canShield(c, target)) continue;
     const t = segmentEntry(localOf(c.pose, from), localOf(c.pose, target.center), c.rect);
     if (t !== null && t < (entries.get(c.part) ?? Infinity)) entries.set(c.part, t);
   }

@@ -8,13 +8,13 @@ import { sitePads } from "../sim/sites";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, itemBeneath, selectionAfterPress, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, selectionAfterPress, stackAt, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
 import { goodsCount } from "../sim/grid";
 import { storedGoodItem } from "./inventory-draw";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
-describe("itemBeneath", () => {
+describe("stackAt", () => {
   const stacked = () => {
     const w = emptyWorld();
     const v = addVehicle(w, "player", "hauler", [], { x: 40, y: 40 });
@@ -26,7 +26,7 @@ describe("itemBeneath", () => {
 
   it("finds the part below gear on the pressed cell", () => {
     const { v, wheel, crate } = stacked();
-    expect(itemBeneath(v, crate, { x: wheel.x, y: wheel.y })?.id).toBe(wheel.id);
+    expect(stackAt(v, crate, { x: wheel.x, y: wheel.y }).map((it) => it.id)).toEqual([crate.id, wheel.id]);
   });
 
   it("walks a stack on repeated presses: top, beneath, then nothing, then top again", () => {
@@ -40,12 +40,12 @@ describe("itemBeneath", () => {
 
   it("finds nothing beneath the lowest part", () => {
     const { v, wheel } = stacked();
-    expect(itemBeneath(v, wheel, { x: wheel.x, y: wheel.y })).toBeNull();
+    expect(stackAt(v, wheel, { x: wheel.x, y: wheel.y })).toEqual([wheel]);
   });
 
   it("finds nothing on a cell the gear shares with no part", () => {
     const { v, crate } = stacked();
-    expect(itemBeneath(v, crate, { x: 3, y: 1 })).toBeNull();
+    expect(stackAt(v, crate, { x: 3, y: 1 })).toEqual([crate]);
   });
 });
 

@@ -58,16 +58,16 @@ export type GridPoint = { x: number; y: number };
 const STACK_HEIGHT: Record<Layer, number> = { accessory: 2, base: 1, below: 0 };
 
 export function selectionAfterPress(v: Vehicle, selected: string | null, item: GridItem, cell: GridPoint): string | null {
-  const beneath = itemBeneath(v, item, cell)?.id ?? null;
-  if (selected === item.id) return beneath;
-  return selected === beneath && beneath !== null ? null : item.id;
+  const stack = stackAt(v, item, cell);
+  const held = stack.findIndex((it) => it.id === selected);
+  return held < 0 ? item.id : (stack[held + 1]?.id ?? null);
 }
 
-export function itemBeneath(v: Vehicle, item: GridItem, cell: GridPoint): GridItem | null {
+export function stackAt(v: Vehicle, item: GridItem, cell: GridPoint): GridItem[] {
   const g = gridOf(v);
   const height = (it: GridItem) => STACK_HEIGHT[layerOf(g, it)];
   const under = v.items.filter((it) => it.id !== item.id && height(it) < height(item) && itemCells(it).some((c) => c.x === cell.x && c.y === cell.y));
-  return under.sort((a, b) => height(b) - height(a))[0] ?? null;
+  return [item, ...under.sort((a, b) => height(b) - height(a))];
 }
 
 export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" };
