@@ -534,6 +534,7 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
 
 const truckOutline = outlineMaterial();
 const propOutline = outlineMaterial();
+const instancedPropOutline = outlineMaterial();
 
 const WELD_PER_METER = 1e3;
 
@@ -653,7 +654,7 @@ export function registerBakedOutline(merged: THREE.BufferGeometry, parts: readon
 }
 
 function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry): THREE.InstancedMesh {
-  const outline = new THREE.InstancedMesh(geo, propOutline, mesh.count);
+  const outline = new THREE.InstancedMesh(geo, instancedPropOutline, mesh.count);
   outline.instanceMatrix = mesh.instanceMatrix;
   outline.boundingSphere = mesh.boundingSphere;
   outline.boundingBox = mesh.boundingBox;
