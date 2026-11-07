@@ -98,7 +98,14 @@ export function setupText(setup: WorldSetup): Msg {
 export function vehicleTitle(world: World, v: Vehicle): Msg {
   if (v.id === world.player.vehicleId) return t('vehicle.yours');
   if (!v.brain) return chassisName(v.chassisId);
-  return t('vehicle.npc', { profession: professionName(v.brain.templateId), driver: driverName(v) });
+  return t('vehicle.npc', { profession: truckProfession(v, v.brain.templateId), driver: driverName(v) });
+}
+
+const RAIDER_TEMPLATES: readonly string[] = ['buggy', 'gunwagon'];
+
+function truckProfession(v: Vehicle, templateId: string): Msg {
+  if (!RAIDER_TEMPLATES.includes(templateId)) return professionName(templateId);
+  return t('npc.raiderTitle', { faction: factionName(v.faction), role: byId(`npc.${templateId}.role`) });
 }
 
 export function vehicleTitleOf(world: World, id: string): Msg {

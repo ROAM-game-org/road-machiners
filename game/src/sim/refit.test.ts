@@ -86,9 +86,12 @@ describe('field refits', () => {
     const { next, weapon } = startUnmount();
     const good = next.vehicles[0].items.find((item) => item.kind === 'good');
     if (!good) throw new Error('Expected goods');
-    const back = moveItem(next, weapon.id, weapon);
-    const job = back.vehicles[0].job;
-    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: weapon.id, from: { x: 3, y: CHASSIS.scout.layout.length, rot: 1 }, to: { x: weapon.x, y: weapon.y, rot: weapon.rot } }]);
+    const panniers = next.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
+    if (!panniers) throw new Error('Expected panniers');
+    const to = { x: 0, y: 14, rot: 0 as const };
+    const queued = moveItem(next, panniers.id, to);
+    const job = queued.vehicles[0].job;
+    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: panniers.id, from: { x: panniers.x, y: panniers.y, rot: panniers.rot }, to }]);
     expect(() => dumpItem(next, good.id)).toThrow('Refused: refitRunning');
   });
 

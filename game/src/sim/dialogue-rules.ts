@@ -19,7 +19,7 @@ import { REGION, type TownDef } from '../data/region';
 import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
 import { gridSquareOf } from './map-grid';
-import { inCombat, isHostile } from './combat';
+import { inCombat, inCombatWith, isHostile } from './combat';
 import { defyThreat, patchGoal, startTow, topGoal } from './npc-activities';
 import { requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
@@ -304,7 +304,7 @@ export function gateOpen(world: World, npc: Vehicle, topic: TopicId): boolean {
 }
 
 export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[]): LineId | null {
-  if (talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
+  if (inCombatWith(world, npc, playerVehicle(world)) || talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
   return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
 }
 

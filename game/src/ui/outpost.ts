@@ -6,7 +6,7 @@ import { goodsCount, mountCellsOf } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
-import { num, SPACE, t, type Msg } from "../text/msg";
+import { num, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, refusalText, siteName } from "../text/names";
 import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
@@ -17,7 +17,7 @@ import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
 const OUTPOST_TABS = ["market", "buyParts", "trucks"] as const satisfies readonly Tab[];
@@ -86,9 +86,8 @@ export class OutpostScreen {
     return reasonButton([label], () => this.run(cmd), reason, key, title);
   }
 
-  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = ""): HTMLElement {
-    const short = shortBy(w.player.money, price);
-    return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
+  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = "", title: Msg | null = null): HTMLElement {
+    return buyButton(w.player.money, verb, price, () => this.run(cmd), reason, key, title);
   }
 
   private draw(): void {
@@ -234,10 +233,9 @@ export class OutpostScreen {
       el(
         "div",
         { class: "trade buy wide" },
-        caption(GOODS_COLUMNS.buy, true),
-        priceEl(price, shortBy(w.player.money, price) === null),
-        this.button(t("trade.plus", { n: 1 }), (x) => outpostBuyGood(x, 1), reason(1), `${REPAIR_GOOD}:buy1`),
-        this.button(t("trade.plus", { n: GOOD_LOT }), (x) => outpostBuyGood(x, GOOD_LOT), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
+        caption(GOODS_COLUMNS.buy),
+        buyButton(w.player.money, t("trade.plus", { n: 1 }), price, () => this.run((x) => outpostBuyGood(x, 1)), reason(1), `${REPAIR_GOOD}:buy1`),
+        buyButton(w.player.money, t("trade.plus", { n: GOOD_LOT }), price * GOOD_LOT, () => this.run((x) => outpostBuyGood(x, GOOD_LOT)), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
       ),
       el("div", { class: "count held" }, caption(GOODS_COLUMNS.held), el("span", { class: held === 0 ? "num dim" : "num" }, num(held, "int"))),
     );
@@ -252,15 +250,12 @@ export class OutpostScreen {
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
     const price = outpostPartPrice(w, p, id);
-    const short = shortBy(w.player.money, price);
     const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
     return {
       world: w,
       part: p,
       base: compareBase(this.inventory.selectedPart(), p),
-      price,
-      payable: short === null,
-      action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
+      action: this.priceButton(w, t("goods.buy"), price, (x) => outpostBuyPart(x, p.id, id), refused),
       done: t("trade.done.bought"),
       onHover: this.hintMounts(p.defId),
     };

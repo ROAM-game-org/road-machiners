@@ -7,11 +7,10 @@ import { corePart, hasLoot, isLoot } from '../sim/grid';
 import type { GameEvent } from '../sim/types';
 import { addState } from '../sim/states';
 import { refreshVision } from '../sim/vision';
-import { eventText, formatNpcActivity, formatNpcCargo, formatNpcMarked, formatNpcPass, formatNpcStates, formatNpcTraits, formatVehicleState } from './format';
+import { eventText, formatCardState, formatNpcActivity, formatNpcCargo, formatNpcMarked, formatNpcPass, formatNpcStates, formatNpcTraits, formatVehicleState } from './format';
 import { PERK_NUMBERS } from '../data/skills';
 import { makePart } from '../sim/factory';
 import { addGoods, stowPart } from '../sim/inventory';
-import { kph } from './units';
 import { resetSeeAll, toggleSeeAll } from './see-all';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
@@ -302,6 +301,19 @@ it('names both trucks, the destination and the fee in a tow between NPCs', () =>
 });
 
 describe('vehicle state line', () => {
+  it('says nothing about motion on the player card, since the dial shows speed', () => {
+    const w = emptyWorld();
+    expect(formatCardState(w, w.vehicles[0])).toBeNull();
+  });
+
+  it('reads Parked for a truck too slow to show on the dial', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'independent', 'hauler', [], { x: 32, y: 30 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.speed = 0.001;
+    expect(en(formatVehicleState(w, npc))?.startsWith('Parked')).toBe(true);
+  });
+
   it('reads Parked for a truck at rest', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'independent', 'hauler', [], { x: 32, y: 30 });
@@ -310,7 +322,15 @@ describe('vehicle state line', () => {
     expect(en(formatVehicleState(w, npc))).toBe('Parked');
   });
 
-  it('reads Moving with the speed, then the shut-down turns, the activity and the states, joined by full stops', () => {
+  it('says nothing for a moving truck with no brain', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'independent', 'hauler', [], { x: 32, y: 30 });
+    npc.speed = 2;
+    expect(formatVehicleState(w, npc)).toBeNull();
+    expect(formatCardState(w, npc)).toBeNull();
+  });
+
+  it('reads the shut-down turns, the activity and the states of a moving truck, joined by full stops', () => {
     const w = emptyWorld();
     const me = playerVehicle(w);
     const npc = addVehicle(w, 'independent', 'scout', [], { x: 32, y: 30 });
@@ -319,7 +339,7 @@ describe('vehicle state line', () => {
     npc.shutDown = { from: w.turn, until: w.turn + 2 };
     addState(w, 'turnedDown', npc.id, me.id, { kind: 'none' });
     refreshVision(w);
-    expect(en(formatVehicleState(w, npc))).toBe(`Moving, ${kph(2)} km/h. Shut down, 2 turns. Avoid a costly fight. You turned down its tow`);
+    expect(en(formatVehicleState(w, npc))).toBe('Shut down, 2 turns. Avoid a costly fight. You turned down its tow');
   });
 
   it('leaves out the activity and states for a truck with no brain', () => {

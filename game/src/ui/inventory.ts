@@ -8,7 +8,7 @@ import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, getLotTradePrice, partRepairCost, repairPart, sellPrice } from "../sim/economy";
 import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
-import { priceEl, reasonButton } from "./shop-rows";
+import { lotLabel, reasonButton } from "./shop-rows";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import { outpostRepairPart } from "../sim/outposts";
 import {
@@ -53,7 +53,7 @@ import type {
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
-import { lookReason } from "./unstuck-reason";
+import { lookOrTurnReason, lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
@@ -86,7 +86,7 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
-import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl, moneyMsg, pricedEl, priceTag } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
@@ -120,7 +120,7 @@ import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
-import { commandFailure, lotTitle, parcelTitle } from "./format";
+import { commandFailure, parcelTitle } from "./format";
 
 
 type Drag = {
@@ -561,7 +561,7 @@ export class InventoryView {
           this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
         ),
       },
-      pricedEl(t(`inv.verb.${action}`), cost),
+      pricedEl(t(`inv.verb.${action}`), priceTag(cost, !short)),
     );
   }
 
@@ -663,9 +663,8 @@ export class InventoryView {
     return el(
       "div",
       { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
-      priceEl(sellPrice(w, shopId, good)),
-      reasonButton([t("trade.minus", { n: 1 })], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
-      reasonButton([t("trade.all")], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`, lotTitle("sell", count, allTotal)),
+      reasonButton([lotLabel(t("trade.minus", { n: 1 }), sellPrice(w, shopId, good))], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
+      reasonButton([lotLabel(t("trade.all"), allTotal)], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`),
     );
   }
 
@@ -1159,7 +1158,7 @@ export class InventoryView {
   }
 
   private look(): Msg | null {
-    return lookReason(this.host.world());
+    return lookOrTurnReason(this.host.world(), this.host.getTurnPhase() !== null);
   }
 
   private run(cmd: (w: World) => World, quiet = false): void {
@@ -1189,7 +1188,7 @@ function offGridCommand(target: string | null | undefined, itemId: string, truck
 
 export class InventoryScreen {
   readonly root = panel("modal dialog");
-  private view: InventoryView;
+  readonly view: InventoryView;
 
   constructor(private host: UiHost) {
     this.root.classList.add("inventory-screen");
