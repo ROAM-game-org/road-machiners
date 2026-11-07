@@ -1,0 +1,20 @@
+{
+  "turn": 2704,
+  "player": {
+    "money": 1200,
+    "call": {
+      "with": "v40",
+      "topic": null,
+      "node": "hub",
+      "vars": {},
+      "line": {
+        "line": "talk",
+        "vars": {}
+      }
+    },
+    "quests": {
+      "active": {},
+      "done": {}
+    }
+  }
+}

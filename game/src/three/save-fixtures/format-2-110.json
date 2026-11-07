@@ -1,0 +1,18 @@
+{
+  "crimes": [
+    {
+      "id": "case1", "crime": "100:v7:v8:robbed", "offense": "robbed", "target": "v7", "victim": "v8",
+      "issuer": { "kind": "faction", "faction": "bowl" }, "reporters": ["v8"], "site": "bowl",
+      "at": { "x": 300, "y": 300 }, "turn": 100, "filed": 120, "owed": 900, "escrow": 0,
+      "status": "open", "closed": null, "hunter": "v9", "retryAt": null, "offered": 130,
+      "lead": { "at": { "x": 310, "y": 305 }, "turn": 128, "heading": 0.5 }
+    },
+    {
+      "id": "case2", "crime": "40:v7:v10:attacked", "offense": "attacked", "target": "v7", "victim": "v10",
+      "issuer": { "kind": "driver", "id": "v10" }, "reporters": ["v10"], "site": "nose",
+      "at": { "x": 500, "y": 200 }, "turn": 40, "filed": 60, "owed": 300, "escrow": 300,
+      "status": "lapsed", "closed": 110, "hunter": null, "retryAt": 90, "offered": null,
+      "lead": { "at": { "x": 500, "y": 200 }, "turn": 40, "heading": null }
+    }
+  ]
+}

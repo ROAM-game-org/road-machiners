@@ -1,0 +1,24 @@
+{
+  "turn": 520,
+  "setup": {
+    "mode": "furyRoad",
+    "settings": {
+      "damage": 1,
+      "fuelUse": 1,
+      "supplyUse": 1,
+      "enemyGearGrowth": 1
+    }
+  },
+  "furyRoad": {
+    "window": 1,
+    "outposts": [
+      { "milestone": 1, "stock": [], "paid": true, "trucksSold": [] },
+      { "milestone": 2, "stock": [], "paid": true, "trucksSold": [] }
+    ],
+    "groups": [],
+    "earned": 290,
+    "wrecks": 2,
+    "quietFrom": 480,
+    "hauler": { "id": "v9", "alarmUntil": null }
+  }
+}

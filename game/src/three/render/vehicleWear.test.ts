@@ -122,7 +122,7 @@ describe('part wear look', () => {
     const v = playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')));
     const step = (defId: string) => wearLookStep(mountedParts(v).find((p) => p.defId === defId)!);
     expect(step('stockEngine')).toBe(WEAR_LOOK_STEPS - 1);
-    expect(step('cabPickup')).toBeGreaterThan(0);
+    expect(step('cabBroad')).toBeGreaterThan(0);
     expect(colors(new VehicleView(v, true, PAINT.standard, 'world'))).not.toBe(colors(new VehicleView(truck(), true, PAINT.standard, 'world')));
   });
 

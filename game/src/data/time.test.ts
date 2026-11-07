@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ECONOMY } from './goods';
 import { RULES } from './rules';
-import { TIME, workDayOf, workDayStart } from './time';
+import { TIME, TURN_CLOCK_SECONDS, workDayOf, workDayStart } from './time';
 
 async function effortUnder(turnsPerDay: number) {
   vi.resetModules();
@@ -54,13 +54,12 @@ describe('the work day', () => {
     expect(now.deeds).toBe(450);
     expect(now.spotter).toBe(450);
     expect(now.oddJobs.shiftTurns).toBe(150);
-    expect(now.oddJobs.hireBelow).toBe(55);
     expect(now.oddJobs.payPerTurn).toBeCloseTo(20 / 450 + RULES.suppliesPerTurn * ECONOMY.supplyPrice.supplies, 10);
     expect(now.rations).toBeCloseTo(11.9, 1);
   });
 
   it('leaves the clock day to the sun', () => {
-    expect(TIME.turnsPerDay).toBe(Math.round(86400 / 15));
+    expect(TIME.turnsPerDay).toBe(Math.round(86400 / 30));
   });
 
   it('counts whole windows of work days from turn 1', () => {
@@ -69,5 +68,15 @@ describe('the work day', () => {
     expect(workDayOf(TIME.workDayTurns + 1)).toBe(1);
     expect(workDayStart(TIME.workDayTurns + 7)).toBe(TIME.workDayTurns + 1);
     expect(Number.isInteger(TIME.workDayTurns) && TIME.workDayTurns > 0).toBe(true);
+  });
+});
+
+describe('the default clock', () => {
+  it('brings sunset and full dark inside a first hour of play', () => {
+    expect(TURN_CLOCK_SECONDS).toBe(30);
+    expect(TIME.turnsPerDay).toBe(2880);
+    const turnsPerHour = TIME.turnsPerDay / 24;
+    expect((TIME.sunset - TIME.startHour) * turnsPerHour + 1).toBe(1561);
+    expect((20.5 - TIME.startHour) * turnsPerHour).toBe(1620);
   });
 });

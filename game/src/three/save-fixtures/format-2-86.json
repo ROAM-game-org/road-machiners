@@ -1,0 +1,13 @@
+{
+  "turn": 380,
+  "setup": { "mode": "roaming", "settings": { "damage": 1, "fuelUse": 1, "supplyUse": 1, "enemyGearGrowth": 1 } },
+  "furyRoad": null,
+  "sunward": {
+    "collapsed": null,
+    "night": { "dusk": 330, "roster": ["v31", "v32"], "beaten": [], "calls": { "v1": { "count": 1, "turn": 370 } }, "hunt": null, "shouted": [] },
+    "lastHunt": null
+  },
+  "player": { "vehicleId": "v1", "money": 4200 },
+  "vehicles": [{ "id": "v1", "faction": "player", "brain": null }],
+  "states": []
+}

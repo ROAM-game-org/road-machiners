@@ -137,7 +137,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       health: startHealth(kit),
       fuel: kit.fuel,
       supplies: kit.supplies,
-      autoFire: false,
+      autoFire: true,
       autoRepair: kit.autoRepair,
       townPatched: false,
       engineHeat: 0,
@@ -808,7 +808,7 @@ function carryCore(world: World, into: TruckCarry, c: CarriedPart): void {
 
 function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }): boolean {
   const placed: GridItem = { id: newId(world, 'i'), kind: 'part', part: carryPart(world, item.part), x: item.x, y: item.y, rot: item.rot };
-  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return partDef(placed.part.defId).kind === 'engine' && mountPart(world, truck, placed.part);
+  if (placementError(gridOf(truck), truck.items, placed, placed.id)) return ['engine', 'weapon'].includes(partDef(placed.part.defId).kind) && mountPart(world, truck, placed.part);
   truck.items.push(placed);
   return true;
 }

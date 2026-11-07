@@ -53,7 +53,7 @@ Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do
 = about_strangers
 + {not hattie_strangers} [Who comes through here?]
   Traders, couriers, fuel haulers. Soldiers from Nose, thirsty as ever. Then the quiet ones, asking after the <term=granary>Granary</term> and never buying a drop.
-  Those worry me. Water's a funny thing to forget at a water stand.
+  Those worry me. Water's a funny thing to forget at a canteen.
   ~ hattie_strangers = true
   -> about_strangers
 + {hattie_strangers and not hattie_granary} [Who asks about the Granary?]
@@ -83,23 +83,20 @@ Pull up by the cistern. I'm Hattie. Where'd you come from, and how much water do
 + {not hattie_flats} [Any local legends?]
   One driver swears an Old World tank still runs out on the <term=glass_flats>Glass Flats</term>. Comes out at night with its lights off.
   I only ever saw him drink.
-  ~ note("glassTank")
   ~ hattie_flats = true
   -> about_sunward
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
   People say every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
   That's what I've heard. I won't stand on it at noon.
-  ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> about_sunward
 + {hattie_glass and not hattie_sunward} [What's down in that crater?]
   I don't know. I've never been down there, and I never will.
   Strangers get taken in. The few who come out are green at the edges and quiet.
-  ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> about_sunward
 + {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
-  Quiet as an empty cistern. Bo's cousin says the lamps stopped crossing to the crater at dusk. And a man with a green shine on his hands came to my stand asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
+  Quiet as an empty cistern. Bo's cousin says the lamps stopped crossing to the crater at dusk. And a man with a green shine on his hands came to my canteen asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> about_sunward
 + {hattie_sunward and not hattie_came_out} [Have you seen anyone come out of the crater?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.

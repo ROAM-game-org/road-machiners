@@ -45,7 +45,6 @@ VAR asked_sun = false
   -> about_truck
 + {heard_swivel and not asked_rods} [Why check brake rods before guns?]
   Because command bought cheap ones for the depot trucks, and I fit them by order. I've seen what one does on a hard bend. It snaps, the pedal goes to the floor, and the truck goes where the road doesn't. Otto Brann, who made the first swivel, forges his rods twice as thick. He was right, and I told command so. Nobody asks a mechanic.
-  ~ note("talkBrakeRod")
   ~ asked_rods = true
   ~ heard_brann = true
   -> about_truck

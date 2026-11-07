@@ -405,7 +405,7 @@ function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
 
 function reseatedGun(v: Vehicle, kept: GridItem[], item: GridItem): boolean {
   if (item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon') return false;
-  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id !== 'barrel') return false;
+  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id === 'noFit') return false;
   const seated = { ...v, items: kept };
   const spot = installSpot(seated, item) ?? stowSpot(seated, item);
   if (!spot) return false;

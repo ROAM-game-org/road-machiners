@@ -1,0 +1,12 @@
+{
+  "vehicles": [
+    { "id": "v1", "faction": "player", "chassisId": "scout", "pos": { "x": 204.84085060647308, "y": 283.86105400779024 }, "heading": -1.7101933299702965, "speed": 4.2 },
+    { "id": "v28", "faction": "player", "chassisId": "semi", "pos": { "x": 203.71018127079375, "y": 292.0724909582123 }, "heading": -1.6433509248738392, "speed": 4.5 },
+    { "id": "v121", "faction": "independent", "chassisId": "bus", "pos": { "x": 179.76420839395763, "y": 274.98623523588395 }, "heading": 0.6197512730660225, "speed": 0 }
+  ],
+  "obstacles": [
+    { "id": "wreck-v90", "pos": { "x": 150.5, "y": 210.25 }, "r": 1.08, "kind": "wreck", "hulk": { "chassisId": "semi", "yaw": 1.2 } },
+    { "id": "wreck-v91", "pos": { "x": 160, "y": 212 }, "r": 0.9, "kind": "wreck", "hulk": { "chassisId": "bus", "yaw": 0.4 } },
+    { "id": "rock-x", "pos": { "x": 170, "y": 220 }, "r": 1.5, "kind": "rock" }
+  ]
+}

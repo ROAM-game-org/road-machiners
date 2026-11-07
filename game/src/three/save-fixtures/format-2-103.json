@@ -1,0 +1,32 @@
+{
+  "shops": {
+    "bowl": {
+      "contracts": [
+        { "id": "ct-board-fetch", "shop": "bowl", "kind": "fetch", "defId": "mg", "reward": 12000, "deadline": 900, "window": 500, "tier": 1 },
+        { "id": "ct-board-bounty", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 11100, "deadline": 900, "window": 500, "tier": 1, "fulfilled": false },
+        { "id": "ct-board-haul", "shop": "bowl", "kind": "haul", "good": "grain", "units": 4, "to": "granary", "reward": 3000, "deadline": 900, "window": 500, "rush": false, "tier": 1 }
+      ],
+      "goods": { "grain": 120 }
+    },
+    "nose": {
+      "contracts": [
+        { "id": "ct-nose-bounty", "shop": "nose", "kind": "bounty", "template": "gunwagon", "reward": 16650, "deadline": 900, "window": 500, "tier": 2, "fulfilled": false }
+      ],
+      "goods": { "salt": 120 }
+    }
+  },
+  "player": {
+    "money": 50000,
+    "perks": ["rammer", "bountyTalk"],
+    "contracts": [
+      { "id": "ct-met", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 11100, "deadline": 900, "window": 500, "tier": 1, "fulfilled": true },
+      { "id": "ct-unmet", "shop": "nose", "kind": "bounty", "template": "gunwagon", "reward": 16650, "deadline": 900, "window": 500, "tier": 2, "fulfilled": false },
+      { "id": "ct-held-fetch", "shop": "bowl", "kind": "fetch", "defId": "plates", "reward": 9000, "deadline": 900, "window": 500, "tier": 1 }
+    ],
+    "pastContracts": [
+      { "contract": { "id": "ct-past-fetch", "shop": "bowl", "kind": "fetch", "defId": "mg", "reward": 12000, "deadline": 400, "window": 500, "tier": 1 }, "outcome": "done", "turn": 300, "amount": 12000 },
+      { "contract": { "id": "ct-past-bounty", "shop": "nose", "kind": "bounty", "template": "buggy", "reward": 11100, "deadline": 400, "window": 500, "tier": 1, "fulfilled": true }, "outcome": "done", "turn": 320, "amount": 11100 },
+      { "contract": { "id": "ct-past-haul", "shop": "bowl", "kind": "haul", "good": "grain", "units": 4, "to": "granary", "reward": 3000, "deadline": 400, "window": 500, "rush": true, "tier": 1 }, "outcome": "failed", "turn": 350, "amount": -2400 }
+    ]
+  }
+}

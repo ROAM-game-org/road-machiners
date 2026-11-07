@@ -226,12 +226,17 @@ function headerLines(wrapped) {
   ];
 }
 
+function programCheckLines(report) {
+  return report.scenes.map((scene) => `${scene.id} program checks per frame ${isMeasure(scene.draws.programChecks) ? scene.draws.programChecks : 'n/a'} (reported, no budget)`);
+}
+
 export function summary(wrapped, lines) {
   const out = [...headerLines(wrapped), ''];
   const untrusted = wrapped.run.untrusted;
   out.push(untrusted.length ? 'UNTRUSTED RUN, do not compare these numbers:' : 'trusted run');
   out.push(...untrusted.map((problem) => `  ${problem}`), ...notes(wrapped).map((note) => `  note: ${note}`), '');
   out.push(...lines.map(lineText), '');
+  out.push(...programCheckLines(wrapped.bench), '');
   const next = fixNext(wrapped.bench, lines);
   out.push(next.length ? 'Fix next, worst miss first. Savings overlap, so they rank and never add up:' : 'No budget missed.');
   out.push(...next.map((entry, i) => `${i + 1}. ${entry.text}`));
@@ -299,6 +304,7 @@ function sceneRows(a, b) {
     textRow(`${id} bound`, a.bound ?? 'n/a', b.bound ?? 'n/a'),
     numRow(`${id} long tasks`, a.longTasks, b.longTasks),
     numRow(`${id} draws counted`, a.draws.total, b.draws.total, 0),
+    numRow(`${id} program checks per frame`, a.draws.programChecks ?? null, b.draws.programChecks ?? null, 0),
     ...drawRows(id, a, b),
     ...savingRows(id, a.savings, b.savings),
   ];

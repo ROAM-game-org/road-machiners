@@ -43,548 +43,6 @@
     "run": null,
     "revisions": {}
   },
-  "2-136-highway.json": {
-    "money": 2,
-    "xp": 171.6331563571883,
-    "ranks": {
-      "driving": 2,
-      "perception": 1,
-      "machining": 1,
-      "toughness": 1,
-      "social": 1
-    },
-    "xpBySource": {
-      "roughTiles": 151.15760132203818,
-      "hit": 289.59994587360404,
-      "contact": 2.548321393974309,
-      "discover": 3,
-      "fieldJob": 6,
-      "heat": 103.97253129034446,
-      "damage": 15.354756477227735
-    },
-    "perks": [],
-    "knockouts": 0,
-    "fuel": 32.731251032342676,
-    "supplies": 14.435782266611822,
-    "costBasis": {},
-    "notes": [],
-    "quests": {
-      "world": {},
-      "local": {}
-    },
-    "run": {
-      "from": 3,
-      "earned": 1050,
-      "wrecks": 13,
-      "trucksSold": [],
-      "hauler": {
-        "items": [
-          {
-            "x": 3,
-            "y": 7,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "cabPickup",
-              "wear": 0,
-              "hp": 88.6,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 12,
-            "rot": 1,
-            "kind": "part",
-            "part": {
-              "defId": "transmissionHeavy",
-              "wear": 0,
-              "hp": 68,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 14,
-            "rot": 1,
-            "kind": "part",
-            "part": {
-              "defId": "tankHeavy",
-              "wear": 0,
-              "hp": 67.80000000000001,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 18,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 47,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 12,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 23,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 12,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 70.4,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 15,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 7.400000000000006,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 15,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 60,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 38,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 50,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 38,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 72,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 42,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 46.4,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 42,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 62,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "workhorseDiesel",
-              "wear": 0,
-              "hp": 13,
-              "rebuilt": false
-            }
-          }
-        ],
-        "fuel": 152.6870139890866,
-        "supplies": 17.822794301644993
-      }
-    },
-    "revisions": {
-      "bowl_dag": 1,
-      "bowl_hattie": 1,
-      "bowl_jory": 1,
-      "bowl_ruben": 1,
-      "bowl_scale": 1,
-      "chaos_highway_intro": 1,
-      "fallen_light": 1,
-      "first_fall": 1,
-      "granary_odile": 1,
-      "intro_arrival": 1,
-      "intro_bowl": 1,
-      "nose_counter": 1,
-      "nose_depot_leak": 1,
-      "nose_edda": 1,
-      "nose_ibo": 1,
-      "nose_kovac": 1,
-      "nose_lena": 1,
-      "pit_hadiza": 1,
-      "pump_agnes": 1,
-      "pump_pipe": 1,
-      "radio_wagon_driver": 1,
-      "road_stretch_1": 1,
-      "roadhouse_petra": 1,
-      "station_still": 1,
-      "wagon_bench": 1,
-      "wagon_seven": 1,
-      "yard_sefa": 1
-    }
-  },
-  "2-136-roaming.json": {
-    "money": 247,
-    "xp": 101.97800947078821,
-    "ranks": {
-      "driving": 1,
-      "perception": 0,
-      "machining": 0,
-      "toughness": 0,
-      "social": 0
-    },
-    "xpBySource": {
-      "roughTiles": 32.2580932828122,
-      "contact": 10.16226807107164,
-      "discover": 30,
-      "fieldJob": 3,
-      "search": 57.5,
-      "heat": 113.87604811690456,
-      "profit": 48.815999999999995,
-      "call": 6.365600000000004
-    },
-    "perks": [],
-    "knockouts": 0,
-    "fuel": 34.27530588884904,
-    "supplies": 17.308074275754162,
-    "costBasis": {
-      "scrap": 3.33,
-      "parts": 6
-    },
-    "notes": [],
-    "quests": {
-      "world": {},
-      "local": {}
-    },
-    "run": null,
-    "revisions": {
-      "bowl_dag": 1,
-      "bowl_hattie": 1,
-      "bowl_jory": 1,
-      "bowl_ruben": 1,
-      "bowl_scale": 1,
-      "chaos_highway_intro": 1,
-      "fallen_light": 1,
-      "first_fall": 1,
-      "granary_odile": 1,
-      "intro_arrival": 1,
-      "intro_bowl": 1,
-      "nose_counter": 1,
-      "nose_depot_leak": 1,
-      "nose_edda": 1,
-      "nose_ibo": 1,
-      "nose_kovac": 1,
-      "nose_lena": 1,
-      "pit_hadiza": 1,
-      "pump_agnes": 1,
-      "pump_pipe": 1,
-      "radio_wagon_driver": 1,
-      "road_stretch_1": 1,
-      "roadhouse_petra": 1,
-      "station_still": 1,
-      "wagon_bench": 1,
-      "wagon_seven": 1,
-      "yard_sefa": 1
-    }
-  },
-  "2-138-highway.json": {
-    "money": 2,
-    "xp": 177.86615156039852,
-    "ranks": {
-      "driving": 2,
-      "perception": 1,
-      "machining": 1,
-      "toughness": 1,
-      "social": 1
-    },
-    "xpBySource": {
-      "roughTiles": 149.73590579116862,
-      "hit": 293.88855675380233,
-      "contact": 3.4903901899821133,
-      "discover": 4,
-      "fieldJob": 6.605180219706657,
-      "heat": 102.40932559359348,
-      "damage": 17.736793012146
-    },
-    "perks": [],
-    "knockouts": 0,
-    "fuel": 36.32196214874174,
-    "supplies": 18.545602018839812,
-    "costBasis": {},
-    "notes": [],
-    "quests": {
-      "world": {},
-      "local": {}
-    },
-    "run": {
-      "from": 4,
-      "earned": 1600,
-      "wrecks": 23,
-      "trucksSold": [],
-      "hauler": {
-        "items": [
-          {
-            "x": 3,
-            "y": 7,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "cabPickup",
-              "wear": 0,
-              "hp": 114,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 12,
-            "rot": 1,
-            "kind": "part",
-            "part": {
-              "defId": "transmissionHeavy",
-              "wear": 0,
-              "hp": 90,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 14,
-            "rot": 1,
-            "kind": "part",
-            "part": {
-              "defId": "tankHeavy",
-              "wear": 0,
-              "hp": 78.4,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 80,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 80,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 12,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 48,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 12,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 1,
-              "hp": 49,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 15,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 49,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 15,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 1,
-              "hp": 15,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 38,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 76,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 38,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 67,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 1,
-            "y": 42,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 1,
-              "hp": 67,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 7,
-            "y": 42,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "wheelHeavy",
-              "wear": 0,
-              "hp": 74,
-              "rebuilt": false
-            }
-          },
-          {
-            "x": 3,
-            "y": 3,
-            "rot": 0,
-            "kind": "part",
-            "part": {
-              "defId": "workhorseDiesel",
-              "wear": 0,
-              "hp": 48,
-              "rebuilt": false
-            }
-          }
-        ],
-        "fuel": 156.71114565178107,
-        "supplies": 18.97661316556301
-      }
-    },
-    "revisions": {
-      "bowl_dag": 1,
-      "bowl_hattie": 1,
-      "bowl_jory": 1,
-      "bowl_ruben": 1,
-      "bowl_scale": 1,
-      "chaos_highway_intro": 1,
-      "fallen_light": 1,
-      "first_fall": 1,
-      "granary_odile": 1,
-      "intro_arrival": 1,
-      "intro_bowl": 1,
-      "nose_counter": 1,
-      "nose_depot_leak": 1,
-      "nose_edda": 1,
-      "nose_ibo": 1,
-      "nose_kovac": 1,
-      "nose_lena": 1,
-      "pit_hadiza": 1,
-      "pump_agnes": 1,
-      "pump_pipe": 1,
-      "radio_wagon_driver": 1,
-      "road_stretch_1": 1,
-      "roadhouse_petra": 1,
-      "station_still": 1,
-      "wagon_bench": 1,
-      "wagon_seven": 1,
-      "yard_sefa": 1
-    }
-  },
   "2-25-roaming.json": {
     "money": 307,
     "xp": 22.919146582338104,
@@ -1331,5 +789,608 @@
     },
     "run": null,
     "revisions": {}
+  },
+  "2-136-highway.json": {
+    "money": 13,
+    "xp": 199.00216914212018,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 70.50550007766421,
+      "hit": 72.505105081387,
+      "contact": 0.6090949979407241,
+      "heat": 32.091725278438894,
+      "damage": 23.29074370668947
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 31.45002040396094,
+    "supplies": 19.010433981247175,
+    "costBasis": {},
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": {
+      "from": 0,
+      "earned": 0,
+      "wrecks": 0,
+      "trucksSold": [],
+      "hauler": {
+        "items": [
+          {
+            "x": 3,
+            "y": 7,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "cabPickup",
+              "wear": 0,
+              "hp": 108,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 12,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "transmissionHeavy",
+              "wear": 0,
+              "hp": 90,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 14,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "tankHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 78,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 74,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 15,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 78.4,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 15,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 78,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 38,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 78,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 38,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 78,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 74,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "workhorseDiesel",
+              "wear": 0,
+              "hp": 76.80000000000001,
+              "rebuilt": false
+            }
+          }
+        ],
+        "fuel": 156.44823241645057,
+        "supplies": 18.855279127034535
+      }
+    },
+    "revisions": {
+      "bowl_dag": 1,
+      "bowl_hattie": 1,
+      "bowl_jory": 1,
+      "bowl_ruben": 1,
+      "bowl_scale": 1,
+      "chaos_highway_intro": 1,
+      "fallen_light": 1,
+      "first_fall": 1,
+      "granary_odile": 1,
+      "intro_arrival": 1,
+      "intro_bowl": 1,
+      "nose_counter": 1,
+      "nose_depot_leak": 1,
+      "nose_edda": 1,
+      "nose_ibo": 1,
+      "nose_kovac": 1,
+      "nose_lena": 1,
+      "pit_hadiza": 1,
+      "pump_agnes": 1,
+      "pump_pipe": 1,
+      "radio_wagon_driver": 1,
+      "road_stretch_1": 1,
+      "roadhouse_petra": 1,
+      "station_still": 1,
+      "wagon_bench": 1,
+      "wagon_seven": 1,
+      "yard_sefa": 1
+    }
+  },
+  "2-136-roaming.json": {
+    "money": 247,
+    "xp": 44.47800947078821,
+    "ranks": {
+      "driving": 1,
+      "perception": 0,
+      "machining": 0,
+      "toughness": 0,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 32.2580932828122,
+      "contact": 10.16226807107164,
+      "discover": 30,
+      "fieldJob": 3,
+      "heat": 113.87604811690456,
+      "profit": 48.815999999999995,
+      "call": 6.365600000000004
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 31.27530588884904,
+    "supplies": 17.3310541965975,
+    "costBasis": {
+      "scrap": 3.33,
+      "parts": 6
+    },
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": null,
+    "revisions": {
+      "bowl_dag": 1,
+      "bowl_hattie": 1,
+      "bowl_jory": 1,
+      "bowl_ruben": 1,
+      "bowl_scale": 1,
+      "chaos_highway_intro": 1,
+      "fallen_light": 1,
+      "first_fall": 1,
+      "granary_odile": 1,
+      "intro_arrival": 1,
+      "intro_bowl": 1,
+      "nose_counter": 1,
+      "nose_depot_leak": 1,
+      "nose_edda": 1,
+      "nose_ibo": 1,
+      "nose_kovac": 1,
+      "nose_lena": 1,
+      "pit_hadiza": 1,
+      "pump_agnes": 1,
+      "pump_pipe": 1,
+      "radio_wagon_driver": 1,
+      "road_stretch_1": 1,
+      "roadhouse_petra": 1,
+      "station_still": 1,
+      "wagon_bench": 1,
+      "wagon_seven": 1,
+      "yard_sefa": 1
+    }
+  },
+  "2-138-highway.json": {
+    "money": 59,
+    "xp": 190.34938023914387,
+    "ranks": {
+      "driving": 1,
+      "perception": 1,
+      "machining": 1,
+      "toughness": 1,
+      "social": 1
+    },
+    "xpBySource": {
+      "roughTiles": 67.38676024724619,
+      "hit": 74.03721984442875,
+      "contact": 1.027665529248417,
+      "discover": 1,
+      "fieldJob": 2.552590109853328,
+      "heat": 30.084350994967846,
+      "damage": 14.260793513399744
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 39.07687227436832,
+    "supplies": 19.024098518423564,
+    "costBasis": {},
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": {
+      "from": 1,
+      "earned": 250,
+      "wrecks": 3,
+      "trucksSold": [],
+      "hauler": {
+        "items": [
+          {
+            "x": 3,
+            "y": 7,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "cabPickup",
+              "wear": 0,
+              "hp": 120,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 12,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "transmissionHeavy",
+              "wear": 0,
+              "hp": 90,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 14,
+            "rot": 1,
+            "kind": "part",
+            "part": {
+              "defId": "tankHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 12,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 15,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 15,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 38,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 38,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 1,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 7,
+            "y": 42,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "wheelHeavy",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "rot": 0,
+            "kind": "part",
+            "part": {
+              "defId": "workhorseDiesel",
+              "wear": 0,
+              "hp": 80,
+              "rebuilt": false
+            }
+          }
+        ],
+        "fuel": 158.31305174020977,
+        "supplies": 18.946267932835397
+      }
+    },
+    "revisions": {
+      "bowl_dag": 1,
+      "bowl_hattie": 1,
+      "bowl_jory": 1,
+      "bowl_ruben": 1,
+      "bowl_scale": 1,
+      "chaos_highway_intro": 1,
+      "fallen_light": 1,
+      "first_fall": 1,
+      "granary_odile": 1,
+      "intro_arrival": 1,
+      "intro_bowl": 1,
+      "nose_counter": 1,
+      "nose_depot_leak": 1,
+      "nose_edda": 1,
+      "nose_ibo": 1,
+      "nose_kovac": 1,
+      "nose_lena": 1,
+      "pit_hadiza": 1,
+      "pump_agnes": 1,
+      "pump_pipe": 1,
+      "radio_wagon_driver": 1,
+      "road_stretch_1": 1,
+      "roadhouse_petra": 1,
+      "station_still": 1,
+      "wagon_bench": 1,
+      "wagon_seven": 1,
+      "yard_sefa": 1
+    }
+  },
+  "2-138-roaming.json": {
+    "money": 250,
+    "xp": 180.41570711865225,
+    "ranks": {
+      "driving": 1,
+      "perception": 0,
+      "machining": 0,
+      "toughness": 0,
+      "social": 0
+    },
+    "xpBySource": {
+      "roughTiles": 101.98080964302274,
+      "contact": 7.107109154424372,
+      "discover": 30,
+      "fieldJob": 3,
+      "search": 65.5,
+      "heat": 117.64618832120487,
+      "profit": 47.1816,
+      "call": 8
+    },
+    "perks": [],
+    "knockouts": 0,
+    "fuel": 30.071153143862727,
+    "supplies": 16.375720431528258,
+    "costBasis": {
+      "scrap": 3.33,
+      "parts": 6
+    },
+    "notes": [],
+    "quests": {
+      "world": {},
+      "local": {}
+    },
+    "run": null,
+    "revisions": {
+      "bowl_dag": 1,
+      "bowl_hattie": 1,
+      "bowl_jory": 1,
+      "bowl_ruben": 1,
+      "bowl_scale": 1,
+      "chaos_highway_intro": 1,
+      "fallen_light": 1,
+      "first_fall": 1,
+      "granary_odile": 1,
+      "intro_arrival": 1,
+      "intro_bowl": 1,
+      "nose_counter": 1,
+      "nose_depot_leak": 1,
+      "nose_edda": 1,
+      "nose_ibo": 1,
+      "nose_kovac": 1,
+      "nose_lena": 1,
+      "pit_hadiza": 1,
+      "pump_agnes": 1,
+      "pump_pipe": 1,
+      "radio_wagon_driver": 1,
+      "road_stretch_1": 1,
+      "roadhouse_petra": 1,
+      "station_still": 1,
+      "wagon_bench": 1,
+      "wagon_seven": 1,
+      "yard_sefa": 1
+    }
   }
 }

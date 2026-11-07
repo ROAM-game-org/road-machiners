@@ -1,0 +1,15 @@
+{
+  "turn": 1210,
+  "setup": { "mode": "roaming", "settings": { "damage": 1, "fuelUse": 1, "supplyUse": 1, "enemyGearGrowth": 1 } },
+  "furyRoad": null,
+  "player": {
+    "vehicleId": "v1",
+    "money": 4200,
+    "standing": { "bowl": 12, "nose": -8, "guidestar": 10, "administrators": 10, "scrapjaw": -45, "kiln": -30 }
+  },
+  "vehicles": [
+    { "id": "v1", "faction": "player", "brain": null },
+    { "id": "v7", "faction": "kiln", "brain": { "templateId": "buggy", "goals": [] } }
+  ],
+  "states": []
+}

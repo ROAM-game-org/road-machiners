@@ -1,0 +1,11 @@
+{
+  "turn": 3,
+  "player": {
+    "money": 1200,
+    "quests": {
+      "world": {},
+      "local": {},
+      "session": { "quest": "wagon_seven", "checkpoint": "start.hub", "seed": 17 }
+    }
+  }
+}

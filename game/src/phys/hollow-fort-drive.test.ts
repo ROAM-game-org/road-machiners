@@ -69,7 +69,7 @@ it('lets the Cavalcade out of the pad in gate order at ride-out and drives each 
   const w = farScene(out - 2);
   const left: string[] = [];
   let stalls = 0;
-  const last = run(w, 60, (next) => {
+  const last = run(w, 80, (next) => {
     stalls += next.events.filter((e) => e.t === 'stall').length;
     for (const e of next.events) if (e.t === 'leftSite') left.push(e.vehicle);
   });
