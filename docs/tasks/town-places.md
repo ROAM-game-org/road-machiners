@@ -179,13 +179,13 @@ Smoke: `tmp/town-check.mjs` drove every site and Bowl place in headless Chromium
 Notes:
 - Deferred: `npm run layout`, `npm run playtest` and `npm run mobile`. The harness stopped them because the machine ran low on memory. Layout reached the 700x800 English pass and gave no verdict. They need a rerun when memory allows.
 - Deferred: pressing Radio on a parked driver. The row and button show on the canteen page, and `callVehicle` is unchanged.
-- Text: the user replaced line reading with a Codex critique against `game/docs/writing/playtest-prompt.md`. The last round scored `bowl_guild` 2 of 5, `nose_guild` 2 of 5 and `bowl_guild` in Russian 3 of 5, below the 5 of 5 in `game/docs/writing/quests.md`. The scored text predates a last edit that points the player to a square for the price, and that edit was not scored.
+- Text: the user replaced line reading with a Codex critique against `game/docs/writing/playtest-prompt.md`. The last round scored `bowl_guild` 2 of 5, `nose_guild` 2 of 5 and `bowl_guild` in Russian 3 of 5, below the 5 of 5 in `game/docs/writing/quests.md`. The scored text predates a last edit that points the player to a square for the price, and that edit was not scored. The user played the towns, judged the dialogue bad and accepted it for now, so it needs a rewrite later.
 
 ## Code smells
 
 ## Conclusion
 
-Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the three browser checks to rerun and the user's decision on the talk scores.
+Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the three browser checks to rerun.
 
 Invariants:
 - IV1 — Every place opens from a front page row, and the number keys were checked on screen.
@@ -216,4 +216,3 @@ Verified by: `tmp/town-check.mjs` on all sites in both languages, and screenshot
 
 ### Deferred (needs user input)
 - Run `npm run layout`, `npm run playtest` and `npm run mobile` — the harness stopped them on low memory and said not to restart unasked — the user says when memory allows.
-- Accept the `bowl_guild` and `nose_guild` talks below 5 of 5, or order more rounds — the critic plays the talk alone and marks it down because the sale happens on the map page after the talk — the user decides.
