@@ -337,7 +337,7 @@ describe('gate', () => {
   });
 
   it('fails a night fight whose stutter grows, in either pass', () => {
-    const fight = (p99: number) => wrap(withScene('fight-night', { passes: [pass(realStats(30, p99)), pass(realStats(30, 48))], spread: 0.5 }), { machine: 'ally' });
+    const fight = (p99: number) => wrap(benchReport({ scenes: [...IDS.map((id) => scene(id)), scene('fight-night', { passes: [pass(realStats(30, p99)), pass(realStats(30, 48))], spread: 0.5 })] }), { machine: 'ally' });
     const file = { machines: { ally: landedFrom([fight(70), fight(72), fight(74)]) } };
     expect(file.machines.ally.measures['fight-night pass 1 p99'].watched).toBeUndefined();
     expect(gateLines(fight(72), file).status).toBe('pass');
