@@ -1,22 +1,8 @@
 
 export const NOTE_IDS = [
-  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
-  'talkGranaryGate',
-  'talkSeepPipe',
-  'talkConvoyNotClean',
-  'talkCraneBook',
-  'talkPierceGuns',
-  'talkGlassLean',
-  'talkSunwardTake',
-  'sunwardLamps',
-  'sunwardDragged',
-  'talkKilnFight',
-  'talkBrakeRod',
-  'talkArmyStarved',
-  'talkCommitteeRent',
+  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound',
   'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',
-  'orchardIron',
-  'roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders',
+  'greenPit', 'orchardIron', 'talkConvoyNotClean',
 ] as const;
 
 export type NoteId = (typeof NOTE_IDS)[number];
