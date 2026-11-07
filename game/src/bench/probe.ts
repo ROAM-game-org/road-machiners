@@ -122,7 +122,7 @@ export function systemRootsOf(game: Game): SystemRoots {
 
 type CountedRenderer = Pick<WebGLRenderer, 'info' | 'renderBufferDirect'>;
 type DirectArgs = Parameters<WebGLRenderer['renderBufferDirect']>;
-const HEAVIEST_ROWS = 30;
+const HEAVIEST_ROWS = 60;
 
 function namedAncestor(object: Object3D): string {
   for (let node: Object3D | null = object; node !== null; node = node.parent) {

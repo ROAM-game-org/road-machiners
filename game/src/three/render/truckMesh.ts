@@ -94,6 +94,7 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   material.vertexColors = tinted;
   material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
+  mesh.name = 'truck-surface';
   if (partId) mesh.userData.partId = partId;
   if (armor) mesh.userData.armor = true;
   mesh.castShadow = true;
@@ -192,6 +193,7 @@ function mergedTwin(meshes: THREE.Mesh[], material: THREE.Material, order: numbe
   if (!merged) throw new Error(`Could not merge ${meshes.length} truck meshes into one twin`);
   for (const geo of geos) geo.dispose();
   const twin = new THREE.Mesh(merged, material);
+  twin.name = 'truck-silhouette';
   twin.renderOrder = order;
   return twin;
 }

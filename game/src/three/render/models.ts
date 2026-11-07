@@ -592,6 +592,7 @@ function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
 export function outlineOf(geos: readonly THREE.BufferGeometry[]): THREE.Mesh[] {
   if (geos.length === 0) return [];
   const mesh = new THREE.Mesh(weld(geos), truckOutline);
+  mesh.name = 'truck-outline';
   mesh.onBeforeRender = readViewport;
   mesh.renderOrder = OUTLINE_ORDER;
   mesh.userData.outline = true;
