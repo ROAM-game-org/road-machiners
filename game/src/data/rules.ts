@@ -107,6 +107,8 @@ export const CHEATS = {
   searchRings: 20,
 };
 
+export const CAR_WRECK_SINK = 0.3;
+
 export const DEAD_TREE_LOOK = {
   widths: [0.85, 1, 1.12],
   heights: [1, 1.15, 1.3],

@@ -3,7 +3,7 @@ import { FORT_MODELS, type FortModel } from './fortress';
 import { PHYSICS } from '../data/physics';
 import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
-import { BREAKABLE, DEAD_TREE_LOOK } from '../data/rules';
+import { BREAKABLE, CAR_WRECK_SINK, DEAD_TREE_LOOK } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
 import { groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
@@ -413,9 +413,37 @@ function fortSeat(t: Terrain, o: Obstacle): number {
   return seat;
 }
 
+function isLootlessWreck(t: Terrain, o: Obstacle): boolean {
+  return t.atlas.kind === 'icarus' && o.kind === 'landmark' && o.look === 'carWreck';
+}
+
+const WRECK_SEATS = new WeakMap<Terrain, WeakMap<readonly PosedBox[], number>>();
+
+function lootlessWreckSeat(t: Terrain, o: Obstacle): number {
+  const boxes = propBoxes(o);
+  let bySeat = WRECK_SEATS.get(t);
+  if (!bySeat) {
+    bySeat = new WeakMap();
+    WRECK_SEATS.set(t, bySeat);
+  }
+  const known = bySeat.get(boxes);
+  if (known !== undefined) return known;
+  const seat = wreckSeatOn(t, o, boxes);
+  bySeat.set(boxes, seat);
+  return seat;
+}
+
+function wreckSeatOn(t: Terrain, o: Obstacle, boxes: readonly PosedBox[]): number {
+  const height = Math.max(...boxes.map((b) => b.z1)) / PHYSICS.metersPerTile;
+  const centre = groundAt(t, o.pos.x, o.pos.y);
+  const lowest = Math.min(...boxes.filter((b) => b.z0 <= 0).flatMap((b) => boxCorners(b).map((c) => groundAt(t, c.x, c.y))));
+  return Math.max(Math.min(centre, lowest), centre - height) - height * CAR_WRECK_SINK;
+}
+
 export function propBase(t: Terrain, o: Obstacle): number {
   if (o.kind === 'wreck') return heightAt(t, o.pos.x, o.pos.y);
-  return isFortPiece(o) ? fortSeat(t, o) : groundAt(t, o.pos.x, o.pos.y);
+  if (isFortPiece(o)) return fortSeat(t, o);
+  return isLootlessWreck(t, o) ? lootlessWreckSeat(t, o) : groundAt(t, o.pos.x, o.pos.y);
 }
 
 const REACHABLE_BOXES = new WeakMap<Terrain, WeakMap<readonly PosedBox[], ReachableBoxes>>();
