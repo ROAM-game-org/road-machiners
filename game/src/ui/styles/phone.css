@@ -48,9 +48,6 @@
   right: var(--safe-right);
   top: var(--drawer-top);
 }
-#ui.phone .action.working {
-  min-width: calc(var(--layer-w) / 2);
-}
 #ui.phone .top-left > .panel {
   padding: var(--space-2) var(--space-4);
 }
