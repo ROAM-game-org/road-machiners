@@ -5,7 +5,7 @@ import { SKILL_EFFECTS } from '../data/skills';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
+import { advanceFar, fuelLimit, fuelLimited, fuelTopSpeed, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
 import { LIVE_REACH, setHeadless } from './fidelity';
 import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
@@ -184,6 +184,17 @@ describe('far NPC travel', () => {
     w.player.ranks.driving = 5;
     const crawl = RULES.limpSpeed * (1 + 5 * SKILL_EFFECTS.driving.crawl);
     expect(fuelLimited(w, me, vehicleStats(w, me), 0, order).maxSpeed).toBeCloseTo(crawl);
+  });
+
+  it('gives one top speed for full, low and empty tanks', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const s = vehicleStats(w, me);
+    expect(fuelTopSpeed(w, me, s, true)).toBeCloseTo(s.maxSpeed);
+    w.player.fuel = fuelCap(me) * RULES.lowFuelThreshold * 0.5;
+    expect(fuelTopSpeed(w, me, s, true)).toBeCloseTo(lowFuelSpeed(s.maxSpeed));
+    w.player.fuel = 0;
+    expect(fuelTopSpeed(w, me, s, true)).toBeCloseTo(vehicleStats(w, me).limpSpeed);
   });
 
   it('caps a low-fuel truck at lowFuelSpeed', () => {
