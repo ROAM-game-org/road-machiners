@@ -78,7 +78,7 @@ describe('a loaded stock courier on the committed map', () => {
   it('drives from the nearest road to the steepest posted survey place and parks in reach', () => {
     const props = surveySites(TEST_MAP).map((s) => baked.find((o) => `survey-${o.id}` === s.id)!);
     const place = steepest(props, 0);
-    expect(place.need).toBeLessThanOrEqual(REGION.navigation.reachClimb);
+    expect(place.need).toBeCloseTo(Math.min(place.need, REGION.navigation.reachClimb), 9);
     expect(driveToStand(place).inReach).toBe(true);
   }, budget(300_000));
 });

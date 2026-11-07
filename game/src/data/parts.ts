@@ -301,6 +301,7 @@ const PART_BULK: Record<string, PartBulk> = {
   cab: { w: 1, h: 2 },
   cabPickup: { w: 3, h: 2 },
   cabHardtop: { w: 3, h: 2 },
+  cabBroad: { w: 4, h: 2 },
   transmission: { w: 2, h: 2 },
   transmissionMid: { w: 2, h: 2 },
   transmissionHeavy: { w: 2, h: 2 },
@@ -855,6 +856,9 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   },
   cabHardtop: {
     id: "cabHardtop", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 3, mass: 80, armor: 3, tall: true, role: "cab",
+  },
+  cabBroad: {
+    id: "cabBroad", kind: "core", hp: 120, base: 26.67, tier: 1, w: 4, h: 2, mass: 80, armor: 3, tall: true, role: "cab",
   },
   transmission: {
     id: "transmission", kind: "core", hp: 40, base: 36.67, tier: 1, w: 2, h: 2, mass: 60, armor: 3, tall: false, role: "transmission",

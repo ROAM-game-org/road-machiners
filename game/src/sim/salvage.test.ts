@@ -629,7 +629,8 @@ describe('breakable props', () => {
 
   it('stays broken while any part of the prop reaches into gray vision', () => {
     const w = emptyWorld(near);
-    const pos = { x: near.x + grayRadius(w) + propReach(fenceAt(near)) / 2, y: near.y };
+    const smallestGray = Math.min(...Array.from({ length: BREAKABLE.regrowDays + 3 }, (_, day) => grayRadius({ ...w, turn: (Math.floor(w.turn / TIME.workDayTurns) + day) * TIME.workDayTurns })));
+    const pos = { x: near.x + smallestGray + propReach(fenceAt(near)) / 2, y: near.y };
     w.obstacles = [fenceAt(pos)];
     breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 

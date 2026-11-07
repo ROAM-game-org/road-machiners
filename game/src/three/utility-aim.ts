@@ -15,6 +15,7 @@ import { refusalText } from '../text/names';
 import type { Msg } from '../text/msg';
 import { aimBlock } from '../ui/weapons';
 import { GroundBand } from './render/zones';
+import { overlayMaterial } from './render/overlay-material';
 
 const LOOK = {
   ring: { width: 0.1, opacity: 0.8 },
@@ -127,7 +128,7 @@ function cross(): THREE.Mesh {
   const span = LOOK.cross.arm * 2 * S;
   const width = LOOK.cross.width * S;
   const geometry = mergeGeometries([new THREE.PlaneGeometry(span, width), new THREE.PlaneGeometry(width, span)]).rotateX(-Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: PAL.select, transparent: true, opacity: LOOK.marker.opacity, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+  const mesh = new THREE.Mesh(geometry, overlayMaterial({ color: PAL.select, opacity: LOOK.marker.opacity, depthTest: false, depthWrite: false }));
   mesh.renderOrder = LOOK.renderOrder;
   return mesh;
 }

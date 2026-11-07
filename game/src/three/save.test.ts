@@ -468,7 +468,10 @@ describe('game save', () => {
     const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
     if (!weapon) throw new Error('Expected weapon');
     const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
-    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), weapon.id, weapon), weapon.id, to);
+    const panniers = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
+    if (!panniers) throw new Error('Expected panniers');
+    const home = { x: weapon.x, y: weapon.y, rot: weapon.rot };
+    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), panniers.id, { x: 0, y: 14, rot: 0 }), weapon.id, home);
     advanceJobs(queued);
     queued.events = [];
     writeSave(slots, 'auto', queued, RUN, 1000);
@@ -480,7 +483,7 @@ describe('game save', () => {
     expect(loaded.events).toEqual([]);
     for (let turn = 0; turn < 40 && loaded.vehicles[0].job; turn++) advanceJobs(loaded);
     expect(loaded.vehicles[0].job).toBeNull();
-    expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
+    expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(home);
   });
 
   it('keeps a part bought into storage at a stall, and takes it out after loading', () => {

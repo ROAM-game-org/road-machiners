@@ -215,7 +215,13 @@ function followsOrder(world: World): boolean {
   return mayResume(world) && order !== null && order.kind !== "brake";
 }
 
+function plansFight(world: World): boolean {
+  const me = playerVehicle(world);
+  return playerCanAct(world) && !me.direct && inCombat(world, me);
+}
+
 export class Travel {
+  private plan: { world: World; since: number } | null = null;
   private automatic = false;
   private speedIndex = 0;
   private pressedAt: number | null = null;
@@ -334,11 +340,7 @@ export class Travel {
 
   request(world: World, drive: DriveSnapshot): void {
     this.requested = true;
-    this.turns.prepare(world, drive, this.fastTravel());
-  }
-
-  private fastTravel(): boolean {
-    return CONFIG.travelSpeeds[this.speedIndex] > 1;
+    this.turns.prepare(world, drive);
   }
 
   private runsOnItsOwn(world: World, now: number): boolean {
@@ -355,7 +357,7 @@ export class Travel {
       return null;
     }
     if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
-    this.turns.prepare(world, drive, this.fastTravel());
+    this.turns.prepare(world, drive);
     return this.creep?.isMoving() ? null : this.takePrepared(world);
   }
 
@@ -403,18 +405,31 @@ export class Travel {
     return this.creep?.frameOf(v);
   }
 
+  trucksRoll(turnPlaying: boolean): boolean {
+    return turnPlaying || this.isCreeping();
+  }
+
   isCreeping(): boolean {
     return this.creep?.isMoving() ?? false;
   }
 
   prepareNext(world: World, playback: Playback | null, now: number, drive: DriveSnapshot): void {
     if (!playback) return this.prepareResume(world, drive, now);
-    if (this.continues(world, now)) this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next, this.fastTravel());
+    if (this.continues(world, now)) this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next);
   }
 
   private prepareResume(world: World, drive: DriveSnapshot, now: number): void {
     if (this.wantsTurn(world, now) || waitsOnPlayer(world)) return;
-    if (followsOrder(world)) this.turns.prepare(world, drive, this.fastTravel());
+    if (followsOrder(world) || this.fightPlanReady(world, now)) this.turns.prepare(world, drive);
+  }
+
+  private fightPlanReady(world: World, now: number): boolean {
+    return plansFight(world) && this.planSettled(world, now) && !this.turns.computing();
+  }
+
+  private planSettled(world: World, now: number): boolean {
+    if (this.plan?.world !== world) this.plan = { world, since: now };
+    return now - this.plan.since >= CONFIG.fightPlanSettleMs;
   }
 
   beginPlayback(
@@ -536,12 +551,14 @@ export class TurnPreparation {
     before: World;
     lang: QuestLanguage;
     drive: DriveSnapshot;
-    fastTravel: boolean;
+    queued: boolean;
     ready: PreparedTurn | null;
     failure: string | null;
     postedAt: number;
   } | null = null;
-  private prepMs: number | null = null;
+  private readonly inFlight = new Set<number>();
+  private prepSamples: number[] = [];
+  private prepMedian: number | null = null;
 
   constructor(private readonly tailSteps: number) {}
 
@@ -552,11 +569,12 @@ export class TurnPreparation {
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
       this.load.loaded();
       const response = event.data;
+      this.inFlight.delete(response.id);
       if (response.id === this.warmId) this.settleWarm();
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id !== response.id) return;
-      this.notePrep(performance.now() - this.pending.postedAt);
+      this.noteAnswer(this.pending);
       this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
     };
     worker.onerror = (event) => {
@@ -575,21 +593,29 @@ export class TurnPreparation {
     this.worker = null;
     this.terrain = null;
     this.obstacles.forget();
+    this.inFlight.clear();
   }
 
   private restart(): void {
     const pending = this.pending;
     if (!pending || pending.ready || pending.failure) return;
-    pending.id = this.post(pending.before, pending.drive, pending.fastTravel);
+    pending.queued = this.inFlight.size > 0;
+    pending.id = this.post(pending.before, pending.drive);
     pending.postedAt = performance.now();
   }
 
+  private noteAnswer(pending: { queued: boolean; postedAt: number }): void {
+    if (!pending.queued) this.notePrep(performance.now() - pending.postedAt);
+  }
+
   private notePrep(ms: number): void {
-    this.prepMs = this.prepMs === null ? ms : this.prepMs + CONFIG.turnPrepSmoothing * (ms - this.prepMs);
+    this.prepSamples = [...this.prepSamples, ms].slice(-CONFIG.turnPrepSamples);
+    const sorted = [...this.prepSamples].sort((a, b) => a - b);
+    this.prepMedian = sorted[Math.floor(sorted.length / 2)];
   }
 
   keptSpeed(): number {
-    return this.prepMs === null ? Infinity : MOVE_MS / this.prepMs;
+    return this.prepMedian === null ? Infinity : MOVE_MS / this.prepMedian;
   }
 
   private fail(id: number | null, message: string): void {
@@ -606,7 +632,7 @@ export class TurnPreparation {
 
   warm(world: World, drive: DriveSnapshot): Promise<void> {
     if (world.player.call || world.player.state === "dead" || this.load.gaveUp || this.load.waiting) return Promise.resolve();
-    this.warmId = this.post(world, drive, false);
+    this.warmId = this.post(world, drive);
     return new Promise((resolve) => (this.warmed = resolve));
   }
 
@@ -619,12 +645,13 @@ export class TurnPreparation {
     return this.pending?.before === world && this.pending.lang === currentQuestLanguage();
   }
 
-  prepare(world: World, saved: DriveSnapshot, fastTravel: boolean): void {
-    if (this.isFresh(world) && this.pending?.fastTravel === fastTravel) return;
-    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, ready: null, failure: null, postedAt: performance.now() };
+  prepare(world: World, saved: DriveSnapshot): void {
+    if (this.isFresh(world)) return;
+    const queued = this.inFlight.size > 0;
+    this.pending = { id: this.post(world, saved), before: world, lang: currentQuestLanguage(), drive: saved, queued, ready: null, failure: null, postedAt: performance.now() };
   }
 
-  private post(world: World, saved: DriveSnapshot, fastTravel: boolean): number {
+  private post(world: World, saved: DriveSnapshot): number {
     const { terrain, ...state } = world;
     const id = ++this.serial;
     if (this.load.gaveUp || this.load.waiting) return id;
@@ -635,18 +662,22 @@ export class TurnPreparation {
       id,
       questLanguage: currentQuestLanguage(),
       tailSteps: this.tailSteps,
-      fastTravel,
       ...this.obstacles.split(state),
       drive: { ...saved, snapshot },
       terrain: this.terrain === terrain ? null : terrain,
     }));
     timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
     this.terrain = terrain;
+    this.inFlight.add(id);
     return id;
   }
 
   isReady(world: World): boolean {
     return this.isFresh(world) && !!this.pending?.ready;
+  }
+
+  computing(): boolean {
+    return this.pending !== null && !this.pending.ready && !this.pending.failure;
   }
 
   take(world: World): PreparedTurn | null {

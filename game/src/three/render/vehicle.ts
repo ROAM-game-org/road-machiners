@@ -12,13 +12,13 @@ import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spa
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
+import { baseGrid, belowDeck, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, WORLD_LOOKS } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
@@ -397,7 +397,7 @@ export class VehicleView {
   }
 
   private finishLook(merged: THREE.Group[]): void {
-    if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
+    if (this.scene === 'world') for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
     if (this.scene !== 'world') {
@@ -629,7 +629,7 @@ export class VehicleView {
     const wear = lookOf(item);
     const { head: parts, tip } = weaponHead(look);
     for (const p of parts.children) tint(p, paint, wear);
-    const head = mergeStatic(parts);
+    const head = mergeStatic(parts, this.scene === 'world');
 
     const stand = weaponStand(v, item, unit.base);
     const headAt = socket(look.mount, 'head');
@@ -709,7 +709,7 @@ export class VehicleView {
     tint(raw, paint, PRISTINE);
     const inner = new THREE.Group();
     inner.add(raw);
-    const merged = mergeStatic(inner);
+    const merged = mergeStatic(inner, this.scene === 'world');
     merged.scale.copy(thick);
     merged.traverse((o) => (o.castShadow = false));
     const outer = new THREE.Group();
@@ -726,7 +726,7 @@ export class VehicleView {
     const cabUnit = this.units[rect.unit];
     const tip = wrapped(model('antenna'));
     this.useLamp(tip);
-    const antenna = mergeStatic(tip);
+    const antenna = mergeStatic(tip, this.scene === 'world');
     antenna.name = 'antenna';
     this.halo = radioHalo(this.radioOn);
     antenna.add(this.halo);
@@ -735,7 +735,7 @@ export class VehicleView {
     cabUnit.motion.addWhip(antenna, WHIPS.antenna);
     if (!bareRear) return;
     const last = this.units[this.units.length - 1];
-    const chain = mergeStatic(wrapped(model('tow_chain')));
+    const chain = mergeStatic(wrapped(model('tow_chain')), this.scene === 'world');
     chain.position.copy(rearHang(last.base, last.b.half.z * CHAIN_SIDE));
     last.body.add(chain);
     last.motion.addWhip(chain, WHIPS.chain);
@@ -753,7 +753,7 @@ export class VehicleView {
     tint(raw, paint, { ...look, dents: false });
     const wrap = new THREE.Group();
     wrap.add(raw);
-    const wheel = mergeStatic(wrap);
+    const wheel = mergeStatic(wrap, this.scene === 'world');
     wheel.scale.set(body.wheelRadius, body.wheelRadius, body.wheelHalfWidth * 2);
     return wheel;
   }
@@ -781,7 +781,7 @@ function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
   mesh.userData.cut = cut.spec;
   mesh.userData.darkMat = cut.dark;
   if (mesh.userData.outline) return;
-  plain.dispose();
+  if (!plain.userData.shared) plain.dispose();
   mesh.customDepthMaterial = cut.depth;
 }
 
@@ -867,7 +867,7 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
 
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   const grid = baseGrid(v.chassisId);
-  return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
+  return !belowDeck(v.chassisId, item) && itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body: THREE.Object3D): { at: Placement; bottom: number; top: number; foot: number; plate: CellRect } {

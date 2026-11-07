@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { desertWeight, glassField, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassOf, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
 import { sitePads, type Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
@@ -17,6 +17,7 @@ import { paintHighwayWear, PATCH_UNIT } from "../../render/highwayWear";
 const S = PHYSICS.metersPerTile;
 const PIXEL_SPLIT = 3;
 const PAD_BORDER = 2;
+const PAD_WEAR = { gapCells: 1.8, gapFrom: 0.7, chipCells: 5.5, chipFrom: 0.7, fillCells: 6, fillFrom: 0.8, soft: 0.05 };
 const SHOULDER_FROM = 0.42;
 const ROAD_FRAY = 0.35;
 const RIM_SHARE = 0.3;
@@ -157,6 +158,20 @@ uniform vec2 padHalf;
 uniform float padBorder;
 uniform vec3 padDust;
 uniform vec3 padMark;
+float padHash(vec2 p) {
+  vec3 q = fract(vec3(p.xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+float padNoise(vec2 p) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(padHash(cell), padHash(cell + vec2(1.0, 0.0)), u.x), mix(padHash(cell + vec2(0.0, 1.0)), padHash(cell + vec2(1.0, 1.0)), u.x), u.y);
+}
+float padPaintLeft(vec2 p, float cells, float from) {
+  return 1.0 - smoothstep(from, from + ${PAD_WEAR.soft.toFixed(2)}, padNoise(p * cells));
+}
 #ifdef HIGHWAY_WEAR
 uniform sampler2D highwayWear;
 uniform float wearBaseLuma;
@@ -275,12 +290,18 @@ const ROAD_FRAGMENT = `{
 #endif
 #if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
-    vec2 padOff = roadAt - padCenters[i];
-    vec2 padIn = padHalf - abs(vec2(dot(padOff, padAxes[i]), dot(padOff, vec2(-padAxes[i].y, padAxes[i].x))));
+    vec2 padOff = vRoadXZ - padCenters[i];
+    vec2 padLocal = vec2(dot(padOff, padAxes[i]), dot(padOff, vec2(-padAxes[i].y, padAxes[i].x)));
+    vec2 padIn = padHalf - abs(padLocal);
     float padDepth = min(padIn.x, padIn.y);
     if (padDepth <= 0.0) continue;
-    diffuseColor.rgb = mix(roadColor, padDust * groundShade, 0.35);
-    if (padDepth < padBorder && roadLook.a > 0.12) diffuseColor.rgb = padMark * groundShade;
+    float padSoft = fwidth(padDepth);
+    vec2 padSpot = padLocal / ${S.toFixed(4)} + float(i) * 7.31;
+    float padLineLeft = padPaintLeft(padSpot, ${PAD_WEAR.gapCells.toFixed(2)}, ${PAD_WEAR.gapFrom.toFixed(2)}) * padPaintLeft(padSpot + 19.0, ${PAD_WEAR.chipCells.toFixed(2)}, ${PAD_WEAR.chipFrom.toFixed(2)});
+    float padFillLeft = padPaintLeft(padSpot + 41.0, ${PAD_WEAR.fillCells.toFixed(2)}, ${PAD_WEAR.fillFrom.toFixed(2)});
+    float padLine = (1.0 - smoothstep(padBorder - padSoft, padBorder + padSoft, padDepth)) * padLineLeft;
+    vec3 padLook = mix(mix(roadColor, padDust * groundShade, 0.35), padMark * groundShade, padLine);
+    diffuseColor.rgb = mix(diffuseColor.rgb, padLook, smoothstep(0.0, padSoft, padDepth) * max(padLine, padFillLeft));
   }
 #endif
 }`;
@@ -322,7 +343,7 @@ function maskTexture(c: PaintCanvas): THREE.CanvasTexture {
 }
 
 function glassTexture(t: Terrain): THREE.DataTexture {
-  const texture = new THREE.DataTexture(glassField(t), t.size, t.size, THREE.RedFormat);
+  const texture = new THREE.DataTexture(glassOf(t), t.size, t.size, THREE.RedFormat);
   texture.unpackAlignment = 1;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;

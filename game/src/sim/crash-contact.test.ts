@@ -132,6 +132,7 @@ describe('falls', () => {
     const world = emptyWorld();
     const v = addVehicle(world, 'independent', 'buggy', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
     v.items = v.items.filter((it) => !(it.kind === 'part' && it.part.defId === 'tank'));
+    v.items.filter((it) => it.kind === 'part' && it.part.defId === 'mg').forEach((gun, i) => Object.assign(gun, { x: 1 + i * 3, y: 3, rot: 0 }));
     const other = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 42, y: 40 });
     const before = new Map(mountedParts(v).map((part) => [part.id, part.hp]));
     apply(world, v, other);

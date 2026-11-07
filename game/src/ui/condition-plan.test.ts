@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { baseGrid } from '../sim/grid';
+import { partDef } from '../data/parts';
+import { baseGrid, itemCells } from '../sim/grid';
 import { cellSteps } from '../sim/body';
 import { emptyWorld } from '../sim/testkit';
 import { conditionItems } from '../three/render/portraitPixels';
@@ -61,10 +62,19 @@ describe('ConditionPlan', () => {
 
   it('finds each part at the center of its box', () => {
     const plan = new ConditionPlan(truck.chassisId, items, PX);
-    for (const item of items) {
+    const stacked = (item: (typeof items)[number]) => items.some((other) => other !== item && itemCells(other).some((c) => itemCells(item).some((d) => d.x === c.x && d.y === c.y)));
+    for (const item of items.filter((it) => !stacked(it))) {
       const center = plan.centerOf(item.part.id);
       expect(plan.partAt(center.x, center.y)).toBe(item.part.id);
     }
+  });
+
+  it('gives a cell shared with a part below deck to the part on top', () => {
+    const wheel = items.find((it) => partDef(it.part.defId).kind === 'core' && (partDef(it.part.defId) as { role: string }).role === 'wheel')!;
+    const top = { ...wheel, id: 'top', part: { id: 'top-part', defId: 'mg', hp: 1, wear: 0 } };
+    const plan = new ConditionPlan(truck.chassisId, [top, wheel], PX);
+    const center = plan.centerOf(wheel.part.id);
+    expect(plan.partAt(center.x, center.y)).toBe('top-part');
   });
 
   it('knows every condition part and no other', () => {

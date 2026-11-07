@@ -11,7 +11,9 @@ const TALL = [1440, 900];
 const PHONE = [390, 844];
 const PHONE_LANDSCAPE = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
-const OUT = 'tmp/layout';
+const GALLERY = process.env.LAYOUT_GALLERY;
+const OUT = GALLERY ?? 'tmp/layout';
+const FADE_MS = 900;
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
 
 const key = (page, code) => page.evaluate((c) => window.__ROAM__.runKey(c), code);
@@ -44,18 +46,11 @@ async function openInventory(page) {
 }
 
 async function openTown(page, tab) {
-  await page.evaluate(async () => {
-    const g = window.__ROAM__;
-    if (g.screens.town.isOpen()) return;
-    const c = await import('/src/sim/cheats.ts');
-    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
-    g.screens.town.open();
-  });
-  await frames(page);
+  await openTownClear(page);
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', paint: 'garage', contracts: 'board', charts: 'maps' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
   }, tab);
@@ -105,6 +100,14 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    if (node === 'attacker') {
+      const { callVehicle } = await import('/src/sim/dialogue.ts');
+      const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
+      const raider = raiderWorld.vehicles.filter((v) => v.brain).at(-1);
+      raider.brain.goals = [{ kind: 'fight', targetId: raiderWorld.player.vehicleId, destination: { ...raiderWorld.vehicles.find((v) => v.id === raiderWorld.player.vehicleId).pos }, phase: 'travel', reason: 'fightHostile', demands: true, worn: { turn: raiderWorld.turn, condition: 1 } }];
+      g.apply(callVehicle(raiderWorld, raider.id));
+      return;
+    }
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
@@ -205,7 +208,8 @@ async function boot() {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl(`${url}/?seed=${SEED}`));
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
-  await page.addStyleTag({ content: '#game { display: none !important }' });
+  if (GALLERY) await page.waitForFunction(() => !document.getElementById('boot'));
+  else await page.addStyleTag({ content: '#game { display: none !important }' });
   return { browser, page, errors };
 }
 
@@ -215,7 +219,7 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
-    document.querySelector('.tip-off')?.click();
+    g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
     if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
@@ -321,11 +325,10 @@ const NAV_STEPS = [
   { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
   { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
   { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
-  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
-  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'market', go: ['market'] },
   { name: 'board', go: ['board'] },
   { name: 'people', go: ['people'] },
-  { name: 'bar', go: ['bar'] },
+  { name: 'maps', go: ['maps'] },
 ];
 
 async function openTownClear(page) {
@@ -418,7 +421,7 @@ async function townNavFaults(page) {
     await frames(page);
     const isFront = step.name === 'front';
     const marks = { ...(await townMarks(page, false)), front: isFront };
-    await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
+    await page.screenshot({ path: `tmp/layout/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
     if (isFront) front = marks;
     if (!isFront || !marks.grows) section ??= marks;
     for (const d of navDiffs(front, section ?? marks, marks)) note(step.name, d);
@@ -466,10 +469,107 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+const BENCH_AUDIT = () => {
+  const frame = document.querySelector('.inventory-screen');
+  const m = frame.getBoundingClientRect();
+  const all = (sel) => [...frame.querySelectorAll(sel)];
+  const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
+  const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
+  const tops = all('.well, .inv-truck-name').map((n) => Math.round(n.getBoundingClientRect().top));
+  const title = frame.querySelector('.inv-title');
+  const close = frame.querySelector('.close');
+  return [
+    m.bottom > innerHeight + 1 || m.right > innerWidth + 1 || m.left < -1 ? ['frame outside the window'] : [],
+    all('.inv-side-column, .inv-middle, .well, .inv-details > .stat-grid').concat(frame).filter(scrolls).map((n) => `scroll in ${n.className}`),
+    all('.well > *, .inv-grid').filter((n) => n.getBoundingClientRect().bottom > m.bottom + 1).map((n) => `cut off ${n.className}`),
+    Math.abs(middle(title) - middle(close)) > 2 ? ['Close is off the title row'] : [],
+    Math.max(...tops) - Math.min(...tops) > 1 ? [`column tops ${tops}`] : [],
+    all('.inv-inspection .action-rows').filter((rows) => widths(rows) > 1).map(() => 'action buttons differ in width'),
+    all('button, b, .stat-val, .stat-name').filter((n) => n.scrollWidth > n.clientWidth + 1 && n.clientWidth > 0).map((n) => `clipped ${n.textContent.slice(0, 24)}`),
+  ].flat();
+};
+
+async function benchFaultsOn(page, where) {
+  const found = [];
+  const ids = await page.evaluate(() => [...new Set([...document.querySelectorAll('.inv-grid [data-item-id]')].map((n) => n.dataset.itemId))]);
+  for (const id of [null, ...ids]) {
+    if (id) await page.evaluate((i) => document.querySelector(`.inv-grid [data-item-id="${i}"]`)?.click(), id);
+    for (const text of await page.evaluate(BENCH_AUDIT)) found.push(`${where} ${id ?? 'nothing picked'}: ${text}`);
+  }
+  return found;
+}
+
+async function inventoryBenchFaults(page) {
+  if (await page.evaluate(() => document.querySelector('#ui').classList.contains('phone'))) return [];
+  await page.evaluate(() => { window.__layoutWorld = window.__ROAM__.state; });
+  const found = await benchFaultsOn(page, 'start truck');
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const cheats = await import('/src/sim/cheats.ts');
+    let w = g.state;
+    const chassis = (x) => x.vehicles.find((v) => v.id === x.player.vehicleId).chassisId;
+    for (let i = 0; i < 2000 && chassis(w) !== 'sorokonoga'; i++) w = cheats.randomKit(w, 3);
+    if (chassis(w) !== 'sorokonoga') throw new Error('No sorokonoga kit in 2000 rolls');
+    g.apply(w);
+  });
+  await frames(page);
+  found.push(...(await benchFaultsOn(page, 'sorokonoga')));
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+  await frames(page);
+  return found.map((text) => ({ kind: 'inventory-bench', path: '', text, sizes: '' }));
+}
+
+const ONE_WINDOW = [VIEWPORTS[0]];
+
+async function openInventoryGun(page) {
+  await key(page, 'KeyI');
+  await page.evaluate(() => document.querySelector('.inv-item.mounted.drawn').click());
+}
+
+async function openShopRow(page) {
+  await openTown(page, 'buyParts');
+  await page.evaluate(() => document.querySelector('.town-page .part-sum').click());
+}
+
+async function openBoardTaken(page) {
+  await page.evaluate(() => { window.__layoutWorld = structuredClone(window.__ROAM__.state); });
+  await openTown(page, 'contracts');
+  await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
+}
+
+const restoreWorld = (close) => async (page) => {
+  await close(page);
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+};
+
+async function openLoot(page) {
+  await page.evaluate(() => {
+    const g = window.__ROAM__;
+    g.screens.inventory.openLoot(g.state.salvage[0].id);
+  });
+}
+
+async function openNewGameScreen(page) {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l', { hasText: 'New game' }).click();
+}
+
+async function closeNewGameScreen(page) {
+  await escape(page);
+  await closeStartMenu(page);
+}
+
+const closeDeath = (page) => page.evaluate(() => {
+  const { death } = window.__ROAM__;
+  death.root.remove();
+  death.root = null;
+});
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
@@ -488,6 +588,7 @@ const STATES = {
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
+  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
@@ -499,10 +600,22 @@ const STATES = {
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
+  'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
+  'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
+  'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
+  'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
+  'board-taken': { setup: openBoardTaken, teardown: restoreWorld(closeTown), viewports: ONE_WINDOW },
+  loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
+};
+
+const GALLERY_ONLY = {
+  'new-game': { setup: openNewGameScreen, teardown: closeNewGameScreen, viewports: ONE_WINDOW },
+  death: { setup: (page) => page.evaluate(() => { const g = window.__ROAM__; g.death.show(g.state); }), teardown: closeDeath, viewports: ONE_WINDOW },
 };
 
 const ONLY = process.env.LAYOUT_STATES?.split(',');
-const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
+const ALL_STATES = GALLERY ? { ...Object.fromEntries(Object.entries(STATES).filter(([name]) => name !== 'town-nav')), ...GALLERY_ONLY } : STATES;
+const PICKED = Object.entries(ALL_STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
 
 const ONLY_SIZES = process.env.LAYOUT_SIZES?.split(',').filter(Boolean);
 const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))].filter((v) => !ONLY_SIZES || ONLY_SIZES.includes(v.join('x')));
@@ -512,17 +625,36 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state], size = 1) {
-  await state.setup(page);
-  await page.evaluate(() => document.fonts.ready);
-  await frames(page);
-  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...(state.check ? await state.check(page) : [])]) report.push({ state: name, locale, viewport: label, ...f });
-  captures++;
-  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+async function takeShot(page, file) {
+  if (!GALLERY) return page.screenshot({ path: `${OUT}/${file}.png` });
+  await page.waitForTimeout(FADE_MS);
+  return page.screenshot({ path: `${OUT}/${file}.jpg`, type: 'jpeg', quality: 85 });
+}
+
+const isGalleryFiller = (name) => GALLERY && ONLY && !ONLY.includes(name);
+const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`);
+const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
+
+async function recordFaults(page, locale, label, name, state) {
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+}
+
+async function leaveState(page, state) {
   if (state.teardown) await state.teardown(page);
   await frames(page);
+}
+
+async function capture(page, locale, [width, height], [name, state], size = 1) {
+  await state.setup(page);
+  if (isGalleryFiller(name)) return;
+  await page.evaluate(() => document.fonts.ready);
+  await frames(page);
+  const label = windowLabel(width, height, size);
+  await takeShot(page, GALLERY ? name : `${name}-${locale}-${label}`);
+  await recordFaults(page, locale, label, name, state);
+  captures++;
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+  await leaveState(page, state);
 }
 
 async function checkLocale(page, locale) {
@@ -556,12 +688,12 @@ const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
-  if (!ONLY) await checkUiSizes(page);
+  if (!ONLY && !GALLERY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }
 for (const e of errors) report.push({ state: '-', locale: '-', viewport: '-', kind: 'page-error', path: '', text: e, sizes: '' });
-await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
+if (!GALLERY) await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
 for (const f of report) console.log(`${f.state} ${f.locale} ${f.viewport} ${f.kind} ${f.path}: ${JSON.stringify(f.text)} ${f.sizes}`);
 console.log(`${captures} captures, ${report.length} faults, ${seconds()} s. Screens in ${OUT}/.`);
 process.exit(report.length > 0 ? 1 : 0);

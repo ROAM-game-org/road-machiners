@@ -152,7 +152,7 @@ describe('truck card actions', () => {
   it('draws Look over and Mark as buttons with keycaps off touch', () => {
     const { row } = card(5, true);
     const buttons = row!.withTag('button');
-    expect(buttons.map((b) => b.text())).toEqual(['CallT', 'Look overB', 'MarkN']);
+    expect(buttons.map((b) => b.text())).toEqual(['RadioT', 'Look overB', 'MarkN']);
     expect(row!.all('key')).toHaveLength(3);
     expect(row!.className).toBe('info-actions');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
@@ -160,7 +160,7 @@ describe('truck card actions', () => {
 
   it('shows no Mark button without the spotter perk', () => {
     const { row } = card(5, false);
-    expect(row!.withTag('button').map((b) => b.text())).toEqual(['CallT', 'Look overB']);
+    expect(row!.withTag('button').map((b) => b.text())).toEqual(['RadioT', 'Look overB']);
   });
 
   it('disables a refused button with the sim reason', () => {
@@ -187,6 +187,8 @@ describe('the Wanted well', () => {
     tabIndex = -1;
     innerHTML = '';
     replaceChildren(...children: FakeNode[]) { this.children = children; }
+    get childNodes(): (FakeNode | string)[] { return this.children; }
+    isEqualNode(): boolean { return false; }
   }
 
   function renderWell(w: World): WellNode {
@@ -234,6 +236,8 @@ describe('order controls while knocked out', () => {
     constructor(readonly tag: string) {}
     append(...children: (Node | string)[]) { this.children.push(...children); }
     replaceChildren(...children: (Node | string)[]) { this.children = children; }
+    get childNodes(): (Node | string)[] { return this.children; }
+    isEqualNode(): boolean { return false; }
     setAttribute(name: string, value: string) { this.attrs[name] = value; }
     addEventListener() {}
     text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
@@ -271,7 +275,7 @@ describe('order controls while knocked out', () => {
         const b = find(buttons, label);
         expect(b, label).toBeDefined();
         expect(b!.attrs['aria-disabled'], label).toBe('true');
-        expect(b!.attrs.title, label).toBe('Knocked out');
+        expect(b!.attrs.title, label).toMatch(/^Knocked out/);
       }
     }
   });
@@ -291,6 +295,6 @@ describe('order controls while knocked out', () => {
   it('shows no Knocked out reason on an active player', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const buttons = actionButtons(w, false);
-    expect(buttons.filter((b) => b.attrs.title === 'Knocked out')).toEqual([]);
+    expect(buttons.filter((b) => String(b.attrs.title).startsWith('Knocked out'))).toEqual([]);
   });
 });

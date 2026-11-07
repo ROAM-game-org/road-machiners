@@ -57,15 +57,33 @@ type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null;
 type Buckets = Map<string, Bucket>;
 type Owner = { partId: string | null; armor: boolean };
 
-export type MergeSplit = 'parts' | 'armor';
+export type MergeSplit = 'parts' | 'armor' | 'tintedParts';
 
 const NO_ARMOR: ReadonlySet<string> = new Set();
 
 function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSplit): Owner {
   const tagged: string | null = mesh.userData.partId ?? null;
   const armor = tagged !== null && armorIds.has(tagged);
-  return { partId: split === 'parts' ? tagged : null, armor };
+  return { partId: split === 'armor' ? null : tagged, armor };
 }
+
+const worldLooks = new Map<string, THREE.Material>();
+
+export const WORLD_LOOKS = {
+  shadeTree(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const material = o.material as THREE.Material;
+      const key: string | undefined = material.userData.lookKey;
+      if (key === undefined) return;
+      const shared = worldLooks.get(key) ?? material;
+      worldLooks.set(key, shared);
+      shared.userData.shared = true;
+      if (shared !== material) material.dispose();
+      o.material = shared;
+    });
+  },
+};
 
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
   const { hex, surface, partId, armor, tinted, geos } = bucket;
@@ -74,7 +92,9 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   for (const g of geos) g.dispose();
   const material = surfacedMaterial(tinted ? 0xffffff : hex, surface);
   material.vertexColors = tinted;
+  material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
+  mesh.name = 'truck-surface';
   if (partId) mesh.userData.partId = partId;
   if (armor) mesh.userData.armor = true;
   mesh.castShadow = true;
@@ -101,8 +121,8 @@ function movedLamp(lamp: THREE.Mesh, toGroup: THREE.Matrix4): THREE.Mesh {
   return mesh;
 }
 
-export function mergeStatic(group: THREE.Group): THREE.Group {
-  return mergeParts(group, NO_ARMOR, 'parts');
+export function mergeStatic(group: THREE.Group, inWorld = false): THREE.Group {
+  return mergeParts(group, NO_ARMOR, inWorld ? 'tintedParts' : 'parts');
 }
 
 export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, split: MergeSplit): THREE.Group {
@@ -118,7 +138,7 @@ export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, sp
       return;
     }
     const material = o.material as THREE.MeshLambertMaterial;
-    const byTint = split === 'armor';
+    const byTint = split !== 'parts';
     const geo = staticGeometry(o, toGroup);
     bucketFor(buckets, material, ownerOf(o, armorIds, split), byTint).geos.push(byTint ? tinted(geo, material.color) : geo);
     used.push(o);
@@ -173,6 +193,7 @@ function mergedTwin(meshes: THREE.Mesh[], material: THREE.Material, order: numbe
   if (!merged) throw new Error(`Could not merge ${meshes.length} truck meshes into one twin`);
   for (const geo of geos) geo.dispose();
   const twin = new THREE.Mesh(merged, material);
+  twin.name = 'truck-silhouette';
   twin.renderOrder = order;
   return twin;
 }

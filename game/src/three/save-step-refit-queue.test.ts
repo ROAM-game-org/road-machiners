@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_112 from './save-fixtures/format-2-112.json';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const step = (world: unknown): SavedJson => TINY_STEPS[112 - TINY_FROM].step(structuredClone(world) as SavedJson);
 const fixture = () => structuredClone(FORMAT_2_112);

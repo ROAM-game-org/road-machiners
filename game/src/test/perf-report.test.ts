@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import budgetFile from '../../scripts/perf-budgets.json';
-import { budgetsFor, bundleProblems, checkBudgets, compare, fixNext, notes, summary, trustProblems } from '../../scripts/perf-report.mjs';
+import { budgetsFor, bundleProblems, checkBudgets, compare, fixNext, gateLines, gateSummary, landedFrom, landInto, notes, summary, trustProblems } from '../../scripts/perf-report.mjs';
 
 const SYSTEMS = ['terrain', 'props', 'vehicles', 'lights', 'effects', 'overlays', 'other'];
 const IDS = ['town-day', 'town-day-far', 'town-night', 'town-night-far', 'fight', 'drive'];
 
-const stats = (median: number, p99: number, over33 = 0, over100 = 0) => ({ median, p99, worst: p99 * 1.2, over33, over100, frames: 1200 });
-const emptyStats = { median: 0, p99: 0, worst: 0, over33: 0, over100: 0, frames: 0 };
+const stats = (median: number, p99: number, over33 = 0, over100 = 0) => ({ median, mean: median, p99, worst: p99 * 1.2, over33, over100, frames: 1200 });
+const emptyStats = { median: 0, mean: 0, p99: 0, worst: 0, over33: 0, over100: 0, frames: 0 };
 const pass = (real: ReturnType<typeof stats>, gpu: ReturnType<typeof stats> | null = null) => ({ real, tickCpu: stats(2, 4), renderCpu: stats(3, 6), gpu });
 
 function draws(propDraws: number, otherDraws = 0) {
@@ -15,7 +15,7 @@ function draws(propDraws: number, otherDraws = 0) {
   const shadowOf = (s: string) => (s === 'other' ? 0 : 5);
   const bySystem = Object.fromEntries(SYSTEMS.map((s) => [s, { main: count(mainOf(s)), shadow: count(shadowOf(s)) }]));
   const total = SYSTEMS.reduce((sum, s) => sum + mainOf(s) + shadowOf(s), 0);
-  return { total, rendererCalls: total, byPass: { main: count(1), shadow: count(1) }, bySystem, other: {} };
+  return { total, rendererCalls: total, programChecks: 2, byPass: { main: count(1), shadow: count(1) }, bySystem, other: {} };
 }
 
 function scene(id: string, over: Record<string, unknown> = {}) {
@@ -273,6 +273,14 @@ describe('compare', () => {
     expect(lines.some((l) => l.includes('fight draws counted'))).toBe(true);
   });
 
+  it('shows program checks before and after, and n/a for a report without the field', () => {
+    const { programChecks: _dropped, ...older } = draws(100);
+    const before = wrap(withScene('fight', { draws: older }));
+    const after = wrap(withScene('fight', { draws: { ...draws(100), programChecks: 0 } }));
+    expect(compare(before, after)).toMatch(/fight program checks per frame\s+n\/a\s+0\.00/);
+    expect(compare(wrap(), after)).toMatch(/fight program checks per frame\s+2\.00\s+0\.00/);
+  });
+
   it('warns when machine, viewport or pixel ratio differ', () => {
     const other = wrap(benchReport({ pixelRatio: 1, viewport: { width: 1280, height: 800 } }), { machine: 'ally' });
     const text = compare(wrap(), other);
@@ -308,5 +316,105 @@ describe('bundle', () => {
   it('rejects a build with no bench chunk', () => {
     const { 'src/bench/bench.ts': _gone, ...rest } = manifest;
     expect(bundleProblems(rest)).toEqual(['the build has no bench chunk']);
+  });
+});
+
+describe('gate', () => {
+  const realStats = (median: number, p99: number, over100 = 0) => ({ ...stats(median, p99, 0, over100) });
+  const run = (median: number, extra: Record<string, unknown> = {}, passGap = 0) => {
+    const town = { frame: pass(realStats(median, median * 2)), passes: [pass(realStats(median, median * 2)), pass(realStats(median + passGap, median * 2 + passGap))], spread: 0 };
+    return wrap(withScene('town-day', town), { machine: 'ally', ...extra });
+  };
+  const landed = () => ({ machines: { ally: landedFrom([run(10), run(10.5), run(11)]) } });
+
+  it('takes the median of the reports as the value and their range as the noise', () => {
+    const { measures } = landedFrom([run(10), run(10.5), run(11)]);
+    expect(measures['town-day mean'].value).toBe(10.5);
+    expect(measures['town-day p99']).toMatchObject({ value: 21, noise: 2.1 });
+    expect(measures['town-day p99'].limit).toBeCloseTo(23.1);
+  });
+
+  it('allows at least the pass difference that a trusted run may have, since three runs understate the noise', () => {
+    const { measures } = landedFrom([run(10), run(10), run(10)]);
+    expect(measures['town-day mean']).toEqual({ value: 10, noise: 1, limit: 11 });
+  });
+
+  it('uses the pass difference inside a report when it is larger than the range', () => {
+    const { measures } = landedFrom([run(100, {}, 8), run(100, {}, 8), run(100, {}, 8)]);
+    expect(measures['town-day p99'].noise).toBe(20);
+  });
+
+  it('fails a night fight whose stutter grows, in either pass', () => {
+    const fight = (p99: number) => wrap(benchReport({ scenes: [...IDS.map((id) => scene(id)), scene('fight-night', { passes: [pass(realStats(30, p99)), pass(realStats(30, 48))], spread: 0.5 })] }), { machine: 'ally' });
+    const file = { machines: { ally: landedFrom([fight(70), fight(72), fight(74)]) } };
+    expect(file.machines.ally.measures['fight-night pass 1 p99'].watched).toBeUndefined();
+    expect(gateLines(fight(72), file).status).toBe('pass');
+    expect(gateLines(fight(100), file).lines.filter((l) => !l.pass).map((l) => l.key)).toEqual(['fight-night pass 1 p99']);
+    expect(gateLines(fight(100), file).status).toBe('slower');
+  });
+
+  it('judges the turn wait by its mean and only shows its median and p99', () => {
+    const { measures } = landedFrom([run(10), run(10), run(10)]);
+    expect(measures['turn wait mean'].watched).toBeUndefined();
+    expect(measures['turn wait median'].watched).toBe(true);
+    expect(measures['turn wait p99'].watched).toBe(true);
+  });
+
+  it('refuses stored numbers whose frame time varies too much to catch a slowdown', () => {
+    expect(() => landedFrom([run(10), run(11), run(12)])).toThrow('town-day mean');
+  });
+
+  it('judges each drive pass alone and ignores the difference between its routes', () => {
+    const drive = { passes: [pass(realStats(8, 12)), pass(realStats(16, 24))], spread: 0.5 };
+    const { measures } = landedFrom([0, 1, 2].map(() => wrap(withScene('drive', drive), { machine: 'ally' })));
+    expect(measures['drive pass 1 mean'].value).toBe(8);
+    expect(measures['drive pass 2 mean'].value).toBe(16);
+    expect(measures['drive mean']).toBeUndefined();
+  });
+
+  it('refuses too few, untrusted or mixed reports', () => {
+    expect(() => landedFrom([run(10), run(11)])).toThrow('at least 3');
+    expect(() => landedFrom([run(10), run(11), run(12, { frameCapOff: false })])).toThrow('frame cap');
+    expect(() => landedFrom([run(10), run(11), run(12, { commit: 'other' })])).toThrow('one commit');
+  });
+
+  it('passes unchanged code at its stored numbers', () => {
+    expect(gateLines(run(10.5), landed()).status).toBe('pass');
+  });
+
+  it('fails a measure over its limit and names it', () => {
+    const result = gateLines(run(14), landed());
+    expect(result.status).toBe('slower');
+    expect(result.lines.filter((l) => !l.pass).map((l) => l.key)).toContain('town-day mean');
+    expect(gateSummary(result)).toContain('town-day mean');
+  });
+
+  it('shows a worse p99 or a new frame over 100 ms without failing, since their noise is too wide to judge', () => {
+    const town = { frame: pass(realStats(10.5, 99, 1)), passes: [pass(realStats(10.5, 21)), pass(realStats(10.5, 21))], spread: 0 };
+    const result = gateLines(wrap(withScene('town-day', town), { machine: 'ally' }), landed());
+    expect(result.status).toBe('pass');
+    expect(result.lines.filter((l) => l.watched && !l.pass).map((l) => l.key)).toEqual(['town-day p99', 'town-day over100']);
+    expect(gateSummary(result)).toContain('watch  town-day p99');
+  });
+
+  it('never passes an untrusted run, another renderer, an unknown machine or a missing measure', () => {
+    expect(gateLines(run(11, { frameCapOff: false }), landed()).status).toBe('untrusted');
+    expect(gateLines(wrap(benchReport({ renderer: 'other' }), { machine: 'ally' }), landed()).status).toBe('untrusted');
+    expect(gateLines(run(11, { machine: 'mac' }), landed()).status).toBe('untrusted');
+    const part = wrap(benchReport({ scenes: [scene('town-day')] }), { machine: 'ally' });
+    expect(gateLines(part, landed()).status).toBe('untrusted');
+  });
+
+  it('lets stored numbers fall and refuses to raise a value past its old limit', () => {
+    const file = landed();
+    const faster = landedFrom([run(9), run(9.25), run(9.5)]);
+    expect(landInto(file, faster).machines.ally.measures['town-day mean'].value).toBe(9.25);
+    const slower = landedFrom([run(20), run(20.5), run(21)]);
+    expect(() => landInto(file, slower)).toThrow('town-day mean');
+  });
+
+  it('trusts a drive scene whose two routes differ', () => {
+    const report = wrap(withScene('drive', { spread: 0.5 }));
+    expect(trustProblems(report)).toEqual([]);
   });
 });

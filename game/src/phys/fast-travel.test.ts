@@ -19,9 +19,9 @@ function travelling(): World {
   return setMoveOrder(emptyWorld(START), { kind: "through", dest: DEST });
 }
 
-function playTurn(world: World, drive: DriveSnapshot, fastTravel: boolean): { world: World; prepared: PreparedTurn } {
+function playTurn(world: World, drive: DriveSnapshot): { world: World; prepared: PreparedTurn } {
   const { terrain, ...state } = world;
-  const prepared = computeTurn({ world: state, drive, questLanguage: "en", tailSteps: TAIL, fastTravel }, terrain);
+  const prepared = computeTurn({ world: state, drive, questLanguage: "en", tailSteps: TAIL }, terrain);
   return { world: { ...prepared.world, terrain }, prepared };
 }
 
@@ -44,15 +44,15 @@ describe("a fast-travel turn", () => {
     strangerAt(world, farSightRadius(world, playerVehicle(world)) + 5);
     const stranger = world.vehicles.at(-1)!;
     stranger.order = { kind: "through", dest: { x: stranger.pos.x + 30, y: stranger.pos.y } };
-    const turn = playTurn(world, freshDrive(world), true);
+    const turn = playTurn(world, freshDrive(world));
     expect(Object.keys(turn.prepared.result.next.bodies).sort()).toEqual([playerVehicle(world).id, stranger.id].sort());
     expect(turn.prepared.tail).not.toBeNull();
     expect(dist(playerVehicle(turn.world).pos, DEST)).toBeLessThan(dist(START, DEST));
   });
 
-  it.each([true, false])("samples sight along the drive every sight step and at its end, and explores every sampled tile, with fast travel %s", (fast) => {
-    const first = playTurn(travelling(), freshDrive(travelling()), fast);
-    const second = playTurn(first.world, first.prepared.result.next, fast);
+  it("samples sight along the drive every sight step and at its end, and explores every sampled tile", () => {
+    const first = playTurn(travelling(), freshDrive(travelling()));
+    const second = playTurn(first.world, first.prepared.result.next);
     const frames = second.prepared.result.frames[playerVehicle(second.world).id];
     const { steps, tiles } = second.prepared.sight;
     const at = (k: number) => toMap(frames[k].pos);
@@ -66,7 +66,7 @@ describe("a fast-travel turn", () => {
 
   it("plays by physics when the turn is not asked to travel fast", () => {
     const world = travelling();
-    const turn = playTurn(world, freshDrive(world), false);
+    const turn = playTurn(world, freshDrive(world));
     expect(turn.prepared.tail).not.toBeNull();
     expect(Object.keys(turn.prepared.result.next.bodies)).toContain(playerVehicle(world).id);
   });

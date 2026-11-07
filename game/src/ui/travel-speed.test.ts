@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG } from "../config";
 import { modeRulesOf } from "../sim/settings";
+import { t } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { Travel } from "../three/travel";
 import { controlsFor } from "./game-menu";
-import { FASTER_KEY, SLOWER_KEY, TRAVEL_SPEED_CODES } from "./travel-speed";
+import { FASTER_KEY, SLOWER_KEY, TRAVEL_SPEED_CODES, heldPick } from "./travel-speed";
 
 function press(travel: Travel, code: string): void {
   travel.stepSpeed(TRAVEL_SPEED_CODES[code]);
@@ -32,5 +33,24 @@ describe("travel speed keys", () => {
     expect(row?.keys).toEqual([SLOWER_KEY, FASTER_KEY]);
     expect(resolve(row!.does, "en")).toBe("Travel speed");
     expect(resolve(row!.does, "ru")).not.toBe("Travel speed");
+  });
+});
+
+describe("travel speed display", () => {
+  const four = CONFIG.travelSpeeds.indexOf(4);
+
+  it("holds a speed below the pick and names the pick", () => {
+    expect(heldPick(four, 2)).toBe(4);
+  });
+
+  it("holds nothing when it plays the pick or does not play", () => {
+    expect(heldPick(four, 4)).toBeNull();
+    expect(heldPick(four, null)).toBeNull();
+  });
+
+  it("gives the reason with the pick in both languages", () => {
+    const reason = t("turn.speed.held", { pick: 4 });
+    expect(resolve(reason, "en")).toContain("4x");
+    expect(resolve(reason, "ru")).toContain("4x");
   });
 });

@@ -307,7 +307,7 @@ describe('the salvage tip', () => {
     onStrangerSeen(w, npc);
     raiseCalls(w);
     w.player.money = tipPrice() - 1;
-    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No thanks.', 'Hang up.']);
+    expect(currentOptions(w).map((o) => en(o.line))).toEqual(['No thanks.']);
   });
 
   it('moves nothing when the player declines or hangs up', () => {

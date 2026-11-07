@@ -155,7 +155,6 @@ const PLAYER_MOVE = {
   deeds: 'keep',
   xp: 'keep',
   ranks: 'keep',
-  xpToday: 'keep',
   xpWindow: 'keep',
   repeats: 'keep',
   xpBySource: 'keep',

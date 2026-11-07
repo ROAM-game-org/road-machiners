@@ -165,7 +165,7 @@ type Shot = Extract<GameEvent, { t: 'shot' }>;
 type Collision = Extract<GameEvent, { t: 'collision' }>;
 type Damage = Record<string, number>;
 
-const CLUTTER = new Set<GameEvent['t']>(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather', 'say', 'call', 'note', 'honk']);
+const CLUTTER = new Set<GameEvent['t']>(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather', 'say', 'call', 'note', 'honk', 'roadHorn']);
 const PLAYER_LEVEL = new Set<GameEvent['t']>(['death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'supply', 'scrapPatch', 'engineCredit', 'townPatch', 'searched', 'outpostReached', 'roadOpened', 'runLost']);
 
 function collectIds(value: unknown, known: ReadonlySet<string>, out: Set<string>): void {
@@ -429,7 +429,7 @@ export class RunStream {
 }
 
 
-const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid', 'came']);
+const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid', 'came', 'at']);
 
 function fieldsOf(line: StreamLine): Fields {
   return Object.fromEntries(Object.entries(line).filter(([key]) => !NON_FIELDS.has(key)));

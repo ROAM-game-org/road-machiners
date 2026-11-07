@@ -24,7 +24,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
 + {petra_book and not petra_how} [How do I put a wrong in the book?]
   Park here or at a town pad and tell what you saw while it's fresh.
   ~ petra_how = true
-  ~ note("roadhouseBook")
   -> hub
 + {petra_how and not petra_cost} [Who pays the price?]
   Whoever did the wrong pays what Wim sets.
@@ -35,7 +34,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
   A town's grudge has a price, and the Roadhouse can pay the town to settle it.
   You pay the Roadhouse at Wim's counter.
   ~ petra_buyoff = true
-  ~ note("roadhouseBuyOff")
   -> hub
 + {not petra_riders} [Who goes after the wrongdoers?]
   Rook Halloran's <term=marshals>Marshalls</term> ride after them, two Lincolns at a time.
@@ -47,7 +45,6 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
   The book marks a raider's wrong unanswered and leaves it open.
   Sabra Kell rides out after the unanswered Kiln ones on her own fee, since no Roadhouse car will.
   ~ petra_raiders = true
-  ~ note("roadhouseRaiders")
   -> hub
 + [What does the plain say?]
   <term=bowl>Bowl</term> and <term=nose>Nose</term> keep their patrols by their own gates, so Roadhouse cars cross the unwatched plain between them twice a day while it's light.
