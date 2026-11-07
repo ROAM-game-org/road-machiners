@@ -156,6 +156,8 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
   const restores: (() => void)[] = [];
   const seen = new Set<Material>();
   const kinds = new Map<Material, Set<string>>();
+  const phase = { now: 'other' };
+  restores.push(watchPhase(game.renderer, 'render', phase), watchPhase(game.renderer, 'compile', phase));
   game.scene.traverse((object) => {
     const ownBefore = Object.prototype.hasOwnProperty.call(object, 'onBeforeRender');
     const beforeRender = object.onBeforeRender;
@@ -178,7 +180,8 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
       const own = Object.prototype.hasOwnProperty.call(each, 'customProgramCacheKey');
       const original = each.customProgramCacheKey;
       each.customProgramCacheKey = function counted(this: KeyedMaterial) {
-        asks[label] = (asks[label] ?? 0) + 1;
+        const key = `${phase.now} ${label}`;
+        asks[key] = (asks[key] ?? 0) + 1;
         return original.call(this);
       };
       restores.push(() => {
@@ -193,6 +196,22 @@ export function countProgramAsks(game: Game): () => Record<string, number> {
       if (drawn.size > 1) asks[`mixed ${material.type} ${material.name}: ${[...drawn].join(' ')}`] = drawn.size;
     }
     return asks;
+  };
+}
+
+function watchPhase(renderer: WebGLRenderer, name: 'render' | 'compile', phase: { now: string }): () => void {
+  const original = renderer[name] as (...args: unknown[]) => unknown;
+  (renderer as unknown as Record<string, unknown>)[name] = function phased(this: WebGLRenderer, ...args: unknown[]) {
+    const outer = phase.now;
+    phase.now = outer === 'other' ? name : outer;
+    try {
+      return original.apply(this, args);
+    } finally {
+      phase.now = outer;
+    }
+  };
+  return () => {
+    (renderer as unknown as Record<string, unknown>)[name] = original;
   };
 }
 
