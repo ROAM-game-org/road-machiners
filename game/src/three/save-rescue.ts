@@ -35,6 +35,7 @@ export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
 
 const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
 const RENAMED_PERKS_RESCUE: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };
+const CONVOY_NOTE_RESCUE = 'burntConvoy';
 const RENAMED_NOTES_RESCUE: Readonly<Record<string, string>> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
 
 type VarRename = { before: number; quest: string | null; from: string; to: string };
@@ -283,6 +284,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
   const format = formatNumber(raw);
   const money = moneyReader(format);
   const mounted = truckOf(world, player, format);
+  const notes = [...new Set(listOf(player.notes).flatMap(noteOf))];
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
     money: money.amount(typeof player.money === 'number' ? player.money + mounted.money : player.money),
@@ -301,9 +303,9 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     storage: mounted.storage,
     storedGoods: storesOf(player.storedGoods),
     setup: setupOf(world.setup, format),
-    quests: questVarsOf(player.quests, format),
+    quests: withConvoyRumor(questVarsOf(player.quests, format), notes),
     run: runOf(world, format, money),
-    notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
+    notes,
     revisions: savedRevisionsOf(raw),
     refunded: 0,
   };
@@ -332,6 +334,10 @@ function withRenamedVar(quests: Carried['quests'], { quest, from, to }: VarRenam
 function withHattieMet(quests: Carried['quests'], format: number): Carried['quests'] {
   const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
   return formatBefore(format, HATTIE_MET_BEFORE) && knowsHer ? { ...quests, world: { ...quests.world, hattie_met: true } } : quests;
+}
+
+function withConvoyRumor(quests: Carried['quests'], notes: readonly string[]): Carried['quests'] {
+  return notes.includes(CONVOY_NOTE_RESCUE) ? { ...quests, world: { ...quests.world, convoy_rumor: true } } : quests;
 }
 
 function setupOf(setup: unknown, format: number): unknown {
