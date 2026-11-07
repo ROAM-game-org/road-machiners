@@ -31,7 +31,7 @@ import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Que
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers' | 'jobsMemoryGb' | 'stageMemoryGb'>;
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -216,7 +216,7 @@ function limits(cfg: Due): Record<Queue, number> {
   };
 }
 
-export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'voting' | 'failed' | 'approval' | 'held' | 'hotfix-verify';
+export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'memory' | 'needs-info' | 'voting' | 'failed' | 'approval' | 'held' | 'hotfix-verify';
 export type ScheduleDecision = JobPick & { reasons: WaitReason[] };
 export type ScheduleReport = { picks: JobPick[]; decisions: ScheduleDecision[]; release: ReleaseGate };
 function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPick[], cfg: Due): WaitReason[] {
@@ -227,6 +227,16 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
   const group = ONE_AT_A_TIME.find((stages) => stages.includes(pick.stage));
   if (group !== undefined && running.some((job) => group.includes(job.stage))) reasons.push('issue-running');
   return reasons;
+}
+function reservedGb(cfg: Due, stage: JobStage): number {
+  return Math.min(cfg.stageMemoryGb[stage], cfg.jobsMemoryGb);
+}
+function waitForMemory(pick: JobPick, running: JobPick[], waiting: JobPick[], cfg: Due): WaitReason[] {
+  const held = [...running, ...waiting].reduce((sum, job) => sum + reservedGb(cfg, job.stage), 0);
+  const needed = Math.round((held + reservedGb(cfg, pick.stage)) * 100) / 100;
+  if (needed <= cfg.jobsMemoryGb) return [];
+  waiting.push(pick);
+  return ['memory'];
 }
 function readHotfixVerifyReasons(pick: JobPick, running: JobPick[], hotfixes: Set<number>): WaitReason[] {
   const inVerify = (job: JobPick): boolean => QUEUE_OF[job.stage] === 'verify' && job.issue !== null && hotfixes.has(job.issue);
@@ -259,6 +269,7 @@ const NO_HEADS: Heads = { dev: null, main: null };
 
 export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): ScheduleReport {
   const picks: JobPick[] = [];
+  const waitingForMemory: JobPick[] = [];
   const pickedForCard = new Map<number, number>();
   const hotfixes = new Set(cards.filter(has(HOTFIX_LABEL)).map((card) => card.issue));
   const decisions = cards.filter((card) => card.column !== 'Done' && !card.labels.includes(RELEASE_LABEL)).flatMap((card) => readCardWait(state, card));
@@ -267,7 +278,8 @@ export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, 
     const limited = !candidate.pastCardLimit && countsTowardCardLimit(pick.stage);
     const cardLeft = readCardLeft(state, now, cfg, pickedForCard, pick.issue);
     const running = [...state.jobs, ...picks];
-    const reasons = [...findCapacityReasons(state, pick, running, cfg), ...readHotfixVerifyReasons(pick, running, hotfixes), ...readCardReasons(limited, cardLeft)];
+    const blocked = [...findCapacityReasons(state, pick, running, cfg), ...readHotfixVerifyReasons(pick, running, hotfixes), ...readCardReasons(limited, cardLeft)];
+    const reasons = blocked.length ? blocked : waitForMemory(pick, running, waitingForMemory, cfg);
     decisions.push({ ...pick, reasons });
     if (reasons.length) continue;
     countCardPick(pickedForCard, limited, pick.issue);

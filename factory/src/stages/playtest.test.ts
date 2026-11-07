@@ -355,6 +355,18 @@ describe('playtest', () => {
     expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 failed 0 minutes with npm ci');
   });
 
+  it('waits for the baseline seed run to end before a failed release seed run fails the job', async () => {
+    const run = setup();
+    let baselineEnded = false;
+    run.f.ctx.container.shell = async (_kind: ShellKind, _clone: string, script: string) => {
+      if (script.includes('Playing the release seed')) throw new Error('exit 137');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      baselineEnded = true;
+    };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('exit 137');
+    expect(baselineEnded).toBe(true);
+  });
+
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;
