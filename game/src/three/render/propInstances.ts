@@ -170,24 +170,24 @@ function mergedOf(name: ModelName): MergedModel {
   return merged;
 }
 
-export function instancedProp(name: ModelName, placements: THREE.Matrix4[], materialOf: MaterialOf): THREE.Group {
+export function instancedProp(name: ModelName, placements: THREE.Matrix4[], materialOf: MaterialOf, tints?: readonly number[]): THREE.Group {
   if (placements.length === 0) throw new Error(`Instanced ${name} needs at least one placement`);
   const merged = mergedOf(name);
   const group = new THREE.Group();
   group.name = name;
-  if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, new THREE.Matrix4()));
-  for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, part.matrix));
+  if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, new THREE.Matrix4(), tints));
+  for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, part.matrix, tints));
   group.matrixAutoUpdate = false;
   return group;
 }
 
-function instancedPart(geometry: THREE.BufferGeometry, material: THREE.Material, placements: THREE.Matrix4[], local: THREE.Matrix4): THREE.InstancedMesh {
+function instancedPart(geometry: THREE.BufferGeometry, material: THREE.Material, placements: THREE.Matrix4[], local: THREE.Matrix4, tints?: readonly number[]): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
   const matrix = new THREE.Matrix4();
   const tint = new THREE.Color(1, 1, 1);
   placements.forEach((placement, i) => {
     mesh.setMatrixAt(i, matrix.multiplyMatrices(placement, local));
-    mesh.setColorAt(i, tint);
+    mesh.setColorAt(i, tint.setScalar(tints?.[i] ?? 1));
   });
   mesh.castShadow = true;
   mesh.receiveShadow = true;

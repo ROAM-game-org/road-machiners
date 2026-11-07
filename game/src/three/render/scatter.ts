@@ -12,7 +12,7 @@ import { groundAt, type Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
-import { instancedModel } from './models';
+import { instancedProp } from './propInstances';
 import type { RenderScope } from './scope';
 import { deckFloorCap, TERRAIN_CHUNK } from './terrain';
 
@@ -63,8 +63,7 @@ function scatterGroup(chunk: ScatterChunk): THREE.Group {
   for (const name of MODELS) {
     const list = chunk[name];
     if (list.length === 0) continue;
-    const group = instancedModel(name, list.map((p) => p.matrix), list.map((p) => p.tint), (m) => m);
-    group.name = name;
+    const group = instancedProp(name, list.map((p) => p.matrix), (_, source) => source, list.map((p) => p.tint));
     for (const mesh of group.children) {
       mesh.castShadow = CASTS_SHADOW.has(name);
       mesh.receiveShadow = true;
