@@ -1,5 +1,7 @@
 # Redesign the enemy card
 
+Status: the phase 1 mockup is done, and its screenshots are in `ui-mockups/enemy-card/`. The user judged it a slight improvement, so it is the starting direction for issue #1507, not a settled spec.
+
 ## Context
 
 `Hud.showInfo` in `game/src/ui/hud.ts` builds the card, `HitCard` in `game/src/ui/hitCard.ts` builds its gun lists and `TruckConditionView` draws the truck. `src/ui/npc-info*` is only a test of the text formatters. I verified these faults in `inspect.jpg`, `inspect-unarmed.jpg` and `menu.jpg` at 1280 by 720:

@@ -1,5 +1,7 @@
 # Redesign the journal
 
+Status: the phase 1 mockup is done, and its screenshots are in `ui-mockups/journal/`. The user judged it a slight improvement, so it is the starting direction for issue #1507, not a settled spec.
+
 ## Context
 - The journal is a centered modal, 640 by 470 at 1280 by 720, built in `JournalScreen`. See `journal-survey.jpg`, with `town-board.jpg` as its neighbor.
 - Verified, the panel scrolls through prose. One survey fills it, and the third place is cut at "Who lives in the ruins now?". Wrecks, Notes and Past would sit below that with no sign they exist.

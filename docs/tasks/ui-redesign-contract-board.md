@@ -1,5 +1,7 @@
 # Contract board redesign
 
+Status: the phase 1 mockup is done, and its screenshots are in `ui-mockups/contract-board/`. The user judged it a slight improvement, so it is the starting direction for issue #1507, not a settled spec.
+
 ## Context
 
 The board is a section of the town page. Images: `town-board.jpg`, `board-taken.jpg`, with `journal-survey.jpg` as its neighbor. It lists offers, then the contracts the player holds, one over the other in the 680px text column.
