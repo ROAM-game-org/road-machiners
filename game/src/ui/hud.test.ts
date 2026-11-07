@@ -294,3 +294,67 @@ describe('order controls while knocked out', () => {
     expect(buttons.filter((b) => b.attrs.title === 'Knocked out')).toEqual([]);
   });
 });
+
+describe('action bar during timed work', () => {
+  class Node {
+    className = '';
+    children: (Node | string)[] = [];
+    attrs: Record<string, string> = {};
+    style: Record<string, string> = {};
+    classList = { add: (name: string) => { this.className = [this.className, name].filter(Boolean).join(' '); }, remove: (name: string) => { this.className = this.className.split(' ').filter((c) => c !== name).join(' '); } };
+    constructor(readonly tag: string) {}
+    append(...children: (Node | string)[]) { this.children.push(...children); }
+    replaceChildren(...children: (Node | string)[]) { this.children = children; }
+    setAttribute(name: string, value: string) { this.attrs[name] = value; }
+    removeAttribute(name: string) { delete this.attrs[name]; }
+    addEventListener() {}
+    text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
+    all(cls: string): Node[] { return [...(this.className.split(' ').includes(cls) ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.all(cls))]; }
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function shownBar(w: World): Node {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => new Node(tag),
+      createTextNode: (value: string) => Object.assign(new Node('#text'), { children: [value] }),
+    });
+    const action = new Node('div');
+    const hud = Object.assign(Object.create(Hud.prototype), { action }) as Hud;
+    hud.renderAction(null, 0, 0, w, () => {}, () => {});
+    return action;
+  }
+
+  function searching(turnsLeft: number, total: number): World {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.vehicles[0].job = { kind: 'search', stockId: 'wreck-1', turnsLeft, total };
+    return w;
+  }
+
+  it('names the work without a turn count and draws a cell per turn', () => {
+    const action = shownBar(searching(4, 8));
+    expect(action.all('job-label')[0].text()).toBe('Search');
+    expect(action.text()).not.toMatch(/\d/);
+    const meter = action.all('notched')[0];
+    expect(meter.children).toHaveLength(8);
+    expect(meter.children.filter((c) => (c as Node).className === 'on')).toHaveLength(4);
+  });
+
+  it('keeps the exact count in the title of the whole panel and drops it with the work', () => {
+    const w = searching(4, 8);
+    const action = shownBar(w);
+    expect(action.attrs.title).toBe('4 of 8 turns left');
+    expect(action.className).toContain('working');
+    w.vehicles[0].job = null;
+    const hud = Object.assign(Object.create(Hud.prototype), { action }) as Hud;
+    hud.renderAction(null, 0, 0, w, () => {}, () => {});
+    expect(action.attrs.title).toBeUndefined();
+    expect(action.className).not.toContain('working');
+  });
+
+  it('stays smooth for a long shift', () => {
+    const action = shownBar(searching(100, 150));
+    expect(action.all('notched')).toEqual([]);
+    expect(action.all('job-bar')).toHaveLength(1);
+  });
+});

@@ -6,7 +6,7 @@ import { findPart, playerVehicle, vehicleById } from "../sim/damage";
 import { vehicleStats, type MountedWeapon } from "../sim/stats";
 import type { Aim, PartInstance, UtilityOrder, Vehicle, World } from "../sim/types";
 import { playerSees } from "../sim/vision";
-import { workOf } from "../sim/states";
+import { workOf, type WorkLeft } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
@@ -17,7 +17,7 @@ import { createIcon, createItemIcon } from './cards';
 import { createSwitch } from "./switch";
 import { TravelSpeed } from "./travel-speed";
 import { canCall } from "./dialogue";
-import { workLabel, workProgress } from "./format";
+import { workLabel } from "./format";
 import { num, t, type Msg, type PlainKey } from "../text/msg";
 import { partName, vehicleTitle } from "../text/names";
 
@@ -48,7 +48,7 @@ export function weaponGrid(count: number): { cols: number; small: boolean } {
 }
 
 export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
-export type JobMark = { label: Msg; progress: number };
+export type JobMark = { label: Msg; work: WorkLeft };
 export type VehicleMark = { weapons: WeaponMark[]; radio: boolean; job: JobMark | null; out: boolean; gaveUp: boolean };
 
 export function vehicleMarks(w: World, hovered: string | null): Map<string, VehicleMark> {
@@ -83,7 +83,7 @@ function markSeenNpcs(w: World, markOf: (id: string) => VehicleMark): void {
 
 function seenNpcJob(w: World, v: Vehicle): JobMark | null {
   const work = workOf(w, v);
-  return work && { label: workLabel(w, v, work), progress: workProgress(work) };
+  return work && { label: workLabel(w, v, work), work: { turnsLeft: work.turnsLeft, total: work.total } };
 }
 
 export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: string): boolean {

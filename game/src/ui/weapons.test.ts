@@ -251,7 +251,7 @@ describe("vehicle marks", () => {
     const { world, target } = createDuel();
     target.brain = npcBrain("scavenger", target.pos, ["scavenger"]);
     target.job = { kind: "search", stockId: "wreck-1", turnsLeft: 3, total: 4 };
-    expect(jobEn(world, target.id)).toEqual({ label: "Search", progress: 0.25 });
+    expect(jobEn(world, target.id)).toEqual({ label: "Search", work: { turnsLeft: 3, total: 4 } });
   });
 
   it("shows the patch a seen NPC does with its progress", () => {
@@ -261,7 +261,7 @@ describe("vehicle marks", () => {
     target.speed = 0;
     me.speed = 0;
     addState(world, "patch", target.id, me.id, { kind: "patch", deal: "free", parts: 1, partIds: [], price: 0, work: 4, workLeft: 3 });
-    expect(jobEn(world, target.id)).toEqual({ label: 'Patch Your truck', progress: 0.25 });
+    expect(jobEn(world, target.id)).toEqual({ label: 'Patch Your truck', work: { turnsLeft: 3, total: 4 } });
   });
 
   it("shows the patch a seen NPC gets with its patcher", () => {
@@ -271,7 +271,7 @@ describe("vehicle marks", () => {
     target.speed = 0;
     me.speed = 0;
     addState(world, "patch", me.id, target.id, { kind: "patch", deal: "free", parts: 1, partIds: [], price: 0, work: 4, workLeft: 1 });
-    expect(jobEn(world, target.id)).toEqual({ label: 'Patched by Your truck', progress: 0.75 });
+    expect(jobEn(world, target.id)).toEqual({ label: 'Patched by Your truck', work: { turnsLeft: 1, total: 4 } });
   });
 
   it("marks a seen knocked-out NPC and offers no radio key on it", () => {

@@ -3,6 +3,7 @@ import { devEl as el } from "../dom";
 import { speedKey } from "../travel-speed";
 import { verbatim } from "../../text/msg";
 import { moneyEl } from "../units";
+import { workMeterBar } from "../work-meter";
 
 export interface Piece {
   name: string;
@@ -42,6 +43,7 @@ export const PIECES: Piece[] = [
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(15) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
+  { name: ".meter.notched", note: "A bar of timed work, one cell per turn up to 12 turns and a smooth fill beyond. Filled cells are turns done, and the count sits in its title.", build: () => workMeterBar({ turnsLeft: 5, total: 8 }, verbatim("Search")) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
   { name: ".selected", note: "The one look of a chosen item. A pressed button.on uses it too.", build: () => sample("selected tile", "Selected") },
   { name: '[aria-disabled="true"]', note: "A control that cannot be used now. It keeps hover and focus.", build: () => disabled() },

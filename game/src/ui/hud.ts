@@ -28,7 +28,6 @@ import {
   eventText,
   formatNpcPass,
   workLabel,
-  workProgress,
   formatNpcCargo,
   formatNpcMarked,
   formatNpcTraits,
@@ -67,7 +66,8 @@ import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
 import { PixelReadback } from "../three/render/pixelReadback";
 import type { GpuContext } from "../three/gpu-context";
 import { backgroundNeeds } from "./garage-draw";
-import { bindAttr, setText } from "../text/language";
+import { bindAttr, setText, unbindAttr } from "../text/language";
+import { workMeterBar, workTurnsText } from "./work-meter";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isLate, isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
@@ -369,30 +369,22 @@ export class Hud {
     const me = playerVehicle(world);
     const shown = shownWork(action, workOf(world, me));
     this.action.style.display = action || shown ? "" : "none";
+    if (!shown) this.clearWork();
     if (shown) this.renderWork(shown, workLabel(world, me, shown));
     else if (action) this.renderActionButton(action, count, index, onUse, onCycle);
   }
 
+  private clearWork(): void {
+    this.action.classList.remove("working");
+    unbindAttr(this.action, "title");
+  }
+
   private renderWork(work: Work, label: Msg): void {
-    const progress = Math.round(workProgress(work) * 100);
+    this.action.classList.add("working");
+    bindAttr(this.action, "title", workTurnsText(work));
     this.action.replaceChildren(
-      el(
-        "span",
-        { class: "job-label" },
-        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
-      ),
-      el(
-        "span",
-        {
-          class: "job-bar meter progress",
-          role: "progressbar",
-          "aria-label": t("hud.workProgress", { label }),
-          "aria-valuemin": "0",
-          "aria-valuemax": "100",
-          "aria-valuenow": String(progress),
-        },
-        el("span", { style: `width:${progress}%` }),
-      ),
+      el("span", { class: "job-label" }, work.queued > 0 ? t("hud.workQueued", { label, k: work.queued }) : label),
+      workMeterBar(work, label),
     );
   }
 

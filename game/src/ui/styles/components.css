@@ -143,6 +143,22 @@
 .meter.progress > * {
   background: var(--accent);
 }
+.meter.notched {
+  display: flex;
+  gap: var(--space-1);
+  height: var(--meter-l);
+  background: none;
+  overflow: visible;
+  min-width: calc(var(--cells) * var(--pip) + (var(--cells) - 1) * var(--space-1));
+}
+.meter.notched > i {
+  flex: 1;
+  height: 100%;
+  background: var(--surface-sunk);
+}
+.meter.notched > i.on {
+  background: var(--accent);
+}
 
 /* The one look of a chosen item: accent border and accent wash. A pressed toggle, a picked card and a picked tile all use it. */
 :is(#ui, #report) .selected,

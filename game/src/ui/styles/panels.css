@@ -374,6 +374,9 @@
   font-size: var(--text-dense);
   white-space: nowrap;
 }
+#ui .action.working {
+  min-width: var(--panel-s);
+}
 #ui .action:has(.job-bar) {
   padding: var(--space-4) var(--space-6);
   text-align: center;
