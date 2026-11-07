@@ -7,7 +7,8 @@ import { pickLesson } from './lessons';
 import { pickStory } from './road-stories';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
-import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { COLD_LINES, FAR_FROM_TOWN_TILES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import type { Mood } from '../data/personalities';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
@@ -19,7 +20,7 @@ import { REGION, type TownDef } from '../data/region';
 import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
 import { gridSquareOf } from './map-grid';
-import { inCombat, inCombatWith, isHostile } from './combat';
+import { awakeFoesOf, inCombat, inCombatWith, isHostile } from './combat';
 import { defyThreat, patchGoal, startTow, topGoal } from './npc-activities';
 import { requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
@@ -52,9 +53,14 @@ function mayDemand(world: World, npc: Vehicle): boolean {
   return world.player.talked[npc.id]?.demand === undefined && knowsCargo(world, npc, playerVehicle(world));
 }
 
+function fightsPlayer(world: World, npc: Vehicle): boolean {
+  const top = topGoal(npc);
+  return top?.kind === 'fight' && top.targetId === world.player.vehicleId;
+}
+
 function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
   const top = topGoal(npc);
-  if (top?.kind !== 'fight' || top.targetId !== world.player.vehicleId || top.demands !== true) return false;
+  if (top?.kind !== 'fight' || !fightsPlayer(world, npc) || top.demands !== true) return false;
   if (!mayDemand(world, npc)) return false;
   const ransom = ransomOf(world, npc, playerVehicle(world));
   return cargo ? ransom.haul.length > 0 : ransom.haul.length === 0 && ransom.money > 0;
@@ -308,7 +314,23 @@ export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[])
   return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
 }
 
+function farFromKnownTowns(world: World, npc: Vehicle): boolean {
+  if (npcProfile(npc).towns.length === 0) return false;
+  return dist(playerVehicle(world).pos, nearestKnownTown(world, npc).pos) > FAR_FROM_TOWN_TILES;
+}
+
+export function moodOf(world: World, npc: Vehicle): Mood | null {
+  const me = playerVehicle(world);
+  if (fightsPlayer(world, npc)) return 'attacking';
+  const foes = awakeFoesOf(world, me);
+  if (inCombat(world, me) && foes.length > 0 && !foes.some((foe) => foe.id === npc.id)) return 'underFire';
+  if (isStranded(world, me)) return 'stranded';
+  return inCombat(world, me) ? 'justFought' : null;
+}
+
 export const CONDITIONS: Record<ConditionId, Condition> = {
+  attacksPlayer: (world, npc) => fightsPlayer(world, npc),
+  farFromTown: (world, npc) => farFromKnownTowns(world, npc),
   bountyDemandOpen: (world, npc) => isMarshal(npc) && demandOpen(world, npc, playerVehicle(world)) !== null,
   huntsPlayer: (world, npc) => isMarshal(npc) && huntedCases(world, npc, world.player.vehicleId).length > 0,
   callsPartner: (world, npc) => callsPartner(world, npc),

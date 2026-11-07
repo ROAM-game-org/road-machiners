@@ -105,6 +105,14 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    if (node === 'attacker') {
+      const { callVehicle } = await import('/src/sim/dialogue.ts');
+      const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
+      const raider = raiderWorld.vehicles.filter((v) => v.brain).at(-1);
+      raider.brain.goals = [{ kind: 'fight', targetId: raiderWorld.player.vehicleId, destination: { ...raiderWorld.vehicles.find((v) => v.id === raiderWorld.player.vehicleId).pos }, phase: 'travel', reason: 'fightHostile', demands: true, worn: { turn: raiderWorld.turn, condition: 1 } }];
+      g.apply(callVehicle(raiderWorld, raider.id));
+      return;
+    }
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
@@ -538,6 +546,7 @@ const STATES = {
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
+  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
