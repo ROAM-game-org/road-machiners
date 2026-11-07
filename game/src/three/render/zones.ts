@@ -5,6 +5,7 @@ import { PAL } from '../../render/palette';
 import { zoneEdges, type Throttle } from '../../sim/steering';
 import { heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 const ZONE_ALPHA: Record<Throttle, number> = { brake: 0.24, hold: 0.28, accelerate: 0.28 };
@@ -33,7 +34,7 @@ export class ZonesView {
     for (const k of Object.keys(this.bands) as Throttle[]) this.root.add(this.bands[k]);
     this.ring = new THREE.Mesh(
       new THREE.RingGeometry(HOVER_RADIUS_TILES * S - HOVER_WIDTH_TILES * S, HOVER_RADIUS_TILES * S, HOVER_SEGMENTS).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: PAL.plan, transparent: true, opacity: 0.8, depthTest: false, side: THREE.DoubleSide }),
+      overlayMaterial({ color: PAL.plan, opacity: 0.8, depthTest: false }),
     );
     this.ring.visible = false;
     this.ring.renderOrder = 850;
@@ -41,8 +42,8 @@ export class ZonesView {
   }
 
   private makeBand(color: number, opacity: number): THREE.Mesh {
-    const material = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide,
+    const material = overlayMaterial({
+      color, opacity, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
@@ -120,9 +121,8 @@ export class GroundBand {
   private key = '';
 
   constructor(look: BandLook) {
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
-      color: look.color, transparent: true, opacity: look.opacity, depthWrite: false, depthTest: !look.overTrucks,
-      side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), overlayMaterial({
+      color: look.color, opacity: look.opacity, depthWrite: false, depthTest: !look.overTrucks, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     this.mesh.renderOrder = look.renderOrder;
     this.mesh.visible = false;
