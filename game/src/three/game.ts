@@ -928,7 +928,7 @@ export class Game {
     const me = playerVehicle(world);
     const hears = (e: { vehicle: string }): boolean => {
       const honker = world.vehicles.find((v) => v.id === e.vehicle);
-      return !!honker && hearsHorn(world, me, honker);
+      return !!honker && hearsHorn(me, honker);
     };
     return hornSteps(world.events, hears, Math.random);
   }

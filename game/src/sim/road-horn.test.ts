@@ -169,8 +169,8 @@ describe('earshot', () => {
     const { w, npc } = scene();
     const me = playerVehicle(w);
     me.pos = { x: npc.pos.x + HONK_RANGE, y: npc.pos.y };
-    expect(hearsHorn(w, me, npc)).toBe(true);
+    expect(hearsHorn(me, npc)).toBe(true);
     me.pos = { x: npc.pos.x + HONK_RANGE + 1, y: npc.pos.y };
-    expect(hearsHorn(w, me, npc)).toBe(false);
+    expect(hearsHorn(me, npc)).toBe(false);
   });
 });

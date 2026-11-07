@@ -9,8 +9,7 @@ import { modeRules } from './settings';
 import type { RoadHornCause, Vehicle, World } from './types';
 import { dist } from './vec';
 
-export function hearsHorn(world: World, listener: Vehicle, honker: Vehicle): boolean {
-  if (!modeRules(world).radio) throw new Error('No horns in this game mode');
+export function hearsHorn(listener: Vehicle, honker: Vehicle): boolean {
   return dist(listener.pos, honker.pos) <= HONK_RANGE;
 }
 

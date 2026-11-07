@@ -362,6 +362,6 @@ function practiceHonk(world: World, me: Vehicle, npc: Vehicle): void {
 
 function answering(world: World, me: Vehicle): Vehicle[] {
   return world.vehicles
-    .filter((v) => v.brain && !isKnockedOut(v) && hearsHorn(world, me, v) && talkOf(v).honksBack && !inCombatWithOther(world, v, me.id) && !isHostile(world, v, me))
+    .filter((v) => v.brain && !isKnockedOut(v) && hearsHorn(me, v) && talkOf(v).honksBack && !inCombatWithOther(world, v, me.id) && !isHostile(world, v, me))
     .sort((a, b) => dist(a.pos, me.pos) - dist(b.pos, me.pos));
 }
