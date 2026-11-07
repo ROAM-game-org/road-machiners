@@ -50,7 +50,7 @@ export function acceptRefusal(w: World, c: Contract, full: boolean): Msg | null 
 }
 
 function needEl(icon: "cells" | "cargo" | "star", tone: "bad" | "", text: Msg, reason: Msg | null): HTMLElement {
-  return el("span", { class: `need price ${tone}`.trim(), title: reason ?? undefined }, createIcon(icon), text);
+  return el("span", { class: tone === "bad" ? "need price bad" : "need price", title: reason ?? undefined }, createIcon(icon), text);
 }
 
 export function needCell(w: World, c: Contract): HTMLElement | null {
