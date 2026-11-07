@@ -150,25 +150,17 @@ export function changedBuffersSince(game: Game, before: ReadonlyMap<Sized, { ver
 export const bufferVersions = buffersOf;
 
 export function watchMixedMaterials(game: Game): () => string[] {
-  const restores: (() => void)[] = [];
   const kinds = new Map<Material, Set<string>>();
-  game.scene.traverse((object) => {
-    if (object === game.scene) return;
-    const ownBefore = Object.prototype.hasOwnProperty.call(object, 'onBeforeRender');
-    const beforeRender = object.onBeforeRender;
-    object.onBeforeRender = function watched(renderer, scene, camera, geometry, material, group) {
-      const drawn = kinds.get(material) ?? new Set<string>();
-      drawn.add(drawKind(object, geometry, material, renderer));
-      kinds.set(material, drawn);
-      beforeRender.call(this, renderer, scene, camera, geometry, material, group);
-    };
-    restores.push(() => {
-      if (ownBefore) object.onBeforeRender = beforeRender;
-      else delete (object as Partial<Object3D>).onBeforeRender;
-    });
-  });
+  const { renderer } = game;
+  const draw = renderer.renderBufferDirect;
+  renderer.renderBufferDirect = function watched(camera, scene, geometry, material, object, group) {
+    const drawn = kinds.get(material) ?? new Set<string>();
+    drawn.add(drawKind(object, geometry, material, renderer));
+    kinds.set(material, drawn);
+    draw.call(this, camera, scene, geometry, material, object, group);
+  };
   return () => {
-    for (const restore of restores) restore();
+    renderer.renderBufferDirect = draw;
     return [...kinds].filter(([, drawn]) => drawn.size > 1).map(([material, drawn]) => `${material.type} ${material.name}: ${[...drawn].join(' ')}`);
   };
 }
