@@ -36,12 +36,9 @@ import { maxHp } from '../../sim/wear';
 import { signatureOf, VehicleView, type RebuildBudget } from './vehicle';
 import { withCut, type CutSpec } from './armorCut';
 
-export const PORTRAIT_TILT_DEG = 25;
-
 const LOOK = {
   pxPerMeter: PX_PER_METER,
   supersample: SUPERSAMPLE,
-  tiltDeg: PORTRAIT_TILT_DEG,
   cameraDistance: 40,
   depthMargin: 1,
   samples: 4,
@@ -62,7 +59,7 @@ const LOOK = {
 } as const;
 
 const BYTE = 255;
-const NOSE_DOWN = new THREE.Vector3(-1, 0, 0);
+const NOSE_UP = new THREE.Vector3(1, 0, 0);
 
 type PartItem = ReturnType<typeof conditionItems>[number];
 type Drawn = THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
@@ -104,12 +101,10 @@ export function pristineOf(v: Vehicle): Vehicle {
 }
 
 export function chassisSize(chassisId: string): PixelSize {
-  const tilt = THREE.MathUtils.degToRad(LOOK.tiltDeg);
-  const height = 2 * Math.max(...unitsOf(chassisId).map((u) => u.body.half.y));
   const { half } = spanOf(chassisId);
   return {
     width: 2 * half.z * LOOK.pxPerMeter,
-    height: (2 * half.x * Math.cos(tilt) + height * Math.sin(tilt)) * LOOK.pxPerMeter,
+    height: 2 * half.x * LOOK.pxPerMeter,
   };
 }
 
@@ -379,10 +374,9 @@ function cameraBounds(meshes: Drawn[], camera: THREE.Camera): THREE.Box3 {
 }
 
 function settledCamera(meshes: Drawn[]): { camera: THREE.OrthographicCamera; size: PixelSize } {
-  const tilt = THREE.MathUtils.degToRad(LOOK.tiltDeg);
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-  camera.position.set(Math.sin(tilt) * LOOK.cameraDistance, Math.cos(tilt) * LOOK.cameraDistance, 0);
-  camera.up.copy(NOSE_DOWN);
+  camera.position.set(0, LOOK.cameraDistance, 0);
+  camera.up.copy(NOSE_UP);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);
   const bounds = cameraBounds(meshes, camera);

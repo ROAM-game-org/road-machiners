@@ -130,16 +130,11 @@
 #ui .condition-tip[data-side="below"] {
   transform: translate(-50%, var(--space-4));
 }
-.cond-plan,
-.cond-plan-turned {
+.cond-plan {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
-}
-.cond-plan-turned {
-  transform-origin: 50% 50%;
-  transform: rotate(180deg);
 }
 .cond-plan-part {
   position: absolute;
@@ -149,7 +144,6 @@
 .cond-plan-part > .icon {
   width: 100%;
   height: 100%;
-  transform: rotate(180deg);
 }
 .cond-plan-part[data-tier="hurt"] {
   background: var(--garage-tint-hurt);

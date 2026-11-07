@@ -285,8 +285,9 @@ function escapeFaults(root: Element): LayoutFault[] {
 
 function controls(root: Element): HTMLElement[] {
   const modal = [...root.querySelectorAll(".modal")].find(isShown);
+  const floating = modal ?? [...root.querySelectorAll(".options")].find(isShown);
   const menu = modal ? [...root.querySelectorAll<HTMLElement>(".game-menu .menu-button")] : [];
-  return [...(modal ?? root).querySelectorAll<HTMLElement>(CONTROLS), ...menu].filter(isShown);
+  return [...(floating ?? root).querySelectorAll<HTMLElement>(CONTROLS), ...menu].filter(isShown);
 }
 
 function scrolledBox(el: Element): Box {
