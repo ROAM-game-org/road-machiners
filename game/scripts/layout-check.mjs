@@ -107,8 +107,8 @@ async function openCall(page, node) {
     const next = structuredClone(w);
     if (node === 'attacker') {
       const { callVehicle } = await import('/src/sim/dialogue.ts');
-      const raiderWorld = runCommand(w, 'spawn raider').world;
-      const raider = raiderWorld.vehicles.filter((v) => v.brain && v.brain.templateId === 'raider').pop();
+      const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
+      const raider = raiderWorld.vehicles.filter((v) => v.brain).at(-1);
       raider.brain.goals = [{ kind: 'fight', targetId: raiderWorld.player.vehicleId, destination: { ...raiderWorld.vehicles.find((v) => v.id === raiderWorld.player.vehicleId).pos }, phase: 'travel', reason: 'fightHostile', demands: true, worn: { turn: raiderWorld.turn, condition: 1 } }];
       g.apply(callVehicle(raiderWorld, raider.id));
       return;
