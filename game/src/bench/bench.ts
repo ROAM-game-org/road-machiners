@@ -18,7 +18,16 @@ import {
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
 } from './report';
 
-export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean; scenes: string[] | null };
+export type BenchOptions = { savingsAbove: number | null; passFrames: number | null; marks: boolean; shots?: boolean; scenes: string[] | null };
+
+const SHOT_WAIT_MS = 60000;
+
+async function holdForShot(ctx: Ctx, scene: string): Promise<void> {
+  if (!ctx.options.shots) return;
+  const state = (window as unknown as { __ROAM_BENCH__: { shotWanted?: string; shotDone?: string } }).__ROAM_BENCH__;
+  state.shotWanted = scene;
+  await ctx.probe.until(() => state.shotDone === scene, SHOT_WAIT_MS, `the screenshot of ${scene}`);
+}
 
 const PASS_FRAMES = 600;
 const SAVINGS_FRAMES = 240;
@@ -525,6 +534,7 @@ function addSteps(steps: Steps, before: ReturnType<typeof perfSnapshot>): void {
 
 async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const { passes, longTasks } = await measurePasses(ctx, spec);
+  await holdForShot(ctx, spec.id);
   const stats = passes.map(passStats);
   const pooled = poolFrames(passes);
   const frame = passStats(pooled);
