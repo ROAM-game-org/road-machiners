@@ -133,7 +133,7 @@ export class JournalScreen {
     if (tab === 'work') return this.workPage(w, journal.work);
     if (tab === 'wrecks') return el('div', { class: 'journal-list' }, ...journal.wrecks.map(wreckSquareEntry));
     if (tab === 'notes') return this.notesPage(journal.notes);
-    return el('div', { class: 'jobs' }, ...journal.past.map(pastEntry));
+    return el('div', { class: 'jobs journal-past' }, ...journal.past.map(pastEntry));
   }
 
   private workPage(w: World, work: Contract[]): HTMLElement {

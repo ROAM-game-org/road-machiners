@@ -8,6 +8,7 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
+const COMPACT = [1024, 600];
 const PHONE = [390, 844];
 const PHONE_LANDSCAPE = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
@@ -243,7 +244,7 @@ const clearInspect = (page) => page.evaluate(() => {
   g.refreshInfo();
 });
 
-const INSPECT_VIEWPORTS = [...VIEWPORTS, TALL];
+const INSPECT_VIEWPORTS = [...VIEWPORTS, COMPACT, TALL];
 
 const openStartMenu = (page) => page.evaluate(async () => {
   for (const node of document.querySelectorAll('#ui > *')) {
@@ -323,6 +324,266 @@ const closeSurveyJournal = async (page) => {
     g.apply(world);
   }, SURVEY_CONTRACT_ID);
 };
+
+const JOURNAL_VIEWPORTS = [...VIEWPORTS, COMPACT];
+
+const keepWorld = (page) => page.evaluate(async () => {
+  const { shopState } = await import('/src/sim/market.ts');
+  const w = window.__ROAM__.state;
+  const { contracts, notes, pastContracts, rumored } = w.player;
+  window.__layoutKept = structuredClone({ contracts, notes, pastContracts, rumored, board: shopState(w, 'bowl').contracts });
+});
+const restoreWorld = (page) => page.evaluate(async () => {
+  const { shopState } = await import('/src/sim/market.ts');
+  const g = window.__ROAM__;
+  const w = g.state;
+  const { board, ...player } = structuredClone(window.__layoutKept);
+  Object.assign(w.player, player);
+  shopState(w, 'bowl').contracts = board;
+  g.apply(w);
+});
+
+const HELD_CONTRACTS = () => {
+  const turn = window.__ROAM__.state.turn;
+  return [
+    { id: 'lj-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: turn + 600, window: 600, rush: false, tier: 2 },
+    { id: 'lj-order', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 9, reward: 111, deadline: turn + 900, window: 900, tier: 1 },
+    { id: 'lj-escort', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: turn + 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+  ];
+};
+
+const FILL_LONGEST = async (held) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { surveySites, surveyWay } = await import('/src/sim/survey.ts');
+  const { REGION } = await import('/src/data/region.ts');
+  const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats');
+  const survey = (town, points) => ({ id: 'lj-survey', shop: town.id, kind: 'survey', points, reward: 30, deadline: world.turn + 9000, window: 600, tier: 1 });
+  const wayLength = (contract) => (surveyWay(world, contract, contract.points[0]) ?? []).reduce((sum, step) => sum + (step.do === 'turn' ? 2 : 1), 0);
+  const rank = (town) => sites.map((site) => ({ site, length: wayLength(survey(town, [{ site: site.id, found: false, done: false }])) })).sort((a, b) => b.length - a.length).slice(0, 3);
+  const best = window.__layoutLongest ?? REGION.towns.map((town) => ({ town, ranked: rank(town) })).sort((a, b) => b.ranked[0].length - a.ranked[0].length)[0];
+  window.__layoutLongest = best;
+  world.player.contracts.push(survey(best.town, best.ranked.map((r, i) => ({ site: r.site.id, found: i === 1, done: false }))), ...held);
+  g.apply(world);
+};
+
+const FILL_NOTES = async () => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { NOTE_IDS } = await import('/src/data/locals.ts');
+  world.player.notes = NOTE_IDS.slice(0, 9).map((id, i) => ({ id, turn: 10 + i * 40 }));
+  g.apply(world);
+};
+
+const FILL_PAST = (held) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const ends = ['done', 'failed', 'lapsed', 'released', 'late', 'done', 'failed', 'done'];
+  const amount = (outcome, i) => (outcome === 'done' ? 120 + i : outcome === 'failed' ? -18 : 0);
+  world.player.pastContracts = ends.map((outcome, i) => ({ contract: { ...held[i % held.length], id: `lj-past-${i}` }, outcome, turn: 50 + i * 30, amount: amount(outcome, i) }));
+  g.apply(world);
+};
+
+const FILL_WRECKS = () => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  world.player.rumored = world.salvage.slice(0, 6).map((stock) => stock.id);
+  g.apply(world);
+};
+
+const JOURNAL_FILLS = { longest: FILL_LONGEST, notes: FILL_NOTES, past: FILL_PAST, wrecks: FILL_WRECKS };
+
+async function fillJournal(page, kind) {
+  const fill = JOURNAL_FILLS[kind];
+  if (fill) await page.evaluate(fill, await page.evaluate(HELD_CONTRACTS));
+}
+
+const openJournalWith = (kind) => async (page) => {
+  await keepWorld(page);
+  await fillJournal(page, kind);
+  await key(page, 'KeyJ');
+  await frames(page);
+};
+
+const closeJournalState = async (page) => {
+  await escape(page);
+  await restoreWorld(page);
+};
+
+const openJournalOverScene = async (page) => {
+  await keepWorld(page);
+  await fillJournal(page, 'longest');
+  await openQuestPage(page);
+  await key(page, 'KeyJ');
+  await frames(page);
+};
+
+const closeJournalOverScene = async (page) => {
+  await escape(page);
+  await closeQuestPage(page);
+  await restoreWorld(page);
+};
+
+const faultsOf = (kind) => (found) => found.map((text) => ({ kind, path: '', text, sizes: '' }));
+
+const keycapFaults = (page, root, name) =>
+  page.evaluate(([root, name]) => [...document.querySelectorAll(`${root} .key, ${root} kbd`)].filter((n) => n.getClientRects().length > 0).map((n) => `keycap ${n.textContent} on the ${name}`), [root, name]);
+
+const cutFaults = (page, selectors) =>
+  page.evaluate((selectors) => [...document.querySelectorAll(selectors.join(', '))].filter((n) => n.scrollHeight > n.clientHeight + 1).map((n) => `${n.className} is cut: ${n.scrollHeight} of ${n.clientHeight}`), selectors);
+
+const JOURNAL = '#ui .journal-screen:not([style*="display: none"])';
+
+const journalWindowFaults = (page) =>
+  page.evaluate((sel) => {
+    const box = document.querySelector(sel).getBoundingClientRect();
+    const outside = box.bottom > innerHeight + 1 || box.right > innerWidth + 1 || box.left < -1 || box.top < -1;
+    return outside ? ['the journal is outside the window'] : [];
+  }, JOURNAL);
+
+const journalSideFaults = (page) =>
+  page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    const cut = root.scrollHeight > root.clientHeight + 1;
+    return root.classList.contains('journal-side') && cut ? [`the side journal is cut: ${root.scrollHeight} of ${root.clientHeight}`] : [];
+  }, JOURNAL);
+
+const journalTabFaults = (page) =>
+  page.evaluate((sel) => {
+    const body = document.querySelector(`${sel} .journal-body`);
+    const tabs = document.querySelector(`${sel} .tabs`);
+    if (!body || !tabs) return [];
+    const before = tabs.getBoundingClientRect().top;
+    body.scrollTop = body.scrollHeight;
+    const moved = Math.abs(tabs.getBoundingClientRect().top - before) > 1;
+    body.scrollTop = 0;
+    return moved ? ['the tab row moves when the journal scrolls'] : [];
+  }, JOURNAL);
+
+const journalEntryFaults = (page) =>
+  page.evaluate((sel) => {
+    const body = document.querySelector(`${sel} .journal-body`);
+    const open = body?.querySelector('.journal-place.open, .journal-note.open');
+    if (!open) return [];
+    body.scrollTop = body.scrollHeight;
+    const hidden = body.scrollTop > 0 && body.getBoundingClientRect().bottom < open.getBoundingClientRect().bottom - 1;
+    body.scrollTop = 0;
+    return hidden ? ['the open entry cannot be scrolled into view'] : [];
+  }, JOURNAL);
+
+const journalOverlapFaults = (page) =>
+  page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    const box = root.getBoundingClientRect();
+    const shown = (n) => n.style.visibility !== 'hidden' && n.getClientRects().length > 0;
+    const across = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+    const hit = [...document.querySelectorAll('#ui .dock-panel, #ui .log')].some((n) => shown(n) && across(n.getBoundingClientRect(), box));
+    return root.classList.contains('journal-side') && hit ? ['the side journal overlaps a visible panel'] : [];
+  }, JOURNAL);
+
+async function journalFaults(page) {
+  if (!(await page.evaluate((sel) => document.querySelector(sel) !== null, JOURNAL))) return faultsOf('journal')(['the journal is not open']);
+  const checks = [journalWindowFaults(page), journalSideFaults(page), journalTabFaults(page), journalEntryFaults(page), keycapFaults(page, JOURNAL, 'journal'), journalOverlapFaults(page)];
+  return faultsOf('journal')((await Promise.all(checks)).flat());
+}
+
+const BOARD_KINDS = async ({ offerKinds, heldCount }) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { shopState } = await import('/src/sim/market.ts');
+  const { surveySites } = await import('/src/sim/survey.ts');
+  const { CONTRACTS } = await import('/src/data/market.ts');
+  const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
+  const at = (id) => ({ id, shop: 'bowl', reward: 90, deadline: world.turn + 600, window: 600, tier: 1 });
+  const offers = [
+    { ...at('lb-haul'), kind: 'haul', good: 'scrap', units: 3, to: 'nose', rush: true },
+    { ...at('lb-order'), kind: 'procure', good: 'water', units: 6, cratePay: 9 },
+    { ...at('lb-claim'), kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', rivalAt: 9000, rival: null, leads: [] },
+    { ...at('lb-search'), kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, delivered: false },
+    { ...at('lb-escort'), kind: 'escort', client: 'v-gone', to: 'nose', threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+    { ...at('lb-survey'), kind: 'survey', points: sites.map((s) => ({ site: s.id, found: false, done: false })) },
+  ];
+  shopState(world, 'bowl').contracts = offerKinds.map((kind) => offers.find((o) => o.kind === kind));
+  const held = (i, c) => ({ ...c, id: `lb-held-${i}`, deadline: world.turn + 300 });
+  const heldKinds = ['haul', 'escort', 'claim'].slice(0, Math.min(heldCount, CONTRACTS.maxActive));
+  world.player.contracts = heldKinds.map((kind, i) => held(i, offers.find((o) => o.kind === kind)));
+  g.apply(world);
+};
+
+const openBoardKinds = (spec) => async (page) => {
+  await keepWorld(page);
+  await page.evaluate(BOARD_KINDS, spec);
+  await openTown(page, 'contracts');
+  await frames(page);
+};
+
+const closeBoardKinds = async (page) => {
+  await closeTown(page);
+  await restoreWorld(page);
+};
+
+const BOARD = '.town-page .board';
+
+const boardPageFaults = (page) =>
+  page.evaluate((sel) => {
+    const scroller = document.querySelector(sel).closest('.ink-scroll');
+    return scroller && scroller.scrollHeight > scroller.clientHeight + 1 ? [`the board page scrolls: ${scroller.scrollHeight} of ${scroller.clientHeight}`] : [];
+  }, BOARD);
+
+const boardAcceptFaults = (page) =>
+  page.evaluate((sel) => {
+    const board = document.querySelector(sel);
+    const offers = board.querySelectorAll('.board-offers .job').length;
+    const accepts = board.querySelectorAll('.board-offers .job button').length;
+    return offers === accepts ? [] : [`${offers} offers but ${accepts} Accept buttons`];
+  }, BOARD);
+
+async function boardFaults(page) {
+  if (!(await page.evaluate((sel) => document.querySelector(sel) !== null, BOARD))) return faultsOf('board')(['the board is not open']);
+  const checks = [boardPageFaults(page), cutFaults(page, [`${BOARD} .board-offers`, `${BOARD} .board-held`, `${BOARD} .jobs`]), keycapFaults(page, BOARD, 'board'), boardAcceptFaults(page)];
+  return faultsOf('board')((await Promise.all(checks)).flat());
+}
+
+const inspectNine = async (page) => {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const { makePart } = await import('/src/sim/factory.ts');
+    const { mountPart } = await import('/src/sim/inventory.ts');
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    g.hud.tips.setOn(false);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
+    if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
+    const ids = ['mg', 'shotgun', 'harpoon', 'mg', 'mg', 'shotgun', 'mg', 'mg', 'shotgun'];
+    for (const def of ids) mountPart(world, npc, makePart(world, def, 0));
+    g.apply(world);
+    g.hovered = npc.id;
+    g.refreshInfo();
+    g.hitCard.show();
+    window.__layoutNpc = npc.id;
+  });
+  await page.waitForFunction(() => window.__ROAM__.hud.portraitSettled(window.__layoutNpc), null, { timeout: 60000 });
+};
+
+const CARD = '#ui .info';
+
+const cardPlaceFaults = (page) =>
+  page.evaluate((sel) => {
+    const card = document.querySelector(sel).getBoundingClientRect();
+    const log = document.querySelector('#ui .log');
+    const logShown = log !== null && log.style.visibility !== 'hidden' && log.getClientRects().length > 0;
+    return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
+  }, CARD);
+
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content'].map((part) => `${CARD} ${part}`)) : []);
+
+async function cardFaults(page) {
+  const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
+  if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), keycapFaults(page, CARD, 'card')];
+  return faultsOf('enemy-card')((await Promise.all(checks)).flat());
+}
 
 const NAV_STEPS = [
   { name: 'front', go: [] },
@@ -535,12 +796,21 @@ const STATES = {
   'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: nestedScrollFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
-  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
+  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },
+  'journal-empty': { setup: openJournalWith('empty'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-longest': { setup: openJournalWith('longest'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-wrecks': { setup: openJournalWith('wrecks'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-notes': { setup: openJournalWith('notes'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-past': { setup: openJournalWith('past'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-over-scene': { setup: openJournalOverScene, teardown: closeJournalOverScene, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-kinds': { setup: openBoardKinds({ offerKinds: ['haul', 'procure', 'escort'], heldCount: 2 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-kinds-more': { setup: openBoardKinds({ offerKinds: ['claim', 'search', 'survey'], heldCount: 1 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-full': { setup: openBoardKinds({ offerKinds: ['haul', 'claim', 'survey'], heldCount: 3 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
@@ -556,8 +826,9 @@ const STATES = {
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
-  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
-  'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
+  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
 };
 
 const ONLY = process.env.LAYOUT_STATES?.split(',');

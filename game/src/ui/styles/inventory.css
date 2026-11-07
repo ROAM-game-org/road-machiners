@@ -9,8 +9,7 @@
 /* Header chips: truck, money and load. */
 #ui .town-screen > h3,
 #ui .inventory-screen > h3,
-#ui .character-screen > h3,
-#ui .journal-screen > h3 {
+#ui .character-screen > h3 {
   display: flex;
   align-items: center;
   gap: var(--space-8);

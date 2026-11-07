@@ -165,7 +165,7 @@ describe('journal screen', () => {
   });
 
   const tabButtons = (root: FakeNode) => root.all((n) => n.tag === 'div' && n.has('tabs'))[0]?.children as FakeNode[] | undefined;
-  const rowsOf = (root: FakeNode) => root.all((n) => n.className === 'job');
+  const rowsOf = (root: FakeNode) => root.all((n) => n.has('job'));
   const tagsOf = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => `${x.className} ${x.text()}`);
 
   it('shows an empty journal as its one line, with no tabs', () => {

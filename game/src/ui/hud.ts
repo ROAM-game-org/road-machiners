@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyLabel, narrowMode, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -239,9 +239,19 @@ export class Hud {
     side.style.visibility = this.infoShown() ? "hidden" : "";
     const top = uiSize().layerRect(topRight()).bottom + parseFloat(token("--hud-gap"));
     side.style.top = `${top}px`;
-    side.style.height = `${Math.max(uiSize().layerRect(this.log.root).bottom - top, 0)}px`;
+    side.style.height = `${Math.max(this.sideFloor(side) - top, 0)}px`;
     if (!this.infoShown()) this.coverUnder(uiSize().layerRect(side).bottom);
   };
+
+  private clearOfDock(floor: number, card: HTMLElement): number {
+    if (phoneMode() || narrowMode()) return floor;
+    const reach = Math.max(...[...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")].map((control) => uiSize().layerRect(control).right));
+    return reach > uiSize().layerRect(card).left ? Math.min(floor, uiSize().layerRect(this.top).top - parseFloat(token("--hud-gap"))) : floor;
+  }
+
+  private sideFloor(side: HTMLElement): number {
+    return this.clearOfDock(uiSize().layerRect(this.log.root).bottom, side);
+  }
 
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
@@ -249,7 +259,7 @@ export class Hud {
     const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
-    const floor = this.floorOfInfo() - gap - top;
+    const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
     const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
     this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
@@ -259,6 +269,18 @@ export class Hud {
     this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
   };
+
+  private placeQueued = false;
+
+  private placeSoon(): void {
+    if (this.placeQueued) return;
+    this.placeQueued = true;
+    requestAnimationFrame(() => {
+      this.placeQueued = false;
+      this.placeInfo();
+      this.placeSide();
+    });
+  }
 
   private drawerMoved(): void {
     requestAnimationFrame(this.placeInfo);
@@ -302,7 +324,7 @@ export class Hud {
       return;
     }
     if (wider > 0) this.info.style.width = `${width}px`;
-    const tallest = uiSize().layerRect(this.log.root).bottom - top;
+    const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
@@ -312,7 +334,7 @@ export class Hud {
     const lists = this.infoColumn.querySelector<HTMLElement>(".hitcard");
     const over = lists ? lists.scrollHeight - lists.clientHeight : 0;
     if (over <= 0) return;
-    const tallest = uiSize().layerRect(this.log.root).bottom - top;
+    const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${Math.min(tallest, this.info.offsetHeight + over)}px`;
   }
 
@@ -345,9 +367,9 @@ export class Hud {
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
-    new ResizeObserver(this.placeInfo).observe(rightDock());
-    new ResizeObserver(() => this.placeSide()).observe(rightDock());
-    new ResizeObserver(this.placeInfo).observe(this.inspectedDraw);
+    const placeSoon = new ResizeObserver(() => this.placeSoon());
+    placeSoon.observe(rightDock());
+    placeSoon.observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
     window.addEventListener("resize", () => this.placeSide());
     this.toastBox.style.display = "none";

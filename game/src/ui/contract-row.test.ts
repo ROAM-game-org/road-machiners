@@ -120,13 +120,14 @@ describe("one row form for every kind", () => {
     { ...base, id: "v", kind: "survey", points: [{ site: SURVEY_SITES_FILE.sites[0]!.id, found: false, done: false }] },
   ];
 
-  it("gives an offer row of icon, title, need, time, pay and action, with the pay in its own cell", () => {
+  it("gives an offer row of icon, title, a meta row of time and pay, and action", () => {
     const { w, client } = trader();
     for (const c of kinds(client)) {
       const row = offerRow(w, c, new FakeNode("button") as unknown as HTMLElement, null) as unknown as FakeNode;
-      expect(row.children, c.id).toHaveLength(6);
-      expect(row.children[4]!.textContent, c.id).toContain("7");
-      expect(row.children[5]!.tag, c.id).toBe("button");
+      expect(row.children, c.id).toHaveLength(4);
+      const meta = row.children[2]!;
+      expect(meta.children.at(-1)!.textContent, c.id).toContain("7");
+      expect(row.children[3]!.tag, c.id).toBe("button");
     }
   });
 

@@ -1252,7 +1252,7 @@
 }
 .board {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--inv-side-width);
+  grid-template-columns: minmax(0, 1fr) var(--board-held-width);
   gap: var(--space-6);
   align-items: start;
 }
@@ -1262,10 +1262,60 @@
   gap: var(--space-3);
 }
 .board-offers .jobs {
-  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
+}
+.board-offers .job.offer {
+  grid-template-areas:
+    "icon what action"
+    "icon meta action";
+  row-gap: var(--space-2);
+}
+.board-offers .job.offer > .icon {
+  grid-area: icon;
+}
+.board-offers .job.offer > .job-what {
+  grid-area: what;
+}
+.board-offers .job.offer > .job-meta {
+  grid-area: meta;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+}
+.board-offers .job.offer > :last-child {
+  grid-area: action;
+}
+.board-held {
+  gap: var(--space-3);
 }
 .board-held .jobs {
-  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
+}
+:is(.board-held, .journal-screen) .job.held {
+  grid-template-areas:
+    "icon what what"
+    "icon meta action";
+  row-gap: var(--space-2);
+}
+:is(.board-held, .journal-screen) .job.held > .icon {
+  grid-area: icon;
+}
+:is(.board-held, .journal-screen) .job.held > .job-what {
+  grid-area: what;
+}
+:is(.board-held, .journal-screen) .job.held > .job-meta {
+  grid-area: meta;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+}
+.board-held .job.held > :last-child {
+  grid-area: action;
+}
+.job-meta :is(.price, .need) {
+  white-space: nowrap;
 }
 .job-meta {
   display: flex;

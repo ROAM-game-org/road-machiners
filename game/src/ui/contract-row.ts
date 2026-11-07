@@ -48,7 +48,8 @@ function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted:
 }
 
 export function heldContractRow(w: World, c: Contract): HTMLElement {
-  return el("div", { class: "job" }, CONTRACT_ICON[c.kind](), el("span", {}, titleEl(c, dockSummary(c)), ...(c.kind === "survey" ? [SPACE, threatTag(surveyThreat(w, c), GROUND_WORDS)] : []), claimRivalMark(w, c)), payEl(w, c), heldClock(w, c), null);
+  const title = el("span", {}, titleEl(c, dockSummary(c)), ...(c.kind === "survey" ? [SPACE, threatTag(surveyThreat(w, c), GROUND_WORDS)] : []), claimRivalMark(w, c));
+  return el("div", { class: "job held" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, title), el("div", { class: "job-meta" }, heldClock(w, c), payEl(w, c)));
 }
 
 function payEl(w: World, c: Contract): HTMLElement {
@@ -78,7 +79,7 @@ function titleEl(c: Contract, summary: Msg, title?: Msg, tagged = true): HTMLEle
 }
 
 export function offerRow(w: World, c: Contract, accept: HTMLElement, need: HTMLElement | null): HTMLElement {
-  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c), undefined, false), offerCaption(w, c)), need ?? el("span", {}), postedClock(w, c), payEl(w, c), accept);
+  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c), undefined, false), offerCaption(w, c)), el("div", { class: "job-meta" }, ...(need ? [need] : []), postedClock(w, c), payEl(w, c)), accept);
 }
 
 export function boardHeldRow(w: World, c: Contract, action: HTMLElement): HTMLElement {

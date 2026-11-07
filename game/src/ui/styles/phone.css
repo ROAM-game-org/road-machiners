@@ -261,7 +261,7 @@
   padding: var(--space-7);
   overflow: auto;
 }
-#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 {
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen) > h3 {
   flex-wrap: wrap;
   row-gap: var(--space-3);
   column-gap: var(--space-4);
@@ -271,7 +271,7 @@
 #ui.phone .character-screen > h3 {
   padding-right: calc(var(--space-10) * 3);
 }
-#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 > .chips {
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen) > h3 > .chips {
   flex-basis: 100%;
   order: 2;
   line-height: normal;
