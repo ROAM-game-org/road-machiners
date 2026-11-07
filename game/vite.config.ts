@@ -12,16 +12,21 @@ function envText(name: string): string {
   return JSON.stringify(process.env[name] ?? '')
 }
 
-const MATRIX4_LITERAL = /(class Matrix4 \{[\s\S]*?this\.elements = )\[(\s*1, 0, 0, 0,\s*0, 1, 0, 0,\s*0, 0, 1, 0,\s*0, 0, 0, 1\s*)\];/
+const TYPED_MATRICES = [
+  { file: 'three/build/three.core.js', from: /(class Matrix3 \{[\s\S]*?this\.elements = )\[(\s*1, 0, 0,\s*0, 1, 0,\s*0, 0, 1\s*)\];/, to: '$1new Float64Array( [$2] );' },
+  { file: 'three/build/three.core.js', from: /(class Matrix4 \{[\s\S]*?this\.elements = )\[(\s*1, 0, 0, 0,\s*0, 1, 0, 0,\s*0, 0, 1, 0,\s*0, 0, 0, 1\s*)\];/, to: '$1new Float64Array( [$2] );' },
+  { file: 'three/build/three.module.js', from: /_m0\.elements\.map\( \( v \) => v\.toFixed\( 4 \) \)/, to: 'Array.from( _m0.elements, ( v ) => v.toFixed( 4 ) )' },
+]
 
 function typedMatrices(): Plugin {
   return {
     name: 'typed-matrices',
     enforce: 'pre',
     transform(code, id) {
-      if (!id.includes('three/build/three.core.js')) return null
-      if (!MATRIX4_LITERAL.test(code)) throw new Error('three no longer builds Matrix4 elements from the expected list')
-      return { code: code.replace(MATRIX4_LITERAL, '$1new Float64Array( [$2] );'), map: null }
+      const edits = TYPED_MATRICES.filter((edit) => id.includes(edit.file))
+      if (edits.length === 0) return null
+      for (const edit of edits) if (!edit.from.test(code)) throw new Error(`three no longer has ${edit.from} in ${edit.file}`)
+      return { code: edits.reduce((text, edit) => text.replace(edit.from, edit.to), code), map: null }
     },
   }
 }
