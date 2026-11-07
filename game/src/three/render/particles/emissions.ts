@@ -24,7 +24,7 @@ export const EMISSION_LOOK = {
   missile: { life: 1.9, size: { from: 0.25, to: 1.25 }, colors: [0xb4aea4, 0x8a8278], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.6, gravity: -0.15, streak: 0, form: 'cloud' },
   missileJet: { side: 0.5, up: { min: 0.2, spread: 0.3 }, keep: 0.6 },
   nozzle: { life: 0.13, size: { from: 0.55, to: 0.2 }, colors: [0xffe0a0, 0xff8a30], alpha: { peak: 0.9, fadeIn: 0.15 }, drag: 0, gravity: 0, streak: 0, form: 'round' },
-  dust: { life: 0.9, size: { from: 0.4, to: 1.3 }, colors: [0xd8c098, 0xe4d2b0], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.2, gravity: -0.2, streak: 0, form: 'cloud' },
+  dust: { life: 0.9, size: { from: 0.4, to: 1.3 }, colors: [0xd8c098, 0xe4d2b0], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.2, gravity: -0.2, streak: 0, form: 'clump' },
   dustJet: { side: 1.2, up: { max: 0.6 } },
 } as const;
 

@@ -122,13 +122,24 @@ const MAX_CHUNKS = 600;
 
 const SPRAY = {
   surfacePower: 2.5,
-  dust: { perMeter: 6, groundShare: 0.45, life: 2.6, size: { from: 0.5, to: 3.8 }, alpha: { peak: 0.55, fadeIn: 0.1 }, drag: 1.8, gravity: -0.4 },
-  haze: { perMeter: 0.35, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.3, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
+  dust: { perMeter: 6, minPerMeter: 2, groundShare: 0.45, life: 2.6, size: { from: 0.5, to: 2.6 }, alpha: { peak: 0.55, fadeIn: 0.1 }, drag: 1.8, gravity: -0.4 },
+  haze: { perMeter: 0.35, minPerMeter: 0.12, life: 12, size: { from: 1.5, to: 4 }, alpha: { peak: 0.3, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
   clods: { perMeter: 1.4, minMetersPerSecond: 2.5, back: { min: 0.15, spread: 0.3 }, up: { min: 1.2, spread: 2.6 }, aside: 1.4, lift: 0.15, size: { min: 0.1, spread: 0.2 }, life: 1.6, shade: 0.72 },
 } as const;
 
 export function sprayShare(ground: TerrainType): number {
   return ground.dust ** SPRAY.surfacePower;
+}
+
+type SprayCloud = { perMeter: number; minPerMeter: number; life: number; size: { from: number; to: number }; alpha: { peak: number; fadeIn: number }; drag: number; gravity: number };
+
+export function sprayPuffsPerMeter(spray: SprayCloud, ground: TerrainType): number {
+  return Math.max(spray.perMeter * sprayShare(ground), spray.minPerMeter);
+}
+
+export function sprayLook(spray: SprayCloud, ground: TerrainType, colors: number[]): ParticleLook {
+  const fill = (spray.perMeter * sprayShare(ground)) / spray.minPerMeter;
+  return { life: spray.life, size: spray.size, colors, alpha: { ...spray.alpha, peak: spray.alpha.peak * Math.min(1, fill) }, drag: spray.drag, gravity: spray.gravity, streak: 0, form: fill < 1 ? 'cloud' : 'clump' };
 }
 
 export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLight };
@@ -293,13 +304,12 @@ export class Fx3D {
     let look = this.sprayLooks.get(ground);
     if (!look) {
       const d = SPRAY.dust;
-      const h = SPRAY.haze;
       const tint = new THREE.Color(DUST.color).lerp(new THREE.Color(ground.color), d.groundShare);
       const pale = tint.clone().lerp(new THREE.Color(0xffffff), 0.15);
       const colors = [tint.getHex(), pale.getHex()];
       look = {
-        dust: { life: d.life, size: d.size, colors, alpha: d.alpha, drag: d.drag, gravity: d.gravity, streak: 0, form: 'cloud' },
-        haze: { life: h.life, size: h.size, colors, alpha: h.alpha, drag: h.drag, gravity: h.gravity, streak: 0, form: 'cloud' },
+        dust: sprayLook(d, ground, colors),
+        haze: sprayLook(SPRAY.haze, ground, colors),
         clod: new THREE.Color(ground.color).multiplyScalar(SPRAY.clods.shade),
       };
       this.sprayLooks.set(ground, look);
@@ -402,13 +412,15 @@ export class TruckFx {
   private world: World | null = null;
   private traits = new Map<string, Traits>();
   private douseLeft = 0;
+  private readonly lastShown = new Map<string, { x: number; z: number }>();
 
   constructor(private fx: Fx3D) {}
 
   emit(world: World, v: Vehicle, f: VehicleFrame, moving: boolean, dt: number, seen: boolean): void {
     const traits = this.traitsOf(world, v);
     const pose: Pose = { f, h: headingOf(f.rot), half: frontBody(v.chassisId).half };
-    if (moving) this.driving(world, v, pose, traits, seen, dt);
+    const rolling = this.atShownSpeed(v, f, traits.maxSpeed, dt);
+    if (moving) this.driving(world, rolling, pose, traits, seen, dt);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
       this.steam(world.player.engineHeat, pose, dt);
@@ -416,6 +428,14 @@ export class TruckFx {
     }
     if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(onBody(pose, 0.5, 1, 0), motionOf(v, pose.h, moving)));
     else if (traits.hurt) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(f.pos, traits.damage));
+  }
+
+  private atShownSpeed(v: Vehicle, f: VehicleFrame, maxSpeed: number, dt: number): Vehicle {
+    const last = this.lastShown.get(v.id);
+    this.lastShown.set(v.id, { x: f.pos.x, z: f.pos.z });
+    if (!last || dt <= 0) return v;
+    const shown = Math.hypot(f.pos.x - last.x, f.pos.z - last.z) / dt / PHYSICS.metersPerTile;
+    return shown > v.speed && shown <= maxSpeed ? { ...v, speed: shown } : v;
   }
 
   private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number): void {
@@ -461,7 +481,7 @@ export class TruckFx {
     const ground = TERRAIN_TYPES[world.terrain.types[tileAt(world.terrain, v.pos)]];
     const metersPerSecond = v.speed * PHYSICS.metersPerTile;
     const loose = sprayShare(ground);
-    const rate = SPRAY.dust.perMeter * metersPerSecond * loose;
+    const rate = sprayPuffsPerMeter(SPRAY.dust, ground) * metersPerSecond;
     const clodRate = metersPerSecond > SPRAY.clods.minMetersPerSecond ? SPRAY.clods.perMeter * metersPerSecond * loose : 0;
     const mounts = unitsOf(v.chassisId).flatMap((u) => wheelMounts(u.body, u.index));
     for (const [i, tire] of tires.entries()) {
@@ -471,7 +491,7 @@ export class TruckFx {
       this.puffs(rate * front, dt, () => this.fx.wheelDust(tire, back, out, ground));
       this.puffs(clodRate * front, dt, () => this.fx.clod(tire, back, out, metersPerSecond, ground));
     }
-    const hazeRate = SPRAY.haze.perMeter * metersPerSecond * loose;
+    const hazeRate = sprayPuffsPerMeter(SPRAY.haze, ground) * metersPerSecond;
     const [left, right] = tires.slice(-2);
     const rear = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, z: (left.z + right.z) / 2 };
     this.puffs(hazeRate, dt, () => this.fx.dustHaze(rear, back, ground));
