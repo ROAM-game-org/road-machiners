@@ -62,11 +62,17 @@ describe('combat harness', () => {
     expect(r.a.speed).toBeGreaterThan(0);
   });
 
-  it('names the courier side when it flees a stronger truck', () => {
-    forceOption('truceOffered', 'refuse');
-    forceOption('mercyBegged', 'finish');
-    const r = firstFight(SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier:courier@poor@courier#2'), seed, maxTurns: 40 }), (f) => f.outcome === 'b fled' || f.outcome === 'a fled', 'a flight');
-    expect(r.outcome).toBe('b fled');
+  describe('names the courier side when it flees a stronger truck', () => {
+    const outcomes: string[] = [];
+    it.each(SEEDS)('plays seed %i', (seed) => {
+      forceOption('truceOffered', 'refuse');
+      forceOption('mercyBegged', 'finish');
+      outcomes.push(runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier:courier@poor@courier#2'), seed, maxTurns: 40 }).outcome);
+    });
+
+    it('sees the courier flee before the other side does', () => {
+      expect(outcomes.find((outcome) => outcome === 'a fled' || outcome === 'b fled')).toBe('b fled');
+    });
   });
 
   it('fights to a knockout inside the arena rather than stopping at a truce', () => {

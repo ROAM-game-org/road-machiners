@@ -151,17 +151,36 @@ function byPackOrder(a: Piece, b: Piece): number {
   return b.area - a.area || a.shape.localeCompare(b.shape) || a.spots.length - b.spots.length || a.item.part.defId.localeCompare(b.item.part.defId);
 }
 
+function hasFreeSpot<T>(run: Run<T>, piece: Piece): boolean {
+  const { taken } = run;
+  for (let k = 0; k < piece.spots.length; k++) {
+    const cells = piece.spots[k].cells;
+    let free = true;
+    for (let j = 0; j < cells.length; j++) {
+      if (taken[cells[j]] === 1) {
+        free = false;
+        break;
+      }
+    }
+    if (free) return true;
+  }
+  return false;
+}
+
 function roomFor<T>(run: Run<T>, from: number): boolean {
+  const { taken, seen } = run;
   const stamp = ++run.stamp;
   let reached = 0;
   let need = 0;
   for (let i = from; i < run.pieces.length; i++) {
     const piece = run.pieces[i];
-    if (!piece.spots.some((s) => s.cells.every((c) => run.taken[c] !== 1))) return false;
+    if (!hasFreeSpot(run, piece)) return false;
     need += piece.area;
-    for (const c of piece.reach) {
-      if (run.taken[c] === 1 || run.seen[c] === stamp) continue;
-      run.seen[c] = stamp;
+    const { reach } = piece;
+    for (let k = 0; k < reach.length; k++) {
+      const c = reach[k];
+      if (taken[c] === 1 || seen[c] === stamp) continue;
+      seen[c] = stamp;
       reached++;
     }
   }
