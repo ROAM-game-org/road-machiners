@@ -29,5 +29,5 @@ export default defineConfig(({ command }) => ({
     __ERROR_REPORT_BUILD__: envText('ERROR_REPORT_BUILD'),
     __FEEDBACK_URL__: envText('FEEDBACK_URL'),
   },
-  build: { sourcemap: 'hidden' },
+  build: { sourcemap: 'hidden', minify: false },
 }))
