@@ -52,9 +52,9 @@ export const TERRAIN_TYPES: Record<TerrainTypeId, TerrainType> = {
   field: { id: "field", speed: 0.8, wear: 1.1, dust: 0.6, grip: 1, sideGrip: 1, color: 0x8e6e4a, craters: true, rut: 0.8, paved: false },
   dirtyWater: { id: "dirtyWater", speed: 0.45, wear: 1.5, dust: 0.05, grip: 1, sideGrip: 0.5, color: 0x55583a, craters: false, rut: 0, paved: false },
   toxic: { id: "toxic", speed: 0.45, wear: 1.8, dust: 0.4, grip: 1, sideGrip: 0.5, color: 0x9aa83c, craters: false, rut: 0, paved: false },
-  track: { id: "track", speed: 0.9, wear: 1, dust: 0.9, grip: 1, sideGrip: 1, color: 0xa88458, craters: true, rut: 0, paved: true },
+  track: { id: "track", speed: 0.9, wear: 1, dust: 1, grip: 1, sideGrip: 1, color: 0xa88458, craters: true, rut: 0, paved: true },
   canal: { id: "canal", speed: 0.45, wear: 1.5, dust: 0.05, grip: 1, sideGrip: 1, color: 0x5f6f7a, craters: false, rut: 0, paved: false },
-  concrete: { id: "concrete", speed: 0.98, wear: 0.6, dust: 0.2, grip: 1, sideGrip: 1, color: 0xa39e94, craters: true, rut: 0, paved: true },
+  concrete: { id: "concrete", speed: 0.98, wear: 0.6, dust: 0.25, grip: 1, sideGrip: 1, color: 0xa39e94, craters: true, rut: 0, paved: true },
   glass: { id: "glass", speed: 0.95, wear: 0.8, dust: 0.15, grip: 0.2, sideGrip: 0.15, color: 0x86ada3, craters: true, rut: 0.1, paved: false },
   blackMud: { id: "blackMud", speed: 0.4, wear: 1.6, dust: 0.4, grip: 1, sideGrip: 0.45, color: 0x2f2a25, craters: true, rut: 1, paved: false },
 };
