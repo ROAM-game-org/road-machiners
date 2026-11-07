@@ -2,23 +2,17 @@ import { chassisDef, type ChassisAbility } from "../data/chassis";
 import { partDef } from "../data/parts";
 import { chassisAbility } from "../sim/chassis-features";
 import { isMounted } from "../sim/grid";
-import { loadMass } from "../sim/mass";
+import { itemMass, loadMass } from "../sim/mass";
 import { driveStats, fuelCap, gunDraw, maxSpeedSteps, suppliesCap, workingEngineCapacity } from "../sim/stats";
 import type { GridItem, Vehicle, World } from "../sim/types";
 import { num, t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName } from "../text/names";
 import { gaugeEl, meterRow, statRow, statValueEl, type IconName } from "./cards";
 import { el } from "./dom";
-import { CRATE_MASS, PARCEL } from "../data/goods";
 import { getHudReadout, powerChip, type TipLine } from "./hud-readout";
 import { fuelLiters, kph, mps2 } from "./units";
 
 const DEG = Math.PI / 180;
-
-function massOf(item: GridItem): number {
-  if (item.kind === "part") return partDef(item.part.defId).mass;
-  return item.kind === "parcel" ? PARCEL.mass : CRATE_MASS;
-}
 
 function drawOf(item: GridItem | null): number | null {
   if (item?.kind !== "part") return null;
@@ -29,7 +23,7 @@ function drawOf(item: GridItem | null): number | null {
 function loadRow(me: Vehicle, picked: GridItem | null): HTMLElement {
   const mass = loadMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
-  const part = picked && me.items.some((it) => it.id === picked.id) ? massOf(picked) : null;
+  const part = picked && me.items.some((it) => it.id === picked.id) ? itemMass(picked) : null;
   const share = part === null ? null : { left: (mass - part) / rated, width: part / rated };
   const value = statValueEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), mass > rated ? "bad" : "");
   return meterRow(statRow("mass", t("inv.load"), value, t("inv.loadTitle")), gaugeEl(mass / rated, { share }));

@@ -1,4 +1,3 @@
-import { CRATE_MASS, PARCEL } from "../data/goods";
 import { isShield, partDef } from "../data/parts";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
@@ -6,6 +5,7 @@ import { atGarage } from "../sim/garage";
 import type { Spot } from "../sim/grid";
 import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, plannedRefit, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
 import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
+import { itemMass } from "../sim/mass";
 import { outpostRepairPart } from "../sim/outposts";
 import { vehicleHasPerk } from "../sim/progress";
 import { repairPlan } from "../sim/repair";
@@ -205,7 +205,7 @@ export function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: 
 
 export function itemFacts(w: World, me: Vehicle, item: GridItem, mounted: boolean): HTMLElement[] {
   if (item.kind === "part") return partDetails(w, me, item.part, mounted);
-  return [statGrid(diffStats([massStat(item.kind === "parcel" ? PARCEL.mass : CRATE_MASS)], null))];
+  return [statGrid(diffStats([massStat(itemMass(item))], null))];
 }
 
 function queuedSteps(w: World, me: Vehicle): HTMLElement[] {
