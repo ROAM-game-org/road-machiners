@@ -840,6 +840,7 @@ export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'goodsStore', step: withGoodsStore },
   { name: 'withProjectileFlights', step: withProjectileFlights },
   { name: 'withConvoyRumor', step: withConvoyRumor },
+  { name: 'withSpokenRadio', step: (world) => world },
 ];
 
 export const RELEASE_STEPS: readonly ReleaseStep[] = [
