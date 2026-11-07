@@ -799,7 +799,7 @@ async function openBoardTaken(page) {
   await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
 }
 
-const restoreWorld = (close) => async (page) => {
+const closeThenRestoreWorld = (close) => async (page) => {
   await close(page);
   await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
 };
@@ -875,7 +875,7 @@ const STATES = {
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
-  'board-taken': { setup: openBoardTaken, teardown: restoreWorld(closeTown), viewports: ONE_WINDOW },
+  'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
 };
 
