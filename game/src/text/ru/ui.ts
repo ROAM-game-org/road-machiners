@@ -275,6 +275,7 @@ export const UI: Translation<typeof EN> = {
   'weapon.hitChanceOn': 'Шанс попасть: {target, case, acc}',
   'weapon.reloadHint': 'Сбросить магазин и снарядить заново за {n, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}',
   'character.xpPool': '{n} опыта',
+  'character.buyShort': 'Купить за {cost} опыта',
   'character.colPerk': 'Навык {rank} ранга',
   'character.colBasic': 'Прием {rank} ранга',
   'character.colToday': 'С {time}, до {cap} опыта',

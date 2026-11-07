@@ -551,7 +551,7 @@ export class InventoryView {
     const cost = partRepairCost(w, part);
     if (cost === 0) return null;
     const short = w.player.money < cost;
-    return pricedEl(priceTag(cost, !short), el(
+    return el(
       "button",
       {
         class: "inv-patch",
@@ -561,8 +561,8 @@ export class InventoryView {
           this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
         ),
       },
-      t(`inv.verb.${action}`),
-    ));
+      pricedEl(t(`inv.verb.${action}`), priceTag(cost, !short)),
+    );
   }
 
   private stripButton(

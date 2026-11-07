@@ -6,7 +6,6 @@ import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl,
 import type { Msg } from "../text/msg";
 import { el } from "./dom";
 import { conditionStatus, conditionTier } from "./cards";
-import { moneyEl } from "./units";
 import { SPENT_DROP, type RowSlots } from "./row-slots";
 import { uiSize } from "./ui-size";
 
@@ -14,8 +13,6 @@ export type PartRow = {
   world: World;
   part: PartInstance;
   base: PartInstance | null;
-  price: number;
-  payable: boolean;
   action: HTMLElement;
   done: Msg;
   onHover: (on: boolean) => void;
@@ -80,7 +77,7 @@ export class PartRows {
     const li = el(
       "li",
       { class: `part-row tile toned k-${partDef(r.part.defId).kind}${isOpen ? " on" : ""}`, style: toneStyle(r.part.defId), "data-part-row": id },
-      el("div", { class: "part-line" }, head, el("span", { class: `price${r.payable ? "" : " bad"}` }, moneyEl(r.price)), r.action),
+      el("div", { class: "part-line" }, head, r.action),
       isOpen ? el("div", { class: "part-detail", id: detailId, [SPENT_DROP]: "" }, ...partDetail(r.world, r.part, r.base)) : null,
     );
     li.addEventListener("mouseenter", () => r.onHover(true));

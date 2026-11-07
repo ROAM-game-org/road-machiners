@@ -23,7 +23,7 @@ export type ShopCommand = (w: World) => World;
 
 export type ShopButtons = {
   button(label: Msg, cmd: ShopCommand, reason?: Msg | null, key?: string, title?: Msg | null): HTMLElement;
-  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason?: Msg | null, key?: string): HTMLElement;
+  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason?: Msg | null, key?: string, title?: Msg | null): HTMLElement;
 };
 
 export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }, truck: Vehicle = playerVehicle(w)): HTMLElement {
@@ -53,13 +53,11 @@ export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
   const amount = (n: number) => supplyAmount(k, n);
   const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
   return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, [
-    pricedEl(chargeEl(supplyCharge(k, 1), w.player.money), buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason)),
-    pricedEl(chargeEl(supplyCharge(k, afford), w.player.money), buttons.button(t("trade.fillBare"), (x) => buy(x, k, afford), reason, "", afford > 0 ? t("trade.fill", { amount: amount(afford) }) : null)),
+    buttons.priceButton(w, t("trade.plusAmount", { amount: amount(1) }), supplyCharge(k, 1), (x) => buy(x, k, 1), reason),
+    afford > 0
+      ? buttons.priceButton(w, t("trade.fillBare"), supplyCharge(k, afford), (x) => buy(x, k, afford), reason, "", t("trade.fill", { amount: amount(afford) }))
+      : buttons.button(t("trade.fillBare"), (x) => x, reason),
   ], limit.tag);
-}
-
-export function chargeEl(charge: number, money: number): HTMLElement {
-  return charge > 0 ? priceTag(charge, money >= charge) : el("span", { class: "price" });
 }
 
 export type PriceHint = { tone: "good" | "bad" | ""; title: Msg };
@@ -95,6 +93,15 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
 
 export function reasonAttrs(reason: Msg | null, title: Msg | null): Record<string, Msg | string | undefined> {
   return { class: "btn-s", "aria-disabled": reason ? "true" : undefined, title: reason ?? title ?? undefined };
+}
+
+export function buyButton(money: number, verb: Msg, price: number, click: () => void, reason: Msg | null = null, key = "", title: Msg | null = null): HTMLElement {
+  const short = shortBy(money, price);
+  return reasonButton([pricedEl(verb, priceTag(price, short === null))], click, reason ?? short, key, title);
+}
+
+export function sellButton(verb: Msg, price: number, click: () => void, reason: Msg | null = null): HTMLElement {
+  return reasonButton([pricedEl(verb, priceTag(price, true))], click, reason);
 }
 
 export function reasonButton(label: Child[], click: () => void, reason: Msg | null, key = "", title: Msg | null = null): HTMLElement {
@@ -249,7 +256,7 @@ function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer):
   const cost = chassisPrice(w, id);
   const price = cost < 0 ? el("span", { class: "price good" }, PLUS, moneyEl(-cost)) : priceTag(cost, offer.reason === null);
   const title = offer.reason ? null : t("trade.includesTradeIn", { price: moneyMsg(chassisTradeIn(w)) });
-  return pricedEl(price, reasonButton([t("trade.swapVerb")], offer.swap, offer.reason, "", title));
+  return reasonButton([pricedEl(t("trade.swapVerb"), price)], offer.swap, offer.reason, "", title);
 }
 
 type DeskCommand = (cmd: (w: World) => World) => void;
@@ -262,7 +269,7 @@ export function deskBody(w: World, run: DeskCommand, slots: RowSlots): HTMLEleme
     slots.actOn("cases", ids);
     run((x) => payAtDesk(x, ids));
   };
-  const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, pricedEl(priceTag(rows.owed, w.player.money >= rows.owed), payButton(w, t("desk.payAll"), rows.owed, payAllCommand))) : null;
+  const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, payButton(w, t("desk.payAll"), rows.owed, priceTag(rows.owed, w.player.money >= rows.owed), payAllCommand)) : null;
   const settles = slots.place("settles", rows.settlements.map((q) => settleRow(w, q, run)));
   return el(
     "div",
@@ -276,26 +283,26 @@ export function deskBody(w: World, run: DeskCommand, slots: RowSlots): HTMLEleme
 function caseRow(w: World, c: CrimeCase, run: DeskCommand): SlotRow {
   const victim = caseVictimName(w, c);
   const price = caseOwed(c);
-  const pay = payButton(w, t("desk.pay"), price, () => run((x) => payAtDesk(x, [c.id])));
+  const pay = payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id])));
   const row = el(
     "div",
     { class: "row desk-case" },
     el("span", {}, t(`desk.case.${c.offense}`, { victim })),
     el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
-    casePay(pricedEl(casePrice(c, w.player.money >= price), pay), c),
+    casePay(pay, c),
   );
   return { id: c.id, row, action: pay, done: t("trade.done.paid") };
 }
 
-function payButton(w: World, verb: Msg, price: number, click: () => void): HTMLElement {
-  return reasonButton([verb], click, shortBy(w.player.money, price));
+function payButton(w: World, verb: Msg, price: number, shown: HTMLElement, click: () => void): HTMLElement {
+  return reasonButton([pricedEl(verb, shown)], click, shortBy(w.player.money, price));
 }
 
 function settleRow(w: World, q: SettlementQuote, run: DeskCommand): SlotRow {
   const short = shortBy(w.player.money, q.price);
   const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
-  const settle = reasonButton([t("desk.settle")], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
-  const row = el("div", { class: "row desk-settle" }, el("span", {}, factionName(q.faction)), el("span", { class: "tag bad" }, t("band.hostile")), pricedEl(priceTag(q.price, short === null), settle));
+  const settle = reasonButton([pricedEl(t("desk.settle"), priceTag(q.price, short === null))], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
+  const row = el("div", { class: "row desk-settle" }, el("span", {}, factionName(q.faction)), el("span", { class: "tag bad" }, t("band.hostile")), settle);
   return { id: q.faction, row, action: settle, done: t("trade.done.settled") };
 }
 
@@ -311,8 +318,8 @@ export function casePrice(c: CrimeCase, payable: boolean): HTMLElement {
   return el("span", { class: `price case-price${payable ? "" : " bad"}` }, moneyEl(caseOwed(c)));
 }
 
-function casePay(priced: HTMLElement, c: CrimeCase): HTMLElement {
-  return c.restitution === 0 ? priced : el("span", { class: "case-pay" }, priced, casePriceTip(c));
+function casePay(button: HTMLElement, c: CrimeCase): HTMLElement {
+  return c.restitution === 0 ? button : el("span", { class: "case-pay" }, button, casePriceTip(c));
 }
 
 export function casePriceTip(c: CrimeCase): HTMLElement {

@@ -7,7 +7,7 @@ import { chipEl } from './chip';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
 import { clock, standingNum, standingStep } from './format';
-import { hp, pricedEl } from './units';
+import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
 import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName, standingDeedName } from '../text/names';
@@ -125,10 +125,10 @@ export class CharacterScreen {
     if (rank >= MAX_RANK) return el('span', { class: 'skill-buy dim' }, t('character.maxRank'));
     const blocked = canBuyRank(world, skill);
     const next = { rank: rank + 1, cost: rankCost(rank + 1) };
-    return pricedEl(el('span', { class: blocked ? 'price bad' : 'price' }, t('character.xpPool', { n: next.cost })), el('button', {
+    return el('button', {
       class: 'btn-s skill-buy buy-rank',
       ...disabledWith(lookReason(world) ?? (blocked ? refusalText(world, blocked) : null), () => this.host.announce(buyRank(this.host.world(), skill))),
-    }, t('goods.buy')));
+    }, t('character.buyShort', { cost: next.cost }));
   }
 
   private perkCell(world: World, pair: PerkPair, isOpen: boolean, level: number): HTMLElement {

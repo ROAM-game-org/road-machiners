@@ -553,16 +553,14 @@
 }
 .part-line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--col-profit) var(--col-name);
+  grid-template-columns: minmax(0, 1fr) 15ch;
   align-items: center;
   gap: var(--space-4);
   padding-right: var(--space-4);
 }
-.part-line > .price {
-  justify-content: flex-end;
-  white-space: nowrap;
+.part-line > button:not(.part-sum) {
+  justify-self: stretch;
 }
-.part-line > button,
 .part-line > .tag {
   justify-self: end;
 }
@@ -644,16 +642,13 @@
 }
 @container (max-width: 440px) {
   .part-line {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 15ch;
     grid-template-areas:
-      "sum sum sum"
-      ". price action";
+      "sum sum"
+      ". action";
   }
   .part-line > .part-sum {
     grid-area: sum;
-  }
-  .part-line > .price {
-    grid-area: price;
   }
   .part-line > button:not(.part-sum),
   .part-line > .tag {
@@ -1004,21 +999,15 @@
 .priced {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
 }
 .priced > .price {
-  justify-content: flex-end;
   min-width: 0;
 }
-.supply-buy > .priced > .price {
-  min-width: var(--icon-3xl);
-}
-.supply-buy > .priced > button {
-  min-width: 8ch;
-  justify-content: center;
-}
-.supply-buy > .priced + .priced {
-  margin-left: var(--space-5);
+.supply-buy > button {
+  min-width: 13ch;
 }
 .good-name.supply {
   min-width: 0;

@@ -17,8 +17,7 @@ import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { caption, keepFocus, priceEl, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
-import { pricedEl, priceTag } from "./units";
+import { buyButton, caption, keepFocus, priceEl, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
 const OUTPOST_TABS = ["market", "buyParts", "trucks"] as const satisfies readonly Tab[];
@@ -87,9 +86,8 @@ export class OutpostScreen {
     return reasonButton([label], () => this.run(cmd), reason, key, title);
   }
 
-  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = ""): HTMLElement {
-    const short = shortBy(w.player.money, price);
-    return pricedEl(priceTag(price, short === null), reasonButton([verb], () => this.run(cmd), reason ?? short, key));
+  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = "", title: Msg | null = null): HTMLElement {
+    return buyButton(w.player.money, verb, price, () => this.run(cmd), reason, key, title);
   }
 
   private draw(): void {
@@ -253,15 +251,12 @@ export class OutpostScreen {
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
     const price = outpostPartPrice(w, p, id);
-    const short = shortBy(w.player.money, price);
     const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
     return {
       world: w,
       part: p,
       base: compareBase(this.inventory.selectedPart(), p),
-      price,
-      payable: short === null,
-      action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
+      action: this.priceButton(w, t("goods.buy"), price, (x) => outpostBuyPart(x, p.id, id), refused),
       done: t("trade.done.bought"),
       onHover: this.hintMounts(p.defId),
     };

@@ -114,8 +114,8 @@ export function priceTag(amount: number, payable: boolean): HTMLElement {
   return el('span', { class: payable ? 'price' : 'price bad' }, moneyEl(amount));
 }
 
-export function pricedEl(price: HTMLElement, button: HTMLElement): HTMLElement {
-  return el('span', { class: 'priced' }, price, button);
+export function pricedEl(action: Msg, price: HTMLElement): HTMLElement {
+  return el('span', { class: 'priced' }, action, price);
 }
 
 export function moneyDelta(amount: number): string {
