@@ -1,6 +1,6 @@
 # Perf rework
 
-Status: executing; perf-gate is done, the fixes below are in with their measured results, and the night play check, the scrub sign-off and far-props are open
+Status: executing; perf-gate is done, the fixes below are in with their measured results, and the night play check, the scrub sign-off, new stored numbers and far-props are open
 
 Branch: perf-rework, from origin/dev 74c51d3b6
 
@@ -84,7 +84,8 @@ Open:
 - Boot is about 14 s in the bench on a fresh profile.
 - A scene run alone with `--scenes` reads faster than in the full run, because the page has not played a fight yet. Compare lone scenes only with lone scenes. `--shots` and `--profile` runs read differently too: `--shots` passes are short, and the night fight reads 3.5 ms faster under tracing for a reason not found.
 - Each frame, three.js `getParameters` costs about 0.6 ms in far town, which means some material asks for its program again every frame. Which one is not known.
-- The town-night passes often disagree by over 10 percent, which makes about half of full runs untrusted. With the frame cap off, that scene has a fast mode with 0 frames over 100 ms and a slow mode with up to 27.
+- The town-night passes sometimes disagree by over 10 percent. At ff9687c29, 1 of 6 full runs was untrusted for it. With the frame cap off, that scene has a fast mode with 0 frames over 100 ms and a slow mode with up to 27.
+- New stored numbers are not landed. At ff9687c29, five trusted runs give drive pass 1 a mean of 16.8 to 20.0 ms and pass 2 a mean of 13.6 to 16.0 ms, so no three runs stay within the 10 percent noise rule. Drive pass 2 already spread from 15.8 to 18.1 ms at 9e1543751, so this branch did not cause it. Against the old stored numbers the same commit passes the gate: fight mean 23.6 of 40.9, drive pass 2 14.5 of 21.7, boot 14.7 s of 16.8 s. The night fight has no stored number yet, so the gate does not judge it.
 
 TDD: yes. Work counts per system, such as draws and lights per pixel, are deterministic and get failing tests first. Times are checked by the bench and the gate.
 
