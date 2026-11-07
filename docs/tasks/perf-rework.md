@@ -60,6 +60,16 @@ Done so far, all with no picture change intended:
 - Shadow maps redraw only when their light or a caster in their view changed, in `shadowRefresh.ts`. This follows PC3. A still frame draws 319 calls in town-night in place of 741.
 - A fight turn is computed ahead once the plan has not changed for 400 ms. A press after a 2 s pause waits 28 to 244 ms in place of 0.7 to 1.2 s. A press right after a turn ends or right after a plan edit still waits 0.7 to 1.3 s.
 - The shown fight world is built once per frame.
+- Beams and flares hold their lights all night, so a truck coming into view recompiles no shaders.
+- The truck condition flash draws on a canvas in place of encoding a masked image on the hit frame.
+- The HUD and weapon panels keep their nodes when a refresh would draw the same thing, floating marks move without layout, and the canvas place is read once at frame start. Layout reads in slow frames fell from 823 ms to 56 ms.
+- World trucks share merged materials by look. Two runs of this code gave the night fight 26 ms and 30 ms per frame, against 31 to 33 ms before, so the size of the gain is not settled. Triangle cuts alone moved nothing measurable: 460,000 fewer triangles left the frame at 33 ms.
+- Beams take turns redrawing their shadow maps, one per frame. The sun still redraws as soon as it changes.
+- Scatter models draw as one merged mesh per chunk.
+- Ground paint, glass field and look types build on a worker that starts before the map loads. A new worker cannot start while the main thread is busy, so a later start made boot slower. Boot went from about 15.3 s to about 12 s.
+
+Picture changes waiting for the user's sign-off:
+- The desert scrub went from 28 four-sided stems to 18 three-sided stems, 336 to 144 triangles. It was half of all triangles in a fight. The change shows at maximum zoom.
 
 Open:
 - The town-night bench shows 55 to 57 stalls over 100 ms with the frame cap off, with a 20 ms GPU time and about 9 ms of render CPU time. Whether a real screen shows them needs the user's play check.

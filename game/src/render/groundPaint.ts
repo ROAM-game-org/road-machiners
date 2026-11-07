@@ -502,10 +502,17 @@ function gaussian(): Float32Array {
 }
 
 function blur(from: Float32Array, to: Float32Array, size: number, along: number, across: number, kernel: Float32Array): void {
-  for (let line = 0; line < size; line++)
+  for (let line = 0; line < size; line++) {
+    if (lineIsEmpty(from, line * across, along, size)) continue;
     for (let i = 0; i < size; i++) {
       let v = 0;
       for (let k = -GLASS_REACH; k <= GLASS_REACH; k++) v += from[line * across + Math.min(Math.max(i + k, 0), size - 1) * along] * kernel[k + GLASS_REACH];
       to[line * across + i * along] = v;
     }
+  }
+}
+
+function lineIsEmpty(from: Float32Array, start: number, along: number, size: number): boolean {
+  for (let i = 0; i < size; i++) if (from[start + i * along] !== 0) return false;
+  return true;
 }
