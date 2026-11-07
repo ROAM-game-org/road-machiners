@@ -630,7 +630,6 @@ export const SCREENS: Translation<typeof EN> = {
   'paint.cab': 'Кабина',
   'paint.gear': 'Обвес',
   'trade.tab.contracts': 'Контракты',
-  'trade.tab.charts': 'Карты',
   'trade.tradeTab.goods': 'Товары',
   'trade.tradeTab.parts': 'Детали',
   'trade.tradeTab.supplies': 'Топливо и припасы',

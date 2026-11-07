@@ -167,6 +167,11 @@ describe("the town page on open", () => {
     expect(townPageOnOpen("garage", closedAt, "bowl", 40)).toBeNull();
   });
 
+  it("opens on the front page when the kept page is not a place of this shop", () => {
+    expect(townPageOnOpen("maps", { shopId: "dustwell", turn: 40 }, "dustwell", 40)).toBeNull();
+    expect(townPageOnOpen("maps", closedAt, "nose", 40)).toBe("maps");
+  });
+
   it("opens on the front page on a first visit", () => {
     expect(townPageOnOpen("garage", null, "nose", 40)).toBeNull();
     expect(townPageOnOpen(null, closedAt, "nose", 40)).toBeNull();

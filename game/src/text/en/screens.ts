@@ -628,7 +628,6 @@ export const SCREENS = {
   'desk.case.embezzled': m('Kept the cargo of {victim}', { victim: 'text' }),
   'desk.filed': m('{issuer}, filed at {site}, {when}', { issuer: 'text', site: 'text', when: 'text' }),
   'desk.empty': 'No case against you and no town at war with you.',
-  'trade.tab.charts': 'Charts',
   'trade.tradeTab.goods': 'Goods',
   'trade.tradeTab.parts': 'Parts',
   'trade.tradeTab.supplies': 'Fuel & supplies',

@@ -82,7 +82,7 @@ import { seesAll } from "./see-all";
 import { ESCAPE, keyLabel } from "./input-mode";
 import { deskAt } from "../sim/crime";
 
-export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
+export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts";
 
 type ShopColumn = { head: HTMLElement[]; body: HTMLElement };
 
@@ -116,7 +116,7 @@ export type TownFrame = { band: HTMLElement; picture: HTMLElement; heading: Msg;
 
 export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId: string, turn: number): TownPage {
   if (kept === null || closedAt === null) return null;
-  return closedAt.shopId === shopId && closedAt.turn === turn ? kept : null;
+  return closedAt.shopId === shopId && closedAt.turn === turn && townPlaces(shopId).includes(kept) ? kept : null;
 }
 
 export class TownScreen {
@@ -390,7 +390,7 @@ export class TownScreen {
     }
     if (page === "board") return el("div", { class: "ink-panel" }, this.contracts(w, shopId));
     if (page === "people") return el("div", { class: "ink-panel fit" }, this.parkedDrivers(w, shopId));
-    return el("div", { class: "ink-panel fit" }, this.charts(w, shopId));
+    return page === "maps" ? el("div", { class: "ink-panel fit" }, this.charts(w, shopId)) : null;
   }
 
   private garage(w: World, shopId: string, def: ShopDef): ShopColumn {
@@ -787,7 +787,6 @@ export const TAB_ICON: Record<Tab, IconName> = {
   trucks: "truck",
   paint: "paint",
   contracts: "clock",
-  charts: "journal",
 };
 
 function theyHave(have: number, n: number, amount: (n: number) => Msg): Msg | null {
