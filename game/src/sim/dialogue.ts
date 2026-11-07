@@ -1,6 +1,6 @@
 
 import { optionShort } from './dialogue-rules';
-import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
+import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
 import { BACK_LINE, isGroup, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_ROOT, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
@@ -12,6 +12,7 @@ import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
 import { practice } from './progress';
 import { modeRules } from './settings';
+import { hearsHorn } from './road-horn';
 import { openQuest, QUESTS } from './quests';
 import { canVehicleSee } from './vision';
 import { playerCommand, requireActivePlayer, update } from './world';
@@ -361,6 +362,6 @@ function practiceHonk(world: World, me: Vehicle, npc: Vehicle): void {
 
 function answering(world: World, me: Vehicle): Vehicle[] {
   return world.vehicles
-    .filter((v) => v.brain && !isKnockedOut(v) && dist(v.pos, me.pos) <= HONK_RANGE && talkOf(v).honksBack && !inCombatWithOther(world, v, me.id) && !isHostile(world, v, me))
+    .filter((v) => v.brain && !isKnockedOut(v) && hearsHorn(world, me, v) && talkOf(v).honksBack && !inCombatWithOther(world, v, me.id) && !isHostile(world, v, me))
     .sort((a, b) => dist(a.pos, me.pos) - dist(b.pos, me.pos));
 }

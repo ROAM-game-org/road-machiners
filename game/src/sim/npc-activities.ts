@@ -45,6 +45,7 @@ import { territoryOfStock, tripGoal } from './territory';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { roadNetworkOf, roadPointAt } from './road-network';
 import { canVehicleSee } from './vision';
+import { hornAtSight } from './road-horn';
 import { chaseStalled, startChase } from './chase';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
@@ -880,6 +881,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   dropInvalidGoals(world, vehicle, contacts);
   if (isMarshal(vehicle)) planMarshal(world, vehicle, seen);
   steer(world, vehicle, profile, contacts);
+  hornAtSight(world, vehicle, seen);
   return currentActivity(world, vehicle, profile);
 }
 

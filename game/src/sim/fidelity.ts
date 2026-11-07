@@ -40,7 +40,7 @@ export function thinkEvery(w: World, v: Vehicle): number {
   return PERF.lone.every;
 }
 
-function slotOf(id: string): number {
+export function slotOf(id: string): number {
   let sum = 0;
   for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
   return sum;
