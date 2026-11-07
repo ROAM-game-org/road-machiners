@@ -1,12 +1,12 @@
 
 import { optionShort } from './dialogue-rules';
-import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
-import { BACK_LINE, isGroup, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_ROOT, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
+import { BUSY_LINE, END, handoffQuest, handoffTopic, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
+import { BACK_LINE, isGroup, MOOD_GREETINGS, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_MERGE, TOPIC_ROOT, URGENT_TOPICS, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { raiseEncounter } from './encounters';
-import { coldLine, CONDITIONS, EFFECTS, gateOpen, opensHelp, PREPARES } from './dialogue-rules';
+import { coldLine, CONDITIONS, EFFECTS, gateOpen, moodOf, opensHelp, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
@@ -30,7 +30,10 @@ export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: 
 
 function greetingOf(world: World, npc: Vehicle): LineId {
   const voice = talkOf(npc);
-  return coldLine(world, npc, voice.topics) ?? voice.greeting;
+  const mood = moodOf(world, npc);
+  const moodLine = mood ? (voice.moods?.[mood] ?? MOOD_GREETINGS[mood]) : null;
+  if (mood === 'attacking') return moodLine!;
+  return coldLine(world, npc, voice.topics) ?? moodLine ?? voice.greeting;
 }
 
 function personalityOf(npc: Vehicle): Personality {
@@ -70,23 +73,70 @@ function topicsUnder(children: readonly TopicChild[]): TopicId[] {
   return children.flatMap((child) => (isGroup(child) ? topicsUnder(TOPIC_GROUPS[child].children) : [child]));
 }
 
-function pageEntries(children: readonly TopicChild[], open: ReadonlySet<TopicId>): TopicChild[] {
-  const topics = topicsUnder(children).filter((id) => open.has(id));
-  if (topics.length <= PAGE_FLAT_LIMIT) return topics;
+function foldersOf(children: readonly TopicChild[], shown: ReadonlySet<TopicId>): TopicChild[] {
   return children.flatMap((child): TopicChild[] => {
-    if (!isGroup(child)) return open.has(child) ? [child] : [];
-    const inside = topicsUnder([child]).filter((id) => open.has(id));
+    if (!isGroup(child)) return shown.has(child) ? [child] : [];
+    const inside = topicsUnder([child]).filter((id) => shown.has(id));
     return inside.length > 1 ? [child] : inside;
   });
 }
 
-function parentGroup(group: GroupId): GroupId | null {
-  return (Object.keys(TOPIC_GROUPS) as GroupId[]).find((id) => TOPIC_GROUPS[id].children.includes(group)) ?? null;
+function pageEntries(children: readonly TopicChild[], open: ReadonlySet<TopicId>): TopicChild[] {
+  const topics = topicsUnder(children).filter((id) => open.has(id));
+  return topics.length <= PAGE_FLAT_LIMIT ? topics : foldersOf(children, open);
 }
 
-function openPage(call: Call, open: ReadonlySet<TopicId>): GroupId | null {
+type RootLayout = { entries: TopicChild[]; merged: boolean };
+
+function foldedEntries(entries: TopicChild[], shown: ReadonlySet<TopicId>): TopicChild[] {
+  const folded = entries.filter((entry) => topicsUnder([entry]).every((id) => topicsUnder(TOPIC_MERGE.folds).includes(id)));
+  const inside = folded.flatMap((entry) => topicsUnder([entry]).filter((id) => shown.has(id)));
+  if (folded.length < 2 || inside.length < 2) return entries;
+  const at = entries.indexOf(folded[0]);
+  const rest = entries.filter((entry) => !folded.includes(entry));
+  return [...rest.slice(0, at), TOPIC_MERGE.group, ...rest.slice(at)];
+}
+
+function rootLayout(open: ReadonlySet<TopicId>, urgent: readonly TopicId[]): RootLayout {
+  const flat = [...urgent.filter((id) => open.has(id)), ...topicsUnder(TOPIC_ROOT).filter((id) => open.has(id) && !urgent.includes(id))];
+  if (flat.length <= PAGE_FLAT_LIMIT) return { entries: flat, merged: false };
+  const lifted = urgent.filter((id) => open.has(id));
+  let merged = false;
+  for (;;) {
+    const lifting = new Set(lifted);
+    const shown = new Set([...open].filter((id) => !lifting.has(id)));
+    const folders = foldersOf(TOPIC_ROOT, shown);
+    const entries = [...lifted, ...(merged ? foldedEntries(folders, shown) : folders)];
+    if (entries.length <= PAGE_FLAT_LIMIT) return { entries, merged: merged && entries.includes(TOPIC_MERGE.group) };
+    if (!merged) merged = true;
+    else lifted.pop();
+  }
+}
+
+export function rootPage(open: ReadonlySet<TopicId>, urgent: readonly TopicId[]): TopicChild[] {
+  return rootLayout(open, urgent).entries;
+}
+
+function urgentOpen(world: World, npc: Vehicle, open: ReadonlySet<TopicId>): TopicId[] {
+  return URGENT_TOPICS.filter((u) => open.has(u.topic) && holds(world, npc, [...u.when], {})).map((u) => u.topic);
+}
+
+function openTopics(world: World, npc: Vehicle): Set<TopicId> {
+  return new Set(askable(world, npc).map((t) => t.id));
+}
+
+function rootOf(world: World, npc: Vehicle, open: ReadonlySet<TopicId> = openTopics(world, npc)): RootLayout {
+  return rootLayout(open, urgentOpen(world, npc, open));
+}
+
+function parentGroup(group: GroupId, merged: boolean): GroupId | null {
+  if ((TOPIC_MERGE.folds as readonly GroupId[]).includes(group)) return merged ? TOPIC_MERGE.group : null;
+  return (Object.keys(TOPIC_GROUPS) as GroupId[]).find((id) => id !== TOPIC_MERGE.group && TOPIC_GROUPS[id].children.includes(group)) ?? null;
+}
+
+function openPage(call: Call, open: ReadonlySet<TopicId>, merged: boolean): GroupId | null {
   let page = call.group;
-  while (page && topicsUnder(TOPIC_GROUPS[page].children).every((id) => !open.has(id))) page = parentGroup(page);
+  while (page && topicsUnder(TOPIC_GROUPS[page].children).every((id) => !open.has(id))) page = parentGroup(page, merged);
   return page;
 }
 
@@ -96,10 +146,12 @@ function isSeen(world: World, npc: Vehicle, call: Call, child: TopicChild, open:
 }
 
 function hubOptions(world: World, npc: Vehicle, call: Call): OfferedOption[] {
-  const open = new Set(askable(world, npc).map((t) => t.id));
-  const page = openPage(call, open);
-  const children = page ? TOPIC_GROUPS[page].children : TOPIC_ROOT;
-  const entries = pageEntries(children, open).map((child): OfferedOption => {
+  const open = openTopics(world, npc);
+  const root = rootOf(world, npc, open);
+  const page = openPage(call, open, root.merged);
+  const children = page ? TOPIC_GROUPS[page].children : [];
+  const listed = page ? pageEntries(children, open) : root.entries;
+  const entries = listed.map((child): OfferedOption => {
     const seen = isSeen(world, npc, call, child, open);
     return isGroup(child) ? { line: TOPIC_GROUPS[child].say, topic: null, option: null, group: child, seen } : { line: TOPICS[child].ask!.say, topic: child, option: null, seen };
   });
@@ -136,11 +188,19 @@ function enter(world: World, call: Call, topic: TopicId | null, node: string): v
   say(world, call.with, world.player.vehicleId, currentLine(world), call.vars);
 }
 
-function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start): void {
+function routeOf(world: World, npc: Vehicle, topic: Topic, vars: CallVars): string {
+  const route = topic.routes?.find((r) => holds(world, npc, r.when, vars) && !isSettled(world, npc, TOPICS[handoffTopic(r.go) ?? topic.id]));
+  return route?.go ?? topic.start;
+}
+
+function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start, handoff = false): void {
   const prepared = topic.prepare ? PREPARES[topic.prepare](world, npc) : {};
   call.vars = node === TOLL ? { ...prepared, price: { kind: 'money', amount: TALK_PRICE } } : prepared;
-  practice(world, 'call', 1, null, `${npc.id}:${topic.id}`);
-  enter(world, call, topic.id, node);
+  if (!handoff) practice(world, 'call', 1, null, `${npc.id}:${topic.id}`);
+  const go = node === topic.start ? routeOf(world, npc, topic, call.vars) : node;
+  const target = handoffTopic(go);
+  if (target) return enterTopic(world, npc, call, TOPICS[target], TOPICS[target].start, true);
+  enter(world, call, topic.id, go);
 }
 
 function endCall(world: World, call: Call): void {
@@ -193,9 +253,9 @@ function reply(world: World, call: Call, line: LineId): void {
   if (!isRefused(call)) say(world, world.player.vehicleId, call.with, line, call.vars);
 }
 
-function navigate(call: Call, offered: OfferedOption): boolean {
+function navigate(world: World, npc: Vehicle, call: Call, offered: OfferedOption): boolean {
   if (offered.group) call.group = offered.group;
-  else if (offered.back) call.group = call.group ? parentGroup(call.group) : null;
+  else if (offered.back) call.group = call.group ? parentGroup(call.group, rootOf(world, npc).merged) : null;
   return offered.group !== undefined || offered.back === true;
 }
 
@@ -204,7 +264,7 @@ function pick(world: World, index: number): void {
   if (!offered) throw new Error(`No option ${index} on offer`);
   const call = openCall(world);
   const npc = vehicleById(world, call.with);
-  if (navigate(call, offered)) return;
+  if (navigate(world, npc, call, offered)) return;
   reply(world, call, offered.line);
   if (offered.option) return follow(world, npc, call, offered.option);
   if (offered.topic) return ask(world, npc, call, TOPICS[offered.topic]);
@@ -252,6 +312,8 @@ function follow(world: World, npc: Vehicle, call: Call, option: DialogueOption):
     endCall(world, call);
     return openQuest(world, QUESTS, quest, 'start');
   }
+  const topic = handoffTopic(option.go);
+  if (topic) return enterTopic(world, npc, call, TOPICS[topic], TOPICS[topic].start, true);
   if (option.go === END) return endCall(world, call);
   if (option.go === HUB) return enter(world, call, null, HUB);
   enter(world, call, call.topic, option.go);

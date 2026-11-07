@@ -5,7 +5,7 @@ import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import { PERSONALITIES, type PersonalityId } from '../data/personalities';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
+import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
 import { lineKey } from '../text/names';
 import { entryText, schemaOf } from '../text/resolve';
 import { QUESTS, questView } from './quests';
@@ -63,6 +63,11 @@ describe('topic data', () => {
       while (queue.length > 0) {
         for (const option of topic.nodes[queue.pop()!].options) {
           if (option.go === HUB || option.go === END) continue;
+          const handedTopic = handoffTopic(option.go);
+          if (handedTopic) {
+            expect(TOPICS[handedTopic], `${topic.id} → ${option.go}`).toBeDefined();
+            continue;
+          }
           const quest = handoffQuest(option.go);
           if (quest) {
             expect(QUESTS.quests[quest]?.checkpoints, `${topic.id} → ${option.go}`).toContain('start');
