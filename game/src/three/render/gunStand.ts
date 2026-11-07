@@ -358,7 +358,7 @@ function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: 
 
 type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean };
 type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
-type FaceIndex = { look: Look; start: number; columns: Map<string, Face[]> };
+type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: Map<number, Map<number, { point: THREE.Vector3; face: Face } | null>> };
 type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
 
 const LOOKS = {
@@ -434,13 +434,13 @@ function padFooting(index: FaceIndex, x: number, z: number, pad: number): THREE.
 }
 
 function indexFaces(body: THREE.Object3D, look: Look): FaceIndex {
-  const columns = new Map<string, Face[]>();
+  const columns = new Map<number, Face[]>();
   body.traverse((o) => {
     if (o instanceof THREE.Mesh) for (const face of facingFaces(o, look.normal)) addFace(columns, face, look);
   });
   const box = new THREE.Box3().setFromObject(body);
   const far = Math.max(box.max.dot(look.normal), box.min.dot(look.normal)) + CLIP_TOLERANCE;
-  return { look, start: far, columns };
+  return { look, start: far, columns, nearest: new Map() };
 }
 
 function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
@@ -456,7 +456,7 @@ function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
   return faces;
 }
 
-function addFace(columns: Map<string, Face[]>, face: Face, look: Look): void {
+function addFace(columns: Map<number, Face[]>, face: Face, look: Look): void {
   for (const key of columnsUnder(face, look)) {
     const column = columns.get(key);
     if (column) column.push(face);
@@ -464,11 +464,17 @@ function addFace(columns: Map<string, Face[]>, face: Face, look: Look): void {
   }
 }
 
-function columnsUnder(face: Face, look: Look): string[] {
+const COLUMN_OFFSET = 1 << 15;
+
+function columnKey(i: number, j: number): number {
+  return (i + COLUMN_OFFSET) * (COLUMN_OFFSET * 2) + j + COLUMN_OFFSET;
+}
+
+function columnsUnder(face: Face, look: Look): number[] {
   const us = [face.a, face.b, face.c].map((p) => Math.floor(p[look.u] / FACE_COLUMN));
   const vs = [face.a, face.b, face.c].map((p) => Math.floor(p[look.v] / FACE_COLUMN));
-  const keys: string[] = [];
-  for (let i = Math.min(...us); i <= Math.max(...us); i++) for (let j = Math.min(...vs); j <= Math.max(...vs); j++) keys.push(`${i},${j}`);
+  const keys: number[] = [];
+  for (let i = Math.min(...us); i <= Math.max(...us); i++) for (let j = Math.min(...vs); j <= Math.max(...vs); j++) keys.push(columnKey(i, j));
   return keys;
 }
 
@@ -482,13 +488,22 @@ const downRay = new THREE.Ray();
 const hitScratch = new THREE.Vector3();
 
 function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
+  let row = index.nearest.get(u);
+  if (!row) index.nearest.set(u, (row = new Map()));
+  if (row.has(v)) return row.get(v)!;
+  const found = scanFaces(index, u, v);
+  row.set(v, found);
+  return found;
+}
+
+function scanFaces(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
   const { look } = index;
   downRay.origin.copy(look.normal).multiplyScalar(index.start);
   downRay.origin[look.u] = u;
   downRay.origin[look.v] = v;
   downRay.direction.copy(look.normal).negate();
   let best: { point: THREE.Vector3; face: Face } | null = null;
-  for (const face of index.columns.get(`${Math.floor(u / FACE_COLUMN)},${Math.floor(v / FACE_COLUMN)}`) ?? []) {
+  for (const face of index.columns.get(columnKey(Math.floor(u / FACE_COLUMN), Math.floor(v / FACE_COLUMN))) ?? []) {
     if (!downRay.intersectTriangle(face.a, face.b, face.c, false, hitScratch)) continue;
     if (!best) best = { point: hitScratch.clone(), face };
     else if (hitScratch.dot(look.normal) > best.point.dot(look.normal)) {
