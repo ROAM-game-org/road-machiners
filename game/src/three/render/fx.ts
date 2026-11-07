@@ -24,6 +24,7 @@ import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { Blasts, type BlastGround } from './particles/blasts';
 import { Emissions } from './particles/emissions';
 import { layerPointOf } from '../../ui/ui-size';
+import { overlayMaterial } from './overlay-material';
 
 const MAX_TEXTS = 24;
 const RISE_METERS = 1.5;
@@ -73,7 +74,7 @@ class MuzzleFlashes {
 
   constructor(scene: THREE.Scene) {
     const geo = flashGeometry();
-    const mat = new THREE.MeshBasicMaterial({ color: PAL.flash, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const mat = overlayMaterial({ color: PAL.flash, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     for (let i = 0; i < FLASH.max; i++) {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = false;
