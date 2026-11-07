@@ -543,6 +543,7 @@ export class TurnPreparation {
   } | null = null;
   private readonly inFlight = new Set<number>();
   private prepSamples: number[] = [];
+  private prepMedian: number | null = null;
 
   constructor(private readonly tailSteps: number) {}
 
@@ -594,12 +595,12 @@ export class TurnPreparation {
 
   private notePrep(ms: number): void {
     this.prepSamples = [...this.prepSamples, ms].slice(-CONFIG.turnPrepSamples);
+    const sorted = [...this.prepSamples].sort((a, b) => a - b);
+    this.prepMedian = sorted[Math.floor(sorted.length / 2)];
   }
 
   keptSpeed(): number {
-    if (this.prepSamples.length === 0) return Infinity;
-    const sorted = [...this.prepSamples].sort((a, b) => a - b);
-    return MOVE_MS / sorted[Math.floor(sorted.length / 2)];
+    return this.prepMedian === null ? Infinity : MOVE_MS / this.prepMedian;
   }
 
   private fail(id: number | null, message: string): void {

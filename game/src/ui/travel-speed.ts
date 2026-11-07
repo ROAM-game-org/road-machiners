@@ -43,7 +43,7 @@ export class TravelSpeed {
   private readonly faster: HTMLElement;
   private readonly lcd = el("span", { class: "speed-lcd" });
   private shown: number | null = null;
-  private heldPick: number | null = null;
+  private held: number | null = null;
 
   constructor(private readonly source: SpeedSource) {
     this.slower = speedKey("slower", () => this.step(-1));
@@ -72,8 +72,8 @@ export class TravelSpeed {
   }
 
   private markHeld(pick: number | null): void {
-    if (pick === this.heldPick) return;
-    this.heldPick = pick;
+    if (pick === this.held) return;
+    this.held = pick;
     this.lcd.classList.toggle("held", pick !== null);
     bindAttr(this.lcd, "title", pick === null ? t("turn.speed") : t("turn.speed.held", { pick }));
   }
