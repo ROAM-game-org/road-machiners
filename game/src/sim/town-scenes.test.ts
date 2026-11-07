@@ -98,7 +98,7 @@ describe('picking a section', () => {
     const w = quietWorld();
     playerVehicle(w).pos = { x: 1, y: 1 };
     expect(() => pickTownSection(w, null, 'market')).toThrow('Not parked at a shop');
-    expect(() => pickTownSection(parkAt(quietWorld(), 'dustwell'), null, 'maps')).toThrow('no maps');
+    expect(() => pickTownSection(parkAt(w, 'dustwell'), null, 'maps')).toThrow('no maps');
   });
 
   it('changes nothing but the scene gate and the quest session', () => {
