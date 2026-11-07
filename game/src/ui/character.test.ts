@@ -84,11 +84,13 @@ describe("character screen", () => {
     expect(button.attrs.get("data-reason")).toMatch(/XP/);
   });
 
-  it("prints a rank price as one plain phrase", () => {
+  it("shows a rank price beside a button that holds only the action", () => {
     const world = emptyWorld();
     world.player.xp = 1000;
-    const button = rankButtons(openCharacter(world))[0];
-    expect(button.text()).toMatch(/^Buy \d+ XP$/);
+    const root = openCharacter(world);
+    const button = rankButtons(root)[0];
+    expect(button.text()).toBe("Buy");
+    expect(root.all((n) => n.className === "price")[0].text()).toMatch(/^\d+ XP$/);
     expect(button.attrs.has("aria-disabled")).toBe(false);
   });
 

@@ -274,7 +274,6 @@ export const UI = {
   'weapon.hitChanceOn': m("Hit chance on {target}", { target: 'text' }),
   'weapon.reloadHint': m("Drop the magazine and refill it in {n, plural, one {# turn} other {# turns}}", { n: 'count' }),
   'character.xpPool': m("{n} XP", { n: 'int' }),
-  'character.buyShort': m("Buy {cost} XP", { cost: 'int' }),
   'character.colPerk': m("Rank {rank} perk", { rank: 'int' }),
   'character.colBasic': m("Rank {rank} basic", { rank: 'int' }),
   'character.colToday': m("Since {time}, max {cap} XP", { time: 'text', cap: 'int' }),

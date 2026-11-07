@@ -6,7 +6,7 @@ import { goodsCount, mountCellsOf } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
-import { num, SPACE, t, type Msg } from "../text/msg";
+import { num, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, refusalText, siteName } from "../text/names";
 import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
@@ -17,7 +17,8 @@ import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { caption, keepFocus, priceEl, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { pricedEl, priceTag } from "./units";
 
 const REPAIR_GOOD = "parts";
 const OUTPOST_TABS = ["market", "buyParts", "trucks"] as const satisfies readonly Tab[];
@@ -88,7 +89,7 @@ export class OutpostScreen {
 
   priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = ""): HTMLElement {
     const short = shortBy(w.player.money, price);
-    return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
+    return pricedEl(priceTag(price, short === null), reasonButton([verb], () => this.run(cmd), reason ?? short, key));
   }
 
   private draw(): void {

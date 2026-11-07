@@ -86,7 +86,7 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
-import { fuelLiters, moneyEl, moneyMsg, pricedEl } from "./units";
+import { fuelLiters, moneyEl, moneyMsg, pricedEl, priceTag } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
@@ -551,7 +551,7 @@ export class InventoryView {
     const cost = partRepairCost(w, part);
     if (cost === 0) return null;
     const short = w.player.money < cost;
-    return el(
+    return pricedEl(priceTag(cost, !short), el(
       "button",
       {
         class: "inv-patch",
@@ -561,8 +561,8 @@ export class InventoryView {
           this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
         ),
       },
-      pricedEl(t(`inv.verb.${action}`), cost),
-    );
+      t(`inv.verb.${action}`),
+    ));
   }
 
   private stripButton(

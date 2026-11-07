@@ -3,7 +3,7 @@ import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
 import { UNITS } from '../data/units';
 import { compassOctant } from '../text/compass';
-import { concat, MINUS_SIGN, num, SPACE, t, type Msg } from '../text/msg';
+import { concat, MINUS_SIGN, num, t, type Msg } from '../text/msg';
 import type { Vec } from '../sim/vec';
 import { el } from './dom';
 
@@ -110,8 +110,12 @@ export function moneyEl(amount: number): HTMLElement {
   return el('span', { class: `amount${amount < 0 ? ' bad' : ''}`, title: text, 'aria-label': text }, coinEl(), moneyNum(amount));
 }
 
-export function pricedEl(action: Msg, amount: number): HTMLElement {
-  return el('span', { class: 'priced' }, action, SPACE, moneyEl(amount));
+export function priceTag(amount: number, payable: boolean): HTMLElement {
+  return el('span', { class: payable ? 'price' : 'price bad' }, moneyEl(amount));
+}
+
+export function pricedEl(price: HTMLElement, button: HTMLElement): HTMLElement {
+  return el('span', { class: 'priced' }, price, button);
 }
 
 export function moneyDelta(amount: number): string {

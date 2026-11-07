@@ -50,7 +50,7 @@ import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, marketHints, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { caption, chargeEl, countCell, deskBody, goodsClass, goodsHead, keepFocus, marketHints, newsWell, owedTitle, priceEl, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -72,10 +72,10 @@ import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
-import { moneyEl, moneyMsg } from "./units";
+import { moneyEl, moneyMsg, pricedEl, priceTag } from "./units";
 import { ODD_JOBS } from "../data/odd-jobs";
 import { oddJobsBlock, oddJobsPay, startOddJobs } from "../sim/odd-jobs";
-import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { list, num, t, type Msg } from "../text/msg";
 import { driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 import { commandFailure, stanceTag } from "./format";
 import { seesAll } from "./see-all";
@@ -482,7 +482,7 @@ export class TownScreen {
 
   priceButton(w: World, verb: Msg, price: number, cmd: (w: World) => World, reason: Msg | null = null, key = ""): HTMLElement {
     const short = shortBy(w.player.money, price);
-    return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
+    return pricedEl(priceTag(price, short === null), reasonButton([verb], () => this.run(cmd), reason ?? short, key));
   }
 
   private hintMounts(defId: string): (on: boolean) => void {
@@ -982,8 +982,8 @@ export class TruckTradeScreen {
     });
   }
 
-  button(label: Msg, cmd: (w: World) => World, reason: Msg | null = null, key = ""): HTMLElement {
-    return reasonButton([label], () => this.run(cmd), reason, key);
+  button(label: Msg, cmd: (w: World) => World, reason: Msg | null = null, key = "", title: Msg | null = null): HTMLElement {
+    return reasonButton([label], () => this.run(cmd), reason, key, title);
   }
 
   private hintMounts(defId: string): (on: boolean) => void {
@@ -1086,9 +1086,9 @@ export class TruckTradeScreen {
     const amount = (n: number) => supplyAmount(k, n);
     const reasonFor = (n: number) =>
       theyHave(offer, n, amount) ?? (supplyRoom(w, k) < n ? t("trade.full") : null) ?? shortBy(w.player.money, price * n);
-    return supplyLine(k, have, cap, countCell("theirs", offer, amount(offer)), price, shortBy(w.player.money, price) === null, [
-      this.button(t("trade.plusAmount", { amount: amount(SUPPLY_STEP) }), (x) => buyTruckSupply(x, npc.id, k, SUPPLY_STEP), reasonFor(SUPPLY_STEP)),
-      this.button(most > 0 ? t("trade.fill", { amount: amount(most) }) : t("trade.fillBare"), (x) => buyTruckSupply(x, npc.id, k, most), reasonFor(1)),
+    return supplyLine(k, have, cap, countCell("theirs", offer, amount(offer)), [
+      pricedEl(chargeEl(price * SUPPLY_STEP, w.player.money), this.button(t("trade.plusAmount", { amount: amount(SUPPLY_STEP) }), (x) => buyTruckSupply(x, npc.id, k, SUPPLY_STEP), reasonFor(SUPPLY_STEP))),
+      pricedEl(chargeEl(price * most, w.player.money), this.button(t("trade.fillBare"), (x) => buyTruckSupply(x, npc.id, k, most), reasonFor(1), "", most > 0 ? t("trade.fill", { amount: amount(most) }) : null)),
     ]);
   }
 }

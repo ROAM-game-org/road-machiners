@@ -1001,6 +1001,25 @@
 .trade.wide {
   grid-column: span 2;
 }
+.priced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.priced > .price {
+  justify-content: flex-end;
+  min-width: 0;
+}
+.supply-buy > .priced > .price {
+  min-width: var(--icon-3xl);
+}
+.supply-buy > .priced > button {
+  min-width: 8ch;
+  justify-content: center;
+}
+.supply-buy > .priced + .priced {
+  margin-left: var(--space-5);
+}
 .good-name.supply {
   min-width: 0;
 }
@@ -1123,8 +1142,7 @@
   flex: none;
   width: auto;
 }
-.town-truck-supplies .caption,
-.town-truck-supplies .trade > .price {
+.town-truck-supplies .caption {
   display: none;
 }
 .service-meter .meter {
