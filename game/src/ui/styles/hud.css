@@ -1,12 +1,15 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(2, minmax(var(--lcd-cell-w), 1fr)) minmax(var(--lcd-cell-w), 2fr) minmax(var(--lcd-cell-w), auto);
+  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(4, minmax(var(--lcd-cell-w), auto));
   grid-template-rows: auto auto;
-  column-gap: var(--space-5);
+  column-gap: var(--space-3);
   row-gap: var(--space-2);
   background: var(--surface-raised);
   border-top: 2px solid var(--line-bright);
+}
+#ui:not(.phone) .instruments {
+  justify-content: start;
 }
 .instrument-clock {
   display: flex;
@@ -124,12 +127,26 @@
   grid-column: 5;
   align-content: center;
 }
-.readout-group[data-group="money"] .resource {
+#ui:not(.phone) .readout-group[data-group="money"] .resource {
   grid-row: 1 / span 2;
+  grid-template-columns: auto;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  justify-content: center;
+  align-content: center;
+  row-gap: var(--space-1);
+}
+#ui:not(.phone) .readout-group[data-group="money"] .resource .coin,
+#ui:not(.phone) .readout-group[data-group="money"] .resource strong {
+  grid-column: 1;
+}
+#ui:not(.phone) .readout-group[data-group="money"] .resource strong {
+  grid-row: 2;
+  font-size: var(--text-lead);
 }
 .resource[data-resource="heat"] {
   grid-template-columns: var(--icon-s) minmax(var(--value-w), auto) minmax(var(--weather-w), 1fr);
-  --weather-w: 12ch;
+  --weather-w: 9ch;
 }
 .resource .weather {
   min-width: 0;
