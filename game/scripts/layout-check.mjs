@@ -461,10 +461,9 @@ const journalEntryFaults = (page) =>
     const body = document.querySelector(`${sel} .journal-body`);
     const open = body?.querySelector('.journal-place.open, .journal-note.open');
     if (!open) return [];
-    body.scrollTop = body.scrollHeight;
-    const hidden = body.scrollTop > 0 && body.getBoundingClientRect().bottom < open.getBoundingClientRect().bottom - 1;
-    body.scrollTop = 0;
-    return hidden ? ['the open entry cannot be scrolled into view'] : [];
+    const cut = open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom;
+    const side = body.closest('.journal-side') !== null && window.innerHeight >= 700;
+    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal`] : [];
   }, JOURNAL);
 
 const journalOverlapFaults = (page) =>

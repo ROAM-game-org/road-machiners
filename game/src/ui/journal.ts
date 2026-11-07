@@ -114,7 +114,7 @@ export class JournalScreen {
     this.root.classList.toggle('journal-side', side);
     this.root.replaceChildren(
       el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyLabel(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),
-      tab === null ? el('div', { class: 'dim' }, t('journal.empty')) : el('div', { class: 'tabs sub' }, ...tabs.map((id) => this.tabButton(id, id === tab, journal))),
+      ...(tab === null ? [el('div', { class: 'dim' }, t('journal.empty'))] : tabs.length === 1 ? [] : [el('div', { class: 'tabs sub' }, ...tabs.map((id) => this.tabButton(id, id === tab, journal)))]),
       ...(tab === null ? [] : [el('div', { class: 'journal-body' }, this.page(w, journal, tab))]),
     );
   }

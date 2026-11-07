@@ -189,7 +189,7 @@ describe('journal screen', () => {
 
     const root = openJournal(w);
 
-    expect(tabButtons(root)!.map((b) => b.text())).toEqual(['Work1']);
+    expect(tabButtons(root)).toBeUndefined();
     expect(rowsOf(root)).toHaveLength(1);
   });
 
@@ -236,7 +236,7 @@ describe('journal screen', () => {
     const { root } = journalOf(w);
     const places = root.all((n) => n.className === 'journal-place');
 
-    expect(tabButtons(root)!.map((b) => b.text())).toEqual(['Wrecks2']);
+    expect(tabButtons(root)).toBeUndefined();
     expect(places.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
     ui.children = [];
     w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
