@@ -128,23 +128,29 @@ export function gameState(game: Game): SceneState {
 
 const TRAPPED: string[] = [];
 
-export function trapMatrixKinds(): void {
-  let isObject: (array: unknown) => boolean;
+function kindReader(): ((array: unknown) => string) | null {
   try {
-    isObject = new Function('a', 'return %HasObjectElements(a);') as (array: unknown) => boolean;
+    return new Function('a', 'return %HasDoubleElements(a) ? "double" : %HasSmiElements(a) ? "smi" : %HasObjectElements(a) ? "object" : "other";') as (array: unknown) => string;
   } catch {
-    return;
+    return null;
   }
-  const proto = Matrix4.prototype as unknown as Record<string, unknown>;
-  for (const name of Object.getOwnPropertyNames(proto)) {
+}
+
+function trapText(name: string, before: string, snapshot: number[], self: Matrix4, args: unknown[]): string {
+  return `${Math.round(performance.now())}ms ${name} was ${before} values ${snapshot.join(',')} now ${self.elements.join(',')} args ${JSON.stringify(args).slice(0, 240)} new ${String(kindReader()?.(new Matrix4().elements))} ${new Error().stack?.split('\n').slice(3, 7).map((line) => line.trim().replace(/https?:[^ ]*\/assets\//, '')).join(' < ')}`;
+}
+
+export function trapMatrixKinds(): void {
+  const kindOf = kindReader();
+  if (kindOf === null) return;
+  const proto = Matrix4.prototype as unknown as Record<string, (...args: unknown[]) => unknown>;
+  for (const name of Object.getOwnPropertyNames(proto).filter((key) => key !== 'constructor')) {
     const original = proto[name];
-    if (name === 'constructor' || typeof original !== 'function') continue;
     proto[name] = function (this: Matrix4, ...args: unknown[]) {
-      const result = (original as (...a: unknown[]) => unknown).apply(this, args);
-      if (TRAPPED.length < 8 && isObject(this.elements)) {
-        const bad = (this.elements as unknown[]).map((value, i) => (typeof value === 'number' ? null : `${i}=${String(value)}`)).filter(Boolean);
-        TRAPPED.push(`${Math.round(performance.now())}ms ${name} bad[${bad.join(',')}] arg0=${String((args[0] as { constructor?: { name?: string } })?.constructor?.name)} ${new Error().stack?.split('\n').slice(2, 9).map((line) => line.trim().replace(/https?:[^ ]*\/assets\//, '')).join(' < ')}`);
-      }
+      const before = kindOf(this.elements);
+      const snapshot = [...this.elements];
+      const result = original.apply(this, args);
+      if (TRAPPED.length < 3 && kindOf(this.elements) === 'object') TRAPPED.push(trapText(name, before, snapshot, this, args));
       return result;
     };
   }
