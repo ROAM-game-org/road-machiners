@@ -149,18 +149,19 @@ describe('truck card actions', () => {
     return { w, npc, row };
   }
 
-  it('draws Look over and Mark as buttons with keycaps off touch', () => {
+  it('draws Call, Look over and Mark as buttons with no keycap on their faces', () => {
     const { row } = card(5, true);
     const buttons = row!.withTag('button');
-    expect(buttons.map((b) => b.text())).toEqual(['RadioT', 'Look overB', 'MarkN']);
-    expect(row!.all('key')).toHaveLength(3);
+    expect(buttons.map((b) => b.text())).toEqual(['Radio', 'Look over', 'Mark']);
+    expect(row!.all('key')).toHaveLength(0);
+    expect(row!.all('cost')).toHaveLength(1);
     expect(row!.className).toBe('info-actions');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
   });
 
   it('shows no Mark button without the spotter perk', () => {
     const { row } = card(5, false);
-    expect(row!.withTag('button').map((b) => b.text())).toEqual(['RadioT', 'Look overB']);
+    expect(row!.withTag('button').map((b) => b.text())).toEqual(['Radio', 'Look over']);
   });
 
   it('disables a refused button with the sim reason', () => {

@@ -452,7 +452,7 @@ export class Game {
     const w = this.displayWorld();
     const v = w.vehicles.find((x) => x.id === this.inspected() && playerSees(w, x.pos)) ?? null;
     this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false);
-    this.hitCard.render(w, v ? v.id : null);
+    this.hitCard.render(w, v ? v.id : null, this.selected);
   }
 
   private placeHitCard(): void {
