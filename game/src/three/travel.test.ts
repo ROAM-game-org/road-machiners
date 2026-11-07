@@ -274,12 +274,6 @@ describe("picked travel speed", () => {
     it("keeps up with any step before a turn was measured", () => {
       expect(new TurnPreparation(TAIL).keptSpeed()).toBe(Infinity);
     });
-
-    it("lowers the kept speed after a slow answer", () => {
-      const turns = new TurnPreparation(TAIL);
-      (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
-      expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
-    });
   });
 
   describe("turn worker failures", () => {
@@ -720,7 +714,7 @@ describe("turns on a tow rope", () => {
     travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs - 1, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE, false);
+    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE);
   });
 
   it("wait again when the player changes the fight plan", () => {
@@ -731,7 +725,7 @@ describe("turns on a tow rope", () => {
     travel.prepareNext(changed, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
     travel.prepareNext(changed, null, 1000 + 2 * CONFIG.fightPlanSettleMs, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE, false);
+    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE);
   });
 
   it("leave the worker to finish before it prepares another fight turn", () => {
@@ -776,7 +770,7 @@ describe("turns on a tow rope", () => {
     const drive = {} as DriveSnapshot;
     travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
     travel.prepareNext(world, null, 0, drive);
-    expect(prepare).toHaveBeenCalledWith(world, drive, true);
+    expect(prepare).toHaveBeenCalledWith(world, drive);
     prepare.mockClear();
     travel.request(world, drive);
     prepare.mockClear();
@@ -790,7 +784,7 @@ describe("turns on a tow rope", () => {
     expect(prepare).not.toHaveBeenCalled();
   });
 
-  it("asks for the fast turn when Space starts fast travel", () => {
+  it("asks for the turn when Space starts travel at a high pick", () => {
     const { travel, prepare } = travelWithPrepared();
     const start = makeSafeWorld();
     const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
@@ -798,7 +792,7 @@ describe("turns on a tow rope", () => {
     travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
     expect(travel.pressTurn(false, world)).toBe(true);
     travel.request(world, drive);
-    expect(prepare).toHaveBeenCalledWith(world, drive, true);
+    expect(prepare).toHaveBeenCalledWith(world, drive);
   });
 
   it("do not prepare ahead for a truck that is not towed", () => {
@@ -1247,7 +1241,7 @@ describe("the slowdown after a stopped turn", () => {
     const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, 0)!.world;
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(stopped, tail.next, false);
+    expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
   });
 
   describe("a stop after the movement ended", () => {

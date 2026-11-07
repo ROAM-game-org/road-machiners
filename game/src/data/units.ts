@@ -1,3 +1,4 @@
+import type { Tier } from './market';
 
 export const UNITS = {
   fuelLiters: 5,
@@ -11,4 +12,10 @@ export const UNITS = {
 
 export function itemValue(x: number): number {
   return Math.round(x * 100) / 100;
+}
+
+export const TIER_VALUE: Record<Tier, number> = { 1: 1, 2: 1.5, 3: 2.25 };
+
+export function gearValue(raw: number, tier: Tier): number {
+  return itemValue(raw * TIER_VALUE[tier]);
 }

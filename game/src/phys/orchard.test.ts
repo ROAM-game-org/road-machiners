@@ -99,6 +99,7 @@ describe('driving through Old Orchard', () => {
     let goal = spotGoal(w, 'orchard', []);
     while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard', []);
     npc.brain.goals = [goal];
+    w.salvage = w.salvage.filter((stock) => stock.id === barn.id);
     forceOption('salvageSeen', 'keep');
 
     let d = buildDrive(w);

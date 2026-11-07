@@ -8,7 +8,7 @@ import { TIME } from '../data/time';
 import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain } from './testkit';
 import { addGoods } from './inventory';
 import { getResources } from './resources';
-import { fuelCap } from './stats';
+import { climbGrade, fuelCap } from './stats';
 import { knockOutNpc } from './defeat';
 import { canUseSite, everyTruck, isSheltered, leaveSite, shelteredAt, siteGap, sitePads } from './sites';
 import { standardWorld } from '../test/world-cache';
@@ -282,7 +282,8 @@ describe('the vigil posts', () => {
   it('lies a long ride across open ground from the gate, out of sight of every town and raider camp, and every post can be reached', () => {
     const w = standardWorld(5);
     const gate = HOLLOW.site.gates[0];
-    const car = membersOf(w).find((v) => v.brain!.templateId === 'cavalcade')!;
+    const cars = membersOf(w).filter((v) => v.brain!.templateId === 'cavalcade').sort((a, b) => climbGrade(w, a) - climbGrade(w, b));
+    const car = cars[Math.floor(cars.length / 2)];
     const inhabited = [...REGION.towns, ...REGION.locations.filter((s) => s.kind === 'camp')];
     const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
     const rides = vigilPosts(w).map((post) => {

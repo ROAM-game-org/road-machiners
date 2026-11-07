@@ -128,17 +128,28 @@ function meshesNamed(root: THREE.Object3D, name: string): THREE.Mesh[] {
   return out;
 }
 
-function edgesPass(through: readonly THREE.Mesh[], solid: readonly THREE.Mesh[]): boolean {
+type Solid = { targets: THREE.Mesh[]; box: THREE.Box3 };
+
+function solidOf(solid: readonly THREE.Mesh[]): Solid {
+  const box = new THREE.Box3();
   const targets = solid.map((m) => {
     const copy = new THREE.Mesh(m.geometry, BOTH_SIDES);
     copy.matrixAutoUpdate = false;
     copy.matrixWorld.copy(m.matrixWorld);
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    box.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld));
     return copy;
   });
+  return { targets, box };
+}
+
+function edgesPass(through: readonly THREE.Mesh[], solid: Solid): boolean {
+  if (solid.targets.length === 0) return false;
   const caster = new THREE.Raycaster();
   const from = new THREE.Vector3();
   const to = new THREE.Vector3();
   const dir = new THREE.Vector3();
+  const reach = new THREE.Box3();
   for (const m of through) {
     const p = m.geometry.getAttribute('position');
     const idx = m.geometry.index;
@@ -150,10 +161,12 @@ function edgesPass(through: readonly THREE.Mesh[], solid: readonly THREE.Mesh[])
         to.fromBufferAttribute(p, at(t + ((e + 1) % 3))).applyMatrix4(m.matrixWorld);
         const len = from.distanceTo(to);
         if (len < EDGE_TOLERANCE) continue;
+        reach.setFromPoints([from, to]);
+        if (!solid.box.intersectsBox(reach)) continue;
         dir.subVectors(to, from).divideScalar(len);
         caster.set(from, dir);
         caster.far = len;
-        if (caster.intersectObjects(targets, false).length > 0) return true;
+        if (caster.intersectObjects(solid.targets, false).length > 0) return true;
       }
     }
   }
@@ -179,12 +192,13 @@ export function gunContacts(v: Vehicle, mode: GunView): string[] {
   view.root.updateMatrixWorld(true);
   const guns = mountedGuns(v);
   const lines: string[] = [];
+  const solids = new Map(guns.flatMap((b) => GUN_ROLES.map((role) => [`${b.id} ${role}`, solidOf(meshesNamed(view.root, `${b.id} ${role}`))] as const)));
   for (const a of guns) {
     const heads = meshesNamed(view.root, `${a.id} head`);
     for (const b of guns) {
       if (a === b) continue;
       for (const role of GUN_ROLES) {
-        if (edgesPass(heads, meshesNamed(view.root, `${b.id} ${role}`))) lines.push(`${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} into ${b.part.defId}@${b.x},${b.y} r${b.rot} ${role}`);
+        if (edgesPass(heads, solids.get(`${b.id} ${role}`)!)) lines.push(`${v.chassisId} ${a.part.defId}@${a.x},${a.y} r${a.rot} into ${b.part.defId}@${b.x},${b.y} r${b.rot} ${role}`);
       }
     }
   }
