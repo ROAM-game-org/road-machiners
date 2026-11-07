@@ -233,9 +233,13 @@ function firstSpot(tries: (() => ItemSpot | null)[]): ItemSpot | null {
 }
 
 function flatSpot(points: Sample[], shifts: [number, number][], supports: number[], exact: Footing, tops: Footing): ItemSpot | null {
+  const moved: Sample[] = points.map(([x, z, lift]) => [x, z, lift]);
   for (const support of supports) {
     for (const [dx, dz] of shifts) {
-      const moved = shifted(points, dx, dz);
+      for (const [i, [x, z]] of points.entries()) {
+        moved[i][0] = x + dx;
+        moved[i][1] = z + dz;
+      }
       const y = highestTop(moved, tops);
       if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, supports: [], held: [] };
     }
@@ -336,7 +340,9 @@ function restsOn(foot: THREE.Vector3 | null, bottom: number, tolerance: number):
 }
 
 function highestTop(points: Sample[], tops: Footing): number {
-  return Math.max(...points.map(([x, z, lift]) => (tops(x, z)?.y ?? -Infinity) - lift));
+  let highest = -Infinity;
+  for (const [x, z, lift] of points) highest = Math.max(highest, (tops(x, z)?.y ?? -Infinity) - lift);
+  return highest;
 }
 
 function gridIn(rect: CellRect): [number, number][] {
@@ -363,7 +369,7 @@ function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: 
 
 type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean; span?: { u0: number; u1: number; v0: number; v1: number } };
 type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
-type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: Map<number, { point: THREE.Vector3; face: Face } | null> };
+type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: HitTable };
 type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
 
 const LOOKS = {
@@ -445,7 +451,7 @@ function indexFaces(body: THREE.Object3D, look: Look): FaceIndex {
   });
   const box = new THREE.Box3().setFromObject(body);
   const far = Math.max(box.max.dot(look.normal), box.min.dot(look.normal)) + CLIP_TOLERANCE;
-  return { look, start: far, columns, nearest: new Map() };
+  return { look, start: far, columns, nearest: new HitTable() };
 }
 
 function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
@@ -502,23 +508,78 @@ const hitScratch = new THREE.Vector3();
 
 const HIT_RESOLUTION = 1e6;
 const HIT_OFFSET = 2 ** 25;
+const HIT_TABLE_LIMIT = 1 << 19;
 
-function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
-  const key = (Math.round(u * HIT_RESOLUTION) + HIT_OFFSET) * 2 ** 26 + Math.round(v * HIT_RESOLUTION) + HIT_OFFSET;
-  const known = index.nearest.get(key);
-  if (known !== undefined) return known;
+function nearestFace(index: FaceIndex, u: number, v: number): Hit | null {
+  const ui = Math.round(u * HIT_RESOLUTION) + HIT_OFFSET;
+  const vi = Math.round(v * HIT_RESOLUTION) + HIT_OFFSET;
+  const slot = index.nearest.slotOf(ui, vi);
+  if (slot >= 0) return index.nearest.hits[slot];
   const found = scanFaces(index, u, v);
-  index.nearest.set(key, found);
+  index.nearest.add(ui, vi, found);
   return found;
 }
 
-function scanFaces(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
+type Hit = { point: THREE.Vector3; face: Face };
+
+class HitTable {
+  hits: (Hit | null)[] = new Array(1 << 14).fill(null);
+  private us = new Int32Array(1 << 14).fill(-1);
+  private vs = new Int32Array(1 << 14);
+  private count = 0;
+
+  slotOf(ui: number, vi: number): number {
+    const mask = this.us.length - 1;
+    for (let at = this.hashOf(ui, vi) & mask; this.us[at] !== -1; at = (at + 1) & mask) {
+      if (this.us[at] === ui && this.vs[at] === vi) return at;
+    }
+    return -1;
+  }
+
+  add(ui: number, vi: number, hit: Hit | null): void {
+    if ((this.count + 1) * 2 > this.us.length) {
+      if (this.us.length >= HIT_TABLE_LIMIT) this.clear();
+      else this.grow();
+    }
+    this.place(ui, vi, hit);
+    this.count++;
+  }
+
+  private place(ui: number, vi: number, hit: Hit | null): void {
+    const mask = this.us.length - 1;
+    let at = this.hashOf(ui, vi) & mask;
+    while (this.us[at] !== -1) at = (at + 1) & mask;
+    this.us[at] = ui;
+    this.vs[at] = vi;
+    this.hits[at] = hit;
+  }
+
+  private clear(): void {
+    this.us.fill(-1);
+    this.hits.fill(null);
+    this.count = 0;
+  }
+
+  private grow(): void {
+    const { us, vs, hits } = this;
+    this.us = new Int32Array(us.length * 2).fill(-1);
+    this.vs = new Int32Array(us.length * 2);
+    this.hits = new Array(us.length * 2).fill(null);
+    for (let at = 0; at < us.length; at++) if (us[at] !== -1) this.place(us[at], vs[at], hits[at]);
+  }
+
+  private hashOf(ui: number, vi: number): number {
+    return Math.imul(ui, 73856093) ^ Math.imul(vi, 19349663);
+  }
+}
+
+function scanFaces(index: FaceIndex, u: number, v: number): Hit | null {
   const { look } = index;
   downRay.origin.copy(look.normal).multiplyScalar(index.start);
   downRay.origin[look.u] = u;
   downRay.origin[look.v] = v;
   downRay.direction.copy(look.normal).negate();
-  let best: { point: THREE.Vector3; face: Face } | null = null;
+  let best: Hit | null = null;
   for (const face of index.columns.get(columnKey(Math.floor(u / FACE_COLUMN), Math.floor(v / FACE_COLUMN))) ?? []) {
     const span = face.span!;
     if (u < span.u0 || u > span.u1 || v < span.v0 || v > span.v1) continue;

@@ -65,10 +65,13 @@ class Columns {
     for (const tri of triangles) {
       const xs = tri.map((v) => this.column(v.x - this.min.x));
       const zs = tri.map((v) => this.column(v.z - this.min.y));
-      for (let x = Math.min(...xs); x <= Math.max(...xs); x++) {
-        for (let z = Math.min(...zs); z <= Math.max(...zs); z++) {
+      const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+      for (let x = x0; x <= x1; x++) {
+        for (let z = z0; z <= z1; z++) {
           const at = x * this.across + z;
-          this.cells.set(at, [...(this.cells.get(at) ?? []), tri]);
+          const cell = this.cells.get(at);
+          if (cell) cell.push(tri);
+          else this.cells.set(at, [tri]);
         }
       }
     }
