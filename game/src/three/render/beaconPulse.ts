@@ -1,12 +1,10 @@
-// The player's emergency beacon, made visible: while it calls, red full rings spread out from the truck.
-// Sound arcs show what the player hears, from one bearing. These show what the player sends, in all
-// directions, so they are circles in their own color and draw under the sound arcs.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 const RENDER_ORDER = 904;
@@ -44,7 +42,7 @@ export class BeaconPulseView {
     this.meshes = Array.from({ length: PULSE.rings }, () => {
       const mesh = new THREE.Mesh(
         new THREE.RingGeometry(1, 2, PULSE.segments),
-        new THREE.MeshBasicMaterial({ color: PAL.beacon, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: THREE.DoubleSide }),
+        overlayMaterial({ color: PAL.beacon, opacity: 0, depthTest: false, depthWrite: false }),
       );
       mesh.rotation.x = -Math.PI / 2;
       mesh.renderOrder = RENDER_ORDER;

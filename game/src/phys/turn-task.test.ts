@@ -1,6 +1,8 @@
 import { beforeAll, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
 import { corePart } from "../sim/grid";
+import { checkKnockout } from "../sim/defeat";
+import { RULES } from "../data/rules";
 import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
 import { addVehicle, comparableWorld, emptyWorld } from "../sim/testkit";
 import { standardWorld } from "../test/world-cache";
@@ -119,6 +121,8 @@ function fallingWorld() {
   const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
   corePart(me, "cab").hp = 0;
+  checkKnockout(world);
+  world.player.knockoutTurns = RULES.knockoutMaxTurns;
   return world;
 }
 

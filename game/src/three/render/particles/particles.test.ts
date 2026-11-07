@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { perfSnapshot, resetPerf } from '../../../perf';
-import type { Card, CardBatch } from './cards';
+import { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, ROUND_SHAPE, type Card, type CardBatch } from './cards';
 import { alphaAt, colorAt, FAR_COUNTER, OVERWRITE_COUNTER, Particles, sizeAt, type ParticleLook } from './particles';
 
 const LOOK: ParticleLook = { life: 1, size: { from: 1, to: 3 }, colors: [0xff0000, 0x0000ff], alpha: { peak: 0.6, fadeIn: 0.2 }, drag: 0, gravity: 0, streak: 0, form: 'cloud' };
@@ -75,6 +75,19 @@ describe('Particles', () => {
     p.tick(LOOK.life * 1.21);
     expect(p.alive()).toBe(0);
     expect(drawn(p)).toEqual([]);
+  });
+
+  it.each([
+    ['cloud', 0, CARD_SHAPES],
+    ['round', ROUND_SHAPE, ROUND_SHAPE + 1],
+    ['clump', CLUMP_FIRST, CLUMP_FIRST + CLUMP_SHAPES],
+  ] as const)('gives a %s particle only its own shapes', (form, first, end) => {
+    const p = new Particles(64, NEAR);
+    for (let i = 0; i < 64; i++) p.spawn(AT, STILL, { ...LOOK, form }, 1);
+    for (const card of drawn(p)) {
+      expect(card.shape).toBeGreaterThanOrEqual(first);
+      expect(card.shape).toBeLessThan(end);
+    }
   });
 
   it('moves a particle by its velocity and gravity', () => {

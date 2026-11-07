@@ -6,7 +6,7 @@ import { WORK } from '../data/utilities';
 import { knockOutNpc } from './defeat';
 import { corePart, findSpot, gridOf, MOUNT_CELLS, type Spot } from './grid';
 import { makePart } from './factory';
-import { addGoods, mountPart, plannedRefit, plannedRefitTurns, plannedTruck, queueRefit, startRefit } from './inventory';
+import { addGoods, mountPart, moveItem, planItemMove, plannedRefit, plannedRefitTurns, plannedTruck, queueRefit, startRefit } from './inventory';
 import { advanceJobs } from './jobs';
 import { lootBlocker, takeFromTruck } from './salvage';
 import { leaveLoot } from './loot-warning';
@@ -75,6 +75,65 @@ function turnsUntilIdle(w: World, limit = 100): number {
 function jobEvents(w: World): Extract<GameEvent, { t: 'job' }>[] {
   return w.events.filter((e): e is Extract<GameEvent, { t: 'job' }> => e.t === 'job');
 }
+
+describe('moving one part again before its refit is done', () => {
+  function withGun(): { w: World; gun: GridItem } {
+    const w = emptyWorld();
+    w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind !== 'good');
+    const gun = me(w).items.find((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
+    if (!gun) throw new Error('The test truck has no gun');
+    me(w).speed = 0;
+    return { w, gun };
+  }
+
+  function openSpots(w: World, gun: GridItem): Spot[] {
+    const v = me(w);
+    const grid = gridOf(v);
+    const others = v.items.filter((it) => it.id !== gun.id);
+    const first = findSpot(grid, [...others, gun], { ...gun, id: 'probe' }, null, null);
+    if (!first) throw new Error('The test truck has no open cell for the gun');
+    const second = findSpot(grid, [...others, gun, { ...gun, ...first, id: 'held' }], { ...gun, id: 'probe' }, null, null);
+    if (!second) throw new Error('The test truck has no second open cell for the gun');
+    expect(planItemMove(v, gun.id, first).error).toBeNull();
+    expect(planItemMove(v, gun.id, second).error).toBeNull();
+    return [first, second];
+  }
+
+  const startOf = (gun: GridItem): Spot => ({ x: gun.x, y: gun.y, rot: gun.rot });
+
+  it('prices two moves of one part as one refit', () => {
+    const { w, gun } = withGun();
+    const [first, second] = openSpots(w, gun);
+    const total = refitOf(me(moveItem(w, gun.id, second))).total;
+    const twice = moveItem(moveItem(w, gun.id, first), gun.id, second);
+    expect(refitOf(me(twice)).queue).toHaveLength(0);
+    expect(refitOf(me(twice)).total).toBe(total);
+    expect(refitOf(me(twice)).moves).toEqual([{ itemId: gun.id, from: startOf(gun), to: second }]);
+  });
+
+  it('ends the refit when the part comes back to where it started', () => {
+    const { w, gun } = withGun();
+    const [first] = openSpots(w, gun);
+    const back = moveItem(moveItem(w, gun.id, first), gun.id, startOf(gun));
+    expect(me(back).job).toBeNull();
+    expect(me(back).items.find((it) => it.id === gun.id)).toMatchObject(startOf(gun));
+  });
+
+  it('keeps the turns already worked', () => {
+    const { w, gun } = withGun();
+    const [first, second] = openSpots(w, gun);
+    const started = moveItem(w, gun.id, first);
+    advanceJobs(started);
+    const left = refitOf(me(started)).turnsLeft;
+    expect(refitOf(me(moveItem(started, gun.id, second))).turnsLeft).toBe(left);
+  });
+
+  it('leaves a step alone when a different part moves after it', () => {
+    const { w, raider } = downed();
+    const queued = strip(w, raider.id, ['mg', 'stockEngine']);
+    expect(refitOf(me(queued)).queue).toHaveLength(1);
+  });
+});
 
 describe('stripping a knocked-out truck in one visit', () => {
   it('queues every mounted part behind the first and takes them all off, one step after another', () => {

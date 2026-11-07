@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
+import { checkKnockout } from '../sim/defeat';
+import { RULES } from '../data/rules';
 import { corePart } from '../sim/grid';
 import type { QuestLanguage } from '../data/quests';
 import { setQuestLanguage } from '../sim/quests';
@@ -20,6 +22,8 @@ function knockoutTurn(questLanguage: QuestLanguage) {
   const raider = addVehicle(world, 'independent', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
   corePart(me, 'cab').hp = 0;
+  checkKnockout(world);
+  world.player.knockoutTurns = RULES.knockoutMaxTurns;
   const drive = buildDrive(world);
   try {
     const { terrain, ...state } = world;
@@ -33,6 +37,6 @@ function knockoutTurn(questLanguage: QuestLanguage) {
 it.each(['ru', 'en'] as const)('opens the knockout quest in %s because the request says so', (language) => {
   setQuestLanguage(language === 'ru' ? 'en' : 'ru');
   const world = knockoutTurn(language);
-  expect(world.player.state).toBe('knockedOut');
+  expect(world.player.state).toBe('active');
   expect(world.player.quests.live?.lang).toBe(language);
 }, 60_000);

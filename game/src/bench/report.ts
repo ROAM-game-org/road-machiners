@@ -11,7 +11,7 @@ export type SceneReport = {
   spread: number;
   bound: 'cpu' | 'gpu' | null;
   longTasks: number;
-  draws: { total: number; rendererCalls: number; byPass: Record<RenderPass, DrawCount>; bySystem: Record<BenchSystem, Record<RenderPass, DrawCount>>; other: Record<string, number> };
+  draws: { total: number; rendererCalls: number; programChecks: number; byPass: Record<RenderPass, DrawCount>; bySystem: Record<BenchSystem, Record<RenderPass, DrawCount>>; other: Record<string, number> };
   slowFrames: SlowFrames;
   savings: Record<string, number> | null;
   check: { name: string; passed: boolean; detail: string };

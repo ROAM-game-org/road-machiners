@@ -24,3 +24,7 @@ export function lookReason(w: World): Msg | null {
   if (w.player.quests.live !== null) return t('look.inScene');
   return actBlock(w) === 'knockedOut' ? t('actBlock.knockedOut') : null;
 }
+
+export function lookOrTurnReason(w: World, playing: boolean): Msg | null {
+  return lookReason(w) ?? (playing ? t('weapon.turnPlaying') : null);
+}

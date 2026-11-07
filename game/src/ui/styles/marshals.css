@@ -54,7 +54,7 @@
   z-index: var(--z-popup);
   width: max-content;
 }
-.case-pay:has(> button:is(:hover, :focus-visible)) > .case-price-tip {
+.case-pay:has(button:is(:hover, :focus-visible)) > .case-price-tip {
   display: block;
 }
 .desk-all {

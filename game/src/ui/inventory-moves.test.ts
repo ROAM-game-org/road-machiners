@@ -5,15 +5,50 @@ import { makePart } from "../sim/factory";
 import { gridOf, isMounted, itemCells, mountedParts, placementError } from "../sim/grid";
 import { addGoods, fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
-import { emptyWorld } from "../sim/testkit";
+import { addVehicle, emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, selectionAfterPress, stackAt, isRotateKey, needsHold, canFieldPatch, pickupTruck, planAfterMove, selectionAfterClick, storeItem, touchGridTap, type ClickedItem } from "./inventory-moves";
 import { goodsCount } from "../sim/grid";
 import { storedGoodItem } from "./inventory-draw";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
+describe("stackAt", () => {
+  const stacked = () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, "player", "hauler", [], { x: 40, y: 40 });
+    const wheel = v.items.find((it) => it.kind === "part" && it.part.defId === "wheel")!;
+    const crate: GridItem = { id: "crate", kind: "good", good: "scrap", x: wheel.x, y: wheel.y, rot: 0 };
+    v.items.push(crate);
+    return { v, wheel, crate };
+  };
+
+  it("finds the part below gear on the pressed cell", () => {
+    const { v, wheel, crate } = stacked();
+    expect(stackAt(v, crate, { x: wheel.x, y: wheel.y }).map((it) => it.id)).toEqual([crate.id, wheel.id]);
+  });
+
+  it("walks a stack on repeated presses: top, beneath, then nothing, then top again", () => {
+    const { v, wheel, crate } = stacked();
+    const cell = { x: wheel.x, y: wheel.y };
+    const first = selectionAfterPress(v, null, crate, cell);
+    const second = selectionAfterPress(v, first, crate, cell);
+    const third = selectionAfterPress(v, second, crate, cell);
+    expect([first, second, third, selectionAfterPress(v, third, crate, cell)]).toEqual([crate.id, wheel.id, null, crate.id]);
+  });
+
+  it("finds nothing beneath the lowest part", () => {
+    const { v, wheel } = stacked();
+    expect(stackAt(v, wheel, { x: wheel.x, y: wheel.y })).toEqual([wheel]);
+  });
+
+  it("finds nothing on a cell the gear shares with no part", () => {
+    const { v, crate } = stacked();
+    expect(stackAt(v, crate, { x: 3, y: 1 })).toEqual([crate]);
+  });
+});
+
 const gridClick = (item: GridItem): ClickedItem => ({ source: "grid", item, id: item.id, stockId: null, truckId: null });
 const freeCargoSpots = (w: World, avoid: GridItem[] = []): { x: number; y: number; rot: Rot }[] => {
   const me = w.vehicles[0];

@@ -136,7 +136,7 @@ That's a lot of M's for forgetting what you saw.
 === played ===
 ~ sluice = "passed"
 ~ give_money(price / 2)
-You keep your face calm. # page # place: The Bowl road
+You keep your face calm. # place: The Bowl road
 The steward writes a pass and signs it with the household's mark. He pays you half the sum.
 This will get you through the gate. Nobody there will ask what you carry. # speaker: Steward
 He doesn't look at the copy again. # reveal: all
@@ -144,7 +144,7 @@ He doesn't look at the copy again. # reveal: all
 
 === seen_through ===
 ~ sluice = "watched"
-The steward listens to the end. He doesn't smile. # page # place: The Bowl road
+The steward listens to the end. He doesn't smile. # place: The Bowl road
 If you meant to lose it, you wouldn't need a pass to carry it through the gate. # speaker: Steward
 He waves to a rider up the road. The rider sets off in a buggy toward Bowl.
 The offer is closed. My rider will reach the gate before you. # speaker: Steward
@@ -182,7 +182,7 @@ Under the drawing she wrote: For Mirela, to lay against her trough.
 { crossed():
   -> through
 }
-Bowl patrolmen hold the gate, with a handcart across the road. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
+Bowl patrolmen hold the gate, with a handcart across the road. To the left, a dry ditch runs around the wall. # place: The Bowl gate
 The household truck is through the gate ahead of you. Nobody asked it for a pass.
 { sluice == "watched":
   The steward's rider waits behind the patrolmen, next to his buggy.
@@ -268,7 +268,7 @@ The older patrolman takes the M's without counting them. The cart rolls aside.
 === handed ===
 ~ pipe_fate = "seized"
 ~ marr_regard = "enemy"
-You hand the copy through the window. # page # place: The Bowl gate
+You hand the copy through the window. # place: The Bowl gate
 No pass. Since you gave it up, there's no fine. # speaker: Patrolman
 He puts it in a satchel, and a boy runs off with it toward the top terrace. The cart rolls aside. # reveal: all
 -> END
@@ -281,7 +281,7 @@ He puts it in a satchel, and a boy runs off with it toward the top terrace. The 
   ~ due = money()
 }
 ~ pay(due)
-The patrolmen unroll the first fold standing in the road. # page # place: The Bowl gate
+The patrolmen unroll the first fold standing in the road. # place: The Bowl gate
 A young patrolman says it belongs at the lock house. The older one tells him to bring a satchel.
 The copy goes up to the top terrace. Now the household knows what Agnes drew, and who carried it.
 They fine you {due} M for carrying a sealed bundle without a pass. # reveal: all
@@ -289,7 +289,7 @@ Your name goes into their report.
 -> END
 
 === terrace ===
-The household's gardens fill the top terrace behind a whitewashed wall. Its gate is open for the workers. # page # place: The top terrace
+The household's gardens fill the top terrace behind a whitewashed wall. Its gate is open for the workers. # place: The top terrace
 By the gate, the household truck is backed up to a low stone tank. Its crew tip its barrels one by one into the tank's inlet. Nobody guards it.
 -> terrace_hub
 
@@ -321,7 +321,7 @@ You wait until the household truck drives off. Then you hold Agnes's glass windo
 ~ marr_regard = "enemy"
 The bolts go down evenly, and the glass window sits flat.
 Next morning the household truck comes back full, and its barrels go in through your glass, one after another, for anyone on the terrace to see. The worker with the hoe watches the water run clear through it all morning and says out loud what he sees. Then he walks off down the rows.
-By evening the whole market has heard it. # page
+By evening the whole market has heard it.
 At dawn a household crew takes the glass window off. The tenants in the market watch them do it. # reveal: all
 What the worker saw stays with the tenants. Nobody needs Agnes's copy to know it.
 -> END
@@ -339,7 +339,7 @@ The household bills you {due} M for a new inlet. # reveal: all
 -> town.town_hub
 
 === lock ===
-The lock house stands at the bottom of Bowl, where the canals begin. Bowl's trucks back up to a long stone trough and empty their barrels into it, and the trough feeds the canals. # page # place: Bowl lock house
+The lock house stands at the bottom of Bowl, where the canals begin. Bowl's trucks back up to a long stone trough and empty their barrels into it, and the trough feeds the canals. # place: Bowl lock house
 A woman with rolled sleeves stands at the trough with a hand on its rim, watching a truck pour. A pale stain climbs the stone high above the water, where the trucks once filled it to. She looks at the seal before she looks at you.
 Agnes sent you. Good. # speaker: Mirela
 { book_read:
@@ -387,7 +387,7 @@ Then your hand's on the cloth, and the household's clerk comes to this trough ev
 ~ marr_regard = "enemy"
 ~ note("pipeCanal")
 ~ give_money(fee)
-You black your hand and press it to the cloth at the line you saw. Mirela pays you {fee} M from the lock box. # page # place: Bowl lock house
+You black your hand and press it to the cloth at the line you saw. Mirela pays you {fee} M from the lock box. # place: Bowl lock house
 { meter_taken and not walked_out: You leave Agnes's glass window with her as well. }
 The Senate meets in a week. # speaker: Mirela
 The truck drivers who watched you press your hand spread the news.
@@ -402,7 +402,7 @@ The trough stays with the household's clerk, and the reserve under the terrace s
 ~ canal_matches = true
 ~ note("pipeCanal")
 ~ give_money(fee)
-Mirela shrugs. She rolls the cloth up under her arm. # page # place: Bowl lock house
+Mirela shrugs. She rolls the cloth up under her arm. # place: Bowl lock house
 Then it's Agnes's wall and my trough, and we both want the water. The household will say Agnes drew those rings herself, just you watch. # speaker: Mirela
 She pays you {fee} M from the lock box.
 { meter_taken and not walked_out: You leave Agnes's glass window with her as well. }
@@ -414,7 +414,7 @@ The Senate moved on to grain. # reveal: all
 === market ===
 ~ pipe_fate = "read"
 ~ marr_regard = "enemy"
-Tenants crowd the market with empty water cans. Bowl's trucks are late with the water again. # page # place: Bowl market
+Tenants crowd the market with empty water cans. Bowl's trucks are late with the water again. # place: Bowl market
 You hold Agnes's cloth up and tell them what you saw at the pump: the water sinking down the wall, the line of Bowl's trucks leaving short, and the household truck filling first from the one hose with no glass window.
 A grey-haired tenant tells it again to the people behind him.
 Bowl patrolmen push through the crowd toward you.
@@ -447,7 +447,7 @@ By evening, everyone in the market knows about the household truck.
 ~ pipe_fate = "sold"
 ~ marr_regard = "bought"
 ~ give_money(price)
-The steward doesn't open the copy. He weighs it in his hand and gives you the purse. # page # place: The Bowl road
+The steward doesn't open the copy. He weighs it in his hand and gives you the purse. # place: The Bowl road
 { book_read: He sees the cut seal and pays anyway. }
 He writes your name on a slip.
 Friends of the household drink first. If anyone in Bowl asks, you never stood at that tank, and you may be assured the gate has your name. # speaker: Steward
@@ -458,6 +458,6 @@ You count {price} M.
 === dropped ===
 ~ taken = false
 ~ meter_taken = false
-You throw the copy into a dry ditch and kick dust over it. # page # place: The road
+You throw the copy into a dry ditch and kick dust over it. # place: The road
 Nobody saw. The household truck keeps coming.
 -> END

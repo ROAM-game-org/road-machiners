@@ -161,6 +161,7 @@ function emptyWorldAt(pos: Vec): World {
   const p = w.vehicles[0];
   p.pos = { ...pos };
   p.heading = 0;
+  w.player.autoFire = false;
   refreshVision(w);
   return w;
 }
