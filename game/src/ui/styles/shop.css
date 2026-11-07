@@ -355,81 +355,6 @@
   }
 }
 
-/* Journal: held work, then notes newest first, then past work newest first. */
-#ui .modal.journal-screen {
-  max-width: var(--talk-width);
-}
-.journal {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-9);
-  margin-top: var(--space-4);
-}
-.journal-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-.journal-group > h4 {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--text-dense);
-  font-weight: normal;
-}
-.journal .jobs {
-  grid-template-columns: var(--icon-xl) 1fr auto auto;
-}
-.journal-past .job > :last-child {
-  justify-self: end;
-}
-.journal-work .job:has(+ .journal-detail) {
-  border-bottom: 0;
-}
-.journal-detail {
-  grid-column: 2 / -1;
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line-faint);
-}
-.journal-note {
-  padding: var(--space-4) var(--space-6);
-  background: var(--surface-raised);
-  border-left: 4px solid var(--line);
-  line-height: 1.4;
-}
-.journal-place {
-  margin-top: var(--space-4);
-}
-.journal-place.survey {
-  display: grid;
-  grid-template-columns: var(--survey-picture-w) 1fr;
-  gap: var(--space-6);
-  align-items: start;
-}
-.survey-picture {
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border: 1px solid var(--surface-raised);
-  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
-}
-.survey-picture img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-#ui.slim .journal-place.survey {
-  grid-template-columns: 1fr;
-}
-#ui.slim .survey-picture {
-  max-width: calc(var(--survey-picture-w) * 1.5);
-}
-.journal .journal-head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-6);
-  margin-bottom: var(--space-2);
-}
-
 /* Shop tabs carry an icon beside the label. */
 .town-shop > .tabs .icon {
   width: var(--icon-m);
@@ -1188,6 +1113,82 @@
 /* A note in place of an action wraps, so it never squeezes the contract summary. */
 .job > .dim {
   max-width: 11em;
+}
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--board-held-width);
+  gap: var(--space-6);
+  align-items: start;
+}
+.board-offers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.board-offers .jobs {
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
+}
+.board-offers .job.offer {
+  grid-template-areas:
+    "icon what action"
+    "icon meta action";
+  row-gap: var(--space-2);
+}
+.board-offers .job.offer > .icon {
+  grid-area: icon;
+}
+.board-offers .job.offer > .job-what {
+  grid-area: what;
+}
+.board-offers .job.offer > .job-meta {
+  grid-area: meta;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+}
+.board-offers .job.offer > :last-child {
+  grid-area: action;
+}
+.board-held {
+  gap: var(--space-3);
+}
+.board-held .jobs {
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
+}
+:is(.board-held, .journal-screen) .job.held {
+  grid-template-areas:
+    "icon what what"
+    "icon meta action";
+  row-gap: var(--space-2);
+}
+:is(.board-held, .journal-screen) .job.held > .icon {
+  grid-area: icon;
+}
+:is(.board-held, .journal-screen) .job.held > .job-what {
+  grid-area: what;
+}
+:is(.board-held, .journal-screen) .job.held > .job-meta {
+  grid-area: meta;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+}
+.board-held .job.held > :last-child {
+  grid-area: action;
+}
+.job-meta :is(.price, .need) {
+  white-space: nowrap;
+}
+.job-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+:where(#ui.phone, #ui.narrow) .board {
+  grid-template-columns: minmax(0, 1fr);
 }
 .job-what {
   display: flex;

@@ -68,6 +68,10 @@ export function phoneMode(): boolean {
   return shown.phone;
 }
 
+export function narrowMode(): boolean {
+  return shown.narrow;
+}
+
 export const ESCAPE = { key: "Esc" };
 export const RECENTER_KEY = "F";
 

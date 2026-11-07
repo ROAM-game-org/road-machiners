@@ -268,11 +268,12 @@ export class Game {
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host);
+    this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
     this.hud = new Hud({
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
+      journalBeside: () => this.screens.journal.sideForm(),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
@@ -453,7 +454,7 @@ export class Game {
     const w = this.displayWorld();
     const v = w.vehicles.find((x) => x.id === this.inspected() && playerSees(w, x.pos)) ?? null;
     this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false);
-    this.hitCard.render(w, v ? v.id : null);
+    this.hitCard.render(w, v ? v.id : null, this.selected);
   }
 
   private placeHitCard(): void {
@@ -553,14 +554,14 @@ export class Game {
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
     KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
-    KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true, screen: true },
+    KeyJ: { run: () => (!this.anim || this.screens.journal.sideForm()) && this.screens.toggle(this.screens.journal), screen: true },
     KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
     Escape: { run: () => this.escape() },
   };
 
   private escape(): void {
     if (this.screens.town.isOpen()) this.screens.town.back();
-    else if (this.modalOpen()) this.screens.closeAll(null);
+    else if (this.modalOpen() || this.screens.journal.isOpen()) this.screens.closeAll(null);
     else if (this.pin.id !== null || this.utilityAim.selectedId !== null) this.unpin();
     else return this.menu.open();
     this.selectUtility(null);

@@ -23,7 +23,7 @@ export class ModalScreens {
   readonly inventoryTime: InventoryTime;
   readonly quest: QuestScreen;
 
-  constructor(host: UiHost) {
+  constructor(host: UiHost, private moved: () => void = () => {}) {
     this.town = new TownScreen(host);
     this.outpost = new OutpostScreen(host);
     this.fullShop = new FullShopScreen(host);
@@ -44,18 +44,20 @@ export class ModalScreens {
   }
 
   blockingOpen(): boolean {
-    return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen());
+    return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen() && !(s === this.journal && this.journal.sideForm()));
   }
 
   render(): void {
     for (const s of this.all()) s.render();
     for (const s of this.looks()) if (!s.isOpen()) s.root.classList.remove(OVER_SCENE);
     this.quest.render();
+    this.moved();
   }
 
   closeAll(keep: Toggled | null): void {
     for (const s of this.all()) if (s !== keep) s.close();
     if (keep === null) for (const s of this.looks()) s.root.classList.remove(OVER_SCENE);
+    this.moved();
   }
 
   private looks(): Toggled[] {
@@ -77,6 +79,8 @@ export class ModalScreens {
     screen.toggle();
     const over = this.quest.isOpen() && screen.isOpen();
     screen.root.classList.toggle(OVER_SCENE, over);
+    if (screen === this.journal) this.journal.render();
+    this.moved();
     if (this.quest.isOpen() && !this.lookOver()) this.quest.focus();
   }
 

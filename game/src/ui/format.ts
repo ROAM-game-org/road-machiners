@@ -741,13 +741,6 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   return el('span', { class: 'contract-clue' }, surveyPlaceText(clue), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
 }
 
-export function surveyWayText(world: World, c: SurveyContract, point: SurveyPoint): Msg {
-  const clue = surveyClue(c, point);
-  const way = surveyWay(world, c, point);
-  if (!way) return surveyClueText(clue);
-  return t('contract.surveyWay', { square: gridSquareText(clue.square), site: siteName(c.shop), way: directionsText(way), lay: t(`contract.lay.${clue.lay}`) });
-}
-
 export function surveyWayLine(world: World, c: SurveyContract, point: SurveyPoint): HTMLElement {
   const way = surveyWay(world, c, point);
   if (!way) return surveyPlaceLine(c, point);
@@ -762,6 +755,18 @@ export function surveyWayLines(world: World, c: SurveyContract): HTMLElement[] {
 
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyPlaceLine(c, p));
+}
+
+export function surveyOpenSquares(c: SurveyContract): Msg {
+  return list(c.points.filter((p) => !p.done).map((p) => {
+    const clue = surveyClue(c, p);
+    return concat([t(`contract.placeName.${clue.type}`), SPACE, gridSquareText(clue.square)]);
+  }));
+}
+
+export function surveyClueTip(c: SurveyContract): Msg {
+  const lines = c.points.filter((p) => !p.done).map((p) => surveyPlaceText(surveyClue(c, p)));
+  return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [SPACE, line])));
 }
 
 export function surveyPlacesLeft(c: SurveyContract): Msg {

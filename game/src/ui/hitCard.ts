@@ -3,13 +3,13 @@ import { isPlayerTruck, playerVehicle } from '../sim/damage';
 import { vehicleStats, type MountedWeapon } from '../sim/stats';
 import type { Aim, Vehicle, World } from '../sim/types';
 import { partName, vehicleTitle } from '../text/names';
-import { DASH, num, t, type Msg } from '../text/msg';
+import { num, t, type Msg } from '../text/msg';
 import { el } from './dom';
 import { ammoText, blockText } from './weapons';
 
 export type TipRow = { name: Msg; delta: number };
 export type ChanceTip = { base: number; rows: TipRow[] };
-export type HitRow = { key: number | null; name: Msg; ammo: Msg; odds: HitOdds | null; text: Msg; tip: ChanceTip | null };
+export type HitRow = { partId: string; key: number | null; name: Msg; ammo: Msg; odds: HitOdds | null; text: Msg; tip: ChanceTip | null };
 export type HitCardData = { name: Msg; mine: HitRow[]; theirs: HitRow[] };
 
 type CauseNames = Record<ChanceStep['cause'], Msg>;
@@ -35,7 +35,7 @@ function chanceTip(world: World, shooter: Vehicle, mw: MountedWeapon, target: Ve
 }
 
 function row(world: World, shooter: Vehicle, mw: MountedWeapon, target: Vehicle, aim: Aim, key: number | null, names: CauseNames): HitRow {
-  const gun = { key, name: partName(mw.def.id), ammo: ammoText(mw) };
+  const gun = { partId: mw.part.id, key, name: partName(mw.def.id), ammo: ammoText(mw) };
   const block = fireBlock(world, shooter, mw, target);
   if (block !== null) return { ...gun, odds: null, text: blockText(mw, block), tip: null };
   const odds = hitOdds(world, shooter, mw, target, aim);
@@ -73,22 +73,34 @@ function tipOf(tip: ChanceTip): HTMLElement {
   );
 }
 
-function chanceOf(r: HitRow, theirs: boolean): HTMLElement {
-  if (!r.odds || !r.tip) return el('span', { class: 'hc-pct blocked', title: r.text }, r.text);
-  const percent = Math.round(r.odds.damageChance * 100);
+function chanceOf(r: HitRow, odds: HitOdds, tip: ChanceTip, theirs: boolean): HTMLElement {
+  const percent = Math.round(odds.damageChance * 100);
   const tone = percent === 0 ? 'zero' : percent >= HIGH_CHANCE ? 'high' : '';
-  return el('span', { class: `hc-pct ${theirs ? 'theirs' : 'mine'} ${tone}`.trim(), tabindex: 0 }, r.text, tipOf(r.tip));
+  return el('span', { class: `hc-pct ${theirs ? 'theirs' : 'mine'} ${tone}`.trim(), tabindex: 0 }, r.text, tipOf(tip));
 }
 
-function gunRow(r: HitRow, theirs: boolean): HTMLElement {
+function gunRow(r: HitRow, theirs: boolean, selected: boolean, reason: Msg | null): HTMLElement {
   const name = el('span', { class: 'hc-gun', title: t('hit.label', { name: r.name, ammo: r.ammo }) }, ...(r.key === null ? [] : [el('span', { class: 'hc-key' }, num(r.key, 'int'))]), r.name);
-  return el('div', { class: `hc-row${r.odds ? '' : ' blocked'}` }, name, chanceOf(r, theirs));
+  const caption = r.odds || reason !== null ? null : el('span', { class: 'hc-reason' }, r.text);
+  const chance = r.odds && r.tip ? chanceOf(r, r.odds, r.tip, theirs) : null;
+  return el('div', { class: `hc-row${r.odds ? '' : ' blocked'}${selected ? ' selected' : ''}` }, name, chance, caption);
 }
 
-function well(title: Msg, rows: HitRow[], theirs: boolean): HTMLElement {
+function sameMsg(a: Msg, b: Msg): boolean {
+  return JSON.stringify([a.key, a.params]) === JSON.stringify([b.key, b.params]);
+}
+
+function sharedReason(rows: HitRow[]): Msg | null {
+  if (rows.length < 2 || rows.some((r) => r.odds)) return null;
+  return rows.every((r) => sameMsg(r.text, rows[0].text)) ? rows[0].text : null;
+}
+
+function well(title: Msg, rows: HitRow[], theirs: boolean, selectedId: string | null): HTMLElement {
+  const shared = sharedReason(rows);
   return el('div', { class: `hc-well${theirs ? ' theirs' : ''}` },
     el('div', { class: 'hc-cap' }, title),
-    ...(rows.length === 0 ? [el('div', { class: 'hc-none' }, DASH)] : rows.map((r) => gunRow(r, theirs))),
+    shared ? el('div', { class: 'hc-reason' }, shared) : null,
+    ...(rows.length === 0 ? [el('div', { class: 'hc-none' }, t('hit.noWeapons'))] : rows.map((r) => gunRow(r, theirs, r.key !== null && r.partId === selectedId, shared))),
   );
 }
 
@@ -100,13 +112,13 @@ export class HitCard {
     container.append(this.root);
   }
 
-  render(world: World, hoveredId: string | null): void {
+  render(world: World, hoveredId: string | null, selectedId: string | null): void {
     const card = hoveredId === null ? null : hitCardRows(world, hoveredId);
     if (!card) {
       this.root.replaceChildren();
       return this.hide();
     }
-    this.root.replaceChildren(well(t('hit.wellYou'), card.mine, false), well(t('hit.wellThem'), card.theirs, true));
+    this.root.replaceChildren(well(t('hit.wellYou'), card.mine, false, selectedId), well(t('hit.wellThem'), card.theirs, true, null));
   }
 
   hide(): void {

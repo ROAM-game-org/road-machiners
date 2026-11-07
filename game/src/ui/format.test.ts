@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -1027,13 +1027,11 @@ describe("survey contract text", () => {
     expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road runs closest, leave the road and head north and a touch east, a few minutes' drive. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road runs closest, leave the road and head north and a touch east, a few minutes' drive. It lies in square C6, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
     const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: surveySiteAt("survey-tank-", { x: 307.6, y: 1516.6 }), found: false, done: false }] };
     const w = emptyWorld();
-    expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),

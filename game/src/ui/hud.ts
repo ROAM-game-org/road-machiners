@@ -1,6 +1,7 @@
 
 import { Drawers } from "./drawers";
-import { keyCap, keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyLabel, narrowMode, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -41,7 +42,7 @@ import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
+import { actionRow, costItem, createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch, lockSlot, stackedLabel } from "./switch";
@@ -115,6 +116,7 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  journalBeside: () => boolean;
   openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
@@ -219,19 +221,70 @@ export class Hud {
 
   private readonly dialogue: DialoguePanel;
 
+  private side: HTMLElement | null = null;
+
+  private sideShown(): boolean {
+    return this.side !== null && this.side.style.display !== "none" && this.side.classList.contains("journal-side");
+  }
+
+  private infoShown(): boolean {
+    return this.info.style.display !== "none";
+  }
+
+  placeSide = (node: HTMLElement | null = this.side): void => {
+    this.side = node;
+    if (this.side) this.side.style.visibility = "";
+    if (!this.sideShown()) {
+      this.side?.style.removeProperty("top");
+      this.side?.style.removeProperty("height");
+      return this.coverUnder(this.infoShown() ? uiSize().layerRect(this.info).bottom : null);
+    }
+    const side = this.side!;
+    side.style.visibility = this.infoShown() ? "hidden" : "";
+    const top = uiSize().layerRect(topRight()).bottom + parseFloat(token("--hud-gap"));
+    side.style.top = `${top}px`;
+    side.style.height = `${Math.max(this.sideFloor(side) - top, 0)}px`;
+    if (!this.infoShown()) this.coverUnder(uiSize().layerRect(side).bottom);
+  };
+
+  private clearOfDock(floor: number, card: HTMLElement): number {
+    if (phoneMode() || narrowMode()) return floor;
+    const reach = Math.max(...[...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")].map((control) => uiSize().layerRect(control).right));
+    return reach > uiSize().layerRect(card).left ? Math.min(floor, uiSize().layerRect(this.top).top - parseFloat(token("--hud-gap"))) : floor;
+  }
+
+  private sideFloor(side: HTMLElement): number {
+    return this.clearOfDock(uiSize().layerRect(this.log.root).bottom, side);
+  }
+
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
     const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
-    const slot = this.floorOfInfo() - gap - top;
+    const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
+    const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
     this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
     if (this.inspectedAimable) this.growForAim(top, slot);
+    if (!phoneMode()) this.growForLists(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
+    this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
   };
+
+  private placeQueued = false;
+
+  private placeSoon(): void {
+    if (this.placeQueued) return;
+    this.placeQueued = true;
+    requestAnimationFrame(() => {
+      this.placeQueued = false;
+      this.placeInfo();
+      this.placeSide();
+    });
+  }
 
   private drawerMoved(): void {
     requestAnimationFrame(this.placeInfo);
@@ -275,10 +328,18 @@ export class Hud {
       return;
     }
     if (wider > 0) this.info.style.width = `${width}px`;
-    const tallest = uiSize().layerRect(this.log.root).bottom - top;
+    const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
+  }
+
+  private growForLists(top: number): void {
+    const lists = this.infoColumn.querySelector<HTMLElement>(".hitcard");
+    const over = lists ? lists.scrollHeight - lists.clientHeight : 0;
+    if (over <= 0) return;
+    const tallest = this.sideFloor(this.info) - top;
+    this.info.style.height = `${Math.min(tallest, this.info.offsetHeight + over)}px`;
   }
 
   private coverUnder(bottom: number | null): void {
@@ -310,9 +371,11 @@ export class Hud {
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
-    new ResizeObserver(this.placeInfo).observe(rightDock());
-    new ResizeObserver(this.placeInfo).observe(this.inspectedDraw);
+    const placeSoon = new ResizeObserver(() => this.placeSoon());
+    placeSoon.observe(rightDock());
+    placeSoon.observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
+    window.addEventListener("resize", () => this.placeSide());
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
@@ -546,7 +609,7 @@ export class Hud {
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
-      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
+      { class: "instrument-button", disabled: busy && !this.actions.journalBeside(), onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
     );
   }
@@ -739,7 +802,7 @@ export class Hud {
     this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
-      this.coverUnder(null);
+      this.placeSide();
       return;
     }
     const aim = this.aimOf(w, v);
@@ -747,10 +810,11 @@ export class Hud {
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      infoHead(w, v, hostile, this.cardButtons(w, v)),
+      infoHead(w, v, hostile),
       el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
+      ...[this.cardButtons(w, v)].flatMap((row) => (row ? [row] : [])),
     );
     this.placeInfo();
   }
@@ -760,7 +824,7 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement | null): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
@@ -768,7 +832,6 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement |
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     ...(v.faction === "player" ? [] : [el("span", { class: "info-quiet", title: quietText }, quietText), el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-    ...(buttons ? [buttons] : []),
   );
 }
 
@@ -778,21 +841,22 @@ export interface CardHandlers {
   unpin: () => void;
 }
 
-function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
-  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick), title: keyLabel(refusal ?? label, key) }, label, keyCap(key));
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, cost: readonly HTMLElement[] = []): HTMLElement[] {
+  const button = el("button", { class: "btn-s", ...disabledWith(refusal, onclick), title: keyLabel(refusal ?? label, key) }, label);
+  return cost.length === 0 ? [button] : actionRow(button, cost);
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
-  const buttons = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
+  const buttons: HTMLElement[] = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
   if (touchMode()) buttons.push(el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, t("hint.closeMark")));
   return buttons.length === 0 ? null : el("div", { class: "info-actions" }, ...buttons);
 }
 
 function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
   const buttons: HTMLElement[] = [];
-  if (v.brain && modeRules(w).radio) buttons.push(actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
-  if (hasBasic(w, "lookOver")) buttons.push(actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver")));
-  if (hasPerk(w, "spotter")) buttons.push(actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
+  if (v.brain && modeRules(w).radio) buttons.push(...actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
+  if (hasBasic(w, "lookOver")) buttons.push(...actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), [costItem("clock", num(LOOK_OVER.turns, "int"))]));
+  if (hasPerk(w, "spotter")) buttons.push(...actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
   return buttons;
 }
 

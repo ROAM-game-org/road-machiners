@@ -4,7 +4,7 @@ import { emptyWorld } from '../sim/testkit';
 import type { Cue, DirectionStep } from '../sim/types';
 import { LOCALES } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { cueText, directionsText } from './directions-text';
+import { cueText, directionsSteps, directionsText } from './directions-text';
 import { REGION } from '../data/region';
 import { siteName } from '../text/names';
 
@@ -170,5 +170,27 @@ describe('directionsText', () => {
 
   it('refuses an empty list', () => {
     expect(() => directionsText([])).toThrow();
+  });
+
+  it('gives one text per step that speaks, and joins to the radio text', () => {
+    const w = emptyWorld();
+    for (const site of [...REGION.towns, ...REGION.locations]) {
+      const steps = directionsTo(w, { x: 200, y: 300 }, { kind: 'site', id: site.id });
+      for (const locale of LOCALES) {
+        const parts = directionsSteps(steps).map((m) => resolve(m, locale));
+        expect(parts.join(' '), `${locale} ${site.id}`).toBe(resolve(directionsText(steps), locale));
+        expect(parts.every((p) => p.length > 0)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps the long haul warning inside its own step', () => {
+    const steps: DirectionStep[] = [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'askAgain' }];
+    expect(directionsSteps(steps).map((m) => resolve(m, 'en'))).toEqual(['Take the road to Nose. That stretch takes half an hour or more.', 'Ask again on the way.']);
+  });
+
+  it('drops a step with nothing to say and refuses an empty list', () => {
+    expect(directionsSteps([{ do: 'straight', octant: 'southEast', span: 'near' }, { do: 'search', clue: { kind: 'wreck' }, rough: true }])).toHaveLength(1);
+    expect(() => directionsSteps([])).toThrow();
   });
 });

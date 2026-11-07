@@ -90,7 +90,7 @@ const GROUPS: Group[] = [
   {
     title: "Page and phone sizes",
     prefixes: [
-      "--compass-w", "--slider-", "--info-lists-height", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
+      "--compass-w", "--slider-", "--info-card-height", "--info-draw-width", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
       "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target", "--phone-",
     ],
     sample: boxSample,
