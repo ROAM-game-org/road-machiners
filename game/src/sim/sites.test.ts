@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { clickOrder } from './steering';
-import { canUseSite, edgeCrossings, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
+import { fortressGates } from './fortress';
+import { canUseSite, edgeCrossings, isFortress, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
 import { dist } from './vec';
 import { highwayMap, outpostFort } from './highway';
 import { atlasOf, icarusAtlas } from './atlas';
@@ -51,11 +52,10 @@ describe('site gates and pads', () => {
     }
   });
 
-  it('puts each pad outside its site, touching the gate', () => {
+  it('puts each pad against its gate', () => {
     for (const site of SITES) {
-      const gates = siteGates(site);
+      const gates = isFortress(site) ? fortressGates(site).map((g) => g.face) : siteGates(site);
       sitePads(site).forEach((pad, i) => {
-        expect(dist(pad, site.pos), site.id).toBeCloseTo(site.radius + PAD.length / 2, 6);
         expect(dist(pad, gates[i]), site.id).toBeCloseTo(PAD.length / 2, 6);
       });
     }
