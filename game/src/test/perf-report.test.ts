@@ -336,6 +336,15 @@ describe('gate', () => {
     expect(measures['town-day p99'].noise).toBe(20);
   });
 
+  it('fails a night fight whose stutter grows, in either pass', () => {
+    const fight = (p99: number) => wrap(withScene('fight-night', { passes: [pass(realStats(30, p99)), pass(realStats(30, 48))], spread: 0.5 }), { machine: 'ally' });
+    const file = { machines: { ally: landedFrom([fight(70), fight(72), fight(74)]) } };
+    expect(file.machines.ally.measures['fight-night pass 1 p99'].watched).toBeUndefined();
+    expect(gateLines(fight(72), file).status).toBe('pass');
+    expect(gateLines(fight(100), file).lines.filter((l) => !l.pass).map((l) => l.key)).toEqual(['fight-night pass 1 p99']);
+    expect(gateLines(fight(100), file).status).toBe('slower');
+  });
+
   it('judges the turn wait by its mean and only shows its median and p99', () => {
     const { measures } = landedFrom([run(10), run(10), run(10)]);
     expect(measures['turn wait mean'].watched).toBeUndefined();

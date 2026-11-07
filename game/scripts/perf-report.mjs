@@ -357,9 +357,11 @@ const GATE_MIN_REPORTS = 3;
 const rangeOf = (values) => Math.max(...values) - Math.min(...values);
 const medianValue = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
+const judgesStutter = (scene, stat) => scene.id === 'fight-night' && stat === 'p99';
+
 function sceneMeasures(scene) {
   if (PASSES_DIFFER_ON_PURPOSE.has(scene.id)) {
-    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `${scene.id} pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
+    return scene.passes.flatMap((pass, i) => GATE_STATS.map((stat) => ({ key: `${scene.id} pass ${i + 1} ${stat}`, value: pass.real[stat], within: 0, watched: !judgesStutter(scene, stat) && stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT })));
   }
   return GATE_STATS.map((stat) => ({ key: `${scene.id} ${stat}`, value: scene.frame.real[stat], within: rangeOf(scene.passes.map((pass) => pass.real[stat])), watched: stat !== JUDGED_STAT, frameMean: stat === JUDGED_STAT }));
 }
