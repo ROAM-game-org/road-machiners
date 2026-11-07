@@ -48,7 +48,7 @@ describe('repackWith', () => {
   it('returns null when the deck has no room left', () => {
     const w = emptyWorld();
     const v = bare(w, 'niva');
-    while (mountPart(w, v, makePart(w, 'mg', 0)));
+    while (mountPart(w, v, makePart(w, 'jerrycans', 0)));
     expect(repackWith(v, loose(w, 'mg'), () => true, new Map())).toBeNull();
   });
 
@@ -69,7 +69,7 @@ describe('repackWith', () => {
   it('keeps a repacked gun out of the barrel lanes of the guns beside it', () => {
     const w = emptyWorld();
     const v = bare(w, 'courier');
-    for (const [defId, x, y, rot] of [['flamer', 1, 4, 0], ['harpoon', 2, 4, 2]] as const) v.items.push({ id: defId, kind: 'part', x, y, rot, part: makePart(w, defId, 0) });
+    for (const [defId, x, y, rot] of [['flamer', 1, 7, 0], ['harpoon', 2, 7, 2]] as const) v.items.push({ id: defId, kind: 'part', x, y, rot, part: makePart(w, defId, 0) });
     const after = repackWith(v, loose(w, 'mg'), () => true, new Map());
     expect(after).not.toBeNull();
     legal(after!);

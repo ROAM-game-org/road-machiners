@@ -8,13 +8,7 @@ import { getLotTradePrice, sellPrice } from "../sim/economy";
 import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
 import { lotLabel, reasonButton } from "./shop-rows";
-import {
-  gridOf,
-  isMounted,
-  nextTurn,
-  type Cell,
-  type Spot,
-} from "../sim/grid";
+import { deepestFirst, gridOf, isMounted, nextTurn, type Cell, type Spot } from "../sim/grid";
 import {
   dumpItem,
   installSpot,
@@ -91,27 +85,7 @@ import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw
 import { fuelLiters, moneyEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
-import {
-  doubleClickCommand,
-  dragStartOf,
-  planAfterMove,
-  withPlanQueued,
-  takeDropped,
-  pickupProblem,
-  pickupTruck,
-  HOLD_TO_DRAG_MS,
-  isDoubleClick,
-  needsHold,
-  selectionAfterClick,
-  touchGridTap,
-  type ClickedItem,
-  type ItemSource,
-  type LastClick,
-  isRotateKey,
-  storeItem,
-  takeFromStore,
-  turnsToTry,
-} from "./inventory-moves";
+import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
@@ -144,6 +118,7 @@ export class InventoryView {
   private preview: Drag | null = null;
   private tap: Tap | null = null;
   private lastClick: LastClick = null;
+  private pressedCell: { x: number; y: number } | null = null;
   private lastPointer: PointerEvent | null = null;
   private holdId: number | null = null;
   private stopScroll: ((e: TouchEvent) => void) | null = null;
@@ -322,10 +297,14 @@ export class InventoryView {
     node.classList.toggle("selected", this.selectedItem === it.id);
     const click = () => this.clickItem(this.clicked("grid", it.id, it));
     node.addEventListener("click", (e) => {
-      if (!fromButton(e) && (core || e.detail === 0)) click();
+      if (fromButton(e) || !(core || e.detail === 0)) return;
+      this.pressedCell = e.detail === 0 || !this.gridEl ? null : cellUnder(this.scale.mine, this.gridEl, e.clientX, e.clientY);
+      click();
     });
     node.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") click();
+      if (e.key !== "Enter") return;
+      this.pressedCell = null;
+      click();
     });
     this.hoverFan(node, me, it, mounted);
     if (!core)
@@ -334,6 +313,7 @@ export class InventoryView {
         if (!this.gridEl) throw new Error("Grid item pressed without a grid");
         const at = cellUnder(this.scale.mine, this.gridEl, e.clientX, e.clientY);
         const grab = { x: at.x - it.x, y: at.y - it.y };
+        this.pressedCell = at;
         if (dragStartOf(e.pointerType, needsHold(me.chassisId, it)) === "hold") this.startPress(e, "grid", it.id, it, grab);
         else this.startDrag(e, "grid", it.id, it, grab);
       });
@@ -351,7 +331,7 @@ export class InventoryView {
     const work = workMarkOf(w, real);
     const withWork = (it: GridItem, node: HTMLElement): HTMLElement => (work?.itemIds.has(it.id) ? markWorking(node, work.done) : node);
     const node = (it: GridItem) => (marks.get(it.id) === "queued" ? this.plannedEl(w, it) : withWork(it, marks.has(it.id) ? this.refittingEl(w, real, it) : this.itemEl(w, it)));
-    return [...v.items].sort((a, b) => Number(marks.has(a.id)) - Number(marks.has(b.id))).map(node);
+    return deepestFirst(v.chassisId, [...v.items].sort((a, b) => Number(marks.has(a.id)) - Number(marks.has(b.id)))).map(node);
   }
 
   private plannedEl(w: World, item: GridItem): HTMLElement {
@@ -452,8 +432,15 @@ export class InventoryView {
       this.run(cmd);
       return;
     }
-    this.selectedItem = double ? c.item.id : selectionAfterClick(this.selectedItem, c.item.id);
+    this.selectedItem = double ? c.item.id : this.pressedSelection(c);
     this.onChange();
+  }
+
+  private pressedSelection(c: ClickedItem): string | null {
+    const cell = this.pressedCell;
+    this.pressedCell = null;
+    if (c.source !== "grid" || !cell) return selectionAfterClick(this.selectedItem, c.item.id);
+    return selectionAfterPress(this.shown(this.host.world()), this.selectedItem, c.item, cell);
   }
 
   private clicked(source: ItemSource, id: string, item: GridItem): ClickedItem {
@@ -693,7 +680,7 @@ export class InventoryView {
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
     const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
     const removing = removalMarks(w, target);
-    grid.append(...target.items.map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
+    grid.append(...deepestFirst(target.chassisId, target.items).map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
     return el(
       "div",
       { class: "inv-truck inv-target" },
