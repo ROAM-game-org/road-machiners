@@ -18,11 +18,17 @@ const MERGE_RULES: readonly ((mesh: THREE.Mesh, context: Context) => boolean)[] 
   (mesh) => hasPlainGeometry(mesh.geometry) && keptAttributes(mesh.material as THREE.Material).every((name) => mesh.geometry.hasAttribute(name)),
 ];
 
+const SITE_LOOKS: Looks = { keys: new Map(), shared: new Map() };
+
 export function mergeStaticMeshes(root: THREE.Group, kept: readonly THREE.Object3D[], pivot: THREE.Vector3): void {
   root.updateMatrixWorld(true);
   const standing = subtreesOf(kept);
   const toPivot = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z).multiply(root.matrixWorld.clone().invert());
-  for (const group of groupsOf(root, standing)) if (group.meshes.length > 1) mergeGroup(root, group, toPivot, pivot, standing);
+  for (const group of groupsOf(root, standing, SITE_LOOKS)) {
+    group.look.material.userData.shared = true;
+    if (group.meshes.length > 1) mergeGroup(root, group, toPivot, pivot, standing);
+    else group.meshes[0].material = group.look.material;
+  }
 }
 
 function subtreesOf(nodes: readonly THREE.Object3D[]): Set<THREE.Object3D> {
@@ -31,8 +37,8 @@ function subtreesOf(nodes: readonly THREE.Object3D[]): Set<THREE.Object3D> {
   return all;
 }
 
-function groupsOf(root: THREE.Object3D, standing: ReadonlySet<THREE.Object3D>): Group[] {
-  const context: Context = { root, looks: { keys: new Map(), shared: new Map() } };
+function groupsOf(root: THREE.Object3D, standing: ReadonlySet<THREE.Object3D>, looks: Looks): Group[] {
+  const context: Context = { root, looks };
   const groups = new Map<string, Group>();
   root.traverse((o) => {
     if (standing.has(o) || !isMergeable(o, context)) return;
