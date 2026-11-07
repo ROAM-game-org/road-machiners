@@ -443,7 +443,8 @@ describe('places and time', () => {
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.filter((id) => !after.player.discovered.includes(id))).toEqual([]);
     expect(after.player.xp).toBe(before.player.xp);
-    expect(after.player.xpToday).toEqual(before.player.xpToday);
+    expect(after.player.xpWindow).toBe(before.player.xpWindow);
+    expect(after.player.repeats).toEqual(before.player.repeats);
   });
 });
 

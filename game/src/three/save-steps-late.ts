@@ -958,3 +958,9 @@ export function withConvoyRumor(world: SavedJson): SavedJson {
   const quests = player.quests as { world: SavedJson };
   return { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, convoy_rumor: true } } } };
 }
+
+export function withoutXpToday(world: SavedJson): SavedJson {
+  const player = { ...(world.player as SavedJson) };
+  delete player.xpToday;
+  return { ...world, player };
+}

@@ -85,7 +85,7 @@ Corporal Teller. A word outside, driver. # speaker: Teller
 + {not offer_heard} [Step outside with Teller.]
   ~ offer_heard = true
   ~ report_seen = true
-  The yard is hot and smells of the oil sump. Teller stands where the shed wall hides him from the bench. # page
+  The yard is hot and smells of the oil sump. Teller stands where the shed wall hides him from the bench.
   Look. I wrote that raiders ran her down and the cannon went over the edge. A wagon down a slope isn't worth a tow, so command wrote her off, and nobody drove out to look at her brakes. # speaker: Teller
   Command's order says a depot rod holds if you take the bends slow. So if a rod goes on a bend, the driver took it fast. I was driving. # speaker: Teller
   In Nose a corporal's family eats on his card. My sister draws her bread on my stripes. Lose them, and her card goes back to the clerk, and she's got a boy of her own. # speaker: Teller
@@ -110,7 +110,7 @@ Corporal Teller. A word outside, driver. # speaker: Teller
 = sign
 ~ wagon_fate = "logged"
 ~ give_money(fee)
-Lena sends Duvall across the yard. He comes back with Sergeant Kovac, who has the log under his arm and reads the page standing up. # page
+Lena sends Duvall across the yard. He comes back with Sergeant Kovac, who has the log under his arm and reads the page standing up.
 You put the half rod in his palm and tell him where it came from.
 Off wagon Seven's brakes, with the cannon still on her. I log it. Army steel brought in pays a finder's rate. # speaker: Kovac
 He counts {fee} M onto the bench, then writes the half rod in under Teller's report in the same ink. He doesn't strike the report out.
@@ -121,11 +121,11 @@ Teller goes out to the yard without a word. Duvall picks up his half of the rod 
 
 = admit
 { offer_heard:
-  You call Teller in from the yard. # page
+  You call Teller in from the yard.
   You put it to him in front of Lena, with the half rod between you on the bench: out in the yard he told you he wrote raiders so nobody would drive out and look at her brakes.
   I said nothing in the yard. It was dusty, and they were shooting. It was raiders. # speaker: Teller
 - else:
-  Teller is still waiting by the door for his word outside. You give it to him here instead. # page
+  Teller is still waiting by the door for his word outside. You give it to him here instead.
   You put it to him in front of Lena, with the half rod between you on the bench: his report says raiders, and you took this off her brakes with the cannon still bolted to her bed.
   Then they left the cannon. It was dusty, and they were shooting. It was raiders. # speaker: Teller
 }
@@ -158,7 +158,7 @@ Teller goes out to the yard without a word. Duvall picks up his half of the rod 
 = sold
 ~ give_money(price)
 ~ wagon_fate = "buried"
-You go back out to the yard. Teller counts M's into your hand one at a time, and holds out his other hand for the half rod. # page
+You go back out to the yard. Teller counts M's into your hand one at a time, and holds out his other hand for the half rod.
 { wagon_rod == "bent":
   He doesn't look at its face. He doesn't know what he's looking for.
 }

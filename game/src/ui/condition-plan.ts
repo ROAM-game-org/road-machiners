@@ -1,4 +1,4 @@
-import { baseGrid, itemCells, itemSize } from "../sim/grid";
+import { baseGrid, deepestFirst, itemCells, itemSize } from "../sim/grid";
 import type { GridItem } from "../sim/types";
 import { PX_PER_METER } from "../three/render/portraitPixels";
 import { el } from "./dom";
@@ -37,7 +37,7 @@ export class ConditionPlan {
   private readonly cellOwner = new Map<string, string>();
 
   constructor(private readonly chassisId: string, items: readonly PartItem[], pxPerMeter: number = PX_PER_METER) {
-    const parts = items.map(partOf);
+    const parts = deepestFirst(chassisId, items).map(partOf);
     const plan = planRects(chassisId, parts, pxPerMeter);
     this.width = plan.width;
     this.height = plan.height;

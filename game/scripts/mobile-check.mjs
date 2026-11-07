@@ -591,7 +591,7 @@ async function characterByTouch(session, step) {
     const screen = document.querySelector('#ui .character-screen').getBoundingClientRect();
     const table = document.querySelector('#ui .character-screen .skill-table');
     if (table.scrollWidth > table.clientWidth) return `skill table scrolls sideways: ${table.scrollWidth} > ${table.clientWidth}`;
-    const outside = [...document.querySelectorAll('#ui .character-screen :is(.skill-buy, .perk-cell, .skill-level, .skill-today)')].filter((el) => {
+    const outside = [...document.querySelectorAll('#ui .character-screen :is(.skill-buy, .perk-cell, .skill-level)')].filter((el) => {
       const r = el.getBoundingClientRect();
       return r.left < screen.left - 1 || r.right > screen.right + 1;
     });

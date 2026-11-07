@@ -217,7 +217,7 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   const shifts = shiftsWithin(reach, FACE_COLUMN);
   const flat = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, flatSupports(stilts), exact, tops), reach, exact, tops);
   const onLegSpots = (): ItemSpot | null => fittedSpot(rect, points, rest, feet, exact, tops);
-  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, supports: [], held: [] } : null);
+  const resting = (): ItemSpot | null => (heldOn(points, planeAt(rect, rest), exact, tops, MIN_SUPPORT, SLOPE_TOLERANCE) ? { dx: 0, dz: 0, y: rest.y, slope: rest.slope, supports: [], held: [] } : null);
   const wellHeld = (): ItemSpot | null => nudged(points, flatSpot(points, shifts, [SHIFT_SUPPORT], exact, tops), reach, exact, tops);
   const order = Math.hypot(rest.slope.x, rest.slope.z) > FLAT_SLOPE ? [flat, onLegSpots, resting] : [wellHeld, onLegSpots, resting, flat];
   const stilted = (): ItemSpot | null => (stilts ? stiltSpot(body, { rect, points }, shifts, tops) : null);
@@ -233,9 +233,13 @@ function firstSpot(tries: (() => ItemSpot | null)[]): ItemSpot | null {
 }
 
 function flatSpot(points: Sample[], shifts: [number, number][], supports: number[], exact: Footing, tops: Footing): ItemSpot | null {
+  const moved: Sample[] = points.map(([x, z, lift]) => [x, z, lift]);
   for (const support of supports) {
     for (const [dx, dz] of shifts) {
-      const moved = shifted(points, dx, dz);
+      for (const [i, [x, z]] of points.entries()) {
+        moved[i][0] = x + dx;
+        moved[i][1] = z + dz;
+      }
       const y = highestTop(moved, tops);
       if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, supports: [], held: [] };
     }
@@ -268,7 +272,7 @@ function fittedSpot(rect: CellRect, points: Sample[], rest: Rest, feet: Footing,
   const under = spots.map(([x, z]) => feet(x, z));
   if (!under.every((foot, i) => foot !== null && Math.abs(plane(spots[i][0], spots[i][1]) - foot.y) <= CLIP_TOLERANCE)) return null;
   const fitted = planeOf(under as THREE.Vector3[]);
-  return heldOn(points, planeAt(rect, fitted), exact, tops) ? { dx: 0, dz: 0, ...fitted, supports: [], held: [] } : null;
+  return heldOn(points, planeAt(rect, fitted), exact, tops, MIN_SUPPORT, SLOPE_TOLERANCE) ? { dx: 0, dz: 0, ...fitted, supports: [], held: [] } : null;
 }
 
 type Stilts = { spot: ItemSpot; braces: number };
@@ -279,7 +283,9 @@ function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [n
     const moved = movedPlate(rect, { dx, dz, shrink: 1 });
     if (!tops((moved.x0 + moved.x1) / 2, (moved.z0 + moved.z1) / 2)) continue;
     const over = shifted(points, dx, dz);
-    const found = stiltsAt(body, over, highestTop(over, tops), dx, dz);
+    const y = highestTop(over, tops);
+    if (best && best.braces === 0 && y >= best.spot.y - CLIP_TOLERANCE) continue;
+    const found = stiltsAt(body, over, y, dx, dz);
     if (found && stiltsBeat(found.braces, found.spot.y, best)) best = found;
   }
   return best && best.spot;
@@ -287,9 +293,8 @@ function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [n
 
 function stiltsAt(body: THREE.Object3D, over: Sample[], y: number, dx: number, dz: number): Stilts | null {
   const held = itemSupports(body, over.map(([x, z]): [number, number] => [x, z]), y);
-  const supports = held?.filter((s) => s.needed) ?? [];
-  if (!held || supports.length === 0) return null;
-  return { spot: { dx, dz, y, slope: FLAT, supports, held: held.map((s) => s.head) }, braces: supports.filter((s) => s.role === 'brace').length };
+  if (!held?.some((s) => s.needed)) return null;
+  return { spot: { dx, dz, y, slope: FLAT, supports: held, held: held.map((s) => s.head) }, braces: held.filter((s) => s.role === 'brace').length };
 }
 
 function stiltsBeat(braces: number, y: number, best: Stilts | null): boolean {
@@ -311,21 +316,33 @@ function shiftRange(rect: CellRect, cells: CellRect, sides: Sides): { x0: number
 }
 
 const SHIFT_SUPPORT = MIN_SUPPORT + 0.05;
+const SLOPE_TOLERANCE = CLIP_TOLERANCE * 0.8;
 
-function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT): boolean {
+function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT, tolerance = CLIP_TOLERANCE): boolean {
   let held = 0;
+  let left = points.length;
   for (const [x, z, lift] of points) {
     const bottom = plane(x, z) + lift;
-    const top = tops(x, z);
-    if (top && top.y > bottom + CLIP_TOLERANCE) return false;
-    const foot = feet(x, z);
-    if (foot && Math.abs(foot.y - bottom) <= CLIP_TOLERANCE) held++;
+    if (cutsInto(tops(x, z), bottom)) return false;
+    if (restsOn(feet(x, z), bottom, tolerance)) held++;
+    left--;
+    if ((held + left) / points.length < support) return false;
   }
   return held / points.length >= support;
 }
 
+function cutsInto(top: THREE.Vector3 | null, bottom: number): boolean {
+  return top !== null && top.y > bottom + CLIP_TOLERANCE;
+}
+
+function restsOn(foot: THREE.Vector3 | null, bottom: number, tolerance: number): boolean {
+  return foot !== null && Math.abs(foot.y - bottom) <= tolerance;
+}
+
 function highestTop(points: Sample[], tops: Footing): number {
-  return Math.max(...points.map(([x, z, lift]) => (tops(x, z)?.y ?? -Infinity) - lift));
+  let highest = -Infinity;
+  for (const [x, z, lift] of points) highest = Math.max(highest, (tops(x, z)?.y ?? -Infinity) - lift);
+  return highest;
 }
 
 function gridIn(rect: CellRect): [number, number][] {
@@ -350,9 +367,9 @@ function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: 
   return { y: (a.y + b.y + c.y + d.y) / 4, slope: { x: (c.y + d.y - a.y - b.y) / 2 / dx, z: (b.y + d.y - a.y - c.y) / 2 / dz } };
 }
 
-type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean };
+type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean; glass: boolean; span?: { u0: number; u1: number; v0: number; v1: number } };
 type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
-type FaceIndex = { look: Look; start: number; columns: Map<string, Face[]> };
+type FaceIndex = { look: Look; start: number; columns: Map<number, Face[]>; nearest: HitTable };
 type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
 
 const LOOKS = {
@@ -428,13 +445,13 @@ function padFooting(index: FaceIndex, x: number, z: number, pad: number): THREE.
 }
 
 function indexFaces(body: THREE.Object3D, look: Look): FaceIndex {
-  const columns = new Map<string, Face[]>();
+  const columns = new Map<number, Face[]>();
   body.traverse((o) => {
     if (o instanceof THREE.Mesh) for (const face of facingFaces(o, look.normal)) addFace(columns, face, look);
   });
   const box = new THREE.Box3().setFromObject(body);
   const far = Math.max(box.max.dot(look.normal), box.min.dot(look.normal)) + CLIP_TOLERANCE;
-  return { look, start: far, columns };
+  return { look, start: far, columns, nearest: new HitTable() };
 }
 
 function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
@@ -450,7 +467,14 @@ function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
   return faces;
 }
 
-function addFace(columns: Map<string, Face[]>, face: Face, look: Look): void {
+function spanOf(face: Face, look: Look): { u0: number; u1: number; v0: number; v1: number } {
+  const us = [face.a[look.u], face.b[look.u], face.c[look.u]];
+  const vs = [face.a[look.v], face.b[look.v], face.c[look.v]];
+  return { u0: Math.min(...us) - SPAN_MARGIN, u1: Math.max(...us) + SPAN_MARGIN, v0: Math.min(...vs) - SPAN_MARGIN, v1: Math.max(...vs) + SPAN_MARGIN };
+}
+
+function addFace(columns: Map<number, Face[]>, face: Face, look: Look): void {
+  face.span = spanOf(face, look);
   for (const key of columnsUnder(face, look)) {
     const column = columns.get(key);
     if (column) column.push(face);
@@ -458,11 +482,18 @@ function addFace(columns: Map<string, Face[]>, face: Face, look: Look): void {
   }
 }
 
-function columnsUnder(face: Face, look: Look): string[] {
+const COLUMN_OFFSET = 1 << 15;
+const SPAN_MARGIN = 1e-6;
+
+function columnKey(i: number, j: number): number {
+  return (i + COLUMN_OFFSET) * (COLUMN_OFFSET * 2) + j + COLUMN_OFFSET;
+}
+
+function columnsUnder(face: Face, look: Look): number[] {
   const us = [face.a, face.b, face.c].map((p) => Math.floor(p[look.u] / FACE_COLUMN));
   const vs = [face.a, face.b, face.c].map((p) => Math.floor(p[look.v] / FACE_COLUMN));
-  const keys: string[] = [];
-  for (let i = Math.min(...us); i <= Math.max(...us); i++) for (let j = Math.min(...vs); j <= Math.max(...vs); j++) keys.push(`${i},${j}`);
+  const keys: number[] = [];
+  for (let i = Math.min(...us); i <= Math.max(...us); i++) for (let j = Math.min(...vs); j <= Math.max(...vs); j++) keys.push(columnKey(i, j));
   return keys;
 }
 
@@ -475,14 +506,83 @@ function topFooting(index: FaceIndex, x: number, z: number): THREE.Vector3 | nul
 const downRay = new THREE.Ray();
 const hitScratch = new THREE.Vector3();
 
-function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
+const HIT_RESOLUTION = 1e6;
+const HIT_OFFSET = 2 ** 25;
+const HIT_TABLE_LIMIT = 1 << 19;
+
+function nearestFace(index: FaceIndex, u: number, v: number): Hit | null {
+  const ui = Math.round(u * HIT_RESOLUTION) + HIT_OFFSET;
+  const vi = Math.round(v * HIT_RESOLUTION) + HIT_OFFSET;
+  const slot = index.nearest.slotOf(ui, vi);
+  if (slot >= 0) return index.nearest.hits[slot];
+  const found = scanFaces(index, u, v);
+  index.nearest.add(ui, vi, found);
+  return found;
+}
+
+type Hit = { point: THREE.Vector3; face: Face };
+
+class HitTable {
+  hits: (Hit | null)[] = new Array(1 << 14).fill(null);
+  private us = new Int32Array(1 << 14).fill(-1);
+  private vs = new Int32Array(1 << 14);
+  private count = 0;
+
+  slotOf(ui: number, vi: number): number {
+    const mask = this.us.length - 1;
+    for (let at = this.hashOf(ui, vi) & mask; this.us[at] !== -1; at = (at + 1) & mask) {
+      if (this.us[at] === ui && this.vs[at] === vi) return at;
+    }
+    return -1;
+  }
+
+  add(ui: number, vi: number, hit: Hit | null): void {
+    if ((this.count + 1) * 2 > this.us.length) {
+      if (this.us.length >= HIT_TABLE_LIMIT) this.clear();
+      else this.grow();
+    }
+    this.place(ui, vi, hit);
+    this.count++;
+  }
+
+  private place(ui: number, vi: number, hit: Hit | null): void {
+    const mask = this.us.length - 1;
+    let at = this.hashOf(ui, vi) & mask;
+    while (this.us[at] !== -1) at = (at + 1) & mask;
+    this.us[at] = ui;
+    this.vs[at] = vi;
+    this.hits[at] = hit;
+  }
+
+  private clear(): void {
+    this.us.fill(-1);
+    this.hits.fill(null);
+    this.count = 0;
+  }
+
+  private grow(): void {
+    const { us, vs, hits } = this;
+    this.us = new Int32Array(us.length * 2).fill(-1);
+    this.vs = new Int32Array(us.length * 2);
+    this.hits = new Array(us.length * 2).fill(null);
+    for (let at = 0; at < us.length; at++) if (us[at] !== -1) this.place(us[at], vs[at], hits[at]);
+  }
+
+  private hashOf(ui: number, vi: number): number {
+    return Math.imul(ui, 73856093) ^ Math.imul(vi, 19349663);
+  }
+}
+
+function scanFaces(index: FaceIndex, u: number, v: number): Hit | null {
   const { look } = index;
   downRay.origin.copy(look.normal).multiplyScalar(index.start);
   downRay.origin[look.u] = u;
   downRay.origin[look.v] = v;
   downRay.direction.copy(look.normal).negate();
-  let best: { point: THREE.Vector3; face: Face } | null = null;
-  for (const face of index.columns.get(`${Math.floor(u / FACE_COLUMN)},${Math.floor(v / FACE_COLUMN)}`) ?? []) {
+  let best: Hit | null = null;
+  for (const face of index.columns.get(columnKey(Math.floor(u / FACE_COLUMN), Math.floor(v / FACE_COLUMN))) ?? []) {
+    const span = face.span!;
+    if (u < span.u0 || u > span.u1 || v < span.v0 || v > span.v1) continue;
     if (!downRay.intersectTriangle(face.a, face.b, face.c, false, hitScratch)) continue;
     if (!best) best = { point: hitScratch.clone(), face };
     else if (hitScratch.dot(look.normal) > best.point.dot(look.normal)) {

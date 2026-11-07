@@ -405,7 +405,7 @@ function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
 
 function reseatedGun(v: Vehicle, kept: GridItem[], item: GridItem): boolean {
   if (item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon') return false;
-  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id !== 'barrel') return false;
+  if (placementError(gridOf({ ...v, items: kept }), kept, item, item.id)?.id === 'noFit') return false;
   const seated = { ...v, items: kept };
   const spot = installSpot(seated, item) ?? stowSpot(seated, item);
   if (!spot) return false;
@@ -558,7 +558,6 @@ function repairPlayer(world: World): void {
   player.notes = player.notes.filter((n) => isNoteId(n.id));
   for (const skill of SKILL_IDS) {
     if (player.ranks[skill] === undefined) player.ranks[skill] = 0;
-    if (player.xpToday[skill] === undefined) player.xpToday[skill] = 0;
   }
   player.perks = player.perks.filter(isPerkId);
   dropGoneSources(player);
