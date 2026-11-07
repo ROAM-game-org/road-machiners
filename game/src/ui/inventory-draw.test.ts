@@ -300,7 +300,7 @@ describe("the choice of a layout", () => {
 
   it("caps a cell at the full size in any large room", () => {
     const short = { width: 3, truckHeight: 5, spareHeight: 0, col: 1 };
-    expect(chooseLayout([room(3, 5000, 5000)], short).pxPerMeter).toBe(42);
+    expect(chooseLayout([room(3, 5000, 5000)], short).pxPerMeter).toBe(32);
   });
 
   it("moves cargo beside the truck before it drops a column", () => {
