@@ -41,7 +41,13 @@ function gapUnder(p: THREE.Vector3, solids: THREE.Mesh[], down: THREE.Vector3): 
   return Number.isFinite(distance) ? distance - CLIP_TOLERANCE : Infinity;
 }
 
+function mayHitBelow(mesh: THREE.Mesh, origin: THREE.Vector3): boolean {
+  const box = mesh.userData.box as THREE.Box3;
+  return origin.x >= box.min.x - EDGE && origin.x <= box.max.x + EDGE && origin.z >= box.min.z - EDGE && origin.z <= box.max.z + EDGE && box.min.y <= origin.y;
+}
+
 function hitDistance(mesh: THREE.Mesh, origin: THREE.Vector3, down: THREE.Vector3): number {
+  if (down.equals(DOWN) && !mayHitBelow(mesh, origin)) return Infinity;
   const key = mesh.userData.key as string | undefined;
   if (key === undefined || !down.equals(DOWN)) return new THREE.Raycaster(origin, down).intersectObject(mesh, false)[0]?.distance ?? Infinity;
   return columnsOf(key, mesh).distanceDown(origin);
@@ -117,7 +123,9 @@ function solids(objs: THREE.Object3D[]): THREE.Mesh[] {
       mesh.matrixAutoUpdate = false;
       mesh.matrixWorld.copy(o.matrixWorld);
       const triangles = (o.geometry.getIndex()?.count ?? o.geometry.getAttribute('position').count) / 3;
-      if (triangles >= HEAVY_TRIANGLES) mesh.userData = { key: `${o.geometry.uuid}:${o.matrixWorld.elements.join(',')}` };
+      if (o.geometry.boundingBox === null) o.geometry.computeBoundingBox();
+      const box = o.geometry.boundingBox!.clone().applyMatrix4(o.matrixWorld);
+      mesh.userData = triangles >= HEAVY_TRIANGLES ? { box, key: `${o.geometry.uuid}:${o.matrixWorld.elements.join(',')}` } : { box };
       out.push(mesh);
     });
   }
