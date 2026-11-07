@@ -73,10 +73,22 @@ function spanOfStep(step: DirectionStep | undefined): Span | null {
   return step && 'span' in step ? step.span : null;
 }
 
-export function directionsText(steps: readonly DirectionStep[]): Msg {
-  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+function stepSentences(steps: readonly DirectionStep[]): Msg[][] {
   const arrival = steps.find((s) => s.do === 'arrive');
   const target = arrival?.do === 'arrive' ? arrival.site : null;
-  const sentences = steps.flatMap((step, i) => stepText(step, steps[i + 1], target, spanOfStep(steps[i - 1])));
+  return steps.map((step, i) => stepText(step, steps[i + 1], target, spanOfStep(steps[i - 1])));
+}
+
+function joinSentences(sentences: Msg[]): Msg {
   return concat(sentences.flatMap((s, i) => (i === 0 ? [s] : [SPACE, s])));
+}
+
+export function directionsSteps(steps: readonly DirectionStep[]): Msg[] {
+  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+  return stepSentences(steps).filter((sentences) => sentences.length > 0).map(joinSentences);
+}
+
+export function directionsText(steps: readonly DirectionStep[]): Msg {
+  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+  return joinSentences(stepSentences(steps).flat());
 }

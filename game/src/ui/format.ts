@@ -764,6 +764,18 @@ export function surveyClueLines(c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyPlaceLine(c, p));
 }
 
+export function surveyOpenSquares(c: SurveyContract): Msg {
+  return list(c.points.filter((p) => !p.done).map((p) => {
+    const clue = surveyClue(c, p);
+    return concat([t(`contract.placeName.${clue.type}`), SPACE, gridSquareText(clue.square)]);
+  }));
+}
+
+export function surveyClueTip(c: SurveyContract): Msg {
+  const lines = c.points.filter((p) => !p.done).map((p) => surveyPlaceText(surveyClue(c, p)));
+  return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [SPACE, line])));
+}
+
 export function surveyPlacesLeft(c: SurveyContract): Msg {
   const open = c.points.filter((p) => !p.done);
   return t('contract.placesLeft', { n: open.length, places: list(open.map((p) => t(`contract.place.${surveyPlaceType(p.site)}`))) });
