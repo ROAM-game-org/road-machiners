@@ -80,6 +80,20 @@ describe('the seat of a wreck', () => {
     expect(propBase(flat, rock)).toBe(groundAt(flat, spot.x, spot.y));
   });
 
+  it('seats a lootless car wreck on the low side of a step instead of hanging it on the high side', () => {
+    const t = stepped(0.4);
+    const o: Obstacle = { ...carWreckWithLook('wreck'), pos: { x: 20.9, y: 20 } };
+    const level = propBase(flatTerrain(SIZE), carWreckWithLook('wreck')) * S;
+    expect(propBase(t, o) * S).toBeLessThan(level - 0.1);
+    for (const b of footings(o)) expect(gapUnder(t, o, b)).toBeLessThanOrEqual(SLACK - tallest(o) * CAR_WRECK_SINK);
+  });
+
+  it('never buries a lootless car wreck deeper than its own height on a cliff', () => {
+    const t = stepped(40);
+    const o: Obstacle = { ...carWreckWithLook('wreck'), pos: { x: 20.9, y: 20 } };
+    expect(propBase(t, o) * S).toBeGreaterThanOrEqual(groundAt(t, o.pos.x, o.pos.y) * S - tallest(o) * (1 + CAR_WRECK_SINK) - SLACK);
+  });
+
   it('keeps Chaos Highway car wrecks on the asphalt', () => {
     const highway: Terrain = { ...flat, atlas: { kind: 'highway', seed: 1, window: 0 } };
     expect(propBase(highway, carWreckWithLook('wreck'))).toBe(groundAt(highway, spot.x, spot.y));
