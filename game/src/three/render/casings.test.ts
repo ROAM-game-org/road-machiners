@@ -1,4 +1,3 @@
-// Spent casings fly off the gun, come to rest on the ground, fade with age and never pass the pool cap.
 
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -38,6 +37,18 @@ describe('Casings', () => {
 
     expect(c.meshes.small.count).toBe(CASING.max);
     expect(c.meshes.large.count).toBe(0);
+  });
+
+  it('sends no casing matrices while all rest within one turn, and redraws on the next turn', () => {
+    const terrain = raisedTerrain();
+    const c = new Casings(new THREE.Scene());
+    c.eject(MUZZLE, 'small', 0);
+    settle(c, terrain, 0);
+    const rested = c.meshes.small.instanceMatrix.version;
+    settle(c, terrain, 0);
+    expect(c.meshes.small.instanceMatrix.version).toBe(rested);
+    c.tick(1 / 60, terrain, 1);
+    expect(c.meshes.small.instanceMatrix.version).toBe(rested + 1);
   });
 
   it('lays a casing at rest on the ground, to the gun’s right', () => {

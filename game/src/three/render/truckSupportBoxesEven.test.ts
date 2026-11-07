@@ -23,7 +23,6 @@ const CHASSIS_IDS = Object.keys(CHASSIS).filter((_, i) => i % 2 === 0);
 
 describe('small parts on every deck cell', () => {
   it.each(CHASSIS_IDS)('a caltrops box on any deck cell of the %s stands on the truck', (chassisId) => {
-    const { faults, known } = boxFaultsOnEveryDeckCell(chassisId);
-    expect(faults).toEqual(known);
+    expect(boxFaultsOnEveryDeckCell(chassisId)).toEqual([]);
   });
 });

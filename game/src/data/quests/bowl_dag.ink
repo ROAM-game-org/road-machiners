@@ -91,16 +91,16 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   -> about_wagon
 + {wagon_saw and wagon_fate == "none"} [Nobody raided that wagon.]
   No. I walked that hollow too. Not one casing in the grit, and not a hole in her. Whatever stove in that cab was the slope, not a gun.
-  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at the cistern house where they all drink. I'll stand next to you while you do.
-  ++ [Say it at the cistern house.]
+  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at Hattie's canteen where they all drink. I'll stand next to you while you do.
+  ++ [Say it at Hattie's canteen.]
      ~ wagon_fate = "told"
-     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he saw the same. # page
+     You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he saw the same.
      A woman at the cistern puts her bucket down. Her son rode in the cab of that wagon, she says. Nobody had told her there was no fight.
      Two Nose soldiers with cups in their hands hear every word. They drink up and leave without talking to each other.
      -> about_wagon
   ++ [Not yet.]
      -> about_wagon
-+ {wagon_fate == "told"} [What did the cistern house make of it?]
++ {wagon_fate == "told"} [What did the canteen make of it?]
   Bowl talks over its cups, and Nose soldiers drink from the same cistern. Now they ask the Farmers whose brakes hold. I don't mind that question.
   I still want Nose trucks off my road. Before, they'd have come down asking who stripped their wagon. Now they'd come asking who told.
   -> about_wagon

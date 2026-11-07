@@ -140,6 +140,7 @@ const STOPS: StopTable = {
   say: no,
   call: no,
   honk: no,
+  roadHorn: no,
   aidStarted: no,
   patch: no,
   aid: no,

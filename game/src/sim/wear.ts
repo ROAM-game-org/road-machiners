@@ -113,7 +113,6 @@ function practiceRoughGround(world: World): void {
   let weighted = 0;
   for (const { len, type } of trailSegments(world, playerVehicle(world))) {
     const rough = roughness(type);
-    if (rough === 0) continue;
     tiles += len;
     weighted += len * rough;
   }

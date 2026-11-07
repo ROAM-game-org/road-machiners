@@ -139,7 +139,10 @@ describe('fortress ground', () => {
   it('is never free inside a fortress site circle (IV5)', () => {
     for (const s of FORT_SITES) {
       expect(isFree(world, s.pos, 0.5, null), `${s.id} center`).toBe(false);
-      expect(isFree(world, { x: s.pos.x + s.radius - 1.5, y: s.pos.y }, 0.5, null), `${s.id} edge`).toBe(false);
+      for (const corner of fortressOutline(s)) {
+        const inside = { x: corner.x + ((s.pos.x - corner.x) / dist(corner, s.pos)) * 1.5, y: corner.y + ((s.pos.y - corner.y) / dist(corner, s.pos)) * 1.5 };
+        expect(isFree(world, inside, 0.5, null), `${s.id} wall corner at ${corner.x.toFixed(1)}, ${corner.y.toFixed(1)}`).toBe(false);
+      }
     }
   });
 

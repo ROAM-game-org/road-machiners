@@ -11,6 +11,7 @@ import type { World } from '../../sim/types';
 import { bearing, type Vec } from '../../sim/vec';
 import { playerVehicle } from '../../sim/damage';
 import { waypointOf } from '../../sim/world';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 
@@ -38,7 +39,7 @@ function arrowShape(): THREE.Shape {
 function flatIcon(geometry: THREE.BufferGeometry, color: number): THREE.Mesh {
   const mesh = new THREE.Mesh(
     geometry.rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: ORDER_OPACITY, depthWrite: false, side: THREE.DoubleSide }),
+    overlayMaterial({ color, opacity: ORDER_OPACITY, depthWrite: false }),
   );
   mesh.renderOrder = 821;
   return mesh;
@@ -121,7 +122,7 @@ export class PathView {
     const key = `${color}|${opacity}`;
     const known = this.markerMaterials.get(key);
     if (known) return known;
-    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+    const material = overlayMaterial({ color, opacity, depthWrite: false });
     this.markerMaterials.set(key, material);
     return material;
   }

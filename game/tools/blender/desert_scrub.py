@@ -23,12 +23,12 @@ COLORS = {
     "tip": 0xA49C68,  # PAL.brush[2], dry stems at the rim that catch the light
 }
 SEED = 29
-STEMS = 28
+STEMS = 18
 SPREAD = 1.5  # m, the stem base spread before CORE; rim stems reach past it by their lean
 CORE = 0.4  # share of SPREAD that the stem bases fill, so the clump rises from a narrow dark core
 HEIGHT = 1.05  # m, tallest stem tip
 LEAN = (math.radians(4), math.radians(30))  # stem lean from upright, at the center and at the rim
-THICK = 0.15  # m, stem width
+THICK = 0.19  # m, stem width
 
 
 def build(kit: Kit) -> None:
@@ -46,7 +46,7 @@ def build(kit: Kit) -> None:
             base[2] + math.cos(lean) * length,
         )
         mat = "core" if out < 0.45 else ("tip" if kit.rng.random() < 0.4 else "stem")
-        strut(kit, f"stem{i}", base, tip, THICK * kit.rng.uniform(0.8, 1.1), mat, sides=4, dent_by=0.03)
+        strut(kit, f"stem{i}", base, tip, THICK * kit.rng.uniform(0.8, 1.1), mat, sides=3, dent_by=0.03)
 
 
 def main() -> None:
