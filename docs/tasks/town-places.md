@@ -185,7 +185,7 @@ Notes:
 
 ## Conclusion
 
-Outcome: the town page shows named places on every shop site, in both languages. The Goal still needs the three browser checks to rerun.
+Outcome: the town page shows named places on every shop site, in both languages. The user played the towns and accepted them. The three browser checks have not finished.
 
 Invariants:
 - IV1 — Every place opens from a front page row, and the number keys were checked on screen.
