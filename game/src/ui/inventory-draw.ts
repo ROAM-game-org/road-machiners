@@ -18,8 +18,7 @@ import { goodName, partName } from "../text/names";
 
 const SPARE_GAP_CELLS = 0.3;
 const CARGO_BESIDE_GAP_PX = 20;
-const CELL_PX = 32;
-const STACKED_CELL_PX = 42;
+const CELL_PX = 42;
 const MIN_CLICK_CELL_PX = 24;
 const STACKED_MIN_CELL_PX = 28;
 
@@ -127,7 +126,7 @@ export function chooseLayout(rooms: readonly FitRoom[], truck: TruckMeters): Gri
 export function stackedLayout(height: number, truck: TruckMeters): GridLayout {
   const gap = truck.spareHeight > 0 ? SPARE_GAP_CELLS * truck.col : 0;
   const fits = height / (truck.truckHeight + gap + truck.spareHeight);
-  const pxPerMeter = Math.min(STACKED_CELL_PX, Math.max(STACKED_MIN_CELL_PX, fits * truck.col)) / truck.col;
+  const pxPerMeter = Math.min(CELL_PX, Math.max(STACKED_MIN_CELL_PX, fits * truck.col)) / truck.col;
   return { columns: 1, cargoBeside: false, pxPerMeter };
 }
 
