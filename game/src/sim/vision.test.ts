@@ -508,7 +508,7 @@ describe('props the player sees', () => {
   };
 
   it.each([
-    ['deadTree', { x: 35.4, y: 30.3 }, 0.7],
+    ['deadTree', { x: 35, y: 30.5 }, 0.7],
     ['farmhouse', { x: 35.4, y: 30 }, 0.7],
     ['shack', { x: 35.4, y: 30 }, 0],
   ] as const)('counts a %s as seen where its own boxes hide a tile under it', (look, pos, yaw) => {

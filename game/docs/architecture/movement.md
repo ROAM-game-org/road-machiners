@@ -203,7 +203,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Player travel
 
 - `src/three/travel.ts` owns automatic order advancement and held-Space state.
-- A click sets a drive-through order. A click on its point switches it between drive-through and stop-at. Shift-click sets stop-at. A click on a site stops at its nearest pad.
+- A click sets a drive-through order. A click on its point switches it between drive-through and stop-at. Shift-click sets stop-at. A click inside a site stops at its nearest pad. `siteUnder()` in `src/sim/sites.ts` reads a fort from its wall outline, so the ground beside the walls takes an ordinary order.
 - `TruckControls.order()` gives every player move order through `playerOrder()` in `src/sim/steering.ts`, which wraps `clickOrder()`. In route mode a click inside the zones' fan, `zoneAt()` and `zoneHalfAngle()`, puts the band's pace on the order and keeps a point beyond the zones' reach. `zonePace()` gives the pace: crawl, the speed now, or none. Any other click keeps the current order's pace.
 - `orderThrottle()` gives the band an order shows for the hover ring and the first turn's color. The pace lives only on the order, so it ends with it, and `setDirect(true)` drops it.
 - `orderSpeed()` in `src/sim/steering.ts` is the one rule for a move order's target speed, in physics, in far travel and in the fuel check. A paced order, through or stop, holds its pace within a turn's accel and brake, and a stop point still slows onto the point. The escort bot's orders carry no pace.

@@ -1,4 +1,3 @@
-import { CRATE_MASS, PARCEL } from "../data/goods";
 import { isShield, partDef } from "../data/parts";
 import { reachedOutpostAt } from "../sim/chaos-highway";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
@@ -6,6 +5,7 @@ import { atGarage } from "../sim/garage";
 import type { Spot } from "../sim/grid";
 import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, plannedRefit, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
 import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
+import { itemMass } from "../sim/mass";
 import { outpostRepairPart } from "../sim/outposts";
 import { vehicleHasPerk } from "../sim/progress";
 import { repairPlan } from "../sim/repair";
@@ -22,7 +22,7 @@ import { commandFailure, jobLabel, workLabel, workProgress } from "./format";
 import { keyLabel, phoneMode } from "./input-mode";
 import { canFieldPatch, patchBlocker, planAfterMove, stripBlocker, stripRoomText, turnsToTry, weldBlocker } from "./inventory-moves";
 import { runCommand } from "./run-command";
-import { moneyEl, moneyMsg } from "./units";
+import { moneyMsg, pricedEl, priceTag } from "./units";
 
 export const ROTATE_KEYCAP = "R";
 
@@ -44,7 +44,7 @@ function stopPress(e: Event): void {
   e.stopPropagation();
 }
 
-function verbButton(verb: Msg, reason: Msg | null, command: () => void, title?: Msg): HTMLElement {
+function verbButton(verb: Msg | HTMLElement, reason: Msg | null, command: () => void, title?: Msg): HTMLElement {
   return el("button", { class: "btn-s", title: reason ? undefined : title, onpointerdown: stopPress, ...disabledWith(reason, command) }, verb);
 }
 
@@ -78,8 +78,9 @@ function garageRow(h: CardHost, part: PartInstance, action: "repair" | "rebuild"
   if (cost === 0) return [];
   const short = h.world.player.money < cost ? t("trade.needMore", { price: moneyMsg(cost - h.world.player.money) }) : null;
   const reason = h.look ?? short;
-  const button = verbButton(t(`inv.verb.${action}`), reason, () => h.run((world) => (atOutpost(h, world) ? outpostRepairPart(world, part.id, h.truckId) : repairPart(world, part.id))), title);
-  return reason ? offActionRow(button, reason) : actionRow(button, [moneyEl(cost)]);
+  const label = pricedEl(t(`inv.verb.${action}`), priceTag(cost, short === null));
+  const button = verbButton(label, reason, () => h.run((world) => (atOutpost(h, world) ? outpostRepairPart(world, part.id, h.truckId) : repairPart(world, part.id))), title);
+  return reason ? offActionRow(button, reason) : actionRow(button, []);
 }
 
 function repairRow(h: CardHost, part: PartInstance): HTMLElement[] {
@@ -205,7 +206,7 @@ export function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: 
 
 export function itemFacts(w: World, me: Vehicle, item: GridItem, mounted: boolean): HTMLElement[] {
   if (item.kind === "part") return partDetails(w, me, item.part, mounted);
-  return [statGrid(diffStats([massStat(item.kind === "parcel" ? PARCEL.mass : CRATE_MASS)], null))];
+  return [statGrid(diffStats([massStat(itemMass(item))], null))];
 }
 
 function queuedSteps(w: World, me: Vehicle): HTMLElement[] {

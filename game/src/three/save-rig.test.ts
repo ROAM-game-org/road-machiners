@@ -8,6 +8,7 @@ import { beforeChaosHighwayName } from '../test/before-chaos-highway-name';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, SaveError, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
+import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
 
 function slotsOf(world: World): SaveSlots {
   const slots = new SaveSlots(memoryBackend(), new Map());
@@ -15,7 +16,7 @@ function slotsOf(world: World): SaveSlots {
   return slots;
 }
 
-type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
+type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number; items: { part?: { defId: string } }[] }[] } };
 
 describe('a saved rig', () => {
   it('gives back the bend of a folded hauler and awards nothing on load', () => {
@@ -40,9 +41,10 @@ describe('a saved rig', () => {
     const middle = { x: old.pos.x - Math.cos(old.heading) * frontAhead(hauler.chassisId), y: old.pos.y - Math.sin(old.heading) * frontAhead(hauler.chassisId) };
     old.pos = middle;
     delete old.bend;
-    envelope.format = { ...envelope.format, minor: 80 };
-    delete envelope.steps;
+    for (const part of envelope.world.vehicles.flatMap((v) => v.items.flatMap((it) => (it.part ? [it.part] : [])))) if (part.defId === 'cabBroad') part.defId = 'cabPickup';
     beforeChaosHighwayName(envelope.world);
+    const pivot = FOLDED_AND_TINY_STEPS.findIndex((named) => named.name === 'withTractorPivot');
+    envelope.world = FOLDED_AND_TINY_STEPS.slice(pivot).reduce((saved, named) => named.step(saved), envelope.world as unknown as SavedJson) as never;
     slots.put('auto', envelope as never);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

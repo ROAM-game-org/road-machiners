@@ -100,7 +100,13 @@ export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) 
     });
     if (done) return;
     await page.keyboard.press('Escape');
+    await page.evaluate(endTurnIfNotPlayed, arg);
   }
+};
+
+const endTurnIfNotPlayed = (turn) => {
+  const g = window.__ROAM__;
+  if (g.state.turn < turn && !g.travel.isPlaying(g.anim)) g.endTurn();
 };
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
@@ -202,7 +208,8 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
   return problems;
 }
 
-const HIGHWAY_ATTEMPTS = 4;
+const HIGHWAY_ATTEMPTS = 6;
+const HIGHWAY_PAUSE_MS = 30000;
 const CRASHED = /crashed|boot screen stayed up/;
 
 export async function checkHighwayNightInSoftware(url, options) {
@@ -211,6 +218,7 @@ export async function checkHighwayNightInSoftware(url, options) {
     problems = await tryHighwayNightInSoftware(url, options);
     if (!problems.some((p) => CRASHED.test(p))) return problems;
     console.log(`The software browser crashed in Chaos Highway on attempt ${attempt}.`);
+    await new Promise((done) => setTimeout(done, HIGHWAY_PAUSE_MS * attempt));
   }
   return problems;
 }

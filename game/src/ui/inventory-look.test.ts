@@ -70,7 +70,7 @@ const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [
 function screenOver(world: World): { screen: InventoryScreen; applied: World[] } {
   stubDom();
   const applied: World[] = [];
-  const screen = new InventoryScreen({ world: () => world, apply: (next: World) => applied.push(next), announce: () => {}, searchStock: () => {} } as never);
+  const screen = new InventoryScreen({ world: () => world, apply: (next: World) => applied.push(next), announce: () => {}, searchStock: () => {}, getTurnPhase: () => null } as never);
   return { screen, applied };
 }
 

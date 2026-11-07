@@ -50,10 +50,9 @@ async function openTown(page, tab) {
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', paint: 'garage', contracts: 'board', charts: 'market' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', paint: 'garage', contracts: 'board', charts: 'maps' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
-    if (tab === 'charts') document.querySelector('.town-page [data-market-tab="charts"]').click();
   }, tab);
 }
 
@@ -101,6 +100,14 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    if (node === 'attacker') {
+      const { callVehicle } = await import('/src/sim/dialogue.ts');
+      const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
+      const raider = raiderWorld.vehicles.filter((v) => v.brain).at(-1);
+      raider.brain.goals = [{ kind: 'fight', targetId: raiderWorld.player.vehicleId, destination: { ...raiderWorld.vehicles.find((v) => v.id === raiderWorld.player.vehicleId).pos }, phase: 'travel', reason: 'fightHostile', demands: true, worn: { turn: raiderWorld.turn, condition: 1 } }];
+      g.apply(callVehicle(raiderWorld, raider.id));
+      return;
+    }
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
@@ -212,7 +219,7 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
-    document.querySelector('.tip-off')?.click();
+    g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
     if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
@@ -318,11 +325,10 @@ const NAV_STEPS = [
   { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
   { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
   { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
-  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
-  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'market', go: ['market'] },
   { name: 'board', go: ['board'] },
   { name: 'people', go: ['people'] },
-  { name: 'bar', go: ['bar'] },
+  { name: 'maps', go: ['maps'] },
 ];
 
 async function openTownClear(page) {
@@ -582,6 +588,7 @@ const STATES = {
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
+  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },

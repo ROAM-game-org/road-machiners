@@ -426,7 +426,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   grid-template-areas:
     "name name name level"
-    "today today today buy"
+    "basic basic basic buy"
     "perk-a perk-a perk-b perk-b";
   gap: var(--space-3) var(--space-5);
   margin-bottom: var(--space-3);
@@ -434,26 +434,26 @@
 #ui.phone.slim .skill-row {
   grid-template-areas:
     "name name name level"
-    "today today today buy"
+    "basic basic basic buy"
     "perk-a perk-a perk-a perk-a"
     "perk-b perk-b perk-b perk-b";
 }
-#ui.phone .skill-row > :nth-child(1) {
+#ui.phone .skill-name {
   grid-area: name;
 }
-#ui.phone .skill-row > :nth-child(2) {
+#ui.phone .skill-level {
   grid-area: level;
 }
-#ui.phone .skill-row > :nth-child(3) {
+#ui.phone .basic-cell {
+  grid-area: basic;
+}
+#ui.phone .skill-row > .perk-cell:nth-child(4) {
   grid-area: perk-a;
 }
-#ui.phone .skill-row > :nth-child(4) {
+#ui.phone .skill-row > .perk-cell:nth-child(5) {
   grid-area: perk-b;
 }
-#ui.phone .skill-row > :nth-child(5) {
-  grid-area: today;
-}
-#ui.phone .skill-row > :nth-child(6) {
+#ui.phone .skill-buy {
   grid-area: buy;
 }
 #ui.phone .perk-rank {

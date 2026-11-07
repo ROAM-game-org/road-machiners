@@ -2,10 +2,11 @@
 import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
+import { withTruckGrids } from './save-step-truck-grids';
 import { withSquareGrid_128_129 } from './save-step-square-grid';
 import { withFourCellRams } from './save-step-four-cell-rams';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105, withMovedHollow_107_108, withHollowLaager_108_109, withCaseRestitution_109_110, withCasePosse_110_111, withRefitQueues_112_113, withChaosHighwayName_113_114, withWreckSquares_114_115, withMoments_115_116, withDialogueSeen_116_117, withoutLenaGlare_117_118, withShelteredHollow_120_121, withChaseRecords_120_121, withWholeMoney_123_124, withRouteStyles_124_125, withArmorRowsOutside_127_128, withoutRoadScene_122_123, withXpWorkWindow, withEliteTrucks, withGoodsStore, withProjectileFlights } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105, withMovedHollow_107_108, withHollowLaager_108_109, withCaseRestitution_109_110, withCasePosse_110_111, withRefitQueues_112_113, withChaosHighwayName_113_114, withWreckSquares_114_115, withMoments_115_116, withDialogueSeen_116_117, withoutLenaGlare_117_118, withShelteredHollow_120_121, withChaseRecords_120_121, withWholeMoney_123_124, withRouteStyles_124_125, withArmorRowsOutside_127_128, withoutRoadScene_122_123, withXpWorkWindow, withEliteTrucks, withGoodsStore, withProjectileFlights, withConvoyRumor, withoutXpToday } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -757,17 +758,17 @@ export type ReleaseStep = { from: number; to: number; step: Step; names: readonl
 
 export type NamedStep = { name: string; step: Step };
 
-export const RELEASE_STEPS: readonly ReleaseStep[] = [
-  { from: 1, to: 6, step: release_1_6, names: null },
-  { from: 6, to: 25, step: release_6_25, names: null },
-  { from: 25, to: 61, step: release_25_61, names: null },
-  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62, names: null },
-  { from: 62, to: 63, step: (world) => world, names: null },
-];
+export const FIRST_TINY = 63;
 
-export const TINY_FROM = 63;
+function chained(steps: readonly NamedStep[]): Step {
+  return (world) => steps.reduce((saved, named) => named.step(saved), world);
+}
 
-export const TINY_STEPS: readonly NamedStep[] = [
+function namesOf(steps: readonly NamedStep[]): readonly string[] {
+  return steps.map((named) => named.name);
+}
+
+export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'withRescueContracts', step: withRescueContracts_63_64 },
   { name: 'withEncounters', step: withEncounters_64_65 },
   { name: 'withProgressAnchor', step: withProgressAnchor_65_66 },
@@ -839,7 +840,26 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withEliteTrucks', step: withEliteTrucks },
   { name: 'goodsStore', step: withGoodsStore },
   { name: 'withProjectileFlights', step: withProjectileFlights },
+  { name: 'withConvoyRumor', step: withConvoyRumor },
+  { name: 'withTruckGrids', step: withTruckGrids },
+  { name: 'withSpokenRadio', step: (world) => world },
+  { name: 'withoutXpToday', step: withoutXpToday },
 ];
+
+export const RELEASE_STEPS: readonly ReleaseStep[] = [
+  { from: 1, to: 6, step: release_1_6, names: null },
+  { from: 6, to: 25, step: release_6_25, names: null },
+  { from: 25, to: 61, step: release_25_61, names: null },
+  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62, names: null },
+  { from: 62, to: 63, step: (world) => world, names: null },
+  { from: FIRST_TINY, to: 136, step: chained(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)) },
+  { from: 136, to: 138, step: chained(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)) },
+];
+
+export const TINY_FROM = 138;
+
+export const TINY_STEPS: readonly NamedStep[] = FOLDED_AND_TINY_STEPS.slice(TINY_FROM - FIRST_TINY);
+
 
 function withSpawnQueue_129_130(world: SavedJson): SavedJson {
   return { ...world, spawnQueue: [] };
