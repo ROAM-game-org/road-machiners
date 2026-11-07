@@ -19,7 +19,7 @@ export const PAL = {
   roadCrack: 0x7c5844,
   roadRim: 0xf8a667,
   stoneGrey: 0x8a847d,
-  padMark: 0xe6dcc4,
+  padMark: 0xe89a24,
   highwayAsphalt: 0x6c6a6c,
   pebble: 0x9c7c54,
   scorch: 0x2a2218,
