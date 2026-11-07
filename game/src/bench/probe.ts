@@ -1,4 +1,4 @@
-import { Light, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Matrix4, Object3D, type InstancedMesh, type Mesh, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
 import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
@@ -126,6 +126,30 @@ export function gameState(game: Game): SceneState {
   };
 }
 
+const TRAPPED: string[] = [];
+
+export function trapMatrixKinds(): void {
+  let isObject: (array: unknown) => boolean;
+  try {
+    isObject = new Function('a', 'return %HasObjectElements(a);') as (array: unknown) => boolean;
+  } catch {
+    return;
+  }
+  const proto = Matrix4.prototype as unknown as Record<string, unknown>;
+  for (const name of Object.getOwnPropertyNames(proto)) {
+    const original = proto[name];
+    if (name === 'constructor' || typeof original !== 'function') continue;
+    proto[name] = function (this: Matrix4, ...args: unknown[]) {
+      const result = (original as (...a: unknown[]) => unknown).apply(this, args);
+      if (TRAPPED.length < 8 && isObject(this.elements)) {
+        const bad = (this.elements as unknown[]).map((value, i) => (typeof value === 'number' ? null : `${i}=${String(value)}`)).filter(Boolean);
+        TRAPPED.push(`${Math.round(performance.now())}ms ${name} bad[${bad.join(',')}] arg0=${String((args[0] as { constructor?: { name?: string } })?.constructor?.name)} ${new Error().stack?.split('\n').slice(2, 9).map((line) => line.trim().replace(/https?:[^ ]*\/assets\//, '')).join(' < ')}`);
+      }
+      return result;
+    };
+  }
+}
+
 function matrixKinds(game: Game): Record<string, number> {
   let kindOf: (array: unknown) => string;
   try {
@@ -134,7 +158,10 @@ function matrixKinds(game: Game): Record<string, number> {
     return {};
   }
   const kinds: Record<string, number> = {};
-  const note = (where: string, name: string, array: unknown) => {
+  TRAPPED.forEach((text, i) => {
+    kinds[`trap${i} ${text}`] = 1;
+  });
+  const note =(where: string, name: string, array: unknown) => {
     const key = `${where}|${kindOf(array)}|${(array as number[]).length}${kindOf(array) === 'double' ? '' : `|${name}`}`;
     kinds[key] = (kinds[key] ?? 0) + 1;
   };

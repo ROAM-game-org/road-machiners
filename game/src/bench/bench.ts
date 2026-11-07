@@ -12,7 +12,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
-import { blurredElements, bufferVersions, changedBuffersSince, gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
+import { blurredElements, bufferVersions, changedBuffersSince, gameState, trapMatrixKinds, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
@@ -660,6 +660,7 @@ function timeHolders(game: Game): string {
 
 export async function runBench(game: Game, options: BenchOptions): Promise<BenchReport> {
   checkGameFields(game);
+  trapMatrixKinds();
   const probe = new Probe(game);
   const passFrames = options.passFrames ?? PASS_FRAMES;
   const log: TurnLog = { waits: [], workers: [], previews: [], starts: [], passShots: [], recording: false, steps: {}, spans: [] };
