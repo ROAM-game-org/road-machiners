@@ -399,8 +399,10 @@ export class InventoryView {
   }
 
   private pressedSelection(c: ClickedItem): string | null {
-    if (c.source !== "grid" || !this.pressedCell) return selectionAfterClick(this.selectedItem, c.item.id);
-    return selectionAfterPress(this.shown(this.host.world()), this.selectedItem, c.item, this.pressedCell);
+    const cell = this.pressedCell;
+    this.pressedCell = null;
+    if (c.source !== "grid" || !cell) return selectionAfterClick(this.selectedItem, c.item.id);
+    return selectionAfterPress(this.shown(this.host.world()), this.selectedItem, c.item, cell);
   }
 
   private clicked(source: ItemSource, id: string, item: GridItem): ClickedItem {
