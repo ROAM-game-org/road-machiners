@@ -1,4 +1,4 @@
-import { beforeAll, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { HOLLOW } from '../data/sunward';
 import { playerVehicle } from '../sim/damage';
 import { insideCurtain } from '../sim/fortress';
@@ -64,18 +64,29 @@ it('stops a stranger driving at the shut gatehouse outside the curtain', () => {
   expect(everInside).toBe(false);
 }, budget(300_000));
 
-it('lets the Cavalcade out of the pad in gate order at ride-out and drives each car clear of the Hollow, with no stall', () => {
-  const out = rideOutTurn(duskTurn(1));
-  const w = farScene(out - 2);
+describe('the Cavalcade at ride-out', () => {
   const left: string[] = [];
   let stalls = 0;
-  const last = run(w, 160, (next) => {
-    stalls += next.events.filter((e) => e.t === 'stall').length;
-    for (const e of next.events) if (e.t === 'leftSite') left.push(e.vehicle);
+  let last: World;
+
+  beforeAll(() => {
+    last = run(farScene(rideOutTurn(duskTurn(1)) - 2), 160, (next) => {
+      stalls += next.events.filter((e) => e.t === 'stall').length;
+      for (const e of next.events) if (e.t === 'leftSite') left.push(e.vehicle);
+    });
+  }, budget(600_000));
+
+  it('rides out with no stall and at least six cars', () => {
+    expect(stalls).toBe(0);
+    expect(left.length).toBeGreaterThanOrEqual(6);
   });
-  expect(stalls).toBe(0);
-  expect(left.length).toBeGreaterThanOrEqual(6);
-  const night = sunwardFacts(last).night!;
-  expect(left).toEqual([...gateOrder(last, night), ...(night.hunt?.party ?? [])].slice(0, left.length));
-  for (const id of left.slice(0, -1)) expect(dist(requireTruck(last, id).pos, HOLLOW.pos)).toBeGreaterThan(hollowReach());
-}, budget(600_000));
+
+  it('lets the cars out of the pad in gate order', () => {
+    const night = sunwardFacts(last).night!;
+    expect(left).toEqual([...gateOrder(last, night), ...(night.hunt?.party ?? [])].slice(0, left.length));
+  });
+
+  it('drives each car clear of the Hollow', () => {
+    for (const id of left.slice(0, -1)) expect(dist(requireTruck(last, id).pos, HOLLOW.pos)).toBeGreaterThan(hollowReach());
+  });
+});
