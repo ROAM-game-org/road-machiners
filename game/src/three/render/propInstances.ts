@@ -174,6 +174,7 @@ export function instancedProp(name: ModelName, placements: THREE.Matrix4[], mate
   if (placements.length === 0) throw new Error(`Instanced ${name} needs at least one placement`);
   const merged = mergedOf(name);
   const group = new THREE.Group();
+  group.name = name;
   if (merged.geometry) group.add(instancedPart(merged.geometry, materialOf(name, merged.look), placements, new THREE.Matrix4()));
   for (const part of merged.special) group.add(instancedPart(part.geometry, materialOf(name, part.material), placements, part.matrix));
   group.matrixAutoUpdate = false;

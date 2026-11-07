@@ -1,7 +1,7 @@
 import { Object3D, type Camera, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
-import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport } from './report';
 import { shadowRefreshOf } from '../three/render/shadowRefresh';
 
 export const FRAME_STEP_MS = 16.67;
@@ -122,11 +122,20 @@ export function systemRootsOf(game: Game): SystemRoots {
 
 type CountedRenderer = Pick<WebGLRenderer, 'info' | 'renderBufferDirect'>;
 type DirectArgs = Parameters<WebGLRenderer['renderBufferDirect']>;
+const HEAVIEST_ROWS = 30;
+
+function namedAncestor(object: Object3D): string {
+  for (let node: Object3D | null = object; node !== null; node = node.parent) {
+    if (node.name && !node.name.startsWith('scope-chunk')) return node.name;
+  }
+  return `${object.type}:unnamed`;
+}
 
 export class DrawCounter {
   readonly shadowCameras = new Map<Camera, number>();
   private bySystem = emptyBySystem();
   private other: Record<string, number> = {};
+  private readonly byName = new Map<string, DrawCount>();
   private rendererCalls = 0;
   private original: WebGLRenderer['renderBufferDirect'] | null = null;
   private finished = false;
@@ -163,6 +172,23 @@ export class DrawCounter {
     count.draws += draws;
     count.triangles += triangles;
     if (other !== null) this.other[other] = (this.other[other] ?? 0) + draws;
+    this.addByName(pass, args[4], draws, triangles);
+  }
+
+  private addByName(pass: RenderPass, object: Object3D, draws: number, triangles: number): void {
+    const key = `${pass}|${namedAncestor(object)}`;
+    const count = this.byName.get(key) ?? { draws: 0, triangles: 0 };
+    count.draws += draws;
+    count.triangles += triangles;
+    this.byName.set(key, count);
+  }
+
+  private heaviest(): NonNullable<DrawReport['heaviest']> {
+    const rows = [...this.byName].map(([key, count]) => {
+      const [pass, name] = key.split('|');
+      return { name, pass: pass as RenderPass, ...count };
+    });
+    return rows.sort((a, b) => b.triangles - a.triangles).slice(0, HEAVIEST_ROWS);
   }
 
   private addShadow(camera: Camera, draws: number): void {
@@ -178,7 +204,7 @@ export class DrawCounter {
   report(): DrawReport {
     const { total, byPass } = drawTotals(this.bySystem);
     if (total !== this.rendererCalls) throw new Error(`IV7: the bench counted ${total} draws but renderer.info.render.calls says ${this.rendererCalls}`);
-    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other };
+    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest() };
   }
 }
 
