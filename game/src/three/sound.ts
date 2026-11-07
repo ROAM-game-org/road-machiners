@@ -130,8 +130,8 @@ export class SoundDirector {
     this.player.play(cue, { pan: placed.pan, gain: placed.gain * level }, delayMs);
   }
 
-  honk(p: V3, delayMs: number, chassisId: string): void {
-    this.record("horn");
+  honk(p: V3, delayMs: number, chassisId: string, label = ""): void {
+    this.record(label ? `horn ${label}` : "horn");
     this.player.play("horn", this.place(p), delayMs, hornSoundFor(chassisId));
   }
 

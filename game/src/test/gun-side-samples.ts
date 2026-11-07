@@ -38,8 +38,7 @@ function sampleOf(id: string): Sampled[] {
 
 export const FIRST_HALF = ['bowlFarmer', 'buggy', 'gunwagon', 'trader', 'scavenger'];
 const REST = Object.keys(NPCS).filter((id) => !FIRST_HALF.includes(id));
-export const SECOND_HALF = REST.filter((_, i) => i % 2 === 0);
-export const THIRD_HALF = REST.filter((_, i) => i % 2 === 1);
+export const REST_PARTS = [0, 1, 2].map((part) => REST.filter((_, i) => i % 3 === part));
 
 export function checkGunsOnTemplates(templateIds: string[]): void {
   describe.each(templateIds)('guns on one %s truck at rest', (templateId) => {
