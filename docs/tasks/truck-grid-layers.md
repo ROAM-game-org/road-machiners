@@ -119,8 +119,8 @@ Approach: add the layer with today's data first, so behavior stays until the lay
 - Passed on the final code: the layer, hit-order, save-step, garage-press, market and NPC loadout test files, typecheck and the quality hook.
 - A real-game run of the condition view with guns over wheels on the hauler, buggy and wagon, plus the semi and the starting scout, drew with no page error.
 - A real-game run of the garage on the starting scout gave gun, wheel, nothing, gun on four presses.
-- Open: the full `truckSupport` run and the 144 grid-reading test files were stopped by low memory, swap at 97% with load average 45, mostly from other jobs. 22 of the 144 files finished, and every failure that was not a timeout traced to a test helper with a fixed gun spot, now fixed.
-- Open: `garage-ui-check` passed the nose and hit my 280 s limit at the bowl. `npm run playtest`, `npm run layout` and `npm run stuck` have not run.
+- A run of 196 files, the support tests plus the files that failed before, was stopped at 57 files when the work went to factory hardening. 50 passed. 7 failed with 11 gun support tests at the 30 s limit, on the wagon, longbed, convertible and sorokonoga, with swap about 92% full. No test reported a floating part. Whether the timeouts come from load or from more cells to check is not known.
+- Not run: `garage-ui-check` past the bowl, `npm run playtest`, `npm run layout`, `npm run stuck`. The sheet `game/tmp/truck-grids/final-sheet.png` predates the four-corner legs.
 
 ## Conclusion
 
@@ -149,5 +149,5 @@ Grids, below-deck layer, hit order, legs, garage press and save step are committ
 
 ### Deferred (needs user input)
 
-- Full test run: rerun `truckSupport` and the grid-reading tests when memory is free, or let `scripts/land-dev.sh` run the suite. Landing is the user's choice.
+- Full test run and landing: factory hardening runs both.
 - Goal check: the user judges `game/tmp/truck-grids/final-sheet.png` and plays a fight.
