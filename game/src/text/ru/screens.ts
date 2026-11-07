@@ -402,6 +402,8 @@ export const SCREENS: Translation<typeof EN> = {
   'icon.money': 'М',
   'icon.fuel': 'Топливо',
   'icon.supplies': 'Припасы',
+  'icon.gun': 'Оружие',
+  'icon.store': 'Запас',
   'icon.driver': 'Водитель',
   'icon.truck': 'Инвентарь грузовика',
   'icon.engine': 'Двигатель',
