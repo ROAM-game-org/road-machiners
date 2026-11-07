@@ -313,6 +313,15 @@ describe("atLevel", () => {
     });
   });
 
+  it("logs a road horn with its cause and truck, and a reply horn bare", () => {
+    withWindow(() => {
+      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
+      director.honk({ x: 0, y: 0, z: 0 }, 0, "scout", "brake npc-1");
+      director.honk({ x: 0, y: 0, z: 0 }, 0, "scout");
+      expect(director.log).toEqual(["horn brake npc-1", "horn"]);
+    });
+  });
+
   it("throws on a level outside (0, 1]", () => {
     withWindow(() => {
       const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);

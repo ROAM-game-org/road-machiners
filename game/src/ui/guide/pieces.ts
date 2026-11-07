@@ -4,6 +4,7 @@ import { devEl as el } from "../dom";
 import { speedKey } from "../travel-speed";
 import { verbatim } from "../../text/msg";
 import { moneyEl } from "../units";
+import { workMeterBar } from "../work-meter";
 
 export interface Piece {
   name: string;
@@ -51,6 +52,7 @@ export const PIECES: Piece[] = [
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(15) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
+  { name: ".meter.notched", note: "A bar of timed work, one cell per turn up to 12 turns and a smooth fill beyond. Filled cells are turns done, and the count sits in its title.", build: () => workMeterBar({ turnsLeft: 5, total: 8 }, verbatim("Search")) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
   { name: ".well", note: "The sunk surface of a thin side column on a working screen, holding .well-group blocks. The middle column stays open.", build: () => el("div", { class: "well" }, el("div", { class: "well-group" }, wellRows())) },
   { name: ".well-group", note: "One tight group of rows inside a well. Space between groups is wide.", build: () => el("div", { class: "well-group" }, wellRows()) },

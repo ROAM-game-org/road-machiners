@@ -274,12 +274,6 @@ describe("picked travel speed", () => {
     it("keeps up with any step before a turn was measured", () => {
       expect(new TurnPreparation(TAIL).keptSpeed()).toBe(Infinity);
     });
-
-    it("lowers the kept speed after a slow answer", () => {
-      const turns = new TurnPreparation(TAIL);
-      (turns as unknown as { notePrep(ms: number): void }).notePrep(500);
-      expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 500);
-    });
   });
 
   describe("turn worker failures", () => {
@@ -700,11 +694,60 @@ describe("turns on a tow rope", () => {
   function travelWithPrepared() {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take: () => null } });
-    return { travel, prepare };
+    const computing = { now: false };
+    Object.assign(travel, { turns: { prepare, take: () => null, computing: () => computing.now } });
+    return { travel, prepare, computing };
   }
 
   const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+
+  function fightWorld(): World {
+    const world = makeSafeWorld();
+    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
+    return world;
+  }
+
+  it("prepare the fight turn once the player's plan has settled", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs - 1, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledWith(world, NO_DRIVE);
+  });
+
+  it("wait again when the player changes the fight plan", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    const changed = { ...world };
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(changed, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    travel.prepareNext(changed, null, 1000 + 2 * CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledWith(changed, NO_DRIVE);
+  });
+
+  it("leave the worker to finish before it prepares another fight turn", () => {
+    const { travel, prepare, computing } = travelWithPrepared();
+    const world = fightWorld();
+    computing.now = true;
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+    computing.now = false;
+    travel.prepareNext(world, null, 1001 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("prepare no fight turn while the player drives by hand", () => {
+    const { travel, prepare } = travelWithPrepared();
+    const world = fightWorld();
+    playerVehicle(world).direct = true;
+    travel.prepareNext(world, null, 1000, NO_DRIVE);
+    travel.prepareNext(world, null, 1000 + CONFIG.fightPlanSettleMs, NO_DRIVE);
+    expect(prepare).not.toHaveBeenCalled();
+  });
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
@@ -727,7 +770,7 @@ describe("turns on a tow rope", () => {
     const drive = {} as DriveSnapshot;
     travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
     travel.prepareNext(world, null, 0, drive);
-    expect(prepare).toHaveBeenCalledWith(world, drive, true);
+    expect(prepare).toHaveBeenCalledWith(world, drive);
     prepare.mockClear();
     travel.request(world, drive);
     prepare.mockClear();
@@ -735,17 +778,13 @@ describe("turns on a tow rope", () => {
     expect(prepare).not.toHaveBeenCalled();
   });
 
-  it("prepare nothing ahead with no route or in a fight", () => {
+  it("prepare nothing ahead with no route and no fight", () => {
     const { travel, prepare } = travelWithPrepared();
-    const start = makeSafeWorld();
-    const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
-    travel.prepareNext(start, null, 0, NO_DRIVE);
-    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
-    travel.prepareNext(world, null, 0, NO_DRIVE);
+    travel.prepareNext(makeSafeWorld(), null, 0, NO_DRIVE);
     expect(prepare).not.toHaveBeenCalled();
   });
 
-  it("asks for the fast turn when Space starts fast travel", () => {
+  it("asks for the turn when Space starts travel at a high pick", () => {
     const { travel, prepare } = travelWithPrepared();
     const start = makeSafeWorld();
     const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
@@ -753,7 +792,7 @@ describe("turns on a tow rope", () => {
     travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
     expect(travel.pressTurn(false, world)).toBe(true);
     travel.request(world, drive);
-    expect(prepare).toHaveBeenCalledWith(world, drive, true);
+    expect(prepare).toHaveBeenCalledWith(world, drive);
   });
 
   it("do not prepare ahead for a truck that is not towed", () => {
@@ -1202,7 +1241,7 @@ describe("the slowdown after a stopped turn", () => {
     const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, 0)!.world;
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0, NO_DRIVE);
-    expect(prepare).toHaveBeenCalledWith(stopped, tail.next, false);
+    expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
   });
 
   describe("a stop after the movement ended", () => {

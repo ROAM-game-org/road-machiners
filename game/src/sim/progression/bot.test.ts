@@ -65,9 +65,13 @@ function withPrey(w: World): World {
   return w;
 }
 
+const SALT_STAKE = 40;
+
 function saltGlut(w: World): World {
   setShopPressure(w, 'nose', 'salt', -PRESSURE_MAX);
   setShopPressure(w, 'bowl', 'salt', PRESSURE_MAX);
+  const me = playerVehicle(w);
+  w.player.money = getUpkeepReserve(me) + SALT_STAKE * getTradePrice(w, me, 'nose', 'salt', 'buy');
   return w;
 }
 

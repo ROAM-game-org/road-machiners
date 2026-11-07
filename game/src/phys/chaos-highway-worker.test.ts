@@ -27,7 +27,7 @@ it('keeps the highway worker alive through preview, idle preparation and the fir
   expect(postMessage.mock.calls[0][0]).toMatchObject({ id: 1, preview: { turns: expect.any(Array) } });
   await vi.runAllTimersAsync();
 
-  await worker.onmessage!({ data: { ...task, kind: 'turn', id: 2, tailSteps: 0, fastTravel: false } });
+  await worker.onmessage!({ data: { ...task, kind: 'turn', id: 2, tailSteps: 0 } });
   expect(postMessage.mock.calls[1][0].error).toBeUndefined();
   expect(postMessage.mock.calls[1][0]).toMatchObject({ id: 2, turn: { world: { turn: world.turn + 1 } } });
   await vi.runAllTimersAsync();

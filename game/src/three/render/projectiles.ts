@@ -7,6 +7,7 @@ import { groundPoint, toMap, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import type { Terrain } from '../../sim/terrain';
 import { reelRope, Rope, ROPE_LOOK, type GroundAt } from './lines';
+import { uploadFirst } from './uploads';
 
 export type Muzzle = { pos: V3; dir: V3 };
 
@@ -370,6 +371,7 @@ const AXIS = new THREE.Vector3(1, 0, 0);
 export class Casings {
   readonly meshes: Record<CasingSize, THREE.InstancedMesh>;
   private casings: Casing[] = [];
+  private drawnTurn = Number.NaN;
   private matrix = new THREE.Matrix4();
   private quat = new THREE.Quaternion();
   private tumble = new THREE.Quaternion();
@@ -397,7 +399,10 @@ export class Casings {
 
   tick(dt: number, terrain: Terrain, turn: number): void {
     this.casings = this.casings.filter((c) => turn - c.turn < CASING.lifeTurns);
-    for (const c of this.casings) if (!c.resting) this.fly(c, dt, terrain);
+    const flying = this.casings.filter((c) => !c.resting);
+    for (const c of flying) this.fly(c, dt, terrain);
+    if (flying.length === 0 && turn === this.drawnTurn) return;
+    this.drawnTurn = turn;
     this.draw(turn);
   }
 
@@ -436,7 +441,7 @@ export class Casings {
     }
     for (const size of SIZES) {
       this.meshes[size].count = counts[size];
-      this.meshes[size].instanceMatrix.needsUpdate = true;
+      uploadFirst(this.meshes[size].instanceMatrix, counts[size]);
     }
   }
 }

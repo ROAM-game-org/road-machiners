@@ -10,11 +10,12 @@ import type { Vehicle } from './types';
 
 const SEEDS = [1, 2, 3, 4];
 const LEVELS: GearLevel[] = ['standard', 'heavy', 'loaded'];
+const TIER_3_PRICE_FACTOR = 2.25;
 const WAVES = [
-  { stretch: 1, money: 300 },
-  { stretch: 4, money: 900 },
-  { stretch: 8, money: 1500 },
-  { stretch: 8, money: 3000 },
+  { stretch: 1, money: 300 * TIER_3_PRICE_FACTOR },
+  { stretch: 4, money: 900 * TIER_3_PRICE_FACTOR },
+  { stretch: 8, money: 1500 * TIER_3_PRICE_FACTOR },
+  { stretch: 8, money: 3000 * TIER_3_PRICE_FACTOR },
 ];
 const base = emptyWorld();
 const cases = Object.values(NPCS).flatMap((template) => (template.loadout.spares ? template.loadout.chassis.map(({ value }) => ({ template, chassisId: value })) : []));

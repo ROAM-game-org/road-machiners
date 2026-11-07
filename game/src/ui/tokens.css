@@ -273,6 +273,11 @@
   --quest-art-zoom: 1.08;
   --modal-close-gutter: 120px;
   --tab-min-width: 85px;
+  --char-width: 1000px;
+  --char-rank-col: 196px;
+  --char-buy-w: 64px;
+  --char-tab-h: 48px;
+  --char-standing-w: 520px;
   --tip-left: 457px;
   --inv-side-width: 235px;
   --inv-side-min: 180px;

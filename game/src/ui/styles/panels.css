@@ -377,17 +377,6 @@
   font-size: var(--text-dense);
   white-space: nowrap;
 }
-#ui .action:has(.job-bar) {
-  padding: var(--space-4) var(--space-6);
-  text-align: center;
-}
-.action .job-label {
-  display: block;
-  white-space: nowrap;
-}
-.action .job-bar {
-  width: 100%;
-}
 #ui .rescue {
   min-width: var(--panel-s);
   max-width: var(--panel-m);

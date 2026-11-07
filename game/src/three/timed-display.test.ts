@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { emptyWorld } from '../sim/testkit';
 import { cloneWorld } from '../sim/world';
 import { mountedParts } from '../sim/grid';
-import { timedDisplay } from './timed-display';
+import { playbackWorld, timedDisplay } from './timed-display';
 import { newTimedCombat } from '../sim/timed-combat';
 
 it('changes inspected health at the recorded impact without changing simulation state', () => {
@@ -16,6 +16,17 @@ it('changes inspected health at the recorded impact without changing simulation 
   expect(hp(99)).toBe(part.hp);
   expect(hp(100)).toBe(part.hp - 3);
   expect(mountedParts(after.vehicles.find(v => v.id === vehicle.id)!)[0].hp).toBe(part.hp);
+});
+
+it('builds the shown world once per moment of playback', () => {
+  const before = emptyWorld();
+  const after = cloneWorld(before);
+  after.combat = newTimedCombat();
+  const at = (elapsed: number) => playbackWorld(after, { impacts: false, before, elapsed });
+  expect(at(100)).toBe(at(100));
+  expect(at(116)).not.toBe(at(100));
+  const later = cloneWorld(after);
+  expect(playbackWorld(later, { impacts: false, before, elapsed: 100 })).not.toBe(at(100));
 });
 
 it('keeps projectile playback inside the simulated turn while trucks coast', async () => {

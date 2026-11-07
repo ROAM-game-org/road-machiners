@@ -30,6 +30,7 @@ import type { Vec } from "../sim/vec";
 import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
+import { hearsHorn } from "../sim/road-horn";
 import { engineOverheating } from "../sim/engine-heat";
 import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, waitsOnPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
@@ -51,7 +52,7 @@ import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import type { ObstacleViews } from "./render/obstacles";
 import type { CraterViews } from "./render/craters";
@@ -73,7 +74,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
-import { backdropAt, daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
+import { backdropAt, daylightAt, lightScene, RadioLights, refreshShadows, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -173,6 +174,7 @@ export class Game {
   private beforeIndex: { anim: Playback; byId: Map<string, Vehicle> } | null = null;
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
+  private hornCues: HornCues | null = null;
   private breakCues = new BreakCues([]);
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
@@ -214,16 +216,16 @@ export class Game {
 
   constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
-    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));
+    this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
     setTimeout(() => this.plans.warm(this.world.terrain));
 
     subscribeInputMode(() => this.refreshUi());
-    installTouchTips(uiRoot(), touchMode);
+    installTouchTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
-    enableSunShadows(this.renderer);
+    refreshShadows(this.renderer, this.scene, this.gpu);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
@@ -429,8 +431,7 @@ export class Game {
     }
     this.syncMinimap();
     timed("minimap", () => this.minimap?.update(this.displayWorld()));
-    if (!this.anim || this.anim.impacts)
-      this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
+    if (!this.anim || this.anim.impacts) this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld(), this.world);
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
@@ -814,6 +815,7 @@ export class Game {
     playback.volley = volleySeen(this.world.events, seen);
     const collisions = collisionSteps(world.events, playback.result);
     this.crashCues = new CollisionCues(collisions);
+    this.hornCues = new HornCues(this.heardRoadHorns(world));
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
@@ -836,6 +838,7 @@ export class Game {
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld(), playerSeenPropTiles(this.world)));
     playCrashes(this.combatHost(), this.crashCues, null);
+    this.playRoadHorns(null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
   }
@@ -919,6 +922,23 @@ export class Game {
   private playHorn(id: string, delayMs: number): void {
     const v = vehicleById(this.world, id), f = this.frames[v.id] ?? restFrame(this.world, v);
     this.sound.honk({ x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z }, delayMs, v.chassisId);
+  }
+
+  private heardRoadHorns(world: World) {
+    const me = playerVehicle(world);
+    const hears = (e: { vehicle: string }): boolean => {
+      const honker = world.vehicles.find((v) => v.id === e.vehicle);
+      return !!honker && hearsHorn(me, honker);
+    };
+    return hornSteps(world.events, hears, Math.random);
+  }
+
+  private playRoadHorns(step: number | null): void {
+    for (const e of this.hornCues?.due(step) ?? []) {
+      if (!this.world.vehicles.some((v) => v.id === e.vehicle)) continue;
+      const v = vehicleById(this.world, e.vehicle), f = this.frames[v.id] ?? restFrame(this.world, v);
+      this.sound.honk({ x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z }, 0, v.chassisId, `${e.cause} ${e.vehicle}`);
+    }
   }
 
   private playImpactSounds(): void {
@@ -1062,6 +1082,7 @@ export class Game {
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
     const { at, playMs, combatMs } = timed("turn-frame", () => {
@@ -1073,7 +1094,10 @@ export class Game {
     const step = at === null ? null : Math.floor(at);
     this.syncVehicles(at, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
-    if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
+    if (step !== null) {
+      playCrashes(this.combatHost(), this.crashCues, step);
+      this.playRoadHorns(step);
+    }
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);

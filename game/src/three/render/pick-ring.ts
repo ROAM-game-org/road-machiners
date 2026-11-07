@@ -1,4 +1,3 @@
-// The ring around a hovered truck. It is rebuilt only when the truck's radius changes.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -36,7 +35,6 @@ export class PickRing {
     this.mesh.position.set(p.x, p.y + RING.lift * S, p.z);
   }
 
-  // Rings the visible truck under the pointer, but never the player's own.
   follow(world: World, hovered: string | null, frames: Record<string, VehicleFrame>, hide: boolean): void {
     const v: Vehicle | undefined = hovered && hovered !== playerVehicle(world).id ? world.vehicles.find((x) => x.id === hovered) : undefined;
     this.place(world.terrain, hide || !v ? undefined : frames[v.id], v ? vehicleStats(world, v).radius : 0);
