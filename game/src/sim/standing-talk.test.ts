@@ -74,6 +74,6 @@ describe('talk by attitude band', () => {
     thinkNpc(w, npc);
     expect(w.states.some((s) => (s.kind === 'answering' || s.kind === 'tow') && s.holder === npc.id && s.other === w.player.vehicleId)).toBe(true);
     const call = callVehicle(w, npc.id);
-    expect(currentLine(call)).toBe('goAhead');
+    expect(currentLine(call)).toBe('youLookStuckNeedPull');
   });
 });

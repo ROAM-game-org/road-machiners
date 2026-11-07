@@ -1,6 +1,3 @@
-// Sound around the player's truck: for each truck heard beyond sight, a faint arc about 3 tiles out,
-// pointing toward it, that hums and sends small ripples outward like an engine note made visible.
-// Sound gives a bearing, not a place, so it shows only direction, vagueness, loudness and distance.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
