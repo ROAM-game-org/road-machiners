@@ -1,6 +1,6 @@
 # Town pages as places
 
-Status: validating
+Status: done
 Branch: town-places
 Worktree: .worktrees/town-places
 Goal: A player who opens any town page sees the settlement's outsider area as a list of named places they can visit, starts on Bowl gateway, and finds parts, goods, jobs, people and maps with one click each, as fast as today. Useless if: only the button labels change while charts stay inside the market; a place has nothing to do; a place adds walking or an extra screen; Russian text is missing; the text still says "gate yard" in Bowl; or a screenshot check passes while the names were never approved by the user.
