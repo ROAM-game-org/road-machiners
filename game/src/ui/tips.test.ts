@@ -234,7 +234,7 @@ describe("zones tip", () => {
 
 describe("opening tips", () => {
   let template: World | undefined;
-  const opening = (): World => cloneWorld((template ??= newWorld(1, startKit("standard"), TEST_MAP, defaultSetup("roaming"))));
+  const opening = (): World => cloneWorld((template ??= newWorld(1, startKit("standard"), TEST_MAP, defaultSetup("roaming"), false)));
 
   const turns = (w: World, n: number): World => {
     let next = w;
