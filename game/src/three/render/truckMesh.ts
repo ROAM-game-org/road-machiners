@@ -57,14 +57,14 @@ type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null;
 type Buckets = Map<string, Bucket>;
 type Owner = { partId: string | null; armor: boolean };
 
-export type MergeSplit = 'parts' | 'armor';
+export type MergeSplit = 'parts' | 'armor' | 'tintedParts';
 
 const NO_ARMOR: ReadonlySet<string> = new Set();
 
 function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSplit): Owner {
   const tagged: string | null = mesh.userData.partId ?? null;
   const armor = tagged !== null && armorIds.has(tagged);
-  return { partId: split === 'parts' ? tagged : null, armor };
+  return { partId: split === 'armor' ? null : tagged, armor };
 }
 
 const worldLooks = new Map<string, THREE.Material>();
@@ -121,8 +121,8 @@ function movedLamp(lamp: THREE.Mesh, toGroup: THREE.Matrix4): THREE.Mesh {
   return mesh;
 }
 
-export function mergeStatic(group: THREE.Group): THREE.Group {
-  return mergeParts(group, NO_ARMOR, 'parts');
+export function mergeStatic(group: THREE.Group, inWorld = false): THREE.Group {
+  return mergeParts(group, NO_ARMOR, inWorld ? 'tintedParts' : 'parts');
 }
 
 export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, split: MergeSplit): THREE.Group {
@@ -138,7 +138,7 @@ export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, sp
       return;
     }
     const material = o.material as THREE.MeshLambertMaterial;
-    const byTint = split === 'armor';
+    const byTint = split !== 'parts';
     const geo = staticGeometry(o, toGroup);
     bucketFor(buckets, material, ownerOf(o, armorIds, split), byTint).geos.push(byTint ? tinted(geo, material.color) : geo);
     used.push(o);

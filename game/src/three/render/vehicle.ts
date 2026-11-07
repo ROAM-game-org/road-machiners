@@ -629,7 +629,7 @@ export class VehicleView {
     const wear = lookOf(item);
     const { head: parts, tip } = weaponHead(look);
     for (const p of parts.children) tint(p, paint, wear);
-    const head = mergeStatic(parts);
+    const head = mergeStatic(parts, this.scene === 'world');
 
     const stand = weaponStand(v, item, unit.base);
     const headAt = socket(look.mount, 'head');
@@ -709,7 +709,7 @@ export class VehicleView {
     tint(raw, paint, PRISTINE);
     const inner = new THREE.Group();
     inner.add(raw);
-    const merged = mergeStatic(inner);
+    const merged = mergeStatic(inner, this.scene === 'world');
     merged.scale.copy(thick);
     merged.traverse((o) => (o.castShadow = false));
     const outer = new THREE.Group();
@@ -726,7 +726,7 @@ export class VehicleView {
     const cabUnit = this.units[rect.unit];
     const tip = wrapped(model('antenna'));
     this.useLamp(tip);
-    const antenna = mergeStatic(tip);
+    const antenna = mergeStatic(tip, this.scene === 'world');
     antenna.name = 'antenna';
     this.halo = radioHalo(this.radioOn);
     antenna.add(this.halo);
@@ -735,7 +735,7 @@ export class VehicleView {
     cabUnit.motion.addWhip(antenna, WHIPS.antenna);
     if (!bareRear) return;
     const last = this.units[this.units.length - 1];
-    const chain = mergeStatic(wrapped(model('tow_chain')));
+    const chain = mergeStatic(wrapped(model('tow_chain')), this.scene === 'world');
     chain.position.copy(rearHang(last.base, last.b.half.z * CHAIN_SIDE));
     last.body.add(chain);
     last.motion.addWhip(chain, WHIPS.chain);
@@ -753,7 +753,7 @@ export class VehicleView {
     tint(raw, paint, { ...look, dents: false });
     const wrap = new THREE.Group();
     wrap.add(raw);
-    const wheel = mergeStatic(wrap);
+    const wheel = mergeStatic(wrap, this.scene === 'world');
     wheel.scale.set(body.wheelRadius, body.wheelRadius, body.wheelHalfWidth * 2);
     return wheel;
   }
