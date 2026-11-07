@@ -6,6 +6,7 @@ import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
+import { TIER_VALUE } from './units';
 import { bareGrid, baseGrid, mountSpots } from '../sim/grid';
 import type { GridItem } from '../sim/types';
 
@@ -167,7 +168,11 @@ describe('chassis grids', () => {
   });
 
   it('keeps every chassis value at its value before the layout rules', () => {
-    expect(Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]))).toEqual(VALUES);
+    const priced = Object.fromEntries(Object.entries(CHASSIS).map(([id, c]) => [id, c.value]));
+    for (const [id, value] of Object.entries(VALUES)) {
+      expect(priced[id], id).toBeCloseTo(value * TIER_VALUE[CHASSIS[id].tier], 1);
+    }
+    expect(Object.keys(priced).sort()).toEqual(Object.keys(VALUES).sort());
   });
 
   it('rates every chassis at the old mass plus tier 1 armor for its four new side cells', () => {

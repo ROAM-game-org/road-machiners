@@ -293,3 +293,11 @@ export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
   const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
   return headY({ ...v, items: v.items.filter((it) => !others.has(it as never)) }, itemId, mode);
 }
+
+export function sameArcAlone(v: Vehicle, itemId: string): boolean {
+  const gun = mountedGuns(v).find((g) => g.id === itemId);
+  if (!gun) throw new Error(`No gun ${itemId}`);
+  const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
+  const alone = { ...v, items: v.items.filter((it) => !others.has(it as never)) };
+  return JSON.stringify(gunSpans(v, gun)) === JSON.stringify(gunSpans(alone, gun));
+}
