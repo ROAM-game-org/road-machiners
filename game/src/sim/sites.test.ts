@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { clickOrder } from './steering';
-import { canUseSite, edgeCrossings, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
+import { fortressGates } from './fortress';
+import { canUseSite, edgeCrossings, isFortress, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
 import { dist } from './vec';
 import { highwayMap, outpostFort } from './highway';
 import { atlasOf, icarusAtlas } from './atlas';
@@ -51,12 +52,12 @@ describe('site gates and pads', () => {
     }
   });
 
-  it('puts each pad outside its site, touching the gate', () => {
+  it('puts each pad against its gate', () => {
     for (const site of SITES) {
-      const gates = siteGates(site);
+      const gates = isFortress(site) ? fortressGates(site).map((g) => g.face) : siteGates(site);
       sitePads(site).forEach((pad, i) => {
-        expect(dist(pad, site.pos), site.id).toBeCloseTo(site.radius + PAD.length / 2, 6);
-        expect(dist(pad, gates[i]), site.id).toBeCloseTo(PAD.length / 2, 6);
+        expect(dist(pad, gates[i]), site.id).toBeGreaterThanOrEqual(PAD.length / 2 - 1e-6);
+        expect(dist(pad, gates[i]), site.id).toBeLessThanOrEqual(PAD.length / 2 + 1);
       });
     }
   });
@@ -103,6 +104,22 @@ describe('clicks on a site', () => {
     const bowl = REGION.towns[0];
     expect(siteUnder(icarusAtlas(), bowl.pos)?.id).toBe(bowl.id);
     expect(siteUnder(icarusAtlas(), sitePads(bowl)[0])).toBeNull();
+  });
+
+  it('counts the ground outside a fort wall as open ground', () => {
+    const bowl = REGION.towns[0];
+    const pad = sitePads(bowl)[0];
+    const away = bowl.radius - 0.5;
+    const beside = { x: bowl.pos.x - ((pad.x - bowl.pos.x) / dist(pad, bowl.pos)) * away, y: bowl.pos.y - ((pad.y - bowl.pos.y) / dist(pad, bowl.pos)) * away };
+    expect(dist(beside, bowl.pos)).toBeLessThan(bowl.radius);
+    expect(siteUnder(icarusAtlas(), beside)).toBeNull();
+    expect(clickOrder(TEST_MAP.terrain, beside, false, { pos: { x: 1, y: 1 }, order: null })).toEqual({ kind: 'through', dest: beside });
+  });
+
+  it('never counts a pad as inside its site', () => {
+    for (const site of SITES) {
+      for (const pad of sitePads(site)) expect(siteUnder(icarusAtlas(), pad), site.id).toBeNull();
+    }
   });
 
   it('turns a click inside a site into a stop at its pad nearest the truck', () => {

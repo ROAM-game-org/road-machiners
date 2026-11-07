@@ -1,5 +1,6 @@
 
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES, type FortressBastions, type FortressKind, type FortressSite, type FortressStyle, type FortressStyleDef } from '../data/fortress';
+import { REGION } from '../data/region';
 import { siteGates, siteLook, type Site } from './sites';
 import type { BakedProp, PropKind } from './terrain';
 import { bearing, DEG, dist, pointInPolygon, polygonEdgeDist, segmentDist, type Vec } from './vec';
@@ -82,6 +83,11 @@ export function fortressGates(site: Site): FortGate[] {
     GATES.set(site, gates);
   }
   return gates;
+}
+
+export function fortressPads(site: Site): Vec[] {
+  const reach = REGION.sites.pad.length / 2 + (styleOf(site).padGap ?? 0);
+  return fortressGates(site).map((g) => ({ x: g.face.x + g.out.x * reach, y: g.face.y + g.out.y * reach }));
 }
 
 export function fortressPieces(site: Site): FortressPiece[] {

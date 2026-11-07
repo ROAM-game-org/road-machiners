@@ -561,6 +561,25 @@ describe('aims at lost parts', () => {
   });
 });
 
+describe('auto fire on the player truck', () => {
+  it('holds fire on a hostile that is not fighting the player', async () => {
+    const { autoOrders } = await import('./combat');
+    const { w, me } = duel();
+    refreshVision(w);
+    autoOrders(w, me);
+    expect(me.weaponOrders).toEqual({});
+  });
+
+  it('fires on a truck in a fight with the player', async () => {
+    const { autoOrders } = await import('./combat');
+    const { w, me, buggy, mg } = duel();
+    refreshVision(w);
+    addState(w, 'combat', buggy.id, me.id, { kind: 'none' });
+    autoOrders(w, me);
+    expect(me.weaponOrders[mg.part.id]?.targetId).toBe(buggy.id);
+  });
+});
+
 describe('player vision', () => {
   it('auto fire and manual orders ignore raiders out of sight', async () => {
     const { setWeaponOrder } = await import('./world');

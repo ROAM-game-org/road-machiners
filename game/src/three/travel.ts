@@ -403,6 +403,10 @@ export class Travel {
     return this.creep?.frameOf(v);
   }
 
+  trucksRoll(turnPlaying: boolean): boolean {
+    return turnPlaying || this.isCreeping();
+  }
+
   isCreeping(): boolean {
     return this.creep?.isMoving() ?? false;
   }
