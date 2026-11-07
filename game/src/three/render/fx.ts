@@ -8,7 +8,6 @@ import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { frontBody, unitsOf } from '../../sim/body';
-import { raisesDust } from '../../sim/detect';
 import { corePart, mountedParts } from '../../sim/grid';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
@@ -128,7 +127,7 @@ const SPRAY = {
 } as const;
 
 export function sprayShare(ground: TerrainType): number {
-  return raisesDust(ground) ? ground.dust ** SPRAY.surfacePower : 0;
+  return ground.dust ** SPRAY.surfacePower;
 }
 
 export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLight };

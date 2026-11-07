@@ -1,7 +1,7 @@
 
 import { DETECT } from '../data/detect';
 import { RULES } from '../data/rules';
-import { TERRAIN, TERRAIN_TYPES, type TerrainType } from '../data/terrain';
+import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import type { EngineDef, ScannerDef } from '../data/parts';
 import { partDef } from '../data/parts';
 import { wornDef } from './wear';
@@ -47,15 +47,10 @@ function runsCold(world: World, v: Vehicle): boolean {
   return vehicleHasPerk(world, v, 'coldRunning') && v.speed < vehicleStats(world, v).maxSpeed * PERK_NUMBERS.coldRunning.speedShare;
 }
 
-export function raisesDust(ground: TerrainType): boolean {
-  return ground.dust >= DETECT.dust.minSurface;
-}
-
 export function dustRange(world: World, v: Vehicle): number {
   if (v.speed <= RULES.limpSpeed || isStranded(world, v)) return 0;
   if (!sunAt(world.turn)) return 0;
   const terrainType = TERRAIN_TYPES[world.terrain.types[tileAt(world.terrain, v.pos)]];
-  if (!raisesDust(terrainType)) return 0;
   const weather = weatherOn(world, v);
   return DETECT.dust.perSpeed * v.speed * terrainType.dust * weather.sight;
 }

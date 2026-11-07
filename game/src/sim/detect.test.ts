@@ -8,7 +8,7 @@ import { addVehicle, editableTerrain, emptyWorld } from './testkit';
 import { advanceDust, cloudsSeenBy, contactsOf, dustRange, markVehicle, scannerRange, sensesOf, sharpSensesOf, soundRange } from './detect';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
-import { TERRAIN , type TerrainTypeId } from '../data/terrain';
+import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { dist } from './vec';
 import { farSightRadius, refreshVision, sightRadius } from './vision';
@@ -42,7 +42,7 @@ describe('soundRange and dustRange', () => {
     expect(crawl).toBeLessThan(soundRange(w, v) / 2);
   });
 
-  it('only dusty ground raises dust, and looser ground raises more', () => {
+  it('scales dust by material: sand the most, then mud, then road, then rock', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = 4;
@@ -52,24 +52,11 @@ describe('soundRange and dustRange', () => {
       types[idx] = type;
       return dustRange(w, v);
     };
-    for (const bare of ['road', 'asphalt', 'concrete', 'glass', 'mud', 'blackMud', 'toxic', 'dirtyWater', 'canal'] as const) expect(rangeOn(bare)).toBe(0);
-    for (const dusty of ['sand', 'ash', 'field', 'saltCrust', 'hardpan', 'track', 'gravel', 'scrub', 'scree'] as const) expect(rangeOn(dusty)).toBeGreaterThan(0);
-    expect(rangeOn('sand')).toBeGreaterThan(rangeOn('scree'));
-  });
-
-  it('leaves no cloud behind a truck on bare ground', () => {
-    const w = emptyWorld();
-    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
-    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
-    v.speed = 4;
-    v.trail = [0, 1, 2].map((i) => ({ x: 38 + i, y: 30, heading: 0 }));
-    const types = editableTerrain(w).types;
-    types.fill('asphalt');
-    advanceDust(w);
-    expect(w.dustClouds).toHaveLength(0);
-    types.fill('sand');
-    advanceDust(w);
-    expect(w.dustClouds).toHaveLength(1);
+    expect(rangeOn('sand')).toBeGreaterThan(rangeOn('mud'));
+    expect(rangeOn('mud')).toBeGreaterThan(rangeOn('road'));
+    expect(rangeOn('road')).toBeGreaterThan(rangeOn('scree'));
+    expect(rangeOn('scree')).toBeGreaterThan(0);
+    expect(Math.max(...Object.values(TERRAIN_TYPES).map((t) => t.dust))).toBe(TERRAIN_TYPES.sand.dust);
   });
 
   it('own speed shortens hearing', () => {

@@ -3,9 +3,9 @@ import { TERRAIN_TYPES } from '../../data/terrain';
 import { sprayShare } from './fx';
 
 describe('wheel spray by surface', () => {
-  it('throws nothing on roads and the most on loose sand', () => {
-    expect(sprayShare(TERRAIN_TYPES.road)).toBe(0);
-    expect(sprayShare(TERRAIN_TYPES.asphalt)).toBe(0);
+  it('throws almost nothing on roads and the most on loose sand', () => {
+    expect(sprayShare(TERRAIN_TYPES.road)).toBeLessThan(0.1);
+    expect(sprayShare(TERRAIN_TYPES.asphalt)).toBeLessThan(0.1);
     expect(sprayShare(TERRAIN_TYPES.hardpan)).toBe(1);
     expect(sprayShare(TERRAIN_TYPES.sand)).toBeGreaterThan(1.5);
   });

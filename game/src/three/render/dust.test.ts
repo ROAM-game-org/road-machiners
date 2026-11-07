@@ -182,6 +182,17 @@ describe('DustCloudsView look', () => {
     expect(shapesAt(5)).toEqual(shapes);
   });
 
+  it('draws a cloud fainter when it was raised with less dust, up to full strength', () => {
+    const peakAt = (range: number) => {
+      const { world } = drove('scout');
+      world.dustClouds[0].age = 3;
+      world.dustClouds[0].range = range;
+      return Math.max(...updated(world, new Map(), null).map((c) => c.alpha));
+    };
+    expect(peakAt(DUST_LOOK.fullRange / 4)).toBeCloseTo(peakAt(DUST_LOOK.fullRange) / 4, 9);
+    expect(peakAt(DUST_LOOK.fullRange * 2)).toBe(peakAt(DUST_LOOK.fullRange));
+  });
+
   it('keeps old dust low, under its rise cap plus its scatter', () => {
     const { world } = drove('scout');
     world.dustClouds[0].age = DETECT.dust.lifetime - 1;

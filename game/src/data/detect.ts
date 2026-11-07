@@ -7,7 +7,6 @@ export const DETECT = {
   },
   dust: {
     perSpeed: 20,
-    minSurface: 0.5,
     eyeHeight: 0.6,
     samplesPerTile: 1,
     spawnBack: 0.5,
