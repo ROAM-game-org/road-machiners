@@ -36,7 +36,7 @@ export type TraitTalk = { voice: Voice | null; topics: TopicId[]; only?: true };
 
 export const HONK_RANGE = DETECT.sound.limp;
 
-export const ROAD_HORN = { paceTurns: 8, sightChance: 0.3, brakeChance: 0.5, brakeSpeed: 2, sightSalt: 'roadHornSight', brakeSalt: 'roadHornBrake' } as const;
+export const ROAD_HORN = { paceTurns: 8, sightChance: 0.7, brakeChance: 0.5, brakeSpeed: 2, sightSalt: 'roadHornSight', brakeSalt: 'roadHornBrake' } as const;
 
 export type TalkGate = 'service' | 'rescue';
 
