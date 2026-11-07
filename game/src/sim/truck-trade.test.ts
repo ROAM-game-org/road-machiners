@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
 import { ECONOMY, GOODS } from '../data/goods';
 import { NPC_UPKEEP, NPCS, STATE_TURNS } from '../data/npcs';
+import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { canTradeWith, inMeetingReach, partTradePrice, playerTrades, truckPartPrice } from './economy';
@@ -159,6 +160,7 @@ describe('trades', () => {
       stowPart(w, find(w, npc.id), makePart(w, 'mg', 0));
       const me = playerVehicle(w);
       addGoods(w, me, 'scrap', freeCells(me));
+      w.player.money = PARTS.mg.value * 3;
     });
     const part = spareParts(find(w0, npc.id))[0];
     expect(() => buyTruckPart(w0, npc.id, part.id)).toThrow('Refused: noCargoRoom');
