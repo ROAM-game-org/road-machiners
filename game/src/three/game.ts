@@ -30,6 +30,7 @@ import type { Vec } from "../sim/vec";
 import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
+import { hearsHorn } from "../sim/road-horn";
 import { engineOverheating } from "../sim/engine-heat";
 import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, waitsOnPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
@@ -51,7 +52,7 @@ import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import type { ObstacleViews } from "./render/obstacles";
 import type { CraterViews } from "./render/craters";
@@ -173,6 +174,7 @@ export class Game {
   private beforeIndex: { anim: Playback; byId: Map<string, Vehicle> } | null = null;
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
+  private hornCues: HornCues | null = null;
   private breakCues = new BreakCues([]);
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
@@ -813,6 +815,7 @@ export class Game {
     playback.volley = volleySeen(this.world.events, seen);
     const collisions = collisionSteps(world.events, playback.result);
     this.crashCues = new CollisionCues(collisions);
+    this.hornCues = new HornCues(this.heardRoadHorns(world));
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
@@ -835,6 +838,7 @@ export class Game {
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld(), playerSeenPropTiles(this.world)));
     playCrashes(this.combatHost(), this.crashCues, null);
+    this.playRoadHorns(null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
   }
@@ -918,6 +922,23 @@ export class Game {
   private playHorn(id: string, delayMs: number): void {
     const v = vehicleById(this.world, id), f = this.frames[v.id] ?? restFrame(this.world, v);
     this.sound.honk({ x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z }, delayMs, v.chassisId);
+  }
+
+  private heardRoadHorns(world: World) {
+    const me = playerVehicle(world);
+    const hears = (e: { vehicle: string }): boolean => {
+      const honker = world.vehicles.find((v) => v.id === e.vehicle);
+      return !!honker && hearsHorn(me, honker);
+    };
+    return hornSteps(world.events, hears, Math.random);
+  }
+
+  private playRoadHorns(step: number | null): void {
+    for (const e of this.hornCues?.due(step) ?? []) {
+      if (!this.world.vehicles.some((v) => v.id === e.vehicle)) continue;
+      const v = vehicleById(this.world, e.vehicle), f = this.frames[v.id] ?? restFrame(this.world, v);
+      this.sound.honk({ x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z }, 0, v.chassisId, `${e.cause} ${e.vehicle}`);
+    }
   }
 
   private playImpactSounds(): void {
@@ -1072,7 +1093,10 @@ export class Game {
     const step = at === null ? null : Math.floor(at);
     this.syncVehicles(at, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
-    if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
+    if (step !== null) {
+      playCrashes(this.combatHost(), this.crashCues, step);
+      this.playRoadHorns(step);
+    }
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);
