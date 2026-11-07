@@ -93,6 +93,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
       { keys: ["M"], does: t("help.does.map") },
+      { keys: [t("help.key.esc")], does: t("help.does.escape") },
     ],
   },
 ];
@@ -271,6 +272,10 @@ export class GameMenu {
     }
     item.setAttribute("aria-disabled", "true");
     bindAttr(item, "data-reason", reason);
+  }
+
+  open(): void {
+    if (this.list.hidden) this.openList();
   }
 
   toggle(): void {
