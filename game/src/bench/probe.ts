@@ -121,7 +121,17 @@ export function gameState(game: Game): SceneState {
     canvas: `${domElement.width}x${domElement.height}`,
     pixelRatio: game.renderer.getPixelRatio(),
     domNodes: document.getElementsByTagName('*').length,
+    blurred: blurredElements().map(sizeLabel),
   };
+}
+
+export function blurredElements(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('body *')].filter((node) => getComputedStyle(node).backdropFilter !== 'none' && node.getClientRects().length > 0);
+}
+
+function sizeLabel(node: HTMLElement): string {
+  const { width, height } = node.getBoundingClientRect();
+  return `${node.className}:${Math.round(width)}x${Math.round(height)}`;
 }
 
 export function lampsOf(game: Game): Object3D[] {

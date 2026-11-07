@@ -12,7 +12,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
-import { gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
+import { blurredElements, gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
@@ -453,10 +453,33 @@ const PIXEL_RATIO_ONE: (game: Game) => Toggle = (game) => ({
   },
 });
 
+const INTERFACE_OFF: Toggle = {
+  name: 'interface',
+  system: null,
+  apply: () => {
+    const ui = document.getElementById('ui');
+    if (!ui) throw new Error('The page has no #ui element to hide');
+    ui.style.visibility = 'hidden';
+    return () => ui.style.removeProperty('visibility');
+  },
+};
+
+const BLUR_OFF: Toggle = {
+  name: 'interfaceBlur',
+  system: null,
+  apply: () => {
+    const blurred = blurredElements();
+    for (const node of blurred) node.style.backdropFilter = 'none';
+    return () => {
+      for (const node of blurred) node.style.removeProperty('backdrop-filter');
+    };
+  },
+};
+
 function togglesFor(game: Game, draws: DrawReport): Toggle[] {
   const drawn = (system: BenchSystem) => draws.bySystem[system].main.draws + draws.bySystem[system].shadow.draws > 0;
   const systems = SYSTEMS.filter((s) => s !== 'other' && (s === 'lights' ? lampsOf(game).length > 0 : drawn(s)));
-  return [...systems.map((s) => hideSystem(game, s)), SHADOW_OFF(game), PIXEL_RATIO_ONE(game)];
+  return [...systems.map((s) => hideSystem(game, s)), SHADOW_OFF(game), PIXEL_RATIO_ONE(game), INTERFACE_OFF, BLUR_OFF];
 }
 
 async function replayMedian(ctx: Ctx, spec: Spec, toggle: Toggle | null): Promise<number> {
