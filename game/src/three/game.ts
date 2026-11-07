@@ -271,6 +271,7 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
+      journalBeside: () => this.screens.journal.sideForm(),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
@@ -437,6 +438,7 @@ export class Game {
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
+    this.hud.placeSide(this.screens.journal.root);
     const { action, count, index } = this.context.shown();
     this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
     this.refreshInfo();
@@ -551,9 +553,9 @@ export class Game {
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
     KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
-    KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true, screen: true },
+    KeyJ: { run: () => (!this.anim || this.screens.journal.sideForm()) && this.screens.toggle(this.screens.journal), screen: true },
     KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
-    Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
+    Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen() || this.screens.journal.isOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
 
   unpin(): void {

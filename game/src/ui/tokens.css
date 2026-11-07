@@ -248,6 +248,7 @@
   --info-card-height: 300px;
   --info-draw-width: 104px;
   --dock-width: 282px;
+  --journal-side-width: 340px;
   --minimap-size: 180px;
   --world-map-size: 640px;
   --map-chrome: 190px;
@@ -346,6 +347,7 @@
 
 #ui:where(.compact) {
   --dock-width: 246px;
+  --journal-side-width: 300px;
 }
 
 #ui:where(.narrow) {

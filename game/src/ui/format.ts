@@ -741,13 +741,6 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   return el('span', { class: 'contract-clue' }, surveyPlaceText(clue), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
 }
 
-export function surveyWayText(world: World, c: SurveyContract, point: SurveyPoint): Msg {
-  const clue = surveyClue(c, point);
-  const way = surveyWay(world, c, point);
-  if (!way) return surveyClueText(clue);
-  return t('contract.surveyWay', { square: gridSquareText(clue.square), site: siteName(c.shop), way: directionsText(way), lay: t(`contract.lay.${clue.lay}`) });
-}
-
 export function surveyWayLine(world: World, c: SurveyContract, point: SurveyPoint): HTMLElement {
   const way = surveyWay(world, c, point);
   if (!way) return surveyPlaceLine(c, point);

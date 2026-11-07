@@ -305,7 +305,6 @@ export const LOG = {
   'contract.surveyClue': m('Lies in square {square}, {dir} of {site}, about {distance} out, {lay}', { square: 'text', dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
   'contract.placeClue': m('{place}: square {square}, {dir} of {site}, about {distance} out, {lay}.', { place: 'text', square: 'text', dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
   'contract.placeWay': m('{place} in square {square}, from {site}: {way} {look} {lay}.', { place: 'text', square: 'text', site: 'text', way: 'text', look: 'text', lay: 'text' }),
-  'contract.surveyWay': m('From {site}: {way} It lies in square {square}, {lay}.', { site: 'text', square: 'text', way: 'text', lay: 'text' }),
   'contract.placesLeft': m('{n, plural, one {# place left} other {# places left}}: {places}', { n: 'count', places: 'text' }),
   'contract.lookFor.homestead': 'A farmhouse with a tall tower.',
   'contract.lookFor.hamlet': 'A cluster of ruined houses.',

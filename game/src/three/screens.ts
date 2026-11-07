@@ -44,7 +44,7 @@ export class ModalScreens {
   }
 
   blockingOpen(): boolean {
-    return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen());
+    return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen() && !(s === this.journal && this.journal.sideForm()));
   }
 
   render(): void {
@@ -77,6 +77,7 @@ export class ModalScreens {
     screen.toggle();
     const over = this.quest.isOpen() && screen.isOpen();
     screen.root.classList.toggle(OVER_SCENE, over);
+    if (screen === this.journal) this.journal.render();
     if (this.quest.isOpen() && !this.lookOver()) this.quest.focus();
   }
 

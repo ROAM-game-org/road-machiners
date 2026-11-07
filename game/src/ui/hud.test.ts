@@ -252,7 +252,7 @@ describe('order controls while knocked out', () => {
     const actionSlot = new Node('div');
     const hud = Object.assign(Object.create(Hud.prototype), {
       actionSlot,
-      actions: { headlightsOn: () => false },
+      actions: { headlightsOn: () => false, journalBeside: () => false },
       dialogue: {},
     }) as Hud;
     (hud as unknown as { renderActions(w: World, manual: boolean, busy: boolean): void }).renderActions(w, false, busy);

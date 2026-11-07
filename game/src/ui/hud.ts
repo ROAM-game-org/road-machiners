@@ -116,6 +116,7 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  journalBeside: () => boolean;
   openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
@@ -220,6 +221,28 @@ export class Hud {
 
   private readonly dialogue: DialoguePanel;
 
+  private side: HTMLElement | null = null;
+
+  private sideShown(): boolean {
+    return this.side !== null && this.side.style.display !== "none" && this.side.classList.contains("journal-side");
+  }
+
+  private infoShown(): boolean {
+    return this.info.style.display !== "none";
+  }
+
+  placeSide = (node: HTMLElement | null = this.side): void => {
+    this.side = node;
+    if (this.side) this.side.style.visibility = "";
+    if (!this.sideShown()) return this.coverUnder(this.infoShown() ? uiSize().layerRect(this.info).bottom : null);
+    const side = this.side!;
+    side.style.visibility = this.infoShown() ? "hidden" : "";
+    const top = uiSize().layerRect(topRight()).bottom + parseFloat(token("--hud-gap"));
+    side.style.top = `${top}px`;
+    side.style.height = `${Math.max(uiSize().layerRect(this.log.root).bottom - top, 0)}px`;
+    if (!this.infoShown()) this.coverUnder(uiSize().layerRect(side).bottom);
+  };
+
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
@@ -233,6 +256,7 @@ export class Hud {
     if (this.inspectedAimable) this.growForAim(top, slot);
     if (!phoneMode()) this.growForLists(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
+    this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
   };
 
@@ -322,8 +346,10 @@ export class Hud {
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
     new ResizeObserver(this.placeInfo).observe(rightDock());
+    new ResizeObserver(() => this.placeSide()).observe(rightDock());
     new ResizeObserver(this.placeInfo).observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
+    window.addEventListener("resize", () => this.placeSide());
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
@@ -554,7 +580,7 @@ export class Hud {
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
-      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
+      { class: "instrument-button", disabled: busy && !this.actions.journalBeside(), onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
     );
   }
@@ -744,7 +770,7 @@ export class Hud {
     this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
-      this.coverUnder(null);
+      this.placeSide();
       return;
     }
     const aim = this.aimOf(w, v);

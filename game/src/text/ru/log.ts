@@ -317,7 +317,6 @@ export const LOG: Translation<typeof EN> = {
   'contract.surveyClue': 'Лежит в квадрате {square}, {dir} от {site, case, gen}, примерно в {distance}, {lay}.',
   'contract.placeClue': '{place}: в квадрате {square}, {dir} от {site, case, gen}, примерно в {distance}, {lay}.',
   'contract.placeWay': '{place} в квадрате {square}, от {site, case, gen}: {way} {look} {lay}.',
-  'contract.surveyWay': 'От {site, case, gen}: {way} Лежит в квадрате {square}, {lay}.',
   'contract.placesLeft': 'Осталось {n, plural, one {# место} few {# места} many {# мест} other {# места}}: {places, case, nom}',
   'contract.lookFor.homestead': 'Дом с высокой башней.',
   'contract.lookFor.hamlet': 'Кучка разрушенных домов.',
