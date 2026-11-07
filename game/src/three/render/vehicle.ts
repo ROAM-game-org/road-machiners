@@ -18,7 +18,7 @@ import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, WORLD_LOOKS } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
@@ -397,7 +397,7 @@ export class VehicleView {
   }
 
   private finishLook(merged: THREE.Group[]): void {
-    if (this.scene === 'world') for (const shade of [CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
+    if (this.scene === 'world') for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
     if (this.scene !== 'world') {
@@ -781,7 +781,7 @@ function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
   mesh.userData.cut = cut.spec;
   mesh.userData.darkMat = cut.dark;
   if (mesh.userData.outline) return;
-  plain.dispose();
+  if (!plain.userData.shared) plain.dispose();
   mesh.customDepthMaterial = cut.depth;
 }
 

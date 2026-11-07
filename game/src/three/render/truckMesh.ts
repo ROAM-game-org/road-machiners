@@ -67,6 +67,24 @@ function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSp
   return { partId: split === 'parts' ? tagged : null, armor };
 }
 
+const worldLooks = new Map<string, THREE.Material>();
+
+export const WORLD_LOOKS = {
+  shadeTree(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const material = o.material as THREE.Material;
+      const key: string | undefined = material.userData.lookKey;
+      if (key === undefined) return;
+      const shared = worldLooks.get(key) ?? material;
+      worldLooks.set(key, shared);
+      shared.userData.shared = true;
+      if (shared !== material) material.dispose();
+      o.material = shared;
+    });
+  },
+};
+
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
   const { hex, surface, partId, armor, tinted, geos } = bucket;
   const merged = mergeGeometries(geos);
@@ -74,6 +92,7 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   for (const g of geos) g.dispose();
   const material = surfacedMaterial(tinted ? 0xffffff : hex, surface);
   material.vertexColors = tinted;
+  material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
   if (partId) mesh.userData.partId = partId;
   if (armor) mesh.userData.armor = true;
