@@ -9,7 +9,7 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { adoptGroundBake, packedLook, desertWeight, glassField, glassOf, lookTypes, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { adoptGroundBake, packedLook, desertWeight, glassField, glassOf, groundBakeFits, lookTypes, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -361,5 +361,15 @@ describe("ground bake", () => {
     expect(c.res).toBe(1);
     expect(c.toPx(-TERRAIN_MARGIN)).toBe(0);
     expect(c.toPx(80 + TERRAIN_MARGIN)).toBe(100);
+  });
+
+  it("refuses a cached bake cut for another map or damaged", () => {
+    const t = terrain();
+    const good = { pixels: new Uint8ClampedArray(16 * 4), glass: new Uint8Array(4), look: new Uint8Array(4) };
+    expect(groundBakeFits(t, 4, good)).toBe(true);
+    expect(groundBakeFits(t, 8, good)).toBe(false);
+    expect(groundBakeFits(t, 4, { ...good, glass: new Uint8Array(9) })).toBe(false);
+    expect(groundBakeFits(t, 4, { ...good, look: Uint8Array.of(0, 0, 0, 250) })).toBe(false);
+    expect(groundBakeFits(t, 4, {} as typeof good)).toBe(false);
   });
 });

@@ -477,6 +477,11 @@ export function bakeGround(t: Terrain, ctx: CanvasRenderingContext2D, side: numb
 const glassBakes = new WeakMap<Terrain, Uint8Array>();
 const pixelBakes = new WeakMap<Terrain, Uint8ClampedArray>();
 
+export function groundBakeFits(t: Terrain, side: number, bake: GroundBake): boolean {
+  const tiles = t.size * t.size;
+  return bake.pixels?.length === side * side * 4 && bake.glass?.length === tiles && bake.look?.length === tiles && bake.look.every((at) => at < LOOK_NAMES.length);
+}
+
 export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
   lookCache.set(t, Array.from(bake.look, (at) => LOOK_NAMES[at]));
   glassBakes.set(t, bake.glass);
