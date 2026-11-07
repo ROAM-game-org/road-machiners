@@ -236,7 +236,7 @@ By evening the whole depot knows who you asked about, and the mess falls silent 
 === caught ===
 ~ depot_thief = "vance"
 ~ give_money(reward)
-Kovac sends two soldiers to the barracks. # page # place: Dispatch office
+Kovac sends two soldiers to the barracks. # place: Dispatch office
 They come back with the cans, dug out from under the floor of Vance's bunk and wrapped in Army canvas.
 Vance. I shared my water with that man. # speaker: Kovac
 The Army pays its debts. Take this and keep it quiet. # speaker: Kovac
@@ -252,7 +252,7 @@ The shipment rolls out light anyway. The cans keep walking.
 === sold ===
 ~ depot_thief = "bought"
 ~ give_money(envelope)
-The envelope holds {envelope} M. You tell Kovac the depot is clean. # reveal: all # page # place: Dispatch office
+The envelope holds {envelope} M. You tell Kovac the depot is clean. # reveal: all # place: Dispatch office
 He believes you, for now.
 -> END
 
@@ -264,7 +264,7 @@ The racks stand full, the gate log shows no late passes, and Sabine's stall stan
 
 === too_late ===
 ~ depot_thief = "lost"
-The shipment rolls out at dawn, light by a few cans. # page # place: The gate
+The shipment rolls out at dawn, light by a few cans. # place: The gate
 Vance waves it through the gate himself, one big hand raised, while the dust of the wheels drifts over the wire.
 -> END
 

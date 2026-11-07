@@ -40,6 +40,9 @@ function stubDom(): void {
     createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
     getElementById: () => new FakeNode("div"),
   });
+  vi.stubGlobal("getComputedStyle", () => ({ borderLeftWidth: "0", borderRightWidth: "0" }));
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("performance", { now: () => 0 });
   vi.stubGlobal("window", { addEventListener: (type: string, fn: KeyHandler) => type === "keydown" && handlers.push(fn), innerWidth: 1280, innerHeight: 720 });
 }
 

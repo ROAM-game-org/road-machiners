@@ -1,6 +1,6 @@
 # Skills
 
-Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and each family has its own daily cap. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
+Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and there is no daily cap. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
 
 ## Skills
 
@@ -31,7 +31,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 <!-- wiki:xp-sources -->
 | source | activity family | weight (xp per unit) | scaled by difficulty | repeat factor |
 | --- | --- | --- | --- | --- |
-| roughTiles | driving | 0.5 | true | 0.9 |
+| roughTiles | driving | 0.75 | true | 0.9 |
 | ram | driving | 0.25 | true | 0.7 |
 | escape | driving | 8 | true | 0.25 |
 | hit | perception | 6 | true | 0.95 |
@@ -39,8 +39,8 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | discover | perception | 10 | false | 0 |
 | fieldJob | machining | 0.75 | false | 0.7 |
 | patch | machining | 75 | false | 0.5 |
-| search | machining | 80 | false | 0 |
-| heat | toughness | 0.3 | true | 0.9 |
+| search | machining | 15 | false | 0 |
+| heat | toughness | 0.2 | true | 0.9 |
 | damage | toughness | 1.5 | false | 0.95 |
 | knockout | toughness | 100 | false | 0.5 |
 | profit | social | 2.4 | false | 0.8 |
@@ -62,7 +62,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | steadyAim | Steady aim | driving | 4 | Your own speed adds no scatter to your shots. |
 | dustScreen | Dust screen | driving | 4 | At top speed on dusty ground, your dust blocks sight like a hill. |
 | readDriver | Read the driver | perception | 2 | You see the traits of other drivers. |
-| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for 2 hours. |
+| spotter | Spotter | perception | 2 | Mark a seen truck, and it stays tracked for 4 hours. |
 | cargoEye | Cargo eye | perception | 4 | You see the goods and spare parts in any seen truck. |
 | nightEyes | Night eyes | perception | 4 | Night does not halve your sight. |
 | welder | Welder | machining | 2 | A field job turns 3 scrap metal into a scrap armor sheet. |

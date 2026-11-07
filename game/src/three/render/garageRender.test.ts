@@ -7,7 +7,7 @@ import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
 import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, cabWindow, coreItems, mountSpotsOf, narrowedTo, pivotOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
-import { fakeGpu } from '../../test/fake-gpu';
+import { HONEST_READBACK, REFUSED_READBACK, fakeGpu } from '../../test/fake-gpu';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
@@ -118,7 +118,7 @@ describe('garage render plan', () => {
 describe('garage render queue', () => {
   it('builds nothing when asked, only in step', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
 
     renders.want([needFor(truck, [part(firstOf('weapon', 2))])]);
@@ -130,7 +130,7 @@ describe('garage render queue', () => {
   it('stops starting steps once the frame budget is spent', () => {
     const fake = faking(5);
     let clock = 0;
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build, () => clock++);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build, () => clock++);
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -142,7 +142,7 @@ describe('garage render queue', () => {
 
   it('finishes now what a screen needs, then picks up the background work it left', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const background = needFor(truck, [gun, part(firstOf('cargo', 1))]);
@@ -159,7 +159,7 @@ describe('garage render queue', () => {
 
   it('draws at once only what the screen shows, and queues what it needs later once', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const later = needFor(truck, [gun]);
@@ -178,7 +178,7 @@ describe('garage render queue', () => {
   it('runs nothing while the context is lost, then builds and tells its listeners on the restore', () => {
     const fake = faking();
     const gpu = fakeGpu();
-    const renders = new GarageRenders(RENDERER, gpu, fake.build);
+    const renders = new GarageRenders(RENDERER, gpu, HONEST_READBACK, fake.build);
     const { truck } = scout();
     let ready = 0;
     renders.onReady(() => ready++);
@@ -197,7 +197,7 @@ describe('garage render queue', () => {
 
   it('reports itself suspended exactly while the context is lost', () => {
     const gpu = fakeGpu();
-    const renders = new GarageRenders(RENDERER, gpu, faking().build);
+    const renders = new GarageRenders(RENDERER, gpu, HONEST_READBACK, faking().build);
     expect(renders.suspended()).toBe(false);
     gpu.blackout();
     expect(renders.suspended()).toBe(true);
@@ -220,7 +220,7 @@ describe('garage render queue', () => {
       })(),
       dispose: () => {},
     });
-    const renders = new GarageRenders(RENDERER, gpu, build);
+    const renders = new GarageRenders(RENDERER, gpu, HONEST_READBACK, build);
     const { truck } = scout();
 
     expect(() => renders.ensureNow([needFor(truck, [])])).not.toThrow();
@@ -233,7 +233,7 @@ describe('garage render queue', () => {
   it('still marks a job failed and reports it when it fails on a live context', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield; throw new Error('drew no pixels'); })(), dispose: () => {} });
     const reports: unknown[] = [];
-    const renders = new GarageRenders(RENDERER, fakeGpu(), build, undefined, (error) => reports.push(error));
+    const renders = new GarageRenders(RENDERER, fakeGpu(), HONEST_READBACK, build, undefined, (error) => reports.push(error));
     const { truck } = scout();
 
     renders.ensureNow([needFor(truck, [])]);
@@ -255,7 +255,7 @@ describe('garage render queue', () => {
       return fake.build(renderer, job, store, now);
     };
     const reports: unknown[] = [];
-    const renders = new GarageRenders(RENDERER, gpu, build, undefined, (error) => reports.push(error));
+    const renders = new GarageRenders(RENDERER, gpu, HONEST_READBACK, build, undefined, (error) => reports.push(error));
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -271,7 +271,7 @@ describe('garage render queue', () => {
   it('refuses to wait on the GPU when the screen needs the render at once', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
     const reports: unknown[] = [];
-    const renders = new GarageRenders(RENDERER, liveGpu(), build, undefined, (error) => reports.push(error));
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, build, undefined, (error) => reports.push(error));
     const { truck } = scout();
 
     renders.ensureNow([needFor(truck, [])]);
@@ -288,7 +288,7 @@ describe('garage render queue', () => {
       return fake.build(renderer, job, store, now);
     };
     const reports: unknown[] = [];
-    const renders = new GarageRenders(RENDERER, liveGpu(), failing, undefined, (error) => reports.push(error));
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, failing, undefined, (error) => reports.push(error));
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const need = needFor(truck, [gun]);
@@ -305,7 +305,7 @@ describe('garage render queue', () => {
   it('reports a background render that fails without throwing out of step (issue 1404)', () => {
     const build: BuildGarageJob = () => ({ steps: (function* () { throw new Error('blank readback'); })(), dispose: () => {} });
     const reports: unknown[] = [];
-    const renders = new GarageRenders(RENDERER, liveGpu(), build, undefined, (error) => reports.push(error));
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, build, undefined, (error) => reports.push(error));
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -318,7 +318,7 @@ describe('garage render queue', () => {
 
   it('has every sprite and the body once ensureNow returns, and tells its listeners once', () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const need = needFor(truck, [gun]);
@@ -344,7 +344,7 @@ describe('garage render queue', () => {
       })(),
       dispose: () => {},
     });
-    const renders = new GarageRenders(RENDERER, liveGpu(), build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, build);
     const { truck } = scout();
     renders.want([needFor(truck, [])]);
 
@@ -362,7 +362,7 @@ describe('garage render queue', () => {
 
   it('keeps showing the last look of a part while its new wear look is drawn', async () => {
     const fake = faking();
-    const renders = new GarageRenders(RENDERER, liveGpu(), fake.build);
+    const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
     const spot = mountSpotsOf('scout', gun, coreItems(truck))[0];
@@ -438,5 +438,20 @@ describe('the marks a garage sprite carries', () => {
     const window = cabWindow(v, cab, []);
     expect(window.max).toBeGreaterThan(window.min);
     expect(window.max - window.min).toBeLessThan(2);
+  });
+
+  it('builds nothing, fails nothing and reports nothing when the browser refuses readback', () => {
+    const fake = faking();
+    const reports: unknown[] = [];
+    const renders = new GarageRenders(RENDERER, fakeGpu(), REFUSED_READBACK, fake.build, undefined, (error) => reports.push(error));
+    const { truck } = scout();
+
+    renders.want([needFor(truck, [])]);
+    renders.step(1e9);
+    renders.ensureNow([needFor(truck, [])]);
+
+    expect(fake.started).toEqual([]);
+    expect(reports).toEqual([]);
+    expect(renders.body(truck, PAINT.standard)).toBeNull();
   });
 });

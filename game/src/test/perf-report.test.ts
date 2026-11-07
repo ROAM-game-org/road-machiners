@@ -15,7 +15,7 @@ function draws(propDraws: number, otherDraws = 0) {
   const shadowOf = (s: string) => (s === 'other' ? 0 : 5);
   const bySystem = Object.fromEntries(SYSTEMS.map((s) => [s, { main: count(mainOf(s)), shadow: count(shadowOf(s)) }]));
   const total = SYSTEMS.reduce((sum, s) => sum + mainOf(s) + shadowOf(s), 0);
-  return { total, rendererCalls: total, byPass: { main: count(1), shadow: count(1) }, bySystem, other: {} };
+  return { total, rendererCalls: total, programChecks: 2, byPass: { main: count(1), shadow: count(1) }, bySystem, other: {} };
 }
 
 function scene(id: string, over: Record<string, unknown> = {}) {
@@ -271,6 +271,14 @@ describe('compare', () => {
     const lines = changed(compare(wrap(), other));
     expect(lines.some((l) => l.includes('fight props main draws/triangles'))).toBe(true);
     expect(lines.some((l) => l.includes('fight draws counted'))).toBe(true);
+  });
+
+  it('shows program checks before and after, and n/a for a report without the field', () => {
+    const { programChecks: _dropped, ...older } = draws(100);
+    const before = wrap(withScene('fight', { draws: older }));
+    const after = wrap(withScene('fight', { draws: { ...draws(100), programChecks: 0 } }));
+    expect(compare(before, after)).toMatch(/fight program checks per frame\s+n\/a\s+0\.00/);
+    expect(compare(wrap(), after)).toMatch(/fight program checks per frame\s+2\.00\s+0\.00/);
   });
 
   it('warns when machine, viewport or pixel ratio differ', () => {

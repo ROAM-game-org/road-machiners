@@ -94,7 +94,7 @@ describe('walkLane', () => {
 
   it('a strong round passes the plate and hits the part behind', () => {
     const { w, v, plate, engine } = plated();
-    const cab = defOf(v, 'cabPickup');
+    const cab = defOf(v, 'cabBroad');
     const hits = walkLane(w, v, 'front', 2, { damage: 10, pen: 20, blast: false, armorShare: 1 });
     expect(hits.map((h) => h.part).slice(0, 3)).toEqual([plate.id, engine.id, cab.id]);
     expect(engine.hp).toBeLessThan(maxHp(engine));
@@ -389,7 +389,26 @@ describe('shadows of tall parts', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 5, y: 2 }]);
     const gun = itemOf(v, 'mg');
     const shadow = cabShadow(v, gun);
-    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans([{ from: shadow.to, to: 135 }]));
+    const shadowEnd = shadow.to > 180 ? shadow.to - 360 : shadow.to;
+    expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans([{ from: shadowEnd, to: 135 }]));
+  });
+
+  it('a gun ghost held past the grid edge still gets spans and blockers', () => {
+    const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
+    const gun = itemOf(v, 'mg');
+    for (const [x, y] of [[-2, 17], [-1, 12], [3, -1], [200, 5], [4, 300]]) {
+      const ghost = { ...gun, x, y };
+      expect(() => gunSpans(v, ghost)).not.toThrow();
+      expect(gunSpans(v, ghost)).toEqual(gunSpans(v, ghost));
+      expect(() => gunBlockers(v, ghost)).not.toThrow();
+    }
+  });
+
+  it('a gun ghost over bare grid cells at the corner of a scout gets spans and blockers', () => {
+    const v = truckWith(emptyWorld(), 'scout', [{ defId: 'mg', x: 2, y: 5 }]);
+    const ghost = { ...v.items[v.items.length - 1]!, x: 0, y: -1 };
+    expect(() => gunSpans(v, ghost)).not.toThrow();
+    expect(gunBlockers(v, ghost)).toEqual([]);
   });
 
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
@@ -515,7 +534,7 @@ describe('span sides', () => {
 describe('gun blockers', () => {
   it('names the cab as what blocks a bed gun', () => {
     const v = truckWith(emptyWorld(), 'longbed', [{ defId: 'mg', x: 3, y: 12 }]);
-    expect(gunBlockers(v, itemOf(v, 'mg')).map((b) => b.kind === 'part' && b.part.defId)).toEqual(['cabPickup']);
+    expect(gunBlockers(v, itemOf(v, 'mg')).map((b) => b.kind === 'part' && b.part.defId)).toEqual(['cabBroad']);
   });
 
   it('skips a tall part that stands only in the gun\'s blind spot', () => {

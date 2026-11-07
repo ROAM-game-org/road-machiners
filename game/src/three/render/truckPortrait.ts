@@ -130,6 +130,7 @@ export class TruckPortraits {
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
     private readonly gpu: GpuContext,
+    private readonly readback: { honest(): boolean },
     private readonly build: BuildPortrait = startPortrait,
     private readonly now: () => number = () => performance.now(),
   ) {
@@ -147,7 +148,12 @@ export class TruckPortraits {
     job.build.dispose();
   }
 
+  refused(): boolean {
+    return !this.gpu.lost() && !this.readback.honest();
+  }
+
   shown(v: Vehicle, playerPaint: TruckPaint): Portrait | null {
+    if (this.refused()) return null;
     const current = this.ready.get(keyOf(pristineOf(v), playerPaint));
     if (current) return current.portrait;
     const last = this.latest.get(v.id);
@@ -186,6 +192,7 @@ export class TruckPortraits {
   }
 
   step(budgetMs: number, aheadOnly: boolean): void {
+    if (this.refused()) return;
     const start = this.now();
     let ran = 0;
     for (;;) {

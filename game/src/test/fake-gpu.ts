@@ -16,3 +16,9 @@ export function fakeGpu(): FakeGpu {
   };
   return gpu as unknown as FakeGpu;
 }
+
+export type Readback = { honest(): boolean };
+
+export const HONEST_READBACK: Readback = { honest: () => true };
+
+export const REFUSED_READBACK: Readback = { honest: () => false };

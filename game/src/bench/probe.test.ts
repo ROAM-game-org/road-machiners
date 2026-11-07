@@ -108,6 +108,58 @@ describe('DrawCounter', () => {
     expect(report).toMatchObject({ total: 5, rendererCalls: 5, byPass: { main: { draws: 3 }, shadow: { draws: 2 } } });
   });
 
+  describe('program checks', () => {
+    function setup() {
+      const { scene, tree, roots } = sceneOf();
+      const material = new MeshBasicMaterial();
+      tree.material = material;
+      const main = new OrthographicCamera();
+      const renderer = fakeRenderer(() => 1);
+      const counter = new DrawCounter(renderer, scene, main);
+      counter.start(systemMap(roots));
+      const draw = (used: MeshBasicMaterial | null = material) => renderer.renderBufferDirect(main, null as never, null as never, used as never, tree, null as never);
+      const finish = () => {
+        counter.afterRender();
+        counter.stop();
+        return counter.report().programChecks;
+      };
+      return { material, draw, finish };
+    }
+
+    it('counts a material that was in the scene at start and changed version before its draw', () => {
+      const { material, draw, finish } = setup();
+      material.needsUpdate = true;
+      draw();
+      expect(finish()).toBe(1);
+    });
+
+    it('counts one check per bump for one object drawn twice', () => {
+      const { material, draw, finish } = setup();
+      material.needsUpdate = true;
+      draw();
+      material.needsUpdate = true;
+      draw();
+      expect(finish()).toBe(2);
+    });
+
+    it('counts nothing for an unchanged material or a null material', () => {
+      const { draw, finish } = setup();
+      draw();
+      draw();
+      draw(null);
+      expect(finish()).toBe(0);
+    });
+
+    it('counts nothing for a material first seen during the frame', () => {
+      const { draw, finish } = setup();
+      const fresh = new MeshBasicMaterial();
+      fresh.needsUpdate = true;
+      draw(fresh);
+      draw(fresh);
+      expect(finish()).toBe(0);
+    });
+  });
+
   it('does not count a call that drew nothing', () => {
     const { scene, tree, roots } = sceneOf();
     const main = new OrthographicCamera();

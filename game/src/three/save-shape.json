@@ -1,5 +1,5 @@
 {
- "format": "2.138",
+ "format": "2.142",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -155,13 +155,6 @@
     "ram": "number",
     "roughTiles": "number",
     "search": "number"
-   },
-   "xpToday": {
-    "driving": "number",
-    "machining": "number",
-    "perception": "number",
-    "social": "number",
-    "toughness": "number"
    },
    "xpWindow": "number"
   },
@@ -2710,6 +2703,7 @@
   "world": {
    "ala_hired": "boolean",
    "ambush_raider": "string",
+   "convoy_rumor": "boolean",
    "counter_seen": "boolean",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
@@ -2733,6 +2727,14 @@
     "dag_pay": "boolean",
     "dag_road": "boolean",
     "dag_wagon": "boolean"
+   },
+   "bowl_guild": {
+    "renata_drawn": "boolean",
+    "renata_jill": "boolean",
+    "renata_news": "boolean",
+    "renata_pair": "boolean",
+    "renata_price": "boolean",
+    "renata_sheets": "boolean"
    },
    "bowl_hattie": {
     "hattie_came_out": "boolean",
@@ -2815,6 +2817,13 @@
     "edda_asked_marks": "boolean",
     "edda_asked_origin": "boolean",
     "edda_heard_links": "boolean"
+   },
+   "nose_guild": {
+    "emil_here": "boolean",
+    "emil_news": "boolean",
+    "emil_price": "boolean",
+    "emil_sheets": "boolean",
+    "emil_watch": "boolean"
    },
    "nose_ibo": {
     "heard_army": "boolean",
@@ -2929,6 +2938,10 @@
     "start",
     "start.hub"
    ],
+   "bowl_guild": [
+    "start",
+    "start.hub"
+   ],
    "bowl_hattie": [
     "start",
     "start.hub"
@@ -2980,6 +2993,10 @@
     "last_call"
    ],
    "nose_edda": [
+    "start",
+    "start.hub"
+   ],
+   "nose_guild": [
     "start",
     "start.hub"
    ],
@@ -3057,10 +3074,18 @@
      ]
     },
     "notes": [
-     "sunwardDragged",
-     "talkKilnFight",
      "wagonDag"
     ],
+    "begins": []
+   }
+  },
+  "bowl_guild": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
     "begins": []
    }
   },
@@ -3073,9 +3098,6 @@
     "readsNotes": [],
     "writes": {},
     "notes": [
-     "glassTank",
-     "talkGlassLean",
-     "talkSunwardTake",
      "wagonBowl"
     ],
     "begins": []
@@ -3087,10 +3109,7 @@
     "reads": [],
     "readsNotes": [],
     "writes": {},
-    "notes": [
-     "talkGranaryGate",
-     "talkSeepPipe"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3188,13 +3207,9 @@
    "revision": 1,
    "links": {
     "reads": [],
-    "readsNotes": [
-     "talkBrakeRod"
-    ],
+    "readsNotes": [],
     "writes": {},
-    "notes": [
-     "talkBrakeRod"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3228,22 +3243,29 @@
     "begins": []
    }
   },
+  "nose_guild": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
   "nose_ibo": {
    "revision": 1,
    "links": {
     "reads": [
      "depot_thief"
     ],
-    "readsNotes": [
-     "burntConvoy"
-    ],
-    "writes": {},
-    "notes": [
-     "burntConvoy",
-     "sunwardLamps",
-     "talkArmyStarved",
-     "talkCommitteeRent"
-    ],
+    "readsNotes": [],
+    "writes": {
+     "convoy_rumor": [
+      true
+     ]
+    },
+    "notes": [],
     "begins": []
    }
   },
@@ -3279,8 +3301,7 @@
     "readsNotes": [],
     "writes": {},
     "notes": [
-     "greenPit",
-     "talkBrakeRod"
+     "greenPit"
     ],
     "begins": [
      "wagon_bench"
@@ -3375,11 +3396,7 @@
     "reads": [],
     "readsNotes": [],
     "writes": {},
-    "notes": [
-     "roadhouseBook",
-     "roadhouseBuyOff",
-     "roadhouseRaiders"
-    ],
+    "notes": [],
     "begins": []
    }
   },
@@ -3448,22 +3465,19 @@
    "revision": 1,
    "links": {
     "reads": [
+     "convoy_rumor",
      "wagon_fate",
      "wagon_rod",
      "wagon_watched"
     ],
-    "readsNotes": [
-     "burntConvoy"
-    ],
+    "readsNotes": [],
     "writes": {
      "wagon_fate": [
       "sold"
      ]
     },
     "notes": [
-     "talkConvoyNotClean",
-     "talkCraneBook",
-     "talkPierceGuns"
+     "talkConvoyNotClean"
     ],
     "begins": []
    }

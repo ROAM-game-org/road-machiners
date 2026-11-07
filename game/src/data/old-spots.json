@@ -83,15 +83,6 @@
    "reach": 0.8483290593292819
   },
   {
-   "propId": "shipCache-22876",
-   "type": "wreckage",
-   "pos": {
-    "x": 1049.1783447265625,
-    "y": 1115.7027587890625
-   },
-   "reach": 0.8381670297555915
-  },
-  {
    "propId": "shipCache-22877",
    "type": "wreckage",
    "pos": {

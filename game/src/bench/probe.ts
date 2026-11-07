@@ -233,6 +233,8 @@ export class DrawCounter {
   private readonly materials: Record<RenderPass, Set<Material>> = { main: new Set(), shadow: new Set() };
   private readonly materialKinds: Record<string, number> = {};
   private rendererCalls = 0;
+  private programChecks = 0;
+  private readonly versions = new Map<Material, number>();
   private original: WebGLRenderer['renderBufferDirect'] | null = null;
   private finished = false;
 
@@ -245,13 +247,29 @@ export class DrawCounter {
   start(map: ReadonlyMap<Object3D, BenchSystem>): void {
     const original = this.renderer.renderBufferDirect;
     this.original = original;
+    this.rememberVersions();
     this.renderer.renderBufferDirect = (...args: DirectArgs) => {
       if (this.finished) return original.apply(this.renderer, args);
+      this.checkProgram(args[3]);
       const { render } = this.renderer.info;
       const [calls, triangles] = [render.calls, render.triangles];
       original.apply(this.renderer, args);
       this.add(map, args, render.calls - calls, render.triangles - triangles);
     };
+  }
+
+  private rememberVersions(): void {
+    this.scene.traverse((object) => {
+      const { material } = object as Partial<Mesh>;
+      for (const each of Array.isArray(material) ? material : [material]) if (each) this.versions.set(each, each.version);
+    });
+  }
+
+  private checkProgram(material: Material | null): void {
+    if (!material) return;
+    const seen = this.versions.get(material);
+    if (seen !== undefined && seen !== material.version) this.programChecks += 1;
+    this.versions.set(material, material.version);
   }
 
   stop(): void {
@@ -272,9 +290,9 @@ export class DrawCounter {
     this.addMaterial(pass, args[3], system);
   }
 
-  private addMaterial(pass: RenderPass, material: Material, system: BenchSystem): void {
+  private addMaterial(pass: RenderPass, material: Material | null, system: BenchSystem): void {
     const seen = this.materials[pass];
-    if (seen.has(material)) return;
+    if (material === null || seen.has(material)) return;
     seen.add(material);
     const key = `${pass}|${system}|${material.name || material.type}`;
     this.materialKinds[key] = (this.materialKinds[key] ?? 0) + 1;
@@ -309,7 +327,7 @@ export class DrawCounter {
   report(): DrawReport {
     const { total, byPass } = drawTotals(this.bySystem);
     if (total !== this.rendererCalls) throw new Error(`IV7: the bench counted ${total} draws but renderer.info.render.calls says ${this.rendererCalls}`);
-    return { total, rendererCalls: this.rendererCalls, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest(), materials: this.materialKinds };
+    return { total, rendererCalls: this.rendererCalls, programChecks: this.programChecks, byPass, bySystem: this.bySystem, other: this.other, heaviest: this.heaviest(), materials: this.materialKinds };
   }
 }
 

@@ -179,11 +179,14 @@
   white-space: nowrap;
 }
 .resource .coin circle {
-  fill: none;
-  stroke: currentColor;
+  fill: currentColor;
+  stroke: none;
 }
 .resource .coin path {
-  stroke: currentColor;
+  stroke: var(--lcd);
+}
+.resource.alert .coin path {
+  stroke: var(--lcd-ink);
 }
 .resource strong {
   grid-column: 2;
@@ -199,9 +202,8 @@
   width: var(--icon-s);
   height: var(--icon-s);
 }
-.resource .icon svg {
-  fill: var(--lcd-ink);
-  stroke: var(--lcd-ink);
+.resource .icon {
+  color: var(--lcd-ink);
 }
 .resource.alert {
   background: var(--lcd-ink);
@@ -210,9 +212,8 @@
 .resource.danger {
   border-color: var(--danger);
 }
-.resource.alert .icon svg {
-  fill: var(--lcd);
-  stroke: var(--lcd);
+.resource.alert .icon {
+  color: var(--lcd);
 }
 .readouts .meter {
   position: absolute;
@@ -423,9 +424,8 @@
 #ui .utility-slot[data-state="ready"] .weapon-pick {
   box-shadow: inset 0 0 0 2px var(--accent-dim);
 }
-.utility-slot[data-state="ready"] .icon svg {
-  fill: var(--accent-dim);
-  stroke: var(--accent-bright);
+.utility-slot[data-state="ready"] .icon {
+  color: var(--accent-bright);
 }
 #ui .utility-slot[data-state="aiming"] .weapon-pick {
   background: var(--accent-wash);

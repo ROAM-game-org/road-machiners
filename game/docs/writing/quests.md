@@ -35,7 +35,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
-6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town and pick Look for locals.
+6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town and pick the canteen. A local with `section: 'maps'` is at the Guidestar post instead.
 
 ## A new quest
 
@@ -63,7 +63,7 @@ Mira wipes flour off her hands. # speaker: Mira
 
 Every quest needs a way in. The voice test fails on a quest that nothing starts.
 
-- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. The People tab lists them.
+- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id and its section, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. Section `people` lists them in the site's canteen, or on the People page at the Roadhouse, and section `maps` lists them at the Guidestar post.
 - A radio call: give a radio option `go: questGo('<quest>')` in `src/data/dialogue.ts`. The call ends and the quest opens.
 - Another quest: call `~ begin("<quest>")` right before `-> END`. Kovac opens the depot quest this way.
 
@@ -82,7 +82,15 @@ INCLUDE world.ink
 ```
 
 - Give each scene a `# place:` on its first line. The heading stays until another place.
-- Put `# page` on the first line of a hub that follows an outcome. The outcome then shows on its own page with Next, and the hub opens fresh.
+- A page holds one moment. A press already adds one paragraph at a time, so a scene needs no break to read in steps. Put `# page` on the first line of the new page only when:
+  - the line carries a new `# place`;
+  - the line carries a new `# img` that opens a new moment, such as a new person or view;
+  - the line cuts to a later time, like "By morning", and the scene plays on from there (a run of short time steps inside one telling stays on one page);
+  - the line opens a hub that follows an outcome, so the outcome shows on its own page with Next and the hub opens fresh;
+  - the page would scroll at 1280x720 in Russian without it. Put the break where the moment shifts most.
+- A dramatic beat is not a break. A paragraph and `<pause>` carry it.
+- A `# page` on the first line a pick prints does nothing, since a pick and a load always open a fresh page. Leave it off.
+- The Russian twin carries `# page` on the same lines as the English quest.
 - Write documents as tables with `# head` and `# row` lines, cells split by `;`. Use them for ledgers, logs and price boards.
 - `# img: <key>` shows a picture. Make it by [Quest art](../art/quest-art.md), which writes it to `public/quest-art/`, and add the key with its `file`, `focusX` and `focusY` to `src/data/quest-art.json`. `focusX` and `focusY` are the percents across and down the picture that every crop keeps in the same place. [Quest art](../art/quest-art.md#crop-sheet) says how to set them. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
 - A paid choice carries `# cost: <M>` inside its brackets. The runner charges it on the pick and greys the choice out when the player holds less.
@@ -117,7 +125,7 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Directions use the screen compass: north is the top of the screen in the fixed view. Measure a direction between two places, or from the map centre for a region, with `compassOctant()` in `src/text/compass.ts` on their positions in `REGION`, and never from memory or from the map's own axes. A road or place name that holds a direction word, like the Bowl north road, keeps its word.
 - A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
 - Describe a place at its real scale, never as the few models on the map. [Design](../DESIGN.md) principle 10 and [People and scale](../lore/world.md#people-and-scale) say how big places are. A speaker runs one corner of a place, so "I run the canteen at Green Pit" is right and "I keep the pump at Green Pit" makes the whole town one pump.
-- A rumor goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`.
+- A note is a quest step or an open lead: something the player can still act on. Gossip and lore stay in the talk. A fact another quest reads is a world variable in `world.ink`, never a note. A note goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`. Then add it to `QUEST_STEPS` or `LEADS` in `src/sim/locals.test.ts`, whose guard fails on an unclassified note.
 
 - Every choice changes something real: what the player learns, what they hold, who knows them or where the story goes. A choice whose options all lead to the same outcome is no choice. Cut it and let the page run on behind Next.
 

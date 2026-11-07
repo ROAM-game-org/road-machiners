@@ -10,7 +10,7 @@ import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { baseGrid, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
@@ -161,7 +161,7 @@ export function lanePoint(v: Vehicle, side: Side, lane: number): Vec {
   return poseToWorld(unitPose(v, face.unit), { x: face.at.fwd, z: face.at.right });
 }
 
-type BlastCell = { part: PartInstance; pose: UnitPose; center: Vec; rect: CellRect };
+type BlastCell = { part: PartInstance; pose: UnitPose; center: Vec; rect: CellRect; below: boolean };
 
 export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): { part: PartInstance; amount: number }[] {
   checkRound(round);
@@ -178,11 +178,14 @@ export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip
 }
 
 function blastCells(v: Vehicle): BlastCell[] {
-  return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => itemCells(it).map((cell) => {
-    const center = cellCenter(v.chassisId, cell.x, cell.y);
-    const pose = unitPose(v, center.unit);
-    return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]) };
-  }));
+  return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => {
+    const below = belowDeck(v.chassisId, it);
+    return itemCells(it).map((cell) => {
+      const center = cellCenter(v.chassisId, cell.x, cell.y);
+      const pose = unitPose(v, center.unit);
+      return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]), below };
+    });
+  });
 }
 
 function meters(a: Vec, b: Vec): number {
@@ -194,10 +197,14 @@ function localOf(pose: UnitPose, p: Vec): Local {
   return { fwd: l.x, right: l.z };
 }
 
+function canShield(cell: BlastCell, target: BlastCell): boolean {
+  return cell.part.id !== target.part.id && (target.below || !cell.below);
+}
+
 function shields(cells: BlastCell[], from: Vec, target: BlastCell): PartInstance[] {
   const entries = new Map<PartInstance, number>();
   for (const c of cells) {
-    if (c.part.id === target.part.id) continue;
+    if (!canShield(c, target)) continue;
     const t = segmentEntry(localOf(c.pose, from), localOf(c.pose, target.center), c.rect);
     if (t !== null && t < (entries.get(c.part) ?? Infinity)) entries.set(c.part, t);
   }
@@ -383,7 +390,7 @@ function lanesOutFrom(lane: number, lanes: number): number[] {
 
 function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   const owner = new Map<number, PartInstance[]>();
-  for (const it of outerFirst(mountedItems(v))) {
+  for (const it of outerFirst(v.chassisId, mountedItems(v))) {
     for (const c of itemCells(it)) {
       const key = cellKey(c.x, c.y);
       owner.set(key, [...(owner.get(key) ?? []), it.part]);
@@ -392,9 +399,12 @@ function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
   return owner;
 }
 
-function outerFirst<T extends GridItem & { kind: 'part' }>(items: readonly T[]): T[] {
-  const outer = (it: T) => (partDef(it.part.defId).kind === 'accessory' ? 0 : 1);
-  return [...items].sort((a, b) => outer(a) - outer(b));
+function outerFirst<T extends GridItem & { kind: 'part' }>(chassisId: string, items: readonly T[]): T[] {
+  const depth = (it: T) => {
+    if (belowDeck(chassisId, it)) return 2;
+    return partDef(it.part.defId).kind === 'accessory' ? 0 : 1;
+  };
+  return [...items].sort((a, b) => depth(a) - depth(b));
 }
 
 function takesHit(part: PartInstance, pen: number, struck: Set<string>): boolean {
@@ -451,6 +461,7 @@ function sitsOnDeck(v: Vehicle, part: PartInstance): boolean {
   if (!chassisAbility(v.chassisId)?.deckArmor) return false;
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === part.id);
   if (!item) throw new Error(`Part ${part.id} is not on ${v.id}`);
+  if (belowDeck(v.chassisId, item)) return false;
   const base = baseGrid(v.chassisId);
   return itemCells(item).every((c) => base.cells[c.y]?.[c.x] === 'D');
 }
@@ -551,13 +562,10 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   }));
 }
 
-const SHADOW_KEY_RANGE = 128;
-const cellShadows = new Map<number, readonly FireSpan[]>();
+const cellShadows = new Map<string, readonly FireSpan[]>();
 
 function cellShadow(x: number, y: number, ox: number, oy: number): readonly FireSpan[] {
-  const parts = [x, y, ox * 2, oy * 2];
-  if (!parts.every((n) => Number.isInteger(n) && n >= 0 && n < SHADOW_KEY_RANGE)) throw new Error(`Shadow cell ${x},${y} from ${ox},${oy} is off the grid`);
-  const key = parts.reduce((acc, n) => acc * SHADOW_KEY_RANGE + n, 0);
+  const key = `${x},${y},${ox},${oy}`;
   let pieces = cellShadows.get(key);
   if (!pieces) {
     pieces = Object.freeze(buildCellShadow(x, y, ox, oy).map((piece) => Object.freeze(piece)));
@@ -599,10 +607,17 @@ function mergeSpans(pieces: FireSpan[]): FireSpan[] {
   return merged;
 }
 
+function cellsOnGrid(chassisId: string, item: GridItem): { x: number; y: number }[] {
+  const { w, h } = baseGrid(chassisId);
+  return itemCells(item).filter((c) => c.x >= 0 && c.x < w && c.y >= 0 && c.y < h);
+}
+
 function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
   const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
   if (tall.length === 0) return tall;
-  const reach = floorUnder(v.chassisId, gun) + GUN_CLEARANCE;
+  const floor = surfaceUnder(v.chassisId, gun);
+  if (!Number.isFinite(floor)) return [];
+  const reach = floor + GUN_CLEARANCE;
   return tall.filter((it) => topOf(v.chassisId, it) > reach);
 }
 
@@ -618,12 +633,16 @@ function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, 
   return height;
 }
 
+function surfaceUnder(chassisId: string, item: GridItem): number {
+  const cells = cellsOnGrid(chassisId, item);
+  if (cells.length === 0) return -Infinity;
+  return cachedHeight('floor', chassisId, item, () => highestUnder(chassisId, cellRect(chassisId, cells)));
+}
+
 function floorUnder(chassisId: string, item: GridItem): number {
-  return cachedHeight('floor', chassisId, item, () => {
-    const floor = highestUnder(chassisId, cellRect(chassisId, itemCells(item)));
-    if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
-    return floor;
-  });
+  const floor = surfaceUnder(chassisId, item);
+  if (!Number.isFinite(floor)) throw new Error(`${chassisId} has no model surface under ${item.id} at ${item.x},${item.y}`);
+  return floor;
 }
 
 function topOf(chassisId: string, item: GridItem): number {

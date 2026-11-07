@@ -370,7 +370,7 @@ describe('a beggar offers to stand down and be stripped', () => {
 
   it('offers the strip beside cargo and no mercy', () => {
     const { w } = begging();
-    expect(currentOptions(w).map((o) => en(o.line))).toEqual([CARGO, STRIP, 'No mercy.', 'Hang up.']);
+    expect(currentOptions(w).map((o) => en(o.line))).toEqual([CARGO, STRIP, 'No mercy.']);
   });
 
   it('is not offered once the driver answered a stand-down demand', () => {
@@ -378,7 +378,7 @@ describe('a beggar offers to stand down and be stripped', () => {
     w.player.call = null;
     npcOf(w, npc).brain!.noticed[`surrenderOffered:${w.player.vehicleId}`] = 1;
     raiseCalls(w);
-    expect(currentOptions(w).map((o) => en(o.line))).toEqual([CARGO, 'No mercy.', 'Hang up.']);
+    expect(currentOptions(w).map((o) => en(o.line))).toEqual([CARGO, 'No mercy.']);
   });
 
   it('accepting leaves the truck lying with all its gear, and makes peace', () => {

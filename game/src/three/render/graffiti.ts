@@ -319,16 +319,31 @@ function smoothstep(from: number, to: number, v: number): number {
   return k * k * (3 - 2 * k);
 }
 
-function weather(cell: ImageData, seed: number): void {
-  const { data } = cell;
+export function keepAlphas(seed: number): Uint8ClampedArray {
+  const alphas = new Uint8ClampedArray(CELL * CELL);
   for (let y = 0; y < CELL; y++)
     for (let x = 0; x < CELL; x++) {
       const patches = valueNoise(x / PATCH_SCALE + seed * 31, y / PATCH_SCALE + seed * 17);
       const flakes = valueNoise(x / FLAKE_SCALE + seed * 7, y / FLAKE_SCALE + seed * 13);
       const streaks = valueNoise(x / STREAK_WIDTH + seed * 5, y / STREAK_LENGTH + seed * 3);
       const keep = smoothstep(WEAR_FROM, WEAR_TO, 0.55 * patches + 0.3 * flakes + 0.15 * streaks);
-      data[(y * CELL + x) * 4 + 3] = Math.round(data[(y * CELL + x) * 4 + 3] * keep);
+      alphas[y * CELL + x] = Math.round(255 * keep);
     }
+  return alphas;
+}
+
+function keepMask(seed: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = CELL;
+  canvas.height = CELL;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get graffiti mask canvas context');
+  const mask = ctx.createImageData(CELL, CELL);
+  keepAlphas(seed).forEach((alpha, i) => {
+    mask.data[i * 4 + 3] = alpha;
+  });
+  ctx.putImageData(mask, 0, 0);
+  return canvas;
 }
 
 function paintCell(ctx: CanvasRenderingContext2D, stage: SignStage, column: number, variant: number): void {
@@ -349,16 +364,20 @@ function paintCell(ctx: CanvasRenderingContext2D, stage: SignStage, column: numb
   ctx.translate(SPRAY_DRIFT * (variant ? -1 : 1), SPRAY_DRIFT);
   for (const path of paths) ctx.fill(path, 'evenodd');
   ctx.restore();
-  const cell = ctx.getImageData(column * CELL, variant * CELL, CELL, CELL);
-  weather(cell, column * GRAFFITI.variants + variant + 1);
-  ctx.putImageData(cell, column * CELL, variant * CELL);
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.beginPath();
+  ctx.rect(column * CELL, variant * CELL, CELL, CELL);
+  ctx.clip();
+  ctx.drawImage(keepMask(column * GRAFFITI.variants + variant + 1), column * CELL, variant * CELL);
+  ctx.restore();
 }
 
 export function graffitiAtlas(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = CELL * SIGN_STAGES.length;
   canvas.height = CELL * GRAFFITI.variants;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get graffiti canvas context');
   SIGN_STAGES.forEach((stage, column) => {
     for (let variant = 0; variant < GRAFFITI.variants; variant++) paintCell(ctx, stage, column, variant);

@@ -63,7 +63,7 @@ function scatterGroup(chunk: ScatterChunk): THREE.Group {
   for (const name of MODELS) {
     const list = chunk[name];
     if (list.length === 0) continue;
-    const group = instancedProp(name, list.map((p) => p.matrix), (_, source) => source, list.map((p) => p.tint));
+    const group = instancedProp(name, list.map((p) => p.matrix), list.map((p) => p.tint), (_, source) => source);
     for (const mesh of group.children) {
       mesh.castShadow = CASTS_SHADOW.has(name);
       mesh.receiveShadow = true;

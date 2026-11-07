@@ -19,6 +19,7 @@ import type { CameraRig } from './camera';
 import { READY_ARC_BIT, SPENT_ARC_BIT } from './models';
 import { num } from '../../text/msg';
 import { layerPointOf } from '../../ui/ui-size';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 const ICON_PX = 26;
@@ -38,8 +39,8 @@ export class WeaponRangeView {
   private lastKey: number[] = [];
 
   constructor(private readonly color: number, stencilBit: number) {
-    this.fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: FILL_ALPHA, depthTest: false, side: THREE.DoubleSide,
+    this.fill = new THREE.Mesh(new THREE.BufferGeometry(), overlayMaterial({
+      color, opacity: FILL_ALPHA, depthTest: false,
       stencilWrite: true, stencilRef: stencilBit, stencilFuncMask: stencilBit, stencilWriteMask: stencilBit,
       stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
     }));

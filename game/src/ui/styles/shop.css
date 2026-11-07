@@ -510,10 +510,6 @@
 .cond-pristine {
   color: var(--cond-pristine);
 }
-.cond-pristine .icon svg {
-  fill: var(--cond-pristine);
-  stroke: var(--cond-pristine);
-}
 .cond-w1 {
   color: var(--cond-w1);
 }
@@ -553,16 +549,14 @@
 }
 .part-line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--col-profit) var(--col-name);
+  grid-template-columns: minmax(0, 1fr) 15ch;
   align-items: center;
   gap: var(--space-4);
   padding-right: var(--space-4);
 }
-.part-line > .price {
-  justify-content: flex-end;
-  white-space: nowrap;
+.part-line > button:not(.part-sum) {
+  justify-self: stretch;
 }
-.part-line > button,
 .part-line > .tag {
   justify-self: end;
 }
@@ -644,16 +638,13 @@
 }
 @container (max-width: 440px) {
   .part-line {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 15ch;
     grid-template-areas:
-      "sum sum sum"
-      ". price action";
+      "sum sum"
+      ". action";
   }
   .part-line > .part-sum {
     grid-area: sum;
-  }
-  .part-line > .price {
-    grid-area: price;
   }
   .part-line > button:not(.part-sum),
   .part-line > .tag {
@@ -671,16 +662,14 @@
 #ui .modal.character-screen {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-.skill-table {
-  flex: 0 1 auto;
-  min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
+}
+.skill-table {
+  flex: 0 0 auto;
   align-content: start;
   display: grid;
-  grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) minmax(var(--panel-s), 1fr) max-content;
+  grid-template-columns: max-content max-content max-content repeat(2, minmax(var(--panel-s), 1fr)) max-content;
   gap: var(--space-2) var(--space-7);
   align-items: center;
   margin-top: var(--space-4);
@@ -726,15 +715,6 @@
 .skill-level i.on {
   background: var(--accent);
   border-color: var(--accent);
-}
-.skill-today {
-  display: grid;
-  grid-template-columns: 1fr var(--icon-xl);
-  align-items: center;
-  gap: var(--space-4);
-}
-.skill-today .num {
-  text-align: right;
 }
 .skill-buy {
   justify-self: end;
@@ -851,10 +831,6 @@
 .stat .delta {
   text-align: right;
 }
-.stat .icon svg,
-.chip .icon svg {
-  fill: none;
-}
 .delta {
   display: inline-flex;
   align-items: center;
@@ -895,6 +871,20 @@
   grid-template-columns:
     minmax(calc(var(--col-name) - var(--space-8)), 1fr) var(--col-trade) var(--col-trade) var(--icon-3xl) var(--icon-3xl)
     var(--col-profit);
+}
+.goods.truck.no-profit .goods-head,
+.goods.truck.no-profit .good-row {
+  grid-template-columns:
+    minmax(calc(var(--col-name) - var(--space-8)), 1fr) calc(var(--icon-3xl) + var(--space-2)) var(--col-trade) var(--col-trade)
+    var(--icon-3xl);
+}
+.goods.stocked.no-profit .goods-head,
+.goods.stocked.no-profit .good-row {
+  grid-template-columns:
+    minmax(calc(var(--col-name) - var(--space-8)), 1fr) var(--col-trade) var(--col-trade) var(--icon-3xl) var(--icon-3xl);
+}
+.goods.no-profit .good-row > .profit {
+  display: none;
 }
 .good-name .tag {
   margin-left: auto;
@@ -986,6 +976,23 @@
 }
 .trade.wide {
   grid-column: span 2;
+}
+.priced {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+}
+.priced > .price {
+  min-width: 0;
+}
+.supply-buy > button {
+  min-width: 13ch;
+}
+.good-row .trade:not(.supply-buy) > button {
+  flex: 1 1 0;
+  min-width: max-content;
 }
 .good-name.supply {
   min-width: 0;
@@ -1087,6 +1094,30 @@
   flex-direction: column;
   gap: var(--space-1);
   font: var(--text-dense) var(--font-mono);
+  white-space: nowrap;
+}
+.town-truck-supplies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+}
+.town-truck-supplies .good-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0;
+}
+.town-truck-supplies .good-name {
+  flex: 1;
+  min-width: 0;
+}
+.town-truck-supplies .trade {
+  flex: none;
+  width: auto;
+}
+.town-truck-supplies .caption {
+  display: none;
 }
 .service-meter .meter {
   height: var(--meter-l);
@@ -1313,6 +1344,7 @@
 .inv-grid[data-hint~="D"] .c-D,
 .inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
+.inv-grid[data-hint~="E"] .bay,
 .inv-grid[data-hint~="F"] .c-F,
 .inv-grid[data-hint~="B"] .c-B,
 .inv-grid[data-hint~="L"] .c-L,
