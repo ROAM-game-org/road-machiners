@@ -211,7 +211,7 @@ export class GameMenu {
     if (isConfirmOpen()) return;
     if (e.code === "Escape") {
       e.stopPropagation();
-      this.closeList(true);
+      if (!e.repeat) this.closeList(true);
       return;
     }
     if (isBrowserChord(e)) return;
