@@ -1,6 +1,6 @@
 # Perf rework
 
-Status: executing; perf-gate waits on 3 runs to store numbers, and three fixes are in with their measured results below
+Status: executing; perf-gate is done, three fixes are in with their measured results below, and the night play check, boot and far-props are open
 
 Branch: perf-rework, from origin/dev 74c51d3b6
 
@@ -58,10 +58,11 @@ Ally measures reorder them. Draws come first, then fight turns and fight frames.
 
 Done so far, all with no picture change intended:
 - Shadow maps redraw only when their light or a caster in their view changed, in `shadowRefresh.ts`. This follows PC3. A still frame draws 319 calls in town-night in place of 741.
-- A fight turn is computed ahead once the plan has not changed for 400 ms. A press after a pause waited 30 to 43 ms in place of 0.7 to 1.2 s. A press right after a turn ends still waits 0.7 to 1.2 s.
+- A fight turn is computed ahead once the plan has not changed for 400 ms. A press after a 2 s pause waits 28 to 244 ms in place of 0.7 to 1.2 s. A press right after a turn ends or right after a plan edit still waits 0.7 to 1.3 s.
 - The shown fight world is built once per frame.
 
 Open:
+- The town-night bench shows 55 to 57 stalls over 100 ms with the frame cap off, with a 20 ms GPU time and about 9 ms of render CPU time. Whether a real screen shows them needs the user's play check.
 - Frames in motion gain little from the shadow cache, since the sun's map follows the camera. Driving at night has no bench scene.
 - Merging props into larger groups is not a one-line change: `scope.ts` widens the view test for every cell by the largest overhang, so a bigger group draws more cells. It goes to far-props.
 - Fight frames still spend most non-draw time in `refreshUi`, about 1.8 s of the 11.6 s of slow frames. It runs only on frames where a shot lands, and shots already land under 10 times a second, so limiting how often it runs saves little. Any gain has to come from cheaper panel updates, which needs a bench run to pick by PC1.

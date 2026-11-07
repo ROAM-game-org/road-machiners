@@ -1,6 +1,6 @@
 # Perf gate
 
-Status: validating
+Status: done
 
 Branch: perf-rework
 
@@ -55,11 +55,11 @@ Pacing the bench with GPU fences was tried and reverted. Fence results arrive la
 
 At 31f7febcc two full runs were trusted, and the same scenes agree within 7 percent on mean: town-day 16.5 and 15.8, town-day-far 28.9 and 27.8, town-night 20.4 and 20.8, town-night-far 23.7 and 23.2, fight 38.3 and 36.9. Fight spread reached 10.0 percent in one run, at the trust limit.
 
-IV1 is not yet confirmed. `perf-landed.json` still holds median keys from c2b8dd75c, so the gate exits 2 on every run until 3 runs at the current commit are landed. IV2 and IV3 hold in tests.
+IV1 held on a run that played after the rule was set: at 8f3ceddb4 unchanged code passed with exit 0. An earlier fresh run failed unchanged code on turn wait median 966 of 805 and p99 1266 of 1248. Ten presses split into a short and a long group make the median jump, the p99 is one press, and a range over 3 runs understates the noise. So turn wait is judged by mean, and no limit is tighter than the 10 percent pass difference a trusted run may have. A 10 percent slowdown or less in one measure can pass. IV2 and IV3 hold in tests. Of 6 full runs at this game code, 1 was untrusted, for fight passes differing by 10.7 percent, since the first fight pass runs about 10 percent slower than the second.
 
 ## Conclusion
 
-Independent review found four problems, all fixed in 970bb0695 except that the stored numbers wait on the runs above: stored numbers in the old measure, a p99 limit wide enough to pass a 67 percent slowdown, an over-100 count that one Windows hitch can fail, and a press after a plan edit that waits behind a stale job.
+The gate works on demand with `npm run perf:remote -- 1` and `npm run perf -- --gate <report>`, about 13 minutes a run. Independent review found four problems, all fixed: stored numbers in the old measure, a p99 limit wide enough to pass a 67 percent slowdown, an over-100 count that one Windows hitch can fail, and a press after a plan edit that waits behind a stale job.
 
 ### Hands-off decisions
 
