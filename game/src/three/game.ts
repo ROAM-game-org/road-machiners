@@ -508,6 +508,7 @@ export class Game {
         e.preventDefault();
         if (!e.repeat) this.pressTurn();
       }
+      if (e.code === "Escape" && e.repeat) return;
       this.runKey(e.code);
     });
   }
@@ -554,8 +555,16 @@ export class Game {
     KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true, screen: true },
     KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
-    Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
+    Escape: { run: () => this.escape() },
   };
+
+  private escape(): void {
+    if (this.screens.town.isOpen()) this.screens.town.back();
+    else if (this.modalOpen()) this.screens.closeAll(null);
+    else if (this.pin.id !== null || this.utilityAim.selectedId !== null) this.unpin();
+    else return this.menu.open();
+    this.selectUtility(null);
+  }
 
   unpin(): void {
     this.pin.clear();

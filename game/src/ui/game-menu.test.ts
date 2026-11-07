@@ -55,6 +55,20 @@ describe("the help rows of a mode", () => {
   });
 });
 
+describe("the Esc help row", () => {
+  const escRow = () => controlsFor(modeRulesOf("roaming"), false).flatMap((g) => g.controls).find((c) => c.keys.some((k) => k !== "" && typeof k !== "string" && resolve(k, "en") === "Esc"));
+
+  it("sits in the key groups and says what Esc does in both languages", () => {
+    expect(resolve(escRow()!.does, "en")).toBe("Close a screen or open the menu");
+    expect(resolve(escRow()!.does, "ru")).toBe("Закрыть экран или открыть меню");
+  });
+
+  it("is absent from the touch help", () => {
+    const rows = controlsFor(modeRulesOf("roaming"), true).flatMap((g) => g.controls);
+    expect(rows.some((c) => c.keys.some((k) => k !== "" && typeof k !== "string" && resolve(k, "en") === "Esc"))).toBe(false);
+  });
+});
+
 describe("the help of a touch screen", () => {
   it("holds the Touch group alone, with no key caps", () => {
     const groups = controlsFor(modeRulesOf("roaming"), true);
