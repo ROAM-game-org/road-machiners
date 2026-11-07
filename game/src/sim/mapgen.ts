@@ -3,7 +3,7 @@ import { FORT_MODELS, type FortModel } from './fortress';
 import { PHYSICS } from '../data/physics';
 import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
-import { BREAKABLE } from '../data/rules';
+import { BREAKABLE, CAR_WRECK_SINK } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
 import { groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
@@ -390,9 +390,14 @@ function fortSeat(t: Terrain, o: Obstacle): number {
   return seat;
 }
 
+function lootlessWreckSink(t: Terrain, o: Obstacle): number {
+  if (t.atlas.kind !== 'icarus' || o.kind !== 'landmark' || o.look !== 'carWreck') return 0;
+  return (Math.max(...propBoxes(o).map((b) => b.z1)) * CAR_WRECK_SINK) / PHYSICS.metersPerTile;
+}
+
 export function propBase(t: Terrain, o: Obstacle): number {
   if (o.kind === 'wreck') return heightAt(t, o.pos.x, o.pos.y);
-  return isFortPiece(o) ? fortSeat(t, o) : groundAt(t, o.pos.x, o.pos.y);
+  return isFortPiece(o) ? fortSeat(t, o) : groundAt(t, o.pos.x, o.pos.y) - lootlessWreckSink(t, o);
 }
 
 const REACHABLE_BOXES = new WeakMap<Terrain, WeakMap<readonly PosedBox[], ReachableBoxes>>();
