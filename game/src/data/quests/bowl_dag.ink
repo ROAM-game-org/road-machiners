@@ -39,14 +39,12 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
 + {dag_kiln} [How does Bowl pay the raiders?]
   The Granary feeds Kiln Camp, and Kiln lets Granary trucks cross their road. It costs less than a funeral.
   If they close on you anyway, fight hard. They often let a hard fighter go, and they strip a soft one down to the frame. Just don't start the fight.
-  ~ note("talkKilnFight")
   -> about_raiders
 + {dag_road} [Does the patrol go out to the crater?]
   { cult_broken():
     By day it does, and by night as well now. The lamps stopped crossing at dusk, and nobody has gone missing off the rim road since. Still keep off the green glow, whatever the hour.
   - else:
     By day, yes. After dark, no, and that goes for every truck I ride with. Lamps cross the open ground out there at dusk and go back before sunup. A truck that stops by the rim at night isn't always there in the morning. Be off the crater road before sundown.
-    ~ note("sunwardDragged")
   }
   -> about_raiders
 + [Back.]
