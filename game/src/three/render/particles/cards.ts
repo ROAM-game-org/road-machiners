@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
+import { uploadFirst } from '../uploads';
 
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
@@ -190,11 +191,7 @@ export class CardBatch {
       this.tints.setXYZW(i, c.r, c.g, c.b, c.alpha);
     });
     this.geo.instanceCount = this.cards.length;
-    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(0, this.cards.length * a.itemSize);
-      a.needsUpdate = true;
-    }
+    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) uploadFirst(a, this.cards.length);
     this.cards.length = 0;
   }
 

@@ -7,6 +7,7 @@ import { groundPoint, toMap, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import type { Terrain } from '../../sim/terrain';
 import { reelRope, Rope, ROPE_LOOK, type GroundAt } from './lines';
+import { uploadFirst } from './uploads';
 
 export type Muzzle = { pos: V3; dir: V3 };
 
@@ -436,7 +437,7 @@ export class Casings {
     }
     for (const size of SIZES) {
       this.meshes[size].count = counts[size];
-      this.meshes[size].instanceMatrix.needsUpdate = true;
+      uploadFirst(this.meshes[size].instanceMatrix, counts[size]);
     }
   }
 }
