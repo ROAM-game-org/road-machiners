@@ -13,7 +13,7 @@ import type { UiHost } from './host';
 import type { TownFrame } from './town';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
 import { renderLine, TermTip, type Reveal } from './quest-text';
-import { MONEY_STAT } from '../data/quests';
+import { GAME_OPENED_QUESTS, MONEY_STAT } from '../data/quests';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
@@ -427,7 +427,7 @@ export class QuestScreen {
   }
 
   private choices(w: World, view: QuestView, atMs: number): HTMLElement {
-    const buttons = view.ended ? [el('button', { class: 'quest-choice', onclick: () => this.leave() }, t('quest.leave'))] : choiceButtons(w, view, (i) => this.choose(i));
+    const buttons = view.ended ? [el('button', { class: 'quest-choice', onclick: () => this.leave() }, view.quest === GAME_OPENED_QUESTS.firstFall ? t('quest.wakeUp') : t('quest.leave'))] : choiceButtons(w, view, (i) => this.choose(i));
     return el('div', { class: 'quest-choices qt-unit', style: `animation-delay: ${atMs}ms` }, ...buttons);
   }
 

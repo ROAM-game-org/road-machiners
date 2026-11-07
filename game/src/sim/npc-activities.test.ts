@@ -40,7 +40,8 @@ import { territoryEntries, territoryOfStock, territoryPieces, territorySpots } f
 import { standardWorld } from '../test/world-cache';
 import { fuelCap, vehicleStats } from './stats';
 import { heatAt } from './sun';
-import { DEG, dist, polylineDist, type Vec } from './vec';
+import { fortressOutline } from './fortress';
+import { DEG, dist, pointInPolygon, polylineDist, type Vec } from './vec';
 import { advanceFar } from './far';
 import type { NpcActivity, SalvageStock, Vehicle, World } from './types';
 import { addState, workOf } from './states';
@@ -108,7 +109,7 @@ describe('NPC activities', () => {
     npc.pos = { x: town.pos.x - (gate.x - town.pos.x) * 1.3, y: town.pos.y - (gate.y - town.pos.y) * 1.3 };
     const stop = getActivityDestination(w, npc, { kind: 'sell', targetId: town.id, destination: { ...town.pos }, phase: 'travel', reason: 'tripToSite' })!;
     expect(canUseSite(stop, town)).toBe(true);
-    expect(Math.hypot(stop.x - town.pos.x, stop.y - town.pos.y)).toBeGreaterThan(town.radius);
+    expect(pointInPolygon(stop, fortressOutline(town))).toBe(false);
   });
 
   it('gives drivers bound for one town their own usable spots on its pad', () => {

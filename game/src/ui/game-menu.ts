@@ -1,5 +1,5 @@
 
-import { closeLabel, touchMode } from "./input-mode";
+import { closeLabel, ESCAPE, keyLabel, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -197,7 +197,7 @@ export class GameMenu {
   private root = panel("game-menu", topRight());
   private button = el(
     "button",
-    { class: "menu-button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "game-menu-list", onclick: () => this.toggle() },
+    { class: "menu-button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "game-menu-list", title: keyLabel(t("menu.menu"), ESCAPE.key), onclick: () => this.toggle() },
     t("menu.menu"),
   ) as HTMLButtonElement;
   private list = el("div", { id: "game-menu-list", role: "menu", "aria-label": t("menu.menu"), hidden: true });
