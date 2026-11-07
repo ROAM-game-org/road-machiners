@@ -17,6 +17,7 @@ import { fullName } from '../../text/names';
 import { heldSearch } from '../../sim/market';
 import { agoText } from '../../ui/units';
 import { layerPointOf } from '../../ui/ui-size';
+import { workMeterBar } from '../../ui/work-meter';
 
 const LABEL_LIFT_PX = 90;
 const LEAD_EXTRA_LIFT_PX = 26;
@@ -88,7 +89,7 @@ function weaponChip(mark: WeaponMark): HTMLElement {
 function jobChip(job: JobMark): HTMLElement {
   return el('div', { class: 'marker-job' },
     el('span', {}, job.label),
-    el('span', { class: 'job-bar meter progress' }, el('span', { style: `width:${Math.round(job.progress * 100)}%` })),
+    workMeterBar(job.work, job.label),
   );
 }
 
