@@ -71,8 +71,8 @@ function inkPage(): HTMLElement {
       el(
         "div",
         { class: "ink-scroll" },
-        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-        el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight")),
+        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose compound"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
       ),
       el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
     ),

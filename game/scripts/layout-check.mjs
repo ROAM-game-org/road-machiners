@@ -55,7 +55,7 @@ async function openTown(page, tab) {
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board', charts: 'maps' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
   }, tab);
@@ -321,11 +321,10 @@ const NAV_STEPS = [
   { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
   { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
   { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
-  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
-  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'market', go: ['market'] },
   { name: 'board', go: ['board'] },
   { name: 'people', go: ['people'] },
-  { name: 'bar', go: ['bar'] },
+  { name: 'maps', go: ['maps'] },
 ];
 
 async function openTownClear(page) {

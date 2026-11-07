@@ -802,6 +802,10 @@ export function localsAt(town: string): LocalDef[] {
   return Object.values(LOCALS).filter((l) => l.town === town);
 }
 
+export function localsIn(town: string, section: LocalDef['section']): LocalDef[] {
+  return localsAt(town).filter((l) => l.section === section);
+}
+
 export function localOfQuest(questId: string): LocalDef | null {
   return Object.values(LOCALS).find((l) => l.quest === questId) ?? null;
 }
