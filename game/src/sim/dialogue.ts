@@ -121,8 +121,11 @@ function urgentOpen(world: World, npc: Vehicle, open: ReadonlySet<TopicId>): Top
   return URGENT_TOPICS.filter((u) => open.has(u.topic) && holds(world, npc, [...u.when], {})).map((u) => u.topic);
 }
 
-function rootOf(world: World, npc: Vehicle): RootLayout {
-  const open = new Set(askable(world, npc).map((t) => t.id));
+function openTopics(world: World, npc: Vehicle): Set<TopicId> {
+  return new Set(askable(world, npc).map((t) => t.id));
+}
+
+function rootOf(world: World, npc: Vehicle, open: ReadonlySet<TopicId> = openTopics(world, npc)): RootLayout {
   return rootLayout(open, urgentOpen(world, npc, open));
 }
 
@@ -143,8 +146,8 @@ function isSeen(world: World, npc: Vehicle, call: Call, child: TopicChild, open:
 }
 
 function hubOptions(world: World, npc: Vehicle, call: Call): OfferedOption[] {
-  const open = new Set(askable(world, npc).map((t) => t.id));
-  const root = rootLayout(open, urgentOpen(world, npc, open));
+  const open = openTopics(world, npc);
+  const root = rootOf(world, npc, open);
   const page = openPage(call, open, root.merged);
   const children = page ? TOPIC_GROUPS[page].children : [];
   const listed = page ? pageEntries(children, open) : root.entries;
