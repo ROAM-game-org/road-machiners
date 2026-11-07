@@ -25,6 +25,7 @@ import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
 import { allegianceFor, isFree, spawnAt } from '../sim/spawn';
+import { readQuestSources } from '../test/quest-compile';
 import { flatChoices, pickText } from '../test/quest-testkit';
 import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
@@ -60,6 +61,8 @@ function patchedWorld(): World {
   w.events = [];
   return w;
 }
+
+const FARMHOUSE_FINDS = [...readQuestSources('src/data/quests')['intro_arrival.ink'].matchAll(/give_money\((\d+)\)/g)].reduce((sum, m) => sum + Number(m[1]), 0);
 
 const raidersIn = (w: World): Vehicle[] => w.vehicles.filter((v) => v.faction === 'scrapjaw');
 
@@ -331,7 +334,7 @@ describe('the fall and the wake in Bowl', () => {
 
   it('stocks Bowl with every kit part the raider took, at a price the player can pay', () => {
     const w = ambushed();
-    w.player.money = START_KITS.arrival.money;
+    w.player.money = START_KITS.arrival.money + FARMHOUSE_FINDS;
     const me = playerVehicle(w);
     me.items = me.items.filter((item) => item.kind !== 'part' || !kitPartIds(START_KITS.arrival).includes(item.part.defId));
     const bowl = w.shops[WAKE_TOWN];
