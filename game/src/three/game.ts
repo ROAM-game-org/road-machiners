@@ -223,7 +223,7 @@ export class Game {
     setTimeout(() => this.plans.warm(this.world.terrain));
 
     subscribeInputMode(() => this.refreshUi());
-    installTouchTips(uiRoot(), touchMode);
+    installTouchTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;

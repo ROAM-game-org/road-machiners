@@ -8,5 +8,6 @@
 #overlay .marker-weapon.blocked { color: var(--ink-muted); }
 #overlay .marker-slot { position: absolute; top: 1px; left: var(--space-1); font-weight: bold; }
 #overlay .marker-status { white-space: nowrap; }
-#overlay .marker-job { min-width: var(--marker-min-width); max-width: var(--marker-max-width); padding: var(--space-1) var(--space-3) var(--space-2); background: var(--surface-overlay); border-radius: var(--radius-s); text-align: center; }
+#overlay .marker-job { pointer-events: auto; min-width: var(--marker-min-width); max-width: var(--marker-max-width); padding: var(--space-1) var(--space-3) var(--space-2); background: var(--surface-overlay); border-radius: var(--radius-s); text-align: center; }
+#overlay .marker-job .meter.progress:not(.notched) { background: var(--line-soft); }
 #overlay .marker-radio, #overlay .marker-out { padding: var(--space-1) var(--space-3); background: var(--surface-overlay); border-radius: var(--radius-s); white-space: nowrap; }
