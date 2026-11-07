@@ -53,6 +53,7 @@
 - The turn that moves the highway window is logged before the page reloads. The next boot starts a new `session` at the same turn.
 - The log is append-only. After a load the turns can run backwards. A reader drops the records after the load's turn that came before it. `npm run run:timeline` does this.
 - Every line carries `sid`, a session id that is new at each boot of the log. Two tabs on one run write two streams with two session ids, and their lines interleave in the store. Each stream starts with its own keyframe, so a reader rebuilds state per session id and never mixes deltas from two tabs. `replayBySession` and `npm run run:timeline` do this.
+- A line the game writes also carries `at`, the real time of the write in epoch milliseconds. `RunLog` adds it, so the pure writer and the recorder's logs hold no real time. `at` is never a truck or player field.
 - A write that fails leaves the log without lines the stream already counted as written. The next world after a failed write starts a new `session` keyframe with `from` set to `resync`, so no delta sits on a base the log never stored.
 - A load or a new boot has a new session id. The reader drops the earlier session's records after the load's turn only when that session wrote nothing after the load began. A session that goes on writing is another tab, and its records stay.
 - A run that began on an older build keeps its old records, such as `start`, `loaded`, `day` and `change` without a truck id, before the first `session` line. `npm run run:timeline` skips them and says how many.
@@ -124,6 +125,8 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 - The game version comes from the commit that first records the current format in `save-shape.json`. Git's search skips merge commits, so a new format must land in a plain commit, not in a merge resolution.
 
 ## Folding tiny steps
+
+The fold of formats 63 to 138 chains the old tiny steps instead of merging them. `FOLDED_AND_TINY_STEPS` in `save-migrations.ts` still lists every step from `FIRST_TINY` (63), the release steps 63 to 136 and 136 to 138 run slices of it in order, and `TINY_STEPS` is its tail from `TINY_FROM`. The step tests index that full list. A later fold should merge the steps and drop the list with their tests and fixtures. A dev save inside the folded span whose names are not the whole prefix of a release step's names is `unknownStep` and carries over through the rescue.
 
 Players hold saves only at formats a `release-*` or `hotfix-*` tag shipped. Saves of dev and candidate builds at other formats carry over through the rescue once their steps fold. `save-anchors.test.ts` reads the tags and fails when a format shipped in the last 10 releases loads through no step, when a release step starts at a format no tag shipped, when a release step is older than the last 10 releases, or when a second shipped format sits above `TINY_FROM`.
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_138 from './save-fixtures/format-2-138.json';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const convoyRumor = TINY_STEPS.find((s) => s.name === 'withConvoyRumor')!;
 const step = (world: SavedJson): SavedJson => convoyRumor.step(structuredClone(world));

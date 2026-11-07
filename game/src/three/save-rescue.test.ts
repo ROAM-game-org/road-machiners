@@ -9,7 +9,7 @@ import { townAt } from '../sim/sites';
 import { carriedWorld } from '../sim/world';
 import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { relaidTrucks_1_2, RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
+import { FIRST_TINY, FOLDED_AND_TINY_STEPS, relaidTrucks_1_2, RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -20,7 +20,7 @@ import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
 const fresh = () => 5;
-const stepFrom = (minor: number) => (world: object): SavedJson => TINY_STEPS[minor - TINY_FROM].step(world as SavedJson);
+const stepFrom = (minor: number) => (world: object): SavedJson => FOLDED_AND_TINY_STEPS[minor - FIRST_TINY].step(world as SavedJson);
 const freshRun = () => 'new-run';
 const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
@@ -400,10 +400,9 @@ describe('namedSteps', () => {
     expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'crimes', 'oddFronts'] }))).toEqual([]);
   });
 
-  it('gives a save of the accessory-layer history only the crimes step it skipped', () => {
-    const names = TINY_STEPS.map((named) => named.name).filter((name) => name !== 'withCrimes');
-    const crimes = TINY_STEPS.find((named) => named.name === 'withCrimes')!.step;
-    expect(namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, { from: TINY_FROM, names })).toEqual([crimes]);
+  it('refuses a save of a branch history that skipped the crimes step, since the fold holds it in a release step', () => {
+    const names = FOLDED_AND_TINY_STEPS.map((named) => named.name).filter((name) => name !== 'withCrimes');
+    expect(() => namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, { from: FIRST_TINY, names })).toThrow(/unknownStep/);
   });
 
   it('refuses a name the build does not know and runs nothing', () => {
