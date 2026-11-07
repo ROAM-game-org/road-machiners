@@ -1,7 +1,7 @@
-import { Object3D, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
+import { Light, Object3D, type Camera, type Material, type PointLight, type SpotLight, type WebGLRenderer } from 'three';
 import { perfSnapshot, ranInWorker, type PerfStat } from '../perf';
 import type { Game } from '../three/game';
-import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport } from './report';
+import { drawTotals, emptyBySystem, SLOW_FRAME_MS, SYSTEMS, type BenchSystem, type DrawCount, type FrameRecord, type RenderPass, type SceneReport, type SceneState } from './report';
 import { shadowRefreshOf } from '../three/render/shadowRefresh';
 
 export const FRAME_STEP_MS = 16.67;
@@ -93,6 +93,36 @@ export const OVERLAY_FIELDS = ['shade', 'zones', 'path', 'rescueAreas', 'weaponR
 type BeamLights = { shadowed: SpotLight[]; plain: SpotLight[]; glow: PointLight | null };
 type SiteSlots = { slots: { spot: SpotLight }[] };
 type TruckViewMap = { views: Map<string, { root: Object3D }> };
+
+function lightKey(light: Light): string {
+  const lit = light.visible && light.intensity > 0 && light.color.getHex() !== 0;
+  return `${light.type}|${light.visible ? 'shown' : 'hidden'}|${lit ? 'lit' : 'dark'}|${light.castShadow ? 'shadow' : 'plain'}`;
+}
+
+export function gameState(game: Game): SceneState {
+  const lights: Record<string, number> = {};
+  const shadowMaps: number[] = [];
+  let objects = 0;
+  game.scene.traverse((object) => {
+    objects++;
+    if (!(object instanceof Light)) return;
+    const key = lightKey(object);
+    lights[key] = (lights[key] ?? 0) + 1;
+    if (object.castShadow) shadowMaps.push((object as SpotLight).shadow.mapSize.x);
+  });
+  const { domElement, info } = game.renderer;
+  return {
+    lights,
+    shadowMaps,
+    programs: info.programs?.length ?? 0,
+    textures: info.memory.textures,
+    geometries: info.memory.geometries,
+    objects,
+    canvas: `${domElement.width}x${domElement.height}`,
+    pixelRatio: game.renderer.getPixelRatio(),
+    domNodes: document.getElementsByTagName('*').length,
+  };
+}
 
 export function lampsOf(game: Game): Object3D[] {
   const beams = field(game, 'vehicleLights') as BeamLights;

@@ -12,7 +12,7 @@ import { dist, type Vec } from '../sim/vec';
 import type { Game } from '../three/game';
 import type { Travel, TurnPreparation } from '../three/travel';
 import { BOOT_MEASURE } from '../ui/boot-progress';
-import { lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
+import { gameState, lampsOf, OVERLAY_FIELDS, Probe, systemRootsOf, type DrawReport } from './probe';
 import {
   boundOf, driveTurnGaps, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, SYSTEMS, turnStats,
   type BenchReport, type BenchSystem, type FrameRecord, type SceneReport, type TurnStart,
@@ -539,11 +539,12 @@ async function runScene(ctx: Ctx, spec: Spec): Promise<SceneReport> {
   const pooled = poolFrames(passes);
   const frame = passStats(pooled);
   const draws = await spec.count();
+  const state = gameState(ctx.game);
   const check = spec.check({ draws, frames: pooled, passes, shadowDraws: ctx.probe.shadowDraws });
   if (!check.passed) throw new Error(`Scene ${spec.id} failed its content check "${check.name}": ${check.detail}`);
   const wanted = ctx.options.savingsAbove !== null && frame.real.p99 > ctx.options.savingsAbove;
   const savings = wanted ? await measureSavings(ctx, spec, draws) : null;
-  return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check };
+  return { id: spec.id, passes: stats, frame, spread: spreadOf(stats), bound: boundOf(frame), longTasks, draws, slowFrames: slowFrameSums(pooled), savings, check, state };
 }
 
 function markTurns(log: TurnLog): void {
