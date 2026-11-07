@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { FORTRESS_SITES } from '../data/fortress';
 import { PHYSICS } from '../data/physics';
 import { REGION } from '../data/region';
+import { CAR_WRECK_SINK } from '../data/rules';
+import { CAR_WRECK_LOOKS } from '../data/terrain';
 import { flatTerrain } from '../test/empty-world';
 import { TEST_MAP } from '../test/map';
 import { boxCorners } from './bridge';
 import { fortressProps } from './fortress';
-import { propBase, propBoxes, propObstacle, type PosedBox } from './mapgen';
-import { groundAt, type Terrain } from './terrain';
+import { propBase, propBoxes, propObstacle, propPose, type PosedBox } from './mapgen';
+import { groundAt, heightAt, type Terrain } from './terrain';
 import type { Obstacle } from './types';
 
 const S = PHYSICS.metersPerTile;
@@ -50,6 +52,37 @@ describe('the seat of a fortress piece', () => {
     const t = stepped(3);
     const rock: Obstacle = { id: 'rock1', kind: 'rock', pos: { x: 20, y: 20 }, r: 3 };
     expect(propBase(t, rock)).toBe(groundAt(t, 20, 20));
+  });
+});
+
+describe('the seat of a wreck', () => {
+  const flat = flatTerrain(SIZE);
+  const spot = { x: 20, y: 20 };
+  const carWreckWithLook = (model: string): Obstacle => {
+    for (let k = 0; ; k++) {
+      const o: Obstacle = { id: `carWreck-${k}`, kind: 'landmark', look: 'carWreck', pos: spot, r: 0.7, yaw: 0 };
+      if (propPose(o).model === model) return o;
+    }
+  };
+  const tallest = (o: Obstacle): number => Math.max(...propBoxes(o).map((b) => b.z1));
+
+  it('sinks a lootless car wreck by its share of the height of every look', () => {
+    for (const { model } of CAR_WRECK_LOOKS) {
+      const o = carWreckWithLook(model);
+      expect(propBase(flat, o) * S, model).toBeCloseTo(-tallest(o) * CAR_WRECK_SINK);
+    }
+  });
+
+  it('keeps lootable road wrecks and rocks on the ground', () => {
+    const road: Obstacle = { id: 'wreck3', kind: 'wreck', pos: spot, r: 0.7 };
+    const rock: Obstacle = { id: 'rock3', kind: 'rock', pos: spot, r: 0.7 };
+    expect(propBase(flat, road)).toBe(heightAt(flat, spot.x, spot.y));
+    expect(propBase(flat, rock)).toBe(groundAt(flat, spot.x, spot.y));
+  });
+
+  it('keeps Chaos Highway car wrecks on the asphalt', () => {
+    const highway: Terrain = { ...flat, atlas: { kind: 'highway', seed: 1, window: 0 } };
+    expect(propBase(highway, carWreckWithLook('wreck'))).toBe(groundAt(highway, spot.x, spot.y));
   });
 });
 

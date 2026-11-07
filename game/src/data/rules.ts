@@ -107,6 +107,8 @@ export const CHEATS = {
   searchRings: 20,
 };
 
+export const CAR_WRECK_SINK = 0.3;
+
 export const BREAKABLE = {
   kinds: ['fence', 'junk', 'deadTree', 'roadSign', 'routeSign', 'barrel'] as readonly LandmarkLook[],
   breakSpeed: 3,

@@ -793,6 +793,27 @@ describe('physics turns', () => {
     expect(a.frames[me(w).id].at(-1)).toEqual(b.frames[me(w).id].at(-1));
   });
 
+  it('a sunken car wreck still stops a truck that rams it at speed', () => {
+    let w = emptyWorld();
+    const wreckAt = { x: 36, y: 30 };
+    w.obstacles = [{ id: 'carWreck-1', kind: 'landmark', look: 'carWreck', pos: wreckAt, r: 0.7, yaw: 0 }];
+    w.vehicles[0].speed = 8;
+    w.vehicles[0].direct = true;
+    w = setMoveOrder(w, { kind: 'through', dest: { x: 45, y: 30 } });
+    let crashes = 0;
+    let d = buildDrive(w);
+    for (let i = 0; i < 3; i++) {
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+      crashes += w.events.filter((e) => e.t === 'collision' && e.b === 'carWreck-1').length;
+      freeDrive(d);
+      d = next!;
+    }
+    freeDrive(d);
+    expect(crashes).toBeGreaterThan(0);
+    expect(me(w).pos.x).toBeLessThan(wreckAt.x);
+  });
+
   it('ramming a rock is a crash that damages parts', () => {
     let w = emptyWorld();
     w.obstacles = [{ id: 'rock1', pos: { x: 36, y: 30 }, r: 0.8, kind: 'rock' }];
