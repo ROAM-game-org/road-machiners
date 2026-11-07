@@ -8,13 +8,14 @@ import type { Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
 import { playerVehicle } from '../../sim/damage';
 import { vehicleStats } from '../../sim/stats';
+import { overlayMaterial } from './overlay-material';
 
 const RING = { gap: 0.45, width: 0.06, alpha: 0.9, lift: 0.02 };
 
 export class PickRing {
   readonly mesh = new THREE.Mesh(
     new THREE.RingGeometry(1, 1, 48).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: PAL.select, transparent: true, opacity: RING.alpha, depthWrite: false, side: THREE.DoubleSide }),
+    overlayMaterial({ color: PAL.select, opacity: RING.alpha, depthWrite: false }),
   );
 
   constructor() {

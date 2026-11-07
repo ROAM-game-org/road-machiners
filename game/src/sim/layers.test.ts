@@ -3,7 +3,7 @@ import { partDef, type ShieldDef } from '../data/parts';
 import { RULES } from '../data/rules';
 import { planLane, ramMult } from './armor';
 import { makePart } from './factory';
-import { freeCells, gridOf, isMounted, layerOf, mountedItems, placementError } from './grid';
+import { cellCount, freeCells, gridOf, isMounted, itemCells, layerOf, mountedItems, mountSpots, placementError } from './grid';
 import { installSpot, planItemMove } from './inventory';
 import { addVehicle, emptyWorld } from './testkit';
 import type { GridItem, Rot, Vehicle, World } from './types';
@@ -25,6 +25,84 @@ function withRam(w: World, v: Vehicle, x = 1): GridItem {
   const ram = part(w, 'ram', x, 0);
   v.items.push(ram);
   return ram;
+}
+
+function coreAt(v: Vehicle, role: string): GridItem {
+  const found = v.items.find((it) => it.kind === 'part' && (partDef(it.part.defId) as { role?: string }).role === role);
+  if (!found) throw new Error(`${v.chassisId} has no ${role}`);
+  return found;
+}
+
+describe('below-deck layer', () => {
+  it('puts wheels below deck and keeps the cab and drawn tank on the base layer', () => {
+    const w = emptyWorld();
+    const scout = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
+    const g = gridOf(scout);
+    expect(layerOf(g, coreAt(scout, 'wheel'))).toBe('below');
+    expect(layerOf(g, coreAt(scout, 'cab'))).toBe('base');
+    expect(layerOf(g, coreAt(scout, 'tank'))).toBe('base');
+  });
+
+  it('puts a hidden tank and transmission below deck', () => {
+    const w = emptyWorld();
+    const hauler = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    const g = gridOf(hauler);
+    expect(layerOf(g, coreAt(hauler, 'tank'))).toBe('below');
+    expect(layerOf(g, coreAt(hauler, 'transmission'))).toBe('below');
+  });
+
+  it('keeps every below part mounted', () => {
+    const w = emptyWorld();
+    const hauler = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    expect(isMounted('hauler', coreAt(hauler, 'wheel'))).toBe(true);
+  });
+
+  it('counts a loose wheel away from its spot on the base layer, unmounted', () => {
+    const w = emptyWorld();
+    const hauler = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    const loose = part(w, 'wheel', 2, 1);
+    expect(layerOf(gridOf(hauler), loose)).toBe('base');
+    expect(isMounted('hauler', loose)).toBe(false);
+  });
+
+  it('takes no crate room for below parts', () => {
+    const w = emptyWorld();
+    const hauler = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    const g = gridOf(hauler);
+    const base = hauler.items.filter((it) => layerOf(g, it) === 'base');
+    const baseCells = base.flatMap((it) => itemCells(it)).length;
+    expect(freeCells(hauler)).toBe(cellCount(g) - baseCells);
+  });
+
+  it('lets a good lie over a wheel and refuses a second part below on one cell', () => {
+    const w = emptyWorld();
+    const hauler = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    const wheel = coreAt(hauler, 'wheel');
+    const good: GridItem = { id: 'crate', x: wheel.x, y: wheel.y, rot: 0, kind: 'good', good: 'scrap' };
+    expect(placementError(gridOf(hauler), hauler.items, good, null)).toBeNull();
+    const again: GridItem = { ...wheel, id: 'other-wheel' };
+    expect(placementError(gridOf(hauler), hauler.items, again, null)).toEqual({ id: 'inTheWay' });
+  });
+
+  it('seats the buggy engine below deck in its bay', () => {
+    const w = emptyWorld();
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 40, y: 40 });
+    const engine = mountedItems(buggy, 'engine')[0];
+    expect(layerOf(gridOf(buggy), engine)).toBe('below');
+    expect(sameCells(itemCells(engine), { x: 2, y: 2, w: 2, h: 3 })).toBe(true);
+  });
+
+  it('keeps two engines out of one hidden bay', () => {
+    const w = emptyWorld();
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 40, y: 40 });
+    const engine = mountedItems(buggy, 'engine')[0];
+    const second = { ...engine, id: 'second-engine', part: makePart(w, 'stockEngine', 0) };
+    expect(mountSpots(gridOf(buggy), buggy.items, second, ['E'])).toEqual([]);
+  });
+});
+
+function sameCells(cells: { x: number; y: number }[], bay: { x: number; y: number; w: number; h: number }): boolean {
+  return cells.every((c) => c.x >= bay.x && c.x < bay.x + bay.w && c.y >= bay.y && c.y < bay.y + bay.h);
 }
 
 describe('accessory layer', () => {

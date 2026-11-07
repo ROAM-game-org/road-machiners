@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { FORTRESS } from './fortress';
 import { PHYSICS } from './physics';
+import { DEAD_TREE_LOOK } from './rules';
 import { TERRAIN } from './terrain';
 import SHAPES from './prop-shapes.json';
 import TRUCKS from './truck-shapes.json';
@@ -80,6 +81,17 @@ describe('orchard model sizes (IV11)', () => {
       expect(Math.min(b.x0, b.y0)).toBeGreaterThanOrEqual(-1.2);
       expect(Math.max(b.x1, b.y1)).toBeLessThanOrEqual(1.2);
     }
+  });
+
+  it('keeps the low boxes of the widest dead tree inside the 2.4 m trunk footprint', () => {
+    const widest = Math.max(...DEAD_TREE_LOOK.widths);
+    for (const b of shapeBoxes('dead_tree').filter((box) => box.z0 < PHYSICS.truckClearance)) {
+      expect(Math.max(-b.x0, -b.y0, b.x1, b.y1) * widest).toBeLessThanOrEqual(1.2);
+    }
+  });
+
+  it('never makes a dead tree shorter than its model, so limbs stay above truck height', () => {
+    expect(Math.min(...DEAD_TREE_LOOK.heights)).toBeGreaterThanOrEqual(1);
   });
 
   it('fails loudly on a model missing from prop-shapes.json', () => {

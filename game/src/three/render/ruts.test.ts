@@ -220,7 +220,7 @@ describe('Ruts', () => {
   it('never marks from a truck the player does not see, or between turns', () => {
     const w = worldOn('sand');
     const v = truckOf(w);
-    const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined };
+    const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined, getImageData: (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }), putImageData: () => undefined };
     const element = { style: {}, appendChild: () => undefined, getContext: () => paint };
     vi.stubGlobal('document', { createElement: () => element });
     const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w);
@@ -234,6 +234,24 @@ describe('Ruts', () => {
 
     for (let i = 0; i <= 16; i++) truckFx.emit(w, v, frameAt(v, 100 + i * FRAME_MOVE), true, 1 / 60, true);
     expect(fx.ruts.mesh.count).toBeGreaterThan(0);
+    vi.unstubAllGlobals();
+  });
+
+  it('raises wheel dust from the speed the truck shows, so an eased stop still kicks up dust', () => {
+    const w = worldOn('sand');
+    const stopped = { ...truckOf(w), speed: 0 };
+    const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined, getImageData: (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }), putImageData: () => undefined };
+    const element = { style: {}, appendChild: () => undefined, getContext: () => paint };
+    vi.stubGlobal('document', { createElement: () => element });
+    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w);
+    const truckFx = new TruckFx(fx);
+    const wheelDust = vi.spyOn(fx, 'wheelDust');
+
+    for (let i = 0; i <= 16; i++) truckFx.emit(w, stopped, frameAt(stopped, 100), true, 1 / 60, true);
+    expect(wheelDust).not.toHaveBeenCalled();
+
+    for (let i = 0; i <= 16; i++) truckFx.emit(w, stopped, frameAt(stopped, 100 + i * FRAME_MOVE), true, 1 / 60, true);
+    expect(wheelDust).toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 });

@@ -1170,7 +1170,7 @@ export class Game {
       view.windows(glass);
       view.pose(f, playDt);
       view.aim((partId) => this.turretAim(v.id, (before || v).weaponOrders, f, partId));
-      this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
+      this.truckFx.emit(this.world, display, f, this.travel.trucksRoll(frames !== null), playDt, seen);
     }
     this.pin.settle();
     this.trucks.park(this.world, hidden);
