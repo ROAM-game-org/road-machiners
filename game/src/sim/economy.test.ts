@@ -112,6 +112,7 @@ describe("trade", () => {
     const start = startAtBowl();
     start.vehicles[0].pos = { ...sitePads(nose)[0] };
     const bought = buyPrice(start, "nose", "salt");
+    start.player.money = getLotTradePrice(start, start.vehicles[0], "nose", "salt", 8, "buy");
     let w = buyGood(start, "salt", 8);
     w.vehicles[0].pos = { ...sitePads(bowl)[0] };
     const money = w.player.money;
@@ -212,6 +213,7 @@ describe("trade", () => {
         const w = longbedAtBowl();
         w.player.ranks.social = social;
         w.shops.bowl.goods.grain = Math.round(stockTarget("bowl", "grain") * (1 - pressureStart));
+        w.player.money = getLotTradePrice(w, w.vehicles[0], "bowl", "grain", 25, "buy");
 
         const before = w.player.money;
         const after = sellGood(buyGood(w, "grain", 25), "grain", 25);
