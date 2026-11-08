@@ -261,15 +261,16 @@ vec3 wearSandOver(vec3 color, vec4 wear, vec4 roadLook, float wander) {
 `;
 
 const NOISE = `float noiseHash(vec2 p) {
-  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-  p3 += dot(p3, p3.yzx + 33.33);
-  return fract((p3.x + p3.y) * p3.z);
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 float valueNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(noiseHash(i), noiseHash(i + vec2(1.0, 0.0)), f.x), mix(noiseHash(i + vec2(0.0, 1.0)), noiseHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float markHash(vec2 p) {
+  return fract(sin(dot(mod(p, 289.0), vec2(127.1, 311.7))) * 43758.5453);
 }
 `;
 
@@ -498,7 +499,7 @@ float drawnCrackEdge(vec2 p) {
   for (int j = -1; j <= 1; j++)
     for (int i = -1; i <= 1; i++) {
       vec2 o = vec2(float(i), float(j));
-      vec2 seed = o + 0.1 + 0.8 * vec2(noiseHash(cell + o), noiseHash(cell + o + 19.1));
+      vec2 seed = o + 0.1 + 0.8 * vec2(markHash(cell + o), markHash(cell + o + 19.1));
       float d = length(seed - f);
       if (d < first) { second = first; first = d; } else if (d < second) second = d;
     }
@@ -515,13 +516,13 @@ float drawnPuddles(vec2 p) {
 float drawnClods(vec2 p, float px) {
   vec2 c = floor(p / ${DRAWN_CLOD_CELL.toFixed(2)});
   vec2 f = p / ${DRAWN_CLOD_CELL.toFixed(2)} - c;
-  float turn = noiseHash(c + 13.0) * 6.2831853;
-  vec2 d = mat2(cos(turn), sin(turn), -sin(turn), cos(turn)) * (f - 0.3 - 0.4 * vec2(noiseHash(c + 17.0), noiseHash(c + 19.0)));
-  float radius = mix(0.08, 0.17, noiseHash(c + 23.0));
+  float turn = markHash(c + 13.0) * 6.2831853;
+  vec2 d = mat2(cos(turn), sin(turn), -sin(turn), cos(turn)) * (f - 0.3 - 0.4 * vec2(markHash(c + 17.0), markHash(c + 19.0)));
+  float radius = mix(0.08, 0.17, markHash(c + 23.0));
   float lumpy = length(d * vec2(1.0, 1.7)) + (valueNoise(p / 0.12 + c) - 0.5) * 0.06;
   float edge = px / ${DRAWN_CLOD_CELL.toFixed(2)};
   float clod = 1.0 - smoothstep(radius - edge, radius + edge, lumpy);
-  return clod * step(noiseHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, px));
+  return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, px));
 }
 float drawnWindRipples(vec2 p, float px) {
   vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
@@ -532,10 +533,10 @@ float drawnWindRipples(vec2 p, float px) {
 float drawnWaves(vec2 p, float px) {
   vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
   float row = floor(q.y / ${DRAWN_GLINT_ROW.toFixed(2)});
-  float along = q.x / ${DRAWN_GLINT_LONG.toFixed(2)} + noiseHash(vec2(row, 4.0)) * 5.0;
+  float along = q.x / ${DRAWN_GLINT_LONG.toFixed(2)} + markHash(vec2(row, 4.0)) * 5.0;
   float inside = fract(along);
   float busy = smoothstep(0.3, 0.75, valueNoise(p / ${DRAWN_GLINT_PATCH.toFixed(1)} + 51.0));
-  float keep = step(noiseHash(vec2(floor(along), row) + 3.0), mix(${DRAWN_GLINT_CALM.toFixed(2)}, ${DRAWN_GLINT_BUSY.toFixed(2)}, busy));
+  float keep = step(markHash(vec2(floor(along), row) + 3.0), mix(${DRAWN_GLINT_CALM.toFixed(2)}, ${DRAWN_GLINT_BUSY.toFixed(2)}, busy));
   float taper = smoothstep(0.1, 0.35, inside) * (1.0 - smoothstep(0.65, 0.9, inside));
   float across = q.y - (row + 0.5) * ${DRAWN_GLINT_ROW.toFixed(2)} - sin(inside * 6.2831853) * 0.08;
   return drawnLine(abs(across), ${DRAWN_GLINT_WIDTH.toFixed(2)} * taper, px) * keep * (1.0 - smoothstep(0.15, 0.3, px));
@@ -553,12 +554,12 @@ float drawnGrain(vec2 p, float px) {
 float drawnStones(vec2 p, float cell, float seed, float px) {
   vec2 c = floor(p / cell);
   vec2 f = p / cell - c;
-  vec2 center = 0.28 + 0.44 * vec2(noiseHash(c + seed), noiseHash(c + seed + 3.1));
-  float radius = mix(0.1, 0.24, noiseHash(c + seed + 5.3));
+  vec2 center = 0.28 + 0.44 * vec2(markHash(c + seed), markHash(c + seed + 3.1));
+  float radius = mix(0.1, 0.24, markHash(c + seed + 5.3));
   float edge = px / cell;
   float stone = 1.0 - smoothstep(radius - edge, radius + edge, length(f - center));
-  float tone = (noiseHash(c + seed + 7.7) < 0.5 ? -1.0 : 1.0) * mix(0.5, 1.0, noiseHash(c + seed + 9.1));
-  return stone * tone * step(noiseHash(c + seed + 11.9), 0.7) * (1.0 - smoothstep(cell / 6.0, cell / 3.0, px));
+  float tone = (markHash(c + seed + 7.7) < 0.5 ? -1.0 : 1.0) * mix(0.5, 1.0, markHash(c + seed + 9.1));
+  return stone * tone * step(markHash(c + seed + 11.9), 0.7) * (1.0 - smoothstep(cell / 6.0, cell / 3.0, px));
 }
 float drawnSeams(vec2 p, float px) {
   vec2 toLine = (0.5 - abs(fract(p / 3.0) - 0.5)) * 3.0;
@@ -618,10 +619,10 @@ const GLASS_BODY = `
     vec2 plateAt = glassAt / glassPlate;
     vec2 plateCell = floor(plateAt);
     vec2 plateIn = plateAt - plateCell;
-    float plateFlip = step(0.5, noiseHash(plateCell + 71.3));
+    float plateFlip = step(0.5, fract(sin(dot(plateCell, vec2(27.17, 91.43))) * 43758.5453));
     float plateU = mix(plateIn.x, 1.0 - plateIn.x, plateFlip);
     float plateHalf = plateU + plateIn.y > 1.0 ? 1.0 : 0.0;
-    float plateHash = noiseHash(plateCell + plateHalf * vec2(0.53, 0.29));
+    float plateHash = fract(sin(dot(plateCell + plateHalf * vec2(0.53, 0.29), vec2(12.9898, 78.233))) * 43758.5453);
     float glassBroad = valueNoise(vRoadXZ / 7.0);
     float glassFine = valueNoise(vRoadXZ / 0.8);
     diffuseColor.rgb *= 1.0 + (plateHash - 0.5) * 2.0 * glassTint + (glassBroad - 0.5) * 0.16 + (glassFine - 0.5) * 0.06;
@@ -652,12 +653,12 @@ const ROAD_BODY = `
   float centerLine = 1.0 - smoothstep(${CENTER_LINE_WIDTH.toFixed(3)} - centerLineAa, ${CENTER_LINE_WIDTH.toFixed(3)} + centerLineAa, abs(roadFrame.z));
   float dashId = floor(roadFrame.y / ${DASH_EVERY.toFixed(1)});
   float dashAt = fract(roadFrame.y / ${DASH_EVERY.toFixed(1)});
-  float dashStart = noiseHash(vec2(dashId, 13.1)) * 0.45;
-  centerLine *= step(dashStart, dashAt) * step(dashAt, dashStart + 0.12 + 0.4 * noiseHash(vec2(dashId, 29.3)));
-  centerLine *= step(noiseHash(vec2(dashId, 5.7)), ${DASH_KEPT.toFixed(2)});
-  centerLine *= 0.45 + 0.55 * noiseHash(vec2(dashId, 37.9));
+  float dashStart = markHash(vec2(dashId, 13.1)) * 0.45;
+  centerLine *= step(dashStart, dashAt) * step(dashAt, dashStart + 0.12 + 0.4 * markHash(vec2(dashId, 29.3)));
+  centerLine *= step(markHash(vec2(dashId, 5.7)), ${DASH_KEPT.toFixed(2)});
+  centerLine *= 0.45 + 0.55 * markHash(vec2(dashId, 37.9));
   centerLine *= smoothstep(${CENTER_LINE_FROM.toFixed(2)}, ${CENTER_LINE_FROM.toFixed(2)} + 0.06, valueNoise(vec2(roadFrame.y / ${CENTER_LINE_STRETCH.toFixed(1)}, 21.0)));
-  centerLine *= step(${CENTER_LINE_WORN.toFixed(2)} + 0.35 * valueNoise(vRoadXZ / facetSide / 0.9), noiseHash(floor(vRoadXZ / facetSide / ${CENTER_LINE_GRAIN.toFixed(3)})));
+  centerLine *= step(${CENTER_LINE_WORN.toFixed(2)} + 0.35 * valueNoise(vRoadXZ / facetSide / 0.9), markHash(floor(vRoadXZ / facetSide / ${CENTER_LINE_GRAIN.toFixed(3)})));
   roadColor = mix(roadColor, vec3(${CENTER_LINE_PAINT}) * groundShade, centerLine * ${CENTER_LINE_FADE.toFixed(2)});
   vec3 dirtColor = roadLook.rgb * (0.94 + 0.12 * roadWander) * clamp(paintedLuma / dirtGroundLuma, 0.7, 1.2) * dirtTint;
   float roadEdge = ${ROAD_HALF.toFixed(2)};
@@ -667,7 +668,7 @@ const ROAD_BODY = `
   diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor, dirtIn);
   diffuseColor.rgb = mix(diffuseColor.rgb, roadColor, roadIn);
   vec2 drawnScratchCell = floor(vec2(roadFrame.y / ${DRAWN_SCRATCH_LONG.toFixed(1)}, roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}));
-  float drawnScratch = step(noiseHash(drawnScratchCell + 7.7), ${DRAWN_SCRATCH_SHARE.toFixed(2)}) * (1.0 - smoothstep(0.1, 0.25, abs(fract(roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}) - 0.5)));
+  float drawnScratch = step(markHash(drawnScratchCell + 7.7), ${DRAWN_SCRATCH_SHARE.toFixed(2)}) * (1.0 - smoothstep(0.1, 0.25, abs(fract(roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}) - 0.5)));
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnScratch * 0.6 * roadIn;
   inkSurface.road = roadIn;
   inkSurface.edge = (1.0 - smoothstep(${DRAWN_EDGE_LINE.toFixed(2)} - 0.5, ${DRAWN_EDGE_LINE.toFixed(2)} + 0.5, abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001))) * step(roadFrame.x, roadEdge + ${DRAWN_EDGE_LINE_REACH.toFixed(1)});
