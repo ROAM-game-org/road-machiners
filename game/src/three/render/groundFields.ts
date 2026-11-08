@@ -15,6 +15,9 @@ const S = PHYSICS.metersPerTile;
 const PIXEL_SPLIT = 3;
 const PAD_BORDER = 2;
 const ROAD_FIELD_REACH = 10;
+const KIND_LAYERS = 3;
+const DESERT_AT = 2;
+const GLASS_AT = 2;
 
 const KIND_CHANNEL: Record<LookType, number | null> = {
   hardpan: 0,
@@ -46,19 +49,16 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     facetSide: { value: S },
-    heightField: { value: heightTexture(t) },
     roadField: { value: roadFieldTexture(t) },
     heightSide: { value: t.size + 1 },
-    ...kindUniforms(t),
+    groundKinds: { value: kindTexture(t) },
+    groundKindSide: { value: t.size },
+    groundKindMeters: { value: t.size * S },
     mapUvPerMeter: { value: mask.res / mask.size / S },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
     roadDetailMeters: { value: ROAD_DETAIL_SIDE * pixel },
     roadToneMeters: { value: ROAD_TONE_SIDE * ROAD_TONE_PIXELS * pixel },
-    roadDesert: { value: desertTexture(t) },
-    roadDesertMeters: { value: t.size * S },
-    glassField: { value: glassTexture(t) },
-    glassFieldMeters: { value: t.size * S },
     ...padUniforms([...atlasSites(atlasOf(t)), ...shelters], pixel),
     ...wearUniforms(mask, t),
   };
@@ -71,24 +71,24 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function heightTexture(t: Terrain): THREE.DataTexture {
-  const side = t.size + 1;
-  const texture = new THREE.DataTexture(Float32Array.from(t.heights), side, side, THREE.RedFormat, THREE.FloatType);
-  return linear(texture);
-}
-
-function kindUniforms(t: Terrain) {
-  const [groundKindsA, groundKindsB, groundKindsC] = kindTextures(t);
-  return { groundKindsA: { value: groundKindsA }, groundKindsB: { value: groundKindsB }, groundKindsC: { value: groundKindsC }, groundKindSide: { value: t.size } };
-}
-
-function kindTextures(t: Terrain): THREE.DataTexture[] {
-  const layers = [0, 1, 2].map(() => new Uint8Array(t.size * t.size * 4));
+function kindTexture(t: Terrain): THREE.DataArrayTexture {
+  const tiles = t.size * t.size;
+  const data = new Uint8Array(tiles * 4 * KIND_LAYERS);
   shownLooks(t).forEach((look, tile) => {
     const channel = KIND_CHANNEL[look];
-    if (channel !== null) layers[channel >> 2][tile * 4 + (channel & 3)] = 255;
+    if (channel !== null) data[(channel >> 2) * tiles * 4 + tile * 4 + (channel & 3)] = 255;
   });
-  return layers.map((layer) => linear(new THREE.DataTexture(layer, t.size, t.size, THREE.RGBAFormat)));
+  const look = lookTypes(t);
+  const glass = glassField(t);
+  for (let tile = 0; tile < tiles; tile++) {
+    data[DESERT_AT * tiles * 4 + tile * 4 + 1] = Math.round(desertWeight(look[tile]) * 255);
+    data[GLASS_AT * tiles * 4 + tile * 4 + 2] = glass[tile];
+  }
+  const texture = new THREE.DataArrayTexture(data, t.size, t.size, KIND_LAYERS);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function roadFieldTexture(t: Terrain): THREE.DataTexture {
@@ -98,6 +98,7 @@ function roadFieldTexture(t: Terrain): THREE.DataTexture {
   for (let i = 0; i < side * side; i++) {
     data[i * 4] = ROAD_FIELD_REACH * 2;
     data[i * 4 + 2] = ROAD_FIELD_REACH * 2;
+    data[i * 4 + 3] = t.heights[i];
   }
   for (const run of regionRoadRuns(atlasOf(t))) markRun(run, side, data, nearest);
   return linear(new THREE.DataTexture(data, side, side, THREE.RGBAFormat, THREE.FloatType));
@@ -124,21 +125,6 @@ function markRun(run: readonly { x: number; y: number }[], side: number, data: F
       }
     if (n < run.length - 1) along += Math.hypot(next.x - p.x, next.y - p.y);
   });
-}
-
-function desertTexture(t: Terrain): THREE.DataTexture {
-  const look = lookTypes(t);
-  const weight = new Uint8Array(t.size * t.size);
-  for (let i = 0; i < weight.length; i++) weight[i] = Math.round(desertWeight(look[i]) * 255);
-  const texture = new THREE.DataTexture(weight, t.size, t.size, THREE.RedFormat);
-  texture.unpackAlignment = 1;
-  return linear(texture);
-}
-
-function glassTexture(t: Terrain): THREE.DataTexture {
-  const texture = new THREE.DataTexture(glassField(t), t.size, t.size, THREE.RedFormat);
-  texture.unpackAlignment = 1;
-  return linear(texture);
 }
 
 function linear(texture: THREE.DataTexture): THREE.DataTexture {

@@ -132,12 +132,8 @@ uniform float roadDetailMeters;
 uniform float roadToneMeters;
 uniform float roadPlainLuma;
 uniform float roadSandLuma;
-uniform sampler2D roadDesert;
-uniform float roadDesertMeters;
 uniform float dirtGroundLuma;
 uniform vec3 dirtTint;
-uniform sampler2D glassField;
-uniform float glassFieldMeters;
 uniform vec3 glassBase;
 uniform float glassPlate;
 uniform float glassTint;
@@ -152,13 +148,11 @@ uniform vec2 padHalf;
 uniform float padBorder;
 uniform vec3 padDust;
 uniform vec3 padMark;
-uniform sampler2D heightField;
 uniform sampler2D roadField;
 uniform float heightSide;
-uniform sampler2D groundKindsA;
-uniform sampler2D groundKindsB;
-uniform sampler2D groundKindsC;
+uniform sampler2DArray groundKinds;
 uniform float groundKindSide;
+uniform float groundKindMeters;
 uniform float drawnEdgeWobble;
 uniform float drawnEdgeReach;
 uniform float drawnWaveSize;
@@ -212,7 +206,7 @@ float markHash(vec2 p) {
 }
 `;
 
-const KIND_BORDERS = `vec4 drawnKindsSmooth(sampler2D kinds, vec2 tile) {
+const KIND_BORDERS = `vec4 drawnKindsSmooth(float layer, vec2 tile) {
   vec2 first = floor(tile - 0.5) + 0.5;
   vec2 f = tile - first;
   vec2 g = 1.0 - f;
@@ -224,22 +218,22 @@ const KIND_BORDERS = `vec4 drawnKindsSmooth(sampler2D kinds, vec2 tile) {
   vec2 at0 = (first - 1.0) / groundKindSide;
   vec2 at12 = (first + w2 / w12) / groundKindSide;
   vec2 at3 = (first + 2.0) / groundKindSide;
-  vec4 row0 = textureLod(kinds, vec2(at0.x, at0.y), 0.0) * w0.x + textureLod(kinds, vec2(at12.x, at0.y), 0.0) * w12.x + textureLod(kinds, vec2(at3.x, at0.y), 0.0) * w3.x;
-  vec4 row12 = textureLod(kinds, vec2(at0.x, at12.y), 0.0) * w0.x + textureLod(kinds, vec2(at12.x, at12.y), 0.0) * w12.x + textureLod(kinds, vec2(at3.x, at12.y), 0.0) * w3.x;
-  vec4 row3 = textureLod(kinds, vec2(at0.x, at3.y), 0.0) * w0.x + textureLod(kinds, vec2(at12.x, at3.y), 0.0) * w12.x + textureLod(kinds, vec2(at3.x, at3.y), 0.0) * w3.x;
+  vec4 row0 = textureLod(groundKinds, vec3(at0.x, at0.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at0.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at0.y, layer), 0.0) * w3.x;
+  vec4 row12 = textureLod(groundKinds, vec3(at0.x, at12.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at12.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at12.y, layer), 0.0) * w3.x;
+  vec4 row3 = textureLod(groundKinds, vec3(at0.x, at3.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at3.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at3.y, layer), 0.0) * w3.x;
   return row0 * w0.y + row12 * w12.y + row3 * w3.y;
 }
 vec3 drawnNearestBorder(vec2 tile, out vec4 hereA, out vec4 hereB, out vec4 hereC, out vec3 scrub) {
-  hereA = drawnKindsSmooth(groundKindsA, tile);
-  hereB = drawnKindsSmooth(groundKindsB, tile);
-  hereC = drawnKindsSmooth(groundKindsC, tile);
+  hereA = drawnKindsSmooth(0.0, tile);
+  hereB = drawnKindsSmooth(1.0, tile);
+  hereC = drawnKindsSmooth(2.0, tile);
   vec2 across = vec2(${DRAWN_BORDER_PROBE.toFixed(2)}, 0.0);
-  vec4 riseAx = (drawnKindsSmooth(groundKindsA, tile + across) - hereA) / across.x;
-  vec4 riseAy = (drawnKindsSmooth(groundKindsA, tile + across.yx) - hereA) / across.x;
-  vec4 riseBx = (drawnKindsSmooth(groundKindsB, tile + across) - hereB) / across.x;
-  vec4 riseBy = (drawnKindsSmooth(groundKindsB, tile + across.yx) - hereB) / across.x;
-  float riseCx = (drawnKindsSmooth(groundKindsC, tile + across).r - hereC.r) / across.x;
-  float riseCy = (drawnKindsSmooth(groundKindsC, tile + across.yx).r - hereC.r) / across.x;
+  vec4 riseAx = (drawnKindsSmooth(0.0, tile + across) - hereA) / across.x;
+  vec4 riseAy = (drawnKindsSmooth(0.0, tile + across.yx) - hereA) / across.x;
+  vec4 riseBx = (drawnKindsSmooth(1.0, tile + across) - hereB) / across.x;
+  vec4 riseBy = (drawnKindsSmooth(1.0, tile + across.yx) - hereB) / across.x;
+  float riseCx = (drawnKindsSmooth(2.0, tile + across).r - hereC.r) / across.x;
+  float riseCy = (drawnKindsSmooth(2.0, tile + across.yx).r - hereC.r) / across.x;
   float steepC = max(sqrt(riseCx * riseCx + riseCy * riseCy), 0.0001);
   float depthC = (hereC.r - 0.5) / steepC;
   vec4 steepA = max(sqrt(riseAx * riseAx + riseAy * riseAy), vec4(0.0001));
@@ -258,11 +252,11 @@ vec3 drawnNearestBorder(vec2 tile, out vec4 hereA, out vec4 hereB, out vec4 here
 `;
 
 const RELIEF = `float drawnSample(vec2 texel) {
-  return textureLod(heightField, (texel + 0.5) / heightSide, 0.0).r;
+  return textureLod(roadField, (texel + 0.5) / heightSide, 0.0).a;
 }
 float drawnCorner(ivec2 corner) {
   int last = int(heightSide) - 1;
-  return texelFetch(heightField, clamp(corner, ivec2(0), ivec2(last)), 0).r;
+  return texelFetch(roadField, clamp(corner, ivec2(0), ivec2(last)), 0).a;
 }
 vec4 drawnSplineWeights(float f) {
   float g = 1.0 - f;
@@ -379,7 +373,7 @@ const BORDER_BODY = `
 `;
 
 const GLASS_BODY = `
-  float glassEdge = texture2D(glassField, vRoadXZ / glassFieldMeters).r
+  float glassEdge = texture(groundKinds, vec3(vRoadXZ / groundKindMeters, 2.0)).b
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_SCALE * S).toFixed(2)}) - 0.5) * ${GLASS_EDGE_WOBBLE.toFixed(2)}
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_FINE_SCALE * S).toFixed(2)} + 53.1) - 0.5) * ${GLASS_EDGE_FINE.toFixed(2)};
   float glassSoft = fwidth(glassEdge) * 0.75;
@@ -415,7 +409,7 @@ const ROAD_BODY = `
   float bandMask = roadMaskAt.b;
   vec4 roadLook = vec4(textureLod(roadDetail, (vRoadXZ - roadOrigin) / roadDetailMeters, 8.0).rgb, 0.5);
   float roadWander = textureLod(roadTone, (vRoadXZ - roadOrigin) / roadToneMeters, 0.0).r;
-  float roadSand = texture2D(roadDesert, vRoadXZ / roadDesertMeters).r;
+  float roadSand = texture(groundKinds, vec3(vRoadXZ / groundKindMeters, 2.0)).g;
   float groundLuma = dot(blurredGround, vec3(0.299, 0.587, 0.114));
   float groundShade = clamp(groundLuma / mix(roadPlainLuma, roadSandLuma, roadSand), 0.7, 1.2);
   float paintedLuma = dot(paintedGround, vec3(0.299, 0.587, 0.114));
