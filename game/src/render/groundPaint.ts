@@ -135,16 +135,17 @@ export type PaintCanvas = {
 
 export type PaintOptions = {
   hillshade: number;
+  roadsAsGround: boolean;
 };
 
-const DEFAULT_OPTIONS: PaintOptions = { hillshade: 1 };
+const DEFAULT_OPTIONS: PaintOptions = { hillshade: 1, roadsAsGround: false };
 
 export function paintGroundCanvas(
   c: PaintCanvas,
   t: Terrain,
   opts: PaintOptions = DEFAULT_OPTIONS,
 ): void {
-  paintGround(c, t, opts.hillshade);
+  paintGround(c, t, opts);
   if (atlasOf(t).landforms) paintLandforms(c);
 }
 
@@ -223,7 +224,7 @@ type TileLook = {
   cell: Cell;
 };
 
-function tileLook(t: Terrain, hillshadeStrength: number): TileLook {
+function tileLook(t: Terrain, opts: PaintOptions): TileLook {
   const count = t.size * t.size;
   const color = new Int32Array(count);
   const desert = new Float32Array(count);
@@ -232,9 +233,10 @@ function tileLook(t: Terrain, hillshadeStrength: number): TileLook {
   const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
     const natural = yard.natural[i] === "glass" ? "hardpan" : yard.natural[i];
-    color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(t.types[i]), yard.fade[i]) : paintColor(t.types[i]);
+    const own = opts.roadsAsGround && t.types[i] === "road" ? look[i] : t.types[i];
+    color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(own), yard.fade[i]) : paintColor(own);
     desert[i] = desertAround(look[i], natural, yard.fade[i]);
-    shadeBy[i] = hillshade(t, i, hillshadeStrength);
+    shadeBy[i] = hillshade(t, i, opts.hillshade);
   }
   return { t, color, desert, shade: shadeBy, broad: new CellNoise(), fine: new CellNoise(), patch: new CellNoise(), cell: { a: 0, b: 0, c: 0, d: 0, fx: 0, fy: 0 } };
 }
@@ -336,10 +338,13 @@ function jittered(look: TileLook, x: number, y: number): Cell {
   return cell;
 }
 
-function desertSand(look: TileLook, color: number, weight: number, x: number, y: number): number {
+function patchAt(noise: CellNoise, x: number, y: number): number {
+  return noise.at(x / PATCH_TILES + PATCH_OFFSET, y / PATCH_TILES + PATCH_OFFSET);
+}
+
+function desertSand(color: number, weight: number, n: number): number {
   if (weight === 0) return color;
   const warm = weight * SAND_WARM;
-  const n = look.patch.at(x / PATCH_TILES + PATCH_OFFSET, y / PATCH_TILES + PATCH_OFFSET);
   const patch = n < 0.5 ? PAL.sandShade : PAL.sandLight;
   const k = Math.abs(n - 0.5) * 2 * PATCH_MIX * weight;
   return (
@@ -355,6 +360,12 @@ function sandChannel(color: number, sand: number, patch: number, warm: number, k
   return (warmed + ((patch & 0xff) - warmed) * k + 0.5) | 0;
 }
 
+export function shownLooks(t: Terrain): LookType[] {
+  const looks = lookTypes(t);
+  const yard = yardLook(t);
+  return looks.map((look, tile) => (yard.fade[tile] >= 0.5 ? look : yard.natural[tile]));
+}
+
 function paintColor(type: TerrainTypeId): number {
   return TERRAIN_TYPES[type === "road" || type === "glass" ? "hardpan" : type].color;
 }
@@ -366,7 +377,7 @@ function groundColor(look: TileLook, x: number, y: number): number {
   const calm = 1 - weight * DESERT_CALM;
   const n = look.broad.at(x / 7, y / 7) * 0.7 + look.fine.at(x / 2.5, y / 2.5) * 0.3 * calm;
   let color = mix(typeColor(look, cell), PAL.sand[3], n * 0.2);
-  color = desertSand(look, color, weight, x, y);
+  color = desertSand(color, weight, patchAt(look.patch, x, y));
   const speckle = 1 + (hash2(Math.floor(x * 3), Math.floor(y * 3)) * 0.05 - 0.03) * calm;
   color = shade(color, speckle * look.shade[tileIndex(t.size, x, y)]);
   const out = Math.max(-x, -y, x - t.size, y - t.size, 0);
@@ -385,9 +396,9 @@ function scratchImage(c: PaintCanvas): ImageData {
 function paintGround(
   c: PaintCanvas,
   t: Terrain,
-  hillshadeStrength: number,
+  opts: PaintOptions,
 ): void {
-  const look = tileLook(t, hillshadeStrength);
+  const look = tileLook(t, opts);
   const img = scratchImage(c);
   const data = img.data;
   for (let py = 0; py < c.size; py++) {

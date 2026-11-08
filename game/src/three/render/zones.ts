@@ -5,14 +5,45 @@ import { PAL } from '../../render/palette';
 import { zoneEdges, type Throttle } from '../../sim/steering';
 import { heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
+import { groundTriangles } from './terrain';
 
 const S = PHYSICS.metersPerTile;
-const ZONE_ALPHA: Record<Throttle, number> = { brake: 0.24, hold: 0.28, accelerate: 0.28 };
-const SAMPLE_TILES = 0.5;
+const ZONE_ALPHA: Record<Throttle, number> = { brake: 0.12, hold: 0.14, accelerate: 0.14 };
+const ARC_SAMPLES = 16;
 const LIFT = 0.1;
 const HOVER_RADIUS_TILES = 0.6;
 const HOVER_WIDTH_TILES = 0.08;
 const HOVER_SEGMENTS = 32;
+const FULL_TURN = Math.PI;
+
+type Box = { minX: number; maxX: number; minY: number; maxY: number };
+
+type MarkShape = {
+  markCenter: { value: THREE.Vector2 };
+  markHeading: { value: number };
+  markHalf: { value: number };
+  markInner: { value: number };
+  markOuter: { value: number };
+};
+
+const MARK_SHAPE = `
+uniform vec2 markCenter;
+uniform float markHeading;
+uniform float markHalf;
+uniform float markInner;
+uniform float markOuter;
+varying vec2 vMarkAt;
+float markCover() {
+  vec2 off = vMarkAt - markCenter;
+  float r = length(off);
+  float px = max(fwidth(r), 0.0001);
+  float edge = min(markInner > 0.0 ? r - markInner : markOuter, markOuter - r);
+  if (markHalf < ${FULL_TURN.toFixed(5)}) {
+    float turn = mod(atan(off.y, off.x) - markHeading + ${Math.PI.toFixed(5)}, ${(2 * Math.PI).toFixed(5)}) - ${Math.PI.toFixed(5)};
+    edge = min(edge, (markHalf - abs(turn)) * r);
+  }
+  return smoothstep(-0.5 * px, 0.5 * px, edge);
+}`;
 
 type ZoneKey = {
   terrain: Terrain; x: number; y: number; heading: number; halfAngle: number; brakeEnd: number; holdEnd: number; reach: number;
@@ -21,6 +52,7 @@ type ZoneKey = {
 export class ZonesView {
   readonly root = new THREE.Group();
   private bands: Record<Throttle, THREE.Mesh>;
+  private shapes = new Map<THREE.Mesh, MarkShape>();
   private ring: THREE.Mesh;
   private last: ZoneKey | null = null;
 
@@ -41,13 +73,15 @@ export class ZonesView {
   }
 
   private makeBand(color: number, opacity: number): THREE.Mesh {
-    const material = new THREE.MeshBasicMaterial({
+    const shape = markShape();
+    const material = shapedMaterial(shape, {
       color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
     mesh.renderOrder = 800;
     mesh.visible = false;
+    this.shapes.set(mesh, shape);
     return mesh;
   }
 
@@ -71,16 +105,11 @@ export class ZonesView {
       return;
     }
     mesh.visible = true;
-    const arcSteps = Math.ceil((2 * half * r1) / SAMPLE_TILES);
-    const radialSteps = Math.ceil((r1 - r0) / SAMPLE_TILES);
-    const positions: number[] = [];
-    for (let i = 0; i <= arcSteps; i++) {
-      const a = heading - half + (2 * half * i) / arcSteps;
-      for (let j = 0; j <= radialSteps; j++) pushPoint(positions, terrain, pos, a, r0 + ((r1 - r0) * j) / radialSteps);
-    }
+    const shape = this.shapes.get(mesh);
+    if (!shape) throw new Error(`Zone band ${t} has no shape`);
+    setShape(shape, pos, heading, half, r0, r1);
     mesh.geometry.dispose();
-    mesh.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    mesh.geometry.setIndex(gridIndices(arcSteps, radialSteps));
+    mesh.geometry = groundGrid(terrain, pos, sectorBox(pos, heading, half, r0, r1));
   }
 
   hover(terrain: Terrain, p: Vec | null, color: number): void {
@@ -92,25 +121,77 @@ export class ZonesView {
   }
 }
 
-function pushPoint(out: number[], terrain: Terrain, pos: Vec, a: number, r: number): void {
-  const x = pos.x + Math.cos(a) * r;
-  const y = pos.y + Math.sin(a) * r;
-  const h = markHeightAt(terrain, pos, x, y) * S + LIFT;
-  out.push(x * S, h, y * S);
+function markShape(): MarkShape {
+  return {
+    markCenter: { value: new THREE.Vector2() },
+    markHeading: { value: 0 },
+    markHalf: { value: FULL_TURN },
+    markInner: { value: 0 },
+    markOuter: { value: 0 },
+  };
 }
 
-function gridIndices(arcSteps: number, radialSteps: number): number[] {
-  const idx: number[] = [];
-  const row = radialSteps + 1;
-  for (let i = 0; i < arcSteps; i++)
-    for (let j = 0; j < radialSteps; j++) {
-      const a = i * row + j;
-      const b = a + 1;
-      const c = a + row;
-      const d = c + 1;
-      idx.push(a, b, c, b, d, c);
+function setShape(shape: MarkShape, center: Vec, heading: number, half: number, inner: number, outer: number): void {
+  shape.markCenter.value.set(center.x * S, center.y * S);
+  shape.markHeading.value = heading;
+  shape.markHalf.value = half;
+  shape.markInner.value = inner * S;
+  shape.markOuter.value = outer * S;
+}
+
+function shapedMaterial(shape: MarkShape, params: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial {
+  const material = new THREE.MeshBasicMaterial(params);
+  material.onBeforeCompile = (shader) => {
+    if (!shader.fragmentShader.includes('#include <color_fragment>')) throw new Error('Ground mark found no color step');
+    Object.assign(shader.uniforms, shape);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vMarkAt;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMarkAt = transformed.xz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${MARK_SHAPE}`)
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= markCover();\nif (diffuseColor.a <= 0.0) discard;');
+  };
+  material.customProgramCacheKey = () => 'ground-mark';
+  return material;
+}
+
+function sectorBox(center: Vec, heading: number, half: number, inner: number, outer: number): Box {
+  const box = { minX: center.x, maxX: center.x, minY: center.y, maxY: center.y };
+  const take = (a: number, r: number) => {
+    const x = center.x + Math.cos(a) * r;
+    const y = center.y + Math.sin(a) * r;
+    box.minX = Math.min(box.minX, x);
+    box.maxX = Math.max(box.maxX, x);
+    box.minY = Math.min(box.minY, y);
+    box.maxY = Math.max(box.maxY, y);
+  };
+  for (let i = 0; i <= ARC_SAMPLES; i++) {
+    const a = heading - half + (2 * half * i) / ARC_SAMPLES;
+    take(a, inner);
+    take(a, outer / Math.cos(half / ARC_SAMPLES));
+  }
+  return box;
+}
+
+function groundGrid(terrain: Terrain, origin: Vec, box: Box): THREE.BufferGeometry {
+  const x0 = Math.max(0, Math.floor(box.minX));
+  const x1 = Math.min(terrain.size, Math.ceil(box.maxX));
+  const y0 = Math.max(0, Math.floor(box.minY));
+  const y1 = Math.min(terrain.size, Math.ceil(box.maxY));
+  const across = x1 - x0;
+  const down = y1 - y0;
+  const geometry = new THREE.BufferGeometry();
+  if (across <= 0 || down <= 0) return geometry;
+  const positions: number[] = [];
+  for (let j = 0; j <= down; j++)
+    for (let i = 0; i <= across; i++) {
+      const x = x0 + i;
+      const y = y0 + j;
+      positions.push(x * S, markHeightAt(terrain, origin, x, y) * S + LIFT, y * S);
     }
-  return idx;
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(groundTriangles(terrain, x0, y0, across, down));
+  return geometry;
 }
 
 export type BandLook = { color: number; opacity: number; renderOrder: number; overTrucks: boolean };
@@ -118,9 +199,10 @@ export type BandLook = { color: number; opacity: number; renderOrder: number; ov
 export class GroundBand {
   readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private key = '';
+  private shape = markShape();
 
   constructor(look: BandLook) {
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
+    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), shapedMaterial(this.shape, {
       color: look.color, transparent: true, opacity: look.opacity, depthWrite: false, depthTest: !look.overTrucks,
       side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
@@ -133,16 +215,9 @@ export class GroundBand {
     const key = `${center.x},${center.y},${inner},${outer}`;
     if (key === this.key) return;
     this.key = key;
-    const arcSteps = Math.max(HOVER_SEGMENTS, Math.ceil((2 * Math.PI * outer) / SAMPLE_TILES));
-    const positions: number[] = [];
-    for (let i = 0; i <= arcSteps; i++) {
-      const a = (2 * Math.PI * i) / arcSteps;
-      pushPoint(positions, terrain, center, a, inner);
-      pushPoint(positions, terrain, center, a, outer);
-    }
+    setShape(this.shape, center, 0, FULL_TURN, inner, outer);
     this.mesh.geometry.dispose();
-    this.mesh.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    this.mesh.geometry.setIndex(gridIndices(arcSteps, 1));
+    this.mesh.geometry = groundGrid(terrain, center, { minX: center.x - outer, maxX: center.x + outer, minY: center.y - outer, maxY: center.y + outer });
   }
 
   color(hex: number): void {

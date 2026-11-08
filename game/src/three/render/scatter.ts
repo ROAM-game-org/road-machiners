@@ -12,7 +12,7 @@ import { groundAt, type Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
-import { instancedModel } from './models';
+import { instancedModel, minorProp } from './models';
 import type { RenderScope } from './scope';
 import { deckFloorCap, TERRAIN_CHUNK } from './terrain';
 
@@ -71,7 +71,7 @@ function scatterGroup(chunk: ScatterChunk): THREE.Group {
     root.add(group);
   }
   root.matrixAutoUpdate = false;
-  return root;
+  return minorProp(root);
 }
 
 function scatterTiles(t: Terrain, obstacles: Obstacle[]): ScatterTiles {

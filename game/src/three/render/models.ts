@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
+import { TUNING } from './styleTuning';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
@@ -490,8 +491,10 @@ function toLambert(root: THREE.Object3D): THREE.Object3D {
   return root;
 }
 
+const MINOR_OUTLINE_SHARE = 0.5;
+
 const OUTLINE = {
-  width: { value: 0.5 },
+  width: TUNING.outline,
   viewport: { value: new THREE.Vector2(1, 1) },
 };
 
@@ -505,7 +508,7 @@ export const READY_ARC_BIT = 4;
 export const SPENT_ARC_BIT = 8;
 export const OUTLINE_ORDER = 805;
 
-function outlineMaterial(): THREE.MeshBasicMaterial {
+function outlineMaterial(width: { value: number }): THREE.MeshBasicMaterial {
   const material = new THREE.MeshBasicMaterial({
     color: PAL.outline,
     side: THREE.BackSide,
@@ -515,7 +518,7 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
     stencilFunc: THREE.EqualStencilFunc,
   });
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.outlineWidth = OUTLINE.width;
+    shader.uniforms.outlineWidth = width;
     shader.uniforms.viewport = OUTLINE.viewport;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float outlineWidth;\nuniform vec2 viewport;')
@@ -527,13 +530,23 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
         vec2 outlineDir = (normalMatrix * outlineNormal).xy;
         if (dot(outlineDir, outlineDir) > 1e-8) gl_Position.xy += normalize(outlineDir) * outlineWidth * 2.0 / viewport * gl_Position.w;`);
   };
-  material.customProgramCacheKey = () => 'outline';
+  material.customProgramCacheKey = () => (width === OUTLINE.width ? 'outline' : 'outline-minor');
   material.userData.shared = true;
   return material;
 }
 
-const truckOutline = outlineMaterial();
-const propOutline = outlineMaterial();
+const truckOutline = outlineMaterial(OUTLINE.width);
+const propOutline = outlineMaterial(OUTLINE.width);
+const minorOutline = outlineMaterial({
+  get value() {
+    return TUNING.outline.value * MINOR_OUTLINE_SHARE;
+  },
+});
+
+export function minorProp<T extends THREE.Object3D>(obj: T): T {
+  obj.userData.minorOutline = true;
+  return obj;
+}
 
 const WELD_PER_METER = 1e3;
 
@@ -611,6 +624,7 @@ function weldedOutlineOf(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 export function outlineProps(obj: THREE.Object3D): void {
+  const material = obj.userData.minorOutline === true ? minorOutline : propOutline;
   const meshes: THREE.Mesh[] = [];
   obj.traverse((o) => {
     if (o instanceof THREE.Mesh && !o.userData.outline) meshes.push(o);
@@ -624,7 +638,7 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
     const geo = weldedOutlineOf(mesh.geometry);
-    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo) : new THREE.Mesh(geo, propOutline);
+    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo, material) : new THREE.Mesh(geo, material);
     outline.onBeforeRender = readViewport;
     outline.renderOrder = OUTLINE_ORDER;
     outline.userData.outline = true;
@@ -651,8 +665,8 @@ export function registerBakedOutline(merged: THREE.BufferGeometry, parts: readon
   welded.set(merged, outline);
 }
 
-function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry): THREE.InstancedMesh {
-  const outline = new THREE.InstancedMesh(geo, propOutline, mesh.count);
+function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry, material: THREE.Material): THREE.InstancedMesh {
+  const outline = new THREE.InstancedMesh(geo, material, mesh.count);
   outline.instanceMatrix = mesh.instanceMatrix;
   outline.boundingSphere = mesh.boundingSphere;
   outline.boundingBox = mesh.boundingBox;

@@ -6,7 +6,7 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -147,7 +147,7 @@ describe('VehicleLights', () => {
 
   it('leaves the sun shadow settings alone', () => {
     const sun = sunLight();
-    expect(sun.shadow.mapSize.x).toBe(2048);
+    expect(sun.shadow.mapSize.x).toBe(SHADOW_MAP);
     expect(sun.shadow.normalBias).toBe(0.3);
   });
 });
@@ -198,7 +198,7 @@ describe('nightLightsWanted', () => {
 describe('lightScene shadow box', () => {
   const light = daylightAt(turnAt(17));
   const sky = new THREE.HemisphereLight();
-  const texel = 160 / 2048;
+  const texel = 160 / SHADOW_MAP;
   const place = (x: number, z: number) => {
     const sun = sunLight();
     lightScene(sun, sky, { x, y: 1.2, z }, light);
@@ -209,7 +209,7 @@ describe('lightScene shadow box', () => {
   };
   const texelOf = (sun: THREE.DirectionalLight, p: THREE.Vector3) => {
     const c = p.clone().applyMatrix4(sun.shadow.matrix);
-    return [c.x * 2048, c.y * 2048];
+    return [c.x * SHADOW_MAP, c.y * SHADOW_MAP];
   };
 
   it('keeps one texel grid on the ground wherever the truck is', () => {

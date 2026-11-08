@@ -1,3 +1,4 @@
+import { paintStyle } from "./stylePaint";
 import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
@@ -9,7 +10,7 @@ import {
 import { atlasOf } from "../../sim/atlas";
 import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
-import { deckHeight, deckSegments, type DeckSegment, type Terrain } from "../../sim/terrain";
+import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
 import { drawRoads } from "./roads";
 import { NIGHT_POOLS } from "./lightPools";
@@ -20,8 +21,6 @@ const TEXTURE_SIDE = 2048;
 const DENSITY_REFERENCE_TILES = 600;
 const GROUND_PIXELS_PER_TILE = TEXTURE_SIDE / (DENSITY_REFERENCE_TILES + 2 * TERRAIN_MARGIN);
 export const TERRAIN_CHUNK = 32;
-const FACET_TINT = 0.04;
-const FACET_SMOOTH_DAY = 0.5;
 
 export function groundSide(size: number): number {
   if (size > HIGHWAY.size) return TEXTURE_SIDE;
@@ -57,7 +56,7 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 
 function paintTexture(w: World): THREE.CanvasTexture {
   const c = mapCanvas(w, groundSide(w.size));
-  paintGroundCanvas(c, w.terrain, { hillshade: 0.35 });
+  paintGroundCanvas(c, w.terrain, { hillshade: 0.35, roadsAsGround: true });
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
@@ -90,6 +89,28 @@ function drawnHeight(t: Terrain, x: number, y: number): number {
   return cap === null ? h : Math.min(h, cap);
 }
 
+export function splitsAlongCliff(t: Terrain, x: number, y: number): boolean {
+  if (!isCliff(t, y * t.size + x)) return false;
+  const rising = Math.abs(drawnHeight(t, x, y) - drawnHeight(t, x + 1, y + 1));
+  const falling = Math.abs(drawnHeight(t, x + 1, y) - drawnHeight(t, x, y + 1));
+  return rising < falling;
+}
+
+export function groundTriangles(t: Terrain, x: number, y: number, width: number, depth: number): number[] {
+  const index: number[] = [];
+  const row = width + 1;
+  for (let j = 0; j < depth; j++)
+    for (let i = 0; i < width; i++) {
+      const a = j * row + i;
+      const b = a + row;
+      const c = b + 1;
+      const d = a + 1;
+      if (splitsAlongCliff(t, x + i, y + j)) index.push(a, b, c, a, c, d);
+      else index.push(a, b, d, b, c, d);
+    }
+  return index;
+}
+
 export function chunkGeometry(t: Terrain, x: number, y: number, width: number, depth: number): THREE.PlaneGeometry {
   const geo = new THREE.PlaneGeometry(width * S, depth * S, width, depth).rotateX(-Math.PI / 2);
   const pos = geo.getAttribute("position");
@@ -101,6 +122,7 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
       pos.setXYZ(k, (x + i) * S, drawnHeight(t, x + i, y + j) * S, (y + j) * S);
       uv.setXY(k, (x + i + TERRAIN_MARGIN) / span, (y + j + TERRAIN_MARGIN) / span);
     }
+  geo.setIndex(groundTriangles(t, x, y, width, depth));
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
   return geo;
@@ -142,29 +164,11 @@ function facetGround(material: THREE.MeshLambertMaterial): void {
   const key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
-    shader.uniforms.facetTile = { value: S };
-    shader.uniforms.facetTint = { value: FACET_TINT };
-    shader.uniforms.facetSmooth = NIGHT_POOLS.level;
-    shader.uniforms.facetSmoothDay = { value: FACET_SMOOTH_DAY };
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float facetTile;\nuniform float facetTint;\nuniform float facetSmooth;\nuniform float facetSmoothDay;")
-      .replace("#include <color_fragment>", `#include <color_fragment>\n${FACET_FRAGMENT}`)
-      .replace("#include <normal_fragment_begin>", `#include <normal_fragment_begin>\n${FACET_NORMAL}`);
+    paintStyle(shader, true);
   };
   material.customProgramCacheKey = () => `${key()}|facets`;
   material.needsUpdate = true;
 }
-
-const FACET_FRAGMENT = `{
-  vec2 facetAt = vRoadXZ / facetTile;
-  vec2 facetCell = floor(facetAt);
-  vec2 facetIn = facetAt - facetCell;
-  float facetHalf = facetIn.x + facetIn.y > 1.0 ? 1.0 : 0.0;
-  float facetHash = fract(sin(dot(facetCell + facetHalf * vec2(0.37, 0.71), vec2(12.9898, 78.233))) * 43758.5453);
-  diffuseColor.rgb *= 1.0 + (facetHash - 0.5) * 2.0 * facetTint;
-}`;
-
-const FACET_NORMAL = `normal = normalize(mix(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normal, max(facetSmooth, facetSmoothDay)));`;
 
 function deckPick(t: Terrain, deck: Deck, scope: RenderScope): void {
   for (const seg of deckSegments(t, deck)) piecePick(deck, seg, scope);

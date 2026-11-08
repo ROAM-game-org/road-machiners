@@ -19,7 +19,8 @@ const MOON_ELEVATION = 25;
 const MOON_DIR = TERRAIN.light;
 const WHITE = new THREE.Color(0xffffff);
 const GLASS_SATURATION = 0.9;
-const SHADOW_SOFTNESS = 1;
+const SHADOW_SOFTNESS = 1.5;
+export const SHADOW_MAP = 4096;
 
 type Key = {
   h: number;
@@ -217,17 +218,17 @@ export function backdropAt(light: Daylight): THREE.Color {
   return BACKDROP.clone().multiplyScalar((light.sunIntensity + light.skyIntensity) / NOON_REACH);
 }
 
-export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH): void {
+export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH, aim: Daylight = light): void {
   const { camera, mapSize } = sun.shadow;
   coverShadow(camera, reach);
   const distance = reach + CASTER_REACH;
-  const flat = Math.cos(light.elevation);
+  const flat = Math.cos(aim.elevation);
   const horiz = flat * distance;
-  const lift = Math.sin(light.elevation);
+  const lift = Math.sin(aim.elevation);
   const texel = (camera.right - camera.left) / mapSize.x;
-  const focus = snapToShadowTexels(drawn, { x: light.dir.x * flat, y: lift, z: light.dir.y * flat }, texel);
+  const focus = snapToShadowTexels(drawn, { x: aim.dir.x * flat, y: lift, z: aim.dir.y * flat }, texel);
   sun.target.position.set(focus.x, focus.y, focus.z);
-  sun.position.set(focus.x + light.dir.x * horiz, focus.y + lift * distance, focus.z + light.dir.y * horiz);
+  sun.position.set(focus.x + aim.dir.x * horiz, focus.y + lift * distance, focus.z + aim.dir.y * horiz);
   sun.color.copy(light.sun);
   sun.intensity = light.sunIntensity;
   sky.color.copy(light.sky);
@@ -239,7 +240,7 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
 export function sunLight(): THREE.DirectionalLight {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
   sun.shadow.normalBias = 0.3;
   sun.shadow.radius = SHADOW_SOFTNESS;
   coverShadow(sun.shadow.camera, SHADOW_REACH);

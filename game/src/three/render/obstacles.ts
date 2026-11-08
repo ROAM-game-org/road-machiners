@@ -16,7 +16,7 @@ import type { V3, VehicleFrame } from '../../phys/frames';
 import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { dent } from './vehicle';
-import { instancedModel, model, SHIP_GLOW_MATERIAL, socket, type ModelName } from './models';
+import { instancedModel, minorProp, model, SHIP_GLOW_MATERIAL, socket, type ModelName } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
@@ -273,7 +273,7 @@ export class ObstacleViews {
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
       this.scope.place(center, reach, () => {
         const placed = list.map((o) => rockPlacement(this.terrain, o));
-        return instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m);
+        return minorProp(instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m));
       });
     }
     return new Set(rocks.map((o) => o.id));

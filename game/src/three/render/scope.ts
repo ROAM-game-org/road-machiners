@@ -337,6 +337,7 @@ export class SightLimit {
   private visible = visibleWindow(WINDOW_STEP, 0, 0);
   private readonly uniforms;
   private readonly patched = new WeakMap<THREE.Material, boolean>();
+  private readonly shadowDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
   constructor(private readonly mapSize: number) {
     this.uniforms = {
@@ -347,6 +348,14 @@ export class SightLimit {
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
       sightFog: { value: new THREE.Color(PAL.bg) },
       sightFogBand: { value: TERRAIN.vision.edgeFog },
+    };
+    this.shadowDepth.onBeforeCompile = (shader) => {
+      shader.uniforms.sightCenter = this.uniforms.sightCenter;
+      shader.uniforms.sightRadius = this.uniforms.sightRadius;
+      shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'varying vec2 vSightXZ;');
+      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
     };
   }
 
@@ -409,6 +418,7 @@ export class SightLimit {
       const sampled = hasSightAt(o);
       const materials: THREE.Material[] = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of materials) this.patchMaterial(m, grey, sampled);
+      o.customDepthMaterial ??= this.shadowDepth;
     });
   }
 
@@ -431,21 +441,13 @@ export class SightLimit {
         shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', 'vSightAt = sightAt;');
         shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightAt;');
       }
-      shader.vertexShader = inject(
-        shader.vertexShader,
-        '#include <project_vertex>',
-        `vec4 sightWorld = vec4(transformed, 1.0);
-        #ifdef USE_INSTANCING
-        sightWorld = instanceMatrix * sightWorld;
-        #endif
-        vSightXZ = (modelMatrix * sightWorld).xz;`,
-      );
+      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
         'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
-      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
       if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, (${greyAt} - sightWindow.xy) / sightWindow.z).r;
         float sightLuma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
@@ -457,6 +459,14 @@ export class SightLimit {
     mat.needsUpdate = true;
   }
 }
+
+const SIGHT_XZ_VERTEX = `vec4 sightWorld = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+        sightWorld = instanceMatrix * sightWorld;
+        #endif
+        vSightXZ = (modelMatrix * sightWorld).xz;`;
+
+const SIGHT_DISCARD = 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;';
 
 function hasSightAt(mesh: THREE.Mesh): boolean {
   const sightAt = (mesh.geometry as THREE.BufferGeometry).getAttribute('sightAt');

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGpu } from '../test/fake-gpu';
+import { TUNING } from './render/styleTuning';
 import { failLoudOnShaderError, SHADER_LOSS_GRACE_MS, ShaderBuildFailed, ShaderVerdicts, ShaderWarmup } from './shader-errors';
 
 describe('failLoudOnShaderError', () => {
@@ -83,6 +84,10 @@ function sceneWith(mesh: THREE.Mesh): THREE.Scene {
 }
 
 describe('ShaderWarmup', () => {
+  beforeEach(() => {
+    TUNING.crt.value = 0;
+  });
+
   it('holds a mesh with an uncompiled material out of the frame until its shader is ready, then draws it', async () => {
     const { renderer, drawn, finish } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());

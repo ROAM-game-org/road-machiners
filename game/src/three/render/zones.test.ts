@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { flatTerrain } from '../../test/empty-world';
 import { ZonesView } from './zones';
+import type * as THREE from 'three';
+import { isCliff } from '../../sim/terrain';
+import { TEST_MAP } from '../../test/map';
 
 function bandGeometries(view: ZonesView) {
   return view.root.children.slice(0, 3).map((m) => (m as unknown as { geometry: unknown }).geometry);
@@ -60,6 +63,47 @@ describe('ZonesView', () => {
 
     expect(stopped).toEqual([false, false, true]);
     expect(view.root.children.slice(0, 3).map((m) => m.visible)).toEqual(moving);
+  });
+
+  it('lays every band vertex on a corner of the ground mesh, so a steep wall cannot cut through the band', () => {
+    const steep = flatTerrain(64);
+    steep.heights = steep.heights.map((_, k) => ((k * 7919) % 13) - 6);
+    const view = new ZonesView();
+    view.update(steep, { x: 20.3, y: 20.7 }, 0.5, 3, 0.4);
+    const row = steep.size + 1;
+    const lift = 0.1;
+
+    for (const positions of bandPositions(view)) {
+      expect(positions.length).toBeGreaterThan(0);
+      for (let k = 0; k < positions.length; k += 3) {
+        const x = positions[k] / 4;
+        const y = positions[k + 2] / 4;
+        expect(Number.isInteger(x) && Number.isInteger(y)).toBe(true);
+        expect(positions[k + 1]).toBeCloseTo(steep.heights[y * row + x] * 4 + lift, 6);
+      }
+    }
+  });
+
+  it('folds a cliff square along the same diagonal as the ground mesh', () => {
+    const t = TEST_MAP.terrain;
+    const row = t.size + 1;
+    const corner = (x: number, y: number) => t.heights[y * row + x];
+    let cliff: { x: number; y: number } | null = null;
+    for (let y = 0; y < t.size && !cliff; y++)
+      for (let x = 0; x < t.size && !cliff; x++)
+        if (isCliff(t, y * t.size + x) && Math.abs(corner(x, y) - corner(x + 1, y + 1)) < Math.abs(corner(x + 1, y) - corner(x, y + 1))) cliff = { x, y };
+    if (!cliff) throw new Error('No cliff square that folds along its rising diagonal');
+    const view = new ZonesView();
+    view.update(t, { x: cliff.x + 3.5, y: cliff.y + 0.5 }, Math.PI, 0, 0.4);
+    const geometry = (view.root.children[2] as unknown as { geometry: THREE.BufferGeometry }).geometry;
+    const pos = geometry.getAttribute('position');
+    const index = geometry.getIndex()!;
+    const key = (k: number) => `${pos.getX(k) / 4},${pos.getZ(k) / 4}`;
+    const triangles = new Set<string>();
+    for (let f = 0; f < index.count; f += 3) triangles.add([0, 1, 2].map((n) => key(index.getX(f + n))).sort().join(' '));
+    const along = [`${cliff.x},${cliff.y}`, `${cliff.x},${cliff.y + 1}`, `${cliff.x + 1},${cliff.y + 1}`].sort().join(' ');
+
+    expect(triangles.has(along)).toBe(true);
   });
 
   it('builds the hover ring once and only moves and hides it', () => {

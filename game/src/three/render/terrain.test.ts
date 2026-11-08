@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
 import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
-import { deckHeight } from '../../sim/terrain';
+import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
@@ -89,6 +89,32 @@ describe('terrain under decks', () => {
       }
     }
     expect(inside).toBeGreaterThan(0);
+  });
+});
+
+describe('ground triangle split', () => {
+  const row = t.size + 1;
+  const corner = (x: number, y: number) => t.heights[y * row + x];
+  const closerRising = (x: number, y: number) => Math.abs(corner(x, y) - corner(x + 1, y + 1)) < Math.abs(corner(x + 1, y) - corner(x, y + 1));
+
+  function firstSquare(cliff: boolean): { x: number; y: number } {
+    for (let y = 0; y < t.size; y++)
+      for (let x = 0; x < t.size; x++)
+        if (isCliff(t, y * t.size + x) === cliff && closerRising(x, y) && deckFloorCap(t, x, y) === null && deckFloorCap(t, x + 1, y + 1) === null) return { x, y };
+    throw new Error(`No ${cliff ? 'cliff' : 'drivable'} square whose rising diagonal is closer`);
+  }
+
+  function squareTriangles(at: { x: number; y: number }): number[][] {
+    const index = chunkGeometry(t, at.x, at.y, 1, 1).getIndex()!;
+    return [[index.getX(0), index.getX(1), index.getX(2)], [index.getX(3), index.getX(4), index.getX(5)]];
+  }
+
+  it('folds a cliff square along its two closer corners, so a cliff runs along its own line', () => {
+    expect(squareTriangles(firstSquare(true))).toEqual([[0, 2, 3], [0, 3, 1]]);
+  });
+
+  it('keeps the collider diagonal on a square trucks drive on, even when the other diagonal is closer', () => {
+    expect(squareTriangles(firstSquare(false))).toEqual([[0, 2, 1], [2, 3, 1]]);
   });
 });
 

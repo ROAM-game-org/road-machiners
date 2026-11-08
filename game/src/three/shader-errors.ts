@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
+import { CrtPass } from './render/crtPass';
+import { TUNING, tuningVersion } from './render/styleTuning';
 
 export class ShaderBuildFailed extends Error {
   constructor(detail: string) {
@@ -112,6 +114,7 @@ export class ShaderWarmup {
   private drawnView = '';
   private readonly watched = new WeakSet<THREE.Object3D>();
   private sealed = new WeakSet<THREE.Object3D>();
+  private readonly crt: CrtPass;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -121,6 +124,7 @@ export class ShaderWarmup {
     private readonly gpu: GpuContext,
   ) {
     failLoudOnShaderError(renderer, gpu, this.verdicts);
+    this.crt = new CrtPass(renderer);
     gpu.onRestored(() => this.forget());
   }
 
@@ -140,7 +144,8 @@ export class ShaderWarmup {
     this.drawnView = view;
     this.holdUncompiled();
     try {
-      this.renderer.render(this.scene, this.camera);
+      if (TUNING.crt.value > 0) this.crt.render(this.scene, this.camera);
+      else this.renderer.render(this.scene, this.camera);
     } finally {
       for (const o of this.held) o.visible = true;
       this.held = [];
@@ -149,7 +154,7 @@ export class ShaderWarmup {
 
   private viewKey(): string {
     const size = this.renderer.getSize(new THREE.Vector2());
-    return `${this.camera.position.toArray()}|${this.camera.quaternion.toArray()}|${this.camera.projectionMatrix.elements}|${size.x}x${size.y}`;
+    return `${tuningVersion()}|${this.camera.position.toArray()}|${this.camera.quaternion.toArray()}|${this.camera.projectionMatrix.elements}|${size.x}x${size.y}`;
   }
 
   ready(root: THREE.Object3D): boolean {
