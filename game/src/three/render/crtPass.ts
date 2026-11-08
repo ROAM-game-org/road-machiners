@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TUNING } from "./styleTuning";
+import { TUNING } from "./inkTuning";
 
 const CRT_SAMPLES = 4;
 const CRT_LINE_PX = 3;

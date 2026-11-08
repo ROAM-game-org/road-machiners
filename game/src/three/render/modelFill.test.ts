@@ -29,7 +29,7 @@ describe('model fill', () => {
     const material = new THREE.MeshLambertMaterial();
     new ModelFill().shadeTree(meshOf(material));
     const shader = lambertShader(material);
-    expect(Object.keys(shader.uniforms).filter((key) => !key.startsWith('ink') && key !== 'styleFullLight')).toEqual(['modelFill']);
+    expect(Object.keys(shader.uniforms).filter((key) => !key.startsWith('ink'))).toEqual(['modelFill']);
     expect(shader.fragmentShader).toContain('reflectedLight.indirectDiffuse += modelFill * max(normal.z, 0.0)');
     expect(material.customProgramCacheKey()).toContain('|fill');
   });

@@ -1,4 +1,4 @@
-import { paintStyle } from "./stylePaint";
+import { inkGround } from "./inkPaint";
 import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
@@ -12,7 +12,7 @@ import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
-import { drawRoads } from "./roads";
+import { drawGround } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -130,8 +130,8 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
 
 export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
-  facetGround(material);
+  drawGround(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
+  inkGround(material);
   NIGHT_POOLS.light(material);
   return material;
 }
@@ -157,17 +157,6 @@ function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number,
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();
   return { x, y, width, depth, mesh };
-}
-
-function facetGround(material: THREE.MeshLambertMaterial): void {
-  const before = material.onBeforeCompile.bind(material);
-  const key = material.customProgramCacheKey.bind(material);
-  material.onBeforeCompile = (shader, renderer) => {
-    before(shader, renderer);
-    paintStyle(shader, true);
-  };
-  material.customProgramCacheKey = () => `${key()}|facets`;
-  material.needsUpdate = true;
 }
 
 function deckPick(t: Terrain, deck: Deck, scope: RenderScope): void {

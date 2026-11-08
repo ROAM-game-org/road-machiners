@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
 import { CrtPass } from './render/crtPass';
-import { TUNING, tuningVersion } from './render/styleTuning';
+import { TUNING, tuningVersion } from './render/inkTuning';
 
 export class ShaderBuildFailed extends Error {
   constructor(detail: string) {

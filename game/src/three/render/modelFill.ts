@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Daylight } from './daylight';
-import { paintStyle, syncStyleLight } from './stylePaint';
+import { paintModel, syncInkLight } from './inkPaint';
 
 const UNIFORMS = 'uniform vec3 modelFill;';
 
@@ -26,7 +26,7 @@ export class ModelFill {
     const key = material.customProgramCacheKey.bind(material);
     material.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
-      paintStyle(shader, false);
+      paintModel(shader);
       if (shader.fragmentShader.includes(UNIFORMS)) return;
       Object.assign(shader.uniforms, this.uniforms);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${UNIFORMS}`).replace('#include <aomap_fragment>', FRAGMENT);
@@ -38,7 +38,7 @@ export class ModelFill {
 
   sync(light: Daylight): void {
     this.uniforms.modelFill.value.copy(light.sky).multiplyScalar(light.fillIntensity);
-    syncStyleLight(light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b), light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b));
+    syncInkLight(light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b), light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b));
   }
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGpu } from '../test/fake-gpu';
-import { TUNING } from './render/styleTuning';
+import { TUNING } from './render/inkTuning';
 import { failLoudOnShaderError, SHADER_LOSS_GRACE_MS, ShaderBuildFailed, ShaderVerdicts, ShaderWarmup } from './shader-errors';
 
 describe('failLoudOnShaderError', () => {

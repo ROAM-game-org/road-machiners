@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
-import { TUNING } from './styleTuning';
+import { TUNING } from './inkTuning';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';

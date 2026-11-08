@@ -9,6 +9,7 @@ import { outlineProps } from './models';
 import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
 import { PAL } from '../../render/palette';
+import { injectAfter } from './shaderPatch';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
@@ -476,6 +477,5 @@ function hasSightAt(mesh: THREE.Mesh): boolean {
 }
 
 function inject(source: string, chunk: string, code: string): string {
-  if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
-  return source.replace(chunk, `${chunk}\n${code}`);
+  return injectAfter("Sight limit", source, chunk, code);
 }

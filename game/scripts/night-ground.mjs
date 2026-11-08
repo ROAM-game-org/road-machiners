@@ -32,7 +32,7 @@ const unlinkedPrograms = (page) => page.evaluate(() => {
   const gl = g.renderer.getContext();
   const programs = g.renderer.info.programs;
   const problems = programs.filter((p) => !gl.getProgramParameter(p.program, gl.LINK_STATUS)).map((p) => `program ${p.name || p.cacheKey.slice(p.cacheKey.lastIndexOf('}') + 1)} did not link`);
-  if (!programs.some((p) => p.cacheKey.includes('facets'))) problems.push('no ground program found');
+  if (!programs.some((p) => p.cacheKey.includes('|roads'))) problems.push('no ground program found');
   return problems;
 });
 
