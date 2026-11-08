@@ -15,11 +15,13 @@ struct InkSurface { float road; float edge; float height; vec2 slope; float rise
 InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
+vec3 inkGlow = vec3(0.0);
 `;
 
 const INK_COLOR = `
 varying vec3 vInkAt;
 uniform float inkFullLight;
+uniform float inkDayLight;
 uniform float inkColor;
 uniform float inkShadeLine;
 uniform float inkHatch;
@@ -86,9 +88,12 @@ float inkInShade(float sunShade) {
   float shadeAa = fwidth(sunShade) + 0.004;
   return smoothstep(0.5 - shadeAa, 0.5 + shadeAa, sunShade);
 }
+float inkDim() {
+  return min(1.0, inkLuma(inkToScreen(vec3(inkFullLight))) / inkLuma(inkToScreen(vec3(inkDayLight))));
+}
 vec3 inkBase(vec3 albedo, vec3 lit, float level, float inShade) {
-  vec3 flat_ = inkToScreen(inkAtLevel(albedo, lit, level, 1.0));
-  vec3 pastel = mix(flat_, vec3(0.98, 0.95, 0.86), 0.32);
+  vec3 flat_ = inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkGlow);
+  vec3 pastel = mix(flat_, vec3(0.98, 0.95, 0.86) * inkDim(), 0.32);
   pastel = mix(pastel, pastel * vec3(0.66, 0.68, 0.84), inShade);
   vec3 vivid = max(mix(vec3(inkLuma(flat_)), flat_, 1.3), 0.0);
   vivid = mix(vivid, vivid * vec3(0.5, 0.5, 0.66), inShade);
@@ -182,12 +187,28 @@ const SUN_SHADE_READ = `float inkShadowHere = ( directLight.visible && receiveSh
 		inkSun.facing = max(inkSun.facing, 1.0 - smoothstep(-0.02, 0.06, dot(geometryNormal, directLight.direction)));
 		inkSun.dirView = directLight.direction;`;
 
-const FULL_LIGHT = { value: 1 };
+const SUN_LOOP = "#if ( NUM_SUN_LIGHTS > 0 ) && defined( RE_Direct )";
 
-export function syncInkLight(light: Daylight): void {
+const LAMPS_ASIDE = `inkGlow += reflectedLight.directDiffuse;
+reflectedLight.directDiffuse = vec3(0.0);`;
+
+const EMISSIVE_ASIDE = `inkGlow += totalEmissiveRadiance;
+totalEmissiveRadiance = vec3(0.0);`;
+
+const FULL_LIGHT = { value: 1 };
+const DAY_LIGHT = { value: 1 };
+
+export type InkLight = Pick<Daylight, "sun" | "sunIntensity" | "sky" | "skyIntensity" | "elevation">;
+
+export function syncInkLight(light: InkLight, fullDay: InkLight): void {
+  FULL_LIGHT.value = fullLightOf(light);
+  DAY_LIGHT.value = fullLightOf(fullDay);
+}
+
+function fullLightOf(light: InkLight): number {
   const sunShare = light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b);
   const skyShare = light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b);
-  FULL_LIGHT.value = Math.max((sunShare + skyShare) / Math.PI, 0.02);
+  return Math.max((sunShare + skyShare) / Math.PI, 0.02);
 }
 
 export function inkGround(material: THREE.MeshLambertMaterial): void {
@@ -211,6 +232,7 @@ function paint(shader: THREE.WebGLProgramParametersWithUniforms, anchor: string,
   shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <begin_vertex>", anchor);
   Object.assign(shader.uniforms, inkUniforms());
   shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <common>", chunk);
+  shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <emissivemap_fragment>", EMISSIVE_ASIDE);
   shader.fragmentShader = replaceChunk(OWNER, shader.fragmentShader, "#include <lights_fragment_begin>", sunShadeLights());
   shader.fragmentShader = injectBefore(OWNER, shader.fragmentShader, "#include <opaque_fragment>", "outgoingLight = inkPaint(outgoingLight, diffuseColor.rgb);");
 }
@@ -218,6 +240,7 @@ function paint(shader: THREE.WebGLProgramParametersWithUniforms, anchor: string,
 function inkUniforms() {
   return {
     inkFullLight: FULL_LIGHT,
+    inkDayLight: DAY_LIGHT,
     inkColor: TUNING.color,
     inkShadeLine: TUNING.shadeLine,
     inkHatch: TUNING.hatch,
@@ -234,5 +257,6 @@ function inkUniforms() {
 }
 
 function sunShadeLights(): string {
-  return replaceChunk(OWNER, THREE.ShaderChunk.lights_fragment_begin, SUN_SHADOW_STEP, SUN_SHADE_READ);
+  const sunShade = replaceChunk(OWNER, THREE.ShaderChunk.lights_fragment_begin, SUN_SHADOW_STEP, SUN_SHADE_READ);
+  return injectBefore(OWNER, sunShade, SUN_LOOP, LAMPS_ASIDE);
 }

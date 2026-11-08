@@ -11,7 +11,7 @@ import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 import { MODEL_FILL } from "./modelFill";
-import { syncInkLight } from "./inkPaint";
+import { syncInkLight, type InkLight } from "./inkPaint";
 export { enableSunShadows } from "./shadowFilter";
 
 const MIN_LIGHT_ELEVATION = 6;
@@ -167,6 +167,9 @@ function desaturate(c: THREE.Color): THREE.Color {
   return c.setHSL(hsl.h, hsl.s * GLASS_SATURATION, hsl.l);
 }
 
+const GOLDEN_HOUR_FROM = KEYS[1].h;
+const INK_FULL_DAY: InkLight = { ...colorsAt(GOLDEN_HOUR_FROM), elevation: GOLDEN_HOUR_FROM * DEG };
+
 export function daylightAt(turn: number): Daylight {
   const { h, dir } = sunHeight(clockOf(turn).hour);
   const colors = colorsAt(h);
@@ -236,7 +239,7 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
   MODEL_FILL.sync(light);
-  syncInkLight(light);
+  syncInkLight(light, INK_FULL_DAY);
 }
 
 export function sunLight(): THREE.DirectionalLight {
