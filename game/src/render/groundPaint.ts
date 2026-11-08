@@ -49,6 +49,57 @@ export function desertWeight(type: LookType): number {
   return DESERT_WEIGHT[type];
 }
 
+export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "stones", "grain", "ashSmudge", "seams", "windRipples", "clods"] as const;
+export type MarkKind = (typeof MARK_KINDS)[number];
+
+export type EdgeStyle = "smudge" | "pepper" | "hard" | "straight";
+export type EdgeLook = { wave: number; pepper: number };
+
+export const EDGE_LOOKS: Record<EdgeStyle, EdgeLook> = {
+  smudge: { wave: 1, pepper: 0 },
+  pepper: { wave: 0.5, pepper: 1 },
+  hard: { wave: 0.15, pepper: 0.08 },
+  straight: { wave: 0, pepper: 0 },
+};
+
+type MaterialRow = { mark: MarkKind; edge: EdgeStyle; spill: number; warm: number };
+export type GroundMaterial = MaterialRow & { color: number };
+
+const MATERIAL_ROWS: Record<LookType, MaterialRow> = {
+  hardpan: { mark: "cracks", edge: "smudge", spill: 0.45, warm: 1 },
+  sand: { mark: "windRipples", edge: "smudge", spill: 1, warm: 1 },
+  field: { mark: "clods", edge: "smudge", spill: 0.3, warm: 1 },
+  track: { mark: "none", edge: "smudge", spill: 0.3, warm: 1 },
+  mud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1 },
+  blackMud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1 },
+  saltCrust: { mark: "saltCracks", edge: "smudge", spill: 0.5, warm: 1 },
+  dirtyWater: { mark: "waves", edge: "smudge", spill: 0, warm: 1 },
+  toxic: { mark: "waves", edge: "smudge", spill: 0, warm: 1 },
+  ash: { mark: "ashSmudge", edge: "smudge", spill: 0.3, warm: 1 },
+  gravel: { mark: "stones", edge: "smudge", spill: 0, warm: 0.2 },
+  scrub: { mark: "grain", edge: "pepper", spill: 0, warm: 1 },
+  scree: { mark: "stones", edge: "hard", spill: 0, warm: 0.4 },
+  glass: { mark: "none", edge: "hard", spill: 0, warm: 1 },
+  canal: { mark: "waves", edge: "straight", spill: 0, warm: 1 },
+  concrete: { mark: "seams", edge: "straight", spill: 0, warm: 1 },
+  asphalt: { mark: "cracks", edge: "straight", spill: 0, warm: 1 },
+};
+
+export const GROUND_MATERIAL_IDS = Object.keys(MATERIAL_ROWS) as LookType[];
+
+function materialColor(type: LookType): number {
+  const plain = type === "glass" ? "hardpan" : type;
+  return mix(TERRAIN_TYPES[plain].color, PAL.desertSand, desertWeight(plain) * SAND_WARM * MATERIAL_ROWS[type].warm);
+}
+
+export function groundMaterial(type: LookType): GroundMaterial {
+  return { ...MATERIAL_ROWS[type], color: materialColor(type) };
+}
+
+export function groundMaterialIndex(type: LookType): number {
+  return GROUND_MATERIAL_IDS.indexOf(type);
+}
+
 const lookCache = new WeakMap<Terrain, readonly LookType[]>();
 const yardCache = new WeakMap<Terrain, YardLook>();
 
@@ -135,10 +186,9 @@ export type PaintCanvas = {
 
 export type PaintOptions = {
   hillshade: number;
-  roadsAsGround: boolean;
 };
 
-const DEFAULT_OPTIONS: PaintOptions = { hillshade: 1, roadsAsGround: false };
+const DEFAULT_OPTIONS: PaintOptions = { hillshade: 1 };
 
 export function paintGroundCanvas(
   c: PaintCanvas,
@@ -146,6 +196,10 @@ export function paintGroundCanvas(
   opts: PaintOptions = DEFAULT_OPTIONS,
 ): void {
   paintGround(c, t, opts);
+  paintLandformCanvas(c, t);
+}
+
+export function paintLandformCanvas(c: PaintCanvas, t: Terrain): void {
   if (atlasOf(t).landforms) paintLandforms(c);
 }
 
@@ -233,7 +287,7 @@ function tileLook(t: Terrain, opts: PaintOptions): TileLook {
   const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
     const natural = yard.natural[i] === "glass" ? "hardpan" : yard.natural[i];
-    const own = opts.roadsAsGround && t.types[i] === "road" ? look[i] : t.types[i];
+    const own = t.types[i];
     color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(own), yard.fade[i]) : paintColor(own);
     desert[i] = desertAround(look[i], natural, yard.fade[i]);
     shadeBy[i] = hillshade(t, i, opts.hillshade);

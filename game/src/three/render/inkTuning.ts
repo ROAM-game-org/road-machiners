@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "hatch" | "hatchSize" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "heightTint" | "edgeWobble" | "waveSize" | "edgeReach" | "grain" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
 
 type Knob = { label: string; min: number; max: number; step: number; start: number };
 
@@ -12,11 +12,11 @@ export const KNOBS: Record<TuningKey, Knob> = {
   heightTint: { label: "Height tint", min: 0, max: 1, step: 0.05, start: 0.8 },
   edgeWobble: { label: "Edge wobble", min: 0, max: 2, step: 0.05, start: 1 },
   waveSize: { label: "Edge wave m", min: 4, max: 40, step: 1, start: 9 },
-  edgeReach: { label: "Edge halo tiles", min: 0.1, max: 3, step: 0.1, start: 2 },
+  halo: { label: "Sand halo", min: 0, max: 3, step: 0.05, start: 1 },
   grain: { label: "Scrub grain", min: 0, max: 1, step: 0.05, start: 0.35 },
   shadeLine: { label: "Shadow outline", min: 0, max: 1, step: 0.05, start: 0.7 },
   hatch: { label: "Shadow strokes", min: 0, max: 1, step: 0.05, start: 0.2 },
-  hatchSize: { label: "Stroke size m", min: 0.08, max: 1.2, step: 0.02, start: 0.15 },
+  hatchPx: { label: "Stroke size px", min: 3, max: 24, step: 0.5, start: 6 },
   objectHatch: { label: "Object strokes", min: 0, max: 1, step: 1, start: 1 },
   contour: { label: "Elevation lines", min: 0, max: 1, step: 1, start: 0 },
   contourStep: { label: "Level step m", min: 0.25, max: 5, step: 0.25, start: 1.75 },

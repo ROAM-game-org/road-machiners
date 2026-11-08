@@ -2,14 +2,14 @@ import { defaultSetup } from '../sim/settings';
 import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { REGION } from '../data/region';
-import { TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { TERRITORIES } from '../data/territory';
 import { basin } from '../sim/elevation';
 import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { desertWeight, glassField, lookTypes, paintGroundCanvas, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { desertWeight, EDGE_LOOKS, glassField, GROUND_MATERIAL_IDS, groundMaterial, groundMaterialIndex, lookTypes, MARK_KINDS, paintGroundCanvas, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -327,5 +327,35 @@ describe('yardLook', () => {
     const far = t.types.findIndex((type, i) => type === 'hardpan' && REGION.towns.every((s) => Math.hypot((i % t.size) - s.pos.x, Math.floor(i / t.size) - s.pos.y) > 120));
     expect(far).toBeGreaterThanOrEqual(0);
     expect(fade[far]).toBe(0);
+  });
+});
+
+describe('ground material table', () => {
+  const groundTypes = (Object.keys(TERRAIN_TYPES) as TerrainTypeId[]).filter((type) => type !== 'road');
+
+  it('has one row for every ground type the map can show', () => {
+    expect([...GROUND_MATERIAL_IDS].sort()).toEqual([...groundTypes].sort());
+  });
+
+  it('fits every material id in the one byte of the tile texture', () => {
+    expect(GROUND_MATERIAL_IDS.length).toBeLessThanOrEqual(256);
+    for (const type of GROUND_MATERIAL_IDS) expect(GROUND_MATERIAL_IDS[groundMaterialIndex(type)]).toBe(type);
+  });
+
+  it('gives every row a valid color, mark, edge look, spill and warmth', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      const row = groundMaterial(type);
+      expect(Number.isInteger(row.color) && row.color >= 0 && row.color <= 0xffffff).toBe(true);
+      expect(MARK_KINDS).toContain(row.mark);
+      expect(EDGE_LOOKS[row.edge]).toBeDefined();
+      expect(row.spill).toBeGreaterThanOrEqual(0);
+      expect(row.spill).toBeLessThanOrEqual(1);
+      expect(row.warm).toBeGreaterThanOrEqual(0);
+      expect(row.warm).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('draws glass on the hardpan color so its plates sit on plain ground', () => {
+    expect(groundMaterial('glass').color).toBe(groundMaterial('hardpan').color);
   });
 });

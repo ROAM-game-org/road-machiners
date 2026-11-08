@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
+import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
 import { PATCH_UNIT } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
 import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
+import { TOWARD_CAMERA } from "./camera";
 import { groundFields } from "./groundFields";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
@@ -35,11 +36,45 @@ const WEAR_YELLOW = mix(0xd9a93a, PAL.sand[3], 0.2);
 const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
-const DRAWN_BLUR = 1;
 const DRAWN_SIDE_EDGE = 0.08;
-const DRAWN_SCRUB_SPREAD = 3;
-const DRAWN_SCRUB_REACH = 2;
-const DRAWN_BORDER_PROBE = 0.2;
+const DRAWN_FAR_TILES = 8;
+const DRAWN_PEPPER_SPREAD = 3;
+const DRAWN_BROAD_MIX = 0.12;
+const DRAWN_PATCH_MIX = 0.05;
+const DRAWN_PATCH_TILES = 24;
+const DRAWN_WIND = { x: 0.8, y: 0.6 };
+const DRAWN_STREAK_LONG = 14;
+const DRAWN_STREAK_WIDE = 2.5;
+const DRAWN_STREAK_MIX = 0.2;
+const DRAWN_FINE_WAVE_SIZE = 2.6;
+const DRAWN_FINE_WAVE_SHARE = 0.35;
+const DRAWN_HALO_EDGE = 0.25;
+const DRAWN_HALO_RIM_MIX = 0.45;
+const DRAWN_HALO_CORE_MIX = 0.85;
+const DRAWN_HALO_HIDES_MARKS = 0.3;
+const DRAWN_MARK_FLAT_FROM = 0.82;
+const DRAWN_MARK_FLAT_TO = 0.93;
+const DRAWN_MARK_FADE_FROM = 0.1;
+const DRAWN_MARK_FADE_TO = 0.22;
+const DRAWN_CLOD_CELL = 0.5;
+const DRAWN_CLOD_SHARE = 0.45;
+const DRAWN_CLOD_MIX = 0.5;
+const DRAWN_STONE_BIG_CELL = 0.6;
+const DRAWN_STONE_BIG_MIX = 0.14;
+const DRAWN_PUDDLE_SIZE = 2.2;
+const DRAWN_PUDDLE_MIX = 0.3;
+const DRAWN_PUDDLE_FROM = 0.82;
+const DRAWN_SAND_RIPPLE_SPACING = 1.1;
+const DRAWN_SAND_RIPPLE_WIDTH = 0.04;
+const DRAWN_SAND_RIPPLE_MIX = 0.45;
+const DRAWN_GLINT_PATCH = 14;
+const DRAWN_GLINT_CALM = 0.03;
+const DRAWN_GLINT_BUSY = 0.35;
+const DRAWN_GLINT_ROW = 1.4;
+const DRAWN_GLINT_LONG = 6;
+const DRAWN_GLINT_WIDTH = 0.07;
+const DRAWN_GLINT_MIX = 0.35;
+const DRAWN_EDGE_LINE_REACH = 1.5;
 const DRAWN_ROAD_CRACK_CELL = 3;
 const DRAWN_RISE_RING = 8;
 const DRAWN_RISE_REACH_TILES = 8;
@@ -60,11 +95,11 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export function drawGround(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain, shelters: readonly Site[]): void {
-  const fields = groundFields(mask, t, shelters);
+export function drawGround(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): void {
+  const fields = groundFields(mask, t, shelters, landforms);
   const worn = fields.highwayWear !== undefined;
-  const uniforms = { ...fields, ...lookUniforms(), ...(worn ? wearLook() : {}) };
-  const header = `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${GROUND_DECLARATIONS}`;
+  const uniforms = { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) };
+  const header = `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`;
   const before = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
@@ -75,16 +110,16 @@ export function drawGround(material: THREE.MeshLambertMaterial, mask: PaintCanva
     shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <common>", header);
     shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <map_fragment>", GROUND_BODY);
   };
-  material.customProgramCacheKey = () => `${key()}|roads${worn ? "|wear" : ""}`;
+  material.customProgramCacheKey = () => `${key()}|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`;
   material.needsUpdate = true;
 }
 
 function lookUniforms() {
   return {
     drawnEdgeWobble: TUNING.edgeWobble,
-    drawnEdgeReach: TUNING.edgeReach,
     drawnWaveSize: TUNING.waveSize,
     drawnGrainAmount: TUNING.grain,
+    drawnHaloAmount: TUNING.halo,
     asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadPlainLuma: { value: luma(new THREE.Color(ROAD_PLAIN)) },
     roadSandLuma: { value: luma(new THREE.Color(ROAD_SAND)) },
@@ -99,6 +134,23 @@ function lookUniforms() {
     padDust: { value: new THREE.Color(PAL.sand[3]) },
     padMark: { value: new THREE.Color(PAL.padMark) },
   };
+}
+
+function materialUniforms() {
+  const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
+  return {
+    drawnMaterialColor: { value: rows.map((row) => new THREE.Color(row.color)) },
+    drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
+    drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
+    drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
+    drawnMaterialSpill: { value: rows.map((row) => row.spill) },
+    drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
+    drawnFarTint: { value: new THREE.Color(PAL.sandFar) },
+  };
+}
+
+function markIndex(mark: MarkKind): number {
+  return MARK_KINDS.indexOf(mark);
 }
 
 function wearLook() {
@@ -150,13 +202,23 @@ uniform vec3 padDust;
 uniform vec3 padMark;
 uniform sampler2D roadField;
 uniform float heightSide;
-uniform sampler2DArray groundKinds;
-uniform float groundKindSide;
-uniform float groundKindMeters;
+uniform sampler2D groundTiles;
+uniform float groundTileSide;
+uniform float groundTileMeters;
+#ifdef GROUND_LANDFORMS
+uniform sampler2D groundLandforms;
+#endif
+uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
+uniform vec3 drawnBroadTint;
+uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
-uniform float drawnEdgeReach;
 uniform float drawnWaveSize;
 uniform float drawnGrainAmount;
+uniform float drawnHaloAmount;
 `;
 
 const WEAR_FUNCTIONS = `#ifdef HIGHWAY_WEAR
@@ -206,48 +268,94 @@ float markHash(vec2 p) {
 }
 `;
 
-const KIND_BORDERS = `vec4 drawnKindsSmooth(float layer, vec2 tile) {
-  vec2 first = floor(tile - 0.5) + 0.5;
-  vec2 f = tile - first;
-  vec2 g = 1.0 - f;
-  vec2 w0 = g * g * g / 6.0;
-  vec2 w1 = (4.0 + f * f * (3.0 * f - 6.0)) / 6.0;
-  vec2 w2 = (1.0 + 3.0 * f + 3.0 * f * f - 3.0 * f * f * f) / 6.0;
-  vec2 w3 = f * f * f / 6.0;
-  vec2 w12 = w1 + w2;
-  vec2 at0 = (first - 1.0) / groundKindSide;
-  vec2 at12 = (first + w2 / w12) / groundKindSide;
-  vec2 at3 = (first + 2.0) / groundKindSide;
-  vec4 row0 = textureLod(groundKinds, vec3(at0.x, at0.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at0.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at0.y, layer), 0.0) * w3.x;
-  vec4 row12 = textureLod(groundKinds, vec3(at0.x, at12.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at12.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at12.y, layer), 0.0) * w3.x;
-  vec4 row3 = textureLod(groundKinds, vec3(at0.x, at3.y, layer), 0.0) * w0.x + textureLod(groundKinds, vec3(at12.x, at3.y, layer), 0.0) * w12.x + textureLod(groundKinds, vec3(at3.x, at3.y, layer), 0.0) * w3.x;
-  return row0 * w0.y + row12 * w12.y + row3 * w3.y;
+const MATERIAL_BORDERS = `struct DrawnBorder { int lo; int hi; float toward; float wave; float pepper; float spill; vec3 spillColor; };
+int drawnMaterialAt(vec2 tile) {
+  ivec2 at = clamp(ivec2(floor(tile)), ivec2(0), ivec2(int(groundTileSide) - 1));
+  return int(texelFetch(groundTiles, at, 0).r * 255.0 + 0.5);
 }
-vec3 drawnNearestBorder(vec2 tile, out vec4 hereA, out vec4 hereB, out vec4 hereC, out vec3 scrub) {
-  hereA = drawnKindsSmooth(0.0, tile);
-  hereB = drawnKindsSmooth(1.0, tile);
-  hereC = drawnKindsSmooth(2.0, tile);
-  vec2 across = vec2(${DRAWN_BORDER_PROBE.toFixed(2)}, 0.0);
-  vec4 riseAx = (drawnKindsSmooth(0.0, tile + across) - hereA) / across.x;
-  vec4 riseAy = (drawnKindsSmooth(0.0, tile + across.yx) - hereA) / across.x;
-  vec4 riseBx = (drawnKindsSmooth(1.0, tile + across) - hereB) / across.x;
-  vec4 riseBy = (drawnKindsSmooth(1.0, tile + across.yx) - hereB) / across.x;
-  float riseCx = (drawnKindsSmooth(2.0, tile + across).r - hereC.r) / across.x;
-  float riseCy = (drawnKindsSmooth(2.0, tile + across.yx).r - hereC.r) / across.x;
-  float steepC = max(sqrt(riseCx * riseCx + riseCy * riseCy), 0.0001);
-  float depthC = (hereC.r - 0.5) / steepC;
-  vec4 steepA = max(sqrt(riseAx * riseAx + riseAy * riseAy), vec4(0.0001));
-  vec4 steepB = max(sqrt(riseBx * riseBx + riseBy * riseBy), vec4(0.0001));
-  vec4 depthA = (hereA - 0.5) / steepA;
-  vec4 depthB = (hereB - 0.5) / steepB;
-  scrub = vec3(vec2(riseBx.g, riseBy.g) / steepB.g, depthB.g);
-  vec3 nearest = vec3(0.0, 0.0, 10000.0);
-  for (int i = 0; i < 4; i++) {
-    if (abs(depthA[i]) < abs(nearest.z)) nearest = vec3(vec2(riseAx[i], riseAy[i]) / steepA[i], depthA[i]);
-    if (abs(depthB[i]) < abs(nearest.z)) nearest = vec3(vec2(riseBx[i], riseBy[i]) / steepB[i], depthB[i]);
+vec4 drawnSplineWeights(float f) {
+  float g = 1.0 - f;
+  return vec4(g * g * g, 4.0 + f * f * (3.0 * f - 6.0), 1.0 + 3.0 * f + 3.0 * f * f - 3.0 * f * f * f, f * f * f) / 6.0;
+}
+vec4 drawnSplineSlopes(float f) {
+  float g = 1.0 - f;
+  return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
+}
+DrawnBorder drawnBorderAt(vec2 tile) {
+  vec2 first = floor(tile - 0.5) - 1.0;
+  vec2 f = tile - 0.5 - floor(tile - 0.5);
+  vec4 wx = drawnSplineWeights(f.x);
+  vec4 wy = drawnSplineWeights(f.y);
+  vec4 sx = drawnSplineSlopes(f.x);
+  vec4 sy = drawnSplineSlopes(f.y);
+  int ids[16];
+  float weights[16];
+  float wave = 0.0;
+  float pepper = 0.0;
+  float spill = 0.0;
+  float spillLead = 0.0;
+  vec3 spillColor = vec3(0.0);
+  for (int j = 0; j < 4; j++)
+    for (int i = 0; i < 4; i++) {
+      int k = j * 4 + i;
+      ids[k] = drawnMaterialAt(first + vec2(float(i), float(j)) + 0.5);
+      weights[k] = wx[i] * wy[j];
+      wave += weights[k] * drawnMaterialWave[ids[k]];
+      pepper += weights[k] * drawnMaterialPepper[ids[k]];
+      float spills = drawnMaterialSpill[ids[k]];
+      spill += weights[k] * spills;
+      float leads = weights[k] * spills * spills * spills * spills;
+      spillLead += leads;
+      spillColor += leads * drawnMaterialColor[ids[k]];
+    }
+  spillColor /= max(spillLead, 0.0001);
+  int here = -1;
+  int there = -1;
+  float hereWeight = 0.0;
+  float thereWeight = 0.0;
+  for (int k = 0; k < 16; k++) {
+    int id = ids[k];
+    float total = 0.0;
+    for (int m = 0; m < 16; m++) total += ids[m] == id ? weights[m] : 0.0;
+    bool fresh = id != here && id != there;
+    bool top = fresh && total > hereWeight;
+    bool next = fresh && !top && total > thereWeight;
+    there = top ? here : (next ? id : there);
+    thereWeight = top ? hereWeight : (next ? total : thereWeight);
+    here = top ? id : here;
+    hereWeight = top ? total : hereWeight;
   }
-  if (abs(depthC) < abs(nearest.z)) nearest = vec3(vec2(riseCx, riseCy) / steepC, depthC);
-  return nearest;
+  if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
+  float field = 0.0;
+  vec2 slope = vec2(0.0);
+  for (int j = 0; j < 4; j++)
+    for (int i = 0; i < 4; i++) {
+      int id = ids[j * 4 + i];
+      float side = id == here ? 1.0 : (id == there ? -1.0 : 0.0);
+      field += side * wx[i] * wy[j];
+      slope += side * vec2(sx[i] * wy[j], wx[i] * sy[j]);
+    }
+  float dist = field / max(length(slope), 0.0001);
+  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+}
+float drawnHalo(DrawnBorder edge, int own, vec2 at) {
+  float excess = max(edge.spill - drawnMaterialSpill[own], 0.0) * drawnHaloAmount;
+  vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
+  float streak = (valueNoise(wind / vec2(${DRAWN_STREAK_LONG.toFixed(1)}, ${DRAWN_STREAK_WIDE.toFixed(1)})) - 0.5) * ${DRAWN_STREAK_MIX.toFixed(2)};
+  float past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)};
+  float aa = max(fwidth(edge.spill * drawnHaloAmount + streak), 0.0005);
+  float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
+  return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, depth);
+}
+vec2 drawnWarpAt(float wave, vec2 at) {
+  vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
+  vec2 fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
+  return (broad + fine * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
+}
+float drawnPepperNoise(vec2 at, float px) {
+  float mid = (valueNoise(at / 0.6 + 43.0) - 0.5) * 0.3 * (1.0 - smoothstep(0.12, 0.22, px));
+  float fine = (valueNoise(at / 0.25 + 47.0) - 0.5) * 0.35 * (1.0 - smoothstep(0.045, 0.08, px));
+  return (valueNoise(at / 1.6 + 41.0) - 0.5) * 0.35 + mid + fine;
 }
 `;
 
@@ -257,14 +365,6 @@ const RELIEF = `float drawnSample(vec2 texel) {
 float drawnCorner(ivec2 corner) {
   int last = int(heightSide) - 1;
   return texelFetch(roadField, clamp(corner, ivec2(0), ivec2(last)), 0).a;
-}
-vec4 drawnSplineWeights(float f) {
-  float g = 1.0 - f;
-  return vec4(g * g * g, 4.0 - 6.0 * f * f + 3.0 * f * f * f, 1.0 + 3.0 * f + 3.0 * f * f - 3.0 * f * f * f, f * f * f) / 6.0;
-}
-vec4 drawnSplineSlopes(float f) {
-  float g = 1.0 - f;
-  return vec4(-g * g, 3.0 * f * f - 4.0 * f, -3.0 * f * f + 2.0 * f + 1.0, f * f) / 2.0;
 }
 vec3 drawnSmoothGround(vec2 at) {
   vec2 x = at / facetSide;
@@ -306,22 +406,48 @@ float drawnCrackEdge(vec2 p) {
 float drawnCracks(vec2 p, float cell, float px) {
   return drawnLine(drawnCrackEdge(p / cell) * cell, 0.03, px) * step(0.42, valueNoise(p / (cell * 0.6)));
 }
-float drawnRipples(vec2 p, float px) {
-  float q = dot(p, vec2(0.8, 0.6)) + sin(dot(p, vec2(-0.6, 0.8)) * 2.2) * 0.18;
-  return drawnLine(abs(fract(q / 0.55) - 0.5) * 0.55, 0.02, px) * step(0.45, valueNoise(p / 1.3));
+float drawnPuddles(vec2 p) {
+  float wet = valueNoise(p / ${DRAWN_PUDDLE_SIZE.toFixed(1)} + 91.0) * 0.75 + valueNoise(p / ${(DRAWN_PUDDLE_SIZE * 0.35).toFixed(2)} + 97.0) * 0.25;
+  float aa = max(fwidth(wet), 0.002);
+  return smoothstep(${DRAWN_PUDDLE_FROM.toFixed(2)} - aa, ${DRAWN_PUDDLE_FROM.toFixed(2)} + aa, wet);
+}
+float drawnClods(vec2 p, float px) {
+  vec2 c = floor(p / ${DRAWN_CLOD_CELL.toFixed(2)});
+  vec2 f = p / ${DRAWN_CLOD_CELL.toFixed(2)} - c;
+  float turn = markHash(c + 13.0) * 6.2831853;
+  vec2 d = mat2(cos(turn), sin(turn), -sin(turn), cos(turn)) * (f - 0.3 - 0.4 * vec2(markHash(c + 17.0), markHash(c + 19.0)));
+  float radius = mix(0.08, 0.17, markHash(c + 23.0));
+  float lumpy = length(d * vec2(1.0, 1.7)) + (valueNoise(p / 0.12 + c) - 0.5) * 0.06;
+  float edge = px / ${DRAWN_CLOD_CELL.toFixed(2)};
+  float clod = 1.0 - smoothstep(radius - edge, radius + edge, lumpy);
+  return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, px));
+}
+float drawnWindRipples(vec2 p, float px) {
+  vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
+  float crest = q.y / ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)} + sin(q.x / 3.1) * 0.35 + (valueNoise(p / 5.0 + 71.0) - 0.5) * 1.2;
+  float patchy = smoothstep(0.4, 0.6, valueNoise(p / 6.0 + 77.0));
+  return drawnLine(abs(fract(crest) - 0.5) * ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)}, ${DRAWN_SAND_RIPPLE_WIDTH.toFixed(2)}, px) * patchy;
 }
 float drawnWaves(vec2 p, float px) {
-  float row = floor(p.y / 0.7);
-  float along = p.x / 0.9 + markHash(vec2(row, 4.0)) * 5.0;
+  vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
+  float row = floor(q.y / ${DRAWN_GLINT_ROW.toFixed(2)});
+  float along = q.x / ${DRAWN_GLINT_LONG.toFixed(2)} + markHash(vec2(row, 4.0)) * 5.0;
   float inside = fract(along);
-  float keep = step(markHash(vec2(floor(along), row) + 3.0), 0.35) * step(0.15, inside) * step(inside, 0.85);
-  return drawnLine(abs(p.y - (row + 0.5) * 0.7 - sin(inside * 6.2831853) * 0.06), 0.02, px) * keep;
+  float busy = smoothstep(0.3, 0.75, valueNoise(p / ${DRAWN_GLINT_PATCH.toFixed(1)} + 51.0));
+  float keep = step(markHash(vec2(floor(along), row) + 3.0), mix(${DRAWN_GLINT_CALM.toFixed(2)}, ${DRAWN_GLINT_BUSY.toFixed(2)}, busy));
+  float taper = smoothstep(0.1, 0.35, inside) * (1.0 - smoothstep(0.65, 0.9, inside));
+  float across = q.y - (row + 0.5) * ${DRAWN_GLINT_ROW.toFixed(2)} - sin(inside * 6.2831853) * 0.08;
+  return drawnLine(abs(across), ${DRAWN_GLINT_WIDTH.toFixed(2)} * taper, px) * keep * (1.0 - smoothstep(0.15, 0.3, px));
 }
 float drawnGrain(vec2 p, float px) {
   vec2 along = mat2(0.94, 0.34, -0.34, 0.94) * p;
   vec2 across = mat2(0.82, -0.57, 0.57, 0.82) * p + 5.0;
-  float flecks = (valueNoise(along / vec2(0.14, 0.45)) - 0.5) * 0.7 + (valueNoise(across / vec2(0.3, 0.8) + 9.0) - 0.5) * 0.5;
-  return flecks * mix(0.3, 1.0, valueNoise(p / 3.5 + 17.0)) * (1.0 - smoothstep(0.06, 0.14, px));
+  float dark = valueNoise(along / vec2(0.14, 0.45));
+  float light = valueNoise(across / vec2(0.3, 0.8) + 9.0);
+  float darkAa = max(fwidth(dark), 0.002);
+  float lightAa = max(fwidth(light), 0.002);
+  float flecks = smoothstep(0.7 - darkAa, 0.7 + darkAa, dark) * 0.7 - smoothstep(0.72 - lightAa, 0.72 + lightAa, light) * 0.4;
+  return -flecks * mix(0.4, 1.0, valueNoise(p / 3.5 + 17.0)) * (1.0 - smoothstep(0.06, 0.14, px));
 }
 float drawnStones(vec2 p, float cell, float seed, float px) {
   vec2 c = floor(p / cell);
@@ -339,41 +465,42 @@ float drawnSeams(vec2 p, float px) {
 }
 `;
 
-const GROUND_DECLARATIONS = `${UNIFORMS}${WEAR_FUNCTIONS}${NOISE}${KIND_BORDERS}${RELIEF}${SURFACE_MARKS}`;
+const GROUND_DECLARATIONS = `${UNIFORMS}${WEAR_FUNCTIONS}${NOISE}${MATERIAL_BORDERS}${RELIEF}${SURFACE_MARKS}`;
 
 const BORDER_BODY = `
   vec3 blurredGround = textureLod(map, vMapUv, 2.5).rgb;
-  vec2 drawnWarp = (vec2(valueNoise(vRoadXZ / drawnWaveSize), valueNoise(vRoadXZ / drawnWaveSize + 7.0)) - 0.5) * 1.4 * facetSide * drawnEdgeWobble;
-  vec4 drawnRawA;
-  vec4 drawnRawB;
-  vec4 drawnRawC;
-  vec3 drawnScrub;
-  vec3 drawnBorder = drawnNearestBorder((vRoadXZ + drawnWarp) / facetSide, drawnRawA, drawnRawB, drawnRawC, drawnScrub);
-  vec2 drawnInside = drawnBorder.xy * (max(drawnBorder.z, drawnEdgeReach) - drawnBorder.z);
-  vec2 drawnOutside = drawnBorder.xy * (min(drawnBorder.z, -drawnEdgeReach) - drawnBorder.z);
-  vec2 drawnMapAt = vMapUv + drawnWarp * mapUvPerMeter;
+  vec2 drawnTileAt = vRoadXZ / facetSide;
   float drawnTilePx = max(length(fwidth(vRoadXZ)), 0.0005) / facetSide;
-  float drawnSide = smoothstep(-${DRAWN_SIDE_EDGE.toFixed(2)} - drawnTilePx, ${DRAWN_SIDE_EDGE.toFixed(2)} + drawnTilePx, drawnBorder.z);
-  vec3 drawnOutColor = textureLod(map, drawnMapAt + drawnOutside * facetSide * mapUvPerMeter, ${DRAWN_BLUR.toFixed(1)}).rgb;
-  vec3 drawnInColor = textureLod(map, drawnMapAt + drawnInside * facetSide * mapUvPerMeter, ${DRAWN_BLUR.toFixed(1)}).rgb;
-  diffuseColor.rgb = mix(drawnOutColor, drawnInColor, drawnSide);
-  float drawnClumps = valueNoise(vRoadXZ / 1.6 + 41.0) * 0.35 + valueNoise(vRoadXZ / 0.6 + 43.0) * 0.3 + (valueNoise(vRoadXZ / 0.25 + 47.0) - 0.5) * 0.35 * (1.0 - smoothstep(0.05, 0.1, drawnTilePx * facetSide)) - 0.325;
-  float drawnScrubAt = drawnScrub.z + drawnClumps * ${DRAWN_SCRUB_SPREAD.toFixed(2)};
-  float drawnScrubAa = max(fwidth(drawnScrubAt), drawnTilePx);
-  float drawnScrubCover = smoothstep(-drawnScrubAa, drawnScrubAa, drawnScrubAt);
-  vec3 drawnScrubIn = textureLod(map, drawnMapAt + drawnScrub.xy * (max(drawnScrub.z, ${DRAWN_SCRUB_REACH.toFixed(1)}) - drawnScrub.z) * facetSide * mapUvPerMeter, ${DRAWN_BLUR.toFixed(1)}).rgb;
-  vec3 drawnScrubOut = textureLod(map, drawnMapAt + drawnScrub.xy * (min(drawnScrub.z, -${DRAWN_SCRUB_REACH.toFixed(1)}) - drawnScrub.z) * facetSide * mapUvPerMeter, ${DRAWN_BLUR.toFixed(1)}).rgb;
-  float drawnScrubNear = 1.0 - smoothstep(${DRAWN_SCRUB_SPREAD.toFixed(2)} * 0.4, ${DRAWN_SCRUB_SPREAD.toFixed(2)} * 0.55, abs(drawnScrub.z));
-  diffuseColor.rgb = mix(diffuseColor.rgb, mix(drawnScrubOut, drawnScrubIn, drawnScrubCover), drawnScrubNear);
-  vec4 drawnFwA = max(fwidth(drawnRawA), vec4(0.0001));
-  vec4 drawnFwB = max(fwidth(drawnRawB), vec4(0.0001));
-  vec4 drawnKindA = smoothstep(0.5 - drawnFwA, 0.5 + drawnFwA, drawnRawA);
-  vec4 drawnKindB = smoothstep(0.5 - drawnFwB, 0.5 + drawnFwB, drawnRawB);
+  DrawnBorder drawnRough = drawnBorderAt(drawnTileAt);
+  vec2 drawnWarp = drawnWarpAt(drawnRough.wave, vRoadXZ);
+  DrawnBorder drawnEdge = drawnBorderAt((vRoadXZ + drawnWarp) / facetSide);
+  float drawnPeppered = min(drawnRough.pepper * 2.0, 1.0);
+  float drawnPepperShift = drawnPeppered * drawnPepperNoise(vRoadXZ, drawnTilePx * facetSide) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
+  float drawnToward = drawnEdge.toward + drawnPepperShift;
+  float drawnAa = drawnTilePx + fwidth(drawnPepperShift);
+  float drawnLoSide = smoothstep(-${DRAWN_SIDE_EDGE.toFixed(2)} - drawnAa, ${DRAWN_SIDE_EDGE.toFixed(2)} + drawnAa, drawnToward);
+  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, vRoadXZ);
+  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, vRoadXZ);
+  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
+  vec3 drawnHiColor = mix(drawnMaterialColor[drawnEdge.hi], drawnEdge.spillColor, drawnHiHalo);
+  diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
+  int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;
+  float drawnHaloCover = mix(drawnHiHalo, drawnLoHalo, drawnLoSide);
+  float drawnBroad = valueNoise(drawnTileAt / 7.0) * 0.7 + valueNoise(drawnTileAt / 2.5) * 0.15;
+  diffuseColor.rgb = mix(diffuseColor.rgb, drawnBroadTint, drawnBroad * ${DRAWN_BROAD_MIX.toFixed(2)});
+  diffuseColor.rgb *= 1.0 + (valueNoise(drawnTileAt / ${DRAWN_PATCH_TILES.toFixed(1)} + 41.5) - 0.5) * 2.0 * ${DRAWN_PATCH_MIX.toFixed(2)};
+#ifdef GROUND_LANDFORMS
+  vec4 drawnLandform = texture2D(groundLandforms, vMapUv);
+  diffuseColor.rgb = mix(diffuseColor.rgb, drawnLandform.rgb, drawnLandform.a);
+#endif
+  float drawnOut = max(max(-drawnTileAt.x, -drawnTileAt.y), max(drawnTileAt.x, drawnTileAt.y) - groundTileSide);
+  diffuseColor.rgb = mix(diffuseColor.rgb, drawnFarTint, drawnOut > 0.0 ? min(1.0, 0.35 + drawnOut / ${TERRAIN_MARGIN.toFixed(1)}) : 0.0);
+  float drawnInside = smoothstep(0.0, 0.25, abs(drawnToward)) * (1.0 - smoothstep(0.0, ${DRAWN_HALO_HIDES_MARKS.toFixed(2)}, drawnHaloCover));
   vec3 paintedGround = diffuseColor.rgb;
 `;
 
 const GLASS_BODY = `
-  float glassEdge = texture(groundKinds, vec3(vRoadXZ / groundKindMeters, 2.0)).b
+  float glassEdge = texture(groundTiles, vRoadXZ / groundTileMeters).b
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_SCALE * S).toFixed(2)}) - 0.5) * ${GLASS_EDGE_WOBBLE.toFixed(2)}
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_FINE_SCALE * S).toFixed(2)} + 53.1) - 0.5) * ${GLASS_EDGE_FINE.toFixed(2)};
   float glassSoft = fwidth(glassEdge) * 0.75;
@@ -409,7 +536,7 @@ const ROAD_BODY = `
   float bandMask = roadMaskAt.b;
   vec4 roadLook = vec4(textureLod(roadDetail, (vRoadXZ - roadOrigin) / roadDetailMeters, 8.0).rgb, 0.5);
   float roadWander = textureLod(roadTone, (vRoadXZ - roadOrigin) / roadToneMeters, 0.0).r;
-  float roadSand = texture(groundKinds, vec3(vRoadXZ / groundKindMeters, 2.0)).g;
+  float roadSand = texture(groundTiles, vRoadXZ / groundTileMeters).g;
   float groundLuma = dot(blurredGround, vec3(0.299, 0.587, 0.114));
   float groundShade = clamp(groundLuma / mix(roadPlainLuma, roadSandLuma, roadSand), 0.7, 1.2);
   float paintedLuma = dot(paintedGround, vec3(0.299, 0.587, 0.114));
@@ -437,27 +564,36 @@ const ROAD_BODY = `
   float drawnScratch = step(markHash(drawnScratchCell + 7.7), ${DRAWN_SCRATCH_SHARE.toFixed(2)}) * (1.0 - smoothstep(0.1, 0.25, abs(fract(roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}) - 0.5)));
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnScratch * 0.6 * roadIn;
   inkSurface.road = roadIn;
-  inkSurface.edge = 1.0 - smoothstep(${DRAWN_EDGE_LINE.toFixed(2)} - 0.5, ${DRAWN_EDGE_LINE.toFixed(2)} + 0.5, abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001));
+  inkSurface.edge = (1.0 - smoothstep(${DRAWN_EDGE_LINE.toFixed(2)} - 0.5, ${DRAWN_EDGE_LINE.toFixed(2)} + 0.5, abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001))) * step(roadFrame.x, roadEdge + ${DRAWN_EDGE_LINE_REACH.toFixed(1)});
 `;
 
 const MARKS_BODY = `
   float drawnPx = max(length(fwidth(vRoadXZ)), 0.0005);
   float drawnOffRoad = 1.0 - roadIn;
-  float drawnNear = (1.0 - smoothstep(0.04, 0.12, drawnPx)) * drawnOffRoad;
-  float drawnCrackFine = drawnCracks(vRoadXZ, 1.8, drawnPx) * (1.0 - smoothstep(0.1, 0.2, drawnPx));
-  float drawnCrack = drawnCrackFine * drawnOffRoad;
+  float drawnZoomed = 1.0 - smoothstep(${DRAWN_MARK_FADE_FROM.toFixed(2)}, ${DRAWN_MARK_FADE_TO.toFixed(2)}, drawnPx);
+  float drawnCrackFine = drawnCracks(vRoadXZ, 1.8, drawnPx) * drawnZoomed;
   float drawnRoadCrack = drawnCracks(vRoadXZ + 13.0, ${DRAWN_ROAD_CRACK_CELL.toFixed(1)}, drawnPx) * step(0.62, valueNoise(vRoadXZ / 14.0)) * roadIn;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnRoadCrack;
-  float drawnLines = max(drawnRipples(vRoadXZ, drawnPx) * drawnKindA.b, drawnWaves(vRoadXZ, drawnPx) * drawnKindA.a);
-  drawnLines = max(drawnLines, drawnSeams(vRoadXZ, drawnPx) * drawnKindB.a);
-  float drawnSmudge = smoothstep(0.55, 0.8, valueNoise(vRoadXZ / 2.5)) * 0.5 * drawnKindB.b * drawnOffRoad;
-  float drawnTone = 1.0 + drawnOffRoad * (dot(drawnKindA, vec4(0.0, 0.08, -0.18, -0.25)) + dot(drawnKindB, vec4(-0.05, -0.07, -0.15, 0.0)));
-  diffuseColor.rgb *= drawnTone;
-  float drawnStoneTone = drawnStones(vRoadXZ, 0.3, 91.0, drawnPx) * 0.16 + drawnStones(mat2(0.8, 0.6, -0.6, 0.8) * vRoadXZ, 0.17, 95.0, drawnPx) * 0.12;
-  diffuseColor.rgb *= 1.0 + drawnStoneTone * drawnKindB.r * drawnOffRoad;
-  diffuseColor.rgb *= 1.0 + drawnGrainAmount * drawnGrain(vRoadXZ, drawnPx) * smoothstep(0.25, 0.85, drawnRawB.g + (valueNoise(vRoadXZ / 1.7 + 3.0) - 0.5) * 0.5) * drawnOffRoad;
-  diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * max(max(drawnLines * drawnNear, drawnSmudge), drawnCrack * drawnKindA.r * 0.6);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.93, 0.88), drawnCracks(vRoadXZ + 31.0, 1.8, drawnPx) * drawnKindA.g * drawnNear * 0.7);
+  int drawnMark = int(drawnMaterialMark[drawnMaterial] + 0.5);
+  vec3 drawnFaceNormal = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
+  float drawnFlat = smoothstep(${DRAWN_MARK_FLAT_FROM.toFixed(2)}, ${DRAWN_MARK_FLAT_TO.toFixed(2)}, abs(dot(drawnFaceNormal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz))));
+  float drawnMarkShow = drawnInside * drawnOffRoad * drawnFlat;
+  float drawnDark = 0.0;
+  float drawnLight = 0.0;
+  float drawnShade = 0.0;
+  if (drawnMark == ${markIndex("cracks")}) drawnDark = drawnCrackFine * 0.6;
+  if (drawnMark == ${markIndex("saltCracks")}) drawnLight = drawnCracks(vRoadXZ + 31.0, 1.8, drawnPx) * drawnZoomed * 0.7;
+  if (drawnMark == ${markIndex("clods")}) drawnDark = drawnClods(vRoadXZ, drawnPx) * ${DRAWN_CLOD_MIX.toFixed(2)};
+  if (drawnMark == ${markIndex("puddles")}) drawnDark = drawnPuddles(vRoadXZ) * ${DRAWN_PUDDLE_MIX.toFixed(2)};
+  if (drawnMark == ${markIndex("windRipples")}) drawnDark = drawnWindRipples(vRoadXZ, drawnPx) * drawnZoomed * ${DRAWN_SAND_RIPPLE_MIX.toFixed(2)};
+  if (drawnMark == ${markIndex("waves")}) drawnLight = drawnWaves(vRoadXZ, drawnPx) * ${DRAWN_GLINT_MIX.toFixed(2)};
+  if (drawnMark == ${markIndex("seams")}) drawnDark = drawnSeams(vRoadXZ, drawnPx) * drawnZoomed;
+  if (drawnMark == ${markIndex("ashSmudge")}) drawnDark = smoothstep(0.55, 0.8, valueNoise(vRoadXZ / 2.5)) * 0.5;
+  if (drawnMark == ${markIndex("stones")}) drawnShade = drawnStones(vRoadXZ, 0.3, 91.0, drawnPx) * 0.16 + drawnStones(mat2(0.8, 0.6, -0.6, 0.8) * vRoadXZ, 0.17, 95.0, drawnPx) * 0.12 + drawnStones(mat2(0.6, -0.8, 0.8, 0.6) * vRoadXZ, ${DRAWN_STONE_BIG_CELL.toFixed(2)}, 99.0, drawnPx) * ${DRAWN_STONE_BIG_MIX.toFixed(2)};
+  if (drawnMark == ${markIndex("grain")}) drawnShade = drawnGrainAmount * drawnGrain(vRoadXZ, drawnPx);
+  diffuseColor.rgb *= 1.0 + drawnShade * drawnMarkShow;
+  diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnDark * drawnMarkShow;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.93, 0.88), drawnLight * drawnMarkShow);
 `;
 
 const RELIEF_BODY = `

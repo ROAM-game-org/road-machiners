@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
-import { desertWeight, glassField, lookTypes, shownLooks, type LookType, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassField, groundMaterialIndex, lookTypes, shownLooks, type PaintCanvas } from "../../render/groundPaint";
 import { paintHighwayWear } from "../../render/highwayWear";
 import { paintRoadDetail, paintRoadMask, paintRoadTone, regionRoadRuns, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
@@ -15,33 +15,13 @@ const S = PHYSICS.metersPerTile;
 const PIXEL_SPLIT = 3;
 const PAD_BORDER = 2;
 const ROAD_FIELD_REACH = 10;
-const KIND_LAYERS = 3;
-const DESERT_AT = 2;
-const GLASS_AT = 2;
-
-const KIND_CHANNEL: Record<LookType, number | null> = {
-  hardpan: 0,
-  saltCrust: 1,
-  mud: 2,
-  blackMud: 2,
-  dirtyWater: 3,
-  toxic: 3,
-  canal: 3,
-  gravel: 4,
-  scree: 4,
-  scrub: 5,
-  field: 8,
-  ash: 6,
-  concrete: 7,
-  asphalt: 0,
-  sand: null,
-  track: null,
-  glass: null,
-};
+const TILE_MATERIAL = 0;
+const TILE_DESERT = 1;
+const TILE_GLASS = 2;
 
 export type GroundFields = ReturnType<typeof groundFields>;
 
-export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly Site[]) {
+export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null) {
   paintRoadMask(mask, atlasOf(t), roadHoles(t));
   const pixel = S / mask.res / PIXEL_SPLIT;
   return {
@@ -51,9 +31,10 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
     facetSide: { value: S },
     roadField: { value: roadFieldTexture(t) },
     heightSide: { value: t.size + 1 },
-    groundKinds: { value: kindTexture(t) },
-    groundKindSide: { value: t.size },
-    groundKindMeters: { value: t.size * S },
+    groundTiles: { value: tileTexture(t) },
+    groundTileSide: { value: t.size },
+    groundTileMeters: { value: t.size * S },
+    ...(landforms ? { groundLandforms: { value: landforms } } : {}),
     mapUvPerMeter: { value: mask.res / mask.size / S },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
@@ -71,24 +52,17 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function kindTexture(t: Terrain): THREE.DataArrayTexture {
-  const tiles = t.size * t.size;
-  const data = new Uint8Array(tiles * 4 * KIND_LAYERS);
-  shownLooks(t).forEach((look, tile) => {
-    const channel = KIND_CHANNEL[look];
-    if (channel !== null) data[(channel >> 2) * tiles * 4 + tile * 4 + (channel & 3)] = 255;
-  });
+function tileTexture(t: Terrain): THREE.DataTexture {
+  const data = new Uint8Array(t.size * t.size * 4);
+  const shown = shownLooks(t);
   const look = lookTypes(t);
   const glass = glassField(t);
-  for (let tile = 0; tile < tiles; tile++) {
-    data[DESERT_AT * tiles * 4 + tile * 4 + 1] = Math.round(desertWeight(look[tile]) * 255);
-    data[GLASS_AT * tiles * 4 + tile * 4 + 2] = glass[tile];
+  for (let tile = 0; tile < shown.length; tile++) {
+    data[tile * 4 + TILE_MATERIAL] = groundMaterialIndex(shown[tile]);
+    data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
+    data[tile * 4 + TILE_GLASS] = glass[tile];
   }
-  const texture = new THREE.DataArrayTexture(data, t.size, t.size, KIND_LAYERS);
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-  return texture;
+  return linear(new THREE.DataTexture(data, t.size, t.size, THREE.RGBAFormat));
 }
 
 function roadFieldTexture(t: Terrain): THREE.DataTexture {

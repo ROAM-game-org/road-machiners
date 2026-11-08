@@ -23,7 +23,7 @@ uniform float inkFullLight;
 uniform float inkColor;
 uniform float inkShadeLine;
 uniform float inkHatch;
-uniform float inkHatchSize;
+uniform float inkHatchPx;
 uniform float inkContour;
 uniform float inkContourStep;
 uniform float inkContourSoft;
@@ -68,6 +68,20 @@ float inkStrokes(vec2 p, vec2 dir, float spacing, float width, float longest, fl
   float line = 1.0 - smoothstep(width - aa, width + aa, abs(fract(along) - 0.5));
   return line * step(inkHash(vec2(floor(v), row + seed)), kept) * (1.0 - smoothstep(0.4, 0.9, aa));
 }
+float inkScreenPx() {
+  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+  return max(max(fwidth(dot(vInkAt, right)), fwidth(dot(vInkAt, up))), 0.00001);
+}
+float inkStrokesAt(vec2 plane, float spacing) {
+  return inkStrokes(plane, vec2(0.7071, -0.7071), spacing, 0.14, spacing * ${INK_STROKE_LENGTH.toFixed(1)}, 0.6, 8.0);
+}
+float inkShadeStrokes(vec2 plane) {
+  float octave = log2(inkHatchPx * inkScreenPx());
+  float level = floor(octave);
+  float spacing = exp2(level);
+  return mix(inkStrokesAt(plane, spacing), inkStrokesAt(plane, spacing * 2.0), smoothstep(0.0, 1.0, octave - level));
+}
 float inkInShade(float sunShade) {
   float shadeAa = fwidth(sunShade) + 0.004;
   return smoothstep(0.5 - shadeAa, 0.5 + shadeAa, sunShade);
@@ -82,7 +96,7 @@ vec3 inkBase(vec3 albedo, vec3 lit, float level, float inShade) {
   return color * mix(1.0, clamp(0.55 + 0.5 * level, 0.7, 1.15), inkRelief);
 }
 vec3 inkFinish(vec3 color, vec2 plane, float sunShade, float inShade, float hatchShare, float contour) {
-  float shadeMarks = inkStrokes(plane, vec2(0.7071, -0.7071), inkHatchSize, 0.14, inkHatchSize * ${INK_STROKE_LENGTH.toFixed(1)}, 0.6, 8.0) * inShade;
+  float shadeMarks = inkShadeStrokes(plane) * inShade;
   color = mix(color, color * 0.55, shadeMarks * hatchShare);
   float shadeLine = 1.0 - smoothstep(0.6, 1.3, abs(sunShade - 0.5) / max(fwidth(sunShade), 0.0006));
   color = mix(color, INK_BLACK, max(max(shadeLine * inkShadeLine, inkSurface.edge), contour));
@@ -203,7 +217,7 @@ function inkUniforms() {
     inkColor: TUNING.color,
     inkShadeLine: TUNING.shadeLine,
     inkHatch: TUNING.hatch,
-    inkHatchSize: TUNING.hatchSize,
+    inkHatchPx: TUNING.hatchPx,
     inkContour: TUNING.contour,
     inkContourStep: TUNING.contourStep,
     inkContourSoft: TUNING.contourSoft,

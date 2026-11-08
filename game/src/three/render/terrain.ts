@@ -4,6 +4,7 @@ import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import {
   paintGroundCanvas,
+  paintLandformCanvas,
   TERRAIN_MARGIN,
   type PaintCanvas,
 } from "../../render/groundPaint";
@@ -56,11 +57,21 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 
 function paintTexture(w: World): THREE.CanvasTexture {
   const c = mapCanvas(w, groundSide(w.size));
-  paintGroundCanvas(c, w.terrain, { hillshade: 0.35, roadsAsGround: true });
+  paintGroundCanvas(c, w.terrain, { hillshade: 0.35 });
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.magFilter = THREE.NearestFilter;
+  return texture;
+}
+
+function landformTexture(w: World): THREE.CanvasTexture | null {
+  if (!atlasOf(w.terrain).landforms) return null;
+  const c = mapCanvas(w, groundSide(w.size));
+  paintLandformCanvas(c, w.terrain);
+  const texture = new THREE.CanvasTexture(c.ctx.canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.flipY = false;
   return texture;
 }
 
@@ -130,7 +141,7 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
 
 export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawGround(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
+  drawGround(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
   inkGround(material);
   NIGHT_POOLS.light(material);
   return material;
