@@ -379,25 +379,18 @@ describe("critical vehicle readout", () => {
       turnsLeft: 2,
       total: 4,
     };
-    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Heat", "Engine", "Weather"]);
+    expect(getHudReadout(w).survival.map((r) => en(r.label))).toEqual(["Heat", "Engine"]);
   });
-  it("keeps the weather slot when the weather is clear", () => {
-    const w = emptyWorld();
-    const clear = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect({ value: en(clear.value), idle: clear.idle, warning: clear.warning }).toEqual({ value: "Clear", idle: true, warning: false });
-    w.weather = [{ id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number]];
-    const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect({ label: en(weather.label), value: en(weather.value), warning: weather.warning, idle: weather.idle }).toEqual({ label: "Weather", value: "Heat wave", warning: false, idle: false });
-  });
-  it("lists the weather words most severe first", () => {
+  it("shows no weather on the instruments", () => {
     const w = emptyWorld();
     const pos = playerVehicle(w).pos;
     w.weather = [
       { id: "h", kind: "heatwave", turnsLeft: 9, born: w.turn } as World["weather"][number],
+      { id: "o", kind: "overcast", turnsLeft: 9, born: w.turn } as World["weather"][number],
       { id: "s", kind: "storm", turnsLeft: 9, born: w.turn, pos: { ...pos }, radius: 5 } as World["weather"][number],
     ];
-    const weather = getHudReadout(w).survival.find((r) => r.id === "weather")!;
-    expect(en(weather.value).indexOf("storm")).toBeLessThan(en(weather.value).indexOf("Heat wave"));
+    const hud = getHudReadout(w);
+    expect(hud.survival.map((r) => r.id)).toEqual(["heat", "engine"]);
   });
   it("marks low fuel on the fuel readout with its cause", () => {
     const w = emptyWorld();
