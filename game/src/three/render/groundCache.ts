@@ -3,7 +3,7 @@ import type { GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
 
 const HAZE_REACH_PX = 32;
-const MOVING_LENS_DENSITY = 1 / 3;
+const MOVING_LENS_DENSITY = 0.5;
 const LENS_DIGITS = 7;
 
 export type Span = { from: number; to: number };
