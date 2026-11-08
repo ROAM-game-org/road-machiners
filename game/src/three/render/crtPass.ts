@@ -59,7 +59,7 @@ void main() {
 }`;
 
 export class CrtPass {
-  private readonly target = new THREE.WebGLRenderTarget(1, 1, { samples: CRT_SAMPLES, type: THREE.HalfFloatType, stencilBuffer: true, depthBuffer: true });
+  private readonly target = new THREE.WebGLRenderTarget(1, 1, { samples: CRT_SAMPLES, type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, stencilBuffer: true, depthBuffer: true, resolveDepthBuffer: false, resolveStencilBuffer: false });
   private readonly material = new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: FRAGMENT, uniforms: { crtScene: { value: this.target.texture }, crtSize: { value: new THREE.Vector2(1, 1) }, crtScale: { value: 1 }, crtStrength: TUNING.crt }, depthTest: false, depthWrite: false });
   private readonly quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
