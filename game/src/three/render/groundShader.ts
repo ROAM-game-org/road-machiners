@@ -7,7 +7,7 @@ import { mix, PAL } from "../../render/palette";
 import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
-import { groundFields } from "./groundFields";
+import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
 
@@ -38,7 +38,7 @@ const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_SIDE_EDGE = 0.08;
 const DRAWN_FAR_TILES = 8;
-const DRAWN_SPLINE_REACH_TILES = 2;
+const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
 const DRAWN_PATCH_MIX = 0.05;
@@ -154,6 +154,10 @@ function markIndex(mark: MarkKind): number {
   return MARK_KINDS.indexOf(mark);
 }
 
+function pickMaterial(table: string): string {
+  return `vec3(${table}[block.ids.x], ${table}[block.ids.y], ${table}[block.ids.z])`;
+}
+
 function wearLook() {
   return {
     wearBaseLuma: { value: luma(new THREE.Color(PAL.road)) },
@@ -203,7 +207,7 @@ uniform vec3 padDust;
 uniform vec3 padMark;
 uniform sampler2D roadField;
 uniform float heightSide;
-uniform sampler2D groundTiles;
+uniform highp sampler2DArray groundTiles;
 uniform float groundTileSide;
 uniform float groundTileMeters;
 #ifdef GROUND_LANDFORMS
@@ -270,23 +274,44 @@ float markHash(vec2 p) {
 `;
 
 const MATERIAL_BORDERS = `struct DrawnBorder { int lo; int hi; float toward; float wave; float pepper; float spill; vec3 spillColor; };
-vec4 drawnTileRecord(vec2 tile) {
-  ivec2 at = clamp(ivec2(floor(tile)), ivec2(0), ivec2(int(groundTileSide) - 1));
-  return texelFetch(groundTiles, at, 0);
-}
-int drawnMaterialOf(vec4 record) {
-  return int(record.r * 255.0 + 0.5);
-}
+struct DrawnBlock { ivec3 ids; ivec3 masks; };
 int drawnMaterialAt(vec2 tile) {
-  return drawnMaterialOf(drawnTileRecord(tile));
+  ivec2 at = clamp(ivec2(floor(tile)), ivec2(0), ivec2(int(groundTileSide) - 1));
+  return int(texelFetch(groundTiles, ivec3(at, ${TILE_LAYER.tiles}), 0).r * 255.0 + 0.5);
 }
-bool drawnCalm(vec4 record) {
-  return record.a * 255.0 > ${(DRAWN_SPLINE_REACH_TILES + 0.5).toFixed(1)};
+ivec4 drawnBlockTexel(ivec2 cell, int layer) {
+  return ivec4(texelFetch(groundTiles, ivec3(cell, layer), 0) * 255.0 + 0.5);
 }
-DrawnBorder drawnCalmBorder(int id) {
-  float spills = drawnMaterialSpill[id];
-  float leads = spills * spills * spills * spills;
-  return DrawnBorder(id, id, ${DRAWN_FAR_TILES.toFixed(1)}, drawnMaterialWave[id], drawnMaterialPepper[id], spills, leads * drawnMaterialColor[id] / max(leads, 0.0001));
+bool drawnBlockAt(vec2 tile, out DrawnBlock block) {
+  ivec2 cell = ivec2(floor(tile - 0.5));
+  if (any(lessThan(cell, ivec2(0))) || any(greaterThan(cell, ivec2(int(groundTileSide) - 1)))) return false;
+  ivec4 lead = drawnBlockTexel(cell, ${TILE_LAYER.blockLead});
+  int count = lead.r >> ${BLOCK_COUNT_SHIFT};
+  if (count > ${BLOCK_SLOTS}) return false;
+  int own = lead.r & ${(1 << BLOCK_COUNT_SHIFT) - 1};
+  int ownMask = lead.b | (lead.a << 8);
+  block = DrawnBlock(ivec3(own, lead.g, own), ivec3(ownMask, ~ownMask & ${BLOCK_FULL}, 0));
+  if (count < ${BLOCK_SLOTS}) return true;
+  ivec4 rest = drawnBlockTexel(cell, ${TILE_LAYER.blockRest});
+  int nextMask = rest.b | (rest.a << 8);
+  block = DrawnBlock(ivec3(own, lead.g, rest.r), ivec3(ownMask, nextMask, ~(ownMask | nextMask) & ${BLOCK_FULL}));
+  return true;
+}
+vec4 drawnRowBits(int mask, int row) {
+  return vec4((ivec4(mask >> (row * 4)) >> ivec4(0, 1, 2, 3)) & 1);
+}
+float drawnMaskShare(int mask, vec4 wx, vec4 wy) {
+  return dot(vec4(dot(drawnRowBits(mask, 0), wx), dot(drawnRowBits(mask, 1), wx), dot(drawnRowBits(mask, 2), wx), dot(drawnRowBits(mask, 3), wx)), wy);
+}
+vec3 drawnMaskSpread(int mask, vec4 wx, vec4 wy, vec4 sx, vec4 sy) {
+  vec4 along = vec4(0.0);
+  vec4 rise = vec4(0.0);
+  for (int row = 0; row < 4; row++) {
+    vec4 bits = drawnRowBits(mask, row);
+    along[row] = dot(bits, wx);
+    rise[row] = dot(bits, sx);
+  }
+  return vec3(dot(along, wy), dot(rise, wy), dot(along, sy));
 }
 vec4 drawnSplineWeights(float f) {
   float g = 1.0 - f;
@@ -296,10 +321,7 @@ vec4 drawnSplineSlopes(float f) {
   float g = 1.0 - f;
   return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
 }
-vec2 drawnEdgeTraits(vec2 tile) {
-  vec4 home = drawnTileRecord(tile);
-  int own = drawnMaterialOf(home);
-  if (drawnCalm(home)) return vec2(drawnMaterialWave[own], drawnMaterialPepper[own]);
+vec2 drawnEdgeTraitsOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
@@ -315,9 +337,16 @@ vec2 drawnEdgeTraits(vec2 tile) {
     }
   return vec2(wave, pepper);
 }
-DrawnBorder drawnBorderAt(vec2 tile) {
-  vec4 home = drawnTileRecord(tile);
-  if (drawnCalm(home)) return drawnCalmBorder(drawnMaterialOf(home));
+vec2 drawnEdgeTraits(vec2 tile) {
+  DrawnBlock block;
+  if (!drawnBlockAt(tile, block)) return drawnEdgeTraitsOfTiles(tile);
+  vec2 f = tile - 0.5 - floor(tile - 0.5);
+  vec4 wx = drawnSplineWeights(f.x);
+  vec4 wy = drawnSplineWeights(f.y);
+  vec3 shares = vec3(drawnMaskShare(block.masks.x, wx, wy), drawnMaskShare(block.masks.y, wx, wy), drawnMaskShare(block.masks.z, wx, wy));
+  return vec2(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}));
+}
+DrawnBorder drawnBorderOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
@@ -374,6 +403,39 @@ DrawnBorder drawnBorderAt(vec2 tile) {
       slope += side * vec2(sx[i] * wy[j], wx[i] * sy[j]);
     }
   float dist = field / max(length(slope), 0.0001);
+  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+}
+DrawnBorder drawnBorderAt(vec2 tile) {
+  DrawnBlock block;
+  if (!drawnBlockAt(tile, block)) return drawnBorderOfTiles(tile);
+  vec2 f = tile - 0.5 - floor(tile - 0.5);
+  vec4 wx = drawnSplineWeights(f.x);
+  vec4 wy = drawnSplineWeights(f.y);
+  vec4 sx = drawnSplineSlopes(f.x);
+  vec4 sy = drawnSplineSlopes(f.y);
+  vec3 spreads[3] = vec3[3](drawnMaskSpread(block.masks.x, wx, wy, sx, sy), drawnMaskSpread(block.masks.y, wx, wy, sx, sy), drawnMaskSpread(block.masks.z, wx, wy, sx, sy));
+  vec3 shares = vec3(spreads[0].x, spreads[1].x, spreads[2].x);
+  vec3 spills = ${pickMaterial("drawnMaterialSpill")};
+  vec3 leads = shares * spills * spills * spills * spills;
+  vec3 spillColor = (leads.x * drawnMaterialColor[block.ids.x] + leads.y * drawnMaterialColor[block.ids.y] + leads.z * drawnMaterialColor[block.ids.z]) / max(leads.x + leads.y + leads.z, 0.0001);
+  float wave = dot(shares, ${pickMaterial("drawnMaterialWave")});
+  float pepper = dot(shares, ${pickMaterial("drawnMaterialPepper")});
+  float spill = dot(shares, spills);
+  int here = -1;
+  int there = -1;
+  vec3 hereSpread = vec3(0.0);
+  vec3 thereSpread = vec3(0.0);
+  for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++) {
+    vec3 spread = spreads[slot];
+    bool top = spread.x > hereSpread.x;
+    bool next = !top && spread.x > thereSpread.x;
+    there = top ? here : (next ? block.ids[slot] : there);
+    thereSpread = top ? hereSpread : (next ? spread : thereSpread);
+    here = top ? block.ids[slot] : here;
+    hereSpread = top ? spread : hereSpread;
+  }
+  if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
+  float dist = (hereSpread.x - thereSpread.x) / max(length(hereSpread.yz - thereSpread.yz), 0.0001);
   return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
 }
 float drawnStreakAt(vec2 at) {
@@ -543,7 +605,7 @@ const BORDER_BODY = `
 `;
 
 const GLASS_BODY = `
-  float glassEdge = texture(groundTiles, vRoadXZ / groundTileMeters).b
+  float glassEdge = texture(groundTiles, vec3(vRoadXZ / groundTileMeters, ${TILE_LAYER.tiles}.0)).b
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_SCALE * S).toFixed(2)}) - 0.5) * ${GLASS_EDGE_WOBBLE.toFixed(2)}
     + (valueNoise(vRoadXZ / ${(GLASS_EDGE_FINE_SCALE * S).toFixed(2)} + 53.1) - 0.5) * ${GLASS_EDGE_FINE.toFixed(2)};
   float glassSoft = fwidth(glassEdge) * 0.75;
@@ -579,7 +641,7 @@ const ROAD_BODY = `
   float bandMask = roadMaskAt.b;
   vec4 roadLook = vec4(textureLod(roadDetail, (vRoadXZ - roadOrigin) / roadDetailMeters, 8.0).rgb, 0.5);
   float roadWander = textureLod(roadTone, (vRoadXZ - roadOrigin) / roadToneMeters, 0.0).r;
-  float roadSand = texture(groundTiles, vRoadXZ / groundTileMeters).g;
+  float roadSand = texture(groundTiles, vec3(vRoadXZ / groundTileMeters, ${TILE_LAYER.tiles}.0)).g;
   float groundLuma = dot(blurredGround, vec3(0.299, 0.587, 0.114));
   float groundShade = clamp(groundLuma / mix(roadPlainLuma, roadSandLuma, roadSand), 0.7, 1.2);
   float paintedLuma = dot(paintedGround, vec3(0.299, 0.587, 0.114));

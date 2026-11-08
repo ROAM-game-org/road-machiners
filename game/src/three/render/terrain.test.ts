@@ -4,7 +4,7 @@ import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
 import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
-import { calmTiles } from './groundFields';
+import { BLOCK_COUNT_SHIFT, writeBlocks } from './groundFields';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
@@ -130,26 +130,34 @@ describe('ground texture side', () => {
   });
 });
 
-describe('calm ground tiles', () => {
+describe('ground tile blocks', () => {
   const side = 7;
   const field = (paint: (x: number, y: number) => number) => Uint8Array.from({ length: side * side }, (_, k) => paint(k % side, Math.floor(k / side)));
+  const blockAt = (materials: Uint8Array, x: number, y: number) => {
+    const lead = new Uint8Array(side * side * 4);
+    const rest = new Uint8Array(side * side * 4);
+    writeBlocks(materials, side, lead, rest);
+    const at = (y * side + x) * 4;
+    return { count: lead[at] >> BLOCK_COUNT_SHIFT, ids: [lead[at] & 31, lead[at + 1], rest[at]], masks: [lead[at + 2] | (lead[at + 3] << 8), rest[at + 2] | (rest[at + 3] << 8)] };
+  };
 
-  it('counts tiles to the nearest other material by the widest axis', () => {
-    const calm = calmTiles(field((x, y) => (x === 0 && y === 0 ? 1 : 0)), side);
-    expect(calm[0]).toBe(1);
-    expect(calm[1 * side + 1]).toBe(1);
-    expect(calm[2 * side + 1]).toBe(2);
-    expect(calm[3 * side + 3]).toBe(3);
-    expect(calm[6 * side + 6]).toBe(6);
+  it('keeps one material with every tile of the 4 by 4 block', () => {
+    expect(blockAt(field(() => 4), 3, 3)).toEqual({ count: 1, ids: [4, 4, 4], masks: [0xffff, 0] });
   });
 
-  it('treats the map edge as more of the same material', () => {
-    const calm = calmTiles(field(() => 4), side);
-    expect(Math.min(...calm)).toBe(255);
+  it('splits a straight border by which block tiles hold the first material met', () => {
+    expect(blockAt(field((x) => (x < 3 ? 2 : 5)), 1, 3)).toEqual({ count: 2, ids: [2, 5, 2], masks: [0x7777, 0x8888] });
   });
 
-  it('marks both sides of a straight border', () => {
-    const calm = calmTiles(field((x) => (x < 3 ? 2 : 5)), side);
-    expect([0, 1, 2, 3, 4, 5, 6].map((x) => calm[3 * side + x])).toEqual([3, 2, 1, 1, 2, 3, 4]);
+  it('keeps a third material and leaves its tiles to the shader', () => {
+    expect(blockAt(field((x, y) => (y < 3 ? 1 : x < 3 ? 2 : 3)), 3, 3)).toEqual({ count: 3, ids: [1, 2, 3], masks: [0x000f, 0x1110] });
+  });
+
+  it('flags a block of four materials for the full search', () => {
+    expect(blockAt(field((x, y) => (y < 3 ? (x < 3 ? 0 : 1) : x < 3 ? 2 : 3)), 3, 3).count).toBe(4);
+  });
+
+  it('repeats the edge tiles past the map edge', () => {
+    expect(blockAt(field((x) => (x === 0 ? 6 : 7)), 0, 0)).toEqual({ count: 2, ids: [6, 7, 6], masks: [0x3333, 0xcccc] });
   });
 });
