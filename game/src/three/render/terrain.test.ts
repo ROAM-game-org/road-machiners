@@ -4,7 +4,7 @@ import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
 import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
-import { BLOCK_COUNT_SHIFT, writeBlocks } from './groundFields';
+import { BLOCK_COUNT_SHIFT, blockWriter } from './groundFields';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
@@ -136,7 +136,9 @@ describe('ground tile blocks', () => {
   const blockAt = (materials: Uint8Array, x: number, y: number) => {
     const lead = new Uint8Array(side * side * 4);
     const rest = new Uint8Array(side * side * 4);
-    writeBlocks(materials, side, lead, rest);
+    const write = blockWriter(materials, side, lead, rest);
+    write(0, 3);
+    write(3, side);
     const at = (y * side + x) * 4;
     return { count: lead[at] >> BLOCK_COUNT_SHIFT, ids: [lead[at] & 31, lead[at + 1], rest[at]], masks: [lead[at + 2] | (lead[at + 3] << 8), rest[at + 2] | (rest[at + 3] << 8)] };
   };

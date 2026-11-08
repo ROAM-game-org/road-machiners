@@ -208,6 +208,7 @@ uniform vec3 padMark;
 uniform sampler2D roadField;
 uniform float heightSide;
 uniform highp sampler2DArray groundTiles;
+uniform bool groundBlocksReady;
 uniform float groundTileSide;
 uniform float groundTileMeters;
 #ifdef GROUND_LANDFORMS
@@ -284,7 +285,7 @@ ivec4 drawnBlockTexel(ivec2 cell, int layer) {
 }
 bool drawnBlockAt(vec2 tile, out DrawnBlock block) {
   ivec2 cell = ivec2(floor(tile - 0.5));
-  if (any(lessThan(cell, ivec2(0))) || any(greaterThan(cell, ivec2(int(groundTileSide) - 1)))) return false;
+  if (!groundBlocksReady || any(lessThan(cell, ivec2(0))) || any(greaterThan(cell, ivec2(int(groundTileSide) - 1)))) return false;
   ivec4 lead = drawnBlockTexel(cell, ${TILE_LAYER.blockLead});
   int count = lead.r >> ${BLOCK_COUNT_SHIFT};
   if (count > ${BLOCK_SLOTS}) return false;

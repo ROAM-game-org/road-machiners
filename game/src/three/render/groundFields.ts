@@ -23,12 +23,14 @@ const TILE_LAYERS = Object.keys(TILE_LAYER).length;
 export const BLOCK_SIDE = 4;
 export const BLOCK_SLOTS = 3;
 export const BLOCK_COUNT_SHIFT = 5;
+const BLOCK_ROWS_PER_TASK = 32;
 
 export type GroundFields = ReturnType<typeof groundFields>;
 
 export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null) {
   paintRoadMask(mask, atlasOf(t), roadHoles(t));
   const pixel = S / mask.res / PIXEL_SPLIT;
+  const tiles = tileTexture(t);
   return {
     roadMask: { value: maskTexture(mask) },
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
@@ -36,7 +38,8 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
     facetSide: { value: S },
     roadField: { value: roadFieldTexture(t) },
     heightSide: { value: t.size + 1 },
-    groundTiles: { value: tileTexture(t) },
+    groundTiles: { value: tiles.texture },
+    groundBlocksReady: tiles.ready,
     groundTileSide: { value: t.size },
     groundTileMeters: { value: t.size * S },
     ...(landforms ? { groundLandforms: { value: landforms } } : {}),
@@ -57,7 +60,7 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function tileTexture(t: Terrain): THREE.DataArrayTexture {
+function tileTexture(t: Terrain): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
   const shown = shownLooks(t);
@@ -69,28 +72,66 @@ function tileTexture(t: Terrain): THREE.DataArrayTexture {
     data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
     data[tile * 4 + TILE_GLASS] = glass[tile];
   }
-  writeBlocks(materials, t.size, data.subarray(layer * TILE_LAYER.blockLead, layer * (TILE_LAYER.blockLead + 1)), data.subarray(layer * TILE_LAYER.blockRest));
-  return linear(new THREE.DataArrayTexture(data, t.size, t.size, TILE_LAYERS));
+  const texture = linear(new THREE.DataArrayTexture(data, t.size, t.size, TILE_LAYERS));
+  const ready = { value: false };
+  fillBlocksLater(materials, t.size, texture, ready);
+  return { texture, ready };
 }
 
-export function writeBlocks(materials: Uint8Array, side: number, lead: Uint8Array, rest: Uint8Array): void {
+function fillBlocksLater(materials: Uint8Array, side: number, texture: THREE.DataArrayTexture, ready: { value: boolean }): void {
+  const layer = side * side * 4;
+  const data = texture.image.data as Uint8Array;
+  const write = blockWriter(materials, side, data.subarray(layer * TILE_LAYER.blockLead, layer * TILE_LAYER.blockRest), data.subarray(layer * TILE_LAYER.blockRest));
+  let row = 0;
+  const step = (): void => {
+    const end = Math.min(side, row + BLOCK_ROWS_PER_TASK);
+    write(row, end);
+    row = end;
+    if (row < side) return void setTimeout(step, 0);
+    texture.addLayerUpdate(TILE_LAYER.blockLead);
+    texture.addLayerUpdate(TILE_LAYER.blockRest);
+    texture.needsUpdate = true;
+    ready.value = true;
+  };
+  setTimeout(step, 0);
+}
+
+export function blockWriter(materials: Uint8Array, side: number, lead: Uint8Array, rest: Uint8Array): (fromRow: number, toRow: number) => void {
   if (GROUND_MATERIAL_IDS.length > 1 << BLOCK_COUNT_SHIFT) throw new Error(`${GROUND_MATERIAL_IDS.length} ground materials do not fit the ${BLOCK_COUNT_SHIFT} id bits of a tile block`);
   const block = new Uint8Array(BLOCK_SIDE * BLOCK_SIDE);
   const slots = new Uint8Array(BLOCK_SLOTS + 1);
   const masks = new Uint16Array(BLOCK_SLOTS);
-  for (let y = 0; y < side; y++)
-    for (let x = 0; x < side; x++) {
-      gatherBlock(materials, side, x, y, block);
-      const count = sortBlock(block, slots, masks);
-      writeBlock(lead, rest, (y * side + x) * 4, count, slots, masks);
-    }
+  const reach = Int32Array.from({ length: side + BLOCK_SIDE }, (_, k) => Math.min(side - 1, Math.max(0, k - 1)));
+  return (fromRow, toRow) => {
+    for (let y = fromRow; y < toRow; y++)
+      for (let x = 0; x < side; x++) {
+        const at = (y * side + x) * 4;
+        gatherBlock(materials, side, reach, x, y, block);
+        if (plainBlock(block)) writePlainBlock(lead, rest, at, block[0]);
+        else writeBlock(lead, rest, at, sortBlock(block, slots, masks), slots, masks);
+      }
+  };
 }
 
-function gatherBlock(materials: Uint8Array, side: number, x: number, y: number, block: Uint8Array): void {
+function plainBlock(block: Uint8Array): boolean {
+  for (let k = 1; k < block.length; k++) if (block[k] !== block[0]) return false;
+  return true;
+}
+
+function writePlainBlock(lead: Uint8Array, rest: Uint8Array, at: number, material: number): void {
+  lead[at] = material | (1 << BLOCK_COUNT_SHIFT);
+  lead[at + 1] = material;
+  lead[at + 2] = 0xff;
+  lead[at + 3] = 0xff;
+  rest[at] = material;
+}
+
+function gatherBlock(materials: Uint8Array, side: number, reach: Int32Array, x: number, y: number, block: Uint8Array): Uint8Array {
   for (let j = 0; j < BLOCK_SIDE; j++) {
-    const row = Math.min(side - 1, Math.max(0, y - 1 + j)) * side;
-    for (let i = 0; i < BLOCK_SIDE; i++) block[j * BLOCK_SIDE + i] = materials[row + Math.min(side - 1, Math.max(0, x - 1 + i))];
+    const row = reach[y + j] * side;
+    for (let i = 0; i < BLOCK_SIDE; i++) block[j * BLOCK_SIDE + i] = materials[row + reach[x + i]];
   }
+  return block;
 }
 
 function sortBlock(block: Uint8Array, slots: Uint8Array, masks: Uint16Array): number {
