@@ -50,6 +50,14 @@ describe('every runtime id', () => {
     expect(Object.keys(EN).filter((key) => key.startsWith('lore.') && !listed.has(key))).toEqual([]);
   });
 
+  it.each([['English', EN], ['Russian', RU]])('has no %s broadcast past its topic count', (_language, catalog) => {
+    const stray = Object.keys(catalog).filter((key) => {
+      const match = /^radio\.(\w+)\.(\d+)$/.exec(key);
+      return match !== null && !(Number(match[2]) < (RADIO_VARIANTS as Record<string, number>)[match[1]]);
+    });
+    expect(stray).toEqual([]);
+  });
+
   it('has no broadcast variant beyond the counts in the data', () => {
     const counted = new Set(REQUIRED.find(([kind]) => kind === 'broadcast')![1]);
     const listed = Object.keys(EN).filter((key) => /^radio\.\w+\.\d+$/.test(key));

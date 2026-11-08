@@ -125,7 +125,7 @@ Jill Jane, "J.J.", runs Waste Of Time Radio from a mast nobody has found. Her br
 - She is dry and gallows-funny. She calls listeners "road machiners" or "boys" and signs off with "Waste some time."
 - She reports raids as business and never judges how anyone lives. She does frown on killing.
 - She stays in character. She never says turns, quests, XP, levels, HP, keys, clicks, the player or the game. She never states a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine.
-- Hints are road wisdom someone in the wasteland would say, like "Noon sun cooks an engine. Park in shade." Each matches a real rule in the [mechanics pages](../wiki/mechanics/). A hint never says what to do next or how a control works.
+- When the road is quiet she talks about people, the road, the Old World and herself, like "A dry tank far from town yields a bumper crop of sitting still." She never teaches how trucks or the world work and never says what to do. Rules are for the player to find. A news line may say what its own event does to the road, as any weather report would. A line aired at a fixed hour or to fill a quiet stretch never says what the weather is now, since it may be wrong.
 - She names only places the listener has found. Anywhere else is a basin direction like "up north" or "in the southwest basin". She never quotes prices. The Rumor mill and Market ears perks keep that work.
 - A line fits the three-line screen: 90 characters at most once its names are filled in.
 - Read each line against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction.

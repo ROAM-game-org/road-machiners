@@ -54,6 +54,6 @@ export const RADIO_VARIANTS: Record<RadioTopic, number> = {
   rescue: 2,
   raid: 3,
   raidKnockout: 2,
-  wisdom: 20,
+  wisdom: 13,
 };
 
