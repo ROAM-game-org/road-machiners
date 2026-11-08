@@ -36,7 +36,7 @@ function labelled(text: string, control: HTMLElement): HTMLElement {
 export function mountInkMenu(): void {
   if (!pageParams().has("tune")) return;
   const panel = document.createElement("div");
-  panel.className = "style-menu";
+  panel.className = "ink-menu";
   panel.style.cssText = PANEL_CSS;
   const body = document.createElement("div");
   body.style.cssText = "display:flex;flex-direction:column;gap:6px";

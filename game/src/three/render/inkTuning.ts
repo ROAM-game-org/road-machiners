@@ -31,7 +31,7 @@ function fromUrl(key: TuningKey): number {
   const raw = pageParams().get(key);
   if (raw === null) return KNOBS[key].start;
   const value = Number(raw);
-  if (!Number.isFinite(value) || value < KNOBS[key].min || value > KNOBS[key].max) throw new Error(`Style setting ${key}=${raw} must be a number from ${KNOBS[key].min} to ${KNOBS[key].max}`);
+  if (!Number.isFinite(value) || value < KNOBS[key].min || value > KNOBS[key].max) throw new Error(`Ink setting ${key}=${raw} must be a number from ${KNOBS[key].min} to ${KNOBS[key].max}`);
   return value;
 }
 

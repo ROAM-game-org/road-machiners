@@ -181,6 +181,29 @@ Skip this phase if the PH1 count is at most 16 on both maps.
 - RK2 — `DataArrayTexture` sampling differs from three 2D reads at the texel edges. If the board shows that, the kind channels pack into fewer 2D textures instead.
 - RK3 — Chaos Highway looks bad under drawn ground, per UK2. Report it to the user. Do not tune it in this task.
 
+## Verify
+
+Result: passed
+
+Happy-path:
+- CK1 (IV1) — the final code changes a day shot — held: a fresh board against the references showed at most 0.037% of pixels off by more than 8, all scattered single pixels.
+- CK2 — the menu leaks to players or vanishes for tuning — held: no `.ink-menu` without `?tune`, one with it.
+
+Negative:
+- CK3 — a bad knob value in the URL is silently clamped — held: `edgeWobble=99` throws "Ink setting edgeWobble=99 must be a number from 0 to 2". The probe found the old "Style setting" wording, which is fixed.
+- CK4 (IV7) — a missing anchor patches nothing — held: `shaderPatch.test.ts` passes, and every patch in `groundShader.ts` and `inkPaint.ts` goes through it.
+
+Invariants / assumptions:
+- CK5 (IV2) — a dropped switch survives — held: no `LOOK_POLY`, `GROUND_DRAWN`, `STYLE_GROUND`, `look.ts` import or `LOOK`, `GROUND` or `STYLE` comparison in `src` or `scripts`.
+- CK6 (IV3) — the night program fails on a 16-unit GPU — held: the playtest night checks pass on both maps at a missing ground share of 0.000, and `samplers` reports 15 and 16 at night.
+- CK7 (IV4) — the gate passes through a suppression or a limit change — held: `npm run quality` passes with `.oxlintrc.json` and `.quality.json` untouched and no `_` names added.
+- CK8 (IV5) — the bake split changes the map — held: `icarus.bin` was byte-identical after `npm run map:bake`. `bake.ts` has not changed since.
+- CK9 (IV6) — the ground writes paint state outside the contract — held: `groundShader.ts` touches only `inkSurface.road`, `edge`, `height`, `slope` and `rise`, and no `style*` global is left.
+
+Smoke: `node scripts/look-board.mjs shoot` on the final code. All 10 shots rendered with no page error, and the day shots match the references.
+Goal: proxy only. Day looks match the approved state by pixel diff. The night look and Chaos Highway are new and need the user's eye. The playtest frame rate gate fails while the CRT filter is at 0.1, as recorded under Deferred.
+Notes: `highway-night` differs by 19% between two runs of the same code. The diff is the fort lamps' brightness, which had faded in to different levels when the shot was taken. The ground matches. Night lamp shots therefore compare by eye, not by number.
+
 ## Conclusion
 
 ### Progress
