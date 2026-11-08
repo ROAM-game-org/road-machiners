@@ -153,16 +153,24 @@ export class ShaderWarmup {
     this.verdicts.settle(this.gpu, performance.now());
     if (this.gpu.lost()) return;
     const view = this.viewKey();
-    if (worldFrozen && view === this.drawnView) return;
+    if (worldFrozen && view === this.drawnView && !this.groundSettling()) return;
     this.drawnView = view;
     this.holdUncompiled();
     try {
-      if (TUNING.crt.value > 0) this.crt.render(() => this.drawScene());
-      else this.drawScene();
+      this.drawView();
     } finally {
       for (const o of this.held) o.visible = true;
       this.held = [];
     }
+  }
+
+  private groundSettling(): boolean {
+    return this.groundCache !== null && this.groundCache.coarse();
+  }
+
+  private drawView(): void {
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawScene());
+    else this.drawScene();
   }
 
   private viewKey(): string {

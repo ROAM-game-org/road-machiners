@@ -106,6 +106,7 @@ export type GroundCacheUniforms = {
   groundCacheEdge: THREE.IUniform<THREE.Texture | null>;
   groundCacheShift: THREE.IUniform<THREE.Vector2>;
   groundCacheSize: THREE.IUniform<THREE.Vector2>;
+  groundCacheDensity: THREE.IUniform<THREE.Vector2>;
   groundCacheReach: THREE.IUniform<number>;
 };
 
@@ -810,14 +811,15 @@ uniform highp sampler2D groundCacheData;
 uniform highp sampler2D groundCacheEdge;
 uniform vec2 groundCacheShift;
 uniform vec2 groundCacheSize;
+uniform vec2 groundCacheDensity;
 uniform float groundCacheReach;
 ${EDGE_LINE}`;
 
 const CACHE_READ = `{
-  vec2 groundCachePoint = gl_FragCoord.xy;
+  vec2 groundCachePoint = gl_FragCoord.xy * groundCacheDensity;
 #ifdef HAZE_SHIFTED
   mat2 groundCacheMeters = mat2(dFdx(vHazeXZ), dFdy(vHazeXZ));
-  groundCachePoint += clamp(inverse(groundCacheMeters) * hazeShift, -groundCacheReach, groundCacheReach);
+  groundCachePoint += clamp(inverse(groundCacheMeters) * hazeShift * groundCacheDensity, -groundCacheReach, groundCacheReach);
 #endif
   vec2 groundCacheUv = (groundCachePoint + groundCacheShift) / groundCacheSize;
   ivec2 groundCacheSide = ivec2(groundCacheSize);
@@ -830,5 +832,5 @@ const CACHE_READ = `{
   inkSurface.height = groundCacheRelief.x;
   inkSurface.slope = groundCacheRelief.yz;
   inkSurface.rise = groundCacheRelief.w;
-  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)}) * groundCacheEdgeAt.y;
+  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;
 }`;

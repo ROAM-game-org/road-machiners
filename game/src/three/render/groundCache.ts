@@ -3,6 +3,8 @@ import type { GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
 
 const HAZE_REACH_PX = 32;
+const MOVING_LENS_DENSITY = 1 / 3;
+const LENS_DIGITS = 7;
 
 export type Span = { from: number; to: number };
 export type Area = { x: Span; y: Span };
@@ -14,12 +16,15 @@ export function groundCacheUniforms(): GroundCacheUniforms {
     groundCacheEdge: { value: null },
     groundCacheShift: { value: new THREE.Vector2() },
     groundCacheSize: { value: new THREE.Vector2(1, 1) },
+    groundCacheDensity: { value: new THREE.Vector2(1, 1) },
     groundCacheReach: { value: HAZE_REACH_PX },
   };
 }
 
 export class GroundCache {
-  private target: THREE.WebGLRenderTarget | null = null;
+  private readonly targets = new Map<number, THREE.WebGLRenderTarget>();
+  private density = 1;
+  private lens = "";
   private readonly anchor = new THREE.Vector3();
   private readonly held = new THREE.Vector3();
   private readonly right = new THREE.Vector3();
@@ -65,18 +70,27 @@ export class GroundCache {
 
   forget(): void {
     this.view = "";
+    this.lens = "";
+  }
+
+  coarse(): boolean {
+    return this.density < 1;
   }
 
   private snapAndFill(camera: THREE.OrthographicCamera, into: THREE.WebGLRenderTarget | null): void {
-    const width = this.drawSize.x;
-    const height = this.drawSize.y;
     camera.updateMatrixWorld();
     const p = camera.projectionMatrix.elements;
+    const lens = `${this.drawSize.x}x${this.drawSize.y}|${p.map((v) => v.toPrecision(LENS_DIGITS)).join(",")}|${camera.quaternion.toArray().map((v) => v.toFixed(LENS_DIGITS)).join(",")}`;
+    this.density = this.lens !== "" && lens !== this.lens ? MOVING_LENS_DENSITY : 1;
+    this.lens = lens;
+    const width = Math.ceil(this.drawSize.x * this.density);
+    const height = Math.ceil(this.drawSize.y * this.density);
+    this.uniforms.groundCacheDensity.value.set(width / this.drawSize.x, height / this.drawSize.y);
     const meterX = 2 / (p[0] * width);
     const meterY = 2 / (p[5] * height);
     this.right.setFromMatrixColumn(camera.matrixWorld, 0);
     this.up.setFromMatrixColumn(camera.matrixWorld, 1);
-    const view = `${width}x${height}|${p.join(",")}|${camera.quaternion.toArray().join(",")}|${this.signature()}`;
+    const view = `${lens}|${this.density}|${this.signature()}`;
     const fresh = view !== this.view;
     if (fresh) this.anchor.copy(camera.position);
     const offset = this.offset.copy(camera.position).sub(this.anchor);
@@ -105,8 +119,18 @@ export class GroundCache {
   }
 
   private targetFor(width: number, height: number): THREE.WebGLRenderTarget {
-    if (this.target && this.target.width === width && this.target.height === height) return this.target;
-    this.target?.dispose();
+    const kept = this.targets.get(this.density);
+    const target = kept && kept.width === width && kept.height === height ? kept : this.newTarget(width, height, kept);
+    const [color, data, edge] = target.textures;
+    this.uniforms.groundCacheColor.value = color;
+    this.uniforms.groundCacheData.value = data;
+    this.uniforms.groundCacheEdge.value = edge;
+    this.uniforms.groundCacheSize.value.set(width, height);
+    return target;
+  }
+
+  private newTarget(width: number, height: number, stale: THREE.WebGLRenderTarget | undefined): THREE.WebGLRenderTarget {
+    stale?.dispose();
     const target = new THREE.WebGLRenderTarget(width, height, { count: 3, depthBuffer: true, stencilBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false });
     const [color, data, edge] = target.textures;
     color.type = THREE.HalfFloatType;
@@ -118,11 +142,7 @@ export class GroundCache {
       shifted.wrapS = THREE.RepeatWrapping;
       shifted.wrapT = THREE.RepeatWrapping;
     }
-    this.uniforms.groundCacheColor.value = color;
-    this.uniforms.groundCacheData.value = data;
-    this.uniforms.groundCacheEdge.value = edge;
-    this.uniforms.groundCacheSize.value.set(width, height);
-    this.target = target;
+    this.targets.set(this.density, target);
     return target;
   }
 
