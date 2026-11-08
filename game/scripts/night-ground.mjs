@@ -46,7 +46,7 @@ export const missingGroundShare = (page) => page.evaluate(([sentinel, sample]) =
     g.scene.background.setHex(sentinel);
     const copy = new OffscreenCanvas(canvas.width, canvas.height);
     try {
-      try { g.renderer.render(g.scene, g.rig.camera); } catch {}
+      try { g.shaders.drawScene(); } catch {}
       copy.getContext('2d').drawImage(canvas, 0, 0);
     } finally {
       g.scene.background.setHex(background);

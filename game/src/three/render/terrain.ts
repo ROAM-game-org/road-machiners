@@ -13,7 +13,7 @@ import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
-import { drawGround } from "./groundShader";
+import { drawGround, drawnGround, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -141,7 +141,27 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
 
 export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawGround(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
+  drawGround(material, drawnGroundOf(w));
+  return litGround(material);
+}
+
+export type CachedGround = { reader: THREE.MeshLambertMaterial; writer: THREE.MeshLambertMaterial; writes: DrawnGround };
+
+export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround {
+  const map = groundTexture(w);
+  const writes = drawnGroundOf(w);
+  const writer = new THREE.MeshLambertMaterial({ map });
+  writeGroundCache(writer, writes);
+  const reader = new THREE.MeshLambertMaterial({ map });
+  readGroundCache(reader, cache);
+  return { reader: litGround(reader), writer, writes };
+}
+
+function drawnGroundOf(w: World): DrawnGround {
+  return drawnGround(mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
+}
+
+function litGround(material: THREE.MeshLambertMaterial): THREE.MeshLambertMaterial {
   inkGround(material);
   NIGHT_POOLS.light(material);
   return material;

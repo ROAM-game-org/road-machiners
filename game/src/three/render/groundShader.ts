@@ -8,6 +8,7 @@ import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
+import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
 
@@ -80,6 +81,7 @@ const DRAWN_ROAD_CRACK_CELL = 3;
 const DRAWN_RISE_RING = 8;
 const DRAWN_RISE_REACH_TILES = 8;
 const DRAWN_EDGE_LINE = 0.8;
+const CACHE_EDGE_PX = 2;
 const DRAWN_SCRATCH_LONG = 0.6;
 const DRAWN_SCRATCH_ACROSS = 0.07;
 const DRAWN_SCRATCH_SHARE = 0.05;
@@ -96,11 +98,40 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export function drawGround(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): void {
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; header: string; key: string };
+
+export type GroundCacheUniforms = {
+  groundCacheColor: THREE.IUniform<THREE.Texture | null>;
+  groundCacheData: THREE.IUniform<THREE.Texture | null>;
+  groundCacheEdge: THREE.IUniform<THREE.Texture | null>;
+  groundCacheShift: THREE.IUniform<THREE.Vector2>;
+  groundCacheSize: THREE.IUniform<THREE.Vector2>;
+  groundCacheReach: THREE.IUniform<number>;
+};
+
+export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): DrawnGround {
   const fields = groundFields(mask, t, shelters, landforms);
   const worn = fields.highwayWear !== undefined;
-  const uniforms = { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) };
-  const header = `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`;
+  return {
+    uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
+    header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
+    key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
+  };
+}
+
+export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
+  patchGround(material, ground.uniforms, ground.header, GROUND_BODY, ground.key);
+}
+
+export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
+  patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
+}
+
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms): void {
+  patchGround(material, cache, CACHE_READ_UNIFORMS, CACHE_READ, "|cacheRead");
+}
+
+function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<string, THREE.IUniform>, header: string, body: string, cacheKey: string): void {
   const before = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
@@ -109,11 +140,16 @@ export function drawGround(material: THREE.MeshLambertMaterial, mask: PaintCanva
     shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <common>", "varying vec2 vRoadXZ;");
     shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <project_vertex>", "vRoadXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
     shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <common>", header);
-    shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <map_fragment>", GROUND_BODY);
+    shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <map_fragment>", body);
   };
-  material.customProgramCacheKey = () => `${key()}|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`;
+  material.customProgramCacheKey = () => `${key()}${cacheKey}`;
   material.needsUpdate = true;
 }
+
+const CACHE_OUTPUTS = `
+layout(location = 1) out highp vec4 groundCacheDataOut;
+layout(location = 2) out highp vec4 groundCacheEdgeOut;
+`;
 
 function lookUniforms() {
   return {
@@ -567,7 +603,12 @@ float drawnSeams(vec2 p, float px) {
 }
 `;
 
-const GROUND_DECLARATIONS = `${UNIFORMS}${WEAR_FUNCTIONS}${NOISE}${MATERIAL_BORDERS}${RELIEF}${SURFACE_MARKS}`;
+const EDGE_LINE = `float drawnEdgeLine(float px) {
+  return 1.0 - smoothstep(${DRAWN_EDGE_LINE.toFixed(2)} - 0.5, ${DRAWN_EDGE_LINE.toFixed(2)} + 0.5, px);
+}
+`;
+
+const GROUND_DECLARATIONS = `${UNIFORMS}${WEAR_FUNCTIONS}${NOISE}${MATERIAL_BORDERS}${RELIEF}${SURFACE_MARKS}${EDGE_LINE}`;
 
 const BORDER_BODY = `
   vec3 blurredGround = textureLod(map, vMapUv, 2.5).rgb;
@@ -671,7 +712,9 @@ const ROAD_BODY = `
   float drawnScratch = step(markHash(drawnScratchCell + 7.7), ${DRAWN_SCRATCH_SHARE.toFixed(2)}) * (1.0 - smoothstep(0.1, 0.25, abs(fract(roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}) - 0.5)));
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnScratch * 0.6 * roadIn;
   inkSurface.road = roadIn;
-  inkSurface.edge = (1.0 - smoothstep(${DRAWN_EDGE_LINE.toFixed(2)} - 0.5, ${DRAWN_EDGE_LINE.toFixed(2)} + 0.5, abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001))) * step(roadFrame.x, roadEdge + ${DRAWN_EDGE_LINE_REACH.toFixed(1)});
+  float drawnEdgePx = abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001);
+  float drawnEdgeNear = step(roadFrame.x, roadEdge + ${DRAWN_EDGE_LINE_REACH.toFixed(1)});
+  inkSurface.edge = drawnEdgeLine(drawnEdgePx) * drawnEdgeNear;
 `;
 
 const MARKS_BODY = `
@@ -750,4 +793,42 @@ const PADS_BODY = `
 #endif
 `;
 
-const GROUND_BODY = `{${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}}`;
+const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}`;
+
+const GROUND_BODY = `{${GROUND_PARTS}}`;
+
+const CACHE_WRITE = `{${GROUND_PARTS}
+  gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
+  groundCacheDataOut = vec4(inkSurface.height, inkSurface.slope, inkSurface.rise);
+  groundCacheEdgeOut = vec4(min(drawnEdgePx, ${CACHE_EDGE_PX.toFixed(1)}) / ${CACHE_EDGE_PX.toFixed(1)}, drawnEdgeNear, 0.0, 1.0);
+  return;
+}`;
+
+const CACHE_READ_UNIFORMS = `varying vec2 vRoadXZ;
+uniform highp sampler2D groundCacheColor;
+uniform highp sampler2D groundCacheData;
+uniform highp sampler2D groundCacheEdge;
+uniform vec2 groundCacheShift;
+uniform vec2 groundCacheSize;
+uniform float groundCacheReach;
+${EDGE_LINE}`;
+
+const CACHE_READ = `{
+  vec2 groundCachePoint = gl_FragCoord.xy;
+#ifdef HAZE_SHIFTED
+  mat2 groundCacheMeters = mat2(dFdx(vHazeXZ), dFdy(vHazeXZ));
+  groundCachePoint += clamp(inverse(groundCacheMeters) * hazeShift, -groundCacheReach, groundCacheReach);
+#endif
+  vec2 groundCacheUv = (groundCachePoint + groundCacheShift) / groundCacheSize;
+  ivec2 groundCacheSide = ivec2(groundCacheSize);
+  ivec2 groundCacheAt = (ivec2(floor(groundCachePoint)) + ivec2(groundCacheShift) + groundCacheSide) % groundCacheSide;
+  vec4 groundCacheLook = texture(groundCacheColor, groundCacheUv);
+  vec4 groundCacheRelief = texelFetch(groundCacheData, groundCacheAt, 0);
+  vec2 groundCacheEdgeAt = texture(groundCacheEdge, groundCacheUv).rg;
+  diffuseColor.rgb = groundCacheLook.rgb;
+  inkSurface.road = groundCacheLook.a;
+  inkSurface.height = groundCacheRelief.x;
+  inkSurface.slope = groundCacheRelief.yz;
+  inkSurface.rise = groundCacheRelief.w;
+  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)}) * groundCacheEdgeAt.y;
+}`;

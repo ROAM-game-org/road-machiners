@@ -206,6 +206,7 @@ ${HAZE.waves.map(waveGlsl).join('\n')}
   #endif
   hazeShift *= hazeOn * hazeLit * hazeGust * ${glslFloat(HAZE.shift / HAZE.waves.reduce((sum, w) => sum + w.weight, 0))};
   }
+  #define HAZE_SHIFTED
   #define vMapUv (vMapUv + hazeShift * hazeUvPerMeter)
   #define vRoadXZ (vRoadXZ + hazeShift)`;
 

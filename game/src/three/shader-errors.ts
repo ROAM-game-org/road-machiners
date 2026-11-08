@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
 import { CrtPass } from './render/crtPass';
+import type { GroundCache } from './render/groundCache';
 import { TUNING, tuningVersion } from './render/inkTuning';
 
 export class ShaderBuildFailed extends Error {
@@ -115,6 +116,7 @@ export class ShaderWarmup {
   private readonly watched = new WeakSet<THREE.Object3D>();
   private sealed = new WeakSet<THREE.Object3D>();
   private readonly crt: CrtPass;
+  private groundCache: GroundCache | null = null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -128,12 +130,23 @@ export class ShaderWarmup {
     gpu.onRestored(() => this.forget());
   }
 
+  drawGroundThrough(cache: GroundCache): void {
+    this.groundCache = cache;
+  }
+
+  drawScene(): void {
+    const plain = () => this.renderer.render(this.scene, this.camera);
+    if (this.groundCache) this.groundCache.draw(this.camera, plain);
+    else plain();
+  }
+
   private forget(): void {
     this.generation++;
     this.compiled = new Variants();
     this.compiling = new Variants();
     this.sealed = new WeakSet();
     this.drawnView = '';
+    this.groundCache?.forget();
   }
 
   render(worldFrozen: boolean): void {
@@ -144,8 +157,8 @@ export class ShaderWarmup {
     this.drawnView = view;
     this.holdUncompiled();
     try {
-      if (TUNING.crt.value > 0) this.crt.render(this.scene, this.camera);
-      else this.renderer.render(this.scene, this.camera);
+      if (TUNING.crt.value > 0) this.crt.render(() => this.drawScene());
+      else this.drawScene();
     } finally {
       for (const o of this.held) o.visible = true;
       this.held = [];

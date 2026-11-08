@@ -235,7 +235,7 @@ export class Game {
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { scene: this.scene, ground: this.ground, props: this.props, play: this.play, maxTextureSize: this.renderer.capabilities.maxTextureSize, prepare: (obj) => this.shaders.prepare(obj), pinOutpost: () => this.screens.pinOutpost() });
+    const views = buildWorldViews(this.world, { scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);

@@ -70,7 +70,7 @@ export class CrtPass {
     this.quad.frustumCulled = false;
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera): void {
+  render(drawScene: () => void): void {
     this.renderer.getDrawingBufferSize(this.size);
     const share = Math.min(1, CRT_SCENE_DENSITY / this.renderer.getPixelRatio());
     const width = Math.round(this.size.x * share);
@@ -79,7 +79,7 @@ export class CrtPass {
     this.material.uniforms.crtSize.value.copy(this.size);
     this.material.uniforms.crtScale.value = this.renderer.getPixelRatio();
     this.renderer.setRenderTarget(this.target);
-    this.renderer.render(scene, camera);
+    drawScene();
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.quad, this.camera);
   }

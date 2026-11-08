@@ -10,7 +10,7 @@ const INK_BAND_SLOPE_FROM = 0.1;
 const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
 
-const INK_CONTRACT = `
+export const INK_CONTRACT = `
 struct InkSurface { float road; float edge; float height; vec2 slope; float rise; };
 InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
