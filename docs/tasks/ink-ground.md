@@ -1,6 +1,6 @@
 # Ink ground
 
-**Status:** executing
+**Status:** verifying
 **Branch:** proto/ground-old
 **Worktree:** .worktrees/ground-old
 **Goal:** The approved ink look with drawn ground becomes ROAM's only look. It lands as a commit on proto/ground-old that passes the quality gate with no bypass. Each concept in the code has one owner. A fixed board of reference shots, taken before the refactor, still matches after it. The user keeps tuning the look with live sliders on top of this code. Useless if: the gate passes through `_` prefixes, suppressions or logic moved into bigger strings; the shots match by day but a night program fails to link on a 16-sampler GPU; Chaos Highway, evening, night or far zoom were never shot; captures show a quest screen, a blank canvas or an old build; the dropped looks still sit in the code behind a switch nobody sets.
@@ -186,7 +186,39 @@ Skip this phase if the PH1 count is at most 16 on both maps.
 ### Progress
 
 - PH1: the board shoots 10 shots. The negative control with `edgeWobble=0.9` changed `mud` by up to 94 and `scrub` by up to 117. UK1: the approved tree's ground program uses 14 samplers by day on Icarus and 15 on Chaos Highway, and fails to link at night on both maps on a real M3 GPU. The night references therefore show no ground, and the game stops drawing after that failure. Night shots can't be compared, so PH4 is required and its night shots go to the user as new looks.
+- PH2, a538c73bb: every day shot matches its reference, apart from 25 to 230 isolated pixels per frame, under 0.03%. Those pixels sit where a sharp threshold flips from rounding. `icarus.bin` is byte-identical after `npm run map:bake`. The gate passes.
+- PH3, 8acbd174a: the board matches the same way. 168 tests in the 13 related files pass.
+- PH4, 2a7bd451b: samplers dropped from 14 to 9 by day on Icarus and from 15 to 10 on Chaos Highway. At night they are 15 and 16, and every program links. Day shots still match. Night shots now show ground, and the user sees them as new looks. No drawn extras had to be dropped at night.
+- PH5, 955029183: docs updated and survey pictures regenerated. The 4 survey picture tests pass.
+- Playtest: the night ground check passes on both maps with the 16-unit floor emulated. The frame rate check fails: 24.5 FPS on this branch, 60.5 FPS on HEAD, and 60.5 FPS on this branch with `?crt=0`. The CRT filter at its approved strength of 0.1 is the whole cost. See Deferred.
+- AS1 held: the tree matched the approved checkpoint before any edit.
+- UK2: Chaos Highway under drawn ground was shot for the first time, by day and at night. It renders without errors, and the user has not reviewed the look.
+- UK3: the dropped looks broke 3 test files that pinned old values. `daylight.test.ts` pinned the 2048 shadow map, `modelFill.test.ts` expected only the fill uniform, and `shader-errors.test.ts` used a fake renderer the CRT pass could not draw with. All 3 are fixed.
+
+### Deviations from plan
+
+- `injectAfter`, `injectBefore` and `replaceChunk` live in a new `shaderPatch.ts`. `scope.ts` uses it too, in place of its own copy of the same check. The plan named one `patchShader` in the ground shader. Both ground and paint need it, and `scope.ts` already had the pattern.
+- The ground material hook moved from `terrain.ts` into `inkGround()` in `inkPaint.ts`, with cache key `|ink` in place of `|facets`. `scripts/night-ground.mjs` finds the ground program by `|roads` now.
+- The menu stays in its own `inkMenu.ts`. The fragmentation ratio had room for it.
+- The look board pins Chaos Highway to seed 1, because a random seed made each highway shot a different world.
+- The `drawn*` GLSL names stay, since drawn ground is still the look's name. Only the names left from the deleted poly look changed.
+- GLSL helpers that only fed dead code were deleted, such as `drawnSegment` and the zero pencil term. The diff confirmed no change.
 
 ### Hands-off decisions
 
 - uplan: plan auto-approved — the user said "execute the rest" in hands-off after one correction.
+- uexecute: the isolated pixel diffs were accepted as rounding — under 0.03% of pixels, scattered single pixels, with no visible change on the sheets.
+- uexecute: `factory/node_modules` and the root `node_modules` in this worktree are links to the main checkout, so the gate can typecheck. They are untracked and gitignored.
+- uexecute: `~/Library/Caches/ms-playwright/chromium_headless_shell-1243` links to the installed 1248 build, so the playtest can launch. This avoided a download, and the link can be removed.
+- uexecute: the CRT strength stays at 0.1, as approved, even though it fails the playtest frame rate gate. Changing the look is the user's call.
+
+### Deferred (needs user input)
+
+- CRT filter cost — at 0.1 it takes the playtest from 60.5 to 24.5 FPS, below the 50 FPS gate, so `scripts/land-dev.sh` would fail — choose one: default CRT to 0, make the pass cheaper, which may change the look slightly, or accept the cost.
+- Chaos Highway look — first shots under drawn ground are in `game/tmp/board/s4/highway-day.png` and `highway-night.png` — review them.
+- Night look — night ground draws for the first time in this look, in `game/tmp/board/s4/mud-night.png` and `town-night.png` — review it.
+
+### Code smells
+
+- `game/src/three/shader-errors.ts:147` — `ShaderWarmup.render()` reads the global `TUNING.crt` to pick its draw path, so its tests must reset a module global (GPC1).
+- `game/src/three/render/groundShader.ts` — the wear functions still take `roadLook.a`, which the drawn ground fixes at 0.5, so every wear stipple hash is one constant (GPC6).
