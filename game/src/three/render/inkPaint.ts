@@ -15,6 +15,7 @@ struct InkSurface { float road; float edge; float height; vec2 slope; float rise
 InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
+vec3 inkLamp = vec3(0.0);
 vec3 inkGlow = vec3(0.0);
 `;
 
@@ -92,13 +93,14 @@ float inkDim() {
   return min(1.0, inkLuma(inkToScreen(vec3(inkFullLight))) / inkLuma(inkToScreen(vec3(inkDayLight))));
 }
 vec3 inkBase(vec3 albedo, vec3 lit, float level, float inShade) {
-  vec3 flat_ = inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkGlow);
+  vec3 flat_ = inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkLamp);
   vec3 pastel = mix(flat_, vec3(0.98, 0.95, 0.86) * inkDim(), 0.32);
   pastel = mix(pastel, pastel * vec3(0.66, 0.68, 0.84), inShade);
   vec3 vivid = max(mix(vec3(inkLuma(flat_)), flat_, 1.3), 0.0);
   vivid = mix(vivid, vivid * vec3(0.5, 0.5, 0.66), inShade);
-  vec3 color = max(mix(pastel, vivid, inkColor), 0.0);
-  return color * mix(1.0, clamp(0.55 + 0.5 * level, 0.7, 1.15), inkRelief);
+  vec3 color = max(mix(pastel, vivid, inkColor), 0.0) * mix(1.0, clamp(0.55 + 0.5 * level, 0.7, 1.15), inkRelief);
+  if (max(inkGlow.r, max(inkGlow.g, inkGlow.b)) <= 0.0) return color;
+  return color + (1.0 - min(color, 1.0)) * inkToScreen(inkGlow);
 }
 vec3 inkFinish(vec3 color, vec2 plane, float sunShade, float inShade, float hatchShare, float contour) {
   float screenPx = inkScreenPx();
@@ -189,10 +191,10 @@ const SUN_SHADE_READ = `float inkShadowHere = ( directLight.visible && receiveSh
 
 const SUN_LOOP = "#if ( NUM_SUN_LIGHTS > 0 ) && defined( RE_Direct )";
 
-const LAMPS_ASIDE = `inkGlow += reflectedLight.directDiffuse;
+const LAMPS_ASIDE = `inkLamp = reflectedLight.directDiffuse;
 reflectedLight.directDiffuse = vec3(0.0);`;
 
-const EMISSIVE_ASIDE = `inkGlow += totalEmissiveRadiance;
+const EMISSIVE_ASIDE = `inkGlow = totalEmissiveRadiance;
 totalEmissiveRadiance = vec3(0.0);`;
 
 const FULL_LIGHT = { value: 1 };

@@ -46,7 +46,8 @@ describe('model fill', () => {
     expect(at('totalEmissiveRadiance = vec3(0.0);')).toBeGreaterThan(at('#include <emissivemap_fragment>'));
     expect(at('reflectedLight.directDiffuse = vec3(0.0);')).toBeGreaterThan(at('NUM_SPOT_LIGHTS > 0 ) && defined( RE_Direct )'));
     expect(at('reflectedLight.directDiffuse = vec3(0.0);')).toBeLessThan(at('NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )'));
-    expect(at('inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkGlow)')).toBeGreaterThan(-1);
+    expect(at('inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkLamp)')).toBeGreaterThan(-1);
+    expect(at('inkToScreen(inkGlow)')).toBeGreaterThan(at('vivid * vec3(0.5, 0.5, 0.66)'));
   });
 
   it('patches a material once and keeps the cloud patch beside it', () => {
