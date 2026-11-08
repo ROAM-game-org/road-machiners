@@ -17,7 +17,7 @@ import { SiteLights } from './render/siteLights';
 import { addSites, HollowLamps } from './render/sites';
 import { CellStreamer } from './render/streamer';
 import { GroundCache, groundCacheUniforms } from './render/groundCache';
-import { cachedGround, terrainMesh } from './render/terrain';
+import { cachedGround, groundMaterial, terrainMesh } from './render/terrain';
 
 export type WorldViewHost = {
   scene: THREE.Scene;
@@ -49,15 +49,21 @@ export function sightAround(limit: SightLimit, streamer: CellStreamer, world: Wo
   return meters;
 }
 
+function groundFor(world: World, host: WorldViewHost): THREE.MeshLambertMaterial {
+  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world);
+  const cacheUniforms = groundCacheUniforms();
+  const { reader, writer, writes } = cachedGround(world, cacheUniforms);
+  host.drawGroundThrough(new GroundCache(host.renderer, host.ground, reader, writer, writes.uniforms, cacheUniforms));
+  return reader;
+}
+
 export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const sightLimit = new SightLimit(world.size);
   const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
   const propScope = new RenderScope(host.props, world.size, sightLimit, true, true);
   const craters = new CraterViews(world, sightLimit, host.scene);
   const scopes = [groundScope, propScope, craters.scope];
-  const cacheUniforms = groundCacheUniforms();
-  const { reader: ground, writer, writes } = cachedGround(world, cacheUniforms);
-  host.drawGroundThrough(new GroundCache(host.renderer, host.ground, ground, writer, writes.uniforms, cacheUniforms));
+  const ground = groundFor(world, host);
   const fog = new FogView(world, ground, sightLimit, playerSeenPropTiles(world));
   terrainMesh(world, ground, groundScope, (chunk) => fog.attach(chunk));
   const hollow = world.terrain.atlas.kind === 'icarus' ? new HollowLamps(world.terrain, propScope) : null;

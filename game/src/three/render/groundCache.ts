@@ -96,13 +96,12 @@ export class GroundCache {
   }
 
   private signature(): string {
-    const textures: number[] = [];
-    for (const uniform of Object.values(this.writes)) if (uniform.value instanceof THREE.Texture) textures.push(uniform.value.version);
     const chunks: number[] = [];
     this.root.traverseVisible((o) => {
       if ((o as THREE.Mesh).material === this.reader) chunks.push(o.id);
     });
-    return `${tuningVersion()}|${this.writes.groundBlocksReady.value}|${textures.join(",")}|${chunks.join(",")}`;
+    const map = (this.writer as THREE.MeshLambertMaterial).map;
+    return `${tuningVersion()}|${map ? map.version : "none"}|${Object.values(this.writes).map((u) => valueKey(u.value)).join(";")}|${chunks.join(",")}`;
   }
 
   private targetFor(width: number, height: number): THREE.WebGLRenderTarget {
@@ -200,6 +199,16 @@ export function wrapped(span: Span, size: number): (Span & { wrap: number })[] {
     from = to;
   }
   return pieces;
+}
+
+const LISTED = [THREE.Color, THREE.Vector2, THREE.Vector3, THREE.Vector4];
+
+function valueKey(value: unknown): string {
+  if (value instanceof THREE.Texture) return `t${value.version}`;
+  if (Array.isArray(value)) return value.map(valueKey).join(",");
+  if (LISTED.some((kind) => value instanceof kind)) return (value as THREE.Vector4).toArray().join(",");
+  if (value === null || ["number", "boolean"].includes(typeof value)) return String(value);
+  throw new Error(`The ground cache cannot tell when a ground uniform of type ${Object.prototype.toString.call(value)} changes`);
 }
 
 function mod(value: number, size: number): number {
