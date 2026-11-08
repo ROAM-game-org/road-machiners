@@ -164,7 +164,7 @@ const MARKED_TYPES: Record<number, TerrainTypeId> = {
   [BUILT_DIRTY_WATER]: 'dirtyWater',
   [BUILT_TOXIC]: 'toxic',
   [BUILT_TRACK]: 'track',
-  [BUILT_CANAL]: 'canal',
+  [BUILT_CANAL]: 'mud',
   [BUILT_PAD]: 'concrete',
   [BUILT_GLASS]: 'glass',
   [BUILT_BLACK_MUD]: 'blackMud',
