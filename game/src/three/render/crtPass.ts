@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { TUNING } from "./inkTuning";
 
 const CRT_SAMPLES = 4;
+const CRT_SCENE_DENSITY = 1.5;
 const CRT_LINE_PX = 3;
 const CRT_SCAN_DEPTH = 0.32;
 const CRT_MASK = 0.14;
@@ -71,7 +72,10 @@ export class CrtPass {
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {
     this.renderer.getDrawingBufferSize(this.size);
-    if (this.target.width !== this.size.x || this.target.height !== this.size.y) this.target.setSize(this.size.x, this.size.y);
+    const share = Math.min(1, CRT_SCENE_DENSITY / this.renderer.getPixelRatio());
+    const width = Math.round(this.size.x * share);
+    const height = Math.round(this.size.y * share);
+    if (this.target.width !== width || this.target.height !== height) this.target.setSize(width, height);
     this.material.uniforms.crtSize.value.copy(this.size);
     this.material.uniforms.crtScale.value = this.renderer.getPixelRatio();
     this.renderer.setRenderTarget(this.target);
