@@ -128,9 +128,9 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 
 The fold of formats 63 to 138 chains the old tiny steps instead of merging them. `FOLDED_AND_TINY_STEPS` in `save-migrations.ts` still lists every step from `FIRST_TINY` (63), the release steps 63 to 136 and 136 to 138 run slices of it in order, and `TINY_STEPS` is its tail from `TINY_FROM`. The step tests index that full list. A later fold should merge the steps and drop the list with their tests and fixtures. A dev save inside the folded span whose names are not the whole prefix of a release step's names is `unknownStep` and carries over through the rescue.
 
-Players hold saves only at formats a `release-*` or `hotfix-*` tag shipped. Saves of dev and candidate builds at other formats carry over through the rescue once their steps fold. `save-anchors.test.ts` reads the tags and fails when a format shipped in the last 10 releases loads through no step, when a release step starts at a format no tag shipped, when a release step is older than the last 10 releases, or when a second shipped format sits above `TINY_FROM`.
+Players hold saves only at formats a `release-*` or `hotfix-*` tag shipped. Saves of dev and candidate builds at other formats carry over through the rescue once their steps fold. `save-anchors.test.ts` reads the tags and fails when a format shipped in the last 10 releases loads through no step, when a release step starts at a format no tag shipped, when a release step is older than the last 10 releases, or when a second shipped format sits above `TINY_FROM`. It also checks each anchor save with `steps`: its format equals the one in its file name, a tag shipped that format, and its `steps.names` are the names of the release steps from `steps.from` up to that format, in order.
 
-After a ship with a new format F, fold on `dev`, never on the release branch:
+After a ship with a new format F, fold on `dev`, then port the same fold to `main` as a hotfix on a `main` base before `main` needs another hotfix. `main` receives `dev` only at the next release, so a fold made only on `dev` leaves `main` red for every hotfix until then. On `dev`:
 
 1. Make full saves at F on a checkout of the tag. Play a new Roaming game and a Chaos Highway run for 2 game days with the harness bots of `src/sim/progression/record.ts`, and write each `saveOf()` envelope to `save-fixtures/anchors/2-F-roaming.json` and `2-F-highway.json`.
 2. Copy `save-migrations.ts` and the files it imports to `tmp/` as the old chain.
@@ -138,3 +138,5 @@ After a ship with a new format F, fold on `dev`, never on the release branch:
 4. Run a test, kept out of the commit, that requires the old chain and the new steps to end at equal worlds. Its inputs are the full saves at every shipped format and those saves carried by the old chain to each later shipped format. Break one merged step on purpose and check that the test fails.
 5. Set `TINY_FROM` to F, delete the folded tiny steps with their tests and fixtures, and record the new release step's hashes in `save-folds.test.ts`.
 6. Delete the release steps and anchor saves older than the last 10 releases.
+
+The port to `main` repeats the release steps cut at `main`'s format, with the same anchors and recorded hashes, and sets `TINY_FROM` to the newest shipped format. When the hotfix merges `main` into `dev`, keep `dev`'s tiny steps after that format and its `TINY_FROM`.
