@@ -18,6 +18,10 @@ const ROAD_FIELD_REACH = 10;
 const TILE_MATERIAL = 0;
 const TILE_DESERT = 1;
 const TILE_GLASS = 2;
+const TILE_CALM = 3;
+const CALM_MOST = 255;
+const BEHIND = [[-1, -1], [0, -1], [1, -1], [-1, 0]] as const;
+const AHEAD = [[1, 1], [0, 1], [-1, 1], [1, 0]] as const;
 
 export type GroundFields = ReturnType<typeof groundFields>;
 
@@ -57,12 +61,46 @@ function tileTexture(t: Terrain): THREE.DataTexture {
   const shown = shownLooks(t);
   const look = lookTypes(t);
   const glass = glassField(t);
+  const materials = Uint8Array.from(shown, groundMaterialIndex);
+  const calm = calmTiles(materials, t.size);
   for (let tile = 0; tile < shown.length; tile++) {
-    data[tile * 4 + TILE_MATERIAL] = groundMaterialIndex(shown[tile]);
+    data[tile * 4 + TILE_MATERIAL] = materials[tile];
     data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
     data[tile * 4 + TILE_GLASS] = glass[tile];
+    data[tile * 4 + TILE_CALM] = calm[tile];
   }
   return linear(new THREE.DataTexture(data, t.size, t.size, THREE.RGBAFormat));
+}
+
+export function calmTiles(materials: Uint8Array, side: number): Uint8Array {
+  const calm = new Uint8Array(materials.length).fill(CALM_MOST);
+  eachTile(side, false, (x, y) => {
+    if (bordersOther(materials, side, x, y)) calm[y * side + x] = 1;
+  });
+  eachTile(side, false, (x, y) => calmFrom(calm, side, x, y, BEHIND));
+  eachTile(side, true, (x, y) => calmFrom(calm, side, x, y, AHEAD));
+  return calm;
+}
+
+function eachTile(side: number, backward: boolean, visit: (x: number, y: number) => void): void {
+  for (let row = 0; row < side; row++)
+    for (let column = 0; column < side; column++) visit(backward ? side - 1 - column : column, backward ? side - 1 - row : row);
+}
+
+function bordersOther(materials: Uint8Array, side: number, x: number, y: number): boolean {
+  const own = materials[y * side + x];
+  for (let j = Math.max(0, y - 1); j <= Math.min(side - 1, y + 1); j++)
+    for (let i = Math.max(0, x - 1); i <= Math.min(side - 1, x + 1); i++) if (materials[j * side + i] !== own) return true;
+  return false;
+}
+
+function calmFrom(calm: Uint8Array, side: number, x: number, y: number, steps: readonly (readonly [number, number])[]): void {
+  for (const [i, j] of steps) {
+    const xx = x + i;
+    const yy = y + j;
+    if (xx < 0 || yy < 0 || xx >= side || yy >= side) continue;
+    calm[y * side + x] = Math.min(calm[y * side + x], calm[yy * side + xx] + 1);
+  }
 }
 
 function roadFieldTexture(t: Terrain): THREE.DataTexture {

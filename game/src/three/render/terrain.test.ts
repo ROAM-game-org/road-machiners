@@ -4,6 +4,7 @@ import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
 import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
+import { calmTiles } from './groundFields';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
@@ -126,5 +127,29 @@ describe('ground texture side', () => {
 
   it('caps the Icarus ground at the texture floor', () => {
     expect(groundSide(REGION.size)).toBe(2048);
+  });
+});
+
+describe('calm ground tiles', () => {
+  const side = 7;
+  const field = (paint: (x: number, y: number) => number) => Uint8Array.from({ length: side * side }, (_, k) => paint(k % side, Math.floor(k / side)));
+
+  it('counts tiles to the nearest other material by the widest axis', () => {
+    const calm = calmTiles(field((x, y) => (x === 0 && y === 0 ? 1 : 0)), side);
+    expect(calm[0]).toBe(1);
+    expect(calm[1 * side + 1]).toBe(1);
+    expect(calm[2 * side + 1]).toBe(2);
+    expect(calm[3 * side + 3]).toBe(3);
+    expect(calm[6 * side + 6]).toBe(6);
+  });
+
+  it('treats the map edge as more of the same material', () => {
+    const calm = calmTiles(field(() => 4), side);
+    expect(Math.min(...calm)).toBe(255);
+  });
+
+  it('marks both sides of a straight border', () => {
+    const calm = calmTiles(field((x) => (x < 3 ? 2 : 5)), side);
+    expect([0, 1, 2, 3, 4, 5, 6].map((x) => calm[3 * side + x])).toEqual([3, 2, 1, 1, 2, 3, 4]);
   });
 });
