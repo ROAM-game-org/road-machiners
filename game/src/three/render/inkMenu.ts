@@ -1,4 +1,4 @@
-import { KNOBS, TUNING, pageParams, setTuning, type TuningKey } from "./inkTuning";
+import { KNOBS, TUNING, setTuning, tuningOn, type TuningKey } from "./inkTuning";
 
 const PANEL_CSS = "position:fixed;left:56px;top:8px;z-index:100000;background:#000d;color:#eee;font:12px sans-serif;padding:8px 10px;border-radius:6px;width:220px;display:flex;flex-direction:column;gap:6px";
 
@@ -34,7 +34,7 @@ function labelled(text: string, control: HTMLElement): HTMLElement {
 }
 
 export function mountInkMenu(): void {
-  if (!pageParams().has("tune")) return;
+  if (!tuningOn()) return;
   const panel = document.createElement("div");
   panel.className = "ink-menu";
   panel.style.cssText = PANEL_CSS;

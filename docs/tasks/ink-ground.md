@@ -1,6 +1,6 @@
 # Ink ground
 
-**Status:** verifying
+**Status:** validating
 **Branch:** proto/ground-old
 **Worktree:** .worktrees/ground-old
 **Goal:** The approved ink look with drawn ground becomes ROAM's only look. It lands as a commit on proto/ground-old that passes the quality gate with no bypass. Each concept in the code has one owner. A fixed board of reference shots, taken before the refactor, still matches after it. The user keeps tuning the look with live sliders on top of this code. Useless if: the gate passes through `_` prefixes, suppressions or logic moved into bigger strings; the shots match by day but a night program fails to link on a 16-sampler GPU; Chaos Highway, evening, night or far zoom were never shot; captures show a quest screen, a blank canvas or an old build; the dropped looks still sit in the code behind a switch nobody sets.
@@ -234,6 +234,15 @@ Notes: `highway-night` differs by 19% between two runs of the same code. The dif
 - uexecute: `factory/node_modules` and the root `node_modules` in this worktree are links to the main checkout, so the gate can typecheck. They are untracked and gitignored.
 - uexecute: `~/Library/Caches/ms-playwright/chromium_headless_shell-1243` links to the installed 1248 build, so the playtest can launch. This avoided a download, and the link can be removed.
 - uexecute: the CRT strength stays at 0.1, as approved, even though it fails the playtest frame rate gate. Changing the look is the user's call.
+- ureview: fixed the hidden ink light writer — `daylight.ts` calls `syncInkLight(light)` directly, and the luma math moved from `ModelFill.sync` into `inkPaint.ts`. A full ordered day board still matches.
+- ureview: fixed the crash from stray URL words — knob values count only when the URL has `tune`. A probe with `?color=red` boots, and `?tune&edgeWobble=99` still throws.
+
+### Review
+
+Outcome: the approved ink look with drawn ground is the only look, its code has one owner per concept, day shots match the approved state and night ground draws again. It sits on proto/ground-old with the gate passing. The look of night and of Chaos Highway, and the CRT frame rate cost, wait for the user.
+
+- Important, fixed: the ink light level was written from inside `ModelFill.sync`.
+- Important, fixed: generic knob names in any URL could crash the game at boot.
 
 ### Deferred (needs user input)
 

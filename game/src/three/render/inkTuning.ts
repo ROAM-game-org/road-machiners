@@ -1,4 +1,4 @@
-export function pageParams(): URLSearchParams {
+function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
@@ -27,8 +27,12 @@ export const KNOBS: Record<TuningKey, Knob> = {
   crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0.1 },
 };
 
+export function tuningOn(): boolean {
+  return pageParams().has("tune");
+}
+
 function fromUrl(key: TuningKey): number {
-  const raw = pageParams().get(key);
+  const raw = tuningOn() ? pageParams().get(key) : null;
   if (raw === null) return KNOBS[key].start;
   const value = Number(raw);
   if (!Number.isFinite(value) || value < KNOBS[key].min || value > KNOBS[key].max) throw new Error(`Ink setting ${key}=${raw} must be a number from ${KNOBS[key].min} to ${KNOBS[key].max}`);

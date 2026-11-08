@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Daylight } from './daylight';
-import { paintModel, syncInkLight } from './inkPaint';
+import { paintModel } from './inkPaint';
 
 const UNIFORMS = 'uniform vec3 modelFill;';
 
@@ -38,7 +38,6 @@ export class ModelFill {
 
   sync(light: Daylight): void {
     this.uniforms.modelFill.value.copy(light.sky).multiplyScalar(light.fillIntensity);
-    syncInkLight(light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b), light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b));
   }
 }
 

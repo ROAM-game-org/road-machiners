@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { Daylight } from "./daylight";
 import { TUNING } from "./inkTuning";
 import { injectAfter, injectBefore, replaceChunk } from "./shaderPatch";
 
@@ -165,7 +166,9 @@ const SUN_SHADE_READ = `float inkShadowHere = ( directLight.visible && receiveSh
 
 const FULL_LIGHT = { value: 1 };
 
-export function syncInkLight(sunShare: number, skyShare: number): void {
+export function syncInkLight(light: Daylight): void {
+  const sunShare = light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b);
+  const skyShare = light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b);
   FULL_LIGHT.value = Math.max((sunShare + skyShare) / Math.PI, 0.02);
 }
 

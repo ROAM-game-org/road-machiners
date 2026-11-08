@@ -11,6 +11,7 @@ import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 import { MODEL_FILL } from "./modelFill";
+import { syncInkLight } from "./inkPaint";
 export { enableSunShadows } from "./shadowFilter";
 
 const MIN_LIGHT_ELEVATION = 6;
@@ -235,6 +236,7 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
   MODEL_FILL.sync(light);
+  syncInkLight(light);
 }
 
 export function sunLight(): THREE.DirectionalLight {
