@@ -37,7 +37,10 @@ const WEAR_YELLOW = mix(0xd9a93a, PAL.sand[3], 0.2);
 const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
-const DRAWN_SIDE_EDGE = 0.08;
+const RIDGE_BEND_FROM = 0.012;
+const RIDGE_BEND_FULL = 0.035;
+const RIDGE_FOLD_SHARE = 0.35;
+const RIDGE_LINE_PX = 0.8;
 const DRAWN_FAR_TILES = 8;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
@@ -158,6 +161,8 @@ function lookUniforms() {
     drawnWaveSize: TUNING.waveSize,
     drawnGrainAmount: TUNING.grain,
     drawnHaloAmount: TUNING.halo,
+    drawnEdgeSoft: TUNING.edgeSoft,
+    drawnRidgeShown: TUNING.ridgeLines,
     asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadPlainLuma: { value: luma(new THREE.Color(ROAD_PLAIN)) },
     roadSandLuma: { value: luma(new THREE.Color(ROAD_SAND)) },
@@ -262,6 +267,8 @@ uniform float drawnEdgeWobble;
 uniform float drawnWaveSize;
 uniform float drawnGrainAmount;
 uniform float drawnHaloAmount;
+uniform float drawnEdgeSoft;
+uniform float drawnRidgeShown;
 `;
 
 const WEAR_FUNCTIONS = `#ifdef HIGHWAY_WEAR
@@ -484,7 +491,8 @@ float drawnHalo(DrawnBorder edge, int own, float streak, float aa) {
   float excess = max(edge.spill - drawnMaterialSpill[own], 0.0) * drawnHaloAmount;
   float past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)};
   float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
-  return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, depth);
+  float depthAa = fwidth(depth) + 0.001;
+  return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
 }
 vec2 drawnWarpAt(float wave, vec2 at) {
   vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
@@ -505,7 +513,10 @@ float drawnCorner(ivec2 corner) {
   int last = int(heightSide) - 1;
   return texelFetch(roadField, clamp(corner, ivec2(0), ivec2(last)), 0).a;
 }
-vec3 drawnSmoothGround(vec2 at) {
+vec4 drawnSplineBends(float f) {
+  return vec4(1.0 - f, 3.0 * f - 2.0, 1.0 - 3.0 * f, f);
+}
+vec3 drawnSmoothGround(vec2 at, out vec3 bend) {
   vec2 x = at / facetSide;
   vec2 cell = floor(x);
   vec2 f = x - cell;
@@ -514,13 +525,27 @@ vec3 drawnSmoothGround(vec2 at) {
   vec4 wy = drawnSplineWeights(f.y);
   vec4 sx = drawnSplineSlopes(f.x);
   vec4 sy = drawnSplineSlopes(f.y);
+  vec4 bx = drawnSplineBends(f.x);
+  vec4 by = drawnSplineBends(f.y);
   vec3 ground = vec3(0.0);
+  bend = vec3(0.0);
   for (int j = 0; j < 4; j++)
     for (int i = 0; i < 4; i++) {
       float h = drawnCorner(base + ivec2(i, j));
       ground += h * vec3(wx[i] * wy[j] * facetSide, sx[i] * wy[j], wx[i] * sy[j]);
+      bend += h * vec3(bx[i] * wy[j], wx[i] * by[j], sx[i] * sy[j]);
     }
+  bend /= facetSide;
   return ground;
+}
+float drawnRidgeLine(vec2 slope, vec3 bend, float px) {
+  float mid = 0.5 * (bend.x + bend.y);
+  float spread = sqrt(0.25 * (bend.x - bend.y) * (bend.x - bend.y) + bend.z * bend.z);
+  float k = abs(mid + spread) > abs(mid - spread) ? mid + spread : mid - spread;
+  vec2 across = abs(bend.z) > 0.00001 ? normalize(vec2(bend.z, k - bend.x)) : (abs(bend.x) >= abs(bend.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0));
+  float toCrestPx = abs(dot(slope, across)) / max(abs(k), 0.0001) / px;
+  float strength = smoothstep(${RIDGE_BEND_FROM.toFixed(3)}, ${RIDGE_BEND_FULL.toFixed(3)}, abs(k)) * (k < 0.0 ? 1.0 : ${RIDGE_FOLD_SHARE.toFixed(2)});
+  return (1.0 - smoothstep(${RIDGE_LINE_PX.toFixed(2)} - 0.5, ${RIDGE_LINE_PX.toFixed(2)} + 0.5, toCrestPx)) * strength;
 }
 `;
 
@@ -624,7 +649,7 @@ const BORDER_BODY = `
   if (drawnPeppered > 0.0) drawnPepperShift = drawnPeppered * drawnPepperNoise(vRoadXZ, drawnTilePx * facetSide) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
   float drawnToward = drawnEdge.toward + drawnPepperShift;
   float drawnAa = drawnTilePx + fwidth(drawnPepperShift);
-  float drawnLoSide = smoothstep(-${DRAWN_SIDE_EDGE.toFixed(2)} - drawnAa, ${DRAWN_SIDE_EDGE.toFixed(2)} + drawnAa, drawnToward);
+  float drawnLoSide = smoothstep(-drawnEdgeSoft - drawnAa, drawnEdgeSoft + drawnAa, drawnToward);
   float drawnStreak = 0.0;
   if (drawnEdge.spill > min(drawnMaterialSpill[drawnEdge.lo], drawnMaterialSpill[drawnEdge.hi])) drawnStreak = drawnStreakAt(vRoadXZ);
   float drawnHaloAa = max(fwidth(drawnEdge.spill * drawnHaloAmount + drawnStreak), 0.0005);
@@ -750,9 +775,12 @@ const MARKS_BODY = `
 `;
 
 const RELIEF_BODY = `
-  vec3 drawnGround = drawnSmoothGround(vRoadXZ);
+  vec3 drawnBend;
+  vec3 drawnGround = drawnSmoothGround(vRoadXZ, drawnBend);
   inkSurface.height = drawnGround.x;
   inkSurface.slope = drawnGround.yz;
+  float drawnRidge = drawnRidgeLine(drawnGround.yz, drawnBend, drawnPx) * drawnRidgeShown * drawnOffRoad;
+  inkSurface.edge = max(inkSurface.edge, drawnRidge);
   float drawnAround = 0.0;
   for (int i = 0; i < ${DRAWN_RISE_RING}; i++) {
     float drawnTurn = float(i) * ${(2 * Math.PI / DRAWN_RISE_RING).toFixed(5)};
@@ -801,7 +829,7 @@ const GROUND_BODY = `{${GROUND_PARTS}}`;
 const CACHE_WRITE = `{${GROUND_PARTS}
   gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
   groundCacheDataOut = vec4(inkSurface.height, inkSurface.slope, inkSurface.rise);
-  groundCacheEdgeOut = vec4(min(drawnEdgePx, ${CACHE_EDGE_PX.toFixed(1)}) / ${CACHE_EDGE_PX.toFixed(1)}, drawnEdgeNear, 0.0, 1.0);
+  groundCacheEdgeOut = vec4(min(drawnEdgePx, ${CACHE_EDGE_PX.toFixed(1)}) / ${CACHE_EDGE_PX.toFixed(1)}, drawnEdgeNear, drawnRidge, 1.0);
   return;
 }`;
 
@@ -826,11 +854,11 @@ const CACHE_READ = `{
   ivec2 groundCacheAt = (ivec2(floor(groundCachePoint)) + ivec2(groundCacheShift) + groundCacheSide) % groundCacheSide;
   vec4 groundCacheLook = texture(groundCacheColor, groundCacheUv);
   vec4 groundCacheRelief = texelFetch(groundCacheData, groundCacheAt, 0);
-  vec2 groundCacheEdgeAt = texture(groundCacheEdge, groundCacheUv).rg;
+  vec3 groundCacheEdgeAt = texture(groundCacheEdge, groundCacheUv).rgb;
   diffuseColor.rgb = groundCacheLook.rgb;
   inkSurface.road = groundCacheLook.a;
   inkSurface.height = groundCacheRelief.x;
   inkSurface.slope = groundCacheRelief.yz;
   inkSurface.rise = groundCacheRelief.w;
-  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;
+  inkSurface.edge = max(drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y, groundCacheEdgeAt.z);
 }`;
