@@ -124,6 +124,8 @@ vec3 inkFinish(vec3 color, vec2 plane, float lineShade, float inShade, float hat
 const INK_GROUND = `${INK_CONTRACT}${INK_COLOR}
 const vec3 INK_SHADE_COOL = vec3(0.82, 0.88, 1.15);
 uniform float inkShadeCut;
+uniform float inkLitFace;
+const vec3 INK_SUN_FACE = vec3(1.35, 1.18, 0.95);
 float inkContourLine(float interval) {
   float height = inkSurface.height;
   float px = max(length(fwidth(vInkAt.xz)), 0.0005);
@@ -170,13 +172,17 @@ float inkTurnedAway() {
   float cut = tan(radians(inkShadeCut));
   return smoothstep(cut - aa, cut + aa, away) * step(0.0001, inkShadeCut) * smoothstep(0.0, 0.05, sun.y) * smoothstep(0.01, 0.05, sunAcross);
 }
+vec3 inkSunFace(vec3 color, float inShade) {
+  float toward = clamp(inkFacing(inkSurface.slope) - 1.0, 0.0, 1.0);
+  return color * mix(vec3(1.0), INK_SUN_FACE, inkLitFace * toward * (1.0 - inShade));
+}
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
   float level = inkLevel(lit);
   float sunless = 1.0 - (1.0 - inkSun.anyCast) * (1.0 - max(inkSun.facing, inkTurnedAway()));
   float inShade = inkInShade(sunless);
   float relief = mix(inkSmoothRelief(inkFacing(inkSurface.slope)), inkSmoothRelief(1.0), inShade);
-  vec3 color = inkGroundShade(inkHeightBands(inkBase(albedo, lit, level, 0.0, relief)), inShade);
+  vec3 color = inkGroundShade(inkSunFace(inkHeightBands(inkBase(albedo, lit, level, 0.0, relief)), inShade), inShade);
   color *= 1.0 - inkCastDark * inShade;
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
@@ -282,6 +288,7 @@ function inkUniforms() {
     inkShadeShift: TUNING.shadeShift,
     inkCastDark: TUNING.castDark,
     inkShadeCut: TUNING.shadeCut,
+    inkLitFace: TUNING.litFace,
     inkHeightTint: TUNING.heightTint,
   };
 }
