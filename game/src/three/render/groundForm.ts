@@ -6,11 +6,35 @@ import { TUNING } from "./inkTuning";
 const S = PHYSICS.metersPerTile;
 const GAUSS_REACH = 3;
 
-export type GroundFormUniforms = { groundForm: GroundForm; groundFormUv: { value: THREE.Vector2 } };
+export const FORM_STRIDE = 4;
+
+export type GroundFormUniforms = {
+  groundForm: GroundForm;
+  groundFormUv: { value: THREE.Vector2 };
+  groundFormTileMeters: { value: number };
+  groundFormRelief: { value: number };
+  groundHillShadows: { value: number };
+};
 
 export function groundFormUniforms(t: Terrain): GroundFormUniforms {
   const side = t.size + 1;
-  return { groundForm: new GroundForm(t.heights, side), groundFormUv: { value: new THREE.Vector2(1 / (S * side), 0.5 / side) } };
+  return {
+    groundForm: new GroundForm(t.heights, side),
+    groundFormUv: { value: new THREE.Vector2(1 / (S * side), 0.5 / side) },
+    groundFormTileMeters: { value: S },
+    groundFormRelief: { value: reliefMeters(t.heights) },
+    groundHillShadows: TUNING.hillShadows,
+  };
+}
+
+function reliefMeters(heights: ArrayLike<number>): number {
+  let low = Infinity;
+  let high = -Infinity;
+  for (let k = 0; k < heights.length; k++) {
+    low = Math.min(low, heights[k]);
+    high = Math.max(high, heights[k]);
+  }
+  return (high - low) * S;
 }
 
 export class GroundForm implements THREE.IUniform<THREE.DataTexture> {
@@ -30,7 +54,7 @@ export class GroundForm implements THREE.IUniform<THREE.DataTexture> {
 
   private rebuild(scale: number): void {
     this.texture?.dispose();
-    const texture = new THREE.DataTexture(formSlopes(this.heights, this.side, scale), this.side, this.side, THREE.RGFormat, THREE.FloatType);
+    const texture = new THREE.DataTexture(formField(this.heights, this.side, scale), this.side, this.side, THREE.RGBAFormat, THREE.FloatType);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
@@ -39,9 +63,9 @@ export class GroundForm implements THREE.IUniform<THREE.DataTexture> {
   }
 }
 
-export function formSlopes(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
+export function formField(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
   const form = blurred(heights, side, spreadTiles);
-  const slopes = new Float32Array(side * side * 2);
+  const field = new Float32Array(side * side * FORM_STRIDE);
   for (let y = 0; y < side; y++)
     for (let x = 0; x < side; x++) {
       const k = y * side + x;
@@ -49,10 +73,11 @@ export function formSlopes(heights: ArrayLike<number>, side: number, spreadTiles
       const right = form[y * side + Math.min(side - 1, x + 1)];
       const up = form[Math.max(0, y - 1) * side + x];
       const down = form[Math.min(side - 1, y + 1) * side + x];
-      slopes[k * 2] = (right - left) / (Math.min(side - 1, x + 1) - Math.max(0, x - 1));
-      slopes[k * 2 + 1] = (down - up) / (Math.min(side - 1, y + 1) - Math.max(0, y - 1));
+      field[k * FORM_STRIDE] = (right - left) / (Math.min(side - 1, x + 1) - Math.max(0, x - 1));
+      field[k * FORM_STRIDE + 1] = (down - up) / (Math.min(side - 1, y + 1) - Math.max(0, y - 1));
+      field[k * FORM_STRIDE + 2] = form[k];
     }
-  return slopes;
+  return field;
 }
 
 function blurred(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {

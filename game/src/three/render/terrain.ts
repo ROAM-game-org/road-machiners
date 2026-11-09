@@ -14,7 +14,7 @@ import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
 import { drawGround, drawnGround, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
-import { TUNING } from "./inkTuning";
+import type { HillShadows } from "./groundHill";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -140,10 +140,13 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
   return geo;
 }
 
-export function groundMaterial(w: World): THREE.MeshLambertMaterial {
+export type GroundLook = { material: THREE.MeshLambertMaterial; hills: HillShadows };
+
+export function groundMaterial(w: World): GroundLook {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawGround(material, drawnGroundOf(w));
-  return litGround(material);
+  const drawn = drawnGroundOf(w);
+  drawGround(material, drawn);
+  return { material: litGround(material), hills: drawn.hills };
 }
 
 export type CachedGround = { reader: THREE.MeshLambertMaterial; writer: THREE.MeshLambertMaterial; writes: DrawnGround };
@@ -184,7 +187,7 @@ export function terrainMesh(w: World, material: THREE.MeshLambertMaterial, scope
 
 function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number, y: number, width: number, depth: number): TerrainChunk {
   const mesh = new THREE.Mesh(chunkGeometry(t, x, y, width, depth), material);
-  mesh.castShadow = TUNING.groundCasts.value > 0;
+  mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();

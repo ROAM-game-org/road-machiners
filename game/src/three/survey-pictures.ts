@@ -167,7 +167,7 @@ function groundPatch(center: Vec, reachTiles: number): THREE.Mesh {
   const y0 = Math.max(0, Math.floor(center.y - reachTiles));
   const x1 = Math.min(w.size, Math.ceil(center.x + reachTiles));
   const y1 = Math.min(w.size, Math.ceil(center.y + reachTiles));
-  const mesh = new THREE.Mesh(chunkGeometry(w.terrain, x0, y0, x1 - x0, y1 - y0), groundMaterial(w));
+  const mesh = new THREE.Mesh(chunkGeometry(w.terrain, x0, y0, x1 - x0, y1 - y0), groundMaterial(w).material);
   mesh.receiveShadow = true;
   mesh.castShadow = true;
   mesh.userData.ground = true;

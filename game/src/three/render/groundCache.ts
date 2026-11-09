@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { HillShadows } from "./groundHill";
 import type { GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
 
@@ -44,6 +45,7 @@ export class GroundCache {
     private readonly writer: THREE.Material,
     private readonly writes: Record<string, THREE.IUniform>,
     private readonly uniforms: GroundCacheUniforms,
+    private readonly light: { hills: HillShadows; sun: THREE.DirectionalLight },
   ) {
     if (!renderer.extensions.has("EXT_color_buffer_float")) throw new Error("The ground cache needs EXT_color_buffer_float to keep height and color precise");
     reader.onBeforeRender = () => {
@@ -57,6 +59,7 @@ export class GroundCache {
     if (into) this.drawSize.set(into.width, into.height);
     else this.renderer.getDrawingBufferSize(this.drawSize);
     this.held.copy(camera.position);
+    this.light.hills.follow(this.renderer, this.light.sun, camera);
     try {
       this.snapAndFill(camera, into);
       this.drawing = true;
@@ -71,6 +74,7 @@ export class GroundCache {
   forget(): void {
     this.view = "";
     this.lens = "";
+    this.light.hills.forget();
   }
 
   coarse(): boolean {

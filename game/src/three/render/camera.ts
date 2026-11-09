@@ -17,7 +17,7 @@ const LEAD_TAU_MS = 3000;
 const VIEW_EDGE = 0.8;
 const GROUND_RIGHT = new THREE.Vector3(OFFSET.z, 0, -OFFSET.x).normalize();
 const GROUND_UP = new THREE.Vector3(-OFFSET.x, 0, -OFFSET.z).normalize();
-const SIN_ELEVATION = OFFSET.y / OFFSET.length();
+export const SIN_ELEVATION = OFFSET.y / OFFSET.length();
 
 export class CameraRig {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);

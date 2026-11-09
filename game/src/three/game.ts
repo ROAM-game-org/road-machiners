@@ -61,8 +61,7 @@ import { BreakCues, shownItems, type PartBreak } from "./breakCues";
 import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
-import type { CellStreamer } from "./render/streamer";
-import type { SiteLights } from "./render/siteLights";
+import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
 import { buildWorldViews, sightAround } from "./world-views";
 import { type WebGLSurface } from "./webgl";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
@@ -215,8 +214,7 @@ export class Game {
 
   constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
-    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));
-    this.world = world;
+    this.gpu.onRestored(() => [this.siteLights, this.vehicleLights, this.screens.inventory].forEach((part) => ('contextRestored' in part ? part.contextRestored() : part.render())));    this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
     setTimeout(() => this.plans.warm(this.world.terrain));
@@ -235,7 +233,7 @@ export class Game {
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
+    const views = buildWorldViews(this.world, { scene: this.scene, sun: this.sun, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
@@ -1082,8 +1080,7 @@ export class Game {
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
-    lightScene(this.sun, this.sky, this.rig.focus(), daylight, this.rig.groundReach(), daylightAt(this.world.turn));
-    this.scene.background = this.sightLimit.fadeTo(backdropAt(daylight));
+    lightScene(this.sun, this.sky, this.rig.focus(), daylight, this.rig.groundReach(), daylightAt(this.world.turn));    this.scene.background = this.sightLimit.fadeTo(backdropAt(daylight));
     this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());

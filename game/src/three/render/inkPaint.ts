@@ -42,6 +42,8 @@ uniform float inkFormScale;
 uniform float inkShadeDark;
 uniform float inkShadeShift;
 uniform float inkShadeFoot;
+uniform float inkCastDark;
+uniform float inkShadowSources;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -166,6 +168,11 @@ float inkSteppedRelief(float facing, float formFacing) {
   return mix(smooth_, stepped * detail, 1.0 - inkSurface.still);
 }
 float inkFacing(vec2 slope);
+float inkHillShadow(vec2 at);
+vec3 inkSourceTint(vec3 color, float thing, float hill, float face) {
+  vec3 source = vec3(thing, face * (1.0 - hill), hill);
+  return max(source.r, max(source.g, source.b)) > 0.0 ? mix(color, source, 0.6) : color;
+}
 vec2 inkFacingRise(vec2 form, float formFacing) {
   vec2 bySlope = vec2(inkFacing(form + vec2(0.01, 0.0)) - formFacing, inkFacing(form + vec2(0.0, 0.01)) - formFacing) / 0.01;
   return vec2(dot(bySlope, inkSurface.formBend[0]), dot(bySlope, inkSurface.formBend[1]));
@@ -197,8 +204,14 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 shapeUp = normalize((viewMatrix * vec4(-shapeSlope.x, 1.0, -shapeSlope.y, 0.0)).xyz);
   float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(shapeUp, inkSun.dirView));
   float formFacing = inkFacing(shapeSlope);
-  float inShade = inkInShade(max(inkSun.anyCast, max(facingShade, inkShadeFace(formFacing))));
+  float hill = inkHillShadow(vInkAt.xz);
+  float thing = inkInShade(inkSun.anyCast) * (1.0 - hill);
+  float face = max(facingShade, inkShadeFace(formFacing));
+  float sunless = max(thing, hill);
+  float inShade = inkInShade(max(max(thing, hill), face));
   vec3 color = inkGroundShade(inkHeightBands(inkBase(albedo, lit, level, 0.0, inkSteppedRelief(inkFacing(inkSurface.slope), formFacing))), inShade);
+  color *= 1.0 - inkCastDark * sunless;
+  if (inkShadowSources > 0.5) color = inkSourceTint(color, thing, hill, face);
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
@@ -306,6 +319,8 @@ function inkUniforms() {
     inkShadeDark: TUNING.shadeDark,
     inkShadeShift: TUNING.shadeShift,
     inkShadeFoot: TUNING.shadeFoot,
+    inkCastDark: TUNING.castDark,
+    inkShadowSources: TUNING.shadowSources,
     inkHeightTint: TUNING.heightTint,
   };
 }

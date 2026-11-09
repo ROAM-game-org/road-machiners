@@ -9,6 +9,7 @@ import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
 import { groundFormUniforms, type GroundFormUniforms } from "./groundForm";
+import { HILL_RANGE_METERS, HillShadows, type HillUniforms } from "./groundHill";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
@@ -40,6 +41,7 @@ const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
 const FORM_BEND_STEP = 2;
+const HILL_EDGE_METERS = 0.15;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
@@ -99,7 +101,9 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; form: GroundFormUniforms; header: string; key: string };
+export type GroundShapeUniforms = GroundFormUniforms & HillUniforms;
+
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; form: GroundShapeUniforms; hills: HillShadows; header: string; key: string };
 
 export type GroundCacheUniforms = {
   groundCacheColor: THREE.IUniform<THREE.Texture | null>;
@@ -114,9 +118,12 @@ export type GroundCacheUniforms = {
 export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): DrawnGround {
   const fields = groundFields(mask, t, shelters, landforms);
   const worn = fields.highwayWear !== undefined;
+  const form = groundFormUniforms(t);
+  const hills = new HillShadows(form, t.size + 1);
   return {
     uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
-    form: groundFormUniforms(t),
+    form: { ...form, ...hills.uniforms },
+    hills,
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };
@@ -130,7 +137,7 @@ export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: Dr
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
 }
 
-export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, form: GroundFormUniforms): void {
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, form: GroundShapeUniforms): void {
   patchGround(material, { ...cache, ...form }, `${CACHE_READ_UNIFORMS}${FORM_UNIFORMS}`, CACHE_READ, "|cacheRead");
 }
 
@@ -805,8 +812,16 @@ const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELI
 const FORM_UNIFORMS = `
 uniform sampler2D groundForm;
 uniform vec2 groundFormUv;
+uniform float groundHillShadows;
+uniform sampler2D groundHill;
+uniform float groundHillReady;
 vec2 groundFormAt(vec2 at) {
   return texture(groundForm, at * groundFormUv.x + groundFormUv.y).rg;
+}
+float inkHillShadow(vec2 at) {
+  if (groundHillShadows < 0.5 || groundHillReady < 0.5) return 0.0;
+  float over = (texture(groundHill, at * groundFormUv.x + groundFormUv.y).r * 2.0 - 1.0) * ${HILL_RANGE_METERS.toFixed(1)};
+  return smoothstep(-${HILL_EDGE_METERS.toFixed(2)}, ${HILL_EDGE_METERS.toFixed(2)}, over);
 }
 `;
 
