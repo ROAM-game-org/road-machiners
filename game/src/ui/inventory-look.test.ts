@@ -251,4 +251,20 @@ describe("the inventory looking another truck over", () => {
     const view = (screen as unknown as { view: { lookOnlyReason(): unknown } }).view;
     expect(view.lookOnlyReason()).toBeNull();
   });
+
+  it("selects an item pressed in the target grid and never starts a drag or a touch place", () => {
+    const { w, npc } = lookScene();
+    const { screen, applied } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    const view = (screen as unknown as {
+      view: { selectedItem: string | null; startDrag(e: unknown, s: string, id: string, item: unknown, grab: unknown): void; beginGridTap(e: unknown): boolean; drag: unknown };
+    }).view;
+    const gun = npc.items.find((it) => it.kind === "part" && it.part.defId === "mg");
+    if (!gun) throw new Error("The scout has no gun");
+    view.startDrag({ button: 0, pointerType: "mouse" }, "truck", gun.id, gun, { x: 0, y: 0 });
+    expect(view.selectedItem).toBe(gun.id);
+    expect(view.drag).toBeNull();
+    expect(view.beginGridTap({ pointerType: "touch", target: null })).toBe(false);
+    expect(applied).toEqual([]);
+  });
 });

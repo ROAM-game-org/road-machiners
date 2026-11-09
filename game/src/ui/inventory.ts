@@ -738,15 +738,22 @@ export class InventoryView {
     item: GridItem,
     grab: { x: number; y: number },
   ): void {
-    if (e.button !== 0 || this.look()) return;
+    if (e.button !== 0 || this.selectWhileLooking(source, id, item)) return;
+    if (this.look()) return;
     if (dragStartOf(e.pointerType, false) === "hold") return this.startPress(e, source, id, item, grab);
     e.preventDefault();
     e.stopPropagation();
     this.beginDrag(e, source, id, item, grab);
   }
 
+  private selectWhileLooking(source: ItemSource, id: string, item: GridItem): boolean {
+    if (!this.looking) return false;
+    this.clickItem(this.clicked(source, id, item));
+    return true;
+  }
+
   private startPress(e: PointerEvent, source: ItemSource, id: string, item: GridItem, grab: Press["grab"]): void {
-    if (this.look()) return;
+    if (this.selectWhileLooking(source, id, item) || this.look()) return;
     e.preventDefault();
     e.stopPropagation();
     this.endPress();
@@ -853,7 +860,7 @@ export class InventoryView {
   }
 
   private beginGridTap(e: PointerEvent): boolean {
-    if (e.pointerType !== "touch" || this.selectedItem === null || !this.gridEl?.contains(e.target as Node)) return false;
+    if (e.pointerType !== "touch" || this.selectedItem === null || this.look() || !this.gridEl?.contains(e.target as Node)) return false;
     this.tap = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
     return true;
   }
