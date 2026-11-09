@@ -11,6 +11,7 @@ const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
 const INK_SHADE_STEP = 0.72;
 const INK_LIGHT_STEP = 1.22;
+const INK_FACE_SLOPE_RAMP = 0.03;
 const INK_LIGHT_STEP_FACING = 1.3;
 
 export const INK_CONTRACT = `
@@ -44,6 +45,7 @@ uniform float inkShadeShift;
 uniform float inkShadeFoot;
 uniform float inkCastDark;
 uniform float inkShadowSources;
+uniform float inkFaceSlope;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -185,7 +187,8 @@ float inkShadeFace(float formFacing) {
   float formLength = length(inkSurface.form);
   float uphill = riseLength > 1e-6 && formLength > 1e-6 ? dot(rise / riseLength, inkSurface.form / formLength) : 1.0;
   float foot = inkShadeFoot * riseLength * smoothstep(0.2, -0.2, uphill);
-  return (1.0 - smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa + foot, formFacing)) * (1.0 - inkSurface.still);
+  float steep = smoothstep(inkFaceSlope, inkFaceSlope + ${INK_FACE_SLOPE_RAMP.toFixed(3)}, formLength);
+  return (1.0 - smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa + foot, formFacing)) * steep * (1.0 - inkSurface.still);
 }
 float inkFacing(vec2 slope) {
   vec3 up = normalize((viewMatrix * vec4(-slope.x, 1.0, -slope.y, 0.0)).xyz);
@@ -321,6 +324,7 @@ function inkUniforms() {
     inkShadeFoot: TUNING.shadeFoot,
     inkCastDark: TUNING.castDark,
     inkShadowSources: TUNING.shadowSources,
+    inkFaceSlope: { get value() { return Math.tan((TUNING.faceSlope.value * Math.PI) / 180); } },
     inkHeightTint: TUNING.heightTint,
   };
 }

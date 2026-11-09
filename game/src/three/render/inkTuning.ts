@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "hillShadows" | "shadowSources" | "shadeFoot" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "formScale" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "hillShadows" | "shadowSources" | "faceSlope" | "shadeFoot" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "formScale" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
 
 type Knob = { label: string; min: number; max: number; step: number; start: number };
 
@@ -23,6 +23,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   castDark: { label: "Cast shadow extra dark", min: 0, max: 0.8, step: 0.05, start: 0.3 },
   hillShadows: { label: "Hill shadows", min: 0, max: 1, step: 1, start: 1 },
   shadowSources: { label: "Color shadows by source", min: 0, max: 1, step: 1, start: 0 },
+  faceSlope: { label: "Shade face least slope deg", min: 0, max: 30, step: 1, start: 10 },
   shadeFoot: { label: "Shade foot fade m", min: 0, max: 16, step: 0.5, start: 5 },
   hatch: { label: "Shadow strokes", min: 0, max: 1, step: 0.05, start: 0.3 },
   hatchPx: { label: "Stroke size px", min: 3, max: 24, step: 0.5, start: 8 },
