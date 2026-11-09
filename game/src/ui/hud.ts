@@ -178,8 +178,8 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   ];
 }
 
-function readoutClass(r: { warning: boolean; danger?: boolean; idle?: boolean }): string {
-  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : "", r.idle ? "idle" : ""].filter(Boolean).join(" ");
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
 }
 
 export class Hud {

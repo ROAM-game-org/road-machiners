@@ -122,15 +122,12 @@
   grid-template-rows: repeat(3, auto) 1fr;
   grid-template-areas:
     "dial driver fuel supplies"
-    "dial engine heat weather"
+    "dial engine heat ."
     "dial money clock run"
     "actions actions actions actions";
 }
 #ui.phone .instruments .speedometer {
   grid-row: 1 / span 3;
-}
-#ui.phone .instruments .resource[data-resource="weather"] {
-  grid-area: weather;
 }
 #ui.phone .instruments .resource[data-resource="run"] {
   grid-area: run;

@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(4, minmax(var(--lcd-cell-w), 1fr));
   grid-template-areas:
-    "dial heat money clock weather"
+    "dial heat money clock ."
     "dial fuel supplies engine driver";
   grid-template-rows: auto auto;
   grid-auto-flow: row dense;
@@ -126,30 +126,13 @@
 .resource[data-resource="heat"] {
   grid-area: heat;
 }
-.resource[data-resource="weather"] {
-  grid-area: weather;
-  min-width: 0;
-  --value-w: 10ch;
-  grid-template-columns: var(--icon-s) minmax(0, var(--value-w));
-}
 .resource[data-resource="run"] {
   grid-row: 3;
   grid-column: 2 / -1;
   --value-w: 9ch;
 }
-.resource[data-resource="weather"] strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.resource.idle {
-  opacity: 0.45;
-}
-.resource.idle strong {
-  visibility: hidden;
-}
 .resource[data-resource="money"] {
-  --value-w: 7ch;
+  --value-w: 11ch;
 }
 .resource[data-resource="fuel"],
 .resource[data-resource="supplies"],
