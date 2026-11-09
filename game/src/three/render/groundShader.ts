@@ -647,7 +647,8 @@ const BORDER_BODY = `
   float drawnPxMeters = drawnTilePx * facetSide;
   bool drawnSamePair = fwidth(float(drawnEdge.lo * ${GROUND_MATERIAL_IDS.length} + drawnEdge.hi)) == 0.0;
   float drawnLoHaloMeters = drawnHaloMeters(drawnLoHaloPast, drawnPxMeters, drawnSamePair);
-  float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
+  float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);
+  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
   vec3 drawnHiColor = mix(drawnMaterialColor[drawnEdge.hi], drawnEdge.spillColor, drawnHiHalo);
   diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
   diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide, drawnPxMeters);
