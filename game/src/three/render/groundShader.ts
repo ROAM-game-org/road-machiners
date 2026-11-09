@@ -39,6 +39,7 @@ const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
+const FORM_BEND_STEP = 2;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
@@ -804,10 +805,17 @@ const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELI
 const FORM_UNIFORMS = `
 uniform sampler2D groundForm;
 uniform vec2 groundFormUv;
+vec2 groundFormAt(vec2 at) {
+  return texture(groundForm, at * groundFormUv.x + groundFormUv.y).rg;
+}
 `;
 
 const FORM_BODY = `
-  inkSurface.form = texture(groundForm, vRoadXZ * groundFormUv.x + groundFormUv.y).rg;
+  inkSurface.form = groundFormAt(vRoadXZ);
+  inkSurface.formBend = mat2(
+    groundFormAt(vRoadXZ + vec2(${FORM_BEND_STEP.toFixed(1)}, 0.0)) - groundFormAt(vRoadXZ - vec2(${FORM_BEND_STEP.toFixed(1)}, 0.0)),
+    groundFormAt(vRoadXZ + vec2(0.0, ${FORM_BEND_STEP.toFixed(1)})) - groundFormAt(vRoadXZ - vec2(0.0, ${FORM_BEND_STEP.toFixed(1)}))
+  ) / ${(2 * FORM_BEND_STEP).toFixed(1)};
 `;
 
 const GROUND_BODY = `{${GROUND_PARTS}${FORM_BODY}}`;

@@ -14,8 +14,8 @@ const INK_LIGHT_STEP = 1.22;
 const INK_LIGHT_STEP_FACING = 1.3;
 
 export const INK_CONTRACT = `
-struct InkSurface { float road; float edge; float height; vec2 slope; vec2 form; float rise; float still; };
-InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), vec2(0.0), 0.0, 0.0);
+struct InkSurface { float road; float edge; float height; vec2 slope; vec2 form; mat2 formBend; float rise; float still; };
+InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), vec2(0.0), mat2(0.0), 0.0, 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
 vec3 inkLamp = vec3(0.0);
@@ -41,6 +41,7 @@ uniform float inkReliefSteps;
 uniform float inkFormScale;
 uniform float inkShadeDark;
 uniform float inkShadeShift;
+uniform float inkShadeFoot;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -164,10 +165,20 @@ float inkSteppedRelief(float facing, float formFacing) {
   float detail = smooth_ / inkSmoothRelief(formFacing);
   return mix(smooth_, stepped * detail, 1.0 - inkSurface.still);
 }
+float inkFacing(vec2 slope);
+vec2 inkFacingRise(vec2 form, float formFacing) {
+  vec2 bySlope = vec2(inkFacing(form + vec2(0.01, 0.0)) - formFacing, inkFacing(form + vec2(0.0, 0.01)) - formFacing) / 0.01;
+  return vec2(dot(bySlope, inkSurface.formBend[0]), dot(bySlope, inkSurface.formBend[1]));
+}
 float inkShadeFace(float formFacing) {
   if (inkReliefSteps < 0.5) return 0.0;
   float aa = fwidth(formFacing) + 0.002;
-  return (1.0 - smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa, formFacing)) * (1.0 - inkSurface.still);
+  vec2 rise = inkFacingRise(inkSurface.form, formFacing);
+  float riseLength = length(rise);
+  float formLength = length(inkSurface.form);
+  float uphill = riseLength > 1e-6 && formLength > 1e-6 ? dot(rise / riseLength, inkSurface.form / formLength) : 1.0;
+  float foot = inkShadeFoot * riseLength * smoothstep(0.2, -0.2, uphill);
+  return (1.0 - smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa + foot, formFacing)) * (1.0 - inkSurface.still);
 }
 float inkFacing(vec2 slope) {
   vec3 up = normalize((viewMatrix * vec4(-slope.x, 1.0, -slope.y, 0.0)).xyz);
@@ -293,6 +304,7 @@ function inkUniforms() {
     inkFormScale: TUNING.formScale,
     inkShadeDark: TUNING.shadeDark,
     inkShadeShift: TUNING.shadeShift,
+    inkShadeFoot: TUNING.shadeFoot,
     inkHeightTint: TUNING.heightTint,
   };
 }
