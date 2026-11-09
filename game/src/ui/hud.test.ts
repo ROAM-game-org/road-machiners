@@ -1,3 +1,4 @@
+import { addState } from '../sim/states';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import { lookOverError } from '../sim/look-over';
@@ -157,6 +158,16 @@ describe('truck card actions', () => {
     expect(row!.all('cost')).toHaveLength(1);
     expect(row!.className).toBe('info-actions');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
+  });
+
+  it('keeps Look over enabled and free of the clock once the load is known', () => {
+    const { w, npc } = card(5, false);
+    addState(w, 'sizedUp', w.player.vehicleId, npc.id, { kind: 'none' });
+    const row = cardActions(w, npc, handlers) as unknown as FakeNode;
+    const lookOver = row.withTag('button')[1];
+    expect(lookOver.text()).toBe('Look over');
+    expect(lookOver.attrs['aria-disabled']).toBeUndefined();
+    expect(row.all('cost')).toHaveLength(0);
   });
 
   it('shows no Mark button without the spotter perk', () => {
