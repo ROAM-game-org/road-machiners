@@ -23,8 +23,12 @@ function shaderOf(material: THREE.Material) {
 }
 
 describe('cloud cover', () => {
-  it('is denser under overcast than under a clear sky', () => {
-    expect(coverTarget(true)).toBeGreaterThan(coverTarget(false));
+  it('casts no cloud shadow under a clear sky, only under overcast', () => {
+    expect(coverTarget(false)).toBe(0);
+    expect(coverTarget(true)).toBeGreaterThan(0);
+    const shadows = new CloudShadows();
+    shadows.sync(emptyWorld(), NOON, 0);
+    expect(shadows.cover()).toBe(0);
   });
 
   it('stays still without play time and reaches its target after the easing turns', () => {
@@ -231,9 +235,9 @@ function lookOver(look: CloudLook) {
 }
 
 describe('cloud look in the default view', () => {
-  const look = { scale: CLOUDS.scale, soft: CLOUDS.soft, cover: CLOUDS.clear };
+  const look = { scale: CLOUDS.scale, soft: CLOUDS.soft, cover: CLOUDS.overcast };
 
-  it('shows a whole shadow edge in most default views under a clear sky', () => {
+  it('shows a whole shadow edge in most default views under overcast', () => {
     expect(lookOver(look).wholeEdgeShare).toBeGreaterThanOrEqual(0.6);
   });
 

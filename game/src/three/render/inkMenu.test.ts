@@ -23,6 +23,6 @@ describe("look menu values", () => {
     expect(valueText(KNOBS.waveSize, 9)).toBe("9 m");
     expect(valueText(KNOBS.hatchPx, 8)).toBe("8.0 px");
     expect(valueText(KNOBS.edgeSoft, 0.01)).toBe("0.01");
-    expect(valueText(KNOBS.crestWidth, 0.8)).toBe("0.8 m");
+    expect(valueText(KNOBS.crestWidth, 0.8)).toBe("0.80 m");
   });
 });
