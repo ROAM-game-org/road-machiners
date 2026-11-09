@@ -193,9 +193,10 @@ vec3 inkGroundShade(vec3 color, float inShade) {
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
   float level = inkLevel(lit);
-  vec3 smoothUp = normalize((viewMatrix * vec4(-inkSurface.slope.x, 1.0, -inkSurface.slope.y, 0.0)).xyz);
-  float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(smoothUp, inkSun.dirView));
-  float formFacing = inkFacing(inkFormScale > 0.0 ? inkSurface.form : inkSurface.slope);
+  vec2 shapeSlope = inkFormScale > 0.0 ? inkSurface.form : inkSurface.slope;
+  vec3 shapeUp = normalize((viewMatrix * vec4(-shapeSlope.x, 1.0, -shapeSlope.y, 0.0)).xyz);
+  float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(shapeUp, inkSun.dirView));
+  float formFacing = inkFacing(shapeSlope);
   float inShade = inkInShade(max(inkSun.anyCast, max(facingShade, inkShadeFace(formFacing))));
   vec3 color = inkGroundShade(inkHeightBands(inkBase(albedo, lit, level, 0.0, inkSteppedRelief(inkFacing(inkSurface.slope), formFacing))), inShade);
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);

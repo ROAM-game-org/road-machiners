@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "shadeFoot" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "formScale" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "groundCasts" | "shadeFoot" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "formScale" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
 
 type Knob = { label: string; min: number; max: number; step: number; start: number };
 
@@ -20,6 +20,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   shadeLine: { label: "Shadow outline", min: 0, max: 1, step: 0.05, start: 0 },
   shadeDark: { label: "Shadow darkness", min: 0, max: 0.8, step: 0.05, start: 0.35 },
   shadeShift: { label: "Shadow color shift", min: 0, max: 1, step: 0.05, start: 0.3 },
+  groundCasts: { label: "Hills cast shadows, reload", min: 0, max: 1, step: 1, start: 0 },
   shadeFoot: { label: "Shade foot fade m", min: 0, max: 16, step: 0.5, start: 5 },
   hatch: { label: "Shadow strokes", min: 0, max: 1, step: 0.05, start: 0.3 },
   hatchPx: { label: "Stroke size px", min: 3, max: 24, step: 0.5, start: 8 },

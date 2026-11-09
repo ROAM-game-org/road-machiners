@@ -14,6 +14,7 @@ import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
 import { drawGround, drawnGround, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
+import { TUNING } from "./inkTuning";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -183,7 +184,7 @@ export function terrainMesh(w: World, material: THREE.MeshLambertMaterial, scope
 
 function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number, y: number, width: number, depth: number): TerrainChunk {
   const mesh = new THREE.Mesh(chunkGeometry(t, x, y, width, depth), material);
-  mesh.castShadow = true;
+  mesh.castShadow = TUNING.groundCasts.value > 0;
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();
