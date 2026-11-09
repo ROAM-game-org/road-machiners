@@ -14,7 +14,9 @@ const INK_SHADE_STEP_FACING = 0.45;
 const INK_LIGHT_STEP = 1.22;
 const INK_LIGHT_STEP_FACING = 1.3;
 const INK_COOL_STEP = "vec3(0.8, 0.86, 1.2)";
-const INK_STEP_SHARE = 0.5;
+const INK_STEP_SHARE = 0.7;
+const INK_CAST_DARK = 0.75;
+const INK_CAST_SPREAD = 3;
 
 export const INK_CONTRACT = `
 struct InkSurface { float road; float edge; float height; vec2 slope; float rise; float still; };
@@ -175,6 +177,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float sunShade = max(inkSun.anyCast, facingShade);
   float inShade = inkInShade(sunShade);
   vec3 color = inkHeightBands(inkBase(albedo, lit, level, inShade, inkSteppedRelief(facing)));
+  color *= mix(1.0, ${INK_CAST_DARK.toFixed(2)}, inkInShade(inkSun.anyCast) * inkRelief);
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
@@ -207,8 +210,9 @@ const SUN_SHADOW_STEP = "directLight.color *= ( directLight.visible && receiveSh
 
 const SUN_SHADE_READ = `float inkShadowHere = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;
 		directLight.color *= inkShadowHere;
-		inkSun.anyCast = max(inkSun.anyCast, 1.0 - inkShadowHere);
-		inkSun.litCast = max(inkSun.litCast, (1.0 - inkShadowHere) * smoothstep(0.08, 0.2, dot(geometryNormal, directLight.direction)));
+		float inkShadowWide = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius * ${INK_CAST_SPREAD.toFixed(1)}, vDirectionalShadowCoord[ i ] ) : 1.0;
+		inkSun.anyCast = max(inkSun.anyCast, 1.0 - inkShadowWide);
+		inkSun.litCast = max(inkSun.litCast, (1.0 - inkShadowWide) * smoothstep(0.08, 0.2, dot(geometryNormal, directLight.direction)));
 		inkSun.facing = max(inkSun.facing, 1.0 - smoothstep(-0.02, 0.06, dot(geometryNormal, directLight.direction)));
 		inkSun.dirView = directLight.direction;`;
 
