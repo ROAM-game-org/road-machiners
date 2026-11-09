@@ -1,4 +1,5 @@
 import { beforeAll, expect, it } from 'vitest';
+import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
 import { partDef } from '../data/parts';
 import { makePart } from '../sim/factory';
@@ -25,6 +26,7 @@ const LIP_POSE = {
 };
 const DEST = { x: 212, y: 262 };
 const TURNS = 20;
+const FELL = 20;
 
 function scoutOnRampLip(): World {
   const w = newWorld(SEED, START_KITS.arrival, highwayMap(SEED, 0), defaultSetup('chaosHighway'));
@@ -58,18 +60,18 @@ it('a truck nosed over the high end of a ramp, backing with no motion, rocks for
   const id = w.vehicles[0].id;
   let d = buildDrive(w);
   restOnLip(d, w);
-  const start = { ...w.vehicles[0].pos };
   let upright = true;
-  for (let i = 0; i < TURNS; i++) {
+  let lowest = 0;
+  for (let i = 0; i < TURNS && (w.vehicles[0].strandedTurns ?? 0) < RULES.stranded.turns; i++) {
     let r: TurnResult | null = null;
     w = endTurn(w, physicsMove(d, (x) => (r = x)));
     freeDrive(d);
     d = r!.next;
     upright &&= bodyState(d, id).upright;
+    lowest = Math.min(lowest, d.world.getRigidBody(d.bodies[id]).translation().y);
   }
   freeDrive(d);
-  const gone = start.y - w.vehicles[0].pos.y;
 
   expect(upright).toBe(true);
-  expect(gone).toBeGreaterThan(20);
+  expect(lowest).toBeLessThan(-FELL);
 }, budget(120_000));
