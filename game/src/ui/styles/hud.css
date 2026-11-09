@@ -132,7 +132,7 @@
   --value-w: 9ch;
 }
 .resource[data-resource="money"] {
-  --value-w: 7ch;
+  --value-w: 11ch;
 }
 .resource[data-resource="fuel"],
 .resource[data-resource="supplies"],

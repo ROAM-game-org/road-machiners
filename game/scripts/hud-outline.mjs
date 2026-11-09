@@ -114,5 +114,5 @@ export async function checkHudOutlineFixed(page, where) {
   await walkStates(page, check, restore);
   await restore();
   assert.equal(problems.length, 0, `The bottom-left HUD must keep its outline ${where}:\n${problems.join('\n')}`);
-  console.log(`hud outline fixed ${where}: ${switches} switches, ${WEATHER.length + VALUES.length + 1} states`);
+  console.log(`hud outline fixed ${where}: ${switches} switches, ${VALUES.length + 1} states`);
 }
