@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blurredAt, blurredHeights, FOLD, gaussWeights, GroundSurface } from "./surface";
+import { blurredHeights, FOLD, GroundSurface, MESH_STEPS } from "./surface";
 
 const SIDE = 24;
 
@@ -38,6 +38,24 @@ describe("ground surface", () => {
     }
   });
 
+  it("samples a grid exactly as it samples each point, beside cliffs and at the map edge too", () => {
+    const ground = surface((x, y) => (x >= 12 ? 8 : 0) + Math.sin(x * 1.3 + y * 0.7) * 2, [[11, 12], [11, 13], [11, 14]]);
+    for (const [x0, y0, width, depth] of [[0, 0, SIDE, SIDE], [9, 10, 5, 7], [20, 3, 4, 2]]) {
+      const grid = ground.grid(x0, y0, width, depth);
+      const cols = width * MESH_STEPS + 1;
+      for (let q = 0; q <= depth * MESH_STEPS; q++)
+        for (let p = 0; p < cols; p++) expect(grid[q * cols + p], `${x0 + p / MESH_STEPS},${y0 + q / MESH_STEPS}`).toBe(ground.heightAt(x0 + p / MESH_STEPS, y0 + q / MESH_STEPS));
+    }
+  });
+
+  it("gives the same heights whatever order the ground is first read in", () => {
+    const height = (x: number, y: number) => (x >= 12 ? 8 : 0) + Math.sin(x * 1.3 + y * 0.7) * 2;
+    const first = surface(height, [[11, 12], [11, 13]]);
+    const second = surface(height, [[11, 12], [11, 13]]);
+    second.grid(0, 0, SIDE, SIDE);
+    for (let y = SIDE; y >= 0; y -= 0.75) for (let x = 0; x <= SIDE; x += 0.6) expect(first.heightAt(x, y)).toBe(second.heightAt(x, y));
+  });
+
   it("keeps an even slope even out to the edge of the map and flat past it", () => {
     const ground = surface((x, y) => 0.5 * x + 0.25 * y);
     expect(ground.heightAt(0, 0)).toBeCloseTo(0, 9);
@@ -55,13 +73,6 @@ function grid(height: (x: number, y: number) => number): Float32Array {
 }
 
 describe("height blur", () => {
-  it("blurs one corner the same as the whole grid", () => {
-    const rough = grid((x, y) => Math.sin(x * 1.7) * 3 + Math.cos(y * 0.9) * 2 + (x * y) % 5);
-    const whole = blurredHeights(rough, BLUR_SIDE, 1.25);
-    const clamped = (x: number, y: number) => rough[Math.min(BLUR_SIDE - 1, Math.max(0, y)) * BLUR_SIDE + Math.min(BLUR_SIDE - 1, Math.max(0, x))];
-    for (const [x, y] of [[20, 20], [0, 0], [40, 3], [2, 39]]) expect(blurredAt(clamped, gaussWeights(1.25), x, y)).toBeCloseTo(whole[y * BLUR_SIDE + x], 4);
-  });
-
   it("keeps the height of a long even hillside", () => {
     expect(blurredHeights(grid((x) => 0.25 * x), BLUR_SIDE, 3)[MIDDLE]).toBeCloseTo(5, 4);
   });

@@ -65,12 +65,16 @@ function foldOf(t: Terrain, x: number, y: number): Fold {
 
 const surfaces = new WeakMap<Terrain, GroundSurface>();
 
+let lastSurface: { terrain: Terrain; surface: GroundSurface } | null = null;
+
 export function groundSurface(t: Terrain): GroundSurface {
+  if (lastSurface?.terrain === t) return lastSurface.surface;
   let surface = surfaces.get(t);
   if (!surface) {
     surface = new GroundSurface({ size: t.size, heights: t.heights, foldOf: (x, y) => foldOf(t, x, y) });
     surfaces.set(t, surface);
   }
+  lastSurface = { terrain: t, surface };
   return surface;
 }
 

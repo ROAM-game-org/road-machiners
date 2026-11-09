@@ -9,7 +9,7 @@ import { rideOf, unitBody, unitsOf } from "../sim/body";
 import { trailPoseAt, unitPoses, type UnitPose } from "../sim/rig";
 import { propBase, propPose, RAMP_MODELS, rampSpan } from "../sim/mapgen";
 import { MESH_STEPS } from "../sim/surface";
-import { groundAt, heightAt, type Terrain } from "../sim/terrain";
+import { groundAt, groundSurface, heightAt, type Terrain } from "../sim/terrain";
 import type { Crater, Obstacle, Pose, Vehicle, World } from "../sim/types";
 import { angleDiff, type Vec } from "../sim/vec";
 import { wheelMounts } from "./body";
@@ -274,9 +274,10 @@ export function addGround(world: RAPIER.World, t: Terrain, center: Vec): GroundP
 
 export function groundField(t: Terrain, x0: number, z0: number, tiles: number): RAPIER.ColliderDesc {
   const cells = tiles * MESH_STEPS;
+  const grid = groundSurface(t).grid(x0, z0, tiles, tiles);
   const heights = new Float32Array((cells + 1) * (cells + 1));
   for (let i = 0; i <= cells; i++)
-    for (let j = 0; j <= cells; j++) heights[i * (cells + 1) + j] = groundAt(t, x0 + i / MESH_STEPS, z0 + j / MESH_STEPS);
+    for (let j = 0; j <= cells; j++) heights[i * (cells + 1) + j] = grid[j * (cells + 1) + i];
   const size = tiles * S;
   return RAPIER.ColliderDesc.heightfield(cells, cells, heights, { x: size, y: S, z: size }).setTranslation((x0 + tiles / 2) * S, 0, (z0 + tiles / 2) * S);
 }
