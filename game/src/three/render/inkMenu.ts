@@ -6,9 +6,10 @@ type Group = { title: string; keys: TuningKey[]; gate?: TuningKey };
 type Row = { key: TuningKey; node: HTMLElement; control: HTMLInputElement; sync(): void };
 
 export const LOOK_GROUPS: Group[] = [
-  { title: "Ground", keys: ["color", "heightTint", "edgeSoft", "edgeWobble", "waveSize", "halo", "grain"] },
-  { title: "Relief", keys: ["relief", "formScale"] },
-  { title: "Shadows", keys: ["shadeDark", "shadeShift", "castDark", "shadeLine", "hillShadows", "shadowSources"] },
+  { title: "Ground", keys: ["color", "heightTint", "edgeSoft", "edgeWobble", "waveSize", "halo", "grain", "edgeShadow", "edgeShadowWidth"] },
+  { title: "Relief", keys: ["relief", "litFace"] },
+  { title: "Crest lines", keys: ["crestLine", "crestWidth", "crestFold"] },
+  { title: "Shadows", keys: ["shadeDark", "shadeShift", "castDark", "shadeLine"] },
   { title: "Strokes", keys: ["hatch", "hatchPx"] },
   { title: "Objects", keys: ["objectHatch", "outline"] },
   { title: "Elevation lines", keys: ["contour", "contourStep", "contourSoft", "contourOpacity", "contourCross"], gate: "contour" },

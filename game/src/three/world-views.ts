@@ -21,7 +21,6 @@ import { cachedGround, groundMaterial, terrainMesh } from './render/terrain';
 
 export type WorldViewHost = {
   scene: THREE.Scene;
-  sun: THREE.DirectionalLight;
   ground: THREE.Group;
   props: THREE.Group;
   play: PlayClock;
@@ -51,10 +50,10 @@ export function sightAround(limit: SightLimit, streamer: CellStreamer, world: Wo
 }
 
 function groundFor(world: World, host: WorldViewHost): THREE.MeshLambertMaterial {
-  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world).material;
+  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world);
   const cacheUniforms = groundCacheUniforms();
   const { reader, writer, writes } = cachedGround(world, cacheUniforms);
-  host.drawGroundThrough(new GroundCache(host.renderer, host.ground, reader, writer, writes.uniforms, cacheUniforms, { hills: writes.hills, sun: host.sun }));
+  host.drawGroundThrough(new GroundCache(host.renderer, host.ground, reader, writer, writes.uniforms, cacheUniforms));
   return reader;
 }
 

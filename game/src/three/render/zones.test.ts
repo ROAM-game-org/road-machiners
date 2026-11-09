@@ -4,6 +4,8 @@ import { ZonesView } from './zones';
 import type * as THREE from 'three';
 import { isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
+import { MESH_STEPS } from './groundSurface';
+import { surfacePatch } from './terrain';
 
 function bandGeometries(view: ZonesView) {
   return view.root.children.slice(0, 3).map((m) => (m as unknown as { geometry: unknown }).geometry);
@@ -65,12 +67,12 @@ describe('ZonesView', () => {
     expect(view.root.children.slice(0, 3).map((m) => m.visible)).toEqual(moving);
   });
 
-  it('lays every band vertex on a corner of the ground mesh, so a steep wall cannot cut through the band', () => {
+  it('lays every band vertex on a vertex of the ground mesh, so a steep wall cannot cut through the band', () => {
     const steep = flatTerrain(64);
     steep.heights = steep.heights.map((_, k) => ((k * 7919) % 13) - 6);
     const view = new ZonesView();
     view.update(steep, { x: 20.3, y: 20.7 }, 0.5, 3, 0.4);
-    const row = steep.size + 1;
+    const surface = surfacePatch(steep, 0, 0, steep.size, steep.size);
     const lift = 0.1;
 
     for (const positions of bandPositions(view)) {
@@ -78,8 +80,8 @@ describe('ZonesView', () => {
       for (let k = 0; k < positions.length; k += 3) {
         const x = positions[k] / 4;
         const y = positions[k + 2] / 4;
-        expect(Number.isInteger(x) && Number.isInteger(y)).toBe(true);
-        expect(positions[k + 1]).toBeCloseTo(steep.heights[y * row + x] * 4 + lift, 6);
+        expect(Number.isInteger(x * MESH_STEPS) && Number.isInteger(y * MESH_STEPS)).toBe(true);
+        expect(positions[k + 1]).toBeCloseTo(surface.heightAt(x, y) * 4 + lift, 5);
       }
     }
   });
@@ -101,7 +103,8 @@ describe('ZonesView', () => {
     const key = (k: number) => `${pos.getX(k) / 4},${pos.getZ(k) / 4}`;
     const triangles = new Set<string>();
     for (let f = 0; f < index.count; f += 3) triangles.add([0, 1, 2].map((n) => key(index.getX(f + n))).sort().join(' '));
-    const along = [`${cliff.x},${cliff.y}`, `${cliff.x},${cliff.y + 1}`, `${cliff.x + 1},${cliff.y + 1}`].sort().join(' ');
+    const step = 1 / MESH_STEPS;
+    const along = [`${cliff.x},${cliff.y}`, `${cliff.x},${cliff.y + step}`, `${cliff.x + step},${cliff.y + step}`].sort().join(' ');
 
     expect(triangles.has(along)).toBe(true);
   });

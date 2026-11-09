@@ -5,6 +5,7 @@ import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
 import { BLOCK_COUNT_SHIFT, blockWriter } from './groundFields';
+import { MESH_STEPS } from './groundSurface';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
@@ -54,18 +55,23 @@ describe('terrain under decks', () => {
     expect(worstRise(deckById(id), 0.32)).toBeLessThanOrEqual(-0.1);
   });
 
-  it('draws every corner outside all deck outlines at its baked height', () => {
+  it('keeps every corner of a cliff square outside all deck outlines at its baked height', () => {
+    let cliffCorners = 0;
     for (const deck of DECKS)
       for (const [cx, cy, w, d] of chunksUnder(deck)) {
         const pos = chunkGeometry(t, cx, cy, w, d).getAttribute('position');
+        const row = w * MESH_STEPS + 1;
         for (let j = 0; j <= d; j++)
           for (let i = 0; i <= w; i++) {
             const x = cx + i;
             const y = cy + j;
-            if (deckAt(ICARUS_DECKS, x, y)) continue;
-            expect(pos.getY(j * (w + 1) + i)).toBe(Math.fround(t.heights[y * (t.size + 1) + x] * S));
+            const onCliff = [0, 1].some((dy) => [0, 1].some((dx) => x - dx >= 0 && y - dy >= 0 && x - dx < t.size && y - dy < t.size && isCliff(t, (y - dy) * t.size + x - dx)));
+            if (!onCliff || deckAt(ICARUS_DECKS, x, y)) continue;
+            cliffCorners++;
+            expect(pos.getY(j * MESH_STEPS * row + i * MESH_STEPS)).toBe(Math.fround(t.heights[y * (t.size + 1) + x] * S));
           }
       }
+    expect(cliffCorners).toBeGreaterThan(0);
   });
 
   it('gives no floor cap off every deck and one under the deck height on it', () => {
@@ -110,12 +116,14 @@ describe('ground triangle split', () => {
     return [[index.getX(0), index.getX(1), index.getX(2)], [index.getX(3), index.getX(4), index.getX(5)]];
   }
 
+  const meshRow = MESH_STEPS + 1;
+
   it('folds a cliff square along its two closer corners, so a cliff runs along its own line', () => {
-    expect(squareTriangles(firstSquare(true))).toEqual([[0, 2, 3], [0, 3, 1]]);
+    expect(squareTriangles(firstSquare(true))).toEqual([[0, meshRow, meshRow + 1], [0, meshRow + 1, 1]]);
   });
 
   it('keeps the collider diagonal on a square trucks drive on, even when the other diagonal is closer', () => {
-    expect(squareTriangles(firstSquare(false))).toEqual([[0, 2, 1], [2, 3, 1]]);
+    expect(squareTriangles(firstSquare(false))).toEqual([[0, meshRow, 1], [meshRow, meshRow + 1, 1]]);
   });
 });
 

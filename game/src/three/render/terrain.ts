@@ -14,7 +14,8 @@ import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
 import { drawGround, drawnGround, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
-import type { HillShadows } from "./groundHill";
+import { blurredHeights } from "./groundForm";
+import { FOLD, MESH_STEPS, REACH_TILES, SurfacePatch, surfaceTriangles, type Fold } from "./groundSurface";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -89,64 +90,100 @@ export type TerrainChunk = {
 };
 
 const DECK_FLOOR_GAP = 0.5;
+const LAND_BLUR_TILES = 1.25;
 
 export function deckFloorCap(t: Terrain, x: number, y: number): number | null {
   const on = deckAt(atlasOf(t).decks, x, y);
   return on === null ? null : deckHeight(t, on.deck, on.along) - DECK_FLOOR_GAP / S;
 }
 
-function drawnHeight(t: Terrain, x: number, y: number): number {
-  const h = t.heights[y * (t.size + 1) + x];
+function drawnHeight(t: Terrain, x: number, y: number, heights: ArrayLike<number> = t.heights): number {
+  const h = heights[y * (t.size + 1) + x];
   const cap = deckFloorCap(t, x, y);
   return cap === null ? h : Math.min(h, cap);
 }
 
-export function splitsAlongCliff(t: Terrain, x: number, y: number): boolean {
-  if (!isCliff(t, y * t.size + x)) return false;
-  const rising = Math.abs(drawnHeight(t, x, y) - drawnHeight(t, x + 1, y + 1));
-  const falling = Math.abs(drawnHeight(t, x + 1, y) - drawnHeight(t, x, y + 1));
-  return rising < falling;
+const landShapes = new WeakMap<Terrain, Float32Array>();
+
+function landShape(t: Terrain): Float32Array {
+  let shape = landShapes.get(t);
+  if (!shape) {
+    shape = blurredHeights(t.heights, t.size + 1, LAND_BLUR_TILES);
+    landShapes.set(t, shape);
+  }
+  return shape;
 }
 
-export function groundTriangles(t: Terrain, x: number, y: number, width: number, depth: number): number[] {
-  const index: number[] = [];
-  const row = width + 1;
-  for (let j = 0; j < depth; j++)
-    for (let i = 0; i < width; i++) {
-      const a = j * row + i;
-      const b = a + row;
-      const c = b + 1;
-      const d = a + 1;
-      if (splitsAlongCliff(t, x + i, y + j)) index.push(a, b, c, a, c, d);
-      else index.push(a, b, d, b, c, d);
-    }
-  return index;
+function onMap(t: Terrain, x: number, y: number): boolean {
+  return x >= 0 && y >= 0 && x < t.size && y < t.size;
+}
+
+function foldOf(t: Terrain, x: number, y: number): Fold {
+  if (!onMap(t, x, y) || !isCliff(t, y * t.size + x)) return FOLD.smooth;
+  const rising = Math.abs(drawnHeight(t, x, y) - drawnHeight(t, x + 1, y + 1));
+  const falling = Math.abs(drawnHeight(t, x + 1, y) - drawnHeight(t, x, y + 1));
+  return rising < falling ? FOLD.cliffAlongRise : FOLD.cliff;
+}
+
+type Window = { fromX: number; fromY: number; cols: number; rows: number };
+
+function foldRing(t: Terrain, w: Window): Uint8Array {
+  const ring = new Uint8Array((w.cols + 2) * (w.rows + 2));
+  for (let j = 0; j < w.rows + 2; j++) for (let i = 0; i < w.cols + 2; i++) ring[j * (w.cols + 2) + i] = foldOf(t, w.fromX - 1 + i, w.fromY - 1 + j);
+  return ring;
+}
+
+function innerFolds(ring: Uint8Array, w: Window): Uint8Array {
+  const folds = new Uint8Array(w.cols * w.rows);
+  for (let j = 0; j < w.rows; j++) for (let i = 0; i < w.cols; i++) folds[j * w.cols + i] = ring[(j + 1) * (w.cols + 2) + i + 1];
+  return folds;
+}
+
+function cornerHeights(t: Terrain, ring: Uint8Array, w: Window): Float64Array {
+  const clamp = (v: number) => Math.min(t.size, Math.max(0, v));
+  const touchesCliff = (i: number, j: number) => [0, 1].some((dy) => [0, 1].some((dx) => ring[(j + dy) * (w.cols + 2) + i + dx] !== FOLD.smooth));
+  const shape = landShape(t);
+  const corners = new Float64Array((w.cols + 1) * (w.rows + 1));
+  for (let j = 0; j <= w.rows; j++)
+    for (let i = 0; i <= w.cols; i++) corners[j * (w.cols + 1) + i] = drawnHeight(t, clamp(w.fromX + i), clamp(w.fromY + j), touchesCliff(i, j) ? t.heights : shape);
+  return corners;
+}
+
+export function surfacePatch(t: Terrain, x: number, y: number, width: number, depth: number): SurfacePatch {
+  const w = { fromX: x - REACH_TILES, fromY: y - REACH_TILES, cols: width + 2 * REACH_TILES, rows: depth + 2 * REACH_TILES };
+  const ring = foldRing(t, w);
+  return new SurfacePatch(w.fromX, w.fromY, w.cols, cornerHeights(t, ring, w), innerFolds(ring, w));
 }
 
 export function chunkGeometry(t: Terrain, x: number, y: number, width: number, depth: number): THREE.PlaneGeometry {
-  const geo = new THREE.PlaneGeometry(width * S, depth * S, width, depth).rotateX(-Math.PI / 2);
+  const patch = surfacePatch(t, x, y, width, depth);
+  const cols = width * MESH_STEPS;
+  const rows = depth * MESH_STEPS;
+  const geo = new THREE.PlaneGeometry(width * S, depth * S, cols, rows).rotateX(-Math.PI / 2);
   const pos = geo.getAttribute("position");
+  const normal = geo.getAttribute("normal");
   const uv = geo.getAttribute("uv");
   const span = t.size + TERRAIN_MARGIN * 2;
-  for (let j = 0; j <= depth; j++)
-    for (let i = 0; i <= width; i++) {
-      const k = j * (width + 1) + i;
-      pos.setXYZ(k, (x + i) * S, drawnHeight(t, x + i, y + j) * S, (y + j) * S);
-      uv.setXY(k, (x + i + TERRAIN_MARGIN) / span, (y + j + TERRAIN_MARGIN) / span);
+  const up = new THREE.Vector3();
+  for (let j = 0; j <= rows; j++)
+    for (let i = 0; i <= cols; i++) {
+      const k = j * (cols + 1) + i;
+      const u = x + i / MESH_STEPS;
+      const v = y + j / MESH_STEPS;
+      const slope = patch.slopeAt(u, v);
+      pos.setXYZ(k, u * S, patch.heightAt(u, v) * S, v * S);
+      normal.setXYZ(k, ...up.set(-slope.x, 1, -slope.y).normalize().toArray());
+      uv.setXY(k, (u + TERRAIN_MARGIN) / span, (v + TERRAIN_MARGIN) / span);
     }
-  geo.setIndex(groundTriangles(t, x, y, width, depth));
-  geo.computeVertexNormals();
+  geo.setIndex(surfaceTriangles(patch, x, y, width, depth));
   geo.computeBoundingSphere();
   return geo;
 }
 
-export type GroundLook = { material: THREE.MeshLambertMaterial; hills: HillShadows };
-
-export function groundMaterial(w: World): GroundLook {
+export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  const drawn = drawnGroundOf(w);
-  drawGround(material, drawn);
-  return { material: litGround(material), hills: drawn.hills };
+  drawGround(material, drawnGroundOf(w));
+  return litGround(material);
 }
 
 export type CachedGround = { reader: THREE.MeshLambertMaterial; writer: THREE.MeshLambertMaterial; writes: DrawnGround };
@@ -157,7 +194,7 @@ export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround
   const writer = new THREE.MeshLambertMaterial({ map });
   writeGroundCache(writer, writes);
   const reader = new THREE.MeshLambertMaterial({ map });
-  readGroundCache(reader, cache, writes.hills.uniforms);
+  readGroundCache(reader, cache, writes.crest.uniforms);
   return { reader: litGround(reader), writer, writes };
 }
 
@@ -187,7 +224,7 @@ export function terrainMesh(w: World, material: THREE.MeshLambertMaterial, scope
 
 function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number, y: number, width: number, depth: number): TerrainChunk {
   const mesh = new THREE.Mesh(chunkGeometry(t, x, y, width, depth), material);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();

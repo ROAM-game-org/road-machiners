@@ -8,8 +8,7 @@ import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
-import { groundFormUniforms } from "./groundForm";
-import { HILL_RANGE_METERS, HillShadows, type HillUniforms } from "./groundHill";
+import { CREST_GLSL, GroundCrest, type CrestUniforms } from "./groundCrest";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
@@ -40,7 +39,6 @@ const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
-const HILL_EDGE_METERS = 0.15;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
@@ -55,6 +53,7 @@ const DRAWN_FINE_WAVE_SHARE = 0.35;
 const DRAWN_HALO_EDGE = 0.25;
 const DRAWN_HALO_RIM_MIX = 0.45;
 const DRAWN_HALO_CORE_MIX = 0.85;
+const EDGE_SHADOW_FADE_PX = 0.7;
 const DRAWN_HALO_HIDES_MARKS = 0.3;
 const DRAWN_MARK_FLAT_FROM = 0.82;
 const DRAWN_MARK_FLAT_TO = 0.93;
@@ -100,7 +99,12 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; hills: HillShadows; header: string; key: string };
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; crest: GroundCrest; header: string; key: string };
+
+const GROUND_SHAPE_VERTEX = `vec4 groundWorld = modelMatrix * vec4(transformed, 1.0);
+vRoadXZ = groundWorld.xz;
+vec3 groundUp = normalize(mat3(modelMatrix) * objectNormal);
+vGroundShape = vec3(groundWorld.y, -groundUp.xz / max(groundUp.y, 0.05));`;
 
 export type GroundCacheUniforms = {
   groundCacheColor: THREE.IUniform<THREE.Texture | null>;
@@ -117,22 +121,22 @@ export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Si
   const worn = fields.highwayWear !== undefined;
   return {
     uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
-    hills: new HillShadows(groundFormUniforms(t), t.size + 1),
+    crest: new GroundCrest(t.heights, t.size + 1, S),
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };
 }
 
 export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
-  patchGround(material, { ...ground.uniforms, ...ground.hills.uniforms }, `${ground.header}${HILL_UNIFORMS}`, GROUND_BODY, ground.key);
+  patchGround(material, { ...ground.uniforms, ...ground.crest.uniforms }, `${ground.header}${CREST_GLSL}`, GROUND_BODY, ground.key);
 }
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
 }
 
-export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, hills: HillUniforms): void {
-  patchGround(material, { ...cache, ...hills }, `${CACHE_READ_UNIFORMS}${HILL_UNIFORMS}`, CACHE_READ, "|cacheRead");
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, crest: CrestUniforms): void {
+  patchGround(material, { ...cache, ...crest }, `${CACHE_READ_UNIFORMS}${CREST_GLSL}`, CACHE_READ, "|cacheRead");
 }
 
 function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<string, THREE.IUniform>, header: string, body: string, cacheKey: string): void {
@@ -141,8 +145,8 @@ function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<strin
   material.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
     Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <common>", "varying vec2 vRoadXZ;");
-    shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <project_vertex>", "vRoadXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
+    shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <common>", "varying vec2 vRoadXZ;\nvarying vec3 vGroundShape;");
+    shader.vertexShader = injectAfter(OWNER, shader.vertexShader, "#include <project_vertex>", GROUND_SHAPE_VERTEX);
     shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <common>", header);
     shader.fragmentShader = injectAfter(OWNER, shader.fragmentShader, "#include <map_fragment>", body);
   };
@@ -162,6 +166,8 @@ function lookUniforms() {
     drawnGrainAmount: TUNING.grain,
     drawnHaloAmount: TUNING.halo,
     drawnEdgeSoft: TUNING.edgeSoft,
+    drawnEdgeShadowAmount: TUNING.edgeShadow,
+    drawnEdgeShadowWidth: TUNING.edgeShadowWidth,
     asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadPlainLuma: { value: luma(new THREE.Color(ROAD_PLAIN)) },
     roadSandLuma: { value: luma(new THREE.Color(ROAD_SAND)) },
@@ -186,6 +192,7 @@ function materialUniforms() {
     drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
     drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
     drawnMaterialSpill: { value: rows.map((row) => row.spill) },
+    drawnMaterialStand: { value: rows.map((row) => row.stand) },
     drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
     drawnFarTint: { value: new THREE.Color(PAL.sandFar) },
   };
@@ -260,6 +267,9 @@ uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnEdgeShadowAmount;
+uniform float drawnEdgeShadowWidth;
 uniform vec3 drawnBroadTint;
 uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
@@ -485,12 +495,28 @@ float drawnStreakAt(vec2 at) {
   vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
   return (valueNoise(wind / vec2(${DRAWN_STREAK_LONG.toFixed(1)}, ${DRAWN_STREAK_WIDE.toFixed(1)})) - 0.5) * ${DRAWN_STREAK_MIX.toFixed(2)};
 }
-float drawnHalo(DrawnBorder edge, int own, float streak, float aa) {
-  float excess = max(edge.spill - drawnMaterialSpill[own], 0.0) * drawnHaloAmount;
-  float past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)};
+float drawnHalo(DrawnBorder edge, int own, float streak, float aa, out float past) {
+  float excess = (edge.spill - drawnMaterialSpill[own]) * drawnHaloAmount * (1.0 - drawnMaterialPepper[own]);
+  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)};
   float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
   float depthAa = fwidth(depth) + 0.001;
   return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
+}
+float drawnHaloMeters(float past, float pxMeters, bool samePair) {
+  float slope = fwidth(past);
+  return samePair ? past / max(slope, 0.0001) * pxMeters : -${DRAWN_FAR_TILES.toFixed(1)} * facetSide;
+}
+float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, float hiHaloMeters, float aaMeters, float pxMeters) {
+  float rise = drawnMaterialStand[edge.hi] - drawnMaterialStand[edge.lo];
+  if (rise == 0.0 || drawnEdgeShadowAmount <= 0.0) return 0.0;
+  bool hiStands = rise > 0.0;
+  float intoLow = hiStands ? towardMeters : -towardMeters;
+  float tallHalo = hiStands ? hiHaloMeters : loHaloMeters;
+  float lowHalo = hiStands ? loHaloMeters : hiHaloMeters;
+  float depth = min(max(intoLow, tallHalo), -lowHalo);
+  float seen = smoothstep(${EDGE_SHADOW_FADE_PX.toFixed(2)}, ${(2 * EDGE_SHADOW_FADE_PX).toFixed(2)}, drawnEdgeShadowWidth / max(pxMeters, 0.0001));
+  float band = smoothstep(-aaMeters, aaMeters, depth) * (1.0 - smoothstep(0.0, drawnEdgeShadowWidth + aaMeters, depth));
+  return band * min(abs(rise), 1.0) * drawnEdgeShadowAmount * seen;
 }
 vec2 drawnWarpAt(float wave, vec2 at) {
   vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
@@ -504,29 +530,9 @@ float drawnPepperNoise(vec2 at, float px) {
 }
 `;
 
-const RELIEF = `float drawnSample(vec2 texel) {
+const RELIEF = `varying vec3 vGroundShape;
+float drawnSample(vec2 texel) {
   return textureLod(roadField, (texel + 0.5) / heightSide, 0.0).a;
-}
-float drawnCorner(ivec2 corner) {
-  int last = int(heightSide) - 1;
-  return texelFetch(roadField, clamp(corner, ivec2(0), ivec2(last)), 0).a;
-}
-vec3 drawnSmoothGround(vec2 at) {
-  vec2 x = at / facetSide;
-  vec2 cell = floor(x);
-  vec2 f = x - cell;
-  ivec2 base = ivec2(cell) - 1;
-  vec4 wx = drawnSplineWeights(f.x);
-  vec4 wy = drawnSplineWeights(f.y);
-  vec4 sx = drawnSplineSlopes(f.x);
-  vec4 sy = drawnSplineSlopes(f.y);
-  vec3 ground = vec3(0.0);
-  for (int j = 0; j < 4; j++)
-    for (int i = 0; i < 4; i++) {
-      float h = drawnCorner(base + ivec2(i, j));
-      ground += h * vec3(wx[i] * wy[j] * facetSide, sx[i] * wy[j], wx[i] * sy[j]);
-    }
-  return ground;
 }
 `;
 
@@ -634,11 +640,17 @@ const BORDER_BODY = `
   float drawnStreak = 0.0;
   if (drawnEdge.spill > min(drawnMaterialSpill[drawnEdge.lo], drawnMaterialSpill[drawnEdge.hi])) drawnStreak = drawnStreakAt(vRoadXZ);
   float drawnHaloAa = max(fwidth(drawnEdge.spill * drawnHaloAmount + drawnStreak), 0.0005);
-  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, drawnStreak, drawnHaloAa);
-  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, drawnStreak, drawnHaloAa);
-  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
+  float drawnLoHaloPast;
+  float drawnHiHaloPast;
+  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, drawnStreak, drawnHaloAa, drawnLoHaloPast);
+  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, drawnStreak, drawnHaloAa, drawnHiHaloPast);
+  float drawnPxMeters = drawnTilePx * facetSide;
+  bool drawnSamePair = fwidth(float(drawnEdge.lo * ${GROUND_MATERIAL_IDS.length} + drawnEdge.hi)) == 0.0;
+  float drawnLoHaloMeters = drawnHaloMeters(drawnLoHaloPast, drawnPxMeters, drawnSamePair);
+  float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
   vec3 drawnHiColor = mix(drawnMaterialColor[drawnEdge.hi], drawnEdge.spillColor, drawnHiHalo);
   diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
+  diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide, drawnPxMeters);
   int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;
   float drawnHaloCover = mix(drawnHiHalo, drawnLoHalo, drawnLoSide);
   float drawnBroad = valueNoise(drawnTileAt / 7.0) * 0.7 + valueNoise(drawnTileAt / 2.5) * 0.15;
@@ -756,10 +768,8 @@ const MARKS_BODY = `
 `;
 
 const RELIEF_BODY = `
-  vec3 drawnGround = drawnSmoothGround(vRoadXZ);
-  inkSurface.height = drawnGround.x;
-  inkSurface.slope = drawnGround.yz;
-  inkSurface.still = drawnMark == ${markIndex("waves")} ? drawnOffRoad : 0.0;
+  inkSurface.height = vGroundShape.x;
+  inkSurface.slope = vGroundShape.yz;
   float drawnAround = 0.0;
   for (int i = 0; i < ${DRAWN_RISE_RING}; i++) {
     float drawnTurn = float(i) * ${(2 * Math.PI / DRAWN_RISE_RING).toFixed(5)};
@@ -803,45 +813,17 @@ const PADS_BODY = `
 
 const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}`;
 
-const HILL_UNIFORMS = `
-uniform float groundHillShadows;
-uniform sampler2D groundHill;
-uniform float groundHillReady;
-uniform vec2 groundHillUv;
-uniform float groundHillSide;
-float groundHillAt(vec2 texel) {
-  return texture(groundHill, (texel + 0.5) / groundHillSide).r;
-}
-float groundHillSmooth(vec2 at) {
-  vec2 texel = at * groundHillUv.x * groundHillSide + groundHillUv.y * groundHillSide - 0.5;
-  vec2 base = floor(texel);
-  vec2 f = texel - base;
-  vec2 f2 = f * f;
-  vec2 f3 = f2 * f;
-  vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0;
-  vec2 w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
-  vec2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0;
-  vec2 w3 = f3 / 6.0;
-  vec2 near = w0 + w1;
-  vec2 far = w2 + w3;
-  vec2 nearAt = base - 1.0 + w1 / near;
-  vec2 farAt = base + 1.0 + w3 / far;
-  return near.y * (near.x * groundHillAt(nearAt) + far.x * groundHillAt(vec2(farAt.x, nearAt.y)))
-    + far.y * (near.x * groundHillAt(vec2(nearAt.x, farAt.y)) + far.x * groundHillAt(farAt));
-}
-float inkHillShadow(vec2 at) {
-  if (groundHillShadows < 0.5 || groundHillReady < 0.5) return 0.0;
-  float over = (groundHillSmooth(at) * 2.0 - 1.0) * ${HILL_RANGE_METERS.toFixed(1)};
-  return smoothstep(-${HILL_EDGE_METERS.toFixed(2)}, ${HILL_EDGE_METERS.toFixed(2)}, over);
-}
+
+const CREST_BODY = `
+  inkSurface.edge = max(inkSurface.edge, groundCrestLine(vRoadXZ));
 `;
 
-const GROUND_BODY = `{${GROUND_PARTS}}`;
+const GROUND_BODY = `{${GROUND_PARTS}${CREST_BODY}}`;
 
 const CACHE_WRITE = `{${GROUND_PARTS}
   gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
   groundCacheDataOut = vec4(inkSurface.height, inkSurface.slope, inkSurface.rise);
-  groundCacheEdgeOut = vec4(min(drawnEdgePx, ${CACHE_EDGE_PX.toFixed(1)}) / ${CACHE_EDGE_PX.toFixed(1)}, drawnEdgeNear, inkSurface.still, 1.0);
+  groundCacheEdgeOut = vec4(min(drawnEdgePx, ${CACHE_EDGE_PX.toFixed(1)}) / ${CACHE_EDGE_PX.toFixed(1)}, drawnEdgeNear, 0.0, 1.0);
   return;
 }`;
 
@@ -866,12 +848,10 @@ const CACHE_READ = `{
   ivec2 groundCacheAt = (ivec2(floor(groundCachePoint)) + ivec2(groundCacheShift) + groundCacheSide) % groundCacheSide;
   vec4 groundCacheLook = texture(groundCacheColor, groundCacheUv);
   vec4 groundCacheRelief = texelFetch(groundCacheData, groundCacheAt, 0);
-  vec3 groundCacheEdgeAt = texture(groundCacheEdge, groundCacheUv).rgb;
+  vec2 groundCacheEdgeAt = texture(groundCacheEdge, groundCacheUv).rg;
   diffuseColor.rgb = groundCacheLook.rgb;
   inkSurface.road = groundCacheLook.a;
   inkSurface.height = groundCacheRelief.x;
   inkSurface.slope = groundCacheRelief.yz;
   inkSurface.rise = groundCacheRelief.w;
-  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;
-  inkSurface.still = groundCacheEdgeAt.z;
-}`;
+  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;${CREST_BODY}}`;

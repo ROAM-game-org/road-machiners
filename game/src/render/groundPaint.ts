@@ -62,27 +62,27 @@ export const EDGE_LOOKS: Record<EdgeStyle, EdgeLook> = {
   straight: { wave: 0, pepper: 0 },
 };
 
-type MaterialRow = { mark: MarkKind; edge: EdgeStyle; spill: number; warm: number };
+type MaterialRow = { mark: MarkKind; edge: EdgeStyle; spill: number; warm: number; stand: number };
 export type GroundMaterial = MaterialRow & { color: number };
 
 const MATERIAL_ROWS: Record<LookType, MaterialRow> = {
-  hardpan: { mark: "cracks", edge: "smudge", spill: 0.45, warm: 1 },
-  sand: { mark: "windRipples", edge: "smudge", spill: 1, warm: 1 },
-  field: { mark: "clods", edge: "smudge", spill: 0.3, warm: 1 },
-  track: { mark: "none", edge: "smudge", spill: 0.3, warm: 1 },
-  mud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1 },
-  blackMud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1 },
-  saltCrust: { mark: "saltCracks", edge: "smudge", spill: 0.5, warm: 1 },
-  dirtyWater: { mark: "waves", edge: "smudge", spill: 0, warm: 1 },
-  toxic: { mark: "waves", edge: "smudge", spill: 0, warm: 1 },
-  ash: { mark: "ashSmudge", edge: "smudge", spill: 0.3, warm: 1 },
-  gravel: { mark: "stones", edge: "smudge", spill: 0, warm: 0.2 },
-  scrub: { mark: "grain", edge: "pepper", spill: 0, warm: 1 },
-  scree: { mark: "stones", edge: "hard", spill: 0, warm: 0.4 },
-  glass: { mark: "none", edge: "hard", spill: 0, warm: 1 },
-  canal: { mark: "waves", edge: "straight", spill: 0, warm: 1 },
-  concrete: { mark: "seams", edge: "straight", spill: 0, warm: 1 },
-  asphalt: { mark: "cracks", edge: "straight", spill: 0, warm: 1 },
+  hardpan: { mark: "cracks", edge: "smudge", spill: 0.45, warm: 1, stand: 0 },
+  sand: { mark: "windRipples", edge: "smudge", spill: 1, warm: 1, stand: 0.3 },
+  field: { mark: "clods", edge: "smudge", spill: 0.3, warm: 1, stand: 0.5 },
+  track: { mark: "none", edge: "smudge", spill: 0.3, warm: 1, stand: 0 },
+  mud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1, stand: -0.5 },
+  blackMud: { mark: "puddles", edge: "smudge", spill: 0, warm: 1, stand: -0.5 },
+  saltCrust: { mark: "saltCracks", edge: "smudge", spill: 0.5, warm: 1, stand: 0 },
+  dirtyWater: { mark: "waves", edge: "smudge", spill: 0, warm: 1, stand: -0.5 },
+  toxic: { mark: "waves", edge: "smudge", spill: 0, warm: 1, stand: -0.5 },
+  ash: { mark: "ashSmudge", edge: "smudge", spill: 0.3, warm: 1, stand: 0 },
+  gravel: { mark: "stones", edge: "smudge", spill: 0, warm: 0.2, stand: 0.4 },
+  scrub: { mark: "grain", edge: "pepper", spill: 0, warm: 1, stand: 1 },
+  scree: { mark: "stones", edge: "hard", spill: 0, warm: 0.4, stand: 0.4 },
+  glass: { mark: "none", edge: "hard", spill: 0, warm: 1, stand: 0 },
+  canal: { mark: "waves", edge: "straight", spill: 0, warm: 1, stand: -0.5 },
+  concrete: { mark: "seams", edge: "straight", spill: 0, warm: 1, stand: 0 },
+  asphalt: { mark: "cracks", edge: "straight", spill: 0, warm: 1, stand: 0 },
 };
 
 export const GROUND_MATERIAL_IDS = Object.keys(MATERIAL_ROWS) as LookType[];

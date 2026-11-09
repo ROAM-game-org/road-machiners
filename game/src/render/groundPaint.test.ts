@@ -342,6 +342,17 @@ describe('ground material table', () => {
     for (const type of GROUND_MATERIAL_IDS) expect(GROUND_MATERIAL_IDS[groundMaterialIndex(type)]).toBe(type);
   });
 
+  it('stands plants above bare ground and sinks wet ground below it, so edge shadows fall on the right side', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      expect(groundMaterial(type).stand).toBeGreaterThanOrEqual(-1);
+      expect(groundMaterial(type).stand).toBeLessThanOrEqual(1);
+    }
+    expect(groundMaterial('scrub').stand).toBeGreaterThan(groundMaterial('sand').stand);
+    expect(groundMaterial('sand').stand).toBeGreaterThan(groundMaterial('hardpan').stand);
+    expect(groundMaterial('mud').stand).toBeLessThan(groundMaterial('hardpan').stand);
+    expect(groundMaterial('dirtyWater').stand).toBeLessThan(groundMaterial('hardpan').stand);
+  });
+
   it('gives every row a valid color, mark, edge look, spill and warmth', () => {
     for (const type of GROUND_MATERIAL_IDS) {
       const row = groundMaterial(type);
