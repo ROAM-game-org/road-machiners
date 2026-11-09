@@ -145,7 +145,7 @@ Every taste is a cost and never a block, so components and reachability do not c
 - `src/sim/fidelity.ts` sets `LIVE_REACH`, the base far sight radius plus `PERF.liveMargin`. An NPC farther than that from the player has no physics body.
 - Every truck in far sight drives with physics, in fast travel too.
 - `src/sim/far.ts` moves bodiless NPCs along stored routes. They never crash or ram.
-- The physics ground is a square heightfield patch around the player. It reaches `LIVE_REACH` plus `PHYSICS.propLiveMargin` plus `PHYSICS.groundPatchSlack` tiles to each side. `syncDrive()` moves it once the player is more than half the slack from its center, so a physics snapshot never carries the whole map.
+- The physics ground is a square heightfield patch around the player, sampled from `groundAt()` every 2 m like the drawn mesh. It reaches `LIVE_REACH` plus `PHYSICS.propLiveMargin` plus `PHYSICS.groundPatchSlack` tiles to each side. `syncDrive()` moves it once the player is more than half the slack from its center, so a physics snapshot never carries the whole map.
 - A truck wakes `PERF.liveMargin` tiles outside far sight, so the wake is never seen.
 - `settleWoken()` runs before physics gives a far NPC its body. An NPC that wakes inside a prop, on a cliff or on another truck steps out to the nearest clear spot with `spotNear()` in `src/sim/free-spot.ts`, with a still trail there.
 

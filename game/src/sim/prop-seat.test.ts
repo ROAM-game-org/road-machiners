@@ -68,7 +68,7 @@ describe('the seat of every fortress piece on the Icarus map', () => {
   it('keeps the centre seat of every piece at the level sites', () => {
     const level = pieces.filter((p) => LEVEL_SITES.includes(p.site));
     expect(level.length).toBeGreaterThan(0);
-    for (const { site, o } of level) expect(propBase(terrain, o), `${site} ${o.id}`).toBe(groundAt(terrain, o.pos.x, o.pos.y));
+    for (const { site, o } of level) expect(propBase(terrain, o), `${site} ${o.id}`).toBeCloseTo(groundAt(terrain, o.pos.x, o.pos.y), 2);
   });
 
   it('stands the two Nose walls at the rock ends in the yard', () => {

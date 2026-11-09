@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
 import { zoneEdges, type Throttle } from '../../sim/steering';
-import { groundAt, heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
+import { MESH_STEPS, surfaceTriangles } from '../../sim/surface';
+import { groundAt, groundSurface, heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
-import { MESH_STEPS, surfaceTriangles } from './groundSurface';
-import { surfacePatch } from './terrain';
+import { drawnGroundAt } from './terrain';
 
 const S = PHYSICS.metersPerTile;
 const ZONE_ALPHA: Record<Throttle, number> = { brake: 0.12, hold: 0.14, accelerate: 0.14 };
@@ -183,18 +183,17 @@ function groundGrid(terrain: Terrain, origin: Vec, box: Box): THREE.BufferGeomet
   const down = y1 - y0;
   const geometry = new THREE.BufferGeometry();
   if (across <= 0 || down <= 0) return geometry;
-  const patch = surfacePatch(terrain, x0, y0, across, down);
   const positions: number[] = [];
   for (let j = 0; j <= down * MESH_STEPS; j++)
     for (let i = 0; i <= across * MESH_STEPS; i++) {
       const x = x0 + i / MESH_STEPS;
       const y = y0 + j / MESH_STEPS;
       const mark = markHeightAt(terrain, origin, x, y);
-      const height = mark === groundAt(terrain, x, y) ? patch.heightAt(x, y) : mark;
+      const height = mark === groundAt(terrain, x, y) ? drawnGroundAt(terrain, x, y) : mark;
       positions.push(x * S, height * S + LIFT, y * S);
     }
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex(surfaceTriangles(patch, x0, y0, across, down));
+  geometry.setIndex(surfaceTriangles(groundSurface(terrain), x0, y0, across, down));
   return geometry;
 }
 

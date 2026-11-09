@@ -3,7 +3,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { obstacleColliders } from '../../phys/drive';
-import type { Quat, V3, VehicleFrame } from '../../phys/frames';
+import { groundField, type Quat, type V3, type VehicleFrame } from '../../phys/frames';
 import { hashStr } from '../../render/noise';
 import { unitBody } from '../../sim/body';
 import { propBase, propPose } from '../../sim/mapgen';
@@ -223,11 +223,7 @@ function groundPatch(t: Terrain, at: { x: number; y: number }): RAPIER.ColliderD
   const k = PATCH_CELLS;
   const x0 = Math.max(0, Math.min(n - k, Math.round(at.x) - k / 2));
   const y0 = Math.max(0, Math.min(n - k, Math.round(at.y) - k / 2));
-  const heights = new Float32Array((k + 1) * (k + 1));
-  for (let i = 0; i <= k; i++) {
-    for (let j = 0; j <= k; j++) heights[i * (k + 1) + j] = t.heights[(y0 + j) * (n + 1) + x0 + i];
-  }
-  return RAPIER.ColliderDesc.heightfield(k, k, heights, { x: k * S, y: S, z: k * S }).setTranslation((x0 + k / 2) * S, 0, (y0 + k / 2) * S).setFriction(FRICTION);
+  return groundField(t, x0, y0, k).setFriction(FRICTION);
 }
 
 export function piecesOf(name: ModelName): PieceSource[] {

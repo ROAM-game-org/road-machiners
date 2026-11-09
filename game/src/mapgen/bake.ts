@@ -9,7 +9,7 @@ import { gradeRoads } from '../sim/road-grade';
 import { ROAD_INDEX } from '../sim/road-index';
 import { onShoulder } from '../sim/shoulder';
 import { chance, randRange, type Rng } from '../sim/rng';
-import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_FIELD, BUILT_GLASS, BUILT_OLD_ROAD, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_FIELD, BUILT_GLASS, BUILT_OLD_ROAD, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, cornerGroundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
@@ -121,9 +121,9 @@ export function tileSteepness(heights: ArrayLike<number>, size: number, tile: nu
 
 export function footprintRelief(heights: ArrayLike<number>, size: number, p: BakedProp, segment: boolean): number {
   const t = { size, heights };
-  const seat = groundAt(t, p.pos.x, p.pos.y);
+  const seat = cornerGroundAt(t, p.pos.x, p.pos.y);
   const angles = segment ? [p.yaw, p.yaw + Math.PI] : Array.from({ length: 8 }, (_, k) => (k * Math.PI) / 4);
-  return Math.max(...angles.map((a) => Math.abs(groundAt(t, p.pos.x + Math.cos(a) * p.r, p.pos.y + Math.sin(a) * p.r) - seat)));
+  return Math.max(...angles.map((a) => Math.abs(cornerGroundAt(t, p.pos.x + Math.cos(a) * p.r, p.pos.y + Math.sin(a) * p.r) - seat)));
 }
 
 export function baseLayer(seed: number, size: number): MapDraft {

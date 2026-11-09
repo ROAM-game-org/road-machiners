@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
 import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
+import { MESH_STEPS } from '../../sim/surface';
 import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
 import { BLOCK_COUNT_SHIFT, blockWriter } from './groundFields';
-import { MESH_STEPS } from './groundSurface';
 import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';

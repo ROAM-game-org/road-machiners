@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { flatTerrain } from '../../test/empty-world';
 import { ZonesView } from './zones';
 import type * as THREE from 'three';
-import { isCliff } from '../../sim/terrain';
+import { MESH_STEPS } from '../../sim/surface';
+import { groundSurface, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
-import { MESH_STEPS } from './groundSurface';
-import { surfacePatch } from './terrain';
 
 function bandGeometries(view: ZonesView) {
   return view.root.children.slice(0, 3).map((m) => (m as unknown as { geometry: unknown }).geometry);
@@ -72,7 +71,7 @@ describe('ZonesView', () => {
     steep.heights = steep.heights.map((_, k) => ((k * 7919) % 13) - 6);
     const view = new ZonesView();
     view.update(steep, { x: 20.3, y: 20.7 }, 0.5, 3, 0.4);
-    const surface = surfacePatch(steep, 0, 0, steep.size, steep.size);
+    const surface = groundSurface(steep);
     const lift = 0.1;
 
     for (const positions of bandPositions(view)) {

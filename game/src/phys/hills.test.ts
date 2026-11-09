@@ -4,7 +4,8 @@ import { beforeAll, expect, it } from 'vitest';
 import { randRange } from '../sim/rng';
 import { deckAt, deckById } from '../sim/bridge';
 import { REGION, scalePoint } from '../data/region';
-import { heightAt, type Terrain } from '../sim/terrain';
+import { MESH_STEPS } from '../sim/surface';
+import { groundAt, heightAt, type Terrain } from '../sim/terrain';
 import { playerVehicle } from '../sim/damage';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
@@ -84,15 +85,16 @@ it('the Bowl crater exit leans the truck without rolling it onto its side', () =
 }, budget(60_000));
 
 const GROUND_SAMPLE = 100;
+const GENTLE_RISE_METERS = 0.5;
 
 function expectGroundUnder(drive: Drive, t: Terrain, around: Vec): number {
   const S = PHYSICS.metersPerTile;
   const ground = drive.world.getCollider(drive.terrain.handle);
   expect(ground.shapeType()).toBe(RAPIER.ShapeType.HeightField);
-  const corner = (i: number, j: number) => t.heights[j * (t.size + 1) + i] * S;
+  const corner = (i: number, j: number) => groundAt(t, i / MESH_STEPS, j / MESH_STEPS) * S;
   const rng = { rngState: 7 };
   const near = (c: number) => randRange(rng, Math.max(0, c - GROUND_SAMPLE), Math.min(t.size, c + GROUND_SAMPLE));
-  let flat = 0;
+  let gentle = 0;
   for (let k = 0; k < 200; k++) {
     const x = near(around.x);
     const y = near(around.y);
@@ -100,32 +102,32 @@ function expectGroundUnder(drive: Drive, t: Terrain, around: Vec): number {
     const toi = ground.castRay(new RAPIER.Ray({ x: x * S, y: top, z: y * S }, { x: 0, y: -1, z: 0 }), 2 * top, true);
     expect(toi).toBeGreaterThanOrEqual(0);
     const hit = top - toi;
-    const i = Math.floor(x);
-    const j = Math.floor(y);
-    const fx = x - i;
-    const fy = y - j;
+    const i = Math.floor(x * MESH_STEPS);
+    const j = Math.floor(y * MESH_STEPS);
+    const fx = x * MESH_STEPS - i;
+    const fy = y * MESH_STEPS - j;
     const [a, b, c, d] = [corner(i, j), corner(i + 1, j), corner(i, j + 1), corner(i + 1, j + 1)];
     const split = fx + fy <= 1 ? a + (b - a) * fx + (c - a) * fy : d + (c - d) * (1 - fx) + (b - d) * (1 - fy);
-    expect(Math.abs(hit - split)).toBeLessThan(0.05);
+    expect(Math.abs(hit - split)).toBeLessThan(0.01);
     expect(hit).toBeGreaterThanOrEqual(Math.min(a, b, c, d) - 0.05);
     expect(hit).toBeLessThanOrEqual(Math.max(a, b, c, d) + 0.05);
-    if (Math.max(a, b, c, d) - Math.min(a, b, c, d) < 1e-6) {
-      flat++;
-      expect(Math.abs(hit - heightAt(t, x, y) * S)).toBeLessThan(0.05);
+    if (Math.max(a, b, c, d) - Math.min(a, b, c, d) < GENTLE_RISE_METERS) {
+      gentle++;
+      expect(Math.abs(hit - groundAt(t, x, y) * S)).toBeLessThan(0.05);
     }
   }
-  return flat;
+  return gentle;
 }
 
-it('the terrain collider is a heightfield around the player whose surface matches the corner grid, and it follows the player', () => {
+it('the terrain collider is a heightfield around the player that follows the drawn ground surface, and it follows the player', () => {
   const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
   const drive = buildDrive(w);
   const me = playerVehicle(w);
-  const flatAtStart = expectGroundUnder(drive, w.terrain, me.pos);
+  const gentleAtStart = expectGroundUnder(drive, w.terrain, me.pos);
   me.pos = { ...REGION.towns[0].pos };
   syncDrive(drive, w);
-  const flatInMiddle = expectGroundUnder(drive, w.terrain, me.pos);
-  expect(flatAtStart + flatInMiddle).toBeGreaterThan(0);
+  const gentleInMiddle = expectGroundUnder(drive, w.terrain, me.pos);
+  expect(gentleAtStart + gentleInMiddle).toBeGreaterThan(0);
   freeDrive(drive);
 });
 

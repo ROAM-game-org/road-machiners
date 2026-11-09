@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { blurredHeights } from "./groundForm";
+import { blurredHeights } from "../../sim/surface";
 
 export const LANDFORM_BLUR_TILES = 1.5;
 

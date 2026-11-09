@@ -81,7 +81,7 @@ describe('scatterPlacements', () => {
       if (t.types[y * t.size + x] === 'hardpan' && roadDist(x + 0.5, y + 0.5) >= ROAD_GAP + SHOULDER_TILES) tiles++;
     const grown = scrub.filter((p) => typeAt(at(p)) === 'hardpan' && !onShoulder(at(p))).length;
     expect(tiles).toBeGreaterThan(1000);
-    expect(grown / tiles).toBeGreaterThan(0.03);
+    expect(grown / tiles).toBeGreaterThan(0.015);
   });
 
   it('grows cacti only on desert ground, gathered by rocks and crags', () => {

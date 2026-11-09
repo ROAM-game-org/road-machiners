@@ -1,8 +1,8 @@
 
 import * as THREE from 'three';
 import { TERRAIN } from '../../data/terrain';
+import { MESH_STEPS } from '../../sim/surface';
 import type { World } from '../../sim/types';
-import { MESH_STEPS } from './groundSurface';
 import type { SightLimit } from './scope';
 import { TERRAIN_CHUNK, type TerrainChunk } from './terrain';
 

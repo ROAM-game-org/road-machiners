@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blurredHeights } from "./groundForm";
+import { blurredHeights } from "../../sim/surface";
 import { LANDFORM_BLUR_TILES, landformSlopes } from "./groundLandform";
 
 const SIDE = 41;

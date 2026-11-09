@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { blurredHeights } from "../../sim/surface";
 import { CREST_SHAPE, crestField, crestGap, crestLines } from "./groundCrest";
-import { blurredHeights } from "./groundForm";
 import { LANDFORM_BLUR_TILES } from "./groundLandform";
 
 const SIDE = 61;
