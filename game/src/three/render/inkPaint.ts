@@ -40,6 +40,7 @@ uniform float inkRelief;
 uniform float inkReliefSteps;
 uniform float inkFormScale;
 uniform float inkShadeDark;
+uniform float inkShadeShift;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -125,6 +126,7 @@ vec3 inkFinish(vec3 color, vec2 plane, float lineShade, float inShade, float hat
 `;
 
 const INK_GROUND = `${INK_CONTRACT}${INK_COLOR}
+const vec3 INK_SHADE_COOL = vec3(0.82, 0.88, 1.15);
 float inkContourLine(float interval) {
   float height = inkSurface.height;
   float px = max(length(fwidth(vInkAt.xz)), 0.0005);
@@ -172,6 +174,11 @@ float inkFacing(vec2 slope) {
   vec3 flatUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
   return dot(up, inkSun.dirView) / max(dot(flatUp, inkSun.dirView), 0.05);
 }
+vec3 inkGroundShade(vec3 color, float inShade) {
+  vec3 tinted = color * INK_SHADE_COOL;
+  vec3 cool = tinted * inkLuma(color) / max(inkLuma(tinted), 0.0001);
+  return mix(color, cool, inkShadeShift * inShade) * (1.0 - inkShadeDark * inShade);
+}
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
   float level = inkLevel(lit);
@@ -179,8 +186,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(smoothUp, inkSun.dirView));
   float formFacing = inkFacing(inkFormScale > 0.0 ? inkSurface.form : inkSurface.slope);
   float inShade = inkInShade(max(inkSun.anyCast, max(facingShade, inkShadeFace(formFacing))));
-  vec3 color = inkHeightBands(inkBase(albedo, lit, level, inShade, inkSteppedRelief(inkFacing(inkSurface.slope), formFacing)));
-  color *= 1.0 - inkShadeDark * inShade * inkRelief;
+  vec3 color = inkGroundShade(inkHeightBands(inkBase(albedo, lit, level, 0.0, inkSteppedRelief(inkFacing(inkSurface.slope), formFacing))), inShade);
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
@@ -286,6 +292,7 @@ function inkUniforms() {
     inkReliefSteps: TUNING.reliefSteps,
     inkFormScale: TUNING.formScale,
     inkShadeDark: TUNING.shadeDark,
+    inkShadeShift: TUNING.shadeShift,
     inkHeightTint: TUNING.heightTint,
   };
 }
