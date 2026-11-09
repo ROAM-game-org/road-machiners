@@ -1,4 +1,3 @@
-import { mountInkMenu } from './render/inkMenu';
 import { combatFrameMs, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
@@ -223,7 +222,6 @@ export class Game {
     installTouchTips(uiRoot(), touchMode);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     enableSunShadows(this.renderer);
-    mountInkMenu();
     container.appendChild(this.renderer.domElement);
     this.view = container;
     this.rig = new CameraRig(this.renderer.domElement);

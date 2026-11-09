@@ -43,7 +43,7 @@ import { resolve } from "../text/resolve";
 import { moneyText } from "./units";
 import { toggleSeeAll } from "./see-all";
 
-export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true; seeAll?: true };
+export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; shaders?: true; noclip?: true; fullShop?: true; seeAll?: true };
 
 export type Command = {
   name: string;
@@ -148,6 +148,7 @@ export const COMMANDS: readonly Command[] = [
   }),
 
   command("fps", "Toggle the frame rate panel.", { min: 0, max: 0 }, () => ({ world: null, lines: [], toggleFps: true })),
+  command("shaders", "Toggle the look menu with the shader knobs.", { min: 0, max: 0 }, () => ({ world: null, lines: [], shaders: true })),
   command("seeall", "Toggle showing hidden things: site production, and NPC traits and cargo on the hover card.", { min: 0, max: 0 }, () => ({ world: null, lines: [], seeAll: true })),
   command("fullshop", "Open a shop of every part, free, where parts fit at once, anywhere and in combat.", { min: 0, max: 0 }, () => ({ world: null, lines: [], fullShop: true })),
 
@@ -297,6 +298,7 @@ export class DebugConsole {
     host: HTMLElement,
     private readonly game: ConsoleGame,
     private readonly fps: { toggle(): boolean },
+    private readonly look: { toggle(): boolean },
     private readonly noclip: Noclip,
   ) {
     this.root = panel("debug-console", host);
@@ -376,8 +378,13 @@ export class DebugConsole {
     }
   }
 
+  private togglePanel(name: string, shown: { toggle(): boolean }): void {
+    this.print(`${name} ${shown.toggle() ? "on" : "off"}`);
+  }
+
   private runToggles(result: CommandResult): void {
-    if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
+    if (result.toggleFps) this.togglePanel("fps panel", this.fps);
+    if (result.shaders) this.togglePanel("look menu", this.look);
     if (!result.seeAll) return;
     this.print(`see all ${toggleSeeAll() ? "on" : "off"}`);
     this.game.apply(this.game.state);

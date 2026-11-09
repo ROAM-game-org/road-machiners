@@ -36,6 +36,7 @@ import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
 import { chooseSaveFate, chooseStart } from '../ui/save-screen';
 import { mountPerfPanel } from '../ui/perf-panel';
+import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
@@ -311,7 +312,7 @@ relocalizeGame = () => {
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
 const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
-const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
+const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;
 musicFaults.forEach(reportError);
