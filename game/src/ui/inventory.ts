@@ -26,6 +26,7 @@ import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
 import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits } from "../sim/salvage";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
+import { knowsCargo } from "../sim/look-over";
 import { REGION } from "../data/region";
 import type {
   GridItem,
@@ -37,7 +38,7 @@ import type {
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
-import { lookOrTurnReason, lookReason } from "./unstuck-reason";
+import { lookOrTurnReason, lookOverReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
@@ -130,6 +131,7 @@ export class InventoryView {
   private selectedItem: string | null = null;
   private loot: string | null = null;
   private truck: string | null = null;
+  private looking = false;
   private gridTruck: string | null = null;
   private scale = new GridScale();
   private looks: GarageLooks = { own: null, other: null };
@@ -185,7 +187,7 @@ export class InventoryView {
     const me = gridOf(this.shown(w));
     const layer = uiSize().layerSize();
     const room = this.head ? `${layer.width}x${layer.height}` : `${box.offsetHeight}`;
-    return [this.mine(w).id, me.w, me.h, this.shown(w).chassisId, this.truck ?? "", this.loot ?? "", uiSize().toLayer(1), layer.width, room, this.head ? "bench" : "hosted"].join("|");
+    return [this.mine(w).id, me.w, me.h, this.shown(w).chassisId, this.truck ?? "", this.looking, this.loot ?? "", uiSize().toLayer(1), layer.width, room, this.head ? "bench" : "hosted"].join("|");
   }
 
   private fitHosted(box: HTMLElement, key: string): void {
@@ -218,11 +220,17 @@ export class InventoryView {
   setLoot(stockId: string | null): void {
     this.loot = stockId;
     this.truck = null;
+    this.looking = false;
   }
 
-  setTruck(vehicleId: string | null): void {
+  setTruck(vehicleId: string | null, mode: "downed" | "look"): void {
     this.truck = vehicleId;
+    this.looking = mode === "look";
     this.loot = null;
+  }
+
+  lookOnlyReason(): Msg | null {
+    return lookOverReason(this.host.world(), this.looking);
   }
 
   render(): HTMLElement {
@@ -251,7 +259,7 @@ export class InventoryView {
         { class: "inv-side" },
         ...this.jobBlock(w),
         ...this.sideList(w),
-        ...(this.dumpZone && phoneMode() ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
+        ...(this.dumpZone && phoneMode() && !this.looking ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
         this.inspection,
       ),
       ...(this.truck ? [this.truckEl(w, this.truck)] : []),
@@ -676,8 +684,9 @@ export class InventoryView {
 
   private truckEl(w: World, truckId: string): HTMLElement {
     const target = w.vehicles.find((v) => v.id === truckId);
-    if (!target || !isKnockedOut(target))
+    if (!target || !(this.looking ? knowsCargo(w, playerVehicle(w), target) : isKnockedOut(target)))
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
+    if (this.looking) return this.lookedTruckEl(w, target);
     const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
     const removing = removalMarks(w, target);
     grid.append(...deepestFirst(target.chassisId, target.items).map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
@@ -687,6 +696,12 @@ export class InventoryView {
       el("h3", {}, gaveUp(target) ? t("inv.truckGaveUp", { truck: vehicleTitle(w, target) }) : t("inv.truckOut", { truck: vehicleTitle(w, target) })),
       el("div", { class: "truck-shell" }, grid),
     );
+  }
+
+  private lookedTruckEl(w: World, target: Vehicle): HTMLElement {
+    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
+    grid.append(...deepestFirst(target.chassisId, target.items).map((it) => this.truckItemEl(target, it, grid)));
+    return el("div", { class: "inv-truck inv-target" }, el("h3", {}, vehicleTitle(w, target)), el("div", { class: "truck-shell" }, grid));
   }
 
   private truckItemEl(target: Vehicle, it: GridItem, grid: HTMLElement): HTMLElement {
@@ -723,15 +738,22 @@ export class InventoryView {
     item: GridItem,
     grab: { x: number; y: number },
   ): void {
-    if (e.button !== 0 || this.look()) return;
+    if (e.button !== 0 || this.selectWhileLooking(source, id, item)) return;
+    if (this.look()) return;
     if (dragStartOf(e.pointerType, false) === "hold") return this.startPress(e, source, id, item, grab);
     e.preventDefault();
     e.stopPropagation();
     this.beginDrag(e, source, id, item, grab);
   }
 
+  private selectWhileLooking(source: ItemSource, id: string, item: GridItem): boolean {
+    if (!this.looking) return false;
+    this.clickItem(this.clicked(source, id, item));
+    return true;
+  }
+
   private startPress(e: PointerEvent, source: ItemSource, id: string, item: GridItem, grab: Press["grab"]): void {
-    if (this.look()) return;
+    if (this.selectWhileLooking(source, id, item) || this.look()) return;
     e.preventDefault();
     e.stopPropagation();
     this.endPress();
@@ -838,7 +860,7 @@ export class InventoryView {
   }
 
   private beginGridTap(e: PointerEvent): boolean {
-    if (e.pointerType !== "touch" || this.selectedItem === null || !this.gridEl?.contains(e.target as Node)) return false;
+    if (e.pointerType !== "touch" || this.selectedItem === null || this.look() || !this.gridEl?.contains(e.target as Node)) return false;
     this.tap = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
     return true;
   }
@@ -1071,7 +1093,7 @@ export class InventoryView {
   }
 
   private look(): Msg | null {
-    return lookOrTurnReason(this.host.world(), this.host.getTurnPhase() !== null);
+    return lookOrTurnReason(this.host.world(), this.host.getTurnPhase() !== null, this.looking);
   }
 
   private run(cmd: (w: World) => World, quiet = false): void {
@@ -1130,7 +1152,16 @@ export class InventoryScreen {
   openDowned(world: World, vehicleId: string): boolean {
     const downed = world.vehicles.find((v) => v.id === vehicleId);
     if (!downed || !canLootTruck(world, playerVehicle(world), downed)) return false;
-    this.view.setTruck(downed.id);
+    this.view.setTruck(downed.id, "downed");
+    this.root.style.display = "";
+    this.render();
+    return true;
+  }
+
+  openLookedOver(world: World, vehicleId: string): boolean {
+    const target = world.vehicles.find((v) => v.id === vehicleId);
+    if (!target || !knowsCargo(world, playerVehicle(world), target)) return false;
+    this.view.setTruck(target.id, "look");
     this.root.style.display = "";
     this.render();
     return true;
@@ -1144,7 +1175,7 @@ export class InventoryScreen {
   }
 
   private markRotate(button: HTMLElement): void {
-    const look = lookReason(this.host.world());
+    const look = this.view.lookOnlyReason();
     if (look) {
       button.setAttribute("aria-disabled", "true");
       bindAttr(button, "data-reason", look);

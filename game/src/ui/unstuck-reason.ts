@@ -25,6 +25,10 @@ export function lookReason(w: World): Msg | null {
   return actBlock(w) === 'knockedOut' ? t('actBlock.knockedOut') : null;
 }
 
-export function lookOrTurnReason(w: World, playing: boolean): Msg | null {
-  return lookReason(w) ?? (playing ? t('weapon.turnPlaying') : null);
+export function lookOverReason(w: World, lookingOver: boolean): Msg | null {
+  return lookReason(w) ?? (lookingOver ? t('look.lookOver') : null);
+}
+
+export function lookOrTurnReason(w: World, playing: boolean, lookingOver: boolean): Msg | null {
+  return lookOverReason(w, lookingOver) ?? (playing ? t('weapon.turnPlaying') : null);
 }

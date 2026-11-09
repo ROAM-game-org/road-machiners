@@ -61,6 +61,7 @@ export const UI: Translation<typeof EN> = {
   'options.uiSizeTooBig': 'Не помещается на экран',
   'options.sound': 'Звук',
   'look.inScene': 'Во время сцены нельзя',
+  'look.lookOver': 'Во время осмотра нельзя',
   'help.title': 'Управление',
   'help.build': '{version}, {host}, отрисовка через {renderer}',
   'help.hostDesktop': 'десктопное приложение',

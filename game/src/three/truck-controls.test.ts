@@ -23,7 +23,7 @@ function scene(aidX: number) {
 }
 
 function host(w: World) {
-  const calls = { applied: [] as World[], trades: [] as string[], loots: [] as string[], notes: [] as string[] };
+  const calls = { applied: [] as World[], trades: [] as string[], loots: [] as string[], looks: [] as string[], notes: [] as string[] };
   const h = {
     world: () => w,
     playing: () => false,
@@ -35,6 +35,7 @@ function host(w: World) {
     openOutpost: () => undefined,
     openDowned: () => undefined,
     openLoot: (id: string) => { calls.loots.push(id); },
+    openLookedOver: (id: string) => { calls.looks.push(id); },
   } satisfies ContextHost;
   return { h, calls };
 }
@@ -269,5 +270,44 @@ describe('lights and auto-patch keys while knocked out', () => {
     c.toggleHeadlights();
     expect(applied).toHaveLength(1);
     expect(committed).toHaveLength(1);
+  });
+});
+
+describe('the Look over button', () => {
+  function lookScene() {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.ranks.perception = 1;
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 34, y: 30 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    return { w, npc };
+  }
+
+  it('starts the timed look-over on a truck whose load is unknown', () => {
+    const { w, npc } = lookScene();
+    const { h, calls } = host(w);
+    new TruckContext(h).onCard('lookOver', npc.id);
+    expect(calls.looks).toEqual([]);
+    expect(calls.applied).toHaveLength(1);
+    expect(calls.applied[0].states.some((st) => st.kind === 'lookOver')).toBe(true);
+  });
+
+  it('opens the screen on a known truck and changes nothing in the world', () => {
+    const { w, npc } = lookScene();
+    addState(w, 'sizedUp', w.player.vehicleId, npc.id, { kind: 'none' });
+    const before = JSON.stringify(w);
+    const { h, calls } = host(w);
+    new TruckContext(h).onCard('lookOver', npc.id);
+    expect(calls.looks).toEqual([npc.id]);
+    expect(calls.applied).toEqual([]);
+    expect(JSON.stringify(w)).toBe(before);
+  });
+
+  it('opens nothing while a turn plays', () => {
+    const { w, npc } = lookScene();
+    addState(w, 'sizedUp', w.player.vehicleId, npc.id, { kind: 'none' });
+    const { h, calls } = host(w);
+    new TruckContext({ ...h, playing: () => true }).onCard('lookOver', npc.id);
+    expect(calls.looks).toEqual([]);
+    expect(calls.notes).toHaveLength(1);
   });
 });

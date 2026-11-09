@@ -15,7 +15,7 @@ XP comes from use and goes into one shared pool. The player spends the pool on r
 Rank 1 of each skill opens one basic technique, with no pick. Until then the technique is closed, and a locked control names the rank it needs.
 
 - Driving 1, Overdrive: the O switch, and the G button that pours water over a hot engine to cool it. At Driving 0 both show locked with "Needs Driving 1".
-- Perception 1, Look-over: look a seen truck over from within 10 tiles in one turn, then see its goods and spare parts on its card while it stays in sight. B or the card's Look over button starts it.
+- Perception 1, Look-over: look a seen truck over from within 10 tiles in one turn, then see its goods and spare parts on its card while it stays in sight. B or the card's Look over button starts it. When it ends, the inventory opens on the truck's grid as a look-only screen: you can pick an item to read it, and nothing can be moved, taken or dropped. While the truck stays in sight, B or Look over reopens that screen at no cost and starts no new look-over.
 - Machining 1, Roadside patch: the player can offer patches to other drivers, and stranded drivers ask the player for one. A patch, tow or scrap patch for the player needs no rank.
 - Toughness 1, First aid: the U button, a timed job. Parked and out of combat, the driver heals as fast as in a town until at full health. Away from a town it costs extra supplies each turn, priced at the tier 1 wage for the turns it saves, about 0.3 supplies a turn, so a full heal from 30 health takes 14 turns and about 4 supplies instead of 70 turns of resting. It stops when the truck moves, combat starts or supplies run short. At Toughness 0 it shows locked with "Needs Toughness 1".
 - Social 1, Acumen: the trade screens tint the stock count short or flooded and the buy price cheap or dear, and show the profit on a sale. Without it they show bare prices and stock.
@@ -27,7 +27,7 @@ At rank 2 and rank 4 of each skill the player picks one of two perks. The bought
 - Driving 2, rammer or ghost. Rammer: a ram on a hostile truck stalls its engine for one turn. Cold running: below half speed, your engine is heard only by trucks that can see you.
 - Driving 4, run and gun or run away. Steady aim: your own speed adds no scatter to your shots. Dust screen: at top speed on dusty ground, your dust blocks sight like a hill.
 - Perception 2, read people or track trucks. Read the driver: you see the traits of other drivers. Spotter: the N key marks a seen truck, and it stays tracked for a work day, about four game hours.
-- Perception 4, loot sight or night sight. Cargo eye: you see the goods and spare parts in any seen truck. Night eyes: night does not halve your sight.
+- Perception 4, loot sight or night sight. Cargo eye: you see the goods and spare parts in any seen truck, and B opens its look-only inventory at once. Night eyes: night does not halve your sight.
 - Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap sheet. Teardown: a knocked-out truck does not come to while you are taking a part off it.
 - Machining 4, pristine hunter or hired mechanic. Rebuild: a town garage can repair a junk part back to its last wear step, once per part. Road mechanic: drivers pay double for the patches you do. Stranded drivers radio you for patches already from Roadside patch at rank 1.
 - Toughness 2, heat runner or storm runner. Desert rat: noon sun heats your engine like morning sun. Storm rider: dust storms do not cut your sight or aim.

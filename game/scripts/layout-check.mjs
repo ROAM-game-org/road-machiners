@@ -810,6 +810,18 @@ async function openLoot(page) {
   });
 }
 
+async function openLookedOver(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.states.push({ id: 'layout-sized-up', kind: 'sizedUp', holder: world.player.vehicleId, other: npc.id, turnsLeft: 99, born: world.turn, data: { kind: 'none' } });
+    g.apply(world);
+    g.screens.inventory.openLookedOver(g.state, npc.id);
+  });
+}
+
 async function openNewGameScreen(page) {
   await openStartMenu(page);
   await page.locator('.start-menu .btn-l', { hasText: 'New game' }).click();
@@ -875,6 +887,7 @@ const STATES = {
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
   'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
+  'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
 };
 

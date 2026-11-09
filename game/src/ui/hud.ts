@@ -52,7 +52,7 @@ import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import type { Refusal } from "../sim/types";
-import { lookOverError } from "../sim/look-over";
+import { knowsCargo, lookOverError } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
 import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
@@ -855,9 +855,14 @@ export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLE
 function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
   const buttons: HTMLElement[] = [];
   if (v.brain && modeRules(w).radio) buttons.push(...actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
-  if (hasBasic(w, "lookOver")) buttons.push(...actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), [costItem("clock", num(LOOK_OVER.turns, "int"))]));
+  if (hasBasic(w, "lookOver")) buttons.push(...lookOverButton(w, v, handlers));
   if (hasPerk(w, "spotter")) buttons.push(...actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
   return buttons;
+}
+
+function lookOverButton(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  if (knowsCargo(w, playerVehicle(w), v)) return actionButton(t("card.lookOver"), "B", null, () => handlers.act("lookOver"));
+  return actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), [costItem("clock", num(LOOK_OVER.turns, "int"))]);
 }
 
 function reasonOf(w: World, refusal: Refusal | null): Msg | null {
