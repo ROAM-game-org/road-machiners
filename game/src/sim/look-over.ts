@@ -1,6 +1,6 @@
 import { GOODS } from '../data/goods';
 import { LOOK_OVER, type DecisionOptions } from '../data/npcs';
-import { huntsForLoot, inCombat, isHostile } from './combat';
+import { fightsAgainst, huntsForLoot, inCombat, inCombatWith, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { freeCells, hasLoot, isLoot, isMounted, itemCells, mountedItems } from './grid';
@@ -59,6 +59,7 @@ function sightRefusal(world: World, looker: Vehicle, target: Vehicle): Refusal |
 }
 
 function progressRefusal(world: World, looker: Vehicle, target: Vehicle): Refusal | null {
+  if (inCombatWith(world, looker, target)) return { id: 'inCombat' };
   if (lookingOver(world, looker)) return { id: 'lookOverRunning' };
   return stateOf(world, 'sizedUp', looker.id, target.id) ? { id: 'lookOverKnown' } : null;
 }
@@ -91,6 +92,7 @@ export function checkLookOver(world: World, s: NpcState): StateEnding | null {
   if (!parties) return 'broken';
   const [looker, target] = parties;
   if (!awake(world, looker) || !awake(world, target) || !inReach(world, looker, target)) return 'broken';
+  if (inCombatWith(world, looker, target)) return 'broken';
   return world.turn >= s.born + LOOK_OVER.turns ? 'fulfilled' : null;
 }
 
@@ -210,6 +212,7 @@ export function lookOverPrey(world: World, vehicle: Vehicle): void {
   const goal = topGoal(vehicle);
   if (goal?.kind !== 'sizeUp' || isKnockedOut(vehicle)) return;
   const target = vehicleById(world, goal.targetId!);
+  if (fightBroke(world, vehicle, target)) return;
   if (canLookOver(world, vehicle, target) === null) startLookOver(world, vehicle, target);
 }
 
@@ -264,6 +267,7 @@ export function joinSideFight(world: World, vehicle: Vehicle): void {
   const goal = topGoal(vehicle);
   if (goal?.kind !== 'sizeUp') return;
   const target = vehicleById(world, goal.targetId!);
+  if (fightsAgainst(world, target, vehicle)) return;
   if (isKnockedOut(target) || !isHostile(world, vehicle, target) || !fightsSideOf(world, target, vehicle)) return;
   popGoal(world, vehicle, 'fightHostile');
   interrupt(world, vehicle, fightGoal(world, vehicle, target, 'fightHostile'));

@@ -5,7 +5,9 @@ import { raiseCalls } from './dialogue';
 import { spawnGroup, waveOf } from './chaos-highway';
 import { alongOf, toRoad } from './highway';
 import { addGoods } from './inventory';
+import { noteAttack } from './combat';
 import { holdsUp, optionWeights, passReason, judgeDanger } from './npc-decisions';
+import { lookOverPrey } from './look-over';
 import { thinkNpc, topGoal } from './npc-activities';
 import { joinCompany } from './companies';
 import { addState, stateOf } from './states';
@@ -164,6 +166,70 @@ describe('a raider sizing up the player', () => {
     thinkNpc(w, me);
     expect(me.brain!.goals.some((g) => g.kind === 'sizeUp')).toBe(false);
     expect(stateOf(w, 'backedOff', me.id, w.player.vehicleId)).toBeNull();
+  });
+});
+
+describe('a raider shot by the prey it sizes up', () => {
+  function shotSizer(answer: 'fightBack' | 'flee' | 'keep'): { w: World; raider: Vehicle } {
+    const { w: start, raider } = raiderAndPlayer();
+    forceOption('hostileSeen', 'fight');
+    const w = endTurn(start, testDrive);
+    const me = find(w, raider.id);
+    expect(topGoal(me)?.kind).toBe('sizeUp');
+    forceOption('attacked', answer);
+    noteAttack(w, playerVehicle(w), me, false);
+    w.turn++;
+    w.events = [];
+    thinkNpc(w, me);
+    return { w, raider: me };
+  }
+
+  it.each([
+    ['flee', 'flee', 'escapeAttacker'],
+    ['fightBack', 'fight', 'fightBack'],
+  ] as const)('follows the attacked answer %s', (answer, kind, reason) => {
+    const { w, raider } = shotSizer(answer);
+    expect(raider.brain!.goals.some((g) => g.kind === 'sizeUp')).toBe(false);
+    expect(topGoal(raider)).toMatchObject({ kind, reason });
+    expect(w.events.some((e) => e.t === 'activity' && e.previous === 'sizeUp' && e.reason === 'inCombat')).toBe(true);
+    expect(raider.brain!.attackers[w.player.vehicleId]).toBe(true);
+  });
+
+  it('starts no fight when the answer is to keep on', () => {
+    const { w, raider } = shotSizer('keep');
+    expect(raider.brain!.goals.some((g) => g.kind === 'sizeUp' || g.kind === 'fight')).toBe(false);
+    expect(raider.brain!.attackers[w.player.vehicleId]).toBe(true);
+  });
+
+  it('learns nothing and makes no demand when shot during the look-over turn', () => {
+    const { w: start, raider } = raiderAndPlayer();
+    forceOption('hostileSeen', 'fight');
+    forceOption('attacked', 'flee');
+    forceOption('sizedUp', 'rob');
+    forceOption('mugging', 'demand');
+    let w = endTurn(start, testDrive);
+    expect(stateOf(w, 'lookOver', raider.id, w.player.vehicleId)).not.toBeNull();
+    w = endTurn(w, (d) => {
+      testDrive(d);
+      noteAttack(d, playerVehicle(d), find(d, raider.id), false);
+    });
+    for (let turn = 0; turn < 3; turn++) {
+      expect(stateOf(w, 'sizedUp', raider.id, w.player.vehicleId)).toBeNull();
+      expect(w.events.some((e) => e.t === 'lookedOver')).toBe(false);
+      expect(w.player.call).toBeNull();
+      w = endTurn(w, testDrive);
+    }
+  });
+
+  it('starts no look-over for a sizer its prey shot this turn', () => {
+    const { w: start, raider } = raiderAndPlayer();
+    forceOption('hostileSeen', 'fight');
+    const w = endTurn(start, testDrive);
+    const me = find(w, raider.id);
+    w.states = w.states.filter((s) => s.kind !== 'lookOver');
+    noteAttack(w, playerVehicle(w), me, false);
+    lookOverPrey(w, me);
+    expect(stateOf(w, 'lookOver', me.id, w.player.vehicleId)).toBeNull();
   });
 });
 
