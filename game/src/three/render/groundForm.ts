@@ -4,7 +4,7 @@ import type { Terrain } from "../../sim/terrain";
 import { TUNING } from "./inkTuning";
 
 const S = PHYSICS.metersPerTile;
-const BOX_PASSES = 3;
+const GAUSS_REACH = 3;
 
 export type GroundFormUniforms = { groundForm: GroundForm; groundFormUv: { value: THREE.Vector2 } };
 
@@ -56,35 +56,28 @@ export function formSlopes(heights: ArrayLike<number>, side: number, spreadTiles
 }
 
 function blurred(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
-  const radius = Math.round((Math.sqrt((12 * spreadTiles * spreadTiles) / BOX_PASSES + 1) - 1) / 2);
-  let from = Float32Array.from(heights);
-  let to = new Float32Array(side * side);
-  for (let pass = 0; pass < BOX_PASSES; pass++) {
-    boxRows(from, to, side, radius);
-    boxColumns(to, from, side, radius);
-  }
+  const from = Float32Array.from(heights);
+  if (spreadTiles <= 0) return from;
+  const weights = gaussWeights(spreadTiles);
+  const across = new Float32Array(side * side);
+  blurLine(from, across, side, weights, 1, side);
+  blurLine(across, from, side, weights, side, 1);
   return from;
 }
 
-function boxRows(from: Float32Array, to: Float32Array, side: number, radius: number): void {
-  for (let y = 0; y < side; y++) {
-    const row = y * side;
-    let sum = 0;
-    for (let k = -radius; k <= radius; k++) sum += from[row + Math.min(side - 1, Math.max(0, k))];
-    for (let x = 0; x < side; x++) {
-      to[row + x] = sum / (2 * radius + 1);
-      sum += from[row + Math.min(side - 1, x + radius + 1)] - from[row + Math.max(0, x - radius)];
-    }
-  }
+function gaussWeights(spreadTiles: number): Float32Array {
+  const radius = Math.ceil(GAUSS_REACH * spreadTiles);
+  const weights = Float32Array.from({ length: 2 * radius + 1 }, (_, k) => Math.exp(-((k - radius) ** 2) / (2 * spreadTiles * spreadTiles)));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  return weights.map((w) => w / total);
 }
 
-function boxColumns(from: Float32Array, to: Float32Array, side: number, radius: number): void {
-  for (let x = 0; x < side; x++) {
-    let sum = 0;
-    for (let k = -radius; k <= radius; k++) sum += from[Math.min(side - 1, Math.max(0, k)) * side + x];
-    for (let y = 0; y < side; y++) {
-      to[y * side + x] = sum / (2 * radius + 1);
-      sum += from[Math.min(side - 1, y + radius + 1) * side + x] - from[Math.max(0, y - radius) * side + x];
+function blurLine(from: Float32Array, to: Float32Array, side: number, weights: Float32Array, along: number, across: number): void {
+  const radius = (weights.length - 1) / 2;
+  for (let line = 0; line < side; line++)
+    for (let i = 0; i < side; i++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += weights[k + radius] * from[line * across + Math.min(side - 1, Math.max(0, i + k)) * along];
+      to[line * across + i * along] = sum;
     }
-  }
 }

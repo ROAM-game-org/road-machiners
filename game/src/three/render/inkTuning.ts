@@ -10,7 +10,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   color: { label: "Color strength", min: 0, max: 1.5, step: 0.05, start: 0.4 },
   relief: { label: "Relief", min: 0, max: 1, step: 0.05, start: 0.7 },
   reliefSteps: { label: "Relief in flat steps", min: 0, max: 1, step: 1, start: 1 },
-  formScale: { label: "Shade plane form tiles", min: 0, max: 10, step: 0.5, start: 0.5 },
+  formScale: { label: "Shade plane form tiles", min: 0, max: 10, step: 0.25, start: 1.25 },
   edgeSoft: { label: "Material edge fade", min: 0, max: 0.2, step: 0.01, start: 0.01 },
   heightTint: { label: "Height tint", min: 0, max: 1, step: 0.05, start: 0.8 },
   edgeWobble: { label: "Edge wobble", min: 0, max: 2, step: 0.05, start: 1 },
