@@ -52,6 +52,7 @@ export const UI = {
   'options.uiSize': 'UI size',
   'options.sound': 'Sound',
   'look.inScene': 'Not during a scene',
+  'look.lookOver': 'Not during a look-over',
   'options.uiSizeTooBig': 'Too big for this screen',
   'options.minimap': 'Minimap',
   'options.camera': 'Camera',

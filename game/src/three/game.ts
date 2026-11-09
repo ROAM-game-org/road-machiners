@@ -21,6 +21,7 @@ import {
 } from "../phys/frames";
 import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { isPlayerTruck, playerVehicle, vehicleById } from "../sim/damage";
+import { landingScreen } from "./landing-screen";
 
 import { inOverdrive, isStranded, vehicleStats } from "../sim/stats";
 import { zoneHalfAngle, zoneSpeedOf } from "../sim/steering";
@@ -262,6 +263,7 @@ export class Game {
       openOutpost: () => this.screens.outpost.open(),
       openDowned: (id) => this.screens.inventory.openDowned(this.world, id),
       openLoot: (id) => this.screens.inventory.openLoot(id),
+      openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     this.loops = new SoundLoops(player, music);
@@ -877,10 +879,15 @@ export class Game {
     }
     this.playImpactSounds();
     this.hud.pushEvents(this.world, this.reveal.landed(this.world));
-    const searched = this.world.events.find((e) => e.t === "searched");
-    if (searched) this.screens.inventory.openLoot(searched.stock);
+    this.openLandingScreen();
     this.uiStale = true;
     for (const b of this.breakCues.rest()) this.playBreak(b);
+  }
+
+  private openLandingScreen(): void {
+    const screen = landingScreen(this.world);
+    if (screen?.kind === "loot") this.screens.inventory.openLoot(screen.id);
+    if (screen?.kind === "look") this.screens.inventory.openLookedOver(this.world, screen.id);
   }
 
   private finishPlayback(): void {
