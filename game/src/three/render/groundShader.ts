@@ -832,7 +832,7 @@ const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELI
 
 
 const LAND_BODY = `
-  inkSurface.edge = max(inkSurface.edge, groundCrestLine(vRoadXZ));
+  inkSurface.crest = groundCrestLine(vRoadXZ) * inkCrestLine;
   inkSurface.form = groundLandformSlope(vRoadXZ);
 `;
 

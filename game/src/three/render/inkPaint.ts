@@ -11,8 +11,8 @@ const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
 
 export const INK_CONTRACT = `
-struct InkSurface { float road; float edge; float height; vec2 slope; float rise; vec2 form; };
-InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0, vec2(0.0));
+struct InkSurface { float road; float edge; float height; vec2 slope; float rise; vec2 form; float crest; };
+InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0, vec2(0.0), 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
 vec3 inkLamp = vec3(0.0);
@@ -39,6 +39,7 @@ uniform float inkShadeShift;
 uniform float inkCastDark;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
+const vec3 INK_CREST_TONE = vec3(0.8, 1.0, 1.0);
 float inkHash(vec2 p) {
   vec3 q = fract(vec3(p.xyx) * 0.1031);
   q += dot(q, q.yzx + 33.33);
@@ -115,6 +116,7 @@ vec3 inkFinish(vec3 color, vec2 plane, float lineShade, float inShade, float hat
   float shadeMarks = 0.0;
   if (inShade > 0.0 && hatchShare > 0.0) shadeMarks = inkShadeStrokes(plane, planeDx, planeDy, screenPx) * inShade;
   color = mix(color, color * 0.55, shadeMarks * hatchShare);
+  color *= 1.0 - inkSurface.crest * INK_CREST_TONE;
   float shadeLine = 1.0 - smoothstep(0.6, 1.3, abs(lineShade - 0.5) / max(fwidth(lineShade), 0.0006));
   color = mix(color, INK_BLACK, max(max(shadeLine * inkShadeLine, inkSurface.edge), contour));
   return inkFromScreen(color);

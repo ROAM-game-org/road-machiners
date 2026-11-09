@@ -3,11 +3,15 @@ import { TUNING } from "./inkTuning";
 
 const CREST_REACH_TILES = 4;
 const CREST_LEAST_AHEAD = 0;
-const CREST_MIN_TILES = 6;
+const CREST_MIN_TILES = 10;
 const CREST_LINK_TILES = 2;
 const CREST_TAPER_TILES = 3;
 const CREST_STAMP_TILES = 3;
-const CREST_SMOOTH_PASSES = 2;
+const CREST_SMOOTH_PASSES = 5;
+const CREST_REACH_ALONG = 0.6;
+const CREST_GAP_SHARE = 0.3;
+const CREST_GAP_METERS = 9;
+const CREST_SWELL_METERS = 6;
 const CREST_NONE_METERS = 100;
 const CREST_NONE = -1;
 const CORNERS = [[0, 0], [1, 0], [0, 1], [1, 1]] as const;
@@ -194,18 +198,19 @@ export function crestGap(field: Float32Array, side: number, metersPerTile: numbe
   const baseX = Math.floor(at.x / metersPerTile);
   const baseY = Math.floor(at.y / metersPerTile);
   let nearest = { across: Infinity, taper: 0 };
+  let reach = Infinity;
   for (const [dx, dy] of CORNERS) {
     const cx = Math.min(side - 1, Math.max(0, baseX + dx));
     const cy = Math.min(side - 1, Math.max(0, baseY + dy));
     const k = (cy * side + cx) * 4;
-    if (field[k + 3] < 0) continue;
+    if (field[k + 3] < 0 || Math.hypot(at.x - (cx * metersPerTile + field[k]), at.y - (cy * metersPerTile + field[k + 1])) >= reach) continue;
     const toX = at.x - (cx * metersPerTile + field[k]);
     const toY = at.y - (cy * metersPerTile + field[k + 1]);
+    reach = Math.hypot(toX, toY);
     const tx = Math.cos(field[k + 2]);
     const ty = Math.sin(field[k + 2]);
-    const past = Math.max(Math.abs(toX * tx + toY * ty) - metersPerTile, 0);
-    const across = Math.hypot(past, toX * -ty + toY * tx);
-    if (across < nearest.across) nearest = { across, taper: field[k + 3] };
+    const past = Math.max(Math.abs(toX * tx + toY * ty) - CREST_REACH_ALONG * metersPerTile, 0);
+    nearest = { across: Math.hypot(past, toX * -ty + toY * tx), taper: field[k + 3] };
   }
   return nearest;
 }
@@ -277,26 +282,44 @@ uniform float groundCrestSide;
 uniform float groundCrestTileMeters;
 uniform float inkCrestLine;
 uniform float inkCrestWidth;
+float groundCrestHash(vec2 p) {
+  vec3 q = fract(vec3(p.xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+float groundCrestNoise(vec2 p) {
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(groundCrestHash(cell), groundCrestHash(cell + vec2(1.0, 0.0)), f.x), mix(groundCrestHash(cell + vec2(0.0, 1.0)), groundCrestHash(cell + vec2(1.0, 1.0)), f.x), f.y);
+}
 float groundCrestLine(vec2 at) {
   if (groundCrestReady < 0.5 || inkCrestLine <= 0.0) return 0.0;
   float px = max(max(fwidth(at.x), fwidth(at.y)), 1e-4);
   ivec2 base = ivec2(floor(at / groundCrestTileMeters));
   int last = int(groundCrestSide) - 1;
   float nearest = 1e9;
+  float reach = 1e9;
   float taper = 0.0;
+  vec2 foot = at;
   for (int n = 0; n < 4; n++) {
     ivec2 corner = clamp(base + ivec2(n % 2, n / 2), ivec2(0), ivec2(last));
     vec4 crest = texelFetch(groundCrest, corner, 0);
     if (crest.a < 0.0) continue;
-    vec2 to = at - (vec2(corner) * groundCrestTileMeters + crest.rg);
+    vec2 point = vec2(corner) * groundCrestTileMeters + crest.rg;
+    vec2 to = at - point;
     vec2 along = vec2(cos(crest.b), sin(crest.b));
-    float across = length(vec2(max(abs(dot(to, along)) - groundCrestTileMeters, 0.0), dot(to, vec2(-along.y, along.x))));
-    if (across < nearest) {
-      nearest = across;
+    float ahead = dot(to, along);
+    if (length(to) < reach) {
+      reach = length(to);
+      nearest = length(vec2(max(abs(ahead) - ${CREST_REACH_ALONG.toFixed(2)} * groundCrestTileMeters, 0.0), dot(to, vec2(-along.y, along.x))));
       taper = crest.a;
+      foot = point + along * ahead;
     }
   }
-  float halfWidth = 0.5 * inkCrestWidth * taper;
-  return (1.0 - smoothstep(halfWidth - 0.5 * px, halfWidth + 0.5 * px, nearest)) * inkCrestLine;
+  float kept = smoothstep(${CREST_GAP_SHARE.toFixed(2)}, ${(CREST_GAP_SHARE + 0.08).toFixed(2)}, groundCrestNoise(foot / ${CREST_GAP_METERS.toFixed(1)}));
+  float halfWidth = 0.5 * inkCrestWidth * taper * kept * mix(0.6, 1.3, groundCrestNoise(foot / ${CREST_SWELL_METERS.toFixed(1)} + 17.0));
+  float seen = smoothstep(0.35, 0.7, 2.0 * halfWidth / px);
+  return (1.0 - smoothstep(halfWidth - 0.5 * px, halfWidth + 0.5 * px, nearest)) * seen;
 }
 `;
