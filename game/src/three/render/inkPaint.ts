@@ -16,7 +16,6 @@ const INK_LIGHT_STEP_FACING = 1.3;
 const INK_COOL_STEP = "vec3(0.8, 0.86, 1.2)";
 const INK_STEP_SHARE = 0.7;
 const INK_CAST_DARK = 0.75;
-const INK_CAST_SPREAD = 3;
 
 export const INK_CONTRACT = `
 struct InkSurface { float road; float edge; float height; vec2 slope; float rise; float still; };
@@ -210,9 +209,8 @@ const SUN_SHADOW_STEP = "directLight.color *= ( directLight.visible && receiveSh
 
 const SUN_SHADE_READ = `float inkShadowHere = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;
 		directLight.color *= inkShadowHere;
-		float inkShadowWide = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius * ${INK_CAST_SPREAD.toFixed(1)}, vDirectionalShadowCoord[ i ] ) : 1.0;
-		inkSun.anyCast = max(inkSun.anyCast, 1.0 - inkShadowWide);
-		inkSun.litCast = max(inkSun.litCast, (1.0 - inkShadowWide) * smoothstep(0.08, 0.2, dot(geometryNormal, directLight.direction)));
+		inkSun.anyCast = max(inkSun.anyCast, 1.0 - inkShadowHere);
+		inkSun.litCast = max(inkSun.litCast, (1.0 - inkShadowHere) * smoothstep(0.08, 0.2, dot(geometryNormal, directLight.direction)));
 		inkSun.facing = max(inkSun.facing, 1.0 - smoothstep(-0.02, 0.06, dot(geometryNormal, directLight.direction)));
 		inkSun.dirView = directLight.direction;`;
 
