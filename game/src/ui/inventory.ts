@@ -259,7 +259,7 @@ export class InventoryView {
         { class: "inv-side" },
         ...this.jobBlock(w),
         ...this.sideList(w),
-        ...(this.dumpZone && phoneMode() ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
+        ...(this.dumpZone && phoneMode() && !this.looking ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
         this.inspection,
       ),
       ...(this.truck ? [this.truckEl(w, this.truck)] : []),
