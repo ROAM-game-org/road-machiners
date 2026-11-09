@@ -13,12 +13,12 @@ const INK_SHADE_STEP = 0.72;
 const INK_SHADE_STEP_FACING = 0.45;
 const INK_LIGHT_STEP = 1.22;
 const INK_LIGHT_STEP_FACING = 1.3;
-const INK_COOL_STEP = "vec3(0.9, 0.94, 1.12)";
-const INK_RELIEF_LINE_SHARE = 0.55;
+const INK_COOL_STEP = "vec3(0.8, 0.86, 1.2)";
+const INK_STEP_SHARE = 0.5;
 
 export const INK_CONTRACT = `
-struct InkSurface { float road; float edge; float height; vec2 slope; float rise; };
-InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0);
+struct InkSurface { float road; float edge; float height; vec2 slope; float rise; float still; };
+InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0, 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
 vec3 inkLamp = vec3(0.0);
@@ -41,7 +41,6 @@ uniform float inkContourCross;
 uniform float inkObjectHatch;
 uniform float inkRelief;
 uniform float inkReliefSteps;
-uniform float inkRidgeLines;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -162,10 +161,9 @@ vec2 inkSteppedRelief(float facing) {
   float aa = fwidth(facing) + 0.002;
   float lit = smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa, facing);
   float bright = smoothstep(${INK_LIGHT_STEP.toFixed(2)} - aa, ${INK_LIGHT_STEP.toFixed(2)} + aa, facing);
-  return vec2(mix(inkSmoothRelief(${INK_SHADE_STEP_FACING.toFixed(2)}), mix(inkSmoothRelief(1.0), inkSmoothRelief(${INK_LIGHT_STEP_FACING.toFixed(2)}), bright), lit), 1.0 - lit);
-}
-float inkReliefLine(float facing) {
-  return (1.0 - smoothstep(0.6, 1.3, abs(facing - ${INK_SHADE_STEP.toFixed(2)}) / max(fwidth(facing), 0.0006))) * inkReliefSteps;
+  float stepped = mix(inkSmoothRelief(${INK_SHADE_STEP_FACING.toFixed(2)}), mix(inkSmoothRelief(1.0), inkSmoothRelief(${INK_LIGHT_STEP_FACING.toFixed(2)}), bright), lit);
+  float share = ${INK_STEP_SHARE.toFixed(2)} * (1.0 - inkSurface.still);
+  return vec2(mix(smooth_, stepped, share), (1.0 - lit) * share);
 }
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
@@ -180,8 +178,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
-  float lines = max(inkContourLine(inkContourStep) * inkContour, inkReliefLine(facing) * inkRidgeLines * ${INK_RELIEF_LINE_SHARE.toFixed(2)} * (1.0 - inkSurface.road));
-  return inkFinish(color, plane, facingShade, inShade, inkHatch, lines);
+  return inkFinish(color, plane, facingShade, inShade, inkHatch, inkContourLine(inkContourStep) * inkContour);
 }
 `;
 
@@ -281,7 +278,6 @@ function inkUniforms() {
     inkObjectHatch: TUNING.objectHatch,
     inkRelief: TUNING.relief,
     inkReliefSteps: TUNING.reliefSteps,
-    inkRidgeLines: TUNING.ridgeLines,
     inkHeightTint: TUNING.heightTint,
   };
 }

@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "ridgeLines" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "reliefSteps" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "outline" | "crt";
 
 type Knob = { label: string; min: number; max: number; step: number; start: number };
 
@@ -10,7 +10,6 @@ export const KNOBS: Record<TuningKey, Knob> = {
   color: { label: "Color strength", min: 0, max: 1.5, step: 0.05, start: 0.4 },
   relief: { label: "Relief", min: 0, max: 1, step: 0.05, start: 0.7 },
   reliefSteps: { label: "Relief in flat steps", min: 0, max: 1, step: 1, start: 1 },
-  ridgeLines: { label: "Ridge lines", min: 0, max: 1, step: 0.05, start: 0.6 },
   edgeSoft: { label: "Material edge fade", min: 0, max: 0.2, step: 0.01, start: 0.01 },
   heightTint: { label: "Height tint", min: 0, max: 1, step: 0.05, start: 0.8 },
   edgeWobble: { label: "Edge wobble", min: 0, max: 2, step: 0.05, start: 1 },
