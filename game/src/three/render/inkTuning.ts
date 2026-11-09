@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "edgeShadow" | "edgeShadowWidth" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "grain" | "edgeShadow" | "edgeShadowWidth" | "outline" | "crt";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -25,6 +25,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   shadeDark: { label: "Darkness", min: 0, max: 0.8, step: 0.05, start: 0.15 },
   shadeShift: { label: "Color shift", min: 0, max: 1, step: 0.05, start: 0.2 },
   castDark: { label: "Cast shadow extra dark", min: 0, max: 0.8, step: 0.05, start: 0.15 },
+  shadeCut: { label: "Shade cut", min: 0, max: 45, step: 1, start: 10, unit: "°" },
   hatch: { label: "Shadow strokes", min: 0, max: 1, step: 0.05, start: 0.3 },
   hatchPx: { label: "Stroke size", min: 3, max: 24, step: 0.5, start: 8, unit: "px" },
   objectHatch: { label: "Object strokes", min: 0, max: 1, step: 1, start: 1 },

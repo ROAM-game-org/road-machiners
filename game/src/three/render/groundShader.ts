@@ -9,6 +9,7 @@ import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
 import { CREST_GLSL, GroundCrest, type CrestUniforms } from "./groundCrest";
+import { GroundLandform, LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
@@ -99,7 +100,22 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; crest: GroundCrest; header: string; key: string };
+export type Land = { landform: GroundLandform; crest: GroundCrest };
+
+export type LandUniforms = LandformUniforms & CrestUniforms;
+
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; land: Land; header: string; key: string };
+
+const LAND_GLSL = `${LANDFORM_GLSL}${CREST_GLSL}`;
+
+function landOf(t: Terrain): Land {
+  const landform = new GroundLandform(t.heights, t.size + 1, S);
+  return { landform, crest: new GroundCrest(landform.form, t.size + 1, S) };
+}
+
+export function landUniforms(land: Land): LandUniforms {
+  return { ...land.landform.uniforms, ...land.crest.uniforms };
+}
 
 const GROUND_SHAPE_VERTEX = `vec4 groundWorld = modelMatrix * vec4(transformed, 1.0);
 vRoadXZ = groundWorld.xz;
@@ -121,22 +137,22 @@ export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Si
   const worn = fields.highwayWear !== undefined;
   return {
     uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
-    crest: new GroundCrest(t.heights, t.size + 1, S),
+    land: landOf(t),
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };
 }
 
 export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
-  patchGround(material, { ...ground.uniforms, ...ground.crest.uniforms }, `${ground.header}${CREST_GLSL}`, GROUND_BODY, ground.key);
+  patchGround(material, { ...ground.uniforms, ...landUniforms(ground.land) }, `${ground.header}${LAND_GLSL}`, GROUND_BODY, ground.key);
 }
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
 }
 
-export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, crest: CrestUniforms): void {
-  patchGround(material, { ...cache, ...crest }, `${CACHE_READ_UNIFORMS}${CREST_GLSL}`, CACHE_READ, "|cacheRead");
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, land: LandUniforms): void {
+  patchGround(material, { ...cache, ...land }, `${CACHE_READ_UNIFORMS}${LAND_GLSL}`, CACHE_READ, "|cacheRead");
 }
 
 function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<string, THREE.IUniform>, header: string, body: string, cacheKey: string): void {
@@ -815,11 +831,12 @@ const PADS_BODY = `
 const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}`;
 
 
-const CREST_BODY = `
+const LAND_BODY = `
   inkSurface.edge = max(inkSurface.edge, groundCrestLine(vRoadXZ));
+  inkSurface.form = groundLandformSlope(vRoadXZ);
 `;
 
-const GROUND_BODY = `{${GROUND_PARTS}${CREST_BODY}}`;
+const GROUND_BODY = `{${GROUND_PARTS}${LAND_BODY}}`;
 
 const CACHE_WRITE = `{${GROUND_PARTS}
   gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
@@ -855,4 +872,4 @@ const CACHE_READ = `{
   inkSurface.height = groundCacheRelief.x;
   inkSurface.slope = groundCacheRelief.yz;
   inkSurface.rise = groundCacheRelief.w;
-  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;${CREST_BODY}}`;
+  inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;${LAND_BODY}}`;

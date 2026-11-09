@@ -13,7 +13,7 @@ import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { deckHeight, deckSegments, isCliff, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
-import { drawGround, drawnGround, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
+import { drawGround, drawnGround, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { blurredHeights } from "./groundForm";
 import { FOLD, MESH_STEPS, REACH_TILES, SurfacePatch, surfaceTriangles, type Fold } from "./groundSurface";
 import { NIGHT_POOLS } from "./lightPools";
@@ -194,7 +194,7 @@ export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround
   const writer = new THREE.MeshLambertMaterial({ map });
   writeGroundCache(writer, writes);
   const reader = new THREE.MeshLambertMaterial({ map });
-  readGroundCache(reader, cache, writes.crest.uniforms);
+  readGroundCache(reader, cache, landUniforms(writes.land));
   return { reader: litGround(reader), writer, writes };
 }
 

@@ -9,7 +9,7 @@ export const LOOK_GROUPS: Group[] = [
   { title: "Ground", keys: ["color", "heightTint", "edgeSoft", "edgeWobble", "waveSize", "halo", "grain", "edgeShadow", "edgeShadowWidth"] },
   { title: "Relief", keys: ["relief", "litFace"] },
   { title: "Crest lines", keys: ["crestLine", "crestWidth", "crestFold"] },
-  { title: "Shadows", keys: ["shadeDark", "shadeShift", "castDark", "shadeLine"] },
+  { title: "Shadows", keys: ["shadeCut", "shadeDark", "shadeShift", "castDark", "shadeLine"] },
   { title: "Strokes", keys: ["hatch", "hatchPx"] },
   { title: "Objects", keys: ["objectHatch", "outline"] },
   { title: "Elevation lines", keys: ["contour", "contourStep", "contourSoft", "contourOpacity", "contourCross"], gate: "contour" },

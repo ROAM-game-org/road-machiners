@@ -1,8 +1,6 @@
 import * as THREE from "three";
-import { blurredHeights } from "./groundForm";
 import { TUNING } from "./inkTuning";
 
-const CREST_BLUR_TILES = 1.5;
 const CREST_REACH_TILES = 4;
 const CREST_LEAST_AHEAD = 0;
 const CREST_MIN_TILES = 6;
@@ -10,7 +8,7 @@ const CREST_LINK_TILES = 2;
 const CREST_TAPER_TILES = 3;
 const CREST_STAMP_TILES = 3;
 const CREST_SMOOTH_PASSES = 2;
-export const CREST_NONE_METERS = 100;
+const CREST_NONE_METERS = 100;
 const CREST_NONE = -1;
 const CORNERS = [[0, 0], [1, 0], [0, 1], [1, 1]] as const;
 const LINK_STEPS = squareSteps(CREST_LINK_TILES).filter((step) => step.x !== 0 || step.y !== 0);
@@ -24,13 +22,12 @@ function squareSteps(reach: number): CrestPoint[] {
 
 export type CrestPoint = { x: number; y: number };
 
-export type CrestShape = { leastFoldMeters: number; leastTiles: number; blurTiles: number };
+export type CrestShape = { leastFoldMeters: number; leastTiles: number };
 
-export const CREST_SHAPE: CrestShape = { leastFoldMeters: 3, leastTiles: CREST_MIN_TILES, blurTiles: CREST_BLUR_TILES };
+export const CREST_SHAPE: CrestShape = { leastFoldMeters: 3, leastTiles: CREST_MIN_TILES };
 
-export function crestLines(heights: ArrayLike<number>, side: number, metersPerTile: number, shape: CrestShape): CrestPoint[][] {
+export function crestLines(form: Float32Array, side: number, metersPerTile: number, shape: CrestShape): CrestPoint[][] {
   if (!(shape.leastFoldMeters > 0)) throw new Error(`A crest needs a positive least fold, got ${shape.leastFoldMeters}`);
-  const form = blurredHeights(heights, side, shape.blurTiles);
   const crest = crestCorners(form, side, metersPerTile, shape.leastFoldMeters);
   return chained(crest, side).filter((line) => lengthOf(line) >= shape.leastTiles).map(smoothed);
 }
@@ -228,7 +225,7 @@ export class GroundCrest {
   private pending = false;
 
   constructor(
-    private readonly heights: ArrayLike<number>,
+    private readonly form: Float32Array,
     private readonly side: number,
     private readonly metersPerTile: number,
   ) {
@@ -257,7 +254,7 @@ export class GroundCrest {
 
   private rebuild(): void {
     const fold = TUNING.crestFold.value;
-    const lines = crestLines(this.heights, this.side, this.metersPerTile, { ...CREST_SHAPE, leastFoldMeters: fold });
+    const lines = crestLines(this.form, this.side, this.metersPerTile, { ...CREST_SHAPE, leastFoldMeters: fold });
     const field = crestField(lines, this.side, this.metersPerTile);
     const half = new Uint16Array(field.length);
     for (let k = 0; k < field.length; k++) half[k] = THREE.DataUtils.toHalfFloat(field[k]);

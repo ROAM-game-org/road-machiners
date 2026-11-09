@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { CREST_SHAPE, crestField, crestGap, crestLines } from "./groundCrest";
+import { blurredHeights } from "./groundForm";
+import { LANDFORM_BLUR_TILES } from "./groundLandform";
 
 const SIDE = 61;
 const METERS = 4;
 const LEAST = CREST_SHAPE;
 
 function heights(height: (x: number, y: number) => number): Float32Array {
-  return Float32Array.from({ length: SIDE * SIDE }, (_, k) => height(k % SIDE, Math.floor(k / SIDE)));
+  return blurredHeights(Float32Array.from({ length: SIDE * SIDE }, (_, k) => height(k % SIDE, Math.floor(k / SIDE))), SIDE, LANDFORM_BLUR_TILES);
 }
 
 const ridge = (x: number) => 2 * Math.exp(-(((x - 30) / 4) ** 2));
