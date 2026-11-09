@@ -153,7 +153,7 @@ export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround
   const writer = new THREE.MeshLambertMaterial({ map });
   writeGroundCache(writer, writes);
   const reader = new THREE.MeshLambertMaterial({ map });
-  readGroundCache(reader, cache);
+  readGroundCache(reader, cache, writes.form);
   return { reader: litGround(reader), writer, writes };
 }
 

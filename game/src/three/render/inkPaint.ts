@@ -10,16 +10,12 @@ const INK_BAND_SLOPE_FROM = 0.1;
 const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
 const INK_SHADE_STEP = 0.72;
-const INK_SHADE_STEP_FACING = 0.45;
 const INK_LIGHT_STEP = 1.22;
 const INK_LIGHT_STEP_FACING = 1.3;
-const INK_COOL_STEP = "vec3(0.8, 0.86, 1.2)";
-const INK_STEP_SHARE = 0.7;
-const INK_CAST_DARK = 0.75;
 
 export const INK_CONTRACT = `
-struct InkSurface { float road; float edge; float height; vec2 slope; float rise; float still; };
-InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0, 0.0);
+struct InkSurface { float road; float edge; float height; vec2 slope; vec2 form; float rise; float still; };
+InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), vec2(0.0), 0.0, 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
 vec3 inkLamp = vec3(0.0);
@@ -42,6 +38,8 @@ uniform float inkContourCross;
 uniform float inkObjectHatch;
 uniform float inkRelief;
 uniform float inkReliefSteps;
+uniform float inkFormScale;
+uniform float inkShadeDark;
 uniform float inkHeightTint;
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 float inkHash(vec2 p) {
@@ -103,14 +101,13 @@ float inkDim() {
 float inkSmoothRelief(float level) {
   return clamp(0.55 + 0.5 * level, 0.7, 1.15);
 }
-vec3 inkBase(vec3 albedo, vec3 lit, float level, float inShade, vec2 relief) {
+vec3 inkBase(vec3 albedo, vec3 lit, float level, float inShade, float relief) {
   vec3 flat_ = inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkLamp);
   vec3 pastel = mix(flat_, vec3(0.98, 0.95, 0.86) * inkDim(), 0.32);
   pastel = mix(pastel, pastel * vec3(0.66, 0.68, 0.84), inShade);
   vec3 vivid = max(mix(vec3(inkLuma(flat_)), flat_, 1.3), 0.0);
   vivid = mix(vivid, vivid * vec3(0.5, 0.5, 0.66), inShade);
-  vec3 color = max(mix(pastel, vivid, inkColor), 0.0) * mix(1.0, relief.x, inkRelief);
-  color = mix(color, color * ${INK_COOL_STEP}, relief.y * inkRelief);
+  vec3 color = max(mix(pastel, vivid, inkColor), 0.0) * mix(1.0, relief, inkRelief);
   if (max(inkGlow.r, max(inkGlow.g, inkGlow.b)) <= 0.0) return color;
   return color + (1.0 - min(color, 1.0)) * inkToScreen(inkGlow);
 }
@@ -156,27 +153,34 @@ vec3 inkHeightBands(vec3 color) {
   color *= mix(1.0, mix(0.93, 1.05, high), heightTint);
   return mix(color, color * vec3(0.95, 0.97, 1.03), (1.0 - high) * heightTint * 0.5);
 }
-vec2 inkSteppedRelief(float facing) {
+float inkSteppedRelief(float facing, float formFacing) {
   float smooth_ = inkSmoothRelief(facing);
-  if (inkReliefSteps < 0.5) return vec2(smooth_, 0.0);
-  float aa = fwidth(facing) + 0.002;
-  float lit = smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa, facing);
-  float bright = smoothstep(${INK_LIGHT_STEP.toFixed(2)} - aa, ${INK_LIGHT_STEP.toFixed(2)} + aa, facing);
-  float stepped = mix(inkSmoothRelief(${INK_SHADE_STEP_FACING.toFixed(2)}), mix(inkSmoothRelief(1.0), inkSmoothRelief(${INK_LIGHT_STEP_FACING.toFixed(2)}), bright), lit);
-  float share = ${INK_STEP_SHARE.toFixed(2)} * (1.0 - inkSurface.still);
-  return vec2(mix(smooth_, stepped, share), (1.0 - lit) * share);
+  if (inkReliefSteps < 0.5) return smooth_;
+  float aa = fwidth(formFacing) + 0.002;
+  float bright = smoothstep(${INK_LIGHT_STEP.toFixed(2)} - aa, ${INK_LIGHT_STEP.toFixed(2)} + aa, formFacing);
+  float stepped = mix(inkSmoothRelief(1.0), inkSmoothRelief(${INK_LIGHT_STEP_FACING.toFixed(2)}), bright);
+  float detail = smooth_ / inkSmoothRelief(formFacing);
+  return mix(smooth_, stepped * detail, 1.0 - inkSurface.still);
+}
+float inkShadeFace(float formFacing) {
+  if (inkReliefSteps < 0.5) return 0.0;
+  float aa = fwidth(formFacing) + 0.002;
+  return (1.0 - smoothstep(${INK_SHADE_STEP.toFixed(2)} - aa, ${INK_SHADE_STEP.toFixed(2)} + aa, formFacing)) * (1.0 - inkSurface.still);
+}
+float inkFacing(vec2 slope) {
+  vec3 up = normalize((viewMatrix * vec4(-slope.x, 1.0, -slope.y, 0.0)).xyz);
+  vec3 flatUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+  return dot(up, inkSun.dirView) / max(dot(flatUp, inkSun.dirView), 0.05);
 }
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
   float level = inkLevel(lit);
   vec3 smoothUp = normalize((viewMatrix * vec4(-inkSurface.slope.x, 1.0, -inkSurface.slope.y, 0.0)).xyz);
-  vec3 flatUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-  float facing = dot(smoothUp, inkSun.dirView) / max(dot(flatUp, inkSun.dirView), 0.05);
   float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(smoothUp, inkSun.dirView));
-  float sunShade = max(inkSun.anyCast, facingShade);
-  float inShade = inkInShade(sunShade);
-  vec3 color = inkHeightBands(inkBase(albedo, lit, level, inShade, inkSteppedRelief(facing)));
-  color *= mix(1.0, ${INK_CAST_DARK.toFixed(2)}, inkInShade(inkSun.anyCast) * inkRelief);
+  float formFacing = inkFacing(inkFormScale > 0.0 ? inkSurface.form : inkSurface.slope);
+  float inShade = inkInShade(max(inkSun.anyCast, max(facingShade, inkShadeFace(formFacing))));
+  vec3 color = inkHeightBands(inkBase(albedo, lit, level, inShade, inkSteppedRelief(inkFacing(inkSurface.slope), formFacing)));
+  color *= 1.0 - inkShadeDark * inShade * inkRelief;
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
@@ -190,7 +194,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float level = inkLevel(lit);
   float sunShade = max(inkSun.litCast, inkSun.facing);
   float inShade = inkInShade(sunShade);
-  vec3 color = inkBase(albedo, lit, level, inShade, vec2(inkSmoothRelief(level), 0.0));
+  vec3 color = inkBase(albedo, lit, level, inShade, inkSmoothRelief(level));
   vec3 face = abs(cross(dFdx(vInkAt), dFdy(vInkAt)));
   vec2 plane = face.y >= max(face.x, face.z) ? vInkAt.xz : (face.x > face.z ? vInkAt.zy : vInkAt.xy);
   return inkFinish(color, plane, sunShade, inShade, inkHatch * inkObjectHatch, 0.0);
@@ -280,6 +284,8 @@ function inkUniforms() {
     inkObjectHatch: TUNING.objectHatch,
     inkRelief: TUNING.relief,
     inkReliefSteps: TUNING.reliefSteps,
+    inkFormScale: TUNING.formScale,
+    inkShadeDark: TUNING.shadeDark,
     inkHeightTint: TUNING.heightTint,
   };
 }

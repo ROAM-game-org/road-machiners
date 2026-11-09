@@ -8,6 +8,7 @@ import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
+import { groundFormUniforms, type GroundFormUniforms } from "./groundForm";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
@@ -97,7 +98,7 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; header: string; key: string };
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; form: GroundFormUniforms; header: string; key: string };
 
 export type GroundCacheUniforms = {
   groundCacheColor: THREE.IUniform<THREE.Texture | null>;
@@ -114,21 +115,22 @@ export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Si
   const worn = fields.highwayWear !== undefined;
   return {
     uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
+    form: groundFormUniforms(t),
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };
 }
 
 export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
-  patchGround(material, ground.uniforms, ground.header, GROUND_BODY, ground.key);
+  patchGround(material, { ...ground.uniforms, ...ground.form }, `${ground.header}${FORM_UNIFORMS}`, GROUND_BODY, ground.key);
 }
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
 }
 
-export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms): void {
-  patchGround(material, cache, CACHE_READ_UNIFORMS, CACHE_READ, "|cacheRead");
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, form: GroundFormUniforms): void {
+  patchGround(material, { ...cache, ...form }, `${CACHE_READ_UNIFORMS}${FORM_UNIFORMS}`, CACHE_READ, "|cacheRead");
 }
 
 function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<string, THREE.IUniform>, header: string, body: string, cacheKey: string): void {
@@ -799,7 +801,16 @@ const PADS_BODY = `
 
 const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}`;
 
-const GROUND_BODY = `{${GROUND_PARTS}}`;
+const FORM_UNIFORMS = `
+uniform sampler2D groundForm;
+uniform vec2 groundFormUv;
+`;
+
+const FORM_BODY = `
+  inkSurface.form = texture(groundForm, vRoadXZ * groundFormUv.x + groundFormUv.y).rg;
+`;
+
+const GROUND_BODY = `{${GROUND_PARTS}${FORM_BODY}}`;
 
 const CACHE_WRITE = `{${GROUND_PARTS}
   gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
@@ -837,4 +848,4 @@ const CACHE_READ = `{
   inkSurface.rise = groundCacheRelief.w;
   inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;
   inkSurface.still = groundCacheEdgeAt.z;
-}`;
+${FORM_BODY}}`;
