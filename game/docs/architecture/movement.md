@@ -77,6 +77,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - `rideOf()` in `src/sim/body.ts` gives the collider center's height over flat ground at rest.
 - Each look's `comHeight` puts the center of mass at a fixed height over the ground, as `comY` in the collider frame. A bigger tire lifts the body without lifting its weight.
 - `applyTerrainGrip()` in `src/phys/drive.ts` sets wheel side friction per step from the ground and `rearSideGrip`. The rear tires hold less than the front.
+- `levelInAir()` in `src/phys/air.ts` pulls an airborne, upright unit's pitch spin toward the slope of `heightAt()` under it, capped by `PHYSICS.truck.airLevel*`. It acts only when no wheel of the truck touches, and leaves roll, yaw and takeoff to physics.
 - `holdStill()` in `src/phys/drive.ts` gives a braked, nearly stopped truck a brake hold. After the controller and the harpoon pull each step, it removes the slide along the ground and the yaw spin. It pulls back to an anchor kept in drive memory, capped by the ground grip. A truck holds on any slope its tires grip and slides past that. Trucks with no brakes are not held.
 
 ## Stranded trucks
