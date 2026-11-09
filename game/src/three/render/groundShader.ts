@@ -40,7 +40,6 @@ const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
-const FORM_BEND_STEP = 2;
 const HILL_EDGE_METERS = 0.15;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
@@ -815,22 +814,40 @@ uniform vec2 groundFormUv;
 uniform float groundHillShadows;
 uniform sampler2D groundHill;
 uniform float groundHillReady;
+uniform vec2 groundHillUv;
+uniform float groundHillSide;
 vec2 groundFormAt(vec2 at) {
   return texture(groundForm, at * groundFormUv.x + groundFormUv.y).rg;
 }
+float groundHillAt(vec2 texel) {
+  return texture(groundHill, (texel + 0.5) / groundHillSide).r;
+}
+float groundHillSmooth(vec2 at) {
+  vec2 texel = at * groundHillUv.x * groundHillSide + groundHillUv.y * groundHillSide - 0.5;
+  vec2 base = floor(texel);
+  vec2 f = texel - base;
+  vec2 f2 = f * f;
+  vec2 f3 = f2 * f;
+  vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0;
+  vec2 w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+  vec2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0;
+  vec2 w3 = f3 / 6.0;
+  vec2 near = w0 + w1;
+  vec2 far = w2 + w3;
+  vec2 nearAt = base - 1.0 + w1 / near;
+  vec2 farAt = base + 1.0 + w3 / far;
+  return near.y * (near.x * groundHillAt(nearAt) + far.x * groundHillAt(vec2(farAt.x, nearAt.y)))
+    + far.y * (near.x * groundHillAt(vec2(nearAt.x, farAt.y)) + far.x * groundHillAt(farAt));
+}
 float inkHillShadow(vec2 at) {
   if (groundHillShadows < 0.5 || groundHillReady < 0.5) return 0.0;
-  float over = (texture(groundHill, at * groundFormUv.x + groundFormUv.y).r * 2.0 - 1.0) * ${HILL_RANGE_METERS.toFixed(1)};
+  float over = (groundHillSmooth(at) * 2.0 - 1.0) * ${HILL_RANGE_METERS.toFixed(1)};
   return smoothstep(-${HILL_EDGE_METERS.toFixed(2)}, ${HILL_EDGE_METERS.toFixed(2)}, over);
 }
 `;
 
 const FORM_BODY = `
   inkSurface.form = groundFormAt(vRoadXZ);
-  inkSurface.formBend = mat2(
-    groundFormAt(vRoadXZ + vec2(${FORM_BEND_STEP.toFixed(1)}, 0.0)) - groundFormAt(vRoadXZ - vec2(${FORM_BEND_STEP.toFixed(1)}, 0.0)),
-    groundFormAt(vRoadXZ + vec2(0.0, ${FORM_BEND_STEP.toFixed(1)})) - groundFormAt(vRoadXZ - vec2(0.0, ${FORM_BEND_STEP.toFixed(1)}))
-  ) / ${(2 * FORM_BEND_STEP).toFixed(1)};
 `;
 
 const GROUND_BODY = `{${GROUND_PARTS}${FORM_BODY}}`;
