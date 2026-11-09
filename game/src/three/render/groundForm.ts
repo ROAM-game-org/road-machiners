@@ -6,14 +6,11 @@ import { TUNING } from "./inkTuning";
 const S = PHYSICS.metersPerTile;
 const GAUSS_REACH = 3;
 
-export const FORM_STRIDE = 4;
-
 export type GroundFormUniforms = {
   groundForm: GroundForm;
   groundFormUv: { value: THREE.Vector2 };
   groundFormTileMeters: { value: number };
   groundFormRelief: { value: number };
-  groundHillShadows: { value: number };
 };
 
 export function groundFormUniforms(t: Terrain): GroundFormUniforms {
@@ -23,7 +20,6 @@ export function groundFormUniforms(t: Terrain): GroundFormUniforms {
     groundFormUv: { value: new THREE.Vector2(1 / (S * side), 0.5 / side) },
     groundFormTileMeters: { value: S },
     groundFormRelief: { value: reliefMeters(t.heights) },
-    groundHillShadows: TUNING.hillShadows,
   };
 }
 
@@ -54,7 +50,7 @@ export class GroundForm implements THREE.IUniform<THREE.DataTexture> {
 
   private rebuild(scale: number): void {
     this.texture?.dispose();
-    const texture = new THREE.DataTexture(formField(this.heights, this.side, scale), this.side, this.side, THREE.RGBAFormat, THREE.FloatType);
+    const texture = new THREE.DataTexture(blurredHeights(this.heights, this.side, scale), this.side, this.side, THREE.RedFormat, THREE.FloatType);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
@@ -63,24 +59,7 @@ export class GroundForm implements THREE.IUniform<THREE.DataTexture> {
   }
 }
 
-export function formField(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
-  const form = blurred(heights, side, spreadTiles);
-  const field = new Float32Array(side * side * FORM_STRIDE);
-  for (let y = 0; y < side; y++)
-    for (let x = 0; x < side; x++) {
-      const k = y * side + x;
-      const left = form[y * side + Math.max(0, x - 1)];
-      const right = form[y * side + Math.min(side - 1, x + 1)];
-      const up = form[Math.max(0, y - 1) * side + x];
-      const down = form[Math.min(side - 1, y + 1) * side + x];
-      field[k * FORM_STRIDE] = (right - left) / (Math.min(side - 1, x + 1) - Math.max(0, x - 1));
-      field[k * FORM_STRIDE + 1] = (down - up) / (Math.min(side - 1, y + 1) - Math.max(0, y - 1));
-      field[k * FORM_STRIDE + 2] = form[k];
-    }
-  return field;
-}
-
-function blurred(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
+export function blurredHeights(heights: ArrayLike<number>, side: number, spreadTiles: number): Float32Array {
   const from = Float32Array.from(heights);
   if (spreadTiles <= 0) return from;
   const weights = gaussWeights(spreadTiles);

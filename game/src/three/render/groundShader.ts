@@ -8,7 +8,7 @@ import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
-import { groundFormUniforms, type GroundFormUniforms } from "./groundForm";
+import { groundFormUniforms } from "./groundForm";
 import { HILL_RANGE_METERS, HillShadows, type HillUniforms } from "./groundHill";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
@@ -100,9 +100,7 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type GroundShapeUniforms = GroundFormUniforms & HillUniforms;
-
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; form: GroundShapeUniforms; hills: HillShadows; header: string; key: string };
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; hills: HillShadows; header: string; key: string };
 
 export type GroundCacheUniforms = {
   groundCacheColor: THREE.IUniform<THREE.Texture | null>;
@@ -117,27 +115,24 @@ export type GroundCacheUniforms = {
 export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): DrawnGround {
   const fields = groundFields(mask, t, shelters, landforms);
   const worn = fields.highwayWear !== undefined;
-  const form = groundFormUniforms(t);
-  const hills = new HillShadows(form, t.size + 1);
   return {
     uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
-    form: { ...form, ...hills.uniforms },
-    hills,
+    hills: new HillShadows(groundFormUniforms(t), t.size + 1),
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };
 }
 
 export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
-  patchGround(material, { ...ground.uniforms, ...ground.form }, `${ground.header}${FORM_UNIFORMS}`, GROUND_BODY, ground.key);
+  patchGround(material, { ...ground.uniforms, ...ground.hills.uniforms }, `${ground.header}${HILL_UNIFORMS}`, GROUND_BODY, ground.key);
 }
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
 }
 
-export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, form: GroundShapeUniforms): void {
-  patchGround(material, { ...cache, ...form }, `${CACHE_READ_UNIFORMS}${FORM_UNIFORMS}`, CACHE_READ, "|cacheRead");
+export function readGroundCache(material: THREE.MeshLambertMaterial, cache: GroundCacheUniforms, hills: HillUniforms): void {
+  patchGround(material, { ...cache, ...hills }, `${CACHE_READ_UNIFORMS}${HILL_UNIFORMS}`, CACHE_READ, "|cacheRead");
 }
 
 function patchGround(material: THREE.MeshLambertMaterial, uniforms: Record<string, THREE.IUniform>, header: string, body: string, cacheKey: string): void {
@@ -808,17 +803,12 @@ const PADS_BODY = `
 
 const GROUND_PARTS = `${BORDER_BODY}${GLASS_BODY}${ROAD_BODY}${MARKS_BODY}${RELIEF_BODY}${BAND_BODY}${PADS_BODY}`;
 
-const FORM_UNIFORMS = `
-uniform sampler2D groundForm;
-uniform vec2 groundFormUv;
+const HILL_UNIFORMS = `
 uniform float groundHillShadows;
 uniform sampler2D groundHill;
 uniform float groundHillReady;
 uniform vec2 groundHillUv;
 uniform float groundHillSide;
-vec2 groundFormAt(vec2 at) {
-  return texture(groundForm, at * groundFormUv.x + groundFormUv.y).rg;
-}
 float groundHillAt(vec2 texel) {
   return texture(groundHill, (texel + 0.5) / groundHillSide).r;
 }
@@ -846,11 +836,7 @@ float inkHillShadow(vec2 at) {
 }
 `;
 
-const FORM_BODY = `
-  inkSurface.form = groundFormAt(vRoadXZ);
-`;
-
-const GROUND_BODY = `{${GROUND_PARTS}${FORM_BODY}}`;
+const GROUND_BODY = `{${GROUND_PARTS}}`;
 
 const CACHE_WRITE = `{${GROUND_PARTS}
   gl_FragColor = vec4(diffuseColor.rgb, inkSurface.road);
@@ -888,4 +874,4 @@ const CACHE_READ = `{
   inkSurface.rise = groundCacheRelief.w;
   inkSurface.edge = drawnEdgeLine(groundCacheEdgeAt.x * ${CACHE_EDGE_PX.toFixed(1)} / groundCacheDensity.x) * groundCacheEdgeAt.y;
   inkSurface.still = groundCacheEdgeAt.z;
-${FORM_BODY}}`;
+}`;

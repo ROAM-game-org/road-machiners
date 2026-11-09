@@ -9,7 +9,7 @@ export type Knob = { label: string; min: number; max: number; step: number; star
 export const KNOBS: Record<TuningKey, Knob> = {
   color: { label: "Color strength", min: 0, max: 1.5, step: 0.05, start: 0.4 },
   relief: { label: "Relief", min: 0, max: 1, step: 0.05, start: 0.2 },
-  formScale: { label: "Slope blur", min: 0, max: 10, step: 0.25, start: 1.25, unit: "tiles" },
+  formScale: { label: "Land blur", min: 0, max: 10, step: 0.25, start: 1.25, unit: "tiles" },
   edgeSoft: { label: "Edge fade", min: 0, max: 0.2, step: 0.01, start: 0.01 },
   heightTint: { label: "Height tint", min: 0, max: 1, step: 0.05, start: 0.8 },
   edgeWobble: { label: "Edge wobble", min: 0, max: 2, step: 0.05, start: 1 },

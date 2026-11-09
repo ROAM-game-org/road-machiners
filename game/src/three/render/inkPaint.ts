@@ -11,8 +11,8 @@ const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
 
 export const INK_CONTRACT = `
-struct InkSurface { float road; float edge; float height; vec2 slope; vec2 form; float rise; float still; };
-InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), vec2(0.0), 0.0, 0.0);
+struct InkSurface { float road; float edge; float height; vec2 slope; float rise; float still; };
+InkSurface inkSurface = InkSurface(0.0, 0.0, 0.0, vec2(0.0), 0.0, 0.0);
 struct InkSun { float anyCast; float litCast; float facing; vec3 dirView; };
 InkSun inkSun = InkSun(0.0, 0.0, 0.0, vec3(0.0, 1.0, 0.0));
 vec3 inkLamp = vec3(0.0);
@@ -34,7 +34,6 @@ uniform float inkContourOpacity;
 uniform float inkContourCross;
 uniform float inkObjectHatch;
 uniform float inkRelief;
-uniform float inkFormScale;
 uniform float inkShadeDark;
 uniform float inkShadeShift;
 uniform float inkCastDark;
@@ -154,9 +153,9 @@ vec3 inkHeightBands(vec3 color) {
   return mix(color, color * vec3(0.95, 0.97, 1.03), (1.0 - high) * heightTint * 0.5);
 }
 float inkHillShadow(vec2 at);
-vec3 inkSourceTint(vec3 color, float thing, float hill, float face) {
-  vec3 source = vec3(thing, face * (1.0 - hill), hill);
-  return max(source.r, max(source.g, source.b)) > 0.0 ? mix(color, source, 0.6) : color;
+vec3 inkSourceTint(vec3 color, float thing, float hill) {
+  vec3 source = vec3(thing, 0.0, hill);
+  return max(source.r, source.b) > 0.0 ? mix(color, source, 0.6) : color;
 }
 float inkFacing(vec2 slope) {
   vec3 up = normalize((viewMatrix * vec4(-slope.x, 1.0, -slope.y, 0.0)).xyz);
@@ -171,20 +170,17 @@ vec3 inkGroundShade(vec3 color, float inShade) {
 vec3 inkPaint(vec3 linear, vec3 albedo) {
   vec3 lit = inkSunlit(linear, albedo);
   float level = inkLevel(lit);
-  vec2 shapeSlope = inkFormScale > 0.0 ? inkSurface.form : inkSurface.slope;
-  vec3 shapeUp = normalize((viewMatrix * vec4(-shapeSlope.x, 1.0, -shapeSlope.y, 0.0)).xyz);
-  float facingShade = 1.0 - smoothstep(-0.02, 0.06, dot(shapeUp, inkSun.dirView));
   float hill = inkHillShadow(vInkAt.xz);
   float thing = inkInShade(inkSun.anyCast) * (1.0 - hill);
   float sunless = max(thing, hill);
-  float inShade = inkInShade(max(sunless, facingShade));
+  float inShade = inkInShade(sunless);
   vec3 color = inkGroundShade(inkHeightBands(inkBase(albedo, lit, level, 0.0, inkSmoothRelief(inkFacing(inkSurface.slope)))), inShade);
   color *= 1.0 - inkCastDark * sunless;
-  if (inkShadowSources > 0.5) color = inkSourceTint(color, thing, hill, facingShade);
+  if (inkShadowSources > 0.5) color = inkSourceTint(color, thing, hill);
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
-  return inkFinish(color, plane, facingShade, inShade, inkHatch, inkContourLine(inkContourStep) * inkContour);
+  return inkFinish(color, plane, hill, inShade, inkHatch, inkContourLine(inkContourStep) * inkContour);
 }
 `;
 
@@ -283,7 +279,6 @@ function inkUniforms() {
     inkContourCross: TUNING.contourCross,
     inkObjectHatch: TUNING.objectHatch,
     inkRelief: TUNING.relief,
-    inkFormScale: TUNING.formScale,
     inkShadeDark: TUNING.shadeDark,
     inkShadeShift: TUNING.shadeShift,
     inkCastDark: TUNING.castDark,

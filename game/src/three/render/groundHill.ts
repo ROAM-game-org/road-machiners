@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { SIN_ELEVATION } from "./camera";
 import type { GroundFormUniforms } from "./groundForm";
+import { TUNING } from "./inkTuning";
 
 export const HILL_RANGE_METERS = 2;
 const HILL_TEXELS_PER_TILE = 2;
@@ -14,6 +15,7 @@ const SUN_DIGITS = 4;
 const WINDOW_MARGIN = 1.5;
 
 export type HillUniforms = {
+  groundHillShadows: { value: number };
   groundHill: { value: THREE.Texture };
   groundHillReady: { value: number };
   groundHillUv: { value: THREE.Vector2 };
@@ -36,6 +38,7 @@ export class HillShadows {
     const side = (cornersPerSide - 1) * HILL_TEXELS_PER_TILE + 1;
     this.target = new THREE.WebGLRenderTarget(side, side, { format: THREE.RedFormat, depthBuffer: false, stencilBuffer: false, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     this.uniforms = {
+      groundHillShadows: TUNING.hillShadows,
       groundHill: { value: this.target.texture },
       groundHillReady: { value: 0 },
       groundHillUv: { value: new THREE.Vector2(1 / (this.texelMeters * side), 0.5 / side) },
@@ -107,7 +110,7 @@ uniform float groundFormRelief;
 uniform float hillTexelMeters;
 uniform vec3 hillToSun;
 float heightAt(vec2 at) {
-  return texture2D(groundForm, at * groundFormUv.x + groundFormUv.y).b * groundFormTileMeters;
+  return texture2D(groundForm, at * groundFormUv.x + groundFormUv.y).r * groundFormTileMeters;
 }
 void main() {
   float across = length(hillToSun.xz);
