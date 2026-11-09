@@ -207,6 +207,7 @@ function materialUniforms() {
     drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
     drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
     drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
+    drawnMaterialFine: { value: rows.map((row) => EDGE_LOOKS[row.edge].fine) },
     drawnMaterialSpill: { value: rows.map((row) => row.spill) },
     drawnMaterialStand: { value: rows.map((row) => row.stand) },
     drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
@@ -282,6 +283,7 @@ uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialFine[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnEdgeShadowAmount;
@@ -390,30 +392,27 @@ vec4 drawnSplineSlopes(float f) {
   float g = 1.0 - f;
   return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
 }
-vec2 drawnEdgeTraitsOfTiles(vec2 tile) {
+vec3 drawnEdgeTraitsOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
-  float wave = 0.0;
-  float pepper = 0.0;
+  vec3 traits = vec3(0.0);
   for (int j = 0; j < 4; j++)
     for (int i = 0; i < 4; i++) {
       int id = drawnMaterialAt(first + vec2(float(i), float(j)) + 0.5);
-      float weight = wx[i] * wy[j];
-      wave += weight * drawnMaterialWave[id];
-      pepper += weight * drawnMaterialPepper[id];
+      traits += wx[i] * wy[j] * vec3(drawnMaterialWave[id], drawnMaterialPepper[id], drawnMaterialFine[id]);
     }
-  return vec2(wave, pepper);
+  return traits;
 }
-vec2 drawnEdgeTraits(vec2 tile) {
+vec3 drawnEdgeTraits(vec2 tile) {
   DrawnBlock block;
   if (!drawnBlockAt(tile, block)) return drawnEdgeTraitsOfTiles(tile);
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
   vec3 shares = vec3(drawnMaskShare(block.masks.x, wx, wy), drawnMaskShare(block.masks.y, wx, wy), drawnMaskShare(block.masks.z, wx, wy));
-  return vec2(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}));
+  return vec3(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}), dot(shares, ${pickMaterial("drawnMaterialFine")}));
 }
 DrawnBorder drawnBorderOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
@@ -534,10 +533,11 @@ float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, 
   float band = smoothstep(-aaMeters, aaMeters, depth) * (1.0 - smoothstep(0.0, drawnEdgeShadowWidth + aaMeters, depth));
   return band * min(abs(rise), 1.0) * drawnEdgeShadowAmount * seen;
 }
-vec2 drawnWarpAt(float wave, vec2 at) {
+vec2 drawnWarpAt(float wave, float fineShare, vec2 at) {
   vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
-  vec2 fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
-  return (broad + fine * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
+  vec2 fine = vec2(0.0);
+  if (fineShare > 0.0) fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
+  return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
 }
 float drawnPepperNoise(vec2 at, float px) {
   float mid = (valueNoise(at / 0.6 + 43.0) - 0.5) * 0.3 * (1.0 - smoothstep(0.12, 0.22, px));
@@ -643,9 +643,9 @@ const BORDER_BODY = `
   vec3 blurredGround = textureLod(map, vMapUv, 2.5).rgb;
   vec2 drawnTileAt = vRoadXZ / facetSide;
   float drawnTilePx = max(length(fwidth(vRoadXZ)), 0.0005) / facetSide;
-  vec2 drawnRough = drawnEdgeTraits(drawnTileAt);
+  vec3 drawnRough = drawnEdgeTraits(drawnTileAt);
   vec2 drawnWarp = vec2(0.0);
-  if (drawnRough.x > 0.0) drawnWarp = drawnWarpAt(drawnRough.x, vRoadXZ);
+  if (drawnRough.x > 0.0) drawnWarp = drawnWarpAt(drawnRough.x, drawnRough.z, vRoadXZ);
   DrawnBorder drawnEdge = drawnBorderAt((vRoadXZ + drawnWarp) / facetSide);
   float drawnPeppered = min(drawnRough.y * 2.0, 1.0);
   float drawnPepperShift = 0.0;
