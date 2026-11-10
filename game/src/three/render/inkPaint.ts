@@ -12,10 +12,10 @@ const INK_BAND_SOFT = 0.35;
 const INK_STREAK_SPACING = 2.2;
 const INK_STREAK_CELL = 8;
 const INK_STREAK_LENGTH = 3;
-const INK_STREAK_KEPT = 0.25;
+const INK_STREAK_KEPT = 0.18;
 const INK_STREAK_WIDTH = 0.22;
-const INK_STREAK_STEEP_FROM = 0.45;
-const INK_STREAK_STEEP_FULL = 0.8;
+const INK_STREAK_STEEP_FROM = 0.55;
+const INK_STREAK_STEEP_FULL = 0.95;
 
 export const INK_CONTRACT = `
 struct InkSurface { float road; float edge; float height; vec2 slope; float rise; vec2 form; float crest; };
@@ -208,7 +208,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float relief = mix(inkSmoothRelief(inkFacing(inkSurface.slope)), inkSmoothRelief(1.0), inShade);
   vec3 color = inkGroundShade(inkSunFace(inkHeightBands(inkBase(albedo, lit, level, 0.0, relief)), inShade), inShade);
   color *= 1.0 - inkCastDark * inShade;
-  color *= 1.0 - inkFallStreaks() * INK_CREST_TONE;
+  color *= 1.0 - inkFallStreaks() * (1.0 - inShade) * INK_CREST_TONE;
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
