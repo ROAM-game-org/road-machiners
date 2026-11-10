@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { blurredHeights } from "../../sim/surface";
 
 export const LANDFORM_BLUR_TILES = 1.5;
+export const LANDFORM_DETAIL_BLUR_TILES = 0.5;
 
 export function landformSlopes(form: Float32Array, side: number): Float32Array {
   const slopes = new Float32Array(side * side * 2);
@@ -28,11 +29,13 @@ export type LandformUniforms = {
 
 export class GroundLandform {
   readonly form: Float32Array;
+  readonly detail: Float32Array;
   readonly uniforms: LandformUniforms;
 
   constructor(heights: ArrayLike<number>, side: number, metersPerTile: number) {
     this.form = blurredHeights(heights, side, LANDFORM_BLUR_TILES);
-    const slopes = landformSlopes(this.form, side);
+    this.detail = blurredHeights(heights, side, LANDFORM_DETAIL_BLUR_TILES);
+    const slopes = landformSlopes(this.detail, side);
     const half = new Uint16Array(slopes.length);
     for (let k = 0; k < slopes.length; k++) half[k] = THREE.DataUtils.toHalfFloat(slopes[k]);
     const texture = new THREE.DataTexture(half, side, side, THREE.RGFormat, THREE.HalfFloatType);

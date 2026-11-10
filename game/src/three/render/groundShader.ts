@@ -110,7 +110,7 @@ const LAND_GLSL = `${LANDFORM_GLSL}${CREST_GLSL}`;
 
 function landOf(t: Terrain): Land {
   const landform = new GroundLandform(t.heights, t.size + 1, S);
-  return { landform, crest: new GroundCrest(landform.form, t.size + 1, S) };
+  return { landform, crest: new GroundCrest(landform.form, t.heights, t.size + 1, S) };
 }
 
 export function landUniforms(land: Land): LandUniforms {
