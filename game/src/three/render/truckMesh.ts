@@ -86,7 +86,7 @@ export const WORLD_LOOKS = {
 };
 
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
-  const { hex, surface, partId, armor, tinted, geos } = bucket;
+  const { hex, surface, tinted, geos } = bucket;
   const merged = mergeGeometries(geos);
   if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
@@ -95,11 +95,16 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
   mesh.name = 'truck-surface';
-  if (partId) mesh.userData.partId = partId;
-  if (armor) mesh.userData.armor = true;
+  tagMesh(mesh, bucket);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+function tagMesh(mesh: THREE.Mesh, { partId, armor, surface }: Bucket): void {
+  if (partId) mesh.userData.partId = partId;
+  if (armor) mesh.userData.armor = true;
+  if (surface) mesh.userData.surface = surface;
 }
 
 function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner, tinted: boolean): Bucket {

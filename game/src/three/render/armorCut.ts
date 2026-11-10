@@ -11,22 +11,32 @@ import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGla
 
 export type { Placement } from './armorFit';
 export { unitTopCut } from './armorTop';
+export { armorModel } from './armorLook';
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
-export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[]; top: TopCut };
+export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[]; top: TopCut; stripe: THREE.Color; stripeFloor: number };
+export type CutFace = 'plain' | 'capped' | 'striped';
 
 const CORNER_DIGITS = 3;
 const CAP_TONE = 1.05;
+const STRIPE_HALF_WIDTH = 0.04;
 
 export const CUT_SLOTS = { wheels: 6, lamps: 8 };
 
 type Positions = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box3[], half: Body['half'], look: typeof TRUCK_LOOK, top: TopCut): CutSpec {
+export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box3[], half: Body['half'], look: typeof TRUCK_LOOK, top: TopCut, stripe: number): CutSpec {
   return {
     wheels: wheels.map((box) => wheelCut(box, look)),
     lamps: lamps.filter((island) => atEnd(island, half, look)).map((island) => lampWindow(island, look)),
     top,
+    stripe: new THREE.Color(stripe),
+    stripeFloor: -half.y + look.armorRise,
   };
+}
+
+export function cutFace(mesh: THREE.Mesh): CutFace {
+  if (mesh.userData.outline) return 'plain';
+  return mesh.userData.surface === 'ram' ? 'capped' : 'striped';
 }
 
 function wheelCut(box: THREE.Box3, look: typeof TRUCK_LOOK): WheelCut {
@@ -109,6 +119,8 @@ uniform sampler2D cutTop;
 uniform vec2 cutTopFirst;
 uniform vec2 cutTopSize;
 uniform float cutTopCell;
+uniform vec3 cutStripe;
+uniform float cutStripeFloor;
 float cutTopAt(ivec2 at) {
   return texelFetch(cutTop, clamp(at, ivec2(0), ivec2(cutTopSize) - 1), 0).r;
 }
@@ -129,6 +141,9 @@ for (int i = 0; i < CUT_LAMPS; i++) {
 if (vCutPos.y > cutTopHeight(vCutPos) + ${TOP_MARGIN.toFixed(3)}) discard;`;
 
 const CAP_FRAGMENT = `if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * ${CAP_TONE.toFixed(2)};`;
+const STRIPE_FRAGMENT = `float cutStripeAa = fwidth(vCutPos.y);
+float cutStripeOff = abs(vCutPos.y - 0.5 * (cutStripeFloor + cutTopHeight(vCutPos)));
+diffuseColor.rgb = mix(diffuseColor.rgb, cutStripe, 1.0 - smoothstep(${STRIPE_HALF_WIDTH.toFixed(3)} - cutStripeAa, ${STRIPE_HALF_WIDTH.toFixed(3)} + cutStripeAa, cutStripeOff));`;
 
 type CutUniforms = Record<string, THREE.IUniform>;
 
@@ -153,6 +168,8 @@ function uniformsOf(spec: CutSpec): CutUniforms {
     cutTopFirst: { value: spec.top.first },
     cutTopSize: { value: spec.top.size },
     cutTopCell: { value: spec.top.cell },
+    cutStripe: { value: spec.stripe },
+    cutStripeFloor: { value: spec.stripeFloor },
   };
   uniformsOfSpec.set(spec, uniforms);
   return uniforms;
@@ -163,9 +180,10 @@ function insertAfter(source: string, token: string, extra: string): string {
   return source.replace(token, () => `${token}\n${extra}`);
 }
 
-export function withCut<M extends THREE.Material>(source: M, spec: CutSpec, capped = false): M {
+export function withCut<M extends THREE.Material>(source: M, spec: CutSpec, face: CutFace = 'plain'): M {
   const own = source.clone() as M;
-  if (capped) own.side = THREE.DoubleSide;
+  const shaded = face !== 'plain' && !(own instanceof THREE.MeshDepthMaterial);
+  if (face !== 'plain') own.side = THREE.DoubleSide;
   const before = source.onBeforeCompile;
   const sourceKey = source.customProgramCacheKey;
   const uniforms = uniformsOf(spec);
@@ -175,9 +193,10 @@ export function withCut<M extends THREE.Material>(source: M, spec: CutSpec, capp
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = insertAfter(insertAfter(shader.vertexShader, '#include <common>', VERTEX_DECLARE), '#include <project_vertex>', VERTEX_SET);
     shader.fragmentShader = insertAfter(insertAfter(shader.fragmentShader, '#include <common>', FRAGMENT_DECLARE), '#include <clipping_planes_fragment>', FRAGMENT_DISCARD);
-    if (capped && !(own instanceof THREE.MeshDepthMaterial)) shader.fragmentShader = insertAfter(shader.fragmentShader, '#include <tonemapping_fragment>', CAP_FRAGMENT);
+    if (face === 'striped' && shaded) shader.fragmentShader = insertAfter(shader.fragmentShader, '#include <color_fragment>', STRIPE_FRAGMENT);
+    if (shaded) shader.fragmentShader = insertAfter(shader.fragmentShader, '#include <tonemapping_fragment>', CAP_FRAGMENT);
   };
-  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut`;
+  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut-${face}`;
   return own;
 }
 

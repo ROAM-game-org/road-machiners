@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { describe, expect, it } from 'vitest';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import type { HeightMap } from '../../sim/body';
-import { CUT_SLOTS, cutSpec, lampIslands, withCut } from './armorCut';
+import { CUT_SLOTS, cutFace, cutSpec, lampIslands, withCut } from './armorCut';
 import { fitToBody, placedBounds, type Placement } from './armorFit';
 import { cutHeightAt, topCut } from './armorTop';
 import { CloudShadows } from './cloudShadows';
@@ -20,6 +20,7 @@ function tops(height: (x: number, z: number) => number): HeightMap {
 }
 
 const TOP = topCut(tops(() => 0.4), SEAMS);
+const STRIPE = 0xc04020;
 
 function box(min: [number, number, number], max: [number, number, number]): THREE.Box3 {
   return new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max));
@@ -33,7 +34,7 @@ function shaderOf(material: THREE.Material) {
   const shader = {
     uniforms: {} as Record<string, { value: unknown }>,
     vertexShader: '#include <common>\n#include <project_vertex>',
-    fragmentShader: '#include <common>\n#include <clipping_planes_fragment>\n#include <aomap_fragment>',
+    fragmentShader: '#include <common>\n#include <clipping_planes_fragment>\n#include <color_fragment>\n#include <aomap_fragment>\n#include <tonemapping_fragment>',
   };
   material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
   return shader;
@@ -41,7 +42,7 @@ function shaderOf(material: THREE.Material) {
 
 describe('cutSpec', () => {
   it('cuts one cylinder per wheel box, scaled by the cut scale and as wide as the wheel', () => {
-    const spec = cutSpec([box([1, -1, 1], [3, 1, 1.6])], [], HALF, TRUCK_LOOK, TOP);
+    const spec = cutSpec([box([1, -1, 1], [3, 1, 1.6])], [], HALF, TRUCK_LOOK, TOP, STRIPE);
     expect(spec.wheels).toHaveLength(1);
     expect(spec.wheels[0].center.toArray()).toEqual([2, 0, 1.3]);
     expect(spec.wheels[0].radius).toBeCloseTo(1 * TRUCK_LOOK.cutScale);
@@ -52,18 +53,18 @@ describe('cutSpec', () => {
     const front = box([1.9, 0.1, -0.5], [2.1, 0.3, -0.3]);
     const rear = box([-2.1, 0.1, 0.3], [-1.9, 0.3, 0.5]);
     const middle = box([0, 0.1, 0.3], [0.2, 0.3, 0.5]);
-    const spec = cutSpec([], [front, rear, middle], HALF, TRUCK_LOOK, TOP);
+    const spec = cutSpec([], [front, rear, middle], HALF, TRUCK_LOOK, TOP, STRIPE);
     expect(spec.lamps).toHaveLength(2);
   });
 
   it('makes no window when no lamp is near an end', () => {
-    expect(cutSpec([], [], HALF, TRUCK_LOOK, TOP).lamps).toEqual([]);
+    expect(cutSpec([], [], HALF, TRUCK_LOOK, TOP, STRIPE).lamps).toEqual([]);
   });
 
   it('reaches a front window outward by the lamp reach and a rear window the other way', () => {
     const front = box([1.9, 0.1, -0.5], [2.1, 0.3, -0.3]);
     const rear = box([-2.1, 0.1, 0.3], [-1.9, 0.3, 0.5]);
-    const [first, second] = cutSpec([], [front, rear], HALF, TRUCK_LOOK, TOP).lamps;
+    const [first, second] = cutSpec([], [front, rear], HALF, TRUCK_LOOK, TOP, STRIPE).lamps;
     expect(first.max.x).toBeCloseTo(2 + TRUCK_LOOK.lampReach);
     expect(first.min.x).toBeCloseTo(2 - 0.1 * TRUCK_LOOK.cutScale);
     expect(second.min.x).toBeCloseTo(-2 - TRUCK_LOOK.lampReach);
@@ -147,21 +148,40 @@ describe('lampIslands', () => {
 });
 
 describe('withCut', () => {
-  const spec = cutSpec([box([1, -1, 1], [3, 1, 1.6])], [box([1.9, 0.1, -0.5], [2.1, 0.3, -0.3])], HALF, TRUCK_LOOK, TOP);
+  const spec = cutSpec([box([1, -1, 1], [3, 1, 1.6])], [box([1.9, 0.1, -0.5], [2.1, 0.3, -0.3])], HALF, TRUCK_LOOK, TOP, STRIPE);
 
   it('adds the discard after the clipping planes and the position varying to both shaders', () => {
     const shader = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec));
     expect(shader.fragmentShader).toMatch(/#include <clipping_planes_fragment>\nfor \(int i = 0; i < CUT_WHEELS/);
     expect(shader.fragmentShader).toContain('discard');
     expect(shader.vertexShader).toContain('vCutPos = transformed;');
-    expect(Object.keys(shader.uniforms).sort()).toEqual(['cutLampMax', 'cutLampMin', 'cutTop', 'cutTopCell', 'cutTopFirst', 'cutTopSize', 'cutWheelAt', 'cutWheelHalfWidth']);
+    expect(Object.keys(shader.uniforms).sort()).toEqual(['cutLampMax', 'cutLampMin', 'cutStripe', 'cutStripeFloor', 'cutTop', 'cutTopCell', 'cutTopFirst', 'cutTopSize', 'cutWheelAt', 'cutWheelHalfWidth']);
     expect(shader.fragmentShader).toContain('cutTopHeight(vCutPos)');
+  });
+
+  it('paints the faction line only on striped faces and caps every shaded face', () => {
+    const striped = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec, 'striped')).fragmentShader;
+    const capped = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec, 'capped')).fragmentShader;
+    const plain = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec)).fragmentShader;
+    expect(striped).toMatch(/#include <color_fragment>\nfloat cutStripeAa/);
+    expect(striped).toContain('0.5 * (cutStripeFloor + cutTopHeight(vCutPos))');
+    expect(capped).not.toContain('cutStripeAa');
+    expect(capped).toContain('gl_FrontFacing');
+    expect(plain).not.toContain('gl_FrontFacing');
+    expect(spec.stripeFloor).toBeCloseTo(-HALF.y + TRUCK_LOOK.armorRise);
+  });
+
+  it('keeps rams out of the faction line and outlines out of every face', () => {
+    const mesh = (userData: Record<string, unknown>) => Object.assign(new THREE.Mesh(), { userData });
+    expect(cutFace(mesh({ surface: 'armor' }))).toBe('striped');
+    expect(cutFace(mesh({ surface: 'ram' }))).toBe('capped');
+    expect(cutFace(mesh({ outline: true, surface: 'armor' }))).toBe('plain');
   });
 
   it('compiles one program for every truck, with unused slots that cut nothing', () => {
     const cut = withCut(new THREE.MeshLambertMaterial(), spec);
     expect(cut.defines).toMatchObject({ CUT_WHEELS: CUT_SLOTS.wheels, CUT_LAMPS: CUT_SLOTS.lamps });
-    const other = withCut(new THREE.MeshLambertMaterial(), cutSpec([], [], HALF, TRUCK_LOOK, TOP));
+    const other = withCut(new THREE.MeshLambertMaterial(), cutSpec([], [], HALF, TRUCK_LOOK, TOP, STRIPE));
     expect(cut.customProgramCacheKey()).toBe(other.customProgramCacheKey());
     const uniforms = shaderOf(cut).uniforms;
     const wheels = uniforms.cutWheelAt.value as THREE.Vector4[];
@@ -173,7 +193,7 @@ describe('withCut', () => {
   });
 
   it('refuses more wheels than the shader has slots', () => {
-    const many = cutSpec(Array.from({ length: CUT_SLOTS.wheels + 1 }, () => box([1, -1, 1], [3, 1, 1.6])), [], HALF, TRUCK_LOOK, TOP);
+    const many = cutSpec(Array.from({ length: CUT_SLOTS.wheels + 1 }, () => box([1, -1, 1], [3, 1, 1.6])), [], HALF, TRUCK_LOOK, TOP, STRIPE);
     expect(() => shaderOf(withCut(new THREE.MeshLambertMaterial(), many))).toThrow(/shader slots/);
   });
 

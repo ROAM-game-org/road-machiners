@@ -67,7 +67,7 @@ describe('model fill', () => {
     const fill = new ModelFill();
     const material = new THREE.MeshLambertMaterial();
     fill.shadeTree(meshOf(material));
-    const copy = withCut(material, { wheels: [], lamps: [], top: topCut({ cell: 0.1, i0: 0, j0: 0, top: [[40]] }, { along: [], across: [] }) });
+    const copy = withCut(material, { wheels: [], lamps: [], top: topCut({ cell: 0.1, i0: 0, j0: 0, top: [[40]] }, { along: [], across: [] }), stripe: new THREE.Color(), stripeFloor: 0 });
     fill.shadeTree(meshOf(copy));
     const shader = lambertShader(copy);
     expect(shader.fragmentShader.match(/uniform vec3 modelFill;/g)).toHaveLength(1);

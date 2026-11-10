@@ -686,6 +686,8 @@ const SURFACES = {
   rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0, grain: 0, neutral: 0 },
   grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0, grain: 0, neutral: 0 },
   plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  armor: { dirt: [0.55, 0.54, 0.52], edge: 0.08, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  ram: { dirt: [0.55, 0.54, 0.52], edge: 0.08, chips: 0, shine: 0, grain: 0, neutral: 0 },
 } satisfies Record<string, Surface>;
 
 export type SurfaceName = keyof typeof SURFACES;
@@ -708,6 +710,8 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
   under: 'grime',
   wheel: 'grime',
   soot: 'grime',
+  armor: 'armor',
+  ram: 'ram',
   glass: null,
   light: null,
   glow: null,
