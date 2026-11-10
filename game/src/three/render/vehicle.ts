@@ -23,7 +23,7 @@ import { armorModel, cutFace, cutSpec, drawnArmorPlacement, lampIslands, unitTop
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
-import { weaponHead } from './weaponHead';
+import { gunBase, gunHead } from './gunLook';
 import { cornerWheels, nearestWheels } from './wheelItems';
 
 const T = PHYSICS.truck;
@@ -608,7 +608,7 @@ export class VehicleView {
     const bottom = postBottom(foot, top);
     const mount = { ...at, pos: at.pos.clone().setY(top) };
     if (bottom >= top || !postStands(this.units[stand.plate.unit].base, at.pos, bottom)) return mount;
-    const post = model('wmount_riser');
+    const post = gunBase('wmount_riser', paint);
     place(post, { pos: at.pos.clone().setY(bottom), yaw: 0, scale: new THREE.Vector3(1, (top - bottom) / socket('wmount_riser', 'top').y, 1) });
     tint(post, paint, lookOf(item));
     post.name = `${item.id} post`;
@@ -617,7 +617,7 @@ export class VehicleView {
   }
 
   private legModel(item: PartItem, paint: number, role: 'leg' | 'brace'): THREE.Object3D {
-    const leg = model('wmount_leg');
+    const leg = gunBase('wmount_leg', paint);
     tint(leg, paint, lookOf(item));
     leg.name = `${item.id} ${role}`;
     return leg;
@@ -627,7 +627,7 @@ export class VehicleView {
     const unit = this.unitOf(v, item);
     const look = weaponLook(item.part.id, item.part.defId);
     const wear = lookOf(item);
-    const { head: parts, tip } = weaponHead(look);
+    const { head: parts, tip } = gunHead(look, item.part.defId);
     for (const p of parts.children) tint(p, paint, wear);
     const head = mergeStatic(parts, this.scene === 'world');
 
@@ -636,7 +636,7 @@ export class VehicleView {
     const facing = signedDegrees(facingOf(item));
     const spans = gunSpans(v, item);
     const shape = headShape(head, socket(look.receiver, 'muzzle').x);
-    const mount = model(look.mount);
+    const mount = gunBase(look.mount, paint);
     place(mount, stand.at);
     mount.updateMatrix();
     const across = laneAxis(facing);

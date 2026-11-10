@@ -268,7 +268,6 @@ export const NAMES = [
   'wbar_rocket_tubes',
   'wbar_harpoon',
 
-  'wext_scope',
   'wext_shield',
   'wext_drum',
 ] as const;
