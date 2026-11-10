@@ -45,8 +45,8 @@ ARCH_FOOT = HUB_Z - WHEEL_R  # arch cuts run down past the hub, below every body
 
 TRACTOR_REAR = 3.5
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
-STEER_X = 7.85  # PHYSICS.bodies.sorokonoga.wheelX ahead of the tractor's center
-DRIVE_X = 4.05  # PHYSICS.bodies.sorokonoga.wheelX behind the tractor's center
+STEER_X = 7.85  # PHYSICS.bodies.sorokonoga.wheelX plus axleMid ahead of the tractor's center
+DRIVE_X = TRACTOR_REAR + 0.45 + 0.15 + WHEEL_R  # a grid cell and the arch ahead of the tail; PHYSICS.bodies.sorokonoga.wheelX less axleMid behind the tractor's center
 PIVOT_X = 3.8  # PHYSICS.couplings.sorokonoga pivotFront and pivotRear, in the straight rig frame
 MODULE_FRONT = TRACTOR_REAR
 MODULE_ORIGIN = (MODULE_FRONT + BACK) / 2
@@ -57,7 +57,8 @@ BAY_FRONT = TRACTOR_ORIGIN + 0.225  # the engine bay of the chassis.ts layout: r
 BAY_BACK = BAY_FRONT - 1.35
 BAY_LEFT = 0.675
 BAY_RIGHT = -0.225
-ENGINE = ((BAY_FRONT + BAY_BACK) / 2, -0.4, (BAY_LEFT + BAY_RIGHT) / 2)  # PHYSICS.bodies.sorokonoga.engineY as Blender z, over the bay's center
+ENGINE_FLOOR = HUB_Z + WHEEL_R + ARCH_CLEARANCE  # PHYSICS.bodies.sorokonoga.engineY: clear of the left inner dual's arch top
+ENGINE = ((BAY_FRONT + BAY_BACK) / 2, ENGINE_FLOOR, (BAY_LEFT + BAY_RIGHT) / 2)
 
 COLORS = BASE_COLORS
 
