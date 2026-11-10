@@ -9,7 +9,9 @@ export const ATLAS_CELLS = 3;
 
 const CARD_LIGHT = { scatter: 0.7 };
 const BILLOW = { fade: { soft: 0.03, crisp: 0.15 }, opacity: 0.95, radius: 0.8, linePx: 1.6, curl: { from: 0.45, to: 0.75, down: 0.5 }, curlBreaks: 3, curlGaps: 0.35, lineTone: 0.45, lift: 0.5, paper: [0.78, 0.78, 0.8] };
-const DENSITY = { gain: 2.2, boil: { scale: 1.6, speed: 0.12, low: 0.8, high: 1.15 }, rim: { inner: 0.55, outer: 0.85 }, softMeters: 1.5 };
+const DENSITY = { gain: 2.2, boil: { scale: 1.6, speed: 0.12, low: 0.8, high: 1.15 }, softMeters: 1.5 };
+export const DUST_RIM = { inner: 0.55, outer: 0.85 };
+const DUST_SAND = [0.85, 0.66, 0.42];
 const FIRE = { edge: { full: 0.42, gone: 0.8 }, fadeAlpha: 0.3, opacityGain: 1.5, thin: { soft: 0.25, crisp: 0.45 }, rim: 0.18, rimTone: [0.8, 0.3, 0.2], core: 0.55, coreShare: 0.7, yellow: [1, 0.8, 0.25], taper: { from: 0.05, to: 0.2, tip: 0.12 } };
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
 const CLUMP_EDGE = { from: 0, to: 1 };
@@ -58,6 +60,7 @@ export const CARD_VERTEX = `
   attribute float shape;
   attribute vec4 tint;
   uniform vec3 sunDir;
+  uniform float sandTint;
   ${VARYINGS}
   void main() {
     vSpin = sizeSpin.y;
@@ -76,7 +79,7 @@ export const CARD_VERTEX = `
     vBall = (uv - 0.5) * 2.0;
     vRound = abs(base - ${f(ROUND_SHAPE)}) < 0.5 ? 1.0 : 0.0;
     vClump = atlasShape > ${f(CLUMP_FIRST - 0.5)} && atlasShape < ${f(CLUMP_FIRST + CLUMP_SHAPES - 0.5)} ? 1.0 : 0.0;
-    vTint = tint;
+    vTint = vec4(mix(tint.rgb, ${v3(DUST_SAND)}, sandTint), tint.a);
     vSun = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
     vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
     vec4 mv = modelViewMatrix * vec4(offset, 1.0);
@@ -202,6 +205,7 @@ export const DENSITY_FRAGMENT = `
   uniform sampler2D sceneDepth;
   uniform vec2 densitySize;
   uniform vec2 nearFar;
+  uniform vec2 densityRim;
   uniform float playSeconds;
   ${VARYINGS}
   float densityHash(vec2 p) {
@@ -224,7 +228,7 @@ export const DENSITY_FRAGMENT = `
     float t = playSeconds * ${f(DENSITY.boil.speed)};
     float boil = densityNoise(q + vec2(t, -t * 0.7)) * 0.6 + densityNoise(q * 2.3 + vec2(-t * 1.3, t)) * 0.4;
     float r = sqrt(r2) / mix(${f(DENSITY.boil.low)}, ${f(DENSITY.boil.high)}, boil);
-    float d = (1.0 - smoothstep(${f(DENSITY.rim.inner)}, ${f(DENSITY.rim.outer)}, r)) * vTint.a * ${f(DENSITY.gain)};
+    float d = (1.0 - smoothstep(densityRim.x, densityRim.y, r)) * vTint.a * ${f(DENSITY.gain)};
     float scene = texture2D(sceneDepth, gl_FragCoord.xy / densitySize).r;
     float sceneZ = nearFar.x + scene * (nearFar.y - nearFar.x);
     d *= smoothstep(0.0, ${f(DENSITY.softMeters)}, sceneZ - vViewZ);
