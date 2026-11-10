@@ -16,9 +16,10 @@ import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
 import { drawnWheelPoints } from '../../render/partLooks';
-import { loadModels } from './models';
-import { signatureOf, VehicleView } from './vehicle';
-import { BODY_PAINT_SATURATION, bodyPaint } from './truckMesh';
+import { baseModel } from '../../render/partLooks';
+import { loadModels, model } from './models';
+import { dent, signatureOf, VehicleView } from './vehicle';
+import { BODY_PAINT_SATURATION, bodyPaint, CHAR, charShare } from './truckMesh';
 import { defaultSetup } from '../../sim/settings';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -36,6 +37,10 @@ function withHp(v: Vehicle, partId: string, hp: number): Vehicle {
   const items = structuredClone(v.items);
   for (const it of items) if (it.kind === 'part' && it.part.id === partId) it.part.hp = hp;
   return { ...v, items };
+}
+
+function paintedPart(v: Vehicle) {
+  return mountedParts(v).find((p) => BODY_PARTS.has(p.defId) && maxHp(p) > 1)!;
 }
 
 function colors(view: VehicleView): string {
@@ -68,11 +73,11 @@ describe('part wear look', () => {
     expect(WEAR_LOOK_STEPS).toBeGreaterThan(2);
   });
 
-  it('grays a worn truck and gives the original colors back on repair', () => {
+  it('fades a worn truck and gives the original colors back on repair', () => {
     const v = truck();
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
-    const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
+    const part = paintedPart(v);
     const max = maxHp(part);
     view.update(withHp(v, part.id, 1), true, PAINT.standard);
     expect(colors(view)).not.toBe(clean);
@@ -85,7 +90,7 @@ describe('part wear look', () => {
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
     const root = view.root;
-    const worn = withHp(v, mountedParts(v).find((p) => maxHp(p) > 1)!.id, 1);
+    const worn = withHp(v, paintedPart(v).id, 1);
     const oneStep = { take: () => ((oneStep.left -= 1) >= 0), ready: () => true, left: 0 };
     let calls = 0;
     while (colors(view) === clean) {
@@ -108,7 +113,7 @@ describe('part wear look', () => {
     const v = truck();
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
-    const worn = withHp(v, mountedParts(v).find((p) => maxHp(p) > 1)!.id, 1);
+    const worn = withHp(v, paintedPart(v).id, 1);
     const budget = { take: () => true, ready: () => budget.compiled, compiled: false };
     view.update(worn, true, PAINT.standard, budget);
     view.update(worn, true, PAINT.standard, budget);
@@ -188,7 +193,7 @@ describe('paint job look', () => {
     expect(mint).not.toBe(standard);
     expect(mint).toContain(String(bodyPaint(PALETTE.chalk)));
     expect(mint).toContain(String(bodyPaint(PALETTE.tan)));
-    const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
+    const part = paintedPart(v);
     view.update(withHp(v, part.id, 1), true, gearOnly);
     expect(colors(view)).not.toBe(mint);
   });
@@ -249,5 +254,49 @@ describe('body paint', () => {
     expect(drawn).toContain(PALETTE.slate);
     const saturation = (hex: number) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).s;
     expect(saturation(bodyPaint(PALETTE.oxblood))).toBeCloseTo(saturation(PALETTE.oxblood) * BODY_PAINT_SATURATION, 2);
+  });
+});
+
+describe('broken part look', () => {
+  function partColors(view: VehicleView, partId: string): THREE.Color[] {
+    const found: THREE.Color[] = [];
+    view.root.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.userData.partId === partId && o.material instanceof THREE.MeshLambertMaterial) found.push(o.material.color.clone());
+    });
+    return found;
+  }
+
+  it('burns every color of a broken part toward char', () => {
+    const v = truck();
+    const part = mountedParts(v).find((p) => maxHp(p) > 1 && partColors(new VehicleView(v, true, PAINT.standard, 'world'), p.id).length > 0)!;
+    const healthy = partColors(new VehicleView(v, true, PAINT.standard, 'world'), part.id);
+    const broken = partColors(new VehicleView(withHp(v, part.id, 0), true, PAINT.standard, 'world'), part.id);
+    expect(broken.length).toBe(healthy.length);
+    const char = new THREE.Color(CHAR);
+    healthy.forEach((c, i) => {
+      const expected = c.clone().lerp(char, charShare(WEAR_LOOK_STEPS));
+      expect(broken[i].r).toBeCloseTo(expected.r, 2);
+      expect(broken[i].g).toBeCloseTo(expected.g, 2);
+      expect(broken[i].b).toBeCloseTo(expected.b, 2);
+    });
+  });
+});
+
+describe('dents', () => {
+  const positions = (obj: THREE.Object3D, material: string): number[] => {
+    const found: number[] = [];
+    obj.traverse((o) => {
+      if (o instanceof THREE.Mesh && (o.material as THREE.Material).name === material) found.push(...o.geometry.getAttribute('position').array);
+    });
+    return found;
+  };
+
+  it('dents the body panels and leaves the flush trim strip on top of them', () => {
+    const obj = model(baseModel('scout', 0));
+    const [paint, trim] = [positions(obj, 'paint'), positions(obj, 'trim')];
+    dent(obj, 'p1', WEAR_LOOK_STEPS - 1, { top: true, keepOut: [] });
+    expect(trim.length).toBeGreaterThan(0);
+    expect(positions(obj, 'paint')).not.toEqual(paint);
+    expect(positions(obj, 'trim')).toEqual(trim);
   });
 });

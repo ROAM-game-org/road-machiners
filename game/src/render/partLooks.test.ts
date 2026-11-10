@@ -5,7 +5,7 @@ import { PARTS, type PartKind } from '../data/parts';
 import type { PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
 import {
-  BODY_PARTS, DENT_MAX, itemTone, PART_MODELS, WEAPON_POOLS, WEAR_LOOK_STEPS, WORN_GRAY, baseModel, breakSignature, columnTops, dentOffset, dentsOf, grayShare, grayed, partModel,
+  BODY_PARTS, DENT_MAX, itemTone, PART_MODELS, WEAPON_POOLS, WEAR_LOOK_STEPS, WORN_GRAY, baseModel, breakSignature, columnTops, dentOffset, dentsOf, grayed, partModel,
   wearShare, weaponLook, wearLookStep, type DentSurface, type ItemTone, type Point,
 } from './partLooks';
 
@@ -120,8 +120,6 @@ describe('grayed', () => {
         last = d;
       }
     }
-    expect(grayShare(0)).toBe(0);
-    expect(grayShare(WEAR_LOOK_STEPS)).toBeGreaterThan(grayShare(1));
   });
 });
 
@@ -139,7 +137,6 @@ describe('dents', () => {
     expect(wearShare(0)).toBe(0);
     expect(wearShare(WEAR_LOOK_STEPS)).toBe(1);
     expect(wearShare(2)).toBeGreaterThan(0.5);
-    expect(grayShare(2) / grayShare(WEAR_LOOK_STEPS)).toBeGreaterThan(0.5);
   });
 
   it('has no dents at step 0 and the same dents on every rebuild', () => {

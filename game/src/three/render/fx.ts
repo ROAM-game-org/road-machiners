@@ -8,11 +8,10 @@ import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { frontBody, unitsOf } from '../../sim/body';
-import { corePart, mountedParts } from '../../sim/grid';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
-import { maxHp } from '../../sim/wear';
+import { smokeAt, smokeSources, type SmokeSource } from './smokePoints';
 import type { CameraRig } from './camera';
 import { tirePoints, Ruts } from './ruts';
 import type { GroundAt } from './lines';
@@ -424,13 +423,12 @@ const DOUSE_RATE = 60;
 const DOUSE_SECONDS = 1.2;
 const BREAKDOWN_RATE = 8;
 const DAMAGE_RATE = 6;
-const HURT_CAB = 0.35;
 const CREEP_METERS_PER_SECOND = 0.3;
 const SPEED_JUMP = 1.5;
 const TRAIL_SLACK = 3;
 const TRAIL_SLACK_METERS = 1;
 
-type Traits = { stranded: boolean; maxSpeed: number; hurt: boolean; damage: number };
+type Traits = { stranded: boolean; maxSpeed: number; smoke: SmokeSource[] };
 type Pose = { f: VehicleFrame; h: number; half: { x: number; y: number; z: number } };
 
 export class TruckFx {
@@ -453,7 +451,7 @@ export class TruckFx {
       this.douseCloud(pose, dt);
     }
     if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(onBody(pose, 0.5, 1, 0), motionOf(v, pose.h, moving)));
-    else if (traits.hurt) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(f.pos, traits.damage));
+    else for (const source of traits.smoke) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(smokeAt(source, f), source.damage));
   }
 
   private groundSpeed(id: string, pos: V3, dt: number, topMetersPerSecond: number): number {
@@ -544,13 +542,7 @@ export class TruckFx {
     }
     let t = this.traits.get(v.id);
     if (!t) {
-      const cab = corePart(v, 'cab');
-      t = {
-        stranded: isStranded(world, v),
-        maxSpeed: vehicleStats(world, v).maxSpeed,
-        hurt: cab.hp < maxHp(cab) * HURT_CAB || mountedParts(v).some((p) => p.hp === 0),
-        damage: 1 - cab.hp / maxHp(cab),
-      };
+      t = { stranded: isStranded(world, v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v) };
       this.traits.set(v.id, t);
     }
     return t;

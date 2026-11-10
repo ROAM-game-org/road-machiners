@@ -4,21 +4,21 @@ import { MODEL_FILL } from './modelFill';
 import { radioColor, radioHalo } from './radioLight';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
-import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
+import { isShield, partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, belowDeck, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, partTone, WORLD_LOOKS } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, partTone, WORLD_LOOKS, wornTone } from './truckMesh';
 import { armorModel, cutFace, cutSpec, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
@@ -33,8 +33,8 @@ const CELL = PHYSICS.cell;
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
 const TRIM = 'trim';
+const FLUSH_DETAILS = new Set([TRIM, 'light', 'red']);
 
-const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, accessory: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
 
 const ROT_YAW = Math.PI / 2;
 
@@ -62,8 +62,8 @@ const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: readonly FireSpan[]; facing: number; unit: number };
 
-type Look = { tone: number; step: number; partId: string | null; dents: boolean };
-const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
+type Look = { broken: boolean; step: number; partId: string | null; dents: boolean };
+const PRISTINE: Look = { broken: false, step: 0, partId: null, dents: false };
 
 export type ViewScene = 'world' | 'portrait' | 'xray';
 
@@ -1009,7 +1009,7 @@ function lookOf(item: GridItem): Look {
   if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
   const kind = partDef(item.part.defId).kind;
-  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
+  return { broken: item.part.hp <= 0, step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
 export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number, rect: CellRect = restOf(v, item).rect): Placement {
@@ -1048,14 +1048,11 @@ function place(obj: THREE.Object3D, at: Placement): void {
 }
 
 function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[] = []): void {
-  const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Part mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    mat.color.setHex(partTone(mat.name, mat.color.getHex(), paint, look.partId !== null));
-    mat.color.setHex(grayed(mat.color.getHex(), share));
-    mat.color.multiplyScalar(look.tone);
+    mat.color.setHex(wornTone(mat.name, partTone(mat.name, mat.color.getHex(), paint, look.partId !== null), look.step, look.broken));
     if (look.partId) o.userData.partId = look.partId;
   });
   if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step, { top: false, keepOut });
@@ -1105,7 +1102,7 @@ export function dent(obj: THREE.Object3D, partId: string, step: number, cover: D
     return found;
   };
   obj.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
+    if (!(o instanceof THREE.Mesh) || FLUSH_DETAILS.has((o.material as THREE.Material).name)) return;
     const geo = o.geometry as THREE.BufferGeometry;
     const pos = geo.getAttribute('position') as THREE.BufferAttribute;
     const toMesh = toModel.clone().multiply(o.matrixWorld).invert();

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Body } from '../../sim/body';
+import { WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { EDGE_DISTANCE, MASK_UV, neutralSurface, outlineOf, surfacedMaterial, surfaceOf, type SurfaceName } from './models';
 
 export const BODY_PAINT_SATURATION = 0.8;
@@ -17,6 +18,21 @@ export const OFF_ROLE_TONES: Record<string, number> = { red: 0x48423d, rust: 0x6
 export function partTone(material: string, color: number, paint: number, isPart: boolean): number {
   if (material === PAINT_MATERIAL) return bodyPaint(paint);
   return isPart ? (OFF_ROLE_TONES[material] ?? color) : color;
+}
+
+export const CHAR = 0x2e241c;
+
+export const CHAR_SHARE = 0.6;
+
+const CHARRING_MATERIALS = new Set([PAINT_MATERIAL, ...Object.keys(OFF_ROLE_TONES)]);
+
+export function charShare(step: number): number {
+  return (CHAR_SHARE * step) / (WEAR_LOOK_STEPS - 1);
+}
+
+export function wornTone(material: string, color: number, step: number, broken: boolean): number {
+  if (!broken && !CHARRING_MATERIALS.has(material)) return color;
+  return new THREE.Color(color).lerp(new THREE.Color(CHAR), charShare(step)).getHex();
 }
 
 export function flipWinding(geo: THREE.BufferGeometry): void {

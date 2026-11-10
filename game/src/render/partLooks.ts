@@ -338,7 +338,6 @@ export function weaponLook(partId: string, defId: string): WeaponLook {
 
 export const WEAR_LOOK_STEPS = 4;
 export const WORN_GRAY = 0x8c8a84;
-export const GRAY_MAX = 0.35;
 export const DENT_DEPTH = 0.35;
 export const DENT_MAX = 0.15;
 export const DENT_REACH = 0.3;
@@ -363,10 +362,6 @@ export function wearLookStep(part: PartInstance): number {
 
 export function wearShare(step: number): number {
   return Math.sqrt(Math.min(step, WEAR_LOOK_STEPS) / WEAR_LOOK_STEPS);
-}
-
-export function grayShare(step: number): number {
-  return GRAY_MAX * wearShare(step);
 }
 
 export function grayed(hex: number, share: number): number {
