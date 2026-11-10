@@ -5,7 +5,7 @@ const rand = (spread: number) => (Math.random() - 0.5) * spread;
 const vary = (base: number, spread: number) => base * (1 - spread / 2 + Math.random() * spread);
 
 export const EMISSION_LOOK = {
-  exhaust: { life: 1.1, size: { from: 0.2, to: 0.95 }, colors: [0x3c3935, 0x57524c], alpha: { peak: 0.5, fadeIn: 0.12 }, drag: 1.4, gravity: -0.5, streak: 0, form: 'cloud' },
+  exhaust: { life: 0.7, size: { from: 0.15, to: 0.6 }, colors: [0x3c3935, 0x57524c], alpha: { peak: 0.4, fadeIn: 0.12 }, drag: 1.4, gravity: -0.5, streak: 0, form: 'haze' },
   exhaustJet: { back: 0.9, side: 0.4, up: { min: 1.0, spread: 0.8 } },
   steam: { life: 1.5, size: { from: 0.3, to: 1.5 }, colors: [0xf6f3ec, 0xffffff], alpha: { peak: 0.55, fadeIn: 0.12 }, drag: 0.7, gravity: -1.3, streak: 0, form: 'cloud' },
   steamJet: { side: 0.6, up: { min: 1.8, spread: 1.0 } },
@@ -15,6 +15,8 @@ export const EMISSION_LOOK = {
   breakdownJet: { side: 0.35, up: { min: 1.2, spread: 0.7 }, lean: 0.45 },
   hurt: { life: 2.2, size: { from: 0.45, to: 1.9 }, alpha: { peak: 0.6, fadeIn: 0.12 }, drag: 1.0, gravity: -0.4, streak: 0, form: 'cloud' },
   hurtJet: { side: 0.5, up: { min: 0.8, spread: 0.6 } },
+  hurtGrowth: 0.6,
+  billowSpread: 0.9,
   hurtShades: [
     [0xb8b2a8, 0x8a847a],
     [0x8a847a, 0x5e5953],
@@ -24,7 +26,7 @@ export const EMISSION_LOOK = {
   missile: { life: 1.9, size: { from: 0.25, to: 1.25 }, colors: [0xb4aea4, 0x8a8278], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.6, gravity: -0.15, streak: 0, form: 'cloud' },
   missileJet: { side: 0.5, up: { min: 0.2, spread: 0.3 }, keep: 0.6 },
   nozzle: { life: 0.13, size: { from: 0.55, to: 0.2 }, colors: [0xffe0a0, 0xff8a30], alpha: { peak: 0.9, fadeIn: 0.15 }, drag: 0, gravity: 0, streak: 0, form: 'round' },
-  dust: { life: 0.9, size: { from: 0.4, to: 1.3 }, colors: [0xd8c098, 0xe4d2b0], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.2, gravity: -0.2, streak: 0, form: 'cloud' },
+  dust: { life: 0.9, size: { from: 0.4, to: 1.3 }, colors: [0xd8c098, 0xe4d2b0], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.2, gravity: -0.2, streak: 0, form: 'haze' },
   dustJet: { side: 1.2, up: { max: 0.6 } },
 } as const;
 
@@ -56,14 +58,15 @@ export class Emissions {
   breakdown(p: V3, motion: V3): void {
     const j = L.breakdownJet;
     const vel = { x: motion.x * j.lean + rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: motion.z * j.lean + rand(j.side) };
-    this.lit.spawn(p, vel, L.breakdown, vary(1, 0.4));
+    this.lit.spawn(p, vel, L.breakdown, vary(1, L.billowSpread));
   }
 
   hurt(p: V3, damage: number): void {
     const j = L.hurtJet;
-    const shade = Math.min(HURT_LOOKS.length - 1, Math.floor(Math.min(1, Math.max(0, damage)) * HURT_LOOKS.length));
+    const share = Math.min(1, Math.max(0, damage));
+    const shade = Math.min(HURT_LOOKS.length - 1, Math.floor(share * HURT_LOOKS.length));
     const vel = { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) };
-    this.lit.spawn(p, vel, HURT_LOOKS[shade], vary(1, 0.4));
+    this.lit.spawn(p, vel, HURT_LOOKS[shade], vary(1 + share * L.hurtGrowth, L.billowSpread));
   }
 
   missile(p: V3): void {

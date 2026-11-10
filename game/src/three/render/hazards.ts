@@ -12,10 +12,11 @@ import { shutDownTurnsLeft } from '../../sim/utility';
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
 import { HarpoonLinesView } from './lines';
-import { CARD_SHAPES, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
+import { CARD_SHAPES, dustCardsOf, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { newWake, stepWake, WakeTracker, type WakeMover, type WakeState } from './particles/wake';
 import type { VehicleView } from './vehicle';
+import { TUNING } from './inkTuning';
 
 const S = PHYSICS.metersPerTile;
 
@@ -723,8 +724,8 @@ class FlaresView {
 
   draw(cards: FxCards): void {
     this.flights.draw(cards);
-    this.sparks.draw(cards.glow);
-    this.smoke.draw(cards.lit);
+    this.sparks.draw({ main: cards.glow, plumes: dustCardsOf(cards) }, TUNING.fxInk.value);
+    this.smoke.draw({ main: cards.lit, plumes: dustCardsOf(cards) }, TUNING.fxInk.value);
     let drawn = 0;
     for (const view of this.views.values()) {
       if (!view.shine || drawn++ >= FLARE_FX.views) continue;

@@ -12,23 +12,24 @@ export type BlastSinks = {
   chunks: Pick<ChunkBatch, 'spawn'>;
 };
 
-export const BLAST_CAPS = { fireball: 18, sparks: 24, chunks: 14, dust: 10, smoke: 6 } as const;
+export const BLAST_CAPS = { fireball: 18, sparks: 24, chunks: 14, dust: 10 } as const;
 
 export const BLAST_GLOW_MAX = 1 + BLAST_CAPS.fireball + BLAST_CAPS.sparks;
 
 const DUST_COLOR = 0xd8c098;
 const TAU = Math.PI * 2;
 
+const SMOKE: ParticleLook = { life: 4, size: { from: 1, to: 2.6 }, colors: [0x5a4e42, 0x30291f], alpha: { peak: 0.5, fadeIn: 0.1 }, drag: 1, gravity: -0.35, streak: 0, form: 'cloud' };
+const SOOT: ParticleLook = { life: 2, size: { from: 0.5, to: 1.8 }, colors: [0x2a2622, 0x1c1916], alpha: { peak: 0.65, fadeIn: 0.1 }, drag: 0.8, gravity: -0.4, streak: 0, form: 'cloud' };
+
 const LOOK = {
   flash: { life: 0.2, size: { from: 0.9, to: 1.5 }, colors: [0xfff4d0, 0xffb050], alpha: { peak: 1, fadeIn: 0.05 }, drag: 0, gravity: 0, streak: 0, form: 'round' },
-  fireball: { life: 0.85, size: { from: 0.5, to: 1.2 }, colors: [0xfff0b0, 0xffb040, 0xc04810, 0x3a1408], alpha: { peak: 0.9, fadeIn: 0.08 }, drag: 2.2, gravity: -1.5, streak: 0, form: 'cloud' },
-  flame: { life: 0.9, size: { from: 0.5, to: 1.1 }, colors: [0xffd070, 0xff7a20, 0x7a2008], alpha: { peak: 0.95, fadeIn: 0.1 }, drag: 1.2, gravity: -1.2, streak: 0, form: 'cloud' },
+  fireball: { life: 0.85, size: { from: 0.5, to: 1.2 }, colors: [0xfff0b0, 0xffb040, 0xc04810, 0x3a1408], alpha: { peak: 0.9, fadeIn: 0.08 }, drag: 2.2, gravity: -1.5, streak: 0, form: 'cloud', becomes: { look: SMOKE, share: 0.5, scale: 0.55, spread: 0.9, keepSpeed: 0.5 } },
+  flame: { life: 0.9, size: { from: 0.5, to: 1.1 }, colors: [0xffd070, 0xff7a20, 0x7a2008], alpha: { peak: 0.95, fadeIn: 0.1 }, drag: 1.2, gravity: -1.2, streak: 0.25, form: 'cloud', becomes: { look: SOOT, share: 0.5, scale: 1, spread: 0.9, keepSpeed: 0.6 } },
   spark: { life: 0.6, size: { from: 0.09, to: 0.05 }, colors: [0xfff0c0, 0xff9030, 0x802010], alpha: { peak: 1, fadeIn: 0.02 }, drag: 0.6, gravity: 9, streak: 0.07, form: 'round' },
   metal: { life: 0.45, size: { from: 0.09, to: 0.05 }, colors: [0xffffff, 0xffc060, 0xa04018], alpha: { peak: 1, fadeIn: 0.02 }, drag: 0.5, gravity: 9, streak: 0.06, form: 'round' },
   muzzleGlow: { life: 0.1, size: { from: 0.9, to: 0.4 }, colors: [PAL.flash, 0xff9030], alpha: { peak: 0.9, fadeIn: 0.1 }, drag: 0, gravity: 0, streak: 0, form: 'round' },
-  smoke: { life: 4, size: { from: 1, to: 3.5 }, colors: [0x5a4e42, 0x30291f], alpha: { peak: 0.5, fadeIn: 0.1 }, drag: 1, gravity: -0.35, streak: 0, form: 'cloud' },
-  soot: { life: 2, size: { from: 0.5, to: 1.8 }, colors: [0x2a2622, 0x1c1916], alpha: { peak: 0.65, fadeIn: 0.1 }, drag: 0.8, gravity: -0.4, streak: 0, form: 'cloud' },
-  dust: { life: 1.3, size: { from: 0.4, to: 1.5 }, alpha: { peak: 0.5, fadeIn: 0.1 }, drag: 2.2, gravity: -0.2, streak: 0, form: 'cloud' },
+  dust: { life: 1.3, size: { from: 0.4, to: 1.5 }, alpha: { peak: 0.5, fadeIn: 0.1 }, drag: 2.2, gravity: -0.2, streak: 0, form: 'haze' },
 } as const;
 
 const BLAST = {
@@ -37,7 +38,6 @@ const BLAST = {
   sparks: { base: 10, perRadius: 2, speed: { min: 6, spread: 8, perRadius: 0.6 } },
   chunks: { base: 4, perRadius: 1.5, size: { min: 0.08, spread: 0.14, perRadius: 0.02, max: 0.5 }, life: 1.6, up: { min: 4, spread: 5 }, out: 4, shade: 0.72 },
   dust: { base: 4, perRadius: 1, speed: { base: 3, perRadius: 1 }, scale: { base: 0.8, perRadius: 0.1, max: 2.5 } },
-  smoke: { base: 2, perRadius: 0.6, scale: { base: 1.2, perRadius: 0.4, max: 5 }, speed: { base: 1.4, perRadius: 0.3 }, lift: 0.8 },
 } as const;
 
 const IMPACT = {
@@ -51,7 +51,7 @@ const CRASH = { sparks: 10, dust: 3, dustScale: 0.9, glint: 0.8, speed: { min: 2
 
 const AIR = { fireball: 10, sparks: 14, flash: 1.6, scale: 0.55, speed: 3 } as const;
 
-const FIRE = { flames: 8, soot: 4, rise: { min: 2, spread: 1.5 }, side: 1.6, sootScale: 1 } as const;
+const FIRE = { flames: 8, rise: { min: 2, spread: 1.5 }, side: 1.6 } as const;
 
 const MUZZLE = { glow: 0.9, sparks: { min: 2, spread: 3 }, speed: { min: 8, spread: 10 }, cone: 0.3, life: 0.6 } as const;
 
@@ -117,7 +117,6 @@ export class Blasts {
     this.sparks(p, Math.min(BLAST_CAPS.sparks, Math.round(BLAST.sparks.base + BLAST.sparks.perRadius * radius)), LOOK.spark, BLAST.sparks.speed.min + BLAST.sparks.speed.perRadius * radius, BLAST.sparks.speed.spread);
     this.chunks(p, radius, kick.color);
     this.dustRing(p, radius, kick.color);
-    this.smoke(p, radius);
   }
 
   crash(p: V3, ground: BlastGround | null): void {
@@ -138,10 +137,6 @@ export class Blasts {
     for (let i = 0; i < FIRE.flames; i++) {
       const vel = { x: (Math.random() - 0.5) * FIRE.side, y: between(FIRE.rise.min, FIRE.rise.spread), z: (Math.random() - 0.5) * FIRE.side };
       this.sinks.glow.spawn(p, vel, LOOK.flame, between(0.8, 0.4));
-    }
-    for (let i = 0; i < FIRE.soot; i++) {
-      const vel = { x: (Math.random() - 0.5) * FIRE.side * 0.6, y: between(FIRE.rise.min * 0.6, FIRE.rise.spread), z: (Math.random() - 0.5) * FIRE.side * 0.6 };
-      this.sinks.smoke.spawn(p, vel, LOOK.soot, FIRE.sootScale * between(0.8, 0.4));
     }
   }
 
@@ -193,14 +188,6 @@ export class Blasts {
     const scale = Math.min(d.scale.max, d.scale.base + d.scale.perRadius * radius);
     const look = this.dustLook(ground, IMPACT.dust.groundShare);
     for (let i = 0; i < n; i++) this.sinks.smoke.spawn(lifted(p, 0.2), outward(d.speed.base + d.speed.perRadius * radius, 0.8), look, scale * between(0.8, 0.4));
-  }
-
-  private smoke(p: V3, radius: number): void {
-    const s = BLAST.smoke;
-    const n = Math.min(BLAST_CAPS.smoke, Math.round(s.base + s.perRadius * radius));
-    const scale = Math.min(s.scale.max, s.scale.base + s.scale.perRadius * radius);
-    const speed = s.speed.base + s.speed.perRadius * radius;
-    for (let i = 0; i < n; i++) this.sinks.smoke.spawn(lifted(p, scale * s.lift), outward(speed, speed), LOOK.smoke, scale * between(0.8, 0.4));
   }
 
   private dustLook(ground: number, share: number): ParticleLook {

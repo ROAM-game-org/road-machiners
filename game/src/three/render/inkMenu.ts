@@ -12,6 +12,8 @@ export const LOOK_GROUPS: Group[] = [
   { title: "Shadows", keys: ["shadeCut", "shadeDark", "shadeShift", "castDark", "shadeLine"] },
   { title: "Strokes", keys: ["hatch", "hatchPx"] },
   { title: "Objects", keys: ["objectHatch", "outline"] },
+  { title: "Effects", keys: ["fxInk", "smokeLines"] },
+  { title: "Dust", keys: ["dustSize", "dustAmount", "plumeOpacity", "dustEdge", "dustThin", "dustThick", "dustTint", "dustShade", "dustShadeReach", "dustBands", "dustBandStep", "dustBandShade", "dustLines", "dustStreaks", "dustStreakPx", "dustStreakDark"] },
   { title: "Elevation lines", keys: ["contour", "contourStep", "contourSoft", "contourOpacity", "contourCross"], gate: "contour" },
   { title: "Screen", keys: ["crt"] },
 ];

@@ -1,23 +1,30 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
+import { TUNING } from '../inkTuning';
+import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, DENSITY_FRAGMENT, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
-export const CARD_SHAPES = 4;
-export const ROUND_SHAPE = CARD_SHAPES;
+export { CARD_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
+
+export type CardKind = 'lit' | 'glow' | 'density';
+
+export const CARD_CLOCK = { value: 0 };
+
 const ATLAS_PX = 256;
-const ATLAS_CELLS = 2;
 const SHAPE_LUMPS = { min: 4, spread: 3 };
 const SHAPE_BLUR_PX = 6;
-const CARD_LIGHT = { scatter: 0.7 };
-const CARD_ORDER = { lit: 904, glow: 906 };
+export const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
-const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
-const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
-const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
-export type FxCards = { lit: CardBatch; glow: CardBatch };
+export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch };
+
+export function dustCardsOf(cards: FxCards): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.dust : cards.lit;
+}
+
+export const INK_DUST_LAYER = 0.5;
 
 export type Card = {
   x: number;
@@ -39,86 +46,6 @@ const DEPTH_BINS = 4096;
 
 const emptyCard =(): Card => ({ x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 });
 
-const VERTEX = `
-  attribute vec3 offset;
-  attribute vec3 stretch;
-  attribute vec2 sizeSpin;
-  attribute float shape;
-  attribute vec4 tint;
-  uniform vec3 sunDir;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec3 vSun;
-  varying vec3 vUp;
-  varying vec2 vDepth;
-  void main() {
-    float c = cos(sizeSpin.y);
-    float s = sin(sizeSpin.y);
-    vec2 turned = mat2(c, s, -s, c) * (uv - 0.5) + 0.5;
-    float col = mod(shape, ${ATLAS_CELLS}.0);
-    float row = floor(shape / ${ATLAS_CELLS}.0);
-    vUv = (turned + vec2(col, row)) / ${ATLAS_CELLS}.0;
-    vBall = (uv - 0.5) * 2.0;
-    vRound = shape > ${CARD_SHAPES - 0.5} ? 1.0 : 0.0;
-    vTint = tint;
-    vSun = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-    vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-    vec4 mv = modelViewMatrix * vec4(offset, 1.0);
-    vec2 along = (modelViewMatrix * vec4(stretch, 0.0)).xy;
-    float reach = length(along);
-    vec2 ax = reach > 0.0001 ? along / reach : vec2(1.0, 0.0);
-    vec2 corner = position.xy * sizeSpin.x;
-    mv.xy += reach > 0.0001 ? ax * position.x * (sizeSpin.x + reach) + vec2(-ax.y, ax.x) * corner.y - along * 0.5 : corner;
-    float centreNdc = projectionMatrix[2][2] * mv.z + projectionMatrix[3][2];
-    vDepth = vec2(centreNdc, projectionMatrix[2][2] * sizeSpin.x * 0.5);
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-
-const LIT_FRAGMENT = `
-  uniform sampler2D shapes;
-  uniform vec3 sunColor;
-  uniform vec3 skyColor;
-  uniform vec3 groundColor;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec3 vSun;
-  varying vec3 vUp;
-  varying vec2 vDepth;
-  void main() {
-    float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
-    if (a <= 0.003) discard;
-    ${BALL_DEPTH}
-    vec3 n = normalize(vec3(vBall, sqrt(max(0.0, 1.0 - dot(vBall, vBall) * 0.5))));
-    vec3 sky = mix(groundColor, skyColor, 0.5 * dot(n, vUp) + 0.5);
-    float wrap = 0.5 * dot(n, vSun) + 0.5;
-    vec3 light = (mix(${CARD_LIGHT.scatter.toFixed(3)}, 1.0, wrap * wrap) * sunColor + sky) * ${(1 / Math.PI).toFixed(6)};
-    gl_FragColor = vec4(vTint.rgb * light, a);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }
-`;
-
-const GLOW_FRAGMENT = `
-  uniform sampler2D shapes;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec2 vDepth;
-  void main() {
-    float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
-    if (a <= 0.003) discard;
-    ${BALL_DEPTH}
-    gl_FragColor = vec4(vTint.rgb, a);
-    #include <colorspace_fragment>
-  }
-`;
-
 export class CardBatch {
   readonly mesh: THREE.Mesh;
   private readonly geo = new THREE.InstancedBufferGeometry();
@@ -128,6 +55,15 @@ export class CardBatch {
     sunColor: { value: new THREE.Color() },
     skyColor: { value: new THREE.Color() },
     groundColor: { value: new THREE.Color() },
+    sceneDepth: { value: null as THREE.Texture | null },
+    densitySize: { value: new THREE.Vector2(1, 1) },
+    nearFar: { value: new THREE.Vector2(0, 1) },
+    playSeconds: CARD_CLOCK,
+    fxInk: TUNING.fxInk,
+    smokeLines: TUNING.smokeLines,
+    shadeDark: TUNING.shadeDark,
+    shadeShift: TUNING.shadeShift,
+    castDark: TUNING.castDark,
   };
   private readonly offsets: THREE.InstancedBufferAttribute;
   private readonly stretches: THREE.InstancedBufferAttribute;
@@ -141,7 +77,7 @@ export class CardBatch {
   private readonly binStarts = new Int32Array(DEPTH_BINS + 1);
   private readonly depth = new THREE.Vector3();
 
-  constructor(private readonly capacity: number, private readonly kind: 'lit' | 'glow', shapes: THREE.Texture, private readonly fillScreens: number) {
+  constructor(private readonly capacity: number, private readonly kind: CardKind, shapes: THREE.Texture, private readonly fillScreens: number) {
     if (!(fillScreens > 0)) throw new Error(`CardBatch needs a positive fill ceiling, got ${fillScreens}`);
     this.depths = new Float32Array(capacity);
     const quad = new THREE.PlaneGeometry(1, 1);
@@ -156,8 +92,19 @@ export class CardBatch {
     this.geo.instanceCount = 0;
     this.mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms));
     this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
+    this.mesh.renderOrder = kind === 'glow' ? CARD_ORDER.glow : CARD_ORDER.lit;
     this.uniforms.shapes.value = shapes;
+  }
+
+  drawn(): number {
+    return this.geo.instanceCount;
+  }
+
+  readDepth(depth: THREE.Texture, size: THREE.Vector2, camera: THREE.OrthographicCamera): void {
+    const u = this.uniforms;
+    u.sceneDepth.value = depth;
+    u.densitySize.value.copy(size);
+    u.nearFar.value.set(camera.near, camera.far);
   }
 
   light(l: CardLight): void {
@@ -255,15 +202,14 @@ export class CardBatch {
   }
 }
 
-function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    vertexShader: VERTEX,
-    fragmentShader: kind === 'lit' ? LIT_FRAGMENT : GLOW_FRAGMENT,
-    uniforms,
-    transparent: true,
-    depthWrite: false,
-    blending: kind === 'lit' ? THREE.NormalBlending : THREE.AdditiveBlending,
-  });
+const CARD_LOOKS: Record<CardKind, Pick<THREE.ShaderMaterialParameters, 'fragmentShader' | 'blending' | 'blendSrc' | 'blendDst' | 'depthTest'>> = {
+  lit: { fragmentShader: LIT_FRAGMENT, blending: THREE.NormalBlending },
+  glow: { fragmentShader: GLOW_FRAGMENT, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor },
+  density: { fragmentShader: DENSITY_FRAGMENT, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, depthTest: false },
+};
+
+function cardMaterial(kind: CardKind, uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({ vertexShader: CARD_VERTEX, uniforms, transparent: true, depthWrite: false, ...CARD_LOOKS[kind] });
 }
 
 export function createCardShapes(random: () => number): THREE.CanvasTexture {

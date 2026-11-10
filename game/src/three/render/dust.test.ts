@@ -46,6 +46,20 @@ describe('DustCloudsView', () => {
     expect(Math.max(...old.map((c) => c.alpha))).toBeLessThan(Math.max(...young.map((c) => c.alpha)));
   });
 
+  it('draws dust seen from far bigger and denser than a faint trail', () => {
+    const at = (range: number) => {
+      const view = new DustCloudsView();
+      view.update(worldOf([{ ...cloud('a', 'npc', 2), range }], ['a']), flatTerrain(32), 0);
+      const cards = drawn(view);
+      return { size: Math.max(...cards.map((c) => c.size)), alpha: Math.max(...cards.map((c) => c.alpha)) };
+    };
+    const faint = at(5);
+    const loud = at(DUST_LOOK.loudRange);
+    expect(loud.size).toBeGreaterThan(faint.size);
+    expect(loud.alpha).toBeGreaterThan(faint.alpha);
+    expect(at(DUST_LOOK.loudRange * 3)).toEqual(loud);
+  });
+
   it('never pushes more cards than the budget', () => {
     const view = new DustCloudsView();
     const many = Array.from({ length: 3000 }, (_, i) => cloud(`c${i}`, 'me'));
@@ -137,7 +151,7 @@ describe('plumeShape', () => {
   it('starts small and faint at a typical reveal age', () => {
     const shape = plumeShape(0.6);
     expect(shape.size).toBeLessThanOrEqual(DUST_LOOK.birthSize + 0.2 * (oldSize(0.6 / DETECT.dust.lifetime) - DUST_LOOK.birthSize));
-    expect(shape.fade * DUST_LOOK.opacity * 1.4).toBeLessThanOrEqual(0.3 * DUST_LOOK.opacity * 1.4);
+    expect(shape.fade).toBeLessThanOrEqual(0.3);
     expect(plumeShape(0).size).toBe(DUST_LOOK.birthSize);
     expect(plumeShape(0).scatter).toBe(0);
   });

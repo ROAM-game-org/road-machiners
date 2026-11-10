@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "crt";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -39,6 +39,24 @@ export const KNOBS: Record<TuningKey, Knob> = {
   contourOpacity: { label: "Opacity", min: 0, max: 1, step: 0.05, start: 0.4 },
   contourCross: { label: "Crossed strokes", min: 0, max: 1, step: 1, start: 0 },
   outline: { label: "Object outline", min: 0, max: 3, step: 0.1, start: 1.5, unit: "px" },
+  fxInk: { label: "Ink effects", min: 0, max: 1, step: 0.05, start: 0 },
+  smokeLines: { label: "Smoke lines", min: 0, max: 1, step: 0.05, start: 0.5 },
+  dustSize: { label: "Puff size", min: 0.1, max: 2, step: 0.05, start: 0.45 },
+  dustAmount: { label: "Wheel dust amount", min: 0, max: 3, step: 0.05, start: 1.3 },
+  plumeOpacity: { label: "Plume puff opacity", min: 0, max: 1, step: 0.05, start: 0.5 },
+  dustEdge: { label: "Edge threshold", min: 0.05, max: 2, step: 0.05, start: 0.25 },
+  dustThin: { label: "Thin opacity", min: 0, max: 1, step: 0.01, start: 0.76 },
+  dustThick: { label: "Thick opacity", min: 0, max: 1, step: 0.01, start: 0.58 },
+  dustTint: { label: "Sand tint", min: 0, max: 1, step: 0.05, start: 0.35 },
+  dustShade: { label: "Underside shade", min: 0, max: 1, step: 0.05, start: 0.4 },
+  dustShadeReach: { label: "Underside reach", min: 0.02, max: 1, step: 0.01, start: 0.14, unit: "m" },
+  dustBands: { label: "Billow bands", min: 0, max: 4, step: 1, start: 2 },
+  dustBandStep: { label: "Band spacing", min: 1.5, max: 16, step: 0.25, start: 8 },
+  dustBandShade: { label: "Band shade", min: 0, max: 1, step: 0.02, start: 0.32 },
+  dustLines: { label: "Streak strength", min: 0, max: 1, step: 0.05, start: 0.3 },
+  dustStreaks: { label: "Streak count", min: 0, max: 5, step: 1, start: 3 },
+  dustStreakPx: { label: "Streak width", min: 0.5, max: 4, step: 0.1, start: 0.9, unit: "px" },
+  dustStreakDark: { label: "Streak darkness", min: 0, max: 1, step: 0.02, start: 0.3 },
   crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0.1 },
 };
 

@@ -18,7 +18,9 @@ import { tirePoints, Ruts } from './ruts';
 import type { GroundAt } from './lines';
 import { Casings, Projectiles, type Muzzle, type ProjectileSpec, type RoundPlan, type ShotCues } from './projectiles';
 import { CONFIG } from '../../config';
-import { CardBatch, createCardShapes } from './particles/cards';
+import { TUNING } from './inkTuning';
+import { CARD_CLOCK, CARD_ORDER, CardBatch, createCardShapes, dustCardsOf, GLOW_IN_LIT, type FxCards } from './particles/cards';
+import { DustLayer } from './dustLayer';
 import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { Blasts, type BlastGround } from './particles/blasts';
@@ -33,6 +35,7 @@ const FLASH = {
   life: 0.07,
   endScale: 0.3,
   max: 48,
+  order: CARD_ORDER.glow + 1,
 };
 
 type FloatText = { el: HTMLDivElement; pos: V3; anchor: (() => V3 | null) | null; rowPx: number; age: number; life: number; used: boolean };
@@ -70,12 +73,13 @@ class MuzzleFlashes {
   private turn = new THREE.Quaternion();
   private roll = new THREE.Quaternion();
   private dir = new THREE.Vector3();
+  private readonly material = new THREE.MeshBasicMaterial({ color: PAL.flash, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
 
   constructor(scene: THREE.Scene) {
     const geo = flashGeometry();
-    const mat = new THREE.MeshBasicMaterial({ color: PAL.flash, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
     for (let i = 0; i < FLASH.max; i++) {
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geo, this.material);
+      mesh.renderOrder = FLASH.order;
       mesh.visible = false;
       mesh.frustumCulled = false;
       scene.add(mesh);
@@ -97,6 +101,7 @@ class MuzzleFlashes {
   }
 
   tick(dt: number): void {
+    this.material.blending = TUNING.fxInk.value >= 0.5 ? THREE.NormalBlending : THREE.AdditiveBlending;
     for (const f of this.flashes) {
       if (!f.mesh.visible) continue;
       f.age += dt;
@@ -118,12 +123,14 @@ const MAX_PARTICLES = 4000;
 const MAX_GLOW_PARTICLES = 1000;
 const MAX_VIEW_CARDS = 2000;
 const MAX_CHUNKS = 600;
+const INK_SORTED_FIRE = 0.5;
 
 const SPRAY = {
   surfacePower: 2.5,
-  dust: { perMeter: 6, groundShare: 0.45, life: 2.6, size: { from: 0.5, to: 3.8 }, alpha: { peak: 0.55, fadeIn: 0.1 }, drag: 1.8, gravity: -0.4 },
-  haze: { perMeter: 0.35, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.3, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
-  clods: { perMeter: 1.4, minMetersPerSecond: 2.5, back: { min: 0.15, spread: 0.3 }, up: { min: 1.2, spread: 2.6 }, aside: 1.4, lift: 0.15, size: { min: 0.1, spread: 0.2 }, life: 1.6, shade: 0.72 },
+  dust: { perMeter: 7, groundShare: 0.45, life: 3, size: { from: 1.5, to: 3.6 }, alpha: { peak: 0.4, fadeIn: 0.02 }, drag: 1.6, gravity: -0.3 },
+  wake: { along: { min: 1, spread: 1.5 }, aside: { min: 0.2, spread: 1.4 }, up: { min: 0.6, spread: 1 }, scale: { min: 0.35, spread: 0.65 }, fleck: { share: 0.35, speed: 2.2, scale: 0.22 } },
+  haze: { perMeter: 0.35, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.18, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
+  clods: { perMeter: 0.7, minMetersPerSecond: 2.5, back: { min: 0.15, spread: 0.3 }, up: { min: 1.2, spread: 2.6 }, aside: 1.4, lift: 0.15, size: { min: 0.1, spread: 0.2 }, life: 1.6, shade: 0.72 },
 } as const;
 
 export function sprayShare(ground: TerrainType): number {
@@ -134,9 +141,11 @@ export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLig
 
 export class Fx3D {
   private readonly shapes = createCardShapes(Math.random);
-  readonly cards = {
-    lit: new CardBatch(MAX_PARTICLES + MAX_VIEW_CARDS, 'lit', this.shapes, CONFIG.fxFillScreens),
+  readonly dustLayer = new DustLayer(this.shapes, MAX_PARTICLES + MAX_VIEW_CARDS, CONFIG.fxFillScreens);
+  readonly cards: FxCards = {
+    lit: new CardBatch(MAX_PARTICLES + MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'lit', this.shapes, CONFIG.fxFillScreens),
     glow: new CardBatch(MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'glow', this.shapes, CONFIG.fxFillScreens),
+    dust: this.dustLayer.batch,
   };
   private readonly nearby = liveNear(() => this.world());
   private readonly particles = new Particles(MAX_PARTICLES, this.nearby);
@@ -154,8 +163,10 @@ export class Fx3D {
   private readonly blasts = new Blasts({ smoke: this.particles, glow: this.glowParticles, chunks: this.chunks });
   private terrain: Terrain | null = null;
 
-  constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World) {
+  constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World, drawDustThrough: (layer: DustLayer) => void) {
+    drawDustThrough(this.dustLayer);
     scene.add(this.cards.lit.mesh, this.cards.glow.mesh, ...this.chunks.meshes);
+    this.glowParticles.handOff(this.particles);
     this.flashes = new MuzzleFlashes(scene);
     this.casings = new Casings(scene);
     this.ruts = new Ruts(scene);
@@ -264,14 +275,18 @@ export class Fx3D {
     l.sky.copy(sky.color).multiplyScalar(sky.intensity);
     l.ground.copy(sky.groundColor).multiplyScalar(sky.intensity);
     this.cards.lit.light(l);
+    this.dustLayer.light(l);
     this.ruts.light(l.sunDir);
   }
 
   wheelDust(p: V3, back: V3, out: V3, ground: TerrainType): void {
-    const along = 1.5 + Math.random() * 1.5;
-    const aside = 0.5 + Math.random() * 0.9;
-    const vel = { x: back.x * along + out.x * aside, y: 0.2 + Math.random() * 0.5, z: back.z * along + out.z * aside };
-    this.particles.spawn(p, vel, this.sprayOf(ground).dust, 0.8 + Math.random() * 0.4);
+    const w = SPRAY.wake;
+    const along = w.along.min + Math.random() * w.along.spread;
+    const aside = w.aside.min + Math.random() * w.aside.spread;
+    const vel = { x: back.x * along + out.x * aside, y: w.up.min + Math.random() * w.up.spread, z: back.z * along + out.z * aside };
+    const size = TUNING.dustSize.value;
+    this.particles.spawn(p, vel, this.sprayOf(ground).dust, (w.scale.min + Math.random() * w.scale.spread) * size);
+    if (Math.random() < w.fleck.share) this.particles.spawn(p, { x: vel.x * w.fleck.speed, y: vel.y * w.fleck.speed, z: vel.z * w.fleck.speed }, this.sprayOf(ground).dust, w.fleck.scale * size);
   }
 
   clod(p: V3, back: V3, out: V3, metersPerSecond: number, ground: TerrainType): void {
@@ -286,7 +301,7 @@ export class Fx3D {
   dustHaze(p: V3, back: V3, ground: TerrainType): void {
     const h = SPRAY.haze;
     const vel = { x: back.x * h.back + (Math.random() - 0.5) * h.spread, y: h.rise * Math.random(), z: back.z * h.back + (Math.random() - 0.5) * h.spread };
-    this.particles.spawn({ x: p.x, y: p.y + h.lift, z: p.z }, vel, this.sprayOf(ground).haze, 0.8 + Math.random() * 0.4);
+    this.particles.spawn({ x: p.x, y: p.y + h.lift, z: p.z }, vel, this.sprayOf(ground).haze, (0.8 + Math.random() * 0.4) * TUNING.dustSize.value);
   }
 
   private sprayOf(ground: TerrainType): { dust: ParticleLook; haze: ParticleLook; clod: THREE.Color } {
@@ -298,8 +313,8 @@ export class Fx3D {
       const pale = tint.clone().lerp(new THREE.Color(0xffffff), 0.15);
       const colors = [tint.getHex(), pale.getHex()];
       look = {
-        dust: { life: d.life, size: d.size, colors, alpha: d.alpha, drag: d.drag, gravity: d.gravity, streak: 0, form: 'cloud' },
-        haze: { life: h.life, size: h.size, colors, alpha: h.alpha, drag: h.drag, gravity: h.gravity, streak: 0, form: 'cloud' },
+        dust: { life: d.life, size: d.size, colors, alpha: d.alpha, drag: d.drag, gravity: d.gravity, streak: 0, form: 'plume' },
+        haze: { life: h.life, size: h.size, colors, alpha: h.alpha, drag: h.drag, gravity: h.gravity, streak: 0, form: 'haze' },
         clod: new THREE.Color(ground.color).multiplyScalar(SPRAY.clods.shade),
       };
       this.sprayLooks.set(ground, look);
@@ -343,10 +358,15 @@ export class Fx3D {
     this.particles.tick(dt);
     this.glowParticles.tick(dt);
     this.chunks.tick(dt, world.terrain);
-    this.particles.draw(this.cards.lit);
-    this.glowParticles.draw(this.cards.glow);
+    const ink = TUNING.fxInk.value;
+    const plumes = dustCardsOf(this.cards);
+    this.particles.draw({ main: this.cards.lit, plumes }, ink);
+    if (ink >= INK_SORTED_FIRE) this.glowParticles.draw({ main: this.cards.lit, plumes }, ink, GLOW_IN_LIT);
+    else this.glowParticles.draw({ main: this.cards.glow, plumes }, ink);
     this.cards.lit.flush(this.rig.camera);
     this.cards.glow.flush(this.rig.camera);
+    this.cards.dust.flush(this.rig.camera);
+    CARD_CLOCK.value += dt;
     this.flashes.tick(dt);
     this.casings.tick(dt, world.terrain, world.turn);
     this.ruts.tick(world.turn);
@@ -391,9 +411,13 @@ const EXHAUST_SIDE = 0.6;
 const STEAM_RATE = 10;
 const DOUSE_RATE = 60;
 const DOUSE_SECONDS = 1.2;
-const BREAKDOWN_RATE = 5;
-const DAMAGE_RATE = 3;
+const BREAKDOWN_RATE = 8;
+const DAMAGE_RATE = 6;
 const HURT_CAB = 0.35;
+const CREEP_METERS_PER_SECOND = 0.3;
+const SPEED_JUMP = 1.5;
+const TRAIL_SLACK = 3;
+const TRAIL_SLACK_METERS = 1;
 
 type Traits = { stranded: boolean; maxSpeed: number; hurt: boolean; damage: number };
 type Pose = { f: VehicleFrame; h: number; half: { x: number; y: number; z: number } };
@@ -401,6 +425,8 @@ type Pose = { f: VehicleFrame; h: number; half: { x: number; y: number; z: numbe
 export class TruckFx {
   private world: World | null = null;
   private traits = new Map<string, Traits>();
+  private readonly lastTires = new Map<string, V3[]>();
+  private readonly lastPos = new Map<string, V3>();
   private douseLeft = 0;
 
   constructor(private fx: Fx3D) {}
@@ -408,7 +434,8 @@ export class TruckFx {
   emit(world: World, v: Vehicle, f: VehicleFrame, moving: boolean, dt: number, seen: boolean): void {
     const traits = this.traitsOf(world, v);
     const pose: Pose = { f, h: headingOf(f.rot), half: frontBody(v.chassisId).half };
-    if (moving) this.driving(world, v, pose, traits, seen, dt);
+    const metersPerSecond = this.groundSpeed(v.id, f.pos, dt, traits.maxSpeed * PHYSICS.metersPerTile);
+    if (moving || metersPerSecond > CREEP_METERS_PER_SECOND) this.driving(world, v, pose, traits, seen, dt, metersPerSecond);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
       this.steam(world.player.engineHeat, pose, dt);
@@ -418,9 +445,17 @@ export class TruckFx {
     else if (traits.hurt) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(f.pos, traits.damage));
   }
 
-  private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number): void {
+  private groundSpeed(id: string, pos: V3, dt: number, topMetersPerSecond: number): number {
+    const last = this.lastPos.get(id);
+    this.lastPos.set(id, { ...pos });
+    if (!last || !(dt > 0)) return 0;
+    const metersPerSecond = Math.hypot(pos.x - last.x, pos.z - last.z) / dt;
+    return metersPerSecond > topMetersPerSecond * SPEED_JUMP ? 0 : metersPerSecond;
+  }
+
+  private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number, metersPerSecond: number): void {
     const back = { x: -Math.cos(pose.h), y: 0, z: -Math.sin(pose.h) };
-    this.wheels(world, v, pose, back, seen, dt);
+    this.wheels(world, v, pose, back, seen, dt, metersPerSecond);
     if (traits.stranded) return;
     const along = -(pose.f.acc.x * back.x + pose.f.acc.z * back.z);
     const cruise = v.speed > traits.maxSpeed * CRUISE_SHARE ? CRUISE_RATE : 0;
@@ -450,31 +485,41 @@ export class TruckFx {
     this.puffs(DOUSE_RATE, dt, () => this.fx.douseSteam(onBody(pose, 0.3 + Math.random() * 0.8, 0.8, Math.random() * 2.4 - 1.2)));
   }
 
-  private wheels(world: World, v: Vehicle, pose: Pose, back: V3, seen: boolean, dt: number): void {
-    if (!seen && v.speed <= MIN_DUST_SPEED) return;
+  private wheels(world: World, v: Vehicle, pose: Pose, back: V3, seen: boolean, dt: number, metersPerSecond: number): void {
+    const dusty = metersPerSecond > MIN_DUST_SPEED * PHYSICS.metersPerTile;
+    if (!seen && !dusty) return;
     const tires = tirePoints(world.terrain, v.chassisId, pose.f);
     if (seen) this.fx.ruts.layTracks(world, v, pose.f, tires);
-    if (v.speed > MIN_DUST_SPEED) this.dust(world, v, pose, back, tires, dt);
+    if (dusty) this.dust(world, v, pose, back, tires, dt, metersPerSecond);
   }
 
-  private dust(world: World, v: Vehicle, pose: Pose, back: V3, tires: V3[], dt: number): void {
+  private dust(world: World, v: Vehicle, pose: Pose, back: V3, tires: V3[], dt: number, metersPerSecond: number): void {
     const ground = TERRAIN_TYPES[world.terrain.types[tileAt(world.terrain, v.pos)]];
-    const metersPerSecond = v.speed * PHYSICS.metersPerTile;
     const loose = sprayShare(ground);
-    const rate = SPRAY.dust.perMeter * metersPerSecond * loose;
+    const rate = SPRAY.dust.perMeter * TUNING.dustAmount.value * metersPerSecond * loose;
     const clodRate = metersPerSecond > SPRAY.clods.minMetersPerSecond ? SPRAY.clods.perMeter * metersPerSecond * loose : 0;
     const mounts = unitsOf(v.chassisId).flatMap((u) => wheelMounts(u.body, u.index));
+    const before = this.trailedTires(v.id, tires, metersPerSecond * dt);
     for (const [i, tire] of tires.entries()) {
       const side = Math.sign(mounts[i].z);
       const out = { x: -Math.sin(pose.h) * side, y: 0, z: Math.cos(pose.h) * side };
       const front = i < 2 ? FRONT_DUST : 1;
-      this.puffs(rate * front, dt, () => this.fx.wheelDust(tire, back, out, ground));
+      const along = () => between(before?.[i] ?? tire, tire, Math.random());
+      this.puffs(rate * front, dt, () => this.fx.wheelDust(along(), back, out, ground));
       this.puffs(clodRate * front, dt, () => this.fx.clod(tire, back, out, metersPerSecond, ground));
     }
     const hazeRate = SPRAY.haze.perMeter * metersPerSecond * loose;
     const [left, right] = tires.slice(-2);
     const rear = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, z: (left.z + right.z) / 2 };
     this.puffs(hazeRate, dt, () => this.fx.dustHaze(rear, back, ground));
+  }
+
+  private trailedTires(id: string, tires: V3[], stepMeters: number): V3[] | null {
+    const last = this.lastTires.get(id) ?? null;
+    this.lastTires.set(id, tires.map((t) => ({ ...t })));
+    if (!last || last.length !== tires.length) return null;
+    const moved = Math.hypot(tires[0].x - last[0].x, tires[0].z - last[0].z);
+    return moved <= stepMeters * TRAIL_SLACK + TRAIL_SLACK_METERS ? last : null;
   }
 
   private puffs(rate: number, dt: number, puff: () => void): void {
@@ -504,6 +549,10 @@ export class TruckFx {
 function motionOf(v: Vehicle, h: number, moving: boolean): V3 {
   const mps = moving ? v.speed * PHYSICS.metersPerTile : 0;
   return { x: Math.cos(h) * mps, y: 0, z: Math.sin(h) * mps };
+}
+
+function between(a: V3, b: V3, t: number): V3 {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
 }
 
 function rotate(x: number, z: number, h: number): { x: number; z: number } {

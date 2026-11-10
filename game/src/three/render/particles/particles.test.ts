@@ -19,9 +19,9 @@ class RecordingBatch {
 }
 
 function drawn(p: Particles): Card[] {
-  const batch = new RecordingBatch();
-  p.draw(batch as unknown as CardBatch);
-  return batch.cards;
+  const batch = new RecordingBatch() as unknown as CardBatch;
+  p.draw({ main: batch, plumes: batch }, 0);
+  return (batch as unknown as RecordingBatch).cards;
 }
 
 describe('particle curves', () => {
@@ -84,5 +84,69 @@ describe('Particles', () => {
     const [card] = drawn(p);
     expect(card.x).toBeGreaterThan(0.4);
     expect(card.y).toBeGreaterThan(0);
+  });
+});
+
+describe('fire turning into smoke', () => {
+  const SMOKE: ParticleLook = { ...LOOK, life: 3 };
+  const FIRE: ParticleLook = { ...LOOK, form: 'round', becomes: { look: SMOKE, share: 1, scale: 2, spread: 0, keepSpeed: 0.5 } };
+
+  it('hands a dying fire particle to the smoke pool where it died', () => {
+    const fire = new Particles(4, NEAR);
+    const smoke = new Particles(4, NEAR);
+    fire.handOff(smoke);
+    fire.spawn(AT, { x: 1, y: 0, z: 0 }, FIRE, 1);
+    fire.tick(0.5);
+    fire.tick(1);
+    expect(fire.alive()).toBe(0);
+    expect(smoke.alive()).toBe(1);
+    const [card] = drawn(smoke);
+    expect(card.x).toBeCloseTo(0.5);
+    expect(card.size).toBeCloseTo(2 * sizeAt(SMOKE, 0));
+  });
+
+  it('lets fire die without smoke when nothing takes the hand-off', () => {
+    const fire = new Particles(4, NEAR);
+    fire.spawn(AT, STILL, FIRE, 1);
+    fire.tick(2);
+    expect(fire.alive()).toBe(0);
+  });
+});
+
+describe('smoke breeze', () => {
+  function driftOf(form: ParticleLook['form']): number {
+    const p = new Particles(1, NEAR);
+    p.spawn(AT, STILL, { ...LOOK, life: 10, form }, 1);
+    for (let i = 0; i < 30; i++) p.tick(0.1);
+    return drawn(p)[0].x;
+  }
+
+  it('carries smoke billows downwind as they rise', () => {
+    expect(driftOf('cloud')).toBeGreaterThan(1);
+  });
+
+  it('leaves dust haze where the wheels threw it', () => {
+    expect(driftOf('haze')).toBe(0);
+  });
+});
+
+describe('ink billow tone', () => {
+  function toneAt(t: number, ink: number): number {
+    const p = new Particles(1, NEAR);
+    p.spawn(AT, STILL, { ...LOOK, life: 10, colors: [0x808080, 0x808080] }, 1);
+    p.tick(t * 7);
+    const batch = new RecordingBatch();
+    const to = batch as unknown as CardBatch;
+    p.draw({ main: to, plumes: to }, ink);
+    return batch.cards[0].r;
+  }
+
+  it('starts darker and pales as a billow rises and ages', () => {
+    expect(toneAt(0.05, 1)).toBeLessThan(toneAt(0.05, 0));
+    expect(toneAt(0.9, 1)).toBeGreaterThan(toneAt(0.05, 1));
+  });
+
+  it('leaves the soft look untouched', () => {
+    expect(toneAt(0.9, 0)).toBeCloseTo(new THREE.Color(0x808080).r);
   });
 });

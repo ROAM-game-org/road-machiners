@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
 import { CrtPass } from './render/crtPass';
+import type { DustLayer } from './render/dustLayer';
 import type { GroundCache } from './render/groundCache';
+import { INK_DUST_LAYER } from './render/particles/cards';
 import { TUNING, tuningVersion } from './render/inkTuning';
 
 export class ShaderBuildFailed extends Error {
@@ -117,6 +119,7 @@ export class ShaderWarmup {
   private sealed = new WeakSet<THREE.Object3D>();
   private readonly crt: CrtPass;
   private groundCache: GroundCache | null = null;
+  private dustLayer: DustLayer | null = null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -168,8 +171,18 @@ export class ShaderWarmup {
     return this.groundCache !== null && this.groundCache.coarse();
   }
 
+  drawDustThrough(layer: DustLayer): void {
+    this.dustLayer = layer;
+  }
+
   private drawView(): void {
-    if (TUNING.crt.value > 0) this.crt.render(() => this.drawScene());
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithDust());
+    else this.drawWithDust();
+  }
+
+  private drawWithDust(): void {
+    const layer = this.dustLayer;
+    if (layer && TUNING.fxInk.value >= INK_DUST_LAYER && layer.holds()) layer.render(this.renderer, this.camera, () => this.drawScene());
     else this.drawScene();
   }
 

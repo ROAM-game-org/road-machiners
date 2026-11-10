@@ -10,29 +10,32 @@ import { heightAt, tileAt, type Terrain } from '../../sim/terrain';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { trailPassed, type TurnClock } from './hazards';
+import { TUNING } from './inkTuning';
 import { BeforeTurn, driftAt, turnShare } from './turn-blend';
 import type { VehicleView } from './vehicle';
 import type { Card, FxCards } from './particles/cards';
-import { CARD_SHAPES } from './particles/cards';
+import { CARD_SHAPES, dustCardsOf, PLUME_SHAPE } from './particles/cards';
 
 const S = PHYSICS.metersPerTile;
+const FAST_TILES_PER_TURN = 5;
 
 export const DUST_LOOK = {
   maxCards: 800,
-  puffs: 7,
+  puffs: 14,
   spread: 0.5,
   spreadGrowth: 3,
-  size: 1.8,
+  size: 1.3,
   birthSize: 0.5,
   buildTurns: 3,
   sizeGrowth: 2.5,
-  opacity: 0.4,
   fadeIn: 2,
   wobble: 0.8,
   wobbleSeconds: 3.5,
   groundShare: 0.45,
   paleShare: 0.15,
   spinRange: Math.PI * 2,
+  loudRange: DETECT.dust.perSpeed * FAST_TILES_PER_TURN,
+  quiet: { size: 0.55, alpha: 0.45 },
 };
 
 export function puffsPerCloud(shownClouds: number): number {
@@ -41,6 +44,13 @@ export function puffsPerCloud(shownClouds: number): number {
 }
 
 const LARGEST_BREATHE = 1.25;
+
+export function loudnessOf(range: number): { size: number; alpha: number } {
+  if (!(range >= 0)) throw new Error(`A dust cloud is seen from a non-negative range, got ${range}`);
+  const share = Math.min(1, range / DUST_LOOK.loudRange);
+  const q = DUST_LOOK.quiet;
+  return { size: q.size + (1 - q.size) * share, alpha: q.alpha + (1 - q.alpha) * share };
+}
 
 export function fitToTruck(center: { x: number; z: number }, truck: { x: number; z: number } | null, halfLength: number, reach: number): number {
   if (!truck) return 1;
@@ -88,7 +98,8 @@ export class DustCloudsView {
   private readonly blended = new THREE.Color();
 
   draw(cards: FxCards): void {
-    for (const card of this.cards) cards.lit.push(card);
+    const to = dustCardsOf(cards);
+    for (const card of this.cards) to.push(card);
   }
 
   update(world: World, terrain: Terrain, nowMs: number, views: ReadonlyMap<string, VehicleView> = new Map(), clock: TurnClock | null = null): void {
@@ -152,6 +163,7 @@ export class DustCloudsView {
     const tint = this.blended.copy(this.tintOf(d.tintFrom)).lerp(this.tintOf(d.tintTo), d.share);
     const seed = hashId(d.cloud.id);
     const span = shape.span * fit;
+    const loud = loudnessOf(d.cloud.range);
     const t = seconds / DUST_LOOK.wobbleSeconds;
     for (let i = 0; i < puffs; i++) {
       const k = seed + i * 17;
@@ -162,13 +174,13 @@ export class DustCloudsView {
         x: cx + ((hash2(k, 3) - 0.5) * span + wx) * S,
         y: cy + hash2(k, 7) * shape.scatter * fit * S,
         z: cz + ((hash2(k, 11) - 0.5) * span + wz) * S,
-        size: shape.size * breathe * fit * S,
+        size: shape.size * breathe * fit * loud.size * TUNING.dustSize.value * S,
         spin: hash2(k, 19) * DUST_LOOK.spinRange,
-        shape: Math.min(CARD_SHAPES - 1, Math.floor(hash2(k, 23) * CARD_SHAPES)),
+        shape: PLUME_SHAPE + Math.min(CARD_SHAPES - 1, Math.floor(hash2(k, 23) * CARD_SHAPES)),
         r: tint.r,
         g: tint.g,
         b: tint.b,
-        alpha: DUST_LOOK.opacity * shape.fade * d.presence * (0.6 + 0.8 * hash2(k, 13)),
+        alpha: TUNING.plumeOpacity.value * shape.fade * d.presence * loud.alpha * (0.6 + 0.8 * hash2(k, 13)),
         sx: 0,
         sy: 0,
         sz: 0,

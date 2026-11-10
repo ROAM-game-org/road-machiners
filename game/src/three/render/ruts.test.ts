@@ -289,7 +289,7 @@ describe('Ruts', () => {
     const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined };
     const element = { style: {}, appendChild: () => undefined, getContext: () => paint };
     vi.stubGlobal('document', { createElement: () => element });
-    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w);
+    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w, () => undefined);
     const truckFx = new TruckFx(fx);
 
     for (let i = 0; i <= 16; i++) {
