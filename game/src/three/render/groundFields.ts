@@ -10,6 +10,7 @@ import { fromRoad } from "../../sim/highway";
 import { windowCraters } from "../../sim/road-hazards";
 import { sitePads, type Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
+import { SURROUND_CELL_TILES, surroundTexture } from "./groundSurround";
 
 const S = PHYSICS.metersPerTile;
 const PIXEL_SPLIT = 3;
@@ -31,6 +32,7 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
   paintRoadMask(mask, atlasOf(t), roadHoles(t));
   const pixel = S / mask.res / PIXEL_SPLIT;
   const tiles = tileTexture(t);
+  const surround = surroundTexture(t);
   return {
     roadMask: { value: maskTexture(mask) },
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
@@ -41,6 +43,8 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
     groundTiles: { value: tiles.texture },
     groundBlocksReady: tiles.ready,
     groundTileSide: { value: t.size },
+    groundSurround: { value: surround },
+    groundSurroundMeters: { value: surround.image.width * SURROUND_CELL_TILES * S },
     groundTileMeters: { value: t.size * S },
     ...(landforms ? { groundLandforms: { value: landforms } } : {}),
     mapUvPerMeter: { value: mask.res / mask.size / S },

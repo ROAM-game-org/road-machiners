@@ -238,6 +238,8 @@ function lookUniforms() {
     drawnWaveSize: TUNING.waveSize,
     drawnTuftInk: TUNING.tufts,
     drawnHaloAmount: TUNING.halo,
+    drawnMaterialContrast: TUNING.materialContrast,
+    drawnSurroundBlend: TUNING.surround,
     drawnEdgeSoft: TUNING.edgeSoft,
     drawnEdgeShadowAmount: TUNING.edgeShadow,
     drawnEdgeShadowWidth: TUNING.edgeShadowWidth,
@@ -259,8 +261,13 @@ function lookUniforms() {
 
 function materialUniforms() {
   const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
+  const own = rows.map((row) => lightness(new THREE.Color(row.color)));
+  const sand = lightness(new THREE.Color(groundMaterial("sand").color));
   return {
     drawnMaterialColor: { value: rows.map((row) => new THREE.Color(row.color)) },
+    drawnMaterialLightness: { value: own },
+    drawnMaterialLiftTo: { value: GROUND_MATERIAL_IDS.map((id, k) => (TERRAIN_TYPES[id].paved ? own[k] : Math.max(own[k], sand))) },
+    drawnMaterialNatural: { value: GROUND_MATERIAL_IDS.map((id) => (TERRAIN_TYPES[id].paved ? 0 : 1)) },
     drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
     drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
     drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
@@ -297,6 +304,12 @@ function dirtTint(): THREE.Vector3 {
 
 function luma(c: THREE.Color): number {
   return c.r * 0.299 + c.g * 0.587 + c.b * 0.114;
+}
+
+function lightness(c: THREE.Color): number {
+  const y = luma(c);
+  if (y <= 0.008856) throw new Error(`Ground material luminance ${y} is below the cube part of the lightness curve`);
+  return 116 * Math.cbrt(y) - 16;
 }
 
 const UNIFORMS = `varying vec2 vRoadXZ;
@@ -338,6 +351,13 @@ uniform float groundTileMeters;
 uniform sampler2D groundLandforms;
 #endif
 uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialLightness[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialLiftTo[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialContrast;
+uniform float drawnMaterialNatural[${GROUND_MATERIAL_IDS.length}];
+uniform sampler2D groundSurround;
+uniform float groundSurroundMeters;
+uniform float drawnSurroundBlend;
 uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
@@ -406,6 +426,15 @@ float markHash(vec2 p) {
 
 const MATERIAL_BORDERS = `struct DrawnBorder { int lo; int hi; float toward; float wave; float pepper; float spill; vec3 spillColor; };
 struct DrawnBlock { ivec3 ids; ivec3 masks; };
+float drawnLuminance(float lightness) {
+  float f = (lightness + 16.0) / 116.0;
+  return f * f * f;
+}
+vec3 drawnMaterialTone(int id) {
+  float own = drawnMaterialLightness[id];
+  float shown = mix(drawnMaterialLiftTo[id], own, drawnMaterialContrast);
+  return drawnMaterialColor[id] * drawnLuminance(shown) / drawnLuminance(own);
+}
 int drawnMaterialAt(vec2 tile) {
   ivec2 at = clamp(ivec2(floor(tile)), ivec2(0), ivec2(int(groundTileSide) - 1));
   return int(texelFetch(groundTiles, ivec3(at, ${TILE_LAYER.tiles}), 0).r * 255.0 + 0.5);
@@ -502,7 +531,7 @@ DrawnBorder drawnBorderOfTiles(vec2 tile) {
       spill += weights[k] * spills;
       float leads = weights[k] * spills * spills * spills * spills;
       spillLead += leads;
-      spillColor += leads * drawnMaterialColor[ids[k]];
+      spillColor += leads * drawnMaterialTone(ids[k]);
     }
   spillColor /= max(spillLead, 0.0001);
   int here = -1;
@@ -545,7 +574,7 @@ DrawnBorder drawnBorderAt(vec2 tile) {
   vec3 shares = vec3(spreads[0].x, spreads[1].x, spreads[2].x);
   vec3 spills = ${pickMaterial("drawnMaterialSpill")};
   vec3 leads = shares * spills * spills * spills * spills;
-  vec3 spillColor = (leads.x * drawnMaterialColor[block.ids.x] + leads.y * drawnMaterialColor[block.ids.y] + leads.z * drawnMaterialColor[block.ids.z]) / max(leads.x + leads.y + leads.z, 0.0001);
+  vec3 spillColor = (leads.x * drawnMaterialTone(block.ids.x) + leads.y * drawnMaterialTone(block.ids.y) + leads.z * drawnMaterialTone(block.ids.z)) / max(leads.x + leads.y + leads.z, 0.0001);
   float wave = dot(shares, ${pickMaterial("drawnMaterialWave")});
   float pepper = dot(shares, ${pickMaterial("drawnMaterialPepper")});
   float spill = dot(shares, spills);
@@ -796,9 +825,11 @@ const BORDER_BODY = `
   bool drawnSamePair = fwidth(float(drawnEdge.lo * ${GROUND_MATERIAL_IDS.length} + drawnEdge.hi)) == 0.0;
   float drawnLoHaloMeters = drawnHaloMeters(drawnLoHaloPast, drawnPxMeters, drawnSamePair);
   float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);
-  vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
-  vec3 drawnHiColor = mix(drawnMaterialColor[drawnEdge.hi], drawnEdge.spillColor, drawnHiHalo);
+  vec3 drawnLoColor = mix(drawnMaterialTone(drawnEdge.lo), drawnEdge.spillColor, drawnLoHalo);
+  vec3 drawnHiColor = mix(drawnMaterialTone(drawnEdge.hi), drawnEdge.spillColor, drawnHiHalo);
   diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
+  float drawnSettles = mix(drawnMaterialNatural[drawnEdge.hi], drawnMaterialNatural[drawnEdge.lo], drawnLoSide) * drawnSurroundBlend;
+  if (drawnSettles > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture(groundSurround, vRoadXZ / groundSurroundMeters).rgb, drawnSettles);
   diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide);
   int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;
   float drawnHaloCover = mix(drawnHiHalo, drawnLoHalo, drawnLoSide);

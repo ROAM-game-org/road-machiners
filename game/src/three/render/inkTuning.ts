@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "crt";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -15,6 +15,8 @@ export const KNOBS: Record<TuningKey, Knob> = {
   crestWidth: { label: "Crest width", min: 0.1, max: 3, step: 0.05, start: 0.3, unit: "m" },
   crestFold: { label: "Crest least fold", min: 1, max: 12, step: 0.5, start: 4, unit: "m" },
   edgeSoft: { label: "Edge fade", min: 0, max: 0.2, step: 0.01, start: 0.01 },
+  materialContrast: { label: "Material contrast", min: 0, max: 1, step: 0.05, start: 0.8 },
+  surround: { label: "Blend with surroundings", min: 0, max: 1, step: 0.05, start: 0.25 },
   heightTint: { label: "Height tint", min: 0, max: 1, step: 0.05, start: 0.7 },
   edgeWobble: { label: "Edge wobble", min: 0, max: 2, step: 0.05, start: 1 },
   waveSize: { label: "Edge wave size", min: 4, max: 40, step: 1, start: 9, unit: "m" },
