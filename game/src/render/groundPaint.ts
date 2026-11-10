@@ -49,18 +49,19 @@ export function desertWeight(type: LookType): number {
   return DESERT_WEIGHT[type];
 }
 
-export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "stones", "grain", "ashSmudge", "seams", "windRipples", "clods"] as const;
+export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "clods"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
-export type EdgeStyle = "smudge" | "pepper" | "hard" | "shore" | "straight";
-export type EdgeLook = { wave: number; fine: number; pepper: number };
+export type EdgeStyle = "smudge" | "pepper" | "gritty" | "hard" | "shore" | "straight";
+export type EdgeLook = { wave: number; fine: number; pepper: number; grit: number };
 
 export const EDGE_LOOKS: Record<EdgeStyle, EdgeLook> = {
-  smudge: { wave: 1, fine: 0, pepper: 0 },
-  pepper: { wave: 0.5, fine: 1, pepper: 1 },
-  hard: { wave: 0.15, fine: 0.5, pepper: 0.08 },
-  shore: { wave: 0.4, fine: 0, pepper: 0 },
-  straight: { wave: 0, fine: 0, pepper: 0 },
+  smudge: { wave: 1, fine: 0, pepper: 0, grit: 0 },
+  pepper: { wave: 0.5, fine: 1, pepper: 1, grit: 0 },
+  gritty: { wave: 1, fine: 0, pepper: 0, grit: 1 },
+  hard: { wave: 0.15, fine: 0.5, pepper: 0.08, grit: 0.5 },
+  shore: { wave: 0.4, fine: 0, pepper: 0, grit: 0 },
+  straight: { wave: 0, fine: 0, pepper: 0, grit: 0 },
 };
 
 type MaterialRow = { mark: MarkKind; edge: EdgeStyle; spill: number; warm: number; stand: number };
@@ -77,9 +78,9 @@ const MATERIAL_ROWS: Record<LookType, MaterialRow> = {
   dirtyWater: { mark: "waves", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
   toxic: { mark: "waves", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
   ash: { mark: "ashSmudge", edge: "smudge", spill: 0.3, warm: 1, stand: 0 },
-  gravel: { mark: "stones", edge: "smudge", spill: 0, warm: 0.2, stand: 0.4 },
-  scrub: { mark: "grain", edge: "pepper", spill: 0, warm: 1, stand: 1 },
-  scree: { mark: "stones", edge: "hard", spill: 0, warm: 0.4, stand: 0.4 },
+  gravel: { mark: "pebbles", edge: "gritty", spill: 0, warm: 0.2, stand: 0.4 },
+  scrub: { mark: "tufts", edge: "pepper", spill: 0, warm: 1, stand: 1 },
+  scree: { mark: "pebbles", edge: "hard", spill: 0, warm: 0.4, stand: 0.4 },
   glass: { mark: "none", edge: "hard", spill: 0, warm: 1, stand: 0 },
   canal: { mark: "waves", edge: "straight", spill: 0, warm: 1, stand: -0.5 },
   concrete: { mark: "seams", edge: "straight", spill: 0, warm: 1, stand: 0 },

@@ -63,8 +63,34 @@ const DRAWN_MARK_FADE_TO = 0.22;
 const DRAWN_CLOD_CELL = 0.5;
 const DRAWN_CLOD_SHARE = 0.45;
 const DRAWN_CLOD_MIX = 0.5;
-const DRAWN_STONE_BIG_CELL = 0.6;
-const DRAWN_STONE_BIG_MIX = 0.14;
+const DRAWN_EDGE_REACH = 3;
+const DRAWN_ECHO_BREAK = 1.7;
+const DRAWN_SHORE_WIDTH = 0.04;
+const DRAWN_CLUMP_SIZE = 3.5;
+const DRAWN_INK_WIDTH = 0.04;
+const DRAWN_TICK_WIDTH = 0.02;
+const DRAWN_TUFT_CELL = 0.5;
+const DRAWN_TUFT_CLUMP = 1.3;
+const DRAWN_TUFT_SHARE = 0.6;
+const DRAWN_TUFT_EDGE_SHARE = 1;
+const DRAWN_TUFT_EDGE_REACH = 3.5;
+const DRAWN_STAND_OVERHANG = 1;
+const DRAWN_ROAD_VERGE = 0.9;
+const DRAWN_FRINGE_AMOUNT = 0.12;
+const DRAWN_BLADE_WIDE = 0.12;
+const DRAWN_BLADE_TALL = 0.45;
+const DRAWN_GRIT_SIZE = 0.35;
+const DRAWN_GRIT_METERS = 0.7;
+const DRAWN_PEBBLE_CELL = 0.8;
+const DRAWN_PEBBLE_SHARE = 0.35;
+const DRAWN_PEBBLE_EDGE_SHARE = 0.8;
+const DRAWN_PEBBLE_TOP = 0.25;
+const DRAWN_PEBBLE_INK = 0.6;
+const DRAWN_STONE_CELL = 1.8;
+const DRAWN_STONE_SHARE = 0.12;
+const DRAWN_STONE_EDGE_SHARE = 0.3;
+const DRAWN_CRACK_CELL = 1.8;
+const DRAWN_CRACK_FINE_CELL = 0.9;
 const DRAWN_PUDDLE_SIZE = 2.2;
 const DRAWN_PUDDLE_MIX = 0.3;
 const DRAWN_PUDDLE_FROM = 0.82;
@@ -179,7 +205,7 @@ function lookUniforms() {
   return {
     drawnEdgeWobble: TUNING.edgeWobble,
     drawnWaveSize: TUNING.waveSize,
-    drawnGrainAmount: TUNING.grain,
+    drawnTuftInk: TUNING.tufts,
     drawnHaloAmount: TUNING.halo,
     drawnEdgeSoft: TUNING.edgeSoft,
     drawnEdgeShadowAmount: TUNING.edgeShadow,
@@ -208,6 +234,7 @@ function materialUniforms() {
     drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
     drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
     drawnMaterialFine: { value: rows.map((row) => EDGE_LOOKS[row.edge].fine) },
+    drawnMaterialGrit: { value: rows.map((row) => EDGE_LOOKS[row.edge].grit) },
     drawnMaterialSpill: { value: rows.map((row) => row.spill) },
     drawnMaterialStand: { value: rows.map((row) => row.stand) },
     drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
@@ -284,6 +311,7 @@ uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialFine[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialGrit[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnEdgeShadowAmount;
@@ -292,7 +320,7 @@ uniform vec3 drawnBroadTint;
 uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
 uniform float drawnWaveSize;
-uniform float drawnGrainAmount;
+uniform float drawnTuftInk;
 uniform float drawnHaloAmount;
 uniform float drawnEdgeSoft;
 `;
@@ -392,27 +420,27 @@ vec4 drawnSplineSlopes(float f) {
   float g = 1.0 - f;
   return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
 }
-vec3 drawnEdgeTraitsOfTiles(vec2 tile) {
+vec4 drawnEdgeTraitsOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
-  vec3 traits = vec3(0.0);
+  vec4 traits = vec4(0.0);
   for (int j = 0; j < 4; j++)
     for (int i = 0; i < 4; i++) {
       int id = drawnMaterialAt(first + vec2(float(i), float(j)) + 0.5);
-      traits += wx[i] * wy[j] * vec3(drawnMaterialWave[id], drawnMaterialPepper[id], drawnMaterialFine[id]);
+      traits += wx[i] * wy[j] * vec4(drawnMaterialWave[id], drawnMaterialPepper[id], drawnMaterialFine[id], drawnMaterialGrit[id]);
     }
   return traits;
 }
-vec3 drawnEdgeTraits(vec2 tile) {
+vec4 drawnEdgeTraits(vec2 tile) {
   DrawnBlock block;
   if (!drawnBlockAt(tile, block)) return drawnEdgeTraitsOfTiles(tile);
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
   vec3 shares = vec3(drawnMaskShare(block.masks.x, wx, wy), drawnMaskShare(block.masks.y, wx, wy), drawnMaskShare(block.masks.z, wx, wy));
-  return vec3(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}), dot(shares, ${pickMaterial("drawnMaterialFine")}));
+  return vec4(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}), dot(shares, ${pickMaterial("drawnMaterialFine")}), dot(shares, ${pickMaterial("drawnMaterialGrit")}));
 }
 DrawnBorder drawnBorderOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
@@ -510,9 +538,9 @@ float drawnStreakAt(vec2 at) {
   vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
   return (valueNoise(wind / vec2(${DRAWN_STREAK_LONG.toFixed(1)}, ${DRAWN_STREAK_WIDE.toFixed(1)})) - 0.5) * ${DRAWN_STREAK_MIX.toFixed(2)};
 }
-float drawnHalo(DrawnBorder edge, int own, float streak, float aa, out float past) {
+float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float aa, out float past) {
   float excess = (edge.spill - drawnMaterialSpill[own]) * drawnHaloAmount * (1.0 - drawnMaterialPepper[own]);
-  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)};
+  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)} + crumb * drawnMaterialGrit[own];
   float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
   float depthAa = fwidth(depth) + 0.001;
   return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
@@ -539,10 +567,18 @@ vec2 drawnWarpAt(float wave, float fineShare, vec2 at) {
   if (fineShare > 0.0) fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
   return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
 }
+vec2 drawnViewFrame(vec2 p) {
+  return vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
+}
 float drawnPepperNoise(vec2 at, float px) {
   float mid = (valueNoise(at / 0.6 + 43.0) - 0.5) * 0.3 * (1.0 - smoothstep(0.12, 0.22, px));
   float fine = (valueNoise(at / 0.25 + 47.0) - 0.5) * 0.35 * (1.0 - smoothstep(0.045, 0.08, px));
-  return (valueNoise(at / 1.6 + 41.0) - 0.5) * 0.35 + mid + fine;
+  float fringe = (valueNoise(drawnViewFrame(at) / vec2(${DRAWN_BLADE_WIDE.toFixed(2)}, ${DRAWN_BLADE_TALL.toFixed(2)}) + 37.0) - 0.5) * ${DRAWN_FRINGE_AMOUNT.toFixed(2)} * (1.0 - smoothstep(0.1, 0.2, px));
+  return (valueNoise(at / 1.6 + 41.0) - 0.5) * 0.35 + mid + fine + fringe;
+}
+float drawnGritNoise(vec2 at, float px) {
+  float crumb = (valueNoise(at / ${DRAWN_GRIT_SIZE.toFixed(2)} + 53.0) - 0.5) * 0.6 + (valueNoise(at / ${(DRAWN_GRIT_SIZE / 2.5).toFixed(2)} + 59.0) - 0.5) * 0.4;
+  return crumb * 2.0 * ${DRAWN_GRIT_METERS.toFixed(2)} * (1.0 - smoothstep(0.12, 0.24, px));
 }
 `;
 
@@ -589,14 +625,27 @@ float drawnClods(vec2 p, float px) {
   float clod = 1.0 - smoothstep(radius - edge, radius + edge, lumpy);
   return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, px));
 }
-float drawnWindRipples(vec2 p, float px) {
-  vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
+float drawnBorderNear(float edgeMeters) {
+  return 1.0 - smoothstep(${(DRAWN_EDGE_REACH / 2).toFixed(2)}, ${DRAWN_EDGE_REACH.toFixed(2)}, edgeMeters);
+}
+float drawnEchoLines(vec2 p, float edgeMeters, float spacing, float width, float kept, float px) {
+  float broken = smoothstep(kept - 0.1, kept + 0.1, valueNoise(p / ${DRAWN_ECHO_BREAK.toFixed(1)} + 83.0));
+  return drawnLine(abs(fract(edgeMeters / spacing) - 0.5) * spacing, width, px) * broken;
+}
+float drawnWindRipples(vec2 p, float edgeMeters, float px) {
+  vec2 q = drawnViewFrame(p);
   float crest = q.y / ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)} + sin(q.x / 3.1) * 0.35 + (valueNoise(p / 5.0 + 71.0) - 0.5) * 1.2;
   float patchy = smoothstep(0.4, 0.6, valueNoise(p / 6.0 + 77.0));
-  return drawnLine(abs(fract(crest) - 0.5) * ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)}, ${DRAWN_SAND_RIPPLE_WIDTH.toFixed(2)}, px) * patchy;
+  float open = drawnLine(abs(fract(crest) - 0.5) * ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)}, ${DRAWN_SAND_RIPPLE_WIDTH.toFixed(2)}, px) * patchy;
+  float echo = drawnEchoLines(p, edgeMeters, ${DRAWN_SAND_RIPPLE_SPACING.toFixed(2)}, ${DRAWN_SAND_RIPPLE_WIDTH.toFixed(2)}, 0.4, px);
+  return mix(open, echo, drawnBorderNear(edgeMeters));
+}
+float drawnShoreLines(vec2 p, float edgeMeters, float px) {
+  float echo = drawnEchoLines(p, edgeMeters, ${DRAWN_GLINT_ROW.toFixed(2)}, ${DRAWN_SHORE_WIDTH.toFixed(2)}, 0.55, px);
+  return echo * drawnBorderNear(edgeMeters) * (1.0 - smoothstep(0.15, 0.3, px));
 }
 float drawnWaves(vec2 p, float px) {
-  vec2 q = vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
+  vec2 q = drawnViewFrame(p);
   float row = floor(q.y / ${DRAWN_GLINT_ROW.toFixed(2)});
   float along = q.x / ${DRAWN_GLINT_LONG.toFixed(2)} + markHash(vec2(row, 4.0)) * 5.0;
   float inside = fract(along);
@@ -606,25 +655,72 @@ float drawnWaves(vec2 p, float px) {
   float across = q.y - (row + 0.5) * ${DRAWN_GLINT_ROW.toFixed(2)} - sin(inside * 6.2831853) * 0.08;
   return drawnLine(abs(across), ${DRAWN_GLINT_WIDTH.toFixed(2)} * taper, px) * keep * (1.0 - smoothstep(0.15, 0.3, px));
 }
-float drawnGrain(vec2 p, float px) {
-  vec2 along = mat2(0.94, 0.34, -0.34, 0.94) * p;
-  vec2 across = mat2(0.82, -0.57, 0.57, 0.82) * p + 5.0;
-  float dark = valueNoise(along / vec2(0.14, 0.45));
-  float light = valueNoise(across / vec2(0.3, 0.8) + 9.0);
-  float darkAa = max(fwidth(dark), 0.002);
-  float lightAa = max(fwidth(light), 0.002);
-  float flecks = smoothstep(0.7 - darkAa, 0.7 + darkAa, dark) * 0.7 - smoothstep(0.72 - lightAa, 0.72 + lightAa, light) * 0.4;
-  return -flecks * mix(0.4, 1.0, valueNoise(p / 3.5 + 17.0)) * (1.0 - smoothstep(0.06, 0.14, px));
+float drawnSegment(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a;
+  return length(p - a - ab * clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0));
 }
-float drawnStones(vec2 p, float cell, float seed, float px) {
-  vec2 c = floor(p / cell);
-  vec2 f = p / cell - c;
-  vec2 center = 0.28 + 0.44 * vec2(markHash(c + seed), markHash(c + seed + 3.1));
-  float radius = mix(0.1, 0.24, markHash(c + seed + 5.3));
-  float edge = px / cell;
-  float stone = 1.0 - smoothstep(radius - edge, radius + edge, length(f - center));
-  float tone = (markHash(c + seed + 7.7) < 0.5 ? -1.0 : 1.0) * mix(0.5, 1.0, markHash(c + seed + 9.1));
-  return stone * tone * step(markHash(c + seed + 11.9), 0.7) * (1.0 - smoothstep(cell / 6.0, cell / 3.0, px));
+float drawnClumps(vec2 p, float seed) {
+  return smoothstep(0.3, 0.65, valueNoise(p / ${DRAWN_CLUMP_SIZE.toFixed(1)} + seed));
+}
+float drawnBlade(vec2 f, vec2 root, float lean, float bend, float tall) {
+  vec2 mid = root + vec2(sin(lean), -cos(lean)) * tall * 0.5;
+  vec2 tip = mid + vec2(sin(lean + bend), -cos(lean + bend)) * tall * 0.5;
+  return min(drawnSegment(f, root, mid), drawnSegment(f, mid, tip));
+}
+vec2 drawnFromViewFrame(vec2 q) {
+  return q.x * vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)}) + q.y * vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)});
+}
+int drawnMarkAt(vec2 at, float px, out float edgeMeters) {
+  vec2 tile = at / facetSide;
+  vec4 rough = drawnEdgeTraits(tile);
+  vec2 warp = rough.x > 0.0 ? drawnWarpAt(rough.x, rough.z, at) : vec2(0.0);
+  DrawnBorder edge = drawnBorderAt((at + warp) / facetSide);
+  float toward = edge.toward + min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, px) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, px) / facetSide;
+  edgeMeters = abs(toward) * facetSide;
+  return int(drawnMaterialMark[toward > 0.0 ? edge.lo : edge.hi] + 0.5);
+}
+float drawnTufts(vec2 p, float px) {
+  vec2 q = drawnViewFrame(p) / ${DRAWN_TUFT_CELL.toFixed(2)};
+  vec2 c = floor(q);
+  vec2 f = q - c;
+  float pick = markHash(c + 41.0);
+  if (pick > ${DRAWN_TUFT_EDGE_SHARE.toFixed(2)}) return 0.0;
+  vec2 root = vec2(0.3 + 0.4 * markHash(c + 43.0), 0.9);
+  vec2 rootAt = drawnFromViewFrame((c + root) * ${DRAWN_TUFT_CELL.toFixed(2)});
+  float edgeMeters;
+  if (drawnMarkAt(rootAt, px, edgeMeters) != ${markIndex("tufts")}) return 0.0;
+  float clumps = smoothstep(0.5, 0.72, valueNoise(rootAt / ${DRAWN_TUFT_CLUMP.toFixed(1)} + 61.0));
+  float edge = 1.0 - smoothstep(${(DRAWN_TUFT_EDGE_REACH / 4).toFixed(2)}, ${DRAWN_TUFT_EDGE_REACH.toFixed(2)}, edgeMeters);
+  float share = max(clumps * ${DRAWN_TUFT_SHARE.toFixed(2)}, edge * ${DRAWN_TUFT_EDGE_SHARE.toFixed(2)});
+  if (pick > share) return 0.0;
+  float near = drawnBlade(f, root, (markHash(c + 59.0) - 0.5) * 0.3, (markHash(c + 61.0) - 0.5) * 1.0, mix(0.6, 0.85, markHash(c + 67.0)));
+  if (markHash(c + 71.0) < share) near = min(near, drawnBlade(f, root + vec2(markHash(c + 73.0) < 0.5 ? -0.14 : 0.14, -0.04), (markHash(c + 79.0) - 0.5) * 0.3, (markHash(c + 83.0) - 0.5) * 1.0, mix(0.5, 0.75, markHash(c + 89.0))));
+  return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 8).toFixed(3)}, ${(DRAWN_TUFT_CELL / 4).toFixed(3)}, px));
+}
+float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, bool clumped, float px) {
+  vec2 q = drawnViewFrame(p) / cell;
+  vec2 c = floor(q);
+  float pick = markHash(c + seed);
+  if (pick > gathered) return 0.0;
+  vec2 center = 0.3 + 0.4 * vec2(markHash(c + seed + 3.1), markHash(c + seed + 5.3));
+  vec2 centerAt = drawnFromViewFrame((c + center) * cell);
+  float edgeMeters;
+  if (drawnMarkAt(centerAt, px, edgeMeters) != ${markIndex("pebbles")}) return 0.0;
+  float share = mix(open, gathered, drawnBorderNear(edgeMeters)) * (clumped ? drawnClumps(centerAt, 71.0) : 1.0);
+  if (pick > share) return 0.0;
+  vec2 d = q - c - center;
+  float radius = mix(0.12, 0.22, markHash(c + seed + 7.7));
+  float under = mix(${DRAWN_PEBBLE_TOP.toFixed(2)}, 1.0, smoothstep(-0.3 * radius, 0.5 * radius, d.y));
+  return drawnLine(abs(length(d) - radius) * cell, ${DRAWN_INK_WIDTH.toFixed(3)}, px) * under * (1.0 - smoothstep(cell / 8.0, cell / 4.0, px));
+}
+bool drawnStandsBy(DrawnBorder edge, int here, int mark, float overhang) {
+  bool beside = int(drawnMaterialMark[edge.lo] + 0.5) == mark || int(drawnMaterialMark[edge.hi] + 0.5) == mark;
+  return here == mark || (beside && overhang < ${DRAWN_STAND_OVERHANG.toFixed(1)});
+}
+float drawnGravel(vec2 p, float px) {
+  float small = drawnPebbles(p, ${DRAWN_PEBBLE_CELL.toFixed(2)}, 91.0, ${DRAWN_PEBBLE_SHARE.toFixed(2)}, ${DRAWN_PEBBLE_EDGE_SHARE.toFixed(2)}, true, px);
+  float big = drawnPebbles(p, ${DRAWN_STONE_CELL.toFixed(2)}, 99.0, ${DRAWN_STONE_SHARE.toFixed(2)}, ${DRAWN_STONE_EDGE_SHARE.toFixed(2)}, false, px);
+  return max(small, big);
 }
 float drawnSeams(vec2 p, float px) {
   vec2 toLine = (0.5 - abs(fract(p / 3.0) - 0.5)) * 3.0;
@@ -643,13 +739,16 @@ const BORDER_BODY = `
   vec3 blurredGround = textureLod(map, vMapUv, 2.5).rgb;
   vec2 drawnTileAt = vRoadXZ / facetSide;
   float drawnTilePx = max(length(fwidth(vRoadXZ)), 0.0005) / facetSide;
-  vec3 drawnRough = drawnEdgeTraits(drawnTileAt);
+  vec4 drawnRough = drawnEdgeTraits(drawnTileAt);
   vec2 drawnWarp = vec2(0.0);
   if (drawnRough.x > 0.0) drawnWarp = drawnWarpAt(drawnRough.x, drawnRough.z, vRoadXZ);
   DrawnBorder drawnEdge = drawnBorderAt((vRoadXZ + drawnWarp) / facetSide);
   float drawnPeppered = min(drawnRough.y * 2.0, 1.0);
   float drawnPepperShift = 0.0;
   if (drawnPeppered > 0.0) drawnPepperShift = drawnPeppered * drawnPepperNoise(vRoadXZ, drawnTilePx * facetSide) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
+  float drawnGritMeters = 0.0;
+  if (drawnRough.w > 0.0) drawnGritMeters = drawnGritNoise(vRoadXZ, drawnTilePx * facetSide);
+  drawnPepperShift += drawnRough.w * drawnGritMeters / facetSide;
   float drawnToward = drawnEdge.toward + drawnPepperShift;
   float drawnAa = drawnTilePx + fwidth(drawnPepperShift);
   float drawnLoSide = smoothstep(-drawnEdgeSoft - drawnAa, drawnEdgeSoft + drawnAa, drawnToward);
@@ -658,9 +757,10 @@ const BORDER_BODY = `
   float drawnHaloAa = max(fwidth(drawnEdge.spill * drawnHaloAmount + drawnStreak), 0.0005);
   float drawnLoHaloPast;
   float drawnHiHaloPast;
-  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, drawnStreak, drawnHaloAa, drawnLoHaloPast);
-  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, drawnStreak, drawnHaloAa, drawnHiHaloPast);
   float drawnPxMeters = drawnTilePx * facetSide;
+  float drawnHaloCrumb = drawnGritMeters / drawnPxMeters * drawnHaloAa;
+  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnLoHaloPast);
+  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnHiHaloPast);
   bool drawnSamePair = fwidth(float(drawnEdge.lo * ${GROUND_MATERIAL_IDS.length} + drawnEdge.hi)) == 0.0;
   float drawnLoHaloMeters = drawnHaloMeters(drawnLoHaloPast, drawnPxMeters, drawnSamePair);
   float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);
@@ -766,22 +866,27 @@ const MARKS_BODY = `
   float drawnMarkShow = drawnInside * drawnOffRoad * drawnFlat;
   float drawnDark = 0.0;
   float drawnLight = 0.0;
-  float drawnShade = 0.0;
   bool drawnMarked = drawnMarkShow > 0.0;
   bool drawnFine = drawnMarked && drawnZoomed > 0.0;
-  if (drawnFine && drawnMark == ${markIndex("cracks")}) drawnDark = drawnCracks(vRoadXZ, 1.8, drawnPx) * drawnZoomed * 0.6;
-  if (drawnFine && drawnMark == ${markIndex("saltCracks")}) drawnLight = drawnCracks(vRoadXZ + 31.0, 1.8, drawnPx) * drawnZoomed * 0.7;
+  float drawnEdgeMeters = abs(drawnEdge.toward) * facetSide;
+  float drawnCrackFiner = drawnBorderNear(drawnEdgeMeters);
+  if (drawnFine && drawnMark == ${markIndex("cracks")}) drawnDark = max(drawnCracks(vRoadXZ, ${DRAWN_CRACK_CELL.toFixed(1)}, drawnPx), drawnCrackFiner * drawnCracks(vRoadXZ + 57.0, ${DRAWN_CRACK_FINE_CELL.toFixed(1)}, drawnPx)) * drawnZoomed * 0.6;
+  if (drawnFine && drawnMark == ${markIndex("saltCracks")}) drawnLight = max(drawnCracks(vRoadXZ + 31.0, ${DRAWN_CRACK_CELL.toFixed(1)}, drawnPx), drawnCrackFiner * drawnCracks(vRoadXZ + 87.0, ${DRAWN_CRACK_FINE_CELL.toFixed(1)}, drawnPx)) * drawnZoomed * 0.7;
   if (drawnMarked && drawnMark == ${markIndex("clods")}) drawnDark = drawnClods(vRoadXZ, drawnPx) * ${DRAWN_CLOD_MIX.toFixed(2)};
   if (drawnMark == ${markIndex("puddles")}) drawnDark = drawnPuddles(vRoadXZ) * ${DRAWN_PUDDLE_MIX.toFixed(2)};
-  if (drawnFine && drawnMark == ${markIndex("windRipples")}) drawnDark = drawnWindRipples(vRoadXZ, drawnPx) * drawnZoomed * ${DRAWN_SAND_RIPPLE_MIX.toFixed(2)};
-  if (drawnMarked && drawnMark == ${markIndex("waves")}) drawnLight = drawnWaves(vRoadXZ, drawnPx) * ${DRAWN_GLINT_MIX.toFixed(2)};
+  if (drawnFine && drawnMark == ${markIndex("windRipples")}) drawnDark = drawnWindRipples(vRoadXZ, drawnEdgeMeters, drawnPx) * drawnZoomed * ${DRAWN_SAND_RIPPLE_MIX.toFixed(2)};
+  if (drawnMarked && drawnMark == ${markIndex("waves")}) drawnLight = max(drawnWaves(vRoadXZ, drawnPx), drawnShoreLines(vRoadXZ, drawnEdgeMeters, drawnPx)) * ${DRAWN_GLINT_MIX.toFixed(2)};
   if (drawnFine && drawnMark == ${markIndex("seams")}) drawnDark = drawnSeams(vRoadXZ, drawnPx) * drawnZoomed;
   if (drawnMarked && drawnMark == ${markIndex("ashSmudge")}) drawnDark = smoothstep(0.55, 0.8, valueNoise(vRoadXZ / 2.5)) * 0.5;
-  if (drawnMarked && drawnMark == ${markIndex("stones")}) drawnShade = drawnStones(vRoadXZ, 0.3, 91.0, drawnPx) * 0.16 + drawnStones(mat2(0.8, 0.6, -0.6, 0.8) * vRoadXZ, 0.17, 95.0, drawnPx) * 0.12 + drawnStones(mat2(0.6, -0.8, 0.8, 0.6) * vRoadXZ, ${DRAWN_STONE_BIG_CELL.toFixed(2)}, 99.0, drawnPx) * ${DRAWN_STONE_BIG_MIX.toFixed(2)};
-  if (drawnMark == ${markIndex("grain")}) drawnShade = drawnGrainAmount * drawnGrain(vRoadXZ, drawnPx);
-  diffuseColor.rgb *= 1.0 + drawnShade * drawnMarkShow;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnDark * drawnMarkShow;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.93, 0.88), drawnLight * drawnMarkShow);
+  float drawnRoadVerge = smoothstep(roadEdge - ${DRAWN_ROAD_VERGE.toFixed(1)}, roadEdge - 0.2, roadFrame.x);
+  float drawnStandShow = drawnFlat * max(drawnOffRoad, drawnRoadVerge);
+  float drawnOverhang = abs(drawnToward) * facetSide;
+  float drawnStanding = 0.0;
+  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("tufts")}, drawnOverhang)) drawnStanding = drawnTufts(vRoadXZ, drawnPx) * drawnTuftInk;
+  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("pebbles")}, drawnOverhang)) drawnStanding = max(drawnStanding, drawnGravel(vRoadXZ, drawnPx) * ${DRAWN_PEBBLE_INK.toFixed(2)});
+  diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnStanding * drawnStandShow;
 `;
 
 const RELIEF_BODY = `
