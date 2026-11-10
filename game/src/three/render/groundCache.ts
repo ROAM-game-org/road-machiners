@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { GroundCacheUniforms } from "./groundShader";
+import { holdGroundDetail, type GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
 
 const HAZE_REACH_PX = 32;
@@ -56,6 +56,7 @@ export class GroundCache {
     const into = this.renderer.getRenderTarget();
     if (into) this.drawSize.set(into.width, into.height);
     else this.renderer.getDrawingBufferSize(this.drawSize);
+    holdGroundDetail(this.writes, camera, this.drawSize.x, this.drawSize.y);
     this.held.copy(camera.position);
     try {
       this.snapAndFill(camera, into);

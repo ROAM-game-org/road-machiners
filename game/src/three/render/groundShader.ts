@@ -162,7 +162,7 @@ export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Si
   const fields = groundFields(mask, t, shelters, landforms);
   const worn = fields.highwayWear !== undefined;
   return {
-    uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}) },
+    uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN } },
     land: landOf(t),
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
@@ -171,6 +171,37 @@ export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Si
 
 export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, { ...ground.uniforms, ...landUniforms(ground.land) }, `${ground.header}${LAND_GLSL}`, GROUND_BODY, ground.key);
+  material.onBeforeRender = (renderer, _scene, camera) => {
+    const size = renderer.getDrawingBufferSize(detailDrawSize);
+    holdGroundDetail(ground.uniforms, camera, size.x, size.y);
+  };
+}
+
+const detailDrawSize = new THREE.Vector2();
+const detailAcross = new THREE.Vector3();
+const detailDown = new THREE.Vector3();
+const detailBack = new THREE.Vector3();
+
+export function holdGroundDetail(uniforms: Record<string, THREE.IUniform>, camera: THREE.Camera, drawWidth: number, drawHeight: number): void {
+  const detail = uniforms.drawnDetailPx;
+  if (!detail) throw new Error("Ground uniforms have no drawnDetailPx to hold the detail level");
+  if (!(camera instanceof THREE.OrthographicCamera)) throw new Error("Ground detail reads meters per pixel, which only holds for an orthographic camera");
+  detail.value = groundDetailPx(camera, drawWidth, drawHeight);
+}
+
+export function groundDetailPx(camera: THREE.OrthographicCamera, drawWidth: number, drawHeight: number): number {
+  camera.updateMatrixWorld();
+  const p = camera.projectionMatrix.elements;
+  detailBack.setFromMatrixColumn(camera.matrixWorld, 2);
+  if (Math.abs(detailBack.y) < 1e-3) throw new Error("Ground detail needs a camera that looks down at the ground");
+  const across = onGround(detailAcross.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(2 / (p[0] * drawWidth)));
+  const down = onGround(detailDown.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(2 / (p[5] * drawHeight)));
+  const pixel = Math.hypot(Math.abs(across.x) + Math.abs(down.x), Math.abs(across.z) + Math.abs(down.z));
+  return 2 ** Math.round(Math.log2(pixel));
+}
+
+function onGround(step: THREE.Vector3): THREE.Vector3 {
+  return step.addScaledVector(detailBack, -step.y / detailBack.y);
 }
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
@@ -316,6 +347,7 @@ uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnEdgeShadowAmount;
 uniform float drawnEdgeShadowWidth;
+uniform float drawnDetailPx;
 uniform vec3 drawnBroadTint;
 uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
@@ -549,7 +581,7 @@ float drawnHaloMeters(float past, float pxMeters, bool samePair) {
   float slope = fwidth(past);
   return samePair ? past / max(slope, 0.0001) * pxMeters : -${DRAWN_FAR_TILES.toFixed(1)} * facetSide;
 }
-float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, float hiHaloMeters, float aaMeters, float pxMeters) {
+float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, float hiHaloMeters, float aaMeters) {
   float rise = drawnMaterialStand[edge.hi] - drawnMaterialStand[edge.lo];
   if (rise == 0.0 || drawnEdgeShadowAmount <= 0.0) return 0.0;
   bool hiStands = rise > 0.0;
@@ -557,7 +589,7 @@ float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, 
   float tallHalo = hiStands ? hiHaloMeters : loHaloMeters;
   float lowHalo = hiStands ? loHaloMeters : hiHaloMeters;
   float depth = min(max(intoLow, tallHalo), -lowHalo);
-  float seen = smoothstep(${EDGE_SHADOW_FADE_PX.toFixed(2)}, ${(2 * EDGE_SHADOW_FADE_PX).toFixed(2)}, drawnEdgeShadowWidth / max(pxMeters, 0.0001));
+  float seen = smoothstep(${EDGE_SHADOW_FADE_PX.toFixed(2)}, ${(2 * EDGE_SHADOW_FADE_PX).toFixed(2)}, drawnEdgeShadowWidth / drawnDetailPx);
   float band = smoothstep(-aaMeters, aaMeters, depth) * (1.0 - smoothstep(0.0, drawnEdgeShadowWidth + aaMeters, depth));
   return band * min(abs(rise), 1.0) * drawnEdgeShadowAmount * seen;
 }
@@ -623,7 +655,7 @@ float drawnClods(vec2 p, float px) {
   float lumpy = length(d * vec2(1.0, 1.7)) + (valueNoise(p / 0.12 + c) - 0.5) * 0.06;
   float edge = px / ${DRAWN_CLOD_CELL.toFixed(2)};
   float clod = 1.0 - smoothstep(radius - edge, radius + edge, lumpy);
-  return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, px));
+  return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, drawnDetailPx));
 }
 float drawnBorderNear(float edgeMeters) {
   return 1.0 - smoothstep(${(DRAWN_EDGE_REACH / 2).toFixed(2)}, ${DRAWN_EDGE_REACH.toFixed(2)}, edgeMeters);
@@ -642,7 +674,7 @@ float drawnWindRipples(vec2 p, float edgeMeters, float px) {
 }
 float drawnShoreLines(vec2 p, float edgeMeters, float px) {
   float echo = drawnEchoLines(p, edgeMeters, ${DRAWN_GLINT_ROW.toFixed(2)}, ${DRAWN_SHORE_WIDTH.toFixed(2)}, 0.55, px);
-  return echo * drawnBorderNear(edgeMeters) * (1.0 - smoothstep(0.15, 0.3, px));
+  return echo * drawnBorderNear(edgeMeters) * (1.0 - smoothstep(0.15, 0.3, drawnDetailPx));
 }
 float drawnWaves(vec2 p, float px) {
   vec2 q = drawnViewFrame(p);
@@ -653,7 +685,7 @@ float drawnWaves(vec2 p, float px) {
   float keep = step(markHash(vec2(floor(along), row) + 3.0), mix(${DRAWN_GLINT_CALM.toFixed(2)}, ${DRAWN_GLINT_BUSY.toFixed(2)}, busy));
   float taper = smoothstep(0.1, 0.35, inside) * (1.0 - smoothstep(0.65, 0.9, inside));
   float across = q.y - (row + 0.5) * ${DRAWN_GLINT_ROW.toFixed(2)} - sin(inside * 6.2831853) * 0.08;
-  return drawnLine(abs(across), ${DRAWN_GLINT_WIDTH.toFixed(2)} * taper, px) * keep * (1.0 - smoothstep(0.15, 0.3, px));
+  return drawnLine(abs(across), ${DRAWN_GLINT_WIDTH.toFixed(2)} * taper, px) * keep * (1.0 - smoothstep(0.15, 0.3, drawnDetailPx));
 }
 float drawnSegment(vec2 p, vec2 a, vec2 b) {
   vec2 ab = b - a;
@@ -670,12 +702,12 @@ float drawnBlade(vec2 f, vec2 root, float lean, float bend, float tall) {
 vec2 drawnFromViewFrame(vec2 q) {
   return q.x * vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)}) + q.y * vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)});
 }
-int drawnMarkAt(vec2 at, float px, out float edgeMeters) {
+int drawnMarkAt(vec2 at, out float edgeMeters) {
   vec2 tile = at / facetSide;
   vec4 rough = drawnEdgeTraits(tile);
   vec2 warp = rough.x > 0.0 ? drawnWarpAt(rough.x, rough.z, at) : vec2(0.0);
   DrawnBorder edge = drawnBorderAt((at + warp) / facetSide);
-  float toward = edge.toward + min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, px) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, px) / facetSide;
+  float toward = edge.toward + min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, drawnDetailPx) / facetSide;
   edgeMeters = abs(toward) * facetSide;
   return int(drawnMaterialMark[toward > 0.0 ? edge.lo : edge.hi] + 0.5);
 }
@@ -688,14 +720,14 @@ float drawnTufts(vec2 p, float px) {
   vec2 root = vec2(0.3 + 0.4 * markHash(c + 43.0), 0.9);
   vec2 rootAt = drawnFromViewFrame((c + root) * ${DRAWN_TUFT_CELL.toFixed(2)});
   float edgeMeters;
-  if (drawnMarkAt(rootAt, px, edgeMeters) != ${markIndex("tufts")}) return 0.0;
+  if (drawnMarkAt(rootAt, edgeMeters) !=${markIndex("tufts")}) return 0.0;
   float clumps = smoothstep(0.5, 0.72, valueNoise(rootAt / ${DRAWN_TUFT_CLUMP.toFixed(1)} + 61.0));
   float edge = 1.0 - smoothstep(${(DRAWN_TUFT_EDGE_REACH / 4).toFixed(2)}, ${DRAWN_TUFT_EDGE_REACH.toFixed(2)}, edgeMeters);
   float share = max(clumps * ${DRAWN_TUFT_SHARE.toFixed(2)}, edge * ${DRAWN_TUFT_EDGE_SHARE.toFixed(2)});
   if (pick > share) return 0.0;
   float near = drawnBlade(f, root, (markHash(c + 59.0) - 0.5) * 0.3, (markHash(c + 61.0) - 0.5) * 1.0, mix(0.6, 0.85, markHash(c + 67.0)));
   if (markHash(c + 71.0) < share) near = min(near, drawnBlade(f, root + vec2(markHash(c + 73.0) < 0.5 ? -0.14 : 0.14, -0.04), (markHash(c + 79.0) - 0.5) * 0.3, (markHash(c + 83.0) - 0.5) * 1.0, mix(0.5, 0.75, markHash(c + 89.0))));
-  return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 8).toFixed(3)}, ${(DRAWN_TUFT_CELL / 4).toFixed(3)}, px));
+  return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 8).toFixed(3)}, ${(DRAWN_TUFT_CELL / 4).toFixed(3)}, drawnDetailPx));
 }
 float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, bool clumped, float px) {
   vec2 q = drawnViewFrame(p) / cell;
@@ -705,13 +737,13 @@ float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, b
   vec2 center = 0.3 + 0.4 * vec2(markHash(c + seed + 3.1), markHash(c + seed + 5.3));
   vec2 centerAt = drawnFromViewFrame((c + center) * cell);
   float edgeMeters;
-  if (drawnMarkAt(centerAt, px, edgeMeters) != ${markIndex("pebbles")}) return 0.0;
+  if (drawnMarkAt(centerAt, edgeMeters) !=${markIndex("pebbles")}) return 0.0;
   float share = mix(open, gathered, drawnBorderNear(edgeMeters)) * (clumped ? drawnClumps(centerAt, 71.0) : 1.0);
   if (pick > share) return 0.0;
   vec2 d = q - c - center;
   float radius = mix(0.12, 0.22, markHash(c + seed + 7.7));
   float under = mix(${DRAWN_PEBBLE_TOP.toFixed(2)}, 1.0, smoothstep(-0.3 * radius, 0.5 * radius, d.y));
-  return drawnLine(abs(length(d) - radius) * cell, ${DRAWN_INK_WIDTH.toFixed(3)}, px) * under * (1.0 - smoothstep(cell / 8.0, cell / 4.0, px));
+  return drawnLine(abs(length(d) - radius) * cell, ${DRAWN_INK_WIDTH.toFixed(3)}, px) * under * (1.0 - smoothstep(cell / 8.0, cell / 4.0, drawnDetailPx));
 }
 bool drawnStandsBy(DrawnBorder edge, int here, int mark, float overhang) {
   bool beside = int(drawnMaterialMark[edge.lo] + 0.5) == mark || int(drawnMaterialMark[edge.hi] + 0.5) == mark;
@@ -745,9 +777,9 @@ const BORDER_BODY = `
   DrawnBorder drawnEdge = drawnBorderAt((vRoadXZ + drawnWarp) / facetSide);
   float drawnPeppered = min(drawnRough.y * 2.0, 1.0);
   float drawnPepperShift = 0.0;
-  if (drawnPeppered > 0.0) drawnPepperShift = drawnPeppered * drawnPepperNoise(vRoadXZ, drawnTilePx * facetSide) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
+  if (drawnPeppered > 0.0) drawnPepperShift = drawnPeppered * drawnPepperNoise(vRoadXZ, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
   float drawnGritMeters = 0.0;
-  if (drawnRough.w > 0.0) drawnGritMeters = drawnGritNoise(vRoadXZ, drawnTilePx * facetSide);
+  if (drawnRough.w > 0.0) drawnGritMeters = drawnGritNoise(vRoadXZ, drawnDetailPx);
   drawnPepperShift += drawnRough.w * drawnGritMeters / facetSide;
   float drawnToward = drawnEdge.toward + drawnPepperShift;
   float drawnAa = drawnTilePx + fwidth(drawnPepperShift);
@@ -767,7 +799,7 @@ const BORDER_BODY = `
   vec3 drawnLoColor = mix(drawnMaterialColor[drawnEdge.lo], drawnEdge.spillColor, drawnLoHalo);
   vec3 drawnHiColor = mix(drawnMaterialColor[drawnEdge.hi], drawnEdge.spillColor, drawnHiHalo);
   diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
-  diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide, drawnPxMeters);
+  diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide);
   int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;
   float drawnHaloCover = mix(drawnHiHalo, drawnLoHalo, drawnLoSide);
   float drawnBroad = valueNoise(drawnTileAt / 7.0) * 0.7 + valueNoise(drawnTileAt / 2.5) * 0.15;
@@ -856,7 +888,7 @@ const ROAD_BODY = `
 const MARKS_BODY = `
   float drawnPx = max(length(fwidth(vRoadXZ)), 0.0005);
   float drawnOffRoad = 1.0 - roadIn;
-  float drawnZoomed = 1.0 - smoothstep(${DRAWN_MARK_FADE_FROM.toFixed(2)}, ${DRAWN_MARK_FADE_TO.toFixed(2)}, drawnPx);
+  float drawnZoomed = 1.0 - smoothstep(${DRAWN_MARK_FADE_FROM.toFixed(2)}, ${DRAWN_MARK_FADE_TO.toFixed(2)}, drawnDetailPx);
   float drawnRoadCrack = 0.0;
   if (roadIn > 0.0) drawnRoadCrack = drawnCracks(vRoadXZ + 13.0, ${DRAWN_ROAD_CRACK_CELL.toFixed(1)}, drawnPx) * step(0.62, valueNoise(vRoadXZ / 14.0)) * roadIn;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnRoadCrack;

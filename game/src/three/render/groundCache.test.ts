@@ -1,5 +1,25 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { exposedAreas, visibleArea, wrapped, type Area } from "./groundCache";
+import { groundDetailPx } from "./groundShader";
+
+function viewOf(halfWidth: number): THREE.OrthographicCamera {
+  const camera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfWidth * 0.625, -halfWidth * 0.625, 1, 500);
+  camera.position.set(40, 60, 40);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  return camera;
+}
+
+describe("ground detail level", () => {
+  it("holds within a zoom bucket and steps by powers of two", () => {
+    const near = groundDetailPx(viewOf(20), 1600, 1000);
+    expect(Number.isInteger(Math.log2(near))).toBe(true);
+    expect(groundDetailPx(viewOf(21), 1600, 1000)).toBe(near);
+    expect(groundDetailPx(viewOf(40), 1600, 1000)).toBe(near * 2);
+    expect(groundDetailPx(viewOf(20), 800, 500)).toBe(near * 2);
+  });
+});
 
 const W = 40;
 const H = 30;
