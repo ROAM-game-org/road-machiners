@@ -4,21 +4,21 @@ import { blurredHeights } from "../../sim/surface";
 export const LANDFORM_BLUR_TILES = 1.5;
 export const LANDFORM_DETAIL_BLUR_TILES = 0.5;
 
-export function landformSlopes(form: Float32Array, side: number): Float32Array {
+export function landformSlopes(form: Float32Array, side: number, metersPerTile: number): Float32Array {
   const slopes = new Float32Array(side * side * 2);
   for (let y = 0; y < side; y++)
     for (let x = 0; x < side; x++) {
       const k = y * side + x;
-      slopes[k * 2] = centralDifference(form, x, side, (i) => y * side + i);
-      slopes[k * 2 + 1] = centralDifference(form, y, side, (j) => j * side + x);
+      slopes[k * 2] = centralDifference(form, x, side, metersPerTile, (i) => y * side + i);
+      slopes[k * 2 + 1] = centralDifference(form, y, side, metersPerTile, (j) => j * side + x);
     }
   return slopes;
 }
 
-function centralDifference(form: Float32Array, at: number, side: number, index: (n: number) => number): number {
+function centralDifference(form: Float32Array, at: number, side: number, metersPerTile: number, index: (n: number) => number): number {
   const before = Math.max(0, at - 1);
   const after = Math.min(side - 1, at + 1);
-  return (form[index(after)] - form[index(before)]) / (after - before);
+  return (form[index(after)] - form[index(before)]) / ((after - before) * metersPerTile);
 }
 
 export type LandformUniforms = {
@@ -35,7 +35,7 @@ export class GroundLandform {
   constructor(heights: ArrayLike<number>, side: number, metersPerTile: number) {
     this.form = blurredHeights(heights, side, LANDFORM_BLUR_TILES);
     this.detail = blurredHeights(heights, side, LANDFORM_DETAIL_BLUR_TILES);
-    const slopes = landformSlopes(this.detail, side);
+    const slopes = landformSlopes(this.detail, side, metersPerTile);
     const half = new Uint16Array(slopes.length);
     for (let k = 0; k < slopes.length; k++) half[k] = THREE.DataUtils.toHalfFloat(slopes[k]);
     const texture = new THREE.DataTexture(half, side, side, THREE.RGFormat, THREE.HalfFloatType);
