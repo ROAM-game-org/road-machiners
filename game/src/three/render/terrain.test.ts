@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
 import { deckAt, deckById, DECKS, type Deck } from '../../sim/bridge';
-import { MESH_STEPS } from '../../sim/surface';
+import { CLIFF_SHARPNESS, MESH_STEPS } from '../../sim/surface';
 import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
@@ -55,7 +55,9 @@ describe('terrain under decks', () => {
     expect(worstRise(deckById(id), 0.32)).toBeLessThanOrEqual(-0.1);
   });
 
-  it('keeps every corner of a cliff square outside all deck outlines at its baked height', () => {
+  it('keeps every corner of a cliff square outside all deck outlines within the cliff blend of its baked height', () => {
+    const splinePull = 1 - (4 / 6) ** 2;
+    const most = (1 - CLIFF_SHARPNESS) * splinePull;
     let cliffCorners = 0;
     for (const deck of DECKS)
       for (const [cx, cy, w, d] of chunksUnder(deck)) {
@@ -68,7 +70,9 @@ describe('terrain under decks', () => {
             const onCliff = [0, 1].some((dy) => [0, 1].some((dx) => x - dx >= 0 && y - dy >= 0 && x - dx < t.size && y - dy < t.size && isCliff(t, (y - dy) * t.size + x - dx)));
             if (!onCliff || deckAt(ICARUS_DECKS, x, y)) continue;
             cliffCorners++;
-            expect(pos.getY(j * MESH_STEPS * row + i * MESH_STEPS)).toBe(Math.fround(t.heights[y * (t.size + 1) + x] * S));
+            const near = [-1, 0, 1, 2].flatMap((dy) => [-1, 0, 1, 2].map((dx) => t.heights[(y + dy) * (t.size + 1) + x + dx]));
+            const drop = (Math.max(...near) - Math.min(...near)) * S;
+            expect(Math.abs(pos.getY(j * MESH_STEPS * row + i * MESH_STEPS) - t.heights[y * (t.size + 1) + x] * S)).toBeLessThanOrEqual(most * drop);
           }
       }
     expect(cliffCorners).toBeGreaterThan(0);

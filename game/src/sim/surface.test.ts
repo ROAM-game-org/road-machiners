@@ -23,12 +23,27 @@ describe("ground surface", () => {
     expect(ground.heightAt(12.5, 12)).toBeLessThan(ground.heightAt(12, 12));
   });
 
-  it("keeps a cliff square on its own raw corners", () => {
+  it("keeps a cliff within a tenth of its drop of its raw corners and inside its raw heights", () => {
     const ground = surface((x) => (x >= 12 ? 8 : 0), [[11, 12]]);
-    expect(ground.heightAt(11, 12)).toBe(0);
-    expect(ground.heightAt(12, 12)).toBe(8);
+    expect(ground.heightAt(11, 12)).toBeLessThan(0.1 * 8);
+    expect(ground.heightAt(12, 12)).toBeGreaterThan(0.9 * 8);
     expect(ground.heightAt(11.5, 12.5)).toBeCloseTo(4, 9);
-    expect(ground.heightAt(12, 12.5)).toBe(8);
+    for (let x = 8; x <= 16; x += 0.125)
+      for (let y = 10; y <= 15; y += 0.125) {
+        expect(ground.heightAt(x, y)).toBeGreaterThanOrEqual(-0.01 * 8);
+        expect(ground.heightAt(x, y)).toBeLessThanOrEqual(8 * 1.01);
+      }
+  });
+
+  it("keeps a straight diagonal cliff even along its length instead of stepping with the tiles", () => {
+    const side = 40;
+    const ramp = (x: number, y: number) => Math.min(4, Math.max(0, (x - 0.37 * y - 18) * 3));
+    const heights = Array.from({ length: (side + 1) ** 2 }, (_, k) => ramp(k % (side + 1), Math.floor(k / (side + 1))));
+    const tileSteep = (x: number, y: number) => Math.abs(ramp(x + 1, y + 0.5) - ramp(x, y + 0.5)) > 0.6;
+    const ground = new GroundSurface({ size: side, heights, foldOf: (x, y) => (tileSteep(x, y) ? FOLD.cliff : FOLD.smooth) });
+    const along: number[] = [];
+    for (let y = 10; y <= 30; y += 0.125) along.push(ground.heightAt(19.5 + 0.37 * y, y));
+    expect(Math.max(...along) - Math.min(...along)).toBeLessThan(0.15 * 4);
   });
 
   it("leaves no step where a cliff square meets the smooth ground beside it", () => {

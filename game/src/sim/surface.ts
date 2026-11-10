@@ -1,6 +1,7 @@
 export const MESH_STEPS = 2;
 const LAND_BLUR_TILES = 1.25;
-
+const RAW_REACH = 2;
+export const CLIFF_SHARPNESS = 0.5;
 export const FOLD = { smooth: 0, cliff: 1, cliffAlongRise: 2 } as const;
 
 export type Fold = (typeof FOLD)[keyof typeof FOLD];
@@ -22,6 +23,7 @@ export class GroundSurface {
   private readonly corners: Float64Array;
   private readonly folds: Uint8Array;
   private readonly calm: Uint8Array;
+  private readonly shares: Float32Array;
   private readonly weights = gaussWeights(LAND_BLUR_TILES);
   private readonly wx = new Float64Array(4);
   private readonly wy = new Float64Array(4);
@@ -30,6 +32,7 @@ export class GroundSurface {
     this.corners = new Float64Array((rules.size + 1) ** 2).fill(NaN);
     this.folds = new Uint8Array(rules.size ** 2).fill(UNKNOWN_FOLD);
     this.calm = new Uint8Array(rules.size ** 2);
+    this.shares = new Float32Array((rules.size + 1) ** 2).fill(NaN);
   }
 
   foldAt(tileX: number, tileY: number): Fold {
@@ -46,11 +49,31 @@ export class GroundSurface {
     const i = Math.floor(u);
     const j = Math.floor(v);
     if (this.calmAt(i, j)) return this.calmSpline(i, j, u - i, v - j);
-    const cliff = this.cliffTouching(i, j, u === i, v === j);
-    if (cliff) return this.faceted(cliff.x, cliff.y, u - cliff.x, v - cliff.y);
-    const smooth = this.spline(i, j, u - i, v - j);
-    const near = this.cliffNear(i, j, u - i, v - j);
-    return near === 0 ? smooth : smooth + (this.bilinear(i, j, u - i, v - j) - smooth) * near;
+    const fx = u - i;
+    const fy = v - j;
+    const smooth = this.spline(i, j, fx, fy);
+    const sharp = this.sharpShareAt(i, j, fx, fy);
+    return sharp === 0 ? smooth : smooth + (this.throughCorners(i, j, fx, fy) - smooth) * sharp;
+  }
+
+  private sharpShareAt(i: number, j: number, fx: number, fy: number): number {
+    const a = this.rawShare(i, j);
+    const b = this.rawShare(i + 1, j);
+    const c = this.rawShare(i, j + 1);
+    const d = this.rawShare(i + 1, j + 1);
+    return CLIFF_SHARPNESS * (a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy);
+  }
+
+  private throughCorners(i: number, j: number, fx: number, fy: number): number {
+    throughWeights(fx, this.wx);
+    throughWeights(fy, this.wy);
+    let h = 0;
+    for (let n = 0; n < 4; n++) {
+      let row = 0;
+      for (let m = 0; m < 4; m++) row += this.corner(i - 1 + m, j - 1 + n) * this.wx[m];
+      h += row * this.wy[n];
+    }
+    return h;
   }
 
   grid(x0: number, y0: number, width: number, depth: number): Float64Array {
@@ -128,7 +151,23 @@ export class GroundSurface {
     }
     let sum = 0;
     for (let b = 0; b < this.weights.length; b++) sum += this.weights[b] * lines[from + b * width];
-    this.corners[k] = sum;
+    const raw = this.rawShare(x, y);
+    this.corners[k] = raw === 0 ? sum : sum + (this.rules.heights[k] - sum) * raw;
+  }
+
+  private rawShare(x: number, y: number): number {
+    const n = this.rules.size;
+    const at = Math.min(n, Math.max(0, x));
+    const k = Math.min(n, Math.max(0, y)) * (n + 1) + at;
+    if (this.shares[k] !== this.shares[k]) this.shares[k] = this.touchesCliff(at, Math.min(n, Math.max(0, y))) ? 1 : this.shareNear(at, Math.min(n, Math.max(0, y)));
+    return this.shares[k];
+  }
+
+  private shareNear(x: number, y: number): number {
+    let nearest = Infinity;
+    for (let dy = -RAW_REACH; dy <= RAW_REACH; dy++)
+      for (let dx = -RAW_REACH; dx <= RAW_REACH; dx++) if ((dx !== 0 || dy !== 0) && this.touchesCliff(x + dx, y + dy)) nearest = Math.min(nearest, Math.hypot(dx, dy));
+    return Math.max(0, 1 - nearest / RAW_REACH);
   }
 
   private fixRough(out: Float64Array, x0: number, y0: number, width: number, depth: number): void {
@@ -155,6 +194,7 @@ export class GroundSurface {
   }
 
   private roughAround(i: number, j: number): boolean {
+    if (this.rawShare(i, j) > 0 || this.rawShare(i + 1, j) > 0 || this.rawShare(i, j + 1) > 0 || this.rawShare(i + 1, j + 1) > 0) return true;
     return this.foldAt(i, j) !== FOLD.smooth || NEIGHBOURS.some(([dx, dy]) => this.foldAt(i + dx, j + dy) !== FOLD.smooth);
   }
 
@@ -174,36 +214,6 @@ export class GroundSurface {
 
   private touchesCliff(i: number, j: number): boolean {
     return this.foldAt(i - 1, j - 1) !== FOLD.smooth || this.foldAt(i, j - 1) !== FOLD.smooth || this.foldAt(i - 1, j) !== FOLD.smooth || this.foldAt(i, j) !== FOLD.smooth;
-  }
-
-  private cliffTouching(i: number, j: number, onColumn: boolean, onRow: boolean): { x: number; y: number } | null {
-    for (const dy of onRow ? [0, -1] : [0])
-      for (const dx of onColumn ? [0, -1] : [0])
-        if (this.foldAt(i + dx, j + dy) !== FOLD.smooth) return { x: i + dx, y: j + dy };
-    return null;
-  }
-
-  private cliffNear(i: number, j: number, fx: number, fy: number): number {
-    let near = 0;
-    for (const [dx, dy] of NEIGHBOURS) if (this.foldAt(i + dx, j + dy) !== FOLD.smooth) near = Math.max(near, Math.min(towards(dx, fx), towards(dy, fy)));
-    return near;
-  }
-
-  private bilinear(i: number, j: number, fx: number, fy: number): number {
-    const a = this.corner(i, j);
-    const d = this.corner(i + 1, j);
-    const b = this.corner(i, j + 1);
-    const c = this.corner(i + 1, j + 1);
-    return a + (d - a) * fx + (b - a) * fy + (a - b - d + c) * fx * fy;
-  }
-
-  private faceted(i: number, j: number, fx: number, fy: number): number {
-    const a = this.corner(i, j);
-    const d = this.corner(i + 1, j);
-    const b = this.corner(i, j + 1);
-    const c = this.corner(i + 1, j + 1);
-    if (this.foldAt(i, j) === FOLD.cliffAlongRise) return fx >= fy ? a + (d - a) * fx + (c - d) * fy : a + (c - b) * fx + (b - a) * fy;
-    return fx + fy <= 1 ? a + (d - a) * fx + (b - a) * fy : c + (b - c) * (1 - fx) + (d - c) * (1 - fy);
   }
 
   private calmSpline(i: number, j: number, fx: number, fy: number): number {
@@ -242,11 +252,6 @@ function gridStep(origin: number, k: number): { tile: number; f: number } {
   return { tile, f: u - tile };
 }
 
-function towards(step: number, f: number): number {
-  if (step === 0) return 1;
-  return step < 0 ? 1 - f : f;
-}
-
 function onMap(v: number, n: number): number {
   return Math.min(n, Math.max(0, v));
 }
@@ -260,6 +265,15 @@ function pastEdge(i: number, j: number, n: number, at: (x: number, y: number) =>
   if (i > n) return 2 * at(n, j) - at(2 * n - i, j);
   if (j < 0) return 2 * at(i, 0) - at(i, -j);
   return 2 * at(i, n) - at(i, 2 * n - j);
+}
+
+function throughWeights(f: number, into: Float64Array): void {
+  const f2 = f * f;
+  const f3 = f2 * f;
+  into[0] = (-f + 2 * f2 - f3) / 2;
+  into[1] = (2 - 5 * f2 + 3 * f3) / 2;
+  into[2] = (f + 4 * f2 - 3 * f3) / 2;
+  into[3] = (f3 - f2) / 2;
 }
 
 function splineWeights(f: number, into: Float64Array): void {
