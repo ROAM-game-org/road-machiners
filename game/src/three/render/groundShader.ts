@@ -196,8 +196,8 @@ export function groundDetailPx(camera: THREE.OrthographicCamera, drawWidth: numb
   if (Math.abs(detailBack.y) < 1e-3) throw new Error("Ground detail needs a camera that looks down at the ground");
   const across = onGround(detailAcross.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(2 / (p[0] * drawWidth)));
   const down = onGround(detailDown.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(2 / (p[5] * drawHeight)));
-  const pixel = Math.hypot(Math.abs(across.x) + Math.abs(down.x), Math.abs(across.z) + Math.abs(down.z));
-  return 2 ** Math.round(Math.log2(pixel));
+  const pixel = Math.max(across.length(), down.length());
+  return 2 ** Math.floor(Math.log2(pixel));
 }
 
 function onGround(step: THREE.Vector3): THREE.Vector3 {
@@ -240,6 +240,7 @@ function lookUniforms() {
     drawnHaloAmount: TUNING.halo,
     drawnMaterialContrast: TUNING.materialContrast,
     drawnSurroundBlend: TUNING.surround,
+    drawnFarMarks: TUNING.farMarks,
     drawnEdgeSoft: TUNING.edgeSoft,
     drawnEdgeShadowAmount: TUNING.edgeShadow,
     drawnEdgeShadowWidth: TUNING.edgeShadowWidth,
@@ -358,6 +359,7 @@ uniform float drawnMaterialNatural[${GROUND_MATERIAL_IDS.length}];
 uniform sampler2D groundSurround;
 uniform float groundSurroundMeters;
 uniform float drawnSurroundBlend;
+uniform float drawnFarMarks;
 uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
@@ -651,7 +653,7 @@ float drawnSample(vec2 texel) {
 
 const SURFACE_MARKS = `float drawnLine(float dist, float width, float px) {
   float shown = max(width, px * 0.5);
-  return (1.0 - smoothstep(shown - px * 0.5, shown + px * 0.5, dist)) * min(1.0, width / (px * 0.5));
+  return (1.0 - smoothstep(shown - px * 0.5, shown + px * 0.5, dist)) * mix(min(1.0, width / (px * 0.5)), 1.0, drawnFarMarks);
 }
 float drawnCrackEdge(vec2 p) {
   vec2 cell = floor(p);
@@ -756,7 +758,7 @@ float drawnTufts(vec2 p, float px) {
   if (pick > share) return 0.0;
   float near = drawnBlade(f, root, (markHash(c + 59.0) - 0.5) * 0.3, (markHash(c + 61.0) - 0.5) * 1.0, mix(0.6, 0.85, markHash(c + 67.0)));
   if (markHash(c + 71.0) < share) near = min(near, drawnBlade(f, root + vec2(markHash(c + 73.0) < 0.5 ? -0.14 : 0.14, -0.04), (markHash(c + 79.0) - 0.5) * 0.3, (markHash(c + 83.0) - 0.5) * 1.0, mix(0.5, 0.75, markHash(c + 89.0))));
-  return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 8).toFixed(3)}, ${(DRAWN_TUFT_CELL / 4).toFixed(3)}, drawnDetailPx));
+  return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 4).toFixed(3)}, ${(DRAWN_TUFT_CELL / 2).toFixed(3)}, drawnDetailPx));
 }
 float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, bool clumped, float px) {
   vec2 q = drawnViewFrame(p) / cell;
