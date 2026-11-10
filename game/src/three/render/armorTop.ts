@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bodyTops, cellRect, unitOfCells, type CellRect, type HeightMap } from '../../sim/body';
 import { baseGrid } from '../../sim/grid';
+import { TRUCK_LOOK } from '../../render/partLooks';
 
 export type TopCut = { texture: THREE.DataTexture; first: THREE.Vector2; cell: number; size: THREE.Vector2 };
 export type Seams = { along: number[]; across: number[] };
@@ -13,6 +14,8 @@ const TOP_SMOOTH_PASSES = 2;
 const CAB_REACH = 0.3;
 const CAB_STEP = 0.35;
 const CAB_GUARD = 0.3;
+export const STEEPEST_LEAN = Math.PI / 4;
+const LEAN_REACH = TRUCK_LOOK.armorDepth / Math.cos(STEEPEST_LEAN);
 
 type Grid = { cols: number; rows: number; first: THREE.Vector2; cell: number };
 type Mask = ArrayLike<number>;
@@ -45,7 +48,12 @@ export function topCut(map: HeightMap, seams: Seams): TopCut {
   const outside = heights.map((h) => (Number.isNaN(h) ? 1 : 0));
   const body = outside.map((o) => 1 - o);
   const reach = Math.round(TOP_LEAST_FEATURE / 2 / map.cell);
-  guardCab(heights, opened(heights, body, grid, reach), grid, Math.round(CAB_REACH / map.cell));
+  const broad = opened(heights, body, grid, reach);
+  guardCab(heights, broad, grid, Math.round(CAB_REACH / map.cell));
+  pickOver(broad, body, grid, Math.round(LEAN_REACH / map.cell), Math.max);
+  eachCell(grid, (_i, _j, k) => {
+    if (body[k]) heights[k] = Math.max(heights[k], broad[k]);
+  });
   for (let grow = 0; grow < pad; grow++) spreadOutward(heights, grid);
   const line = opened(heights, outside, grid, reach);
   for (let pass = 0; pass < TOP_SMOOTH_PASSES; pass++) pickOver(line, outside, grid, 1, mean);

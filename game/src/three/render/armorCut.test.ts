@@ -115,7 +115,7 @@ describe('fitToBody', () => {
     return body;
   };
   const plow = () => box([-0.15, -0.25, -0.8], [0.15, 0.25, 0.8]);
-  const at = (x: number, y: number): Placement => ({ pos: new THREE.Vector3(x, y, 0), yaw: 0, scale: new THREE.Vector3(1, 1, 1) });
+  const at = (x: number, y: number): Placement => ({ pos: new THREE.Vector3(x, y, 0), yaw: 0, lean: 0, scale: new THREE.Vector3(1, 1, 1) });
 
   it('centers a ram on the wheel hubs at bumper level, at its full height', () => {
     const sunk = at(2.25, -0.6);
@@ -146,14 +146,22 @@ describe('fitToBody', () => {
     expect(() => fitRamToBumper(at(0, HUB_Y), plow(), bumpered(), 'L', HUB_Y)).toThrow(/front and back/);
   });
 
-  it('grows a short side plate up to the cut, keeps its foot and sinks it half its depth into the body', () => {
-    const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, scale: new THREE.Vector3(1, 1, 1) };
+  it('grows a short upright side plate up to the cut, keeping its foot and its face on the body', () => {
+    const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, lean: 0, scale: new THREE.Vector3(1, 1, 1) };
     const before = placedBounds(at, plateBox);
-    fitToBody(at, plateBox, noBody, TOP, 'L');
+    fitToBody(at, plateBox, TOP, 'L');
     const after = placedBounds(at, plateBox);
     expect(after.min.y).toBeCloseTo(before.min.y, 5);
     expect(after.max.y).toBeGreaterThan(0.33);
-    expect(after.min.z).toBeCloseTo(before.min.z + 0.05, 5);
+    expect(after.min.z).toBeCloseTo(before.min.z, 5);
+    expect(after.max.z).toBeCloseTo(before.max.z, 5);
+  });
+
+  it('leaves a leaned side plate at its lean, since the lean already reaches the body top', () => {
+    const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, lean: 0.5, scale: new THREE.Vector3(1, 1, 1) };
+    const before = placedBounds(at, plateBox);
+    fitToBody(at, plateBox, TOP, 'L');
+    expect(placedBounds(at, plateBox).max.y).toBeCloseTo(before.max.y, 9);
   });
 });
 
