@@ -22,14 +22,19 @@ export function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
   return box.clone().applyMatrix4(m);
 }
 
-export function fitToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, cut: TopCut, side: SideLetter, ram: boolean): void {
-  if (ram) {
-    sinkUnderCut(at, box, cut, side);
-    return;
-  }
+export function fitToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, cut: TopCut, side: SideLetter): void {
   growToCut(at, box, cut, side);
   closeGap(at, box, body, side);
   sinkHalfway(at, box, side);
+}
+
+export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, hubY: number): void {
+  if (SIDE_FACE[side].axis !== 'x') throw new Error(`Ram on side ${side}: rams mount only on the front and back`);
+  const placed = placedBounds(at, box);
+  const underside = new THREE.Box3().setFromObject(body).min.y;
+  const bottom = Math.max(underside, hubY - (placed.max.y - placed.min.y) / 2);
+  at.pos.y += bottom - placed.min.y;
+  pullToBody(at, box, body, side);
 }
 
 function cutAlong(placed: THREE.Box3, cut: TopCut, side: SideLetter): number[] {
@@ -38,10 +43,14 @@ function cutAlong(placed: THREE.Box3, cut: TopCut, side: SideLetter): number[] {
   return [placed.min.z, mid.z, placed.max.z].map((z) => cutHeightAt(cut, mid.x, z));
 }
 
-function sinkUnderCut(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {
+function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): void {
+  const { axis, outward } = SIDE_FACE[side];
+  const across = axis === 'x' ? 'z' : 'x';
   const placed = placedBounds(at, box);
-  const under = Math.min(...cutAlong(placed, cut, side)) + TOP_MARGIN;
-  if (placed.max.y > under) at.pos.y -= placed.max.y - under;
+  const face = bodyFace(body, axis, outward, [placed.min[across], placed.max[across]], [placed.min.y, placed.max.y]);
+  if (face === null) throw new Error(`Ram on side ${side} finds no body face at its height to sit against`);
+  const gap = outward * ((outward > 0 ? placed.min[axis] : placed.max[axis]) - face);
+  if (gap > 0) at.pos[axis] -= outward * gap;
 }
 
 function growToCut(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {

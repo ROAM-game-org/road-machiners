@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import type { HeightMap } from '../../sim/body';
 import { CUT_SLOTS, cutFace, cutSpec, lampIslands, withCut } from './armorCut';
-import { fitToBody, placedBounds, type Placement } from './armorFit';
+import { fitRamToBumper, fitToBody, placedBounds, type Placement } from './armorFit';
 import { cutHeightAt, topCut } from './armorTop';
 import { CloudShadows } from './cloudShadows';
 
@@ -107,17 +107,49 @@ describe('fitToBody', () => {
   const plateBox = box([-0.05, -0.1, -0.225], [0.05, 0.1, 0.225]);
   const noBody = new THREE.Group();
 
-  it('sinks a ram until its top sits under the cut, so nothing of it is cut', () => {
-    const at: Placement = { pos: new THREE.Vector3(2.2, 0.5, 0), yaw: 0, scale: new THREE.Vector3(1, 1, 1) };
-    const ramBox = box([-0.15, -0.25, -0.8], [0.15, 0.25, 0.8]);
-    fitToBody(at, ramBox, noBody, TOP, 'F', true);
-    expect(placedBounds(at, ramBox).max.y).toBeLessThanOrEqual(cutHeightAt(TOP, 2.2, 0) + 0.021);
+  const HUB_Y = 0.3;
+  const UNDERSIDE = 0;
+  const bumpered = (): THREE.Group => {
+    const body = new THREE.Group();
+    body.add(new THREE.Mesh(cube([4, 0.7, 2], [0, UNDERSIDE + 0.35, 0])), new THREE.Mesh(cube([0.1, 0.2, 2], [2.05, HUB_Y, 0])));
+    return body;
+  };
+  const plow = () => box([-0.15, -0.25, -0.8], [0.15, 0.25, 0.8]);
+  const at = (x: number, y: number): Placement => ({ pos: new THREE.Vector3(x, y, 0), yaw: 0, scale: new THREE.Vector3(1, 1, 1) });
+
+  it('centers a ram on the wheel hubs at bumper level, at its full height', () => {
+    const sunk = at(2.25, -0.6);
+    fitRamToBumper(sunk, plow(), bumpered(), 'F', HUB_Y);
+    const placed = placedBounds(sunk, plow());
+    expect((placed.min.y + placed.max.y) / 2).toBeCloseTo(HUB_Y, 5);
+    expect(placed.max.y - placed.min.y).toBeCloseTo(0.5, 5);
+  });
+
+  it('raises a ram too tall for the hubs until its bottom meets the chassis underside, never lower', () => {
+    const tall = () => box([-0.15, -0.4, -0.8], [0.15, 0.4, 0.8]);
+    const low = at(2.25, -0.6);
+    fitRamToBumper(low, tall(), bumpered(), 'F', HUB_Y);
+    expect(placedBounds(low, tall()).min.y).toBeCloseTo(UNDERSIDE, 5);
+  });
+
+  it('pulls a ram standing off the nose back until it touches the bumper, and leaves a touching ram in place', () => {
+    const off = at(2.6, HUB_Y);
+    fitRamToBumper(off, plow(), bumpered(), 'F', HUB_Y);
+    expect(placedBounds(off, plow()).min.x).toBeCloseTo(2.1, 5);
+    const touching = at(2.2, HUB_Y);
+    fitRamToBumper(touching, plow(), bumpered(), 'F', HUB_Y);
+    expect(touching.pos.x).toBeCloseTo(2.2, 5);
+  });
+
+  it('fails loudly when a ram finds no body face at its height, or sits on a side', () => {
+    expect(() => fitRamToBumper(at(2.2, HUB_Y), plow(), noBody, 'F', HUB_Y)).toThrow(/no body face/);
+    expect(() => fitRamToBumper(at(0, HUB_Y), plow(), bumpered(), 'L', HUB_Y)).toThrow(/front and back/);
   });
 
   it('grows a short side plate up to the cut, keeps its foot and sinks it half its depth into the body', () => {
     const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, scale: new THREE.Vector3(1, 1, 1) };
     const before = placedBounds(at, plateBox);
-    fitToBody(at, plateBox, noBody, TOP, 'L', false);
+    fitToBody(at, plateBox, noBody, TOP, 'L');
     const after = placedBounds(at, plateBox);
     expect(after.min.y).toBeCloseTo(before.min.y, 5);
     expect(after.max.y).toBeGreaterThan(0.33);

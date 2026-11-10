@@ -19,7 +19,7 @@ import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gu
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, partTone, WORLD_LOOKS, wornTone } from './truckMesh';
-import { armorModel, cutFace, cutSpec, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
+import { armorModel, cutFace, cutSpec, cutToBody, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
@@ -794,7 +794,7 @@ function dropShadows(root: THREE.Object3D): void {
 }
 
 function armorIdsOf(v: Vehicle): Set<string> {
-  return new Set(v.items.flatMap((it) => (it.kind === 'part' && isShield(partDef(it.part.defId)) ? [it.part.id] : [])));
+  return new Set(v.items.flatMap((it) => (it.kind === 'part' && cutToBody(partDef(it.part.defId)) ? [it.part.id] : [])));
 }
 
 function restingWheelBoxes(unit: UnitView): THREE.Box3[] {

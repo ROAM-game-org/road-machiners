@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { isShield, partDef, type ShieldDef } from '../../data/parts';
+import { isShield, partDef, type PartDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { fitToBody, placedBounds, SIDE_FACE, type Placement } from './armorFit';
+import { fitRamToBumper, fitToBody, placedBounds, SIDE_FACE, type Placement } from './armorFit';
 import { TOP_MARGIN, unitTopCut, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
@@ -222,9 +222,18 @@ export function armorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
 export function drawnArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
   const at = armorPlacement(v, item, box, body);
   if (!isMounted(v.chassisId, item)) return at;
-  const ram = (partDef(item.part.defId) as ShieldDef).look === 'ram';
-  fitToBody(at, box, body, unitTopCut(v.chassisId, cellRect(v.chassisId, itemCells(item)).unit), armorSide(v, item), ram);
+  const unit = cellRect(v.chassisId, itemCells(item)).unit;
+  if (isRam(partDef(item.part.defId))) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
+  else fitToBody(at, box, body, unitTopCut(v.chassisId, unit), armorSide(v, item));
   return at;
+}
+
+export function isRam(def: PartDef): boolean {
+  return isShield(def) && (def as ShieldDef).look === 'ram';
+}
+
+export function cutToBody(def: PartDef): boolean {
+  return isShield(def) && !isRam(def);
 }
 
 function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
