@@ -40,6 +40,27 @@ describe("ground crests", () => {
     for (const p of lines[0]) expect(Math.abs(p.x - 26)).toBeLessThan(1);
   });
 
+  const lowDune = (x: number) => (x <= 30 ? 0.6 * Math.max(0, x - 10) / 20 : Math.max(0, 0.6 * (31 - x)));
+  const tracedAt = (height: (x: number, y: number) => number, standout: number) => {
+    const raw = Float32Array.from({ length: SIDE * SIDE }, (_, k) => height(k % SIDE, Math.floor(k / SIDE)));
+    return crestLines(blurredHeights(raw, SIDE, LANDFORM_BLUR_TILES), raw, SIDE, METERS, { ...CREST_SHAPE, leastFoldMeters: 4, standout });
+  };
+
+  it("lines the sharp lip of a low dune that stands out from flat ground", () => {
+    expect(tracedAt(lowDune, 0)).toHaveLength(0);
+    const lines = tracedAt(lowDune, CREST_SHAPE.standout);
+    expect(lines).toHaveLength(1);
+    for (const p of lines[0]) expect(Math.abs(p.x - 30)).toBeLessThan(1.5);
+  });
+
+  it("leaves the same low lip unlined on a big slope", () => {
+    expect(tracedAt((x) => lowDune(x) + 0.5 * x, CREST_SHAPE.standout)).toHaveLength(0);
+  });
+
+  it("leaves a soft low hump with no sharp edge unlined", () => {
+    expect(tracedAt((x) => 0.6 * Math.exp(-(((x - 30) / 6) ** 2)), CREST_SHAPE.standout)).toHaveLength(0);
+  });
+
   it("finds no crest on a plain slope", () => {
     expect(traced((x, y) => 0.2 * x + 0.1 * y)).toHaveLength(0);
   });

@@ -10,6 +10,9 @@ const CREST_SNAP_REACH_TILES = 1.5;
 const CREST_FALL_LEAST = 0.1;
 const CREST_LEAST_AHEAD = 0;
 const CREST_MIN_TILES = 10;
+const CREST_STANDOUT_TILES = 10;
+const CREST_STANDOUT_LEAST = 0.5;
+const CREST_KINK_TILES = 0.125;
 const CREST_LINK_TILES = 2;
 const CREST_TAPER_TILES = 3;
 const CREST_STAMP_TILES = 3;
@@ -33,25 +36,52 @@ function squareSteps(reach: number): CrestPoint[] {
 
 export type CrestPoint = { x: number; y: number };
 
-export type CrestShape = { leastFoldMeters: number; leastTiles: number };
+export type CrestShape = { leastFoldMeters: number; leastTiles: number; standout: number };
 
-export const CREST_SHAPE: CrestShape = { leastFoldMeters: 3, leastTiles: CREST_MIN_TILES };
+export const CREST_SHAPE: CrestShape = { leastFoldMeters: 3, leastTiles: CREST_MIN_TILES, standout: 0.4 };
+
+type FoldTest = { reach: number; leastFold: number; standout: number; corners: ArrayLike<number> };
 
 export function crestLines(form: Float32Array, corners: ArrayLike<number>, side: number, metersPerTile: number, shape: CrestShape): CrestPoint[][] {
   if (!(shape.leastFoldMeters > 0)) throw new Error(`A crest needs a positive least fold, got ${shape.leastFoldMeters}`);
-  const fine = crestCorners(form, side, CREST_REACH_TILES, shape.leastFoldMeters / metersPerTile);
-  const broad = crestCorners(form, side, CREST_BROAD_REACH_TILES, (shape.leastFoldMeters / metersPerTile) * (CREST_BROAD_REACH_TILES / CREST_REACH_TILES));
+  if (!(shape.standout >= 0 && shape.standout <= 1)) throw new Error(`A crest standout share must be from 0 to 1, got ${shape.standout}`);
+  const leastFold = shape.leastFoldMeters / metersPerTile;
+  const fine = crestCorners(form, side, { reach: CREST_REACH_TILES, leastFold, standout: shape.standout, corners });
+  const broad = crestCorners(form, side, { reach: CREST_BROAD_REACH_TILES, leastFold: leastFold * (CREST_BROAD_REACH_TILES / CREST_REACH_TILES), standout: 0, corners });
   const crest = joined(fine, apart(broad, fine, side), side);
   return chained(crest, side)
     .filter((line) => lengthOf(line) >= shape.leastTiles)
     .map((line) => smoothed(line.map((p) => snapped(form, corners, side, p))));
 }
 
-function crestCorners(f: Float32Array, side: number, reach: number, leastFoldTiles: number): Uint8Array {
+function crestCorners(f: Float32Array, side: number, test: FoldTest): Uint8Array {
   const crest = new Uint8Array(side * side);
-  const edge = reach + 2;
-  for (let y = edge; y < side - edge; y++) for (let x = edge; x < side - edge; x++) crest[y * side + x] = isCrest(f, side, x, y, reach, leastFoldTiles) ? 1 : 0;
+  const edge = test.reach + 2;
+  for (let y = edge; y < side - edge; y++) for (let x = edge; x < side - edge; x++) crest[y * side + x] = isCrest(f, side, x, y, test) ? 1 : 0;
   return crest;
+}
+
+function heightRange(f: Float32Array, side: number, x: number, y: number): number {
+  let low = Infinity;
+  let high = -Infinity;
+  for (let j = Math.max(0, y - CREST_STANDOUT_TILES); j <= Math.min(side - 1, y + CREST_STANDOUT_TILES); j++)
+    for (let i = Math.max(0, x - CREST_STANDOUT_TILES); i <= Math.min(side - 1, x + CREST_STANDOUT_TILES); i++) {
+      const h = f[j * side + i];
+      low = Math.min(low, h);
+      high = Math.max(high, h);
+    }
+  return high - low;
+}
+
+function foldCounts(f: Float32Array, side: number, x: number, y: number, across: CrestPoint, fold: number, test: FoldTest): boolean {
+  if (fold >= test.leastFold) return true;
+  if (test.standout === 0 || fold < test.leastFold * CREST_STANDOUT_LEAST) return false;
+  return hasDrawnKink(test.corners, side, x, y, across) && fold >= test.standout * heightRange(f, side, x, y);
+}
+
+function hasDrawnKink(corners: ArrayLike<number>, side: number, x: number, y: number, across: CrestPoint): boolean {
+  for (let t = -CREST_SNAP_TILES / 2; t <= CREST_SNAP_TILES / 2; t += CREST_SNAP_STEP) if (foldAt(corners, side, x + across.x * t, y + across.y * t, across, 1) >= CREST_KINK_TILES) return true;
+  return false;
 }
 
 function apart(broad: Uint8Array, fine: Uint8Array, side: number): Uint8Array {
@@ -95,11 +125,12 @@ function fallOrBend(form: Float32Array, side: number, x: number, y: number): Cre
   return steep >= CREST_FALL_LEAST ? { x: fall.x / steep, y: fall.y / steep } : bendAcross(form, side, x, y);
 }
 
-function isCrest(f: Float32Array, side: number, x: number, y: number, reach: number, leastFoldTiles: number): boolean {
+function isCrest(f: Float32Array, side: number, x: number, y: number, test: FoldTest): boolean {
   const across = bendAcross(f, side, x, y);
   if (!across) return false;
-  const here = foldAt(f, side, x, y, across, reach);
-  return here >= leastFoldTiles && here >= foldAt(f, side, x + across.x, y + across.y, across, reach) && here > foldAt(f, side, x - across.x, y - across.y, across, reach);
+  const here = foldAt(f, side, x, y, across, test.reach);
+  if (here < foldAt(f, side, x + across.x, y + across.y, across, test.reach) || here <= foldAt(f, side, x - across.x, y - across.y, across, test.reach)) return false;
+  return foldCounts(f, side, x, y, across, here, test);
 }
 
 function foldAt(f: ArrayLike<number>, side: number, x: number, y: number, across: CrestPoint, reach: number): number {
