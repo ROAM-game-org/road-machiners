@@ -155,7 +155,7 @@ describe('withCut', () => {
     expect(shader.fragmentShader).toMatch(/#include <clipping_planes_fragment>\nfor \(int i = 0; i < CUT_WHEELS/);
     expect(shader.fragmentShader).toContain('discard');
     expect(shader.vertexShader).toContain('vCutPos = transformed;');
-    expect(Object.keys(shader.uniforms).sort()).toEqual(['cutLampMax', 'cutLampMin', 'cutStripe', 'cutStripeFloor', 'cutTop', 'cutTopCell', 'cutTopFirst', 'cutTopSize', 'cutWheelAt', 'cutWheelHalfWidth']);
+    expect(Object.keys(shader.uniforms).sort()).toEqual(['cutLampMax', 'cutLampMin', 'cutStripe', 'cutStripeAt', 'cutTop', 'cutTopCell', 'cutTopFirst', 'cutTopSize', 'cutWheelAt', 'cutWheelHalfWidth']);
     expect(shader.fragmentShader).toContain('cutTopHeight(vCutPos)');
   });
 
@@ -164,11 +164,11 @@ describe('withCut', () => {
     const capped = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec, 'capped')).fragmentShader;
     const plain = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec)).fragmentShader;
     expect(striped).toMatch(/#include <color_fragment>\nfloat cutStripeAa/);
-    expect(striped).toContain('0.5 * (cutStripeFloor + cutTopHeight(vCutPos))');
+    expect(striped).toContain('abs(vCutPos.y - cutStripeAt)');
     expect(capped).not.toContain('cutStripeAa');
     expect(capped).toContain('gl_FrontFacing');
     expect(plain).not.toContain('gl_FrontFacing');
-    expect(spec.stripeFloor).toBeCloseTo(-HALF.y + TRUCK_LOOK.armorRise);
+    expect(spec.stripeAt).toBeCloseTo(TRUCK_LOOK.armorRise / 2);
   });
 
   it('keeps rams out of the faction line and outlines out of every face', () => {

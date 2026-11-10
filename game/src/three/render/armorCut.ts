@@ -13,7 +13,7 @@ export type { Placement } from './armorFit';
 export { unitTopCut } from './armorTop';
 export { armorModel } from './armorLook';
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
-export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[]; top: TopCut; stripe: THREE.Color; stripeFloor: number };
+export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[]; top: TopCut; stripe: THREE.Color; stripeAt: number };
 export type CutFace = 'plain' | 'capped' | 'striped';
 
 const CORNER_DIGITS = 3;
@@ -30,8 +30,14 @@ export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box
     lamps: lamps.filter((island) => atEnd(island, half, look)).map((island) => lampWindow(island, look)),
     top,
     stripe: new THREE.Color(stripe),
-    stripeFloor: -half.y + look.armorRise,
+    stripeAt: sideMiddle(half, look),
   };
+}
+
+function sideMiddle(half: Body['half'], look: typeof TRUCK_LOOK): number {
+  const armorFloor = -half.y + look.armorRise;
+  const bodyTop = half.y;
+  return (armorFloor + bodyTop) / 2;
 }
 
 export function cutFace(mesh: THREE.Mesh): CutFace {
@@ -120,7 +126,7 @@ uniform vec2 cutTopFirst;
 uniform vec2 cutTopSize;
 uniform float cutTopCell;
 uniform vec3 cutStripe;
-uniform float cutStripeFloor;
+uniform float cutStripeAt;
 float cutTopAt(ivec2 at) {
   return texelFetch(cutTop, clamp(at, ivec2(0), ivec2(cutTopSize) - 1), 0).r;
 }
@@ -142,7 +148,7 @@ if (vCutPos.y > cutTopHeight(vCutPos) + ${TOP_MARGIN.toFixed(3)}) discard;`;
 
 const CAP_FRAGMENT = `if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * ${CAP_TONE.toFixed(2)};`;
 const STRIPE_FRAGMENT = `float cutStripeAa = fwidth(vCutPos.y);
-float cutStripeOff = abs(vCutPos.y - 0.5 * (cutStripeFloor + cutTopHeight(vCutPos)));
+float cutStripeOff = abs(vCutPos.y - cutStripeAt);
 diffuseColor.rgb = mix(diffuseColor.rgb, cutStripe, 1.0 - smoothstep(${STRIPE_HALF_WIDTH.toFixed(3)} - cutStripeAa, ${STRIPE_HALF_WIDTH.toFixed(3)} + cutStripeAa, cutStripeOff));`;
 
 type CutUniforms = Record<string, THREE.IUniform>;
@@ -169,7 +175,7 @@ function uniformsOf(spec: CutSpec): CutUniforms {
     cutTopSize: { value: spec.top.size },
     cutTopCell: { value: spec.top.cell },
     cutStripe: { value: spec.stripe },
-    cutStripeFloor: { value: spec.stripeFloor },
+    cutStripeAt: { value: spec.stripeAt },
   };
   uniformsOfSpec.set(spec, uniforms);
   return uniforms;
