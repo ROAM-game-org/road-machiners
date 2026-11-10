@@ -19,7 +19,7 @@ import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gu
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, WORLD_LOOKS } from './truckMesh';
-import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
+import { cutSpec, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
@@ -363,7 +363,7 @@ export class VehicleView {
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
-    this.finishLook(merged);
+    this.finishLook(merged, v.chassisId);
   }
 
   private freshMaterials(): void {
@@ -396,19 +396,19 @@ export class VehicleView {
     }
   }
 
-  private finishLook(merged: THREE.Group[]): void {
+  private finishLook(merged: THREE.Group[], chassisId: string): void {
     if (this.scene === 'world') for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
-    this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
+    this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain, chassisId));
     if (this.scene !== 'world') {
       this.dropContactShadow();
       dropShadows(this.root);
     }
   }
 
-  private cutArmor(unit: UnitView, merged: THREE.Group, plain: THREE.MeshBasicMaterial[]): void {
+  private cutArmor(unit: UnitView, merged: THREE.Group, plain: THREE.MeshBasicMaterial[], chassisId: string): void {
     const lamps = merged.children.flatMap((o) => (o instanceof THREE.Mesh && o.material === this.lampMat ? lampIslands(o.geometry) : []));
-    const spec = cutSpec(restingWheelBoxes(unit), lamps, unit.b.half, TRUCK_LOOK);
+    const spec = cutSpec(restingWheelBoxes(unit), lamps, unit.b.half, TRUCK_LOOK, unitTopCut(chassisId, unit.index));
     const cut: ArmorCut = {
       spec,
       depth: withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), spec),
@@ -598,7 +598,7 @@ export class VehicleView {
     const def = partDef(item.part.defId);
     if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
     const obj = model(partModel(def.id));
-    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
+    place(obj, drawnArmorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -777,7 +777,7 @@ function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
     mesh.material = twin;
     return;
   }
-  mesh.material = withCut(plain, cut.spec);
+  mesh.material = withCut(plain, cut.spec, !mesh.userData.outline);
   mesh.userData.cut = cut.spec;
   mesh.userData.darkMat = cut.dark;
   if (mesh.userData.outline) return;
