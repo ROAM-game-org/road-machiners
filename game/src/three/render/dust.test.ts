@@ -10,7 +10,8 @@ import type { DustCloud, Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
 import type { VehicleView } from './vehicle';
 import { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, type Card, type FxCards } from './particles/cards';
-import { DUST_LOOK, DustCloudsView, plumeShape, puffsPerCloud } from './dust';
+import { TUNING } from './inkTuning';
+import { DUST_LOOK,DustCloudsView, plumeShape, puffsPerCloud } from './dust';
 
 const S = PHYSICS.metersPerTile;
 
@@ -24,7 +25,8 @@ function worldOf(clouds: DustCloud[], seen: string[]): World {
 
 function drawn(view: DustCloudsView): Card[] {
   const out: Card[] = [];
-  view.draw({ lit: { push: (c: Card) => out.push(c) } } as unknown as FxCards);
+  const sink = { push: (c: Card) => out.push(c) };
+  view.draw({ lit: sink, dust: sink } as unknown as FxCards);
   return out;
 }
 
@@ -175,11 +177,17 @@ describe('DustCloudsView look', () => {
       world.dustClouds[0].age = age;
       return updated(world, new Map(), null).map((c) => c.shape);
     };
-    const shapes = shapesAt(3);
-    expect(shapes.filter((s) => s < CARD_SHAPES).length).toBeGreaterThan(0);
-    expect(shapes.filter((s) => s >= CLUMP_FIRST && s < CLUMP_FIRST + CLUMP_SHAPES).length).toBeGreaterThan(0);
-    expect(shapes.length).toBe(DUST_LOOK.puffs);
-    expect(shapesAt(5)).toEqual(shapes);
+    const ink = TUNING.fxInk.value;
+    TUNING.fxInk.value = 0;
+    try {
+      const shapes = shapesAt(3);
+      expect(shapes.filter((s) => s < CARD_SHAPES).length).toBeGreaterThan(0);
+      expect(shapes.filter((s) => s >= CLUMP_FIRST && s < CLUMP_FIRST + CLUMP_SHAPES).length).toBeGreaterThan(0);
+      expect(shapes.length).toBe(DUST_LOOK.puffs);
+      expect(shapesAt(5)).toEqual(shapes);
+    } finally {
+      TUNING.fxInk.value = ink;
+    }
   });
 
   it('draws a cloud fainter when it was raised with less dust, up to full strength', () => {

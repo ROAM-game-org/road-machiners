@@ -39,7 +39,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   contourOpacity: { label: "Opacity", min: 0, max: 1, step: 0.05, start: 0.4 },
   contourCross: { label: "Crossed strokes", min: 0, max: 1, step: 1, start: 0 },
   outline: { label: "Object outline", min: 0, max: 3, step: 0.1, start: 1.5, unit: "px" },
-  fxInk: { label: "Ink effects", min: 0, max: 1, step: 0.05, start: 0 },
+  fxInk: { label: "Ink effects", min: 0, max: 1, step: 0.05, start: 1 },
   smokeLines: { label: "Smoke lines", min: 0, max: 1, step: 0.05, start: 0.5 },
   dustSize: { label: "Puff size", min: 0.1, max: 2, step: 0.05, start: 0.55 },
   dustAmount: { label: "Wheel dust amount", min: 0, max: 3, step: 0.05, start: 1.3 },
