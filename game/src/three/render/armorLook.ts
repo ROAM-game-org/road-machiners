@@ -10,7 +10,7 @@ export const ARMOR_LOOK = {
   detail: 0.86,
   spaced: { panel: 0x4f6378, wall: 0x3c4249 },
   scrap: { steel: 0x6c655d, rust: 0x6a4836 },
-  ceramic: { tile: 0xb0ab9f, dim: 0x989488 },
+  ceramic: { tile: 0xc2beb2, dim: 0x857f74 },
   cage: { bar: 0x5e4a3c },
   ram: { strip: 0xd08a1e },
 };
