@@ -1,5 +1,5 @@
 import { PHYSICS } from '../data/physics';
-import { couplingOf, rideOf, unitBody, type Body } from '../sim/body';
+import { axlesOf, couplingOf, rideOf, unitBody, type Body } from '../sim/body';
 import { heightAt } from '../sim/terrain';
 import type { UnitPose } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
@@ -58,15 +58,16 @@ function seatRear(w: World, v: Vehicle, pose: UnitPose, front: Seat): Seat {
 }
 
 function rearBasis(w: World, b: Body, heading: number, at: V3, basis: Basis, anchor: V3, pivotRear: number, low: number): Basis {
-  const axle = groundUnder(w, add(at, rotate(basis, { x: -b.wheelX, y: 0, z: 0 })));
+  const rearAxle = axlesOf(b).rear;
+  const axle = groundUnder(w, add(at, rotate(basis, { x: rearAxle, y: 0, z: 0 })));
   const drop = axle.y - anchor.y;
-  const dx = pivotRear + b.wheelX;
+  const dx = pivotRear - rearAxle;
   const dy = low + rideOf(b);
   const reach = Math.hypot(dx, dy);
   const pitch = Math.asin(clampUnit(-drop / reach)) - Math.atan2(dy, dx);
   const pitched = pitchedBasis(heading, pitch);
-  const left = groundUnder(w, add(at, rotate(pitched, { x: -b.wheelX, y: 0, z: -b.wheelZ }))).y;
-  const right = groundUnder(w, add(at, rotate(pitched, { x: -b.wheelX, y: 0, z: b.wheelZ }))).y;
+  const left = groundUnder(w, add(at, rotate(pitched, { x: rearAxle, y: 0, z: -b.wheelZ }))).y;
+  const right = groundUnder(w, add(at, rotate(pitched, { x: rearAxle, y: 0, z: b.wheelZ }))).y;
   return rolledBasis(pitched, -Math.atan2(right - left, 2 * b.wheelZ));
 }
 

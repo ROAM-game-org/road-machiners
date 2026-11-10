@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { Body } from '../../sim/body';
+import { axlesOf, type Body } from '../../sim/body';
 import { EDGE_DISTANCE, MASK_UV, neutralSurface, outlineOf, surfacedMaterial, surfaceOf, type SurfaceName } from './models';
 
 export const BODY_PAINT_SATURATION = 0.8;
@@ -212,7 +212,8 @@ export const CONTACT_SHADOW ={ darkness: 0.55, core: 0.125, side: 64, lift: 0.02
 let contactTexture: THREE.DataTexture | null = null;
 
 export function contactShadowFor(b: Body): THREE.Mesh {
-  const length = 2 * Math.max(b.half.x, b.wheelX + b.wheelRadius) * CONTACT_SHADOW.spread.length;
+  const axles = axlesOf(b);
+  const length = 2 * Math.max(b.half.x, Math.abs(axles.front) + b.wheelRadius, Math.abs(axles.rear) + b.wheelRadius) * CONTACT_SHADOW.spread.length;
   const width = 2 * Math.max(b.half.z, b.wheelZ + b.wheelHalfWidth) * CONTACT_SHADOW.spread.width;
   const material = new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, depthWrite: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(length, width), material);

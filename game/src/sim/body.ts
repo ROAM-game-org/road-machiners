@@ -10,6 +10,7 @@ export type Body = {
   half: { x: number; y: number; z: number };
   boxes: BodyBox[];
   wheelX: number;
+  axleMid: number;
   wheelZ: number;
   wheelY: number;
   wheelRadius: number;
@@ -26,7 +27,7 @@ export type Span = { center: number; half: { x: number; z: number } };
 
 type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
 type TruckShape = { boxes: ShapeBox[]; heights: HeightMap };
-type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number };
+type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number; axleMid?: number };
 type CouplingLook = (typeof PHYSICS.couplings)[keyof typeof PHYSICS.couplings];
 
 const units = new Map<string, readonly Unit[]>();
@@ -118,7 +119,22 @@ function buildBody(chassisId: string, shape: string, look: WheelLook): Body {
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
   const comY = look.comHeight - rideOf(look);
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, tandem: look.tandem ?? null, comY };
+  const span = boxSpan(boxes);
+  if (Math.abs(span.center) > CENTER_TOLERANCE) throw new Error(`Body ${shape} of ${chassisId} has its collider centered ${span.center.toFixed(3)} m off its origin`);
+  return { half, boxes, wheelX: look.wheelX, axleMid: look.axleMid ?? 0, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, tandem: look.tandem ?? null, comY };
+}
+
+const CENTER_TOLERANCE = 0.05;
+
+function boxSpan(boxes: readonly BodyBox[]): { center: number } {
+  const lo = Math.min(...boxes.map((b) => b.at.x - b.half.x));
+  const hi = Math.max(...boxes.map((b) => b.at.x + b.half.x));
+  return { center: (lo + hi) / 2 };
+}
+
+export function axlesOf(b: { wheelX: number; axleMid?: number }): { front: number; rear: number } {
+  const mid = b.axleMid ?? 0;
+  return { front: mid + b.wheelX, rear: mid - b.wheelX };
 }
 
 export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
