@@ -264,6 +264,7 @@ export class Fx3D {
     l.sky.copy(sky.color).multiplyScalar(sky.intensity);
     l.ground.copy(sky.groundColor).multiplyScalar(sky.intensity);
     this.cards.lit.light(l);
+    this.ruts.light(l.sunDir);
   }
 
   wheelDust(p: V3, back: V3, out: V3, ground: TerrainType): void {

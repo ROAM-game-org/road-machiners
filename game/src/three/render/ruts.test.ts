@@ -111,6 +111,44 @@ describe('Ruts', () => {
     expect(ruts.mesh.count).toBe(0);
   });
 
+  it('lays nothing on water', () => {
+    const w = worldOn('canal');
+    const ruts = new Ruts(new THREE.Scene());
+
+    drive(ruts, w, 100, 104);
+
+    expect(ruts.mesh.count).toBe(0);
+  });
+
+  it('lays ruts on land right beside water', () => {
+    const w = worldOn('sand');
+    const v = truckOf(w);
+    const rows = tirePoints(w.terrain, v.chassisId, frameAt(v, 100)).map((p) => Math.floor(p.z / S));
+    const types = w.terrain.types as TerrainTypeId[];
+    for (const row of [Math.min(...rows) - 1, Math.max(...rows) + 1]) types.fill('dirtyWater', row * w.terrain.size, (row + 1) * w.terrain.size);
+    const ruts = new Ruts(new THREE.Scene());
+
+    drive(ruts, w, 100, 100 + 4 * RUT.step);
+
+    expect(ruts.mesh.count).toBe(4 * marking);
+  });
+
+  it('still lays ruts in mud', () => {
+    const w = worldOn('mud');
+    const ruts = new Ruts(new THREE.Scene());
+
+    drive(ruts, w, 100, 100 + 4 * RUT.step);
+
+    expect(ruts.mesh.count).toBe(4 * marking);
+  });
+
+  it('darkens the ground it lies on by a share, never toward black', () => {
+    for (const factor of [RUT.floor, RUT.wall]) {
+      expect(factor).toBeGreaterThan(0.25);
+      expect(factor).toBeLessThan(1);
+    }
+  });
+
   it('lays nothing from wheels in the air', () => {
     const w = worldOn('sand');
     const ruts = new Ruts(new THREE.Scene());
@@ -135,15 +173,29 @@ describe('Ruts', () => {
     expect(ruts.mesh.count).toBe(0);
   });
 
-  it('joins a long move between frames to the strip', () => {
+  it('fills a long move between late frames with ground-hugging pieces instead of leaving a hole', () => {
     const w = worldOn('sand');
     const v = truckOf(w);
     const ruts = new Ruts(new THREE.Scene());
 
     track(ruts, w, v, frameAt(v, 100));
-    track(ruts, w, v, frameAt(v, 100 + 3 * RUT.step));
+    track(ruts, w, v, frameAt(v, 100 + 12 * RUT.step));
 
-    expect(ruts.mesh.count).toBe(marking);
+    expect(ruts.mesh.count).toBe(12 * marking);
+  });
+
+  it('stops a filled move at a road it crosses', () => {
+    const w = worldOn('sand');
+    const v = truckOf(w);
+    const types = w.terrain.types as TerrainTypeId[];
+    const roadColumn = Math.floor((100 + 6 * RUT.step) / S);
+    for (let row = 0; row < w.terrain.size; row++) types[row * w.terrain.size + roadColumn] = 'road';
+    const ruts = new Ruts(new THREE.Scene());
+
+    track(ruts, w, v, frameAt(v, 100));
+    track(ruts, w, v, frameAt(v, 100 + 12 * RUT.step));
+
+    expect(ruts.mesh.count).toBeLessThan(12 * marking);
   });
 
   it('starts a new strip after a jump of over a gap, with no segment across it', () => {
@@ -194,9 +246,23 @@ describe('Ruts', () => {
     m.decompose(pos, quat, scale);
     expect(pos.y).toBeCloseTo(RUT.lift, 6);
     expect(scale.x).toBeCloseTo(RUT.step, 6);
-    expect(scale.z).toBeCloseTo(RUT.width, 6);
+    expect(scale.z).toBeCloseTo(2 * bodyOf(v.chassisId).wheelHalfWidth, 6);
   });
 
+  it('is as wide as the tires of each chassis', () => {
+    const widths = ['buggy', 'tractor'].map((chassisId) => {
+      const w = worldOn('sand');
+      const v = { ...truckOf(w), chassisId };
+      const ruts = new Ruts(new THREE.Scene());
+      track(ruts, w, v, frameAt(v, 100));
+      track(ruts, w, v, frameAt(v, 100 + RUT.step));
+      const m = new THREE.Matrix4();
+      ruts.mesh.getMatrixAt(0, m);
+      return new THREE.Vector3().setFromMatrixScale(m).z;
+    });
+
+    expect(widths[1]).toBeGreaterThan(widths[0] * 1.5);
+  });
   it('fades a segment to nothing over its life', () => {
     const w = worldOn('sand');
     const ruts = new Ruts(new THREE.Scene());
