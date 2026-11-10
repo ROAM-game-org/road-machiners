@@ -148,7 +148,10 @@ float inkFallStreaks() {
   float kept = step(inkHash(vec2(row, floor(along))), ${INK_STREAK_KEPT.toFixed(2)});
   float halfWidth = 0.5 * ${INK_STREAK_WIDTH.toFixed(2)} * sin(fract(along) * 3.14159);
   float line = 1.0 - smoothstep(halfWidth - 0.5 * px, halfWidth + 0.5 * px, abs(fract(across) - 0.5) * ${INK_STREAK_SPACING.toFixed(2)});
-  return line * kept * smoothstep(${INK_STREAK_STEEP_FROM.toFixed(2)}, ${INK_STREAK_STEEP_FULL.toFixed(2)}, steep) * smoothstep(0.35, 0.7, ${INK_STREAK_WIDTH.toFixed(2)} / px) * inkCliffStreaks;
+  return line * kept * smoothstep(0.35, 0.7, ${INK_STREAK_WIDTH.toFixed(2)} / px) * inkCliffStreaks;
+}
+float inkStreakedShare() {
+  return smoothstep(${INK_STREAK_STEEP_FROM.toFixed(2)}, ${INK_STREAK_STEEP_FULL.toFixed(2)}, length(inkSurface.slope)) * step(0.001, inkCliffStreaks);
 }
 float inkContourLine(float interval) {
   float height = inkSurface.height;
@@ -208,7 +211,8 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float relief = mix(inkSmoothRelief(inkFacing(inkSurface.slope)), inkSmoothRelief(1.0), inShade);
   vec3 color = inkGroundShade(inkSunFace(inkHeightBands(inkBase(albedo, lit, level, 0.0, relief)), inShade), inShade);
   color *= 1.0 - inkCastDark * inShade;
-  color *= 1.0 - inkFallStreaks() * (1.0 - inShade) * INK_CREST_TONE;
+  float streaked = inkStreakedShare();
+  color *= 1.0 - inkFallStreaks() * streaked * INK_CREST_TONE;
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));

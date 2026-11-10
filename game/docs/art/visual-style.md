@@ -22,9 +22,9 @@ Each principle has the reason behind it and a check you can run on a screenshot.
 
 2. Flat planes, not noise. Areas are flat color with crisp, antialiased edges. Two materials differ by their own surface mark, such as cracks on asphalt and wind ripples on sand, and not by color alone. Why: grain, speckle, per-stroke hue jitter and pixelated rendering read as noisy and tire the eyes. Check: every edge is smooth when you zoom in, and you can name every material without color.
 
-3. Few lines, each with one meaning. The world uses only these lines: the thin outline on models, the road edge line, the crest hairline on ridge tops, dune brinks and cliff lips in the ground's own darker color, and short streaks down steep lit faces. Lines belong to the form, so they stay fixed while shade moves with the sun. The crest line sits on the drawn lip, so the shade edge meets it whenever the sun is across the ridge. Why: when a material border looked like a dark line, it read as a change in height, and a crest line a few meters off the lip read as a second edge. Check: each dark line on the screen belongs to one of these kinds, and a crest line lies on the edge of its ridge.
+3. Few lines, each with one meaning. The world uses only these lines: the thin outline on models, the road edge line, the crest hairline on ridge tops, dune brinks and cliff lips in the ground's own darker color, and short streaks down steep faces. Lines belong to the form, so they stay fixed while shade moves with the sun. The crest line sits on the drawn lip, so the shade edge meets it whenever the sun is across the ridge. Why: when a material border looked like a dark line, it read as a change in height, and a crest line a few meters off the lip read as a second edge. Check: each dark line on the screen belongs to one of these kinds, and a crest line lies on the edge of its ridge.
 
-4. One kind of mark per plane. Lit faces carry the material marks and the cliff streaks. Shade carries only its diagonal shadow strokes, and streaks never enter it. Why: streaks laid over shadow strokes crossed into a confusing hatch. Check: no plane on the screen shows two kinds of strokes.
+4. Few marks per plane. Lit faces carry the material marks. Shade carries its diagonal shadow strokes. Steep faces add sparse streaks down the fall line, in light and in shade. Why: dense streaks laid over shadow strokes crossed into a confusing hatch, and a steep face in shade with strokes alone read as a flat trench floor. Check: on a steep shaded face the streaks stay sparse enough that the strokes still read as one tone.
 
 5. One sun, real light. Light and shadow come from the engine. The sun's shadow map falls on the one smooth ground surface and on every model. Ground is in shade where the shadow map blocks the sun, where the slope turns away from it, or where the lightly smoothed landform tilts away from it past the shade cut angle. Any one of them shades fully. The cut gives each ridge a crisp split into a lit face and a shade face, and since it reads the landform, small bumps never split into shade pools. Why: hand-made shadow rules drew double shadows, blobs and shadows of things nobody could see. Check: every shadow has a caster that the player can see, and it points away from the sun.
 
@@ -46,7 +46,7 @@ Each principle has the reason behind it and a check you can run on a screenshot.
 
 - Draw what the surface is made of: cracked dark asphalt, ripples on sand, tufts on scrub, pebbles on gravel.
 - Let landforms show through light: a warm lit face, a flat shade plane with a crisp edge, and a cast shadow.
-- Give each plane one kind of mark: streaks on steep lit faces, shadow strokes in shade.
+- Give shade its shadow strokes, and add sparse streaks on steep faces in light and shade.
 - Give each edge its material's character, and let blades and pebbles spill over it.
 - Keep shade the material's own color.
 - Use the engine's lights and shadows, and give them the right input, such as a mesh that casts.
@@ -67,7 +67,7 @@ Each principle has the reason behind it and a check you can run on a screenshot.
 - Do not draw a shadow, patch or mark that nothing in the scene causes.
 - Do not let zoom, pan or the camera's coarse draw while zooming change a shape.
 - Do not split shade into flat steps by height. That look was tried and rejected as buggy.
-- Do not lay streaks or other texture strokes over shadow strokes.
+- Do not lay dense streaks or other texture strokes over shadow strokes.
 - Do not draw crest lines in black, at a fixed full width, or off the drawn lip.
 - Do not draw grass or gravel as a photo-like texture. Draw them with ink marks at a believable size next to a truck.
 - Do not clip blades or pebbles at a border, and do not dust grass with sand.
