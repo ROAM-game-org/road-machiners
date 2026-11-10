@@ -1,6 +1,6 @@
 # UI design system
 
-The HTML UI and the in-world overlays share one look: warm ink on dark metal, Barlow Semi Condensed for words and IBM Plex Mono for numbers.
+The HTML UI and the in-world overlays share one look: warm ink on dark metal, Barlow Semi Condensed for words and IBM Plex Mono for numbers. The 3D world has its own look in [Visual style](art/visual-style.md), and neither borrows from the other.
 
 A design system has three layers. Principles say what the UI is for and how to judge it. Patterns say how a kind of problem is solved every time, like a shop row, a disabled button or an alert. Tokens and shared pieces say what it is built from. A person or an agent who builds a new screen follows all three, so it makes the same choices as the screens before it.
 

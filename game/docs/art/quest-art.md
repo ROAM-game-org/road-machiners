@@ -1,6 +1,6 @@
 # Quest art
 
-Quest pictures set the mood of a scene. They do not need to show every detail the text names. Every picture shares one coloured pencil style, so the pictures read as one set and not as generic AI art. A picture is made in two steps: an image model draws it from a fixed style block and a scene block, then a saturation filter softens its colours.
+Quest pictures set the mood of a scene. They do not need to show every detail the text names. Every picture shares one coloured pencil style, so the pictures read as one set and not as generic AI art. This style is for quest pictures only. The 3D world follows [Visual style](visual-style.md), and neither borrows from the other. A picture is made in two steps: an image model draws it from a fixed style block and a scene block, then a saturation filter softens its colours.
 
 ## Prompt
 

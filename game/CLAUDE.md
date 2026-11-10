@@ -4,6 +4,8 @@ Turn-based wasteland truck RPG in 3D with an isometric positioned camera.
 
 Read [docs/DESIGN.md](docs/DESIGN.md) before any game change and before answering any question about the game. It is the source of truth for what the game should be. The detailed rules behind each of its sections live in [docs/wiki/mechanics/](docs/wiki/mechanics/). A rule change updates the mechanics page, and DESIGN.md changes only when a principle does.
 
+Read [docs/art/visual-style.md](docs/art/visual-style.md) before any change to how the 3D world looks, and check the result against its principles.
+
 Every change a player sees in the HTML UI or an overlay goes through [docs/ui.md](docs/ui.md), the UI design system. That covers a new screen, panel, tooltip, notice, button, label or line of UI text. Plan it with the steps in "How to build a screen", build it from the shared formatters and pieces, and check the screenshots against the principle tests. A change that breaks a principle names it and says why, and a new pattern goes into docs/ui.md in the same change.
 
 ## Stack
@@ -43,6 +45,7 @@ Writing, in `docs/writing/`:
 
 Art and sound, in `docs/art/`:
 
+- [Visual style](docs/art/visual-style.md): the 3D world's look.
 - [Art pipeline](docs/art/models.md): Blender models, the truck grid projection and part model rules.
 - [Asset review](docs/art/asset-review.md): the surface faults a model can have, the commands that find them and the independent review a new model gets.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
@@ -61,7 +64,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 
 - `npm run dev` starts the game at <http://localhost:5173>.
 - `npm test` runs every Vitest test in `src/`. `npm run typecheck` runs tsc.
-- `npm run test:cached -- --cache <dir> [test files] [--related <files>]`, with `--related` last, skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. `--related` runs only the test files among those files or importing one, directly or through other modules, so a test that only reads a file from disk is not selected. The factory checks run it with `--related` and the changed game files, and the full suite on GitHub Actions runs it with neither. A corrupt or old-format entry counts as no pass. A run where every test passed passes despite Vitest worker RPC timeouts on `onTaskUpdate`, and fails on any other unhandled error.
+- `npm run test:cached -- --cache <dir> [test files] [--related <files>]`, with `--related` last, skips every test file that already passed with the same inputs. [Tools](docs/tools.md) has the details.
 - `npm run playtest` plays turns in headless Chromium and fails on errors or low FPS. It needs the dev server. Without a GPU it warns and plays in software, which needs `--no-fps-gate`. The factory uses it everywhere but the release candidate, since its host runs many jobs at once.
 - `npm run stuck` records a trader bot for 2 seeds of 500 turns and fails on any stall from any truck. Run it after changes to NPC goals, services or tows.
 - `npm run progression:record`, `progression:report`, `progression:analyze` and `progression:watch` are the playtest harness. Bots play the real turn pipeline headless with every NPC alive, and each run writes logs of every turn. It covers economy, progression, NPC behavior and fights at the macro level. `progression:playthrough` writes the full activity log of one markov bot run, which the factory's release playtest reads. `npm run sim` opens simulation mode, which plays that run in the browser and shows every truck on the 2D map, the full event log and any truck's card.
