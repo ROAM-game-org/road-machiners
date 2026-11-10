@@ -99,7 +99,7 @@ type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart
 
 const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'wagon' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'convertible' | 'van', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
-  niva: { height: [1.89, 2.19], hood: [0.39, 0.45], roof: [0.44, 1], tailDrop: [0, 0.1] },
+  niva: { height: [1.95, 2.05], hood: [0.38, 0.42], roofStart: [0.48, 0.53], roof: [0.45, 0.53], noseDrop: [0.78, 0.92], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
