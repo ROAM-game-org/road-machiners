@@ -16,7 +16,7 @@ import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
 
 const S = PHYSICS.metersPerTile;
-const OWNER = "The drawn ground";
+const OWNER = "drawn-ground";
 const DIRT_UNDER = TERRAIN_TYPES.track.color;
 const DIRT_EDGE = 0.44;
 const DIRT_BLEND = 0.12;

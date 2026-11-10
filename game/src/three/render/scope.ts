@@ -497,5 +497,5 @@ function hasSightAt(mesh: THREE.Mesh): boolean {
 }
 
 function inject(source: string, chunk: string, code: string): string {
-  return injectAfter("Sight limit", source, chunk, code);
+  return injectAfter("sight-limit", source, chunk, code);
 }
