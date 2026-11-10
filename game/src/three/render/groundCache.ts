@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { holdGroundDetail, type GroundCacheUniforms } from "./groundShader";
+import { holdGroundDetail } from "./groundDetail";
+import { type GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
 
 const HAZE_REACH_PX = 32;

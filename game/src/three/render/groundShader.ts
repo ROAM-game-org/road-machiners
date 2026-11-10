@@ -9,6 +9,7 @@ import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
 import { CREST_GLSL, GroundCrest, type CrestUniforms } from "./groundCrest";
+import { holdGroundDetail } from "./groundDetail";
 import { GroundLandform, LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
@@ -60,9 +61,13 @@ const DRAWN_MARK_FLAT_FROM = 0.82;
 const DRAWN_MARK_FLAT_TO = 0.93;
 const DRAWN_MARK_FADE_FROM = 0.1;
 const DRAWN_MARK_FADE_TO = 0.22;
-const DRAWN_CLOD_CELL = 0.5;
-const DRAWN_CLOD_SHARE = 0.45;
-const DRAWN_CLOD_MIX = 0.5;
+const DRAWN_FURROW_PLOT = 36;
+const DRAWN_FURROW_SPACING = 1.6;
+const DRAWN_FURROW_DASH = 5.5;
+const DRAWN_FURROW_KEEP = 0.8;
+const DRAWN_FURROW_WIDTH = 0.035;
+const DRAWN_FURROW_WANDER = 0.7;
+const DRAWN_FURROW_MIX = 0.45;
 const DRAWN_EDGE_REACH = 3;
 const DRAWN_ECHO_BREAK = 1.7;
 const DRAWN_SHORE_WIDTH = 0.04;
@@ -178,31 +183,6 @@ export function drawGround(material: THREE.MeshLambertMaterial, ground: DrawnGro
 }
 
 const detailDrawSize = new THREE.Vector2();
-const detailAcross = new THREE.Vector3();
-const detailDown = new THREE.Vector3();
-const detailBack = new THREE.Vector3();
-
-export function holdGroundDetail(uniforms: Record<string, THREE.IUniform>, camera: THREE.Camera, drawWidth: number, drawHeight: number): void {
-  const detail = uniforms.drawnDetailPx;
-  if (!detail) throw new Error("Ground uniforms have no drawnDetailPx to hold the detail level");
-  if (!(camera instanceof THREE.OrthographicCamera)) throw new Error("Ground detail reads meters per pixel, which only holds for an orthographic camera");
-  detail.value = groundDetailPx(camera, drawWidth, drawHeight);
-}
-
-export function groundDetailPx(camera: THREE.OrthographicCamera, drawWidth: number, drawHeight: number): number {
-  camera.updateMatrixWorld();
-  const p = camera.projectionMatrix.elements;
-  detailBack.setFromMatrixColumn(camera.matrixWorld, 2);
-  if (Math.abs(detailBack.y) < 1e-3) throw new Error("Ground detail needs a camera that looks down at the ground");
-  const across = onGround(detailAcross.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(2 / (p[0] * drawWidth)));
-  const down = onGround(detailDown.setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(2 / (p[5] * drawHeight)));
-  const pixel = Math.max(across.length(), down.length());
-  return 2 ** Math.floor(Math.log2(pixel));
-}
-
-function onGround(step: THREE.Vector3): THREE.Vector3 {
-  return step.addScaledVector(detailBack, -step.y / detailBack.y);
-}
 
 export function writeGroundCache(material: THREE.MeshLambertMaterial, ground: DrawnGround): void {
   patchGround(material, ground.uniforms, `${ground.header}${CACHE_OUTPUTS}${INK_CONTRACT}`, CACHE_WRITE, `${ground.key}|cacheWrite`);
@@ -677,16 +657,20 @@ float drawnPuddles(vec2 p) {
   float aa = max(fwidth(wet), 0.002);
   return smoothstep(${DRAWN_PUDDLE_FROM.toFixed(2)} - aa, ${DRAWN_PUDDLE_FROM.toFixed(2)} + aa, wet);
 }
-float drawnClods(vec2 p, float px) {
-  vec2 c = floor(p / ${DRAWN_CLOD_CELL.toFixed(2)});
-  vec2 f = p / ${DRAWN_CLOD_CELL.toFixed(2)} - c;
-  float turn = markHash(c + 13.0) * 6.2831853;
-  vec2 d = mat2(cos(turn), sin(turn), -sin(turn), cos(turn)) * (f - 0.3 - 0.4 * vec2(markHash(c + 17.0), markHash(c + 19.0)));
-  float radius = mix(0.08, 0.17, markHash(c + 23.0));
-  float lumpy = length(d * vec2(1.0, 1.7)) + (valueNoise(p / 0.12 + c) - 0.5) * 0.06;
-  float edge = px / ${DRAWN_CLOD_CELL.toFixed(2)};
-  float clod = 1.0 - smoothstep(radius - edge, radius + edge, lumpy);
-  return clod * step(markHash(c + 29.0), ${DRAWN_CLOD_SHARE.toFixed(2)}) * (1.0 - smoothstep(${(DRAWN_CLOD_CELL / 6).toFixed(3)}, ${(DRAWN_CLOD_CELL / 3).toFixed(3)}, drawnDetailPx));
+float drawnFurrows(vec2 p, float px) {
+  vec2 plot = floor(p / ${DRAWN_FURROW_PLOT.toFixed(1)});
+  float turn = markHash(plot + 7.0) * 3.1415927;
+  vec2 along = vec2(cos(turn), sin(turn));
+  float u = dot(p, along);
+  float v = dot(p, vec2(-along.y, along.x)) + (valueNoise(p / 9.0 + plot) - 0.5) * ${DRAWN_FURROW_WANDER.toFixed(2)};
+  float row = floor(v / ${DRAWN_FURROW_SPACING.toFixed(2)});
+  float across = (fract(v / ${DRAWN_FURROW_SPACING.toFixed(2)}) - 0.5) * ${DRAWN_FURROW_SPACING.toFixed(2)};
+  float dashAt = u / ${DRAWN_FURROW_DASH.toFixed(2)} + markHash(vec2(row, plot.x + plot.y * 31.0));
+  float dash = floor(dashAt);
+  float inDash = fract(dashAt);
+  float kept = step(markHash(vec2(dash, row + 17.0)), ${DRAWN_FURROW_KEEP.toFixed(2)});
+  float taper = smoothstep(0.0, 0.18, inDash) * (1.0 - smoothstep(0.72, 0.9, inDash));
+  return drawnLine(abs(across), ${DRAWN_FURROW_WIDTH.toFixed(3)} * taper, px) * kept * (1.0 - smoothstep(${(DRAWN_FURROW_SPACING / 4).toFixed(3)}, ${(DRAWN_FURROW_SPACING / 2).toFixed(3)}, drawnDetailPx));
 }
 float drawnBorderNear(float edgeMeters) {
   return 1.0 - smoothstep(${(DRAWN_EDGE_REACH / 2).toFixed(2)}, ${DRAWN_EDGE_REACH.toFixed(2)}, edgeMeters);
@@ -937,7 +921,7 @@ const MARKS_BODY = `
   float drawnCrackFiner = drawnBorderNear(drawnEdgeMeters);
   if (drawnFine && drawnMark == ${markIndex("cracks")}) drawnDark = max(drawnCracks(vRoadXZ, ${DRAWN_CRACK_CELL.toFixed(1)}, drawnPx), drawnCrackFiner * drawnCracks(vRoadXZ + 57.0, ${DRAWN_CRACK_FINE_CELL.toFixed(1)}, drawnPx)) * drawnZoomed * 0.6;
   if (drawnFine && drawnMark == ${markIndex("saltCracks")}) drawnLight = max(drawnCracks(vRoadXZ + 31.0, ${DRAWN_CRACK_CELL.toFixed(1)}, drawnPx), drawnCrackFiner * drawnCracks(vRoadXZ + 87.0, ${DRAWN_CRACK_FINE_CELL.toFixed(1)}, drawnPx)) * drawnZoomed * 0.7;
-  if (drawnMarked && drawnMark == ${markIndex("clods")}) drawnDark = drawnClods(vRoadXZ, drawnPx) * ${DRAWN_CLOD_MIX.toFixed(2)};
+  if (drawnMarked && drawnMark == ${markIndex("furrows")}) drawnDark = drawnFurrows(vRoadXZ, drawnPx) * ${DRAWN_FURROW_MIX.toFixed(2)};
   if (drawnMark == ${markIndex("puddles")}) drawnDark = drawnPuddles(vRoadXZ) * ${DRAWN_PUDDLE_MIX.toFixed(2)};
   if (drawnFine && drawnMark == ${markIndex("windRipples")}) drawnDark = drawnWindRipples(vRoadXZ, drawnEdgeMeters, drawnPx) * drawnZoomed * ${DRAWN_SAND_RIPPLE_MIX.toFixed(2)};
   if (drawnMarked && drawnMark == ${markIndex("waves")}) drawnLight = max(drawnWaves(vRoadXZ, drawnPx), drawnShoreLines(vRoadXZ, drawnEdgeMeters, drawnPx)) * ${DRAWN_GLINT_MIX.toFixed(2)};

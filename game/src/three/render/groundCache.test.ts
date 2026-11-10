@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { exposedAreas, visibleArea, wrapped, type Area } from "./groundCache";
-import { groundDetailPx } from "./groundShader";
+import { groundDetailPx } from "./groundDetail";
 
 function viewOf(halfWidth: number): THREE.OrthographicCamera {
   const camera = new THREE.OrthographicCamera(-halfWidth, halfWidth, halfWidth * 0.625, -halfWidth * 0.625, 1, 500);

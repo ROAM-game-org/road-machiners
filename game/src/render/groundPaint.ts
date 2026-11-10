@@ -49,7 +49,7 @@ export function desertWeight(type: LookType): number {
   return DESERT_WEIGHT[type];
 }
 
-export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "clods"] as const;
+export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "furrows"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
 export type EdgeStyle = "smudge" | "pepper" | "gritty" | "hard" | "shore" | "straight";
@@ -70,7 +70,7 @@ export type GroundMaterial = MaterialRow & { color: number };
 const MATERIAL_ROWS: Record<LookType, MaterialRow> = {
   hardpan: { mark: "cracks", edge: "smudge", spill: 0.45, warm: 1, stand: 0 },
   sand: { mark: "windRipples", edge: "smudge", spill: 1, warm: 1, stand: 0.3 },
-  field: { mark: "clods", edge: "smudge", spill: 0.3, warm: 1, stand: 0.5 },
+  field: { mark: "furrows", edge: "smudge", spill: 0.3, warm: 1, stand: 0.5 },
   track: { mark: "none", edge: "smudge", spill: 0.3, warm: 1, stand: 0 },
   mud: { mark: "puddles", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
   blackMud: { mark: "puddles", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
