@@ -58,7 +58,7 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 
 function paintTexture(w: World): THREE.CanvasTexture {
   const c = mapCanvas(w, groundSide(w.size));
-  paintGroundCanvas(c, w.terrain, { hillshade: 0.35 });
+  paintGroundCanvas(c, w.terrain);
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;

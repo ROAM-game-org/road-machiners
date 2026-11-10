@@ -4,7 +4,7 @@ import { TERRAIN, TERRAIN_TYPES, type Basin, type TerrainTypeId } from "../data/
 import { TERRITORIES } from "../data/territory";
 import { atlasOf, atlasSites } from "../sim/atlas";
 import { siteGap } from "../sim/sites";
-import { groundSlope, type Terrain } from "../sim/terrain";
+import { type Terrain } from "../sim/terrain";
 import { basinUnder, isTerritory } from "../sim/territory";
 import { type Vec } from "../sim/vec";
 import { hash2 } from "./noise";
@@ -186,18 +186,8 @@ export type PaintCanvas = {
   toPx: (tiles: number) => number;
 };
 
-export type PaintOptions = {
-  hillshade: number;
-};
-
-const DEFAULT_OPTIONS: PaintOptions = { hillshade: 1 };
-
-export function paintGroundCanvas(
-  c: PaintCanvas,
-  t: Terrain,
-  opts: PaintOptions = DEFAULT_OPTIONS,
-): void {
-  paintGround(c, t, opts);
+export function paintGroundCanvas(c: PaintCanvas, t: Terrain): void {
+  paintGround(c, t);
   paintLandformCanvas(c, t);
 }
 
@@ -273,18 +263,16 @@ type TileLook = {
   t: Terrain;
   color: Int32Array;
   desert: Float32Array;
-  shade: Float64Array;
   broad: CellNoise;
   fine: CellNoise;
   patch: CellNoise;
   cell: Cell;
 };
 
-function tileLook(t: Terrain, opts: PaintOptions): TileLook {
+function tileLook(t: Terrain): TileLook {
   const count = t.size * t.size;
   const color = new Int32Array(count);
   const desert = new Float32Array(count);
-  const shadeBy = new Float64Array(count);
   const look = lookTypes(t);
   const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
@@ -292,9 +280,8 @@ function tileLook(t: Terrain, opts: PaintOptions): TileLook {
     const own = t.types[i];
     color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(own), yard.fade[i]) : paintColor(own);
     desert[i] = desertAround(look[i], natural, yard.fade[i]);
-    shadeBy[i] = hillshade(t, i, opts.hillshade);
   }
-  return { t, color, desert, shade: shadeBy, broad: new CellNoise(), fine: new CellNoise(), patch: new CellNoise(), cell: { a: 0, b: 0, c: 0, d: 0, fx: 0, fy: 0 } };
+  return { t, color, desert, broad: new CellNoise(), fine: new CellNoise(), patch: new CellNoise(), cell: { a: 0, b: 0, c: 0, d: 0, fx: 0, fy: 0 } };
 }
 
 function desertAround(own: LookType, natural: LookType, fade: number): number {
@@ -330,16 +317,6 @@ class CellNoise {
 
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);
-}
-
-function hillshade(t: Terrain, tile: number, strength: number): number {
-  const s = groundSlope(t, tile);
-  return (
-    1 +
-    (s.x * TERRAIN.light.x + s.y * TERRAIN.light.y) *
-      TERRAIN.slopeShade *
-      strength
-  );
 }
 
 function tileIndex(size: number, x: number, y: number): number {
@@ -435,7 +412,7 @@ function groundColor(look: TileLook, x: number, y: number): number {
   let color = mix(typeColor(look, cell), PAL.sand[3], n * 0.2);
   color = desertSand(color, weight, patchAt(look.patch, x, y));
   const speckle = 1 + (hash2(Math.floor(x * 3), Math.floor(y * 3)) * 0.05 - 0.03) * calm;
-  color = shade(color, speckle * look.shade[tileIndex(t.size, x, y)]);
+  color = shade(color, speckle);
   const out = Math.max(-x, -y, x - t.size, y - t.size, 0);
   if (out > 0)
     color = mix(color, PAL.sandFar, Math.min(1, 0.35 + out / TERRAIN_MARGIN));
@@ -449,12 +426,8 @@ function scratchImage(c: PaintCanvas): ImageData {
   return scratch;
 }
 
-function paintGround(
-  c: PaintCanvas,
-  t: Terrain,
-  opts: PaintOptions,
-): void {
-  const look = tileLook(t, opts);
+function paintGround(c: PaintCanvas, t: Terrain): void {
+  const look = tileLook(t);
   const img = scratchImage(c);
   const data = img.data;
   for (let py = 0; py < c.size; py++) {
