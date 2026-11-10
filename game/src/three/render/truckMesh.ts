@@ -10,6 +10,15 @@ export function bodyPaint(paint: number): number {
   return new THREE.Color().setHSL(hsl.h, hsl.s * BODY_PAINT_SATURATION, hsl.l).getHex();
 }
 
+export const PAINT_MATERIAL = 'paint';
+
+export const OFF_ROLE_TONES: Record<string, number> = { red: 0x48423d, rust: 0x6c6259, rust_side: 0x4d463f, rust_dark: 0x312c28 };
+
+export function partTone(material: string, color: number, paint: number, isPart: boolean): number {
+  if (material === PAINT_MATERIAL) return bodyPaint(paint);
+  return isPart ? (OFF_ROLE_TONES[material] ?? color) : color;
+}
+
 export function flipWinding(geo: THREE.BufferGeometry): void {
   for (const name of Object.keys(geo.attributes)) {
     const a = geo.getAttribute(name) as THREE.BufferAttribute;

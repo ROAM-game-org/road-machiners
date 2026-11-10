@@ -18,7 +18,7 @@ import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, WORLD_LOOKS } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, partTone, WORLD_LOOKS } from './truckMesh';
 import { armorModel, cutFace, cutSpec, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
@@ -32,7 +32,6 @@ const CELL = PHYSICS.cell;
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
-const PAINT = 'paint';
 const TRIM = 'trim';
 
 const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, accessory: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
@@ -1054,7 +1053,7 @@ function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[]
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Part mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    if (mat.name === PAINT) mat.color.setHex(bodyPaint(paint));
+    mat.color.setHex(partTone(mat.name, mat.color.getHex(), paint, look.partId !== null));
     mat.color.setHex(grayed(mat.color.getHex(), share));
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
