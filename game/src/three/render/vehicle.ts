@@ -24,6 +24,7 @@ import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { gunBase, gunHead } from './gunLook';
+import { itemObject } from './kindLook';
 import { cornerWheels, nearestWheels } from './wheelItems';
 
 const T = PHYSICS.truck;
@@ -575,7 +576,7 @@ export class VehicleView {
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number): THREE.Object3D {
-    const obj = model(itemModel(item));
+    const obj = itemObject(itemLookId(item));
     const spot = this.spots.get(item);
     if (!spot) throw new Error(`Item ${item.id} on ${v.chassisId} has no standing spot`);
     const at = footprint(v, item, spot.y);
@@ -588,7 +589,7 @@ export class VehicleView {
   }
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
-    const obj = fitInto(model(itemModel(item)), rectOf(v, item), engineFloor(v.chassisId), cellsTurned(item) ? ROT_YAW : 0);
+    const obj = fitInto(itemObject(itemLookId(item)), rectOf(v, item), engineFloor(v.chassisId), cellsTurned(item) ? ROT_YAW : 0);
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -955,7 +956,7 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 
 export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
   const rest = restOf(v, item);
-  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
+  return itemSpot(base, bottomOf(partModel(itemLookId(item)), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
 }
 
 function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -990,10 +991,6 @@ function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
 
 export function standingY(v: Pick<Vehicle, 'chassisId'>, item: GridItem): number {
   return restOf(v, item).y;
-}
-
-function itemModel(item: GridItem) {
-  return partModel(itemLookId(item));
 }
 
 function cabOf(v: Vehicle): GridItem | undefined {

@@ -14,6 +14,7 @@ import { bodyPaint } from '../render/truckMesh';
 import { VehicleView } from '../render/vehicle';
 import { armorModel } from '../render/armorLook';
 import { gunBase, gunHead } from '../render/gunLook';
+import { itemObject, kindTones } from '../render/kindLook';
 import { blueprintOf, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
 import { boundsOf, edgeBand, solidMask, stripes, type Mask, type Pixels, type Rgba } from './lines';
 
@@ -211,7 +212,8 @@ function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'came
     return { root, head: new THREE.Vector3(), tip: new THREE.Vector3() };
   }
   if (!entry.weapon) {
-    for (const name of entry.models) root.add(model(name));
+    if (kindTones(entry.id)) root.add(itemObject(entry.id));
+    else for (const name of entry.models) root.add(model(name));
     return { root, head: new THREE.Vector3(), tip: new THREE.Vector3() };
   }
   const look = entry.weapon;
