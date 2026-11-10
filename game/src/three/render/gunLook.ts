@@ -11,7 +11,7 @@ export const GUN_LOOK = {
   metal: 0x4b5157,
   light: 0x5a6168,
   dark: 0x2b2f33,
-  role: { chip: 0xd0661c, damager: 0xa82a2e, precision: 0xb9c3c4, none: 0x4b5157 } satisfies Record<GunRole, number>,
+  role: { chip: 0xa8683e, damager: 0x8e3b37, precision: 0xa4acab, none: 0x4b5157 } satisfies Record<GunRole, number>,
   base: { neutral: 0x8a8c8e, paintShare: 0.35, body: 0.62, dark: 0.45 },
 };
 

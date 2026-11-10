@@ -12,7 +12,7 @@ export const ARMOR_LOOK = {
   scrap: { steel: 0x6c655d, rust: 0x6a4836 },
   ceramic: { tile: 0xc2beb2, dim: 0x857f74 },
   cage: { bar: 0x5e4a3c },
-  ram: { strip: 0xd6b02c },
+  ram: { strip: 0xb09a52 },
 };
 
 export const ARMOR_SURFACE = 'armor';

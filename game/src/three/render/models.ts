@@ -267,9 +267,18 @@ export const NAMES = [
   'wbar_sniper',
   'wbar_rocket_tubes',
   'wbar_harpoon',
+  'wbar_hmg',
+  'wbar_gatling',
+  'wbar_recoilless',
+  'wbar_sniper_cannon',
+  'wbar_grenade',
+  'wbar_flamer',
 
   'wext_shield',
   'wext_drum',
+  'wext_fuel_tanks',
+  'wext_air_tank',
+  'wext_box_mag',
 ] as const;
 export type ModelName = (typeof NAMES)[number];
 

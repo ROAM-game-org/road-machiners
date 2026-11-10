@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { UNPRICED_WEAPONS } from '../../data/weapons';
-import { WEAPON_POOLS } from '../../render/partLooks';
+import { WEAPON_POOLS, type WeaponPool } from '../../render/partLooks';
 import { baseTone, GUN_ACCENT, GUN_LOOK, gunRole, gunTone, lookOfGun } from './gunLook';
 
 function partOf(materials: string[]): THREE.Group {
@@ -61,7 +61,22 @@ describe('baseTone', () => {
   });
 });
 
+function looksOf(pool: WeaponPool): string[] {
+  const extras = pool.extra.length === 0 ? ['none'] : pool.extra;
+  return pool.mount.flatMap((m) => pool.receiver.flatMap((r) => pool.barrel.flatMap((b) => extras.map((e) => [m, r, b, e].join(' + ')))));
+}
+
 describe('weapon pools', () => {
+  it('never lets two guns roll the same look', () => {
+    const owner = new Map<string, string>();
+    for (const [id, pool] of Object.entries(WEAPON_POOLS)) {
+      for (const look of looksOf(pool)) {
+        expect(owner.get(look), `${id} can look like ${owner.get(look)}: ${look}`).toBeUndefined();
+        owner.set(look, id);
+      }
+    }
+  });
+
   it('draws no scopes', () => {
     const extras = Object.values(WEAPON_POOLS).flatMap((pool) => pool.extra as string[]);
     expect(extras).not.toContain('wext_scope');
