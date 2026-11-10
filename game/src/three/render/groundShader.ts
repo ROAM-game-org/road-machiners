@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
+import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
 import { PATCH_UNIT } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
 import type { Site } from "../../sim/sites";
@@ -61,13 +61,13 @@ const DRAWN_MARK_FLAT_FROM = 0.82;
 const DRAWN_MARK_FLAT_TO = 0.93;
 const DRAWN_MARK_FADE_FROM = 0.1;
 const DRAWN_MARK_FADE_TO = 0.22;
-const DRAWN_FURROW_PLOT = 36;
 const DRAWN_FURROW_SPACING = 1.6;
 const DRAWN_FURROW_DASH = 5.5;
 const DRAWN_FURROW_KEEP = 0.8;
 const DRAWN_FURROW_WIDTH = 0.035;
 const DRAWN_FURROW_WANDER = 0.7;
 const DRAWN_FURROW_MIX = 0.45;
+const KEEPS_OWN_TONE: ReadonlySet<LookType> = new Set(["concrete"]);
 const DRAWN_EDGE_REACH = 3;
 const DRAWN_ECHO_BREAK = 1.7;
 const DRAWN_SHORE_WIDTH = 0.04;
@@ -247,8 +247,8 @@ function materialUniforms() {
   return {
     drawnMaterialColor: { value: rows.map((row) => new THREE.Color(row.color)) },
     drawnMaterialLightness: { value: own },
-    drawnMaterialLiftTo: { value: GROUND_MATERIAL_IDS.map((id, k) => (TERRAIN_TYPES[id].paved ? own[k] : Math.max(own[k], sand))) },
-    drawnMaterialNatural: { value: GROUND_MATERIAL_IDS.map((id) => (TERRAIN_TYPES[id].paved ? 0 : 1)) },
+    drawnMaterialLiftTo: { value: GROUND_MATERIAL_IDS.map((id, k) => (KEEPS_OWN_TONE.has(id) ? own[k] : Math.max(own[k], sand))) },
+    drawnMaterialSettles: { value: GROUND_MATERIAL_IDS.map((id) => (KEEPS_OWN_TONE.has(id) ? 0 : 1)) },
     drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
     drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
     drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
@@ -335,7 +335,7 @@ uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialLightness[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialLiftTo[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialContrast;
-uniform float drawnMaterialNatural[${GROUND_MATERIAL_IDS.length}];
+uniform float drawnMaterialSettles[${GROUND_MATERIAL_IDS.length}];
 uniform sampler2D groundSurround;
 uniform float groundSurroundMeters;
 uniform float drawnSurroundBlend;
@@ -658,8 +658,10 @@ float drawnPuddles(vec2 p) {
   return smoothstep(${DRAWN_PUDDLE_FROM.toFixed(2)} - aa, ${DRAWN_PUDDLE_FROM.toFixed(2)} + aa, wet);
 }
 float drawnFurrows(vec2 p, float px) {
-  vec2 plot = floor(p / ${DRAWN_FURROW_PLOT.toFixed(1)});
-  float turn = markHash(plot + 7.0) * 3.1415927;
+  ivec2 tile = clamp(ivec2(floor(p / facetSide)), ivec2(0), ivec2(int(groundTileSide) - 1));
+  float turnShare = texelFetch(groundTiles, ivec3(tile, ${TILE_LAYER.tiles}), 0).a;
+  vec2 plot = vec2(turnShare * 97.0, turnShare * 41.0);
+  float turn = turnShare * 3.1415927;
   vec2 along = vec2(cos(turn), sin(turn));
   float u = dot(p, along);
   float v = dot(p, vec2(-along.y, along.x)) + (valueNoise(p / 9.0 + plot) - 0.5) * ${DRAWN_FURROW_WANDER.toFixed(2)};
@@ -814,7 +816,7 @@ const BORDER_BODY = `
   vec3 drawnLoColor = mix(drawnMaterialTone(drawnEdge.lo), drawnEdge.spillColor, drawnLoHalo);
   vec3 drawnHiColor = mix(drawnMaterialTone(drawnEdge.hi), drawnEdge.spillColor, drawnHiHalo);
   diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
-  float drawnSettles = mix(drawnMaterialNatural[drawnEdge.hi], drawnMaterialNatural[drawnEdge.lo], drawnLoSide) * drawnSurroundBlend;
+  float drawnSettles = mix(drawnMaterialSettles[drawnEdge.hi], drawnMaterialSettles[drawnEdge.lo], drawnLoSide) * drawnSurroundBlend;
   if (drawnSettles > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture(groundSurround, vRoadXZ / groundSurroundMeters).rgb, drawnSettles);
   diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide);
   int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;

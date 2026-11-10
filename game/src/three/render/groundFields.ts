@@ -10,6 +10,7 @@ import { fromRoad } from "../../sim/highway";
 import { windowCraters } from "../../sim/road-hazards";
 import { sitePads, type Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
+import { fieldTurns } from "./groundFieldTurns";
 import { SURROUND_CELL_TILES, surroundTexture } from "./groundSurround";
 
 const S = PHYSICS.metersPerTile;
@@ -19,6 +20,7 @@ const ROAD_FIELD_REACH = 10;
 const TILE_MATERIAL = 0;
 const TILE_DESERT = 1;
 const TILE_GLASS = 2;
+const TILE_FIELD_TURN = 3;
 export const TILE_LAYER = { tiles: 0, blockLead: 1, blockRest: 2 } as const;
 const TILE_LAYERS = Object.keys(TILE_LAYER).length;
 export const BLOCK_SIDE = 4;
@@ -71,10 +73,12 @@ function tileTexture(t: Terrain): { texture: THREE.DataArrayTexture; ready: { va
   const look = lookTypes(t);
   const glass = glassField(t);
   const materials = Uint8Array.from(shown, groundMaterialIndex);
+  const turns = fieldTurns(shown, t.size);
   for (let tile = 0; tile < shown.length; tile++) {
     data[tile * 4 + TILE_MATERIAL] = materials[tile];
     data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
     data[tile * 4 + TILE_GLASS] = glass[tile];
+    data[tile * 4 + TILE_FIELD_TURN] = turns[tile];
   }
   const texture = linear(new THREE.DataArrayTexture(data, t.size, t.size, TILE_LAYERS));
   const ready = { value: false };
