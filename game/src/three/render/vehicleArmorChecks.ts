@@ -227,7 +227,7 @@ export function ramsAreBacked(id: string): void {
     const inner = innerFace(box, side);
     const backed = steps(box.min.y, box.max.y).map((y) => {
       const reaches = steps(lo, hi).map((u) => reachAt(probe, u, y)).filter((r): r is number => r !== null);
-      return reaches.length > 0 && inner - Math.max(...reaches) <= CLIP_TOLERANCE;
+      return reaches.length > 0 && inner - Math.max(...reaches) <= cellSteps(id).row + EPS;
     });
     if (!backed[0] && !backed[1]) {
       problems.push(`${item.part.defId} at ${item.x},${item.y} side ${side}: rows from the foot ${backed.map((b) => (b ? 'body' : 'air')).join(' ')}`);

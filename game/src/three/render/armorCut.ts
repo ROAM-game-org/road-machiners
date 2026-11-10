@@ -277,7 +277,7 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
 function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
-  const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thinDepthOf(def, box));
+  const depthScale = across && def.look !== 'plates' ? TRUCK_LOOK.armorDeepScale : TRUCK_LOOK.armorDepth / thinDepthOf(def, box);
   const rect = cellRect(v.chassisId, itemCells(item));
   const half = unitBody(v.chassisId, rect.unit).half;
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
