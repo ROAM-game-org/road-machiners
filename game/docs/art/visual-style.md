@@ -40,11 +40,14 @@ Each principle has the reason behind it and a check you can run on a screenshot.
 
 11. World time. Smoke, dust, weather and scenery move only while a turn plays, on the play clock. Why: dust that kept moving while the paused truck stood still read as a second clock. Check: nothing in the world moves while the turn is paused.
 
+12. Edges show what stands. Each material has a height. Grass stands tallest, then fields, gravel and sand. Bare ground is level, and mud and water sit below it. A thin shadow falls on the lower side of a visible edge, so grass casts a ragged little shadow onto sand and a bank shades the rim of a pool. It is a shadow on one side, not a border line, and it shows only where the heights differ. Each edge keeps the character of its material: grass breaks up into upright slivers, gravel crumbles at pebble size, and mud and water keep calm, round shores. Grass blades and pebbles stand up, so each one grows only on its own ground, they crowd toward its edge, and they draw over the neighbour and the road verge. Flat marks such as cracks and ripples stop at the border, and near it sand ripples and water lines run along the edge. Sand never dusts grass. Why: smooth round edges with no shadow made grass read as a stain and gravel as a spill. Blades cut off at the border looked clipped, and sand dust over grass put a pale band between the grass and its shadow. Check: at a grass edge the blades cross the edge and a thin shadow hugs its ragged line, with no pale band between them.
+
 ## Do
 
 - Draw what the surface is made of: cracked dark asphalt, ripples on sand, tufts on scrub, pebbles on gravel.
 - Let landforms show through light: a warm lit face, a flat shade plane with a crisp edge, and a cast shadow.
 - Give each plane one kind of mark: streaks on steep lit faces, shadow strokes in shade.
+- Give each edge its material's character, and let blades and pebbles spill over it.
 - Keep shade the material's own color.
 - Use the engine's lights and shadows, and give them the right input, such as a mesh that casts.
 - Keep strokes and marks at a fixed size in meters, and set stroke directions by how they look on screen.
@@ -66,6 +69,8 @@ Each principle has the reason behind it and a check you can run on a screenshot.
 - Do not split shade into flat steps by height. That look was tried and rejected as buggy.
 - Do not lay streaks or other texture strokes over shadow strokes.
 - Do not draw crest lines in black, at a fixed full width, or off the drawn lip.
+- Do not draw grass or gravel as a photo-like texture. Draw them with ink marks at a believable size next to a truck.
+- Do not clip blades or pebbles at a border, and do not dust grass with sand.
 - Do not mark a town, site or crater with a painted disc or round clearing.
 - Do not ship a new effect at full strength and wait for the user to ask for less.
 
