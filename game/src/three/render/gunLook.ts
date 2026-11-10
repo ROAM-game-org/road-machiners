@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { partDef, type WeaponClass } from '../../data/parts';
 import type { WeaponLook } from '../../render/partLooks';
 import { model, type ModelName } from './models';
-import { bodyPaint } from './truckMesh';
+import { bodyPaint, markToned } from './truckMesh';
 import { weaponHead } from './weaponHead';
 
 export type GunRole = WeaponClass | 'none';
@@ -39,6 +39,7 @@ export function lookOfGun(obj: THREE.Object3D, defId: string): void {
     const tone = gunTone(role, material.name);
     if (tone === null) return;
     material.color.setHex(tone);
+    markToned(material);
     if (material.name === 'paint') material.name = GUN_ACCENT;
   });
 }

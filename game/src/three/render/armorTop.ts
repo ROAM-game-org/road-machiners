@@ -6,6 +6,7 @@ export type TopCut = { texture: THREE.DataTexture; first: THREE.Vector2; cell: n
 export type Seams = { along: number[]; across: number[] };
 
 export const TOP_MARGIN = 0.02;
+const OPEN_HEIGHT = 1e6;
 const TOP_REACH = 1.5;
 const TOP_SINK = 0.03;
 const TOP_LEAST_FEATURE = 0.5;
@@ -159,7 +160,7 @@ function mean(...values: number[]): number {
 }
 
 function heightTexture(heights: Float32Array, grid: Grid): THREE.DataTexture {
-  const open = heights.map((h) => (Number.isNaN(h) ? Number.MAX_VALUE : h));
+  const open = heights.map((h) => (Number.isNaN(h) ? OPEN_HEIGHT : h));
   const texture = new THREE.DataTexture(open, grid.cols, grid.rows, THREE.RedFormat, THREE.FloatType);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;

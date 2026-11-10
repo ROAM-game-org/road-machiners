@@ -3,6 +3,7 @@ import { PARTS, type PartKind } from '../../data/parts';
 import { partModel } from '../../render/partLooks';
 import { GUN_LOOK } from './gunLook';
 import { model } from './models';
+import { markToned } from './truckMesh';
 
 export const CARGO_WOOD = 'wood';
 
@@ -30,5 +31,6 @@ function retone(o: THREE.Object3D, tones: Record<string, KindTone>): void {
   const tone = tones[o.material.name];
   if (!tone) return;
   o.material.color.setHex(tone.color);
+  markToned(o.material);
   o.material.name = tone.name ?? o.material.name;
 }

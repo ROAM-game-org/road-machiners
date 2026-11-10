@@ -13,6 +13,14 @@ export function bodyPaint(paint: number): number {
 
 export const PAINT_MATERIAL = 'paint';
 
+export function markToned(material: THREE.Material): void {
+  material.userData.toned = true;
+}
+
+export function isToned(material: THREE.Material): boolean {
+  return material.userData.toned === true;
+}
+
 export const OFF_ROLE_TONES: Record<string, number> = { red: 0x48423d, rust: 0x6c6259, rust_side: 0x4d463f, rust_dark: 0x312c28, metal_light: 0x74726c };
 
 export function partTone(material: string, color: number, paint: number, isPart: boolean): number {

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { UNPRICED_WEAPONS } from '../../data/weapons';
 import { WEAPON_POOLS, type WeaponPool } from '../../render/partLooks';
+import { isToned } from './truckMesh';
 import { baseTone, GUN_ACCENT, GUN_LOOK, gunRole, gunTone, lookOfGun } from './gunLook';
 
 function partOf(materials: string[]): THREE.Group {
@@ -43,6 +44,12 @@ describe('lookOfGun', () => {
       ['brass', 0xff00ff],
       ['lens', 0xff00ff],
     ]);
+  });
+
+  it('marks every recolored material so the part tint keeps its gunmetal', () => {
+    const part = partOf(['metal_light', 'rust', 'brass']);
+    lookOfGun(part, 'cannon');
+    expect(part.children.map((o) => isToned((o as THREE.Mesh).material as THREE.Material))).toEqual([true, true, false]);
   });
 
   it('gives every role its own color', () => {

@@ -42,7 +42,7 @@ function sideMiddle(half: Body['half'], look: typeof TRUCK_LOOK): number {
 
 export function cutFace(mesh: THREE.Mesh): CutFace {
   if (mesh.userData.outline) return 'plain';
-  return mesh.userData.surface === 'ram' ? 'capped' : 'striped';
+  return mesh.userData.surface === 'armor' ? 'striped' : 'capped';
 }
 
 function wheelCut(box: THREE.Box3, look: typeof TRUCK_LOOK): WheelCut {

@@ -207,6 +207,7 @@ describe('withCut', () => {
     const mesh = (userData: Record<string, unknown>) => Object.assign(new THREE.Mesh(), { userData });
     expect(cutFace(mesh({ surface: 'armor' }))).toBe('striped');
     expect(cutFace(mesh({ surface: 'ram' }))).toBe('capped');
+    expect(cutFace(mesh({ surface: 'plain' }))).toBe('capped');
     expect(cutFace(mesh({ outline: true, surface: 'armor' }))).toBe('plain');
   });
 
