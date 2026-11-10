@@ -1,5 +1,5 @@
 
-import { closeLabel, touchMode } from "./input-mode";
+import { closeLabel, ESCAPE, keyLabel, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -93,6 +93,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
       { keys: ["M"], does: t("help.does.map") },
+      { keys: [t("help.key.esc")], does: t("help.does.escape") },
     ],
   },
 ];
@@ -197,7 +198,7 @@ export class GameMenu {
   private root = panel("game-menu", topRight());
   private button = el(
     "button",
-    { class: "menu-button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "game-menu-list", onclick: () => this.toggle() },
+    { class: "menu-button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "game-menu-list", title: keyLabel(t("menu.menu"), ESCAPE.key), onclick: () => this.toggle() },
     t("menu.menu"),
   ) as HTMLButtonElement;
   private list = el("div", { id: "game-menu-list", role: "menu", "aria-label": t("menu.menu"), hidden: true });
@@ -210,7 +211,7 @@ export class GameMenu {
     if (isConfirmOpen()) return;
     if (e.code === "Escape") {
       e.stopPropagation();
-      this.closeList(true);
+      if (!e.repeat) this.closeList(true);
       return;
     }
     if (isBrowserChord(e)) return;
@@ -271,6 +272,10 @@ export class GameMenu {
     }
     item.setAttribute("aria-disabled", "true");
     bindAttr(item, "data-reason", reason);
+  }
+
+  open(): void {
+    if (this.list.hidden) this.openList();
   }
 
   toggle(): void {

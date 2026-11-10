@@ -1,8 +1,10 @@
+import { actionRow, costItem, gaugeEl, statRow, statValueEl } from "../cards";
 import { chipEl } from "../chip";
 import { devEl as el } from "../dom";
 import { speedKey } from "../travel-speed";
 import { verbatim } from "../../text/msg";
 import { moneyEl } from "../units";
+import { workMeterBar } from "../work-meter";
 
 export interface Piece {
   name: string;
@@ -19,6 +21,13 @@ const sample = (cls: string, words: string): HTMLElement => el("div", { class: c
 
 const confirmSample = (): HTMLElement =>
   el("div", { class: "dialog confirm-dialog" }, el("p", {}, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
+
+const wellRows = (): HTMLElement => statRow("mass", verbatim("Load"), statValueEl(verbatim("1,680 / 3,840 kg")));
+
+const gaugeSample = (): HTMLElement => gaugeEl(0.5, { share: { left: 0.3, width: 0.2 }, after: { left: 0.5, width: 0.15 } });
+
+const actionSample = (): HTMLElement =>
+  el("div", { class: "action-rows" }, ...actionRow(text("button", "btn-s", "Patch"), [costItem("clock", verbatim("4")), costItem("parts", verbatim("−2"), "bad")]), ...actionRow(text("button", "btn-s", "Rotate"), []));
 
 export const PIECES: Piece[] = [
   { name: ".panel", note: "The base of every HUD box.", build: () => sample("panel", "A panel") },
@@ -39,10 +48,20 @@ export const PIECES: Piece[] = [
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
   { name: ".spent", note: "A row whose own action is done. It keeps its slot, dimmed, with a past-tense tag where the button was, until the player leaves the list.", build: () => el("div", { class: "row spent" }, "A part ", text("span", "tag", "Sold")) },
   { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
+  { name: ".way-steps", note: "A numbered list of directions: one step per item, the number in caption ink on a fixed column, text wrapping under its own text.", build: () => el("ol", { class: "way-steps" }, el("li", {}, "Leave by the east gate."), el("li", {}, "Take the road to Nose, heading north-east. That stretch takes half an hour or more."), el("li", {}, "Where the road runs closest, leave the road and head south and a touch east."))},
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(15) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
+  { name: ".meter.notched", note: "A bar of timed work, one cell per turn up to 12 turns and a smooth fill beyond. Filled cells are turns done, and the count sits in its title.", build: () => workMeterBar({ turnsLeft: 5, total: 8 }, verbatim("Search")) },
   { name: ".meter.broken", note: "A bar of a broken part.", build: () => meter("meter broken", 100) },
+  { name: ".well", note: "The sunk surface of a thin side column on a working screen, holding .well-group blocks. The middle column stays open.", build: () => el("div", { class: "well" }, el("div", { class: "well-group" }, wellRows())) },
+  { name: ".well-group", note: "One tight group of rows inside a well. Space between groups is wide.", build: () => el("div", { class: "well-group" }, wellRows()) },
+  { name: ".stat-row", note: "The one row form: icon, label, value at the right edge.", build: wellRows },
+  { name: ".meter-row", note: "A stat row with its bar under it.", build: () => el("div", { class: "meter-row" }, wellRows(), gaugeSample()) },
+  { name: ".gauge", note: "A bar on a well, with a track lighter than the well. An accent span marks the picked part's share, and a dashed one a share a choice would add.", build: gaugeSample },
+  { name: ".action-rows", note: "One same-width verb button per row, then the cost as icon and number, or the reason it is off.", build: actionSample },
+  { name: ".cost", note: "What an action costs: icons and numbers, with the words in its tooltip.", build: actionSample },
+  { name: ".cost-item", note: "One icon and number of a cost.", build: actionSample },
   { name: ".selected", note: "The one look of a chosen item. A pressed button.on uses it too.", build: () => sample("selected tile", "Selected") },
   { name: '[aria-disabled="true"]', note: "A control that cannot be used now. It keeps hover and focus.", build: () => disabled() },
   { name: ".tooltip", note: "A note that opens over its anchor. It also gives a disabled reason.", build: () => sample("tooltip", "Need 12 M's more") },
@@ -71,8 +90,8 @@ function inkPage(): HTMLElement {
       el(
         "div",
         { class: "ink-scroll" },
-        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-        el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight")),
+        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose compound"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
       ),
       el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
     ),

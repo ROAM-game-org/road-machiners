@@ -28,6 +28,9 @@ export const PHYSICS = {
     holdGrip: 1,
     holdReturn: 0.25,
     holdSlip: 0.1,
+    airLevelGain: 2.5,
+    airLevelSpin: 0.8,
+    airLevelPull: 10,
   },
   cell: { across: 0.484, along: 0.65 },
   bodies: {

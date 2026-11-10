@@ -118,11 +118,7 @@ body {
 .icon svg {
   width: 100%;
   height: 100%;
-  fill: var(--steel-6);
-  stroke: var(--ink);
-  stroke-width: 1.7;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  fill: currentColor;
 }
 #ui:not(.touch) .touch-only,
 #ui.touch .no-touch {

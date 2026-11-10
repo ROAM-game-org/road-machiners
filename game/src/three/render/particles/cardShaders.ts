@@ -1,16 +1,20 @@
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
-export const HAZE_SHAPE = ROUND_SHAPE + 1;
+export const CLUMP_FIRST = ROUND_SHAPE + 1;
+export const CLUMP_SHAPES = 4;
+export const HAZE_SHAPE = CLUMP_FIRST + CLUMP_SHAPES;
 export const PLUME_SHAPE = HAZE_SHAPE + CARD_SHAPES;
-export const GLOW_IN_LIT = 16;
-export const ATLAS_CELLS = 2;
+export const GLOW_IN_LIT = 32;
+export const ATLAS_CELLS = 3;
 
 const CARD_LIGHT = { scatter: 0.7 };
 const BILLOW = { fade: { soft: 0.03, crisp: 0.15 }, opacity: 0.95, radius: 0.8, linePx: 1.6, curl: { from: 0.45, to: 0.75, down: 0.5 }, curlBreaks: 3, curlGaps: 0.35, lineTone: 0.45, lift: 0.5, paper: [0.78, 0.78, 0.8] };
 const DENSITY = { gain: 2.2, boil: { scale: 1.6, speed: 0.12, low: 0.8, high: 1.15 }, rim: { inner: 0.55, outer: 0.85 }, softMeters: 1.5 };
 const FIRE = { edge: { full: 0.42, gone: 0.8 }, fadeAlpha: 0.3, opacityGain: 1.5, thin: { soft: 0.25, crisp: 0.45 }, rim: 0.18, rimTone: [0.8, 0.3, 0.2], core: 0.55, coreShare: 0.7, yellow: [1, 0.8, 0.25], taper: { from: 0.05, to: 0.2, tip: 0.12 } };
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
-const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
+const CLUMP_EDGE = { from: 0, to: 1 };
+const SHAPE_ALPHA = `mix(texture2D(shapes, vUv).a, smoothstep(${CLUMP_EDGE.from.toFixed(2)}, ${CLUMP_EDGE.to.toFixed(2)}, texture2D(shapes, vUv).a), vClump)`;
+const CARD_BODY = `mix(${SHAPE_ALPHA}, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)`;
 const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 const INV_PI = (1 / Math.PI).toFixed(6);
 
@@ -33,6 +37,7 @@ const VARYINGS = `
   varying vec2 vUv;
   varying vec2 vBall;
   varying float vRound;
+  varying float vClump;
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
@@ -70,6 +75,7 @@ export const CARD_VERTEX = `
     vUv = (turned + vec2(col, row)) / ${ATLAS_CELLS}.0;
     vBall = (uv - 0.5) * 2.0;
     vRound = abs(base - ${f(ROUND_SHAPE)}) < 0.5 ? 1.0 : 0.0;
+    vClump = atlasShape > ${f(CLUMP_FIRST - 0.5)} && atlasShape < ${f(CLUMP_FIRST + CLUMP_SHAPES - 0.5)} ? 1.0 : 0.0;
     vTint = tint;
     vSun = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
     vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
@@ -148,7 +154,7 @@ export const LIT_FRAGMENT = `
     float r = length(vBall);
     float rAa = fwidth(r) * 0.75 + 0.0001;
     float disc = 1.0 - smoothstep(${f(BILLOW.radius)} - rAa, ${f(BILLOW.radius)} + rAa, r);
-    float sharp = smoothstep(${f(BILLOW.fade.soft)}, ${f(BILLOW.fade.crisp)}, vTint.a) * (1.0 - vHaze) * (1.0 - vPlume);
+    float sharp = smoothstep(${f(BILLOW.fade.soft)}, ${f(BILLOW.fade.crisp)}, vTint.a) * (1.0 - vHaze) * (1.0 - vPlume) * (1.0 - vClump);
     vec3 pale = mix(vTint.rgb, ${v3(BILLOW.paper)}, ${f(BILLOW.lift)} * (1.0 - vPlume));
     vec3 flat_ = pale * (sunColor + mix(groundColor, skyColor, 0.75)) * ${INV_PI};
     float sunAcross = smoothstep(0.02, 0.2, length(vSun.xy));

@@ -535,13 +535,14 @@ function outlineMaterial(width: { value: number }): THREE.MeshBasicMaterial {
   return material;
 }
 
-const truckOutline = outlineMaterial(OUTLINE.width);
-const propOutline = outlineMaterial(OUTLINE.width);
-const minorOutline = outlineMaterial({
+const MINOR_WIDTH = {
   get value() {
     return TUNING.outline.value * MINOR_OUTLINE_SHARE;
   },
-});
+};
+const truckOutline = outlineMaterial(OUTLINE.width);
+const propOutline = { plain: outlineMaterial(OUTLINE.width), instanced: outlineMaterial(OUTLINE.width) };
+const minorOutline = { plain: outlineMaterial(MINOR_WIDTH), instanced: outlineMaterial(MINOR_WIDTH) };
 
 export function minorProp<T extends THREE.Object3D>(obj: T): T {
   obj.userData.minorOutline = true;
@@ -605,6 +606,7 @@ function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
 export function outlineOf(geos: readonly THREE.BufferGeometry[]): THREE.Mesh[] {
   if (geos.length === 0) return [];
   const mesh = new THREE.Mesh(weld(geos), truckOutline);
+  mesh.name = 'truck-outline';
   mesh.onBeforeRender = readViewport;
   mesh.renderOrder = OUTLINE_ORDER;
   mesh.userData.outline = true;
@@ -638,7 +640,7 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
     const geo = weldedOutlineOf(mesh.geometry);
-    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo, material) : new THREE.Mesh(geo, material);
+    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo, material.instanced) : new THREE.Mesh(geo, material.plain);
     outline.onBeforeRender = readViewport;
     outline.renderOrder = OUTLINE_ORDER;
     outline.userData.outline = true;

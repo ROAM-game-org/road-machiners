@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_110 from './save-fixtures/format-2-110.json';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 type Saved = typeof FORMAT_2_110;
 type Stepped = { crimes: (Saved['crimes'][number] & { posse: string })[] };

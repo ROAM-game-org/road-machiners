@@ -1,7 +1,8 @@
+import { supplyCharge } from "../sim/economy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { oddJobsReason, GARAGE_ONLY, townPageOnOpen } from "./town";
+import { GARAGE_ONLY, townPageOnOpen } from "./town";
 import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
@@ -9,7 +10,7 @@ import { RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
-import { placeProse } from "../text/names";
+import { canteenName, placeProse } from "../text/names";
 import type { World } from "../sim/types";
 import type { CrimeCase } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
@@ -155,23 +156,36 @@ describe("the paint tab", () => {
 });
 
 describe("the town page on open", () => {
-  const open = { open: true } as const;
-  const access = { garage: open, market: open, board: open, people: open, bar: { open: false, reason: "noDrivers" } } as const;
   const closedAt = { shopId: "nose", turn: 40 };
 
   it("keeps the page the player left when the place and the turn are the same", () => {
-    expect(townPageOnOpen("garage", closedAt, "nose", 40, access)).toBe("garage");
+    expect(townPageOnOpen("garage", closedAt, "nose", 40)).toBe("garage");
   });
 
-  it("opens on the front page after a turn, at another place or into a section now off", () => {
-    expect(townPageOnOpen("garage", closedAt, "nose", 41, access)).toBeNull();
-    expect(townPageOnOpen("garage", closedAt, "bowl", 40, access)).toBeNull();
-    expect(townPageOnOpen("bar", closedAt, "nose", 40, access)).toBeNull();
+  it("opens on the front page after a turn or at another place", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 41)).toBeNull();
+    expect(townPageOnOpen("garage", closedAt, "bowl", 40)).toBeNull();
+  });
+
+  it("opens on the front page when the kept page is not a place of this shop", () => {
+    expect(townPageOnOpen("maps", { shopId: "dustwell", turn: 40 }, "dustwell", 40)).toBeNull();
+    expect(townPageOnOpen("maps", closedAt, "nose", 40)).toBe("maps");
   });
 
   it("opens on the front page on a first visit", () => {
-    expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
-    expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
+    expect(townPageOnOpen("garage", null, "nose", 40)).toBeNull();
+    expect(townPageOnOpen(null, closedAt, "nose", 40)).toBeNull();
+  });
+});
+
+describe("the canteen name", () => {
+  it("is different at every shop, in English and Russian", () => {
+    const ids = Object.keys(SHOPS);
+    for (const lang of ["en", "ru"] as const) {
+      const names = ids.map((id) => resolve(canteenName(id), lang));
+      expect(names.every((name) => name.length > 0)).toBe(true);
+      expect(new Set(names).size).toBe(ids.length);
+    }
   });
 });
 
@@ -280,16 +294,6 @@ describe("the price of a case at the Marshalls desk", () => {
   });
 });
 
-describe("the odd jobs choice reason", () => {
-  it("names the hire limit for a driver with too much cash", () => {
-    expect(en(oddJobsReason(emptyWorld(), { id: "notHiring" }))).toBe("For drivers under 55 M's");
-  });
-
-  it("gives the refusal text for any other block", () => {
-    expect(en(oddJobsReason(emptyWorld(), { id: "stopFirst" }))).toBe("Stop the truck first");
-  });
-});
-
 describe("the supply rows of the front page", () => {
   beforeEach(() => {
     vi.stubGlobal("document", {
@@ -308,7 +312,10 @@ describe("the supply rows of the front page", () => {
         cmd(w);
         return new FakeNode("button") as unknown as HTMLElement;
       },
-      priceButton: () => new FakeNode("button") as unknown as HTMLElement,
+      priceButton: (_w: World, _verb: Msg, _price: number, cmd: (x: World) => World) => {
+        cmd(w);
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
     };
     const buy = (x: World, _k: string, n: number) => {
       asked.push(n);
@@ -317,5 +324,21 @@ describe("the supply rows of the front page", () => {
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
     limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
     expect(asked).toEqual([1, 3]);
+  });
+
+  it("put the price of each purchase on its button", () => {
+    const w = emptyWorld();
+    const priced: number[] = [];
+    const buttons = {
+      button: () => new FakeNode("button") as unknown as HTMLElement,
+      priceButton: (_w: World, _verb: Msg, price: number) => {
+        priced.push(price);
+        return new FakeNode("button") as unknown as HTMLElement;
+      },
+    };
+    const price = ECONOMY.supplyPrice.fuel;
+    w.player.money = price * 3;
+    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null });
+    expect(priced).toEqual([supplyCharge("fuel", 1), supplyCharge("fuel", 3)]);
   });
 });

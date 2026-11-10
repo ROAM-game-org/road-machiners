@@ -56,7 +56,7 @@ export function roundedSpans(spans: readonly FireSpan[]): FireSpan[] {
 }
 
 export const SCOUT_THREE_GUNS: readonly { defId: 'heavyMg'; wear: 0; at: { x: number; y: number; rot: Rot } }[] = [
-  { defId: 'heavyMg', wear: 0, at: { x: 4, y: 5, rot: 0 } },
+  { defId: 'heavyMg', wear: 0, at: { x: 4, y: 3, rot: 0 } },
   { defId: 'heavyMg', wear: 0, at: { x: 1, y: 12, rot: 1 } },
   { defId: 'heavyMg', wear: 0, at: { x: 1, y: 9, rot: 3 } },
 ];

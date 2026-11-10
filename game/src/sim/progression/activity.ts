@@ -15,7 +15,7 @@ export const ACTIVITY_LIMITS = [
   'the run uses the test map',
 ];
 
-export type RunHeader = { k: 'run'; seed: number; archetype: Archetype; turns: number; every: number; sha: string | null; limits: string[] };
+export type RunHeader = { k: 'run'; from: number; seed: number; archetype: Archetype; turns: number; every: number; sha: string | null; limits: string[] };
 export type EventLine = { k: 'event'; turn: number; e: GameEvent };
 export type NpcSnapshot = {
   id: string; name: string; faction: string; template: string | null; pos: [number, number];
@@ -35,7 +35,7 @@ export type SummaryLine = {
 };
 export type ActivityLine = RunHeader | EventLine | SnapshotLine | EndLine | SummaryLine;
 
-export type ActivityOptions = { seed: number; archetype: Archetype; turns: number; every: number; sha: string | null };
+export type ActivityOptions = { seed: number; archetype: Archetype; turns: number; every: number; sha: string | null; onWorld?: (world: World) => void };
 
 const round = (n: number): number => Math.round(n * 10) / 10;
 
@@ -47,8 +47,9 @@ export function playthroughWorld(map: BakedMap, seed: number, archetype: Archety
 
 export function* activityFrom(start: World, options: ActivityOptions): Generator<ActivityLine> {
   if (!Number.isInteger(options.every) || options.every <= 0) throw new Error(`The snapshot interval must be a positive whole number, got ${options.every}`);
-  const play = new Play(start, options.every);
-  yield { k: 'run', ...options, limits: ACTIVITY_LIMITS };
+  const { onWorld, ...header } = options;
+  const play = new Play(start, options.every, onWorld);
+  yield { k: 'run', from: start.turn, ...header, limits: ACTIVITY_LIMITS };
   yield snapshot(start);
   try {
     yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, PLAYTHROUGH_OPTIONS, FAR_MOVER));
@@ -64,7 +65,7 @@ class Play {
   private end: EndLine | null = null;
   private readonly tally: Tally;
 
-  constructor(private readonly start: World, private readonly every: number) {
+  constructor(private readonly start: World, private readonly every: number, private readonly onWorld: ((world: World) => void) | undefined) {
     this.world = start;
     this.snapped = start.turn;
     this.tally = new Tally(start);
@@ -86,6 +87,7 @@ class Play {
     }
     this.tally.move(next);
     this.world = next;
+    this.onWorld?.(next);
     if (next.player.state === 'dead') this.end = { k: 'end', turn: next.turn, reason: 'death', message: null };
     else if ((this.world.turn - this.start.turn) % this.every === 0) yield this.snap();
   }

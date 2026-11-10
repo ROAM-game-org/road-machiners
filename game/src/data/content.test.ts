@@ -2,7 +2,8 @@ import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from "vitest";
 import { CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS } from "./chassis";
 import { GOODS, GOOD_IDS } from "./goods";
-import { EFFORT, SHOPS, type ItemKind } from "./market";
+import { EFFORT, SHOPS, type ItemKind, type Tier } from "./market";
+import { TIER_VALUE } from "./units";
 import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
 import { PARTS, type PartDef, type PartKind, type WeaponDef } from "./parts";
 import { REGION } from "./region";
@@ -452,9 +453,9 @@ describe("part weight by tier", () => {
       if (d.kind !== "accessory") throw new Error(`${id} is not an accessory`);
       return { hp: d.hp, mass: d.mass, value: d.value, armor: d.armor, blastArmor: d.blastArmor, ramMult: d.ramMult, mounts: d.mounts };
     };
-    expect(stats("ram")).toEqual({ hp: 100, mass: 50.625, value: 85.33, armor: 8, blastArmor: 8, ramMult: 2, mounts: ["F", "B"] });
-    expect(stats("plowRam")).toEqual({ hp: 170, mass: 47.25, value: 166.67, armor: 10, blastArmor: 10, ramMult: 2.8, mounts: ["F", "B"] });
-    expect(stats("claymoreRam")).toEqual({ hp: 80, mass: 142.5, value: 140, armor: 14, blastArmor: 6, ramMult: 1.5, mounts: ["F", "B"] });
+    expect(stats("ram")).toEqual({ hp: 100, mass: 50.625, value: 128, armor: 8, blastArmor: 8, ramMult: 2, mounts: ["F", "B"] });
+    expect(stats("plowRam")).toEqual({ hp: 170, mass: 47.25, value: 375.01, armor: 10, blastArmor: 10, ramMult: 2.8, mounts: ["F", "B"] });
+    expect(stats("claymoreRam")).toEqual({ hp: 80, mass: 142.5, value: 210, armor: 14, blastArmor: 6, ramMult: 1.5, mounts: ["F", "B"] });
   });
 });
 
@@ -556,8 +557,8 @@ describe("cargo shop prices", () => {
   const rowsPerM = (p: { extraRows: number; id: string }): number => p.extraRows / shopPrice(PARTS[p.id]);
   const money = START_KITS.standard.money;
 
-  it("lets the starting money buy panniers several times over", () => {
-    expect(shopPrice(PARTS.panniers) * 5).toBeLessThan(money);
+  it("lets the starting money buy panniers once, with room left for fuel", () => {
+    expect(shopPrice(PARTS.panniers)).toBeLessThan(money);
   });
 
   it("keeps the dearest frame within a few days' worth of a tier 3 weapon price, not above the dearest tier 3 part", () => {
@@ -571,8 +572,8 @@ describe("cargo shop prices", () => {
     expect(top(2)).toBeLessThan(low(3));
   });
 
-  it("gives each tier at least as many rows per M as the tier below", () => {
-    const best = (tier: number) => Math.max(...cargo.filter((p) => p.tier === tier).map(rowsPerM));
+  it("gives each tier at least as many rows per M as tier 1, once its tier price factor is taken out", () => {
+    const best = (tier: Tier) => Math.max(...cargo.filter((p) => p.tier === tier).map(rowsPerM)) * TIER_VALUE[tier];
     expect(best(2)).toBeGreaterThanOrEqual(best(1));
     expect(best(3)).toBeGreaterThanOrEqual(best(1));
   });

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { initPhysics } from '../../phys/drive';
+import { deadTreeTone } from '../../sim/mapgen';
 import type { Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import { instancedModel, loadModels, model, outlineProps, type ModelName } from './models';
@@ -126,6 +127,21 @@ describe('PropInstances', () => {
     expect(east.map((m) => m.count)).toEqual(east.map(() => 1));
   });
 
+  it('tints each tree with its own tone, with the batch count unchanged', () => {
+    const { root } = build();
+    const [mesh] = meshesOf(root, 'scope-chunk-0-0');
+    const color = new THREE.Color();
+    ['deadTree-0', 'deadTree-1', 'deadTree-2'].forEach((id, i) => {
+      mesh.getColorAt(i, color);
+      expect(color.r).toBeCloseTo(deadTreeTone(id));
+    });
+    expect(meshesOf(root, 'scope-chunk-0-0').length).toBeLessThanOrEqual(2);
+  });
+
+  it('rejects a tone list that does not match its placements', () => {
+    expect(() => instancedProp('fort_patchwork_wall', [new THREE.Matrix4()], [], same)).toThrow('1 placements and 0 tones');
+  });
+
   it('hides a broken tree and restores its pose when it grows back', () => {
     const { root, trees } = build();
     const meshes = meshesOf(root, 'scope-chunk-0-0');
@@ -248,7 +264,7 @@ describe('PropInstances', () => {
 
   it('gives the merged mesh the outline its separate parts had, each part welded alone', () => {
     const placement = new THREE.Matrix4().makeTranslation(3, 1, 2).multiply(new THREE.Matrix4().makeRotationY(0.7).scale(new THREE.Vector3(1.3, 0.8, 1.1)));
-    const merged = instancedProp('fort_patchwork_wall', [placement], same);
+    const merged = instancedProp('fort_patchwork_wall', [placement], [1], same);
     const separate = instancedModel('fort_patchwork_wall', [placement], [1], (m) => m);
     outlineProps(merged);
     outlineProps(separate);
@@ -265,7 +281,7 @@ describe('PropInstances', () => {
 
   it('merges the parts into the same shape the separate parts make', () => {
     const placement = new THREE.Matrix4().makeTranslation(3, 1, 2).multiply(new THREE.Matrix4().makeRotationY(0.7));
-    const merged = instancedProp('fort_patchwork_wall', [placement], same);
+    const merged = instancedProp('fort_patchwork_wall', [placement], [1], same);
     const separate = instancedModel('fort_patchwork_wall', [placement], [1], (m) => m);
 
     const together = pointsOf(merged.children as THREE.InstancedMesh[]);

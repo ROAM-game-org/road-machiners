@@ -25,7 +25,9 @@ import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { Blasts, type BlastGround } from './particles/blasts';
 import { Emissions } from './particles/emissions';
+import { moveTo } from '../../ui/dom';
 import { layerPointOf } from '../../ui/ui-size';
+import { overlayMaterial } from './overlay-material';
 
 const MAX_TEXTS = 24;
 const RISE_METERS = 1.5;
@@ -73,7 +75,7 @@ class MuzzleFlashes {
   private turn = new THREE.Quaternion();
   private roll = new THREE.Quaternion();
   private dir = new THREE.Vector3();
-  private readonly material = new THREE.MeshBasicMaterial({ color: PAL.flash, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  private readonly material = overlayMaterial({ color: PAL.flash, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
 
   constructor(scene: THREE.Scene) {
     const geo = flashGeometry();
@@ -127,14 +129,25 @@ const INK_SORTED_FIRE = 0.5;
 
 const SPRAY = {
   surfacePower: 2.5,
-  dust: { perMeter: 7, groundShare: 0.45, life: 3, size: { from: 1.5, to: 3.6 }, alpha: { peak: 0.4, fadeIn: 0.02 }, drag: 1.6, gravity: -0.3 },
+  dust: { perMeter: 7, minPerMeter: 2, groundShare: 0.45, life: 3, size: { from: 1.5, to: 3.6 }, alpha: { peak: 0.4, fadeIn: 0.02 }, drag: 1.6, gravity: -0.3 },
   wake: { along: { min: 1, spread: 1.5 }, aside: { min: 0.2, spread: 1.4 }, up: { min: 0.6, spread: 1 }, scale: { min: 0.35, spread: 0.65 }, fleck: { share: 0.35, speed: 2.2, scale: 0.22 } },
-  haze: { perMeter: 0.35, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.18, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
+  haze: { perMeter: 0.35, minPerMeter: 0.12, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.18, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
   clods: { perMeter: 0.7, minMetersPerSecond: 2.5, back: { min: 0.15, spread: 0.3 }, up: { min: 1.2, spread: 2.6 }, aside: 1.4, lift: 0.15, size: { min: 0.1, spread: 0.2 }, life: 1.6, shade: 0.72 },
 } as const;
 
 export function sprayShare(ground: TerrainType): number {
   return ground.dust ** SPRAY.surfacePower;
+}
+
+type SprayCloud = { perMeter: number; minPerMeter: number; life: number; size: { from: number; to: number }; alpha: { peak: number; fadeIn: number }; drag: number; gravity: number };
+
+export function sprayPuffsPerMeter(spray: SprayCloud, ground: TerrainType): number {
+  return Math.max(spray.perMeter * sprayShare(ground), spray.minPerMeter);
+}
+
+export function sprayLook(spray: SprayCloud, ground: TerrainType, colors: number[]): ParticleLook {
+  const fill = (spray.perMeter * sprayShare(ground)) / spray.minPerMeter;
+  return { life: spray.life, size: spray.size, colors, alpha: { ...spray.alpha, peak: spray.alpha.peak * Math.min(1, fill) }, drag: spray.drag, gravity: spray.gravity, streak: 0, form: fill < 1 ? 'cloud' : 'clump' };
 }
 
 export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLight };
@@ -308,13 +321,12 @@ export class Fx3D {
     let look = this.sprayLooks.get(ground);
     if (!look) {
       const d = SPRAY.dust;
-      const h = SPRAY.haze;
       const tint = new THREE.Color(DUST.color).lerp(new THREE.Color(ground.color), d.groundShare);
       const pale = tint.clone().lerp(new THREE.Color(0xffffff), 0.15);
       const colors = [tint.getHex(), pale.getHex()];
       look = {
-        dust: { life: d.life, size: d.size, colors, alpha: d.alpha, drag: d.drag, gravity: d.gravity, streak: 0, form: 'plume' },
-        haze: { life: h.life, size: h.size, colors, alpha: h.alpha, drag: h.drag, gravity: h.gravity, streak: 0, form: 'haze' },
+        dust: { ...sprayLook(d, ground, colors), plume: true },
+        haze: { ...sprayLook(SPRAY.haze, ground, colors), form: 'haze' },
         clod: new THREE.Color(ground.color).multiplyScalar(SPRAY.clods.shade),
       };
       this.sprayLooks.set(ground, look);
@@ -393,8 +405,7 @@ export class Fx3D {
       const t = slot.age / slot.life;
       slot.pos = slot.anchor?.() ?? slot.pos;
       const screen = layerPointOf(this.rig.screenOf({ x: slot.pos.x, y: slot.pos.y + t * RISE_METERS, z: slot.pos.z }));
-      slot.el.style.left = `${screen.x}px`;
-      slot.el.style.top = `${screen.y - slot.rowPx}px`;
+      moveTo(slot.el, screen.x, screen.y - slot.rowPx);
       slot.el.style.opacity = `${1 - t}`;
     }
   }
@@ -496,7 +507,7 @@ export class TruckFx {
   private dust(world: World, v: Vehicle, pose: Pose, back: V3, tires: V3[], dt: number, metersPerSecond: number): void {
     const ground = TERRAIN_TYPES[world.terrain.types[tileAt(world.terrain, v.pos)]];
     const loose = sprayShare(ground);
-    const rate = SPRAY.dust.perMeter * TUNING.dustAmount.value * metersPerSecond * loose;
+    const rate = sprayPuffsPerMeter(SPRAY.dust, ground) * TUNING.dustAmount.value * metersPerSecond;
     const clodRate = metersPerSecond > SPRAY.clods.minMetersPerSecond ? SPRAY.clods.perMeter * metersPerSecond * loose : 0;
     const mounts = unitsOf(v.chassisId).flatMap((u) => wheelMounts(u.body, u.index));
     const before = this.trailedTires(v.id, tires, metersPerSecond * dt);
@@ -508,7 +519,7 @@ export class TruckFx {
       this.puffs(rate * front, dt, () => this.fx.wheelDust(along(), back, out, ground));
       this.puffs(clodRate * front, dt, () => this.fx.clod(tire, back, out, metersPerSecond, ground));
     }
-    const hazeRate = SPRAY.haze.perMeter * metersPerSecond * loose;
+    const hazeRate = sprayPuffsPerMeter(SPRAY.haze, ground) * metersPerSecond;
     const [left, right] = tires.slice(-2);
     const rear = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, z: (left.z + right.z) / 2 };
     this.puffs(hazeRate, dt, () => this.fx.dustHaze(rear, back, ground));

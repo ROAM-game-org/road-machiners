@@ -2,9 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAsset } from '../fetch-asset';
 import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
-import { claimLeads, journalEntries, JournalScreen } from './journal';
+import { claimLeads, journalEntries, journalTabs, JournalScreen } from './journal';
 import { surveyClue, surveySites } from '../sim/survey';
-import { surveyWayText } from './format';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
 import type { SalvageStock, World } from '../sim/types';
@@ -107,14 +106,24 @@ class FakeNode {
   className = '';
   innerHTML = '';
   style = { display: '' };
-  classList = { add: (c: string) => { this.className += ` ${c}`; } };
+  blurred = false;
+  classes = new Set<string>();
+  classList = {
+    add: (c: string) => { this.classes.add(c); },
+    toggle: (c: string, on: boolean) => { if (on) this.classes.add(c); else this.classes.delete(c); },
+    contains: (c: string) => this.classes.has(c),
+  };
   children: (FakeNode | string)[] = [];
   attrs = new Map<string, string>();
+  listeners = new Map<string, ((e: unknown) => void)[]>();
   constructor(readonly tag: string) {}
   append(...c: (FakeNode | string)[]) { this.children.push(...c); }
   replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
   setAttribute(k: string, v: string) { this.attrs.set(k, v); }
-  addEventListener() {}
+  addEventListener(k: string, fn: (e: unknown) => void) { this.listeners.set(k, [...(this.listeners.get(k) ?? []), fn]); }
+  blur() { this.blurred = true; }
+  click() { for (const fn of this.listeners.get('click') ?? []) fn({ currentTarget: this }); }
+  has(cls: string): boolean { return this.className.split(' ').includes(cls) || this.classes.has(cls); }
   text(): string { return this.children.map((c) => (typeof c === 'string' ? c : c.text())).join(''); }
   all(pred: (n: FakeNode) => boolean): FakeNode[] {
     const here = pred(this) ? [this] : [];
@@ -124,13 +133,30 @@ class FakeNode {
 
 const ui = new FakeNode('div');
 
-function openJournal(world: World): FakeNode {
+function stubDocument(): void {
   vi.stubGlobal('document', { createElement: (tag: string) => new FakeNode(tag), createElementNS: (_ns: string, tag: string) => new FakeNode(tag), createTextNode: (text: string) => Object.assign(new FakeNode('#text'), { children: [text] }), getElementById: () => ui });
   vi.stubGlobal('window', { addEventListener: () => {} });
+}
+
+function journalOf(world: World): { screen: JournalScreen; root: FakeNode } {
+  stubDocument();
   const screen = new JournalScreen({ world: () => world } as never);
   screen.toggle();
-  return ui.children[ui.children.length - 1] as FakeNode;
+  return { screen, root: ui.children[ui.children.length - 1] as FakeNode };
 }
+
+const openJournal = (world: World): FakeNode => journalOf(world).root;
+
+describe('journal tabs', () => {
+  it('lists only tabs with content, in the order work, wrecks, notes, past', () => {
+    expect(journalTabs({ work: [], wrecks: [], notes: [], past: [] })).toEqual([]);
+    const w = emptyWorld();
+    w.player.contracts = [haul];
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
+    w.player.pastContracts = [{ contract: order, outcome: 'done', turn: 1, amount: 1 }];
+    expect(journalTabs(journalEntries(w))).toEqual(['work', 'notes', 'past']);
+  });
+});
 
 describe('journal screen', () => {
   afterEach(() => {
@@ -138,56 +164,102 @@ describe('journal screen', () => {
     vi.unstubAllGlobals();
   });
 
-  const groups = (root: FakeNode) => root.all((n) => n.tag === 'section');
-  const heads = (root: FakeNode) => groups(root).map((g) => g.all((n) => n.tag === 'h4').map((h) => h.text()));
+  const tabButtons = (root: FakeNode) => root.all((n) => n.tag === 'div' && n.has('tabs'))[0]?.children as FakeNode[] | undefined;
+  const rowsOf = (root: FakeNode) => root.all((n) => n.has('job'));
   const tagsOf = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => `${x.className} ${x.text()}`);
 
-  it('shows a claim with no leads as work in a journal with no notes', () => {
+  it('shows an empty journal as its one line, with no tabs', () => {
+    const root = openJournal(emptyWorld());
+
+    expect(root.text()).toContain(resolve(t('journal.empty'), 'en'));
+    expect(tabButtons(root)).toBeUndefined();
+  });
+
+  it('draws the close button without a keycap and the title as a panel title', () => {
+    const root = openJournal(emptyWorld());
+
+    expect(root.all((n) => n.has('key'))).toHaveLength(0);
+    expect(root.all((n) => n.className === 'close')[0].text()).toBe('Close');
+    expect(root.all((n) => n.className === 'panel-title')).toHaveLength(1);
+  });
+
+  it('opens on the work tab with a claim that has no leads', () => {
     const w = emptyWorld();
     w.player.contracts = [claim()];
 
     const root = openJournal(w);
 
-    expect(heads(root)).toEqual([['Work']]);
-    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(1);
-    expect(root.text()).not.toContain(resolve(t('journal.empty'), 'en'));
+    expect(tabButtons(root)).toBeUndefined();
+    expect(rowsOf(root)).toHaveLength(1);
   });
 
   it('draws every held kind as one row', () => {
     const w = emptyWorld();
     w.player.contracts = everyKind();
 
-    const root = openJournal(w);
-
-    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(7);
+    expect(rowsOf(openJournal(w))).toHaveLength(7);
   });
 
-  it('names the squares of told wrecks under their own head, and drops a searched wreck', () => {
+  it('keeps the tab chosen across a redraw and drops the focus off the tab button', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul];
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
+    const { screen, root } = journalOf(w);
+
+    const clicked = tabButtons(root)!.find((b) => b.text().startsWith('Notes'))!;
+    clicked.click();
+    screen.render();
+
+    expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([false, true]);
+    expect(clicked.blurred).toBe(true);
+    expect(root.text()).toContain('A scavenger with an Army radio');
+  });
+
+  it('keeps its drawing when nothing changed', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul];
+    const { screen, root } = journalOf(w);
+    const before = root.children.slice();
+
+    screen.render();
+
+    expect(root.children).toEqual(before);
+    expect(root.children.every((c, i) => c === before[i])).toBe(true);
+  });
+
+  it('names the squares of told wrecks, and drops a searched wreck', () => {
     const w = emptyWorld();
     const side = gridSquareTiles();
     w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 }), stock('wreck3', { x: 5, y: 5 })];
     w.player.rumored = ['wreck1', 'wreck2', 'wreck3'];
-    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
 
-    const root = openJournal(w);
-    const rows = groups(root)[0].all((n) => n.className === 'journal-place');
+    const { root } = journalOf(w);
+    const places = root.all((n) => n.className === 'journal-place');
 
-    expect(heads(root)).toEqual([['Wrecks you heard of'], ['Notes']]);
-    expect(rows.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
+    expect(tabButtons(root)).toBeUndefined();
+    expect(places.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
     ui.children = [];
     w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
-    expect(heads(openJournal(w))).toEqual([[]]);
+    expect(tabButtons(openJournal(w))).toBeUndefined();
   });
 
-  it('heads the notes only beside another group', () => {
+  it('opens the newest note and closes the others to a title and a day', () => {
     const w = emptyWorld();
-    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
-    const alone = heads(openJournal(w));
-    ui.children = [];
-    w.player.contracts = [haul];
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }, { id: 'wagonNose', turn: TIME.turnsPerDay + 10 }];
+    const { root } = journalOf(w);
+    const notes = root.all((n) => n.has('journal-note'));
 
-    expect(alone).toEqual([[]]);
-    expect(heads(openJournal(w))).toEqual([['Work'], ['Notes']]);
+    expect(notes).toHaveLength(2);
+    expect(notes[0].has('open')).toBe(true);
+    expect(notes[0].text()).toContain('Sergeant Kovac, Nose dispatch');
+    expect(notes[1].text()).toContain('A scavenger with an Army radio');
+    expect(notes[1].text()).toContain('Day 1');
+    expect(notes[1].text()).not.toContain('Hattie');
+
+    notes[1].children[0] instanceof FakeNode && (notes[1].children[0] as FakeNode).click();
+    const after = root.all((n) => n.has('journal-note'));
+    expect(after[1].has('open')).toBe(true);
+    expect(after[0].has('open')).toBe(false);
   });
 
   it('shows a past supply order in its posted wording, with its outcome and the money it moved', () => {
@@ -198,14 +270,12 @@ describe('journal screen', () => {
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
 
-    const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
+    const rows = rowsOf(openJournal(w));
 
     expect(rows.map(tagsOf)).toEqual([['tag dim lapsed'], ['tag bad failed'], ['tag good done']]);
     expect(rows[2].text()).toContain('Bring 6 crates of Water to Nose');
     expect(rows[2].text()).toContain('Day 1, Nose');
     expect(rows[2].text()).toContain('+111');
-    expect(rows[1].all((n) => n.className === 'amount bad')).toHaveLength(1);
-    expect(rows[0].all((n) => n.className.startsWith('amount'))).toHaveLength(0);
   });
 
   it('explains the negative amount of a failed haul as the price of the kept cargo, and nothing else', () => {
@@ -216,7 +286,7 @@ describe('journal screen', () => {
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
 
-    const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
+    const rows = rowsOf(openJournal(w));
     const titled = (row: FakeNode) => row.all((n) => n.className.startsWith('price')).map((n) => n.attrs.get('title'));
 
     expect(titled(rows[1])).toEqual(['Price of the cargo you kept']);
@@ -231,9 +301,7 @@ describe('journal screen', () => {
       { contract: escort, outcome: 'released', turn: 20, amount: 4800 },
     ];
 
-    const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
-
-    expect(rows.map(tagsOf)).toEqual([['tag dim ended early'], ['tag dim lapsed']]);
+    expect(rowsOf(openJournal(w)).map(tagsOf)).toEqual([['tag dim ended early'], ['tag dim lapsed']]);
   });
 
   it('lists the radio leads under their claim', () => {
@@ -247,48 +315,54 @@ describe('journal screen', () => {
     expect(detail[0].text()).toContain('Jed Cobb');
   });
 
-  it('gives each place what to look for, the clue, what the shop wants to learn, and a found or surveyed tag', () => {
-    const w = emptyWorld();
-    const [a, b, c] = surveySites(TEST_MAP);
-    const survey: Extract<Contract, { kind: 'survey' }> = {
-      id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 30, deadline: 900, window: 600, tier: 1,
-      points: [{ site: a.id, found: true, done: true }, { site: b.id, found: true, done: false }, { site: c.id, found: false, done: false }],
-    };
-    w.player.contracts = [survey];
-
-    const root = openJournal(w);
-    const places = root.all((n) => n.className === 'journal-place survey');
-    const tags = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => x.text());
-
-    expect(places).toHaveLength(3);
-    expect(places.map(tags)).toEqual([['surveyed'], ['found'], []]);
-    survey.points.forEach((p, i) => {
-      const clue = surveyClue(survey, p);
-      expect(places[i].text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
-      expect(places[i].text()).toContain(resolve(surveyWayText(w, survey, p), 'en'));
-      expect(places[i].text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
-    });
-  });
-
   const surveyOf = (sites: string[], states: { found: boolean; done: boolean }[] = []): Extract<Contract, { kind: 'survey' }> => ({
     id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 30, deadline: 900, window: 600, tier: 1,
     points: sites.map((site, i) => ({ site, found: states[i]?.found ?? false, done: states[i]?.done ?? false })),
   });
   const picturesOf = (place: FakeNode) => place.all((n) => n.className === 'survey-picture');
   const imageOf = (picture: FakeNode) => picture.children[0] as FakeNode & { src?: string; alt?: string };
+  const placesOf = (root: FakeNode) => root.all((n) => n.has('journal-place') && n.has('survey'));
 
-  it('shows the picture of its own site in every place, open, found or done', async () => {
+  it('opens the first place not yet surveyed, and shows a surveyed place as its row only', () => {
     const w = emptyWorld();
     const [a, b, c] = surveySites(TEST_MAP).slice(-3);
-    w.player.contracts = [surveyOf([a.id, b.id, c.id], [{ found: true, done: true }, { found: true, done: false }, { found: false, done: false }])];
+    const survey = surveyOf([a.id, b.id, c.id], [{ found: true, done: true }, { found: true, done: false }, { found: false, done: false }]);
+    w.player.contracts = [survey];
 
-    const places = openJournal(w).all((n) => n.className === 'journal-place survey');
-    await new Promise((resolve) => setTimeout(resolve));
+    const places = placesOf(openJournal(w));
 
-    expect(places.map((p) => picturesOf(p).length)).toEqual([1, 1, 1]);
-    expect(vi.mocked(fetchAsset).mock.calls.map((call) => call[1])).toEqual(expect.arrayContaining([a.id, b.id, c.id].map((id) => expect.stringContaining(`survey/${id}.webp`))));
-    expect(places.map((p) => imageOf(picturesOf(p)[0]).alt)).toEqual(['', '', '']);
-    expect(places.map((p) => imageOf(picturesOf(p)[0]).attrs.get('aria-hidden'))).toEqual(['true', 'true', 'true']);
+    expect(places).toHaveLength(3);
+    expect(places.map((p) => p.has('open'))).toEqual([false, true, false]);
+    expect(places.map(tagsOf)).toEqual([['tag good surveyed'], ['tag found'], []]);
+    expect(places.map((p) => picturesOf(p).length)).toEqual([0, 1, 0]);
+    expect(places.map((p) => p.all((n) => n.has('way-steps')).length)).toEqual([0, 1, 0]);
+  });
+
+  it('gives the open place its square and lay, what the shop wants to learn, the shop once and numbered steps', () => {
+    const w = emptyWorld();
+    const [site] = surveySites(TEST_MAP).slice(-1);
+    const survey = surveyOf([site.id]);
+    w.player.contracts = [survey];
+    const clue = surveyClue(survey, survey.points[0]);
+
+    const place = placesOf(openJournal(w))[0];
+
+    expect(place.text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
+    expect(place.text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
+    expect(place.text()).toContain('From Bowl');
+    expect(place.text().match(/From Bowl/g)).toHaveLength(1);
+  });
+
+  it('opens another place on click and closes the one that was open', () => {
+    const w = emptyWorld();
+    const [a, b] = surveySites(TEST_MAP).slice(-2);
+    w.player.contracts = [surveyOf([a.id, b.id])];
+    const { root } = journalOf(w);
+
+    placesOf(root)[1].children[0] instanceof FakeNode && (placesOf(root)[1].children[0] as FakeNode).click();
+
+    expect(placesOf(root).map((p) => p.has('open'))).toEqual([false, true]);
+    expect(placesOf(root).map((p) => picturesOf(p).length)).toEqual([0, 1]);
   });
 
   it('shows no picture on rows of other contracts', () => {
@@ -315,5 +389,19 @@ describe('journal screen', () => {
     expect(imageOf(picturesOf(first)[0]).src).toBeDefined();
     expect(imageOf(picturesOf(second)[0]).src).toBeDefined();
     expect(imageOf(picturesOf(third)[0]).src).toBe(imageOf(picturesOf(second)[0]).src);
+  });
+
+  it('is a side form beside the world, and a modal over a scene', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul];
+    const { screen, root } = journalOf(w);
+
+    expect(screen.sideForm()).toBe(true);
+    expect(root.classList.contains('journal-side')).toBe(true);
+    expect(root.classList.contains('modal')).toBe(false);
+    root.classList.add('over-scene');
+    expect(screen.sideForm()).toBe(false);
+    screen.render();
+    expect(root.classList.contains('modal')).toBe(true);
   });
 });

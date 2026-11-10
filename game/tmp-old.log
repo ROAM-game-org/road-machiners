@@ -1,0 +1,5 @@
+
+> old-spots
+> vite-node scripts/old-spots.mjs && vite-node scripts/old-spots.mjs
+
+sh: vite-node: command not found

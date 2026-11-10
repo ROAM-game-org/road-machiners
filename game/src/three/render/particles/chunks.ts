@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { groundPoint, toMap, type V3 } from '../../../phys/frames';
 import { count } from '../../../perf';
 import type { Terrain } from '../../../sim/terrain';
+import { uploadFirst } from '../uploads';
 import type { Nearby } from './particles';
 
 export const CHUNK_OVERWRITE_COUNTER = 'fx.chunks.overwritten';
@@ -133,8 +134,8 @@ export class ChunkBatch {
     }
     this.meshes.forEach((mesh, s) => {
       mesh.count = counts[s];
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      uploadFirst(mesh.instanceMatrix, counts[s]);
+      uploadFirst(mesh.instanceColor, counts[s]);
     });
   }
 }

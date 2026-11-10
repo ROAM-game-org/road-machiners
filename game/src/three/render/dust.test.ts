@@ -1,20 +1,20 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { DETECT } from '../../data/detect';
 import { PHYSICS } from '../../data/physics';
 import { CHASSIS } from '../../data/chassis';
 import { tailReach } from '../../sim/rig';
-import { dropClearance } from '../../sim/hazards';
 import { advanceDust } from '../../sim/detect';
 import { addVehicle, emptyWorld, flatTerrain } from '../../sim/testkit';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
 import type { VehicleView } from './vehicle';
-import type { Card, FxCards } from './particles/cards';
+import { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, type Card, type FxCards } from './particles/cards';
 import { DUST_LOOK, DustCloudsView, plumeShape, puffsPerCloud } from './dust';
 
 const S = PHYSICS.metersPerTile;
 
-function cloud(id: string, source: string, age = 0): DustCloud {
+function cloud(id: string, source: string, age = 2): DustCloud {
   return { id, source, pos: { x: 10, y: 10 }, vel: { x: 1, y: 0 }, age, range: 5 };
 }
 
@@ -44,20 +44,6 @@ describe('DustCloudsView', () => {
     const old = drawn(view);
     expect(Math.max(...old.map((c) => c.y))).toBeGreaterThan(Math.max(...young.map((c) => c.y)));
     expect(Math.max(...old.map((c) => c.alpha))).toBeLessThan(Math.max(...young.map((c) => c.alpha)));
-  });
-
-  it('draws dust seen from far bigger and denser than a faint trail', () => {
-    const at = (range: number) => {
-      const view = new DustCloudsView();
-      view.update(worldOf([{ ...cloud('a', 'npc', 2), range }], ['a']), flatTerrain(32), 0);
-      const cards = drawn(view);
-      return { size: Math.max(...cards.map((c) => c.size)), alpha: Math.max(...cards.map((c) => c.alpha)) };
-    };
-    const faint = at(5);
-    const loud = at(DUST_LOOK.loudRange);
-    expect(loud.size).toBeGreaterThan(faint.size);
-    expect(loud.alpha).toBeGreaterThan(faint.alpha);
-    expect(at(DUST_LOOK.loudRange * 3)).toEqual(loud);
   });
 
   it('never pushes more cards than the budget', () => {
@@ -95,23 +81,43 @@ function updated(world: World, views: Map<string, VehicleView>, clock: ReturnTyp
   return drawn(view);
 }
 
-describe('DustCloudsView reveal', () => {
-  it('hides a cloud raised this turn until the truck rear has passed it', () => {
+describe('DustCloudsView trail', () => {
+  const trail = () => {
     const { world, me } = drove('scout');
-    const before = cloneWorld(world);
-    const passed = 0.5 + dropClearance(me, 0) / 2.5;
-    expect(updated(world, new Map(), clockAt(before, 0))).toHaveLength(0);
-    expect(updated(world, new Map(), clockAt(before, 0.5))).toHaveLength(0);
-    expect(updated(world, new Map(), clockAt(before, passed + 0.05))).toHaveLength(DUST_LOOK.puffs);
+    world.dustClouds = [
+      { id: 'old', source: me.id, pos: { x: 20, y: 30 }, vel: { x: 0, y: 0 }, age: 1, range: 5 },
+      { id: 'new', source: me.id, pos: { x: 30, y: 30 }, vel: { x: 0, y: 0 }, age: 0, range: 5 },
+    ];
+    return world;
+  };
+
+  it('draws nothing for the newest cloud, since the truck has not left it yet', () => {
+    const { world } = drove('scout');
+    expect(updated(world, new Map(), null)).toHaveLength(0);
   });
 
-  it('shows it with no clock, after the move, or for an older cloud', () => {
-    const { world } = drove('scout');
+  it('lays puffs along the run to the younger cloud as the turn plays, none ahead of the truck', () => {
+    const world = trail();
     const before = cloneWorld(world);
-    expect(updated(world, new Map(), null)).toHaveLength(DUST_LOOK.puffs);
-    expect(updated(world, new Map(), clockAt(before, 0.2, true))).toHaveLength(DUST_LOOK.puffs);
-    world.dustClouds[0].age = 1;
-    expect(updated(world, new Map(), clockAt(before, 0))).toHaveLength(DUST_LOOK.puffs);
+    const counts = [0, 0.25, 0.5, 1].map((progress) => updated(world, new Map(), clockAt(before, progress)).length);
+    expect(counts[0]).toBe(0);
+    expect(counts[1]).toBeGreaterThan(0);
+    expect(counts[2]).toBeGreaterThan(counts[1]);
+    expect(counts[3]).toBeGreaterThan(counts[2]);
+    expect(counts[3]).toBeLessThanOrEqual(DUST_LOOK.puffs);
+    const shown = updated(world, new Map(), clockAt(before, 0.25));
+    const wander = (DUST_LOOK.spread + DUST_LOOK.wobble) * S;
+    expect(Math.max(...shown.map((c) => c.x))).toBeLessThanOrEqual((20 + 0.25 * 10) * S + wander);
+  });
+
+  it('spreads a cloud far along its run, where a lone cloud stays bunched', () => {
+    const world = trail();
+    world.dustClouds[0].age = 3;
+    world.dustClouds[1].age = 2;
+    const spanOf = (cards: Card[]) => Math.max(...cards.map((c) => c.x)) - Math.min(...cards.map((c) => c.x));
+    const long = updated(world, new Map(), null).filter((c) => c.x < 28 * S);
+    world.dustClouds.pop();
+    expect(spanOf(long)).toBeGreaterThan(spanOf(updated(world, new Map(), null)));
   });
 });
 
@@ -135,6 +141,7 @@ describe('DustCloudsView fit', () => {
 
   it('grows back to full size as the truck drives away', () => {
     const { world, me } = drove('scout');
+    world.dustClouds[0].age = 3;
     const largest = (tiles: number | null) => {
       const views = new Map(tiles === null ? [] : [[me.id, viewAt((27.5 + tiles) * S, 30 * S)] as const]);
       return Math.max(...updated(world, views, null).map((c) => c.size));
@@ -145,24 +152,84 @@ describe('DustCloudsView fit', () => {
   });
 });
 
+describe('DustCloudsView look', () => {
+  const lookingDown = () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(27.5 * S, 100, 30 * S);
+    camera.lookAt(27.5 * S, 0, 30 * S);
+    camera.updateMatrixWorld();
+    return camera;
+  };
+
+  const alphaWith = (truck: VehicleView | null) => {
+    const { world } = drove('scout');
+    world.dustClouds[0].age = 3;
+    const view = new DustCloudsView();
+    view.update(world, world.terrain, 0, new Map(truck ? [['other', truck]] : []), null, lookingDown());
+    return drawn(view).map((c) => c.alpha);
+  };
+
+  it('mixes soft and grainy puffs, and a puff keeps its kind as it ages', () => {
+    const shapesAt = (age: number) => {
+      const { world } = drove('scout');
+      world.dustClouds[0].age = age;
+      return updated(world, new Map(), null).map((c) => c.shape);
+    };
+    const shapes = shapesAt(3);
+    expect(shapes.filter((s) => s < CARD_SHAPES).length).toBeGreaterThan(0);
+    expect(shapes.filter((s) => s >= CLUMP_FIRST && s < CLUMP_FIRST + CLUMP_SHAPES).length).toBeGreaterThan(0);
+    expect(shapes.length).toBe(DUST_LOOK.puffs);
+    expect(shapesAt(5)).toEqual(shapes);
+  });
+
+  it('draws a cloud fainter when it was raised with less dust, up to full strength', () => {
+    const peakAt = (range: number) => {
+      const { world } = drove('scout');
+      world.dustClouds[0].age = 3;
+      world.dustClouds[0].range = range;
+      return Math.max(...updated(world, new Map(), null).map((c) => c.alpha));
+    };
+    expect(peakAt(DUST_LOOK.fullRange / 4)).toBeCloseTo(peakAt(DUST_LOOK.fullRange) / 4, 9);
+    expect(peakAt(DUST_LOOK.fullRange * 2)).toBe(peakAt(DUST_LOOK.fullRange));
+  });
+
+  it('keeps old dust low, under its rise cap plus its scatter', () => {
+    const { world } = drove('scout');
+    world.dustClouds[0].age = DETECT.dust.lifetime - 1;
+    const scatter = plumeShape(DETECT.dust.lifetime - 1).scatter;
+    expect(Math.max(...updated(world, new Map(), null).map((c) => c.y))).toBeLessThanOrEqual((DUST_LOOK.riseCap + scatter) * S + 1e-6);
+  });
+
+  it('thins the puffs between the camera and a truck in the cloud, and only those', () => {
+    const open = alphaWith(null);
+    const under = alphaWith(viewAt(28.5 * S, 30 * S));
+    expect(Math.min(...under.map((alpha, i) => alpha / open[i]))).toBeLessThan(0.2);
+    expect(Math.max(...under.map((alpha, i) => alpha / open[i]))).toBe(1);
+  });
+
+  it('leaves the cloud alone when the truck is far from it', () => {
+    expect(alphaWith(viewAt(60 * S, 60 * S))).toEqual(alphaWith(null));
+  });
+});
+
 describe('plumeShape', () => {
   const oldSize = (life: number) => DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life);
 
   it('starts small and faint at a typical reveal age', () => {
     const shape = plumeShape(0.6);
     expect(shape.size).toBeLessThanOrEqual(DUST_LOOK.birthSize + 0.2 * (oldSize(0.6 / DETECT.dust.lifetime) - DUST_LOOK.birthSize));
-    expect(shape.fade).toBeLessThanOrEqual(0.3);
+    expect(shape.fade).toBeLessThanOrEqual(0.35);
     expect(plumeShape(0).size).toBe(DUST_LOOK.birthSize);
     expect(plumeShape(0).scatter).toBe(0);
   });
 
-  it.each([3, 5, 7.9])('matches the old curves at age %s once built', (age) => {
+  it.each([4, 5, 7.9])('follows its curves at age %s once built', (age) => {
     const life = age / DETECT.dust.lifetime;
     const shape = plumeShape(age);
     expect(shape.size).toBeCloseTo(oldSize(life), 9);
     expect(shape.span).toBeCloseTo(DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life, 9);
     expect(shape.wobble).toBe(DUST_LOOK.wobble);
-    expect(shape.fade).toBeCloseTo(1 - life, 9);
+    expect(shape.fade).toBeCloseTo((1 - life) ** DUST_LOOK.fadePower, 9);
   });
 
   it('refuses a bad age', () => {
@@ -205,7 +272,7 @@ describe('DustCloudsView across turns', () => {
       const rest = frameAt(worlds[i - 1], null, 1);
       const start = frameAt(worlds[i], worlds[i - 1], 0);
       expect(Math.hypot(meanOf(start, 'x') - meanOf(rest, 'x'), meanOf(start, 'z') - meanOf(rest, 'z'))).toBeLessThan(0.01);
-      expect(alphaOf(start)).toBeCloseTo(alphaOf(rest) * plumeShape(worlds[i].dustClouds[0].age).fade / plumeShape(worlds[i - 1].dustClouds[0].age + 1).fade, 6);
+      expect(alphaOf(start)).toBeCloseTo(alphaOf(rest), 6);
     }
   });
 

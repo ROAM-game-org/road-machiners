@@ -128,7 +128,6 @@ export function startWorldOn(map: BakedMap, seed: number, kit = 'standard', rank
     p.xp = 0;
     for (const skill of Object.keys(p.ranks) as (keyof typeof p.ranks)[]) {
       p.ranks[skill] = Math.max(rank, startedKit.ranks);
-      p.xpToday[skill] = 0;
     }
     for (const source of Object.keys(p.xpBySource) as XpSource[]) p.xpBySource[source] = 0;
     p.xpWindow = 0;

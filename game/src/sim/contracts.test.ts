@@ -110,15 +110,48 @@ const MEASURED_DRIVE: { from: string; to: string; slowTurns: number }[] = [
 
 const SHOP_SITES = Object.keys(SHOPS).map((id) => siteOf(id));
 
-const BAND_FLOOR_RATIO = 11.9;
+const STARTER_RUNNING_COST_PER_TURN_SEED_1_840_TURNS = 0.06;
 
 describe('haul pay and rush', () => {
-  it('pays a standard haul at least the band floor over the estimated round trip', () => {
+  it('pays a standard haul at least the starting scout running cost plus one tier 1 wage over the estimated round trip', () => {
     for (const a of SHOP_SITES) {
       for (const b of SHOP_SITES) {
         if (a === b) continue;
         const turns = estimateTurns(a.pos, b.pos);
-        expect(contractReward(turns, 0, false) / (2 * turns * EFFORT.wage[1])).toBeGreaterThanOrEqual(BAND_FLOOR_RATIO);
+        const floor = (STARTER_RUNNING_COST_PER_TURN_SEED_1_840_TURNS + EFFORT.wage[1]) * 2 * turns;
+        expect(contractReward(turns, 0, false, CONTRACTS.haul.units[0]), `${a.id} to ${b.id}`).toBeGreaterThanOrEqual(floor);
+      }
+    }
+  });
+
+  it('keeps the slowest measured loaded drive between 0.55 and 1.1 times the estimate on every pair', () => {
+    for (const row of MEASURED_DRIVE) {
+      const turns = estimateTurns(siteOf(row.from).pos, siteOf(row.to).pos);
+      expect(row.slowTurns / turns, `${row.from} to ${row.to}`).toBeGreaterThanOrEqual(0.55);
+      expect(row.slowTurns / turns, `${row.from} to ${row.to}`).toBeLessThanOrEqual(1.1);
+    }
+  });
+
+  it('pays each extra crate crateFactor tier 1 wages per estimated turn', () => {
+    const turns = estimateTurns(siteOf('bowl').pos, siteOf('granary').pos);
+    const few = contractReward(turns, 0, false, 3);
+    const many = contractReward(turns, 0, false, 12);
+    const extra = turns * EFFORT.wage[1] * CONTRACTS.haul.crateFactor * 9;
+    expect(Math.abs(many - few - extra)).toBeLessThanOrEqual(1);
+  });
+
+  it('keeps every window as long in real turns as before, apart from the handling turns', () => {
+    for (const a of SHOP_SITES) {
+      for (const b of SHOP_SITES) {
+        if (a === b) continue;
+        const turns = estimateTurns(a.pos, b.pos);
+        const oldTurns = (turns - EFFORT.handlingTurns) * MAP_SPREAD + EFFORT.handlingTurns;
+        const standardGrowth = EFFORT.handlingTurns * (CONTRACTS.haul.durationFactor - 3);
+        const rushGrowth = EFFORT.handlingTurns * (CONTRACTS.haul.rush.durationFactor - 1.5);
+        expect(haulWindow(turns, false) - Math.round(oldTurns * 3 + CONTRACTS.haul.slackTurns)).toBeLessThanOrEqual(standardGrowth + 1);
+        expect(haulWindow(turns, false) - Math.round(oldTurns * 3 + CONTRACTS.haul.slackTurns)).toBeGreaterThanOrEqual(0);
+        expect(haulWindow(turns, true) - Math.round(oldTurns * 1.5)).toBeLessThanOrEqual(rushGrowth + 1);
+        expect(haulWindow(turns, true) - Math.round(oldTurns * 1.5)).toBeGreaterThanOrEqual(0);
       }
     }
   });
@@ -130,13 +163,12 @@ describe('haul pay and rush', () => {
     expect(Math.abs(tools - grain - 8 * (GOODS.tools.value - GOODS.grain.value) * CONTRACTS.haul.valueShare)).toBeLessThanOrEqual(1);
   });
 
-  it('prices the reported Bowl to Granary tools haul at the salvage wage with a window under the old 934 turns scaled to the map', () => {
+  it('prices the reported Bowl to Granary tools haul at the tier 1 wage with a window under the old 934 turns scaled to the map', () => {
     const turns = estimateTurns(siteOf('bowl').pos, siteOf('granary').pos);
-    const reward = contractReward(turns, 8 * GOODS.tools.value, false);
-    const OLD_TIER_RATIO = 2.2 / 0.37;
+    const reward = contractReward(turns, 8 * GOODS.tools.value, false, 8);
     const cut = 8 * GOODS.tools.value * CONTRACTS.haul.valueShare;
-    expect(reward).toBeCloseTo(turns * EFFORT.wage[1] * CONTRACTS.haul.rewardFactor + cut, 0);
-    expect(reward).toBeLessThan(turns * EFFORT.wage[1] * 5 * OLD_TIER_RATIO);
+    const perTurn = CONTRACTS.haul.rewardFactor + 8 * CONTRACTS.haul.crateFactor;
+    expect(reward).toBeCloseTo(turns * EFFORT.wage[1] * perTurn + cut, 0);
     expect(haulWindow(turns, false)).toBeLessThan(934 * MAP_SPREAD);
   });
 
@@ -342,12 +374,14 @@ describe('contract boards and delivery', () => {
   });
 
   it('pays the contract XP to the pool, targeting the posting shop', () => {
-    let w = acceptContract(atBowlWithOffer(haul('nose', 3)), 'ct-haul');
+    const reward = 10;
+    const xp = reward * CONTRACTS.haul.xpPerEffort;
+    let w = acceptContract(atBowlWithOffer({ ...haul('nose', 3), reward }), 'ct-haul');
     w.vehicles[0].pos = { ...sitePads(nose)[0] };
     const pool = w.player.xp;
     w = deliverContract(w, 'ct-haul');
-    expect(practiceOf(w, 'contract')).toMatchObject([{ amount: 30, difficulty: null, target: 'bowl', xp: 30 }]);
-    expect(w.player.xp).toBeCloseTo(pool + 30);
+    expect(practiceOf(w, 'contract')).toMatchObject([{ amount: xp, difficulty: null, target: 'bowl', xp }]);
+    expect(w.player.xp).toBeCloseTo(pool + xp);
   });
 
   it('refuses a haul delivery away from its destination', () => {

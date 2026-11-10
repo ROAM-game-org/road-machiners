@@ -3,8 +3,10 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import {
+  paintCanvasOn,
   paintGroundCanvas,
   paintLandformCanvas,
+  takeBakedPixels,
   TERRAIN_MARGIN,
   type PaintCanvas,
 } from "../../render/groundPaint";
@@ -30,19 +32,11 @@ export function groundSide(size: number): number {
 }
 
 function mapCanvas(w: World, side: number): PaintCanvas {
-  const from = -TERRAIN_MARGIN;
-  const res = side / (w.size + 2 * TERRAIN_MARGIN);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = side;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Could not get terrain canvas context");
-  return {
-    ctx,
-    size: side,
-    res,
-    from,
-    toPx: (tile) => (tile - from) * res,
-  };
+  return paintCanvasOn(ctx, side, w.size);
 }
 
 const groundTextures = new WeakMap<Terrain, THREE.CanvasTexture>();
@@ -58,7 +52,9 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 
 function paintTexture(w: World): THREE.CanvasTexture {
   const c = mapCanvas(w, groundSide(w.size));
-  paintGroundCanvas(c, w.terrain);
+  const baked = takeBakedPixels(w.terrain);
+  if (baked) c.ctx.putImageData(new ImageData(baked as Uint8ClampedArray<ArrayBuffer>, c.size, c.size), 0, 0);
+  else paintGroundCanvas(c, w.terrain);
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;

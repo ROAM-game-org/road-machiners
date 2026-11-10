@@ -8,10 +8,13 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
+const COMPACT = [1024, 600];
 const PHONE = [390, 844];
 const PHONE_LANDSCAPE = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
-const OUT = 'tmp/layout';
+const GALLERY = process.env.LAYOUT_GALLERY;
+const OUT = GALLERY ?? 'tmp/layout';
+const FADE_MS = 900;
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
 
 const key = (page, code) => page.evaluate((c) => window.__ROAM__.runKey(c), code);
@@ -44,18 +47,11 @@ async function openInventory(page) {
 }
 
 async function openTown(page, tab) {
-  await page.evaluate(async () => {
-    const g = window.__ROAM__;
-    if (g.screens.town.isOpen()) return;
-    const c = await import('/src/sim/cheats.ts');
-    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
-    g.screens.town.open();
-  });
-  await frames(page);
+  await openTownClear(page);
   await page.evaluate((tab) => {
     const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
     go('back');
-    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', paint: 'garage', contracts: 'board', charts: 'maps' }[tab] ?? tab;
     if (section !== 'front') go(section);
     if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
   }, tab);
@@ -105,6 +101,14 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    if (node === 'attacker') {
+      const { callVehicle } = await import('/src/sim/dialogue.ts');
+      const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
+      const raider = raiderWorld.vehicles.filter((v) => v.brain).at(-1);
+      raider.brain.goals = [{ kind: 'fight', targetId: raiderWorld.player.vehicleId, destination: { ...raiderWorld.vehicles.find((v) => v.id === raiderWorld.player.vehicleId).pos }, phase: 'travel', reason: 'fightHostile', demands: true, worn: { turn: raiderWorld.turn, condition: 1 } }];
+      g.apply(callVehicle(raiderWorld, raider.id));
+      return;
+    }
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
@@ -205,7 +209,8 @@ async function boot() {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(playUrl(`${url}/?seed=${SEED}`));
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
-  await page.addStyleTag({ content: '#game { display: none !important }' });
+  if (GALLERY) await page.waitForFunction(() => !document.getElementById('boot'));
+  else await page.addStyleTag({ content: '#game { display: none !important }' });
   return { browser, page, errors };
 }
 
@@ -215,7 +220,7 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
-    document.querySelector('.tip-off')?.click();
+    g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
     if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
@@ -235,7 +240,7 @@ const clearInspect = (page) => page.evaluate(() => {
   g.refreshInfo();
 });
 
-const INSPECT_VIEWPORTS = [...VIEWPORTS, TALL];
+const INSPECT_VIEWPORTS = [...VIEWPORTS, COMPACT, TALL];
 
 const openStartMenu = (page) => page.evaluate(async () => {
   for (const node of document.querySelectorAll('#ui > *')) {
@@ -316,16 +321,274 @@ const closeSurveyJournal = async (page) => {
   }, SURVEY_CONTRACT_ID);
 };
 
+const JOURNAL_VIEWPORTS = [...VIEWPORTS, COMPACT];
+
+const keepWorld = (page) => page.evaluate(async () => {
+  const { shopState } = await import('/src/sim/market.ts');
+  const w = window.__ROAM__.state;
+  const { contracts, notes, pastContracts, rumored } = w.player;
+  window.__layoutKept = structuredClone({ contracts, notes, pastContracts, rumored, board: shopState(w, 'bowl').contracts });
+});
+const restoreWorld = (page) => page.evaluate(async () => {
+  const { shopState } = await import('/src/sim/market.ts');
+  const g = window.__ROAM__;
+  const w = g.state;
+  const { board, ...player } = structuredClone(window.__layoutKept);
+  Object.assign(w.player, player);
+  shopState(w, 'bowl').contracts = board;
+  g.apply(w);
+});
+
+const HELD_CONTRACTS = () => {
+  const turn = window.__ROAM__.state.turn;
+  return [
+    { id: 'lj-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: turn + 600, window: 600, rush: false, tier: 2 },
+    { id: 'lj-order', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 9, reward: 111, deadline: turn + 900, window: 900, tier: 1 },
+    { id: 'lj-escort', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: turn + 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+  ];
+};
+
+const FILL_LONGEST = async (held) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { surveySites, surveyWay } = await import('/src/sim/survey.ts');
+  const { REGION } = await import('/src/data/region.ts');
+  const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats');
+  const survey = (town, points) => ({ id: 'lj-survey', shop: town.id, kind: 'survey', points, reward: 30, deadline: world.turn + 9000, window: 600, tier: 1 });
+  const wayLength = (contract) => (surveyWay(world, contract, contract.points[0]) ?? []).reduce((sum, step) => sum + (step.do === 'turn' ? 2 : 1), 0);
+  const rank = (town) => sites.map((site) => ({ site, length: wayLength(survey(town, [{ site: site.id, found: false, done: false }])) })).sort((a, b) => b.length - a.length).slice(0, 3);
+  const best = window.__layoutLongest ?? REGION.towns.map((town) => ({ town, ranked: rank(town) })).sort((a, b) => b.ranked[0].length - a.ranked[0].length)[0];
+  window.__layoutLongest = best;
+  world.player.contracts.push(survey(best.town, best.ranked.map((r, i) => ({ site: r.site.id, found: i === 1, done: false }))), ...held);
+  g.apply(world);
+};
+
+const FILL_NOTES = async () => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { NOTE_IDS } = await import('/src/data/locals.ts');
+  world.player.notes = NOTE_IDS.slice(0, 9).map((id, i) => ({ id, turn: 10 + i * 40 }));
+  g.apply(world);
+};
+
+const FILL_PAST = (held) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const ends = ['done', 'failed', 'lapsed', 'released', 'late', 'done', 'failed', 'done'];
+  const amount = (outcome, i) => (outcome === 'done' ? 120 + i : outcome === 'failed' ? -18 : 0);
+  world.player.pastContracts = ends.map((outcome, i) => ({ contract: { ...held[i % held.length], id: `lj-past-${i}` }, outcome, turn: 50 + i * 30, amount: amount(outcome, i) }));
+  g.apply(world);
+};
+
+const FILL_WRECKS = () => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  world.player.rumored = world.salvage.slice(0, 6).map((stock) => stock.id);
+  g.apply(world);
+};
+
+const JOURNAL_FILLS = { longest: FILL_LONGEST, notes: FILL_NOTES, past: FILL_PAST, wrecks: FILL_WRECKS };
+
+async function fillJournal(page, kind) {
+  const fill = JOURNAL_FILLS[kind];
+  if (fill) await page.evaluate(fill, await page.evaluate(HELD_CONTRACTS));
+}
+
+const openJournalWith = (kind) => async (page) => {
+  await keepWorld(page);
+  await fillJournal(page, kind);
+  await key(page, 'KeyJ');
+  await frames(page);
+};
+
+const closeJournalState = async (page) => {
+  await escape(page);
+  await restoreWorld(page);
+};
+
+const openJournalOverScene = async (page) => {
+  await keepWorld(page);
+  await fillJournal(page, 'longest');
+  await openQuestPage(page);
+  await key(page, 'KeyJ');
+  await frames(page);
+};
+
+const closeJournalOverScene = async (page) => {
+  await escape(page);
+  await closeQuestPage(page);
+  await restoreWorld(page);
+};
+
+const faultsOf = (kind) => (found) => found.map((text) => ({ kind, path: '', text, sizes: '' }));
+
+const keycapFaults = (page, root, name) =>
+  page.evaluate(([root, name]) => [...document.querySelectorAll(`${root} .key, ${root} kbd`)].filter((n) => n.getClientRects().length > 0).map((n) => `keycap ${n.textContent} on the ${name}`), [root, name]);
+
+const cutFaults = (page, selectors) =>
+  page.evaluate((selectors) => [...document.querySelectorAll(selectors.join(', '))].filter((n) => n.scrollHeight > n.clientHeight + 1).map((n) => `${n.className} is cut: ${n.scrollHeight} of ${n.clientHeight}`), selectors);
+
+const JOURNAL = '#ui .journal-screen:not([style*="display: none"])';
+
+const journalWindowFaults = (page) =>
+  page.evaluate((sel) => {
+    const box = document.querySelector(sel).getBoundingClientRect();
+    const outside = box.bottom > innerHeight + 1 || box.right > innerWidth + 1 || box.left < -1 || box.top < -1;
+    return outside ? ['the journal is outside the window'] : [];
+  }, JOURNAL);
+
+const journalSideFaults = (page) =>
+  page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    const cut = root.scrollHeight > root.clientHeight + 1;
+    return root.classList.contains('journal-side') && cut ? [`the side journal is cut: ${root.scrollHeight} of ${root.clientHeight}`] : [];
+  }, JOURNAL);
+
+const journalTabFaults = (page) =>
+  page.evaluate((sel) => {
+    const body = document.querySelector(`${sel} .journal-body`);
+    const tabs = document.querySelector(`${sel} .tabs`);
+    if (!body || !tabs) return [];
+    const before = tabs.getBoundingClientRect().top;
+    body.scrollTop = body.scrollHeight;
+    const moved = Math.abs(tabs.getBoundingClientRect().top - before) > 1;
+    body.scrollTop = 0;
+    return moved ? ['the tab row moves when the journal scrolls'] : [];
+  }, JOURNAL);
+
+const journalEntryFaults = (page) =>
+  page.evaluate((sel) => {
+    const body = document.querySelector(`${sel} .journal-body`);
+    const open = body?.querySelector('.journal-place.open, .journal-note.open');
+    if (!open) return [];
+    const cut = open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom;
+    const side = body.closest('.journal-side') !== null && window.innerHeight >= 700;
+    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal`] : [];
+  }, JOURNAL);
+
+const journalOverlapFaults = (page) =>
+  page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    const box = root.getBoundingClientRect();
+    const shown = (n) => n.style.visibility !== 'hidden' && n.getClientRects().length > 0;
+    const across = (a, b) => Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+    const hit = [...document.querySelectorAll('#ui .dock-panel, #ui .log')].some((n) => shown(n) && across(n.getBoundingClientRect(), box));
+    return root.classList.contains('journal-side') && hit ? ['the side journal overlaps a visible panel'] : [];
+  }, JOURNAL);
+
+async function journalFaults(page) {
+  if (!(await page.evaluate((sel) => document.querySelector(sel) !== null, JOURNAL))) return faultsOf('journal')(['the journal is not open']);
+  const checks = [journalWindowFaults(page), journalSideFaults(page), journalTabFaults(page), journalEntryFaults(page), keycapFaults(page, JOURNAL, 'journal'), journalOverlapFaults(page)];
+  return faultsOf('journal')((await Promise.all(checks)).flat());
+}
+
+const BOARD_KINDS = async ({ offerKinds, heldCount }) => {
+  const g = window.__ROAM__;
+  const world = g.state;
+  const { shopState } = await import('/src/sim/market.ts');
+  const { surveySites } = await import('/src/sim/survey.ts');
+  const { CONTRACTS } = await import('/src/data/market.ts');
+  const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
+  const at = (id) => ({ id, shop: 'bowl', reward: 90, deadline: world.turn + 600, window: 600, tier: 1 });
+  const offers = [
+    { ...at('lb-haul'), kind: 'haul', good: 'scrap', units: 3, to: 'nose', rush: true },
+    { ...at('lb-order'), kind: 'procure', good: 'water', units: 6, cratePay: 9 },
+    { ...at('lb-claim'), kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', rivalAt: 9000, rival: null, leads: [] },
+    { ...at('lb-search'), kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, delivered: false },
+    { ...at('lb-escort'), kind: 'escort', client: 'v-gone', to: 'nose', threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+    { ...at('lb-survey'), kind: 'survey', points: sites.map((s) => ({ site: s.id, found: false, done: false })) },
+  ];
+  shopState(world, 'bowl').contracts = offerKinds.map((kind) => offers.find((o) => o.kind === kind));
+  const held = (i, c) => ({ ...c, id: `lb-held-${i}`, deadline: world.turn + 300 });
+  const heldKinds = ['haul', 'escort', 'claim'].slice(0, Math.min(heldCount, CONTRACTS.maxActive));
+  world.player.contracts = heldKinds.map((kind, i) => held(i, offers.find((o) => o.kind === kind)));
+  g.apply(world);
+};
+
+const openBoardKinds = (spec) => async (page) => {
+  await keepWorld(page);
+  await page.evaluate(BOARD_KINDS, spec);
+  await openTown(page, 'contracts');
+  await frames(page);
+};
+
+const closeBoardKinds = async (page) => {
+  await closeTown(page);
+  await restoreWorld(page);
+};
+
+const BOARD = '.town-page .board';
+
+const boardPageFaults = (page) =>
+  page.evaluate((sel) => {
+    const scroller = document.querySelector(sel).closest('.ink-scroll');
+    return scroller && scroller.scrollHeight > scroller.clientHeight + 1 ? [`the board page scrolls: ${scroller.scrollHeight} of ${scroller.clientHeight}`] : [];
+  }, BOARD);
+
+const boardAcceptFaults = (page) =>
+  page.evaluate((sel) => {
+    const board = document.querySelector(sel);
+    const offers = board.querySelectorAll('.board-offers .job').length;
+    const accepts = board.querySelectorAll('.board-offers .job button').length;
+    return offers === accepts ? [] : [`${offers} offers but ${accepts} Accept buttons`];
+  }, BOARD);
+
+async function boardFaults(page) {
+  if (!(await page.evaluate((sel) => document.querySelector(sel) !== null, BOARD))) return faultsOf('board')(['the board is not open']);
+  const checks = [boardPageFaults(page), cutFaults(page, [`${BOARD} .board-offers`, `${BOARD} .board-held`, `${BOARD} .jobs`]), keycapFaults(page, BOARD, 'board'), boardAcceptFaults(page)];
+  return faultsOf('board')((await Promise.all(checks)).flat());
+}
+
+const inspectNine = async (page) => {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const { makePart } = await import('/src/sim/factory.ts');
+    const { mountPart } = await import('/src/sim/inventory.ts');
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    g.hud.tips.setOn(false);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
+    if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
+    const ids = ['mg', 'shotgun', 'harpoon', 'mg', 'mg', 'shotgun', 'mg', 'mg', 'shotgun'];
+    for (const def of ids) mountPart(world, npc, makePart(world, def, 0));
+    g.apply(world);
+    g.hovered = npc.id;
+    g.refreshInfo();
+    g.hitCard.show();
+    window.__layoutNpc = npc.id;
+  });
+  await page.waitForFunction(() => window.__ROAM__.hud.portraitSettled(window.__layoutNpc), null, { timeout: 60000 });
+};
+
+const CARD = '#ui .info';
+
+const cardPlaceFaults = (page) =>
+  page.evaluate((sel) => {
+    const card = document.querySelector(sel).getBoundingClientRect();
+    const log = document.querySelector('#ui .log');
+    const logShown = log !== null && log.style.visibility !== 'hidden' && log.getClientRects().length > 0;
+    return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
+  }, CARD);
+
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content'].map((part) => `${CARD} ${part}`)) : []);
+
+async function cardFaults(page) {
+  const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
+  if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), keycapFaults(page, CARD, 'card')];
+  return faultsOf('enemy-card')((await Promise.all(checks)).flat());
+}
+
 const NAV_STEPS = [
   { name: 'front', go: [] },
   { name: 'garage-buy', go: ['garage'], tab: ['data-garage-tab', 'buyParts'] },
   { name: 'garage-sell', go: ['garage'], tab: ['data-garage-tab', 'sellParts'] },
   { name: 'garage-paint', go: ['garage'], tab: ['data-garage-tab', 'paint'] },
-  { name: 'market-goods', go: ['market'], tab: ['data-market-tab', 'goods'] },
-  { name: 'market-charts', go: ['market'], tab: ['data-market-tab', 'charts'] },
+  { name: 'market', go: ['market'] },
   { name: 'board', go: ['board'] },
   { name: 'people', go: ['people'] },
-  { name: 'bar', go: ['bar'] },
+  { name: 'maps', go: ['maps'] },
 ];
 
 async function openTownClear(page) {
@@ -418,7 +681,7 @@ async function townNavFaults(page) {
     await frames(page);
     const isFront = step.name === 'front';
     const marks = { ...(await townMarks(page, false)), front: isFront };
-    await page.screenshot({ path: `${OUT}/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
+    await page.screenshot({ path: `tmp/layout/nav-${step.name}-${page.viewportSize().width}x${page.viewportSize().height}.png` });
     if (isFront) front = marks;
     if (!isFront || !marks.grows) section ??= marks;
     for (const d of navDiffs(front, section ?? marks, marks)) note(step.name, d);
@@ -466,10 +729,119 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+const BENCH_AUDIT = () => {
+  const frame = document.querySelector('.inventory-screen');
+  const m = frame.getBoundingClientRect();
+  const all = (sel) => [...frame.querySelectorAll(sel)];
+  const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+  const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
+  const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
+  const tops = all('.well, .inv-truck-name').map((n) => Math.round(n.getBoundingClientRect().top));
+  const title = frame.querySelector('.inv-title');
+  const close = frame.querySelector('.close');
+  return [
+    m.bottom > innerHeight + 1 || m.right > innerWidth + 1 || m.left < -1 ? ['frame outside the window'] : [],
+    all('.inv-side-column, .inv-middle, .well, .inv-details > .stat-grid').concat(frame).filter(scrolls).map((n) => `scroll in ${n.className}`),
+    all('.well > *, .inv-grid').filter((n) => n.getBoundingClientRect().bottom > m.bottom + 1).map((n) => `cut off ${n.className}`),
+    Math.abs(middle(title) - middle(close)) > 2 ? ['Close is off the title row'] : [],
+    Math.max(...tops) - Math.min(...tops) > 1 ? [`column tops ${tops}`] : [],
+    all('.inv-inspection .action-rows').filter((rows) => widths(rows) > 1).map(() => 'action buttons differ in width'),
+    all('button, b, .stat-val, .stat-name').filter((n) => n.scrollWidth > n.clientWidth + 1 && n.clientWidth > 0).map((n) => `clipped ${n.textContent.slice(0, 24)}`),
+  ].flat();
+};
+
+async function benchFaultsOn(page, where) {
+  const found = [];
+  const ids = await page.evaluate(() => [...new Set([...document.querySelectorAll('.inv-grid [data-item-id]')].map((n) => n.dataset.itemId))]);
+  for (const id of [null, ...ids]) {
+    if (id) await page.evaluate((i) => document.querySelector(`.inv-grid [data-item-id="${i}"]`)?.click(), id);
+    for (const text of await page.evaluate(BENCH_AUDIT)) found.push(`${where} ${id ?? 'nothing picked'}: ${text}`);
+  }
+  return found;
+}
+
+async function inventoryBenchFaults(page) {
+  if (await page.evaluate(() => document.querySelector('#ui').classList.contains('phone'))) return [];
+  await page.evaluate(() => { window.__layoutWorld = window.__ROAM__.state; });
+  const found = await benchFaultsOn(page, 'start truck');
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const cheats = await import('/src/sim/cheats.ts');
+    let w = g.state;
+    const chassis = (x) => x.vehicles.find((v) => v.id === x.player.vehicleId).chassisId;
+    for (let i = 0; i < 2000 && chassis(w) !== 'sorokonoga'; i++) w = cheats.randomKit(w, 3);
+    if (chassis(w) !== 'sorokonoga') throw new Error('No sorokonoga kit in 2000 rolls');
+    g.apply(w);
+  });
+  await frames(page);
+  found.push(...(await benchFaultsOn(page, 'sorokonoga')));
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+  await frames(page);
+  return found.map((text) => ({ kind: 'inventory-bench', path: '', text, sizes: '' }));
+}
+
+const ONE_WINDOW = [VIEWPORTS[0]];
+
+async function openInventoryGun(page) {
+  await key(page, 'KeyI');
+  await page.evaluate(() => document.querySelector('.inv-item.mounted.drawn').click());
+}
+
+async function openShopRow(page) {
+  await openTown(page, 'buyParts');
+  await page.evaluate(() => document.querySelector('.town-page .part-sum').click());
+}
+
+async function openBoardTaken(page) {
+  await page.evaluate(() => { window.__layoutWorld = structuredClone(window.__ROAM__.state); });
+  await openTown(page, 'contracts');
+  await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
+}
+
+const closeThenRestoreWorld = (close) => async (page) => {
+  await close(page);
+  await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
+};
+
+async function openLoot(page) {
+  await page.evaluate(() => {
+    const g = window.__ROAM__;
+    g.screens.inventory.openLoot(g.state.salvage[0].id);
+  });
+}
+
+async function openLookedOver(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    world.states.push({ id: 'layout-sized-up', kind: 'sizedUp', holder: world.player.vehicleId, other: npc.id, turnsLeft: 99, born: world.turn, data: { kind: 'none' } });
+    g.apply(world);
+    g.screens.inventory.openLookedOver(g.state, npc.id);
+  });
+}
+
+async function openNewGameScreen(page) {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l', { hasText: 'New game' }).click();
+}
+
+async function closeNewGameScreen(page) {
+  await escape(page);
+  await closeStartMenu(page);
+}
+
+const closeDeath = (page) => page.evaluate(() => {
+  const { death } = window.__ROAM__;
+  death.root.remove();
+  death.root = null;
+});
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
@@ -477,17 +849,27 @@ const STATES = {
   'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: nestedScrollFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
-  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
+  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },
+  'journal-empty': { setup: openJournalWith('empty'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-longest': { setup: openJournalWith('longest'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-wrecks': { setup: openJournalWith('wrecks'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-notes': { setup: openJournalWith('notes'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-past': { setup: openJournalWith('past'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
+  'journal-over-scene': { setup: openJournalOverScene, teardown: closeJournalOverScene, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-kinds': { setup: openBoardKinds({ offerKinds: ['haul', 'procure', 'escort'], heldCount: 2 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-kinds-more': { setup: openBoardKinds({ offerKinds: ['claim', 'search', 'survey'], heldCount: 1 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
+  'board-full': { setup: openBoardKinds({ offerKinds: ['haul', 'claim', 'survey'], heldCount: 3 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_LANDSCAPE] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
+  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
@@ -497,12 +879,26 @@ const STATES = {
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
-  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
-  'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
+  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
+  'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
+  'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
+  'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
+  'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
+  'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
+  loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
+};
+
+const GALLERY_ONLY = {
+  'new-game': { setup: openNewGameScreen, teardown: closeNewGameScreen, viewports: ONE_WINDOW },
+  death: { setup: (page) => page.evaluate(() => { const g = window.__ROAM__; g.death.show(g.state); }), teardown: closeDeath, viewports: ONE_WINDOW },
 };
 
 const ONLY = process.env.LAYOUT_STATES?.split(',');
-const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
+const ALL_STATES = GALLERY ? { ...Object.fromEntries(Object.entries(STATES).filter(([name]) => name !== 'town-nav')), ...GALLERY_ONLY } : STATES;
+const PICKED = Object.entries(ALL_STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
 
 const ONLY_SIZES = process.env.LAYOUT_SIZES?.split(',').filter(Boolean);
 const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))].filter((v) => !ONLY_SIZES || ONLY_SIZES.includes(v.join('x')));
@@ -512,17 +908,36 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state], size = 1) {
-  await state.setup(page);
-  await page.evaluate(() => document.fonts.ready);
-  await frames(page);
-  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...(state.check ? await state.check(page) : [])]) report.push({ state: name, locale, viewport: label, ...f });
-  captures++;
-  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+async function takeShot(page, file) {
+  if (!GALLERY) return page.screenshot({ path: `${OUT}/${file}.png` });
+  await page.waitForTimeout(FADE_MS);
+  return page.screenshot({ path: `${OUT}/${file}.jpg`, type: 'jpeg', quality: 85 });
+}
+
+const isGalleryFiller = (name) => GALLERY && ONLY && !ONLY.includes(name);
+const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`);
+const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
+
+async function recordFaults(page, locale, label, name, state) {
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+}
+
+async function leaveState(page, state) {
   if (state.teardown) await state.teardown(page);
   await frames(page);
+}
+
+async function capture(page, locale, [width, height], [name, state], size = 1) {
+  await state.setup(page);
+  if (isGalleryFiller(name)) return;
+  await page.evaluate(() => document.fonts.ready);
+  await frames(page);
+  const label = windowLabel(width, height, size);
+  await takeShot(page, GALLERY ? name : `${name}-${locale}-${label}`);
+  await recordFaults(page, locale, label, name, state);
+  captures++;
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
+  await leaveState(page, state);
 }
 
 async function checkLocale(page, locale) {
@@ -556,12 +971,12 @@ const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
-  if (!ONLY) await checkUiSizes(page);
+  if (!ONLY && !GALLERY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }
 for (const e of errors) report.push({ state: '-', locale: '-', viewport: '-', kind: 'page-error', path: '', text: e, sizes: '' });
-await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
+if (!GALLERY) await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
 for (const f of report) console.log(`${f.state} ${f.locale} ${f.viewport} ${f.kind} ${f.path}: ${JSON.stringify(f.text)} ${f.sizes}`);
 console.log(`${captures} captures, ${report.length} faults, ${seconds()} s. Screens in ${OUT}/.`);
 process.exit(report.length > 0 ? 1 : 0);

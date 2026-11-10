@@ -70,6 +70,7 @@ describe('NPC gameplay recovery', () => {
     const raider = addVehicle(world, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 33, y: 30 });
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'fight')).toBeGreaterThan(0.4);
     corePart(raider, 'cab').hp = 1;
+    corePart(raider, 'transmission').hp = 1;
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'fight')).toBeGreaterThan(0.8);
   });
 

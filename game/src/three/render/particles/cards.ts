@@ -1,20 +1,30 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
+import { uploadFirst } from '../uploads';
 import { TUNING } from '../inkTuning';
-import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, DENSITY_FRAGMENT, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
+import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
-export { CARD_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
+export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
 
 export type CardKind = 'lit' | 'glow' | 'density';
 
 export const CARD_CLOCK = { value: 0 };
 
-const ATLAS_PX = 256;
-const SHAPE_LUMPS = { min: 4, spread: 3 };
-const SHAPE_BLUR_PX = 6;
+const ATLAS_CELL_PX = 128;
+const ATLAS_PX = ATLAS_CELL_PX * ATLAS_CELLS;
+const CLOUD_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.1, reachSpread: 0.08, blurPx: 6 };
+const CLUMP_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.16, reachSpread: 0.1, blurPx: 7 };
+const GRAIN = { strength: 1.1, cut: 0.25, soft: 0.6, rim: 0.5, rimWidth: 0.14, layers: [[5, 0.4], [10, 0.3], [20, 0.2], [40, 0.1]] as const };
 export const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
+
+type LumpLook = { min: number; spread: number; reachFrom: number; reachSpread: number; blurPx: number };
+
+export function clumpShape(pick: number): number {
+  if (!(pick >= 0 && pick < 1)) throw new Error(`Clump pick must be in 0 to 1, got ${pick}`);
+  return CLUMP_FIRST + Math.floor(pick * CLUMP_SHAPES);
+}
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
@@ -137,11 +147,7 @@ export class CardBatch {
       this.tints.setXYZW(i, c.r, c.g, c.b, c.alpha);
     });
     this.geo.instanceCount = this.cards.length;
-    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(0, this.cards.length * a.itemSize);
-      a.needsUpdate = true;
-    }
+    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) uploadFirst(a, this.cards.length);
     this.cards.length = 0;
   }
 
@@ -217,29 +223,69 @@ export function createCardShapes(random: () => number): THREE.CanvasTexture {
   canvas.width = canvas.height = ATLAS_PX;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not create the card shape atlas');
-  const cell = ATLAS_PX / ATLAS_CELLS;
-  ctx.filter = `blur(${SHAPE_BLUR_PX}px)`;
   ctx.fillStyle = '#fff';
-  for (let i = 0; i < CARD_SHAPES; i++) {
-    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
-    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
-    for (const lump of lumpsOf(random)) {
-      ctx.beginPath();
-      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  drawShapes(ctx, random, 0, CARD_SHAPES, CLOUD_LUMPS);
+  drawShapes(ctx, random, CLUMP_FIRST, CLUMP_SHAPES, CLUMP_LUMPS);
+  ctx.filter = 'none';
+  for (let i = CLUMP_FIRST; i < CLUMP_FIRST + CLUMP_SHAPES; i++) grainCell(ctx, random, (i % ATLAS_CELLS) * ATLAS_CELL_PX, Math.floor(i / ATLAS_CELLS) * ATLAS_CELL_PX);
   const texture = new THREE.CanvasTexture(canvas);
   texture.flipY = false;
   return texture;
 }
 
-function lumpsOf(random: () => number): { x: number; y: number; r: number }[] {
-  const n = SHAPE_LUMPS.min + Math.floor(random() * SHAPE_LUMPS.spread);
+type GrainLayer = { cells: number; weight: number; heights: number[] };
+
+function grainCell(ctx: CanvasRenderingContext2D, random: () => number, left: number, top: number): void {
+  const cell = ATLAS_CELL_PX;
+  const layers: GrainLayer[] = GRAIN.layers.map(([cells, weight]) => ({ cells, weight, heights: Array.from({ length: (cells + 1) * (cells + 1) }, random) }));
+  const image = ctx.getImageData(left, top, cell, cell);
+  for (let y = 0; y < cell; y++) {
+    for (let x = 0; x < cell; x++) {
+      const k = (y * cell + x) * 4;
+      image.data.fill(255, k, k + 3);
+      image.data[k + 3] = Math.round(grainedAlpha(image.data[k + 3] / 255, x / cell, y / cell, layers) * 255);
+    }
+  }
+  ctx.putImageData(image, left, top);
+}
+
+function grainedAlpha(alpha: number, u: number, v: number, layers: readonly GrainLayer[]): number {
+  const rim = THREE.MathUtils.clamp((GRAIN.rim - Math.hypot(u - 0.5, v - 0.5)) / GRAIN.rimWidth, 0, 1);
+  const noise = layers.reduce((sum, layer) => sum + layerHeight(layer, u, v) * layer.weight, 0);
+  return THREE.MathUtils.clamp((alpha * rim + (noise - 0.5) * GRAIN.strength - GRAIN.cut) / GRAIN.soft, 0, 1);
+}
+
+function layerHeight(layer: GrainLayer, u: number, v: number): number {
+  const x = u * layer.cells;
+  const y = v * layer.cells;
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const at = (a: number, b: number) => layer.heights[b * (layer.cells + 1) + a];
+  const near = THREE.MathUtils.lerp(at(ix, iy), at(ix + 1, iy), x - ix);
+  const far = THREE.MathUtils.lerp(at(ix, iy + 1), at(ix + 1, iy + 1), x - ix);
+  return THREE.MathUtils.lerp(near, far, y - iy);
+}
+
+function drawShapes(ctx: CanvasRenderingContext2D, random: () => number, first: number, shapes: number, look: LumpLook): void {
+  const cell = ATLAS_CELL_PX;
+  ctx.filter = `blur(${look.blurPx}px)`;
+  for (let i = first; i < first + shapes; i++) {
+    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
+    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
+    for (const lump of lumpsOf(random, look)) {
+      ctx.beginPath();
+      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function lumpsOf(random: () => number, look: LumpLook): { x: number; y: number; r: number }[] {
+  const n = look.min + Math.floor(random() * look.spread);
   const lumps = [{ x: 0, y: 0, r: 0.24 }];
   for (let i = 1; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + random();
-    const reach = 0.1 + random() * 0.08;
+    const reach = look.reachFrom + random() * look.reachSpread;
     lumps.push({ x: Math.cos(a) * reach, y: Math.sin(a) * reach, r: 0.12 + random() * 0.08 });
   }
   return lumps;

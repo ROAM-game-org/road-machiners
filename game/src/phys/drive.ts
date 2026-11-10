@@ -29,6 +29,7 @@ import { unitBody, type Body } from '../sim/body';
 import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
+import { levelInAir } from './air';
 import { addGround, craterColliders, LIVE_RANGE, movedGround, type GroundPatch, headingOf, headingQuat, noseRise, rampParts, rideHeightAt, rotateBy, toPhysCircle, TURN_STEPS, upOf, type Circle, type TurnFrames, type V3, type VehicleFrame } from './frames';
 import { Lines, TimedDrive, impactMotions, addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, noteGrounded, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
@@ -264,6 +265,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     for (const c of cars) updateCar(c);
     lines.pull(i);
     for (const c of cars) holdUnits(c);
+    for (const c of cars) levelCar(c, w.terrain);
     landings.note(cars, before, i);
     stepPhysics(world, events);
     events.drainCollisionEvents((h1, h2, started) => {
@@ -338,6 +340,12 @@ class Landings {
   all(): Landing[] {
     return [...this.hardest].map(([vehicle, h]) => ({ vehicle, ...h }));
   }
+}
+
+function levelCar(c: Car, terrain: Terrain): void {
+  if (carTouches(c)) return;
+  levelInAir(c.body, c.b, terrain, c.v.id);
+  if (c.rear) levelInAir(c.rear.body, c.rear.b, terrain, rearKey(c.v.id));
 }
 
 function carTouches(c: Car): boolean {

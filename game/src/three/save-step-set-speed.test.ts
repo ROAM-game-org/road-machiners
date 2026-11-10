@@ -7,7 +7,7 @@ import { defaultSetup } from '../sim/settings';
 import { newWorld } from '../sim/world';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const setSpeedStep = TINY_STEPS.find((s) => s.name === 'withSetSpeed')!;
 const step = (world: unknown): unknown => setSpeedStep.step(structuredClone(world) as SavedJson);

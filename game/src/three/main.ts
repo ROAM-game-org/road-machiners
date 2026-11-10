@@ -51,6 +51,7 @@ import { GpuContext } from './gpu-context';
 import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
+import { startGroundBaker } from './ground-off-thread';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
@@ -170,7 +171,7 @@ async function runBenchMode(game: Game): Promise<void> {
   try {
     const params = new URLSearchParams(window.location.search);
     const { runBench } = await import('../bench/bench');
-    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames'), marks: params.has('profile'), scenes: params.get('scenes')?.split(',') ?? null });
+    state.report = await runBench(game, { savingsAbove: positiveParam(params, 'savingsAbove'), passFrames: positiveParam(params, 'benchFrames'), marks: params.has('profile'), shots: params.has('shots'), scenes: params.get('scenes')?.split(',') ?? null });
   } catch (error) {
     failure = error;
   } finally {
@@ -278,7 +279,9 @@ const loading = Promise.all([
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
 bootStep('loading the map');
+const bakeGround = startGroundBaker();
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
+const groundBaked = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 travel.sendTerrain(map.terrain);
@@ -295,7 +298,7 @@ const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 initPhysics().then(() => travel.warm(world, driveSnapshotOf(world))).catch(reportError);
 bootStep('building the ground');
-await boot.track('ground', () => groundTexture(world));
+await boot.track('ground', () => groundBaked.then(() => groundTexture(world)));
 bootStep('waiting for physics and models');
 await loading;
 bootStep('starting the game');
@@ -311,7 +314,7 @@ relocalizeGame = () => {
 };
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
 const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
-if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
+if (fresh && opening) for (const line of opening.log) game.hud.note(world, t(`opening.${line}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;

@@ -10,11 +10,12 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { wearLabel, conditionTier, conditionStatus, showsCondition } from "./cards";
 import type { ClaimContract } from "../sim/salvage";
 import { bakedTier } from "../sim/claim-clue";
 import { claimClue, claimWrecks } from "../sim/claims";
@@ -786,10 +787,6 @@ describe("goods table words", () => {
     expect(en(PROFIT_HEAD_TITLE)).not.toMatch(/turn/i);
   });
 
-  it("words lot totals", () => {
-    expect(en(lotTitle("buy", 5, 2))).toBe("Buy 5 for 2 M's total");
-    expect(en(lotTitle("sell", 11, 312))).toBe("Sell all 11 for 312 M's total");
-  });
 });
 
 describe("wake-up log", () => {
@@ -1027,16 +1024,14 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. Where the road runs closest, leave the road and head north and a touch east, a short way. Boat wrecks on flat ground. found");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road runs closest, leave the road and head north and a touch east, a few minutes' drive. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. Where the road runs closest, leave the road and head north and a touch east, a short way. It lies in square C6, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
     const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: surveySiteAt("survey-tank-", { x: 307.6, y: 1516.6 }), found: false, done: false }] };
     const w = emptyWorld();
-    expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),

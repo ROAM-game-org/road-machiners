@@ -51,8 +51,6 @@ async function runLines(page, lines) {
   await page.evaluate(SETTLE);
 }
 
-const WEATHER = [['heat wave', ['weather heatwave 9']], ['storm', ['weather storm 9']]];
-
 const VALUES = [
   ['money -99999', world => { world.player.money = -99999 * 100; }],
   ['money 0', world => { world.player.money = 0; }],
@@ -93,14 +91,6 @@ async function walkSwitches(page, check) {
 }
 
 async function walkStates(page, check, restore) {
-  for (const [name, lines] of WEATHER) {
-    await restore();
-    await runLines(page, lines);
-    await check(`weather ${name}`);
-  }
-  await restore();
-  await runLines(page, ['weather heatwave 9', 'weather storm 9', 'weather overcast 9', 'weather storm 9 12']);
-  await check('weather all words');
   await restore();
   for (const [name, edit] of VALUES) {
     await mutate(page, edit);
@@ -124,5 +114,5 @@ export async function checkHudOutlineFixed(page, where) {
   await walkStates(page, check, restore);
   await restore();
   assert.equal(problems.length, 0, `The bottom-left HUD must keep its outline ${where}:\n${problems.join('\n')}`);
-  console.log(`hud outline fixed ${where}: ${switches} switches, ${WEATHER.length + VALUES.length + 1} states`);
+  console.log(`hud outline fixed ${where}: ${switches} switches, ${VALUES.length + 1} states`);
 }

@@ -26,7 +26,7 @@ export type StartKit = {
 export type HaulerKit = { chassis: string; parts: string[]; wear: number; fuel: number; supplies: number };
 
 export type Opening = {
-  log: 'stranded';
+  log: readonly ('stranded' | 'road')[];
   wreck: { ahead: number; side: number };
   condition: Record<string, number>;
   stock: { goods: Record<string, number>; parts: string[] };
@@ -39,9 +39,9 @@ export type Intro = {
 };
 
 const STANDARD_OPENING: Opening = {
-  log: 'stranded',
+  log: ['stranded', 'road'],
   wreck: REGION.playerStart.wreck,
-  condition: { stockEngine: 0.18, cabPickup: 0.3 },
+  condition: { stockEngine: 0.18, cabBroad: 0.3 },
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
 };
 
@@ -55,11 +55,11 @@ export const HAULER_KIT: HaulerKit = {
   supplies: RULES.baseSupplies,
 };
 
-const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 5, rot: 0 }];
+const SCOUT_GUN: NonNullable<StartKit['placed']> = [{ defId: 'mg', x: 4, y: 3, rot: 0 }];
 
 const SNOWBALL_GUNS: NonNullable<StartKit['placed']> = [
   { defId: 'mg', x: 1, y: 5, rot: 0 },
-  { defId: 'mg', x: 2, y: 6, rot: 0 },
+  { defId: 'mg', x: 2, y: 3, rot: 0 },
   { defId: 'slugCannon', x: 3, y: 9, rot: 1 },
   { defId: 'shotgun', x: 4, y: 10, rot: 2 },
 ];
@@ -71,7 +71,7 @@ export const START_KITS: Record<string, StartKit> = {
     placed: SCOUT_GUN,
     storage: [],
     wear: 2,
-    money: 333,
+    money: 200,
     fuel: ARRIVAL.fuelLiters / UNITS.fuelLiters,
     supplies: ARRIVAL.supplies,
     cargo: { scrap: 2, parts: 2 },
@@ -87,7 +87,7 @@ export const START_KITS: Record<string, StartKit> = {
     placed: SCOUT_GUN,
     storage: [],
     wear: 2,
-    money: 333,
+    money: 200,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { scrap: 2, parts: 2 },
@@ -102,7 +102,7 @@ export const START_KITS: Record<string, StartKit> = {
     parts: ['cannon', 'mg', 'stockEngine', 'ram', 'plates', 'plates', 'rack'],
     storage: ['plates', 'cage', 'mg'],
     wear: 0,
-    money: 500,
+    money: 90,
     fuel: 60,
     supplies: RULES.baseSupplies,
     cargo: { scrap: 2 },
@@ -118,7 +118,7 @@ export const START_KITS: Record<string, StartKit> = {
     placed: SCOUT_GUN,
     storage: [],
     wear: 0,
-    money: 80,
+    money: 136,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { parts: 1 },
@@ -149,7 +149,7 @@ export const START_KITS: Record<string, StartKit> = {
     placed: SNOWBALL_GUNS,
     storage: [],
     wear: 0,
-    money: 833,
+    money: 150,
     fuel: CHASSIS.convertible.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: {},

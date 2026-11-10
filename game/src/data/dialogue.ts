@@ -6,11 +6,11 @@ import { COURIER_TOPICS, type CourierTopicId } from './encounters';
 import { MOMENT_LINES, MOMENT_TOPICS, type MomentConditionId, type MomentEffectId, type MomentId } from './moments';
 import { SUNWARD_LINES, SUNWARD_TOPICS, type SunwardConditionId, type SunwardEffectId, type SunwardPrepareId, type SunwardTopicId } from './sunward';
 
-export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'roadLesson' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo' | 'lookWarning'
+export type TopicId = 'whatDoYouWant' | 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'roadLesson' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo' | 'lookWarning'
   | 'tale' | 'salvageTip' | 'challenge' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId | MarshalTopicId | CourierTopicId | MomentId;
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
-  | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
+  | 'attacksPlayer' | 'farFromTown' | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm' | 'playerCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
   | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby' | 'nearClaimWreck' | 'rivalAsked' | 'noRivalAsked'
@@ -40,6 +40,7 @@ export type Topic = {
   prepare: PrepareId | null;
   hangUp: EffectId[];
   start: string;
+  routes?: readonly { when: ConditionId[]; go: string }[];
   nodes: Record<string, DialogueNode>;
 };
 
@@ -76,6 +77,7 @@ export const LINE_IDS = [
   'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS, 'taleStory', 'andThen', 'taleSiteEnd', 'taleTipEnd', ...STORY_LINE_IDS,
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
+  'nothingButTheFight', 'youCalledSayItFast', 'shotsFlyingWhatNeed', 'lookStuckWhatNow', 'thatWasSomeShooting', 'marshalStopAndListen', 'shootingOnMyRoad', 'stalledOutThere', 'heardTheShooting', 'shotsOnYourSide', 'youLookStuckNeedPull', 'youAlrightSawShooting', 'makeItQuickImShooting', 'boldCallingMeTalk', 'busyMakeItCount', 'stuckAreYou', 'shootingsOverTalk', 'shootingOutHereStateNeed', 'stillBreathingTalkFast', 'paidToShootYouTalk',
   'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...TREE_LINES, ...MOMENT_LINES,
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
@@ -111,6 +113,17 @@ export const QUEST_GO = 'quest:';
 
 export function questGo(quest: string): string {
   return `${QUEST_GO}${quest}`;
+}
+
+export const TOPIC_GO = 'topic:';
+export const FAR_FROM_TOWN_TILES = 800;
+
+export function topicHandoff(id: TopicId): string {
+  return `${TOPIC_GO}${id}`;
+}
+
+export function handoffTopic(go: string): TopicId | null {
+  return go.startsWith(TOPIC_GO) ? (go.slice(TOPIC_GO.length) as TopicId) : null;
 }
 
 export function handoffQuest(go: string): string | null {
@@ -332,6 +345,32 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
         options: [
           { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['payDemand'], go: END },
           { say: 'comeAndGetIt', when: [], effects: ['settleDemandRefused'], go: END },
+        ],
+      },
+    },
+  },
+  whatDoYouWant: {
+    id: 'whatDoYouWant',
+    once: false,
+    ask: { say: 'whatDoYouWant', when: ['atOdds', 'attacksPlayer'], duringFeud: true },
+    raise: null,
+    prepare: null,
+    hangUp: [],
+    start: 'fight',
+    routes: [
+      { when: ['demandsCargo'], go: topicHandoff('demand') },
+      { when: ['demandsCut'], go: topicHandoff('demandCut') },
+      { when: ['demandsSurrender'], go: topicHandoff('surrender') },
+      { when: ['demandsGiveUp'], go: topicHandoff('giveUp') },
+      { when: ['claimsSpill'], go: topicHandoff('spillClaim') },
+    ],
+    nodes: {
+      fight: {
+        line: 'nothingButTheFight',
+        options: [
+          { say: 'enoughShootingCanWe', when: ['atOdds', 'noPlayerPlea'], effects: [], go: topicHandoff('truce') },
+          { say: 'iGiveUpLet', when: ['atOdds', 'noPlayerPlea'], effects: [], go: topicHandoff('mercy') },
+          { say: 'thenWeFinishThis', when: [], effects: [], go: END },
         ],
       },
     },

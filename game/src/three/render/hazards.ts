@@ -703,6 +703,8 @@ const FLARE_FX = {
   maxStepMs: 100,
 };
 
+const HELD_FLARE_LIGHTS = 2;
+
 class FlaresView {
   readonly root = new THREE.Group();
   private readonly views = new Map<string, FlareView>();
@@ -749,7 +751,7 @@ class FlaresView {
     const shown = new Map(world.flares.filter((f) => flareShown(world, f)).map((f) => [f.id, f]));
     ageOut(this.views, shown, nowMs, FLARE_LOOK.burnOutMs);
     for (const f of shown.values()) (this.views.get(f.id) ?? this.makeView(world, views, f, madeThisTurn(clock, 'flares', f.id), nowMs)).flare = f;
-    while (this.lights.length < this.views.size) this.addLight();
+    while (this.lights.length < Math.max(this.views.size, HELD_FLARE_LIGHTS)) this.addLight();
     this.lights.forEach((light) => (light.intensity = 0));
     const progress = clock ? clock.progress : 1;
     [...this.views.values()].forEach((view, i) => this.place(terrain, view, this.lights[i], { nowMs, turn: world.turn, progress, dt }));

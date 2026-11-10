@@ -21,6 +21,7 @@ const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', line
 const texts = (w: World): string[] => [...currentOptions(w).map((o) => en(o.line)), ...asksOf(w)];
 const PAY = "Here are your M's. Now back off.";
 const DROP = 'Fine. Take it.';
+const CARRIED_CASH = 400;
 const REFUSE = 'Come and get it.';
 
 function pick(w: World, text: string): World {
@@ -29,6 +30,7 @@ function pick(w: World, text: string): World {
 
 function ambush(cargo: boolean, fullRobber = false): { w: World; raider: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
+  w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
   else bare(w);
@@ -54,7 +56,7 @@ describe('a demand with a price', () => {
     const { w: start, raider } = ambush(true);
     const w = endTurn(start, testDrive);
     expect(w.player.call).toMatchObject({ with: raider.id, topic: 'demand' });
-    expect(texts(w)).toEqual([DROP, PAY, REFUSE, 'Hang up.']);
+    expect(texts(w)).toEqual([DROP, PAY, REFUSE]);
     const price = ransomOf(w, raiderIn(w, raider.id), playerVehicle(w)).money;
     expect(w.player.call!.vars.price).toEqual({ kind: 'money', amount: price });
     const before = w.player.money;
@@ -72,7 +74,7 @@ describe('a demand with a price', () => {
     const { w: start } = ambush(true);
     start.player.money = 0;
     const w = endTurn(start, testDrive);
-    expect(texts(w)).toEqual([DROP, REFUSE, 'Hang up.']);
+    expect(texts(w)).toEqual([DROP, REFUSE]);
   });
 
   it('dropping the cargo still works and moves no money', () => {
@@ -90,7 +92,7 @@ describe('a cash-only demand', () => {
     const { w: start, raider } = ambush(true, true);
     const w = endTurn(start, testDrive);
     expect(w.player.call).toMatchObject({ with: raider.id, topic: 'demandCut' });
-    expect(texts(w)).toEqual([PAY, REFUSE, 'Hang up.']);
+    expect(texts(w)).toEqual([PAY, REFUSE]);
     const cut = cashCut(w, playerVehicle(w));
     expect(w.player.call!.vars.price).toEqual({ kind: 'money', amount: cut });
     const refused = pick(w, REFUSE);
@@ -136,6 +138,7 @@ describe('a cash-only demand', () => {
 describe('a robber truce with a price', () => {
   function holdup(cargo: boolean): { w: World; robber: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
+    w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
     else bare(w);
@@ -171,7 +174,7 @@ describe('a robber truce with a price', () => {
     const { w, robber } = holdup(false);
     const open = askTruce(w, robber.id);
     expect(open.player.call?.node).toBe('tollCut');
-    expect(texts(open)).toEqual([PAY, REFUSE, 'Hang up.']);
+    expect(texts(open)).toEqual([PAY, REFUSE]);
     const next = pick(open, PAY);
     expect(w.player.money - next.player.money).toBe(cashCut(w, playerVehicle(w)));
     expect(isHostile(next, raiderIn(next, robber.id), playerVehicle(next))).toBe(false);
@@ -181,6 +184,7 @@ describe('a robber truce with a price', () => {
 describe('mercy with a price', () => {
   function atWar(cargo: boolean): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
+    w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
     else bare(w);
@@ -198,7 +202,7 @@ describe('mercy with a price', () => {
     const { w: start, npc } = atWar(true);
     let w = pick(callVehicle(start, npc.id), 'I give up. Let me go.');
     w = pick(w, 'Take what I carry. Just let me drive away.');
-    expect(texts(w)).toEqual([DROP, PAY, 'Hang up.']);
+    expect(texts(w)).toEqual([DROP, PAY]);
     const next = pick(w, PAY);
     expect(hasCargo(playerVehicle(next))).toBe(true);
     expect(start.player.money - next.player.money).toBeGreaterThan(0);
@@ -229,7 +233,7 @@ describe('a call saved before the price existed', () => {
     old.player.call!.line = { line: 'demandCargo', vars: { haul } };
     const loaded: World = JSON.parse(JSON.stringify(old));
     expect(loaded.player.call).toMatchObject({ with: raider.id, topic: 'demand' });
-    expect(texts(loaded)).toEqual([DROP, REFUSE, 'Hang up.']);
+    expect(texts(loaded)).toEqual([DROP, REFUSE]);
     const next = pick(loaded, DROP);
     expect(hasCargo(playerVehicle(next))).toBe(false);
   });

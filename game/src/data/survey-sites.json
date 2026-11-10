@@ -1065,55 +1065,6 @@
    ]
   },
   {
-   "id": "survey-ruin-4533",
-   "type": "lookout",
-   "pos": {
-    "x": 846,
-    "y": 912
-   },
-   "props": [
-    {
-     "id": "ruin-4533",
-     "pos": {
-      "x": 846,
-      "y": 912
-     },
-     "reach": 1.4113909367728326
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "fallen-sun",
-     "tiles": 175
-    },
-    {
-     "landmark": "pump-station",
-     "tiles": 225
-    },
-    {
-     "landmark": "kiln",
-     "tiles": 325
-    },
-    {
-     "landmark": "salvage-yard",
-     "tiles": 450
-    },
-    {
-     "landmark": "orchard",
-     "tiles": 500
-    },
-    {
-     "landmark": "dustwell",
-     "tiles": 525
-    },
-    {
-     "landmark": "green-pit",
-     "tiles": 550
-    }
-   ]
-  },
-  {
    "id": "survey-ruin-4534",
    "type": "lookout",
    "pos": {
@@ -1135,76 +1086,6 @@
     {
      "landmark": "salvage-yard",
      "tiles": 300
-    },
-    {
-     "landmark": "fallen-sun",
-     "tiles": 500
-    }
-   ]
-  },
-  {
-   "id": "survey-ruin-4541",
-   "type": "lookout",
-   "pos": {
-    "x": 1125,
-    "y": 747
-   },
-   "props": [
-    {
-     "id": "ruin-4541",
-     "pos": {
-      "x": 1125,
-      "y": 747
-     },
-     "reach": 1.5986739268423114
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "fallen-sun",
-     "tiles": 150
-    },
-    {
-     "landmark": "granary",
-     "tiles": 425
-    },
-    {
-     "landmark": "kiln",
-     "tiles": 450
-    },
-    {
-     "landmark": "nose",
-     "tiles": 500
-    }
-   ]
-  },
-  {
-   "id": "survey-house-4550",
-   "type": "lookout",
-   "pos": {
-    "x": 1287,
-    "y": 435
-   },
-   "props": [
-    {
-     "id": "house-4550",
-     "pos": {
-      "x": 1287,
-      "y": 435
-     },
-     "reach": 1.2331052337212869
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "marshal-post",
-     "tiles": 75
-    },
-    {
-     "landmark": "salvage-yard",
-     "tiles": 375
     },
     {
      "landmark": "fallen-sun",
@@ -1975,39 +1856,6 @@
     {
      "landmark": "dustwell",
      "tiles": 525
-    }
-   ]
-  },
-  {
-   "id": "survey-skiff-26202",
-   "type": "boats",
-   "pos": {
-    "x": 326.1781005859375,
-    "y": 1225.11767578125
-   },
-   "props": [
-    {
-     "id": "skiff-26202",
-     "pos": {
-      "x": 326.1781005859375,
-      "y": 1225.11767578125
-     },
-     "reach": 0.7076589806845472
-    },
-    {
-     "id": "skiff-26203",
-     "pos": {
-      "x": 323.6546630859375,
-      "y": 1224.492919921875
-     },
-     "reach": 0.7076589806845472
-    }
-   ],
-   "lay": "flat",
-   "clues": [
-    {
-     "landmark": "bowl",
-     "tiles": 250
     }
    ]
   },

@@ -6,6 +6,7 @@ import { zoneEdges, type Throttle } from '../../sim/steering';
 import { MESH_STEPS, surfaceTriangles } from '../../sim/surface';
 import { groundAt, groundSurface, heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vec } from '../../sim/vec';
+import { overlayMaterial } from './overlay-material';
 import { drawnGroundAt } from './terrain';
 
 const S = PHYSICS.metersPerTile;
@@ -66,7 +67,7 @@ export class ZonesView {
     for (const k of Object.keys(this.bands) as Throttle[]) this.root.add(this.bands[k]);
     this.ring = new THREE.Mesh(
       new THREE.RingGeometry(HOVER_RADIUS_TILES * S - HOVER_WIDTH_TILES * S, HOVER_RADIUS_TILES * S, HOVER_SEGMENTS).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: PAL.plan, transparent: true, opacity: 0.8, depthTest: false, side: THREE.DoubleSide }),
+      overlayMaterial({ color: PAL.plan, opacity: 0.8, depthTest: false }),
     );
     this.ring.visible = false;
     this.ring.renderOrder = 850;
@@ -76,7 +77,7 @@ export class ZonesView {
   private makeBand(color: number, opacity: number): THREE.Mesh {
     const shape = markShape();
     const material = shapedMaterial(shape, {
-      color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide,
+      color, opacity, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
@@ -140,8 +141,8 @@ function setShape(shape: MarkShape, center: Vec, heading: number, half: number, 
   shape.markOuter.value = outer * S;
 }
 
-function shapedMaterial(shape: MarkShape, params: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial {
-  const material = new THREE.MeshBasicMaterial(params);
+function shapedMaterial(shape: MarkShape, params: Parameters<typeof overlayMaterial>[0]): THREE.MeshBasicMaterial {
+  const material = overlayMaterial(params);
   material.onBeforeCompile = (shader) => {
     if (!shader.fragmentShader.includes('#include <color_fragment>')) throw new Error('Ground mark found no color step');
     Object.assign(shader.uniforms, shape);
@@ -206,8 +207,7 @@ export class GroundBand {
 
   constructor(look: BandLook) {
     this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), shapedMaterial(this.shape, {
-      color: look.color, transparent: true, opacity: look.opacity, depthWrite: false, depthTest: !look.overTrucks,
-      side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+      color: look.color, opacity: look.opacity, depthWrite: false, depthTest: !look.overTrucks, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }));
     this.mesh.renderOrder = look.renderOrder;
     this.mesh.visible = false;

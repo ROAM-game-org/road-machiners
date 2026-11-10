@@ -50,9 +50,9 @@ describe('every runtime id', () => {
     expect(Object.keys(EN).filter((key) => key.startsWith('lore.') && !listed.has(key))).toEqual([]);
   });
 
-  it('has no broadcast variant beyond the counts in the data', () => {
+  it.each([['English', EN], ['Russian', RU]])('has no %s broadcast variant beyond the counts in the data', (_language, catalog) => {
     const counted = new Set(REQUIRED.find(([kind]) => kind === 'broadcast')![1]);
-    const listed = Object.keys(EN).filter((key) => /^radio\.\w+\.\d+$/.test(key));
+    const listed = Object.keys(catalog).filter((key) => /^radio\.\w+\.\d+$/.test(key));
     expect(listed.filter((key) => !counted.has(key))).toEqual([]);
   });
 });

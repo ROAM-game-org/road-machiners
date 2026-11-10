@@ -6,10 +6,6 @@ import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem } from '../sim/types';
 import { faultsOf } from './truck-support-faults';
 
-const FLOATING_EDGE_CELLS: Record<string, string[]> = {
-  'loader|caltrops': ['loader unit 0 caltrops  mounted @6,14 r1 stands on 75% with up to Infinity cm of air at -3.12,-0.30,1.03'],
-};
-
 const EDGE_KINDS = new Set(['cargo', 'scanner', 'store', 'utility']);
 
 export const EDGE_PART_IDS = Object.values(PARTS)
@@ -21,7 +17,7 @@ function atEdge(grid: Grid, item: GridItem): boolean {
   return itemCells(item).some(({ x, y }) => [-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => grid.cells[y + dy]?.[x + dx] !== letter)));
 }
 
-export function faultsOnEveryEdgeCell(chassisId: string, defId: string): { faults: string[]; known: string[] } {
+export function faultsOnEveryEdgeCell(chassisId: string, defId: string): string[] {
   const faults: string[] = [];
   const w = emptyWorld();
   const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
@@ -36,5 +32,5 @@ export function faultsOnEveryEdgeCell(chassisId: string, defId: string): { fault
       }
     }
   }
-  return { faults, known: FLOATING_EDGE_CELLS[`${chassisId}|${defId}`] ?? [] };
+  return faults;
 }

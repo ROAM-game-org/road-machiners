@@ -1,5 +1,6 @@
 import "../style.css";
 import "./guide.css";
+import { createIcon, ICON_NAMES, type IconName } from "../cards";
 import { devEl as el, uiRoot } from "../dom";
 import { TOKENS } from "../tokens";
 import { PIECES } from "./pieces";
@@ -53,6 +54,8 @@ const radiusSample: Sample = (name) => {
 
 const zSample: Sample = (name) => el("div", {}, `layer ${TOKENS.get(name)}`);
 
+const valueSample: Sample = (name) => el("div", {}, TOKENS.get(name) ?? "");
+
 const GROUPS: Group[] = [
   { title: "Fonts", prefixes: ["--font-"], sample: fontSample },
   { title: "Type", prefixes: ["--text-"], sample: typeSample },
@@ -78,6 +81,20 @@ const GROUPS: Group[] = [
     prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-"],
     sample: boxSample,
   },
+  { title: "Garage and plan colors", prefixes: ["--plan-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
+  {
+    title: "Filters and factors",
+    prefixes: ["--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
+    sample: valueSample,
+  },
+  {
+    title: "Page and phone sizes",
+    prefixes: [
+      "--compass-w", "--slider-", "--info-card-height", "--info-draw-width", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
+      "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target", "--phone-",
+    ],
+    sample: boxSample,
+  },
   { title: "HUD placement", prefixes: ["--hud-"], sample: spaceSample },
   { title: "Layers", prefixes: ["--z-"], sample: zSample },
 ];
@@ -96,6 +113,32 @@ function pieces(): HTMLElement {
   return el("section", {}, el("h2", {}, "Shared pieces"), el("div", { class: "guide-grid" }, ...cells));
 }
 
+const ICON_SIZES = ["--icon-xs", "--icon-s", "--icon-m", "--icon-xl"];
+const ICON_BACKGROUNDS = [
+  { cls: "panel", label: "panel" },
+  { cls: "chip", label: "chip" },
+  { cls: "tab", label: "tab" },
+  { cls: "resource", label: "LCD" },
+  { cls: "resource alert", label: "alert" },
+];
+
+function iconSwatch(name: IconName, cls: string): HTMLElement {
+  const icons = ICON_SIZES.map((size) => {
+    const icon = createIcon(name);
+    icon.style.width = `var(${size})`;
+    icon.style.height = `var(${size})`;
+    return icon;
+  });
+  return el("span", { class: `guide-icon-swatch ${cls}` }, ...icons);
+}
+
+function icons(): HTMLElement {
+  const cells = ICON_NAMES.map((name) =>
+    el("div", { class: "guide-cell" }, el("span", {}, name), ...ICON_BACKGROUNDS.map((b) => iconSwatch(name, b.cls))),
+  );
+  return el("section", {}, el("h2", {}, "Icons"), el("div", { class: "guide-grid" }, ...cells));
+}
+
 function ungrouped(): string[] {
   const prefixes = GROUPS.flatMap((g) => g.prefixes);
   return [...TOKENS.keys()].filter((n) => !prefixes.some((p) => n.startsWith(p)));
@@ -106,7 +149,7 @@ function render(): void {
   if (missed.length > 0) throw new Error(`ui.html shows no group for: ${missed.join(", ")}`);
   const root = uiRoot();
   root.classList.add("guide");
-  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), pieces());
+  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), icons(), pieces());
 }
 
 render();

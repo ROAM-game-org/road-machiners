@@ -1,6 +1,6 @@
 import type { Tier } from './market';
 import { UNPRICED_WEAPONS } from './weapons';
-import { itemValue } from './units';
+import { gearValue } from './units';
 import { CLAYMORE, oilSlickLength, UNPRICED_UTILITIES } from './utilities';
 import { MASS_SCALE } from './mass-scale';
 
@@ -230,7 +230,7 @@ export function partModifier(def: Unpriced<PartDef>): number {
 }
 
 function pricePart(def: Unpriced<PartDef>): PartDef {
-  const value = itemValue(def.base + partModifier(def));
+  const value = gearValue(def.base + partModifier(def), def.tier);
   if (value <= 0) throw new Error(`Part ${def.id} prices at ${value}. Raise its base.`);
   return { ...def, value };
 }
@@ -301,6 +301,7 @@ const PART_BULK: Record<string, PartBulk> = {
   cab: { w: 1, h: 2 },
   cabPickup: { w: 3, h: 2 },
   cabHardtop: { w: 3, h: 2 },
+  cabBroad: { w: 4, h: 2 },
   transmission: { w: 2, h: 2 },
   transmissionMid: { w: 2, h: 2 },
   transmissionHeavy: { w: 2, h: 2 },
@@ -855,6 +856,9 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   },
   cabHardtop: {
     id: "cabHardtop", kind: "core", hp: 120, base: 26.67, tier: 1, w: 3, h: 3, mass: 80, armor: 3, tall: true, role: "cab",
+  },
+  cabBroad: {
+    id: "cabBroad", kind: "core", hp: 120, base: 26.67, tier: 1, w: 4, h: 2, mass: 80, armor: 3, tall: true, role: "cab",
   },
   transmission: {
     id: "transmission", kind: "core", hp: 40, base: 36.67, tier: 1, w: 2, h: 2, mass: 60, armor: 3, tall: false, role: "transmission",

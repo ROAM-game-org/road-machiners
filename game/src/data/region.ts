@@ -363,7 +363,7 @@ export const REGION = {
     roadShyBand: 10,
     overClimbCost: 40,
     climbStep: 0.05,
-    reachClimb: 0.2,
+    reachClimb: 0.15,
   },
   towns: TOWNS,
   locations: [

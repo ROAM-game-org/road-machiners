@@ -9,6 +9,7 @@ import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSav
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 import { relaidTrucks_1_2, withWideMg_42_43 } from './save-migrations';
 import { withSquareGrid_128_129 } from './save-step-square-grid';
+import { withTruckGrids } from './save-step-truck-grids';
 import { armorRowOfItem_127_128, chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96, withOddFronts_102_103 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
@@ -35,6 +36,7 @@ export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
 
 const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
 const RENAMED_PERKS_RESCUE: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };
+const CONVOY_NOTE_RESCUE = 'burntConvoy';
 const RENAMED_NOTES_RESCUE: Readonly<Record<string, string>> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
 
 type VarRename = { before: number; quest: string | null; from: string; to: string };
@@ -150,6 +152,7 @@ const WIDE_MG_BEFORE = 43;
 const ODD_FRONTS_BEFORE = 103;
 const ARMOR_ROWS_OUTSIDE_BEFORE = 128;
 const SQUARE_GRID_BEFORE = 129;
+const TRUCK_GRIDS_BEFORE = 140;
 const OFF_GRID = -1;
 const RESCUED_ID = 'rescued';
 const NO_PLAYER_VEHICLE = 'none';
@@ -162,6 +165,8 @@ const WORLD_STEPS: readonly WorldStep[] = [
   { before: WIDE_MG_BEFORE, known: (chassisId) => Object.hasOwn(LAYOUTS_2_34, chassisId), step: withWideMg_42_43 },
   { before: ODD_FRONTS_BEFORE, known: () => true, step: withOddFronts_102_103 },
 ];
+
+const TRUCK_GRIDS_STEP: WorldStep = { before: TRUCK_GRIDS_BEFORE, known: () => true, step: (world) => withTruckGrids({ ...world, sheltered: [] }) };
 
 function savedPartOf(part: CarriedPart, id: string): Json {
   return { id, defId: part.defId, hp: part.hp, wear: part.wear, rebuilt: part.rebuilt };
@@ -214,7 +219,8 @@ function placedOn(vehicle: Json | null, format: number, player: boolean, storage
   const early = WORLD_STEPS.filter((s) => formatBefore(format, s.before)).reduce((placed, s) => throughStep(s, chassisId, placed, player), { items: read, storage, money: 0 });
   if (chassisId === null) return early;
   const outside = formatBefore(format, ARMOR_ROWS_OUTSIDE_BEFORE) ? early.items.map((it) => (it.y < 0 ? it : { ...it, y: armorRowOfItem_127_128(chassisId, it.y, it.kind === 'part' ? it.part.defId : null) })) : early.items;
-  return { ...early, items: formatBefore(format, SQUARE_GRID_BEFORE) ? onSquareGrid(chassisId, outside) : outside };
+  const square = { ...early, items: formatBefore(format, SQUARE_GRID_BEFORE) ? onSquareGrid(chassisId, outside) : outside };
+  return formatBefore(format, TRUCK_GRIDS_BEFORE) ? throughStep(TRUCK_GRIDS_STEP, chassisId, square, player) : square;
 }
 
 function truckOf(world: Json, player: Json, format: number): { truck: Carried['truck']; storage: CarriedPart[]; money: number } {
@@ -283,6 +289,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
   const format = formatNumber(raw);
   const money = moneyReader(format);
   const mounted = truckOf(world, player, format);
+  const notes = [...new Set(listOf(player.notes).flatMap(noteOf))];
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
     money: money.amount(typeof player.money === 'number' ? player.money + mounted.money : player.money),
@@ -301,9 +308,9 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     storage: mounted.storage,
     storedGoods: storesOf(player.storedGoods),
     setup: setupOf(world.setup, format),
-    quests: questVarsOf(player.quests, format),
+    quests: withConvoyRumor(questVarsOf(player.quests, format), notes),
     run: runOf(world, format, money),
-    notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
+    notes,
     revisions: savedRevisionsOf(raw),
     refunded: 0,
   };
@@ -332,6 +339,10 @@ function withRenamedVar(quests: Carried['quests'], { quest, from, to }: VarRenam
 function withHattieMet(quests: Carried['quests'], format: number): Carried['quests'] {
   const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
   return formatBefore(format, HATTIE_MET_BEFORE) && knowsHer ? { ...quests, world: { ...quests.world, hattie_met: true } } : quests;
+}
+
+function withConvoyRumor(quests: Carried['quests'], notes: readonly string[]): Carried['quests'] {
+  return notes.includes(CONVOY_NOTE_RESCUE) ? { ...quests, world: { ...quests.world, convoy_rumor: true } } : quests;
 }
 
 function setupOf(setup: unknown, format: number): unknown {

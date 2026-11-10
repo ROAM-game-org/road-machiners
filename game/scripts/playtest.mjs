@@ -32,7 +32,7 @@ if (software && fpsGate) {
   process.exit(1);
 }
 const turns = Number(arg('turns', software ? '4' : '12'));
-const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 60000 : 10000;
+const TURN_LIMIT_MS = timeoutsOff ? 0 : software ? 180000 : 10000;
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.setDefaultTimeout(timeoutsOff ? 0 : Math.max(30000, TURN_LIMIT_MS));
 const retryAfterBrowserCrash = async (cause) => {
@@ -58,6 +58,7 @@ process.on('uncaughtException', async (cause) => {
   await retryAfterBrowserCrash(cause);
 });
 const afterCrashRetry = async (step) => step().catch(async (cause) => { if (crashed || cause?.name === 'TimeoutError') await retryAfterBrowserCrash(cause); throw cause; });
+const progress = (step) => console.log(`playtest: ${step}`);
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -77,6 +78,7 @@ if (!bootGone) {
 }
 await afterCrashRetry(() => page.screenshot({ path: '.playtest/start.png', timeout: BOOT_LIMIT_MS }));
 
+progress('the game booted');
 const hitProblems = [];
 const findDeadCorners = () => {
   const isOneControl = (panel, controls) => controls.length === 1 && controls[0].innerText.trim() === panel.innerText.trim();
@@ -175,8 +177,10 @@ const pressedLanguage = async () => {
   await page.keyboard.press('Escape');
   return pressed;
 };
+progress('the menu and help checks passed');
 await checkNoStrayControl('in English');
 await afterCrashRetry(() => pickLanguageByKeyboard('ru'));
+progress('Russian is on');
 const russian = await languageReadout();
 if (russian.lang !== 'ru' || !CYRILLIC.test(russian.menu) || !russian.hud.some((label) => CYRILLIC.test(label))) languageProblems.push(`Русский did not switch the menu and HUD: ${JSON.stringify(russian)}`);
 await checkNoStrayControl('in Russian');
@@ -195,6 +199,7 @@ for (let i = 0; i < turns; i++) {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
   }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async (cause) => { await retryAfterBrowserCrash(cause); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`, { cause }); });
+  progress(`turn ${i + 1} of ${turns} played`);
 }
 await page.screenshot({ path: '.playtest/end.png' });
 
@@ -224,6 +229,7 @@ const blank = await page.evaluate(() => {
   return !c || c.width === 0;
 });
 
+progress('the night checks start');
 const nightProblems = await afterCrashRetry(() => checkNightGround(page, {
   mode: 'roaming',
   shot: '.playtest/night-roaming.png',
@@ -245,6 +251,7 @@ const english = await reload();
 if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await afterCrashRetry(pressedLanguage)) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
 await checkNoStrayControl('after the reload');
 await browser.close();
+progress('the highway night check starts');
 nightProblems.push(...(await checkHighwayNightInSoftware(url, { shot: '.playtest/night-highway.png', bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
 
 const problems = [...errors, ...hitProblems, ...languageProblems, ...nightProblems];

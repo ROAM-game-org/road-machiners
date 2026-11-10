@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, type ReleaseStep } from './save-migrations';
 import { SAVE_FORMAT } from './save';
 
 const WINDOW_RELEASES = 10;
 const SHAPE = 'src/three/save-shape.json';
+const ANCHOR_DIR = 'src/three/save-fixtures/anchors';
 
 type ShippedTag = { name: string; major: number; minor: number };
 
@@ -46,6 +49,39 @@ function anchorProblems(tags: readonly ShippedTag[], releases: readonly ReleaseS
   ];
 }
 
+type AnchorSteps = { file: string; format: number; steps: { from: number; names: readonly string[] } | undefined };
+
+function absorbedNames(releases: readonly ReleaseStep[], from: number, to: number): readonly string[] | string {
+  const names: string[] = [];
+  for (let at = from; at < to; ) {
+    const release = releases.find((candidate) => candidate.from === at);
+    if (!release || release.to > to) return `no release step runs from ${at} toward ${to}`;
+    if (!release.names) return `release step ${release.from} to ${release.to} carries no names`;
+    names.push(...release.names);
+    at = release.to;
+  }
+  return names;
+}
+
+function anchorNameProblems(anchors: readonly AnchorSteps[], releases: readonly ReleaseStep[], shipped: ReadonlySet<number>): string[] {
+  return anchors.flatMap(({ file, format, steps }) => {
+    if (!steps) return [];
+    const fileMinor = Number(file.split('-')[1]);
+    if (format !== fileMinor) return [`${file} is saved at format ${format}, not ${fileMinor}`];
+    if (!shipped.has(format)) return [`${file} claims format ${format}, which no tag shipped`];
+    const expected = absorbedNames(releases, steps.from, format);
+    if (typeof expected === 'string') return [`${file} cannot be checked: ${expected}`];
+    return JSON.stringify(steps.names) === JSON.stringify(expected) ? [] : [`${file} carries step names that differ from the release steps from ${steps.from} to ${format}`];
+  });
+}
+
+function anchorsOnDisk(): AnchorSteps[] {
+  return readdirSync(ANCHOR_DIR).filter((file) => file.endsWith('.json')).map((file) => {
+    const saved = JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')) as { format: { minor: number }; steps?: { from: number; names: string[] } };
+    return { file, format: saved.format.minor, steps: saved.steps };
+  });
+}
+
 const step = (world: Record<string, unknown>) => world;
 const tag = (name: string, minor: number): ShippedTag => ({ name, major: 2, minor });
 
@@ -81,8 +117,37 @@ describe('anchorProblems', () => {
   });
 });
 
+describe('anchorNameProblems', () => {
+  const releases = [{ from: 1, to: 3, step, names: ['a', 'b'] }, { from: 3, to: 5, step, names: ['c', 'd'] }, { from: 5, to: 6, step, names: null }];
+  const shipped = new Set([3, 5, 6]);
+  const anchor = (file: string, format: number, names: string[], from = 1) => ({ file, format, steps: { from, names } });
+
+  it('passes an anchor whose names are the absorbed names, and skips one with no steps', () => {
+    expect(anchorNameProblems([anchor('2-5-roaming.json', 5, ['a', 'b', 'c', 'd']), { file: '2-1-roaming.json', format: 1, steps: undefined }], releases, shipped)).toEqual([]);
+  });
+
+  it('names an anchor with a wrong or cut list of names', () => {
+    expect(anchorNameProblems([anchor('2-5-roaming.json', 5, ['a', 'x', 'c', 'd'])], releases, shipped)).toEqual(['2-5-roaming.json carries step names that differ from the release steps from 1 to 5']);
+    expect(anchorNameProblems([anchor('2-5-highway.json', 5, ['a', 'b'])], releases, shipped)).toEqual(['2-5-highway.json carries step names that differ from the release steps from 1 to 5']);
+  });
+
+  it('names an anchor at a minor no tag shipped or different from its file name', () => {
+    expect(anchorNameProblems([anchor('2-4-roaming.json', 4, ['a', 'b'])], releases, shipped)).toEqual(['2-4-roaming.json claims format 4, which no tag shipped']);
+    expect(anchorNameProblems([anchor('2-5-roaming.json', 3, ['a', 'b'])], releases, shipped)).toEqual(['2-5-roaming.json is saved at format 3, not 5']);
+  });
+
+  it('names a span whose release step carries no names', () => {
+    expect(anchorNameProblems([anchor('2-6-roaming.json', 6, ['a', 'b', 'c', 'd'])], releases, shipped)).toEqual(['2-6-roaming.json cannot be checked: release step 5 to 6 carries no names']);
+  });
+});
+
 describe('the save steps of this build', () => {
   it('load every format shipped in the last releases and stay folded', () => {
     expect(anchorProblems(shippedTags(), RELEASE_STEPS, TINY_FROM, SAVE_FORMAT.minor, SAVE_MAJOR, WINDOW_RELEASES)).toEqual([]);
+  });
+
+  it('keeps anchor saves that carry the step names of the formats they claim', () => {
+    const formats = new Set(shippedTags().filter((tag) => tag.major === SAVE_MAJOR).map((tag) => tag.minor));
+    expect(anchorNameProblems(anchorsOnDisk(), RELEASE_STEPS, formats)).toEqual([]);
   });
 });

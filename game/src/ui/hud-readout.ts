@@ -13,14 +13,12 @@ import { maxHealthOf } from "../sim/health";
 import { corePart, itemSize } from "../sim/grid";
 import { conditionItems, type Tier } from "../three/render/portraitPixels";
 import { keyLabel } from "./input-mode";
-import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { vehicleStats, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
 import { basicSkill } from "../sim/progress";
-import { fuelLimit, lowFuelSpeed } from "../sim/far";
+import { fuelLimit, fuelTopSpeed, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
 import { dragOf, playerTow } from "../sim/tow";
 import { heatAt } from "../sim/sun";
-import { TERRAIN } from "../data/terrain";
-import { dist, type Vec } from "../sim/vec";
 import type { NpcState, SalvageStock, Vehicle, World } from "../sim/types";
 import { REGION } from "../data/region";
 import { clock, vehicleName } from "./format";
@@ -37,7 +35,7 @@ import { surveyActions, surveyPlaceType, type SurveyAction } from '../sim/survey
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
-import { list, num, t, type Msg } from '../text/msg';
+import { num, t, type Msg } from '../text/msg';
 import { abilityName, partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
 export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
@@ -214,21 +212,6 @@ export class TruckConditionReadout {
 
 const HOT = 2;
 
-type WeatherWord = 'heatwave' | 'overcast' | 'storm' | 'stormNear';
-
-const WEATHER_ORDER: WeatherWord[] = ["storm", "stormNear", "heatwave", "overcast"];
-
-function weatherLabel(w: World, pos: Vec): { text: Msg; clear: boolean } {
-  const words = new Set<WeatherWord>();
-  for (const e of w.weather) {
-    if (e.kind !== "storm") words.add(e.kind);
-    else if (dist(pos, e.pos) <= e.radius) words.add("storm");
-    else if (dist(pos, e.pos) - e.radius <= TERRAIN.vision.radius) words.add("stormNear");
-  }
-  if (words.size === 0) return { text: t("weather.clear"), clear: true };
-  return { text: list(WEATHER_ORDER.filter((word) => words.has(word)).map((word) => t(`weather.${word}`))), clear: false };
-}
-
 export function moneyLabel(money: number): Msg {
   return moneyMsg(money);
 }
@@ -287,7 +270,7 @@ export function powerNumber(n: number): number {
 }
 
 type Kind<K extends SpeedStep['kind']> = Extract<SpeedStep, { kind: K }>;
-type Wording = { [K in SpeedStep['kind']]: (step: Kind<K>, weather: Msg) => Msg };
+type Wording = { [K in SpeedStep['kind']]: (step: Kind<K>) => Msg };
 
 const WORDING: Wording = {
   chassis: () => t("speed.chassis"),
@@ -300,19 +283,19 @@ const WORDING: Wording = {
   overdrive: () => t("speed.overdrive"),
   transmission: () => t("speed.transmission"),
   limp: (s) => t(`speed.limp.${s.cause}`),
-  weather: (_s, weather) => weather,
+  weather: () => t("weather.storm"),
   towing: () => t("speed.towing"),
 };
 
-function labelOf(weather: Msg, step: SpeedStep): Msg {
-  const word = WORDING[step.kind] as (step: SpeedStep, weather: Msg) => Msg;
-  return word(step, weather);
+function labelOf(step: SpeedStep): Msg {
+  const word = WORDING[step.kind] as (step: SpeedStep) => Msg;
+  return word(step);
 }
 
-export function speedRows(weather: Msg, steps: SpeedStep[]): SpeedRow[] {
+export function speedRows(steps: SpeedStep[]): SpeedRow[] {
   const rows: SpeedRow[] = [];
   steps.forEach((step, i) => {
-    const label = labelOf(weather, step);
+    const label = labelOf(step);
     if (step.kind === 'limp') return void rows.push({ label, value: t("speed.crawlValue", { n: kph(step.speed) }), delta: 0 });
     if (i === 0) return;
     const delta = kph(step.speed) - kph(steps[i - 1].speed);
@@ -362,7 +345,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   return { ratio: t("power.ratio", power), cost: cost.short, detail, over, words: false };
 }
 
-export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; idle?: boolean; icon?: IconName; balance?: number; tip?: Msg };
+export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
 
 export function getHudReadout(w: World) {
   const me = playerVehicle(w);
@@ -370,7 +353,6 @@ export function getHudReadout(w: World) {
   const p = w.player;
   const maxHealth = maxHealthOf(w);
   const heat = heatAt(w, me.pos);
-  const weather = weatherLabel(w, me.pos);
   const steps = maxSpeedSteps(w, me);
   const notes = speedNotes(w, me, steps);
   const fuelTip = notes.length > 0 ? t("speed.line", { label: notes[0].label, effect: notes[0].value }) : t("readout.fuel");
@@ -381,18 +363,16 @@ export function getHudReadout(w: World) {
     { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, danger: coreBurning(w, me), icon: "health" },
     ...runResources(w),
   ];
-  const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
   const survival: Readout[] = [
     { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" },
     { id: "engine", label: t("readout.engine"), value: t("readout.celsius", { n: engineCelsius(p.engineHeat) }), warning: p.engineHeat >= ENGINE_HEAT.warnAt, progress: p.engineHeat, icon: "engineHeat" },
-    { id: "weather", label: t("readout.weather"), value: weather.text, warning: storm, idle: weather.clear, tip: weather.text },
   ];
   return {
     speed: kph(me.speed),
     heading: me.heading,
-    maxSpeed: kph(steps[steps.length - 1].speed),
+    maxSpeed: kph(fuelTopSpeed(w, me, { maxSpeed: steps[steps.length - 1].speed, limpSpeed: vehicleStats(w, me).limpSpeed }, steps.some((s) => s.kind === "guns"))),
     dialTop: kph(Math.max(...steps.filter((s) => s.kind !== "chassis").map((s) => s.speed))),
-    maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(weather.text, steps), notes),
+    maxSpeedTip: speedTip(kph(steps[0].speed), speedRows(steps), notes),
     manual: me.direct,
     clock: clock(w.turn),
     resources,

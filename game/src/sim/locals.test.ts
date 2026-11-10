@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EN } from '../text/en';
 import { RU } from '../text/ru';
 import type { Noun } from '../text/msg';
-import { LOCALS, type NoteId } from '../data/locals';
+import { LOCALS, NOTE_IDS, type NoteId } from '../data/locals';
 import { CONTRACTS, CRIME, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -73,11 +73,9 @@ describe('settlement locals', () => {
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON);
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON_FOUND);
 
-    w.player.notes.push({ id: 'burntConvoy', turn: 0 });
     w.player.notes.push({ id: 'wagonBowl', turn: 0 });
     w.player.quests.world.wagon_seen = true;
 
-    expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
     expect([...choices(w, 'nose_kovac')].sort()).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', 'What does Nose turn out?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.'].sort());
   });
 
@@ -374,15 +372,15 @@ describe('wagon Seven', () => {
     }
   });
 
-  it('lets a driver who saw the hollow tell it at the cistern house beside Dag', () => {
+  it('lets a driver who saw the hollow tell it at the canteen beside Dag', () => {
     const w = parkedAt('bowl');
     w.player.quests.world.wagon_saw = true;
 
-    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the cistern house.', 'Goodbye.']);
+    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at Hattie\'s canteen.', 'Goodbye.']);
 
     expect(worldVars(next).wagon_fate).toBe('told');
     expect(next.player.money).toBe(w.player.money);
-    expect(choices(next, 'bowl_dag')).toContain('What did the cistern house make of it?');
+    expect(choices(next, 'bowl_dag')).toContain('What did the canteen make of it?');
   });
 });
 
@@ -622,6 +620,7 @@ describe('locals at stalls', () => {
 
   it('charges double to buy off a patrolman who caught the lie', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
     expect(questView(bought, QUESTS).choices).toContain(SIGN);
@@ -630,6 +629,7 @@ describe('locals at stalls', () => {
 
   it('bills a failed glass window fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
     expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
@@ -649,6 +649,7 @@ describe('locals at stalls', () => {
 
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
     const w = parkedAt('dustwell');
+    w.player.money = 400;
 
     const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Hold the copy up in the market.']);
 
@@ -658,6 +659,24 @@ describe('locals at stalls', () => {
 });
 
 describe('journal notes', () => {
+  const QUEST_STEPS: readonly NoteId[] = ['wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound', 'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal'];
+  const LEADS: readonly NoteId[] = ['greenPit', 'orchardIron', 'talkConvoyNotClean'];
+
+  it('holds only quest steps and leads to a place or a thing to use', () => {
+    expect([...NOTE_IDS].sort()).toEqual([...QUEST_STEPS, ...LEADS].sort());
+  });
+
+  it('writes no note for Ibo\'s convoy rumor and opens Sefa\'s convoy question through the world', () => {
+    const heard = talk(parkedAt('nose'), 'nose_ibo', ['About the air…', 'Heard anything interesting on the air?']);
+    const yard = parkedAt('salvage-yard');
+    yard.player.quests.world.convoy_rumor = heard.player.quests.world.convoy_rumor;
+
+    expect(heard.player.notes).toEqual([]);
+    expect(heard.player.quests.world.convoy_rumor).toBe(true);
+    expect(choices(yard, 'yard_sefa')).toContain('Is the Burnt Convoy picked clean?');
+    expect(choices(parkedAt('salvage-yard'), 'yard_sefa')).not.toContain('Is the Burnt Convoy picked clean?');
+  });
+
   it('starts a new player with no notes', () => {
     expect(emptyWorld().player.notes).toEqual([]);
   });
@@ -671,7 +690,7 @@ describe('journal notes', () => {
     expect(w.player.notes).toEqual([{ id: 'greenPit', turn: 42 }]);
     expect(w.events).toEqual([{ t: 'note', id: 'greenPit' }]);
     expect(holdsNote(w, 'greenPit')).toBe(true);
-    expect(holdsNote(w, 'glassTank')).toBe(false);
+    expect(holdsNote(w, 'orchardIron')).toBe(false);
   });
 
   it('learns a held note again without a change or an event', () => {
@@ -806,12 +825,14 @@ describe('Petra Quell at the Roadhouse', () => {
     expect(localsAt(CRIME.post).map((l) => l.id)).toEqual(['petra']);
   });
 
-  it('gives the three notes as the player asks on', () => {
-    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [
-      'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
-      'Who goes after the wrongdoers?', 'Why no claims against raiders?',
-    ]);
-    expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders']);
+  const BEFORE_RAIDERS = [
+    'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
+    'Who goes after the wrongdoers?',
+  ];
+
+  it('writes no journal note for the road book answers', () => {
+    const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [...BEFORE_RAIDERS, 'Why no claims against raiders?']);
+    expect(next.player.notes).toEqual([]);
   });
 
   it('offers the search question only to a player holding a search', () => {

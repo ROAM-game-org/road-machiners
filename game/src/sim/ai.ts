@@ -28,6 +28,7 @@ import { chance } from "./rng";
 import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
 import { heldAway, startRecovery, tickRecovery } from "./stall";
+import { hornAtBrake } from "./road-horn";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v) && thinksThisTurn(world, v));
@@ -52,7 +53,10 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 function setOrder(world: World, { v, activity, goal }: Plan): void {
   const held = heldGoal(world, v, goal);
   noteStuck(world, v, held);
-  const stops = goal !== null && !(activity.kind === "fight" && runsDown(world, v)) && trafficStops(world, v, goal);
+  const wasBraking = v.order?.kind === "brake";
+  const stop = goal !== null && !(activity.kind === "fight" && runsDown(world, v)) ? trafficStop(world, v, goal) : NO_STOP;
+  if (stop.kind === "meeting") hornAtBrake(world, v, stop.trucks, wasBraking);
+  const stops = stop.kind !== "none";
   noteStall(world, v, (stops && activity.kind !== "fight" && activity.kind !== "flee") || waitsOnHold(v, goal, held));
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = dragsStraight(world, v);
@@ -353,12 +357,20 @@ function heldHolders(world: World, v: Vehicle): Vehicle[] {
   });
 }
 
+type TrafficStop = { kind: "none" } | { kind: "standoff" } | { kind: "meeting"; trucks: Vehicle[] };
+
+const NO_STOP: TrafficStop = { kind: "none" };
+
 export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
-  if (facesParked(world, v)) return true;
-  if (!isNear(world, v)) return false;
+  return trafficStop(world, v, dest).kind !== "none";
+}
+
+function trafficStop(world: World, v: Vehicle, dest: Vec): TrafficStop {
+  if (facesParked(world, v)) return { kind: "standoff" };
+  if (!isNear(world, v)) return NO_STOP;
   const moving = meeting(world, v);
-  if (moving.length === 0) return false;
-  return !clearWayAround(world, v, dest, moving);
+  if (moving.length === 0 || clearWayAround(world, v, dest, moving)) return NO_STOP;
+  return { kind: "meeting", trucks: moving };
 }
 
 function clearWayAround(world: World, v: Vehicle, dest: Vec, trucks: Vehicle[]): boolean {

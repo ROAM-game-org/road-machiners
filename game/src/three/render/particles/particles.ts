@@ -4,7 +4,7 @@ import { WEATHER } from '../../../data/weather';
 import { inLiveRange } from '../../../sim/fidelity';
 import type { World } from '../../../sim/types';
 import { count } from '../../../perf';
-import { CARD_SHAPES, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE, type CardBatch } from './cards';
+import { CARD_SHAPES, clumpShape, HAZE_SHAPE, INK_DUST_LAYER, PLUME_SHAPE, ROUND_SHAPE, type CardBatch } from './cards';
 
 export const OVERWRITE_COUNTER = 'fx.particles.overwritten';
 export const FAR_COUNTER = 'fx.particles.far';
@@ -23,7 +23,8 @@ export type ParticleLook = {
   drag: number;
   gravity: number;
   streak: number;
-  form: 'cloud' | 'haze' | 'plume' | 'round';
+  form: 'cloud' | 'haze' | 'round' | 'clump';
+  plume?: true;
   becomes?: { look: ParticleLook; share: number; scale: number; spread: number; keepSpeed: number };
 };
 
@@ -126,13 +127,13 @@ export class Particles {
       if (!s.alive) continue;
       const t = s.age / s.life;
       this.toneOf(s.look, t, ink);
-      const card = (s.look.form === 'plume' ? to.plumes : to.main).slot();
+      const card = (s.look.plume ? to.plumes : to.main).slot();
       card.x = s.pos.x;
       card.y = s.pos.y;
       card.z = s.pos.z;
       card.size = sizeAt(s.look, t) * s.scale;
       card.spin = s.spin;
-      card.shape = s.shape + shapeFlag;
+      card.shape = drawnShape(s.shape, s.look, ink) + shapeFlag;
       card.r = this.color.r;
       card.g = this.color.g;
       card.b = this.color.b;
@@ -167,10 +168,14 @@ export class Particles {
   }
 }
 
+function drawnShape(shape: number, look: ParticleLook, ink: number): number {
+  return look.plume && ink >= INK_DUST_LAYER ? PLUME_SHAPE + (shape % CARD_SHAPES) : shape;
+}
+
 function shapeOf(form: ParticleLook['form']): number {
   if (form === 'round') return ROUND_SHAPE;
+  if (form === 'clump') return clumpShape(Math.random());
   const lumps = Math.floor(Math.random() * CARD_SHAPES);
-  if (form === 'plume') return PLUME_SHAPE + lumps;
   return form === 'haze' ? HAZE_SHAPE + lumps : lumps;
 }
 

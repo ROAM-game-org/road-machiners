@@ -6,6 +6,8 @@ Read [docs/DESIGN.md](docs/DESIGN.md) before any game change and before answerin
 
 Read [docs/art/visual-style.md](docs/art/visual-style.md) before any change to how the 3D world looks, and check the result against its principles.
 
+Read [docs/screens/](docs/screens/README.md) before rendering a screen. A visual change reruns `npm run screens -- <name>`.
+
 Every change a player sees in the HTML UI or an overlay goes through [docs/ui.md](docs/ui.md), the UI design system. That covers a new screen, panel, tooltip, notice, button, label or line of UI text. Plan it with the steps in "How to build a screen", build it from the shared formatters and pieces, and check the screenshots against the principle tests. A change that breaks a principle names it and says why, and a new pattern goes into docs/ui.md in the same change.
 
 ## Stack
@@ -60,7 +62,7 @@ Reference:
 
 ## Commands
 
-Run these from `game/`. The repo-wide quality gate and pre-commit hook run from the repo root. See the root [CLAUDE.md](../CLAUDE.md). [Tools](docs/tools.md) has flags and outputs.
+Run these from `game/`. The repo-wide quality gate and pre-commit hook run from the repo root. [Tools](docs/tools.md) has flags and outputs.
 
 - `npm run dev` starts the game at <http://localhost:5173>.
 - `npm test` runs every Vitest test in `src/`. `npm run typecheck` runs tsc.
@@ -143,8 +145,8 @@ Read the project-local skills before related work:
 - Every sim rule change gets a Vitest test.
 - Read [Testing](docs/testing.md) before you write, speed up or fix a test. Many older tests break its rules, so never copy their setup.
 - After render or game changes, run `npm run playtest`.
-- Playtest game behavior with the progression recorder, not by hand or in the browser. Record the bots that meet the change, then read the report and the analyzer before you draw a conclusion. A 3-seed 5-day batch takes about 10 minutes per bot, so run it in the background with a log. [Tools](docs/tools.md) has the flags.
-- Use a Playwright script in `tmp/` on the real GPU only for what the screen shows: UI, rendering and screenshots. [Tools](docs/tools.md#browser-checks) describes it. The game is on `window.__ROAM__` in dev.
+- Playtest game behavior with the progression recorder, not by hand or in the browser. Record the bots that meet the change, then read the report and the analyzer before you draw a conclusion. A 3-seed 5-day batch takes about 10 minutes per bot, so run it in the background.
+- Use a Playwright script in `tmp/` on the real GPU only for what the screen shows: UI, rendering and screenshots. The game is on `window.__ROAM__` in dev.
 - Look at screenshots after visual changes. The user confirms small visual details.
 
 ## Art
