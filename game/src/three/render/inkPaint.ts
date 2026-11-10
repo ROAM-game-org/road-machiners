@@ -9,6 +9,13 @@ const INK_STROKE_LENGTH = 1.8;
 const INK_BAND_SLOPE_FROM = 0.1;
 const INK_BAND_SLOPE_FULL = 0.16;
 const INK_BAND_SOFT = 0.35;
+const INK_STREAK_SPACING = 1.4;
+const INK_STREAK_CELL = 8;
+const INK_STREAK_LENGTH = 3;
+const INK_STREAK_KEPT = 0.45;
+const INK_STREAK_WIDTH = 0.22;
+const INK_STREAK_STEEP_FROM = 0.45;
+const INK_STREAK_STEEP_FULL = 0.8;
 
 export const INK_CONTRACT = `
 struct InkSurface { float road; float edge; float height; vec2 slope; float rise; vec2 form; float crest; };
@@ -127,7 +134,22 @@ const INK_GROUND = `${INK_CONTRACT}${INK_COLOR}
 const vec3 INK_SHADE_COOL = vec3(0.82, 0.88, 1.15);
 uniform float inkShadeCut;
 uniform float inkLitFace;
+uniform float inkCliffStreaks;
 const vec3 INK_SUN_FACE = vec3(1.35, 1.18, 0.95);
+float inkFallStreaks() {
+  float px = max(length(fwidth(vInkAt.xz)), 0.0005);
+  float steep = length(inkSurface.slope);
+  vec2 fall = inkSurface.form / max(length(inkSurface.form), 0.0001);
+  vec2 cell = floor(vInkAt.xz / ${INK_STREAK_CELL.toFixed(1)});
+  vec2 local = vInkAt.xz - (cell + 0.5) * ${INK_STREAK_CELL.toFixed(1)};
+  float across = dot(local, vec2(-fall.y, fall.x)) / ${INK_STREAK_SPACING.toFixed(2)};
+  float row = floor(across) + inkHash(cell) * 97.0;
+  float along = dot(local, fall) * sqrt(1.0 + steep * steep) / ${INK_STREAK_LENGTH.toFixed(2)} + inkHash(vec2(row, 3.7)) * 7.0;
+  float kept = step(inkHash(vec2(row, floor(along))), ${INK_STREAK_KEPT.toFixed(2)});
+  float halfWidth = 0.5 * ${INK_STREAK_WIDTH.toFixed(2)} * sin(fract(along) * 3.14159);
+  float line = 1.0 - smoothstep(halfWidth - 0.5 * px, halfWidth + 0.5 * px, abs(fract(across) - 0.5) * ${INK_STREAK_SPACING.toFixed(2)});
+  return line * kept * smoothstep(${INK_STREAK_STEEP_FROM.toFixed(2)}, ${INK_STREAK_STEEP_FULL.toFixed(2)}, steep) * smoothstep(0.35, 0.7, ${INK_STREAK_WIDTH.toFixed(2)} / px) * inkCliffStreaks;
+}
 float inkContourLine(float interval) {
   float height = inkSurface.height;
   float px = max(length(fwidth(vInkAt.xz)), 0.0005);
@@ -186,6 +208,7 @@ vec3 inkPaint(vec3 linear, vec3 albedo) {
   float relief = mix(inkSmoothRelief(inkFacing(inkSurface.slope)), inkSmoothRelief(1.0), inShade);
   vec3 color = inkGroundShade(inkSunFace(inkHeightBands(inkBase(albedo, lit, level, 0.0, relief)), inShade), inShade);
   color *= 1.0 - inkCastDark * inShade;
+  color *= 1.0 - inkFallStreaks() * INK_CREST_TONE;
   vec3 screenRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 screenUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec2 plane = vec2(dot(vInkAt, screenRight), dot(vInkAt, screenUp));
@@ -291,6 +314,7 @@ function inkUniforms() {
     inkCastDark: TUNING.castDark,
     inkShadeCut: TUNING.shadeCut,
     inkLitFace: TUNING.litFace,
+    inkCliffStreaks: TUNING.cliffStreaks,
     inkHeightTint: TUNING.heightTint,
   };
 }
