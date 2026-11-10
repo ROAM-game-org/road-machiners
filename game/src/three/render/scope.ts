@@ -34,6 +34,9 @@ export class RenderScope {
   private readonly owner = new Map<THREE.Object3D, Chunk>();
   private readonly frustum = new THREE.Frustum();
   private readonly viewProjection = new THREE.Matrix4();
+  private readonly casterFrustum = new THREE.Frustum();
+  private readonly casterProjection = new THREE.Matrix4();
+  private casts = false;
   private readonly test = new THREE.Box3();
   private readonly prepare: (obj: THREE.Object3D) => void;
   private readonly frameHooks: (() => void)[] = [];
@@ -194,13 +197,13 @@ export class RenderScope {
     this.frameHooks.push(fn);
   }
 
-  update(camera: THREE.OrthographicCamera): void {
+  update(camera: THREE.OrthographicCamera, caster: THREE.OrthographicCamera | null): void {
     this.root.updateWorldMatrix(true, false);
     if (!this.root.matrixWorld.equals(IDENTITY)) throw new Error('Render scope root moved away from the world origin');
     camera.updateMatrixWorld();
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
-    const range = this.cellRange(camera);
+    const range = this.withCaster(this.cellRange(camera), caster);
     for (const chunk of this.attached) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
     this.showChunksIn(range);
     this.frameHooks.forEach((hook) => hook());
@@ -263,8 +266,19 @@ export class RenderScope {
     };
   }
 
+  private withCaster(range: CellRange, caster: THREE.OrthographicCamera | null): CellRange {
+    this.casts = caster !== null;
+    if (!caster) return range;
+    caster.updateMatrixWorld();
+    this.casterProjection.multiplyMatrices(caster.projectionMatrix, caster.matrixWorldInverse);
+    this.casterFrustum.setFromProjectionMatrix(this.casterProjection);
+    return joinRanges(range, this.cellRange(caster));
+  }
+
   private shows(chunk: Chunk): boolean {
-    return this.limit.meets(chunk.box, MARGIN) && this.frustum.intersectsBox(this.test.copy(chunk.box).expandByScalar(MARGIN));
+    if (!this.limit.meets(chunk.box, MARGIN)) return false;
+    this.test.copy(chunk.box).expandByScalar(MARGIN);
+    return this.frustum.intersectsBox(this.test) || (this.casts && this.casterFrustum.intersectsBox(this.test));
   }
 
   private cellAt(pos: Vec): number {
@@ -292,6 +306,12 @@ export class RenderScope {
 const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const;
 const REACH_BOX = new THREE.Box2();
 const REACH_POINT = new THREE.Vector2();
+
+function joinRanges(a: CellRange, b: CellRange): CellRange {
+  if (a.x1 < a.x0) return b;
+  if (b.x1 < b.x0) return a;
+  return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+}
 
 function inRange(cell: number, range: CellRange, perSide: number): boolean {
   const cx = cell % perSide;

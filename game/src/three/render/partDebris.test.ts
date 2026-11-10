@@ -84,7 +84,7 @@ describe('part debris', () => {
     expect(() => debris.burst('far:1', at, { x: at.x - 1, y: 1, z: at.z }, [])).not.toThrow();
     limit.set({ x: 0, y: 0, z: 0 }, 3 * S);
     const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
-    scope.update(camera);
+    scope.update(camera, null);
     expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
     debris.free();
   });

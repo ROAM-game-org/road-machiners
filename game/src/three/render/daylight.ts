@@ -1,5 +1,7 @@
 
 import * as THREE from "three";
+import { PERF } from "../../data/perf";
+import { PHYSICS } from "../../data/physics";
 import { TERRAIN } from "../../data/terrain";
 import { TIME } from "../../data/time";
 import { clockOf, sunAt } from "../../sim/sun";
@@ -193,7 +195,9 @@ export function daylightAt(turn: number): Daylight {
 }
 
 const SHADOW_REACH = 80;
-const CASTER_REACH = 70;
+const LOADED_GROUND_METERS = (TERRAIN.vision.radius * TERRAIN.vision.farFactor + PERF.stream.leadTiles) * PHYSICS.metersPerTile;
+const STEEPEST_SUN_STRETCH = 2;
+const CASTER_DEPTH = LOADED_GROUND_METERS * STEEPEST_SUN_STRETCH;
 
 const snapZ = new THREE.Vector3();
 const snapX = new THREE.Vector3();
@@ -225,7 +229,7 @@ export function backdropAt(light: Daylight): THREE.Color {
 export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH, aim: Daylight = light): void {
   const { camera, mapSize } = sun.shadow;
   coverShadow(camera, reach);
-  const distance = reach + CASTER_REACH;
+  const distance = reach + CASTER_DEPTH;
   const flat = Math.cos(aim.elevation);
   const horiz = flat * distance;
   const lift = Math.sin(aim.elevation);
@@ -242,6 +246,14 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   syncInkLight(light, INK_FULL_DAY);
 }
 
+export function sunCasters(sun: THREE.DirectionalLight): THREE.OrthographicCamera | null {
+  if (!sun.castShadow || sun.intensity <= 0) return null;
+  sun.updateMatrixWorld();
+  sun.target.updateMatrixWorld();
+  sun.shadow.updateMatrices(sun);
+  return sun.shadow.camera;
+}
+
 export function sunLight(): THREE.DirectionalLight {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
@@ -255,7 +267,7 @@ export function sunLight(): THREE.DirectionalLight {
 function coverShadow(camera: THREE.OrthographicCamera, reach: number): void {
   if (!(reach > 0 && Number.isFinite(reach))) throw new Error(`Shadow reach must be a finite positive number, got ${reach}`);
   if (camera.right === reach) return;
-  Object.assign(camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 2 * (2 * reach + CASTER_REACH) });
+  Object.assign(camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: CASTER_DEPTH + 3 * reach });
   camera.updateProjectionMatrix();
 }
 

@@ -72,7 +72,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
-import { backdropAt, daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
+import { backdropAt, daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunCasters, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -1091,7 +1091,7 @@ export class Game {
     this.weather.sync(this.world, turnClockOf(this.anim));
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
-    for (const scope of this.scopes) scope.update(this.rig.camera);
+    for (const scope of this.scopes) scope.update(this.rig.camera, sunCasters(this.sun));
     this.shaders.render(this.timeHeld());
     this.hud.stepPortraits(this.travel.isPlaying(this.anim), this.screens.inventory.isOpen());
     this.refreshPlan();
