@@ -1,8 +1,7 @@
-import type { Cue, DirectionStep, RoadName, Span } from '../sim/types';
+import type { Cue, DirectionStep, LandmarkCue, LeaveCue, RoadName, Span } from '../sim/types';
 import { concat, SPACE, t, type Msg } from '../text/msg';
+import { gridSquareText } from './grid-text';
 import { compassName, propName, siteName, siteSign } from '../text/names';
-
-type CueMode = 'turn' | 'leave';
 
 const ORDINALS: Record<number, 'second' | 'third'> = { 2: 'second', 3: 'third' };
 
@@ -12,11 +11,17 @@ function ordinal(nth: number): 'second' | 'third' {
   return word;
 }
 
-export function cueText(cue: Cue, mode: CueMode): Msg {
-  if (cue.kind === 'site' || cue.kind === 'deck') return t('way.cue.site', { site: siteName(cue.id) });
-  if (cue.kind === 'prop') return t('way.cue.prop', { prop: propName(cue.look) });
-  if (cue.kind === 'fork') return t(mode === 'turn' ? `way.cue.fork.${ordinal(cue.nth)}` : `way.cue.pastFork.${ordinal(cue.nth)}`);
-  return t(mode === 'turn' ? 'way.cue.next' : 'way.cue.closest');
+function landmarkText(cue: LandmarkCue): Msg {
+  return cue.kind === 'prop' ? t('way.cue.prop', { prop: propName(cue.look) }) : t('way.cue.site', { site: siteName(cue.id) });
+}
+
+export function cueText(cue: Cue): Msg {
+  if (cue.kind === 'fork') return t(`way.cue.fork.${ordinal(cue.nth)}`);
+  return cue.kind === 'none' ? t('way.cue.next') : landmarkText(cue);
+}
+
+export function leaveCueText(cue: LeaveCue): Msg {
+  return cue.kind === 'square' ? t('way.cue.square', { square: gridSquareText(cue) }) : landmarkText(cue);
 }
 
 export function roadText(name: RoadName): Msg {
@@ -46,7 +51,7 @@ function followText(step: Follow, next: DirectionStep | undefined, target: strin
 type Leave = Extract<DirectionStep, { do: 'leave' }>;
 
 function leaveText(step: Leave): Msg {
-  const words = { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) };
+  const words = { at: leaveCueText(step.at), octant: compassName(step.octant), span: spanText(step.span) };
   return step.lean === null ? t('way.leave', words) : t('way.leaveLean', { ...words, lean: t(`way.lean.${step.lean}`) });
 }
 
@@ -55,7 +60,7 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
     case 'join': return [t('way.join', { octant: compassName(step.octant), span: spanText(step.span) })];
     case 'follow': return [followText(step, next, target), ...haulAfter(step.span, previous)];
     case 'turn': {
-      const at = cueText(step.at, 'turn');
+      const at = cueText(step.at);
       const sentence = leadsTo(step.road, target, next) ? t(`way.turnThere.${step.side}`, { at }) : t(`way.turn.${step.side}`, { at, road: roadText(step.road) });
       return [sentence, ...haulAfter(step.span, previous)];
     }

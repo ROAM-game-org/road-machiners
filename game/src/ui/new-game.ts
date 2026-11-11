@@ -14,6 +14,7 @@ export const CONFIRM_NEW_GAME = t("save.confirmNew");
 const share = (value: number): Msg => t("setting.percent", { n: Math.round(value * 100) });
 
 export type NewGameActions = {
+  hasAutosave: () => boolean;
   requestBoot: (request: BootRequest) => void;
   reload: () => void;
 };
@@ -146,11 +147,15 @@ class NewGameScreen {
 
   private start(): void {
     const request = { new: parseSetup(this.draft), intro: !this.skipIntro };
+    if (!this.actions.hasAutosave()) return this.boot(request);
     void askConfirm({ question: CONFIRM_NEW_GAME, yes: t("confirm.startNew") }).then((yes) => {
-      if (!yes) return;
-      this.actions.requestBoot(request);
-      this.actions.reload();
+      if (yes) this.boot(request);
     });
+  }
+
+  private boot(request: BootRequest): void {
+    this.actions.requestBoot(request);
+    this.actions.reload();
   }
 
   private close(): void {

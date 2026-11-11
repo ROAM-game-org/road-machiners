@@ -14,6 +14,7 @@ import { MAP_GRID, REGION } from '../data/region';
 import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
+import { contractPay } from './contract-pay';
 import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
@@ -27,7 +28,7 @@ import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
 import { DECKS } from './bridge';
-import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
+import type { Call, CallVar, CallVars, Cue, DirectionStep, LeaveCue, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 import { payoutM } from './money';
@@ -49,12 +50,23 @@ export function repairContent(world: World): void {
   repairShops(world);
   renameDrivers(world);
   repairPlayer(world);
+  repricePay(world);
   repairCall(world);
   for (const v of everyTruck(world)) fitPriceMemories(v);
   fitRoadNews(world);
   fitSites(world);
   fitWaves(world);
   releaseGoneHolders(world);
+}
+
+function repricePay(world: World): void {
+  const held = Object.values(world.shops).flatMap((s) => s.contracts).concat(world.player.contracts);
+  for (const c of held) {
+    const pay = contractPay(world, c);
+    if (!pay) continue;
+    c.reward = pay.reward;
+    if (c.kind === 'procure' && pay.cratePay !== undefined) c.cratePay = pay.cratePay;
+  }
 }
 
 function requireUniqueTrucks(world: World): void {
@@ -600,7 +612,8 @@ function trades(shop: string, good: string): boolean {
   return isShop(shop) && SHOPS[shop].goods.includes(good);
 }
 
-function cueFits(cue: Cue): boolean {
+function cueFits(cue: Cue | LeaveCue): boolean {
+  if (cue.kind === 'square') return [cue.column, cue.row].every((i) => Number.isInteger(i) && i >= 0 && i < MAP_GRID.squares);
   if (cue.kind === 'site') return isSite(cue.id);
   return cue.kind !== 'deck' || DECKS.some((d) => d.id === cue.id);
 }

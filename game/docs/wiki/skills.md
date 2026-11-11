@@ -1,6 +1,6 @@
 # Skills
 
-Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and there is no daily cap. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
+Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `src/data/skills.ts`. `practice()` is the only way to gain XP, and it adds to one shared pool. `buyRank()` spends the pool on the next rank of any skill, in order, for good. Each XP source belongs to an activity family, named by its skill, and there is no daily cap. A source pays its weight times `XP_RULES.gain` per unit, so each weight is a share of the XP, not the XP itself. Every practice event names a target, and repeats on one target pay less by the source's repeat factor. The count of earlier events halves every `XP_RULES.repeatHalfLife` turns.
 
 ## Skills
 
@@ -29,7 +29,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 ## XP sources
 
 <!-- wiki:xp-sources -->
-| source | activity family | weight (xp per unit) | scaled by difficulty | repeat factor |
+| source | activity family | weight | scaled by difficulty | repeat factor |
 | --- | --- | --- | --- | --- |
 | roughTiles | driving | 0.75 | true | 0.9 |
 | ram | driving | 0.25 | true | 0.7 |
@@ -84,5 +84,6 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 <!-- wiki:numbers -->
 | path | value |
 | --- | --- |
+| `XP_RULES.gain` | 0.3333333333333333 |
 | `XP_RULES.repeatHalfLife` | 200 |
 <!-- /wiki:numbers -->

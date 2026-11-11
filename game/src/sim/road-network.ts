@@ -1,5 +1,6 @@
 import { DIRECTIONS } from '../data/directions';
 import { atlasKeyString, atlasOf, atlasSites, type Atlas } from './atlas';
+import { gridEntries } from './map-grid';
 import { ObstacleBuckets, type Blocker } from './nav/buckets';
 import { isTerritory, siteEdgeCrossings, siteGap, siteGates, type Site } from './sites';
 import type { Terrain } from './terrain';
@@ -246,6 +247,17 @@ export function nearestRoadPoints(net: RoadNetwork, pos: Vec, reach: number, cou
     if (!known || hit.gap < known.gap) best.set(edge.id, { edge: edge.id, along: alongOf(edge, slot.seg, hit.t), pos: hit.pos, gap: hit.gap });
   }
   return [...best.values()].sort((a, b) => a.gap - b.gap || a.edge - b.edge).slice(0, count).map(({ edge, along, pos: p }) => ({ edge, along, pos: p }));
+}
+
+const crossingsOf = new WeakMap<RoadNetwork, RoadPoint[]>();
+
+export function roadCrossings(net: RoadNetwork): RoadPoint[] {
+  let crossings = crossingsOf.get(net);
+  if (!crossings) {
+    crossings = net.edges.flatMap((edge) => gridEntries(edge.points).map((entry) => ({ edge: edge.id, along: alongOf(edge, entry.seg, entry.t), pos: entry.pos })));
+    crossingsOf.set(net, crossings);
+  }
+  return crossings;
 }
 
 export function edgesOnSiteRoads(graph: RoadGraph): Set<number> {

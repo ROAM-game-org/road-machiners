@@ -7,6 +7,7 @@ export const DIRECTIONS = {
   onRoad: 8,
   joinCandidates: 6,
   leaveReach: 100,
+  squareReach: 100,
   leanAngle: Math.PI / 16,
   directReach: 40,
   placeSlack: 15,

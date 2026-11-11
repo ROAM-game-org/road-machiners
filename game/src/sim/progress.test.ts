@@ -125,7 +125,7 @@ describe('xpFor', () => {
   const fresh = { xp: 0, xpWindow: 0, repeats: {} };
 
   it('pays an unscaled source its weight per unit', () => {
-    expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10);
+    expect(xpFor(fresh, 'profit', 10, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 10 * XP_RULES.gain);
   });
 
   it('rejects a difficulty on an unscaled source', () => {
@@ -133,7 +133,22 @@ describe('xpFor', () => {
   });
 
   it('pays a gain in full however much the same family earned already', () => {
-    expect(xpFor(fresh, 'profit', 2000, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 2000);
+    expect(xpFor(fresh, 'profit', 2000, null, 'bowl:salt', 1)).toBeCloseTo(XP_SOURCES.profit.weight * 2000 * XP_RULES.gain);
+  });
+
+  it('pays every source a third of weight times amount, so no source is left out of the cut', () => {
+    for (const [source, def] of Object.entries(XP_SOURCES)) {
+      const difficulty = def.scaled ? 1 : null;
+      const pay = xpFor(fresh, source as keyof typeof XP_SOURCES, 3, difficulty, 'target', 1);
+      const ceiling = def.weight * 3 * XP_RULES.hard * XP_RULES.gain;
+      expect(pay, source).toBeGreaterThan(0);
+      expect(pay, source).toBeLessThanOrEqual(ceiling + 1e-9);
+      if (!def.scaled) expect(pay, source).toBeCloseTo(def.weight * 3 * XP_RULES.gain);
+    }
+  });
+
+  it('keeps the gain at exactly one third', () => {
+    expect(XP_RULES.gain).toBe(1 / 3);
   });
 
   it('rejects negative amounts', () => {
@@ -178,7 +193,7 @@ describe('repeats on one target', () => {
   it('spamming a decaying target pays a bounded total', () => {
     const w = emptyWorld();
     for (let i = 0; i < 500; i++) practice(w, 'profit', 10, null, 'bowl:salt');
-    expect(w.player.xp).toBeLessThan((XP_SOURCES.profit.weight * 10) / (1 - XP_SOURCES.profit.repeat) + 1e-6);
+    expect(w.player.xp).toBeLessThan((XP_SOURCES.profit.weight * 10 * XP_RULES.gain) / (1 - XP_SOURCES.profit.repeat) + 1e-6);
   });
 
   it('a once-only target never pays again, even days later', () => {
@@ -186,7 +201,7 @@ describe('repeats on one target', () => {
     practice(w, 'call', 1, null, 'v2:directions');
     w.turn += 30 * TIME.workDayTurns;
     practice(w, 'call', 1, null, 'v2:directions');
-    expect(w.player.xp).toBeCloseTo(XP_SOURCES.call.weight);
+    expect(w.player.xp).toBeCloseTo(XP_SOURCES.call.weight * XP_RULES.gain);
   });
 
   it('a new day forgets faded decaying targets but keeps once-only ones', () => {
@@ -207,9 +222,9 @@ describe('practice', () => {
   it('adds XP to the pool and logs it', () => {
     const w = emptyWorld();
     practice(w, 'discover', 1, null, 'bowl');
-    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight);
-    expect(w.player.xpBySource.discover).toBeCloseTo(XP_SOURCES.discover.weight);
-    expect(w.events).toContainEqual({ t: 'practice', source: 'discover', amount: 1, difficulty: null, target: 'bowl', xp: XP_SOURCES.discover.weight });
+    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight * XP_RULES.gain);
+    expect(w.player.xpBySource.discover).toBeCloseTo(XP_SOURCES.discover.weight * XP_RULES.gain);
+    expect(w.events).toContainEqual({ t: 'practice', source: 'discover', amount: 1, difficulty: null, target: 'bowl', xp: XP_SOURCES.discover.weight * XP_RULES.gain });
   });
 
   it('never raises a rank', () => {
@@ -225,7 +240,7 @@ describe('practice', () => {
     practice(w, 'discover', 1, null, 'bowl');
     practice(w, 'call', 1, null, 'v2:directions');
     practice(w, 'profit', 2000, null, 'bowl:salt');
-    expect(w.player.xp).toBeCloseTo(XP_SOURCES.discover.weight + XP_SOURCES.call.weight + XP_SOURCES.profit.weight * 2000);
+    expect(w.player.xp).toBeCloseTo((XP_SOURCES.discover.weight + XP_SOURCES.call.weight + XP_SOURCES.profit.weight * 2000) * XP_RULES.gain);
   });
 
   it('pays driving one region all day less than a quarter of the same tiles over new regions', () => {

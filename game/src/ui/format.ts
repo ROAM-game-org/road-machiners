@@ -4,7 +4,6 @@ import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../si
 import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
-import type { GridSquare } from '../sim/map-grid';
 import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
@@ -31,13 +30,16 @@ import { hasBasic, hasPerk } from '../sim/progress';
 import { finesOn } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
-import { MAP_GRID, REGION } from '../data/region';
+import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import { directionsText } from './directions-text';
+import { gridSquareText } from './grid-text';
+
+export { gridColumnLetter, gridRowNumber, gridSquareText } from './grid-text';
 import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
@@ -709,23 +711,6 @@ function surveyPlaces(c: SurveyContract): Msg {
 
 export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
-}
-
-const GRID_COLUMNS = ['map.column.a', 'map.column.b', 'map.column.c', 'map.column.d', 'map.column.e', 'map.column.f', 'map.column.g', 'map.column.h'] as const;
-
-export function gridColumnLetter(column: number): Msg {
-  const key = GRID_COLUMNS[column];
-  if (key === undefined) throw new Error(`Map grid column ${column} has no letter`);
-  return t(key);
-}
-
-export function gridRowNumber(row: number): Msg {
-  if (!Number.isInteger(row) || row < 0 || row >= MAP_GRID.squares) throw new Error(`Map grid row ${row} has no number`);
-  return num(row + 1, 'int');
-}
-
-export function gridSquareText(square: GridSquare): Msg {
-  return t('map.square', { column: gridColumnLetter(square.column), row: gridRowNumber(square.row) });
 }
 
 export function surveyClueText(clue: SurveyClue): Msg {
