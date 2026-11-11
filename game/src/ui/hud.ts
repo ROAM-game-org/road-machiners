@@ -268,7 +268,7 @@ export class Hud {
     const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
     this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
-    if (this.inspectedAimable) this.growForAim(top, slot);
+    if (this.inspectedAimable) this.growForAim(slot);
     this.fillToFloor(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.placeSide();
@@ -318,7 +318,7 @@ export class Hud {
     return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
   }
 
-  private growForAim(top: number, slot: number): void {
+  private growForAim(slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
     const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
@@ -329,10 +329,6 @@ export class Hud {
       return;
     }
     if (wider > 0) this.info.style.width = `${width}px`;
-    const tallest = this.sideFloor(this.info) - top;
-    this.info.style.height = `${tallest}px`;
-    const fits = tallest - this.inspectedDraw.clientHeight + need.height;
-    this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
   }
 
   private fillToFloor(top: number): void {
