@@ -731,8 +731,6 @@ const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 0 
 
 const GRAIN = { scale: 40, amount: 0.05 };
 
-export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body }, grain: { value: GRAIN.amount } };
-
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
   return named === undefined ? 'plain' : named;
@@ -744,17 +742,8 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
   const own = SURFACES[surface];
   const uniforms = {
     surfaceMask: SURFACE_ATLAS,
-    surfaceDirt: { value: new THREE.Vector3(...own.dirt) },
-    surfaceEdge: { value: own.edge },
-    surfaceChips: { value: own.chips },
-    surfaceChipShare: SURFACE_LOOK.chips,
-    surfaceChipAt: SURFACE_LOOK.chipAt,
-    surfaceShine: { value: own.shine },
-    surfaceChrome: SURFACE_LOOK.chrome,
-    surfaceChromeBody: SURFACE_LOOK.chromeBody,
-    surfaceGrain: { value: own.grain },
-    surfaceGrainShare: SURFACE_LOOK.grain,
-    surfaceNeutral: { value: own.neutral },
+    surfaceLook: { value: new THREE.Vector4(...own.dirt, own.edge) },
+    surfaceTone: { value: new THREE.Vector4(own.chips, own.shine, own.grain, own.neutral) },
   };
   material.onBeforeCompile = (shader) => {
     if (!SURFACE_ATLAS.value) throw new Error('Call paintSurfaceMasks() after loadModels() before drawing trucks');
@@ -777,17 +766,19 @@ const SURFACE_UNIFORMS = `varying vec3 vSurfacePos;
 varying vec2 vMaskUv;
 varying vec3 vEdgeDistance;
 uniform sampler2D surfaceMask;
-uniform vec3 surfaceDirt;
-uniform float surfaceEdge;
-uniform float surfaceChips;
-uniform float surfaceChipShare;
-uniform float surfaceChipAt;
-uniform float surfaceShine;
-uniform float surfaceChrome;
-uniform float surfaceChromeBody;
-uniform float surfaceGrain;
-uniform float surfaceGrainShare;
-uniform float surfaceNeutral;
+uniform vec4 surfaceLook;
+uniform vec4 surfaceTone;
+#define surfaceDirt surfaceLook.xyz
+#define surfaceEdge surfaceLook.w
+#define surfaceChips surfaceTone.x
+#define surfaceShine surfaceTone.y
+#define surfaceGrain surfaceTone.z
+#define surfaceNeutral surfaceTone.w
+const float surfaceChipShare = ${f(CHIP.share)};
+const float surfaceChipAt = ${f(CHIP.at)};
+const float surfaceChrome = ${f(CHROME.gain)};
+const float surfaceChromeBody = ${f(CHROME.body)};
+const float surfaceGrainShare = ${f(GRAIN.amount)};
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }

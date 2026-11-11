@@ -57,6 +57,29 @@ async function openTown(page, tab) {
   }, tab);
 }
 
+const openFullYard = (chassis) => async (page) => {
+  await openTownClear(page);
+  await page.evaluate(() => { window.__yardWorld = structuredClone(window.__ROAM__.state); });
+  await page.evaluate(async (chassis) => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const e = await import('/src/sim/economy.ts');
+    let world = structuredClone(g.state);
+    if (chassis) {
+      world.player.money = 1e6;
+      world = e.buyChassis(world, chassis);
+    }
+    for (const id of ['scrap', 'salt', 'meds', 'grain', 'tools', 'batteries']) world = c.give(world, id, 3);
+    g.apply(world);
+  }, chassis);
+  await openTown(page, 'buyParts');
+};
+
+const closeFullYard = async (page) => {
+  await closeTown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__yardWorld));
+};
+
 const closeTown = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
   g.screens.town.close();
@@ -250,6 +273,29 @@ async function inspectNpc(page, armed) {
   await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
 }
 
+async function inspectHauler(page) {
+  const haulerId = await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { chaosHighwayWorld } = await import('/src/sim/testkit.ts');
+    const { haulerOf, playerVehicle } = await import('/src/sim/damage.ts');
+    window.__layoutHauler ??= structuredClone(haulerOf(chaosHighwayWorld()));
+    const hauler = structuredClone(window.__layoutHauler);
+    const world = structuredClone(g.state);
+    const me = playerVehicle(world);
+    hauler.id = 'layout-hauler';
+    hauler.pos = { x: me.pos.x + 3, y: me.pos.y + 3 };
+    hauler.heading = me.heading;
+    hauler.brain = null;
+    world.vehicles.push(hauler);
+    g.apply(world);
+    g.hud.tips.setOn(false);
+    g.hovered = hauler.id;
+    g.refreshInfo();
+    return hauler.id;
+  });
+  await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), haulerId, { timeout: 60000 });
+}
+
 const clearInspect = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
   g.hovered = null;
@@ -267,7 +313,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {} }, sound);
+  void chooseStart(saves, { hasAutosave: () => true, requestBoot: () => {}, reload: () => {} }, sound);
 });
 
 const openStartOptions = async (page) => {
@@ -587,12 +633,88 @@ const cardPlaceFaults = (page) =>
     return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
   }, CARD);
 
-const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content'].map((part) => `${CARD} ${part}`)) : []);
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content', '.info-draw', '.info-actions'].map((part) => `${CARD} ${part}`)) : []);
+
+const cardShapeFaults = (page) =>
+  page.evaluate((sel) => {
+    const card = document.querySelector(sel);
+    const rect = (part) => card.querySelector(part)?.getBoundingClientRect();
+    const lists = card.querySelector('.hitcard');
+    const draw = rect('.info-draw');
+    const content = rect('.info-content');
+    const listsBox = rect('.hitcard');
+    const phone = document.querySelector('#ui').classList.contains('phone');
+    const scrolls = () => lists && innerHeight >= 720 && lists.scrollHeight > lists.clientHeight + 1;
+    const narrow = () => draw.width < content.width - 1;
+    const below = () => listsBox && listsBox.height > 0 && draw.bottom > listsBox.top + 1;
+    const rules = [
+      [scrolls, 'the lists scroll'],
+      [narrow, 'the drawing is narrower than the card'],
+      [below, 'the drawing is not above the lists'],
+    ];
+    if (!draw || !content) return [];
+    return rules.filter(([broken]) => !phone && broken()).map(([, message]) => message);
+  }, CARD);
+
+async function drawingFaults(page) {
+  return page.evaluate(() => {
+    const view = document.querySelector('#ui .info .truck-condition');
+    const card = document.querySelector('#ui .info');
+    if (!view) return [];
+    const phone = document.getElementById('ui').classList.contains('phone');
+    const scale = parseFloat(getComputedStyle(document.getElementById('ui')).getPropertyValue('--ui-scale')) || 1;
+    const aim = phone ? Math.max(32, 32 / scale) : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
+    const cell = 30 * parseFloat(view.style.zoom || '1');
+    const cardBox = card.getBoundingClientRect();
+    const instruments = document.querySelector('#ui .instruments')?.getBoundingClientRect();
+    const under = instruments && instruments.right > cardBox.left && instruments.top > cardBox.top;
+    const log = document.querySelector('#ui .log');
+    const logBottom = log && log.getClientRects().length > 0 ? log.getBoundingClientRect().bottom : innerHeight;
+    const floor = under ? Math.min(logBottom, instruments.top) : logBottom;
+    const roomBelow = floor - cardBox.bottom;
+    const held = cell < 0.95 * aim && roomBelow > 40;
+    return held ? [`the truck drawing is held under its room: cell ${cell.toFixed(1)} px of ${aim.toFixed(1)}, ${roomBelow.toFixed(0)} px left below it`] : [];
+  });
+}
+
+async function openPartTip(page) {
+  const box = await page.evaluate(() => {
+    const hit = document.querySelector('#ui .info .condition-hit');
+    if (!hit) return null;
+    const b = hit.getBoundingClientRect();
+    return { left: b.left, top: b.top, width: b.width, height: b.height };
+  });
+  if (!box) return false;
+  for (const down of [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
+    for (const across of [0.5, 0.35, 0.65]) {
+      const x = box.left + box.width * across;
+      const y = box.top + box.height * down;
+      await page.mouse.move(x - 2, y);
+      await page.mouse.move(x, y);
+      const open = await page.evaluate(() => document.querySelector('#ui .info .condition-tip')?.style.display === '');
+      if (open) return true;
+    }
+  }
+  return false;
+}
+
+async function tipFaults(page) {
+  const hasDrawing = await page.evaluate(() => document.querySelector('#ui .info .condition-hit') !== null);
+  if (!hasDrawing) return [];
+  if (!(await openPartTip(page))) return ['the part tip never opens over the truck drawing'];
+  return page.evaluate(() => {
+    const body = document.querySelector('#ui .info .condition-tip-body');
+    const ui = getComputedStyle(document.getElementById('ui'));
+    const dense = parseFloat(getComputedStyle(body).fontSize) * (body.currentCSSZoom ?? 1);
+    const want = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--text-dense')) * (parseFloat(ui.getPropertyValue('--ui-scale')) || 1);
+    return dense < want - 0.5 ? [`the part tip is shrunk: ${dense.toFixed(1)} px of ${want.toFixed(1)}`] : [];
+  });
+}
 
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
-  const checks = [cardPlaceFaults(page), cardCutFaults(page), keycapFaults(page, CARD, 'card')];
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), drawingFaults(page), tipFaults(page)];
   return faultsOf('enemy-card')((await Promise.all(checks)).flat());
 }
 
@@ -745,6 +867,48 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+async function openGarageStorage(page) {
+  await page.evaluate(async () => {
+    const { makePart } = await import('/src/sim/factory.ts');
+    const g = window.__ROAM__;
+    window.__layoutWorld = structuredClone(g.state);
+    const world = structuredClone(g.state);
+    const { PARTS } = await import('/src/data/parts.ts');
+    const ids = (Array.isArray(PARTS) ? PARTS : Object.values(PARTS)).map((part) => part.id).slice(0, 8);
+    for (const id of ids) world.player.storage.push(makePart(world, id, 0));
+    g.apply(world);
+  });
+  await openTown(page, 'trucks');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const chip = document.querySelector('.inv-storage .inv-chip');
+    chip?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 1, clientY: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 1, clientY: 1 }));
+  });
+  await page.waitForTimeout(300);
+}
+
+async function closeGarageStorage(page) {
+  await closeTown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld));
+}
+
+async function hostedColumnFaults(page) {
+  const found = await page.evaluate(() => {
+    if (innerWidth < 1000) return [];
+    const name = (n) => `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]}`;
+    const faults = [];
+    for (const box of document.querySelectorAll('.truck-body .inv-side > *')) {
+      if (box.scrollHeight > box.clientHeight + 1) faults.push(`${name(box)} is shorter than its content`);
+      const bottom = box.getBoundingClientRect().bottom;
+      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
+    }
+    return faults;
+  });
+  const nested = await nestedScrollFaults(page);
+  return [...found.map((text) => ({ kind: 'hosted-column', path: '', text, sizes: '' })), ...nested];
+}
+
 const BENCH_AUDIT = () => {
   const frame = document.querySelector('.inventory-screen');
   const m = frame.getBoundingClientRect();
@@ -814,6 +978,49 @@ async function openBoardTaken(page) {
   await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
 }
 
+async function openOutpost(page, tab, truck) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { chaosHighwayWorld, parkInYard } = await import('/src/sim/testkit.ts');
+    const { endTurn } = await import('/src/sim/world.ts');
+    const { outpostBuyPart, outpostBuyGood } = await import('/src/sim/outposts.ts');
+    const { haulerOf } = await import('/src/sim/damage.ts');
+    const { stowPart, canStowPart } = await import('/src/sim/inventory.ts');
+    const w = chaosHighwayWorld();
+    parkInYard(w, 1);
+    let n = endTurn(w, () => {});
+    n.player.money = 5000;
+    const stock = n.chaosHighway.outposts[1].stock;
+    n = outpostBuyGood(outpostBuyPart(outpostBuyPart(n, stock[0].id), stock[1].id), 3);
+    const hauler = haulerOf(n);
+    const spare = n.chaosHighway.outposts[1].stock.find((p) => canStowPart(hauler, p));
+    if (spare) stowPart(n, hauler, spare);
+    const { OutpostScreen } = await import('/src/ui/outpost.ts');
+    const state = { world: n, screen: null };
+    const host = { world: () => state.world, apply: (next) => { state.world = next; state.screen.render(); }, announce: (next) => host.apply(next), selectedWeapon: () => null, selectWeapon: () => {}, selectedUtility: () => null, selectUtility: () => {}, menuOpen: () => false, getTurnPhase: () => null, autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null, stepTravelSpeed: () => {}, pressTurn: () => {}, releaseTurn: () => {}, runKey: () => {}, searchStock: () => {} };
+    state.screen = new OutpostScreen(host);
+    state.screen.open();
+    window.__layoutOutpost = state;
+  });
+  await page.click(`.outpost-screen [data-truck="${truck}"]`);
+  await page.click(`.outpost-screen [data-tab="${tab}"]`);
+}
+
+const closeOutpost = async (page) => {
+  await page.evaluate(() => {
+    const { world, screen } = window.__layoutOutpost;
+    window.__layoutOutpost.world = window.__ROAM__.state;
+    screen.render();
+    document.querySelectorAll('.outpost-screen:not([style*="display: none"])').forEach((n) => n.remove());
+  });
+};
+
+const OUTPOST_STATES = Object.fromEntries(
+  ['market', 'buyParts', 'sellParts', 'trucks', 'paint'].flatMap((tab) =>
+    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: nestedScrollFaults }]),
+  ),
+);
+
 const closeThenRestoreWorld = (close) => async (page) => {
   await close(page);
   await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
@@ -875,7 +1082,10 @@ const STATES = {
   'journal-over-scene': { setup: openJournalOverScene, teardown: closeJournalOverScene, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
+  'garage-full': { setup: openFullYard(null), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
+  'garage-full-sorokonoga': { setup: openFullYard('sorokonoga'), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
+  'garage-storage': { setup: openGarageStorage, teardown: closeGarageStorage, check: hostedColumnFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'board-kinds': { setup: openBoardKinds({ offerKinds: ['haul', 'procure', 'escort'], heldCount: 2 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
@@ -898,6 +1108,7 @@ const STATES = {
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
@@ -906,6 +1117,7 @@ const STATES = {
   'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
   'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
+  ...OUTPOST_STATES,
 };
 
 const GALLERY_ONLY = {
