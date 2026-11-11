@@ -21,7 +21,7 @@ const activities: Record<Activity, string> = {
   lock: 'Waiting for repository lock', review: 'Reviewing', design: 'Designing', investigate: 'Investigating', waiting: 'Waiting', finished: 'Finished',
 };
 const reasons: Record<WaitReason, string> = {
-  'queue-full': 'Queue occupied', 'issue-running': 'Already running', 'card-budget': 'Card job limit',
+  'queue-full': 'Queue occupied', 'issue-running': 'Already running', 'card-budget': 'Card job limit', memory: 'Waiting for memory',
   'needs-info': 'Needs author reply', voting: 'Waits for player votes', failed: 'Failed job needs attention', approval: 'Needs committee approval', held: 'Held until resumed', 'hotfix-verify': 'Another hotfix is in Verify',
 };
 const dwell: Record<DeliveryStage, string> = {

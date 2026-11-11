@@ -78,6 +78,26 @@ describe('runAgentCheck', () => {
     expect(lines(['guard']).text).toContain('bumps SAVE_MAJOR');
   });
 
+  it('lets a merge commit bring protected paths and a SAVE_MAJOR bump from the base side, and still refuses the agent ones', () => {
+    const card = git('rev-parse', '--abbrev-ref', 'HEAD');
+    git('checkout', '-q', '-b', 'base');
+    mkdirSync(join(home, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(home, '.github', 'workflows', 'perf-ci.yml'), 'on: push\n');
+    mkdirSync(join(home, 'game', 'src', 'three'), { recursive: true });
+    writeFileSync(join(home, 'game', 'src', 'three', 'save-migrations.ts'), 'export const SAVE_MAJOR = 9;\n');
+    git('add', '.github', 'game');
+    git('commit', '-q', '-m', 'base work');
+    git('checkout', '-q', card);
+    writeFileSync(join(home, 'a.ts'), 'export const a = 1;\n');
+    git('add', 'a.ts');
+    git('commit', '-q', '-m', 'card work');
+    git('merge', '-q', '--no-commit', '--no-ff', 'base');
+    expect(lines(['guard'])).toEqual({ code: 0, text: '' });
+    writeFileSync(join(home, '.github', 'workflows', 'own.yml'), 'on: push\n');
+    git('add', '.github');
+    expect(lines(['guard']).text).toContain('may not push: .github/workflows/own.yml');
+  });
+
   it('refuses a missing or unknown round', () => {
     expect(lines([]).code).toBe(2);
     expect(lines(['full']).code).toBe(2);
