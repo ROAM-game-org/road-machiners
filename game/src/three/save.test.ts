@@ -25,7 +25,7 @@ import { goodsCount } from '../sim/grid';
 import { dropHaul, looseCargo, lootableProps } from '../sim/salvage';
 import { wreckVehicle } from '../sim/combat';
 import { itemMass, vehicleMass } from '../sim/mass';
-import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT } from './save';
+import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT, saveStore } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { shelteredAt, sitePads } from '../sim/sites';
@@ -127,6 +127,20 @@ describe('game save', () => {
     clearGame(slots, storage);
     expect(slots.has('auto')).toBe(false);
     expect([storage.getItem('roam.tips'), storage.getItem('roam.tipsOff'), storage.getItem('roam-sound')]).toEqual([null, null, '{}']);
+  });
+
+  it('guards a new game only while an autosave or day start save exists', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const hasAutosave = () => saveStore(slots, null as never, makeStorage(), () => world, RUN, 3).newGame.hasAutosave();
+    expect(hasAutosave()).toBe(false);
+    writeSave(slots, 'slot1', world, RUN, 1000);
+    expect(hasAutosave()).toBe(false);
+    writeSave(slots, 'day', world, RUN, 1000);
+    expect(hasAutosave()).toBe(true);
+    clearGame(slots, makeStorage());
+    writeSave(slots, 'auto', world, RUN, 1000);
+    expect(hasAutosave()).toBe(true);
   });
 
   it('saves a command on a town pad at once, and not out in the open', () => {
