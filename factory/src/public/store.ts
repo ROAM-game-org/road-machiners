@@ -21,8 +21,6 @@ export type NewComment = { issue: number | null; source: 'telegram' | 'game'; so
 export type KnownWork = { issue: number; text: string };
 export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null; wantsFiling?: boolean };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
-const FILING_VERDICT = 'filing';
-export type RejectedReport ={ id: number; build: string; version: string; kind: string; text: string; at: string };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
@@ -388,22 +386,6 @@ export class PublicStore {
     const filed = this.db.prepare("select text, created_issue from reports where build = 'rc' and verdict = 'accept' and issue = ? and created_issue is not null order by id").all(release);
     const same = filed.find((row) => textKey(String(row.text)) === key);
     return same === undefined ? null : Number(same.created_issue);
-  }
-
-  claimRejected(id: number): RejectedReport | null {
-    const claimed = this.db.prepare(`update reports set verdict = '${FILING_VERDICT}' where id = ? and verdict = 'reject' and created_issue is null`).run(id).changes;
-    if (claimed !== 1) return null;
-    const row = this.db.prepare('select id, build, version, kind, text, at from reports where id = ?').get(id)!;
-    return { id: Number(row.id), build: String(row.build), version: String(row.version), kind: String(row.kind), text: String(row.text), at: String(row.at) };
-  }
-
-  releaseClaim(id: number): void {
-    this.db.prepare(`update reports set verdict = 'reject' where id = ? and verdict = '${FILING_VERDICT}'`).run(id);
-  }
-
-  finishClaim(id: number, createdIssue: number): void {
-    const changed = this.db.prepare(`update reports set verdict = 'accept', created_issue = ? where id = ? and verdict = '${FILING_VERDICT}'`).run(createdIssue, id).changes;
-    if (changed !== 1) throw new Error(`Report ${id} lost its filing claim, so issue #${createdIssue} is filed but not tied to it. Tie it by hand.`);
   }
 
   private apply(event: PublicEvent): void {
