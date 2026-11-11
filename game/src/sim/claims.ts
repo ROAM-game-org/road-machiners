@@ -130,7 +130,7 @@ export function isFreeRival(world: World, v: Vehicle, part: PartInstance): boole
   return hasRivalTrait(world, v) && isIdle(world, v) && canStowPart(v, part);
 }
 
-function claimPart(world: World, c: ClaimContract): PartInstance {
+export function claimPart(world: World, c: ClaimContract): PartInstance {
   const stock = world.salvage.find((s) => s.id === c.stockId);
   const part = stock && [...stock.parts, ...stock.hidden.parts].find((p) => p.id === c.partId);
   if (!part) throw new Error(`Claim ${c.id} part ${c.partId} is not in its wreck`);

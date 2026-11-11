@@ -13,7 +13,7 @@ import { TEST_MAP } from '../test/map';
 import { entryText } from '../text/resolve';
 import { fullName } from '../text/names';
 import { GOODS } from '../data/goods';
-import { advanceContracts, goodStock, standingPrice } from './market';
+import { advanceContracts, advanceShops, goodStock, standingPrice, type Contract } from './market';
 import { haulerOf, playerVehicle } from './damage';
 import { currentLine, currentOptions, talkOf } from './dialogue';
 import { makePart } from './factory';
@@ -663,5 +663,63 @@ describe('repairContent', () => {
     repairContent(w);
     expect(first.templates).toEqual([kept]);
     expect(second.spawned).toBe(true);
+  });
+
+  describe('contract pay', () => {
+    function boardOf(w: World): Contract[] {
+      return Object.values(w.shops).flatMap((shop) => shop.contracts);
+    }
+
+    function inflate(c: Contract): void {
+      c.reward *= 10;
+      if (c.kind === 'procure') c.cratePay *= 10;
+    }
+
+    function stocked(): World {
+      const w = fresh();
+      advanceShops(w);
+      return w;
+    }
+
+    it('keeps the pay of every offer the current rules rolled, and awards nothing', () => {
+      const w = stocked();
+      const kinds = new Set(boardOf(w).map((c) => c.kind));
+      expect(kinds.has('haul')).toBe(true);
+      const before = cloneWorld(w);
+      repairContent(w);
+      expect(w).toEqual(before);
+    });
+
+    it('brings offers saved at ten times the pay back to the rule and leaves windows alone', () => {
+      const w = stocked();
+      const rolled = cloneWorld(w);
+      for (const c of boardOf(w)) inflate(c);
+      repairContent(w);
+      expect(w).toEqual(rolled);
+    });
+
+    it('reprices a held haul so the hand-in pays the repriced number', () => {
+      const w = stocked();
+      const haul = boardOf(w).find((c) => c.kind === 'haul')!;
+      const rule = haul.reward;
+      const held = { ...haul, reward: rule * 10 };
+      w.player.contracts.push(held);
+      repairContent(w);
+      expect(w.player.contracts.find((c) => c.id === held.id)!.reward).toBe(rule);
+    });
+
+    it('keeps the pay of a claim whose part has left its wreck', () => {
+      const w = stocked();
+      const claim = boardOf(w).find((c) => c.kind === 'claim');
+      if (!claim) return;
+      const stock = w.salvage.find((s) => s.id === claim.stockId)!;
+      const part = [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId)!;
+      stock.parts = stock.parts.filter((p) => p !== part);
+      stock.hidden.parts = stock.hidden.parts.filter((p) => p !== part);
+      playerVehicle(w).items.push({ id: 'i-claimed', kind: 'part', x: 40, y: 40, rot: 0, part });
+      claim.reward = 777;
+      repairContent(w);
+      expect(boardOf(w).find((c) => c.id === claim.id)!.reward).toBe(777);
+    });
   });
 });

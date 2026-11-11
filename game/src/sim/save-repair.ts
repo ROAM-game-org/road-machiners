@@ -14,6 +14,7 @@ import { MAP_GRID, REGION } from '../data/region';
 import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
+import { contractPay } from './contract-pay';
 import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
@@ -48,12 +49,23 @@ export function repairContent(world: World): void {
   repairShops(world);
   renameDrivers(world);
   repairPlayer(world);
+  repricePay(world);
   repairCall(world);
   for (const v of everyTruck(world)) fitPriceMemories(v);
   fitRoadNews(world);
   fitSites(world);
   fitWaves(world);
   releaseGoneHolders(world);
+}
+
+function repricePay(world: World): void {
+  const held = Object.values(world.shops).flatMap((s) => s.contracts).concat(world.player.contracts);
+  for (const c of held) {
+    const pay = contractPay(world, c);
+    if (!pay) continue;
+    c.reward = pay.reward;
+    if (c.kind === 'procure' && pay.cratePay !== undefined) c.cratePay = pay.cratePay;
+  }
 }
 
 function requireUniqueTrucks(world: World): void {
