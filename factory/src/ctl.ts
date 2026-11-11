@@ -13,7 +13,7 @@ import { agentHome, workDir } from './stages/common';
 import { planRecordExists } from './plan-record';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
-import { GAME_DIR, STUCK_LABEL,type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
+import { GAME_DIR, STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
 
 const SNAPSHOT_AGENT = 'curl/8.0';
 const LOG_TAIL_LINES = 50;
@@ -168,7 +168,7 @@ async function findCard(ctx: Ctx, value: string | undefined): Promise<Card> {
 async function card(ctx: Ctx, args: string[]): Promise<void> {
   const found = await findCard(ctx, args[0]);
   const state = readState(ctx.statePath);
-  for (const line of [...cardFacts(ctx, found, state),...cardDrift(found, state).map((row) => `drift: ${row}`), ...jobNote(found, state)]) console.log(line);
+  for (const line of [...cardFacts(ctx, found, state), ...cardDrift(found, state).map((row) => `drift: ${row}`), ...jobNote(found, state)]) console.log(line);
 }
 
 function jobNote(found: Card, state: FactoryState): string[] {
@@ -178,7 +178,7 @@ function jobNote(found: Card, state: FactoryState): string[] {
 
 const shown = (value: string | undefined): string => (value === undefined || value === '' ? 'none' : value);
 
-function cardFacts(ctx: Ctx, found: Card,state: FactoryState): string[] {
+function cardFacts(ctx: Ctx, found: Card, state: FactoryState): string[] {
   const key = String(found.issue);
   const posts = Object.entries(state.approvalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id);
   const running = state.jobs.filter((job) => job.issue === found.issue).map((job) => `${job.stage} since ${job.startedAt}`);
