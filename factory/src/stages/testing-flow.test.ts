@@ -661,7 +661,13 @@ describe('the green suite before Approval', () => {
 });
 
 describe('a post with no checks', () => {
-  it('builds once and runs the suite, posts with the no-testing notice and default text, and clears the mark', async () => {
+  const savePlan = (record: string) => {
+    mkdirSync(`${home}/work/issue-7/game/.factory-tasks`, { recursive: true });
+    writeFileSync(`${home}/work/issue-7/game/.factory-tasks/issue-7.plan.json`, record);
+  };
+
+  it('builds once and runs the suite, posts the planned change and play steps with the no-testing notice, and clears the mark', async () => {
+    savePlan(JSON.stringify({ change: 'Petra stops writing the raider note.', howToTry: 'Open the Roadhouse and answer Petra about the raider.' }));
     writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
     await runPost(fakeCtx(() => undefined), 7);
     expect(suites).toEqual(['abc123']);
@@ -669,9 +675,41 @@ describe('a post with no checks', () => {
     expect(shellScripts[0]).not.toContain('playtest');
     const text = calls.find((call) => call.startsWith('buttons')) ?? '';
     expect(text).toContain('No testing agent played this build. Only the full suite and the build ran.');
-    expect(text).toContain('The pull request shows what changed.');
+    expect(text).toContain('This is the planned change from the design. No testing agent checked it against the build.\n\nPetra stops writing the raider note.');
+    expect(text).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
+    expect(commentBodies.at(-1)).toContain('Petra stops writing the raider note.');
+    expect(commentBodies.at(-1)).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
+    expect(commentBodies.at(-1)).toContain('No testing agent played this build.');
+    const pr = calls.find((call) => call.startsWith('openPullRequest')) ?? '';
+    expect(pr).toContain('Petra stops writing the raider note.');
+    expect(pr).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
     expect(readState(`${home}/state.json`).postOnly).toEqual([]);
     expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('says design wrote no play steps when the record holds only the change', async () => {
+    savePlan(JSON.stringify({ change: 'Horns get louder.', howToTry: null }));
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await runPost(fakeCtx(() => undefined), 7);
+    expect(commentBodies.at(-1)).toContain('Horns get louder.\n\nHow to try: The design wrote no play steps.');
+  });
+
+  it('lists the changed files and says the design left no summary when no record exists', async () => {
+    changed = ['game/src/a.ts', 'game/src/b.ts'];
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await runPost(fakeCtx(() => undefined), 7);
+    const text = calls.find((call) => call.startsWith('buttons')) ?? '';
+    expect(text).toContain('No testing agent played this build. Only the full suite and the build ran.');
+    expect(text).toContain('No testing agent wrote notes for this build, and the design left no summary. The branch changes: game/src/a.ts, game/src/b.ts');
+    expect(commentBodies.at(-1)).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
+    expect(calls.find((call) => call.startsWith('openPullRequest'))).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
+  });
+
+  it('fails on a malformed plan record', async () => {
+    savePlan(JSON.stringify({ change: 5, howToTry: null }));
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await expect(runPost(fakeCtx(() => undefined), 7)).rejects.toThrow('issue-7.plan.json needs fields');
+    expect(readState(`${home}/state.json`).postOnly).toEqual([7]);
   });
 
   it('refuses a card that waits for no post', async () => {
