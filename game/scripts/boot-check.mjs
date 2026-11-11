@@ -216,7 +216,7 @@ async function startMenu(browser, viewport) {
   await reportReachable(page, viewport, 'start-menu');
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
-  await page.locator('.confirm-dialog').getByRole('button', { name: 'Start new game' }).click();
+  expect((await page.locator('.confirm-dialog').count()) === 0, `${viewport.name}: Start with no autosave asks nothing`);
   await cleared(page);
   expect(stages(await bootLog(page)).includes('Starting a new game'), `${viewport.name}: New game from the start menu reads "Starting a new game"`);
   expect(errors.length === 0, `${viewport.name}: start menu has no page errors ${errors.join('; ')}`);
