@@ -23,12 +23,15 @@ const lightUpNight = (page) => page.evaluate(async (hour) => {
   const { nearestSitePad } = await import('/src/sim/sites.ts');
   const { atlasOf } = await import('/src/sim/atlas.ts');
   const g = window.__ROAM__;
+  const OFF_PAD = 6;
   const kinds = Object.keys(NPCS);
   let w = cheats.skipToHour(g.state, hour);
   let atSite = false;
   try {
     const me = w.vehicles.find((v) => v.id === w.player.vehicleId);
-    w = cheats.teleport(w, nearestSitePad(atlasOf(w.terrain), me.pos).pad);
+    const { site, pad } = nearestSitePad(atlasOf(w.terrain), me.pos);
+    const away = Math.hypot(pad.x - site.pos.x, pad.y - site.pos.y) || 1;
+    w = cheats.teleport(w, { x: pad.x + ((pad.x - site.pos.x) / away) * OFF_PAD, y: pad.y + ((pad.y - site.pos.y) / away) * OFF_PAD });
     atSite = true;
   } catch {}
   for (let i = 0; i <= BEAM_CAP; i++) w = cheats.spawnNear(w, kinds[i % kinds.length], false);
@@ -101,7 +104,7 @@ const NIGHT_TURN_FACTOR = 3;
 
 const PANEL_CHECK_MS = 1000;
 
-export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) => {
+export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs, retry = async () => {}) => {
   const deadline = limitMs === 0 ? Infinity : Date.now() + limitMs;
   for (;;) {
     const left = deadline - Date.now();
@@ -111,22 +114,20 @@ export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) 
     });
     if (done) return;
     await page.keyboard.press('Escape');
+    await retry();
   }
 };
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
+  const endTurn = () => page.evaluate(() => window.__ROAM__.endTurn());
   for (let i = 0; i < turns; i++) {
-    const limit = turnLimitMs * NIGHT_TURN_FACTOR;
     if (await page.evaluate(() => window.__ROAM__.state.call !== null)) await page.keyboard.press('Escape');
-    const next = await page.evaluate(() => {
-      const g = window.__ROAM__;
-      g.endTurn();
-      return g.state.turn + 1;
-    });
+    const next = await page.evaluate(() => window.__ROAM__.state.turn + 1);
+    await endTurn();
     await waitForTurnDismissingPanels(page, (turn) => {
       const g = window.__ROAM__;
       return g.state.turn >= turn && !g.travel.isPlaying(g.anim);
-    }, next, limit);
+    }, next, turnLimitMs * NIGHT_TURN_FACTOR, endTurn);
   }
 };
 
