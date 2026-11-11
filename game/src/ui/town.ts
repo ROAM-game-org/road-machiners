@@ -477,7 +477,7 @@ export class TownScreen {
           { class: goodsClass(w, "stocked") },
           goodsHead(w, false, true),
           ...def.goods.map((g) => this.goodRow(w, shopId, def, state, g)),
-          ...untradedHeld(shopId, goodsCount(playerVehicle(w))).map((g) => this.untradedRow(w, g)),
+          ...untradedHeld(shopId, goodsCount(playerVehicle(w))).map(([g, held]) => this.untradedRow(w, g, held)),
         ),
         newsWell(w),
       ),
@@ -532,8 +532,7 @@ export class TownScreen {
     );
   }
 
-  private untradedRow(w: World, g: string): HTMLElement {
-    const held = goodsCount(playerVehicle(w))[g] ?? 0;
+  private untradedRow(w: World, g: string, held: number): HTMLElement {
     const reason = refusalText(w, { id: "notTraded" });
     return el(
       "div",

@@ -476,6 +476,6 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
   );
 }
 
-export function untradedHeld(shopId: string, held: Record<string, number>): string[] {
-  return GOOD_IDS.filter((g) => (held[g] ?? 0) > 0 && !shopTrades(shopId, g));
+export function untradedHeld(shopId: string, held: Record<string, number>): [string, number][] {
+  return GOOD_IDS.map((g): [string, number] => [g, held[g] ?? 0]).filter(([g, n]) => n > 0 && !shopTrades(shopId, g));
 }
