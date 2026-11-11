@@ -169,7 +169,10 @@ describe('ink smoke size and fading looks', () => {
   function cardAt(look: ParticleLook, ink: number): Card {
     const p = new Particles(1, NEAR);
     const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = ink;
     p.spawn(AT, STILL, look, 1);
+    TUNING.fxInk.value = was;
     random.mockRestore();
     p.tick(0.5);
     const batch = new RecordingBatch();
@@ -191,10 +194,19 @@ describe('ink smoke size and fading looks', () => {
   it('draws an ink off look only with ink off and an ink on look only with ink on', () => {
     const off: ParticleLook = { ...LOOK, onlyIn: 'inkOff' };
     const on: ParticleLook = { ...LOOK, onlyIn: 'inkOn' };
-    expect(cardAt(off, 1).alpha).toBe(0);
     expect(cardAt(off, 0).alpha).toBeCloseTo(cardAt(LOOK, 0).alpha);
-    expect(cardAt(on, 0).alpha).toBe(0);
     expect(cardAt(on, 1).alpha).toBeCloseTo(cardAt(LOOK, 1).alpha);
+  });
+
+  it('does not spend a slot on a look its ink setting hides', () => {
+    const p = new Particles(1, NEAR);
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = 1;
+    p.spawn(AT, STILL, { ...LOOK, onlyIn: 'inkOff' }, 1);
+    TUNING.fxInk.value = 0;
+    p.spawn(AT, STILL, { ...LOOK, onlyIn: 'inkOn' }, 1);
+    TUNING.fxInk.value = was;
+    expect(drawn(p)).toHaveLength(0);
   });
 
   it('sends burning looks to the fire batch and the rest to the main batch', () => {

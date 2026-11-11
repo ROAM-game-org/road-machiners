@@ -80,6 +80,7 @@ export class Particles {
   }
 
   spawn(p: V3, vel: V3, look: ParticleLook, scale: number): void {
+    if (inkShareOf(look, TUNING.fxInk.value) <= 0) return;
     if (!this.nearby(p)) {
       count(FAR_COUNTER);
       return;
