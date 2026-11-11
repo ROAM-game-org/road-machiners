@@ -37,7 +37,37 @@ describe('acceptRejectedReport', () => {
     expect(created[0]).toContain('- Version: 2.140.1+abc');
     expect(created[0]).toContain('kept no world, autosave or log');
     expect(created[0]).toContain('btseytlin filed it later: the sincere filter dropped real reports (#1331)');
-    expect(store.rejectedReport(id)).toBeNull();
+    expect(created[0]).not.toContain('release candidate');
+    expect(store.claimRejected(id)).toBeNull();
+  });
+
+  it('says a dropped candidate report came from a release candidate', async () => {
+    const { store, created, github } = world();
+    const id = store.addReport({ ...DROPPED, build: 'rc', text: 'easy to forget to turn overdrive off' });
+    await acceptRejectedReport({ store, github }, { id, ...ORDER });
+    expect(created[0]).toContain('It came from a release candidate.');
+    expect(created[0]).toContain('- Build: rc');
+  });
+
+  it('gives the report back when GitHub refuses the issue, so a retry files it once', async () => {
+    const { store, created, github } = world();
+    const id = store.addReport(DROPPED);
+    const refusing = { createIssue: async () => { throw new Error('GitHub refused the issue.'); } };
+    await expect(acceptRejectedReport({ store, github: refusing }, { id, ...ORDER })).rejects.toThrow('GitHub refused the issue.');
+    expect(await acceptRejectedReport({ store, github }, { id, ...ORDER })).toBe(901);
+    expect(created).toHaveLength(1);
+  });
+
+  it('refuses a report another filing holds while its issue is being created', async () => {
+    const { store, created, github } = world();
+    const id = store.addReport(DROPPED);
+    let release: (issue: number) => void = () => undefined;
+    const slow = { createIssue: () => new Promise<number>((done) => { release = done; }) };
+    const first = acceptRejectedReport({ store, github: slow }, { id, ...ORDER });
+    await expect(acceptRejectedReport({ store, github }, { id, ...ORDER })).rejects.toThrow('another filing holds it');
+    release(950);
+    expect(await first).toBe(950);
+    expect(created).toEqual([]);
   });
 
   it('labels a dropped idea feature-request', async () => {
