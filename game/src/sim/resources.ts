@@ -12,9 +12,13 @@ export function getResources(world: World, vehicle: Vehicle): DriverResources {
 }
 
 export function burnFuel(world: World, vehicle: Vehicle, tiles: number): void {
+  burnFuelAt(world, vehicle, tiles, vehicleStats(world, vehicle).fuelPerTile);
+}
+
+export function burnFuelAt(world: World, vehicle: Vehicle, tiles: number, fuelPerTile: number): void {
   const resources = getResources(world, vehicle);
   const heat = heatAt(world, vehicle.pos);
-  resources.fuel = Math.max(0, resources.fuel - tiles * vehicleStats(world, vehicle).fuelPerTile * heat);
+  resources.fuel = Math.max(0, resources.fuel - tiles * fuelPerTile * heat);
 }
 
 function heatDrain(world: World, vehicle: Vehicle): number {
