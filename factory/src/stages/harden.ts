@@ -34,7 +34,7 @@ function suiteCheckpoint(ctx: Ctx, issue: number, base: string): () => Promise<s
   const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('harden', issue, message), (head) => hardeningSuite(ctx, issue, base, head));
   return async () => {
     await guardAndPush(ctx, issue, base, 'harden');
-    return checkHead(await ctx.repo.headHash(BRANCH(issue)));
+    return checkHead(await ctx.repo.headHash(BRANCH(issue)), async () => null);
   };
 }
 

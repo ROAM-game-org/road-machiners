@@ -171,7 +171,7 @@ async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts:
   const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log(land.stage, null, message), () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
   const check = async (): Promise<string | null> => {
     await refreshKeptBase(ctx, land);
-    return (await dirtyClone(ctx, land)) ?? checkHead(await ctx.repo.workHead(land.dir));
+    return checkHead(await ctx.repo.workHead(land.dir), () => dirtyClone(ctx, land));
   };
   try {
     return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));

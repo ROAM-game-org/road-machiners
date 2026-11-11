@@ -27,14 +27,31 @@ describe('untilPasses', () => {
 });
 
 describe('onceEachHead', () => {
-  const loop = (heads: string[], results: (string | null)[], rounds = 3) => {
+  const loop = (heads: string[], results: (string | null)[], firsts: (string | null)[] = []) => {
     const checked: string[] = [];
     const logs: string[] = [];
     const fixes: string[] = [];
-    const checkHead = onceEachHead(rounds, (message) => logs.push(message), async (head) => { checked.push(head); return results.shift() ?? null; });
-    const done = untilPasses(100, 0, () => checkHead(heads.shift() ?? 'h9'), async (failure) => { fixes.push(failure); return run(1); });
+    const checkHead = onceEachHead(3, (message) => logs.push(message), async (head) => { checked.push(head); return results.shift() ?? null; });
+    const done = untilPasses(100, 0, () => checkHead(heads.shift() ?? 'h9', async () => firsts.shift() ?? null), async (failure) => { fixes.push(failure); return run(1); });
     return { done, checked, logs, fixes };
   };
+
+  it('counts a round whose first checks fail again on the same head, like a fix left uncommitted, and fails after three', async () => {
+    const dirty = 'The clone has changes that are not committed';
+    const { done, checked, fixes } = loop(['h1', 'h1', 'h1', 'h1'], [], [dirty, dirty, dirty, dirty]);
+    const error = await done.catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ head: 'h1', rounds: 3, failure: dirty });
+    expect(checked).toEqual([]);
+    expect(fixes).toHaveLength(3);
+  });
+
+  it('starts the count again when a round fixes its first checks, like writing a missing approval, so the head checks get their own rounds', async () => {
+    const { done, checked, fixes } = loop(['h1', 'h1', 'h1', 'h1', 'h1', 'h1'], ['FAIL a.test.ts > breaks'], ['no approval', 'no approval']);
+    const error = await done.catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ head: 'h1', rounds: 3, failure: 'FAIL a.test.ts > breaks' });
+    expect(checked).toEqual(['h1']);
+    expect(fixes).toHaveLength(5);
+  });
 
   it('runs the checks once per head and hands the same failure back after a round with no commit', async () => {
     const { done, checked, logs, fixes } = loop(['h1', 'h1', 'h2'], ['FAIL a.test.ts > breaks', null]);

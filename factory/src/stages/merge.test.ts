@@ -252,6 +252,18 @@ describe('merge queue', () => {
     expect(calls.filter((call) => /^(suite|checks|agent)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent']);
   });
 
+  it('fails after three fix rounds in a row that leave the same fix uncommitted, and runs the checks only once', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    dirty = ['', ...Array(8).fill(' M game/src/sim/fuel.ts\n')];
+    const ctx = fakeCtx(100);
+    ctx.repo.workHead = async () => 'merged1';
+    const error = await merge(ctx).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('changes that are not committed');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent', 'agent']);
+  });
+
   it('fails after three fix rounds in a row with no commit, with the first failure, the decision cause, stuck labels and nothing pushed', async () => {
     changed = ['game/src/sim/fuel.ts'];
     failingSuites = 9;
@@ -272,7 +284,7 @@ describe('merge queue', () => {
     dirty = ['', ' M game/src/sim/fuel.ts\n', '', ''];
     failingSuites = 1;
     const ctx = fakeCtx();
-    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged1', 'merged2'];
     ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
     await merge(ctx);
     expect(runs[1]!.prompt).toContain('changes that are not committed');

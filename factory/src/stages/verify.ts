@@ -30,10 +30,8 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('verify', issue, message), (head) => postCheckpoint(ctx, issue, base, head, hotfix ? 'hotfix' : 'build'));
   await untilPasses(ctx.cfg.testingBudgetUsd, spent, async () => {
     await guardAndPush(ctx, issue, base, 'verify');
-    const unfinished = await unfinishedBaseMerge(ctx, issue, base, merged);
-    if (unfinished !== null) return unfinished;
     build = await ctx.repo.headHash(BRANCH(issue));
-    return approvalFailure(home) ?? checkHead(build);
+    return checkHead(build, async () => (await unfinishedBaseMerge(ctx, issue, base, merged)) ?? approvalFailure(home));
   }, (failure) => fixRound(ctx, issue, home, failure, approval !== null));
   await finish(ctx, issue, home, base, build);
 }

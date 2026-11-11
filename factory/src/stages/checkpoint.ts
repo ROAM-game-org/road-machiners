@@ -29,20 +29,45 @@ export async function untilPasses(budgetUsd: number, spent: number, check: () =>
 }
 
 export type HeadChecks = (head: string) => Promise<string | null>;
+export type FirstChecks = () => Promise<string | null>;
+export type CheckRound = (head: string, first: FirstChecks) => Promise<string | null>;
 
-export function onceEachHead(rounds: number, log: (message: string) => void, checks: HeadChecks): HeadChecks {
+type Source = 'first' | 'head';
+type Failed = { head: string; source: Source; failure: string; stalled: number };
+
+export function onceEachHead(rounds: number, log: (message: string) => void, checks: HeadChecks): CheckRound {
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error(`FACTORY_NO_COMMIT_ROUNDS must be a whole number of at least 1, not ${rounds}`);
-  let failed: { head: string; failure: string; stalled: number } | null = null;
-  return async (head) => {
-    if (failed?.head !== head) {
-      const failure = await checks(head);
-      failed = failure === null ? null : { head, failure, stalled: 0 };
-      return failure;
+  const headChecks = cachedPerHead(rounds, log, checks);
+  let last: Failed | null = null;
+  return async (head, first) => {
+    const early = await first();
+    const source: Source = early === null ? 'head' : 'first';
+    const failed = early ?? await headChecks(head);
+    if (failed === null) {
+      last = null;
+      return null;
     }
-    failed.stalled += 1;
-    if (failed.stalled >= rounds) throw new StalledFixError(head, failed.stalled, failed.failure);
-    log(`the fix round made no commit, so ${head} keeps its failure and the checks do not run again`);
-    return `${failed.failure}\n\n${noCommitNote(head, rounds)}`;
+    last = nextFailed(last, { head, source, failure: failed, stalled: 0 });
+    if (last.stalled >= rounds) throw new StalledFixError(head, last.stalled, last.failure);
+    return failed;
+  };
+}
+
+function nextFailed(last: Failed | null, now: Failed): Failed {
+  if (last === null || last.head !== now.head || last.source !== now.source) return now;
+  return { ...last, stalled: last.stalled + 1 };
+}
+
+function cachedPerHead(rounds: number, log: (message: string) => void, checks: HeadChecks): HeadChecks {
+  let checked: { head: string; failure: string } | null = null;
+  return async (head) => {
+    if (checked?.head === head) {
+      log(`the fix round made no commit, so ${head} keeps its failure and the checks do not run again`);
+      return `${checked.failure}\n\n${noCommitNote(head, rounds)}`;
+    }
+    const failure = await checks(head);
+    checked = failure === null ? null : { head, failure };
+    return failure;
   };
 }
 

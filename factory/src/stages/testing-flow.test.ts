@@ -229,6 +229,16 @@ describe('testing in one job', () => {
     expect(calls.some((call) => call.startsWith('buttons') || call.startsWith('photo') || call.startsWith('move'))).toBe(false);
   });
 
+  it('fails after three rounds in a row that leave the approval missing on the same head, and posts nothing', async () => {
+    fixesCommit = false;
+    const error = await runVerify(fakeCtx(() => undefined), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('wrote no .factory/approval.json');
+    expect(runs).toHaveLength(4);
+    expect(shellScripts).toEqual([]);
+    expect(calls.some((call) => call.startsWith('buttons') || call.startsWith('photo'))).toBe(false);
+  });
+
   it('reads the approval again after a round with no commit, so writing it fixes a missing approval on a checked head', async () => {
     fixesCommit = false;
     await runVerify(fakeCtx((run, index) => { if (index > 0) posts(run); }), 7);
