@@ -257,7 +257,7 @@ export const NAMES = [
   'wrec_sniper',
   'wrec_harpoon',
 
-  'wbar_mg_short',
+  'wbar_mg',
   'wbar_mg_long',
   'wbar_twin',
   'wbar_shotgun',

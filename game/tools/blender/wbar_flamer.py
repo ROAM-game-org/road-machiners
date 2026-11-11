@@ -26,7 +26,7 @@ def build(kit: Kit) -> None:
     nozzle = tube(kit, "nozzle", 0.09, NOZZLE_START, LENGTH, "metal_light", sides=8)
     taper(nozzle, top=1.0, bottom=0.45)
     tube(kit, "nozzle_mouth", 0.07, LENGTH - 0.03, LENGTH + PROUD, "dark", sides=8)
-    kit.box("pilot", (0.12, 0.1, 0.1), (0.5, 0, -0.1), "dark", dent_by=0.003)
+    kit.box("pilot", (0.12, 0.1, 0.1), (0.5, 0, -0.09), "dark", dent_by=0.003)
     kit.box("pilot_arm", (0.05, 0.05, 0.08), (0.42, 0, -0.04), "dark")
     kit.socket("tip", (LENGTH, 0, 0))
 

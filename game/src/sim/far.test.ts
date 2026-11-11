@@ -302,6 +302,19 @@ describe('far NPC travel', () => {
     expect(far.brain.farRoute!.dest).toEqual({ x: 150, y: 100 });
   });
 
+  it('keeps the stored route of a trip that ends among parked trucks', () => {
+    const w = emptyWorld();
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
+    addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 150, y: 120 });
+    far.order = { kind: 'stopAt', dest: { x: 152, y: 120 } };
+    advanceFar(w, far);
+    const marker = { x: 152, y: 120 };
+    far.brain.farRoute!.points = [marker];
+    advanceFar(w, far);
+    expect(far.brain.farRoute!.points).toEqual([marker]);
+  });
+
   it('keeps the stored route when the destination moves less than the arrival radius', () => {
     const w = emptyWorld();
     w.obstacles = [{ id: 'rock1', pos: { x: 135, y: 120 }, r: 3, kind: 'rock' }];

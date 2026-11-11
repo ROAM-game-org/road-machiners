@@ -168,7 +168,7 @@ function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: Drive
   const onRope = getHitchedTowIds(w);
   const coarse = drivesCoarse(v) && !endsAmongParked(w, v, dest, onRope);
   const stored = keptFarRoute(v);
-  if (stored && keepsRoute(stored, dest, style, coarse === drivesCoarse(v))) return { points: stored.points, partial: stored.partial === true };
+  if (stored && keepsRoute(stored, dest, style, coarse === drivesCoarse(v) || stored.partial !== true)) return { points: stored.points, partial: stored.partial === true };
   const toCoarse = (): { points: Vec[]; partial: boolean } => ({ points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false });
   return coarse ? toCoarse() : fineOrCoarse(fineRoute(w, v, dest, full.radius, s, onRope), v, dest, toCoarse);
 }

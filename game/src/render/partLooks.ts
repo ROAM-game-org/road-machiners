@@ -182,7 +182,7 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   mg: {
     mount: ['wmount_ring_small', 'wmount_pintle'],
     receiver: ['wrec_mg_a', 'wrec_mg_b'],
-    barrel: ['wbar_mg_short'],
+    barrel: ['wbar_mg'],
     extra: [],
   },
   shotgun: {
@@ -520,7 +520,7 @@ export type IconEntry = {
 };
 
 export const ICON_WEAPON_PICKS: Record<string, WeaponLook> = {
-  mg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_mg_short', extra: null },
+  mg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_mg', extra: null },
   shotgun: { mount: 'wmount_pintle', receiver: 'wrec_shotgun', barrel: 'wbar_shotgun', extra: 'wext_shield' },
   longRifle: { mount: 'wmount_pintle', receiver: 'wrec_mg_b', barrel: 'wbar_mg_long', extra: null },
   flamer: { mount: 'wmount_ring_small', receiver: 'wrec_shotgun', barrel: 'wbar_flamer', extra: 'wext_fuel_tanks' },
