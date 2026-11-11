@@ -268,12 +268,17 @@ export class TownScreen {
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
     const truckBody = el("div", { class: "truck-body" }, this.inventory.render());
-    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, page === "garage" ? this.garageBar(w, shopId) : null, truckBody) : null;
+    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, truckBody) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, this.artKey(shopId)),
       this.bodyOf(
-        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(shopId)), el("p", { class: "qt-line" }, proseOf(shopId, page))),
+        el(
+          "div",
+          { class: "ink-head" },
+          el("div", { class: "ink-head-line" }, el("h2", { class: "quest-place" }, this.heading(shopId)), page === "garage" ? this.garageBar(w, shopId) : null),
+          el("p", { class: "qt-line" }, proseOf(shopId, page)),
+        ),
         page === null ? this.suppliesPanel(w, shopId) : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
       ),
     );
@@ -557,7 +562,7 @@ export class TownScreen {
   }
 
   private garageBar(w: World, shopId: string): HTMLElement {
-    return el("div", { class: "town-truck-bar" }, repairBar(w, this, { basics: repairBasics, all: repairAll }), el("div", { class: "town-truck-supplies" }, ...shopDef(shopId).supplies.map((k) => this.shopSupplyRow(w, shopId, k))));
+    return el("div", { class: "town-services" }, repairBar(w, this, { basics: repairBasics, all: repairAll }), ...shopDef(shopId).supplies.map((k) => this.shopSupplyRow(w, shopId, k)));
   }
 
   private trucks(w: World, shopId: string): HTMLElement {

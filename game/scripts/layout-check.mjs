@@ -57,6 +57,29 @@ async function openTown(page, tab) {
   }, tab);
 }
 
+const openFullYard = (chassis) => async (page) => {
+  await openTownClear(page);
+  await page.evaluate(() => { window.__yardWorld = structuredClone(window.__ROAM__.state); });
+  await page.evaluate(async (chassis) => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const e = await import('/src/sim/economy.ts');
+    let world = structuredClone(g.state);
+    if (chassis) {
+      world.player.money = 1e6;
+      world = e.buyChassis(world, chassis);
+    }
+    for (const id of ['scrap', 'salt', 'meds', 'grain', 'tools', 'batteries']) world = c.give(world, id, 3);
+    g.apply(world);
+  }, chassis);
+  await openTown(page, 'buyParts');
+};
+
+const closeFullYard = async (page) => {
+  await closeTown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__yardWorld));
+};
+
 const closeTown = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
   g.screens.town.close();
@@ -922,6 +945,8 @@ const STATES = {
   'journal-over-scene': { setup: openJournalOverScene, teardown: closeJournalOverScene, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
+  'garage-full': { setup: openFullYard(null), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
+  'garage-full-sorokonoga': { setup: openFullYard('sorokonoga'), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
