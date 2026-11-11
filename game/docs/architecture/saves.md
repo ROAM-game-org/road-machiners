@@ -125,6 +125,8 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 
 ## Folding tiny steps
 
+The fold of formats 63 to 138 chains the old tiny steps instead of merging them. `FOLDED_AND_TINY_STEPS` in `save-migrations.ts` still lists every step from `FIRST_TINY` (63), the release steps 63 to 136 and 136 to 138 run slices of it in order, and `TINY_STEPS` is its tail from `TINY_FROM`. The step tests index that full list. A later fold should merge the steps and drop the list with their tests and fixtures. A dev save inside the folded span whose names are not the whole prefix of a release step's names is `unknownStep` and carries over through the rescue.
+
 Players hold saves only at formats a `release-*` or `hotfix-*` tag shipped. Saves of dev and candidate builds at other formats carry over through the rescue once their steps fold. `save-anchors.test.ts` reads the tags and fails when a format shipped in the last 10 releases loads through no step, when a release step starts at a format no tag shipped, when a release step is older than the last 10 releases, or when a second shipped format sits above `TINY_FROM`.
 
 After a ship with a new format F, fold on `dev`, never on the release branch:

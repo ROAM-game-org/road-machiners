@@ -14,6 +14,7 @@ import pytest
 FILES = Path(__file__).parent.parent / "files"
 LAYOUT = FILES / "factory-layout.sh"
 UPDATE = FILES / "factory-update.sh"
+WAIT_HEALTHY = FILES / "factory-wait-healthy.sh"
 
 SHIMS = {
     "npm": '''#!/bin/bash
@@ -21,9 +22,18 @@ echo "npm $PWD $*" >> "$SHIM_LOG"
 [ "$1" != ci ] || [ -z "${NPM_FAIL:-}" ] || exit 1
 [ "$1" != ci ] || mkdir -p node_modules
 ''',
+    # `docker inspect` pops the next line of the file HEALTH_SEQ and repeats the last line when the file runs out.
     "docker": '''#!/bin/bash
 echo "docker $PWD $* | FACTORY_CODE_SOURCE=${FACTORY_CODE_SOURCE:-} FACTORY_CODE_TARGET=${FACTORY_CODE_TARGET:-}" >> "$SHIM_LOG"
+if [ "$1" = inspect ]; then
+  head -n 1 "$HEALTH_SEQ"
+  if [ "$(wc -l < "$HEALTH_SEQ")" -gt 1 ]; then
+    tail -n +2 "$HEALTH_SEQ" > "$HEALTH_SEQ.next"
+    /bin/mv "$HEALTH_SEQ.next" "$HEALTH_SEQ"
+  fi
+fi
 ''',
+    "sleep": "#!/bin/bash\nexit 0\n",
     "systemctl": '''#!/bin/bash
 echo "systemctl $*" >> "$SHIM_LOG"
 ''',
@@ -62,18 +72,25 @@ class Factory:
             (shims / name).chmod(0o755)
         self.shim_log.write_text("")
         self.cwd_list.write_text("")
+        self.health_seq = tmp_path / "health.txt"
+        self.health("healthy")
         self.env = {
             **os.environ,
             "PATH": f"{shims}:{os.environ['PATH']}",
             "SHIM_LOG": str(self.shim_log),
             "FACTORY_CWD_LIST": str(self.cwd_list),
+            "HEALTH_SEQ": str(self.health_seq),
             "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
             "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
         }
         (self.root / "home").mkdir(parents=True)
+        shutil.copy(WAIT_HEALTHY, self.root / "factory-wait-healthy.sh")
         self.git("init", "-q", "--bare", "-b", "main", str(self.origin), cwd=tmp_path)
         self.git("clone", "-q", str(self.origin), str(self.work), cwd=tmp_path)
         self.push({".gitignore": ".env\nnode_modules\n", "factory/package.json": "{}", "factory/settings.env": "FACTORY_IMAGE=img\n", "factory/docker/Dockerfile": "FROM x\n"}, "first")
+
+    def health(self, *statuses: str) -> None:
+        self.health_seq.write_text("".join(f"{status}\n" for status in statuses))
 
     def git(self, *args: str, cwd: Path | None = None) -> str:
         return subprocess.run(["git", *args], cwd=cwd or self.work, env=self.env, text=True, capture_output=True, check=True).stdout.strip()
@@ -297,3 +314,61 @@ def test_images_and_hermes_rebuild_only_when_their_paths_changed(laid_out):
     assert len(compose) == 1
     assert f"FACTORY_CODE_SOURCE={factory.root} FACTORY_CODE_TARGET={factory.root}" in compose[0]
     assert compose[0].startswith(f"docker {factory.release(factory.deployed())} compose")
+
+
+def compose_dirs(factory: Factory) -> list[str]:
+    return [call.split()[1] for call in factory.shim_calls() if " compose " in call]
+
+
+def test_hermes_passing_through_unhealthy_does_not_fail_the_update(laid_out):
+    factory, first = laid_out
+    second = factory.push({"factory/hermes/compose.yaml": "x"}, "hermes")
+    factory.health("unhealthy", "unhealthy", "healthy")
+    done = factory.update()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert factory.current() == second
+    assert factory.deployed() == second
+    assert not (factory.root / "home" / "update-failed").exists()
+    assert compose_dirs(factory) == [str(factory.release(second))]
+    assert not any(" --wait" in call for call in factory.shim_calls())
+    assert len([call for call in factory.shim_calls() if " inspect " in call]) == 3
+
+
+def test_hermes_that_stays_unhealthy_gets_the_previous_release_back_and_keeps_the_deploy(laid_out):
+    factory, first = laid_out
+    second = factory.push({"factory/hermes/compose.yaml": "x"}, "hermes")
+    factory.health("unhealthy")
+    done = factory.update()
+    assert done.returncode == 1
+    assert factory.current() == first
+    assert factory.deployed() == first
+    failure = (factory.root / "home" / "update-failed").read_text()
+    assert "Hermes did not get healthy" in failure
+    assert second[:7] in failure
+    assert "did not come back healthy" in failure
+    assert compose_dirs(factory) == [str(factory.release(second)), str(factory.release(first))]
+    assert not factory.release(second).exists()
+
+
+def test_previous_hermes_that_comes_back_healthy_is_named_in_the_failure(laid_out):
+    factory, first = laid_out
+    factory.push({"factory/hermes/compose.yaml": "x"}, "hermes")
+    factory.health(*["unhealthy"] * 37, "healthy")
+    done = factory.update()
+    assert done.returncode == 1
+    assert "the previous Hermes is healthy again" in (factory.root / "home" / "update-failed").read_text()
+    assert factory.current() == first
+    assert factory.deployed() == first
+
+
+def test_wait_script_exits_zero_at_once_when_healthy_and_one_with_the_last_status_after_the_window(factory):
+    factory.health("starting", "healthy")
+    done = subprocess.run(["bash", str(WAIT_HEALTHY), "factory-hermes", "30"], env=factory.env, text=True, capture_output=True)
+    assert done.returncode == 0
+    assert len([call for call in factory.shim_calls() if " inspect " in call]) == 2
+    factory.shim_log.write_text("")
+    factory.health("starting", "unhealthy")
+    done = subprocess.run(["bash", str(WAIT_HEALTHY), "factory-hermes", "30"], env=factory.env, text=True, capture_output=True)
+    assert done.returncode == 1
+    assert "last status: unhealthy" in done.stderr
+    assert len([call for call in factory.shim_calls() if " inspect " in call]) == 7

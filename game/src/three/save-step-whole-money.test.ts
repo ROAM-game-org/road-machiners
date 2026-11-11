@@ -7,7 +7,7 @@ import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 import { readCarried } from './save-rescue';
 
 type Saved = typeof FORMAT_2_123;

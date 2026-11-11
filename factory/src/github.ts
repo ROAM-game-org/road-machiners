@@ -86,7 +86,7 @@ const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const UPSTREAM_DOWN = /HTTP 50[234]\b/;
-const CONNECTION_LOST = /stream error|connection reset|unexpected EOF|TLS handshake timeout|i\/o timeout/i;
+const CONNECTION_LOST = /stream error|connection reset|unexpected EOF|TLS handshake timeout|i\/o timeout|dial tcp|error connecting to api\.github\.com|Something went wrong while executing your query/i;
 const READ_COMMANDS = new Set(['view', 'list', 'download']);
 const FIELD_FLAGS = new Set(['-f', '-F', '--field', '--raw-field', '--input']);
 const TAG_EXISTS = /a release with the same tag name already exists/;
@@ -378,7 +378,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     },
     async dispatchSuite(sha, scope) {
       if (!FULL_SHA.test(sha)) throw new Error(`The dispatch of ${SUITE_WORKFLOW} needs a full 40 character commit sha, not ${sha}`);
-      const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, '-f', `inputs[workers]=${scope.workers}`];
+      const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, ...(scope.workers === null ? [] : ['-f', `inputs[workers]=${scope.workers}`])];
       const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, ...inputs, '-F', 'return_run_details=true']);
       const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
       if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);

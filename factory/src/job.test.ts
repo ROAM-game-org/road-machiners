@@ -6,7 +6,7 @@ import { failureNote, runJob } from './job';
 import { isLocked } from './lock';
 import { appendUsage, readLedger } from './ledger';
 import { markResumed, resumeError, resumedStage } from './sessions';
-import { BudgetError } from './stages/checkpoint';
+import { BudgetError, StalledFixError } from './stages/checkpoint';
 import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
 import { EMPTY_STATE, readState, updateState, writeState } from './state';
 import type { Card, Ctx, FactoryConfig, FactoryState, JobStage } from './types';
@@ -106,12 +106,14 @@ describe('runJob', () => {
       expect(resumedStage(ROOT, 4)).toBe('verify');
     });
 
-    it('goes to Hermes at once on an empty budget or a question for the committee', async () => {
-      for (const error of [new BudgetError('spent'), new CommitteeDecisionError('a save bump')]) {
+    it('goes to Hermes at once on an empty budget, fix rounds that stopped committing or a question for the committee', async () => {
+      for (const error of [new BudgetError('spent'), new StalledFixError('abc1234', 3, 'FAIL a.test.ts > breaks'), new CommitteeDecisionError('a save bump')]) {
         const { ctx, statePath, labels } = setup([]);
         ctx.github.issue = async () => { throw error; };
         await runJob(ctx, 'verify', 4);
-        expect(readState(statePath).interrupted).toEqual([]);
+        const state = readState(statePath);
+        expect(state.interrupted).toEqual([]);
+        expect(state.failures).toMatchObject([{ stage: 'verify', issue: 4, cause: 'decision' }]);
         expect(labels).toEqual(['factory-stuck']);
       }
     });

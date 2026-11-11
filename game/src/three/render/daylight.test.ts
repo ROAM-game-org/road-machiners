@@ -6,7 +6,7 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { BEAM_CAP, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -78,18 +78,18 @@ describe('VehicleLights', () => {
     expect(shadowed.every((b) => b.shadow.needsUpdate)).toBe(true);
   });
 
-  it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
+  it('holds at most three shadowed beams and the capped plain ones however many trucks are lit', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
     const crowd = Array.from({ length: 40 }, (_, i) => litAt(i * 3));
     lights.update(true, 1, origin, crowd);
     expect(spots(scene).filter((b) => b.castShadow)).toHaveLength(3);
-    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(9);
+    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(BEAM_CAP - 3);
     const nose = bodyOf('scout').half.x;
     const lit = spots(scene).map((b) => Math.round(b.position.x - nose)).sort((a, b) => a - b);
-    expect(lit).toEqual(Array.from({ length: 12 }, (_, i) => i * 3));
+    expect(lit).toEqual(Array.from({ length: BEAM_CAP }, (_, i) => i * 3));
     lights.update(false, 1, origin, crowd);
-    expect(spots(scene)).toHaveLength(12);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
   });
 
   it('zeroes idle beams and stops their shadow passes', () => {

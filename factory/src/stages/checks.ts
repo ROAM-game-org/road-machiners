@@ -3,6 +3,7 @@ import { cardFlow, moveCard } from '../card-events';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { CheckTimeoutError } from '../container';
 import { readApproval, type Approval } from '../clone-checks';
+import { readPlanRecord } from '../plan-record';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
@@ -69,15 +70,29 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   if (failure !== null) throw new Error(`The build failed, no other factory checks ran.\n${failure}`);
   const suiteFailure = await suite;
   if (suiteFailure !== null) throw new Error(suiteFailure);
-  await publishAndPost(ctx, issue, approvalOrDefault(home), home, base, build, true);
+  await publishAndPost(ctx, issue, await approvalOrPlan(ctx, issue, home, base), home, base, build, true);
   updateState(ctx.statePath, (state) => ({ ...state, postOnly: state.postOnly.filter((n) => n !== issue) }));
 }
 
-const DEFAULT_APPROVAL: Approval = { description: 'No testing agent wrote notes for this build. The pull request shows what changed.', howToTry: 'Play the build and try the change the issue asks for.' };
-
-function approvalOrDefault(home: string): Approval {
-  return existsSync(`${home}/${OUT_DIR}/approval.json`) ? readApproval(home) : DEFAULT_APPROVAL;
+async function approvalOrPlan(ctx: Ctx, issue: number, home: string, base: string): Promise<Approval> {
+  if (existsSync(`${home}/${OUT_DIR}/approval.json`)) return readApproval(home);
+  const plan = readPlanRecord(home, issue);
+  if (plan?.change != null) return plannedApproval(plan.change, plan.howToTry);
+  const files = await ctx.repo.changedFiles(base, BRANCH(issue));
+  return {
+    description: `No testing agent wrote notes for this build, and the design left no summary. The branch changes: ${files.join(', ')}`,
+    howToTry: plan?.howToTry ?? NO_STEPS,
+  };
 }
+
+function plannedApproval(change: string, howToTry: string | null): Approval {
+  return {
+    description: `This is the planned change from the design. No testing agent checked it against the build.\n\n${change}`,
+    howToTry: howToTry ?? NO_STEPS,
+  };
+}
+
+const NO_STEPS = 'The design wrote no play steps. The design comment on the issue holds the plan.';
 
 export async function publishAndPost(ctx: Ctx, issue: number, approval: Approval, home: string, base: string, build: string, unchecked: boolean): Promise<void> {
   await requireSettledSuite(ctx, issue, base, build);
