@@ -201,7 +201,7 @@ describe('contact practice', () => {
   function heardBuggy() {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 52, y: 30 });
     buggy.speed = 6;
     return { w, buggy };
   }
@@ -211,7 +211,7 @@ describe('contact practice', () => {
     practiceContacts(w, refreshVision(w));
     const [event] = practiceOf(w, 'contact');
     expect(event.amount).toBe(1);
-    expect(event.difficulty).toBeCloseTo(15 / soundRange(w, buggy));
+    expect(event.difficulty).toBeCloseTo(22 / soundRange(w, buggy));
     practiceContacts(w, refreshVision(w));
     expect(practiceOf(w, 'contact')).toHaveLength(1);
   });
@@ -598,5 +598,31 @@ describe('playerSees index', () => {
     world.player.visible.push(6);
 
     expect(() => playerSees(world, { x: 0.5, y: 0.5 })).toThrow('changed in place');
+  });
+
+  it('lets the player and an NPC see a truck 30 tiles away by day', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
+    const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 60, y: 30 } };
+    w.vehicles.push(npc);
+    refreshVision(w);
+    expect(playerSees(w, npc.pos)).toBe(true);
+    expect(canVehicleSee(w, npc, w.vehicles[0].pos)).toBe(true);
+  });
+
+  it('cuts night sight to 16.25 tiles', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
+    const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 45, y: 30 } };
+    w.vehicles.push(npc);
+    refreshVision(w);
+    expect(playerSees(w, npc.pos)).toBe(true);
+    npc.pos = { x: 47, y: 30 };
+    expect(playerSees(w, npc.pos)).toBe(false);
+  });
+
+  it('keeps the gray reach of a base truck at 100 tiles', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    expect(grayReach(w, w.vehicles[0])).toBe(100);
   });
 });
