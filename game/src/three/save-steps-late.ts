@@ -989,3 +989,15 @@ export function withSeenLeaveCues(world: SavedJson): SavedJson {
   const seen = { ...call, vars: withSeenLeaves(call.vars as SavedJson), line: { ...line, vars: withSeenLeaves(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: seen } };
 }
+
+const CLAIM_KIND = 'claim';
+
+function withoutRival(offer: SavedJson): SavedJson {
+  return offer.kind === CLAIM_KIND && offer.rival !== null ? { ...offer, rival: null } : offer;
+}
+
+export function withoutPostedClaimRivals(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson>;
+  const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutRival) }]));
+  return { ...world, shops: next };
+}
