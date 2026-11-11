@@ -12,9 +12,12 @@ import { startRepair } from './jobs';
 import { repairPlan } from './repair';
 import { skillEffect } from './progress';
 import { partDef } from '../data/parts';
-import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepairPart } from './outposts';
-import { partRepairCost } from './economy';
-import { canStowPart } from './inventory';
+import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepairPart, outpostRepaint, outpostSellGood, outpostSellPart, outpostGoodSellPrice, haulerTakes } from './outposts';
+import { partRepairCost, paintPrice } from './economy';
+import { PALETTE_IDS } from '../data/chassis';
+import { canStowPart, stowPart } from './inventory';
+import { haulerOf } from './damage';
+import { addGoods } from './inventory';
 import type { PartInstance, World } from './types';
 import { maxHp } from './wear';
 import { endTurn } from './world';
@@ -177,6 +180,9 @@ describe('outpost commands off the pad', () => {
     ['buy fuel', (w) => outpostBuySupply(w, 'fuel', 1)],
     ['buy a part', (w) => outpostBuyPart(w, w.chaosHighway!.outposts[1].stock[0].id)],
     ['buy parts', (w) => outpostBuyGood(w, 1)],
+    ['sell a part', (w) => outpostSellPart(w, mountedParts(playerVehicle(w))[0].id)],
+    ['sell parts', (w) => outpostSellGood(w, 1)],
+    ['repaint', (w) => outpostRepaint(w, { body: 'chalk', cab: 'chalk', gear: 'chalk' })],
   ];
 
   it.each(commands)('refuse to %s away from the pad', (_name, command) => {
@@ -202,5 +208,92 @@ describe('outpost commands off the pad', () => {
     w.player.fuel -= 5;
 
     expect(() => command(w)).toThrow(/outpost/);
+  });
+});
+
+describe('outpost selling, paint and rebuild', () => {
+  function withBoughtPart(): { w: World; part: PartInstance } {
+    const w = atOutpost();
+    w.player.money = 10_000_000;
+    const part = fittingStock(w);
+    return { w: outpostBuyPart(w, part.id), part };
+  }
+
+  it('buys a stored part back below the price it was bought at and restocks the outpost', () => {
+    const { w, part } = withBoughtPart();
+    const money = w.player.money;
+
+    const after = outpostSellPart(w, part.id);
+
+    expect(after.player.storage).toEqual([]);
+    expect(after.chaosHighway!.outposts[1].stock.map((p) => p.id)).toContain(part.id);
+    expect(after.player.money).toBeGreaterThan(money);
+    expect(after.player.money - money).toBeLessThan(outpostPartPrice(after, part));
+  });
+
+  it('loses money on buying then selling every part in stock', () => {
+    const w = atOutpost();
+    w.player.money = 10_000_000;
+    for (const part of w.chaosHighway!.outposts[1].stock) {
+      const sold = outpostSellPart(outpostBuyPart(w, part.id), part.id);
+      expect(sold.player.money).toBeLessThan(w.player.money);
+    }
+  });
+
+  it('sells a spare from the hauler when the hauler is named, and never a mounted part', () => {
+    const w = atOutpost();
+    const hauler = haulerOf(w);
+    const spare = w.chaosHighway!.outposts[1].stock.find((p) => haulerTakes(p) && canStowPart(hauler, p))!;
+    expect(stowPart(w, hauler, spare)).toBe(true);
+    const mounted = mountedParts(playerVehicle(w))[0];
+
+    const after = outpostSellPart(w, spare.id, hauler.id);
+
+    expect(haulerOf(after).items.some((it) => it.kind === 'part' && it.part.id === spare.id)).toBe(false);
+    expect(after.chaosHighway!.outposts[1].stock.map((p) => p.id)).toContain(spare.id);
+    expect(() => outpostSellPart(w, mounted.id)).toThrow(/No sellable part/);
+    expect(() => outpostSellPart(w, spare.id)).toThrow(/No sellable part/);
+  });
+
+  it('sells the parts good below the buy price and refuses more than held', () => {
+    const w = atOutpost();
+    addGoods(w, playerVehicle(w), 'parts', 3);
+    const held = goodsCount(playerVehicle(w)).parts;
+    const money = w.player.money;
+
+    const after = outpostSellGood(w, 2);
+
+    expect(goodsCount(playerVehicle(after)).parts).toBe(held - 2);
+    expect(after.player.money).toBe(money + outpostGoodSellPrice(w) * 2);
+    expect(outpostGoodSellPrice(w)).toBeLessThan(outpostGoodPrice());
+    expect(() => outpostSellGood(w, held + 1)).toThrow();
+    expect(() => outpostSellGood(w, 0)).toThrow();
+  });
+
+  it('repaints both trucks at the paint price', () => {
+    const w = atOutpost();
+    const paint = { ...w.player.paint, body: PALETTE_IDS.find((id) => id !== w.player.paint.body)! };
+    const price = paintPrice(w);
+    const money = w.player.money;
+
+    const after = outpostRepaint(w, paint);
+
+    expect(after.player.paint).toEqual(paint);
+    expect(after.player.money).toBe(money - price);
+    expect(() => outpostRepaint(after, paint)).toThrow(/already/);
+  });
+
+  it('rebuilds a junk part only with the rebuild perk', () => {
+    const w = atOutpost();
+    w.player.money = 10_000_000;
+    const part = mountedParts(playerVehicle(w), 'weapon')[0];
+    part.hp = 0;
+    part.wear = 100;
+    expect(() => outpostRepairPart(w, part.id)).toThrow();
+
+    w.player.perks = ['rebuild'];
+    const after = outpostRepairPart(w, part.id);
+
+    expect(mountedParts(playerVehicle(after)).find((p) => p.id === part.id)!.hp).toBeGreaterThan(0);
   });
 });
