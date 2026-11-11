@@ -184,7 +184,7 @@ export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, sp
 
 function mergedGroup(buckets: Bucket[]): THREE.Group {
   const out = new THREE.Group();
-  out.add(...outlineOf(buckets.filter((b) => !b.armor).flatMap((b) => b.geos)));
+  for (const outline of outlineOf(buckets.filter((b) => !b.armor).flatMap((b) => b.geos))) out.add(outline);
   for (const outline of outlineOf(buckets.filter((b) => b.armor).flatMap((b) => b.geos))) {
     outline.userData.armor = true;
     out.add(outline);
