@@ -7,7 +7,7 @@ const CHASSIS_IDS = Object.keys(CHASSIS).filter((_, at) => at % 3 === 2);
 describe('mounted armor', () => {
   it.each(CHASSIS_IDS)('%s: every armor part sits with its inner face no deeper than the body face minus the inset, touching the real body, and every accessory one armor depth further out only over armor', armorSitsOnBody);
 
-  it('raises every armor part by the rise over the body top', armorRisesOverBody);
+  it('raises every accessory but a ram by the rise over the body top', armorRisesOverBody);
 
   it.each(['convertible', 'lincoln', 'scout'])('%s: a ram stands within a quarter meter of the lowest body edge in its span', lowNosesCarryRamsLow);
 

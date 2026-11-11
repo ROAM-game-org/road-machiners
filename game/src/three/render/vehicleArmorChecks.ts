@@ -152,12 +152,12 @@ function steps(lo: number, hi: number): number[] {
   return out;
 }
 
-function outermostFace(chassisId: string, item: PartItem, box: THREE.Box3, side: string): number {
+function outermostFace(chassisId: string, item: PartItem, box: THREE.Box3, side: string, height: [number, number] = [-Infinity, Infinity]): number {
   const probe = probeOf(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit), side);
   const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
   const whole = rawBox(probe.baseName);
   const floor = -unitBody(chassisId, cellRect(chassisId, itemCells(item)).unit).half.y + TRUCK_LOOK.armorRise;
-  const heights = steps(whole.min.y, whole.max.y).filter((y) => y >= floor);
+  const heights = steps(whole.min.y, whole.max.y).filter((y) => y >= floor && y >= height[0] && y <= height[1]);
   let best = -Infinity;
   for (const u of steps(lo, hi)) {
     for (const y of heights) best = Math.max(best, reachAt(probe, u, y) ?? -Infinity);
@@ -197,7 +197,7 @@ function armorProblems(id: string, item: PartItem, under: PartItem[]): string[] 
     { over: Math.min(...gaps), limit: CLIP_TOLERANCE, text: 'of air between armor and body at its closest row' },
     { over: -Math.min(0, ...rows.filter((row) => row.inside).map((row) => row.gap)), limit: CLIP_TOLERANCE, text: 'into the body' },
     { over: meanOf(gaps.filter((gap) => gap < cellSteps(id).row)), limit: ARMOR_AIR, text: 'of air between armor and body on average' },
-    { over: outermostFace(id, item, box, side) - foot, limit: cellSteps(id).row + EPS, text: 'behind the outermost body face' },
+    { over: outermostFace(id, item, box, side, [box.min.y, box.max.y]) - foot, limit: cellSteps(id).row + EPS, text: 'behind the outermost body face at its height' },
     { over: glassGapOf(id, item, box, side), limit: EPS, text: 'above the glass line' },
     { over: TRUCK_LOOK.armorDepth - depth, limit: EPS, text: `short of the ${TRUCK_LOOK.armorDepth} depth` },
   ];
@@ -272,7 +272,7 @@ function expectRaised(id: string, item: PartItem): void {
   if (!isShield(def)) return;
   const half = bodyOf(id).half.y;
   const box = placedBox(id, item);
-  if (def.look !== 'ram') expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
+  if (def.kind !== 'armor' && def.look !== 'ram') expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
 }
 
 export function armorRisesOverBody(): void {

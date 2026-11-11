@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import type { HeightMap } from '../../sim/body';
 import { CUT_SLOTS, cutFace, cutSpec, lampIslands, withCut } from './armorCut';
-import { fitRamToBumper, fitToBody, placedBounds, type Placement } from './armorFit';
+import { fitRamToBumper, fitToBody, placedBounds, settleOnBody, type Placement } from './armorFit';
 import { cutHeightAt, topCut } from './armorTop';
 import { CloudShadows } from './cloudShadows';
+import { faceProfile } from './gunStand';
 
 const HALF = { x: 2, y: 0.5, z: 1 };
 const CELL = 0.1;
@@ -157,11 +158,45 @@ describe('fitToBody', () => {
     expect(after.max.z).toBeCloseTo(before.max.z, 5);
   });
 
-  it('leaves a leaned side plate at its lean, since the lean already reaches the body top', () => {
-    const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, lean: 0.5, scale: new THREE.Vector3(1, 1, 1) };
-    const before = placedBounds(at, plateBox);
-    fitToBody(at, plateBox, TOP, 'L');
-    expect(placedBounds(at, plateBox).max.y).toBeCloseTo(before.max.y, 9);
+});
+
+describe('settleOnBody', () => {
+  const plateBox = box([0, 0, -0.225], [0.06, 0.9, 0.225]);
+  const sideAt = (): Placement => ({ pos: new THREE.Vector3(0, -0.4, 1.5), yaw: -Math.PI / 2, lean: 0, scale: new THREE.Vector3(1, 1, 1) });
+  const fail = (): never => {
+    throw new Error('no face');
+  };
+  const settled = (body: THREE.Object3D): { at: Placement; placed: THREE.Box3 } => {
+    const at = sideAt();
+    const placed = placedBounds(at, plateBox);
+    settleOnBody(at, plateBox, { profile: faceProfile(body, 'z', 1, [placed.min.x, placed.max.x]), axis: 'z', toBodyTop: true, upright: fail, fail });
+    return { at, placed: placedBounds(at, plateBox) };
+  };
+
+  it('covers only the taller of two walls with a step between them, standing on the lower one', () => {
+    const body = new THREE.Group();
+    body.add(new THREE.Mesh(cube([2, 0.5, 2.4], [0, -0.15, 0])), new THREE.Mesh(cube([2, 0.8, 1.8], [0, 0.5, 0])));
+    const { at, placed } = settled(body);
+    expect(at.lean).toBe(0);
+    expect(placed.min.y).toBeCloseTo(0.1, 1);
+    expect(placed.max.y).toBeCloseTo(0.9, 1);
+    expect(placed.min.z).toBeCloseTo(0.9, 2);
+  });
+
+  it('leans onto a slope and touches it without entering it', () => {
+    const body = new THREE.Group();
+    const wedge = new THREE.Mesh(cube([2, 1, 2], [0, 0, 0]));
+    const pos = wedge.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) if (pos.getY(i) > 0 && pos.getZ(i) > 0) pos.setZ(i, pos.getZ(i) - 0.5);
+    body.add(wedge);
+    const { at, placed } = settled(body);
+    expect(at.lean).toBeGreaterThan(0.3);
+    expect(placed.max.y).toBeLessThanOrEqual(0.5 + 1e-6);
+    expect(placed.min.z).toBeGreaterThan(0.45);
+  });
+
+  it('hands a plate with no body face behind it to the upright stand', () => {
+    expect(() => settled(new THREE.Group())).toThrow(/no face/);
   });
 });
 

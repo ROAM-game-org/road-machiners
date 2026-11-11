@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE } from '../../sim/body';
 import type { SideLetter } from '../../sim/grid';
 import { cutHeightAt, STEEPEST_LEAN, TOP_MARGIN, type TopCut } from './armorTop';
@@ -29,7 +28,13 @@ export function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
 }
 
 export function fitToBody(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {
-  if (at.lean === 0) growToCut(at, box, cut, side);
+  if (SIDE_FACE[side].axis !== 'z') return;
+  const placed = placedBounds(at, box);
+  const target = Math.max(...cutAlong(placed, cut, side));
+  if (!(target > placed.max.y + TOP_MARGIN)) return;
+  const k = (target - placed.min.y) / (placed.max.y - placed.min.y);
+  at.scale.y *= k;
+  at.pos.y = placed.min.y + (at.pos.y - placed.min.y) * k;
 }
 
 export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, hubY: number): void {
@@ -57,126 +62,73 @@ function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: 
   if (gap > 0) at.pos[axis] -= outward * gap;
 }
 
-function growToCut(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {
-  if (SIDE_FACE[side].axis !== 'z') return;
+type Row = { index: number; y: number; reach: number };
+type Span = { bottom: number; top: number };
+
+export type Settle = { profile: FaceProfile; axis: 'x' | 'z'; toBodyTop: boolean; upright: () => void; fail: () => never };
+
+export function settleOnBody(at: Placement, box: THREE.Box3, { profile, axis, toBodyTop, upright, fail }: Settle): void {
   const placed = placedBounds(at, box);
-  const target = Math.max(...cutAlong(placed, cut, side));
-  if (!(target > placed.max.y + TOP_MARGIN)) return;
-  const k = (target - placed.min.y) / (placed.max.y - placed.min.y);
-  at.scale.y *= k;
-  at.pos.y = placed.min.y + (at.pos.y - placed.min.y) * k;
+  const top = toBodyTop ? bodyTop(profile) : placed.max.y;
+  const face = top === null ? null : tallestFace(profileRows(profile, placed.min.y, top));
+  if (top === null || face === null) return upright();
+  const span = { bottom: Math.max(placed.min.y, face[0].y - FACE_COLUMN / 2), top: Math.min(top, (face.at(-1) as Row).y + FACE_COLUMN / 2) };
+  coverFace(at, box, face, span, fail);
+  touchFace(at, box, face, axis, profile.outward);
 }
 
-const HULL_SHARE = 0.5;
-
-export type Slope = { lean: number; foot: number };
-
-type Row = { y: number; reach: number };
-
-export function hullSlope(profile: FaceProfile, bottom: number, height: number): Slope | null {
-  const rows = profileRows(profile, bottom, bottom + height);
-  if (rows.length === 0) return null;
-  const widest = Math.max(...rows.map((r) => r.reach));
-  const touch = rows.find((r) => r.reach === widest) as Row;
-  const above = hullAbove(profile, touch.y, height);
-  if (above.length * FACE_COLUMN < height * HULL_SHARE) return null;
-  if ((above.at(-1) as Row).y < bottom + height - TRUCK_LOOK.armorRise - FACE_COLUMN) return null;
-  const lean = Math.min(...above.map((r) => Math.atan2(touch.reach - r.reach, r.y - touch.y)));
-  if (lean > STEEPEST_LEAN || height * Math.sin(lean) <= CLIP_TOLERANCE) return null;
-  return { lean, foot: touch.y - FACE_COLUMN / 2 };
+function bodyTop(profile: FaceProfile): number | null {
+  const highest = profileRows(profile, -Infinity, Infinity).at(-1);
+  return highest === undefined ? null : highest.y + FACE_COLUMN / 2;
 }
 
-function hullAbove(profile: FaceProfile, from: number, height: number): Row[] {
-  const above: Row[] = [];
-  for (let row = rowAt(profile, from) + 1; row < profile.reach.length; row++) {
-    const reach = profile.reach[row];
-    const y = rowMiddle(profile, row);
-    if (reach === null || y > from + height) break;
-    above.push({ y, reach });
-  }
-  return above;
-}
-
-function rowAt(profile: FaceProfile, y: number): number {
-  return Math.round((y - profile.bottom) / FACE_COLUMN - 0.5);
-}
-
-function rowMiddle(profile: FaceProfile, row: number): number {
-  return profile.bottom + (row + 0.5) * FACE_COLUMN;
-}
+const FACE_FILL = 0.5;
 
 function profileRows(profile: FaceProfile, bottom: number, top: number): Row[] {
-  return profile.reach.flatMap((reach, row) => {
-    const y = rowMiddle(profile, row);
-    return reach !== null && y >= bottom && y <= top ? [{ y, reach }] : [];
+  return profile.reach.flatMap((reach, index) => {
+    const y = profile.bottom + (index + 0.5) * FACE_COLUMN;
+    return reach !== null && profile.fill[index] >= FACE_FILL && y >= bottom && y <= top ? [{ index, y, reach }] : [];
   });
 }
 
-export type Settle = { body: THREE.Object3D; profile: FaceProfile; axis: 'x' | 'z'; row: number; upright: () => void; fail: () => never };
-
-export function settleOnBody(at: Placement, box: THREE.Box3, { body, profile, axis, row, upright, fail }: Settle): void {
-  const placed = placedBounds(at, box);
-  const slope = hullSlope(profile, placed.min.y, placed.max.y - placed.min.y);
-  if (slope) return leanOnto(at, box, profile, slope, axis, fail);
-  const foot = ledgeTop(profile, placed.min.y, placed.max.y, row);
-  if (foot === null) return upright();
-  standOnLedge(at, box, body, axis, profile.outward, foot, fail);
-}
-
-function ledgeTop(profile: FaceProfile, bottom: number, top: number, row: number): number | null {
-  const rows = profileRows(profile, bottom, top);
+function tallestFace(rows: Row[]): Row[] | null {
   const faces = facesOf(rows);
-  if (faces.length < 2) return null;
-  const main = faces.reduce((most, face) => (face.length > most.length ? face : most));
-  if (main === faces[0]) return null;
-  const mainFace = Math.max(...main.map((r) => r.reach));
-  if ((faces[0][0] as Row).reach - mainFace > row) return null;
-  const lowest = Math.min(...main.map((r) => r.y));
-  const proud = rows.filter((r) => r.reach > mainFace + CLIP_TOLERANCE);
-  if (proud.some((r) => r.y > lowest)) return null;
-  return Math.max(...proud.map((r) => r.y)) + FACE_COLUMN / 2;
+  if (faces.length === 0) return null;
+  const outer = (face: Row[]): number => Math.max(...face.map((r) => r.reach));
+  return faces.reduce((best, face) => (face.length > best.length || (face.length === best.length && outer(face) > outer(best)) ? face : best));
 }
 
 function facesOf(rows: Row[]): Row[][] {
   const faces: Row[][] = [];
-  for (const row of [...rows].sort((a, b) => b.reach - a.reach)) {
-    const last = faces.at(-1);
-    if (last && (last.at(-1) as Row).reach - row.reach <= FACE_COLUMN) last.push(row);
+  for (const row of rows) {
+    const last = faces.at(-1)?.at(-1);
+    if (last && row.index === last.index + 1 && Math.abs(row.reach - last.reach) <= FACE_COLUMN) (faces.at(-1) as Row[]).push(row);
     else faces.push([row]);
   }
   return faces;
 }
 
-function standOnLedge(at: Placement, box: THREE.Box3, body: THREE.Object3D, axis: 'x' | 'z', outward: number, foot: number, fail: () => never): void {
-  const placed = placedBounds(at, box);
-  at.scale.y *= (placed.max.y - foot) / (placed.max.y - placed.min.y);
-  at.pos.y += placed.max.y - placedBounds(at, box).max.y;
-  const now = placedBounds(at, box);
-  const across = axis === 'x' ? 'z' : 'x';
-  const face = bodyFace(body, axis, outward, [now.min[across], now.max[across]], [now.min.y, now.max.y]);
-  if (face === null) fail();
-  at.pos[axis] -= outward * (outward * (outward > 0 ? now.min[axis] : now.max[axis]) - outward * (face as number));
+function coverFace(at: Placement, box: THREE.Box3, face: Row[], span: Span, fail: () => never): void {
+  at.lean = leanOf(face, span);
+  const thickness = (box.max.x - box.min.x) * at.scale.x;
+  const length = box.max.y - box.min.y;
+  at.scale.y = (span.top - span.bottom - thickness * Math.sin(at.lean)) / (length * Math.cos(at.lean));
+  if (!(at.scale.y > 0)) return fail();
+  at.pos.y += span.bottom - placedBounds(at, box).min.y;
 }
 
-export function leanOnto(at: Placement, box: THREE.Box3, profile: FaceProfile, slope: Slope, axis: 'x' | 'z', fail: () => never): void {
-  const upright = placedBounds(at, box).max.y;
-  at.lean = slope.lean;
-  at.pos.y += slope.foot - placedBounds(at, box).min.y;
-  reachTop(at, box, upright);
-  const [foot, head] = innerEdge(at, box, axis, profile.outward);
-  const rows = profileRows(profile, foot.y, head.y);
-  if (rows.length === 0) fail();
+function leanOf(face: Row[], span: Span): number {
+  const low = face[0];
+  const high = face.at(-1) as Row;
+  const lean = Math.atan2(low.reach - high.reach, high.y - low.y);
+  return lean > 0 && (span.top - span.bottom) * Math.sin(lean) > CLIP_TOLERANCE ? Math.min(lean, STEEPEST_LEAN) : 0;
+}
+
+function touchFace(at: Placement, box: THREE.Box3, face: Row[], axis: 'x' | 'z', outward: number): void {
+  const [foot, head] = innerEdge(at, box, axis, outward);
   const innerAt = (y: number): number => foot.out + ((y - foot.y) / (head.y - foot.y)) * (head.out - foot.out);
-  const gap = Math.min(...rows.map((r) => innerAt(r.y) - r.reach));
-  at.pos[axis] -= profile.outward * gap;
-}
-
-function reachTop(at: Placement, box: THREE.Box3, top: number): void {
-  const placed = placedBounds(at, box);
-  const thickness = (box.max.x - box.min.x) * at.scale.x * Math.sin(at.lean);
-  const length = placed.max.y - placed.min.y - thickness;
-  at.scale.y *= (top - placed.min.y - thickness) / length;
-  at.pos.y += placed.min.y - placedBounds(at, box).min.y;
+  const gap = Math.min(...face.map((r) => innerAt(r.y) - r.reach));
+  at.pos[axis] -= outward * gap;
 }
 
 function innerEdge(at: Placement, box: THREE.Box3, axis: 'x' | 'z', outward: number): { y: number; out: number }[] {
@@ -187,4 +139,3 @@ function innerEdge(at: Placement, box: THREE.Box3, axis: 'x' | 'z', outward: num
     return { y: p.y, out: outward * p[axis] };
   });
 }
-

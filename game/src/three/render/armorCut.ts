@@ -224,8 +224,9 @@ export function drawnArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, ite
   const at = armorPlacement(v, item, box, body);
   if (!isMounted(v.chassisId, item)) return at;
   const unit = cellRect(v.chassisId, itemCells(item)).unit;
-  if (isRam(partDef(item.part.defId))) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
-  else fitToBody(at, box, unitTopCut(v.chassisId, unit), armorSide(v, item));
+  const def = partDef(item.part.defId);
+  if (isRam(def)) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
+  else if (def.kind !== 'armor') fitToBody(at, box, unitTopCut(v.chassisId, unit), armorSide(v, item));
   return at;
 }
 
@@ -299,7 +300,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), ram: def.look === 'ram', row: cellSteps(v.chassisId).row, fail });
   pos.y += shift;
   const upright = (): void => void (pos[axis] += outward * Math.min(0, outward * (touchAt(shift) as number) - snug));
-  if (def.kind === 'armor') settleOnBody(at, box, { body, profile, axis, row: cellSteps(v.chassisId).row, upright, fail });
+  if (def.kind === 'armor') settleOnBody(at, box, { profile, axis, toBodyTop: !across, upright, fail });
   else upright();
   pos[axis] += outward * overArmor(v, item, def);
   return at;
