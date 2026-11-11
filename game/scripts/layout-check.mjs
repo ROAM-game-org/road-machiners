@@ -731,9 +731,9 @@ async function nestedScrollFaults(page) {
 
 async function openGarageStorage(page) {
   await page.evaluate(async () => {
-    window.__layoutWorld = structuredClone(window.__ROAM__.state);
     const { makePart } = await import('/src/sim/factory.ts');
     const g = window.__ROAM__;
+    window.__layoutWorld = structuredClone(g.state);
     const world = structuredClone(g.state);
     const { PARTS } = await import('/src/data/parts.ts');
     const ids = (Array.isArray(PARTS) ? PARTS : Object.values(PARTS)).map((part) => part.id).slice(0, 8);
