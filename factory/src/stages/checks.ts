@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { CheckTimeoutError } from '../container';
 import { readApproval, type Approval } from '../clone-checks';
 import { readPlanRecord } from '../plan-record';
-import { readShown,type Shown } from '../evidence';
+import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
 import { FAILURE_TAIL_LINES, JobTimeoutError, reportFailure, stripAnsi } from '../fail';
@@ -81,16 +81,18 @@ async function approvalOrPlan(ctx: Ctx, issue: number, home: string, base: strin
   const files = await ctx.repo.changedFiles(base, BRANCH(issue));
   return {
     description: `No testing agent wrote notes for this build, and the design left no summary. The branch changes: ${files.join(', ')}`,
-    howToTry: plan?.howToTry ?? 'Play the build and try the change the issue asks for.',
+    howToTry: plan?.howToTry ?? NO_STEPS,
   };
 }
 
 function plannedApproval(change: string, howToTry: string | null): Approval {
   return {
     description: `This is the planned change from the design. No testing agent checked it against the build.\n\n${change}`,
-    howToTry: howToTry ?? 'The design wrote no play steps.',
+    howToTry: howToTry ?? NO_STEPS,
   };
 }
+
+const NO_STEPS = 'The design wrote no play steps. The design comment on the issue holds the plan.';
 
 export async function publishAndPost(ctx: Ctx, issue: number, approval: Approval, home: string, base: string, build: string, unchecked: boolean): Promise<void> {
   await requireSettledSuite(ctx, issue, base, build);

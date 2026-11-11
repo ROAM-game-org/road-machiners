@@ -702,6 +702,8 @@ describe('a post with no checks', () => {
     expect(text).toContain('No testing agent played this build. Only the full suite and the build ran.');
     expect(text).toContain('No testing agent wrote notes for this build, and the design left no summary. The branch changes: game/src/a.ts, game/src/b.ts');
     expect(commentBodies.at(-1)).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
+    expect(commentBodies.at(-1)).toContain('How to try: The design wrote no play steps. The design comment on the issue holds the plan.');
+    expect(commentBodies.at(-1)).not.toContain('try the change the issue asks for');
     expect(calls.find((call) => call.startsWith('openPullRequest'))).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
   });
 
