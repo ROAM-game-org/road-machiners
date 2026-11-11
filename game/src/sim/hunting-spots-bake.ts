@@ -14,7 +14,7 @@ import { isTerritory, nearestPad, siteGap, type Site } from './sites';
 import { territoryEntries, territoryOfStock, territorySpots } from './territory';
 import type { SalvageStock, World } from './types';
 import { dist, type Vec } from './vec';
-import { hidesOf, isHideSpot, seesGround } from './watch-posts';
+import { isHideSpot, seesGround } from './watch-posts';
 
 export type HuntingSpotsBake = { spots: Vec[]; samples: Vec[] };
 
@@ -134,7 +134,7 @@ function traceLeg(world: World, trip: Trip, radius: number, fixed: SalvageStock[
 }
 
 function seenFrom(path: Vec[], p: Vec): boolean {
-  const reach = TERRAIN.vision.radius;
+  const reach = HUNT.groundSight;
   for (let i = 1; i < path.length; i++) if (segmentGap(path[i - 1], path[i], p) <= reach) return true;
   return false;
 }
@@ -193,10 +193,6 @@ function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[])
   const spots: Vec[] = [];
   for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
   return spots;
-}
-
-function hasOtherHide(world: World, p: Vec): boolean {
-  return hidesOf(world, p).length > 1;
 }
 
 function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {

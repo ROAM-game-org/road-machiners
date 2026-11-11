@@ -2,7 +2,6 @@
 import { ENCOUNTERS } from './encounters';
 import { MAP_SPREAD } from './region';
 import { RULES } from './rules';
-import { TERRAIN } from './terrain';
 import { TIME } from './time';
 import type { DeedId, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, WrongDeed } from '../sim/types';
 
@@ -111,10 +110,10 @@ export const AID = {
 
 export const HUNT = {
   siteDistance: 40,
-  lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
+  lawReach: NPC_BEHAVIOR.patrolRadius + 25,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
-  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * TERRAIN.vision.radius),
+  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * 25),
   roadSample: 4,
   groundSpacing: 50,
   groundSight: 25,
