@@ -26,7 +26,7 @@ These commands drive headless Chromium. All but `boot:time` and `perf` need the 
 - `node scripts/garage-ui-check.mjs <url>` checks the garage: selection, the shop comparison, header and repair bar labels, truck cards on the Trucks tab, and the layout from 800 to 1920 wide.
 - `node scripts/shop-parts-check.mjs <url>` checks the compact shop part rows: collapsed by default, one open at a time, keyboard, purchase, filter and narrow layouts.
 - `scripts/gpu.mjs` holds `launchChromium()`, which every Chromium check and render script launches through. `launchSoftwareChromium()` is for a check that must draw in software. A test fails when a script calls `chromium.launch()` itself.
-- When `ROAM_BROWSER_SLOTS` names a folder, each browser first takes one of `ROAM_BROWSER_SLOT_COUNT` slots in it and waits while all are held. The factory sets both, so the browsers of all its jobs together stay within the memory it set aside for them. A slot is a folder that the holder touches every 5 s. It is freed when the browser closes or the process exits, and a slot untouched for 30 s is taken over. Without the variable, nothing waits.
+- When `ROAM_BROWSER_SLOTS` names a folder, each browser first takes one of `ROAM_BROWSER_SLOT_COUNT` slots in it and waits while all are held. The factory sets both, so its jobs together never run more browsers than the count. A slot is a folder that the holder touches every 5 s. It is freed when the browser closes or the process exits, and a slot untouched for 30 s is taken over. Without the variable, nothing waits.
 
 ## Tests
 
