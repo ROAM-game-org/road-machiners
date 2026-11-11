@@ -12,7 +12,7 @@ import { ROAD_INDEX } from '../../sim/road-index';
 import type { Vec } from '../../sim/vec';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
-import { CACTUS_NEAR_ROCK, OBSTACLE_GAP, ROAD_GAP, SHOULDER_TILES, scatterPlacements, type ScatterChunk } from './scatter';
+import { CACTUS_NEAR_ROCK, OBSTACLE_GAP, ROAD_MARGIN, SHOULDER_TILES, scatterPlacements, type ScatterChunk } from './scatter';
 
 const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
 const t = world.terrain;
@@ -23,6 +23,7 @@ const scrub = chunks.flatMap((c) => [...c.scrub, ...c.desert_scrub]);
 const cacti = chunks.flatMap((c) => c.cactus);
 const pebbles = chunks.flatMap((c) => [...c.pebbles, ...c.desert_stones]);
 const at = (p: { matrix: THREE.Matrix4 }): Vec => ({ x: p.matrix.elements[12] / PHYSICS.metersPerTile, y: p.matrix.elements[14] / PHYSICS.metersPerTile });
+const ROAD_GAP = REGION.roadWidth / 2 + ROAD_MARGIN;
 const roadDist = (x: number, y: number) => ROAD_INDEX.nearestWithin(x, y, ROAD_GAP + SHOULDER_TILES);
 const typeAt = (at: Vec) => t.types[Math.floor(at.y) * t.size + Math.floor(at.x)];
 const look = lookTypes(t);
