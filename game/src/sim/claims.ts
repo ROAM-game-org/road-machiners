@@ -151,7 +151,8 @@ export function sendRival(world: World, c: ClaimContract): Vehicle | null {
   if (c.rival !== null) throw new Error(`Claim ${c.id} already has a rival ${c.rival}`);
   const part = claimPart(world, c);
   const shop = shopSite(c.shop).pos;
-  const free = world.vehicles.filter((v) => isFreeRival(world, v, part) && dist(v.pos, c.at) >= dist(shop, c.at));
+  const shopReach = dist(shop, c.at);
+  const free = world.vehicles.filter((v) => isFreeRival(world, v, part) && dist(v.pos, c.at) >= shopReach);
   const rival = free.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop) || a.id.localeCompare(b.id))[0];
   if (!rival) return null;
   const left = claimCandidates(world, c);
