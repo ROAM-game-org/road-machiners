@@ -145,6 +145,15 @@ export function turnsOf(item: GridItem): Rot[] {
   return isWeapon(item) ? WEAPON_TURNS : PART_TURNS;
 }
 
+export function poseTurnedLike(item: GridItem, rot: Rot): Rot {
+  const poses = turnsOf(item);
+  if (poses.includes(rot)) return rot;
+  const lying = cellsTurned({ rot });
+  const pose = poses.find((own) => cellsTurned({ rot: own }) === lying);
+  if (pose === undefined) throw new Error(`No pose of ${item.id} lies like pose ${rot}`);
+  return pose;
+}
+
 export function nextTurn(item: GridItem): Rot {
   if (!isWeapon(item)) return item.rot === 0 ? 1 : 0;
   return WEAPON_CYCLE[(WEAPON_CYCLE.indexOf(item.rot) + 1) % WEAPON_CYCLE.length];

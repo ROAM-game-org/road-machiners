@@ -7,11 +7,11 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
-import { frontBody, unitsOf } from '../../sim/body';
+import { unitsOf } from '../../sim/body';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
-import { smokeAt, smokeSources, type SmokeSource } from './smokePoints';
+import { smokeAt, smokeSources, ventsOf, type SmokeSource, type TruckVents } from './smokePoints';
 import type { CameraRig } from './camera';
 import { tirePoints, Ruts } from './ruts';
 import type { GroundAt } from './lines';
@@ -126,6 +126,10 @@ const MAX_VIEW_CARDS = 2000;
 const MAX_CHUNKS = 600;
 const INK_SORTED_FIRE = 0.5;
 
+const HAZE_SPAWN_SCALE_MIN = 0.8;
+const HAZE_SPAWN_SCALE_SPREAD = 0.4;
+const HAZE_SPAWN_SCALE_MAX = HAZE_SPAWN_SCALE_MIN + HAZE_SPAWN_SCALE_SPREAD;
+
 const SPRAY = {
   surfacePower: 2.5,
   dust: { perMeter: 7, minPerMeter: 2, groundShare: 0.45, life: 3, size: { from: 1.5, to: 3.6 }, alpha: { peak: 0.4, fadeIn: 0.02 }, drag: 1.6, gravity: -0.3 },
@@ -133,6 +137,10 @@ const SPRAY = {
   haze: { perMeter: 0.35, minPerMeter: 0.12, life: 12, size: { from: 2.5, to: 9 }, alpha: { peak: 0.18, fadeIn: 0.08 }, drag: 0.8, gravity: -0.05, back: 1.2, spread: 0.8, rise: 0.3, lift: 0.8 },
   clods: { perMeter: 0.7, minMetersPerSecond: 2.5, back: { min: 0.15, spread: 0.3 }, up: { min: 1.2, spread: 2.6 }, aside: 1.4, lift: 0.15, size: { min: 0.1, spread: 0.2 }, life: 1.6, shade: 0.72 },
 } as const;
+
+export function hazeStartRadius(): number {
+  return (SPRAY.haze.size.from * HAZE_SPAWN_SCALE_MAX * TUNING.dustSize.value) / 2;
+}
 
 export function sprayShare(ground: TerrainType): number {
   return ground.dust ** SPRAY.surfacePower;
@@ -316,7 +324,7 @@ export class Fx3D {
   dustHaze(p: V3, back: V3, ground: TerrainType): void {
     const h = SPRAY.haze;
     const vel = { x: back.x * h.back + (Math.random() - 0.5) * h.spread, y: h.rise * Math.random(), z: back.z * h.back + (Math.random() - 0.5) * h.spread };
-    this.particles.spawn({ x: p.x, y: p.y + h.lift, z: p.z }, vel, this.sprayOf(ground).haze, (0.8 + Math.random() * 0.4) * TUNING.dustSize.value);
+    this.particles.spawn({ x: p.x, y: p.y + h.lift, z: p.z }, vel, this.sprayOf(ground).haze, (HAZE_SPAWN_SCALE_MIN + Math.random() * HAZE_SPAWN_SCALE_SPREAD) * TUNING.dustSize.value);
   }
 
   private sprayOf(ground: TerrainType): { dust: ParticleLook; haze: ParticleLook; clod: THREE.Color } {
@@ -422,7 +430,6 @@ const EXHAUST_FULL_ACCEL = 3;
 const CRUISE_SHARE = 0.8;
 const CRUISE_RATE = 1.5;
 const OVERDRIVE_RATE = 10;
-const EXHAUST_SIDE = 0.6;
 const STEAM_RATE = 10;
 const DOUSE_RATE = 60;
 const DOUSE_SECONDS = 1.2;
@@ -433,8 +440,10 @@ const SPEED_JUMP = 1.5;
 const TRAIL_SLACK = 3;
 const TRAIL_SLACK_METERS = 1;
 
-type Traits = { stranded: boolean; maxSpeed: number; smoke: SmokeSource[] };
-type Pose = { f: VehicleFrame; h: number; half: { x: number; y: number; z: number } };
+type Traits = { stranded: boolean; maxSpeed: number; smoke: SmokeSource[]; vents: TruckVents };
+type Pose = { f: VehicleFrame; h: number };
+
+export type TruckFxSink = Pick<Fx3D, 'smoke' | 'exhaust' | 'steam' | 'douseSteam' | 'breakdownSmoke' | 'dustHaze' | 'wheelDust' | 'clod'> & { ruts: Pick<Ruts, 'layTracks'> };
 
 export class TruckFx {
   private world: World | null = null;
@@ -443,19 +452,19 @@ export class TruckFx {
   private readonly lastPos = new Map<string, V3>();
   private douseLeft = 0;
 
-  constructor(private fx: Fx3D) {}
+  constructor(private fx: TruckFxSink) {}
 
   emit(world: World, v: Vehicle, f: VehicleFrame, moving: boolean, dt: number, seen: boolean): void {
     const traits = this.traitsOf(world, v);
-    const pose: Pose = { f, h: headingOf(f.rot), half: frontBody(v.chassisId).half };
+    const pose: Pose = { f, h: headingOf(f.rot) };
     const metersPerSecond = this.groundSpeed(v.id, f.pos, dt, traits.maxSpeed * PHYSICS.metersPerTile);
     if (moving || metersPerSecond > CREEP_METERS_PER_SECOND) this.driving(world, v, pose, traits, seen, dt, metersPerSecond);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
-      this.steam(world.player.engineHeat, pose, dt);
-      this.douseCloud(pose, dt);
+      this.steam(world.player.engineHeat, traits, pose, dt);
+      this.douseCloud(traits, pose, dt);
     }
-    if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(onBody(pose, 0.5, 1, 0), motionOf(v, pose.h, moving)));
+    if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(smokeAt(traits.vents.engine, f), motionOf(v, pose.h, moving)));
     else for (const source of traits.smoke) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(smokeAt(source, f), source.damage));
   }
 
@@ -469,45 +478,45 @@ export class TruckFx {
 
   private driving(world: World, v: Vehicle, pose: Pose, traits: Traits, seen: boolean, dt: number, metersPerSecond: number): void {
     const back = { x: -Math.cos(pose.h), y: 0, z: -Math.sin(pose.h) };
-    this.wheels(world, v, pose, back, seen, dt, metersPerSecond);
+    this.wheels(world, v, traits, pose, back, seen, dt, metersPerSecond);
     if (traits.stranded) return;
     const along = -(pose.f.acc.x * back.x + pose.f.acc.z * back.z);
     const cruise = v.speed > traits.maxSpeed * CRUISE_SHARE ? CRUISE_RATE : 0;
     const rate = EXHAUST_RATE * Math.min(1, Math.max(0, along / EXHAUST_FULL_ACCEL)) + cruise;
-    this.puffs(rate, dt, () => this.fx.exhaust(onBody(pose, -1, 1, -EXHAUST_SIDE), back));
+    this.puffs(rate, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
   }
 
   private overdriveExhaust(world: World, v: Vehicle, traits: Traits, pose: Pose, dt: number): void {
     if (!inOverdrive(world, v) || traits.stranded) return;
     const back = { x: -Math.cos(pose.h), y: 0, z: -Math.sin(pose.h) };
-    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(onBody(pose, -1, 1, -EXHAUST_SIDE), back));
+    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
   }
 
-  private steam(heat: number, pose: Pose, dt: number): void {
+  private steam(heat: number, traits: Traits, pose: Pose, dt: number): void {
     if (heat < ENGINE_HEAT.warnAt) return;
     const share = (heat - ENGINE_HEAT.warnAt) / (1 - ENGINE_HEAT.warnAt);
-    this.puffs((STEAM_RATE * (1 + 2 * share)) / 3, dt, () => this.fx.steam(onBody(pose, 0.7, 1, 0)));
+    this.puffs((STEAM_RATE * (1 + 2 * share)) / 3, dt, () => this.fx.steam(smokeAt(traits.vents.engine, pose.f)));
   }
 
   douse(): void {
     this.douseLeft = DOUSE_SECONDS;
   }
 
-  private douseCloud(pose: Pose, dt: number): void {
+  private douseCloud(traits: Traits, pose: Pose, dt: number): void {
     if (this.douseLeft <= 0) return;
     this.douseLeft -= dt;
-    this.puffs(DOUSE_RATE, dt, () => this.fx.douseSteam(onBody(pose, 0.3 + Math.random() * 0.8, 0.8, Math.random() * 2.4 - 1.2)));
+    this.puffs(DOUSE_RATE, dt, () => this.fx.douseSteam(smokeAt(douseSpot(traits.vents.douse), pose.f)));
   }
 
-  private wheels(world: World, v: Vehicle, pose: Pose, back: V3, seen: boolean, dt: number, metersPerSecond: number): void {
+  private wheels(world: World, v: Vehicle, traits: Traits, pose: Pose, back: V3, seen: boolean, dt: number, metersPerSecond: number): void {
     const dusty = metersPerSecond > MIN_DUST_SPEED * PHYSICS.metersPerTile;
     if (!seen && !dusty) return;
     const tires = tirePoints(world.terrain, v.chassisId, pose.f);
     if (seen) this.fx.ruts.layTracks(world, v, pose.f, tires);
-    if (dusty) this.dust(world, v, pose, back, tires, dt, metersPerSecond);
+    if (dusty) this.dust(world, v, traits, pose, back, tires, dt, metersPerSecond);
   }
 
-  private dust(world: World, v: Vehicle, pose: Pose, back: V3, tires: V3[], dt: number, metersPerSecond: number): void {
+  private dust(world: World, v: Vehicle, traits: Traits, pose: Pose, back: V3, tires: V3[], dt: number, metersPerSecond: number): void {
     const ground = TERRAIN_TYPES[world.terrain.types[tileAt(world.terrain, v.pos)]];
     const loose = sprayShare(ground);
     const rate = sprayPuffsPerMeter(SPRAY.dust, ground) * TUNING.dustAmount.value * metersPerSecond;
@@ -524,7 +533,8 @@ export class TruckFx {
     }
     const hazeRate = sprayPuffsPerMeter(SPRAY.haze, ground) * metersPerSecond;
     const [left, right] = tires.slice(-2);
-    const rear = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, z: (left.z + right.z) / 2 };
+    const behind = traits.vents.hazeBack + hazeStartRadius();
+    const rear = { x: (left.x + right.x) / 2 + back.x * behind, y: (left.y + right.y) / 2, z: (left.z + right.z) / 2 + back.z * behind };
     this.puffs(hazeRate, dt, () => this.fx.dustHaze(rear, back, ground));
   }
 
@@ -547,7 +557,7 @@ export class TruckFx {
     }
     let t = this.traits.get(v.id);
     if (!t) {
-      t = { stranded: isStranded(world, v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v) };
+      t = { stranded: isStranded(world, v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v), vents: ventsOf(v) };
       this.traits.set(v.id, t);
     }
     return t;
@@ -563,11 +573,6 @@ function between(a: V3, b: V3, t: number): V3 {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
 }
 
-function rotate(x: number, z: number, h: number): { x: number; z: number } {
-  return { x: x * Math.cos(h) - z * Math.sin(h), z: x * Math.sin(h) + z * Math.cos(h) };
-}
-
-function onBody(pose: Pose, x: number, y: number, z: number): V3 {
-  const off = rotate(x * pose.half.x, z * pose.half.z, pose.h);
-  return { x: pose.f.pos.x + off.x, y: pose.f.pos.y + y * pose.half.y, z: pose.f.pos.z + off.z };
+function douseSpot(douse: TruckVents['douse']): TruckVents['douse'] {
+  return { ...douse, x: douse.x + (Math.random() * 2 - 1) * douse.halfX, z: douse.z + (Math.random() * 2 - 1) * douse.halfZ };
 }
