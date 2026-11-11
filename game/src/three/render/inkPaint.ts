@@ -28,23 +28,31 @@ vec3 inkGlow = vec3(0.0);
 
 const INK_COLOR = `
 varying vec3 vInkAt;
-uniform float inkFullLight;
-uniform float inkDayLight;
-uniform float inkColor;
-uniform float inkShadeLine;
-uniform float inkHatch;
-uniform float inkHatchPx;
-uniform float inkContour;
-uniform float inkContourStep;
-uniform float inkContourSoft;
-uniform float inkContourOpacity;
-uniform float inkContourCross;
-uniform float inkObjectHatch;
-uniform float inkRelief;
-uniform float inkShadeDark;
-uniform float inkShadeShift;
-uniform float inkCastDark;
-uniform float inkHeightTint;
+uniform vec4 inkTuneA;
+#define inkFullLight inkTuneA.x
+#define inkDayLight inkTuneA.y
+#define inkColor inkTuneA.z
+#define inkShadeLine inkTuneA.w
+uniform vec4 inkTuneB;
+#define inkHatch inkTuneB.x
+#define inkHatchPx inkTuneB.y
+#define inkObjectHatch inkTuneB.z
+#define inkRelief inkTuneB.w
+uniform vec4 inkTuneC;
+#define inkContour inkTuneC.x
+#define inkContourStep inkTuneC.y
+#define inkContourSoft inkTuneC.z
+#define inkContourOpacity inkTuneC.w
+uniform vec4 inkTuneD;
+#define inkContourCross inkTuneD.x
+#define inkShadeDark inkTuneD.y
+#define inkShadeShift inkTuneD.z
+#define inkCastDark inkTuneD.w
+uniform vec4 inkTuneE;
+#define inkHeightTint inkTuneE.x
+#define inkShadeCut inkTuneE.y
+#define inkLitFace inkTuneE.z
+#define inkCliffStreaks inkTuneE.w
 const vec3 INK_BLACK = vec3(0.08, 0.07, 0.1);
 const vec3 INK_CREST_TONE = vec3(0.8, 1.0, 1.0);
 float inkHash(vec2 p) {
@@ -132,9 +140,6 @@ vec3 inkFinish(vec3 color, vec2 plane, float lineShade, float inShade, float hat
 
 const INK_GROUND = `${INK_CONTRACT}${INK_COLOR}
 const vec3 INK_SHADE_COOL = vec3(0.82, 0.88, 1.15);
-uniform float inkShadeCut;
-uniform float inkLitFace;
-uniform float inkCliffStreaks;
 const vec3 INK_SUN_FACE = vec3(1.35, 1.18, 0.95);
 float inkFallStreaks() {
   float px = max(length(fwidth(vInkAt.xz)), 0.0005);
@@ -264,6 +269,7 @@ export type InkLight = Pick<Daylight, "sun" | "sunIntensity" | "sky" | "skyInten
 export function syncInkLight(light: InkLight, fullDay: InkLight): void {
   FULL_LIGHT.value = fullLightOf(light);
   DAY_LIGHT.value = fullLightOf(fullDay);
+  packInk();
 }
 
 function fullLightOf(light: InkLight): number {
@@ -298,29 +304,21 @@ function paint(shader: THREE.WebGLProgramParametersWithUniforms, anchor: string,
   shader.fragmentShader = injectBefore(OWNER, shader.fragmentShader, "#include <opaque_fragment>", "outgoingLight = inkPaint(outgoingLight, diffuseColor.rgb);");
 }
 
+const INK_PACKS: readonly (readonly [THREE.IUniform<THREE.Vector4>, () => readonly number[]])[] = [
+  [{ value: new THREE.Vector4() }, () => [FULL_LIGHT.value, DAY_LIGHT.value, TUNING.color.value, TUNING.shadeLine.value]],
+  [{ value: new THREE.Vector4() }, () => [TUNING.hatch.value, TUNING.hatchPx.value, TUNING.objectHatch.value, TUNING.relief.value]],
+  [{ value: new THREE.Vector4() }, () => [TUNING.contour.value, TUNING.contourStep.value, TUNING.contourSoft.value, TUNING.contourOpacity.value]],
+  [{ value: new THREE.Vector4() }, () => [TUNING.contourCross.value, TUNING.shadeDark.value, TUNING.shadeShift.value, TUNING.castDark.value]],
+  [{ value: new THREE.Vector4() }, () => [TUNING.heightTint.value, TUNING.shadeCut.value, TUNING.litFace.value, TUNING.cliffStreaks.value]],
+];
+
+function packInk(): void {
+  for (const [uniform, read] of INK_PACKS) uniform.value.fromArray(read());
+}
+
 function inkUniforms() {
-  return {
-    inkFullLight: FULL_LIGHT,
-    inkDayLight: DAY_LIGHT,
-    inkColor: TUNING.color,
-    inkShadeLine: TUNING.shadeLine,
-    inkHatch: TUNING.hatch,
-    inkHatchPx: TUNING.hatchPx,
-    inkContour: TUNING.contour,
-    inkContourStep: TUNING.contourStep,
-    inkContourSoft: TUNING.contourSoft,
-    inkContourOpacity: TUNING.contourOpacity,
-    inkContourCross: TUNING.contourCross,
-    inkObjectHatch: TUNING.objectHatch,
-    inkRelief: TUNING.relief,
-    inkShadeDark: TUNING.shadeDark,
-    inkShadeShift: TUNING.shadeShift,
-    inkCastDark: TUNING.castDark,
-    inkShadeCut: TUNING.shadeCut,
-    inkLitFace: TUNING.litFace,
-    inkCliffStreaks: TUNING.cliffStreaks,
-    inkHeightTint: TUNING.heightTint,
-  };
+  packInk();
+  return { inkTuneA: INK_PACKS[0][0], inkTuneB: INK_PACKS[1][0], inkTuneC: INK_PACKS[2][0], inkTuneD: INK_PACKS[3][0], inkTuneE: INK_PACKS[4][0] };
 }
 
 function sunShadeLights(): string {

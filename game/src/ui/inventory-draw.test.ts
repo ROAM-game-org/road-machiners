@@ -271,7 +271,7 @@ describe("the grid scale fit", () => {
 
   it("holds its layout for the same key and refits for another", () => {
     const scale = new GridScale();
-    const layout = { columns: 3, cargoBeside: false, pxPerMeter: 20 };
+    const layout = { columns: 3, cargoBeside: false, pxPerMeter: 20, spareCellPx: 20 };
     scale.apply("a", layout, null);
     const fitted = gridSize(scale.measure(truck, true)).height;
     expect(scale.holds("a")).toBe(true);
@@ -283,7 +283,7 @@ describe("the grid scale fit", () => {
 
   it("gives the other truck its own layout", () => {
     const scale = new GridScale();
-    scale.apply("a", { columns: 3, cargoBeside: false, pxPerMeter: 20 }, { columns: 1, cargoBeside: false, pxPerMeter: 10 });
+    scale.apply("a", { columns: 3, cargoBeside: false, pxPerMeter: 20, spareCellPx: 20 }, { columns: 1, cargoBeside: false, pxPerMeter: 10, spareCellPx: 10 });
     expect(scale.measure(truck, true).pxPerMeter).toBe(20);
     expect(scale.measure(truck, false).pxPerMeter).toBe(10);
   });
@@ -317,12 +317,36 @@ describe("the choice of a layout", () => {
 
   it("takes the largest cells when no try reaches the click minimum", () => {
     const layout = chooseLayout([room(3, 100, 300), room(2, 200, 300)], long);
-    expect(layout).toEqual({ columns: 2, cargoBeside: true, pxPerMeter: 15 });
+    expect(layout).toMatchObject({ columns: 2, cargoBeside: true, pxPerMeter: 15 });
   });
 
   it("never tries cargo beside a truck with no cargo rows", () => {
     const bare = { width: 6, truckHeight: 40, spareHeight: 0, col: 1 };
     expect(chooseLayout([room(3, 1000, 400)], bare).cargoBeside).toBe(false);
+  });
+
+  it("picks cargo beside when it gives the truck larger cells, even when below already reaches the click minimum", () => {
+    const layout = chooseLayout([room(3, 1000, 300)], { width: 6, truckHeight: 10, spareHeight: 4, col: 1 });
+    expect(layout.cargoBeside).toBe(true);
+    expect(layout.pxPerMeter).toBeGreaterThan(300 / 14.3);
+  });
+
+  it("keeps cargo below on a tie", () => {
+    const layout = chooseLayout([room(3, 5000, 5000)], { width: 3, truckHeight: 5, spareHeight: 2, col: 1 });
+    expect(layout).toMatchObject({ cargoBeside: false, pxPerMeter: 42, spareCellPx: 42 });
+  });
+
+  it("gives cargo beside the truck the room next to it, up to the full cell", () => {
+    const truck = { width: 6, truckHeight: 20, spareHeight: 4, col: 2 };
+    const layout = chooseLayout([room(3, 900, 500)], truck);
+    expect(layout.cargoBeside).toBe(true);
+    expect(layout.spareCellPx).toBeGreaterThanOrEqual(layout.pxPerMeter * truck.col);
+    expect(layout.spareCellPx).toBeLessThanOrEqual(42);
+  });
+
+  it("never gives cargo a cell smaller than the truck's", () => {
+    const layout = chooseLayout([room(3, 100, 300)], long);
+    expect(layout.spareCellPx).toBeGreaterThanOrEqual(layout.pxPerMeter * long.col);
   });
 
   it("keeps the old floor on a stacked screen, since it scrolls", () => {
@@ -354,18 +378,53 @@ describe("cargo beside the truck", () => {
     expect(truckArea(m).width).toBe(m.cols * m.cellW);
   });
 
+  it("fills the room beside the truck with larger cargo cells and still finds every cell", () => {
+    const big = gridMetrics(w.vehicles[0].chassisId, g, 20, true, 42);
+    expect(big.spareCell).toBe(42);
+    expect(big.cellW).toBeLessThan(big.spareCell);
+    for (let y = 0; y < big.rows; y++)
+      for (let x = 0; x < big.cols; x++) {
+        const r = rectOf(big, x, y, 1, 1);
+        const size = gridSize(big);
+        expect(cellAt(big, r.left + r.width / 2, r.top + r.height / 2)).toEqual({ x, y });
+        expect(r.left + r.width).toBeLessThanOrEqual(size.width + 1e-9);
+        expect(r.top + r.height).toBeLessThanOrEqual(size.height + 1e-9);
+      }
+  });
+
+  it("keeps the cargo block at the truck's width plus the gap, whatever the cargo cell", () => {
+    const big = gridMetrics(w.vehicles[0].chassisId, g, 20, true, 42);
+    expect(rectOf(big, 0, big.chassisRows, 1, 1).left).toBe(big.cols * big.cellW + big.spareGap);
+    expect(rectOf(big, 0, big.chassisRows, 1, 1).width).toBe(42);
+  });
+
+  it("never draws a cargo cell smaller than the truck's or larger than the full cell", () => {
+    expect(gridMetrics(w.vehicles[0].chassisId, g, 20, true, 1).spareCell).toBe(m.cellW);
+    expect(gridMetrics(w.vehicles[0].chassisId, g, 20, true, 500).spareCell).toBe(42);
+  });
+
+  it("keeps the old cells when cargo is below", () => {
+    const below = gridMetrics(w.vehicles[0].chassisId, g, 20, false, 42);
+    expect(below.spareCell).toBe(below.cellW);
+    expect(rectOf(below, 0, below.chassisRows, 1, 1).width).toBe(below.cellW);
+  });
+
   it("stays below the truck when the truck has no cargo rows", () => {
     expect(gridMetrics(w.vehicles[0].chassisId, { ...g, h: g.chassisH }, 20, true).cargoBeside).toBe(false);
   });
 });
 
 describe("the icon of a gun lying across its cells", () => {
-  const metrics = { cellW: 20, cellH: 20 } as GridMetrics;
+  const metrics = { cellW: 20, cellH: 20, spareCell: 30, chassisRows: 5 } as GridMetrics;
   const at = (rot: Rot) => iconBox(item("mg", rot), metrics);
 
   it("keeps the footprint for a gun that points along its cells", () => {
     expect(at(0)).toEqual({ width: 18, height: 58 });
     expect(at(1)).toEqual({ width: 18, height: 58 });
+  });
+
+  it("sizes a gun in a cargo row from the cargo cell", () => {
+    expect(iconBox({ ...item("mg", 0), y: 5 }, metrics)).toEqual({ width: 28, height: 88 });
   });
 
   it("keeps the gun's own proportions inside the footprint when it points across", () => {
