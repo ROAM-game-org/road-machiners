@@ -69,8 +69,8 @@ what: Merges brought back an old version of a feature, or dropped a piece anothe
 cost: Approved work vanished from the game, the owner found approved art missing from the release candidate, a dev branch crashed about one new Chaos Highway game in four, and urgent fixes went to main.
 
 ID: R21
-what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, and a texture sized from the map that needed more than 2048 texels on the largest map.
-cost: On most phones, Macs and Windows Chrome the ground vanished at night, a first fix brightened the moon instead, and one player could not start the game at all until a hotfix.
+what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, a texture sized from the map that needed more than 2048 texels on the largest map, and a ground that passed fixed per-material tables, colors and two rows per pad as uniforms, which with a crowded night's spot lights went past the 224 fragment uniform rows the floor allows, counted per row with no packing as Android does. The floor check owned only texture units, so the uniform count grew unchecked. Compile fixed data into the shader as constants, and hold every program to every floor limit, by day and on the worst night.
+cost: On most phones, Macs and Windows Chrome the ground vanished at night, a first fix brightened the moon instead, players could not start the game at all until hotfixes, the uniform fix was first planned against the wrong branch and redesigned, and far trucks lost their headlight beams to fit the floor.
 
 ID: R23
 what: A request to make a visual effect calmer and lighter was overdone until the effect was nearly gone: besides the asked-for lighter, larger and softer look, the build cut a number the request said to keep to a tenth of its value, and the committee was shown only that one result. When tuning a look, keep the effect plainly visible, change only the numbers the request names, and show the before and a middle step next to the result in video.
