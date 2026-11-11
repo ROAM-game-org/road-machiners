@@ -1,5 +1,5 @@
 import type { Card, Column, Ctx } from '../types';
-import { TransientFilterError, type Classify, type Decision, type FilterInput, type PublicFilter } from './decision';
+import { FilterRefusalError, TransientFilterError, type Classify, type Decision, type FilterInput, type PublicFilter } from './decision';
 import { isolated } from './isolate';
 import type { Judged, KnownWork, PublicStore, StoredComment } from './store';
 import { rankByWords } from './wiki';
@@ -44,11 +44,20 @@ async function classifyOrRetry(ctx: Ctx, store: PublicStore, classify: Classify,
   try {
     await classifyOne(ctx, store, classify, comment, board);
   } catch (error) {
-    if (!(error instanceof TransientFilterError) || comment.filterAttempts + 1 >= FILTER_ATTEMPTS) throw error;
-    store.classifyLater(comment.id);
-    if (comment.source === 'telegram' && comment.sender !== null) store.returnHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour);
-    ctx.log('public', comment.issue, `the filter failed for now on player comment ${comment.id}, so the next tick tries it again: ${error.message}`);
+    if (error instanceof FilterRefusalError && error.spam) return keepSpamRejected(ctx, comment, error);
+    retryLater(ctx, store, comment, error);
   }
+}
+
+function keepSpamRejected(ctx: Ctx, comment: StoredComment, error: FilterRefusalError): void {
+  ctx.log('public', comment.issue, `the filter refused ${error.refused.join(', ')} on player comment ${comment.id}, which it scores as spam, so it stays rejected`);
+}
+
+function retryLater(ctx: Ctx, store: PublicStore, comment: StoredComment, error: unknown): void {
+  if (!(error instanceof TransientFilterError) || comment.filterAttempts + 1 >= FILTER_ATTEMPTS) throw error;
+  store.classifyLater(comment.id);
+  if (comment.source === 'telegram' && comment.sender !== null) store.returnHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour);
+  ctx.log('public', comment.issue, `the filter failed for now on player comment ${comment.id}, so the next tick tries it again: ${error.message}`);
 }
 
 function overLimit(ctx: Ctx, store: PublicStore, comment: StoredComment): boolean {

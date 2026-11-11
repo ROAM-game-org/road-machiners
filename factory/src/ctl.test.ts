@@ -242,6 +242,15 @@ describe('read commands', () => {
     expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7\nu merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7,#8 cleared #7\nv control: #9: Issue #9 is not on the board (cause error, log none) rejected hold']);
   });
 
+  it('release lists a reverted merge apart from the merges that ship', async () => {
+    const f = fake();
+    const merge = (issue: number, reverted: string[]) => ({ issue, title: `t${issue}`, sha: `${issue}`.repeat(40).slice(0, 40), into: 'dev', reverted });
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, []), merge(8, ['dev'])] });
+    await run(f, 'release');
+    expect(out).toContain('merged into dev, not yet shipped: #7 7777777');
+    expect(out).toContain('reverted on dev, never ships: #8 8888888 reverted on dev');
+  });
+
   it('help lists every command', async () => {
     await run(fake(), 'help');
     for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'playtest', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'adopt <branch> <title>', 'retry N', 'pause', 'resume', 'repair-clone N']) {

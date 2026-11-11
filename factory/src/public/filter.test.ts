@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TransientFilterError } from './decision';
+import { FilterRefusalError, TransientFilterError } from './decision';
 import { filterWith } from './filter';
 
 const CFG = { openaiKey: 'sk-secret-key', filterModel: 'test-model', filterTimeoutSeconds: 30, filterSincereMin: 0.8 };
@@ -112,6 +112,19 @@ describe('filterWith', () => {
     await expect(classify(answers(good, pick('kind', 'idea'), pick('route', 'none')))).rejects.toThrow('bad kind');
     await expect(classify(answers(good, pick('kind', 'bug'), pick('route', 'hotfix')))).rejects.toThrow('bad route');
     await expect(classify(answers(good, pick('kind', 'bug'), pick('route', 'none'), pick('language', 'fr')))).rejects.toThrow('bad language');
+  });
+
+  it('marks a refusal as spam only when the intent answer scores the text as spam and rejects it', async () => {
+    const refusal = async (...list: unknown[]) => filterWith(CFG, fake(200, answers(...list)).fetch)(COMMENT).then(() => null, (thrown: unknown) => thrown);
+    const refused = { type: 'refusal', name: 'kind' };
+    const spam = await refusal(intent(0.02, 0.08, 0.9), refused, pick('route', 'none'));
+    expect(spam).toBeInstanceOf(FilterRefusalError);
+    expect(spam).toMatchObject({ spam: true, refused: ['kind'], message: 'The filter model refused to answer: kind.' });
+    expect(await refusal(intent(0.95, 0.03, 0.02), refused)).toMatchObject({ spam: false });
+    expect(await refusal(intent(0.5, 0.3, 0.2), refused)).toMatchObject({ spam: false });
+    expect(await refusal(intent(0.1, 0.5, 0.4), refused)).toMatchObject({ spam: false });
+    expect(await refusal({ type: 'refusal', name: 'intent' }, pick('kind', 'bug'))).toMatchObject({ spam: false, refused: ['intent'] });
+    expect(await refusal(intent(1.2, 0, 0), refused)).toHaveProperty('message', expect.stringContaining('bad intent probabilities'));
   });
 
   it('shows the replied text, lists the known work, and links the text to the work it picks', async () => {

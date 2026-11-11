@@ -130,7 +130,7 @@ function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   updateState(ctx.statePath, (state) => ({ ...state, devMerges: [...state.devMerges, ...merges] }));
 }
 
-export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock; staleBase?: boolean };
+export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string, limitMinutes?: number) => Promise<string>; clock?: Clock; staleBase?: boolean };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;
@@ -237,16 +237,16 @@ async function keptFix(ctx: Ctx, land: Landing, prompt: string): Promise<string>
 
 export const LANDING_RESUME_NOTE = 'An earlier job on this same work stopped before it pushed, and this job continues it. The clone keeps your commits and your uncommitted changes, so read git log and git status first and carry on from there. Do not redo work that is already in the clone.';
 
-export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: LandingWork, resumed: boolean): (prompt: string) => Promise<string> {
+export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: LandingWork, resumed: boolean): Landing['agent'] {
   const session = landingSession(ctx, stage, work);
   const log = releaseLog(ctx, `${stage}-${work.into.replaceAll('/', '-')}`);
   let note = resumed;
-  return (prompt) => {
+  return (prompt, limitMinutes) => {
     const run = { dir: session.dir, id: session.id, resume: session.resume };
     const full = note ? `${LANDING_RESUME_NOTE}\n\n${prompt}` : prompt;
     session.resume = true;
     note = false;
-    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: full, log, session: run });
+    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: full, log, session: run, limitMinutes });
   };
 }
 
@@ -266,7 +266,7 @@ async function conflictRun(ctx: Ctx, land: Landing, { branch, reason, card }: Om
   const owner = card ?? (branch === land.into ? await soleOwner(ctx, land, conflicts) : null);
   const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
   const own = owner === null ? null : cardConflictRun(ctx, land.stage, { issue: owner, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(owner, branch, land.into, reason, conflicts), log });
-  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }));
+  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }), ctx.cfg.conflictTimeoutMinutes);
 }
 
 async function soleOwner(ctx: Ctx, land: Landing, conflicts: string[]): Promise<number | null> {

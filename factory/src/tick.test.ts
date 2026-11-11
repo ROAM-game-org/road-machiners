@@ -906,6 +906,17 @@ describe('tick', () => {
     expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'h8', 'm9', 'd10', 'r11']);
   });
 
+  it('deletes the build of a card whose dev merge was reverted, since that merge never ships', async () => {
+    const h = harness(null, false, [card(10, 'Done'), card(11, 'Done')]);
+    const web = h.ctx.cfg.webRoot;
+    const names = ['dev', 'kept10', 'reverted11'];
+    for (const name of names) mkdirSync(join(web, name), { recursive: true });
+    const merge = (issue: number, reverted: string[]) => ({ issue, title: 't', sha: 'a'.repeat(40), into: 'dev', reverted });
+    writeState(h.ctx.statePath, state({ devMerges: [merge(10, []), merge(11, ['dev'])], builds: { '10': 'kept10', '11': 'reverted11' } }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'kept10']);
+  });
+
   it('keeps the rc build while the tracking card waits in Approval', async () => {
     const h = harness(null, false, [card(20, 'Approval', ['release']), card(9, 'Done')]);
     const web = h.ctx.cfg.webRoot;

@@ -11,6 +11,7 @@ import { resetSpend } from './landing-work';
 import { bundleOf } from './stages/bundle';
 import { agentHome, workDir } from './stages/common';
 import { planRecordExists } from './plan-record';
+import { isReverted, unrevertedMerges } from './stages/release-common';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
 import { GAME_DIR, STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
@@ -280,7 +281,8 @@ function releaseQueueLines(state: FactoryState): string[] {
     `playtest ordered: ${state.pendingPlaytest ?? 'none'}`,
     `cleanup cards due after release: ${state.pendingCleanup ?? 'none'}`,
     `public post: ${publicPost(state.releasePost)}`,
-    `merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`,
+    `merged into dev, not yet shipped: ${formatMerges(unrevertedMerges(state.devMerges))}`,
+    `reverted on dev, never ships: ${formatMerges(state.devMerges.filter(isReverted))}`,
   ];
 }
 
