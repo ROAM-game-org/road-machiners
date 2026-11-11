@@ -14,7 +14,9 @@ export const CANDIDATE_SCOPE = 'rc';
 
 const SERVER_TRIES = 60;
 
-const playtestScript = (playtest: string) => `set -u
+export const CHECKED_SHOT = '.playtest/end.png';
+
+export const playtestScript = (playtest: string) => `set -u
 ${STEP_FUNCTION}
 ${phaseLine('Playing the candidate')}
 mkdir -p ${OUT_DIR}
@@ -38,8 +40,7 @@ else
 fi
 kill "$server" || true
 [ "$status" = 0 ] || exit "$status"
-shot=$(ls -t .playtest/*.png | head -n 1)
-cp "$shot" ${OUT_DIR}/screenshot.png
+cp ${CHECKED_SHOT} ${OUT_DIR}/screenshot.png || { echo "the playtest passed but wrote no ${CHECKED_SHOT}"; exit 1; }
 ${stepCall('done')}
 `;
 
