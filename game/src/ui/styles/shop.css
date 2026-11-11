@@ -836,7 +836,9 @@
     row-gap: var(--space-3);
   }
   .goods.truck .good-row,
-  .goods.stocked .good-row {
+  .goods.stocked .good-row,
+  .goods.truck.no-profit .good-row,
+  .goods.stocked.no-profit .good-row {
     grid-template-columns: 1fr auto auto auto;
     grid-template-areas:
       "name theirs held profit"
