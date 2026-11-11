@@ -26,6 +26,11 @@ export function hasTimedFire(state: TimedCombatState): boolean {
   return state.attempts.length > 0 || state.flights.length > 0;
 }
 
+export function fireSpots(world: World, state: TimedCombatState): Vec[] {
+  const at = (id: string) => world.vehicles.find(v => v.id === id)?.pos ?? [];
+  return [...state.attempts.flatMap(a => [at(a.shooter), at(a.target)].flat()), ...state.flights.flatMap(f => [f.from, f.impactAt])];
+}
+
 export function beginTimedCombat(world: World, state: TimedCombatState, durationMs: number): void {
   if (state.attempts.length || state.pendingWrecks.length) throw new Error('Unfinished combat at turn start');
   state.active = true;
