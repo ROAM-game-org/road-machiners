@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_120 from './save-fixtures/format-2-120.json';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 import { armorRowCell_127_128 } from './save-steps-late';
 
 type Spot = { x: number; y: number; rot: number };

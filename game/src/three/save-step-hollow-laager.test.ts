@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_107 from './save-fixtures/format-2-107.json';
-import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
+import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 import { LAAGER_BAYS_109 } from './save-steps-late';
 
 type Saved = typeof FORMAT_2_107;
