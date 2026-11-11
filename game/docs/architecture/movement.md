@@ -197,7 +197,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 - The rear unit has two braked, unpowered wheels.
 - Each unit's wheel rays skip the other unit's colliders in `rollUnits()`, since the sorokonoga's bed reaches under its tractor's drive axle.
 - The turn writes the bend of the two bodies back to the truck and checks it against the limit.
-- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the pivot share between the tractor's axles. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
+- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the tractor's own mass and the pivot share between its axles by lever arm about `axlesOf()`, since the tractor's axle midpoint may sit off its origin. It throws on a wheel with no load. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
 - Far rigs, rigs on a tow rope and the driver's clearance roll have no body. They move the rear unit with `bendStep()`, the tractrix rule the tow bar uses. The rear axle follows the pivot, clamped at the bend limit.
 - Backing runs the bend away, as on a real rig. The driver steers against the bend with the coupling's `backGain`. A backing leg is capped at `backCap` tiles.
 
