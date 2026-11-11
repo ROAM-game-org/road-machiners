@@ -198,7 +198,6 @@ export class Hud {
   private haulerGauge = new HaulerGauge();
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
-  private inspectedAimable = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -263,11 +262,12 @@ export class Hud {
     const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
+    this.inspectedDraw.style.flexBasis = "";
     const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
     const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
-    this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
-    if (this.inspectedAimable) this.growForAim(top, slot);
+    this.info.style.maxHeight = phoneMode() ? "none" : "";
+    this.growForDrawing(top, slot);
     if (!phoneMode()) this.growForLists(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.placeSide();
@@ -317,16 +317,19 @@ export class Hud {
     return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
   }
 
-  private growForAim(top: number, slot: number): void {
+  private growForDrawing(top: number, slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
     const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
     if (phoneMode()) {
-      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+      const capped = Math.min(width, this.aimWidthCap());
+      if (wider > 0) this.inspectedDraw.style.flexBasis = `${need.width - (width - capped)}px`;
+      this.info.style.width = `${capped}px`;
       const fits = slot - this.inspectedDraw.clientHeight + need.height;
       this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
       return;
     }
+    if (wider > 0) this.inspectedDraw.style.flexBasis = `${need.width}px`;
     if (wider > 0) this.info.style.width = `${width}px`;
     const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
@@ -806,7 +809,6 @@ export class Hud {
       return;
     }
     const aim = this.aimOf(w, v);
-    this.inspectedAimable = aim !== undefined;
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
