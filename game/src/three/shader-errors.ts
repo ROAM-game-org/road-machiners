@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
 import { CrtPass } from './render/crtPass';
-import type { DustLayer } from './render/dustLayer';
+import type { InkLayer } from './render/inkLayer';
 import type { GroundCache } from './render/groundCache';
 import { INK_DUST_LAYER } from './render/particles/cards';
 import { TUNING, tuningVersion } from './render/inkTuning';
@@ -47,6 +47,7 @@ export function failLoudOnShaderError(renderer: THREE.WebGLRenderer, gpu: GpuCon
     const detail = [
       `material ${materialOf(renderer, program)}`,
       `sampler limit ${limit}`,
+      `uniform limits fragment ${gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS)} vertex ${gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS)}`,
       `link log: ${gl.getProgramInfoLog(program) || 'no log'}`,
       stageLog(gl, vertex, 'vertex'),
       stageLog(gl, fragment, 'fragment'),
@@ -119,7 +120,7 @@ export class ShaderWarmup {
   private sealed = new WeakSet<THREE.Object3D>();
   private readonly crt: CrtPass;
   private groundCache: GroundCache | null = null;
-  private dustLayer: DustLayer | null = null;
+  private inkLayer: InkLayer | null = null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -171,17 +172,17 @@ export class ShaderWarmup {
     return this.groundCache !== null && this.groundCache.coarse();
   }
 
-  drawDustThrough(layer: DustLayer): void {
-    this.dustLayer = layer;
+  drawInkLayerThrough(layer: InkLayer): void {
+    this.inkLayer = layer;
   }
 
   private drawView(): void {
-    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithDust());
-    else this.drawWithDust();
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithInkLayer());
+    else this.drawWithInkLayer();
   }
 
-  private drawWithDust(): void {
-    const layer = this.dustLayer;
+  private drawWithInkLayer(): void {
+    const layer = this.inkLayer;
     if (layer && TUNING.fxInk.value >= INK_DUST_LAYER && layer.holds()) layer.render(this.renderer, this.camera, () => this.drawScene());
     else this.drawScene();
   }

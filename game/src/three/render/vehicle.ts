@@ -4,26 +4,27 @@ import { MODEL_FILL } from './modelFill';
 import { radioColor, radioHalo } from './radioLight';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
-import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
+import { isShield, partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, belowDeck, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, WORLD_LOOKS } from './truckMesh';
-import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, isToned, mergeStatic, partTone, WORLD_LOOKS, wornTone } from './truckMesh';
+import { armorModel, cutFace, cutSpec, cutToBody, drawnArmorPlacement, lampIslands, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
-import { weaponHead } from './weaponHead';
+import { gunBase, gunHead } from './gunLook';
+import { itemObject } from './kindLook';
 import { cornerWheels, nearestWheels } from './wheelItems';
 
 const T = PHYSICS.truck;
@@ -32,10 +33,9 @@ const CELL = PHYSICS.cell;
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
-const PAINT = 'paint';
 const TRIM = 'trim';
+const FLUSH_DETAILS = new Set([TRIM, 'light', 'red']);
 
-const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, accessory: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
 
 const ROT_YAW = Math.PI / 2;
 
@@ -63,8 +63,8 @@ const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: readonly FireSpan[]; facing: number; unit: number };
 
-type Look = { tone: number; step: number; partId: string | null; dents: boolean };
-const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
+type Look = { broken: boolean; step: number; partId: string | null; dents: boolean };
+const PRISTINE: Look = { broken: false, step: 0, partId: null, dents: false };
 
 export type ViewScene = 'world' | 'portrait' | 'xray';
 
@@ -363,7 +363,7 @@ export class VehicleView {
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
-    this.finishLook(merged);
+    this.finishLook(merged, v.chassisId, bodyPaint(colors.body));
   }
 
   private freshMaterials(): void {
@@ -396,19 +396,19 @@ export class VehicleView {
     }
   }
 
-  private finishLook(merged: THREE.Group[]): void {
+  private finishLook(merged: THREE.Group[], chassisId: string, stripe: number): void {
     if (this.scene === 'world') for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
     const plain = [...this.silhouettes];
-    this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
+    this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain, chassisId, stripe));
     if (this.scene !== 'world') {
       this.dropContactShadow();
       dropShadows(this.root);
     }
   }
 
-  private cutArmor(unit: UnitView, merged: THREE.Group, plain: THREE.MeshBasicMaterial[]): void {
+  private cutArmor(unit: UnitView, merged: THREE.Group, plain: THREE.MeshBasicMaterial[], chassisId: string, stripe: number): void {
     const lamps = merged.children.flatMap((o) => (o instanceof THREE.Mesh && o.material === this.lampMat ? lampIslands(o.geometry) : []));
-    const spec = cutSpec(restingWheelBoxes(unit), lamps, unit.b.half, TRUCK_LOOK);
+    const spec = cutSpec(restingWheelBoxes(unit), lamps, unit.b.half, TRUCK_LOOK, unitTopCut(chassisId, unit.index), stripe);
     const cut: ArmorCut = {
       spec,
       depth: withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), spec),
@@ -576,7 +576,7 @@ export class VehicleView {
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number): THREE.Object3D {
-    const obj = model(itemModel(item));
+    const obj = itemObject(itemLookId(item));
     const spot = this.spots.get(item);
     if (!spot) throw new Error(`Item ${item.id} on ${v.chassisId} has no standing spot`);
     const at = footprint(v, item, spot.y);
@@ -589,7 +589,7 @@ export class VehicleView {
   }
 
   private placeEngine(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
-    const obj = fitInto(model(itemModel(item)), rectOf(v, item), engineFloor(v.chassisId), cellsTurned(item) ? ROT_YAW : 0);
+    const obj = fitInto(itemObject(itemLookId(item)), rectOf(v, item), engineFloor(v.chassisId), cellsTurned(item) ? ROT_YAW : 0);
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -597,8 +597,8 @@ export class VehicleView {
   private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
     if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
-    const obj = model(partModel(def.id));
-    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
+    const obj = armorModel(def.id);
+    place(obj, drawnArmorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -608,7 +608,7 @@ export class VehicleView {
     const bottom = postBottom(foot, top);
     const mount = { ...at, pos: at.pos.clone().setY(top) };
     if (bottom >= top || !postStands(this.units[stand.plate.unit].base, at.pos, bottom)) return mount;
-    const post = model('wmount_riser');
+    const post = gunBase('wmount_riser', paint);
     place(post, { pos: at.pos.clone().setY(bottom), yaw: 0, scale: new THREE.Vector3(1, (top - bottom) / socket('wmount_riser', 'top').y, 1) });
     tint(post, paint, lookOf(item));
     post.name = `${item.id} post`;
@@ -617,7 +617,7 @@ export class VehicleView {
   }
 
   private legModel(item: PartItem, paint: number, role: 'leg' | 'brace'): THREE.Object3D {
-    const leg = model('wmount_leg');
+    const leg = gunBase('wmount_leg', paint);
     tint(leg, paint, lookOf(item));
     leg.name = `${item.id} ${role}`;
     return leg;
@@ -627,7 +627,7 @@ export class VehicleView {
     const unit = this.unitOf(v, item);
     const look = weaponLook(item.part.id, item.part.defId);
     const wear = lookOf(item);
-    const { head: parts, tip } = weaponHead(look);
+    const { head: parts, tip } = gunHead(look, item.part.defId);
     for (const p of parts.children) tint(p, paint, wear);
     const head = mergeStatic(parts, this.scene === 'world');
 
@@ -636,7 +636,7 @@ export class VehicleView {
     const facing = signedDegrees(facingOf(item));
     const spans = gunSpans(v, item);
     const shape = headShape(head, socket(look.receiver, 'muzzle').x);
-    const mount = model(look.mount);
+    const mount = gunBase(look.mount, paint);
     place(mount, stand.at);
     mount.updateMatrix();
     const across = laneAxis(facing);
@@ -777,7 +777,7 @@ function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
     mesh.material = twin;
     return;
   }
-  mesh.material = withCut(plain, cut.spec);
+  mesh.material = withCut(plain, cut.spec, cutFace(mesh));
   mesh.userData.cut = cut.spec;
   mesh.userData.darkMat = cut.dark;
   if (mesh.userData.outline) return;
@@ -794,7 +794,7 @@ function dropShadows(root: THREE.Object3D): void {
 }
 
 function armorIdsOf(v: Vehicle): Set<string> {
-  return new Set(v.items.flatMap((it) => (it.kind === 'part' && isShield(partDef(it.part.defId)) ? [it.part.id] : [])));
+  return new Set(v.items.flatMap((it) => (it.kind === 'part' && cutToBody(partDef(it.part.defId)) ? [it.part.id] : [])));
 }
 
 function restingWheelBoxes(unit: UnitView): THREE.Box3[] {
@@ -956,7 +956,7 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 
 export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
   const rest = restOf(v, item);
-  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
+  return itemSpot(base, bottomOf(partModel(itemLookId(item)), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), ringMiddles(v.chassisId, item.y), item.kind === 'part');
 }
 
 function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
@@ -993,10 +993,6 @@ export function standingY(v: Pick<Vehicle, 'chassisId'>, item: GridItem): number
   return restOf(v, item).y;
 }
 
-function itemModel(item: GridItem) {
-  return partModel(itemLookId(item));
-}
-
 function cabOf(v: Vehicle): GridItem | undefined {
   return v.items.find((it) => it.kind === 'part' && BODY_PARTS.has(it.part.defId));
 }
@@ -1010,7 +1006,7 @@ function lookOf(item: GridItem): Look {
   if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
   const kind = partDef(item.part.defId).kind;
-  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
+  return { broken: item.part.hp <= 0, step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
 export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number, rect: CellRect = restOf(v, item).rect): Placement {
@@ -1049,14 +1045,12 @@ function place(obj: THREE.Object3D, at: Placement): void {
 }
 
 function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[] = []): void {
-  const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Part mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    if (mat.name === PAINT) mat.color.setHex(bodyPaint(paint));
-    mat.color.setHex(grayed(mat.color.getHex(), share));
-    mat.color.multiplyScalar(look.tone);
+    const base = isToned(mat) ? mat.color.getHex() : partTone(mat.name, mat.color.getHex(), paint, look.partId !== null);
+    mat.color.setHex(wornTone(mat.name, base, look.step, look.broken));
     if (look.partId) o.userData.partId = look.partId;
   });
   if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step, { top: false, keepOut });
@@ -1106,7 +1100,7 @@ export function dent(obj: THREE.Object3D, partId: string, step: number, cover: D
     return found;
   };
   obj.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
+    if (!(o instanceof THREE.Mesh) || FLUSH_DETAILS.has((o.material as THREE.Material).name)) return;
     const geo = o.geometry as THREE.BufferGeometry;
     const pos = geo.getAttribute('position') as THREE.BufferAttribute;
     const toMesh = toModel.clone().multiply(o.matrixWorld).invert();

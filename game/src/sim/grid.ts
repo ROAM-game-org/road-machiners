@@ -419,8 +419,9 @@ export function layoutError(g: Grid, items: GridItem[]): PlacementRefusal | null
     const counts = held[layerOf(g, item)];
     if (cells.some((c) => (counts.get(cellKey(c.x, c.y)) ?? 0) > 1)) return { id: 'inTheWay' };
     if (armorClash(g, item, cells)) return { id: 'armorOnly' };
+    if (isWeapon(item) && barrelField(g.chassisId, items, item.id).clashes(item)) return { id: 'barrel' };
   }
-  return items.some((it) => isWeapon(it) && barrelField(g.chassisId, items, it.id).clashes(it)) ? { id: 'barrel' } : null;
+  return null;
 }
 
 function outOfPlace(g: Grid, item: GridItem, cells: { x: number; y: number }[]): boolean {

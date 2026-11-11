@@ -102,24 +102,24 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 <!-- wiki:weapon-pools -->
 | weapon | mount | receiver | barrel | extra |
 | --- | --- | --- | --- | --- |
-| mg | wmount_ring_small, wmount_pintle | wrec_mg_a, wrec_mg_b | wbar_mg_short, wbar_mg_long, wbar_twin | wext_shield, wext_drum |
-| shotgun | wmount_ring_small, wmount_pintle | wrec_shotgun | wbar_shotgun, wbar_twin | wext_shield, wext_drum |
-| autocannon | wmount_ring_wide | wrec_autocannon | wbar_autocannon, wbar_twin | wext_drum, wext_shield |
-| cannon | wmount_cradle | wrec_cannon | wbar_cannon | wext_shield, wext_scope |
+| mg | wmount_ring_small, wmount_pintle | wrec_mg_a, wrec_mg_b | wbar_mg |  |
+| shotgun | wmount_ring_small, wmount_pintle | wrec_shotgun | wbar_shotgun | wext_shield |
+| autocannon | wmount_ring_wide | wrec_autocannon | wbar_autocannon | wext_box_mag |
+| cannon | wmount_cradle | wrec_cannon | wbar_cannon | wext_shield |
 | tankGun | wmount_cradle | wrec_tank | wbar_tank | wext_shield |
 | rocketRack | wmount_ring_wide | wrec_rocket_pod | wbar_rocket_tubes |  |
-| sniperCannon | wmount_cradle | wrec_sniper | wbar_sniper | wext_scope |
-| longRifle | wmount_pintle | wrec_mg_b | wbar_mg_long | wext_scope |
-| flamer | wmount_ring_small | wrec_shotgun | wbar_shotgun | wext_drum |
-| pneumobolter | wmount_ring_small, wmount_pintle | wrec_autocannon | wbar_autocannon | wext_drum, wext_shield |
+| sniperCannon | wmount_cradle | wrec_sniper | wbar_sniper_cannon |  |
+| longRifle | wmount_pintle | wrec_mg_b | wbar_mg_long |  |
+| flamer | wmount_ring_small | wrec_shotgun | wbar_flamer | wext_fuel_tanks |
+| pneumobolter | wmount_ring_small, wmount_pintle | wrec_autocannon | wbar_autocannon | wext_air_tank |
 | slugCannon | wmount_ring_wide | wrec_autocannon | wbar_cannon | wext_shield |
-| heavyMg | wmount_ring_small | wrec_mg_a, wrec_mg_b | wbar_mg_long, wbar_twin | wext_shield, wext_drum |
-| amRifle | wmount_cradle | wrec_sniper | wbar_sniper | wext_scope |
-| recoilless | wmount_ring_wide | wrec_cannon | wbar_cannon | wext_shield |
-| battleRifle | wmount_pintle | wrec_mg_b | wbar_mg_long | wext_scope, wext_drum |
-| gatling | wmount_ring_wide | wrec_autocannon | wbar_twin | wext_drum |
-| grenadeLauncher | wmount_ring_wide | wrec_shotgun | wbar_autocannon | wext_drum |
-| flechette | wmount_ring_small | wrec_mg_a | wbar_mg_long | wext_scope |
+| heavyMg | wmount_ring_small | wrec_mg_a, wrec_mg_b | wbar_hmg | wext_shield |
+| amRifle | wmount_cradle | wrec_sniper | wbar_sniper |  |
+| recoilless | wmount_ring_wide | wrec_cannon | wbar_recoilless |  |
+| battleRifle | wmount_pintle | wrec_mg_b | wbar_mg_long | wext_drum |
+| gatling | wmount_ring_wide | wrec_autocannon | wbar_gatling |  |
+| grenadeLauncher | wmount_ring_wide | wrec_shotgun | wbar_grenade | wext_drum |
+| flechette | wmount_ring_small | wrec_autocannon | wbar_twin |  |
 | harpoon | wmount_pintle, wmount_ring_small | wrec_harpoon | wbar_harpoon |  |
 <!-- /wiki:weapon-pools -->
 

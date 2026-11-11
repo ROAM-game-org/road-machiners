@@ -12,7 +12,9 @@ import type { VehicleFrame } from '../../phys/frames';
 import { PLAN_PAD } from '../../render/partLooks';
 import { bodyPaint } from '../render/truckMesh';
 import { VehicleView } from '../render/vehicle';
-import { weaponHead } from '../render/weaponHead';
+import { armorModel } from '../render/armorLook';
+import { gunBase, gunHead } from '../render/gunLook';
+import { itemObject, kindTones } from '../render/kindLook';
 import { blueprintOf, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
 import { boundsOf, edgeBand, solidMask, stripes, type Mask, type Pixels, type Rgba } from './lines';
 
@@ -204,19 +206,24 @@ function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'came
     root.add(bareTruck(entry.id, paint));
     return { root, head: new THREE.Vector3(), tip: new THREE.Vector3() };
   }
+  if (entry.section === 'armor') {
+    root.add(armorModel(entry.id));
+    root.rotation.y = ARMOR_YAW;
+    return { root, head: new THREE.Vector3(), tip: new THREE.Vector3() };
+  }
   if (!entry.weapon) {
-    for (const name of entry.models) root.add(model(name));
-    if (entry.section === 'armor') root.rotation.y = ARMOR_YAW;
+    if (kindTones(entry.id)) root.add(itemObject(entry.id));
+    else for (const name of entry.models) root.add(model(name));
     return { root, head: new THREE.Vector3(), tip: new THREE.Vector3() };
   }
   const look = entry.weapon;
-  const mount = model(look.mount);
+  const mount = gunBase(look.mount, playerColors(paint).body);
   const size = new THREE.Box3().setFromObject(mount).getSize(new THREE.Vector3());
   const { w, h } = entry.bulk;
   mount.scale.set((h * CELL.along) / size.x, 1, (w * CELL.across) / size.z);
   mount.updateMatrix();
   root.add(mount);
-  const built = weaponHead(look);
+  const built = gunHead(look, entry.id);
   const at = socket(look.mount, 'head').applyMatrix4(mount.matrix);
   built.head.position.copy(at);
   root.add(built.head);

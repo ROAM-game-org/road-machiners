@@ -4,6 +4,7 @@ import { WEATHER } from '../../../data/weather';
 import { inLiveRange } from '../../../sim/fidelity';
 import type { World } from '../../../sim/types';
 import { count } from '../../../perf';
+import { TUNING } from '../inkTuning';
 import { CARD_SHAPES, clumpShape, HAZE_SHAPE, INK_DUST_LAYER, PLUME_SHAPE, ROUND_SHAPE, type CardBatch } from './cards';
 
 export const OVERWRITE_COUNTER = 'fx.particles.overwritten';
@@ -25,12 +26,16 @@ export type ParticleLook = {
   streak: number;
   form: 'cloud' | 'haze' | 'round' | 'clump';
   plume?: true;
+  smoke?: true;
+  onlyIn?: 'inkOff' | 'inkOn';
+  burns?: true;
+  inkScale?: number;
   becomes?: { look: ParticleLook; share: number; scale: number; spread: number; keepSpeed: number };
 };
 
 export type ParticleSink = Pick<Particles, 'spawn'>;
 
-export type ParticleBatches = { main: CardBatch; plumes: CardBatch };
+export type ParticleBatches = { main: CardBatch; plumes: CardBatch; fire: CardBatch };
 
 export const BILLOW_AGE_TONE = { young: 0.8, old: 1.15 };
 
@@ -75,6 +80,7 @@ export class Particles {
   }
 
   spawn(p: V3, vel: V3, look: ParticleLook, scale: number): void {
+    if (inkShareOf(look, TUNING.fxInk.value) <= 0) return;
     if (!this.nearby(p)) {
       count(FAR_COUNTER);
       return;
@@ -127,17 +133,17 @@ export class Particles {
       if (!s.alive) continue;
       const t = s.age / s.life;
       this.toneOf(s.look, t, ink);
-      const card = (s.look.plume ? to.plumes : to.main).slot();
+      const card = batchOf(s.look, to).slot();
       card.x = s.pos.x;
       card.y = s.pos.y;
       card.z = s.pos.z;
-      card.size = sizeAt(s.look, t) * s.scale;
+      card.size = sizeAt(s.look, t) * s.scale * inkSizeOf(s.look, ink);
       card.spin = s.spin;
       card.shape = drawnShape(s.shape, s.look, ink) + shapeFlag;
       card.r = this.color.r;
       card.g = this.color.g;
       card.b = this.color.b;
-      card.alpha = alphaAt(s.look, t);
+      card.alpha = alphaAt(s.look, t) * inkShareOf(s.look, ink);
       card.sx = s.vel.x * s.look.streak;
       card.sy = s.vel.y * s.look.streak;
       card.sz = s.vel.z * s.look.streak;
@@ -147,7 +153,7 @@ export class Particles {
   private toneOf(look: ParticleLook, t: number, ink: number): void {
     const keys = this.keysOf(look);
     colorAt(keys, t, this.color);
-    if (look.form !== 'cloud' || ink <= 0) return;
+    if (look.form !== 'cloud' || look.burns || ink <= 0) return;
     const shade = BILLOW_AGE_TONE.young + (BILLOW_AGE_TONE.old - BILLOW_AGE_TONE.young) * t;
     this.young.copy(keys[0]).multiplyScalar(shade);
     this.color.lerp(this.young, ink);
@@ -166,6 +172,21 @@ export class Particles {
     }
     return keys;
   }
+}
+
+function batchOf(look: ParticleLook, to: ParticleBatches): CardBatch {
+  if (look.burns) return to.fire;
+  return look.plume ? to.plumes : to.main;
+}
+
+function inkShareOf(look: ParticleLook, ink: number): number {
+  if (look.onlyIn === 'inkOff') return 1 - ink;
+  return look.onlyIn === 'inkOn' ? ink : 1;
+}
+
+export function inkSizeOf(look: ParticleLook, ink: number): number {
+  const full = look.smoke ? TUNING.smokeSize.value : (look.inkScale ?? 1);
+  return 1 + (full - 1) * ink;
 }
 
 function drawnShape(shape: number, look: ParticleLook, ink: number): number {
