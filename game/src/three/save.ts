@@ -511,9 +511,8 @@ export const TURN_FAILED_NOTE = t('save.turnFailed');
 
 export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string; importSave: (text: string) => Promise<ImportResult> };
 
-export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session: Storage, reload: () => void): boolean {
+export function changeMapIfMoved(run: Run, world: World, session: Storage, reload: () => void): boolean {
   if (world.mapHash === run.mapHash) return false;
-  if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
   run.log.note(world);
   if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
@@ -577,7 +576,7 @@ export class GameSaves {
   }
 
   changeMapIfMoved(world: World): boolean {
-    this.moving ||= changeMapIfMoved(this.run, world, this.hold, window.sessionStorage, () => window.location.reload());
+    this.moving ||= changeMapIfMoved(this.run, world, window.sessionStorage, () => window.location.reload());
     return this.moving;
   }
 
