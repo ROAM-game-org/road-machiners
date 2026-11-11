@@ -36,7 +36,7 @@ const unlinkedPrograms = (page) => page.evaluate(() => {
   return problems;
 });
 
-const overFloor = (page) => page.evaluate(() => (window.__gpuFloor ?? []).splice(0).map((r) => `${r.ground ? 'ground' : 'a'} program needs ${r.units} texture units`));
+const overFloor = (page) => page.evaluate(() => (window.__gpuFloor ?? []).splice(0).map((r) => `${r.ground ? 'ground' : 'a'} program needs ${r.kind === 'rows' ? `${r.rows} ${r.stage} uniform rows (floor ${r.stage === 'fragment' ? 224 : 256})` : `${r.units} texture units`}`));
 
 export const missingGroundShare = (page) => page.evaluate(([sentinel, sample]) => {
   const g = window.__ROAM__;
