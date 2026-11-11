@@ -24,7 +24,7 @@ export type Unit = { index: number; body: Body; rows: readonly [number, number];
 
 export type Span = { center: number; half: { x: number; z: number } };
 
-type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
+export type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
 type TruckShape = { boxes: ShapeBox[]; heights: HeightMap };
 type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number };
 type CouplingLook = (typeof PHYSICS.couplings)[keyof typeof PHYSICS.couplings];
@@ -139,6 +139,10 @@ function unitShape(chassisId: string, unit: number): TruckShape {
   const found = unitsOf(chassisId)[unit];
   if (!found) throw new Error(`Chassis ${chassisId} has no unit ${unit}`);
   return truckShape(found.shape);
+}
+
+export function bodyTops(chassisId: string, unit: number): HeightMap {
+  return unitShape(chassisId, unit).heights;
 }
 
 function collisionBoxes(chassisId: string, shape: string, halfHeight: number, top: number): BodyBox[] {

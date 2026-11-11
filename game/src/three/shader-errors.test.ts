@@ -12,7 +12,9 @@ describe('failLoudOnShaderError', () => {
   }) as unknown as THREE.WebGLRenderer;
   const gl = {
     MAX_TEXTURE_IMAGE_UNITS: 1,
-    getParameter: () => 16,
+    MAX_FRAGMENT_UNIFORM_VECTORS: 2,
+    MAX_VERTEX_UNIFORM_VECTORS: 3,
+    getParameter: (name: number) => ({ 1: 16, 2: 224, 3: 256 })[name],
     getProgramInfoLog: () => 'too many samplers',
     getShaderInfoLog: () => '',
   } as unknown as WebGLRenderingContext;
@@ -28,7 +30,7 @@ describe('failLoudOnShaderError', () => {
     const settle = () => verdicts.settle(gpu, performance.now() + SHADER_LOSS_GRACE_MS + 1);
     expect(settle).toThrow(ShaderBuildFailed);
     link(r);
-    expect(settle).toThrow(/material \|roads\|facets \| sampler limit 16.*too many samplers.*context lost: no/);
+    expect(settle).toThrow(/material \|roads\|facets \| sampler limit 16 \| uniform limits fragment 224 vertex 256.*too many samplers.*context lost: no/);
     link(r);
     expect(settle).not.toThrow(/before\(shader/);
   });

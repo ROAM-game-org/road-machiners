@@ -1,7 +1,7 @@
 """Tiled ceramic plates for the 'ceramicPlates' armor.
 
 A front-edge row of 2 cells: 0.97 m across, 0.65 m deep, outer face at +X. A steel frame on the outer edge holds a
-4 by 4 grid of pale ceramic tiles, 0.9 m tall, on a foot with short gussets behind. One tile is cracked out. The frame cap takes the faction paint.
+4 by 4 grid of pale ceramic tiles, 0.9 m tall, on a foot with short gussets behind. The tiles form an even checkerboard of two tones. The frame cap takes the faction paint.
 Run: blender --background --python tools/blender/arm_ceramic_plates.py -- public/models/arm_ceramic_plates.glb [tmp/arm_ceramic_plates.png]
 """
 
@@ -23,7 +23,6 @@ HEIGHT = 0.9
 COLS_PER_CELL = 2
 ROWS = 4
 GAP = 0.018
-MISSING = (2, 1)  # (column, row) of the cracked-out tile.
 
 
 def build_row(kit: Kit, n: int, tiles: tuple[str, str]) -> None:
@@ -42,11 +41,7 @@ def build_row(kit: Kit, n: int, tiles: tuple[str, str]) -> None:
         for r in range(ROWS):
             y = -half + GAP + tile_w / 2 + c * (tile_w + GAP)
             z = 0.05 + GAP + tile_h / 2 + r * (tile_h + GAP)
-            if (c, r) == MISSING:
-                kit.box("tile_shard", (0.03, tile_w * 0.45, tile_h * 0.5), (BACK_X + 0.035, y - tile_w * 0.2, z - tile_h * 0.2), "ceramic_dim", dent_by=0.01)
-                continue
-            mat = tiles[(c + r) % 2]
-            kit.box(f"tile{c}_{r}", (0.05, tile_w, tile_h), (BACK_X + 0.045, y, z), mat, dent_by=0.003)
+            kit.box(f"tile{c}_{r}", (0.05, tile_w, tile_h), (BACK_X + 0.045, y, z), tiles[(c + r) % 2])
 
 
 def build(kit: Kit) -> None:
