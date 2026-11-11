@@ -1,5 +1,6 @@
 import type { V3 } from '../../../phys/frames';
-import type { ParticleLook, Particles } from './particles';
+import { TUNING } from '../inkTuning';
+import { inkSizeOf, type ParticleLook, type Particles } from './particles';
 
 const rand = (spread: number) => (Math.random() - 0.5) * spread;
 const vary = (base: number, spread: number) => base * (1 - spread / 2 + Math.random() * spread);
@@ -34,6 +35,17 @@ export const EMISSION_LOOK = {
 
 const L = EMISSION_LOOK;
 
+const SPAWN_SPREAD = { exhaust: 0.4, steam: 0.4, douse: 0.5, breakdown: L.billowSpread, hurt: L.billowSpread } as const;
+
+export type EmissionKind = keyof typeof SPAWN_SPREAD;
+
+export function startRadius(kind: EmissionKind): number {
+  const look = L[kind];
+  const growth = kind === 'hurt' ? 1 + L.hurtGrowth : 1;
+  const largest = growth * (1 + SPAWN_SPREAD[kind] / 2);
+  return (look.size.from * largest * Math.max(1, inkSizeOf(look, TUNING.fxInk.value))) / 2;
+}
+
 const HURT_LOOKS: ParticleLook[] = L.hurtShades.map((colors) => ({ ...L.hurt, colors }));
 
 export class Emissions {
@@ -42,25 +54,25 @@ export class Emissions {
   exhaust(p: V3, back: V3): void {
     const j = L.exhaustJet;
     const vel = { x: back.x * j.back + rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: back.z * j.back + rand(j.side) };
-    this.lit.spawn(p, vel, L.exhaust, vary(1, 0.4));
+    this.lit.spawn(p, vel, L.exhaust, vary(1, SPAWN_SPREAD.exhaust));
   }
 
   steam(p: V3): void {
     const j = L.steamJet;
     const vel = { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) };
-    this.lit.spawn(p, vel, L.steam, vary(1, 0.4));
+    this.lit.spawn(p, vel, L.steam, vary(1, SPAWN_SPREAD.steam));
   }
 
   douse(p: V3): void {
     const j = L.douseJet;
     const vel = { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) };
-    this.lit.spawn(p, vel, L.douse, vary(1, 0.5));
+    this.lit.spawn(p, vel, L.douse, vary(1, SPAWN_SPREAD.douse));
   }
 
   breakdown(p: V3, motion: V3): void {
     const j = L.breakdownJet;
     const vel = { x: motion.x * j.lean + rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: motion.z * j.lean + rand(j.side) };
-    this.lit.spawn(p, vel, L.breakdown, vary(1, L.billowSpread));
+    this.lit.spawn(p, vel, L.breakdown, vary(1, SPAWN_SPREAD.breakdown));
   }
 
   hurt(p: V3, damage: number): void {
@@ -68,7 +80,7 @@ export class Emissions {
     const share = Math.min(1, Math.max(0, damage));
     const shade = Math.min(HURT_LOOKS.length - 1, Math.floor(share * HURT_LOOKS.length));
     const vel = { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) };
-    this.lit.spawn(p, vel, HURT_LOOKS[shade], vary(1 + share * L.hurtGrowth, L.billowSpread));
+    this.lit.spawn(p, vel, HURT_LOOKS[shade], vary(1 + share * L.hurtGrowth, SPAWN_SPREAD.hurt));
   }
 
   missile(p: V3): void {
