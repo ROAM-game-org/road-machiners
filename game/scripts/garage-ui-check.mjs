@@ -130,11 +130,11 @@ try {
     assert(/Repair basics\s+\d+\s+Repair all\s+\d+/.test(r.repair), `${spot}: repair bar must show both prices, got ${r.repair}`);
     await page.locator('.town-repair [data-key="repairAll"]').waitFor();
     const placed = await page.evaluate(() => {
-      const truck = document.querySelector('.town-truck').getBoundingClientRect();
-      const first = document.querySelector('.town-truck > .town-repair button').getBoundingClientRect();
-      return { inside: !!document.querySelector('.town-truck > .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), left: first.left < truck.left + truck.width / 2 };
+      const title = document.querySelector('.town-page .ink-head-line .quest-place').getBoundingClientRect();
+      const first = document.querySelector('.town-page .ink-head .town-services .town-repair button').getBoundingClientRect();
+      return { inside: !!document.querySelector('.ink-head .town-services .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), truckHas: !!document.querySelector('.town-truck .town-repair'), right: first.left > title.right };
     });
-    assert(placed.inside && !placed.shopHas && placed.left, `${spot}: the repair bar must sit at the left of the truck column, got ${JSON.stringify(placed)}`);
+    assert(placed.inside && !placed.shopHas && !placed.truckHas && placed.right, `${spot}: the repair bar must sit on the heading line, right of the title, got ${JSON.stringify(placed)}`);
     const chipLook = await page.evaluate(() => [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => {
       const cs = getComputedStyle(n);
       const glyph = n.querySelector('.icon, .coin')?.getBoundingClientRect().width ?? 16;
