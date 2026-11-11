@@ -15,6 +15,7 @@ import { addState, declareFeud } from "../sim/states";
 import { standardWorld } from "../test/world-cache";
 import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
+import { perfSnapshot, resetPerf } from "../perf";
 
 const reported = vi.hoisted(() => [] as unknown[]);
 vi.mock("./crash", async (original) => ({ ...(await original<typeof import("./crash")>()), reportError: (error: unknown) => void reported.push(error) }));
@@ -100,6 +101,54 @@ describe("turn advancement", () => {
     travel.pause();
     expect(travel.isFast(1000)).toBe(false);
     expect(travel.shouldAdvance(1000)).toBe(false);
+  });
+});
+
+describe("the felt turn wait", () => {
+  const ready = {} as PreparedTurn;
+  const withTurns = (take: () => PreparedTurn | null) => {
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare: vi.fn(), take, isReady: () => false, keptSpeed: () => Infinity } });
+    return travel;
+  };
+  const waits = () => perfSnapshot()["turn-wait"];
+
+  it("records no wait for a turn that was ready when End turn asked for it", () => {
+    resetPerf();
+    const world = emptyWorld();
+    const travel = withTurns(() => ready);
+    travel.request(world, NO_DRIVE);
+    expect(travel.takeReady(world, NO_DRIVE, 1000)).toBe(ready);
+    expect(waits()).toMatchObject({ last: 0, calls: 1 });
+  });
+
+  it("records the time from End turn to the turn that began", () => {
+    resetPerf();
+    const world = emptyWorld();
+    let answer: PreparedTurn | null = null;
+    const travel = withTurns(() => answer);
+    travel.request(world, NO_DRIVE);
+    expect(travel.takeReady(world, NO_DRIVE, 1000)).toBeNull();
+    expect(travel.takeReady(world, NO_DRIVE, 1200)).toBeNull();
+    answer = ready;
+    expect(travel.takeReady(world, NO_DRIVE, 1400)).toBe(ready);
+    expect(waits()).toMatchObject({ last: 400, calls: 1 });
+  });
+
+  it("starts the wait again after a pause", () => {
+    resetPerf();
+    const world = emptyWorld();
+    let answer: PreparedTurn | null = null;
+    const travel = withTurns(() => answer);
+    travel.request(world, NO_DRIVE);
+    travel.takeReady(world, NO_DRIVE, 0);
+    travel.pause();
+    expect(waits()).toBeUndefined();
+    travel.request(world, NO_DRIVE);
+    travel.takeReady(world, NO_DRIVE, 5000);
+    answer = ready;
+    travel.takeReady(world, NO_DRIVE, 5100);
+    expect(waits()).toMatchObject({ last: 100, calls: 1 });
   });
 });
 

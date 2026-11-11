@@ -9,12 +9,13 @@ import { appendUsage, readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage, timedOutMinutes } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, playtestDue, tick, timeoutOf, type TickDeps } from './tick';
+import { ROOMY_MEMORY } from './schedule-fakes';
 import { EMPTY_STATE, clearQueued, newPlaytest, readState, updateState, writeState } from './state';
 import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type IssueMerge, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
 
 const NOW = new Date('2026-01-10T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
-const CFG = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
+const CFG = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 3, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1, ...ROOMY_MEMORY };
 const ONE = { ...CFG, triageWorkers: 1, designWorkers: 1, implementWorkers: 1 };
 const DEV = 'dev0001';
 const FRESH = { lastRelease: '2026-01-09T12:00:00Z', devBuild: DEV };
@@ -1135,5 +1136,51 @@ describe('tick', () => {
     writeState(h.ctx.statePath, { ...moved, pendingPlaytest: 'Ann' });
     await tick(h.ctx, '/code', h.deps);
     expect(args(h)).toEqual([['playtest', '20']]);
+  });
+});
+
+describe('chooseJobs memory', () => {
+  const MEMORY = { ...CFG, jobsMemoryGb: 10, stageMemoryGb: { ...ROOMY_MEMORY.stageMemoryGb, verify: 4, implement: 4, design: 1, merge: 6, playtest: 14 } };
+  const ordered = state({ release: RELEASE, lastRelease: null, pendingPlaytest: 'Ann' });
+
+  it('starts jobs while their reserved memory fits, and makes the next one wait for memory', () => {
+    const cards = [card(1, 'Testing'), card(2, 'Implementation'), card(3, 'Implementation')];
+    const report = evaluateSchedule(state(), cards, NOW, MEMORY);
+    expect(report.picks).toEqual([{ stage: 'verify', issue: 1 }, { stage: 'implement', issue: 2 }]);
+    expect(report.decisions.find((item) => item.issue === 3)?.reasons).toEqual(['memory']);
+  });
+
+  it('counts the memory of jobs already running', () => {
+    const busy = state({ jobs: [running('merge', null)] });
+    const report = evaluateSchedule(busy, [card(1, 'Testing'), card(2, 'Implementation')], NOW, MEMORY);
+    expect(report.picks).toEqual([{ stage: 'verify', issue: 1 }]);
+    expect(report.decisions.find((item) => item.issue === 2)?.reasons).toEqual(['memory']);
+  });
+
+  it('keeps the memory of a waiting job, so smaller jobs behind it cannot take its place', () => {
+    const busy = state({ jobs: [running('verify', 9), running('implement', 8)] });
+    const report = evaluateSchedule(busy, [card(2, 'Implementation'), card(4, 'Design')], NOW, MEMORY);
+    expect(report.picks).toEqual([]);
+    expect(report.decisions.map((item) => [item.issue, item.reasons])).toEqual([[2, ['memory']], [4, ['memory']]]);
+  });
+
+  it('starts a job that needs more than the whole cap only when no job runs', () => {
+    const beside = evaluateSchedule({ ...ordered, jobs: [running('design', 9)] }, [tracking()], NOW, MEMORY, MOVED);
+    expect(beside.picks).toEqual([]);
+    expect(beside.decisions.find((item) => item.stage === 'playtest')?.reasons).toEqual(['memory']);
+    expect(chooseJobs(ordered, [tracking(), card(4, 'Design')], NOW, MEMORY, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+  });
+
+  it('lets the slice drain for a job that needs all of it, so branch jobs ahead of it cannot keep it out', () => {
+    const draining = evaluateSchedule({ ...ordered, jobs: [running('catch-up', 7)] }, [tracking(), card(5, 'Merging')], NOW, MEMORY, MOVED);
+    expect(draining.picks).toEqual([]);
+    expect(draining.decisions.filter((item) => item.stage === 'playtest' || item.stage === 'merge').map((item) => [item.stage, item.reasons])).toEqual([['playtest', ['memory']], ['merge', ['memory']]]);
+    expect(chooseJobs(ordered, [tracking(), card(5, 'Merging')], NOW, MEMORY, MOVED)).toEqual([{ stage: 'playtest', issue: 20 }]);
+  });
+
+  it('shows memory only when nothing else holds the job', () => {
+    const busy = state({ jobs: [running('implement', 8), running('verify', 9)] });
+    const report = evaluateSchedule(busy, [card(2, 'Implementation')], NOW, { ...MEMORY, implementWorkers: 1 });
+    expect(report.decisions.find((item) => item.issue === 2)?.reasons).toEqual(['queue-full']);
   });
 });
