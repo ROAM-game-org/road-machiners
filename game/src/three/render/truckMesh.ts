@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Body } from '../../sim/body';
+import { WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { EDGE_DISTANCE, MASK_UV, neutralSurface, outlineOf, surfacedMaterial, surfaceOf, type SurfaceName } from './models';
 
 export const BODY_PAINT_SATURATION = 0.8;
@@ -8,6 +9,38 @@ export const BODY_PAINT_SATURATION = 0.8;
 export function bodyPaint(paint: number): number {
   const hsl = new THREE.Color(paint).getHSL({ h: 0, s: 0, l: 0 });
   return new THREE.Color().setHSL(hsl.h, hsl.s * BODY_PAINT_SATURATION, hsl.l).getHex();
+}
+
+export const PAINT_MATERIAL = 'paint';
+
+export function markToned(material: THREE.Material): void {
+  material.userData.toned = true;
+}
+
+export function isToned(material: THREE.Material): boolean {
+  return material.userData.toned === true;
+}
+
+export const OFF_ROLE_TONES: Record<string, number> = { red: 0x48423d, rust: 0x6c6259, rust_side: 0x4d463f, rust_dark: 0x312c28, metal_light: 0x74726c };
+
+export function partTone(material: string, color: number, paint: number, isPart: boolean): number {
+  if (material === PAINT_MATERIAL) return bodyPaint(paint);
+  return isPart ? (OFF_ROLE_TONES[material] ?? color) : color;
+}
+
+export const CHAR = 0x2e241c;
+
+export const CHAR_SHARE = 0.6;
+
+const CHARRING_MATERIALS = new Set([PAINT_MATERIAL, ...Object.keys(OFF_ROLE_TONES)]);
+
+export function charShare(step: number): number {
+  return (CHAR_SHARE * step) / (WEAR_LOOK_STEPS - 1);
+}
+
+export function wornTone(material: string, color: number, step: number, broken: boolean): number {
+  if (!broken && !CHARRING_MATERIALS.has(material)) return color;
+  return new THREE.Color(color).lerp(new THREE.Color(CHAR), charShare(step)).getHex();
 }
 
 export function flipWinding(geo: THREE.BufferGeometry): void {
@@ -86,7 +119,7 @@ export const WORLD_LOOKS = {
 };
 
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
-  const { hex, surface, partId, armor, tinted, geos } = bucket;
+  const { hex, surface, tinted, geos } = bucket;
   const merged = mergeGeometries(geos);
   if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
@@ -95,11 +128,16 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
   mesh.name = 'truck-surface';
-  if (partId) mesh.userData.partId = partId;
-  if (armor) mesh.userData.armor = true;
+  tagMesh(mesh, bucket);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+function tagMesh(mesh: THREE.Mesh, { partId, armor, surface }: Bucket): void {
+  if (partId) mesh.userData.partId = partId;
+  if (armor) mesh.userData.armor = true;
+  if (surface) mesh.userData.surface = surface;
 }
 
 function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner, tinted: boolean): Bucket {
