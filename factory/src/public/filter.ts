@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { TransientFilterError, type Classify, type Decision, type DecisionIntent, type DecisionKind, type FilterConfig, type FilterInput, type PublicFilter, type Relevance } from './decision';
+import { FilterRefusalError, TransientFilterError, type Classify, type Decision, type DecisionIntent, type DecisionKind, type FilterConfig, type FilterInput, type PublicFilter, type Relevance } from './decision';
 import type { PublicRoute } from './store';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
@@ -128,7 +128,7 @@ async function ask(cfg: FilterConfig, fetch: typeof globalThis.fetch, input: str
   const failed = `The filter call failed with status ${response.status}.`;
   if (isTransientStatus(response.status)) throw new TransientFilterError(failed);
   if (response.status !== 200) throw new Error(failed);
-  return answersOf(await response.json());
+  return answersOf(await response.json(), cfg.filterSincereMin);
 }
 
 export function filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify {
@@ -184,12 +184,18 @@ function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'w
   return { ...workOf(input, answers), filing: filingOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
 }
 
-function answersOf(body: unknown): Answer[] {
+function answersOf(body: unknown, sincereMin: number): Answer[] {
   const answers = (body as { answers?: unknown } | null)?.answers;
   if (!Array.isArray(answers)) throw new Error('The filter response has no answers.');
   const refused = (answers as Answer[]).filter((answer) => answer.type === 'refusal').map((answer) => String(answer.name));
-  if (refused.length > 0) throw new Error(`The filter model refused to answer: ${refused.join(', ')}.`);
+  if (refused.length > 0) throw new FilterRefusalError(refused, scoredAsSpam(answers as Answer[], refused, sincereMin));
   return answers as Answer[];
+}
+
+function scoredAsSpam(answers: Answer[], refused: string[], sincereMin: number): boolean {
+  if (refused.includes('intent')) return false;
+  const odds = probabilities(answers, 'intent', INTENTS);
+  return odds.sincere < sincereMin && odds.spam > odds.sincere && odds.spam >= odds.troll;
 }
 
 function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decision {

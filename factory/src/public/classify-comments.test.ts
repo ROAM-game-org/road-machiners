@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classifyComments } from './classify-comments';
-import { TransientFilterError, type Classify, type Decision, type FilterInput } from './decision';
+import { readState } from '../state';
+import { FilterRefusalError, TransientFilterError, type Classify, type Decision, type FilterInput } from './decision';
 import { CHANNEL, filterOf, publicFake } from './public-fakes';
 
 const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent' });
@@ -103,6 +104,27 @@ describe('classifyComments', () => {
     expect(f.store.unclassifiedComments(10)).toEqual([]);
     expect(f.store.comment(2)?.kind).toBe('rejected');
     expect(f.logs.filter((line) => line.includes('stays rejected'))).toHaveLength(1);
+  });
+
+  it('keeps a comment rejected with no failure when the filter refuses a text it scores as spam', async () => {
+    const f = publicFake();
+    addFrom(f, '1', 'ann 1');
+    await classifyComments(f.ctx, f.store, filterOf(async () => { throw new FilterRefusalError(['kind'], true); }));
+    expect(f.store.unclassifiedComments(10)).toEqual([]);
+    expect(f.store.comment(1)?.kind).toBe('rejected');
+    expect(readState(f.ctx.statePath).failures).toEqual([]);
+    expect(f.logs.filter((line) => line.includes('scores as spam'))).toHaveLength(1);
+  });
+
+  it('keeps a comment rejected and records a public failure when the filter refuses any other text', async () => {
+    const f = publicFake();
+    addFrom(f, '1', 'ann 1');
+    await classifyComments(f.ctx, f.store, filterOf(async () => { throw new FilterRefusalError(['kind'], false); }));
+    expect(f.store.unclassifiedComments(10)).toEqual([]);
+    expect(f.store.comment(1)?.kind).toBe('rejected');
+    const failures = readState(f.ctx.statePath).failures;
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ stage: 'public', error: expect.stringContaining('refused to answer: kind') });
   });
 
   it('keeps a comment rejected at once when the filter fails for good', async () => {

@@ -12,3 +12,9 @@ export type Classify = (input: FilterInput) => Promise<Decision>;
 export type PublicFilter = { classify: Classify };
 
 export class TransientFilterError extends Error {}
+
+export class FilterRefusalError extends Error {
+  constructor(readonly refused: string[], readonly spam: boolean) {
+    super(`The filter model refused to answer: ${refused.join(', ')}.`);
+  }
+}
