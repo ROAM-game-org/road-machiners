@@ -57,14 +57,16 @@ COLORS = {
     **BASE_COLORS,
     "amber": 0xFFB45A,  # PAL.semi.amber, as the longbed and van use
 }
-G = Grid(rows=7, cols=4, half_height=0.4)
+WIDTH = 2.14  # committee patch: the real 2121 at the jeep scale is 2.04 m wide and the first build read too narrow
+G = Grid(rows=7, cols=4, half_height=0.4, width=WIDTH)
 WHEEL_X = 1.3  # PHYSICS.bodies.niva.wheelX
 WHEEL_Y = -0.25  # PHYSICS.bodies.niva.wheelY
 WHEEL_R = 0.45  # PHYSICS.bodies.niva.wheelRadius
 WHEEL_HALF_W = 0.18  # PHYSICS.bodies.niva.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [WHEEL_X, -WHEEL_X]
-WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
+WHEEL_Y_OUT = 0.726  # PHYSICS.bodies.niva.wheelZ
+WELL_Y = WHEEL_Y_OUT - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 
 SIDE = G.half_y - INSET  # body side outer face
 FRONT = G.half_x - INSET  # nose face
@@ -75,7 +77,7 @@ ROOF = 0.89  # the flat roof: every cabin row's surface
 COWL = 0.45  # the windshield base, against the bay back edge
 LINE = -0.2  # reference 2: the character line, a shallow step in the lower body at about headlamp height
 SILL_HALF = 0.7  # reference 2: the black sill strip runs between the arches
-GRILLE_HALF = 0.65  # reference 2: the grille panel is about 0.7 of the body width
+GRILLE_HALF = 0.72  # reference 2: the grille panel is about 0.7 of the body width
 LAMP_R = 0.11  # reference 2: round headlamps about 0.3 of a tire diameter across
 VENT_FRONT = 0.28  # reference 2: the door starts just behind the front arch with a vent pane
 VENT_BACK = 0.1
@@ -207,9 +209,9 @@ def main() -> None:
     cabin(kit)
     nose(kit)
     rear(kit)
-    kit.socket("arch_front", (WHEEL_X, G.col_y(0), HUB_Z))
-    kit.socket("arch_rear", (-WHEEL_X, G.col_y(0), HUB_Z))
-    kit.socket("arch_front_top", (WHEEL_X, G.col_y(0), HUB_Z + WHEEL_R + ARCH_CLEARANCE))
+    kit.socket("arch_front", (WHEEL_X, WHEEL_Y_OUT, HUB_Z))
+    kit.socket("arch_rear", (-WHEEL_X, WHEEL_Y_OUT, HUB_Z))
+    kit.socket("arch_front_top", (WHEEL_X, WHEEL_Y_OUT, HUB_Z + WHEEL_R + ARCH_CLEARANCE))
     bay = {(x, y): BAY_FLOOR for x in (1, 2) for y in (0, 1)}
     level_sockets(kit, G, "row", [HOOD] * 2 + [ROOF] * 5, fronts={2: ROOF_FRONT}, cells=bay)
     level_sockets(kit, G, "floor", [G.top] * G.rows, cells=bay)
