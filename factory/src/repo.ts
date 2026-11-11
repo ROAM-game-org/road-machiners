@@ -107,7 +107,8 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     const done: Resolution[] = [];
     for (const step of steps) {
       if (!started.has(step.into)) started.set(step.into, await commitOf(step.into));
-      const [source, base] = [await tip(step.branch), await tip(step.into)];
+      const base = await tip(step.into);
+      const source = heads.get(step.branch) ?? await resolvedSource(await commitOf(step.branch), base, resolutions, isAncestor);
       const head = await mergeCommit(source, base, step, resolutions, done);
       done.push({ base, source, head });
       heads.set(step.into, head);
@@ -341,6 +342,13 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       }
     },
   });
+}
+
+async function resolvedSource(source: string, base: string, resolutions: Resolution[], isAncestor: (older: string, newer: string) => Promise<boolean>): Promise<string> {
+  for (const resolved of resolutions) {
+    if (resolved.base === base && resolved.source !== source && (await isAncestor(resolved.source, source))) return resolved.source;
+  }
+  return source;
 }
 
 function workPicks(run: Run, requireNoOpenWork: (dir: string) => Promise<void>): Pick<HostRepo, 'pickIntoWork' | 'unfinishedPick'> {

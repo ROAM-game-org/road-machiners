@@ -805,6 +805,27 @@ describe('resolving a conflict', () => {
     expect(await show('dev', 'f.txt')).toBe('dev\n');
   });
 
+  it('pushes a finished catch-up resolution when dev moved while the agent worked, and the newer dev comes with the next merge', async () => {
+    const { home, repo, commit, feature, show } = await setup();
+    await commit('factory/issue-8', 'f.txt', 'card 8\n');
+    await feature(7, 'f.txt', 'card 7\n');
+    await repo.fetch();
+    const catchUp = { branch: 'dev', into: 'factory/issue-8', message: 'Merge dev into factory/issue-8 while it waits in Merging', issue: null };
+    const error = await repo.merge([catchUp]).catch((e: unknown) => e) as MergeConflictError;
+    const dir = join(home, 'work', 'merge-factory-issue-8');
+    await repo.openConflict(dir, error);
+    await agent(dir, 'f.txt', 'card 7 and 8\n');
+    const { resolution } = await repo.closeConflict(dir, error);
+    await commit('dev', 'g.txt', 'dev moved during the resolution\n');
+    await repo.fetch();
+    await repo.merge([catchUp], [resolution]);
+    expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
+    expect((await show('factory/issue-8', 'g.txt'))).toBe('g\n');
+    await repo.merge([catchUp]);
+    expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
+    expect(await show('factory/issue-8', 'g.txt')).toBe('dev moved during the resolution\n');
+  });
+
   it('catches a waiting issue branch up to dev with a resolved conflict, leaves dev alone, and its later merge into dev is clean', async () => {
     const { home, repo, commit, feature, show, head } = await setup();
     await commit('factory/issue-8', 'f.txt', 'card 8\n');
