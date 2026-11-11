@@ -21,7 +21,7 @@ A shop holds a finite, random stock of parts and restocks every so many turns. O
 <!-- wiki:shops -->
 | id | kind | makes | needs | goods | supplies | stock size (parts) | staple parts | restock (turns) | contract slots |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| bowl | garage | grain, textiles, meds, parts, electronics | water, scrap, batteries, salt, tools, rations, fuelDrums | grain, textiles, meds, parts, electronics, water, scrap, batteries, salt, tools, rations, fuelDrums | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
+| bowl | garage | grain, textiles, meds, parts, electronics | water, scrap, batteries, salt, tools, rations, relics, fuelDrums | grain, textiles, meds, parts, electronics, water, scrap, batteries, salt, tools, rations, relics, fuelDrums | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
 | nose | garage | salt, tools, batteries | scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | salt, tools, batteries, scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
 | salvage-yard | stall | scrap, parts, relics | tools, rations, fuelDrums | scrap, parts, relics, tools, rations, fuelDrums | fuel, supplies | 8 to 12 |  | 300 | 1 |
 | granary | stall | rations | grain, salt, water, tools, fuelDrums | rations, grain, salt, water, tools, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
@@ -76,6 +76,7 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | bowl | salt | 120 | - | 12 | - |
 | bowl | tools | 120 | - | 24 | - |
 | bowl | rations | 120 | - | 2 | 1 |
+| bowl | relics | 120 | - | 24 | - |
 | bowl | fuelDrums | 120 | - | - | 45 |
 | granary | rations | 38 | 61 | - | 1 |
 | granary | grain | 30 | - | - | - |

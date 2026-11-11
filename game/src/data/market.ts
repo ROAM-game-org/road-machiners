@@ -418,7 +418,7 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
       { id: 'machinists', inputs: { scrap: 1 }, outputs: { parts: 1 }, everyCycles: 6, ...NO_UPKEEP },
       { id: 'workshop', inputs: { batteries: 1, scrap: 1 }, outputs: { electronics: 1 }, everyCycles: 24, ...NO_UPKEEP },
     ],
-    demand: { salt: 12, tools: 24, rations: 2 },
+    demand: { salt: 12, tools: 24, rations: 2, relics: 24 },
     serviceDaily: { fuelDrums: 45, rations: 1 },
   },
   granary: {
