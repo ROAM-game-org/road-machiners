@@ -14,7 +14,7 @@ import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type Prepa
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
-import { mergePerf, timed, type PerfStat } from "../perf";
+import { mergePerf, record, timed, type PerfStat } from "../perf";
 import { reportError } from "./crash";
 import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
@@ -234,12 +234,14 @@ export class Travel {
   private readonly turns: TurnPreparation;
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
+  private waitingSince: number | null = null;
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
   }
 
   pause(): void {
+    this.waitingSince = null;
     this.automatic = false;
     this.requested = false;
     this.dropPress();
@@ -338,6 +340,10 @@ export class Travel {
     return this.turns.warm(world, drive);
   }
 
+  routeMsOfLastTurn(): number | null {
+    return this.turns.routeMsOfLastTurn();
+  }
+
   request(world: World, drive: DriveSnapshot): void {
     this.requested = true;
     this.turns.prepare(world, drive);
@@ -356,21 +362,27 @@ export class Travel {
       this.pause();
       return null;
     }
-    if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
+    if (held || this.deciding(now) || !this.wantsTurn(world, now)) {
+      this.waitingSince = null;
+      return null;
+    }
     this.turns.prepare(world, drive);
-    return this.creep?.isMoving() ? null : this.takePrepared(world);
+    if (this.creep?.isMoving()) return null;
+    this.waitingSince ??= now;
+    return this.takePrepared(world, now);
   }
 
-  private takePrepared(world: World): PreparedTurn | null {
+  private takePrepared(world: World, now: number): PreparedTurn | null {
     const prepared = this.turns.take(world);
     if (!prepared) return null;
-    if (this.requested) {
-      this.requested = false;
-      return prepared;
+    if (!this.requested && overshoots(world, prepared.world)) {
+      this.pause();
+      return null;
     }
-    if (!overshoots(world, prepared.world)) return prepared;
-    this.pause();
-    return null;
+    this.requested = false;
+    record("turn-wait", now - (this.waitingSince ?? now));
+    this.waitingSince = null;
+    return prepared;
   }
 
   continues(world: World, now: number): boolean {
