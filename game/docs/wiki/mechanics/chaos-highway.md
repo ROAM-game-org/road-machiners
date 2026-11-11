@@ -11,7 +11,7 @@ Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its s
 - `npcKnockouts` stays on: a beaten NPC is knocked out or wrecked by the same roll as in Roaming.
 - `playerKnockouts`: a player knockout ends the run.
 - `yielding`: no NPC flees, offers or takes a truce, begs, spares, offers or takes surrender, complies, gives up a fight, backs off or leaves a fight for service. A truck with no gun keeps its fight and rams.
-- `radio`: no calls, hails, horn or pleas.
+- `radio`: no calls, hails, horn or pleas, and Waste Of Time Radio is off air, with only the music next key left on its panel.
 - `rescue`: no beacon, tows or scrap patches. A stranded truck waits for good.
 - `roadWrecks`: no random road wrecks.
 - `run`: the world plays a run of stretches between outposts, with hostile groups and payouts.
