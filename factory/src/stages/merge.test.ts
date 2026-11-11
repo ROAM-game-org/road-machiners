@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
+import { AgentTimeoutError, STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
 import { CheckTimeoutError } from '../container';
 import { causeOf } from '../fail';
 import { BaselineFailureError, BudgetError } from './checkpoint';
@@ -89,7 +89,7 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function fakeCtx(budget = 5): Ctx {
   const fake = {
-    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
+    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, conflictTimeoutMinutes: 60, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -514,6 +514,24 @@ describe('merge queue', () => {
     expect(runs[0]!.model).toBe('sonnet');
     merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }, { commit: 'c6', conflicts: ['game/src/a.ts'] }] };
     await expect(merge(fakeCtx())).rejects.toThrow('left the merge of factory/issue-6 into dev unfinished');
+  });
+
+  it('limits each conflict agent run and no fix round, and fails the batch as a timeout when a conflict agent passes its limit', async () => {
+    keptSession(6, 'card-6');
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }], dev: [{ commit: 'd1', conflicts: ['game/src/b.ts'] }] };
+    shellFailures = ['FAIL a.test.ts: expected 1 to be 2'];
+    await merge(fakeCtx());
+    expect(runs.map((run) => run.limitMinutes)).toEqual([60, undefined]);
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }] };
+    calls.length = 0;
+    const ctx = fakeCtx();
+    ctx.container.agent = async () => { throw new AgentTimeoutError('the agent ran past its 60 minute limit, and the factory removed its container.'); };
+    const failed = await merge(ctx).catch((error: unknown) => error);
+    expect(failed).toBeInstanceOf(AgentTimeoutError);
+    expect(causeOf(failed)).toBe('timeout');
+    expect(calls).toContain('label 5 factory-stuck');
+    expect(calls).toContain('label 6 factory-stuck');
+    expect(calls.some((call) => call.startsWith('push'))).toBe(false);
   });
 
   it('resumes the card own kept Testing session for its conflict, and keeps the fix rounds on the merge session', async () => {

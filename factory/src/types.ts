@@ -61,6 +61,7 @@ export type FactoryConfig = {
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
+  conflictTimeoutMinutes: number;
   testStallMinutes: number;
   suiteStartMinutes: number;
   suitePollSeconds: number;
@@ -308,7 +309,7 @@ export interface Telegram {
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
-export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; subagentModel?: string; publicOutput?: true };
+export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; subagentModel?: string; publicOutput?: true; limitMinutes?: number };
 
 export type Pin = { cpus: string | null; testWorkers: number | null };
 
@@ -363,6 +364,8 @@ export class BaseMovedError extends Error {
     super(reason);
   }
 }
+
+export class AgentTimeoutError extends Error {}
 
 export class MergeConflictError extends Error {
   constructor(readonly step: MergeStep, readonly files: string[], reason: string, readonly base: string, readonly source: string, readonly done: Resolution[] = []) {

@@ -3,7 +3,7 @@ import { GithubError } from './github';
 import { UsageLimitError } from './pause';
 import { BaselineFailureError, BudgetError } from './stages/checkpoint';
 import { updateState } from './state';
-import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type RejectedControl, type JobStage, type Stage } from './types';
+import { AgentTimeoutError, STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type RejectedControl, type JobStage, type Stage } from './types';
 
 const ANSI = new RegExp(String.raw`\u001b\[[0-9;]*[A-Za-z]`, 'g');
 const FAILURE_LINE = /FAIL|Error|error:|failed|×/;
@@ -60,6 +60,7 @@ const CAUSE_OF_CLASS: [abstract new (...args: never[]) => Error, FailureCause][]
   [CommitteeDecisionError, 'decision'],
   [GithubError, 'github'],
   [JobTimeoutError, 'timeout'],
+  [AgentTimeoutError, 'timeout'],
   [JobDiedError, 'died'],
 ];
 
