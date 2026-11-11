@@ -3,11 +3,12 @@ import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
 import { betweenLevels } from './chaos-highway';
+import { hitOdds } from './combat';
 import { yardSpots } from './outpost-gates';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, waitsForGunTruck, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, chaosHighwayWorld } from './testkit';
-import { fuelCap, plainMaxSpeed } from './stats';
+import { fuelCap, plainMaxSpeed, vehicleStats } from './stats';
 import { heldHeatSpeed } from './engine-heat';
 import { plainFuelSpeed } from './far';
 import { TIME } from '../data/time';
@@ -543,6 +544,77 @@ describe('the hauler waits for a gun truck that trails it', () => {
       expect(waitsForGunTruck(w, hauler), name).toBe(true);
       expect(hauler.order, name).toEqual({ kind: 'brake' });
     }
+  });
+
+  describe('under fire', () => {
+    const CRAWL = CHAOS_HIGHWAY.hauler.crawl;
+    const waitCauses: Record<string, (w: World, gun: Vehicle) => void> = {
+      'a long lag': () => {},
+      'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
+      'a stall': (w, gun) => { gun.stalledUntil = w.turn + 50; },
+      'a shutdown': (w, gun) => { gun.shutDown = { from: w.turn, until: w.turn + 50 }; },
+      'a fight': (w, gun) => {
+        const foe = groupTruck(w, LANES[3], N - 70, 0);
+        addState(w, 'combat', foe.id, gun.id, { kind: 'none' });
+      },
+    };
+
+    it('crawls on a lane center for every wait cause while the alarm runs, and brakes once it lapses', () => {
+      for (const [name, apply] of Object.entries(waitCauses)) {
+        const { w, hauler, gun } = trailing(WAIT + 3);
+        apply(w, gun);
+        w.chaosHighway!.hauler.alarmUntil = w.turn + 3;
+        planHaulerOrder(w);
+        expect(waitsForGunTruck(w, hauler), name).toBe(true);
+        expect(hauler.order, name).toMatchObject({ kind: 'through', pace: CRAWL });
+        const dest = (hauler.order as { dest: { x: number; y: number } }).dest;
+        expect(acrossOf(w.seed, toRoad(w.seed, 0, dest)), name).toBeCloseTo(LANES[1], 1);
+
+        w.chaosHighway!.hauler.alarmUntil = w.turn - 1;
+        planHaulerOrder(w);
+        expect(hauler.order, name).toEqual({ kind: 'brake' });
+      }
+    });
+
+    it('still sidesteps a flank truck closing across while it crawls', () => {
+      const { w, hauler } = trailing(WAIT + 3);
+      const left = groupTruck(w, LANES[0], N + 1, 5);
+      left.heading = Math.atan2(hauler.pos.y - left.pos.y, hauler.pos.x - left.pos.x);
+      w.chaosHighway!.hauler.alarmUntil = w.turn + 3;
+      planHaulerOrder(w);
+      const dest = (hauler.order as { dest: { x: number; y: number } }).dest;
+      expect(hauler.order).toMatchObject({ kind: 'through', pace: CRAWL });
+      expect(acrossOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(LANES[2], 1);
+    });
+
+    it('keeps its crawl order through the turn pipeline without a stall, then brakes after the alarm lapses', () => {
+      let { w } = trailing(WAIT + 3);
+      w.chaosHighway!.hauler.alarmUntil = w.turn + 5;
+      let stalls = 0;
+      for (let i = 0; i < 4; i++) {
+        w = endTurn(w, noMove);
+        stalls += stallEvents(w);
+        expect(haulerOf(w).order).toMatchObject({ kind: 'through', pace: CRAWL });
+      }
+      while (w.turn <= w.chaosHighway!.hauler.alarmUntil!) w = endTurn(w, noMove);
+      w = endTurn(w, noMove);
+      stalls += stallEvents(w);
+      expect(haulerOf(w).order).toEqual({ kind: 'brake' });
+      expect(stalls).toBe(0);
+    });
+
+    it('is a harder target than a standing hauler: the still cut is gone', () => {
+      const { w, hauler } = trailing(WAIT + 3);
+      const foe = groupTruck(w, LANES[2], N - 20, 0);
+      const gun = vehicleStats(w, foe).weapons[0];
+      hauler.speed = 0;
+      const standing = hitOdds(w, foe, gun, hauler, 'body');
+      hauler.speed = CRAWL;
+      const crawling = hitOdds(w, foe, gun, hauler, 'body');
+      expect(standing.causes.still).toBeLessThan(0);
+      expect(crawling.causes.still).toBe(0);
+      expect(crawling.damageChance).toBeLessThan(standing.damageChance);
+    });
   });
 
   it('brakes for a hot gun truck that stands to cool once it is past gun reach', () => {
