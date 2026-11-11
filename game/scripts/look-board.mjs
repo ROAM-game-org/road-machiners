@@ -29,6 +29,10 @@ const ROAMING = [
 const HIGHWAY = [
   { name: 'highway-day', zoom: 1.15, hour: 13 },
   { name: 'highway-night', zoom: 1.15, hour: NIGHT_HOUR, lamps: true },
+  { name: 'highway-edge', offset: [8, -80], zoom: 1.6, hour: 13 },
+  { name: 'highway-edge-close', offset: [8, -80], zoom: 2.4, hour: 13 },
+  { name: 'highway-edge-evening', offset: [8, -80], zoom: 1.6, hour: 17 },
+  { name: 'highway-road-far', offset: [0, -80], zoom: 1.15, hour: 13 },
 ];
 
 function flag(args, name) {
@@ -81,6 +85,7 @@ function stage(page, shot, start) {
     const damage = await import('/src/sim/damage.ts');
     g.apply(cheats.skipToHour(g.state, shot.hour));
     if (shot.at) g.apply(cheats.teleport(g.state, shot.at === 'start' ? start : { x: shot.at[0], y: shot.at[1] }));
+    if (shot.offset) g.apply(cheats.teleport(g.state, { x: start.x + shot.offset[0], y: start.y + shot.offset[1] }));
     if (shot.heading !== undefined) g.apply(world.update(g.state, (draft) => { const me = damage.playerVehicle(draft); me.heading = shot.heading; me.speed = shot.speed; }));
     g.apply({ ...g.state, player: { ...g.state.player, headlights: Boolean(shot.lamps) } });
     g.rig.setZoom(shot.zoom);
@@ -131,7 +136,7 @@ async function shootHighway(page, url, shots, out) {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: BOOT_MS });
   await startNewGame(page, 'chaosHighway', BOOT_MS);
   await waitForPlay(page);
-  await shootAll(page, shots, out, null);
+  await shootAll(page, shots, out, await playerPos(page));
 }
 
 function withExtra(url, extra) {
