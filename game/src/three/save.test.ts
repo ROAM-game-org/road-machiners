@@ -5,7 +5,7 @@ import { cloneWorld, newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
 import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
-import { addVehicle, comparableWorld, emptyWorld, npcBrain } from '../sim/testkit';
+import { addVehicle, comparableWorld, emptyWorld, npcBrain, priced } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
 import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
@@ -325,7 +325,7 @@ describe('game save', () => {
   it('keeps a held haul with the reward and deadline it was accepted with, through a reload and a turn before its deadline', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'tools', units: 8, to: 'granary', reward: 1328, deadline: 934, window: 934, rush: false, tier: 3 };
+    const haul = priced(world, { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'tools', units: 8, to: 'granary', reward: 1328, deadline: 934, window: 934, rush: false, tier: 3 } as Contract);
     world.player.contracts = [haul];
     writeSave(slots, 'auto', world, RUN, 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP);
@@ -342,10 +342,10 @@ describe('game save', () => {
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...siteOf('nose').pos }, phase: 'travel', reason: 'deliverCargo' }];
     world.turn = 300;
-    const escort: Contract = {
+    const escort: Contract = priced(world, {
       id: 'ct-e', shop: 'bowl', kind: 'escort', client: trader.id, to: 'nose', reward: 48, deadline: Number.MAX_SAFE_INTEGER, window: 75, tier: 2, threat: 2,
       span: 300, together: 210, seen: { x: pad.x + 5, y: pad.y, turn: 295 }, apart: 12, stuck: 0, holdUntil: 340,
-    };
+    } as Contract);
     world.player.contracts = [escort];
     hireEscort(world, playerVehicle(world), trader, 'nose', 0);
     writeSave(slots, 'auto', world, RUN, 1000);
@@ -376,7 +376,7 @@ describe('game save', () => {
     const slots = makeSlots();
     const [a, b, c, d] = surveySites(TEST_MAP);
     const world = emptyWorld({ x: c.pos.x + 2, y: c.pos.y });
-    const survey: Contract = {
+    const survey = priced(world, {
       id: 'ct-s',
       shop: 'bowl',
       kind: 'survey',
@@ -385,8 +385,8 @@ describe('game save', () => {
       deadline: 900,
       window: 900,
       tier: 1,
-    };
-    const offer: Contract = { ...survey, id: 'ct-o', points: [{ site: d.id, found: false, done: false }] };
+    } as Extract<Contract, { kind: 'survey' }>);
+    const offer: Contract = priced(world, { ...survey, id: 'ct-o', points: [{ site: d.id, found: false, done: false }] });
     world.player.contracts = [survey];
     world.shops.nose.contracts.push(offer);
     world.vehicles[0].job = { kind: 'survey', contractId: 'ct-s', site: b.id, turnsLeft: 4, total: 10 };
@@ -404,7 +404,7 @@ describe('game save', () => {
   it('keeps held rescues and a rescue offer through a reload and awards nothing on load', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const rescue = (id: string, fulfilled: boolean): Contract => ({ id, shop: 'bowl', kind: 'rescue', client: 'v77', driver: 'Jed Cobb', need: 'fuel', area: { x: 40.5, y: 52.25 }, reward: 220, deadline: 900, window: 400, tier: 1, fulfilled });
+    const rescue = (id: string, fulfilled: boolean): Contract => priced(world, { id, shop: 'bowl', kind: 'rescue', client: 'v77', driver: 'Jed Cobb', need: 'fuel', area: { x: 40.5, y: 52.25 }, reward: 220, deadline: 900, window: 400, tier: 1, fulfilled } as Contract);
     world.player.contracts = [rescue('ct-r1', false), rescue('ct-r2', true)];
     world.shops.bowl.contracts = [rescue('ct-r3', false)];
     writeSave(slots, 'auto', world, RUN, 1000);
@@ -424,7 +424,7 @@ describe('game save', () => {
     const held = goodsCount(truck);
     expect(addGoods(world, truck, 'electronics', 3)).toBe(3);
     expect(addGoods(world, truck, 'tools', 2)).toBe(2);
-    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 4, to: 'nose', reward: 9, deadline: 900, window: 900, rush: false, tier: 1 };
+    const haul = priced(world, { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 4, to: 'nose', reward: 9, deadline: 900, window: 900, rush: false, tier: 1 } as Contract);
     expect(addGoods(world, truck, 'salt', 4)).toBe(4);
     world.player.contracts = [haul];
     world.player.costBasis = { electronics: 5000, tools: 3500, salt: 867 };
