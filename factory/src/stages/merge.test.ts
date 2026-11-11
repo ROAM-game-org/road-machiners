@@ -89,7 +89,7 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function fakeCtx(budget = 5): Ctx {
   const fake = {
-    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
+    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10 },
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),

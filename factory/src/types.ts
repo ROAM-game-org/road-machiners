@@ -64,6 +64,7 @@ export type FactoryConfig = {
   testStallMinutes: number;
   suiteStartMinutes: number;
   suitePollSeconds: number;
+  suiteReadOutageMinutes: number;
   testingBudgetUsd: number;
   hardeningBudgetUsd: number;
   mergingBudgetUsd: number;

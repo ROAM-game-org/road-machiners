@@ -36,7 +36,7 @@ describe('ship', () => {
   it('runs the full suite on GitHub Actions for the merged main before it pushes', async () => {
     const f = shippable();
     const replaced: string[] = [];
-    Object.assign(f.ctx.cfg, { suiteStartMinutes: 15, suitePollSeconds: 0 });
+    Object.assign(f.ctx.cfg, { suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10 });
     f.ctx.repo.changedInWork = async () => ['game/src/sim/fuel.ts'];
     f.ctx.repo.replaceBranch = async (commit, branch) => { replaced.push(`${commit} ${branch}`); };
     f.ctx.github.dispatchSuite = async (sha) => { f.calls.push(`suite ${sha}`); return 1; };

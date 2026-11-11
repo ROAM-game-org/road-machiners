@@ -79,7 +79,7 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10, ...POOLS },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
