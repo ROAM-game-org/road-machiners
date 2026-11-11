@@ -86,7 +86,7 @@ const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const UPSTREAM_DOWN = /HTTP 50[234]\b/;
-const CONNECTION_LOST = /stream error|connection reset|unexpected EOF|TLS handshake timeout|i\/o timeout/i;
+const CONNECTION_LOST = /stream error|connection reset|unexpected EOF|TLS handshake timeout|i\/o timeout|dial tcp|error connecting to api\.github\.com|Something went wrong while executing your query/i;
 const READ_COMMANDS = new Set(['view', 'list', 'download']);
 const FIELD_FLAGS = new Set(['-f', '-F', '--field', '--raw-field', '--input']);
 const TAG_EXISTS = /a release with the same tag name already exists/;
