@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_GRID, REGION } from '../data/region';
-import { gridSquareArea, gridSquareOf, gridSquareSpan, gridSquareTiles, gridSquares } from './map-grid';
+import { gridArrival, gridEntries, gridSquareArea, gridSquareOf, gridSquareSpan, gridSquareTiles, gridSquares } from './map-grid';
 
 describe('map grid', () => {
   const side = gridSquareTiles();
@@ -72,5 +72,57 @@ describe('map grid', () => {
     expect(() => gridSquareArea({ column: MAP_GRID.squares, row: 0 })).toThrow(/off the grid/);
     expect(() => gridSquareSpan({ column: 0, row: -1 })).toThrow(/off the grid/);
     expect(() => gridSquareSpan({ column: 0.5, row: 0 })).toThrow(/off the grid/);
+  });
+});
+
+describe('grid entries', () => {
+  const side = gridSquareTiles();
+
+  it('finds the point where a line crosses into the next square', () => {
+    const [entry, ...rest] = gridEntries([{ x: side - 10, y: 30 }, { x: side + 10, y: 30 }]);
+    expect(rest).toEqual([]);
+    expect(entry.pos.x).toBeCloseTo(side);
+    expect(entry.pos.y).toBeCloseTo(30);
+    expect(entry.square).toEqual({ column: 1, row: 0 });
+  });
+
+  it('names the square entered when the line runs backward', () => {
+    const [entry] = gridEntries([{ x: side + 10, y: 30 }, { x: side - 10, y: 30 }]);
+    expect(entry.square).toEqual({ column: 0, row: 0 });
+  });
+
+  it('skips a crossing at a corner', () => {
+    expect(gridEntries([{ x: side - 10, y: side - 10 }, { x: side + 10, y: side + 10 }])).toEqual([]);
+  });
+
+  it('lists both lines of a segment that crosses them apart, in order', () => {
+    const squares = gridEntries([{ x: side - 10, y: side - 5 }, { x: side + 30, y: side + 5 }]).map((e) => e.square);
+    expect(squares).toEqual([{ column: 1, row: 0 }, { column: 1, row: 1 }]);
+  });
+
+  it('finds nothing on a line that stays in one square or runs along a grid line', () => {
+    expect(gridEntries([{ x: 10, y: 10 }, { x: 50, y: 60 }])).toEqual([]);
+    expect(gridEntries([{ x: side, y: 10 }, { x: side, y: 90 }])).toEqual([]);
+  });
+});
+
+describe('grid arrival', () => {
+  const side = gridSquareTiles();
+
+  it('names the square a route enters at its last point', () => {
+    expect(gridArrival([{ x: 20, y: 30 }, { x: side - 5, y: 30 }, { x: side, y: 30 }])).toEqual({ column: 1, row: 0 });
+  });
+
+  it('names nothing when the route ends inside a square', () => {
+    expect(gridArrival([{ x: 20, y: 30 }, { x: 60, y: 30 }])).toBeNull();
+  });
+
+  it('names nothing when the route was in that square before', () => {
+    const route = [{ x: side + 10, y: 30 }, { x: side - 20, y: 30 }, { x: side - 20, y: 60 }, { x: side - 2, y: 60 }, { x: side, y: 60 }];
+    expect(gridArrival(route)).toBeNull();
+  });
+
+  it('names nothing at a corner', () => {
+    expect(gridArrival([{ x: side - 20, y: side - 20 }, { x: side, y: side }])).toBeNull();
   });
 });

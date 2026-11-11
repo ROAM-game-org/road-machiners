@@ -89,7 +89,7 @@ function routePoints(graph: RoadGraph, path: RoadPath): Vec[] {
 
 function squareLeave(world: World, net: RoadNetwork, start: RoadPoint | number, target: DirectionTarget, spot: Spot): Plan | null {
   const candidates = roadCrossings(net)
-    .filter((p) => dist(p.pos, spot.pos) <= leaveReach(spot) && isOpen(world, p, spot))
+    .filter((p) => dist(p.pos, spot.pos) <= Math.min(DIRECTIONS.squareReach, leaveReach(spot)) && isOpen(world, p, spot))
     .sort((a, b) => dist(a.pos, spot.pos) - dist(b.pos, spot.pos) || a.edge - b.edge || a.along - b.along);
   for (const leave of candidates) {
     const route = routeVia(net, start, leave, target);

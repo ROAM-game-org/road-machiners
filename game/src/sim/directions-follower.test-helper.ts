@@ -3,28 +3,59 @@ import { atlasOf, atlasSites } from './atlas';
 import { headingAlong, roadName } from './direction-cues';
 import { exitsAt, isJunction, nearestRoadPoints, otherEnd, roadNetworkOf, splitAt, type RoadExit, type RoadGraph } from './road-network';
 import { propsAround } from './prop-index';
+import { gridEntries, sameGridSquare } from './map-grid';
 import { siteGap } from './sites';
-import type { Cue, DirectionStep, Octant, RoadName, World } from './types';
+import type { Cue, DirectionStep, LandmarkCue, Octant, RoadName, World } from './types';
 import { angleDiff, dist, type Vec } from './vec';
 
 const MAX_MOVES = 200;
 
-function nearestOnLine(p: Vec, line: readonly Vec[]): Vec {
-  let best = line[0];
-  for (let i = 0; i + 1 < line.length; i++) {
-    const [a, b] = [line[i], line[i + 1]];
-    const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
-    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / len2));
-    const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-    if (dist(p, q) < dist(p, best)) best = q;
-  }
-  return best;
-}
-
 type Turn = Extract<DirectionStep, { do: 'turn' }>;
 type Follow = Extract<DirectionStep, { do: 'follow' }>;
 
-export type Followed = { reached: boolean; node: number; closest: number; closestAt: Vec; graph: RoadGraph };
+export type Followed = { reached: boolean; node: number; leftAt: Vec | null; graph: RoadGraph };
+
+type Leave = Extract<DirectionStep, { do: 'leave' }>;
+
+const SAMPLE_STEP = 1;
+const SETTLE = 0.5;
+
+function landmarkGap(world: World, cue: LandmarkCue, pos: Vec): number {
+  const atlas = atlasOf(world.terrain);
+  if (cue.kind === 'site') return Math.min(...atlasSites(atlas).filter((s) => s.id === cue.id).map((s) => siteGap(s, pos)));
+  if (cue.kind === 'deck') return Math.min(...atlas.decks.decks.filter((d) => d.id === cue.id).map((d) => Math.min(dist(pos, d.from), dist(pos, d.to), dist(pos, { x: (d.from.x + d.to.x) / 2, y: (d.from.y + d.to.y) / 2 }))));
+  return Math.min(...propsAround(world, 'sight', pos, DIRECTIONS.cueReach).filter((o) => o.kind === 'landmark' && o.look === cue.look).map((o) => dist(o.pos, pos) - o.r));
+}
+
+function sampled(line: readonly Vec[]): Vec[] {
+  return line.slice(1).flatMap((b, i) => {
+    const a = line[i];
+    const n = Math.max(1, Math.ceil(dist(a, b) / SAMPLE_STEP));
+    return Array.from({ length: n }, (_, k) => ({ x: a.x + ((b.x - a.x) * (k + 1)) / n, y: a.y + ((b.y - a.y) * (k + 1)) / n }));
+  });
+}
+
+type Approach = { best: number; at: Vec | null };
+
+function settled(world: World, cue: LandmarkCue, line: readonly Vec[], approach: Approach): boolean {
+  for (const p of sampled(line)) {
+    const gap = landmarkGap(world, cue, p);
+    if (gap > DIRECTIONS.cueReach && approach.at === null) continue;
+    if (gap < approach.best) {
+      approach.best = gap;
+      approach.at = p;
+    } else if (gap > approach.best + SETTLE) return true;
+  }
+  return false;
+}
+
+function leaveStop(world: World, leave: Leave, line: readonly Vec[], approach: Approach): Vec | null {
+  if (leave.at.kind === 'square') {
+    const { column, row } = leave.at;
+    return gridEntries(line).find((e) => sameGridSquare(e.square, { column, row }))?.pos ?? null;
+  }
+  return settled(world, leave.at, line, approach) ? approach.at : null;
+}
 
 function sameName(a: RoadName, b: RoadName): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -100,16 +131,15 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
   const graph = start.graph;
   const turns = steps.filter((s): s is Turn => s.do === 'turn');
   const first = steps.find((s): s is Follow => s.do === 'follow');
-  const spot = 'spot' in goal ? goal.spot : null;
+  const leave = 'spot' in goal ? steps.find((s): s is Leave => s.do === 'leave') : undefined;
+  const approach: Approach = { best: Infinity, at: null };
   let node = start.node;
   let into: number | null = null;
   let forks = 0;
   let next = 0;
-  let closest = Infinity;
-  let closestAt = from;
   for (let move = 0; move < MAX_MOVES; move++) {
     const here = graph.nodes[node];
-    if ('site' in goal && (here.site === goal.site || here.entry === goal.site)) return { reached: true, node, closest, closestAt, graph };
+    if ('site' in goal && (here.site === goal.site || here.entry === goal.site)) return { reached: true, node, leftAt: null, graph };
     const exits = exitsAt(graph, node).filter((e) => e.edge !== into);
     if (exits.length === 0) break;
     let pick = exits[0];
@@ -130,17 +160,15 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
         forks = 0;
       } else pick = straightest(graph, node, into, exits);
     }
-    if (spot && next === turns.length) {
-      const near = nearestOnLine(spot, graph.edges[pick.edge].points);
-      if (dist(spot, near) < closest) {
-        closest = dist(spot, near);
-        closestAt = near;
-      }
+    if (leave && next === turns.length) {
+      const edge = graph.edges[pick.edge];
+      const stop = leaveStop(world, leave, node === edge.from ? edge.points : [...edge.points].reverse(), approach);
+      if (stop) return { reached: false, node, leftAt: stop, graph };
     }
     into = pick.edge;
     node = otherEnd(graph.edges[pick.edge], node);
   }
-  return { reached: false, node, closest, closestAt, graph };
+  return { reached: false, node, leftAt: approach.at, graph };
 }
 
 function turnExit(graph: RoadGraph, node: number, into: number, exits: { edge: number; heading: number }[], turn: Turn) {
