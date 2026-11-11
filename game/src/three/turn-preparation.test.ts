@@ -250,6 +250,18 @@ it("restarts a worker whose script did not load and sends the pending turn again
   expect(turns.take(world)).toEqual(reply);
 });
 
+it("does not send a turn again that was already answered when the worker reloads", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const first = TestWorker.latest;
+  first.respond({ id: first.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  first.onerror?.(noScript);
+  vi.advanceTimersByTime(500);
+  expect(TestWorker.created).toBe(1);
+  expect(turns.take(world)).toEqual(reply);
+});
+
 it("does not report a warm-up that did not load and reaches a new worker on the next turn", () => {
   vi.useFakeTimers();
   const turns = new TurnPreparation(TAIL);

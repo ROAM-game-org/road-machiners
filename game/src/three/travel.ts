@@ -634,7 +634,7 @@ export class TurnPreparation {
   }
 
   private restart(): void {
-    if (this.pending) this.pending.id = null;
+    if (this.pending && !this.pending.ready) this.pending.id = null;
     this.postPending();
   }
 
@@ -691,7 +691,7 @@ export class TurnPreparation {
 
   private postPending(): void {
     const pending = this.pending;
-    if (!pending || pending.id !== null || pending.failure || !this.canPost()) return;
+    if (!pending || pending.id !== null || pending.ready || pending.failure || !this.canPost()) return;
     pending.id = this.post(pending.before, pending.drive);
     pending.postedAt = performance.now();
   }
