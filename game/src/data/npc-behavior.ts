@@ -23,7 +23,7 @@ export const NPC_BEHAVIOR = {
   pairWaitLimit: 150,
   followReaimShare: 0.25,
   lawGateReach: LAW_GATE_REACH,
-  patrolRadius: LAW_GATE_REACH + TERRAIN.vision.radius * 4,
+  patrolRadius: LAW_GATE_REACH + 100,
   patrolSpacing: 4,
   followGap: RULES.yieldDistance + 1,
   fleeCondition: 0.3,
@@ -85,7 +85,7 @@ export const NPC_BEHAVIOR = {
 
 export const LOOK_OVER = {
   turns: 1,
-  reach: TERRAIN.vision.radius / 2,
+  reach: 12.5,
   guessShare: 0.4,
   holdShare: 0.7,
 };

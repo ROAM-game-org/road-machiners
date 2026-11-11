@@ -65,6 +65,7 @@ export const EFFORT = {
   haulWages: 5.5,
 
   refSpeed: 4 * MAP_SPREAD,
+  chartSweep: 50,
 
   routeFactor: 1.3,
 
@@ -122,7 +123,7 @@ export const CONTRACTS = {
     durationTurns: [600, 900] as [number, number],
     rewardTurns: 750,
     freshTurns: Math.round(TIME.workDayTurns / 4),
-    awayTiles: TERRAIN.vision.radius,
+    awayTiles: 25,
     xpPerEffort: 0.45,
   },
 

@@ -35,7 +35,7 @@ describe('Icarus exploration distances', () => {
     refreshVision(world);
     discoverSites(world);
     expect(world.player.discovered).toEqual([]);
-    const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+    const gray = TERRAIN.vision.grayRadius;
     const toRoad = polylineDist(player.pos, REGION.roads[REGION.playerStart.road]);
     expect(toRoad).toBeLessThan(gray);
     expect(toRoad).toBeGreaterThan(TERRAIN.vision.radius * 2);

@@ -173,7 +173,7 @@ describe('terrain line of sight', () => {
   it('reaches gray vision a fixed number of sight radii out', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
-    expect(grayRadius(w)).toBe(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+    expect(grayRadius(w)).toBe(TERRAIN.vision.grayRadius);
   });
 
   it('keeps the gray reach of a clear day at night and in a storm, and widens it with a tourer chassis', () => {
@@ -192,8 +192,8 @@ describe('terrain line of sight', () => {
   it('shrinks gray vision at night with sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    expect(grayRadius(w)).toBe(sightRadius(w, w.vehicles[0]) * TERRAIN.vision.grayFactor);
-    expect(grayRadius(w)).toBeLessThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+    expect(grayRadius(w)).toBe(sightRadius(w, w.vehicles[0]) * TERRAIN.vision.grayRadius / TERRAIN.vision.radius);
+    expect(grayRadius(w)).toBeLessThan(TERRAIN.vision.grayRadius);
   });
 });
 

@@ -245,14 +245,14 @@ export const TERRAIN = {
   light: { x: -0.6, y: -0.8 },
   slopeShade: 0.9,
   vision: {
-    radius: 25,
+    radius: 32.5,
     farFactor: 1.5,
     eyeHeight: 0.6,
     samplesPerTile: 3,
     raysPerRimTile: 2,
-    closeRadius: 3,
+    closeRadius: 3.9,
     lingerTurns: 2,
-    grayFactor: 4, edgeFog: 0.3,
+    grayRadius: 100, deckMarkReach: 25, edgeFog: 0.3,
   },
   fog: {
     seen: { grey: 0.85, bright: 0.9 },
