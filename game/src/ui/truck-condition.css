@@ -83,13 +83,16 @@
 .condition-mark {
   position: absolute;
   z-index: var(--z-badge);
+  transform: translate(-50%, -50%);
+}
+.condition-mark-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  transform: translate(-50%, -50%);
+  zoom: var(--cond-unzoom, 1);
 }
-.condition-mark > .meter {
+.condition-mark-body > .meter {
   width: var(--cond-meter-w);
 }
 #ui .info .truck-condition {
@@ -112,18 +115,27 @@
 #ui .condition-tip {
   position: absolute;
   z-index: var(--z-popup);
+  pointer-events: none;
+}
+#ui .condition-tip-body {
   display: flex;
   gap: var(--space-4);
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-ui);
   white-space: nowrap;
-  pointer-events: none;
+  zoom: var(--cond-unzoom, 1);
 }
 #ui .condition-tip[data-side="above"] {
-  transform: translate(-50%, calc(-100% - var(--space-4)));
+  transform: translate(-50%, -100%);
+}
+#ui .condition-tip[data-side="above"] > .condition-tip-body {
+  margin-bottom: var(--space-4);
 }
 #ui .condition-tip[data-side="below"] {
-  transform: translate(-50%, var(--space-4));
+  transform: translate(-50%, 0);
+}
+#ui .condition-tip[data-side="below"] > .condition-tip-body {
+  margin-top: var(--space-4);
 }
 .cond-plan,
 .cond-plan-turned {
