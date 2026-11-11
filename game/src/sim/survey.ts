@@ -1,4 +1,4 @@
-import { CONTRACTS, EFFORT, type Threat } from '../data/market';
+import { CONTRACTS, DANGER_PAY, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
 import { DRAFT, REGION } from '../data/region';
@@ -169,8 +169,10 @@ export function surveyLoopTurns(shopPos: Vec, sites: Vec[]): number {
   return turns + estimateTurns(at, shopPos);
 }
 
-export function surveyReward(turns: number): number {
-  return fairM(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
+export function surveyReward(turns: number, threat: Threat): number {
+  if (!Number.isFinite(turns) || turns < 0) throw new Error(`Survey turns ${turns} must be a non-negative number`);
+  if (!(threat in DANGER_PAY)) throw new Error(`No danger pay for threat ${threat}`);
+  return fairM((turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor * DANGER_PAY[threat]) / DANGER_PAY[1]);
 }
 
 function pickSites(world: World, free: SurveySite[]): SurveySite[] {
@@ -189,7 +191,8 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   const points = sites.map((s) => ({ site: s.id, found: false, done: false }));
   const turns = surveyLoopTurns(shop.pos, sites.map((s) => s.pos));
   const window = haulWindow(turns, false);
-  return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
+  const threat = Math.max(...sites.map((s) => surveyPlaceThreat(world, s.id))) as Threat;
+  return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns, threat), deadline: world.turn + window, window, tier: 1 };
 }
 
 export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay; square: GridSquare };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
+import { CONTRACTS, DANGER_PAY, EFFORT, SHOPS } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { sitePads } from './sites';
 import { standardWorld } from '../test/world-cache';
@@ -76,10 +76,26 @@ describe('survey offers', () => {
   it('pay and last by the loop through the nearest sites', () => {
     const { w, c } = offerAt('bowl');
     const turns = surveyLoopTurns(siteOf('bowl').pos, c.points.map((p) => surveySite(w, p.site).pos));
-    expect(c.reward).toBe(surveyReward(turns));
+    expect(c.reward).toBe(surveyReward(turns, surveyThreat(w, c)));
     expect(c.window).toBe(haulWindow(turns, false));
-    expect(c.reward).toBe(Math.round(turns * EFFORT.wage[1] * rules.rewardFactor));
     expect(c.tier).toBe(1);
+  });
+
+  it('pay safe ground at the plain rate and danger by the shared ladder', () => {
+    for (const turns of [0, 50, 217, 400]) {
+      const safe = turns * EFFORT.wage[1] * rules.rewardFactor;
+      expect(surveyReward(turns, 1)).toBe(Math.round(safe));
+      expect(surveyReward(turns, 2)).toBe(Math.round((safe * DANGER_PAY[2]) / DANGER_PAY[1]));
+      expect(surveyReward(turns, 3)).toBe(Math.round((safe * DANGER_PAY[3]) / DANGER_PAY[1]));
+    }
+    expect(surveyReward(217, 2)).toBeGreaterThan(surveyReward(217, 1));
+    expect(surveyReward(217, 3)).toBeGreaterThan(surveyReward(217, 2));
+  });
+
+  it('refuse a bad turn count or an unknown danger', () => {
+    expect(() => surveyReward(-1, 1)).toThrow();
+    expect(() => surveyReward(NaN, 1)).toThrow();
+    expect(() => surveyReward(10, 4 as never)).toThrow();
   });
 
   it('pay the search around each clue on top of the drive and the survey', () => {

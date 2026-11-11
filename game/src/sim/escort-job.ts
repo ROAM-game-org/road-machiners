@@ -1,4 +1,4 @@
-import { ESCORT_JOB, SHOPS, type Threat } from '../data/market';
+import { DANGER_PAY, ESCORT_JOB, SHOPS, type Threat } from '../data/market';
 import { NPC_BEHAVIOR } from '../data/npcs';
 import { inCombat, isHostile } from './combat';
 import { playerVehicle } from './damage';
@@ -46,7 +46,7 @@ export function routeThreat(world: World, from: string, to: string): Threat {
 
 export function escortReward(from: string, to: string, threat: Threat): number {
   const turns = estimateTurns(siteOf(from).pos, siteOf(to).pos);
-  return fairM(contractReward(turns, 0, false) * ESCORT_JOB.threatPremium[threat]);
+  return fairM(contractReward(turns, 0, false) * DANGER_PAY[threat]);
 }
 
 export function heldEscort(world: World): EscortContract | null {
