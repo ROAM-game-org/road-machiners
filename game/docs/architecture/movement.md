@@ -197,7 +197,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 - The rear unit has two braked, unpowered wheels.
 - Each unit's wheel rays skip the other unit's colliders in `rollUnits()`, since the sorokonoga's bed reaches under its tractor's drive axle.
 - The turn writes the bend of the two bodies back to the truck and checks it against the limit.
-- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the pivot share between the tractor's axles. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
+- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the tractor's own mass and the pivot share between its axles by lever arm about `axlesOf()`, since the tractor's axle midpoint may sit off its origin. It throws on a wheel with no load. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
 - Far rigs, rigs on a tow rope and the driver's clearance roll have no body. They move the rear unit with `bendStep()`, the tractrix rule the tow bar uses. The rear axle follows the pivot, clamped at the bend limit.
 - Backing runs the bend away, as on a real rig. The driver steers against the bend with the coupling's `backGain`. A backing leg is capped at `backCap` tiles.
 
@@ -223,6 +223,8 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Turn worker
 
 - `TurnPreparation` prepares the next turn in the dedicated worker entry point `src/phys/turn-worker.ts` while the current turn plays. The worker uses the same turn pipeline and portable physics snapshots.
+- `TurnPreparation` keeps one request running in the worker and only the newest wanted world queued, the same rule as the preview. It posts that world when the running request answers or fails, so a world replaced before the worker starts it is never computed. The warm-up counts as running.
+- The worker sends the timers it ran between answers, like idle route cells and camp warming under `idle`, beside the turn's own timers in the next answer.
 - Only that entry calls `startTurnWorker()`. `src/phys/turn.ts` exports and starts nothing on import, since `plan.ts` imports it and the dev server would otherwise load it twice in a worker and start two Rapier instances.
 - `initPhysics()` hands every caller one Rapier init.
 - Each turn request carries the active quest language. The worker sets it before the turn, so a scene the turn opens plays in the player's language.
@@ -233,7 +235,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Travel speed
 
 - `Travel` holds the picked travel speed as an index into `CONFIG.travelSpeeds`. The speed control beside the turn button sets it through the `UiHost` hooks `travelSpeedIndex()`, `travelPlaySpeed()` and `stepTravelSpeed()`.
-- `TurnPreparation` times each turn the worker starts with nothing queued ahead of it and keeps the median of the last `CONFIG.turnPrepSamples`. A request that waited behind a superseded one does not count, and a speed pick never posts a turn again. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
+- `TurnPreparation` times each turn from the moment it is posted to its answer, and keeps the median of the last `CONFIG.turnPrepSamples`. Only one request runs at a time, so the worker starts each one with nothing ahead of it. A speed pick never posts a turn again. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
 - Playback eases to that step over `playEaseMs`. A single late turn still shows as a short hitch.
 - The pick is the pace of every turn the player watches: waypoint travel, odd jobs shifts, beacon waits, knocked-out and towed runs, jobs advanced by taps, and combat. `Travel.paceSpeed()` and `getSpeed()` read only the pick, the worker time and the held Space, with no list of runs, so a new job or state follows it without a change.
 - The pick survives pauses and is never saved, like all travel state.
