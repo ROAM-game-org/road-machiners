@@ -207,6 +207,8 @@ def tractor_frame(kit: Kit) -> int:
     axle(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
+    deck_back, deck_front = TRACTOR_REAR + 0.03, DRIVE_X - WHEEL_R - 0.05
+    kit.box("tail_deck", (deck_front - deck_back, 2 * (HALF_W - 0.03), ENGINE_FLOOR - FRAME_TOP), ((deck_front + deck_back) / 2, 0, (ENGINE_FLOOR + FRAME_TOP) / 2), "metal_dark")
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
     kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=ROUND_SIDES)
     return wheels
