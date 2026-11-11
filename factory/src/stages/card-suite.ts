@@ -48,7 +48,7 @@ export async function cardSuiteFailure(ctx: Ctx, stage: Stage, issue: number, ba
   if (result.failure === null) return null;
   const check = { stage, issue, into: base, base: await ctx.repo.headHash(base), head: build };
   try {
-    const failure = await suiteVerdict(ctx, check, result);
+    const failure = await suiteVerdict(ctx, check, result, null);
     if (failure === null) await clearSuite(ctx, stage, issue, build, 'fails only in test files that pass when they run again on the same head');
     return failure;
   } catch (error) {

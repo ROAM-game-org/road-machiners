@@ -400,14 +400,27 @@ describe('merge queue', () => {
     const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unfinished: [], unhandledErrors: 0 } });
     const reruns = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun');
 
-    it('passes the result with no fix round when the failed files pass on the same head, and pushes it', async () => {
+    it('runs one new full suite after the failed files pass on the same head, and pushes only once it passes, with no fix round', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), { passed: true, record: null }];
+      suitePlan = [failing(RAID), { passed: true, record: null }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toEqual([]);
-      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'push head1 dev']);
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'suite head1', 'push head1 dev']);
       expect(reruns()).toMatchObject([{ stage: 'merge', issue: null, head: 'head1', files: ['src/sim/raid.test.ts'], outcome: 'passed' }]);
       expect(comments.filter((text) => text.includes('merged into dev'))).toHaveLength(2);
+    });
+
+    it('takes the fix path with the new failure when the full suite fails again after the rerun passed, and pushes only after the fix passes', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
+      suitePlan = [failing(RAID), { passed: true, record: null }, failing(FUEL), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 3');
+      expect(runs[0]!.prompt).toContain('- src/sim/fuel.test.ts > burns fuel');
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual([
+        'suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'suite head1', 'rerun dev-tip src/sim/fuel.test.ts workers 1', 'agent', 'suite head1', 'push head1 dev',
+      ]);
     });
 
     it('runs nothing again when the failure covers more files than FACTORY_SUITE_RERUN_FILES, and the session gets it', async () => {

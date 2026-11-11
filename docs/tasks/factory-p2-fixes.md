@@ -18,7 +18,7 @@
 ## Design
 
 - #1272: `onceEachHead` in checkpoint.ts owns every check round for verify, harden, merge and ship. A round counts as stalled when it ends on the same head with the same kind of check failing: a first check, like the approval or an uncommitted fix, or the head's build and suite. `FACTORY_NO_COMMIT_ROUNDS=3` stalled rounds throw `StalledFixError`, with cause `decision` and no resume.
-- #1503: `suiteVerdict` in baseline.ts reruns the failed files on the same head with the shard's own worker count. It does this only for a record with no unfinished file and no unhandled error, covering at most `FACTORY_SUITE_RERUN_FILES=5` files. A rerun that passes every file passes the head, and cards record it in `suiteCleared`. Each rerun writes a `rerun` ledger line.
+- #1503: `suiteVerdict` in baseline.ts reruns the failed files on the same head with the shard's own worker count. It does this only for a record with no unfinished file and no unhandled error, covering at most `FACTORY_SUITE_RERUN_FILES=5` files. A rerun that passes every file passes a card head, and cards record it in `suiteCleared`. Merge and ship run one new full suite first and push only on its pass. Each rerun writes a `rerun` ledger line.
 - #1458: `cleanBaseHeads` walks back past merges of the base whose tree equals `git merge-tree --write-tree` with no conflict. Hardening skips the suite when that walk reaches a green commit.
 - #1463: design writes `.factory/try.md`, and `.factory-tasks/issue-N.plan.json` keeps the plan. The post-only fallback shows that plan, or the changed files when no record exists.
 - #1265: reads retry on the three error strings above. Writes never retry.
@@ -45,7 +45,8 @@ The 15 touched test files pass, 584 tests in all, with typecheck and the quality
 - make: npm ci also ran in game/, because the pre-commit tsc covers game/.
 - uexecute: I did the three suite issues myself. Two Sonnet implementers did #1265 and #1463 in their own worktrees, and I cherry-picked their commits.
 - udesign #1272: the stall limit is 3 from the merge logs. A stall gets cause `decision` and no auto-resume.
-- udesign #1503: the rerun is all or nothing, file-level entries count, the cap is 5 files, and it uses the shard's worker count. Merge may push a commit whose full-suite status is failure.
+- udesign #1503: the rerun is all or nothing, file-level entries count, the cap is 5 files, and it uses the shard's worker count.
+- coordinator #1503: in merge and ship, a passing rerun dispatches one new full suite on the same head. The base takes the result only if that suite passes, and its failure takes the normal fix path. Testing and Hardening keep the rerun pass.
 - udesign #1458: the strict walk applies only to Hardening.
 - udesign #1463: the record sits beside the task file. With no record, the post lists the changed files.
 - udesign #1265: dial errors, gh's connect error and GraphQL's internal error retry for reads only. JSON truncation and Actions polling are left to #1241 and #1390.

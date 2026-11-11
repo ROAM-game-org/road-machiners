@@ -18,9 +18,15 @@ function comparable(record: SuiteFailures | null): record is SuiteFailures {
 
 const failedFiles = (record: SuiteFailures): string[] => [...new Set(record.failed.map((test) => test.file))].sort();
 
-export async function suiteVerdict(ctx: Ctx, check: BaselineCheck, result: FailedSuite): Promise<string | null> {
+export type ConfirmSuite = (() => Promise<SuiteResult>) | null;
+
+export async function suiteVerdict(ctx: Ctx, check: BaselineCheck, result: FailedSuite, confirm: ConfirmSuite): Promise<string | null> {
   const real = await withoutTransient(ctx, check, result);
-  return real === null ? null : withoutBaseline(ctx, check, real);
+  if (real !== null) return withoutBaseline(ctx, check, real);
+  if (confirm === null) return null;
+  const full = await confirm();
+  ctx.log(check.stage, check.issue, `the full suite ran again on ${check.head} after its failed files passed alone: ${full.failure === null ? 'passed' : 'failed'}`);
+  return full.failure === null ? null : withoutBaseline(ctx, check, full);
 }
 
 async function withoutTransient(ctx: Ctx, check: BaselineCheck, result: FailedSuite): Promise<FailedSuite | null> {

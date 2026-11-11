@@ -306,7 +306,8 @@ async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<st
   const head = await guardedHead(ctx, land);
   await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
   const check = { stage: land.stage, issue: null, into: land.into, base: await ctx.repo.headHash(land.into), head };
-  const suite = remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head).then((result) => (result.failure === null ? null : suiteVerdict(ctx, check, result)));
+  const fullSuite = () => remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head);
+  const suite = fullSuite().then((result) => (result.failure === null ? null : suiteVerdict(ctx, check, result, fullSuite)));
   suite.catch(() => undefined);
   return { suite };
 }
