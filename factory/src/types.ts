@@ -68,6 +68,7 @@ export type FactoryConfig = {
   hardeningBudgetUsd: number;
   mergingBudgetUsd: number;
   noCommitRounds: number;
+  suiteRerunFiles: number;
   wasteReviewDays: number;
   itchTarget: string | null;
   butlerKey: string | null;
@@ -287,7 +288,7 @@ export interface GitHub {
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
-export type SuiteScope = { files: string[]; workers: number };
+export type SuiteScope = { files: string[]; workers: number | null };
 export type FailedTest = { file: string; test: string | null };
 export type SuiteFailures = { failed: FailedTest[]; unfinished: string[]; unhandledErrors: number };
 

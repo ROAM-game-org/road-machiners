@@ -10,7 +10,7 @@ import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BaselineFailureError, BudgetError, onceEachHead, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
-import { withoutBaseline } from './baseline';
+import { suiteVerdict } from './baseline';
 import { ownWorkSettled } from './card-suite';
 import { cardFlow, moveCard } from '../card-events';
 import { remoteSuiteResult } from './remote-suite';
@@ -305,8 +305,8 @@ async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
 async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {
   const head = await guardedHead(ctx, land);
   await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
-  const check = { stage: land.stage, into: land.into, base: await ctx.repo.headHash(land.into), head };
-  const suite = remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head).then((result) => (result.failure === null ? null : withoutBaseline(ctx, check, result)));
+  const check = { stage: land.stage, issue: null, into: land.into, base: await ctx.repo.headHash(land.into), head };
+  const suite = remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head).then((result) => (result.failure === null ? null : suiteVerdict(ctx, check, result)));
   suite.catch(() => undefined);
   return { suite };
 }

@@ -268,6 +268,14 @@ describe('ghClient', () => {
     }
   });
 
+  it('dispatches a rerun of some test files with no worker input when the shard keeps its own worker count', async () => {
+    const calls: string[][] = [];
+    const run: Run = async (_cmd, args) => { calls.push(args); return ok('{"workflow_run_id":79}'); };
+    const sha = 'a'.repeat(40);
+    expect(await ghClient(run, CFG).dispatchSuite(sha, { files: ['src/a.test.ts'], workers: null })).toBe(79);
+    expect(calls[0]).toEqual(['api', '-X', 'POST', 'repos/o/r/actions/workflows/game-suite.yml/dispatches', '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-f', 'inputs[files]=src/a.test.ts', '-F', 'return_run_details=true']);
+  });
+
   it('tells reads from writes by their gh arguments', () => {
     expect(isRead(['issue', 'view', '7'])).toBe(true);
     expect(isRead(['pr', 'list', '--head', 'b'])).toBe(true);

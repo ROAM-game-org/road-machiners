@@ -378,7 +378,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     },
     async dispatchSuite(sha, scope) {
       if (!FULL_SHA.test(sha)) throw new Error(`The dispatch of ${SUITE_WORKFLOW} needs a full 40 character commit sha, not ${sha}`);
-      const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, '-f', `inputs[workers]=${scope.workers}`];
+      const inputs = scope === undefined ? [] : ['-f', `inputs[files]=${scope.files.join(' ')}`, ...(scope.workers === null ? [] : ['-f', `inputs[workers]=${scope.workers}`])];
       const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, ...inputs, '-F', 'return_run_details=true']);
       const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
       if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);

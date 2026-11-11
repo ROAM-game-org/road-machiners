@@ -179,6 +179,8 @@ Every routed approval reply adds a line too.
 
 Each time merge or ship checks compare a suite failure with a rerun on the base, a `baseline` line records the stage, the target branch, the base and head commits, `excluded`, the failed tests the base fails too, and `failing`, the ones that fail only on the head.
 
+Each time a suite failure's test files run again on the same head, a `rerun` line records the stage, the issue or null, the head, the files and the `outcome`: `passed`, `failed` or `unknown` when the rerun could not run.
+
 Every card move adds a card line: the issue, the new column, the time and a step that names the move. `src/card-events.ts` writes it after the board takes the move, and no other code moves a card. A line holds no actor, comment or reason.
 
 - Normal path: `entered`, `accepted` or `voted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { EMPTY_STATE, readState, writeState } from '../state';
+import { readLedger } from '../ledger';
 import type { AgentRun, Ctx, Pin } from '../types';
 import { BudgetError, StalledFixError } from './checkpoint';
 import { causeOf } from '../fail';
@@ -82,7 +83,7 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, noCommitRounds: 3, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, noCommitRounds: 3, suiteRerunFiles: 5, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -233,7 +234,7 @@ describe('testing in one job', () => {
   });
 
   it('posts a card whose only failing tests also fail on the base, and records the head', async () => {
-    failingSuites = 2;
+    failingSuites = 3;
     baseFailures = { failed: [{ file: 'src/sim/far.test.ts', test: 'drives far' }], unfinished: [], unhandledErrors: 0 };
     await runVerify(fakeCtx(posts), 7);
     expect(runs).toHaveLength(1);
@@ -241,8 +242,34 @@ describe('testing in one job', () => {
     expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
   });
 
-  it('sends only the tests the base does not fail back to the session', async () => {
+  it('posts a card whose failed files pass when they run again on the same head, with no fix round, and records the head and the rerun', async () => {
+    failingSuites = 1;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    const scopes: unknown[] = [];
+    const ctx = fakeCtx(posts);
+    const github = ctx.github as unknown as { dispatchSuite: (sha: string, scope?: unknown) => Promise<number> };
+    github.dispatchSuite = async (sha, scope) => { scopes.push(scope); return suites.push(sha); };
+    await runVerify(ctx, 7);
+    expect(runs).toHaveLength(1);
+    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(scopes).toEqual([undefined, { files: ['src/three/edge.test.ts'], workers: null }]);
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
+    expect(readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun')).toMatchObject([{ stage: 'verify', issue: 7, head: 'abc123', files: ['src/three/edge.test.ts'], outcome: 'passed' }]);
+    expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('hands a failure whose files fail again on the same head to the session, and records no cleared head', async () => {
     failingSuites = 2;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    await runVerify(fakeCtx(posts), 7);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('they failed again, so these failures are real: src/three/edge.test.ts.');
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({});
+    expect(readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun')).toMatchObject([{ outcome: 'failed' }]);
+  });
+
+  it('sends only the tests the base does not fail back to the session', async () => {
+    failingSuites = 3;
     baseFailures = { failed: [{ file: 'src/sim/far.test.ts', test: 'drives far' }], unfinished: [], unhandledErrors: 0 };
     const ctx = fakeCtx(posts);
     const github = ctx.github as unknown as { suiteFailures: () => Promise<unknown> };
@@ -580,6 +607,16 @@ describe('hardening in one session', () => {
     failingSuites = 99;
     await expect(runHarden(fakeCtx(() => undefined, [], 3), 7)).rejects.toThrow(BudgetError);
     expect(calls).not.toContain('move 7 Merging');
+  });
+
+  it('moves the card to Merging with no fix round when the failed files pass on the same head, and records the head', async () => {
+    failingSuites = 1;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    await runHarden(fakeCtx(() => undefined), 7);
+    expect(runs).toHaveLength(1);
+    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
+    expect(calls.at(-1)).toBe('move 7 Merging');
   });
 
   it('runs no suite when the pushed head already has a green status', async () => {

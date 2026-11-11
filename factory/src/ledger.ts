@@ -14,7 +14,8 @@ export type OpenRun = { model: string; projects: string; sessionId: string; resu
 export type JobOutcome = 'done' | 'failed' | 'died' | 'timeout' | 'stopped' | 'held';
 export type PartKind = 'agent' | 'checks' | 'build';
 export type JobPart = { kind: PartKind; startedAt: string; endedAt: string };
-export const isFailedOutcome = (outcome: JobOutcome): boolean => outcome !== 'done' && outcome !== 'held';
+export type RerunOutcome = 'passed' | 'failed' | 'unknown';
+export const isFailedOutcome =(outcome: JobOutcome): boolean => outcome !== 'done' && outcome !== 'held';
 
 export type LedgerLine =
   | Observation
@@ -23,6 +24,7 @@ export type LedgerLine =
   | { kind: 'post'; id: number; channel?: string; text: string; at: string }
   | { kind: 'control'; action: string; issue: number | null; by: string; reason: string; at: string }
   | { kind: 'baseline'; stage: Stage; into: string; base: string; head: string; excluded: FailedTest[]; failing: FailedTest[]; at: string }
+  | { kind: 'rerun'; stage: Stage; issue: number | null; head: string; files: string[]; outcome: RerunOutcome; at: string }
   | ({ kind: 'card'; issue: number; step: CardStep; to: Column; at: string; flow?: CardFlow } & CardFacts);
 
 const LEDGER_LOCK_MS = 30_000;
