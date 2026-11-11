@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, GRID_CELL, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineBay, engineFloor, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { CLIP_TOLERANCE, GRID_CELL, axlesOf, bodyOf, bodyRows, cellSteps, rideOf, cellCenter, cellRect, engineBay, engineFloor, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
 import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
@@ -38,6 +38,7 @@ describe('body from the base model', () => {
       expect(b.half.y, id).toBeCloseTo(was.half.y, 6);
       expect(b.half.z, id).toBeCloseTo(was.half.z, 6);
       expect(b.wheelX, id).toBeCloseTo(was.wheelX, 6);
+      expect(b.axleMid, id).toBeCloseTo('axleMid' in was ? was.axleMid : 0, 6);
       expect(b.wheelZ, id).toBeCloseTo(was.wheelZ, 6);
       expect(b.boxes.length, id).toBe(was.boxes.length);
       b.boxes.forEach((box, i) => {
@@ -46,6 +47,34 @@ describe('body from the base model', () => {
           expect(box.half[axis], `${id} box ${i}`).toBeCloseTo(was.boxes[i].half[axis], 6);
         }
       });
+    }
+  });
+
+  it('reads the axles about the axle midpoint', () => {
+    const plain = bodyOf('scout');
+    expect(plain.axleMid).toBe(0);
+    expect(axlesOf(plain)).toEqual({ front: plain.wheelX, rear: -plain.wheelX });
+    const tractor = unitBody('sorokonoga', 0);
+    expect(axlesOf(tractor).front - axlesOf(tractor).rear).toBeCloseTo(2 * tractor.wheelX, 9);
+    expect((axlesOf(tractor).front + axlesOf(tractor).rear) / 2).toBeCloseTo(tractor.axleMid, 9);
+  });
+
+  it('centers every unit collider on its origin', () => {
+    for (const id of ids) {
+      for (const u of unitsOf(id)) {
+        const lo = Math.min(...u.body.boxes.map((b) => b.at.x - b.half.x));
+        const hi = Math.max(...u.body.boxes.map((b) => b.at.x + b.half.x));
+        expect(Math.abs((lo + hi) / 2), `${id}/${u.index}`).toBeLessThanOrEqual(0.05);
+      }
+    }
+  });
+
+  it('keeps the drive tire of every rig front unit a grid cell ahead of its collider tail', () => {
+    for (const id of ids.filter(isRig)) {
+      const b = unitBody(id, 0);
+      const tail = Math.min(...b.boxes.map((box) => box.at.x - box.half.x));
+      const tireRear = axlesOf(b).rear - b.wheelRadius;
+      expect(tireRear - tail, id).toBeGreaterThanOrEqual(GRID_CELL);
     }
   });
 

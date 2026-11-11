@@ -50,7 +50,7 @@ export const PHYSICS = {
     bukhanka: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.45, wheelZ: 0.968, engineY: 1, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.6 },
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engineY: -0.25, wheelRadius: 0.48, wheelHalfWidth: 0.19, comHeight: 0.32 },
     semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.2125, wheelZ: 1.24, engineY: -0.15, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1, tandem: 1.75 },
-    sorokonoga: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.9, wheelZ: 1.15, engineY: -0.4, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.65 },
+    sorokonoga: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.6, wheelZ: 1.15, engineY: -0.19, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.65, axleMid: 0.3 },
     loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.475, wheelZ: 1.06, engineY: 0.5, wheelRadius: 0.8, wheelHalfWidth: 0.32, comHeight: 0.95 },
   },
   couplings: {

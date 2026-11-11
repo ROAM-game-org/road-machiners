@@ -1,6 +1,6 @@
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
-import type { Body } from '../sim/body';
+import { axlesOf, type Body } from '../sim/body';
 import { heightAt, type Terrain } from '../sim/terrain';
 import { headingOf, noseRise, rotateBy, upOf, type V3 } from './frames';
 
@@ -14,13 +14,13 @@ export function airPitchSpin(spin: number, pitch: number, groundPitch: number, d
   return spin + (target - spin) * (1 - Math.exp(-T.airLevelPull * dt));
 }
 
-export function groundPitchUnder(terrain: Terrain, at: V3, heading: number, wheelX: number, id: string): number {
-  const dx = (Math.cos(heading) * wheelX) / S;
-  const dy = (Math.sin(heading) * wheelX) / S;
+export function groundPitchUnder(terrain: Terrain, at: V3, heading: number, axles: { front: number; rear: number }, id: string): number {
+  const cos = Math.cos(heading) / S;
+  const sin = Math.sin(heading) / S;
   const x = at.x / S;
   const y = at.z / S;
-  const rise = (heightAt(terrain, x + dx, y + dy) - heightAt(terrain, x - dx, y - dy)) * S;
-  const pitch = Math.atan2(rise, 2 * wheelX);
+  const rise = (heightAt(terrain, x + cos * axles.front, y + sin * axles.front) - heightAt(terrain, x + cos * axles.rear, y + sin * axles.rear)) * S;
+  const pitch = Math.atan2(rise, axles.front - axles.rear);
   if (!Number.isFinite(pitch)) throw new Error(`Cannot level ${id} in the air: the ground under it gave a non-finite pitch`);
   return pitch;
 }
@@ -32,7 +32,7 @@ export function levelInAir(body: RAPIER.RigidBody, b: Body, terrain: Terrain, id
   const spin = body.angvel();
   const pitchSpin = spin.x * lateral.x + spin.y * lateral.y + spin.z * lateral.z;
   const pitch = Math.asin(Math.max(-1, Math.min(1, noseRise(rotation))));
-  const ground = groundPitchUnder(terrain, body.translation(), headingOf(rotation), b.wheelX, id);
+  const ground = groundPitchUnder(terrain, body.translation(), headingOf(rotation), axlesOf(b), id);
   const change = airPitchSpin(pitchSpin, pitch, ground, DT) - pitchSpin;
   body.setAngvel({ x: spin.x + lateral.x * change, y: spin.y + lateral.y * change, z: spin.z + lateral.z * change }, true);
 }
