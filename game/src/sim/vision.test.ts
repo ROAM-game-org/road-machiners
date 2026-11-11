@@ -232,7 +232,7 @@ describe('contact practice', () => {
 
   it('pays nothing when an NPC hears a truck', () => {
     const { w, buggy } = heardBuggy();
-    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 60, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 34, y: 30 });
     expect(contactsOf(w, trader, Infinity).map((c) => c.vehicleId)).toContain(buggy.id);
     expect(practiceOf(w, 'contact')).toEqual([]);
   });
