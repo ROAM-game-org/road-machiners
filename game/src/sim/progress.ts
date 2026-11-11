@@ -34,7 +34,7 @@ export function skillEffect<S extends SkillId>(world: World, v: Vehicle, skill: 
 export function xpFor(p: SkillProgress, source: XpSource, amount: number, difficulty: number | null, target: string, turn: number): number {
   const def = XP_SOURCES[source];
   if (!(amount >= 0)) throw new Error(`Practice amount ${amount} for ${source} is not a non-negative number`);
-  return def.weight * amount * difficultyMult(source, def.scaled, difficulty) * def.repeat ** repeatsOf(p, source, target, turn);
+  return XP_RULES.gain * def.weight * amount * difficultyMult(source, def.scaled, difficulty) * def.repeat ** repeatsOf(p, source, target, turn);
 }
 
 function repeatsOf(p: SkillProgress, source: XpSource, target: string, turn: number): number {

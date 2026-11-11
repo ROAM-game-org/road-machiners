@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
+import { PERK_NUMBERS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
@@ -345,7 +345,7 @@ describe('honk', () => {
     npcAt(w, 'trader', 'independent', 36);
     refreshVision(w);
     const once = honk(w);
-    expect(practiceOf(once, 'honk')).toMatchObject([{ amount: 1, difficulty: null, xp: XP_SOURCES.honk.weight }]);
+    expect(practiceOf(once, 'honk')).toMatchObject([{ amount: 1, difficulty: null, xp: XP_SOURCES.honk.weight * XP_RULES.gain }]);
     expect(practiceOf(honk(once), 'honk')).toMatchObject([{ xp: 0 }]);
   });
 
@@ -627,7 +627,7 @@ describe('call practice', () => {
     const open = callVehicle(w, npc.id);
     expect(practiceOf(open, 'call')).toEqual([]);
     const asked = chooseText(open, "Where's the nearest town?");
-    expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight }]);
+    expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight * XP_RULES.gain }]);
   });
 
   it('pays nothing for a topic already taken up with the same driver, and in full with another driver', () => {
@@ -643,7 +643,7 @@ describe('call practice', () => {
     const other = addVehicle(again, 'independent', 'scout', [], { x: 30, y: 36 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     refreshVision(again);
-    expect(ask(again, other.id).player.xp).toBeCloseTo(once.player.xp + XP_SOURCES.call.weight);
+    expect(ask(again, other.id).player.xp).toBeCloseTo(once.player.xp + XP_SOURCES.call.weight * XP_RULES.gain);
   });
 
   it('pays nothing for a call hung up without a topic', () => {

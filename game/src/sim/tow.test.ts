@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { BEACON, TOW } from '../data/tow';
-import { MAX_RANK, SKILL_EFFECTS, XP_SOURCES } from '../data/skills';
+import { MAX_RANK, SKILL_EFFECTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { partDef } from '../data/parts';
 import { playerVehicle } from './damage';
 import { route, routeLength } from './path';
@@ -1074,7 +1074,7 @@ describe('the player towing an NPC', () => {
     expect(find(r.w, npc.id).resources!.money).toBe(npcMoney);
     const practice = r.events.filter((e) => e.t === 'practice' && e.source === 'freeTow');
     expect(practice).toMatchObject([{ amount: data.waived, target: npc.id }]);
-    expect(r.w.player.xpBySource.freeTow).toBeCloseTo(data.waived * XP_SOURCES.freeTow.weight);
+    expect(r.w.player.xpBySource.freeTow).toBeCloseTo(data.waived * XP_SOURCES.freeTow.weight * XP_RULES.gain);
   });
 
   it('a driver towed in with no engine drives on with a fresh one', () => {
