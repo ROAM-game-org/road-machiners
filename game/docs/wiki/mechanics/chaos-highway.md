@@ -105,7 +105,7 @@ A director plans each stretch's groups when the road opens, in `src/sim/chaos-hi
 
 Elite trucks start on stretch 2. A stretch has at most one, and one more every 2 stretches. An elite truck has twice the gear money, and the rest of its group keeps the plain money. A blocker is never elite.
 
-The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck takes the shared NPC loadout with a gun picked first and no cargo part, since the highway has no trade. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
+The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck takes the shared NPC loadout with a gun picked first and no cargo part, since the highway has no trade. It buys armor with the gear money left after its gun, elite or not, so from stretch 3 most group trucks carry some armor. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
 
 Each group draws one card by weight from the cards open at its stretch, so its trucks share a template. Each truck takes its own template's loadout.
 
