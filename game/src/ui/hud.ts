@@ -199,6 +199,7 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
+  private inspectedOther = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -268,7 +269,7 @@ export class Hud {
     this.info.style.height = `${slot}px`;
     this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
     if (this.inspectedAimable) this.growForAim(top, slot);
-    if (!phoneMode()) this.growForLists(top);
+    this.fillToFloor(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
@@ -334,12 +335,8 @@ export class Hud {
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
   }
 
-  private growForLists(top: number): void {
-    const lists = this.infoColumn.querySelector<HTMLElement>(".hitcard");
-    const over = lists ? lists.scrollHeight - lists.clientHeight : 0;
-    if (over <= 0) return;
-    const tallest = this.sideFloor(this.info) - top;
-    this.info.style.height = `${Math.min(tallest, this.info.offsetHeight + over)}px`;
+  private fillToFloor(top: number): void {
+    if (this.inspectedOther && !phoneMode()) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
   }
 
   private coverUnder(bottom: number | null): void {
@@ -807,6 +804,7 @@ export class Hud {
     }
     const aim = this.aimOf(w, v);
     this.inspectedAimable = aim !== undefined;
+    this.inspectedOther = !isPlayerTruck(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
