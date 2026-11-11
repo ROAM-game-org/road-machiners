@@ -55,3 +55,55 @@ export function gridSquareArea(square: GridSquare): GridBox {
 export function gridSquareSpan(square: GridSquare): GridBox {
   return gridBox(square, Math.ceil);
 }
+
+export type GridEntry = { pos: Vec; seg: number; t: number; square: GridSquare };
+
+type LineCrossing = { t: number; axis: 'column' | 'row'; index: number };
+
+const CORNER_GAP = 1e-9;
+const ARRIVAL_NUDGE = 1e-6;
+const ARRIVAL_DIRECTION_MIN = 1e-4;
+
+function lineCrossings(from: number, to: number, axis: LineCrossing['axis']): LineCrossing[] {
+  const size = gridSquareTiles();
+  const first = gridIndex(from);
+  const last = gridIndex(to);
+  const crossings: LineCrossing[] = [];
+  for (let k = first + 1; k <= last; k++) crossings.push({ t: (k * size - from) / (to - from), axis, index: k });
+  for (let k = first; k > last; k--) crossings.push({ t: (k * size - from) / (to - from), axis, index: k - 1 });
+  return crossings;
+}
+
+function entriesOfSegment(a: Vec, b: Vec, seg: number): GridEntry[] {
+  const crossings = [...lineCrossings(a.x, b.x, 'column'), ...lineCrossings(a.y, b.y, 'row')].sort((p, q) => p.t - q.t);
+  const square = gridSquareOf(a);
+  const entries: GridEntry[] = [];
+  crossings.forEach((c, i) => {
+    square[c.axis] = c.index;
+    const corner = (crossings[i - 1] && c.t - crossings[i - 1].t < CORNER_GAP) || (crossings[i + 1] && crossings[i + 1].t - c.t < CORNER_GAP);
+    if (!corner) entries.push({ pos: { x: a.x + (b.x - a.x) * c.t, y: a.y + (b.y - a.y) * c.t }, seg, t: c.t, square: { ...square } });
+  });
+  return entries;
+}
+
+export function gridEntries(points: readonly Vec[]): GridEntry[] {
+  return points.slice(1).flatMap((b, i) => entriesOfSegment(points[i], b, i));
+}
+
+function nudged(from: Vec, toward: Vec, gap: number): Vec {
+  const length = Math.hypot(toward.x - from.x, toward.y - from.y);
+  return { x: from.x + ((toward.x - from.x) / length) * gap, y: from.y + ((toward.y - from.y) / length) * gap };
+}
+
+export function gridArrival(points: readonly Vec[]): GridSquare | null {
+  const end = points[points.length - 1];
+  const before = [...points].reverse().find((p) => Math.hypot(end.x - p.x, end.y - p.y) >= ARRIVAL_DIRECTION_MIN);
+  if (!before) return null;
+  const behind = nudged(end, before, ARRIVAL_NUDGE);
+  const ahead = nudged(end, before, -ARRIVAL_NUDGE);
+  const [from, into] = [gridSquareOf(behind), gridSquareOf(ahead)];
+  if (sameGridSquare(from, into) || (from.column !== into.column && from.row !== into.row)) return null;
+  const route = [...points.slice(0, -1), behind];
+  const visited = [gridSquareOf(points[0]), ...gridEntries(route).map((e) => e.square)];
+  return visited.some((square) => sameGridSquare(square, into)) ? null : into;
+}
