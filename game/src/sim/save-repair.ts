@@ -27,7 +27,7 @@ import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
 import { DECKS } from './bridge';
-import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
+import type { Call, CallVar, CallVars, Cue, DirectionStep, LeaveCue, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 import { payoutM } from './money';
@@ -603,7 +603,8 @@ function trades(shop: string, good: string): boolean {
   return isShop(shop) && SHOPS[shop].goods.includes(good);
 }
 
-function cueFits(cue: Cue): boolean {
+function cueFits(cue: Cue | LeaveCue): boolean {
+  if (cue.kind === 'square') return [cue.column, cue.row].every((i) => Number.isInteger(i) && i >= 0 && i < MAP_GRID.squares);
   if (cue.kind === 'site') return isSite(cue.id);
   return cue.kind !== 'deck' || DECKS.some((d) => d.id === cue.id);
 }

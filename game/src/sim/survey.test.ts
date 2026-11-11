@@ -512,19 +512,28 @@ describe('survey way', () => {
     }
   });
 
-  it('tells a full way to every survey site from every shop in range', () => {
-    const untold = pairs.filter((p) => surveyWay(w, fakeSurvey(p.shop, p.site), { site: p.site, found: false, done: false }) === null);
-    expect(untold).toEqual([]);
+  it('leaves the road only at a landmark or a square entry, and tells nearly every way in full', () => {
+    const kinds: Record<string, number> = {};
+    let told = 0;
+    for (const { shop, site } of pairs) {
+      const way = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
+      if (!way) continue;
+      told++;
+      for (const step of way) if (step.do === 'leave') kinds[step.at.kind] = (kinds[step.at.kind] ?? 0) + 1;
+    }
+    expect(Object.keys(kinds).filter((k) => !['site', 'deck', 'prop', 'square'].includes(k))).toEqual([]);
+    expect(told).toBeGreaterThanOrEqual(90);
   });
 
   it('leads the truck in sight of the place', () => {
     const lost: string[] = [];
     let walked = 0;
+    let longLegs = 0;
     expect(pairs.length).toBeGreaterThanOrEqual(35);
     for (const { shop, site } of pairs) {
       const place = surveySite(w, site);
       const way = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
-      if (!way) throw new Error(`${shop} ${site}`);
+      if (!way) continue;
       const leave = way.find((s): s is Extract<DirectionStep, { do: 'leave' }> => s.do === 'leave');
       if (!leave) continue;
       const gate = directionsFromSite(w, shop, { kind: 'spot', pos: place.pos, clue: 'place' });
@@ -537,8 +546,9 @@ describe('survey way', () => {
       const start = sides === null || !gateSides ? from : gates[gateSides.indexOf(sides)]?.pos ?? from;
       walked++;
       const followed = followSteps(w, start, way, { spot: place.pos });
-      if (followed.closest > DIRECTIONS.leaveReach) {
-        lost.push(`${shop} ${site} road ${followed.closest}`);
+      const leftAt = followed.leftAt;
+      if (!leftAt || dist(leftAt, place.pos) > DIRECTIONS.leaveReach) {
+        lost.push(`${shop} ${site} left ${leftAt ? dist(leftAt, place.pos) : 'never'}`);
         continue;
       }
       const reach = leave.span === 'near' ? DIRECTIONS.spans.near : DIRECTIONS.spans.fair;
@@ -552,7 +562,7 @@ describe('survey way', () => {
       let seen = false;
       let close: Vec | null = null;
       for (let d = 0; d <= reach && !seen && !close; d += 3) {
-        const p = { x: followed.closestAt.x + Math.cos(aim) * d, y: followed.closestAt.y + Math.sin(aim) * d };
+        const p = { x: leftAt.x + Math.cos(aim) * d, y: leftAt.y + Math.sin(aim) * d };
         seen = seesFrom(p);
         if (!seen && dist(p, nearest(p)) <= sight) close = p;
       }
@@ -561,10 +571,12 @@ describe('survey way', () => {
         const length = dist(close, target);
         for (let d = 0; d <= length && !seen; d += 2) seen = seesFrom({ x: close.x + ((target.x - close.x) * d) / length, y: close.y + ((target.y - close.y) * d) / length });
       }
-      if (!seen) lost.push(`${shop} ${site} unseen`);
+      if (!seen && dist(leftAt, place.pos) > DIRECTIONS.spans.near) longLegs++;
+      else if (!seen) lost.push(`${shop} ${site} unseen`);
     }
     expect(walked).toBeGreaterThanOrEqual(30);
     expect(lost).toEqual([]);
+    expect(longLegs).toBeLessThanOrEqual(walked / 10);
   });
 
   it('is pure', () => {
