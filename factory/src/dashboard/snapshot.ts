@@ -75,10 +75,9 @@ export class PublicGitHub {
   async read(state: FactoryState): Promise<GithubSnapshot> {
     const visibility = (await this.query(['api', `repos/${this.config.repo}`, '--jq', '.visibility'])).trim();
     if (visibility !== 'public') throw new Error('Dashboard requires a public repository');
-    const [board] = await Promise.allSettled([this.readBoard()]);
-    const boardPart = toPart(board, 'board');
-    const cards = mapPart(boardPart, 'cards', ({ cards: raw, issues }) => selectPublicCards(raw, issues));
-    const mergeQueue = mapPart(boardPart, 'merge queue', ({ cards: raw, issues }) => selectMergeQueue(state, raw, issues));
+    const board: Part<{ cards: Card[]; issues: PublicIssue[] }> = { value: await this.readBoard(), error: null };
+    const cards = mapPart(board, 'cards', ({ cards: raw, issues }) => selectPublicCards(raw, issues));
+    const mergeQueue = mapPart(board, 'merge queue', ({ cards: raw, issues }) => selectMergeQueue(state, raw, issues));
     return { cards, mergeQueue };
   }
   private async readBoard(): Promise<{ cards: Card[]; issues: PublicIssue[] }> {

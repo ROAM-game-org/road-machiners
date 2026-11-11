@@ -7,7 +7,7 @@ import { buildOperations, PublicGitHub, SnapshotCollector } from './snapshot';
 import { HostSampler, type HostLoad } from './host';
 import { AnalyticsRunner } from './analytics';
 import type { DashboardConfig } from './config';
-import type { FactoryState, Run } from '../types';
+import { COLUMNS, type FactoryState, type Run } from '../types';
 
 it('publishes only explicit operational fields, never private state or raw errors', () => {
   const state: FactoryState = { ...structuredClone(EMPTY_STATE),
@@ -105,6 +105,41 @@ it('retains the last good snapshot with stale markers when its sources fail', as
     expect(stale.github.value).toEqual(good.github.value);
     expect(JSON.stringify(stale)).not.toContain('PRIVATE');
   } finally { vi.useRealTimers(); rmSync(home, { recursive: true, force: true }); }
+});
+function boardRun(count: () => number): Run {
+  const card = { id: '7', fieldValueByName: { name: 'Testing' }, content: { number: 7, repository: { nameWithOwner: 'owner/game' }, labels: { nodes: [] } } };
+  return async (_cmd, args) => {
+    const endpoint = args[1];
+    if (endpoint === 'repos/owner/game') return { code: 0, stdout: 'public', stderr: '' };
+    if (endpoint.includes('/issues?')) return { code: 0, stdout: JSON.stringify({ number: 7, title: 'Public feature', labels: [] }), stderr: '' };
+    const query = args.find((arg) => arg.startsWith('query='))!;
+    const page = (nodes: unknown[], totalCount: number) => ({ totalCount, pageInfo: { hasNextPage: false, endCursor: null }, nodes });
+    const data = query.includes('issues(states: OPEN') ? { data: { repository: { issues: page([], 0) } } }
+      : query.includes('items(first:') ? { data: { node: { items: page([card], count()) } } }
+        : { data: { user: { projectV2: { id: 'P', field: { id: 'S', options: COLUMNS.map((name) => ({ id: name, name })) } } } } };
+    return { code: 0, stdout: JSON.stringify(data), stderr: '' };
+  };
+}
+it('keeps the last whole board marked stale with its read time when a later board read is cut, and shows no board before the first whole read', async () => {
+  const home = mkdtempSync(resolve('tmp/snapshot-'));
+  try {
+    mkdirSync(join(home, 'state'));
+    writeState(join(home, 'state', 'state.json'), structuredClone(EMPTY_STATE));
+    const config = { ...createConfig(home), githubRetries: 0, githubRetryBaseSeconds: 0 };
+    let counted = 2;
+    const collector = new SnapshotCollector(config, new PublicGitHub(config, boardRun(() => counted)), new FixtureHost(home, 100), analyticsRunner);
+    await collector.refreshLocal();
+    await collector.refreshGithub();
+    expect(collector.getSnapshot().github).toEqual({ value: null, at: null, status: 'unavailable' });
+    counted = 1;
+    await collector.refreshGithub();
+    const good = collector.getSnapshot().github;
+    expect(good.status).toBe('ok');
+    expect(good.value?.cards.value).toEqual([{ issue: 7, title: 'Public feature', column: 'Testing', blocked: false }]);
+    counted = 3;
+    await collector.refreshGithub();
+    expect(collector.getSnapshot().github).toEqual({ ...good, status: 'stale' });
+  } finally { rmSync(home, { recursive: true, force: true }); }
 });
 it('reports a safe pause reason and clears it when the pause is removed', async () => {
   const home = mkdtempSync(resolve('tmp/snapshot-'));
