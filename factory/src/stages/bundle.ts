@@ -108,6 +108,7 @@ async function announceBundled(ctx: Ctx, lead: number, issues: number[], reason:
 export async function closeBundle(ctx: Ctx, lead: number, note: string): Promise<number[]> {
   const issues = bundleOf(readState(ctx.statePath), lead);
   for (const issue of issues) {
+    if ((await ctx.github.issue(issue)).state === 'CLOSED') continue;
     await ctx.github.comment(issue, `${note} It shipped as part of #${lead}.`);
     await ctx.github.close(issue, 'completed');
   }

@@ -176,6 +176,31 @@ describe('ship', () => {
     expect(f.calls).toContain('message committee - Release 2026-09-29 shipped with 1 changes.');
   });
 
+  it('runs again after a failed close with no second comment on the features and bundles it closed, and queues every bug incident', async () => {
+    const issues = new Map<number, { state: 'OPEN' | 'CLOSED'; labels: string[] }>([3, 4, 8, 9].map((n) => [n, { state: 'OPEN', labels: n === 8 ? ['bug'] : n === 4 ? ['bug', 'release-candidate'] : ['release-candidate'] }]));
+    const withIssues = (f: Fake, failOn: number | null) => {
+      f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: issues.get(n)?.labels ?? [], createdAt: '', state: issues.get(n)?.state ?? 'OPEN', author: 'a' });
+      f.ctx.github.removeLabel = async (n: number, label: string) => { f.calls.push(`removeLabel ${n} ${label}`); const item = issues.get(n); if (item) item.labels = item.labels.filter((other) => other !== label); };
+      f.ctx.github.close = async (n: number) => { if (n === failOn) throw new Error('GraphQL: Something went wrong'); f.calls.push(`close ${n}`); const item = issues.get(n); if (item) item.state = 'CLOSED'; };
+      f.ctx.github.comment = async (n: number, body: string) => { f.calls.push(`comment ${n} ${body}`); };
+    };
+    const first = shippable();
+    writeState(first.ctx.statePath, { ...readState(first.ctx.statePath), bundles: { '3': [8, 9] }, release: { ...RELEASE, candidate: candidateOf([TRUCKS, issueMerge(4, 'new horn')]) } });
+    writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.json'), JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }, { issue: 4, text: 'A horn.' }]));
+    withIssues(first, 4);
+    await expect(ship(first.ctx, 11, 'Ann')).rejects.toThrow('Something went wrong');
+    const again = shippable();
+    withIssues(again, null);
+    await ship(again.ctx, 11, 'Ann');
+    const featureComments = (f: Fake) => f.calls.filter((call) => /^comment [3489] /.test(call));
+    expect(featureComments(first)).toEqual(['comment 3 Shipped in release 2026-09-29. It is on main and itch.io.', 'comment 8 Shipped in release 2026-09-29. It is on main and itch.io. It shipped as part of #3.', 'comment 9 Shipped in release 2026-09-29. It is on main and itch.io. It shipped as part of #3.', 'comment 4 Shipped in release 2026-09-29. It is on main and itch.io.']);
+    expect(featureComments(again)).toEqual(['comment 4 Shipped in release 2026-09-29. It is on main and itch.io.']);
+    expect([...issues.values()].map((item) => item.state)).toEqual(['CLOSED', 'CLOSED', 'CLOSED', 'CLOSED']);
+    const state = readState(again.ctx.statePath);
+    expect(state.pendingIncidents).toEqual([3, 4, 4]);
+    expect(state.devMerges).toEqual([LATER]);
+  });
+
   it('queues an incident job for each shipped issue labeled bug, and for no other', async () => {
     const f = shippable();
     writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), release: { ...RELEASE, candidate: candidateOf([TRUCKS, issueMerge(4, 'new horn')]) } });
