@@ -5,7 +5,6 @@ import { emulateWebGL2Floor } from './gpu-floor.mjs';
 export const MISSING_GROUND_GATE = 0.05;
 export const NIGHT_TURNS = 3;
 const NIGHT_HOUR = 3;
-const LIT_NPCS = 6;
 const SETTLE_MS = 1500;
 const SETTLE_FRAMES = 3;
 const SENTINEL = 0xff00ff;
@@ -17,15 +16,27 @@ const isNight = (page) => page.evaluate(async () => {
   return !sunAt(window.__ROAM__.state.turn);
 });
 
-const lightUpNight = (page) => page.evaluate(async ([hour, npcs]) => {
+const lightUpNight = (page, mode) => page.evaluate(async ([hour, mode]) => {
   const cheats = await import('/src/sim/cheats.ts');
   const { NPCS } = await import('/src/data/npcs.ts');
+  const { BEAM_CAP } = await import('/src/three/render/daylight.ts');
+  const { nearestSitePad } = await import('/src/sim/sites.ts');
+  const { atlasOf } = await import('/src/sim/atlas.ts');
   const g = window.__ROAM__;
   const kinds = Object.keys(NPCS);
   let w = cheats.skipToHour(g.state, hour);
-  for (let i = 0; i < npcs; i++) w = cheats.spawnNear(w, kinds[i % kinds.length], false);
+  let atSite = false;
+  try {
+    const me = w.vehicles.find((v) => v.id === w.player.vehicleId);
+    w = cheats.teleport(w, nearestSitePad(atlasOf(w.terrain), me.pos).pad);
+    atSite = true;
+  } catch {}
+  for (let i = 0; i <= BEAM_CAP; i++) w = cheats.spawnNear(w, kinds[i % kinds.length], false);
   g.apply({ ...w, player: { ...w.player, headlights: true } });
-}, [NIGHT_HOUR, LIT_NPCS]);
+  return atSite;
+}, [NIGHT_HOUR, mode]);
+
+const groundRows = (page) => page.evaluate(() => window.__gpuRows ?? []);
 
 const unlinkedPrograms = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
@@ -184,9 +195,13 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
     const share = await missingGroundShare(page);
     console.log(`night ${mode} at ${step}: missing ground share ${share.toFixed(3)}`);
     if (share > MISSING_GROUND_GATE) problems.push(`ground missing in ${mode} at ${step}: magenta share ${share.toFixed(2)}`);
+    const rows = await groundRows(page);
+    for (const r of rows) console.log(`night ${mode} at ${step}: ground ${r.name || 'program'}: fragment ${r.fragment}, vertex ${r.vertex}`);
+    if (rows.length === 0) problems.push(`${mode} at ${step}: no ground program rows were measured`);
     for (const p of [...(await unlinkedPrograms(page)), ...(await overFloor(page))]) problems.push(`${mode} at ${step}: ${p}`);
   };
-  await lightUpNight(page);
+  const atSite = await lightUpNight(page, mode);
+  if (!atSite) console.log(`night ${mode}: site pool not reached, no town gate to stand at`);
   await check('the night peak');
   if (nightTurns > 0) {
     await playNightTurns(page, nightTurns, turnLimitMs);
@@ -196,7 +211,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
   await page.screenshot({ path: shot.replace(/\.png$/, '-restored.png') });
   await reloadPage(page);
   await waitForGame(page, bootLimitMs);
-  if (!(await isNight(page))) await lightUpNight(page);
+  if (!(await isNight(page))) await lightUpNight(page, mode);
   await check('a reload at night');
   await page.screenshot({ path: shot });
   return problems;

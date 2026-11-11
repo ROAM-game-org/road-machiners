@@ -56,32 +56,14 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     roadPixel: { value: pixel },
-    asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
     roadDetailMeters: { value: ROAD_DETAIL_SIDE * pixel },
     roadToneMeters: { value: ROAD_TONE_SIDE * ROAD_TONE_PIXELS * pixel },
-    roadPlainLuma: { value: luma(new THREE.Color(ROAD_PLAIN)) },
-    roadSandLuma: { value: luma(new THREE.Color(ROAD_SAND)) },
     roadDesert: { value: desertTexture(t) },
     roadDesertMeters: { value: t.size * S },
-    shoulderFrom: { value: SHOULDER_FROM },
-    roadFray: { value: ROAD_FRAY },
-    rimShare: { value: RIM_SHARE },
-    rimInside: { value: RIM_INSIDE },
-    shoulderStones: { value: SHOULDER_STONES },
-    rimColor: { value: new THREE.Color(PAL.roadRim) },
-    stoneColor: { value: new THREE.Color(PAL.stoneGrey) },
-    dirtGroundLuma: { value: luma(new THREE.Color(DIRT_UNDER)) },
-    dirtTint: { value: dirtTint() },
     glassField: { value: glassTexture(t) },
     glassFieldMeters: { value: t.size * S },
-    glassBase: { value: new THREE.Color(GLASS_BASE) },
-    glassPlate: { value: GLASS_PLATE * S },
-    glassTint: { value: GLASS_TINT },
-    glassSeam: { value: GLASS_SEAM },
-    glassSeamColor: { value: new THREE.Color(GLASS_SEAM_COLOR) },
-    glassDust: { value: new THREE.Color(GLASS_DUST) },
     ...padUniforms([...atlasSites(atlasOf(t)), ...shelters], pixel),
     ...wearUniforms(mask, t),
   };
@@ -95,7 +77,7 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
       .replace("#include <common>", "#include <common>\nvarying vec2 vRoadXZ;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvRoadXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n#define PAD_COUNT ${uniforms.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${ROAD_UNIFORMS}`)
+      .replace("#include <common>", `#include <common>\n#define PAD_COUNT ${uniforms.padFrames.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${ROAD_UNIFORMS}`)
       .replace("#include <map_fragment>", `#include <map_fragment>\n${ROAD_FRAGMENT}`);
   };
   material.customProgramCacheKey = () => `${key()}|roads${worn ? "|wear" : ""}`;
@@ -112,56 +94,82 @@ function wearUniforms(mask: PaintCanvas, t: Terrain) {
   texture.needsUpdate = true;
   return {
     highwayWear: { value: texture },
-    wearBaseLuma: { value: luma(new THREE.Color(PAL.road)) },
-    wearYellow: { value: new THREE.Color(WEAR_YELLOW) },
-    wearSand: { value: new THREE.Color(PAL.desertSand) },
   };
 }
 
+function glslFloat(x: number): string {
+  if (!Number.isFinite(x)) throw new Error(`A shader constant must be finite, got ${x}`);
+  return x.toPrecision(9);
+}
+
+function glslColor(c: THREE.Color): string {
+  return `vec3(${glslFloat(c.r)}, ${glslFloat(c.g)}, ${glslFloat(c.b)})`;
+}
+
+function glslConstants(floats: Record<string, number>, vectors: Record<string, THREE.Color | THREE.Vector3 | THREE.Vector2>): string {
+  const lines = Object.entries(floats).map(([name, x]) => `const float ${name} = ${glslFloat(x)};`);
+  for (const [name, v] of Object.entries(vectors)) {
+    if (v instanceof THREE.Color) lines.push(`const vec3 ${name} = ${glslColor(v)};`);
+    else if (v instanceof THREE.Vector3) lines.push(`const vec3 ${name} = vec3(${glslFloat(v.x)}, ${glslFloat(v.y)}, ${glslFloat(v.z)});`);
+    else lines.push(`const vec2 ${name} = vec2(${glslFloat(v.x)}, ${glslFloat(v.y)});`);
+  }
+  return lines.join('\n');
+}
+
+const ROAD_CONSTANTS = glslConstants(
+  {
+    roadPlainLuma: luma(new THREE.Color(ROAD_PLAIN)),
+    roadSandLuma: luma(new THREE.Color(ROAD_SAND)),
+    shoulderFrom: SHOULDER_FROM,
+    roadFray: ROAD_FRAY,
+    rimShare: RIM_SHARE,
+    rimInside: RIM_INSIDE,
+    shoulderStones: SHOULDER_STONES,
+    dirtGroundLuma: luma(new THREE.Color(DIRT_UNDER)),
+    glassPlate: GLASS_PLATE * S,
+    glassTint: GLASS_TINT,
+    glassSeam: GLASS_SEAM,
+  },
+  {
+    asphaltColor: new THREE.Color(PAL.highwayAsphalt),
+    rimColor: new THREE.Color(PAL.roadRim),
+    stoneColor: new THREE.Color(PAL.stoneGrey),
+    dirtTint: dirtTint(),
+    glassBase: new THREE.Color(GLASS_BASE),
+    glassSeamColor: new THREE.Color(GLASS_SEAM_COLOR),
+    glassDust: new THREE.Color(GLASS_DUST),
+    padHalf: new THREE.Vector2((REGION.sites.pad.length / 2) * S, (REGION.sites.pad.width / 2) * S),
+    padDust: new THREE.Color(PAL.sand[3]),
+    padMark: new THREE.Color(PAL.padMark),
+  },
+);
+
+const WEAR_CONSTANTS = glslConstants(
+  { wearBaseLuma: luma(new THREE.Color(PAL.road)) },
+  { wearYellow: new THREE.Color(WEAR_YELLOW), wearSand: new THREE.Color(PAL.desertSand) },
+);
+
 const ROAD_UNIFORMS = `varying vec2 vRoadXZ;
+${ROAD_CONSTANTS}
 uniform sampler2D roadMask;
 uniform sampler2D roadDetail;
 uniform sampler2D roadTone;
 uniform float roadPixel;
-uniform vec3 asphaltColor;
 uniform float roadOrigin;
 uniform float roadMaskMeters;
 uniform float roadDetailMeters;
 uniform float roadToneMeters;
-uniform float roadPlainLuma;
-uniform float roadSandLuma;
 uniform sampler2D roadDesert;
 uniform float roadDesertMeters;
-uniform float shoulderFrom;
-uniform float roadFray;
-uniform float rimShare;
-uniform float rimInside;
-uniform float shoulderStones;
-uniform vec3 rimColor;
-uniform vec3 stoneColor;
-uniform float dirtGroundLuma;
-uniform vec3 dirtTint;
 uniform sampler2D glassField;
 uniform float glassFieldMeters;
-uniform vec3 glassBase;
-uniform float glassPlate;
-uniform float glassTint;
-uniform float glassSeam;
-uniform vec3 glassSeamColor;
-uniform vec3 glassDust;
 #if PAD_COUNT > 0
-uniform vec2 padCenters[PAD_COUNT];
-uniform vec2 padAxes[PAD_COUNT];
+uniform vec4 padFrames[PAD_COUNT];
 #endif
-uniform vec2 padHalf;
 uniform float padBorder;
-uniform vec3 padDust;
-uniform vec3 padMark;
 #ifdef HIGHWAY_WEAR
+${WEAR_CONSTANTS}
 uniform sampler2D highwayWear;
-uniform float wearBaseLuma;
-uniform vec3 wearYellow;
-uniform vec3 wearSand;
 float wearHash(float a, float k) {
   return fract(a * 255.0 * k + 0.31);
 }
@@ -275,8 +283,9 @@ const ROAD_FRAGMENT = `{
 #endif
 #if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
-    vec2 padOff = roadAt - padCenters[i];
-    vec2 padIn = padHalf - abs(vec2(dot(padOff, padAxes[i]), dot(padOff, vec2(-padAxes[i].y, padAxes[i].x))));
+    vec2 padAxis = padFrames[i].zw;
+    vec2 padOff = roadAt - padFrames[i].xy;
+    vec2 padIn = padHalf - abs(vec2(dot(padOff, padAxis), dot(padOff, vec2(-padAxis.y, padAxis.x))));
     float padDepth = min(padIn.x, padIn.y);
     if (padDepth <= 0.0) continue;
     diffuseColor.rgb = mix(roadColor, padDust * groundShade, 0.35);
@@ -293,21 +302,15 @@ function roadHoles(t: Terrain): RoadHole[] {
 }
 
 function padUniforms(sites: readonly Site[], pixel: number) {
-  const centers: THREE.Vector2[] = [];
-  const axes: THREE.Vector2[] = [];
+  const frames: THREE.Vector4[] = [];
   for (const site of sites)
     for (const pad of sitePads(site)) {
-      centers.push(new THREE.Vector2(pad.x * S, pad.y * S));
-      axes.push(new THREE.Vector2(pad.x - site.pos.x, pad.y - site.pos.y).normalize());
+      const axis = new THREE.Vector2(pad.x - site.pos.x, pad.y - site.pos.y).normalize();
+      frames.push(new THREE.Vector4(pad.x * S, pad.y * S, axis.x, axis.y));
     }
-  const { length, width } = REGION.sites.pad;
   return {
-    padCenters: { value: centers },
-    padAxes: { value: axes },
-    padHalf: { value: new THREE.Vector2((length / 2) * S, (width / 2) * S) },
+    padFrames: { value: frames },
     padBorder: { value: PAD_BORDER * pixel },
-    padDust: { value: new THREE.Color(PAL.sand[3]) },
-    padMark: { value: new THREE.Color(PAL.padMark) },
   };
 }
 
