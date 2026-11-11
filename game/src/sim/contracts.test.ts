@@ -4,6 +4,7 @@ import { chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { graphEdges } from '../data/market';
 import { MAP_SPREAD, REGION } from '../data/region';
+import { XP_RULES, XP_SOURCES } from '../data/skills';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { goodsCount } from './grid';
@@ -375,12 +376,13 @@ describe('contract boards and delivery', () => {
 
   it('pays the contract XP to the pool, targeting the posting shop', () => {
     const reward = 10;
-    const xp = reward * CONTRACTS.haul.xpPerEffort;
+    const amount = reward * CONTRACTS.haul.xpPerEffort;
+    const xp = amount * XP_SOURCES.contract.weight * XP_RULES.gain;
     let w = acceptContract(atBowlWithOffer({ ...haul('nose', 3), reward }), 'ct-haul');
     w.vehicles[0].pos = { ...sitePads(nose)[0] };
     const pool = w.player.xp;
     w = deliverContract(w, 'ct-haul');
-    expect(practiceOf(w, 'contract')).toMatchObject([{ amount: xp, difficulty: null, target: 'bowl', xp }]);
+    expect(practiceOf(w, 'contract')).toMatchObject([{ amount, difficulty: null, target: 'bowl', xp }]);
     expect(w.player.xp).toBeCloseTo(pool + xp);
   });
 
@@ -645,7 +647,7 @@ describe('search contracts', () => {
     const paid = deliverContract(found, 'ct-search');
     expect(paid.player.money).toBe(money + searchReward());
     expect(paid.player.contracts).toEqual([]);
-    expect(practiceOf(paid, 'contract')).toMatchObject([{ target: 'bowl', xp: contractXp(posted(target.id)) }]);
+    expect(practiceOf(paid, 'contract')).toMatchObject([{ target: 'bowl', xp: contractXp(posted(target.id)) * XP_SOURCES.contract.weight * XP_RULES.gain }]);
     expect(() => deliverContract(paid, 'ct-search')).toThrow();
   });
 

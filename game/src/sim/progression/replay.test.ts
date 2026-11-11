@@ -7,7 +7,7 @@ import { parseRunEnd, replay, targetMisses, type Curve } from './replay';
 
 function simpleSearchXp(): void {
   const search = { ...XP_SOURCES.search };
-  Object.assign(XP_SOURCES.search, { weight: 1 });
+  Object.assign(XP_SOURCES.search, { weight: 1 / XP_RULES.gain });
   onTestFinished(() => {
     Object.assign(XP_SOURCES.search, search);
   });
@@ -24,8 +24,8 @@ describe('replay', () => {
 
     const curve = replay([search(10, 100), search(40, 400), search(dayTwo, 50), search(dayTwo + 10, 150)], 2 * TIME.workDayTurns);
 
-    expect(curve.families.machining.total).toBe(700);
-    expect(curve.families.machining.perDay).toBe(350);
+    expect(curve.families.machining.total).toBeCloseTo(700);
+    expect(curve.families.machining.perDay).toBeCloseTo(350);
     expect(curve.families.driving).toEqual({ total: 0, perDay: 0 });
   });
 
@@ -33,9 +33,9 @@ describe('replay', () => {
     const half = cumulativeCost(1) / 2;
     const searchWeight = XP_SOURCES.search.weight;
     const discoverWeight = XP_SOURCES.discover.weight;
-    Object.assign(XP_SOURCES.search, { weight: 1 });
+    Object.assign(XP_SOURCES.search, { weight: 1 / XP_RULES.gain });
     const found: TraceLine = { turn: 30, source: 'discover', amount: 1, difficulty: null, target: 'bowl' };
-    Object.assign(XP_SOURCES.discover, { weight: half });
+    Object.assign(XP_SOURCES.discover, { weight: half / XP_RULES.gain });
     onTestFinished(() => {
       Object.assign(XP_SOURCES.search, { weight: searchWeight });
       Object.assign(XP_SOURCES.discover, { weight: discoverWeight });
@@ -43,9 +43,9 @@ describe('replay', () => {
 
     const curve = replay([search(20, half), found], 100);
 
-    expect(curve.families.machining.total).toBe(half);
-    expect(curve.families.perception.total).toBe(half);
-    expect(curve.pooled.total).toBe(2 * half);
+    expect(curve.families.machining.total).toBeCloseTo(half);
+    expect(curve.families.perception.total).toBeCloseTo(half);
+    expect(curve.pooled.total).toBeCloseTo(2 * half);
     expect(curve.pooled.one).toEqual([30, null, null, null, null]);
     expect(curve.pooled.every).toEqual([null, null, null, null, null]);
   });
@@ -64,14 +64,14 @@ describe('replay', () => {
   it('scales a scaled source by its difficulty', () => {
     const curve = replay([{ turn: 5, source: 'hit', amount: 1, difficulty: 1, target: 'v2' }], 200);
 
-    expect(curve.families.perception.total).toBe(XP_SOURCES.hit.weight * XP_RULES.hard);
+    expect(curve.families.perception.total).toBeCloseTo(XP_SOURCES.hit.weight * XP_RULES.hard * XP_RULES.gain);
   });
 
   it('pays less for repeats on one target, and a once-only target pays once', () => {
     const hits = replay([1, 2].map((turn) => ({ turn, source: 'hit' as const, amount: 1, difficulty: 1, target: 'v2' })), 200);
-    expect(hits.families.perception.total).toBeCloseTo(XP_SOURCES.hit.weight * XP_RULES.hard * (1 + XP_SOURCES.hit.repeat ** 1));
+    expect(hits.families.perception.total).toBeCloseTo(XP_SOURCES.hit.weight * XP_RULES.hard * XP_RULES.gain * (1 + XP_SOURCES.hit.repeat ** 1));
     const found = replay([1, 2].map((turn) => ({ turn, source: 'discover' as const, amount: 1, difficulty: null, target: 'bowl' })), 200);
-    expect(found.families.perception.total).toBe(XP_SOURCES.discover.weight);
+    expect(found.families.perception.total).toBeCloseTo(XP_SOURCES.discover.weight * XP_RULES.gain);
   });
 
   it('rejects a trace out of turn order', () => {
@@ -106,6 +106,13 @@ describe('parseRunEnd', () => {
 });
 
 describe('targetMisses', () => {
+  it('states each target as the old pace over the gain rate', () => {
+    expect(TARGET_DAYS.every[1] * XP_RULES.gain).toBeCloseTo(2);
+    expect(TARGET_DAYS.every[2] * XP_RULES.gain).toBeCloseTo(10);
+    expect(TARGET_DAYS.one[4] * XP_RULES.gain).toBeCloseTo(16);
+    expect(TARGET_DAYS.one[5] * XP_RULES.gain).toBeCloseTo(30);
+  });
+
   const day = (d: number) => d * TIME.workDayTurns;
   const pooledWith = (kind: 'one' | 'every', days: (number | null)[]): Curve => ({
     families: { driving: { total: 0, perDay: 0 }, perception: { total: 0, perDay: 0 }, machining: { total: 0, perDay: 0 }, toughness: { total: 0, perDay: 0 }, social: { total: 0, perDay: 0 } },
