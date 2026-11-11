@@ -5,7 +5,7 @@ import { SKILL_EFFECTS } from '../data/skills';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, fuelTopSpeed, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
+import { advanceFar, FarCombatMotion, fuelLimit, fuelLimited, fuelTopSpeed, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
 import { LIVE_REACH, setHeadless } from './fidelity';
 import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
@@ -486,6 +486,35 @@ describe('far travel contact', () => {
     expect(dist(mover.pos, parked.pos)).toBeGreaterThanOrEqual(vehicleStats(w, mover).radius + vehicleStats(w, parked).radius);
   });
 
+  it('routes a far NPC bound for a parked truck as often in a turn of combat steps as in a whole turn', () => {
+    const bound = () => {
+      const { w, mover } = far();
+      mover.brain = npcBrain('trader', mover.pos, ['trader']);
+      addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 160, y: 120 });
+      mover.order = { kind: 'stopAt', dest: { x: 160, y: 120 } };
+      return { w, mover };
+    };
+    const routesDuring = (move: () => void) => {
+      const before = perfSnapshot().route?.calls ?? 0;
+      move();
+      return (perfSnapshot().route?.calls ?? 0) - before;
+    };
+    const whole = bound();
+    const stepped = bound();
+    const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+
+    const wholeRoutes = routesDuring(() => advanceFar(whole.w, whole.mover));
+    const steppedRoutes = routesDuring(() => {
+      const motion = new FarCombatMotion(stepped.w, [stepped.mover]);
+      for (let step = 1; step < steps; step++) motion.at(step / steps);
+      motion.finish();
+    });
+
+    expect(wholeRoutes).toBe(1);
+    expect(steppedRoutes).toBe(wholeRoutes);
+    expect(stepped.mover.pos.x).toBeCloseTo(whole.mover.pos.x, 0);
+  });
+
   it('a far NPC that drives through trucks never ends its move inside one', () => {
     const { w, mover } = far();
     mover.brain = npcBrain('trader', mover.pos, ['trader']);
@@ -816,6 +845,39 @@ it('moves distant trucks along their coarse paths while projectiles are in fligh
   }
 });
 
+it('steps only the distant trucks near the fire and moves the rest once in the turn', async () => {
+  const { launchTimedRound } = await import('./timed-combat');
+  const { mountedParts } = await import('./grid');
+  const { refreshVision } = await import('./vision');
+  const { PROJECTILE_FLIGHT } = await import('../data/weapons');
+  const world = emptyWorld();
+  const x = 30 + LIVE + 10;
+  const shooter = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x, y: 30 });
+  const target = addVehicle(world, 'independent', 'buggy', ['stockEngine'], { x: x + 8, y: 30 }, Math.PI / 2);
+  target.speed = 7;
+  target.order = { kind: 'through', dest: { x: target.pos.x, y: 60 }, pace: 7 };
+  const bystander = addVehicle(world, 'independent', 'buggy', ['stockEngine'], { x, y: 130 }, Math.PI / 2);
+  bystander.speed = 7;
+  bystander.order = { kind: 'through', dest: { x, y: 160 }, pace: 7 };
+  expect(world.size).toBeGreaterThan(160);
+  refreshVision(world);
+  const weapon = mountedParts(shooter, 'weapon')[0];
+  const flight = launchTimedRound(world, shooter, weapon.id, target, 'body', 0, PROJECTILE_FLIGHT.mg.speed, false)!;
+  flight.impactAt = { ...target.pos };
+  world.combat.flights.push({ ...flight, landsAt: 8 * PHYSICS.metersPerTile / flight.speed * 1000 });
+  const alone = cloneWorld(world);
+  const lone = alone.vehicles.find(v => v.id === bystander.id)!;
+  advanceFar(alone, lone);
+
+  moveFarCombat(world, [target, bystander]);
+
+  const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+  expect(target.trail).toHaveLength(steps + 1);
+  expect(bystander.trail).toEqual(lone.trail);
+  expect(bystander.pos).toEqual(lone.pos);
+  expect(getResources(world, bystander).fuel).toBe(getResources(alone, lone).fuel);
+});
+
 it('uses damaged drive parts for the remaining distant movement', async () => {
   const { FarCombatMotion } = await import('./far');
   const { mountedParts } = await import('./grid');
@@ -842,6 +904,8 @@ it('charges distant movement only as it happens and never arrives after a knocko
   truck.speed = 4;
   truck.order = { kind: 'stopAt', dest: { x: 42.5, y: 30 } };
   truck.brain = npcBrain('trader', truck.pos, ['trader']);
+  const shooter = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
+  w.combat.attempts.push({ at: PHYSICS.turnSeconds * 1000, shooter: shooter.id, target: truck.id, weapon: shooter.items[0].id, aim: 'body', volley: 'v1' });
   const fuel = getResources(w, truck).fuel;
   const motion = new FarCombatMotion(w, [truck]);
   expect(getResources(w, truck).fuel).toBe(fuel);
