@@ -1,3 +1,5 @@
+import { takeBrowserSlot } from './browser-slot.mjs';
+
 const ANGLE = {
   darwin: ['--use-angle=metal'],
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
@@ -68,11 +70,27 @@ async function launched(chromium, options) {
   return { browser: gpu.browser, software: isSoftware(renderer), renderer };
 }
 
+async function inSlot(launch) {
+  const release = await takeBrowserSlot();
+  try {
+    const run = await launch();
+    run.browser.on('disconnected', release);
+    return run;
+  } catch (error) {
+    release();
+    throw error;
+  }
+}
+
 export async function launchChromium(chromium, options = {}) {
-  const run = process.env.PLAYTEST_FORCE_SOFTWARE === "1"
-    ? await launchSoftware(chromium, options, "GPU browser crashed in the preceding attempt")
-    : await launched(chromium, options);
+  const run = await inSlot(() => process.env.PLAYTEST_FORCE_SOFTWARE === "1"
+    ? launchSoftware(chromium, options, "GPU browser crashed in the preceding attempt")
+    : launched(chromium, options));
   if (run.software) warnSoftware(run.renderer);
   else console.log(`renderer ${run.renderer}`);
   return run;
+}
+
+export function launchSoftwareChromium(chromium, options = {}) {
+  return inSlot(() => launchSoftware(chromium, options, 'the check draws in software on purpose'));
 }
