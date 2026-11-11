@@ -224,7 +224,7 @@ type DiscRow = { dy: number; half: number };
 function sightDisc(): DiscRow[] {
   const reach = TERRAIN.vision.radius;
   const rows: DiscRow[] = [];
-  for (let dy = -reach; dy <= reach; dy++) rows.push({ dy, half: Math.floor(Math.sqrt(reach * reach - dy * dy)) });
+  for (let dy = -Math.floor(reach); dy <= Math.floor(reach); dy++) rows.push({ dy, half: Math.floor(Math.sqrt(reach * reach - dy * dy)) });
   return rows;
 }
 
