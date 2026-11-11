@@ -30,7 +30,7 @@ function spyStorage() {
 
 let last: FakeNode | null = null;
 
-function open() {
+function open(hasAutosave = true) {
   const ui = new FakeNode("div");
   const win = new FakeNode("window");
   const opener = new FakeNode("button");
@@ -40,7 +40,7 @@ function open() {
   vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, get activeElement() { return FakeNode.active; } });
   vi.stubGlobal("window", Object.assign(win, { localStorage: local, sessionStorage: session }));
   const requests: BootRequest[] = [];
-  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
+  const actions = { hasAutosave: () => hasAutosave, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
   const onClose = vi.fn();
   openNewGame(actions, onClose);
   const screen = ui.all((n) => n.className.split(" ").includes("new-game"))[0];
@@ -199,6 +199,27 @@ describe("the New game screen", () => {
 
     expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
     expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts at once with no confirm when no autosave exists", () => {
+    const { ui, screen, requests, actions } = open(false);
+    screen.button("Start").fire("click");
+
+    expect(isConfirmOpen()).toBe(false);
+    expect(ui.withClass("confirm-dialog")).toBeNull();
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
+    expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks and boots nothing before the answer when an autosave exists", async () => {
+    const { ui, screen, requests, actions } = open();
+    screen.button("Start").fire("click");
+
+    expect(ui.withClass("confirm-dialog")).not.toBeNull();
+    expect(requests).toEqual([]);
+    expect(actions.reload).not.toHaveBeenCalled();
+    ui.withClass("confirm-dialog")!.button("Cancel").fire("click");
+    await settle();
   });
 
   it("starts a Chaos Highway run with the picked enemy gear growth", async () => {
