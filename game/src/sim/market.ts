@@ -420,7 +420,6 @@ export function onOrder(world: World, shopId: string, good: string): boolean {
   return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
 
-
 function openHauls(world: World, good: string): HaulContract[] {
   return world.player.contracts.filter((c): c is HaulContract => c.kind === 'haul' && c.good === good);
 }
