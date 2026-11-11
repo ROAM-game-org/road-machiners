@@ -8,19 +8,18 @@ import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { frontBody, unitsOf } from '../../sim/body';
-import { corePart, mountedParts } from '../../sim/grid';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
-import { maxHp } from '../../sim/wear';
+import { smokeAt, smokeSources, type SmokeSource } from './smokePoints';
 import type { CameraRig } from './camera';
 import { tirePoints, Ruts } from './ruts';
 import type { GroundAt } from './lines';
-import { Casings, Projectiles, type Muzzle, type ProjectileSpec, type RoundPlan, type ShotCues } from './projectiles';
+import { Casings, Projectiles, type Muzzle, type ProjectileSpec, type RoundPlan, type ShotCues, type TrailKind } from './projectiles';
 import { CONFIG } from '../../config';
 import { TUNING } from './inkTuning';
-import { CARD_CLOCK, CARD_ORDER, CardBatch, createCardShapes, dustCardsOf, GLOW_IN_LIT, type FxCards } from './particles/cards';
-import { DustLayer } from './dustLayer';
+import { CARD_CLOCK, CARD_ORDER, CardBatch, createCardShapes, dustCardsOf, fireCardsOf, GLOW_IN_LIT, type FxCards } from './particles/cards';
+import { InkLayer } from './inkLayer';
 import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { Blasts, type BlastGround } from './particles/blasts';
@@ -154,11 +153,13 @@ export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLig
 
 export class Fx3D {
   private readonly shapes = createCardShapes(Math.random);
-  readonly dustLayer = new DustLayer(this.shapes, MAX_PARTICLES + MAX_VIEW_CARDS, CONFIG.fxFillScreens);
+  readonly inkLayer = new InkLayer(this.shapes, { dust: MAX_PARTICLES + MAX_VIEW_CARDS, bank: MAX_VIEW_CARDS, fire: MAX_GLOW_PARTICLES + MAX_VIEW_CARDS }, CONFIG.fxFillScreens);
   readonly cards: FxCards = {
     lit: new CardBatch(MAX_PARTICLES + MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'lit', this.shapes, CONFIG.fxFillScreens),
     glow: new CardBatch(MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'glow', this.shapes, CONFIG.fxFillScreens),
-    dust: this.dustLayer.batch,
+    dust: this.inkLayer.dust,
+    bank: this.inkLayer.bank,
+    fire: this.inkLayer.fire,
   };
   private readonly nearby = liveNear(() => this.world());
   private readonly particles = new Particles(MAX_PARTICLES, this.nearby);
@@ -176,14 +177,14 @@ export class Fx3D {
   private readonly blasts = new Blasts({ smoke: this.particles, glow: this.glowParticles, chunks: this.chunks });
   private terrain: Terrain | null = null;
 
-  constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World, drawDustThrough: (layer: DustLayer) => void) {
-    drawDustThrough(this.dustLayer);
+  constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World, drawInkLayerThrough: (layer: InkLayer) => void) {
+    drawInkLayerThrough(this.inkLayer);
     scene.add(this.cards.lit.mesh, this.cards.glow.mesh, ...this.chunks.meshes);
     this.glowParticles.handOff(this.particles);
     this.flashes = new MuzzleFlashes(scene);
     this.casings = new Casings(scene);
     this.ruts = new Ruts(scene);
-    this.projectiles = new Projectiles(scene, (p) => this.missileSmoke(p));
+    this.projectiles = new Projectiles(scene, (p, kind) => this.trail(p, kind));
     for (let i = 0; i < MAX_TEXTS; i++) {
       const el = document.createElement('div');
       el.className = 'float-text';
@@ -245,8 +246,9 @@ export class Fx3D {
     this.blasts.fireBurst(p);
   }
 
-  private missileSmoke(p: V3): void {
-    this.emissions.missile(p);
+  private trail(p: V3, kind: TrailKind): void {
+    if (kind === 'smoke') this.emissions.missile(p);
+    else this.emissions.flamer(p);
   }
 
   later(delayMs: number, run: () => void): void {
@@ -288,7 +290,7 @@ export class Fx3D {
     l.sky.copy(sky.color).multiplyScalar(sky.intensity);
     l.ground.copy(sky.groundColor).multiplyScalar(sky.intensity);
     this.cards.lit.light(l);
-    this.dustLayer.light(l);
+    this.inkLayer.light(l);
     this.ruts.light(l.sunDir);
   }
 
@@ -372,12 +374,14 @@ export class Fx3D {
     this.chunks.tick(dt, world.terrain);
     const ink = TUNING.fxInk.value;
     const plumes = dustCardsOf(this.cards);
-    this.particles.draw({ main: this.cards.lit, plumes }, ink);
-    if (ink >= INK_SORTED_FIRE) this.glowParticles.draw({ main: this.cards.lit, plumes }, ink, GLOW_IN_LIT);
-    else this.glowParticles.draw({ main: this.cards.glow, plumes }, ink);
+    this.particles.draw({ main: this.cards.lit, plumes, fire: fireCardsOf(this.cards, this.cards.lit) }, ink);
+    if (ink >= INK_SORTED_FIRE) this.glowParticles.draw({ main: this.cards.lit, plumes, fire: fireCardsOf(this.cards, this.cards.lit) }, ink, GLOW_IN_LIT);
+    else this.glowParticles.draw({ main: this.cards.glow, plumes, fire: fireCardsOf(this.cards, this.cards.glow) }, ink);
     this.cards.lit.flush(this.rig.camera);
     this.cards.glow.flush(this.rig.camera);
     this.cards.dust.flush(this.rig.camera);
+    this.cards.bank.flush(this.rig.camera);
+    this.cards.fire.flush(this.rig.camera);
     CARD_CLOCK.value += dt;
     this.flashes.tick(dt);
     this.casings.tick(dt, world.terrain, world.turn);
@@ -424,13 +428,12 @@ const DOUSE_RATE = 60;
 const DOUSE_SECONDS = 1.2;
 const BREAKDOWN_RATE = 8;
 const DAMAGE_RATE = 6;
-const HURT_CAB = 0.35;
 const CREEP_METERS_PER_SECOND = 0.3;
 const SPEED_JUMP = 1.5;
 const TRAIL_SLACK = 3;
 const TRAIL_SLACK_METERS = 1;
 
-type Traits = { stranded: boolean; maxSpeed: number; hurt: boolean; damage: number };
+type Traits = { stranded: boolean; maxSpeed: number; smoke: SmokeSource[] };
 type Pose = { f: VehicleFrame; h: number; half: { x: number; y: number; z: number } };
 
 export class TruckFx {
@@ -453,7 +456,7 @@ export class TruckFx {
       this.douseCloud(pose, dt);
     }
     if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(onBody(pose, 0.5, 1, 0), motionOf(v, pose.h, moving)));
-    else if (traits.hurt) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(f.pos, traits.damage));
+    else for (const source of traits.smoke) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(smokeAt(source, f), source.damage));
   }
 
   private groundSpeed(id: string, pos: V3, dt: number, topMetersPerSecond: number): number {
@@ -544,13 +547,7 @@ export class TruckFx {
     }
     let t = this.traits.get(v.id);
     if (!t) {
-      const cab = corePart(v, 'cab');
-      t = {
-        stranded: isStranded(world, v),
-        maxSpeed: vehicleStats(world, v).maxSpeed,
-        hurt: cab.hp < maxHp(cab) * HURT_CAB || mountedParts(v).some((p) => p.hp === 0),
-        damage: 1 - cab.hp / maxHp(cab),
-      };
+      t = { stranded: isStranded(world, v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v) };
       this.traits.set(v.id, t);
     }
     return t;
