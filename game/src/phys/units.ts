@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { HARPOON } from '../data/utilities';
 import { lineAnchors, type BodyPoint, type LineAnchor } from '../sim/harpoon';
 import { PHYSICS } from '../data/physics';
-import { couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
+import { axlesOf, couplingOf, unitBody, unitsOf, type Body } from '../sim/body';
 import { unitMasses } from '../sim/mass';
 import { bendField, unitPoses } from '../sim/rig';
 import type { Vehicle, World } from '../sim/types';
@@ -93,12 +93,18 @@ export function wheelLoads(v: Vehicle): UnitLoad[] {
   if (!coupling) return [{ mass: masses[0], wheels: [1, 1, 1, 1].map(() => masses[0] / 4) }];
   const front = unitBody(v.chassisId, 0);
   const rear = unitBody(v.chassisId, 1);
-  const pivotShare = rear.wheelX / (coupling.pivotRear + rear.wheelX);
+  const rearAxle = axlesOf(rear).rear;
+  const pivotShare = -rearAxle / (coupling.pivotRear - rearAxle);
   const onPivot = masses[1] * pivotShare;
-  const onRearAxle = (front.wheelX - coupling.pivotFront) / (2 * front.wheelX);
-  const steer = masses[0] / 4 + (onPivot * (1 - onRearAxle)) / 2;
-  const drive = masses[0] / 4 + (onPivot * onRearAxle) / 2;
+  const axles = axlesOf(front);
+  const onRearAxleAt = (x: number) => (axles.front - x) / (axles.front - axles.rear);
+  const ownRear = masses[0] * onRearAxleAt(0);
+  const pivotRear = onPivot * onRearAxleAt(coupling.pivotFront);
+  const steer = (masses[0] - ownRear + onPivot - pivotRear) / 2;
+  const drive = (ownRear + pivotRear) / 2;
   const trailer = (masses[1] * (1 - pivotShare)) / 2;
+  const loads = [steer, steer, drive, drive, trailer, trailer];
+  if (!loads.every((load) => load > 0)) throw new Error(`Rig ${v.chassisId} has a wheel with no load: ${loads.map((l) => l.toFixed(1)).join(', ')} kg`);
   return [{ mass: masses[0], wheels: [steer, steer, drive, drive] }, { mass: masses[1], wheels: [trailer, trailer] }];
 }
 
