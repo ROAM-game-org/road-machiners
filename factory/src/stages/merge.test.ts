@@ -6,7 +6,7 @@ import { EMPTY_STATE, readState, updateState, writeState } from '../state';
 import { STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
 import { CheckTimeoutError } from '../container';
 import { causeOf } from '../fail';
-import { BaselineFailureError, BudgetError } from './checkpoint';
+import { BaselineFailureError, BudgetError, StalledFixError } from './checkpoint';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
@@ -89,7 +89,7 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function fakeCtx(budget = 5): Ctx {
   const fake = {
-    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
+    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, noCommitRounds: 3, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -250,6 +250,21 @@ describe('merge queue', () => {
     ctx.repo.workHead = async () => 'merged1';
     await expect(merge(ctx)).rejects.toBeInstanceOf(BudgetError);
     expect(calls.filter((call) => /^(suite|checks|agent)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent']);
+  });
+
+  it('fails after three fix rounds in a row with no commit, with the first failure, the decision cause, stuck labels and nothing pushed', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    const ctx = fakeCtx(100);
+    ctx.repo.workHead = async () => 'merged1';
+    const error = await merge(ctx).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('so merged1 still fails its checks');
+    expect((error as Error).message).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(causeOf(error)).toBe('decision');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent']);
+    expect(calls).toEqual(expect.arrayContaining([`label 5 ${STUCK_LABEL}`, `label 6 ${STUCK_LABEL}`]));
+    expect(readState(`${home}/state.json`).landings.merge?.spentUsd).toBe(3);
   });
 
   it('sends a fix left uncommitted back first, and then the unchanged head keeps its suite failure', async () => {

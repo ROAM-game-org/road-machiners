@@ -32,5 +32,5 @@ digraph testing {
   XK -> PM [label="approval kept:\nintegration round"];
   PC -> XQ [label="kept approval\nstill holds"];
   PT -> XD [label="plan wrong"];
-  PC -> XS [label="budget spent"];
+  PC -> XS [label="budget spent or\nFACTORY_NO_COMMIT_ROUNDS\nrounds with no commit"];
 }

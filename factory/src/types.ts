@@ -67,6 +67,7 @@ export type FactoryConfig = {
   testingBudgetUsd: number;
   hardeningBudgetUsd: number;
   mergingBudgetUsd: number;
+  noCommitRounds: number;
   wasteReviewDays: number;
   itchTarget: string | null;
   butlerKey: string | null;

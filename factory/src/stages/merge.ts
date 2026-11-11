@@ -8,7 +8,7 @@ import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, PLAYTEST_FIXES_BRANCH, RELEASE_CANDIDATE_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
-import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
+import { BaselineFailureError, BudgetError, onceEachHead, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
 import { withoutBaseline } from './baseline';
 import { ownWorkSettled } from './card-suite';
@@ -168,10 +168,10 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 }
 
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
-  const checkHead = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
+  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log(land.stage, null, message), () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
   const check = async (): Promise<string | null> => {
     await refreshKeptBase(ctx, land);
-    return checkHead();
+    return (await dirtyClone(ctx, land)) ?? checkHead(await ctx.repo.workHead(land.dir));
   };
   try {
     return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));
@@ -179,21 +179,6 @@ async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts:
     if (error instanceof BudgetError) throw new BudgetError(`${error.message}\nThe budget counts only fix rounds. The job also spent $${conflicts.toFixed(2)} on conflicts.`);
     throw error;
   }
-}
-
-function checksOnceEachHead(ctx: Ctx, land: Landing, checks: () => Promise<string | null>): () => Promise<string | null> {
-  let checked: { head: string; failure: string | null } | null = null;
-  return async () => {
-    const dirty = await dirtyClone(ctx, land);
-    if (dirty !== null) return dirty;
-    const head = await ctx.repo.workHead(land.dir);
-    if (checked !== null && checked.head === head) {
-      ctx.log(land.stage, null, `the fix round made no commit, so ${head} keeps its failure and the checks do not run again`);
-      return `${checked.failure}\n\nYour last round made no commit, so the head is still ${head} and the factory did not run the checks again. The failure above still stands. Commit the fix. Changes left uncommitted are never tested.`;
-    }
-    checked = { head, failure: await checks() };
-    return checked.failure;
-  };
 }
 
 const MERGE_BATCH_CARDS = 3;

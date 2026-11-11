@@ -6,7 +6,7 @@ import { pendingFeedback } from '../pending-feedback';
 import { BRANCH, FEEDBACK_HEADING, GAME_DIR, OUT_DIR, TASK_FILE, type Ctx, type KeptApproval, type PendingFeedback } from '../types';
 import { containsApproved, invalidateApproval, keptApprovalOf, requeueApproved, stillApproved } from './kept-approval';
 import { SUITE_FIX_RULES } from './card-suite';
-import { runCost, untilPasses } from './checkpoint';
+import { onceEachHead, runCost, untilPasses } from './checkpoint';
 import { postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
 import { HOTFIX_BASE, agentHome, baseBranchFor, browserRule, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
@@ -27,12 +27,13 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const spent = approval === null ? await firstRounds(ctx, issue, base, hotfix, note) : await integrateRound(ctx, issue, approval, note);
   if (await redesigned(ctx, issue, home)) return;
   let build = '';
+  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('verify', issue, message), (head) => postCheckpoint(ctx, issue, base, head, hotfix ? 'hotfix' : 'build'));
   await untilPasses(ctx.cfg.testingBudgetUsd, spent, async () => {
     await guardAndPush(ctx, issue, base, 'verify');
     const unfinished = await unfinishedBaseMerge(ctx, issue, base, merged);
     if (unfinished !== null) return unfinished;
     build = await ctx.repo.headHash(BRANCH(issue));
-    return checkpoint(ctx, issue, base, build, hotfix ? 'hotfix' : 'build', home);
+    return approvalFailure(home) ?? checkHead(build);
   }, (failure) => fixRound(ctx, issue, home, failure, approval !== null));
   await finish(ctx, issue, home, base, build);
 }
@@ -92,13 +93,13 @@ async function redesigned(ctx: Ctx, issue: number, home: string): Promise<boolea
   return true;
 }
 
-async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix', home: string): Promise<string | null> {
+function approvalFailure(home: string): string | null {
   try {
     readApproval(home);
+    return null;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
-  return postCheckpoint(ctx, issue, base, build, kind);
 }
 
 const FIX_ALL = SUITE_FIX_RULES;

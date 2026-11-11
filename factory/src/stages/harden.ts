@@ -1,7 +1,7 @@
 import { cardFlow, moveCard } from '../card-events';
 import { BRANCH, GAME_DIR, TASK_FILE, type Ctx } from '../types';
 import { SUITE_FIX_RULES, cardSuiteFailure } from './card-suite';
-import { untilPasses } from './checkpoint';
+import { onceEachHead, untilPasses } from './checkpoint';
 import { BASE_BRANCH, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const PRINCIPLES = `${GAME_DIR}/docs/architecture/principles.md`;
@@ -30,17 +30,11 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await moveCard(ctx, issue, 'Merging', 'hardened', cardFlow(item.labels));
 }
 
-const NO_COMMIT = 'Your last round made no commit, so the head is the one that failed and the factory did not run the suite again. The failure above still stands. Commit the fix. Changes left uncommitted are never tested.';
-
 function suiteCheckpoint(ctx: Ctx, issue: number, base: string): () => Promise<string | null> {
-  let failed: { head: string; failure: string } | null = null;
+  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('harden', issue, message), (head) => cardSuiteFailure(ctx, 'harden', issue, base, head));
   return async () => {
     await guardAndPush(ctx, issue, base, 'harden');
-    const head = await ctx.repo.headHash(BRANCH(issue));
-    if (failed?.head === head) return `${failed.failure}\n\n${NO_COMMIT}`;
-    const failure = await cardSuiteFailure(ctx, 'harden', issue, base, head);
-    failed = failure === null ? null : { head, failure };
-    return failure;
+    return checkHead(await ctx.repo.headHash(BRANCH(issue)));
   };
 }
 

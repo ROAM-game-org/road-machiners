@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import type { AgentRun, Ctx, Pin } from '../types';
-import { BudgetError } from './checkpoint';
+import { BudgetError, StalledFixError } from './checkpoint';
+import { causeOf } from '../fail';
 import { testPoolPin } from '../cpus';
 import { cardSession } from '../card-session';
 
@@ -41,6 +42,7 @@ let suites: string[] = [];
 let failingSuites = 0;
 let green = new Set<string>();
 let head = 'abc123';
+let fixesCommit = true;
 let baseFailures: { failed: { file: string; test: string | null }[]; unfinished: string[]; unhandledErrors: number } | null = null;
 
 beforeEach(() => {
@@ -48,6 +50,7 @@ beforeEach(() => {
   failingSuites = 0;
   green = new Set();
   head = 'abc123';
+  fixesCommit = true;
   baseFailures = null;
   albums = [];
   albumFails = false;
@@ -79,7 +82,7 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, noCommitRounds: 3, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -120,6 +123,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
           mkdirSync(join(run.session.dir, 'project'), { recursive: true });
           writeFileSync(join(run.session.dir, 'project', `${run.session.id}.jsonl`), '');
         }
+        if (fixesCommit && run.prompt.includes('Commit, and end again')) head = `fix${runs.length}`;
         agent(run, runs.length - 1);
         return result(1);
       },
@@ -203,7 +207,28 @@ describe('testing in one job', () => {
     expect(runs).toHaveLength(2);
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(runs[1]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
-    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(suites).toEqual(['abc123', 'fix2']);
+    expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('runs no checks again on a head a fix round left unchanged, and fails with the first failure after three such rounds', async () => {
+    fixesCommit = false;
+    failingSuites = 99;
+    const error = await runVerify(fakeCtx(posts), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('FAIL src/sim/far.test.ts > drives far');
+    expect(causeOf(error)).toBe('decision');
+    expect(suites).toEqual(['abc123']);
+    expect(shellScripts).toHaveLength(1);
+    expect(runs).toHaveLength(4);
+    expect(runs[2]!.prompt).toContain('Your last round made no commit, so the head is still abc123');
+    expect(calls.some((call) => call.startsWith('buttons') || call.startsWith('photo') || call.startsWith('move'))).toBe(false);
+  });
+
+  it('reads the approval again after a round with no commit, so writing it fixes a missing approval on a checked head', async () => {
+    fixesCommit = false;
+    await runVerify(fakeCtx((run, index) => { if (index > 0) posts(run); }), 7);
+    expect(shellScripts).toHaveLength(1);
     expect(calls.at(-1)).toBe('move 7 Approval');
   });
 
@@ -347,7 +372,7 @@ describe('testing in one job', () => {
     expect(runs).toHaveLength(3);
     expect(runs[2]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
     expect(runs[2]!.session?.resume).toBe(true);
-    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(suites).toEqual(['abc123', 'fix3']);
     expect(calls.some((call) => call.startsWith('photo'))).toBe(true);
   });
 
@@ -539,11 +564,16 @@ describe('hardening in one session', () => {
     expect(calls.at(-1)).toBe('move 7 Merging');
   });
 
-  it('runs no suite again after a fix round that made no commit, and hands the same failure back', async () => {
+  it('runs no suite again after a fix round that made no commit, hands the same failure back, and stops after three such rounds', async () => {
+    fixesCommit = false;
     failingSuites = 99;
-    await expect(runHarden(fakeCtx(() => undefined, [], 3), 7)).rejects.toThrow(BudgetError);
+    const error = await runHarden(fakeCtx(() => undefined, [], 10), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('The full suite failed on GitHub Actions for abc123');
     expect(suites).toEqual(['abc123']);
+    expect(runs).toHaveLength(4);
     expect(runs.at(-1)!.prompt).toContain('Your last round made no commit');
+    expect(calls).not.toContain('move 7 Merging');
   });
 
   it('stops with a BudgetError when the suite stays red past the hardening budget, and does not move the card', async () => {
