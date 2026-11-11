@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CLIP_TOLERANCE } from '../../sim/body';
 import type { SideLetter } from '../../sim/grid';
-import { cutHeightAt, STEEPEST_LEAN, TOP_MARGIN, type TopCut } from './armorTop';
+import { STEEPEST_LEAN } from './armorTop';
 import { bodyFace, FACE_COLUMN, type FaceProfile } from './gunStand';
 
 export type Placement = { pos: THREE.Vector3; yaw: number; lean: number; scale: THREE.Vector3 };
@@ -27,16 +27,6 @@ export function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
   return box.clone().applyMatrix4(armorMatrix(at));
 }
 
-export function fitToBody(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {
-  if (SIDE_FACE[side].axis !== 'z') return;
-  const placed = placedBounds(at, box);
-  const target = Math.max(...cutAlong(placed, cut, side));
-  if (!(target > placed.max.y + TOP_MARGIN)) return;
-  const k = (target - placed.min.y) / (placed.max.y - placed.min.y);
-  at.scale.y *= k;
-  at.pos.y = placed.min.y + (at.pos.y - placed.min.y) * k;
-}
-
 export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, hubY: number): void {
   if (SIDE_FACE[side].axis !== 'x') throw new Error(`Ram on side ${side}: rams mount only on the front and back`);
   const placed = placedBounds(at, box);
@@ -44,12 +34,6 @@ export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Objec
   const bottom = Math.max(underside, hubY - (placed.max.y - placed.min.y) / 2);
   at.pos.y += bottom - placed.min.y;
   pullToBody(at, box, body, side);
-}
-
-function cutAlong(placed: THREE.Box3, cut: TopCut, side: SideLetter): number[] {
-  const mid = placed.getCenter(new THREE.Vector3());
-  if (SIDE_FACE[side].axis === 'z') return [placed.min.x, mid.x, placed.max.x].map((x) => cutHeightAt(cut, x, mid.z));
-  return [placed.min.z, mid.z, placed.max.z].map((z) => cutHeightAt(cut, mid.x, z));
 }
 
 function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): void {
@@ -69,25 +53,29 @@ export type Settle = { profile: FaceProfile; axis: 'x' | 'z'; toBodyTop: boolean
 
 export function settleOnBody(at: Placement, box: THREE.Box3, { profile, axis, toBodyTop, upright, fail }: Settle): void {
   const placed = placedBounds(at, box);
-  const top = toBodyTop ? bodyTop(profile) : placed.max.y;
-  const face = top === null ? null : tallestFace(profileRows(profile, placed.min.y, top));
-  if (top === null || face === null) return upright();
-  const span = { bottom: Math.max(placed.min.y, face[0].y - FACE_COLUMN / 2), top: Math.min(top, (face.at(-1) as Row).y + FACE_COLUMN / 2) };
-  coverFace(at, box, face, span, fail);
-  touchFace(at, box, face, axis, profile.outward);
+  const found = FACE_FILLS.map((fill) => faceIn(profile, placed, toBodyTop ? bodyTop(profile, fill) : placed.max.y, fill)).find((f) => f !== null);
+  if (!found) return upright();
+  coverFace(at, box, found.face, found.span, fail);
+  touchFace(at, box, found.face, axis, profile.outward);
 }
 
-function bodyTop(profile: FaceProfile): number | null {
-  const highest = profileRows(profile, -Infinity, Infinity).at(-1);
+const FACE_FILLS = [0.5, 0];
+
+function faceIn(profile: FaceProfile, placed: THREE.Box3, top: number | null, fill: number): { face: Row[]; span: Span } | null {
+  const face = top === null ? null : tallestFace(profileRows(profile, placed.min.y, top, fill));
+  if (top === null || face === null) return null;
+  return { face, span: { bottom: Math.max(placed.min.y, face[0].y - FACE_COLUMN / 2), top: Math.min(top, (face.at(-1) as Row).y + FACE_COLUMN / 2) } };
+}
+
+function bodyTop(profile: FaceProfile, fill: number): number | null {
+  const highest = profileRows(profile, -Infinity, Infinity, fill).at(-1);
   return highest === undefined ? null : highest.y + FACE_COLUMN / 2;
 }
 
-const FACE_FILL = 0.5;
-
-function profileRows(profile: FaceProfile, bottom: number, top: number): Row[] {
+function profileRows(profile: FaceProfile, bottom: number, top: number, fill: number): Row[] {
   return profile.reach.flatMap((reach, index) => {
     const y = profile.bottom + (index + 0.5) * FACE_COLUMN;
-    return reach !== null && profile.fill[index] >= FACE_FILL && y >= bottom && y <= top ? [{ index, y, reach }] : [];
+    return reach !== null && profile.fill[index] >= fill && y >= bottom && y <= top ? [{ index, y, reach }] : [];
   });
 }
 

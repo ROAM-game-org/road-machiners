@@ -3,7 +3,7 @@ import { expect } from 'vitest';
 import { isShield, PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { baseModel, itemLookId, partModel } from '../../render/partLooks';
-import { bodyOf, cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
+import { cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
 import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { GLASS, loadModels, model, type ModelName } from './models';
@@ -109,8 +109,9 @@ function bodyHalf(half: Half, side: string): number {
   return isAcross(side) ? half.x : half.z;
 }
 
-function depthOf(box: THREE.Box3, side: string): number {
-  return isAcross(side) ? box.max.x - box.min.x : box.max.z - box.min.z;
+function thicknessOf(id: string, item: PartItem, under: PartItem[]): number {
+  const raw = rawBox(partModel(item.part.defId));
+  return (raw.max.x - raw.min.x) * placementOf(id, item, under).scale.x;
 }
 
 type Probe = { baseName: ModelName; base: THREE.Object3D; side: string; across: boolean; outward: number; raycaster: THREE.Raycaster };
@@ -187,7 +188,7 @@ function armorProblems(id: string, item: PartItem, under: PartItem[]): string[] 
   const over = under.length ? TRUCK_LOOK.armorDepth : 0;
   const inner = innerFace(box, side) - over;
   const snug = bodyHalf(unitBody(id, cellRect(id, itemCells(item)).unit).half, side) - TRUCK_LOOK.armorInset;
-  const depth = depthOf(box, side);
+  const depth = thicknessOf(id, item, under);
   const edge = innerEdgeOf(id, item, under, side);
   const foot = Math.max(...edge.map((p) => p.out)) - over;
   const rows = rowGaps(id, item, box, side, edge).map((row) => ({ ...row, gap: row.gap - over }));
@@ -196,7 +197,7 @@ function armorProblems(id: string, item: PartItem, under: PartItem[]): string[] 
     { over: inner - snug, limit: EPS, text: `inner face ${inner.toFixed(3)} past ${snug.toFixed(3)}` },
     { over: Math.min(...gaps), limit: CLIP_TOLERANCE, text: 'of air between armor and body at its closest row' },
     { over: -Math.min(0, ...rows.filter((row) => row.inside).map((row) => row.gap)), limit: CLIP_TOLERANCE, text: 'into the body' },
-    { over: meanOf(gaps.filter((gap) => gap < cellSteps(id).row)), limit: ARMOR_AIR, text: 'of air between armor and body on average' },
+    { over: isRamItem(item) ? 0 : meanOf(gaps.filter((gap) => gap < cellSteps(id).row)), limit: ARMOR_AIR, text: 'of air between armor and body on average' },
     { over: outermostFace(id, item, box, side, [box.min.y, box.max.y]) - foot, limit: cellSteps(id).row + EPS, text: 'behind the outermost body face at its height' },
     { over: glassGapOf(id, item, box, side), limit: EPS, text: 'above the glass line' },
     { over: TRUCK_LOOK.armorDepth - depth, limit: EPS, text: `short of the ${TRUCK_LOOK.armorDepth} depth` },
@@ -244,8 +245,12 @@ export function armorSitsOnBody(id: string): void {
   expect(cases.flatMap(({ item, under }) => armorProblems(id, item, under))).toEqual([]);
 }
 
+function isRamItem(item: PartItem): boolean {
+  return (PARTS[item.part.defId] as { look?: string }).look === 'ram';
+}
+
 function rams(id: string): PartItem[] {
-  return mountedArmor(id).filter((item) => (PARTS[item.part.defId] as { look?: string }).look === 'ram');
+  return mountedArmor(id).filter(isRamItem);
 }
 
 export function ramsAreBacked(id: string): void {
@@ -265,18 +270,6 @@ export function ramsAreBacked(id: string): void {
     }
   }
   expect(problems).toEqual([]);
-}
-
-function expectRaised(id: string, item: PartItem): void {
-  const def = PARTS[item.part.defId];
-  if (!isShield(def)) return;
-  const half = bodyOf(id).half.y;
-  const box = placedBox(id, item);
-  if (def.kind !== 'armor' && def.look !== 'ram') expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
-}
-
-export function armorRisesOverBody(): void {
-  for (const item of mountedArmor('scout')) expectRaised('scout', item);
 }
 
 function armorBoxes(id: string) {

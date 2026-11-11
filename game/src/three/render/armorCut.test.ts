@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import type { HeightMap } from '../../sim/body';
 import { CUT_SLOTS, cutFace, cutSpec, lampIslands, withCut } from './armorCut';
-import { fitRamToBumper, fitToBody, placedBounds, settleOnBody, type Placement } from './armorFit';
+import { fitRamToBumper, placedBounds, settleOnBody, type Placement } from './armorFit';
 import { cutHeightAt, topCut } from './armorTop';
 import { CloudShadows } from './cloudShadows';
 import { faceProfile } from './gunStand';
@@ -104,8 +104,7 @@ describe('topCut', () => {
   });
 });
 
-describe('fitToBody', () => {
-  const plateBox = box([-0.05, -0.1, -0.225], [0.05, 0.1, 0.225]);
+describe('fitRamToBumper', () => {
   const noBody = new THREE.Group();
 
   const HUB_Y = 0.3;
@@ -145,17 +144,6 @@ describe('fitToBody', () => {
   it('fails loudly when a ram finds no body face at its height, or sits on a side', () => {
     expect(() => fitRamToBumper(at(2.2, HUB_Y), plow(), noBody, 'F', HUB_Y)).toThrow(/no body face/);
     expect(() => fitRamToBumper(at(0, HUB_Y), plow(), bumpered(), 'L', HUB_Y)).toThrow(/front and back/);
-  });
-
-  it('grows a short upright side plate up to the cut, keeping its foot and its face on the body', () => {
-    const at: Placement = { pos: new THREE.Vector3(0.5, 0, -1.1), yaw: Math.PI / 2, lean: 0, scale: new THREE.Vector3(1, 1, 1) };
-    const before = placedBounds(at, plateBox);
-    fitToBody(at, plateBox, TOP, 'L');
-    const after = placedBounds(at, plateBox);
-    expect(after.min.y).toBeCloseTo(before.min.y, 5);
-    expect(after.max.y).toBeGreaterThan(0.33);
-    expect(after.min.z).toBeCloseTo(before.min.z, 5);
-    expect(after.max.z).toBeCloseTo(before.max.z, 5);
   });
 
 });
