@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest';
+import { ROOMY_MEMORY } from './schedule-fakes';
 import * as scheduling from './tick';
 import { EMPTY_STATE, newPlaytest } from './state';
 import { STUCK_LABEL, NEEDS_INFO_LABEL, type Card, type FactoryState, type Job } from './types';
 
 const now = new Date('2026-10-04T12:00:00Z');
-const config = { wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+const config = { wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1, ...ROOMY_MEMORY };
 function createCard(issue: number, column: Card['column'], labels: string[] = []): Card { return { issue, column, labels, itemId: String(issue) }; }
 function createState(): FactoryState { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString(), devMerges: [{ issue: 3, title: 'T', sha: 'm3', into: 'dev', reverted: [] }], release: { issue: 90, day: '2026-10-04', postId: null, candidate: null, removed: [], playtest: newPlaytest('2026-10-04') } }; }
 
