@@ -102,18 +102,22 @@ function glslFloat(x: number): string {
   return x.toPrecision(9);
 }
 
-function glslColor(c: THREE.Color): string {
-  return `vec3(${glslFloat(c.r)}, ${glslFloat(c.g)}, ${glslFloat(c.b)})`;
+function glslVector(type: string, parts: number[]): string {
+  return [type, "(", parts.map(glslFloat).join(", "), ")"].join("");
+}
+
+function glslConst(type: string, name: string, value: string): string {
+  return ["const", type, name, "=", value + ";"].join(" ");
 }
 
 function glslConstants(floats: Record<string, number>, vectors: Record<string, THREE.Color | THREE.Vector3 | THREE.Vector2>): string {
-  const lines = Object.entries(floats).map(([name, x]) => `const float ${name} = ${glslFloat(x)};`);
+  const lines = Object.entries(floats).map(([name, x]) => glslConst("float", name, glslFloat(x)));
   for (const [name, v] of Object.entries(vectors)) {
-    if (v instanceof THREE.Color) lines.push(`const vec3 ${name} = ${glslColor(v)};`);
-    else if (v instanceof THREE.Vector3) lines.push(`const vec3 ${name} = vec3(${glslFloat(v.x)}, ${glslFloat(v.y)}, ${glslFloat(v.z)});`);
-    else lines.push(`const vec2 ${name} = vec2(${glslFloat(v.x)}, ${glslFloat(v.y)});`);
+    if (v instanceof THREE.Color) lines.push(glslConst("vec3", name, glslVector("vec3", [v.r, v.g, v.b])));
+    else if (v instanceof THREE.Vector3) lines.push(glslConst("vec3", name, glslVector("vec3", [v.x, v.y, v.z])));
+    else lines.push(glslConst("vec2", name, glslVector("vec2", [v.x, v.y])));
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 const ROAD_CONSTANTS = glslConstants(
