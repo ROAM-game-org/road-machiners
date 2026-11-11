@@ -4,6 +4,7 @@ import { PAL } from '../../render/palette';
 import { emptyWorld } from '../../sim/testkit';
 import type { World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
+import { TUNING } from './inkTuning';
 import type { Card, FxCards } from './particles/cards';
 import type { VehicleView } from './vehicle';
 
@@ -16,10 +17,11 @@ function stubCanvas(): void {
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) });
 }
 
-function recorder(): { cards: FxCards; lit: Card[] } {
+function recorder(): { cards: FxCards; lit: Card[]; bank: Card[] } {
   const lit: Card[] = [];
-  const cards = { lit: { push: (c: Card) => lit.push({ ...c }) }, glow: { push: () => {} } };
-  return { cards: cards as unknown as FxCards, lit };
+  const bank: Card[] = [];
+  const cards = { lit: { push: (c: Card) => lit.push({ ...c }) }, bank: { push: (c: Card) => bank.push({ ...c }) }, glow: { push: () => {} } };
+  return { cards: cards as unknown as FxCards, lit, bank };
 }
 
 function truckAt(x: number, z: number): VehicleView {
@@ -27,17 +29,17 @@ function truckAt(x: number, z: number): VehicleView {
 }
 
 function frame(views: InstanceType<typeof HazardViews>, world: World, trucks: Map<string, VehicleView>, nowMs: number): Card[] {
-  const { cards, lit } = recorder();
+  const { cards, bank } = recorder();
   views.update(world, world.terrain, trucks, nowMs, null, new THREE.PerspectiveCamera());
   views.draw(cards);
-  return lit;
+  return bank;
 }
 
 describe('smoke clouds as cards', () => {
   beforeEach(stubCanvas);
   afterEach(() => vi.unstubAllGlobals());
 
-  it('pushes the placed puffs of a shown cloud as lit cards', () => {
+  it('pushes the placed puffs of a shown cloud as smoke bank cards in the ink look', () => {
     const world = emptyWorld();
     world.smoke.push({ id: 's1', source: world.vehicles[0].id, pos: { x: 30, y: 30 }, r: 4, turnsLeft: 5 });
     const views = new HazardViews();
@@ -48,6 +50,21 @@ describe('smoke clouds as cards', () => {
     expect(lit.length).toBeLessThanOrEqual(puffsOf(world.smoke[0]).length);
     expect(lit.every((c) => c.alpha > 0 && c.size > 0)).toBe(true);
     expect(new Set(lit.map((c) => c.shape)).size).toBeGreaterThan(1);
+  });
+
+  it('keeps the puffs as soft lit cards with ink off', () => {
+    const world = emptyWorld();
+    world.smoke.push({ id: 's1', source: world.vehicles[0].id, pos: { x: 30, y: 30 }, r: 4, turnsLeft: 5 });
+    const views = new HazardViews();
+    const ink = TUNING.fxInk.value;
+    TUNING.fxInk.value = 0;
+    const { cards, lit, bank } = recorder();
+    views.update(world, world.terrain, new Map(), 5000, null, new THREE.PerspectiveCamera());
+    views.draw(cards);
+    TUNING.fxInk.value = ink;
+
+    expect(lit.length).toBeGreaterThan(10);
+    expect(bank).toHaveLength(0);
   });
 
   it('dissolves a cloud that is no longer shown instead of dropping it at once', () => {

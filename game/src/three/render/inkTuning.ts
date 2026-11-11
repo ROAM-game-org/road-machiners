@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "smokeSize" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "bankShade" | "bankLines" | "bankCool" | "fireEdge" | "fireBandStep" | "fireLines" | "fireLinePx" | "fireTongue" | "fireTongueSize" | "fireTongueSpeed" | "crt";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -41,6 +41,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   outline: { label: "Object outline", min: 0, max: 3, step: 0.1, start: 1.5, unit: "px" },
   fxInk: { label: "Ink effects", min: 0, max: 1, step: 0.05, start: 1 },
   smokeLines: { label: "Smoke lines", min: 0, max: 1, step: 0.05, start: 0.5 },
+  smokeSize: { label: "Smoke size", min: 0.2, max: 1.5, step: 0.05, start: 0.6 },
   dustSize: { label: "Puff size", min: 0.1, max: 2, step: 0.05, start: 0.55 },
   dustAmount: { label: "Wheel dust amount", min: 0, max: 3, step: 0.05, start: 1.3 },
   plumeOpacity: { label: "Plume puff opacity", min: 0, max: 1, step: 0.05, start: 0.8 },
@@ -57,6 +58,16 @@ export const KNOBS: Record<TuningKey, Knob> = {
   dustStreaks: { label: "Streak count", min: 0, max: 5, step: 1, start: 3 },
   dustStreakPx: { label: "Streak width", min: 0.5, max: 4, step: 0.1, start: 0.9, unit: "px" },
   dustStreakDark: { label: "Streak darkness", min: 0, max: 1, step: 0.02, start: 0.3 },
+  bankShade: { label: "Smoke screen shade", min: 0, max: 1, step: 0.05, start: 0.7 },
+  bankLines: { label: "Smoke screen lines", min: 0, max: 1, step: 0.05, start: 0.7 },
+  bankCool: { label: "Smoke screen cool shade", min: 0, max: 1, step: 0.05, start: 0.7 },
+  fireEdge: { label: "Fire edge", min: 0.05, max: 2, step: 0.05, start: 0.35 },
+  fireBandStep: { label: "Fire band spacing", min: 1.2, max: 6, step: 0.1, start: 1.7 },
+  fireLines: { label: "Fire line strength", min: 0, max: 1, step: 0.05, start: 0.7 },
+  fireLinePx: { label: "Fire line width", min: 0.5, max: 4, step: 0.1, start: 1.2, unit: "px" },
+  fireTongue: { label: "Tongue reach", min: 0, max: 3, step: 0.05, start: 0.9, unit: "m" },
+  fireTongueSize: { label: "Tongue size", min: 0.1, max: 3, step: 0.05, start: 0.8, unit: "m" },
+  fireTongueSpeed: { label: "Tongue rise speed", min: 0, max: 5, step: 0.1, start: 1.5 },
   crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0.1 },
 };
 

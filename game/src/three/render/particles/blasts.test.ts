@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { V3 } from '../../../phys/frames';
 import { BLAST_CAPS, BLAST_GLOW_MAX, Blasts } from './blasts';
+import type { ParticleLook } from './particles';
 
 function counted() {
   const n = { smoke: 0, glow: 0, chunks: 0 };
@@ -37,6 +39,16 @@ describe('Blasts budget', () => {
     blasts.impact(AT, true, true, GROUND);
     expect(n.chunks).toBe(0);
     expect(n.glow).toBeGreaterThan(0);
+  });
+
+  it('drops the truck hit glint in the ink look and keeps the crash glint', () => {
+    const looks = { truck: [] as ParticleLook[], crash: [] as ParticleLook[] };
+    const sinksFor = (into: ParticleLook[]) => ({ smoke: { spawn: () => undefined }, glow: { spawn: (_p: V3, _v: V3, look: ParticleLook) => void into.push(look) }, chunks: { spawn: () => undefined } });
+    new Blasts(sinksFor(looks.truck)).impact(AT, true, true, GROUND);
+    new Blasts(sinksFor(looks.crash)).crash(AT, GROUND);
+    expect(looks.truck.filter((l) => l.onlyIn === 'inkOff')).toHaveLength(1);
+    expect(looks.truck.some((l) => l.onlyIn === undefined)).toBe(true);
+    expect(looks.crash.some((l) => l.onlyIn === 'inkOff' || l.burns)).toBe(false);
   });
 
   it('adds a glow card and two to four sparks to a muzzle flash', () => {

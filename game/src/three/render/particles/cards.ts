@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { count } from '../../../perf';
 import { uploadFirst } from '../uploads';
 import { TUNING } from '../inkTuning';
-import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
+import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
 export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
 
@@ -28,10 +28,18 @@ export function clumpShape(pick: number): number {
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
-export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch };
+export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch; bank: CardBatch; fire: CardBatch };
+
+export function bankCardsOf(cards: FxCards): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.bank : cards.lit;
+}
 
 export function dustCardsOf(cards: FxCards): CardBatch {
   return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.dust : cards.lit;
+}
+
+export function fireCardsOf(cards: FxCards, main: CardBatch): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.fire : main;
 }
 
 export const INK_DUST_LAYER = 0.5;
@@ -68,6 +76,8 @@ export class CardBatch {
     sceneDepth: { value: null as THREE.Texture | null },
     densitySize: { value: new THREE.Vector2(1, 1) },
     nearFar: { value: new THREE.Vector2(0, 1) },
+    densityRim: { value: new THREE.Vector2(DUST_RIM.inner, DUST_RIM.outer) },
+    sandTint: { value: 0 },
     playSeconds: CARD_CLOCK,
     fxInk: TUNING.fxInk,
     smokeLines: TUNING.smokeLines,
@@ -115,6 +125,15 @@ export class CardBatch {
     u.sceneDepth.value = depth;
     u.densitySize.value.copy(size);
     u.nearFar.value.set(camera.near, camera.far);
+  }
+
+  tintTowardSand(share: { value: number }): void {
+    this.uniforms.sandTint = share;
+  }
+
+  fadeDensityRim(rim: { inner: number; outer: number }): void {
+    if (this.kind !== 'density') throw new Error(`Only density cards have a density rim, this batch draws ${this.kind}`);
+    this.uniforms.densityRim.value.set(rim.inner, rim.outer);
   }
 
   light(l: CardLight): void {
