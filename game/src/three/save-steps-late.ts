@@ -964,3 +964,11 @@ export function withoutXpToday(world: SavedJson): SavedJson {
   delete player.xpToday;
   return { ...world, player };
 }
+
+export function withBowlRelics(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson> | undefined;
+  const bowl = shops?.bowl;
+  if (!bowl) return world;
+  const goods = bowl.goods as Record<string, number>;
+  return { ...world, shops: { ...shops, bowl: { ...bowl, goods: { relics: 0, ...goods } } } };
+}

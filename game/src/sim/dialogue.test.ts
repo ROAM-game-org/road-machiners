@@ -714,7 +714,8 @@ describe('trading tips', () => {
   const askText = en(TOPICS.tips.ask!.say);
 
   function visit(w: World, npc: Vehicle, shop: string): void {
-    remember(w, npc, { kind: 'prices', shop, pressure: standingPressures(w, shop) });
+    const pressure = { ...standingPressures(w, shop), ...(shop === 'bowl' ? { relics: 0 } : {}) };
+    remember(w, npc, { kind: 'prices', shop, pressure });
   }
 
   function tipOf(w: World, npc: Vehicle): unknown {

@@ -1,5 +1,5 @@
 {
- "format": "2.142",
+ "format": "2.143",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -1798,6 +1798,7 @@
      "meds": "number",
      "parts": "number",
      "rations": "number",
+     "relics": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
