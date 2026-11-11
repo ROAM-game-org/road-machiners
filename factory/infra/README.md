@@ -42,10 +42,12 @@ Factory code and other settings roll out by a merge into `main`. The server depl
 `/opt/factory/factory-update.sh` runs every 2 minutes as the factory user. Its log is `/opt/factory/home/logs/update.log`.
 
 - When `main` is past the commit in `/opt/factory/home/deployed`, it builds the new commit in `/opt/factory/releases/<sha>`, a worktree of `repo`, and runs `npm ci`. It rebuilds the images when `factory/docker/` changed, and Hermes when `factory/hermes/` or `settings.env` changed.
+- After a Hermes rebuild, it waits up to 180 seconds for Hermes's health check to pass. Docker may report unhealthy on the way, and that does not count as a failure.
+- When Hermes stays unhealthy, it starts the previous release's Hermes again, fails, and keeps `releases/current` and `deployed` as they were. The reason in `update-failed` says whether the previous Hermes came back healthy.
 - It swaps the link `releases/current` in one step. It never pauses the factory or stops a job, and a tick and its jobs run on one release to their end.
 - It removes each old release that no process works in. The previous release stays one more deploy.
 - A local edit in the current release or a failed build stops it, with the reason in `/opt/factory/home/update-failed`. Hermes's incident watch reports that file.
-- The script lives outside the releases, so a change to it needs a deploy.
+- The update script and its helper `/opt/factory/factory-wait-healthy.sh` live outside the releases, so a change to either needs a deploy.
 
 ## Agent network
 
