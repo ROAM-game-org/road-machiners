@@ -166,6 +166,7 @@ export const UI: Translation<typeof EN> = {
   'log.claymoreYou': 'Таран-клеймор {who, case, gen} накрывает ваш грузовик',
   'log.claymoreTheirs': 'Таран-клеймор {who, case, gen} накрывает {whom, case, acc}',
   'log.cargoSpilledOther': '{who} рассыпает груз по земле.',
+  'log.cargoLost': 'У {who, case, gen} {part, case, nom} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}. {n, plural, one {Пропал # предмет} few {Пропало # предмета} many {Пропало # предметов} other {Пропало # предмета}}.',
   'log.cargoSpilledYours': '{part} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}. {n, plural, one {Выпал # предмет} few {Выпало # предмета} many {Выпало # предметов} other {Выпало # предмета}}.',
   'log.harpoon': '{gun} стреляет по {target, case, dat}: {what}',
   'log.harpoonLine': 'трос зацепил {part, case, acc}',

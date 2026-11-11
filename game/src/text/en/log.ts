@@ -221,6 +221,7 @@ export const LOG = {
   'log.moneyLoss': m('−{n}: {reason}', { n: 'text', reason: 'text' }),
   'log.discovered': m('Discovered {site}', { site: 'text' }),
   'log.partDisabled': m('{who}: {part} disabled', { who: 'text', part: 'text' }),
+  'log.breakdownOf': m('{who}: {part} broke down', { who: 'text', part: 'text' }),
   'log.breakdown': m('{part} broke down', { part: 'text' }),
   'log.townPatch': 'You patch your truck with scrap.',
   'log.bountyPaid': m('You paid the Marshalls {price}. Their case against you is closed.', { price: 'text' }),

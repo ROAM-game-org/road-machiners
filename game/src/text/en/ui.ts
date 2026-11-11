@@ -165,6 +165,7 @@ export const UI = {
   'log.claymoreYou': m('{who}\'s claymore ram blasts your truck', { who: 'text' }),
   'log.claymoreTheirs': m('{who}\'s claymore ram blasts {whom}', { who: 'text', whom: 'text' }),
   'log.cargoSpilledOther': m('{who} spills cargo on the ground.', { who: 'text' }),
+  'log.cargoLost': m('{who}: {part} broke. {n, plural, one {# item} other {# items}} lost.', { who: 'text', part: 'text', n: 'count' }),
   'log.cargoSpilledYours': m('{part} broke. {n, plural, one {# item} other {# items}} fell out.', { part: 'text', n: 'count' }),
   'log.harpoon': m('{gun} fires at {target}: {what}', { gun: 'text', target: 'text', what: 'text' }),
   'log.harpoonLine': m('line on {part}', { part: 'text' }),

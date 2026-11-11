@@ -239,6 +239,7 @@ export const LOG: Translation<typeof EN> = {
   'log.moneyLoss': '−{n}: {reason}',
   'log.discovered': 'Вы нашли {site, case, acc}',
   'log.partDisabled': 'У {who, case, gen} {part, case, nom} {part, gender, m {выведен} f {выведена} n {выведено} pl {выведены}} из строя',
+  'log.breakdownOf': 'У {who, case, gen} {part, case, nom} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
   'log.breakdown': '{part} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
   'log.townPatch': 'Вы латаете грузовик ломом.',
   'log.siteEvent.surge': '{site, case, at} сегодня производят больше {good, case, gen}.',

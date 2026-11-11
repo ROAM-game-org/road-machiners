@@ -22,6 +22,8 @@ import { claimClue, claimWrecks } from "../sim/claims";
 import { START_KITS } from "../data/start";
 import { defaultSetup } from "../sim/settings";
 import { newWorld } from "../sim/world";
+import { haulerOf, isPlayerTruckId } from "../sim/damage";
+import { parkedAtOutpost } from "../sim/testkit";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -530,6 +532,66 @@ describe("cargo spill log", () => {
     const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
     expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))} spills cargo on the ground.`, cls: "good" });
+  });
+});
+
+describe("hauler losses in the log", () => {
+  const firstPart = (v: { items: { kind: string }[] }) => (v.items as { kind: string; part?: PartInstance }[]).find((it) => it.kind === "part")!.part!;
+  const playerPos = (w: World) => ({ x: w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos.x + 2, y: w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos.y });
+  const frameOf = (w: World) => firstPart(haulerOf(w));
+  const partLabel = (w: World) => en(partName(frameOf(w).defId));
+
+  it("tells a Chaos Highway hauler spill as the player's own loss", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const e: GameEvent = { t: "cargoSpilled", vehicle: hauler.id, part: frameOf(w).id, pile: null, units: 1 };
+    const line = logEn(w, e);
+    expect(line).toEqual({ text: `${en(vehicleName(w, hauler.id))}: ${partLabel(w)} broke. 1 item lost.`, cls: "bad" });
+  });
+
+  it("tells a Chaos Highway gun truck spill as lost, not fallen out", () => {
+    const w = parkedAtOutpost();
+    const me = w.player.vehicleId;
+    const part = firstPart(w.vehicles.find((v) => v.id === me)!);
+    const line = logEn(w, { t: "cargoSpilled", vehicle: me, part: part.id, pile: null, units: 3 });
+    expect(line?.text).toMatch(/3 items lost\.$/);
+    expect(line?.cls).toBe("bad");
+  });
+
+  it("colors a hauler part knocked out as bad and an NPC's as good", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { ...playerPos(w) });
+    expect(logEn(w, { t: "partDisabled", vehicle: hauler.id, part: frameOf(w).id })?.cls).toBe("bad");
+    expect(logEn(w, { t: "partDisabled", vehicle: npc.id, part: firstPart(npc).id })?.cls).toBe("good");
+  });
+
+  it("logs a hauler breakdown by name and leaves an NPC's unlogged", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { ...playerPos(w) });
+    const line = logEn(w, { t: "breakdown", vehicle: hauler.id, part: frameOf(w).id });
+    expect(line).toEqual({ text: `${en(vehicleName(w, hauler.id))}: ${partLabel(w)} broke down`, cls: "bad" });
+    expect(logEn(w, { t: "breakdown", vehicle: npc.id, part: firstPart(npc).id })).toBeNull();
+  });
+
+  it("still logs a hauler spill out of sight but not an NPC's", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 900, y: 900 });
+    hauler.pos = { x: 5000, y: 5000 };
+    expect(logEn(w, { t: "cargoSpilled", vehicle: hauler.id, part: frameOf(w).id, pile: null, units: 1 })).not.toBeNull();
+    expect(logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: firstPart(npc).id, pile: null, units: 1 })).toBeNull();
+  });
+
+  it("knows the player's trucks by id only inside a run", () => {
+    const run = parkedAtOutpost();
+    expect(isPlayerTruckId(run, run.player.vehicleId)).toBe(true);
+    expect(isPlayerTruckId(run, haulerOf(run).id)).toBe(true);
+    expect(isPlayerTruckId(run, "v-nobody")).toBe(false);
+    const roaming = emptyWorld();
+    expect(isPlayerTruckId(roaming, roaming.player.vehicleId)).toBe(true);
+    expect(isPlayerTruckId(roaming, "v-nobody")).toBe(false);
   });
 });
 
