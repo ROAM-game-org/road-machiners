@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from './ledger';
+import { ROOMY_MEMORY } from './schedule-fakes';
 import { resumedStage, sessionsDir } from './sessions';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from './state';
 import { chooseJobs } from './tick';
@@ -16,7 +17,7 @@ const ROOT = resolve('tmp/factory-hold-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-10-07T10:00:00Z');
 const STARTED = '2026-10-07T09:00:00.000Z';
-const CFG = { wasteReviewDays: 7, maxJobsPerCard: 1, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+const CFG = { wasteReviewDays: 7, maxJobsPerCard: 1, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1, ...ROOMY_MEMORY };
 const JOB: Job = { id: 'implement-4-x', stage: 'implement', issue: 4, pid: 77, startedAt: STARTED, log: 'l' };
 
 let cards: Card[] = [];
