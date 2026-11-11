@@ -3,7 +3,7 @@ import type { Daylight } from "./daylight";
 import { TUNING } from "./inkTuning";
 import { injectAfter, injectBefore, replaceChunk } from "./shaderPatch";
 
-const OWNER = "The ink paint";
+const OWNER = "ink-paint";
 const INK_RISE_FULL_METERS = 3;
 const INK_STROKE_LENGTH = 1.8;
 const INK_BAND_SLOPE_FROM = 0.1;

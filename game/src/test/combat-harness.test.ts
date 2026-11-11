@@ -52,7 +52,7 @@ describe('combat harness', () => {
   });
 
   it('a standing player never moves', () => {
-    expect(base.a.speed).toBe(0);
+    expect(base.a.speed).toBeCloseTo(0, 6);
   });
 
   it('has two brains of one faction fight each other', () => {

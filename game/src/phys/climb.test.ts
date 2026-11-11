@@ -6,6 +6,7 @@ import type { TerrainTypeId } from '../data/terrain';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
 import { climbGrade } from '../sim/stats';
+import { groundAt } from '../sim/terrain';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
@@ -17,6 +18,7 @@ beforeAll(async () => {
 });
 
 const RAMP_FOOT = 28;
+const RAMP_ROW = 30;
 
 type Build = 'scout' | 'loadedHauler' | 'jeep';
 
@@ -55,11 +57,28 @@ function drive(start: World, turns: number): number[] {
   return xs;
 }
 
-const climbTiles = (build: Build, grade: number, type: TerrainTypeId = 'road') => drive(ramp(build, grade, type), 8)[7] - RAMP_FOOT;
+const FULL_GRADE_SHARE = 0.99;
+const PROBE_STEP = 0.25;
+const SMOOTHED_TOE_REACH = 6;
+
+function fullGradeFrom(w: World, grade: number): number {
+  const along = (x: number) => groundAt(w.terrain, x, RAMP_ROW);
+  for (let x = RAMP_FOOT; x < RAMP_FOOT + SMOOTHED_TOE_REACH; x += PROBE_STEP)
+    if (along(x + PROBE_STEP) - along(x) >= FULL_GRADE_SHARE * grade * PROBE_STEP) return x;
+  throw new Error(`The drawn ramp never reaches ${FULL_GRADE_SHARE} of grade ${grade} within ${SMOOTHED_TOE_REACH} tiles of its foot`);
+}
+
+function climbTiles(build: Build, grade: number, type: TerrainTypeId = 'road'): number {
+  const w = ramp(build, grade, type);
+  return drive(w, 8)[7] - fullGradeFrom(w, grade);
+}
 
 describe('climbing', () => {
   it('a loaded hauler keeps climbing a grade it stalled on before the climb reserve', () => {
-    expect(climbTiles('loadedHauler', 0.35)).toBeGreaterThan(3);
+    const w = ramp('loadedHauler', 0.35, 'road');
+    const xs = drive(w, 8);
+    expect(xs[6]).toBeGreaterThan(fullGradeFrom(w, 0.35));
+    expect(xs[7]).toBeGreaterThan(xs[6]);
   }, 90_000);
 
   it.each(['scout', 'loadedHauler', 'jeep'] as const)('a %s climbs a ramp at its planned climb grade', (build) => {
