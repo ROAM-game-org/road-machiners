@@ -57,6 +57,29 @@ async function openTown(page, tab) {
   }, tab);
 }
 
+const openFullYard = (chassis) => async (page) => {
+  await openTownClear(page);
+  await page.evaluate(() => { window.__yardWorld = structuredClone(window.__ROAM__.state); });
+  await page.evaluate(async (chassis) => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const e = await import('/src/sim/economy.ts');
+    let world = structuredClone(g.state);
+    if (chassis) {
+      world.player.money = 1e6;
+      world = e.buyChassis(world, chassis);
+    }
+    for (const id of ['scrap', 'salt', 'meds', 'grain', 'tools', 'batteries']) world = c.give(world, id, 3);
+    g.apply(world);
+  }, chassis);
+  await openTown(page, 'buyParts');
+};
+
+const closeFullYard = async (page) => {
+  await closeTown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__yardWorld));
+};
+
 const closeTown = (page) => page.evaluate(() => {
   const g = window.__ROAM__;
   g.screens.town.close();
@@ -571,12 +594,33 @@ const cardPlaceFaults = (page) =>
     return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
   }, CARD);
 
-const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content'].map((part) => `${CARD} ${part}`)) : []);
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content', '.info-draw', '.info-actions'].map((part) => `${CARD} ${part}`)) : []);
+
+const cardShapeFaults = (page) =>
+  page.evaluate((sel) => {
+    const card = document.querySelector(sel);
+    const rect = (part) => card.querySelector(part)?.getBoundingClientRect();
+    const lists = card.querySelector('.hitcard');
+    const draw = rect('.info-draw');
+    const content = rect('.info-content');
+    const listsBox = rect('.hitcard');
+    const phone = document.querySelector('#ui').classList.contains('phone');
+    const scrolls = () => lists && innerHeight >= 720 && lists.scrollHeight > lists.clientHeight + 1;
+    const narrow = () => draw.width < content.width - 1;
+    const below = () => listsBox && listsBox.height > 0 && draw.bottom > listsBox.top + 1;
+    const rules = [
+      [scrolls, 'the lists scroll'],
+      [narrow, 'the drawing is narrower than the card'],
+      [below, 'the drawing is not above the lists'],
+    ];
+    if (!draw || !content) return [];
+    return rules.filter(([broken]) => !phone && broken()).map(([, message]) => message);
+  }, CARD);
 
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
-  const checks = [cardPlaceFaults(page), cardCutFaults(page), keycapFaults(page, CARD, 'card')];
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card')];
   return faultsOf('enemy-card')((await Promise.all(checks)).flat());
 }
 
@@ -900,6 +944,8 @@ const STATES = {
   'journal-over-scene': { setup: openJournalOverScene, teardown: closeJournalOverScene, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
+  'garage-full': { setup: openFullYard(null), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
+  'garage-full-sorokonoga': { setup: openFullYard('sorokonoga'), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'garage-storage': { setup: openGarageStorage, teardown: closeGarageStorage, check: hostedColumnFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
