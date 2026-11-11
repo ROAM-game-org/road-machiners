@@ -8,14 +8,14 @@ import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, SHORT_PRESSUR
 import { dailyFlow, graphEdges, isFoundGood, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
-import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, rivalDue, sendRival, type ClaimTarget } from './claims';
+import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, requireHeld, rivalDue, sendRival, type ClaimTarget } from './claims';
 import { shopMoney } from './economy';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { findSpot, freeCells, goodsCount, gridOf } from './grid';
 import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
 import { cancelJob } from './jobs';
-import { liveClaims, type ClaimContract } from './salvage';
+import { type ClaimContract } from './salvage';
 import { hasBasic, practice } from './progress';
 import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
@@ -657,10 +657,11 @@ export function advanceShops(world: World): void {
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
   }
-  for (const c of liveClaims(world)) if (rivalDue(world, c)) sendRival(world, c);
+  for (const c of world.player.contracts) if (c.kind === 'claim' && rivalDue(world, c)) sendRival(world, c);
 }
 
 export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void {
+  requireHeld(world, c);
   if (v.id !== c.rival) throw new Error(`${v.id} is not the rival on claim ${c.id}`);
   if (!canUseSite(v.pos, siteOf(c.shop))) throw new Error(`${v.id} is not at ${c.shop} to hand in claim ${c.id}`);
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === c.partId);
@@ -668,9 +669,7 @@ export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void 
   v.items = v.items.filter((it) => it !== item);
   addStockPart(shopState(world, c.shop), item.part);
   shopMoney(world, v, c.reward, 'claimReward');
-  const board = shopState(world, c.shop);
-  if (board.contracts.includes(c)) board.contracts = board.contracts.filter((x) => x !== c);
-  else finishContract(world, c, 'lapsed', 'rival');
+  finishContract(world, c, 'lapsed', 'rival');
 }
 
 function claimGone(world: World, c: Contract): boolean {
@@ -721,12 +720,22 @@ export function takeContract(w: World, contractId: string): void {
   if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
   if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
   requireSearchTakeable(w, contract);
+  requireNoRival(contract);
   loadContract(w, contract);
-  if (contract.kind === 'escort') takeEscortJob(w, contract);
-  else contract.deadline = w.turn + contract.window;
+  startClock(w, contract);
   board.splice(board.indexOf(contract), 1);
   w.player.contracts.push(contract);
   w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
+}
+
+function requireNoRival(c: Contract): void {
+  if (c.kind === 'claim' && c.rival !== null) throw new Error(`Posted claim ${c.id} already has a rival`);
+}
+
+function startClock(w: World, c: Contract): void {
+  if (c.kind === 'escort') return takeEscortJob(w, c);
+  c.deadline = w.turn + c.window;
+  if (c.kind === 'claim') c.rivalAt = claimRivalAt(w.turn, estimateTurns(shopPos(c.shop), c.at));
 }
 
 export function haulBlocked(world: World, c: Contract): boolean {

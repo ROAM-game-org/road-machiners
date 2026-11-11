@@ -137,16 +137,21 @@ function claimPart(world: World, c: ClaimContract): PartInstance {
   return part;
 }
 
+export function requireHeld(world: World, c: ClaimContract): void {
+  if (!world.player.contracts.includes(c)) throw new Error(`Claim ${c.id} is not held`);
+}
+
 export function rivalDue(world: World, c: ClaimContract): boolean {
-  if (c.rival !== null || world.turn < c.rivalAt) return false;
+  if (!world.player.contracts.includes(c) || c.rival !== null || world.turn < c.rivalAt) return false;
   return (world.turn - c.rivalAt) % CONTRACTS.claim.rivalRetryTurns === 0 && claimPartHeld(world, c) === 'stock';
 }
 
 export function sendRival(world: World, c: ClaimContract): Vehicle | null {
+  requireHeld(world, c);
   if (c.rival !== null) throw new Error(`Claim ${c.id} already has a rival ${c.rival}`);
   const part = claimPart(world, c);
   const shop = shopSite(c.shop).pos;
-  const free = world.vehicles.filter((v) => isFreeRival(world, v, part));
+  const free = world.vehicles.filter((v) => isFreeRival(world, v, part) && dist(v.pos, c.at) >= dist(shop, c.at));
   const rival = free.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop) || a.id.localeCompare(b.id))[0];
   if (!rival) return null;
   const left = claimCandidates(world, c);

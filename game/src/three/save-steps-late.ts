@@ -964,3 +964,15 @@ export function withoutXpToday(world: SavedJson): SavedJson {
   delete player.xpToday;
   return { ...world, player };
 }
+
+const CLAIM_KIND = 'claim';
+
+function withoutRival(offer: SavedJson): SavedJson {
+  return offer.kind === CLAIM_KIND && offer.rival !== null ? { ...offer, rival: null } : offer;
+}
+
+export function withoutPostedClaimRivals(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson>;
+  const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutRival) }]));
+  return { ...world, shops: next };
+}
