@@ -142,7 +142,8 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "game is trash delete it"
+    "text": "game is trash delete it",
+    "clear": true
   },
   {
     "label": "drop",
@@ -162,12 +163,14 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "free robux click here bit.ly/abc123"
+    "text": "free robux click here bit.ly/abc123",
+    "clear": true
   },
   {
     "label": "drop",
     "from": "written",
-    "text": "qwerty qwerty test test"
+    "text": "qwerty qwerty test test",
+    "clear": true
   },
   {
     "label": "drop",
@@ -182,12 +185,14 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "the devs are clowns, add a clown car for them"
+    "text": "the devs are clowns, add a clown car for them",
+    "clear": true
   },
   {
     "label": "drop",
     "from": "written",
-    "text": "Subscribe to my youtube channel for ROAM tips youtube.com/@roamtips"
+    "text": "Subscribe to my youtube channel for ROAM tips youtube.com/@roamtips",
+    "clear": true
   },
   {
     "label": "drop",
@@ -197,7 +202,8 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "lol"
+    "text": "lol",
+    "clear": true
   },
   {
     "label": "keep",
@@ -648,6 +654,7 @@
     "label": "drop",
     "from": "written candidate game report",
     "text": "cheap game currency here www.gold-shop.example",
+    "clear": true,
     "origin": "game",
     "source": "comment"
   },
@@ -655,6 +662,7 @@
     "label": "drop",
     "from": "written candidate game report",
     "text": "test test 123",
+    "clear": true,
     "origin": "game",
     "source": "comment"
   },
@@ -662,6 +670,7 @@
     "label": "drop",
     "from": "written candidate game report",
     "text": "devs are idiots",
+    "clear": true,
     "origin": "game",
     "source": "comment"
   }
