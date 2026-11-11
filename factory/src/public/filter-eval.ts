@@ -4,7 +4,7 @@ import type { Decision, FilterInput } from './decision';
 import { filterWith } from './filter';
 
 type Outcome = 'file' | 'stay';
-type Case = { label: 'keep' | 'drop'; from: string; text: string; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; addressed?: boolean; expect?: Outcome; relevance?: Decision['relevance'] };
+type Case = { label: 'keep' | 'drop'; from: string; text: string; origin?: FilterInput['origin']; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; addressed?: boolean; expect?: Outcome; relevance?: Decision['relevance'] };
 
 const TARGET_RECALL = 0.99;
 const TARGET_F1 = 0.9;
@@ -13,10 +13,14 @@ const TARGET_ROUTING = 0.9;
 const settings = parseEnv(readFileSync('settings.env', 'utf8'));
 const key = process.env.OPENAI_API_KEY;
 if (!key) throw new Error('Set OPENAI_API_KEY to run the filter eval.');
-const classify = filterWith({ openaiKey: key, filterModel: String(settings.FACTORY_FILTER_MODEL), filterTimeoutSeconds: Number(settings.FACTORY_FILTER_TIMEOUT_SECONDS), filterSincereMin: Number(settings.FACTORY_FILTER_SINCERE_MIN) }, fetch);
+const classify = filterWith({ openaiKey: key, filterModel: String(settings.FACTORY_FILTER_MODEL), filterTimeoutSeconds: Number(settings.FACTORY_FILTER_TIMEOUT_SECONDS), filterSincereMin: Number(settings.FACTORY_FILTER_SINCERE_MIN), reportJunkMin: Number(settings.FACTORY_REPORT_JUNK_MIN) }, fetch);
 const cases = JSON.parse(readFileSync(new URL('./filter-eval.json', import.meta.url), 'utf8')) as Case[];
 
-const inputOf = (item: Case): FilterInput => ({ source: item.source ?? 'report', text: item.text, parent: item.parent, context: item.context, work: item.work, addressed: item.addressed });
+const sourceOf = (item: Case): FilterInput['source'] => item.source ?? 'report';
+
+const originOf = (item: Case): FilterInput['origin'] => item.origin ?? (sourceOf(item) === 'report' ? 'game' : 'chat');
+
+const inputOf = (item: Case): FilterInput => ({ origin: originOf(item), source: sourceOf(item), text: item.text, parent: item.parent, context: item.context, work: item.work, addressed: item.addressed });
 
 const isReport = (decision: Decision): boolean => decision.verdict === 'accept' && (decision.kind === 'bug' || decision.kind === 'feature');
 

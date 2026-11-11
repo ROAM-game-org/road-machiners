@@ -5,6 +5,7 @@ import { pauseFile, readPause, writePause, type PauseRecord } from './pause';
 import { publicRows } from './public/overview';
 import { openStore } from './public/store';
 import { repairClone } from './repair-clone';
+import { acceptRejectedReport } from './error-reports/report-accept';
 import { clearStuck } from './stuck';
 import { MOVE_TARGETS, causeText, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { resetSpend } from './landing-work';
@@ -39,6 +40,7 @@ const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> =
   pause: { usage: 'pause <reason> [--pid N] [--by who]', help: 'pause the factory. --pid ties the pause to a process, and the tick lifts it when that process ends. --by or --pid makes a member pause, which resume refuses', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
   'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
+  'report-accept': { usage: 'report-accept N --by <who> --reason <why>', help: 'file a game report the filter dropped, by its id in the reports store, as a player-report issue. Its body says the factory kept no world, autosave or log for it. Refuses a report that is not dropped or already has an issue. Prints the new issue number', run: reportAcceptCommand },
   'repair-clone': { usage: 'repair-clone N --by <who> --reason <why> [--backup-merge]', help: "replace a card's broken work clone with a fresh clone of its GitHub branch. Needs no running job of the card, and holds the card while it works. The old clone moves whole to $FACTORY_HOME/clone-backups, and only its .factory, .factory-tasks and .factory-media folders are copied over. --backup-merge also takes a clone with an open merge or conflicts. A repair that works also removes the stuck label and the failures of the card, like retry", run: repairCloneCommand },
 };
 
@@ -121,7 +123,21 @@ async function repairCloneCommand(ctx: Ctx, args: string[]): Promise<void> {
   for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge, refuseUnpushed: false })) console.log(line);
 }
 
-// These values start a playtest or stand for its pass, and a pass makes a release candidate. Only the owner sets them, while anyone may clear them.
+async function reportAcceptCommand(ctx: Ctx, args: string[]): Promise<void> {
+  const by = takeFlag(args, '--by');
+  const reason = takeFlag(by.rest, '--reason');
+  const [n, ...extra] = reason.rest;
+  if (extra.length > 0) throw new Error(`Unexpected "${extra.join(' ')}". Usage: ${IMMEDIATE['report-accept'].usage}`);
+  const actor = resolveActor(ctx, by.value, false);
+  const store = openStore(ctx.cfg.home);
+  try {
+    const issue = await acceptRejectedReport({ store, github: ctx.github }, { id: number(n), by: actor, reason: reason.value });
+    console.log(`report ${number(n)} filed as #${issue}`);
+  } finally {
+    store.close();
+  }
+}
+
 const PLAYTEST_PATHS = ['pendingPlaytest', 'release.playtest.passed', 'release.playtest.work'];
 
 function startsPlaytest(path: string, json: string | undefined): boolean {
@@ -382,7 +398,6 @@ async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; te
     if (state.release === null) return state;
     const playtest = state.release.playtest;
     blocked = playtest.blocked !== null;
-    // Only a blocked playtest, which an order started, runs again. A retry never orders a new one, since its pass makes a release candidate.
     return { ...state, pendingPlaytest: blocked ? decision.by : state.pendingPlaytest, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
   if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);

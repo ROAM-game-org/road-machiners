@@ -21,6 +21,7 @@ export type NewComment = { issue: number | null; source: 'telegram' | 'game'; so
 export type KnownWork = { issue: number; text: string };
 export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null; wantsFiling?: boolean };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
+export type RejectedReport = { id: number; build: string; version: string; kind: string; text: string; at: string };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
@@ -379,6 +380,24 @@ export class PublicStore {
   addReport(report: ReportRow): number {
     const { address, build, version, kind, text, verdict, intent, sincere, issue, createdIssue, at } = report;
     return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, intent, sincere, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, intent, sincere, issue, createdIssue, at).lastInsertRowid);
+  }
+
+  candidateReportIssue(release: number, text: string): number | null {
+    const key = textKey(text);
+    const filed = this.db.prepare("select text, created_issue from reports where build = 'rc' and verdict = 'accept' and issue = ? and created_issue is not null order by id").all(release);
+    const same = filed.find((row) => textKey(String(row.text)) === key);
+    return same === undefined ? null : Number(same.created_issue);
+  }
+
+  rejectedReport(id: number): RejectedReport | null {
+    const row = this.db.prepare("select id, build, version, kind, text, at from reports where id = ? and verdict = 'reject' and created_issue is null").get(id);
+    if (row === undefined) return null;
+    return { id: Number(row.id), build: String(row.build), version: String(row.version), kind: String(row.kind), text: String(row.text), at: String(row.at) };
+  }
+
+  acceptRejected(id: number, createdIssue: number): void {
+    const changed = this.db.prepare("update reports set verdict = 'accept', created_issue = ? where id = ? and verdict = 'reject' and created_issue is null").run(createdIssue, id).changes;
+    if (changed !== 1) throw new Error(`Report ${id} is no longer a rejected report with no issue, so issue #${createdIssue} was not tied to it.`);
   }
 
   private apply(event: PublicEvent): void {

@@ -41,6 +41,7 @@ These act at once, not on the next tick:
 - `factory pause <reason> [--pid N] [--by who]` pauses the factory, and `factory resume` lifts a pause written without `--by`.
 - `factory repair-clone N --by <who> --reason <why>` replaces a broken work clone of a card and keeps the old one as a backup. [operations.md](operations.md) has the rules.
 - `factory set-state <path> <json> --by <who> --reason <why>` sets one value of the state file under its lock. `--delete` in place of the json removes it.
+- `factory report-accept N --by <who> --reason <why>` files game report N, which the filter dropped, as a `player-report` issue. Use it when a member confirms a dropped report was real. Never edit the reports store by hand.
 
 Five commands need `--by <member>` from that member's order: `merge` or `move N harden|merging` of a card the committee has not approved, `ship`, `remove` and `adopt`. "skip it" on a failed gate is `factory move N approval`. Read what blocked the release playtest before you `retry` its tracking card, and pass your decision as the retry's text. A retry runs only a blocked playtest again and orders no new one.
 

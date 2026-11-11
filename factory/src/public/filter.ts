@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { TransientFilterError, type Classify, type Decision, type DecisionIntent, type DecisionKind, type FilterConfig, type FilterInput, type PublicFilter, type Relevance } from './decision';
+import { TransientFilterError, type Classify, type Decision, type DecisionKind, type FilterConfig, type FilterInput, type PublicFilter, type Relevance } from './decision';
 import type { PublicRoute } from './store';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
@@ -14,6 +14,16 @@ const INTENT = {
     { value: 'sincere', description: 'A real bug, wish or opinion, or an ask to act on the replied one. "Truck falls through the bridge." "Add a radio to the cab." "Fights feel worse since the update." Replying to "I rammed a raider, the truck bounced back and now it is stuck": "@bot file this bug please."' },
     { value: 'troll', description: 'A joke, mockery, an empty insult, or a demand that clashes with the game. "Add anime girls." "Worst game ever." "Make the truck fly to space." "ADD EVERYTHING NOW, MAKE IT PERFECT."' },
     { value: 'spam', description: 'Ads, scams or gibberish. "Buy crypto t.me/x." "asdfgh."' },
+  ],
+};
+
+const JUNK = {
+  type: 'choice',
+  name: 'junk',
+  instructions: 'A player sent this text with the report form inside the game, where they chose bug or idea and typed it. Players write these fast, mid-game: short, misspelled, rude, in capitals, or quoting a line of game text they find wrong. Is it about the game, or is it junk?',
+  choices: [
+    { value: 'feedback', description: 'Anything about playing this game, however short, rude or vague: a bug, a wish, a complaint, an opinion, or a quoted game line called wrong. "cant find my truck on the map" "raider let me go without taking anything" "stupid turret clips through the cab, fix" "the radio tip makes no sense" "Turn 12 the game froze" "more cars on the roads" "ЗАРАВКА НЕ РАБОТАЕТ"' },
+    { value: 'junk', description: 'Not feedback on the game: ads, links to unrelated things, gibberish, an empty insult, or a joke demand that mocks the game. "cheap followers t.me/x" "asdf asdf" "garbage game uninstall" "add a dancing banana as the boss" "hahaha"' },
   ],
 };
 
@@ -97,7 +107,8 @@ const ROUTE = {
   ],
 };
 
-const INTENTS = INTENT.choices.map((choice) => choice.value) as DecisionIntent[];
+const INTENTS = INTENT.choices.map((choice) => choice.value) as ('sincere' | 'troll' | 'spam')[];
+const JUNK_VALUES = JUNK.choices.map((choice) => choice.value) as ('feedback' | 'junk')[];
 const KINDS = CHAT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
 const REPORT_KINDS = REPORT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
 const RELEVANCES = RELEVANCE.choices.map((choice) => choice.value) as Relevance[];
@@ -156,11 +167,13 @@ function chatQuestions(input: FilterInput): Question[] {
   const relevance = hasParent(input) ? [RELEVANCE] : [];
   const work = knownWork(input).length > 0 ? [workQuestion(knownWork(input))] : [];
   const filing = input.addressed ? [FILING] : [];
-  return [INTENT, CHAT_KIND, ...route, ...relevance, ...work, ...filing, LANGUAGE];
+  return [verdictQuestion(input), CHAT_KIND, ...route, ...relevance, ...work, ...filing, LANGUAGE];
 }
 
+const verdictQuestion = (input: FilterInput): Question => (input.origin === 'game' ? JUNK : INTENT);
+
 function questionsFor(input: FilterInput): Question[] {
-  return input.source === 'report' ? [INTENT, REPORT_KIND] : chatQuestions(input);
+  return input.source === 'report' ? [verdictQuestion(input), REPORT_KIND] : chatQuestions(input);
 }
 
 function relevanceOf(input: FilterInput, answers: Answer[]): Relevance {
@@ -192,13 +205,23 @@ function answersOf(body: unknown): Answer[] {
   return answers as Answer[];
 }
 
-function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decision {
+type Verdict = Pick<Decision, 'verdict' | 'sincere' | 'intent'>;
+
+function chatVerdict(cfg: FilterConfig, answers: Answer[]): Verdict {
   const odds = probabilities(answers, 'intent', INTENTS);
   const sincere = odds.sincere >= cfg.filterSincereMin;
+  return { verdict: sincere ? 'accept' : 'reject', sincere: odds.sincere, intent: sincere ? 'sincere' : odds.troll >= odds.spam ? 'troll' : 'spam' };
+}
+
+function gameVerdict(cfg: FilterConfig, answers: Answer[]): Verdict {
+  const odds = probabilities(answers, 'junk', JUNK_VALUES);
+  const junk = odds.junk >= cfg.reportJunkMin;
+  return { verdict: junk ? 'reject' : 'accept', sincere: odds.feedback, intent: junk ? 'junk' : 'sincere' };
+}
+
+function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decision {
   return {
-    verdict: sincere ? 'accept' : 'reject',
-    sincere: odds.sincere,
-    intent: sincere ? 'sincere' : odds.troll >= odds.spam ? 'troll' : 'spam',
+    ...(input.origin === 'game' ? gameVerdict(cfg, answers) : chatVerdict(cfg, answers)),
     kind: choice(answers, 'kind', input.source === 'report' ? REPORT_KINDS : KINDS),
     route: input.source === 'comment' ? choice(answers, 'route', ROUTES) : 'none',
     relevance: relevanceOf(input, answers),

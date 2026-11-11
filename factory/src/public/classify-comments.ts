@@ -64,7 +64,7 @@ function candidateWork(store: PublicStore, comment: StoredComment, board: KnownW
 }
 
 function filterInput(store: PublicStore, comment: StoredComment, work: KnownWork[]): FilterInput {
-  const judged = { text: comment.text, context: comment.context, work: work.map((known) => `#${known.issue} ${known.text}`), addressed: comment.addressed };
+  const judged = { origin: 'chat' as const, text: comment.text, context: comment.context, work: work.map((known) => `#${known.issue} ${known.text}`), addressed: comment.addressed };
   if (comment.issue === null) return { source: 'message', ...judged };
   return { source: 'comment', parent: store.parentPitch(comment.issue), ...judged };
 }
