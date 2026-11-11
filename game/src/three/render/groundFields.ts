@@ -233,10 +233,7 @@ function wearUniforms(mask: PaintCanvas, t: Terrain): { highwayWear?: { value: T
   const key = t.atlas;
   if (key.kind !== "highway") return {};
   const pixels = paintHighwayWear(mask, atlasOf(t).roads[0].points, key.seed);
-  const texture = new THREE.DataTexture(pixels, mask.size, mask.size, THREE.RGBAFormat);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.needsUpdate = true;
+  const texture = linear(new THREE.DataTexture(pixels, mask.size, mask.size, THREE.RGBAFormat));
   return { highwayWear: { value: texture } };
 }
 
