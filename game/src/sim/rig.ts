@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
-import { cellCenter, couplingOf, frontBody, spanOf, unitOfCells, unitOfRow, unitsOf } from './body';
+import { axlesOf, cellCenter, couplingOf, frontBody, spanOf, unitOfCells, unitOfRow, unitsOf } from './body';
 import type { Hulk, Pose, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -76,23 +76,23 @@ export function trailUnits(chassisId: string, pose: Pose): UnitPose[] {
 
 export function hitchPoint(chassisId: string, pose: Pose): Vec {
   const last = trailUnits(chassisId, pose).at(-1)!;
-  const axle = unitsOf(chassisId)[last.unit].body.wheelX / S;
-  return { x: last.pos.x - Math.cos(last.heading) * axle, y: last.pos.y - Math.sin(last.heading) * axle };
+  const axle = axlesOf(unitsOf(chassisId)[last.unit].body).rear / S;
+  return { x: last.pos.x + Math.cos(last.heading) * axle, y: last.pos.y + Math.sin(last.heading) * axle };
 }
 
 export function hitchAxle(chassisId: string): number {
   const all = unitsOf(chassisId);
-  return all[all.length - 1].body.wheelX / S;
+  return -axlesOf(all[all.length - 1].body).rear / S;
 }
 
 export function hitchOverhang(chassisId: string): number {
   const last = unitsOf(chassisId).at(-1)!.body;
-  return (last.half.x - last.wheelX) / S;
+  return (last.half.x + axlesOf(last).rear) / S;
 }
 
 export function noseOverhang(chassisId: string): number {
   const front = frontBody(chassisId);
-  return (front.half.x - front.wheelX) / S;
+  return (front.half.x - axlesOf(front).front) / S;
 }
 
 export function frontAhead(chassisId: string): number {
@@ -233,7 +233,7 @@ export function bendStep(chassisId: string, bend: number, from: Pose, to: Pose):
   const coupling = couplingOf(chassisId);
   if (!coupling) throw new Error(`Chassis ${chassisId} has no coupling to bend`);
   const pivotFront = coupling.pivotFront / S;
-  const reach = (coupling.pivotRear + coupling.rear.wheelX) / S;
+  const reach = (coupling.pivotRear - axlesOf(coupling.rear).rear) / S;
   const pivotAt = (p: Pose) => ({ x: p.x + Math.cos(p.heading) * pivotFront, y: p.y + Math.sin(p.heading) * pivotFront });
   const before = pivotAt(from);
   const rearHeading = from.heading - bend;

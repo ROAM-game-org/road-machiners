@@ -28,6 +28,7 @@ export type GridMetrics = {
   readonly pxPerMeter: number;
   readonly cellW: number;
   readonly cellH: number;
+  readonly spareCell: number;
   readonly cols: number;
   readonly rows: number;
   readonly chassisRows: number;
@@ -35,23 +36,24 @@ export type GridMetrics = {
   readonly cargoBeside: boolean;
 };
 
-export function gridMetrics(chassisId: string, g: Grid, pxPerMeter: number, cargoBeside = false): GridMetrics {
+export function gridMetrics(chassisId: string, g: Grid, pxPerMeter: number, cargoBeside = false, spareCellPx?: number): GridMetrics {
   const steps = cellSteps(chassisId);
   const cellW = steps.col * pxPerMeter;
   const cellH = steps.row * pxPerMeter;
   const beside = cargoBeside && g.h > g.chassisH;
   const spareGap = g.h <= g.chassisH ? 0 : beside ? CARGO_BESIDE_GAP_PX : Math.round(SPARE_GAP_CELLS * cellW);
-  return { pxPerMeter, cellW, cellH, cols: g.w, rows: g.h, chassisRows: g.chassisH, spareGap, cargoBeside: beside };
+  const spareCell = beside && spareCellPx !== undefined ? Math.min(CELL_PX, Math.max(cellW, spareCellPx)) : cellW;
+  return { pxPerMeter, cellW, cellH, spareCell, cols: g.w, rows: g.h, chassisRows: g.chassisH, spareGap, cargoBeside: beside };
 }
 
 export function rowTop(m: GridMetrics, y: number): number {
   if (y < m.chassisRows) return y * m.cellH;
   const spareStart = m.cargoBeside ? 0 : m.chassisRows * m.cellH + m.spareGap;
-  return spareStart + (y - m.chassisRows) * m.cellW;
+  return spareStart + (y - m.chassisRows) * m.spareCell;
 }
 
 function rowHeight(m: GridMetrics, y: number): number {
-  return y < m.chassisRows ? m.cellH : m.cellW;
+  return y < m.chassisRows ? m.cellH : m.spareCell;
 }
 
 function cargoLeft(m: GridMetrics): number {
@@ -59,18 +61,19 @@ function cargoLeft(m: GridMetrics): number {
 }
 
 function colLeft(m: GridMetrics, x: number, y: number): number {
-  return (m.cargoBeside && y >= m.chassisRows ? cargoLeft(m) : 0) + x * m.cellW;
+  const spare = y >= m.chassisRows;
+  return (m.cargoBeside && spare ? cargoLeft(m) : 0) + x * (spare ? m.spareCell : m.cellW);
 }
 
 export function rectOf(m: GridMetrics, x: number, y: number, w: number, h: number): PixelRect {
   const top = rowTop(m, y);
   const lastRow = m.cargoBeside && y < m.chassisRows ? Math.min(y + h - 1, m.chassisRows - 1) : y + h - 1;
-  return { left: colLeft(m, x, y), top, width: w * m.cellW, height: rowTop(m, lastRow) + rowHeight(m, lastRow) - top };
+  return { left: colLeft(m, x, y), top, width: w * (y >= m.chassisRows ? m.spareCell : m.cellW), height: rowTop(m, lastRow) + rowHeight(m, lastRow) - top };
 }
 
 export function gridSize(m: GridMetrics): { width: number; height: number } {
   if (!m.cargoBeside) return { width: m.cols * m.cellW, height: rowTop(m, m.rows - 1) + rowHeight(m, m.rows - 1) };
-  return { width: cargoLeft(m) + m.cols * m.cellW, height: Math.max(m.chassisRows * m.cellH, (m.rows - m.chassisRows) * m.cellW) };
+  return { width: cargoLeft(m) + m.cols * m.spareCell, height: Math.max(m.chassisRows * m.cellH, (m.rows - m.chassisRows) * m.spareCell) };
 }
 
 export function truckArea(m: GridMetrics): { width: number; height: number } {
@@ -86,7 +89,7 @@ export function cellAt(m: GridMetrics, px: number, py: number): { x: number; y: 
 
 function cellBeside(m: GridMetrics, px: number, py: number): { x: number; y: number } {
   const onCargo = px >= m.cols * m.cellW + m.spareGap / 2;
-  if (onCargo) return { x: Math.floor((px - cargoLeft(m)) / m.cellW), y: m.chassisRows + Math.floor(py / m.cellW) };
+  if (onCargo) return { x: Math.floor((px - cargoLeft(m)) / m.spareCell), y: m.chassisRows + Math.floor(py / m.spareCell) };
   return { x: Math.floor(px / m.cellW), y: Math.min(m.chassisRows - 1, Math.floor(py / m.cellH)) };
 }
 
@@ -100,7 +103,7 @@ export function cellUnder(m: GridMetrics, grid: HTMLElement, clientX: number, cl
 }
 
 export type FitRoom = { columns: number; width: number; height: number };
-export type GridLayout = { columns: number; cargoBeside: boolean; pxPerMeter: number };
+export type GridLayout = { columns: number; cargoBeside: boolean; pxPerMeter: number; spareCellPx: number };
 
 export function truckMeters(chassisId: string, g: Grid): { width: number; truckHeight: number; spareHeight: number; col: number } {
   const steps = cellSteps(chassisId);
@@ -116,9 +119,25 @@ function pxPerMeterIn(room: FitRoom, truck: TruckMeters, cargoBeside: boolean): 
   return Math.min(CELL_PX / truck.col, across, down);
 }
 
+function spareCellIn(room: FitRoom, truck: TruckMeters, pxPerMeter: number): number {
+  const cell = truck.col * pxPerMeter;
+  const cols = Math.round(truck.width / truck.col);
+  const cargoRows = Math.round(truck.spareHeight / truck.col);
+  const freeWide = (room.width - truck.width * pxPerMeter - CARGO_BESIDE_GAP_PX) / cols;
+  const freeTall = room.height / cargoRows;
+  return Math.max(cell, Math.min(CELL_PX, freeWide, freeTall));
+}
+
+function layoutIn(room: FitRoom, truck: TruckMeters): GridLayout {
+  const below = pxPerMeterIn(room, truck, false);
+  const belowTry = { columns: room.columns, cargoBeside: false, pxPerMeter: below, spareCellPx: truck.col * below };
+  if (truck.spareHeight <= 0) return belowTry;
+  const beside = pxPerMeterIn(room, truck, true);
+  return beside > below ? { columns: room.columns, cargoBeside: true, pxPerMeter: beside, spareCellPx: spareCellIn(room, truck, beside) } : belowTry;
+}
+
 export function chooseLayout(rooms: readonly FitRoom[], truck: TruckMeters): GridLayout {
-  const places = truck.spareHeight > 0 ? [false, true] : [false];
-  const tries = rooms.flatMap((room) => places.map((cargoBeside) => ({ columns: room.columns, cargoBeside, pxPerMeter: pxPerMeterIn(room, truck, cargoBeside) })));
+  const tries = rooms.map((room) => layoutIn(room, truck));
   const first = tries.find((t) => t.pxPerMeter * truck.col >= MIN_CLICK_CELL_PX);
   return first ?? tries.reduce((best, t) => (t.pxPerMeter > best.pxPerMeter ? t : best));
 }
@@ -127,7 +146,7 @@ export function stackedLayout(height: number, truck: TruckMeters): GridLayout {
   const gap = truck.spareHeight > 0 ? SPARE_GAP_CELLS * truck.col : 0;
   const fits = height / (truck.truckHeight + gap + truck.spareHeight);
   const pxPerMeter = Math.min(CELL_PX, Math.max(STACKED_MIN_CELL_PX, fits * truck.col)) / truck.col;
-  return { columns: 1, cargoBeside: false, pxPerMeter };
+  return { columns: 1, cargoBeside: false, pxPerMeter, spareCellPx: pxPerMeter * truck.col };
 }
 
 export class GridScale {
@@ -159,9 +178,9 @@ export class GridScale {
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {
-    const fallback: GridLayout = { columns: 3, cargoBeside: false, pxPerMeter: CELL_PX / cellSteps(v.chassisId).col };
+    const fallback: GridLayout = { columns: 3, cargoBeside: false, pxPerMeter: CELL_PX / cellSteps(v.chassisId).col, spareCellPx: CELL_PX };
     const chosen = (own ? this.layout : (this.targetLayout ?? this.layout)) ?? fallback;
-    const m = gridMetrics(v.chassisId, gridOf(v), chosen.pxPerMeter, chosen.cargoBeside);
+    const m = gridMetrics(v.chassisId, gridOf(v), chosen.pxPerMeter, chosen.cargoBeside, chosen.spareCellPx);
     if (own) this.own = m;
     else this.target = m;
     return m;
@@ -327,8 +346,9 @@ export function iconBox(it: GridItem, m: GridMetrics): { width: number; height: 
   const box = footprint(it);
   const sideways = facingOf(it) % 180 === 90;
   const across = cellsTurned(it);
-  const wide = box.w * m.cellW - 2;
-  const tall = box.h * m.cellH - 2;
+  const spare = it.y >= m.chassisRows;
+  const wide = box.w * (spare ? m.spareCell : m.cellW) - 2;
+  const tall = box.h * (spare ? m.spareCell : m.cellH) - 2;
   const room = { width: sideways ? tall : wide, height: sideways ? wide : tall };
   if (across === sideways) return room;
   const own = itemSize({ ...it, rot: 0 });

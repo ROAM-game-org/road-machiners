@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { mergePerf, perfSnapshot, ranInWorker, resetPerf, timed } from "./perf";
+import { mergePerf, perfSnapshot, ranInWorker, record, resetPerf, timed } from "./perf";
 
 it("combines worker timings without losing counts or prior peaks", () => {
   resetPerf();
@@ -16,4 +16,11 @@ it("marks merged timers as worker timers and keeps main-thread timers local", ()
   expect(ranInWorker("fog")).toBe(false);
   resetPerf();
   expect(ranInWorker("preview")).toBe(false);
+});
+
+it("records a span measured across frames like a timed one", () => {
+  resetPerf();
+  record("turn-wait", 400);
+  record("turn-wait", 0);
+  expect(perfSnapshot()["turn-wait"]).toEqual({ last: 0, max: 400, total: 400, calls: 2 });
 });
