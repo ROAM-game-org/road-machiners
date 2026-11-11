@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Contract } from "../sim/market";
-import { addVehicle, emptyWorld } from "../sim/testkit";
+import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import SURVEY_SITES_FILE from "../data/survey-sites.json";
 import { surveyPlaceThreat } from "../sim/survey";
 import { boardHeldRow, heldContractRow, offerRow } from "./contract-row";
@@ -95,6 +95,21 @@ describe("held clocks in a row", () => {
     const row = heldContractRow(emptyWorld(), claim) as unknown as FakeNode;
     expect(row.textContent).toMatch(/\d+:\d\d left/);
     expect(row.textContent).not.toMatch(/about .* out/);
+  });
+
+  function runningRival(): { w: ReturnType<typeof emptyWorld>; c: Contract } {
+    const w = emptyWorld();
+    const rival = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 46, y: 40 });
+    rival.brain = npcBrain("scavenger", rival.pos, ["scavenger"]);
+    rival.brain.goals.push({ kind: "claim", claim: "c", left: [], targetId: "tank-3", destination: { x: 300, y: 40 }, phase: "travel", reason: "claimRun" });
+    return { w, c: { ...claim, rival: rival.id } as Contract };
+  }
+
+  it("names a running rival on a held claim but not on a posted offer", () => {
+    const { w, c } = runningRival();
+    expect((heldContractRow(w, c) as unknown as FakeNode).textContent).toMatch(/after|out/i);
+    const offer = offerRow(w, c, new FakeNode("button") as unknown as HTMLElement, null) as unknown as FakeNode;
+    expect(findAll(offer, (n) => n.className.includes("claim-rival"))).toEqual([]);
   });
 
   it("counts down a posted escort offer", () => {

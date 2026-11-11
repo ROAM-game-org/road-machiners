@@ -18,9 +18,10 @@ export const PLAN_PAD = 0.5;
 
 export const TRUCK_LOOK = {
   wheelPush: 0.12,
-  armorDepth: 0.24,
+  armorDepth: 0.12,
+  armorDeepScale: 0.5,
   armorRise: 0.1,
-  armorInset: 0.1,
+  armorInset: 0,
   cutScale: 1.2,
   lampEndShare: 0.5,
   lampReach: 0.6,

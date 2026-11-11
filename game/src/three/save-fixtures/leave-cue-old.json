@@ -1,0 +1,82 @@
+{
+  "player": {
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            {
+              "do": "follow",
+              "road": {
+                "kind": "to",
+                "site": "nose"
+              },
+              "heading": "northEast",
+              "lean": null,
+              "span": "fair"
+            },
+            {
+              "do": "leave",
+              "at": {
+                "kind": "none"
+              },
+              "octant": "south",
+              "lean": null,
+              "span": "fair"
+            },
+            {
+              "do": "search",
+              "clue": {
+                "kind": "wreck"
+              },
+              "rough": true
+            }
+          ]
+        }
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [
+              {
+                "do": "turn",
+                "side": "left",
+                "at": {
+                  "kind": "site",
+                  "id": "bowl"
+                },
+                "road": {
+                  "kind": "to",
+                  "site": "nose"
+                },
+                "span": "near"
+              },
+              {
+                "do": "leave",
+                "at": {
+                  "kind": "fork",
+                  "nth": 2
+                },
+                "octant": "east",
+                "lean": null,
+                "span": "near"
+              },
+              {
+                "do": "search",
+                "clue": {
+                  "kind": "wreck"
+                },
+                "rough": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

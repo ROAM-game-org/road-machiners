@@ -61,9 +61,13 @@ export function haulerLane(world: World, hauler: Vehicle): number {
   return best;
 }
 
-export function haulerPace(world: World): number {
+function underFire(world: World): boolean {
   const alarm = runOf(world).hauler.alarmUntil;
-  const own = alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
+  return alarm !== null && world.turn <= alarm;
+}
+
+export function haulerPace(world: World): number {
+  const own = underFire(world) ? HAULER.hurry : HAULER.cruise;
   const gunTruck = playerVehicle(world);
   const pace = setsPace(world, gunTruck) ? Math.min(own, heldSpeed(world, haulerOf(world), gunTruck)) : own;
   if (pace <= RULES.parkedSpeed) throw new Error(`Hauler pace ${pace} is at or below parked speed`);
@@ -231,10 +235,14 @@ function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const spot = parkSpot(world);
   if (betweenLevels(world)) return isParked(hauler) && dist(hauler.pos, spot) <= RULES.arriveRadius ? null : { kind: 'stopAt', dest: spot };
   if (dist(hauler.pos, spot) <= HAULER.approach) return { kind: 'stopAt', dest: spot };
-  if (waitsForGunTruck(world, hauler)) return { kind: 'brake' };
+  if (waitsForGunTruck(world, hauler)) return underFire(world) ? laneDrive(world, hauler, HAULER.crawl) : { kind: 'brake' };
+  return laneDrive(world, hauler, haulerPace(world));
+}
+
+function laneDrive(world: World, hauler: Vehicle, pace: number): MoveOrder {
   const lane = chosenLane(world, hauler);
   const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
-  return { kind: 'through', dest, pace: haulerPace(world) };
+  return { kind: 'through', dest, pace };
 }
 
 function movedLastTurn(hauler: Vehicle): number {

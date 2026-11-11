@@ -867,6 +867,19 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+function goodsRowFaults(page) {
+  return page.evaluate(() => {
+    if (innerWidth < 1000) return [];
+    const rows = [...document.querySelectorAll('.town-page .good-row')];
+    const wide = rows.filter((row) => row.scrollWidth > row.clientWidth + 1);
+    return wide.length ? [{ kind: 'goods-row', path: '', text: `${wide.length} goods rows are wider than their column`, sizes: '' }] : [];
+  });
+}
+
+async function marketFaults(page) {
+  return [...await nestedScrollFaults(page), ...await goodsRowFaults(page)];
+}
+
 async function openGarageStorage(page) {
   await page.evaluate(async () => {
     const { makePart } = await import('/src/sim/factory.ts');
@@ -1068,10 +1081,10 @@ const STATES = {
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
-  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: marketFaults },
   'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
-  'trade-untraded': { setup: openUntradedMarket, teardown: closeTown, check: nestedScrollFaults },
-  'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: nestedScrollFaults },
+  'trade-untraded': { setup: openUntradedMarket, teardown: closeTown, check: marketFaults },
+  'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: marketFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },
   'journal-empty': { setup: openJournalWith('empty'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
