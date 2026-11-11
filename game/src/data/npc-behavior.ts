@@ -116,6 +116,7 @@ export const HUNT = {
   postRoadGap: 6,
   postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * TERRAIN.vision.radius),
   roadSample: 4,
+  groundSpacing: 50,
   postBearings: 12,
   patrolPostSpacing: 20,
   watchTurns: 40,

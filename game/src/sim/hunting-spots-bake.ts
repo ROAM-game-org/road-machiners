@@ -189,7 +189,7 @@ type Scored = { p: Vec; score: number };
 
 function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[]): Vec[] {
   const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p) && hasOtherHide(world, p) && seesTraffic(world, p, samples));
-  const spacing = 2 * TERRAIN.vision.radius;
+  const spacing = HUNT.groundSpacing;
   const spots: Vec[] = [];
   for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
   return spots;
