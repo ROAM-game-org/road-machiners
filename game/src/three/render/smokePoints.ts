@@ -1,6 +1,6 @@
 import { rotateBy, type V3, type VehicleFrame } from '../../phys/frames';
 import { wheelMounts } from '../../phys/body';
-import { cellRect, engineBay, hulkBoxes, isRig, surfaceAt, unitBody, unitsOf, type CellRect, type HulkBox } from '../../sim/body';
+import { cellRect, engineBay, hulkBoxes, isRig, unitBody, unitsOf, type CellRect, type HulkBox } from '../../sim/body';
 import { corePart, itemCells, mountedItems } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
@@ -36,7 +36,6 @@ function trailTop(chassisId: string, unit: number, x: number, z: number, halfX: 
 }
 
 function pointOver(chassisId: string, rect: CellRect, x: number, z: number, radius: number): BodyPoint {
-  surfaceAt(chassisId, rect);
   return { unit: rect.unit, x, y: trailTop(chassisId, rect.unit, x, z, 0, 0, radius), z };
 }
 
