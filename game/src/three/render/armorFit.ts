@@ -1,9 +1,20 @@
 import * as THREE from 'three';
+import { CLIP_TOLERANCE } from '../../sim/body';
 import type { SideLetter } from '../../sim/grid';
-import { cutHeightAt, TOP_MARGIN, type TopCut } from './armorTop';
-import { bodyFace } from './gunStand';
+import { STEEPEST_LEAN } from './armorTop';
+import { bodyFace, FACE_COLUMN, type FaceProfile } from './gunStand';
 
-export type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
+export type Placement = { pos: THREE.Vector3; yaw: number; lean: number; scale: THREE.Vector3 };
+
+export function armorMatrix(at: Placement): THREE.Matrix4 {
+  return new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, at.lean)), at.scale);
+}
+
+export function poseArmor(obj: THREE.Object3D, at: Placement): void {
+  obj.position.copy(at.pos);
+  obj.rotation.set(0, at.yaw, at.lean);
+  obj.scale.copy(at.scale);
+}
 
 export const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
   F: { axis: 'x', outward: 1 },
@@ -12,20 +23,8 @@ export const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }>
   L: { axis: 'z', outward: -1 },
 };
 
-const GAP_BAND = 0.15;
-const GAP_SLICES = 5;
-const GAP_MOST = 0.6;
-const SINK_SHARE = 0.5;
-
 export function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
-  const m = new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale);
-  return box.clone().applyMatrix4(m);
-}
-
-export function fitToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, cut: TopCut, side: SideLetter): void {
-  growToCut(at, box, cut, side);
-  closeGap(at, box, body, side);
-  sinkHalfway(at, box, side);
+  return box.clone().applyMatrix4(armorMatrix(at));
 }
 
 export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, hubY: number): void {
@@ -35,12 +34,6 @@ export function fitRamToBumper(at: Placement, box: THREE.Box3, body: THREE.Objec
   const bottom = Math.max(underside, hubY - (placed.max.y - placed.min.y) / 2);
   at.pos.y += bottom - placed.min.y;
   pullToBody(at, box, body, side);
-}
-
-function cutAlong(placed: THREE.Box3, cut: TopCut, side: SideLetter): number[] {
-  const mid = placed.getCenter(new THREE.Vector3());
-  if (SIDE_FACE[side].axis === 'z') return [placed.min.x, mid.x, placed.max.x].map((x) => cutHeightAt(cut, x, mid.z));
-  return [placed.min.z, mid.z, placed.max.z].map((z) => cutHeightAt(cut, mid.x, z));
 }
 
 function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): void {
@@ -53,36 +46,84 @@ function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: 
   if (gap > 0) at.pos[axis] -= outward * gap;
 }
 
-function growToCut(at: Placement, box: THREE.Box3, cut: TopCut, side: SideLetter): void {
-  if (SIDE_FACE[side].axis !== 'z') return;
+type Row = { index: number; y: number; reach: number };
+type Span = { bottom: number; top: number };
+
+export type Settle = { profile: FaceProfile; axis: 'x' | 'z'; toBodyTop: boolean; upright: () => void; fail: () => never };
+
+export function settleOnBody(at: Placement, box: THREE.Box3, { profile, axis, toBodyTop, upright, fail }: Settle): void {
   const placed = placedBounds(at, box);
-  const target = Math.max(...cutAlong(placed, cut, side));
-  if (!(target > placed.max.y + TOP_MARGIN)) return;
-  const k = (target - placed.min.y) / (placed.max.y - placed.min.y);
-  at.scale.y *= k;
-  at.pos.y = placed.min.y + (at.pos.y - placed.min.y) * k;
+  const found = FACE_FILLS.map((fill) => faceIn(profile, placed, toBodyTop ? bodyTop(profile, fill) : placed.max.y, fill)).find((f) => f !== null);
+  if (!found) return upright();
+  coverFace(at, box, found.face, found.span, fail);
+  touchFace(at, box, found.face, axis, profile.outward);
 }
 
-function closeGap(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): void {
-  const { axis, outward } = SIDE_FACE[side];
-  if (axis !== 'z') return;
-  const placed = placedBounds(at, box);
-  const outer = outward > 0 ? placed.max.z : placed.min.z;
-  const depth = placed.max.z - placed.min.z;
-  const step = (placed.max.x - placed.min.x) / GAP_SLICES;
-  const band: [number, number] = [placed.max.y - GAP_BAND, placed.max.y];
-  const faces = Array.from({ length: GAP_SLICES }, (_, k) => bodyFace(body, axis, outward, [placed.min.x + k * step, placed.min.x + (k + 1) * step], band));
-  const found = faces.filter((f): f is number => f !== null).map((f) => outward * f);
-  if (found.length === 0) return;
-  const reach = outward * outer - depth - Math.min(...found);
-  if (!(reach > 0)) return;
-  const k = Math.min(GAP_MOST, depth + reach) / depth;
-  at.scale.x *= k;
-  at.pos.z = outer + (at.pos.z - outer) * k;
+const FACE_FILLS = [0.5, 0];
+
+function faceIn(profile: FaceProfile, placed: THREE.Box3, top: number | null, fill: number): { face: Row[]; span: Span } | null {
+  const face = top === null ? null : tallestFace(profileRows(profile, placed.min.y, top, fill));
+  if (top === null || face === null) return null;
+  return { face, span: { bottom: Math.max(placed.min.y, face[0].y - FACE_COLUMN / 2), top: Math.min(top, (face.at(-1) as Row).y + FACE_COLUMN / 2) } };
 }
 
-function sinkHalfway(at: Placement, box: THREE.Box3, side: SideLetter): void {
-  const { axis, outward } = SIDE_FACE[side];
-  const placed = placedBounds(at, box);
-  at.pos[axis] -= outward * (placed.max[axis] - placed.min[axis]) * SINK_SHARE;
+function bodyTop(profile: FaceProfile, fill: number): number | null {
+  const highest = profileRows(profile, -Infinity, Infinity, fill).at(-1);
+  return highest === undefined ? null : highest.y + FACE_COLUMN / 2;
+}
+
+function profileRows(profile: FaceProfile, bottom: number, top: number, fill: number): Row[] {
+  return profile.reach.flatMap((reach, index) => {
+    const y = profile.bottom + (index + 0.5) * FACE_COLUMN;
+    return reach !== null && profile.fill[index] >= fill && y >= bottom && y <= top ? [{ index, y, reach }] : [];
+  });
+}
+
+function tallestFace(rows: Row[]): Row[] | null {
+  const faces = facesOf(rows);
+  if (faces.length === 0) return null;
+  const outer = (face: Row[]): number => Math.max(...face.map((r) => r.reach));
+  return faces.reduce((best, face) => (face.length > best.length || (face.length === best.length && outer(face) > outer(best)) ? face : best));
+}
+
+function facesOf(rows: Row[]): Row[][] {
+  const faces: Row[][] = [];
+  for (const row of rows) {
+    const last = faces.at(-1)?.at(-1);
+    if (last && row.index === last.index + 1 && Math.abs(row.reach - last.reach) <= FACE_COLUMN) (faces.at(-1) as Row[]).push(row);
+    else faces.push([row]);
+  }
+  return faces;
+}
+
+function coverFace(at: Placement, box: THREE.Box3, face: Row[], span: Span, fail: () => never): void {
+  at.lean = leanOf(face, span);
+  const thickness = (box.max.x - box.min.x) * at.scale.x;
+  const length = box.max.y - box.min.y;
+  at.scale.y = (span.top - span.bottom - thickness * Math.sin(at.lean)) / (length * Math.cos(at.lean));
+  if (!(at.scale.y > 0)) return fail();
+  at.pos.y += span.bottom - placedBounds(at, box).min.y;
+}
+
+function leanOf(face: Row[], span: Span): number {
+  const low = face[0];
+  const high = face.at(-1) as Row;
+  const lean = Math.atan2(low.reach - high.reach, high.y - low.y);
+  return lean > 0 && (span.top - span.bottom) * Math.sin(lean) > CLIP_TOLERANCE ? Math.min(lean, STEEPEST_LEAN) : 0;
+}
+
+function touchFace(at: Placement, box: THREE.Box3, face: Row[], axis: 'x' | 'z', outward: number): void {
+  const [foot, head] = innerEdge(at, box, axis, outward);
+  const innerAt = (y: number): number => foot.out + ((y - foot.y) / (head.y - foot.y)) * (head.out - foot.out);
+  const gap = Math.min(...face.map((r) => innerAt(r.y) - r.reach));
+  at.pos[axis] -= outward * gap;
+}
+
+function innerEdge(at: Placement, box: THREE.Box3, axis: 'x' | 'z', outward: number): { y: number; out: number }[] {
+  const middle = (box.min.z + box.max.z) / 2;
+  const matrix = armorMatrix(at);
+  return [box.min.y, box.max.y].map((y) => {
+    const p = new THREE.Vector3(box.min.x, y, middle).applyMatrix4(matrix);
+    return { y: p.y, out: outward * p[axis] };
+  });
 }
