@@ -1,6 +1,6 @@
 import { cardFlow, moveCard } from '../card-events';
 import { BRANCH, GAME_DIR, TASK_FILE, type Ctx } from '../types';
-import { SUITE_FIX_RULES, cardSuiteFailure } from './card-suite';
+import { SUITE_FIX_RULES, cardSuiteFailure, cleanMergeSettled } from './card-suite';
 import { onceEachHead, untilPasses } from './checkpoint';
 import { BASE_BRANCH, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
@@ -31,11 +31,17 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
 }
 
 function suiteCheckpoint(ctx: Ctx, issue: number, base: string): () => Promise<string | null> {
-  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('harden', issue, message), (head) => cardSuiteFailure(ctx, 'harden', issue, base, head));
+  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log('harden', issue, message), (head) => hardeningSuite(ctx, issue, base, head));
   return async () => {
     await guardAndPush(ctx, issue, base, 'harden');
     return checkHead(await ctx.repo.headHash(BRANCH(issue)));
   };
+}
+
+async function hardeningSuite(ctx: Ctx, issue: number, base: string, head: string): Promise<string | null> {
+  if (!(await cleanMergeSettled(ctx, issue, base))) return cardSuiteFailure(ctx, 'harden', issue, base, head);
+  ctx.log('harden', issue, `${head} has a green suite, or only merges ${base} with no conflict and no edit into a commit that has one, so no suite runs. The merge checkpoint tests the merged result.`);
+  return null;
 }
 
 async function fixRound(ctx: Ctx, issue: number, home: string, failure: string): Promise<string> {

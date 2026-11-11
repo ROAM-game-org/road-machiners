@@ -45,6 +45,7 @@ let green = new Set<string>();
 let head = 'abc123';
 let fixesCommit = true;
 let baseFailures: { failed: { file: string; test: string | null }[]; unfinished: string[]; unhandledErrors: number } | null = null;
+let cleanWalk: string[] | null = null;
 
 beforeEach(() => {
   suites = [];
@@ -52,6 +53,7 @@ beforeEach(() => {
   green = new Set();
   head = 'abc123';
   fixesCommit = true;
+  cleanWalk = null;
   baseFailures = null;
   albums = [];
   albumFails = false;
@@ -156,6 +158,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       foreignCommits: async () => 0,
       changedFiles: async () => changed,
       ownHeads: async () => ['abc123', 'aaa1111'],
+      cleanBaseHeads: async () => cleanWalk ?? [head],
     },
   };
   return fake as unknown as Ctx;
@@ -617,6 +620,34 @@ describe('hardening in one session', () => {
     expect(suites).toEqual(['abc123', 'abc123']);
     expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
     expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs no suite when the head only merges the base cleanly into the card work that has a green suite', async () => {
+    cleanWalk = ['abc123', 'aaa1111'];
+    green.add('aaa1111');
+    const logs: string[] = [];
+    const ctx = fakeCtx(() => undefined);
+    ctx.log = (_stage, _issue, message) => { logs.push(message); };
+    await runHarden(ctx, 7);
+    expect(suites).toEqual([]);
+    expect(logs.some((line) => line.includes('only merges dev with no conflict and no edit into a commit that has one'))).toBe(true);
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs the suite on a head whose base merge an agent resolved, though the card work before it is green', async () => {
+    cleanWalk = ['abc123'];
+    green.add('aaa1111');
+    conflicts = ['game/src/a.ts'];
+    await runHarden(fakeCtx(() => undefined), 7);
+    expect(suites).toEqual(['abc123']);
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs the suite on a head with a hardening commit after a clean base merge', async () => {
+    cleanWalk = ['abc125'];
+    green.add('aaa1111');
+    await runHarden(fakeCtx(() => { head = 'abc125'; }), 7);
+    expect(suites).toEqual(['abc125']);
   });
 
   it('runs no suite when the pushed head already has a green status', async () => {

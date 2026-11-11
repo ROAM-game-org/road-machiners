@@ -350,6 +350,7 @@ export interface HostRepo {
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
   ownHeads(base: string, branch: string): Promise<string[]>;
+  cleanBaseHeads(base: string, branch: string): Promise<string[]>;
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;

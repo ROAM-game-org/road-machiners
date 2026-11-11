@@ -34,6 +34,10 @@ export async function ownWorkSettled(ctx: Ctx, issue: number, base: string): Pro
   return !(await suiteRequired(ctx, issue, base)) || anyGreen(ctx, issue, await ctx.repo.ownHeads(base, BRANCH(issue)));
 }
 
+export async function cleanMergeSettled(ctx: Ctx, issue: number, base: string): Promise<boolean> {
+  return anyGreen(ctx, issue, await ctx.repo.cleanBaseHeads(base, BRANCH(issue)));
+}
+
 export async function requireSettledSuite(ctx: Ctx, issue: number, base: string, build: string): Promise<void> {
   if (!(await suiteSettled(ctx, issue, base, build))) throw new SuiteNotGreenError(issue, build);
 }

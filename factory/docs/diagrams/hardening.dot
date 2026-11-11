@@ -6,7 +6,7 @@ digraph hardening {
   edge [color="#374151", penwidth=1.8, arrowsize=0.8, fontname="Helvetica", fontsize=11];
   subgraph cluster_harden {
     label="Hardening job"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
-    HM [label="Merge new branch\ncommits and the base"]; HH [label="Hardening session\nattack, /code-review,\nfix every finding"]; HS [label="Hardening suite\nfull suite on Actions\nskipped on a green head"];
+    HM [label="Merge new branch\ncommits and the base"]; HH [label="Hardening session\nattack, /code-review,\nfix every finding"]; HS [label="Hardening suite\nfull suite on Actions\nskipped on a green head\nor a clean base merge\nof green work"];
     HM -> HH -> HS [weight=100];
   }
   subgraph cluster_merge {
