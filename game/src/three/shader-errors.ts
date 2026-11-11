@@ -47,6 +47,7 @@ export function failLoudOnShaderError(renderer: THREE.WebGLRenderer, gpu: GpuCon
     const detail = [
       `material ${materialOf(renderer, program)}`,
       `sampler limit ${limit}`,
+      `uniform limits fragment ${gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS)} vertex ${gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS)}`,
       `link log: ${gl.getProgramInfoLog(program) || 'no log'}`,
       stageLog(gl, vertex, 'vertex'),
       stageLog(gl, fragment, 'fragment'),
