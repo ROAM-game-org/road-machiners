@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
-import { bodyOf } from '../sim/body';
+import { axlesOf, bodyOf } from '../sim/body';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import { airPitchSpin, groundPitchUnder, levelInAir } from './air';
 import { initPhysics } from './drive';
@@ -39,8 +39,8 @@ describe('groundPitchUnder', () => {
     const t = editableTerrain(w);
     for (let j = 0; j <= t.size; j++) for (let i = 0; i <= t.size; i++) t.heights[j * (t.size + 1) + i] = i * 0.25;
     const S = PHYSICS.metersPerTile;
-    const up = groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, 0, b.wheelX, 'a');
-    const down = groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, Math.PI, b.wheelX, 'a');
+    const up = groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, 0, axlesOf(b), 'a');
+    const down = groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, Math.PI, axlesOf(b), 'a');
     expect(up).toBeCloseTo(Math.atan(0.25), 6);
     expect(down).toBeCloseTo(-Math.atan(0.25), 6);
   });
@@ -50,7 +50,7 @@ describe('groundPitchUnder', () => {
     const t = editableTerrain(w);
     t.heights.fill(Number.NaN);
     const S = PHYSICS.metersPerTile;
-    expect(() => groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, 0, 4 * S, 'truck-7')).toThrow(/truck-7/);
+    expect(() => groundPitchUnder(w.terrain, { x: 20 * S, y: 0, z: 20 * S }, 0, { front: 4, rear: -4 }, 'truck-7')).toThrow(/truck-7/);
   });
 });
 
