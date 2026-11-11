@@ -11,6 +11,12 @@ export function toFeatures(merges: IssueMerge[]): Feature[] {
   return [...titles].map(([issue, title]) => ({ issue, title }));
 }
 
+export const isReverted = (merge: IssueMerge): boolean => merge.reverted.length > 0;
+
+export function unrevertedMerges(merges: IssueMerge[]): IssueMerge[] {
+  return merges.filter((merge) => !isReverted(merge));
+}
+
 export function featureLine(feature: Feature): string {
   return `#${feature.issue} ${feature.title}`;
 }

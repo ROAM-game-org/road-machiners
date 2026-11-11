@@ -47,6 +47,12 @@ describe('next release features', () => {
     const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), merge(8, 'Also')] };
     expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }, { issue: 8, title: 'Also' }]);
   });
+  it('leaves out a reverted merge and lists an issue merged twice once, so the count is the changes that ship', () => {
+    const reverted = { ...merge(891, 'Reverted'), reverted: ['dev'] };
+    const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), reverted, { ...merge(7, 'Included again'), sha: 'b'.repeat(40) }, merge(8, 'Also')] };
+    expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included again' }, { issue: 8, title: 'Also' }]);
+    expect(state.devMerges).toHaveLength(4);
+  });
   it('lists the dev merges while a release is open, since they ship with the next candidate', () => {
     const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), merge(9, 'Later')], release: release({}) };
     expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }, { issue: 9, title: 'Later' }]);

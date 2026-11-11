@@ -29,7 +29,7 @@ From `factory/`:
 - CPU, container CPU, memory, GPU and disk readings are whole-host percentages. A reading that fails or is not supported shows as unavailable.
 - A pause shows as a banner in danger ink from the pause file. Raw pause notes never leave the server.
 - The GitHub source has two parts: board cards and the merge queue. Each part carries its value or its error, so one failed read blanks only its own panel. The full error goes only to `logs/dashboard.log`.
-- Next release lists the merge records in factory state: the open release's merges minus its removals, or the merges into dev since the last cut when no release is open. It shows unavailable until the tick has filled the records once.
+- Next release lists the merge records in factory state: the open release's merges minus its removals, or the merges into dev since the last cut when no release is open. A reverted merge is left out, and an issue merged twice is one change. It shows unavailable until the tick has filled the records once.
 - The Queues table shows each worker queue with its busy slots, its cards waiting to start and why they wait. A card the scheduler reports twice for one stage counts once. The tooltip on a reason lists its cards. A queue that is full while cards wait shows its busy count in bright ink.
 - The merge queue lists the public Merging cards: the running batch first, then the cards the next batch takes in board order, then stuck and held cards.
 - While `DASHBOARD_HIDE_TELEGRAM=1`, the API returns no channel link or posts.

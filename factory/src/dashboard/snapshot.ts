@@ -6,7 +6,7 @@ import { ghClient } from '../github';
 import { must } from '../exec';
 import { readPause } from '../pause';
 import { readState } from '../state';
-import { toFeatures, type Feature } from '../stages/release-common';
+import { toFeatures, unrevertedMerges, type Feature } from '../stages/release-common';
 import { LABELS, type Labels } from './labels';
 import { createWorkerKey, readLiveOperations } from './live';
 import { ADHOC_LABEL, QUEUE_OF, STUCK_LABEL } from '../types';
@@ -47,7 +47,7 @@ function getPublicIssue(stage: string, issue: number | null): number | null {
   return stage === 'adhoc' ? null : issue;
 }
 function readNextFeatures(state: FactoryState): Feature[] {
-  return toFeatures(state.devMerges);
+  return toFeatures(unrevertedMerges(state.devMerges));
 }
 function getFactoryStatus(state: FactoryState, paused: boolean): string {
   if (paused) return 'paused';

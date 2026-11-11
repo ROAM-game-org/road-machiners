@@ -18,7 +18,7 @@ import { repairClone } from './repair-clone';
 import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
-import { candidateWanted } from './stages/release-common';
+import { candidateWanted, unrevertedMerges } from './stages/release-common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
 import { carriedIssues, offeredIssues } from './stages/bundle';
 import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
@@ -470,7 +470,7 @@ const AWAITING_RELEASE: Column[] = ['Approval', 'Hardening', 'Merging'];
 
 function unreleasedIssues(state: FactoryState, cards: Card[]): number[] {
   const onBoard = cards.filter((card) => AWAITING_RELEASE.includes(card.column)).map((card) => card.issue);
-  const merged = state.devMerges.map((merge) => merge.issue);
+  const merged = unrevertedMerges(state.devMerges).map((merge) => merge.issue);
   return [...onBoard, ...merged];
 }
 

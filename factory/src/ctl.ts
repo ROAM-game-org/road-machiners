@@ -9,6 +9,7 @@ import { clearStuck } from './stuck';
 import { MOVE_TARGETS, causeText, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { resetSpend } from './landing-work';
 import { bundleOf } from './stages/bundle';
+import { isReverted, unrevertedMerges } from './stages/release-common';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
 import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
@@ -121,7 +122,6 @@ async function repairCloneCommand(ctx: Ctx, args: string[]): Promise<void> {
   for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge, refuseUnpushed: false })) console.log(line);
 }
 
-// These values start a playtest or stand for its pass, and a pass makes a release candidate. Only the owner sets them, while anyone may clear them.
 const PLAYTEST_PATHS = ['pendingPlaytest', 'release.playtest.passed', 'release.playtest.work'];
 
 function startsPlaytest(path: string, json: string | undefined): boolean {
@@ -278,7 +278,8 @@ function releaseQueueLines(state: FactoryState): string[] {
     `playtest ordered: ${state.pendingPlaytest ?? 'none'}`,
     `cleanup cards due after release: ${state.pendingCleanup ?? 'none'}`,
     `public post: ${publicPost(state.releasePost)}`,
-    `merged into dev, not yet shipped: ${formatMerges(state.devMerges)}`,
+    `merged into dev, not yet shipped: ${formatMerges(unrevertedMerges(state.devMerges))}`,
+    `reverted on dev, never ships: ${formatMerges(state.devMerges.filter(isReverted))}`,
   ];
 }
 
@@ -382,7 +383,6 @@ async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; te
     if (state.release === null) return state;
     const playtest = state.release.playtest;
     blocked = playtest.blocked !== null;
-    // Only a blocked playtest, which an order started, runs again. A retry never orders a new one, since its pass makes a release candidate.
     return { ...state, pendingPlaytest: blocked ? decision.by : state.pendingPlaytest, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
   if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);
