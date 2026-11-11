@@ -5,7 +5,7 @@ import { SKILL_EFFECTS } from '../data/skills';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, fuelTopSpeed, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
+import { advanceFar, FarCombatMotion, fuelLimit, fuelLimited, fuelTopSpeed, isNear, lowFuelSpeed, moveFarCombat, plainFuelSpeed, settleWoken } from './far';
 import { LIVE_REACH, setHeadless } from './fidelity';
 import { perfSnapshot, resetPerf } from '../perf';
 import { getResources } from './resources';
@@ -471,6 +471,35 @@ describe('far travel contact', () => {
     expect(mover.pos.x).toBeGreaterThan(inWay.pos.x);
     expect(mover.order).toBeNull();
     expect(dist(mover.pos, parked.pos)).toBeGreaterThanOrEqual(vehicleStats(w, mover).radius + vehicleStats(w, parked).radius);
+  });
+
+  it('routes a far NPC bound for a parked truck as often in a turn of combat steps as in a whole turn', () => {
+    const bound = () => {
+      const { w, mover } = far();
+      mover.brain = npcBrain('trader', mover.pos, ['trader']);
+      addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 160, y: 120 });
+      mover.order = { kind: 'stopAt', dest: { x: 160, y: 120 } };
+      return { w, mover };
+    };
+    const routesDuring = (move: () => void) => {
+      const before = perfSnapshot().route?.calls ?? 0;
+      move();
+      return (perfSnapshot().route?.calls ?? 0) - before;
+    };
+    const whole = bound();
+    const stepped = bound();
+    const steps = Math.round(PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+
+    const wholeRoutes = routesDuring(() => advanceFar(whole.w, whole.mover));
+    const steppedRoutes = routesDuring(() => {
+      const motion = new FarCombatMotion(stepped.w, [stepped.mover]);
+      for (let step = 1; step < steps; step++) motion.at(step / steps);
+      motion.finish();
+    });
+
+    expect(wholeRoutes).toBe(1);
+    expect(steppedRoutes).toBe(wholeRoutes);
+    expect(stepped.mover.pos.x).toBeCloseTo(whole.mover.pos.x, 0);
   });
 
   it('a far NPC that drives through trucks never ends its move inside one', () => {
