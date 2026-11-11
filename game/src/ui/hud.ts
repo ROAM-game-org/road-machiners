@@ -319,22 +319,30 @@ export class Hud {
 
   private growForDrawing(top: number, slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
-    const wider = need.width - this.inspectedDraw.clientWidth;
-    const listed = this.infoColumn.querySelector(".hitcard") !== null;
-    const width = wider > 0 ? this.info.offsetWidth + (listed ? 2 * wider : wider) : this.info.offsetWidth;
-    if (wider > 0) {
-      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
-      this.inspectedDraw.style.flexBasis = `${need.width - Math.max(width - this.info.offsetWidth, 0)}px`;
-    }
+    this.growHeightForDrawing(top, slot, need.height);
+    const reach = Math.min(1, this.inspectedDraw.clientHeight / need.height);
+    this.growWidthForDrawing(need.width * reach);
+  }
+
+  private growHeightForDrawing(top: number, slot: number, needed: number): void {
     if (phoneMode()) {
-      const fits = slot - this.inspectedDraw.clientHeight + need.height;
+      const fits = slot - this.inspectedDraw.clientHeight + needed;
       this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
       return;
     }
     const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
-    const fits = tallest - this.inspectedDraw.clientHeight + need.height;
+    const fits = tallest - this.inspectedDraw.clientHeight + needed;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
+  }
+
+  private growWidthForDrawing(needed: number): void {
+    const wider = needed - this.inspectedDraw.clientWidth;
+    if (wider <= 0) return;
+    const listed = this.infoColumn.querySelector(".hitcard") !== null;
+    const width = this.info.offsetWidth + (listed ? 2 * wider : wider);
+    this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+    this.inspectedDraw.style.flexBasis = `${needed - Math.max(width - this.info.offsetWidth, 0)}px`;
   }
 
   private growForLists(top: number): void {
