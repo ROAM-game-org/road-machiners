@@ -43,7 +43,7 @@ function sideMiddle(half: Body['half'], look: typeof TRUCK_LOOK): number {
 
 export function cutFace(mesh: THREE.Mesh): CutFace {
   if (mesh.userData.outline) return 'plain';
-  return mesh.userData.surface === 'ram' ? 'capped' : 'striped';
+  return mesh.userData.surface === 'armor' ? 'striped' : 'capped';
 }
 
 function wheelCut(box: THREE.Box3, look: typeof TRUCK_LOOK): WheelCut {
@@ -119,7 +119,7 @@ const VERTEX_DECLARE = 'varying vec3 vCutPos;';
 const VERTEX_SET = 'vCutPos = transformed;';
 const FRAGMENT_DECLARE = `varying vec3 vCutPos;
 uniform vec4 cutWheelAt[CUT_WHEELS];
-uniform float cutWheelHalfWidth[CUT_WHEELS];
+uniform vec4 cutWheelHalfWidth[(CUT_WHEELS + 3) / 4];
 uniform vec3 cutLampMin[CUT_LAMPS];
 uniform vec3 cutLampMax[CUT_LAMPS];
 uniform sampler2D cutTop;
@@ -140,7 +140,7 @@ float cutTopHeight(vec3 p) {
   return mix(low, high, f.y);
 }`;
 const FRAGMENT_DISCARD = `for (int i = 0; i < CUT_WHEELS; i++) {
-  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i]) discard;
+  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i / 4][i % 4]) discard;
 }
 for (int i = 0; i < CUT_LAMPS; i++) {
   if (all(greaterThan(vCutPos, cutLampMin[i])) && all(lessThan(vCutPos, cutLampMax[i]))) discard;
@@ -161,6 +161,10 @@ function padded<T>(values: T[], slots: number, empty: () => T, what: string): T[
   return [...values, ...Array.from({ length: slots - values.length }, empty)];
 }
 
+function packedByFour(values: number[]): THREE.Vector4[] {
+  return Array.from({ length: Math.ceil(values.length / 4) }, (_, row) => new THREE.Vector4(...[0, 1, 2, 3].map((k) => values[row * 4 + k] ?? 0)));
+}
+
 function uniformsOf(spec: CutSpec): CutUniforms {
   const known = uniformsOfSpec.get(spec);
   if (known) return known;
@@ -168,7 +172,7 @@ function uniformsOf(spec: CutSpec): CutUniforms {
   const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamps');
   const uniforms: CutUniforms = {
     cutWheelAt: { value: wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) },
-    cutWheelHalfWidth: { value: wheels.map((w) => w.halfWidth) },
+    cutWheelHalfWidth: { value: packedByFour(wheels.map((w) => w.halfWidth)) },
     cutLampMin: { value: lamps.map((b) => b.min.clone()) },
     cutLampMax: { value: lamps.map((b) => b.max.clone()) },
     cutTop: { value: spec.top.texture },

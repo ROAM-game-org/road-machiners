@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { TERRAIN_TYPES } from "../../data/terrain";
 import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
-import { PATCH_UNIT } from "../../render/highwayWear";
+import { CENTER_GAP, HALF as WEAR_HALF, LINE_HALF, WEAR_NEUTRAL } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
 import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
@@ -16,7 +16,7 @@ import { injectAfter } from "./shaderPatch";
 import { TUNING } from "./inkTuning";
 
 const S = PHYSICS.metersPerTile;
-const OWNER = "The drawn ground";
+const OWNER = "drawn-ground";
 const DIRT_UNDER = TERRAIN_TYPES.track.color;
 const DIRT_EDGE = 0.44;
 const DIRT_BLEND = 0.12;
@@ -37,7 +37,16 @@ const GLASS_BASE = mix(TERRAIN_TYPES.glass.color, PAL.sand[3], 0.07);
 const GLASS_DUST = mix(PAL.glass.top, 0xb9a47c, 0.6);
 const GLASS_SEAM_COLOR = mix(PAL.glass.top, 0xffffff, 0.45);
 const WEAR_YELLOW = mix(0xd9a93a, PAL.sand[3], 0.2);
-const WEAR_TEAR_FROM = 0.92;
+const WEAR_RIM_FROM = 0.925;
+const WEAR_RIM_WANDER = 0.25;
+const WEAR_PAINT_FROM = 0.109;
+const WEAR_SAND_MIX_FROM = 0.765;
+const WEAR_SAND_FULL_FROM = 0.965;
+const WEAR_SAND_MIX = 0.35;
+const WEAR_DARK = 0.82;
+const WEAR_LIGHT = 1.34;
+const WEAR_PATCH_EDGE = 0.5 * (WEAR_NEUTRAL - 1) / 255;
+const WEAR_EDGE_AA = 0.75;
 const PAD_WEAR = { gapCells: 1.8, gapFrom: 0.7, chipCells: 5.5, chipFrom: 0.7, fillCells: 6, fillFrom: 0.8, soft: 0.05 };
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
@@ -242,24 +251,42 @@ function lookUniforms() {
 }
 
 function materialUniforms() {
-  const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
-  const own = rows.map((row) => lightness(new THREE.Color(row.color)));
-  const sand = lightness(new THREE.Color(groundMaterial("sand").color));
   return {
-    drawnMaterialColor: { value: rows.map((row) => new THREE.Color(row.color)) },
-    drawnMaterialLightness: { value: own },
-    drawnMaterialLiftTo: { value: GROUND_MATERIAL_IDS.map((id, k) => (KEEPS_OWN_TONE.has(id) ? own[k] : Math.max(own[k], sand))) },
-    drawnMaterialSettles: { value: GROUND_MATERIAL_IDS.map((id) => (KEEPS_OWN_TONE.has(id) ? 0 : 1)) },
-    drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
-    drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
-    drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
-    drawnMaterialFine: { value: rows.map((row) => EDGE_LOOKS[row.edge].fine) },
-    drawnMaterialGrit: { value: rows.map((row) => EDGE_LOOKS[row.edge].grit) },
-    drawnMaterialSpill: { value: rows.map((row) => row.spill) },
-    drawnMaterialStand: { value: rows.map((row) => row.stand) },
     drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
     drawnFarTint: { value: new THREE.Color(PAL.sandFar) },
   };
+}
+
+function glslFloat(value: number): string {
+  return Number.isInteger(value) ? value.toFixed(1) : String(value);
+}
+
+function constantTable(name: string, type: "float" | "vec3", values: readonly string[]): string {
+  return `const ${type} ${name}[${values.length}] = ${type}[${values.length}](${values.join(", ")});`;
+}
+
+function materialConstants(): string {
+  const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
+  const own = rows.map((row) => lightness(new THREE.Color(row.color)));
+  const sand = lightness(new THREE.Color(groundMaterial("sand").color));
+  const floats = (name: string, values: readonly number[]) => constantTable(name, "float", values.map(glslFloat));
+  const colors = rows.map((row) => {
+    const c = new THREE.Color(row.color);
+    return `vec3(${glslFloat(c.r)}, ${glslFloat(c.g)}, ${glslFloat(c.b)})`;
+  });
+  return [
+    constantTable("drawnMaterialColor", "vec3", colors),
+    floats("drawnMaterialLightness", own),
+    floats("drawnMaterialLiftTo", GROUND_MATERIAL_IDS.map((id, k) => (KEEPS_OWN_TONE.has(id) ? own[k] : Math.max(own[k], sand)))),
+    floats("drawnMaterialSettles", GROUND_MATERIAL_IDS.map((id) => (KEEPS_OWN_TONE.has(id) ? 0 : 1))),
+    floats("drawnMaterialMark", rows.map((row) => MARK_KINDS.indexOf(row.mark))),
+    floats("drawnMaterialWave", rows.map((row) => EDGE_LOOKS[row.edge].wave)),
+    floats("drawnMaterialPepper", rows.map((row) => EDGE_LOOKS[row.edge].pepper)),
+    floats("drawnMaterialFine", rows.map((row) => EDGE_LOOKS[row.edge].fine)),
+    floats("drawnMaterialGrit", rows.map((row) => EDGE_LOOKS[row.edge].grit)),
+    floats("drawnMaterialSpill", rows.map((row) => row.spill)),
+    floats("drawnMaterialStand", rows.map((row) => row.stand)),
+  ].join("\n");
 }
 
 function markIndex(mark: MarkKind): number {
@@ -332,22 +359,12 @@ uniform float groundTileMeters;
 #ifdef GROUND_LANDFORMS
 uniform sampler2D groundLandforms;
 #endif
-uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialLightness[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialLiftTo[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialContrast;
-uniform float drawnMaterialSettles[${GROUND_MATERIAL_IDS.length}];
+${materialConstants()}
 uniform sampler2D groundSurround;
 uniform float groundSurroundMeters;
 uniform float drawnSurroundBlend;
 uniform float drawnFarMarks;
-uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialFine[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialGrit[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnEdgeShadowAmount;
 uniform float drawnEdgeShadowWidth;
 uniform float drawnDetailPx;
@@ -365,30 +382,35 @@ uniform sampler2D highwayWear;
 uniform float wearBaseLuma;
 uniform vec3 wearYellow;
 uniform vec3 wearSand;
-float wearHash(float a, float k) {
-  return fract(a * 255.0 * k + 0.31);
+float wearStep(float value, float edge) {
+  float soft = max(fwidth(value), 0.0001) * ${WEAR_EDGE_AA};
+  return smoothstep(edge - soft, edge + soft, value);
 }
-vec3 wearPaint(vec3 color, vec4 wear, vec4 roadLook, float wander) {
-  float yellow = floor(wear.r * 255.0 + 0.5) / 15.0;
-  float paintHash = wearHash(roadLook.a, 0.618034);
+float wearAcross(vec4 wear) {
+  return (wear.b - 0.5) * 2.0 * ${WEAR_HALF.toFixed(2)};
+}
+vec3 wearPaint(vec3 color, vec4 wear, float wander) {
+  float across = wearAcross(wear);
+  float soft = max(fwidth(across), 0.0001) * ${WEAR_EDGE_AA};
+  float stripe = 1.0 - smoothstep(${LINE_HALF.toFixed(2)} - soft, ${LINE_HALF.toFixed(2)} + soft, abs(abs(across) - ${CENTER_GAP.toFixed(2)}));
   vec3 paintShade = vec3(0.82 + 0.18 * wander);
-  if (yellow > 0.0 && paintHash <= yellow) color = wearYellow * paintShade;
-  return color;
+  return mix(color, wearYellow * paintShade, stripe * wearStep(wear.r, ${WEAR_PAINT_FROM}));
 }
-vec3 wearPatch(vec3 color, vec4 wear, vec4 roadLook) {
-  float kind = floor(wear.a * 255.0 / ${PATCH_UNIT}.0 + 0.5);
-  float show = (kind == 2.0 || kind == 4.0) ? step(0.5, wearHash(roadLook.a, 0.754878)) : 1.0;
-  if (kind == 1.0) return color * 0.8;
-  if (kind == 2.0 || kind == 3.0) return color * mix(1.0, 0.82, show);
-  if (kind >= 4.0) return color * mix(1.0, 1.34, show);
-  return color;
+vec3 wearPatch(vec3 color, vec4 wear) {
+  float field = wear.a - ${(WEAR_NEUTRAL / 255).toFixed(5)};
+  float dark = wearStep(-field, ${WEAR_PATCH_EDGE.toFixed(5)});
+  float light = wearStep(field, ${WEAR_PATCH_EDGE.toFixed(5)});
+  return color * mix(1.0, ${WEAR_DARK}, dark) * mix(1.0, ${WEAR_LIGHT}, light);
 }
-vec3 wearSandOver(vec3 color, vec4 wear, vec4 roadLook, float wander) {
-  float sandHash = wearHash(roadLook.a, 0.569840);
+vec3 wearSandOver(vec3 color, vec4 wear, float wander) {
   vec3 sand = wearSand * (0.92 + 0.12 * wander);
-  if (sandHash < wear.g) return sand;
-  if (wear.g > 0.0 && sandHash < wear.g + 0.2) return mix(color, sand, 0.35);
-  return color;
+  color = mix(color, sand, ${WEAR_SAND_MIX} * wearStep(wear.g, ${WEAR_SAND_MIX_FROM}));
+  return mix(color, sand, wearStep(wear.g, ${WEAR_SAND_FULL_FROM}));
+}
+vec3 wearRim(vec3 color, vec4 wear, float wander) {
+  float edge = ${WEAR_RIM_FROM} + (wander - 0.5) * ${WEAR_RIM_WANDER} / ${WEAR_HALF.toFixed(2)};
+  vec3 sand = wearSand * (0.92 + 0.12 * wander);
+  return mix(color, sand, wearStep(abs(wear.b - 0.5) * 2.0, edge));
 }
 #endif
 `;
@@ -656,6 +678,9 @@ float drawnCrackEdge(vec2 p) {
 float drawnCracks(vec2 p, float cell, float px) {
   return drawnLine(drawnCrackEdge(p / cell) * cell, 0.03, px) * step(0.42, valueNoise(p / (cell * 0.6)));
 }
+float drawnAsphaltCracks(vec2 p, float px) {
+  return drawnCracks(p + 13.0, ${DRAWN_ROAD_CRACK_CELL.toFixed(1)}, px) * step(0.62, valueNoise(p / 14.0));
+}
 float drawnPuddles(vec2 p) {
   float wet = valueNoise(p / ${DRAWN_PUDDLE_SIZE.toFixed(1)} + 91.0) * 0.75 + valueNoise(p / ${(DRAWN_PUDDLE_SIZE * 0.35).toFixed(2)} + 97.0) * 0.25;
   float aa = max(fwidth(wet), 0.002);
@@ -913,7 +938,7 @@ const MARKS_BODY = `
   float drawnOffRoad = 1.0 - roadIn;
   float drawnZoomed = 1.0 - smoothstep(${DRAWN_MARK_FADE_FROM.toFixed(2)}, ${DRAWN_MARK_FADE_TO.toFixed(2)}, drawnDetailPx);
   float drawnRoadCrack = 0.0;
-  if (roadIn > 0.0) drawnRoadCrack = drawnCracks(vRoadXZ + 13.0, ${DRAWN_ROAD_CRACK_CELL.toFixed(1)}, drawnPx) * step(0.62, valueNoise(vRoadXZ / 14.0)) * roadIn;
+  if (roadIn > 0.0) drawnRoadCrack = drawnAsphaltCracks(vRoadXZ, drawnPx) * roadIn;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnRoadCrack;
   int drawnMark = int(drawnMaterialMark[drawnMaterial] + 0.5);
   vec3 drawnFaceNormal = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
@@ -963,11 +988,11 @@ const BAND_BODY = `
     float grain = dot(roadLook.rgb, vec3(0.299, 0.587, 0.114)) / wearBaseLuma;
     vec3 worn = asphaltColor * (0.94 + 0.12 * roadWander) * (1.0 + (grain - 1.0) * ${WEAR_GRAIN.toFixed(1)});
     worn = mix(worn, wearSand, ${WEAR_DUST} + 0.1 * roadWander);
-    worn = wearPatch(worn, wear, roadLook);
-    worn = wearPaint(worn, wear, roadLook, roadWander);
-    worn = wearSandOver(worn, wear, roadLook, roadWander);
-    float tear = smoothstep(${WEAR_TEAR_FROM}, 1.0, wear.b * 255.0 / 254.0) * 0.6;
-    if (wearHash(roadLook.a, 0.381966) < tear) worn = wearSand * (0.92 + 0.12 * roadWander);
+    worn = wearPatch(worn, wear);
+    worn *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnAsphaltCracks(vRoadXZ, drawnPx);
+    worn = wearPaint(worn, wear, roadWander);
+    worn = wearSandOver(worn, wear, roadWander);
+    worn = wearRim(worn, wear, roadWander);
     diffuseColor.rgb = mix(diffuseColor.rgb, worn, bandCover);
   }
 #else

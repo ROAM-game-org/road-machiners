@@ -199,6 +199,7 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
+  private inspectedOther = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -267,8 +268,8 @@ export class Hud {
     const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
     this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
-    if (this.inspectedAimable) this.growForAim(top, slot);
-    if (!phoneMode()) this.growForLists(top);
+    if (this.inspectedAimable) this.growForAim(slot);
+    this.fillToFloor(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
@@ -317,7 +318,7 @@ export class Hud {
     return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
   }
 
-  private growForAim(top: number, slot: number): void {
+  private growForAim(slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
     const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
@@ -328,18 +329,10 @@ export class Hud {
       return;
     }
     if (wider > 0) this.info.style.width = `${width}px`;
-    const tallest = this.sideFloor(this.info) - top;
-    this.info.style.height = `${tallest}px`;
-    const fits = tallest - this.inspectedDraw.clientHeight + need.height;
-    this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
   }
 
-  private growForLists(top: number): void {
-    const lists = this.infoColumn.querySelector<HTMLElement>(".hitcard");
-    const over = lists ? lists.scrollHeight - lists.clientHeight : 0;
-    if (over <= 0) return;
-    const tallest = this.sideFloor(this.info) - top;
-    this.info.style.height = `${Math.min(tallest, this.info.offsetHeight + over)}px`;
+  private fillToFloor(top: number): void {
+    if (this.inspectedOther && !phoneMode()) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
   }
 
   private coverUnder(bottom: number | null): void {
@@ -807,6 +800,7 @@ export class Hud {
     }
     const aim = this.aimOf(w, v);
     this.inspectedAimable = aim !== undefined;
+    this.inspectedOther = !isPlayerTruck(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(

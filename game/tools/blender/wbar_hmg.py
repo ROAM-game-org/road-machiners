@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_weapon import run, tube  # noqa: E402
 
 SEED = 118
@@ -23,7 +24,7 @@ def build(kit: Kit) -> None:
     for i, x in enumerate((0.19, 0.32, 0.45, 0.58, 0.71)):
         tube(kit, f"slot_band{i}", 0.07, x, x + 0.05, "dark")
     tube(kit, "barrel", 0.025, 0.86, 1.0, "metal_light", sides=6)
-    tube(kit, "muzzle_ring", 0.045, 0.95, 1.0, "dark")
+    tube(kit, "muzzle_ring", 0.045, 0.95, 1.0 - PROUD, "dark")
     kit.socket("tip", (1.0, 0, 0))
 
 

@@ -18,7 +18,7 @@ import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { bottomOf, heldBoxes, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, strut, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
-import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic, partTone, WORLD_LOOKS, wornTone } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, isToned, mergeStatic, partTone, WORLD_LOOKS, wornTone } from './truckMesh';
 import { armorModel, cutFace, cutSpec, cutToBody, drawnArmorPlacement, lampIslands, poseArmor, unitTopCut, withCut, type CutSpec } from './armorCut';
 import { fitInto } from './engineFit';
 import { hashStr } from '../../render/noise';
@@ -1049,7 +1049,8 @@ function tint(obj: THREE.Object3D, paint: number, look: Look, keepOut: PartBox[]
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Part mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    mat.color.setHex(wornTone(mat.name, partTone(mat.name, mat.color.getHex(), paint, look.partId !== null), look.step, look.broken));
+    const base = isToned(mat) ? mat.color.getHex() : partTone(mat.name, mat.color.getHex(), paint, look.partId !== null);
+    mat.color.setHex(wornTone(mat.name, base, look.step, look.broken));
     if (look.partId) o.userData.partId = look.partId;
   });
   if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step, { top: false, keepOut });

@@ -102,7 +102,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 <!-- wiki:weapon-pools -->
 | weapon | mount | receiver | barrel | extra |
 | --- | --- | --- | --- | --- |
-| mg | wmount_ring_small, wmount_pintle | wrec_mg_a, wrec_mg_b | wbar_mg_short |  |
+| mg | wmount_ring_small, wmount_pintle | wrec_mg_a, wrec_mg_b | wbar_mg |  |
 | shotgun | wmount_ring_small, wmount_pintle | wrec_shotgun | wbar_shotgun | wext_shield |
 | autocannon | wmount_ring_wide | wrec_autocannon | wbar_autocannon | wext_box_mag |
 | cannon | wmount_cradle | wrec_cannon | wbar_cannon | wext_shield |

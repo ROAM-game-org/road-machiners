@@ -261,7 +261,10 @@ describe('broken part look', () => {
   function partColors(view: VehicleView, partId: string): THREE.Color[] {
     const found: THREE.Color[] = [];
     view.root.traverse((o) => {
-      if (o instanceof THREE.Mesh && o.userData.partId === partId && o.material instanceof THREE.MeshLambertMaterial) found.push(o.material.color.clone());
+      if (!(o instanceof THREE.Mesh && o.userData.partId === partId && o.material instanceof THREE.MeshLambertMaterial)) return;
+      const tint = o.geometry.getAttribute('color');
+      if (!o.material.vertexColors || !tint) return void found.push(o.material.color.clone());
+      for (let i = 0; i < tint.count; i++) found.push(new THREE.Color(tint.getX(i), tint.getY(i), tint.getZ(i)));
     });
     return found;
   }

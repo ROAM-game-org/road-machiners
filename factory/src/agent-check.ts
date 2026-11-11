@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { CLONE_ROUNDS, HOST_ONLY_CHECKS, checkClone } from './clone-checks';
-import { guardDiff } from './diff-guard';
+import { guardAgainstAll, type Side } from './diff-guard';
 
 export const GUARD_ROUND = 'guard';
 const USAGE = `Usage: factory-check <${[...CLONE_ROUNDS, GUARD_ROUND].join('|')}>, run from your folder after your last commit`;
@@ -26,10 +26,20 @@ function runRound(cwd: string, print: (line: string) => void): number {
 
 const DIFF_BUFFER_BYTES = 256 * 1024 * 1024;
 
+function stagedSide(cwd: string, against: string): Side {
+  const staged = (args: string[]): string => execFileSync('git', ['diff', '--cached', ...args, against], { cwd, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
+  return { files: staged(['--name-only', '--no-renames', '-z']).split('\0').filter(Boolean), diff: staged([]) };
+}
+
+function mergeHead(cwd: string): string | null {
+  const result = spawnSync('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
 function runGuard(cwd: string, print: (line: string) => void): number {
   try {
-    const staged = (args: string[]): string => execFileSync('git', ['diff', '--cached', ...args], { cwd, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
-    guardDiff({ files: staged(['--name-only', '--no-renames', '-z']).split('\0').filter(Boolean), diff: staged([]) });
+    const merging = mergeHead(cwd);
+    guardAgainstAll([stagedSide(cwd, 'HEAD'), ...(merging === null ? [] : [stagedSide(cwd, merging)])]);
     return 0;
   } catch (error) {
     print(`The factory refuses this commit: ${error instanceof Error ? error.message : String(error)}`);

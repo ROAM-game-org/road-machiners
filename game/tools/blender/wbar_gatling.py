@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_weapon import run, tube  # noqa: E402
 
 SEED = 119
@@ -22,7 +23,7 @@ BARREL_RING = 0.07
 
 def build(kit: Kit) -> None:
     tube(kit, "drum", 0.12, 0.0, 0.18, "metal_light")
-    tube(kit, "hub", 0.04, 0.18, 0.86, "dark")
+    tube(kit, "hub", 0.04, 0.18, 0.86 + PROUD, "dark")
     for i in range(6):
         a = math.tau * i / 6
         tube(kit, f"barrel{i}", 0.025, 0.18, 0.9, "metal", y=BARREL_RING * math.cos(a), z=BARREL_RING * math.sin(a), sides=6)

@@ -5,15 +5,15 @@ const rand = (spread: number) => (Math.random() - 0.5) * spread;
 const vary = (base: number, spread: number) => base * (1 - spread / 2 + Math.random() * spread);
 
 export const EMISSION_LOOK = {
-  exhaust: { life: 0.7, size: { from: 0.15, to: 0.6 }, colors: [0x3c3935, 0x57524c], alpha: { peak: 0.4, fadeIn: 0.12 }, drag: 1.4, gravity: -0.5, streak: 0, form: 'haze' },
+  exhaust: { life: 0.7, size: { from: 0.15, to: 0.6 }, colors: [0x3c3935, 0x57524c], alpha: { peak: 0.4, fadeIn: 0.12 }, drag: 1.4, gravity: -0.5, streak: 0, form: 'haze', smoke: true },
   exhaustJet: { back: 0.9, side: 0.4, up: { min: 1.0, spread: 0.8 } },
-  steam: { life: 1.5, size: { from: 0.3, to: 1.5 }, colors: [0xf6f3ec, 0xffffff], alpha: { peak: 0.55, fadeIn: 0.12 }, drag: 0.7, gravity: -1.3, streak: 0, form: 'cloud' },
+  steam: { life: 1.5, size: { from: 0.3, to: 1.5 }, colors: [0xf6f3ec, 0xffffff], alpha: { peak: 0.55, fadeIn: 0.12 }, drag: 0.7, gravity: -1.3, streak: 0, form: 'cloud', smoke: true },
   steamJet: { side: 0.6, up: { min: 1.8, spread: 1.0 } },
-  douse: { life: 2.3, size: { from: 0.8, to: 3.6 }, colors: [0xffffff, 0xeeece6], alpha: { peak: 0.85, fadeIn: 0.1 }, drag: 1.3, gravity: -0.3, streak: 0, form: 'cloud' },
+  douse: { life: 2.3, size: { from: 0.8, to: 3.6 }, colors: [0xffffff, 0xeeece6], alpha: { peak: 0.85, fadeIn: 0.1 }, drag: 1.3, gravity: -0.3, streak: 0, form: 'cloud', smoke: true },
   douseJet: { side: 3.2, up: { min: 1.4, spread: 1.6 } },
-  breakdown: { life: 3.4, size: { from: 0.7, to: 2.8 }, colors: [0x2a2724, 0x45403b], alpha: { peak: 0.85, fadeIn: 0.1 }, drag: 0.7, gravity: -0.55, streak: 0, form: 'cloud' },
+  breakdown: { life: 3.4, size: { from: 0.7, to: 2.8 }, colors: [0x2a2724, 0x45403b], alpha: { peak: 0.85, fadeIn: 0.1 }, drag: 0.7, gravity: -0.55, streak: 0, form: 'cloud', smoke: true },
   breakdownJet: { side: 0.35, up: { min: 1.2, spread: 0.7 }, lean: 0.45 },
-  hurt: { life: 2.2, size: { from: 0.45, to: 1.9 }, alpha: { peak: 0.6, fadeIn: 0.12 }, drag: 1.0, gravity: -0.4, streak: 0, form: 'cloud' },
+  hurt: { life: 2.2, size: { from: 0.45, to: 1.9 }, alpha: { peak: 0.6, fadeIn: 0.12 }, drag: 1.0, gravity: -0.4, streak: 0, form: 'cloud', smoke: true },
   hurtJet: { side: 0.5, up: { min: 0.8, spread: 0.6 } },
   hurtGrowth: 0.6,
   billowSpread: 0.9,
@@ -23,9 +23,11 @@ export const EMISSION_LOOK = {
     [0x5e5953, 0x3a3631],
     [0x3a3632, 0x26231f],
   ],
-  missile: { life: 1.9, size: { from: 0.25, to: 1.25 }, colors: [0xb4aea4, 0x8a8278], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.6, gravity: -0.15, streak: 0, form: 'cloud' },
+  missile: { life: 1.9, size: { from: 0.25, to: 1.25 }, colors: [0xb4aea4, 0x8a8278], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.6, gravity: -0.15, streak: 0, form: 'cloud', smoke: true },
   missileJet: { side: 0.5, up: { min: 0.2, spread: 0.3 }, keep: 0.6 },
-  nozzle: { life: 0.13, size: { from: 0.55, to: 0.2 }, colors: [0xffe0a0, 0xff8a30], alpha: { peak: 0.9, fadeIn: 0.15 }, drag: 0, gravity: 0, streak: 0, form: 'round' },
+  nozzle: { life: 0.13, size: { from: 0.55, to: 0.2 }, colors: [0xffe0a0, 0xff8a30], alpha: { peak: 0.9, fadeIn: 0.15 }, drag: 0, gravity: 0, streak: 0, form: 'round', burns: true },
+  flamer: { life: 0.4, size: { from: 0.3, to: 0.9 }, colors: [0xffd070, 0xff7a20, 0xa02a0a], alpha: { peak: 0.9, fadeIn: 0.1 }, drag: 2, gravity: -1.5, streak: 0.05, form: 'cloud', burns: true, onlyIn: 'inkOn' },
+  flamerJet: { side: 0.6, up: { min: 0.3, spread: 0.6 } },
   dust: { life: 0.9, size: { from: 0.4, to: 1.3 }, colors: [0xd8c098, 0xe4d2b0], alpha: { peak: 0.6, fadeIn: 0.1 }, drag: 1.2, gravity: -0.2, streak: 0, form: 'clump' },
   dustJet: { side: 1.2, up: { max: 0.6 } },
 } as const;
@@ -75,6 +77,11 @@ export class Emissions {
     const vel = { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) };
     this.lit.spawn(p, vel, L.missile, vary(1, 0.4));
     this.glow.spawn(p, { x: 0, y: 0, z: 0 }, L.nozzle, 1);
+  }
+
+  flamer(p: V3): void {
+    const j = L.flamerJet;
+    this.glow.spawn(p, { x: rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: rand(j.side) }, L.flamer, vary(1, 0.4));
   }
 
   dust(p: V3): void {
