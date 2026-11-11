@@ -16,7 +16,7 @@ const isNight = (page) => page.evaluate(async () => {
   return !sunAt(window.__ROAM__.state.turn);
 });
 
-const lightUpNight = (page, mode) => page.evaluate(async ([hour, mode]) => {
+const lightUpNight = (page) => page.evaluate(async (hour) => {
   const cheats = await import('/src/sim/cheats.ts');
   const { NPCS } = await import('/src/data/npcs.ts');
   const { BEAM_CAP } = await import('/src/three/render/daylight.ts');
@@ -34,7 +34,7 @@ const lightUpNight = (page, mode) => page.evaluate(async ([hour, mode]) => {
   for (let i = 0; i <= BEAM_CAP; i++) w = cheats.spawnNear(w, kinds[i % kinds.length], false);
   g.apply({ ...w, player: { ...w.player, headlights: true } });
   return atSite;
-}, [NIGHT_HOUR, mode]);
+}, NIGHT_HOUR);
 
 const groundRows = (page) => page.evaluate(() => window.__gpuRows ?? []);
 
@@ -200,7 +200,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
     if (rows.length === 0) problems.push(`${mode} at ${step}: no ground program rows were measured`);
     for (const p of [...(await unlinkedPrograms(page)), ...(await overFloor(page))]) problems.push(`${mode} at ${step}: ${p}`);
   };
-  const atSite = await lightUpNight(page, mode);
+  const atSite = await lightUpNight(page);
   if (!atSite) console.log(`night ${mode}: site pool not reached, no town gate to stand at`);
   await check('the night peak');
   if (nightTurns > 0) {
@@ -211,7 +211,7 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
   await page.screenshot({ path: shot.replace(/\.png$/, '-restored.png') });
   await reloadPage(page);
   await waitForGame(page, bootLimitMs);
-  if (!(await isNight(page))) await lightUpNight(page, mode);
+  if (!(await isNight(page))) await lightUpNight(page);
   await check('a reload at night');
   await page.screenshot({ path: shot });
   return problems;

@@ -27,10 +27,11 @@ function holdLinksToFloor(floor) {
   ]);
   const uniformRows = (gl, program, source) => {
     const matrices = matrixRows(gl);
+    const samplers = samplerTypes(gl);
     let rows = 0;
     for (let i = 0; i < gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS); i++) {
       const uniform = gl.getActiveUniform(program, i);
-      if (samplerTypes(gl).has(uniform.type)) continue;
+      if (samplers.has(uniform.type)) continue;
       const base = uniform.name.split(/[[.]/)[0];
       if (!new RegExp(`\\b${base}\\b`).test(source)) continue;
       rows += (matrices.get(uniform.type) ?? 1) * uniform.size;
