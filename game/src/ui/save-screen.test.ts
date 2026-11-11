@@ -52,7 +52,7 @@ function open(saves: SlotInfo[]) {
   vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, activeElement: opener });
   vi.stubGlobal("window", Object.assign(new FakeNode("window"), { localStorage: { getItem: () => null, setItem: vi.fn() } }));
   const requests: BootRequest[] = [];
-  const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
+  const actions = { hasAutosave: () => true, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
   const chosen = vi.fn();
   const sound = new SoundSettings({ setBusVolume: vi.fn(), setMuted: vi.fn() } as unknown as Mixer, { getItem: () => null, setItem: vi.fn() } as unknown as Storage);
   void chooseStart(saves, actions, sound, importSave).then(chosen);
