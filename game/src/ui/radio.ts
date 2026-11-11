@@ -6,6 +6,7 @@ import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
 import { claimClue } from '../sim/claims';
 import { claimLookText } from './format';
+import { modeRules } from '../sim/settings';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
 import type { GameEvent, Octant, Vehicle, WeatherEvent, World } from '../sim/types';
@@ -59,6 +60,10 @@ export class RadioStation {
   }
 
   hear(world: World): void {
+    if (!modeRules(world).radio) {
+      this.offAir();
+      return;
+    }
     const prev = this.turn;
     if (prev === null || this.retuned(world, prev)) {
       this.tuneIn(world);
@@ -69,6 +74,12 @@ export class RadioStation {
     this.contractNews(world);
     this.timeCall(prev, world.turn);
     if (this.queue.length === 0 && world.turn - this.lastAir >= RADIO.idleTurns) this.push('wisdom', {}, 'filler');
+  }
+
+  private offAir(): void {
+    this.turn = null;
+    this.seed = null;
+    this.queue = [];
   }
 
   private retuned(world: World, prev: number): boolean {
@@ -268,8 +279,19 @@ export class RadioPanel {
   }
 
   hear(world: World): void {
+    const onAir = modeRules(world).radio;
+    this.root.classList.toggle('off-air', !onAir);
+    if (!onAir) this.silence();
     this.station.hear(world);
     if (!this.streaming) this.play();
+  }
+
+  private silence(): void {
+    this.streaming = null;
+    this.shown = null;
+    this.write('');
+    this.text.setAttribute('aria-busy', 'false');
+    this.text.classList.remove('streaming');
   }
 
   private play(): void {

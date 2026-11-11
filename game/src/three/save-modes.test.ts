@@ -10,7 +10,7 @@ import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { newTimedCombat } from '../sim/timed-combat';
 import { TEST_MAP } from '../test/map';
-import { changeMapIfMoved, loadWorld, mapFor, SaveHold, SAVE_KEY, saveImporter, writeSave, type Run } from './save';
+import { changeMapIfMoved, loadWorld, mapFor, SAVE_KEY, saveImporter, writeSave, type Run } from './save';
 import { RunLog } from './run-log';
 import { takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -131,14 +131,14 @@ describe('the window swap in the game', () => {
     const storage = { getItem: (k: string) => session.get(k) ?? null, setItem: (k: string, v: string) => void session.set(k, v), removeItem: (k: string) => void session.delete(k) } as Storage;
     const reload = vi.fn();
 
-    expect(changeMapIfMoved(run, world, new SaveHold(), storage, reload)).toBe(false);
+    expect(changeMapIfMoved(run, world, storage, reload)).toBe(false);
     expect(takeBootRequest(storage, SAVE_KEY)).toBeNull();
 
     const paid = arrived(world);
-    expect(changeMapIfMoved(run, paid, new SaveHold(), storage, reload)).toBe(false);
+    expect(changeMapIfMoved(run, paid, storage, reload)).toBe(false);
 
     const moved = driveOn(paid);
-    expect(changeMapIfMoved(run, moved, new SaveHold(), storage, reload)).toBe(true);
+    expect(changeMapIfMoved(run, moved, storage, reload)).toBe(true);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
     const logged = await run.slots.readLog('run-1');
     expect(logged.some((r) => r.kind === 'event' && r.t === 'roadOpened' && r.turn === moved.turn)).toBe(true);
@@ -146,19 +146,24 @@ describe('the window swap in the game', () => {
     expect(loadWorld(run.slots, 'auto', TEST_MAP)?.chaosHighway?.window).toBe(1);
   });
 
-  it('refuses to reboot while saves are held', () => {
+  it('refuses a road world that fails the save check and asks for no boot', () => {
     const world = chaosHighwayWorld(21);
     const run = runOn(world);
-    const hold = new SaveHold();
-    hold.noteError();
+    const session = new Map<string, string>();
+    const storage = { getItem: (k: string) => session.get(k) ?? null, setItem: (k: string, v: string) => void session.set(k, v), removeItem: (k: string) => void session.delete(k) } as Storage;
+    const errors: unknown[] = [];
+    run.slots.onError = (err) => errors.push(err);
+    const broken = { ...driveOn(arrived(world)), money: Number.NaN };
 
-    expect(() => changeMapIfMoved(run, driveOn(arrived(world)), hold, {} as Storage, () => {})).toThrow(/held/);
+    expect(() => changeMapIfMoved(run, broken, storage, () => {})).toThrow(/failed the save check/);
+    expect(errors).toHaveLength(1);
+    expect(takeBootRequest(storage, SAVE_KEY)).toBeNull();
   });
 
   it('throws on a map that moved with no road opened', () => {
     const world = chaosHighwayWorld(21);
     const run = runOn(world);
 
-    expect(() => changeMapIfMoved(run, { ...world, mapHash: highwayHash(21, 1) }, new SaveHold(), {} as Storage, () => {})).toThrow(/no road opened/);
+    expect(() => changeMapIfMoved(run, { ...world, mapHash: highwayHash(21, 1) }, {} as Storage, () => {})).toThrow(/no road opened/);
   });
 });

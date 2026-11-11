@@ -293,6 +293,44 @@ describe('RadioStation', () => {
   });
 });
 
+function offAir(turn: number): World {
+  const w = world(turn);
+  w.setup = { ...w.setup, mode: 'chaosHighway' };
+  return w;
+}
+
+describe('RadioStation off air', () => {
+  it('airs nothing in a mode with no radio', () => {
+    const s = new RadioStation(first);
+    let w = offAir(100);
+    s.hear(w);
+    expect(s.next()).toBeNull();
+    for (const events of [[], [heatwave('started')], [storm({ x: 0, y: 0 })]]) {
+      w = later(w, RADIO.idleTurns + 10, events);
+      s.hear(w);
+      expect(s.queued).toBe(0);
+      expect(s.next()).toBeNull();
+    }
+  });
+
+  it('tunes in with the ident once the radio is on again', () => {
+    const s = new RadioStation(first);
+    s.hear(offAir(100));
+    s.hear(world(100));
+    expect(s.next()?.topic).toBe('ident');
+  });
+
+  it('stops what it queued when the radio goes off', () => {
+    const w = world(100);
+    const s = tuned(w);
+    s.hear(later(w, 1, [heatwave('started')]));
+    expect(s.queued).toBeGreaterThan(0);
+    s.hear(offAir(102));
+    expect(s.queued).toBe(0);
+    expect(s.next()).toBeNull();
+  });
+});
+
 const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'hullCompartment', 'cargoPod', 'engineSection'];
 
 describe('radio lines', () => {
