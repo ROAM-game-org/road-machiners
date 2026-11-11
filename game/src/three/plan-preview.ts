@@ -110,6 +110,7 @@ export class PlanPreparation {
     this.answered = true;
     if ("error" in response) reportError(workerError(response.error));
     else {
+      if (response.idle) mergePerf(response.idle);
       mergePerf(response.perf);
       if (this.latest?.id === response.id) this.latest.ready = response.preview;
     }
