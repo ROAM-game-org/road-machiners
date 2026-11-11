@@ -1,6 +1,6 @@
 """Tank gun barrel for the 'tankGun' weapon.
 
-2.0 m long. A thick barrel with two thermal sleeve bands, a painted fume extractor and a plain muzzle ring. Origin
+2.0 m long. A thick barrel with two thermal sleeve bands, a fume extractor and a plain muzzle ring. Origin
 at the rear end, centered in Y and Z, running along +X.
 Run: blender --background --python tools/blender/wbar_tank.py -- public/models/wbar_tank.glb [tmp/wbar_tank.png]
 """
@@ -22,7 +22,7 @@ def build(kit: Kit) -> None:
     tube(kit, "barrel", 0.07, 0.12, 1.92, "metal", dent_by=0.003)
     for i, x in enumerate((0.45, 1.05)):
         tube(kit, f"sleeve_band{i}", 0.078, x, x + 0.06, "dark")
-    tube(kit, "extractor", 0.1, 1.3, 1.56, "paint", dent_by=0.004)
+    tube(kit, "extractor", 0.1, 1.3, 1.56, "metal", dent_by=0.004)
     tube(kit, "muzzle", 0.08, 1.92, 2.0, "dark")
     kit.socket("tip", (2.0, 0, 0))
 

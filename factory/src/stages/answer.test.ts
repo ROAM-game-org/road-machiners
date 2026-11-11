@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CHANNEL, publicFake, type PublicFake } from '../public/public-fakes';
 import { EMPTY_STATE, newPlaytest, readState, updateState } from '../state';
+import { ROOMY_MEMORY } from '../schedule-fakes';
 import { chooseJobs } from '../tick';
 import type { AgentRun, Ctx, FactoryConfig, Job } from '../types';
 import { agentEnv } from '../container';
@@ -287,7 +288,7 @@ describe('checkedAnswer', () => {
 });
 
 describe('answer scheduling', () => {
-  const cfg = { wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
+  const cfg = { wasteReviewDays: 1, maxJobsPerCard: 5, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1, ...ROOMY_MEMORY };
   const now = new Date('2026-10-14T10:00:00Z');
 
   it('starts one issueless answer job for any number of waiting questions, and none while one runs', () => {
