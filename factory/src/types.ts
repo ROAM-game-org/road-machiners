@@ -84,6 +84,7 @@ export type FactoryConfig = {
   minAvailableGb: number;
   jobsMemoryGb: number;
   smallJobMemoryGb: number;
+  browserSlots: number;
   stageMemoryGb: Record<JobStage, number>;
   logDays: number;
   transcriptDays: number;

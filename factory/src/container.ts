@@ -25,7 +25,16 @@ function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number
   const pin = cpus === null ? [] : ['--cpuset-cpus', cpus];
   const workers = testWorkers === null ? [] : ['-e', `TEST_WORKERS=${testWorkers}`];
   const card = cfg.gpu ? ['--gpus', 'all', '-e', 'NVIDIA_DRIVER_CAPABILITIES=all'] : [];
-  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...slice, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off', '-v', `${peakDir}:${PEAK_MOUNT}`];
+  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...slice, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off', '-v', `${peakDir}:${PEAK_MOUNT}`, ...browserSlotArgs(cfg)];
+}
+
+const BROWSER_SLOT_MOUNT = '/browser-slots';
+
+function browserSlotArgs(cfg: FactoryConfig): string[] {
+  const dir = join(cfg.home, 'browser-slots');
+  mkdirSync(dir, { recursive: true });
+  chmodSync(dir, 0o777);
+  return ['-v', `${dir}:${BROWSER_SLOT_MOUNT}`, '-e', `ROAM_BROWSER_SLOTS=${BROWSER_SLOT_MOUNT}`, '-e', `ROAM_BROWSER_SLOT_COUNT=${cfg.browserSlots}`];
 }
 
 const PEAK_MOUNT = '/factory-peak';

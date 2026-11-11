@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CheckTimeoutError, EVIDENCE_CHECK_COMMAND, dockerContainer, usageLimitMessage } from './container';
 import { recordJob, takeUsage } from './ledger';
@@ -54,7 +54,7 @@ describe('dockerContainer', () => {
     expect(runCall(free.calls).args).not.toContain('--cpuset-cpus');
   });
 
-  it('passes the secrets by env only and mounts only the clone, the npm cache, the Codex login, the agy login and the check command', async () => {
+  it('passes the secrets by env only and mounts only the clone, the npm cache, the Codex login, the agy login, the check command and the browser slots', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'do it', log: '/l.log' });
     const call = runCall(calls);
@@ -73,11 +73,12 @@ describe('dockerContainer', () => {
     expect(call.opts?.input).toContain('factory-status milestone');
     expect(call.opts?.input).toMatch(/\n\ndo it$/);
     expect(call.opts?.logPath).toBe('/l.log');
-    expect(call.args.filter((a) => a === '-v')).toHaveLength(6);
+    expect(call.args.filter((a) => a === '-v')).toHaveLength(7);
+    expect(call.args).toContain(`${HOME}/browser-slots:/browser-slots`);
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
-    expect(call.args.filter((a) => a === '-e')).toHaveLength(17);
+    expect(call.args.filter((a) => a === '-e')).toHaveLength(19);
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
@@ -94,7 +95,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', readOnly: { '/h/state': '/factory/state' } });
     const args = runCall(calls).args;
-    expect(args.filter((a) => a === '-v')).toHaveLength(7);
+    expect(args.filter((a) => a === '-v')).toHaveLength(8);
     expect(args).toContain('/h/state:/factory/state:ro');
   });
 
@@ -134,7 +135,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', mediaDir: '/h/media/issue-7' });
     expect(runCall(calls).args).toContain('/h/media/issue-7:/work/.factory-media:ro');
-    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(7);
+    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(8);
   });
 
   it('mounts the session folder under the agent projects folder and starts the session by id', async () => {
@@ -142,7 +143,7 @@ describe('dockerContainer', () => {
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', session: { dir: '/h/sessions/issue-7', id: 'abc', resume: false } });
     const { args } = runCall(calls);
     expect(args).toContain('/h/sessions/issue-7:/home/pwuser/.claude/projects');
-    expect(args.filter((a) => a === '-v')).toHaveLength(7);
+    expect(args.filter((a) => a === '-v')).toHaveLength(8);
     expect(args.slice(args.indexOf('--verbose'))).toEqual(['--verbose', '--session-id', 'abc']);
     expect(args).not.toContain('--resume');
   });
@@ -315,6 +316,17 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).toContain('-e TEST_TIMEOUTS=off');
+  });
+
+  it('gives agent and shell containers the one shared browser slot folder', async () => {
+    const { run, calls } = fakeRun();
+    const slotted = { ...cfg, browserSlots: 2 };
+    await dockerContainer(run, slotted, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
+    await dockerContainer(run, slotted, null).shell('checks', '/c','x', '/l');
+    const runs = calls.filter((call) => call.args[0] === 'run' && call.args[1] === '--rm').map((call) => call.args.join(' '));
+    expect(runs).toHaveLength(2);
+    for (const args of runs) expect(args).toContain(`-v ${HOME}/browser-slots:/browser-slots -e ROAM_BROWSER_SLOTS=/browser-slots -e ROAM_BROWSER_SLOT_COUNT=2`);
+    expect(statSync(join(HOME, 'browser-slots')).mode & 0o777).toBe(0o777);
   });
 
   it('puts agent and shell containers in the jobs slice only when the host has one', async () => {
