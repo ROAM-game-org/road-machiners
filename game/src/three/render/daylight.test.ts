@@ -6,7 +6,7 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { BEAM_CAP, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -66,18 +66,18 @@ describe('VehicleLights', () => {
     expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
   });
 
-  it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
+  it('holds at most three shadowed beams and the capped plain ones however many trucks are lit', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
     const crowd = Array.from({ length: 40 }, (_, i) => litAt(i * 3));
     lights.update(true, 1, origin, crowd);
     expect(spots(scene).filter((b) => b.castShadow)).toHaveLength(3);
-    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(9);
+    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(BEAM_CAP - 3);
     const nose = bodyOf('scout').half.x;
     const lit = spots(scene).map((b) => Math.round(b.position.x - nose)).sort((a, b) => a - b);
-    expect(lit).toEqual(Array.from({ length: 12 }, (_, i) => i * 3));
+    expect(lit).toEqual(Array.from({ length: BEAM_CAP }, (_, i) => i * 3));
     lights.update(false, 1, origin, crowd);
-    expect(spots(scene)).toHaveLength(12);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
   });
 
   it('holds the same lights all night however many trucks are lit, so no shader recompiles when headlights arrive', () => {
@@ -87,7 +87,7 @@ describe('VehicleLights', () => {
       lights.update(true, 1, origin, Array.from({ length: lit }, (_, i) => litAt(i * 10)));
       return spots(scene).length;
     });
-    expect(counts).toEqual([12, 12, 12, 12, 12, 12]);
+    expect(counts).toEqual(Array(6).fill(BEAM_CAP));
     lights.update(true, 1, origin, [litAt(0)]);
     expect(spots(scene).filter((b) => b.intensity > 0)).toHaveLength(1);
   });
@@ -134,13 +134,13 @@ describe('VehicleLights', () => {
     const all = [{ ...litAt(0), player: true }, litAt(10), litAt(20)];
     const glow = () => scene.children.some((c) => c instanceof THREE.PointLight);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(12);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
     expect(glow()).toBe(true);
     lights.update(false, 0.5, origin, [all[0], litAt(10, false), litAt(20, false)]);
     expect(spots(scene)).toHaveLength(1);
     expect(glow()).toBe(false);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(12);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
     expect(glow()).toBe(true);
   });
 
