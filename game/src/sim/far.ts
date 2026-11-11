@@ -1,6 +1,6 @@
 import { isKnockedOut } from './defeat';
 import { PHYSICS } from '../data/physics';
-import { combatStepRoundoff, hasTimedFire, stepTimedCombat } from './timed-combat';
+import { combatStepRoundoff, fireSpots, hasTimedFire, stepTimedCombat } from './timed-combat';
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -13,8 +13,10 @@ import { coarseTrip, routeAhead } from './path';
 import { REGION } from '../data/region';
 import { propsAround, propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
-import { burnFuel, getResources } from './resources';
-import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, type DriveStats } from './stats';
+import { burnFuelAt, getResources } from './resources';
+import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, vehicleMaxSpeed, type DriveStats } from './stats';
+import { PERF } from '../data/perf';
+import { UNPRICED_WEAPONS } from '../data/weapons';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { tileAt } from './terrain';
 import { driveMode, parkedVehicles, orderSpeed, setSpeedTarget, settleSetSpeed } from './steering';
@@ -101,7 +103,7 @@ export function advanceFar(w: World, v: Vehicle, part?: TurnShare): number {
   Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = farSpeed(order, done, block, next);
   settleSetSpeed(v, startSpeed);
-  burnFuel(w, v, walk.moved);
+  burnFuelAt(w, v, walk.moved, step.fuelPerTile);
   if (!drivesCoarse(v)) breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, replans(done, windowEnds, block, walk.moved, share) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
   if (done) arrive(w, v);
@@ -110,8 +112,9 @@ export function advanceFar(w: World, v: Vehicle, part?: TurnShare): number {
 
 function walkFar(w: World, v: Vehicle, order: DrivenOrder, points: Vec[], planned: FarStep, radius: number): { block: Contact | null; walk: FarStep } {
   const counts = contactsOf(v, order, radius);
-  const block = firstContact(w, v, planned.path, radius, counts);
-  const budget = block ? block.clear : drivesCoarse(v) ? clearEnd(w, v, planned, points, radius, (o) => !counts(o)) : planned.moved;
+  const discs = truckDiscs(w, v, radius);
+  const block = firstContact(planned.path, discs.filter((d) => counts(d.o)));
+  const budget = block ? block.clear : drivesCoarse(v) ? clearEnd(v, planned, points, discs.filter((d) => !counts(d.o))) : planned.moved;
   return { block, walk: budget === planned.moved ? planned : follow(v.pos, points, budget) };
 }
 
@@ -300,13 +303,13 @@ const CONTACT_STEP = 0.25;
 type Contact = { other: Vehicle; clear: number; contact: number };
 type TruckDisc = { o: Vehicle; at: Vec; contact: number };
 
-function truckDiscs(w: World, v: Vehicle, radius: number, counts: (o: Vehicle) => boolean): TruckDisc[] {
+function truckDiscs(w: World, v: Vehicle, radius: number): TruckDisc[] {
   const client = ropeClientOf(w, v.id);
-  return w.vehicles.filter((o) => o.id !== v.id && o.id !== client && counts(o)).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
+  return w.vehicles.filter((o) => o.id !== v.id && o.id !== client).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
 }
 
-function clearEnd(w: World, v: Vehicle, planned: FarStep, points: Vec[], radius: number, ghosted: (o: Vehicle) => boolean): number {
-  const discs = truckDiscs(w, v, radius, ghosted).filter((d) => dist(v.pos, d.at) >= d.contact);
+function clearEnd(v: Vehicle, planned: FarStep, points: Vec[], ghosts: TruckDisc[]): number {
+  const discs = ghosts.filter((d) => dist(v.pos, d.at) >= d.contact);
   const inside = (p: Vec) => discs.some((d) => dist(p, d.at) < d.contact);
   const endAt = (moved: number) => follow(v.pos, points, moved).path.at(-1)!;
   let clear = planned.moved;
@@ -320,8 +323,7 @@ function hopPast(moved: number, discs: TruckDisc[], endAt: (moved: number) => Ve
   return 0;
 }
 
-function firstContact(w: World, v: Vehicle, path: Vec[], radius: number, counts: (o: Vehicle) => boolean): Contact | null {
-  const others = truckDiscs(w, v, radius, counts);
+function firstContact(path: Vec[], others: TruckDisc[]): Contact | null {
   let walked = 0;
   for (let seg = 1; seg < path.length; seg++) {
     const a = path[seg - 1];
@@ -408,20 +410,35 @@ export function completeCombatMovement(world: World, startedMs: number): void {
   if (Math.abs(world.combat.now - startedMs - duration) > rounding) throw new Error('Movement did not advance one full combat turn');
 }
 
-function stepDriveStats(world: World, v: Vehicle, fraction = 1): { stats: DriveStats; fraction: number } {
+function stepDriveStats(world: World, v: Vehicle, fraction = 1): { stats: DriveStats; fraction: number; fuelPerTile: number } {
   if (!(fraction > 0 && fraction <= 1)) throw new Error('Coarse movement needs a positive fraction of one turn');
   const full = driveStats(world, v);
-  return { stats: { ...full, accel: full.accel * fraction, limpAccel: full.limpAccel * fraction, brake: full.brake * fraction, fuelPerTile: full.fuelPerTile * fraction }, fraction };
+  return { stats: { ...full, accel: full.accel * fraction, limpAccel: full.limpAccel * fraction, brake: full.brake * fraction, fuelPerTile: full.fuelPerTile * fraction }, fraction, fuelPerTile: full.fuelPerTile };
 }
 
 type FarMotion = { v: Vehicle; trail: Pose[]; moved: number };
 
+const LONGEST_RANGE = Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range));
+
+function fireReach(world: World): number {
+  const fastest = Math.max(0, ...world.vehicles.map((v) => vehicleMaxSpeed(world, v)));
+  return PERF.farFireReachInRanges * LONGEST_RANGE + 2 * fastest;
+}
+
+function nearFire(spots: readonly Vec[], reach: number): (v: Vehicle) => boolean {
+  return (v) => spots.some((p) => dist(v.pos, p) <= reach);
+}
+
 export class FarCombatMotion {
   private moves: FarMotion[];
+  private wholeTurn: Vehicle[];
   private phase = 0;
 
   constructor(private world: World, vehicles: Vehicle[]) {
-    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => ({ v, trail: [poseOf(v)], moved: 0 }));
+    const moving = vehicles.filter(v => !isOnRope(world, v.id));
+    const steps = nearFire(fireSpots(world, world.combat), fireReach(world));
+    this.moves = moving.filter(steps).map(v => ({ v, trail: [poseOf(v)], moved: 0 }));
+    this.wholeTurn = moving.filter(v => !steps(v));
   }
 
   at(phase: number): void {
@@ -441,6 +458,16 @@ export class FarCombatMotion {
   finish(): void {
     this.at(1);
     for (const move of this.moves) move.v.trail = move.trail;
+    for (const v of this.wholeTurn) this.advanceWhole(v);
+  }
+
+  private advanceWhole(v: Vehicle): void {
+    if (this.world.combat.destroyedAt[v.id] === undefined && !isKnockedOut(v)) {
+      advanceFar(this.world, v);
+      return;
+    }
+    v.speed = 0;
+    v.trail = [poseOf(v), poseOf(v)];
   }
 }
 
