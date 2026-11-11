@@ -137,9 +137,13 @@ export function surveyPlaceThreat(world: World, siteId: string): Threat {
   return threatAt(world, surveySite(world, siteId).pos);
 }
 
+function worstThreat(world: World, siteIds: string[]): Threat {
+  if (siteIds.length === 0) throw new Error('A survey has no places');
+  return Math.max(...siteIds.map((id) => surveyPlaceThreat(world, id))) as Threat;
+}
+
 export function surveyThreat(world: World, c: SurveyContract): Threat {
-  if (c.points.length === 0) throw new Error(`Survey ${c.id} has no places`);
-  return Math.max(...c.points.map((p) => surveyPlaceThreat(world, p.site))) as Threat;
+  return worstThreat(world, c.points.map((p) => p.site));
 }
 
 export function isSurveyMet(c: SurveyContract): boolean {
@@ -191,7 +195,7 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   const points = sites.map((s) => ({ site: s.id, found: false, done: false }));
   const turns = surveyLoopTurns(shop.pos, sites.map((s) => s.pos));
   const window = haulWindow(turns, false);
-  const threat = Math.max(...sites.map((s) => surveyPlaceThreat(world, s.id))) as Threat;
+  const threat = worstThreat(world, sites.map((s) => s.id));
   return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns, threat), deadline: world.turn + window, window, tier: 1 };
 }
 
