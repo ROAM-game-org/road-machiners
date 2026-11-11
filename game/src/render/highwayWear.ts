@@ -4,13 +4,10 @@ import type { Vec } from '../sim/vec';
 import type { PaintCanvas } from './groundPaint';
 
 const ROAD = HIGHWAY.road;
-const HALF = ROAD.asphalt + ROAD.paint.bandSpread;
 const SALT = 0x77656172;
 const STEP = 0.25;
 const SLOT = 28;
 const TONGUE_SLOT = 50;
-const LINE_HALF = 0.12;
-const CENTER_GAP = 0.32;
 const CENTER_LINE_SALT = 12;
 const FADE_SCALE = 18;
 const FADE_FROM = 0.3;
@@ -24,36 +21,33 @@ const SAND_SLANT = 0.45;
 const TONGUE_CHANCE = 0.55;
 const PATCH_CHANCE = 0.55;
 const PATCH_LIGHT_SHARE = 0.3;
-const PATCH_RIM = 0.3;
-const CRACK_CHANCE = 0.5;
-const CRACK_HALF = 0.1;
-const CRACK_SLOT = 24;
-const MARK_LEVELS = 15;
-const UNWRITTEN = 255;
+const FULL = 255;
 
-export const PATCH_UNIT = 40;
-export const PATCH_CRACK = 1;
-export const PATCH_DARK_RIM = 2;
-export const PATCH_DARK = 3;
-export const PATCH_LIGHT_RIM = 4;
-export const PATCH_LIGHT = 5;
-
+export const HALF = ROAD.asphalt + ROAD.paint.bandSpread;
+export const LINE_HALF = 0.12;
+export const CENTER_GAP = 0.32;
+export const PATCH_SOFT = 0.8;
+export const WEAR_NEUTRAL = 128;
+const PATCH_REACH = WEAR_NEUTRAL - 1;
 
 type WearField = Pick<PaintCanvas, 'size' | 'res' | 'from'>;
 type Patch = { s0: number; s1: number; t0: number; t1: number; light: boolean };
-type Crack = { s: number; t0: number; t1: number; phase: number };
 type Tongue = { s: number; width: number; depth: number; side: 1 | -1 };
-type Profile = { line: Float32Array; reach: [Float32Array, Float32Array]; patches: Patch[][]; cracks: Crack[][] };
+type Profile = { seed: number; reach: [Float32Array, Float32Array]; patches: Patch[][] };
 type Segment = { a: Vec; dx: number; dy: number; length: number; from: number };
 type Spot = { s: number; t: number; dist: number };
 
 export function paintHighwayWear(field: WearField, line: readonly Vec[], seed: number): Uint8Array {
   const out = new Uint8Array(field.size * field.size * 4);
-  for (let i = 2; i < out.length; i += 4) out[i] = UNWRITTEN;
+  for (let i = 0; i < out.length; i += 4) {
+    out[i + 2] = WEAR_NEUTRAL;
+    out[i + 3] = WEAR_NEUTRAL;
+  }
+  const nearest = new Float32Array(field.size * field.size).fill(Infinity);
   const segments = segmentsOf(line);
   const last = segments[segments.length - 1];
   const profile = profileOf(seed, last.from + last.length);
-  for (const segment of segments) stampSegment(out, field, segment, profile);
+  for (const segment of segments) stampSegment(out, nearest, field, segment, profile);
   return out;
 }
 
@@ -70,15 +64,20 @@ function segmentsOf(line: readonly Vec[]): Segment[] {
   return out;
 }
 
-function stampSegment(out: Uint8Array, field: WearField, segment: Segment, profile: Profile): void {
+function stampSegment(out: Uint8Array, nearest: Float32Array, field: WearField, segment: Segment, profile: Profile): void {
   const { a, dx, dy, length } = segment;
   const b = { x: a.x + dx * length, y: a.y + dy * length };
-  const lo = pixelOf(field, Math.min(a.x, b.x) - HALF, Math.min(a.y, b.y) - HALF);
-  const hi = pixelOf(field, Math.max(a.x, b.x) + HALF, Math.max(a.y, b.y) + HALF);
+  const reach = HALF + 1 / field.res;
+  const lo = pixelOf(field, Math.min(a.x, b.x) - reach, Math.min(a.y, b.y) - reach);
+  const hi = pixelOf(field, Math.max(a.x, b.x) + reach, Math.max(a.y, b.y) + reach);
   for (let py = Math.max(0, lo.y); py <= Math.min(field.size - 1, hi.y); py++)
     for (let px = Math.max(0, lo.x); px <= Math.min(field.size - 1, hi.x); px++) {
-      const spot = spotOf(segment, field.from + (px + 0.5) / field.res, field.from + (py + 0.5) / field.res);
-      if (spot) stampPixel(out, (py * field.size + px) * 4, spot, profile);
+      const spot = spotOf(segment, field.from + (px + 0.5) / field.res, field.from + (py + 0.5) / field.res, reach);
+      const k = py * field.size + px;
+      if (spot && spot.dist < nearest[k]) {
+        nearest[k] = spot.dist;
+        stampPixel(out, k * 4, spot, profile);
+      }
     }
 }
 
@@ -86,33 +85,27 @@ function pixelOf(field: WearField, x: number, y: number): { x: number; y: number
   return { x: Math.floor((x - field.from) * field.res), y: Math.floor((y - field.from) * field.res) };
 }
 
-function spotOf(segment: Segment, x: number, y: number): Spot | null {
+function spotOf(segment: Segment, x: number, y: number, reach: number): Spot | null {
   const { a, dx, dy, length, from } = segment;
   const rx = x - a.x;
   const ry = y - a.y;
   const along = Math.min(Math.max(rx * dx + ry * dy, 0), length);
   const across = ry * dx - rx * dy;
   const dist = Math.hypot(rx - dx * along, ry - dy * along);
-  if (dist > HALF) return null;
-  return { s: from + along, t: across < 0 ? -dist : dist, dist };
+  if (dist > reach) return null;
+  const t = Math.min(dist, HALF);
+  return { s: from + along, t: across < 0 ? -t : t, dist };
 }
 
 function stampPixel(out: Uint8Array, i: number, spot: Spot, profile: Profile): void {
-  const code = Math.round((spot.dist / HALF) * (UNWRITTEN - 1));
-  if (out[i + 2] <= code) return;
-  out[i] = marksAt(spot, profile);
+  out[i] = Math.round(paintStrength(profile.seed, spot.s) * FULL);
   out[i + 1] = sandAt(spot, profile);
-  out[i + 2] = code;
-  out[i + 3] = patchAt(spot, profile) * PATCH_UNIT;
+  out[i + 2] = Math.round(Math.min(Math.max(FULL / 2 + (spot.t / HALF) * (FULL / 2), 0), FULL));
+  out[i + 3] = Math.round(WEAR_NEUTRAL + patchField(spot, profile) * PATCH_REACH);
 }
 
 function sampleAt(profile: Profile, s: number): number {
-  return Math.min(Math.max(Math.round(s / STEP), 0), profile.line.length - 1);
-}
-
-function marksAt(spot: Spot, profile: Profile): number {
-  if (Math.abs(Math.abs(spot.t) - CENTER_GAP) >= LINE_HALF * 0.85) return 0;
-  return Math.round(profile.line[sampleAt(profile, spot.s)] * MARK_LEVELS);
+  return Math.min(Math.max(Math.round(s / STEP), 0), profile.reach[0].length - 1);
 }
 
 function sandAt(spot: Spot, profile: Profile): number {
@@ -125,37 +118,24 @@ function sandFrom(spot: Spot, profile: Profile, side: 1 | -1): number {
   return Math.min(Math.max((reach - depth) / SAND_SOFT, 0), 1);
 }
 
-function patchAt(spot: Spot, profile: Profile): number {
+function patchField(spot: Spot, profile: Profile): number {
   const slot = Math.floor(spot.s / SLOT);
-  const crack = crackAt(spot, profile.cracks[Math.floor(spot.s / CRACK_SLOT)] ?? []);
-  let best = crack ? PATCH_CRACK : 0;
-  for (const patch of [...(profile.patches[slot] ?? []), ...(profile.patches[slot - 1] ?? [])]) best = Math.max(best, patchCode(patch, spot));
+  let best = 0;
+  for (const patch of [...(profile.patches[slot] ?? []), ...(profile.patches[slot - 1] ?? [])]) {
+    const depth = Math.min(spot.s - patch.s0, patch.s1 - spot.s, spot.t - patch.t0, patch.t1 - spot.t);
+    const share = Math.min(Math.max((depth + PATCH_SOFT / 2) / PATCH_SOFT, 0), 1);
+    if (share > Math.abs(best)) best = patch.light ? share : -share;
+  }
   return best;
-}
-
-function patchCode(patch: Patch, spot: Spot): number {
-  const inside = Math.min(spot.s - patch.s0, patch.s1 - spot.s, spot.t - patch.t0, patch.t1 - spot.t);
-  if (inside < 0) return 0;
-  const codes = patch.light ? [PATCH_LIGHT, PATCH_LIGHT_RIM] : [PATCH_DARK, PATCH_DARK_RIM];
-  return codes[inside < PATCH_RIM ? 1 : 0];
-}
-
-function crackAt(spot: Spot, cracks: Crack[]): boolean {
-  return cracks.some((c) => spot.t >= c.t0 && spot.t <= c.t1 && Math.abs(spot.s - crackCenter(c, spot.t)) < CRACK_HALF);
-}
-
-function crackCenter(c: Crack, t: number): number {
-  return c.s + 0.9 * Math.sin(t * 1.3 + c.phase) + 0.5 * Math.sin(t * 3.1 + 2 * c.phase);
 }
 
 function profileOf(seed: number, length: number): Profile {
   const count = Math.ceil(length / STEP) + 1;
   const tongues = tonguesOf(seed, length);
   return {
-    line: Float32Array.from({ length: count }, (_, i) => paintStrength(seed, i * STEP)),
+    seed,
     reach: [1, -1].map((side) => Float32Array.from({ length: count }, (_, i) => reachAt(seed, side as 1 | -1, i * STEP, tongues))) as [Float32Array, Float32Array],
     patches: slots(length, SLOT).map((slot) => patchesOf(seed, slot)),
-    cracks: slots(length, CRACK_SLOT).map((slot) => cracksOf(seed, slot)),
   };
 }
 
@@ -212,19 +192,6 @@ function patchesOf(seed: number, slot: number): Patch[] {
       t0,
       t1: t0 + 1.4 + 2.2 * hashRandom(seed, SALT, 40, slot, 4),
       light: hashRandom(seed, SALT, 40, slot, 5) < PATCH_LIGHT_SHARE,
-    },
-  ];
-}
-
-function cracksOf(seed: number, slot: number): Crack[] {
-  if (hashRandom(seed, SALT, 50, slot, 0) >= CRACK_CHANCE) return [];
-  const from = -4.6 + 4 * hashRandom(seed, SALT, 50, slot, 2);
-  return [
-    {
-      s: (slot + 0.15 + 0.7 * hashRandom(seed, SALT, 50, slot, 1)) * CRACK_SLOT,
-      t0: from,
-      t1: from + 3 + 5 * hashRandom(seed, SALT, 50, slot, 3),
-      phase: 6.28 * hashRandom(seed, SALT, 50, slot, 4),
     },
   ];
 }
