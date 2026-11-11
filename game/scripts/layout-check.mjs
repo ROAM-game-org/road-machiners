@@ -594,7 +594,28 @@ const cardPlaceFaults = (page) =>
     return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
   }, CARD);
 
-const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content'].map((part) => `${CARD} ${part}`)) : []);
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content', '.info-draw', '.info-actions'].map((part) => `${CARD} ${part}`)) : []);
+
+const cardShapeFaults = (page) =>
+  page.evaluate((sel) => {
+    const card = document.querySelector(sel);
+    const rect = (part) => card.querySelector(part)?.getBoundingClientRect();
+    const lists = card.querySelector('.hitcard');
+    const draw = rect('.info-draw');
+    const content = rect('.info-content');
+    const listsBox = rect('.hitcard');
+    const phone = document.querySelector('#ui').classList.contains('phone');
+    const scrolls = () => lists && innerHeight >= 720 && lists.scrollHeight > lists.clientHeight + 1;
+    const narrow = () => draw.width < content.width - 1;
+    const below = () => listsBox && listsBox.height > 0 && draw.bottom > listsBox.top + 1;
+    const rules = [
+      [scrolls, 'the lists scroll'],
+      [narrow, 'the drawing is narrower than the card'],
+      [below, 'the drawing is not above the lists'],
+    ];
+    if (!draw || !content) return [];
+    return rules.filter(([broken]) => !phone && broken()).map(([, message]) => message);
+  }, CARD);
 
 async function drawingFaults(page) {
   return page.evaluate(() => {
@@ -654,7 +675,7 @@ async function tipFaults(page) {
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
-  const checks = [cardPlaceFaults(page), cardCutFaults(page), keycapFaults(page, CARD, 'card'), drawingFaults(page), tipFaults(page)];
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), drawingFaults(page), tipFaults(page)];
   return faultsOf('enemy-card')((await Promise.all(checks)).flat());
 }
 

@@ -19,6 +19,7 @@ const METERS_PER_CELL = 0.65;
 const FLASH_MS = 300;
 const FLASH_TURNS = 2;
 const FLASH_HOLD = 0.65;
+const MAX_FIT_ZOOM = 1.5;
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
@@ -192,7 +193,7 @@ export class TruckConditionView {
   fitTo(box: HTMLElement): void {
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
-    this.setZoom(Math.min((box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+    this.setZoom(Math.min(MAX_FIT_ZOOM, (box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
   }
 
   private setZoom(zoom: number): void {
