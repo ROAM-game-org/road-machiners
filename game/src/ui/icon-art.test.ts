@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ART, ICON_NAMES } from "./cards";
-import { FILTER_ICON } from "./town";
+import { FILTER_ICON } from "./garage-tabs";
 import { EN } from "../text/en";
 import { RU } from "../text/ru";
 
