@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TEST_MAP } from '../test/map';
 import { stockForSale, siteOf, type Contract } from '../sim/market';
 import { sitePads } from '../sim/sites';
-import { emptyWorld } from '../sim/testkit';
+import { emptyWorld, priced } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -18,8 +18,8 @@ const order: Contract = { id: 'ct-procure', shop: 'bowl', kind: 'procure', good:
 describe('supply orders across a save', () => {
   it('loads a held order and its withheld good the same, and awards nothing', () => {
     const w = emptyWorld(sitePads(siteOf('bowl'))[0]);
-    w.player.contracts = [{ ...order }];
-    w.shops.nose.contracts = [{ ...order, id: 'ct-board', shop: 'nose', good: 'water' }];
+    w.player.contracts = [priced(w, order)];
+    w.shops.nose.contracts = [priced(w, { ...order, id: 'ct-board', shop: 'nose', good: 'water' })];
     const loaded = reload(w);
     expect(loaded.player.contracts).toEqual(w.player.contracts);
     expect(loaded.shops.nose.contracts).toEqual(w.shops.nose.contracts);

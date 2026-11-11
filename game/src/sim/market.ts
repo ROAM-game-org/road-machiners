@@ -277,6 +277,8 @@ export type Contract =
 
 export type SearchContract = Extract<Contract, { kind: 'search' }>;
 
+export type HaulContract = Extract<Contract, { kind: 'haul' }>;
+
 export type ContractEnd = 'done' | 'failed' | 'late' | 'lapsed' | 'released';
 
 export type PastContract = { contract: Contract; outcome: ContractEnd; turn: number; amount: number };
@@ -295,6 +297,10 @@ export function contractReward(turns: number, cargoValue: number, rush: boolean,
   const perTurn = CONTRACTS.haul.rewardFactor + CONTRACTS.haul.crateFactor * crates;
   const standard = turns * EFFORT.wage[1] * perTurn + commission;
   return fairM(rush ? standard * CONTRACTS.haul.rush.premium : standard);
+}
+
+export function haulReward(c: Pick<HaulContract, 'shop' | 'to' | 'good' | 'units' | 'rush'>): number {
+  return contractReward(estimateTurns(shopPos(c.shop), shopPos(c.to)), c.units * goodValue(c.good), c.rush, c.units);
 }
 
 export function haulWindow(turns: number, rush: boolean): number {
@@ -357,7 +363,7 @@ function rollHaul(world: World, input: RollInput, id: string): Contract {
   const units = randInt(world.marketRng, CONTRACTS.haul.units[0], Math.min(CONTRACTS.haul.units[1], leg.units));
   const turns = estimateTurns(input.shop.pos, leg.to.pos);
   const rush = chance(world.marketRng, CONTRACTS.haul.rush.chance);
-  const reward = contractReward(turns, units * goodValue(leg.good), rush, units);
+  const reward = haulReward({ shop: input.shop.id, to: leg.to.id, good: leg.good, units, rush });
   const window = haulWindow(turns, rush);
   return { id, shop: input.shop.id, kind: 'haul', good: leg.good, units, to: leg.to.id, reward, deadline: world.turn + window, window, rush, tier };
 }
@@ -368,6 +374,11 @@ export function procureTrip(shopId: string, good: string): number {
 
 export function procureReward(units: number, cratePay: number, trip: number): number {
   return units * cratePay + fairM(contractReward(trip, 0, true) * CONTRACTS.procure.travelFactor);
+}
+
+export function procurePay(shopId: string, good: string, units: number): { cratePay: number; reward: number } {
+  const cratePay = fairM(standingPrice(shopId, good, 0));
+  return { cratePay, reward: procureReward(units, cratePay, procureTrip(shopId, good)) };
 }
 
 export function procureWindow(trip: number): number {
@@ -396,10 +407,9 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
   const shortfall = procureShortfall(world, shopId, state, good);
   if (shortfall === 0) throw new Error(`${shopId} cannot order ${good}: it is not short of it, makes it or has it on order`);
   const units = randInt(world.marketRng, CONTRACTS.procure.units[0], Math.min(CONTRACTS.procure.units[1], shortfall));
-  const cratePay = fairM(standingPrice(shopId, good, 0));
-  const trip = procureTrip(shopId, good);
-  const window = procureWindow(trip);
-  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward: procureReward(units, cratePay, trip), deadline: world.turn + window, window, tier: GOODS[good].tier };
+  const { cratePay, reward } = procurePay(shopId, good, units);
+  const window = procureWindow(procureTrip(shopId, good));
+  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward, deadline: world.turn + window, window, tier: GOODS[good].tier };
 }
 
 export function onOrder(world: World, shopId: string, good: string): boolean {
@@ -409,8 +419,6 @@ export function onOrder(world: World, shopId: string, good: string): boolean {
   );
   return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
-
-export type HaulContract = Extract<Contract, { kind: 'haul' }>;
 
 function openHauls(world: World, good: string): HaulContract[] {
   return world.player.contracts.filter((c): c is HaulContract => c.kind === 'haul' && c.good === good);
@@ -462,13 +470,17 @@ function rollSearch(world: World, input: RollInput, id: string): Contract {
   };
 }
 
+export function claimTravelPay(shopId: string, at: Vec): number {
+  return contractReward(estimateTurns(shopPos(shopId), at), 0, false);
+}
+
 function rollClaim(world: World, input: RollInput, id: string): Contract {
   if (input.claims.length === 0) throw new Error('A claim needs a part lying in a wreck');
   const { stock, part } = pick(world, input.claims);
   const turns = estimateTurns(input.shop.pos, stock.pos);
   const window = claimWindow(turns);
   const tier = PARTS[part.defId].tier;
-  const reward = claimReward(part, contractReward(turns, 0, false));
+  const reward = claimReward(part, claimTravelPay(input.shop.id, stock.pos));
   const rivalAt = claimRivalAt(world.turn, turns);
   return { id, shop: input.shop.id, kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward, deadline: world.turn + window, window, tier, rivalAt, rival: null, leads: [] };
 }

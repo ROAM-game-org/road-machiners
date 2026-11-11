@@ -4,7 +4,7 @@ import { playerVehicle } from '../sim/damage';
 import { addGoods } from '../sim/inventory';
 import { advanceContracts, isLate, lateBy, siteOf, type Contract } from '../sim/market';
 import { sitePads } from '../sim/sites';
-import { emptyWorld } from '../sim/testkit';
+import { emptyWorld, priced } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { update } from '../sim/world';
 import { loadWorld, saveOf } from './save';
@@ -21,7 +21,7 @@ const haul: Contract = { id: 'ct-haul', shop: 'granary', kind: 'haul', good: 'sa
 function held(): World {
   const w = emptyWorld(sitePads(siteOf('granary'))[0]);
   w.turn = 300;
-  w.player.contracts = [{ ...haul }];
+  w.player.contracts = [priced(w, haul)];
   addGoods(w, playerVehicle(w), 'salt', 3);
   return w;
 }
