@@ -4,7 +4,7 @@ import { emptyWorld } from '../sim/testkit';
 import type { Cue, DirectionStep } from '../sim/types';
 import { LOCALES } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { cueText, directionsSteps, directionsText } from './directions-text';
+import { cueText, leaveCueText, directionsSteps, directionsText } from './directions-text';
 import { REGION } from '../data/region';
 import { siteName } from '../text/names';
 
@@ -16,9 +16,9 @@ const STEPS: DirectionStep[] = [
   { do: 'turn', side: 'keepLeft', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' },
   { do: 'turn', side: 'keepRight', at: { kind: 'none' }, road: { kind: 'to', site: 'bowl' }, span: 'near' },
   { do: 'leave', at: { kind: 'deck', id: 'canyon-bridge' }, octant: 'east', lean: null, span: 'fair' },
-  { do: 'leave', at: { kind: 'none' }, octant: 'east', lean: null, span: 'fair' },
+  { do: 'leave', at: { kind: 'square', column: 3, row: 4 }, octant: 'east', lean: null, span: 'fair' },
   { do: 'gate', side: 'east' },
-  { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
+  { do: 'leave', at: { kind: 'prop', look: 'silo' }, octant: 'south', lean: 'east', span: 'fair' },
   { do: 'straight', octant: 'southEast', span: 'near' },
   { do: 'arrive', site: 'bowl', area: false },
   { do: 'arrive', site: 'orchard', area: true },
@@ -68,7 +68,8 @@ describe('directionsText', () => {
 
   it('names a cue of every kind', () => {
     const cues: Cue[] = [{ kind: 'site', id: 'bowl' }, { kind: 'deck', id: 'broken-wing' }, { kind: 'prop', look: 'silo' }, { kind: 'fork', nth: 2 }, { kind: 'fork', nth: 3 }, { kind: 'none' }];
-    for (const locale of LOCALES) for (const cue of cues) expect(resolve(cueText(cue, 'turn'), locale).length).toBeGreaterThan(0);
+    for (const locale of LOCALES) for (const cue of cues) expect(resolve(cueText(cue), locale).length).toBeGreaterThan(0);
+    for (const locale of LOCALES) expect(resolve(leaveCueText({ kind: 'square', column: 2, row: 3 }), locale).length).toBeGreaterThan(0);
   });
 
   it('names the place once and leaves the span off a road leg', () => {
@@ -128,17 +129,18 @@ describe('directionsText', () => {
     expect(resolve(directionsText(steps), 'en').match(/half an hour or more/g)).toHaveLength(1);
   });
 
-  it('says past the fork where a wreck leave point is counted', () => {
-    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a few minutes\' drive.');
+  it('says which square the road enters where the leave point is', () => {
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'square', column: 2, row: 3 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Where the road enters square C4, leave the road and head east, a few minutes\' drive.');
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'square', column: 2, row: 3 }, octant: 'east', lean: null, span: 'near' }]), 'ru')).toMatch(/квадрат \p{Lu}4/u);
   });
 
   it('tells a gate, a lean and a place way with no search sentence', () => {
     const steps: DirectionStep[] = [
       { do: 'gate', side: 'east' },
       { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'northEast', span: 'fair' },
-      { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
+      { do: 'leave', at: { kind: 'square', column: 3, row: 4 }, octant: 'south', lean: 'east', span: 'fair' },
     ];
-    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, about ten minutes\' drive.');
+    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading north-east. Where the road enters square D5, leave the road and head south and a touch east, about ten minutes\' drive.');
   });
 
   it('asks again plainly', () => {
@@ -146,8 +148,7 @@ describe('directionsText', () => {
   });
 
   it('refuses to count a fork past the third', () => {
-    expect(() => cueText({ kind: 'fork', nth: 4 }, 'turn')).toThrow();
-    expect(() => cueText({ kind: 'fork', nth: 1 }, 'leave')).toThrow();
+    expect(() => cueText({ kind: 'fork', nth: 4 })).toThrow();
   });
 
   it('holds no digit, number or unit and names the place once in every real answer, in every language', () => {
