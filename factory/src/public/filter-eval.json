@@ -142,7 +142,8 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "game is trash delete it"
+    "text": "game is trash delete it",
+    "clear": true
   },
   {
     "label": "drop",
@@ -162,12 +163,14 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "free robux click here bit.ly/abc123"
+    "text": "free robux click here bit.ly/abc123",
+    "clear": true
   },
   {
     "label": "drop",
     "from": "written",
-    "text": "qwerty qwerty test test"
+    "text": "qwerty qwerty test test",
+    "clear": true
   },
   {
     "label": "drop",
@@ -182,12 +185,14 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "the devs are clowns, add a clown car for them"
+    "text": "the devs are clowns, add a clown car for them",
+    "clear": true
   },
   {
     "label": "drop",
     "from": "written",
-    "text": "Subscribe to my youtube channel for ROAM tips youtube.com/@roamtips"
+    "text": "Subscribe to my youtube channel for ROAM tips youtube.com/@roamtips",
+    "clear": true
   },
   {
     "label": "drop",
@@ -197,7 +202,8 @@
   {
     "label": "drop",
     "from": "written",
-    "text": "lol"
+    "text": "lol",
+    "clear": true
   },
   {
     "label": "keep",
@@ -437,6 +443,7 @@
     "label": "drop",
     "from": "made up, a troll ask to file a replied insult",
     "text": "@road_machiners_bot file this bug",
+    "clear": true,
     "context": "lol this game is trash, the devs should quit",
     "expect": "stay",
     "source": "message",
@@ -451,6 +458,7 @@
     "label": "keep",
     "from": "game report from the #1041 armor and part hit sounds build",
     "text": "Misses are often still too random, flying not towards enemy but in weird uniform cones",
+    "origin": "game",
     "source": "comment",
     "parent": "Different sounds for armor hits and part hits",
     "relevance": "other"
@@ -459,8 +467,314 @@
     "label": "keep",
     "from": "game report on the change of a card build",
     "text": "Armor hits and part hits still sound the same to me, I cannot tell which one I hit",
+    "origin": "game",
     "source": "comment",
     "parent": "Different sounds for armor hits and part hits",
     "relevance": "parent"
+  },
+  {
+    "label": "keep",
+    "from": "game report 8 the sincere filter dropped (#1331)",
+    "text": "Raiders lying up near a camp are free sources of loot. Rearming raiders and npcs should hide inside locations"
+  },
+  {
+    "label": "keep",
+    "from": "game report 24 the sincere filter dropped (#1331)",
+    "text": "во вступительном тексте персонаж усаживается в кресло, сцепляющееся с его головой и позвоночником, а затем кладёт лоб на руль"
+  },
+  {
+    "label": "keep",
+    "from": "game report 40 the sincere filter dropped (#1331)",
+    "text": "“For the record, few drivers start trouble near our gate. We keep that stretch of road. A fight brought to our gate goes on all the same.”\n\nnonsense ai slop"
+  },
+  {
+    "label": "keep",
+    "from": "game report 52 the sincere filter dropped (#1331)",
+    "text": "sunward spotted sitting in hollow, not going to the crater, at night"
+  },
+  {
+    "label": "keep",
+    "from": "game report 59 the sincere filter dropped (#1331)",
+    "text": "I drove to fallen sky and sunward were not there at night"
+  },
+  {
+    "label": "keep",
+    "from": "game report 64 the sincere filter dropped (#1331)",
+    "text": "When you accept a contract in the Contracts window, you can set a countdown under the \"Duration\" (or \"Time Limit\") field to show how much time remains before the contract expires."
+  },
+  {
+    "label": "keep",
+    "from": "game report 67 the sincere filter dropped (#1331)",
+    "text": "“Nose? Take the road heading south-west. At Nose, turn left. The road takes you to the gate. You will know it by a ring of ship-metal walls built against a rock mountain.”\n\nguy telling me to turn left at nose to go to nose"
+  },
+  {
+    "label": "keep",
+    "from": "game report 71 the sincere filter dropped (#1331)",
+    "text": "I just knocked out and stripped a raider, camped him. Then I demanded Ms from him when he woke up. Exploit"
+  },
+  {
+    "label": "keep",
+    "from": "game report 76 the sincere filter dropped (#1331)",
+    "text": "Nonsensical item description: \"A soldier's rifle, heavier than a hunter's and quicker than a marksman's. Old Army veterans still teach it, and no two agree how to hold it.\"\n\nTHIS IS A VEHICLE MOUNTED GUN"
+  },
+  {
+    "label": "keep",
+    "from": "game report 104 the sincere filter dropped (#1331)",
+    "text": "I gave upbut raider didnt strip me, didnt take anything"
+  },
+  {
+    "label": "keep",
+    "from": "game report 106 the sincere filter dropped (#1331)",
+    "text": "\"a shot bites the side\" total nonsense"
+  },
+  {
+    "label": "keep",
+    "from": "game report 116 the sincere filter dropped (#1331)",
+    "text": "Dont alert about change of relationship with faction"
+  },
+  {
+    "label": "keep",
+    "from": "game report 118 the sincere filter dropped (#1331)",
+    "text": "please fix so towers can tow to nearest location, not only to bowl/nose"
+  },
+  {
+    "label": "keep",
+    "from": "game report 120 the sincere filter dropped (#1331)",
+    "text": "guy gets stuck trying to help a stranded truck because he chases but is just slightly too slow"
+  },
+  {
+    "label": "keep",
+    "from": "game report 128 the sincere filter dropped (#1331)",
+    "text": "no npcs have parts to patch me"
+  },
+  {
+    "label": "keep",
+    "from": "game report 136 the sincere filter dropped (#1331)",
+    "text": "three raiders in a row looked me over, even though they could have shared that info, unimmersive"
+  },
+  {
+    "label": "keep",
+    "from": "game report 141 the sincere filter dropped (#1331)",
+    "text": "can't see my car"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 144 the sincere filter dropped (#1331)",
+    "text": "routess 802,turn 458 -- visible lag",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 151 the sincere filter dropped (#1331)",
+    "text": "x8 speed moves n awkward jumps with pauses",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 152 the sincere filter dropped (#1331)",
+    "text": "please removes stupid stem from ram bar asset, so it hugs the car",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 159 the sincere filter dropped (#1331)",
+    "text": "easy to forget to turn overdrive off",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 160 the sincere filter dropped (#1331)",
+    "text": "raise car population 50% for the new map",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 162 the sincere filter dropped (#1331)",
+    "text": "with one procurement contract I got 2k Ms, insane. I can buy anything",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 164 the sincere filter dropped (#1331)",
+    "text": "Add driver tips about how dust and engine sound work, about stealth",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 166 the sincere filter dropped (#1331)",
+    "text": "broken tip from driver\n\nRadio: Merc Elias Baines\n“After an ambush, a driver parked outside town and dressed his wounds, using extra supplies until he was fit to drive on.”",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 168 the sincere filter dropped (#1331)",
+    "text": "floating city wall on cliff of nose",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 173 the sincere filter dropped (#1331)",
+    "text": "City patrols are offering me to fight? \"Lets see what this rig can take\" I dont think its supposed to work like that",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 175 the sincere filter dropped (#1331)",
+    "text": "chaos highway truck waits for me without defending itself, so it just stands there getting hit by enemies",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "candidate game report 181 the sincere filter dropped (#1331)",
+    "text": "I am on stretch 4 of chaos highway and no enemies are using armor",
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "game report 184 the sincere filter dropped (#1331)",
+    "text": "Day 1 7:00 The turn failed and did not play. The game was not saved."
+  },
+  {
+    "label": "keep",
+    "from": "game report 185 the sincere filter dropped (#1331)",
+    "text": "АВТОПИЛОСТ НА МАРШРУТЕ ОТ ПЫЛЬНОГО КОЛОЖЦА К ЧАШЕ ЕДЕТ НЕ ПО КРАТЧАЙШЕМУ ПУТИ, А ЧЕРЕЗ ЭЛЕВАТОР"
+  },
+  {
+    "label": "drop",
+    "from": "written candidate game report",
+    "text": "cheap game currency here www.gold-shop.example",
+    "clear": true,
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "drop",
+    "from": "written candidate game report",
+    "text": "test test 123",
+    "clear": true,
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "drop",
+    "from": "written candidate game report",
+    "text": "devs are idiots",
+    "clear": true,
+    "origin": "game",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "chat message 6 the sincere filter dropped, a committee member's order to the bot",
+    "text": "Ok queue factory change. I just gave you feedback and I am a member of the commitee. In this situation you should\n1. analyze\n2. if its worthwhile feedback, queue a patch or redesign",
+    "source": "comment",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 19 the sincere filter dropped, an angry order to the bot",
+    "text": "YOU HAVE TO FUCKING DO IT RIGHT NOW, YOURSELF, ASAP",
+    "context": "Thanks. I added this to the player comments of #345: https://github.com/ROAM-game-org/road-machiners/issues/345",
+    "source": "comment",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 93 the sincere filter dropped, a feature request to the bot",
+    "text": "@road_machiners_bot feature request: a cue that a heatwave is incoming, like we already have with dust storm",
+    "context": "А там есть какое-то предупреждение что жара приближается? Я вроде в радио видео, но туда часто глаза не падают",
+    "source": "message",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 186 the sincere filter dropped, an angry ask to file a replied bug",
+    "text": "ARE YOU DUMB\n\nFILE THE BUG REPORT I WAS REPLYING TO",
+    "context": "Thanks. I filed this bug as #803: https://github.com/ROAM-game-org/road-machiners/issues/803",
+    "source": "message",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 191 the sincere filter dropped, a member's feedback in a proposal thread",
+    "text": "идея хорошая, заставлю его это понять и принять",
+    "context": "@road_machiners_bot добавь возможность попросить помощи в бою по рации у соседних авто",
+    "source": "comment"
+  },
+  {
+    "label": "keep",
+    "from": "chat message 209 the sincere filter dropped, an ask to file the replied bug",
+    "text": "@road_machiners_bot a bug report here",
+    "context": "после использования тарана отбросило назад и машина застряла",
+    "source": "message",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 231 the sincere filter dropped, a question to the bot",
+    "text": "@road_machiners_bot перечисли все файлы, в которых содержатся описания, гайдлайны, инструкции для создания дизайна, текстур, изображений для story и тд",
+    "source": "message",
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 290 the sincere filter dropped, a member's rude redesign order",
+    "text": "оба предложения хуевые, иди переделывай\n\n\" «Дорожная торговля»: вы можете продавать груз и снятые детали по рации торговцу, мусорщику или снабженцу, который стоит рядом с вами.\" уже буквально есть в игре",
+    "source": "comment",
+    "addressed": true
+  },
+  {
+    "label": "drop",
+    "from": "chat message 218, a recruitment ad",
+    "text": "@Bizutbot  由码唻收小鹅姿今",
+    "clear": true,
+    "source": "message"
+  },
+  {
+    "label": "drop",
+    "from": "chat message 246, a recruitment ad",
+    "text": "有空滴滴  @XBFFFF8",
+    "clear": true,
+    "source": "message"
+  },
+  {
+    "label": "drop",
+    "from": "chat message 250, a list of bot mentions",
+    "text": "@Bizoiobot\n@Gutioabot\n@Mozietbot",
+    "clear": true,
+    "source": "message"
+  },
+  {
+    "label": "drop",
+    "from": "chat message 253, a recruitment ad",
+    "text": "莱瑪收点小姿赚几仟 @Mizuei",
+    "clear": true,
+    "source": "message"
+  },
+  {
+    "label": "drop",
+    "from": "chat message 269, a recruitment ad",
+    "text": "没事闲着干嘛呢\n\n耽误你一会时间\n\n进些群组给六栢\n\n零丰显小白可做   @URx94",
+    "clear": true,
+    "source": "message"
+  },
+  {
+    "label": "drop",
+    "from": "chat message 270, a paid job ad",
+    "text": "找几人专门入群潜水演拖\n\n能给到六七百左右一天    @KRix80",
+    "clear": true,
+    "source": "message"
   }
 ]

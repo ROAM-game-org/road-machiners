@@ -300,6 +300,47 @@ describe('merging only a checked build', () => {
     expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([await head('factory/issue-7')]);
   });
 
+  it('walks a branch head back past clean merges of its base only, so a resolved conflict, an edited merge or a merge of another branch stops the walk', async () => {
+    const { home, repo, by, commit, head } = await setup();
+    const author = join(home, 'author');
+    await commit('factory/issue-7', 'f.txt', 'seven\n');
+    const own = await head('factory/issue-7');
+    const onCard = async (merge: string[], edit: () => Promise<unknown> = async () => undefined) => {
+      await by('fetch', '--prune', 'origin');
+      await by('checkout', '-B', 'factory/issue-7', 'origin/factory/issue-7');
+      await realRun('git', [...ID, ...merge], { cwd: author });
+      await edit();
+      await by('push', 'origin', 'factory/issue-7');
+      await repo.fetch();
+      return head('factory/issue-7');
+    };
+    const walk = () => repo.cleanBaseHeads('dev', 'factory/issue-7');
+
+    await commit('dev', 'g.txt', 'dev one\n');
+    const clean = await onCard(['merge', '--no-edit', 'origin/dev']);
+    expect(await walk()).toEqual([clean, own]);
+
+    await commit('dev', 'g.txt', 'dev two\n');
+    const edited = await onCard(['merge', '--no-commit', 'origin/dev'], async () => {
+      writeFileSync(join(author, 'h.txt'), 'slipped into the merge\n');
+      await by('add', 'h.txt');
+      await by('commit', '--no-edit');
+    });
+    expect(await walk()).toEqual([edited]);
+    expect(await repo.ownHeads('dev', 'factory/issue-7')).toEqual([edited, clean, own]);
+
+    await commit('dev', 'f.txt', 'dev changes f\n');
+    const resolved = await onCard(['merge', 'origin/dev'], async () => {
+      writeFileSync(join(author, 'f.txt'), 'seven and dev\n');
+      await by('commit', '-am', 'resolve the conflict');
+    });
+    expect(await walk()).toEqual([resolved]);
+
+    await commit('factory/other', 'h.txt', 'pushed by someone else\n', 'factory/issue-7');
+    const other = await onCard(['merge', '--no-ff', '--no-edit', 'origin/factory/other']);
+    expect(await walk()).toEqual([other]);
+  });
+
   it('lists both paths of a moved file', async () => {
     const { repo, by } = await setup();
     await by('checkout', '-B', 'dev', 'origin/dev');
@@ -803,6 +844,27 @@ describe('resolving a conflict', () => {
     expect(again).toBeInstanceOf(MergeConflictError);
     expect(await show('dev', 'g.txt')).toBe('moved\n');
     expect(await show('dev', 'f.txt')).toBe('dev\n');
+  });
+
+  it('pushes a finished catch-up resolution when dev moved while the agent worked, and the newer dev comes with the next merge', async () => {
+    const { home, repo, commit, feature, show } = await setup();
+    await commit('factory/issue-8', 'f.txt', 'card 8\n');
+    await feature(7, 'f.txt', 'card 7\n');
+    await repo.fetch();
+    const catchUp = { branch: 'dev', into: 'factory/issue-8', message: 'Merge dev into factory/issue-8 while it waits in Merging', issue: null };
+    const error = await repo.merge([catchUp]).catch((e: unknown) => e) as MergeConflictError;
+    const dir = join(home, 'work', 'merge-factory-issue-8');
+    await repo.openConflict(dir, error);
+    await agent(dir, 'f.txt', 'card 7 and 8\n');
+    const { resolution } = await repo.closeConflict(dir, error);
+    await commit('dev', 'g.txt', 'dev moved during the resolution\n');
+    await repo.fetch();
+    await repo.merge([catchUp], [resolution]);
+    expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
+    expect((await show('factory/issue-8', 'g.txt'))).toBe('g\n');
+    await repo.merge([catchUp]);
+    expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
+    expect(await show('factory/issue-8', 'g.txt')).toBe('dev moved during the resolution\n');
   });
 
   it('catches a waiting issue branch up to dev with a resolved conflict, leaves dev alone, and its later merge into dev is clean', async () => {

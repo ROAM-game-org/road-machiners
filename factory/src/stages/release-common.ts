@@ -6,7 +6,15 @@ import type { Ctx, IssueMerge, ReleaseState } from '../types';
 export type Feature = { issue: number; title: string };
 
 export function toFeatures(merges: IssueMerge[]): Feature[] {
-  return merges.map(({ issue, title }) => ({ issue, title }));
+  const titles = new Map<number, string>();
+  for (const { issue, title } of merges) titles.set(issue, title);
+  return [...titles].map(([issue, title]) => ({ issue, title }));
+}
+
+export const isReverted = (merge: IssueMerge): boolean => merge.reverted.length > 0;
+
+export function unrevertedMerges(merges: IssueMerge[]): IssueMerge[] {
+  return merges.filter((merge) => !isReverted(merge));
 }
 
 export function featureLine(feature: Feature): string {
@@ -25,7 +33,7 @@ export function readChanges(raw: string | null, features: Feature[]): Change[] {
     return { issue: issue as number, text: text.trim() };
   });
   const named = changes.map((change) => `#${change.issue}`).sort().join(', ');
-  const wanted = features.map((feature) => `#${feature.issue}`).sort().join(', ');
+  const wanted = [...new Set(features.map((feature) => feature.issue))].map((issue) => `#${issue}`).sort().join(', ');
   if (named !== wanted) throw new Error(`release.json names ${named || 'nothing'}, but the release holds ${wanted || 'nothing'}`);
   return changes;
 }

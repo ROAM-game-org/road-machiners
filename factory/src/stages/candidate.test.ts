@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { EMPTY_STATE, readState, writeState } from '../state';
@@ -13,7 +14,24 @@ vi.mock('../deploy', () => ({
   buildAndDeploy: async (_ctx: unknown, _clone: string, scope: string, _log: string, reports: string | null) => { deployed.push(`${scope} reports ${reports}`); return `https://play.test/${scope}/`; },
   recordBuild: (_statePath: string, issue: number, name: string) => { deployed.push(`record ${issue} ${name}`); },
 }));
-const { candidate, candidateCaption } = await import('./candidate');
+const { candidate, candidateCaption, playtestScript } = await import('./candidate');
+
+function runScript(shots: Record<string, string>): { code: number | null; screenshot: string | null } {
+  mkdirSync('tmp', { recursive: true });
+  const dir = resolve(mkdtempSync(join('tmp', 'candidate-script-')));
+  try {
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    for (const name of ['npm', 'curl']) writeFileSync(join(bin, name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    mkdirSync(join(dir, '.playtest'));
+    for (const [name, text] of Object.entries(shots)) writeFileSync(join(dir, '.playtest', name), text);
+    const result = spawnSync('bash', ['-c', playtestScript('true')], { cwd: dir, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
+    const out = join(dir, '.factory', 'screenshot.png');
+    return { code: result.status, screenshot: existsSync(out) ? readFileSync(out, 'utf8') : null };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
 
 const TRUCKS = issueMerge(3, 'faster trucks');
 const HORN = issueMerge(5, 'louder horn');
@@ -127,6 +145,24 @@ describe('candidate', () => {
     f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     await candidate(f.ctx, 11);
     expect(readState(f.ctx.statePath).release).toMatchObject({ postId: 42, candidate: { sha: 'abc1234' } });
+  });
+
+  it('posts the end-of-play shot, which the playtest checks for the crash screen, never a newer side check shot', () => {
+    const shots = { 'end.png': 'played turns', 'night-highway.png': 'crash screen in Chaos Highway' };
+    expect(runScript(shots)).toEqual({ code: 0, screenshot: 'played turns' });
+    expect(runScript({ 'night-highway.png': 'crash screen in Chaos Highway' })).toEqual({ code: 1, screenshot: null });
+  });
+
+  it('counts an issue merged twice as one change and keeps both merge records for Ship', async () => {
+    const f = fake();
+    const again = issueMerge(3, 'faster trucks', { sha: 'second3'.padEnd(40, '0') });
+    holds(f, [TRUCKS, HORN, again]);
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
+    await candidate(f.ctx, 11);
+    const input = readFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'changelog.md'), 'utf8');
+    expect(input).toBe('#3 faster trucks\n#5 louder horn\n');
+    expect(f.photos[0].caption).toContain('2 changes, full list in the Issue comment above.');
+    expect(readState(f.ctx.statePath).release?.candidate?.features).toEqual([TRUCKS, HORN, again]);
   });
 
   it('lists the issues bundled into a change under it, so the changelog sums up the bundle in one line', async () => {
@@ -244,5 +280,12 @@ describe('readChanges', () => {
     expect(() => readChanges('[3]', features)).toThrow('needs each entry');
     expect(() => readChanges('not json', features)).toThrow();
     expect(() => readChanges(JSON.stringify([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }, { issue: 9, text: 'c' }]), features)).toThrow('names #3, #5, #9');
+  });
+
+  it('wants one change per issue when the release holds an issue twice, and refuses a second entry for it', () => {
+    const twice = [...features, { issue: 3, title: 'faster trucks' }];
+    const one = JSON.stringify([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }]);
+    expect(readChanges(one, twice)).toEqual([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }]);
+    expect(() => readChanges(JSON.stringify([{ issue: 3, text: 'a' }, { issue: 3, text: 'a' }, { issue: 5, text: 'b' }]), twice)).toThrow('names #3, #3, #5, but the release holds #3, #5');
   });
 });

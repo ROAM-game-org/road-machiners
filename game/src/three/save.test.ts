@@ -41,7 +41,7 @@ import { clockOf, sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
-import { SAVE_MAJOR } from './save-migrations';
+import { RELEASE_STEPS, SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
@@ -671,7 +671,7 @@ describe('game save', () => {
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
     saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: RELEASE_STEPS.at(-1)!.from }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
     expect(oldIds(loaded)).toEqual(ids);

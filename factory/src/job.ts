@@ -3,7 +3,7 @@ import { rebuildDev } from './deploy';
 import { failureIssue, reportFailure, summarizeError } from './fail';
 import { UsageLimitError } from './pause';
 import { CARD_JOBS } from './position';
-import { BudgetError } from './stages/checkpoint';
+import { BudgetError, StalledFixError } from './stages/checkpoint';
 import { CommitteeDecisionError, ForeignBaseError } from './diff-guard';
 import { rebuildOnOwnBase } from './stages/rebuild';
 import { adhoc } from './stages/adhoc';
@@ -54,8 +54,14 @@ async function noteFailure(ctx: Ctx, stage: JobStage, issue: number | null, job:
 
 function retriesItself(ctx: Ctx, stage: JobStage, issue: number | null, error: unknown): issue is number {
   if (issue === null || !CARD_JOBS.includes(stage)) return false;
-  if (error instanceof BudgetError || error instanceof UsageLimitError || error instanceof CommitteeDecisionError) return false;
+  if (needsHermes(error)) return false;
   return !readState(ctx.statePath).interrupted.includes(issue);
+}
+
+const HERMES_ERRORS = [BudgetError, StalledFixError, UsageLimitError, CommitteeDecisionError];
+
+function needsHermes(error: unknown): boolean {
+  return HERMES_ERRORS.some((type) => error instanceof type);
 }
 
 function resumeOnce(ctx: Ctx, stage: JobStage, issue: number, error: unknown): void {

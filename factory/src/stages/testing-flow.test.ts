@@ -4,8 +4,10 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { EMPTY_STATE, readState, writeState } from '../state';
+import { readLedger } from '../ledger';
 import type { AgentRun, Ctx, Pin } from '../types';
-import { BudgetError } from './checkpoint';
+import { BudgetError, StalledFixError } from './checkpoint';
+import { causeOf } from '../fail';
 import { testPoolPin } from '../cpus';
 import { cardSession } from '../card-session';
 
@@ -41,13 +43,17 @@ let suites: string[] = [];
 let failingSuites = 0;
 let green = new Set<string>();
 let head = 'abc123';
+let fixesCommit = true;
 let baseFailures: { failed: { file: string; test: string | null }[]; unfinished: string[]; unhandledErrors: number } | null = null;
+let cleanWalk: string[] | null = null;
 
 beforeEach(() => {
   suites = [];
   failingSuites = 0;
   green = new Set();
   head = 'abc123';
+  fixesCommit = true;
+  cleanWalk = null;
   baseFailures = null;
   albums = [];
   albumFails = false;
@@ -79,7 +85,7 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, hardeningBudgetUsd: budget, noCommitRounds: 3, suiteRerunFiles: 5, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10, ...POOLS },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -120,6 +126,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
           mkdirSync(join(run.session.dir, 'project'), { recursive: true });
           writeFileSync(join(run.session.dir, 'project', `${run.session.id}.jsonl`), '');
         }
+        if (fixesCommit && run.prompt.includes('Commit, and end again')) head = `fix${runs.length}`;
         agent(run, runs.length - 1);
         return result(1);
       },
@@ -151,6 +158,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       foreignCommits: async () => 0,
       changedFiles: async () => changed,
       ownHeads: async () => ['abc123', 'aaa1111'],
+      cleanBaseHeads: async () => cleanWalk ?? [head],
     },
   };
   return fake as unknown as Ctx;
@@ -203,12 +211,43 @@ describe('testing in one job', () => {
     expect(runs).toHaveLength(2);
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(runs[1]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
-    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(suites).toEqual(['abc123', 'fix2']);
+    expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('runs no checks again on a head a fix round left unchanged, and fails with the first failure after three such rounds', async () => {
+    fixesCommit = false;
+    failingSuites = 99;
+    const error = await runVerify(fakeCtx(posts), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('FAIL src/sim/far.test.ts > drives far');
+    expect(causeOf(error)).toBe('decision');
+    expect(suites).toEqual(['abc123']);
+    expect(shellScripts).toHaveLength(1);
+    expect(runs).toHaveLength(4);
+    expect(runs[2]!.prompt).toContain('Your last round made no commit, so the head is still abc123');
+    expect(calls.some((call) => call.startsWith('buttons') || call.startsWith('photo') || call.startsWith('move'))).toBe(false);
+  });
+
+  it('fails after three rounds in a row that leave the approval missing on the same head, and posts nothing', async () => {
+    fixesCommit = false;
+    const error = await runVerify(fakeCtx(() => undefined), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('wrote no .factory/approval.json');
+    expect(runs).toHaveLength(4);
+    expect(shellScripts).toEqual([]);
+    expect(calls.some((call) => call.startsWith('buttons') || call.startsWith('photo'))).toBe(false);
+  });
+
+  it('reads the approval again after a round with no commit, so writing it fixes a missing approval on a checked head', async () => {
+    fixesCommit = false;
+    await runVerify(fakeCtx((run, index) => { if (index > 0) posts(run); }), 7);
+    expect(shellScripts).toHaveLength(1);
     expect(calls.at(-1)).toBe('move 7 Approval');
   });
 
   it('posts a card whose only failing tests also fail on the base, and records the head', async () => {
-    failingSuites = 2;
+    failingSuites = 3;
     baseFailures = { failed: [{ file: 'src/sim/far.test.ts', test: 'drives far' }], unfinished: [], unhandledErrors: 0 };
     await runVerify(fakeCtx(posts), 7);
     expect(runs).toHaveLength(1);
@@ -216,8 +255,34 @@ describe('testing in one job', () => {
     expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
   });
 
-  it('sends only the tests the base does not fail back to the session', async () => {
+  it('posts a card whose failed files pass when they run again on the same head, with no fix round, and records the head and the rerun', async () => {
+    failingSuites = 1;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    const scopes: unknown[] = [];
+    const ctx = fakeCtx(posts);
+    const github = ctx.github as unknown as { dispatchSuite: (sha: string, scope?: unknown) => Promise<number> };
+    github.dispatchSuite = async (sha, scope) => { scopes.push(scope); return suites.push(sha); };
+    await runVerify(ctx, 7);
+    expect(runs).toHaveLength(1);
+    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(scopes).toEqual([undefined, { files: ['src/three/edge.test.ts'], workers: null }]);
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
+    expect(readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun')).toMatchObject([{ stage: 'verify', issue: 7, head: 'abc123', files: ['src/three/edge.test.ts'], outcome: 'passed' }]);
+    expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('hands a failure whose files fail again on the same head to the session, and records no cleared head', async () => {
     failingSuites = 2;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    await runVerify(fakeCtx(posts), 7);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.prompt).toContain('they failed again, so these failures are real: src/three/edge.test.ts.');
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({});
+    expect(readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun')).toMatchObject([{ outcome: 'failed' }]);
+  });
+
+  it('sends only the tests the base does not fail back to the session', async () => {
+    failingSuites = 3;
     baseFailures = { failed: [{ file: 'src/sim/far.test.ts', test: 'drives far' }], unfinished: [], unhandledErrors: 0 };
     const ctx = fakeCtx(posts);
     const github = ctx.github as unknown as { suiteFailures: () => Promise<unknown> };
@@ -347,7 +412,7 @@ describe('testing in one job', () => {
     expect(runs).toHaveLength(3);
     expect(runs[2]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
     expect(runs[2]!.session?.resume).toBe(true);
-    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(suites).toEqual(['abc123', 'fix3']);
     expect(calls.some((call) => call.startsWith('photo'))).toBe(true);
   });
 
@@ -539,17 +604,60 @@ describe('hardening in one session', () => {
     expect(calls.at(-1)).toBe('move 7 Merging');
   });
 
-  it('runs no suite again after a fix round that made no commit, and hands the same failure back', async () => {
+  it('runs no suite again after a fix round that made no commit, hands the same failure back, and stops after three such rounds', async () => {
+    fixesCommit = false;
     failingSuites = 99;
-    await expect(runHarden(fakeCtx(() => undefined, [], 3), 7)).rejects.toThrow(BudgetError);
+    const error = await runHarden(fakeCtx(() => undefined, [], 10), 7).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('The full suite failed on GitHub Actions for abc123');
     expect(suites).toEqual(['abc123']);
+    expect(runs).toHaveLength(4);
     expect(runs.at(-1)!.prompt).toContain('Your last round made no commit');
+    expect(calls).not.toContain('move 7 Merging');
   });
 
   it('stops with a BudgetError when the suite stays red past the hardening budget, and does not move the card', async () => {
     failingSuites = 99;
     await expect(runHarden(fakeCtx(() => undefined, [], 3), 7)).rejects.toThrow(BudgetError);
     expect(calls).not.toContain('move 7 Merging');
+  });
+
+  it('moves the card to Merging with no fix round when the failed files pass on the same head, and records the head', async () => {
+    failingSuites = 1;
+    baseFailures = { failed: [{ file: 'src/three/edge.test.ts', test: null }], unfinished: [], unhandledErrors: 0 };
+    await runHarden(fakeCtx(() => undefined), 7);
+    expect(runs).toHaveLength(1);
+    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(readState(`${home}/state.json`).suiteCleared).toEqual({ 7: 'abc123' });
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs no suite when the head only merges the base cleanly into the card work that has a green suite', async () => {
+    cleanWalk = ['abc123', 'aaa1111'];
+    green.add('aaa1111');
+    const logs: string[] = [];
+    const ctx = fakeCtx(() => undefined);
+    ctx.log = (_stage, _issue, message) => { logs.push(message); };
+    await runHarden(ctx, 7);
+    expect(suites).toEqual([]);
+    expect(logs.some((line) => line.includes('only merges dev with no conflict and no edit into a commit that has one'))).toBe(true);
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs the suite on a head whose base merge an agent resolved, though the card work before it is green', async () => {
+    cleanWalk = ['abc123'];
+    green.add('aaa1111');
+    conflicts = ['game/src/a.ts'];
+    await runHarden(fakeCtx(() => undefined), 7);
+    expect(suites).toEqual(['abc123']);
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('runs the suite on a head with a hardening commit after a clean base merge', async () => {
+    cleanWalk = ['abc125'];
+    green.add('aaa1111');
+    await runHarden(fakeCtx(() => { head = 'abc125'; }), 7);
+    expect(suites).toEqual(['abc125']);
   });
 
   it('runs no suite when the pushed head already has a green status', async () => {
@@ -631,7 +739,13 @@ describe('the green suite before Approval', () => {
 });
 
 describe('a post with no checks', () => {
-  it('builds once and runs the suite, posts with the no-testing notice and default text, and clears the mark', async () => {
+  const savePlan = (record: string) => {
+    mkdirSync(`${home}/work/issue-7/game/.factory-tasks`, { recursive: true });
+    writeFileSync(`${home}/work/issue-7/game/.factory-tasks/issue-7.plan.json`, record);
+  };
+
+  it('builds once and runs the suite, posts the planned change and play steps with the no-testing notice, and clears the mark', async () => {
+    savePlan(JSON.stringify({ change: 'Petra stops writing the raider note.', howToTry: 'Open the Roadhouse and answer Petra about the raider.' }));
     writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
     await runPost(fakeCtx(() => undefined), 7);
     expect(suites).toEqual(['abc123']);
@@ -639,9 +753,43 @@ describe('a post with no checks', () => {
     expect(shellScripts[0]).not.toContain('playtest');
     const text = calls.find((call) => call.startsWith('buttons')) ?? '';
     expect(text).toContain('No testing agent played this build. Only the full suite and the build ran.');
-    expect(text).toContain('The pull request shows what changed.');
+    expect(text).toContain('This is the planned change from the design. No testing agent checked it against the build.\n\nPetra stops writing the raider note.');
+    expect(text).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
+    expect(commentBodies.at(-1)).toContain('Petra stops writing the raider note.');
+    expect(commentBodies.at(-1)).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
+    expect(commentBodies.at(-1)).toContain('No testing agent played this build.');
+    const pr = calls.find((call) => call.startsWith('openPullRequest')) ?? '';
+    expect(pr).toContain('Petra stops writing the raider note.');
+    expect(pr).toContain('How to try: Open the Roadhouse and answer Petra about the raider.');
     expect(readState(`${home}/state.json`).postOnly).toEqual([]);
     expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('says design wrote no play steps when the record holds only the change', async () => {
+    savePlan(JSON.stringify({ change: 'Horns get louder.', howToTry: null }));
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await runPost(fakeCtx(() => undefined), 7);
+    expect(commentBodies.at(-1)).toContain('Horns get louder.\n\nHow to try: The design wrote no play steps.');
+  });
+
+  it('lists the changed files and says the design left no summary when no record exists', async () => {
+    changed = ['game/src/a.ts', 'game/src/b.ts'];
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await runPost(fakeCtx(() => undefined), 7);
+    const text = calls.find((call) => call.startsWith('buttons')) ?? '';
+    expect(text).toContain('No testing agent played this build. Only the full suite and the build ran.');
+    expect(text).toContain('No testing agent wrote notes for this build, and the design left no summary. The branch changes: game/src/a.ts, game/src/b.ts');
+    expect(commentBodies.at(-1)).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
+    expect(commentBodies.at(-1)).toContain('How to try: The design wrote no play steps. The design comment on the issue holds the plan.');
+    expect(commentBodies.at(-1)).not.toContain('try the change the issue asks for');
+    expect(calls.find((call) => call.startsWith('openPullRequest'))).toContain('The branch changes: game/src/a.ts, game/src/b.ts');
+  });
+
+  it('fails on a malformed plan record', async () => {
+    savePlan(JSON.stringify({ change: 5, howToTry: null }));
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), postOnly: [7] });
+    await expect(runPost(fakeCtx(() => undefined), 7)).rejects.toThrow('issue-7.plan.json needs fields');
+    expect(readState(`${home}/state.json`).postOnly).toEqual([7]);
   });
 
   it('refuses a card that waits for no post', async () => {

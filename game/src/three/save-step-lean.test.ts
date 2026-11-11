@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_104 from './save-fixtures/format-2-104.json';
 import { FIRST_TINY as TINY_FROM, FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
+import { directionsText } from '../ui/directions-text';
+import { resolve } from '../text/resolve';
+import type { DirectionStep } from '../sim/types';
 
 type Saved = typeof FORMAT_2_104;
 

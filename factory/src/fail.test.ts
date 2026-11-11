@@ -6,7 +6,7 @@ import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailu
 import { GithubError } from './github';
 import { CommitteeDecisionError } from './diff-guard';
 import { UsageLimitError } from './pause';
-import { BudgetError } from './stages/checkpoint';
+import { BudgetError, StalledFixError } from './stages/checkpoint';
 import { EMPTY_STATE, readState, writeState } from './state';
 import type { Ctx, FactoryState, FailureCause } from './types';
 
@@ -59,6 +59,7 @@ describe('reportFailure', () => {
     const wrapped = new Error('merge failed', { cause: new GithubError('boom') });
     const cases: [string, unknown, FailureCause][] = [
       ['a spent budget', new BudgetError('x'), 'decision'],
+      ['fix rounds that stopped committing', new StalledFixError('abc1234', 3, 'x'), 'decision'],
       ['a committee question', new CommitteeDecisionError('x'), 'decision'],
       ['a job past its time limit', new JobTimeoutError('x'), 'timeout'],
       ['a job that died', new JobDiedError('x'), 'died'],

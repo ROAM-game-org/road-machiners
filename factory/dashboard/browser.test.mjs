@@ -509,10 +509,15 @@ async function checkUntrustedAndMissingData(page) {
   empty.github.value.cards.value = [];
   await sendSnapshot(page, empty);
   assert.deepEqual(await page.locator('#funnel strong').allTextContents(), fill('0'));
+  assert.equal(await page.locator('#funnel-note').textContent(), '');
   const stale = structuredClone(fixture);
   stale.github.status = 'stale';
+  stale.github.at = '2026-11-03T22:30:05.000Z';
   await sendSnapshot(page, stale);
-  assert.deepEqual(await page.locator('#funnel strong').allTextContents(), fill('—'));
+  assert.deepEqual(await page.locator('#funnel strong').allTextContents(), boardColumns.map((column) => String(fixture.github.value.cards.value.filter((card) => card.column === column).length)));
+  assert.equal(await page.locator('#funnel-note').textContent(), 'Last read 22:30 UTC');
+  assert.equal(await page.locator('#merge-note').textContent(), 'Last read 22:30 UTC');
+  assert.equal(await page.locator('#merge-items li').count(), fixture.github.value.mergeQueue.value.length);
 }
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 await mkdir(evidence, { recursive: true });
