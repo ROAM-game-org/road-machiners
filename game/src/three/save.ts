@@ -121,9 +121,10 @@ export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
 }
 
+export const AUTOSAVE_SLOTS: readonly SlotId[] = ['auto', 'day'];
+
 export function clearGame(slots: SaveSlots, storage: Storage): void {
-  clearSlot(slots, 'auto');
-  clearSlot(slots, 'day');
+  AUTOSAVE_SLOTS.forEach((slot) => clearSlot(slots, slot));
   clearTips(storage);
 }
 
@@ -474,6 +475,7 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
       Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError);
     },
     newGame: {
+      hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
       requestBoot: (request: BootRequest) => requestBoot(session, SAVE_KEY, request),
       reload: () => void Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError),
     } satisfies NewGameActions,

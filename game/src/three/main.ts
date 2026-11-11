@@ -43,7 +43,7 @@ import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteEr
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { carriesOnLoad, clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
+import { AUTOSAVE_SLOTS, carriesOnLoad, clearGame, hasSave, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
 import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
@@ -289,6 +289,7 @@ gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
+  hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
 };
