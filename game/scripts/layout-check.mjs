@@ -297,7 +297,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {} }, sound);
+  void chooseStart(saves, { hasAutosave: () => true, requestBoot: () => {}, reload: () => {} }, sound);
 });
 
 const openStartOptions = async (page) => {
@@ -851,6 +851,48 @@ async function nestedScrollFaults(page) {
   return found.map((text) => ({ kind: 'nested-scroll', path: '', text, sizes: '' }));
 }
 
+async function openGarageStorage(page) {
+  await page.evaluate(async () => {
+    const { makePart } = await import('/src/sim/factory.ts');
+    const g = window.__ROAM__;
+    window.__layoutWorld = structuredClone(g.state);
+    const world = structuredClone(g.state);
+    const { PARTS } = await import('/src/data/parts.ts');
+    const ids = (Array.isArray(PARTS) ? PARTS : Object.values(PARTS)).map((part) => part.id).slice(0, 8);
+    for (const id of ids) world.player.storage.push(makePart(world, id, 0));
+    g.apply(world);
+  });
+  await openTown(page, 'trucks');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const chip = document.querySelector('.inv-storage .inv-chip');
+    chip?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 1, clientY: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 1, clientY: 1 }));
+  });
+  await page.waitForTimeout(300);
+}
+
+async function closeGarageStorage(page) {
+  await closeTown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld));
+}
+
+async function hostedColumnFaults(page) {
+  const found = await page.evaluate(() => {
+    if (innerWidth < 1000) return [];
+    const name = (n) => `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]}`;
+    const faults = [];
+    for (const box of document.querySelectorAll('.truck-body .inv-side > *')) {
+      if (box.scrollHeight > box.clientHeight + 1) faults.push(`${name(box)} is shorter than its content`);
+      const bottom = box.getBoundingClientRect().bottom;
+      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
+    }
+    return faults;
+  });
+  const nested = await nestedScrollFaults(page);
+  return [...found.map((text) => ({ kind: 'hosted-column', path: '', text, sizes: '' })), ...nested];
+}
+
 const BENCH_AUDIT = () => {
   const frame = document.querySelector('.inventory-screen');
   const m = frame.getBoundingClientRect();
@@ -1026,6 +1068,7 @@ const STATES = {
   'garage-full': { setup: openFullYard(null), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   'garage-full-sorokonoga': { setup: openFullYard('sorokonoga'), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
+  'garage-storage': { setup: openGarageStorage, teardown: closeGarageStorage, check: hostedColumnFaults },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'board-kinds': { setup: openBoardKinds({ offerKinds: ['haul', 'procure', 'escort'], heldCount: 2 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
