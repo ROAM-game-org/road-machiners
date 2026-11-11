@@ -910,7 +910,7 @@ export const TALL_RISE: Readonly<Record<string, number>> = {
   enclosedFrame: 1.05,
   heavyFrame: 1.05,
   cannon: 0.85,
-  sniperCannon: 0.7,
+  sniperCannon: 0.6,
   tankGun: 0.9,
 };
 

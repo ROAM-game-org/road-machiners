@@ -7,8 +7,8 @@ The game assembles a weapon from four models joined at sockets:
 - A receiver has its origin at the pivot and faces +X. It carries `socket_muzzle` at the center of its front face and
   `socket_extra` on the top front edge, centered in Y.
 - A barrel has its origin at its rear end, centered in Y and Z, and runs along +X. It carries `socket_tip` at the center of its front end, where rounds leave.
-- An extra has its origin at the top front edge of the receiver. A shield rises from there. A scope and a drum reach
-  back from there.
+- An extra has its origin at the top front edge of the receiver. A shield rises from there. A drum reaches back from
+  there.
 """
 
 from __future__ import annotations

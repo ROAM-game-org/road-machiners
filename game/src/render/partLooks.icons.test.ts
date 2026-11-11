@@ -70,9 +70,9 @@ describe('icon catalog', () => {
     expect(entry('scout').rank).toBe(0);
   });
 
-  it('tells apart weapons of one look by rank and by their bulk, which the stretched mount draws', () => {
-    expect(entry('amRifle').models).toEqual(entry('sniperCannon').models);
-    expect([entry('amRifle').rank, entry('sniperCannon').rank]).toEqual([1, 2]);
+  it('gives every weapon icon its own models, with the bulk the stretched mount draws in its key', () => {
+    const weapons = Object.keys(ICON_WEAPON_PICKS);
+    expect(new Set(weapons.map((id) => entry(id).models.join('+'))).size).toBe(weapons.length);
     expect(renderKey(entry('amRifle'))).toContain('@1x3');
     expect(renderKey(entry('sniperCannon'))).toContain('@2x3');
   });

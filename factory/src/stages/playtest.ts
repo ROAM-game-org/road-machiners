@@ -216,8 +216,10 @@ async function fixChecks(ctx: Ctx, session: Session, sha: string, failure: strin
 }
 
 async function firstPlay(ctx: Ctx, session: Session): Promise<LogFacts> {
-  const [facts] = await Promise.all([playRelease(ctx, session, session.start), playBaseline(ctx, session)]);
-  return facts;
+  const [release, baseline] = await Promise.allSettled([playRelease(ctx, session, session.start), playBaseline(ctx, session)]);
+  if (release.status === 'rejected') throw release.reason;
+  if (baseline.status === 'rejected') throw baseline.reason;
+  return release.value;
 }
 
 async function playRelease(ctx: Ctx, session: Session, sha: string): Promise<LogFacts> {
