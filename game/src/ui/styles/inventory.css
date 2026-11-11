@@ -524,6 +524,9 @@
   width: var(--inv-side-width);
   min-width: var(--inv-side-min);
 }
+.inv-side > * {
+  flex: none;
+}
 .inv-inspection {
   display: flex;
   flex-direction: column;

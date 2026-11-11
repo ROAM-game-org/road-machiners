@@ -10,6 +10,7 @@ import { computeTurn, driveSnapshotOf } from "../phys/turn";
 import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
 import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
+import { perfSnapshot, resetPerf } from "../perf";
 import type { World } from "../sim/types";
 import { reportError } from "./crash";
 import { MOVE_MS, TurnPreparation } from "./travel";
@@ -46,6 +47,7 @@ let reply: PreparedTurn;
 beforeAll(initPhysics);
 beforeEach(() => {
   TestWorker.created = 0;
+  resetPerf();
   vi.mocked(reportError).mockClear();
   vi.stubGlobal("Worker", TestWorker);
   world = emptyWorld();
@@ -108,14 +110,105 @@ it("discards a stale result after replanning and sends stable terrain only once"
   });
   turns.prepare(changed, drive);
   const worker = TestWorker.latest;
-  expect(worker?.requests).toHaveLength(2);
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(worker.requests).toHaveLength(2);
   expect(worker.requests[0].terrain).toBe(world.terrain);
   expect(worker.requests[1].terrain).toBeNull();
-  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(changed)).toBeNull();
   worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toBeNull();
   expect(turns.take(changed)).toEqual(reply);
+});
+
+it("posts nothing while a turn runs, then only the newest world wanted meanwhile", () => {
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const worlds = [34, 36, 38].map((x) => setMoveOrder(world, { kind: "stopAt", dest: { x, y: 31 } }));
+  for (const next of worlds) turns.prepare(next, drive);
+  const worker = TestWorker.latest;
+  expect(worker.requests).toHaveLength(1);
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(worker.requests).toHaveLength(2);
+  expect(worker.requests[1].world.vehicles).toEqual(worlds[2].vehicles);
+  for (const stale of [world, worlds[0], worlds[1]]) expect(turns.take(stale)).toBeNull();
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(worker.requests).toHaveLength(2);
+  expect(turns.take(worlds[2])).toEqual(reply);
+});
+
+it("waits for the warm-up before it posts a wanted turn, and the warm-up still settles", async () => {
+  const turns = new TurnPreparation(TAIL);
+  const warmed = turns.warm(world, drive);
+  const next = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(next, drive);
+  const worker = TestWorker.latest;
+  expect(worker.requests).toHaveLength(1);
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: { turn: { last: 9, max: 9, total: 9, calls: 1 } } });
+  await warmed;
+  expect(worker.requests).toHaveLength(2);
+  expect(worker.requests[1].world.vehicles).toEqual(next.vehicles);
+  expect(turns.take(next)).toBeNull();
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(turns.take(next)).toEqual(reply);
+});
+
+it("reports a worker error during a replaced turn and posts the wanted one", () => {
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const next = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(next, drive);
+  const worker = TestWorker.latest;
+  worker.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
+  expect(reportError).toHaveBeenCalledOnce();
+  expect(worker.requests).toHaveLength(2);
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(turns.take(next)).toEqual(reply);
+});
+
+it("posts the wanted turn after a replaced turn failed in the worker", () => {
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const next = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(next, drive);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, error: "physics failed" });
+  expect(reportError).toHaveBeenCalledOnce();
+  expect(worker.requests).toHaveLength(2);
+  expect(turns.take(next)).toBeNull();
+});
+
+it("sends only the wanted turn to a restarted worker, once", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const next = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(next, drive);
+  TestWorker.latest.onerror?.(noScript);
+  vi.advanceTimersByTime(500);
+  const second = TestWorker.latest;
+  expect(second.requests).toHaveLength(1);
+  expect(second.requests[0].world.vehicles).toEqual(next.vehicles);
+  second.respond({ id: second.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(second.requests).toHaveLength(1);
+  expect(turns.take(next)).toEqual(reply);
+});
+
+it("keeps the route time of the newest turn apart from the idle work before it", () => {
+  const turns = new TurnPreparation(TAIL);
+  expect(turns.routeMsOfLastTurn()).toBeNull();
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  const stat = (total: number) => ({ last: total, max: total, total, calls: 1 });
+  worker.respond({
+    id: worker.requests[0].id,
+    turn: reply,
+    obstacles: { kind: "same" },
+    perf: { route: stat(30), "route-ahead": stat(20), "coarse-trip": stat(5), fog: stat(100) },
+    idle: { route: stat(400), idle: stat(400) },
+  });
+  expect(turns.routeMsOfLastTurn()).toBe(55);
+  expect(perfSnapshot().route).toMatchObject({ total: 430, calls: 2 });
+  expect(perfSnapshot().idle).toMatchObject({ total: 400 });
 });
 
 it("throws a calculation failure once, then prepares again", () => {
@@ -154,6 +247,18 @@ it("restarts a worker whose script did not load and sends the pending turn again
   expect(second.requests[0].terrain).toBe(world.terrain);
   expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
   second.respond({ id: second.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(turns.take(world)).toEqual(reply);
+});
+
+it("does not send a turn again that was already answered when the worker reloads", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const first = TestWorker.latest;
+  first.respond({ id: first.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  first.onerror?.(noScript);
+  vi.advanceTimersByTime(500);
+  expect(TestWorker.created).toBe(1);
   expect(turns.take(world)).toEqual(reply);
 });
 
@@ -307,19 +412,19 @@ it("counts the time of a turn posted to an idle worker", () => {
   expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 400);
 });
 
-it("does not count a turn that waited behind a request the game threw away", () => {
+it("times a turn from when the worker got it, not from when the game wanted it", () => {
   const now = vi.spyOn(performance, "now");
   const turns = new TurnPreparation(TAIL);
   now.mockReturnValue(0);
   turns.prepare(world, drive);
   const second = afterOrder(turns, 40);
   const worker = TestWorker.latest;
-  now.mockReturnValue(400);
+  now.mockReturnValue(300);
   answer(worker, 0);
-  now.mockReturnValue(800);
+  now.mockReturnValue(400);
   answer(worker, 1);
   expect(turns.take(second)).not.toBeNull();
-  expect(turns.keptSpeed()).toBe(Infinity);
+  expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 100);
 });
 
 it("posts nothing when the same world is prepared again", () => {

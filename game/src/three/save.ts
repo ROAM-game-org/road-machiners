@@ -121,9 +121,10 @@ export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
 }
 
+export const AUTOSAVE_SLOTS: readonly SlotId[] = ['auto', 'day'];
+
 export function clearGame(slots: SaveSlots, storage: Storage): void {
-  clearSlot(slots, 'auto');
-  clearSlot(slots, 'day');
+  AUTOSAVE_SLOTS.forEach((slot) => clearSlot(slots, slot));
   clearTips(storage);
 }
 
@@ -474,6 +475,7 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
       Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError);
     },
     newGame: {
+      hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
       requestBoot: (request: BootRequest) => requestBoot(session, SAVE_KEY, request),
       reload: () => void Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError),
     } satisfies NewGameActions,
@@ -511,9 +513,8 @@ export const TURN_FAILED_NOTE = t('save.turnFailed');
 
 export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string; importSave: (text: string) => Promise<ImportResult> };
 
-export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session: Storage, reload: () => void): boolean {
+export function changeMapIfMoved(run: Run, world: World, session: Storage, reload: () => void): boolean {
   if (world.mapHash === run.mapHash) return false;
-  if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
   run.log.note(world);
   if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
@@ -577,7 +578,7 @@ export class GameSaves {
   }
 
   changeMapIfMoved(world: World): boolean {
-    this.moving ||= changeMapIfMoved(this.run, world, this.hold, window.sessionStorage, () => window.location.reload());
+    this.moving ||= changeMapIfMoved(this.run, world, window.sessionStorage, () => window.location.reload());
     return this.moving;
   }
 

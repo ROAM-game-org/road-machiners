@@ -184,7 +184,7 @@ function inkShareOf(look: ParticleLook, ink: number): number {
   return look.onlyIn === 'inkOn' ? ink : 1;
 }
 
-export function inkSizeOf(look: ParticleLook, ink: number): number {
+export function inkSizeOf(look: Pick<ParticleLook, 'smoke' | 'inkScale'>, ink: number): number {
   const full = look.smoke ? TUNING.smokeSize.value : (look.inkScale ?? 1);
   return 1 + (full - 1) * ink;
 }

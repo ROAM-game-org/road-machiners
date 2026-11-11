@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { playUrl } from './game-url.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
+import { launchSoftwareChromium } from './gpu.mjs';
 
 export const MISSING_GROUND_GATE = 0.05;
 export const NIGHT_TURNS = 3;
@@ -239,7 +240,7 @@ export async function checkHighwayNightInSoftware(url, options) {
 }
 
 async function tryHighwayNightInSoftware(url, { shot, bootLimitMs }) {
-  const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
+  const { browser } = await launchSoftwareChromium(chromium);
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   if (bootLimitMs === 0) page.setDefaultTimeout(0);
   const errors = [];

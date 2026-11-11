@@ -386,7 +386,7 @@ describe('rough ground practice', () => {
     const [event] = practiceOf(w, 'roughTiles');
     expect(event.amount).toBeCloseTo(6);
     expect(event.difficulty).toBe(0);
-    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.easy);
+    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.easy * XP_RULES.gain);
   });
 
   it('pays the roughest ground at the hardest difficulty', () => {
@@ -397,7 +397,7 @@ describe('rough ground practice', () => {
     applyWear(w);
     const [event] = practiceOf(w, 'roughTiles');
     expect(event.difficulty).toBe(1);
-    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.hard);
+    expect(event.xp).toBeCloseTo(XP_SOURCES.roughTiles.weight * 6 * XP_RULES.hard * XP_RULES.gain);
   });
 
   it('pays nothing while the player is towed', () => {

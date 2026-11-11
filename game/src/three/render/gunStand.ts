@@ -763,7 +763,7 @@ function facePoints(lateral: [number, number], height: [number, number]): [numbe
   return out;
 }
 
-export type FaceProfile = { outward: number; bottom: number; reach: (number | null)[]; glass: (number | null)[] };
+export type FaceProfile = { outward: number; bottom: number; reach: (number | null)[]; glass: (number | null)[]; fill: number[] };
 
 const PROFILES = new Map<string, FaceProfile>();
 
@@ -781,11 +781,14 @@ export function faceProfile(body: THREE.Object3D, axis: 'x' | 'z', outward: numb
 function profileOf(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number]): FaceProfile {
   const index = faceIndex(body, `${outward > 0 ? '+' : '-'}${axis}` as keyof typeof LOOKS);
   const box = new THREE.Box3().setFromObject(body);
-  const profile: FaceProfile = { outward, bottom: box.min.y, reach: [], glass: [] };
+  const profile: FaceProfile = { outward, bottom: box.min.y, reach: [], glass: [], fill: [] };
+  const columns = facePoints(lateral, [0, FACE_COLUMN]).length;
   for (let y = box.min.y + FACE_COLUMN / 2; y < box.max.y; y += FACE_COLUMN) {
     const reaches = rowHits(index, lateral, y).map((hit) => ({ reach: outward * hit.point[axis], glass: hit.face.glass }));
-    profile.reach.push(extreme(reaches.map((r) => r.reach), Math.max));
+    const reach = extreme(reaches.map((r) => r.reach), Math.max);
+    profile.reach.push(reach);
     profile.glass.push(extreme(reaches.filter((r) => r.glass).map((r) => r.reach), Math.min));
+    profile.fill.push(reaches.length / columns);
   }
   return profile;
 }

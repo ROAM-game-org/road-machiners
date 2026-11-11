@@ -964,3 +964,40 @@ export function withoutXpToday(world: SavedJson): SavedJson {
   delete player.xpToday;
   return { ...world, player };
 }
+
+const UNSEEN_LEAVE_KINDS = ['none', 'fork'];
+
+function askAgainFromLeave(steps: SavedJson[]): SavedJson[] {
+  const at = steps.findIndex((s) => s.do === 'leave' && UNSEEN_LEAVE_KINDS.includes((s.at as SavedJson).kind as string));
+  return at < 0 ? steps : [...steps.slice(0, at), { do: 'askAgain' }];
+}
+
+function withSeenLeaves(vars: SavedJson): SavedJson {
+  const out: SavedJson = {};
+  for (const [name, v] of Object.entries(vars)) {
+    const way = v as SavedJson;
+    out[name] = way.kind === 'directions' ? { ...way, steps: askAgainFromLeave(way.steps as SavedJson[]) } : v;
+  }
+  return out;
+}
+
+export function withSeenLeaveCues(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const seen = { ...call, vars: withSeenLeaves(call.vars as SavedJson), line: { ...line, vars: withSeenLeaves(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: seen } };
+}
+
+const CLAIM_KIND = 'claim';
+
+function withoutRival(offer: SavedJson): SavedJson {
+  return offer.kind === CLAIM_KIND && offer.rival !== null ? { ...offer, rival: null } : offer;
+}
+
+export function withoutPostedClaimRivals(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson>;
+  const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutRival) }]));
+  return { ...world, shops: next };
+}

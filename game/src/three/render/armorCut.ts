@@ -5,11 +5,12 @@ import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { fitRamToBumper, fitToBody, placedBounds, SIDE_FACE, type Placement } from './armorFit';
-import { TOP_MARGIN, unitTopCut, type TopCut } from './armorTop';
+import { fitRamToBumper, placedBounds, settleOnBody, SIDE_FACE, type Placement } from './armorFit';
+import { TOP_MARGIN, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
 export type { Placement } from './armorFit';
+export { armorMatrix, poseArmor } from './armorFit';
 export { unitTopCut } from './armorTop';
 export { armorModel } from './armorLook';
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
@@ -118,7 +119,7 @@ const VERTEX_DECLARE = 'varying vec3 vCutPos;';
 const VERTEX_SET = 'vCutPos = transformed;';
 const FRAGMENT_DECLARE = `varying vec3 vCutPos;
 uniform vec4 cutWheelAt[CUT_WHEELS];
-uniform float cutWheelHalfWidth[CUT_WHEELS];
+uniform vec4 cutWheelHalfWidth[(CUT_WHEELS + 3) / 4];
 uniform vec3 cutLampMin[CUT_LAMPS];
 uniform vec3 cutLampMax[CUT_LAMPS];
 uniform sampler2D cutTop;
@@ -139,7 +140,7 @@ float cutTopHeight(vec3 p) {
   return mix(low, high, f.y);
 }`;
 const FRAGMENT_DISCARD = `for (int i = 0; i < CUT_WHEELS; i++) {
-  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i]) discard;
+  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i / 4][i % 4]) discard;
 }
 for (int i = 0; i < CUT_LAMPS; i++) {
   if (all(greaterThan(vCutPos, cutLampMin[i])) && all(lessThan(vCutPos, cutLampMax[i]))) discard;
@@ -160,6 +161,10 @@ function padded<T>(values: T[], slots: number, empty: () => T, what: string): T[
   return [...values, ...Array.from({ length: slots - values.length }, empty)];
 }
 
+function packedByFour(values: number[]): THREE.Vector4[] {
+  return Array.from({ length: Math.ceil(values.length / 4) }, (_, row) => new THREE.Vector4(...[0, 1, 2, 3].map((k) => values[row * 4 + k] ?? 0)));
+}
+
 function uniformsOf(spec: CutSpec): CutUniforms {
   const known = uniformsOfSpec.get(spec);
   if (known) return known;
@@ -167,7 +172,7 @@ function uniformsOf(spec: CutSpec): CutUniforms {
   const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamps');
   const uniforms: CutUniforms = {
     cutWheelAt: { value: wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) },
-    cutWheelHalfWidth: { value: wheels.map((w) => w.halfWidth) },
+    cutWheelHalfWidth: { value: packedByFour(wheels.map((w) => w.halfWidth)) },
     cutLampMin: { value: lamps.map((b) => b.min.clone()) },
     cutLampMax: { value: lamps.map((b) => b.max.clone()) },
     cutTop: { value: spec.top.texture },
@@ -224,7 +229,6 @@ export function drawnArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, ite
   if (!isMounted(v.chassisId, item)) return at;
   const unit = cellRect(v.chassisId, itemCells(item)).unit;
   if (isRam(partDef(item.part.defId))) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
-  else fitToBody(at, box, body, unitTopCut(v.chassisId, unit), armorSide(v, item));
   return at;
 }
 
@@ -271,13 +275,13 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   const shiftX = middle.x * scale.x;
   const shiftZ = middle.z * scale.z;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
-  return { pos, yaw, scale };
+  return { pos, yaw, lean: 0, scale };
 }
 
 function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
-  const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thinDepthOf(def, box));
+  const depthScale = depthScaleOf(def, box, across);
   const rect = cellRect(v.chassisId, itemCells(item));
   const half = unitBody(v.chassisId, rect.unit).half;
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
@@ -287,7 +291,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const seat = def.look === 'ram' ? ramSeat(body, axis, outward, lateral, box, half.y) : half.y - box.max.y;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, seat + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
-  const at = { pos, yaw: SIDE_YAW[side], scale };
+  const at: Placement = { pos, yaw: SIDE_YAW[side], lean: 0, scale };
   const placed = placedBounds(at, box);
   const placedLateral: [number, number] = across ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
   const profile = faceProfile(body, axis, outward, placedLateral);
@@ -297,8 +301,16 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   };
   const shift = standShift({ profile, placed, touchAt, floor: -half.y + TRUCK_LOOK.armorRise, glassMatters: ['F', 'B'].includes(side), ram: def.look === 'ram', row: cellSteps(v.chassisId).row, fail });
   pos.y += shift;
-  pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
+  const upright = (): void => void (pos[axis] += outward * Math.min(0, outward * (touchAt(shift) as number) - snug));
+  if (def.look === 'ram') upright();
+  else settleOnBody(at, box, { profile, axis, toBodyTop: !across, upright, fail });
+  pos[axis] += (outward * overArmor(v, item, def)) / Math.cos(at.lean);
   return at;
+}
+
+function depthScaleOf(def: ShieldDef, box: THREE.Box3, across: boolean): number {
+  if (across && def.look !== 'plates') return TRUCK_LOOK.armorDeepScale;
+  return TRUCK_LOOK.armorDepth / thinDepthOf(def, box);
 }
 
 type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; ram: boolean; row: number; fail: () => never };

@@ -70,6 +70,7 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
 };
 
 export const XP_RULES = {
+  gain: 1 / 3,
   easy: 0.25,
   hard: 2,
   repeatHalfLife: 200,
@@ -164,8 +165,8 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
 };
 
 export const TARGET_DAYS = {
-  one: { 4: 16, 5: 30 },
-  every: { 1: 2, 2: 10 },
+  one: { 4: 48, 5: 90 },
+  every: { 1: 6, 2: 30 },
 } as const satisfies Record<'one' | 'every', Partial<Record<number, number>>>;
 
 export const TARGET_TOLERANCE = 0.3;

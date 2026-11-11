@@ -153,6 +153,8 @@ export const CONTRACTS = {
 
 export type Threat = Tier;
 
+export const DANGER_PAY: Record<Threat, number> = { 1: 0.6, 2: 1, 3: 1.5 };
+
 export const RAIDER_THREAT = { reach: 40, risky: 1, dangerous: 3 };
 
 export const ESCORT_JOB = {
@@ -162,7 +164,6 @@ export const ESCORT_JOB = {
   holdTurns: 90,
   apartGap: NPC_BEHAVIOR.escortCatchUpGap,
   minWin: { 1: 0.55, 2: 0.65, 3: 0.75 } as Record<Threat, number>,
-  threatPremium: { 1: 0.6, 2: 1, 3: 1.5 } as Record<Threat, number>,
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
 };
 
