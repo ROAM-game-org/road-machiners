@@ -572,7 +572,23 @@ function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const sx = driveStats(world, x);
   const reach = sweptReach(x, Math.min(sx.maxSpeed, x.speed + sx.accel) * horizon(world, v).t);
   const steps = Math.max(1, Math.ceil(reach / sx.radius));
-  return lines(world, x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
+  const swept = lines(world, x, reach, sx.radius).flatMap((heading, n) => sweptLine(world, v, x, heading, reach, n === 0 ? 0 : 1, steps));
+  return [...swept, ...keptSide(world, v, x)];
+}
+
+function keptSide(world: World, v: Vehicle, x: Vehicle): Blocker[] {
+  if (!v.yieldsTo?.includes(x.id)) return [];
+  const radius = driveStats(world, x).radius;
+  const gap = vehicleRadius(v) + radius;
+  const away = { x: v.pos.x - x.pos.x, y: v.pos.y - x.pos.y };
+  const along = away.x * Math.cos(x.heading) + away.y * Math.sin(x.heading);
+  const across = away.y * Math.cos(x.heading) - away.x * Math.sin(x.heading);
+  if (along >= 0 || Math.abs(across) < gap) return [];
+  const steps = Math.ceil((gap - along) / radius);
+  return Array.from({ length: steps }, (_, i) => {
+    const d = radius * (i + 1);
+    return { pos: { x: x.pos.x - Math.cos(x.heading) * d, y: x.pos.y - Math.sin(x.heading) * d }, r: radius + PHYSICS.driver.clearMargin };
+  });
 }
 
 function sweptLine(world: World, v: Vehicle, x: Vehicle, heading: number, reach: number, from: number, steps: number): Blocker[] {

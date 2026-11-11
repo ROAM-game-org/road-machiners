@@ -11,7 +11,7 @@ describe('shader patches', () => {
   });
 
   it('names its owner and the missing chunk instead of patching nothing', () => {
-    expect(() => injectAfter('The drawn ground', SOURCE, '#include <opaque_fragment>', 'x();')).toThrow('The drawn ground cannot patch a shader without #include <opaque_fragment>');
+    expect(() => injectAfter('drawn-ground', SOURCE, '#include <opaque_fragment>', 'x();')).toThrow('drawn-ground cannot patch a shader without #include <opaque_fragment>');
     expect(() => injectBefore('Test', SOURCE, '#include <common>', 'x();')).toThrow();
     expect(() => replaceChunk('Test', SOURCE, '#include <common>', 'x();')).toThrow();
   });

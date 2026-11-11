@@ -11,6 +11,9 @@ const WARM_BLOCK = 16;
 const UNKNOWN = 0;
 const CALM = 1;
 const ROUGH = 2;
+const PATCH_BITS = 6;
+const PATCH_MASK = (1 << PATCH_BITS) - 1;
+const PATCH_SLOTS = 1 << (2 * PATCH_BITS);
 const NEIGHBOURS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const;
 
 export type SurfaceRules = {
@@ -27,6 +30,8 @@ export class GroundSurface {
   private readonly weights = gaussWeights(LAND_BLUR_TILES);
   private readonly wx = new Float64Array(4);
   private readonly wy = new Float64Array(4);
+  private readonly patches = new Float64Array(PATCH_SLOTS * 16);
+  private readonly patchTiles = new Int32Array(PATCH_SLOTS).fill(-1);
 
   constructor(private readonly rules: SurfaceRules) {
     this.corners = new Float64Array((rules.size + 1) ** 2).fill(NaN);
@@ -67,10 +72,11 @@ export class GroundSurface {
   private throughCorners(i: number, j: number, fx: number, fy: number): number {
     throughWeights(fx, this.wx);
     throughWeights(fy, this.wy);
+    const at = this.patchOf(i, j);
     let h = 0;
     for (let n = 0; n < 4; n++) {
       let row = 0;
-      for (let m = 0; m < 4; m++) row += this.corner(i - 1 + m, j - 1 + n) * this.wx[m];
+      for (let m = 0; m < 4; m++) row += this.patches[at + n * 4 + m] * this.wx[m];
       h += row * this.wy[n];
     }
     return h;
@@ -217,29 +223,60 @@ export class GroundSurface {
   }
 
   private calmSpline(i: number, j: number, fx: number, fy: number): number {
-    splineWeights(fx, this.wx);
-    splineWeights(fy, this.wy);
-    const side = this.rules.size + 1;
+    const at = this.patchOf(i, j);
+    const c = this.patches;
+    const gx = 1 - fx;
+    const x0 = (gx * gx * gx) / 6;
+    const x1 = (4 + fx * fx * (3 * fx - 6)) / 6;
+    const x2 = (1 + 3 * fx + 3 * fx * fx - 3 * fx * fx * fx) / 6;
+    const x3 = (fx * fx * fx) / 6;
+    const gy = 1 - fy;
+    const y0 = (gy * gy * gy) / 6;
+    const y1 = (4 + fy * fy * (3 * fy - 6)) / 6;
+    const y2 = (1 + 3 * fy + 3 * fy * fy - 3 * fy * fy * fy) / 6;
+    const y3 = (fy * fy * fy) / 6;
     let h = 0;
-    for (let n = 0; n < 4; n++) {
-      const k = (j - 1 + n) * side + i - 1;
-      let row = 0;
-      for (let m = 0; m < 4; m++) {
-        const known = this.corners[k + m];
-        row += (known === known ? known : this.corner(i - 1 + m, j - 1 + n)) * this.wx[m];
-      }
-      h += row * this.wy[n];
-    }
+    h += (c[at] * x0 + c[at + 1] * x1 + c[at + 2] * x2 + c[at + 3] * x3) * y0;
+    h += (c[at + 4] * x0 + c[at + 5] * x1 + c[at + 6] * x2 + c[at + 7] * x3) * y1;
+    h += (c[at + 8] * x0 + c[at + 9] * x1 + c[at + 10] * x2 + c[at + 11] * x3) * y2;
+    h += (c[at + 12] * x0 + c[at + 13] * x1 + c[at + 14] * x2 + c[at + 15] * x3) * y3;
     return h;
+  }
+
+  private patchOf(i: number, j: number): number {
+    const slot = ((j & PATCH_MASK) << PATCH_BITS) | (i & PATCH_MASK);
+    const tile = j * (this.rules.size + 1) + i;
+    if (this.patchTiles[slot] !== tile) {
+      this.fillPatch(slot, i, j);
+      this.patchTiles[slot] = tile;
+    }
+    return slot * 16;
+  }
+
+  private fillPatch(slot: number, i: number, j: number): void {
+    const inside = this.patchInside(i, j);
+    for (let n = 0; n < 4; n++)
+      for (let m = 0; m < 4; m++) this.patches[slot * 16 + n * 4 + m] = this.patchCorner(i - 1 + m, j - 1 + n, inside);
+  }
+
+  private patchInside(i: number, j: number): boolean {
+    const n = this.rules.size;
+    return i >= 1 && j >= 1 && i + 2 <= n && j + 2 <= n;
+  }
+
+  private patchCorner(x: number, y: number, inside: boolean): number {
+    const known = inside ? this.corners[y * (this.rules.size + 1) + x] : NaN;
+    return known === known ? known : this.corner(x, y);
   }
 
   private spline(i: number, j: number, fx: number, fy: number): number {
     splineWeights(fx, this.wx);
     splineWeights(fy, this.wy);
+    const at = this.patchOf(i, j);
     let h = 0;
     for (let n = 0; n < 4; n++) {
       let row = 0;
-      for (let m = 0; m < 4; m++) row += this.corner(i - 1 + m, j - 1 + n) * this.wx[m];
+      for (let m = 0; m < 4; m++) row += this.patches[at + n * 4 + m] * this.wx[m];
       h += row * this.wy[n];
     }
     return h;

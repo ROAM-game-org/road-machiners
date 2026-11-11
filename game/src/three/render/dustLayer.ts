@@ -29,8 +29,7 @@ uniform vec3 sunView;
 uniform vec3 sunColor;
 uniform vec3 skyColor;
 uniform vec3 groundColor;
-${KNOB_UNIFORMS.map((key) => `uniform float ${key};`).join("\n")}
-varying vec2 vUv;
+${KNOB_UNIFORMS.map((key) => `uniform float ${key};\n`).join("")}varying vec2 vUv;
 ${INK_SHADE}
 float densityAt(vec2 meters) {
   return texture2D(dust, vUv + meters * uvPerMeter).a;
