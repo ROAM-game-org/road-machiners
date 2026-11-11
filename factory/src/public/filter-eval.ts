@@ -6,14 +6,12 @@ import { filterWith } from './filter';
 type Outcome = 'file' | 'stay';
 type Case = { label: 'keep' | 'drop'; from: string; text: string; clear?: boolean; origin?: FilterInput['origin']; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; addressed?: boolean; expect?: Outcome; relevance?: Decision['relevance'] };
 
-const TARGET_RECALL = 0.99;
-const TARGET_F1 = 0.9;
 const TARGET_ROUTING = 0.9;
 
 const settings = parseEnv(readFileSync('settings.env', 'utf8'));
 const key = process.env.OPENAI_API_KEY;
 if (!key) throw new Error('Set OPENAI_API_KEY to run the filter eval.');
-const classify = filterWith({ openaiKey: key, filterModel: String(settings.FACTORY_FILTER_MODEL), filterTimeoutSeconds: Number(settings.FACTORY_FILTER_TIMEOUT_SECONDS), filterSincereMin: Number(settings.FACTORY_FILTER_SINCERE_MIN), reportJunkMin: Number(settings.FACTORY_REPORT_JUNK_MIN) }, fetch);
+const classify = filterWith({ openaiKey: key, filterModel: String(settings.FACTORY_FILTER_MODEL), filterTimeoutSeconds: Number(settings.FACTORY_FILTER_TIMEOUT_SECONDS), filterJunkMin: Number(settings.FACTORY_FILTER_JUNK_MIN) }, fetch);
 const cases = JSON.parse(readFileSync(new URL('./filter-eval.json', import.meta.url), 'utf8')) as Case[];
 
 const sourceOf = (item: Case): FilterInput['source'] => item.source ?? 'report';
@@ -30,35 +28,29 @@ function outcomeOf(decision: Decision): Outcome {
   return isReport(decision) && isNewWork(decision) ? 'file' : 'stay';
 }
 
-const counts = { caught: 0, missed: 0, wrong: 0 };
-const game = { realDropped: 0, clearKept: 0, junkCaught: 0, junk: 0 };
+type Tally = { realDropped: number; clearKept: number; junkCaught: number; junk: number };
+const tallies: Record<FilterInput['origin'], Tally> = { game: { realDropped: 0, clearKept: 0, junkCaught: 0, junk: 0 }, chat: { realDropped: 0, clearKept: 0, junkCaught: 0, junk: 0 } };
 const routing = { right: 0, all: 0, discussionFiled: 0 };
 
-function countGame(item: Case, dropped: boolean): void {
-  if (item.label === 'keep') countRealReport(dropped);
-  else countJunkReport(item, dropped);
+function count(tally: Tally, item: Case, dropped: boolean): void {
+  if (item.label === 'keep') countReal(tally, dropped);
+  else countJunk(tally, item, dropped);
 }
 
-function countRealReport(dropped: boolean): void {
-  if (dropped) game.realDropped += 1;
+function countReal(tally: Tally, dropped: boolean): void {
+  if (dropped) tally.realDropped += 1;
 }
 
-function countJunkReport(item: Case, dropped: boolean): void {
-  game.junk += 1;
-  if (dropped) game.junkCaught += 1;
-  else if (item.clear === true) game.clearKept += 1;
-}
-
-function countChat(item: Case, dropped: boolean): void {
-  if (item.label === 'drop') counts[dropped ? 'caught' : 'missed'] += 1;
-  else if (dropped) counts.wrong += 1;
+function countJunk(tally: Tally, item: Case, dropped: boolean): void {
+  tally.junk += 1;
+  if (dropped) tally.junkCaught += 1;
+  else if (item.clear === true) tally.clearKept += 1;
 }
 
 for (const item of cases) {
   const decision = await classify(inputOf(item));
   const dropped = decision.verdict === 'reject';
-  if (originOf(item) === 'game') countGame(item, dropped);
-  else countChat(item, dropped);
+  count(tallies[originOf(item)], item, dropped);
   const outcome = item.expect === undefined ? null : outcomeOf(decision);
   if (item.expect !== undefined) {
     routing.all += 1;
@@ -76,12 +68,10 @@ for (const item of cases) {
   console.log(`${mark} ${item.label} ${decision.intent.padEnd(7)} sincere=${decision.sincere.toFixed(2)} ${decision.kind}${routed}${relevance}  ${item.from}: ${item.text.split('\n')[0]!.slice(0, 70)}`);
 }
 
-const recall = counts.caught / (counts.caught + counts.missed);
-const precision = counts.caught / (counts.caught + counts.wrong);
-const f1 = (2 * precision * recall) / (precision + recall);
+const passes = (tally: Tally): boolean => tally.realDropped === 0 && tally.clearKept === 0;
+for (const [origin, tally] of Object.entries(tallies)) {
+  console.log(`${origin}: real texts dropped ${tally.realDropped} (target 0), ads, gibberish and empty insults kept ${tally.clearKept} (target 0), junk caught ${tally.junkCaught}/${tally.junk}`);
+}
 const routed = routing.right / Math.max(1, routing.all);
-const gamePasses = game.realDropped === 0 && game.clearKept === 0;
-console.log(`chat drop recall ${recall.toFixed(3)} (target ${TARGET_RECALL}), precision ${precision.toFixed(3)}, F1 ${f1.toFixed(3)} (target ${TARGET_F1})`);
-console.log(`game reports: real ones dropped ${game.realDropped} (target 0), ads, gibberish and empty insults kept ${game.clearKept} (target 0), junk caught ${game.junkCaught}/${game.junk}`);
 console.log(`routing ${routing.right}/${routing.all} right (target ${TARGET_ROUTING}), discussion filed as a new issue ${routing.discussionFiled} (target 0)`);
-process.exitCode = recall >= TARGET_RECALL && f1 >= TARGET_F1 && gamePasses && routed >= TARGET_ROUTING && routing.discussionFiled === 0 ? 0 : 1;
+process.exitCode = passes(tallies.game) && passes(tallies.chat) && routed >= TARGET_ROUTING && routing.discussionFiled === 0 ? 0 : 1;

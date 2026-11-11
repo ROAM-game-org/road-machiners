@@ -44,13 +44,13 @@ async function classifyOrRetry(ctx: Ctx, store: PublicStore, classify: Classify,
   try {
     await classifyOne(ctx, store, classify, comment, board);
   } catch (error) {
-    if (error instanceof FilterRefusalError && error.spam) return keepSpamRejected(ctx, comment, error);
+    if (error instanceof FilterRefusalError && error.junk) return keepJunkRejected(ctx, comment, error);
     retryLater(ctx, store, comment, error);
   }
 }
 
-function keepSpamRejected(ctx: Ctx, comment: StoredComment, error: FilterRefusalError): void {
-  ctx.log('public', comment.issue, `the filter refused ${error.refused.join(', ')} on player comment ${comment.id}, which it scores as spam, so it stays rejected`);
+function keepJunkRejected(ctx: Ctx, comment: StoredComment, error: FilterRefusalError): void {
+  ctx.log('public', comment.issue, `the filter refused ${error.refused.join(', ')} on player comment ${comment.id}, which it scores as junk, so it stays rejected`);
 }
 
 function retryLater(ctx: Ctx, store: PublicStore, comment: StoredComment, error: unknown): void {

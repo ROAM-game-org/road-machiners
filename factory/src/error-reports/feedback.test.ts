@@ -125,7 +125,7 @@ describe('feedback route', () => {
 
   it('stores a rejected report, creates nothing, keeps no save and answers like an accepted one', async () => {
     const { url, home, created, setDecision } = await start();
-    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'spam', sincere: 0.02 });
+    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'junk', sincere: 0.02 });
     const response = await send(url, request());
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: 'sent' });
@@ -322,7 +322,7 @@ describe('feedback route', () => {
 
   it('counts a report the filter drops against the address', async () => {
     const { url, setDecision } = await start({ ipPerHour: 1 });
-    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'spam', sincere: 0.02 });
+    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'junk', sincere: 0.02 });
     expect((await send(url, request())).status).toBe(200);
     expect((await send(url, request())).status).toBe(429);
   });

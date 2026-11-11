@@ -106,14 +106,14 @@ describe('classifyComments', () => {
     expect(f.logs.filter((line) => line.includes('stays rejected'))).toHaveLength(1);
   });
 
-  it('keeps a comment rejected with no failure when the filter refuses a text it scores as spam', async () => {
+  it('keeps a comment rejected with no failure when the filter refuses a text it scores as junk', async () => {
     const f = publicFake();
     addFrom(f, '1', 'ann 1');
     await classifyComments(f.ctx, f.store, filterOf(async () => { throw new FilterRefusalError(['kind'], true); }));
     expect(f.store.unclassifiedComments(10)).toEqual([]);
     expect(f.store.comment(1)?.kind).toBe('rejected');
     expect(readState(f.ctx.statePath).failures).toEqual([]);
-    expect(f.logs.filter((line) => line.includes('scores as spam'))).toHaveLength(1);
+    expect(f.logs.filter((line) => line.includes('scores as junk'))).toHaveLength(1);
   });
 
   it('keeps a comment rejected and records a public failure when the filter refuses any other text', async () => {
