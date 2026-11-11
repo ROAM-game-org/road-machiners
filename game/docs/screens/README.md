@@ -38,6 +38,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `board-taken.jpg`: the contract board with one contract taken.
 - `trade.jpg`: the market, goods.
 - `trade-shortage.jpg`: the market in a shortage.
+- `trade-untraded.jpg`: the market at Bowl with Ship Metal held, its sale off.
 - `charts.jpg`: the Guidestar post page, with map squares for sale.
 - `shop.jpg`: the garage, buy parts.
 - `shop-row-open.jpg`: the garage, buy parts with one row open.

@@ -274,6 +274,7 @@ export type Refusal =
   | { id: 'unhurt' }
   | { id: 'noSupplies' }
   | { id: 'noStock' }
+  | { id: 'notTraded' }
   | { id: 'onOrder' }
   | { id: 'theyHaveNoRoom' }
   | { id: 'noSupplyRoom' }

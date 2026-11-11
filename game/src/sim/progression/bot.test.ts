@@ -163,24 +163,23 @@ describe('botOrders', () => {
     expect(order).toEqual({ kind: 'stopAt', dest: nearestPad(nose, playerVehicle(w).pos) });
   });
 
-  it('has a trader holding relics at Bowl carry them to Nose without pricing them at Bowl', () => {
+  it('has a trader holding relics at Bowl sell them there', () => {
     const w = parkedAt('bowl');
     addGoods(w, playerVehicle(w), 'relics', 1);
 
     const turn = botOrders(w, 'trader');
 
-    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+    expect(goodsCount(playerVehicle(turn.world)).relics ?? 0).toBe(0);
   });
 
-  it('has a scavenger holding relics at Bowl keep them and drive on to Nose', () => {
+  it('has a scavenger holding relics at Bowl sell them there', () => {
     const w = parkedAt('bowl');
     addGoods(w, playerVehicle(w), 'relics', 1);
     w.salvage = [];
 
     const turn = botOrders(w, 'scavenger');
 
-    expect(goodsCount(playerVehicle(turn.world)).relics).toBe(1);
-    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+    expect(goodsCount(playerVehicle(turn.world)).relics ?? 0).toBe(0);
   });
 
   it('has a scavenger holding relics at Nose sell them there', () => {

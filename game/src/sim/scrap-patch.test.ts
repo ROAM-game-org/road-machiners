@@ -175,7 +175,7 @@ describe('scrap patch', () => {
   });
 
   it('stows the credited engine when the engine cells are taken', () => {
-    const w = noEngine();
+    const w = noEngine(stallPad('pump-station'));
     const me = w.vehicles[0];
     const grid = gridOf(me);
     grid.cells.forEach((row, y) => row.forEach((letter, x) => {
