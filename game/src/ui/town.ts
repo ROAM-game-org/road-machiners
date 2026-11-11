@@ -4,7 +4,6 @@ import { GOOD_IDS } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
 import type { TruckPaint } from "../data/chassis";
-import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import {
   buyChassis,
@@ -48,8 +47,9 @@ import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
+import { filteredStock, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
+import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -86,19 +86,8 @@ export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "p
 
 type ShopColumn = { head: HTMLElement[]; body: HTMLElement };
 
-export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
 
-export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
-
-export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
-  if (kind === "core") throw new Error("Built-in parts are never in stock");
-  return kind === "accessory" ? "armor" : kind;
-}
-
-export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
-
-const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks", "paint"];
 
 export const GARAGE_ONLY: GarageTab[] = ["trucks", "paint"];
 
@@ -523,77 +512,48 @@ export class TownScreen {
       { class: "good-row row" },
       stockedGoodName(w, shopId, g),
       this.stockedBuyCell(w, shopId, g, hints.price, stock),
-      el(
-        "div",
-        { class: "trade sell" },
-        caption(GOODS_COLUMNS.sell),
-        reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell)], () => this.run((x) => sellGood(x, g, 1)), sellReason, `${g}:sell1`),
-        reasonButton([lotLabel(t("trade.all"), spare ? getLotTradePrice(w, me, shopId, g, spare, "sell") : null)], () => this.run((x) => sellGood(x, g, spare)), sellReason, `${g}:sellAll`),
-      ),
+      goodSellCell({
+        good: g,
+        one: sell,
+        all: spare ? getLotTradePrice(w, me, shopId, g, spare, "sell") : null,
+        reason: sellReason,
+        sellOne: () => this.run((x) => sellGood(x, g, 1)),
+        sellAll: () => this.run((x) => sellGood(x, g, spare)),
+      }),
       countCell("stock", stock, num(stock, "int"), hints.stock?.title ?? null, hints.stock?.tone ?? ""),
       countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 
+  private partLists(): GarageList {
+    return { rows: this.rows, slots: this.slots, inventory: this.inventory };
+  }
+
   private buyParts(w: World, shopId: string): ShopColumn {
     const me = playerVehicle(w);
     const stock = shopState(w, shopId).stock;
-    const shown = stock.filter((p) => this.stockFilter === "all" || kindFilter(partDef(p.defId).kind) === this.stockFilter);
-    const rows = shown.map((p) => {
-      return this.partRow(w, p, this.priceButton(w, t("goods.buy"), partTradePrice(w, me, p, "buy"), (x) => buyStockPart(x, p.id)), t("trade.done.bought"));
-    });
+    const rows = filteredStock(stock, this.stockFilter).map((p) =>
+      this.partRow(w, p, this.priceButton(w, t("goods.buy"), partTradePrice(w, me, p, "buy"), (x) => buyStockPart(x, p.id)), t("trade.done.bought")),
+    );
     return {
-      head: [el("div", { class: "tabs sub" }, ...this.stockFilterButtons(stock))],
-      body: this.partList(`buy:${this.stockFilter}`, rows, stock.length ? t("trade.noneOfKind") : t("trade.noStock")),
+      head: [
+        stockFilterChips(stock, this.stockFilter, (f) => {
+          this.stockFilter = f;
+          this.showList();
+        }),
+      ],
+      body: partList(this.partLists(), `buy:${this.stockFilter}`, rows, stock.length ? t("trade.noneOfKind") : t("trade.noStock")),
     };
-  }
-
-  private partList(key: string, rows: PartRow[], empty: Msg): HTMLElement {
-    return rows.length || this.slots.has(key) ? this.rows.list(key, rows) : el("div", { class: "dim" }, empty);
   }
 
   private partRow(w: World, p: PartInstance, action: HTMLElement, done: Msg): PartRow {
-    return {
-      world: w,
-      part: p,
-      base: compareBase(this.inventory.selectedPart(), p),
-      action,
-      done,
-      onHover: this.hintMounts(p.defId),
-    };
-  }
-
-  private stockFilterButtons(stock: PartInstance[]): HTMLElement[] {
-    return STOCK_FILTERS.map((f) => this.stockFilterButton(f, stockCount(stock, f)));
-  }
-
-  private stockFilterButton(f: StockFilter, count: number): HTMLElement {
-    const empty = count === 0 && f !== "all";
-    return el(
-      "button",
-      {
-        class: this.stockFilter === f ? "on" : "",
-        title: empty ? t("trade.filterEmpty", { kind: t(`trade.filter.${f}`) }) : t(`trade.filter.${f}`),
-        "aria-disabled": empty ? "true" : undefined,
-        onclick: () => {
-          if (empty) return;
-          this.stockFilter = f;
-          this.showList();
-        },
-      },
-      f === "all" ? t("trade.filter.all") : filterIcon(f),
-      el("span", { class: "count" }, num(count, "int")),
-    );
+    return garagePartRow(w, this.partLists(), p, action, done);
   }
 
   private sellParts(w: World): HTMLElement {
     const me = playerVehicle(w);
-    const sellable: PartInstance[] = [...w.player.storage, ...spareParts(me)];
-    const rows = sellable.map((p) =>
-      this.partRow(w, p, sellButton(t("goods.sell"), partTradePrice(w, me, p, "sell"), () => this.run((x) => sellPart(x, p.id))), t("trade.done.sold")),
-    );
-    return el("div", {}, this.partList("sell", rows, t("trade.noSpares")));
+    return sellPartsBody({ w, truck: me, list: this.partLists(), price: (p) => partTradePrice(w, me, p, "sell"), sell: (p) => this.run((x) => sellPart(x, p.id)) });
   }
 
   private garageBar(w: World, shopId: string): HTMLElement {
@@ -608,22 +568,14 @@ export class TownScreen {
   }
 
   private paint(w: World): HTMLElement {
-    const current = w.player.paint;
-    const plan = livePaintPlan(current, this.paintPlan);
-    const buy = plan ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => repaint(x, plan), null, "repaint") : null;
-    return paintTab({
-      current,
-      plan,
-      chassisId: playerVehicle(w).chassisId,
-      pick: (slot, id) => {
-        this.paintPlan = planWithSlot(current, this.paintPlan, slot, id);
+    return paintBody({
+      w,
+      plan: this.paintPlan,
+      setPlan: (plan) => {
+        this.paintPlan = plan;
         this.render();
       },
-      pickScheme: (scheme) => {
-        this.paintPlan = { ...scheme };
-        this.render();
-      },
-      buy,
+      buy: (plan) => (plan ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => repaint(x, plan), null, "repaint") : null),
     });
   }
 
@@ -741,18 +693,6 @@ function notReady(w: World, c: Contract): Msg {
   throw new Error(`An ${c.kind} contract is never handed in at a counter`);
 }
 
-export const FILTER_ICON: Record<Exclude<StockFilter, "all">, IconName> = {
-  engine: "engine",
-  armor: "armor",
-  cargo: "cargo",
-  scanner: "scanner",
-  store: "store",
-  utility: "utility",
-  weapon: "gun",
-};
-
-export const filterIcon = (f: Exclude<StockFilter, "all">): HTMLElement => createIcon(FILTER_ICON[f]);
-
 export const TAB_ICON: Record<Tab, IconName> = {
   people: "driver",
   market: "salt",
@@ -779,10 +719,6 @@ function deskHeading(desk: string, people: boolean): Msg {
 
 function placeName(shopId: string, section: TownSection): Msg {
   return section === "people" ? canteenName(shopId) : t(`town.section.${section}`);
-}
-
-function stockCount(stock: PartInstance[], f: StockFilter): number {
-  return f === "all" ? stock.length : stock.filter((p) => kindFilter(partDef(p.defId).kind) === f).length;
 }
 
 function rationingTip(k: Supply): Msg {
