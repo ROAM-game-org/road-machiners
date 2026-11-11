@@ -204,8 +204,8 @@ export class OutpostScreen {
 
   private driveOn(): void {
     const w = this.host.world();
-    this.leave();
     this.host.apply(driveOn(w));
+    this.leave();
   }
 
   private run(cmd: ShopCommand): void {
