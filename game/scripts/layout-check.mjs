@@ -798,6 +798,49 @@ async function openBoardTaken(page) {
   await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
 }
 
+async function openOutpost(page, tab, truck) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { chaosHighwayWorld, parkInYard } = await import('/src/sim/testkit.ts');
+    const { endTurn } = await import('/src/sim/world.ts');
+    const { outpostBuyPart, outpostBuyGood } = await import('/src/sim/outposts.ts');
+    const { haulerOf } = await import('/src/sim/damage.ts');
+    const { stowPart, canStowPart } = await import('/src/sim/inventory.ts');
+    const w = chaosHighwayWorld();
+    parkInYard(w, 1);
+    let n = endTurn(w, () => {});
+    n.player.money = 5000;
+    const stock = n.chaosHighway.outposts[1].stock;
+    n = outpostBuyGood(outpostBuyPart(outpostBuyPart(n, stock[0].id), stock[1].id), 3);
+    const hauler = haulerOf(n);
+    const spare = n.chaosHighway.outposts[1].stock.find((p) => canStowPart(hauler, p));
+    if (spare) stowPart(n, hauler, spare);
+    const { OutpostScreen } = await import('/src/ui/outpost.ts');
+    const state = { world: n, screen: null };
+    const host = { world: () => state.world, apply: (next) => { state.world = next; state.screen.render(); }, announce: (next) => host.apply(next), selectedWeapon: () => null, selectWeapon: () => {}, selectedUtility: () => null, selectUtility: () => {}, menuOpen: () => false, getTurnPhase: () => null, autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null, stepTravelSpeed: () => {}, pressTurn: () => {}, releaseTurn: () => {}, runKey: () => {}, searchStock: () => {} };
+    state.screen = new OutpostScreen(host);
+    state.screen.open();
+    window.__layoutOutpost = state;
+  });
+  await page.click(`.outpost-screen [data-truck="${truck}"]`);
+  await page.click(`.outpost-screen [data-tab="${tab}"]`);
+}
+
+const closeOutpost = async (page) => {
+  await page.evaluate(() => {
+    const { world, screen } = window.__layoutOutpost;
+    window.__layoutOutpost.world = window.__ROAM__.state;
+    screen.render();
+    document.querySelectorAll('.outpost-screen:not([style*="display: none"])').forEach((n) => n.remove());
+  });
+};
+
+const OUTPOST_STATES = Object.fromEntries(
+  ['market', 'buyParts', 'sellParts', 'trucks', 'paint'].flatMap((tab) =>
+    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: nestedScrollFaults }]),
+  ),
+);
+
 const closeThenRestoreWorld = (close) => async (page) => {
   await close(page);
   await page.evaluate(() => { window.__ROAM__.apply(window.__layoutWorld); });
@@ -889,6 +932,7 @@ const STATES = {
   'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
   'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
+  ...OUTPOST_STATES,
 };
 
 const GALLERY_ONLY = {
