@@ -246,7 +246,7 @@
   --panel-xl: 520px;
   --panel-m-height: 340px;
   --info-card-height: 300px;
-  --info-draw-width: 104px;
+  --info-well-min: 104px;
   --dock-width: 282px;
   --journal-side-width: 400px;
   --board-held-width: 400px;

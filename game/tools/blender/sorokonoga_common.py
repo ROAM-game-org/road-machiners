@@ -45,8 +45,8 @@ ARCH_FOOT = HUB_Z - WHEEL_R  # arch cuts run down past the hub, below every body
 
 TRACTOR_REAR = 3.5
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
-STEER_X = 7.85  # PHYSICS.bodies.sorokonoga.wheelX ahead of the tractor's center
-DRIVE_X = 4.05  # PHYSICS.bodies.sorokonoga.wheelX behind the tractor's center
+STEER_X = 7.85  # PHYSICS.bodies.sorokonoga.wheelX plus axleMid ahead of the tractor's center
+DRIVE_X = TRACTOR_REAR + 0.45 + 0.15 + WHEEL_R  # a grid cell and the arch ahead of the tail; PHYSICS.bodies.sorokonoga.wheelX less axleMid behind the tractor's center
 PIVOT_X = 3.8  # PHYSICS.couplings.sorokonoga pivotFront and pivotRear, in the straight rig frame
 MODULE_FRONT = TRACTOR_REAR
 MODULE_ORIGIN = (MODULE_FRONT + BACK) / 2
@@ -57,7 +57,8 @@ BAY_FRONT = TRACTOR_ORIGIN + 0.225  # the engine bay of the chassis.ts layout: r
 BAY_BACK = BAY_FRONT - 1.35
 BAY_LEFT = 0.675
 BAY_RIGHT = -0.225
-ENGINE = ((BAY_FRONT + BAY_BACK) / 2, -0.4, (BAY_LEFT + BAY_RIGHT) / 2)  # PHYSICS.bodies.sorokonoga.engineY as Blender z, over the bay's center
+ENGINE_FLOOR = HUB_Z + WHEEL_R + ARCH_CLEARANCE  # PHYSICS.bodies.sorokonoga.engineY: clear of the left inner dual's arch top
+ENGINE = ((BAY_FRONT + BAY_BACK) / 2, ENGINE_FLOOR, (BAY_LEFT + BAY_RIGHT) / 2)
 
 COLORS = BASE_COLORS
 
@@ -206,6 +207,8 @@ def tractor_frame(kit: Kit) -> int:
     axle(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
+    deck_back, deck_front = TRACTOR_REAR + 0.03, DRIVE_X - WHEEL_R - 0.05
+    kit.box("tail_deck", (deck_front - deck_back, 2 * (HALF_W - 0.03), ENGINE_FLOOR - FRAME_TOP), ((deck_front + deck_back) / 2, 0, (ENGINE_FLOOR + FRAME_TOP) / 2), "metal_dark")
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
     kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=ROUND_SIDES)
     return wheels
