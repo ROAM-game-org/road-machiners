@@ -122,10 +122,12 @@ export class HitCard {
   }
 
   hide(): void {
-    this.root.style.display = 'none';
+    if (this.root.childElementCount === 0) this.root.style.display = 'none';
+    else this.root.style.visibility = 'hidden';
   }
 
   show(): void {
+    this.root.style.visibility = '';
     if (this.root.childElementCount === 0) return this.hide();
     this.root.style.display = '';
   }

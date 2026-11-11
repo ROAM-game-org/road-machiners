@@ -251,24 +251,42 @@ function lookUniforms() {
 }
 
 function materialUniforms() {
-  const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
-  const own = rows.map((row) => lightness(new THREE.Color(row.color)));
-  const sand = lightness(new THREE.Color(groundMaterial("sand").color));
   return {
-    drawnMaterialColor: { value: rows.map((row) => new THREE.Color(row.color)) },
-    drawnMaterialLightness: { value: own },
-    drawnMaterialLiftTo: { value: GROUND_MATERIAL_IDS.map((id, k) => (KEEPS_OWN_TONE.has(id) ? own[k] : Math.max(own[k], sand))) },
-    drawnMaterialSettles: { value: GROUND_MATERIAL_IDS.map((id) => (KEEPS_OWN_TONE.has(id) ? 0 : 1)) },
-    drawnMaterialMark: { value: rows.map((row) => MARK_KINDS.indexOf(row.mark)) },
-    drawnMaterialWave: { value: rows.map((row) => EDGE_LOOKS[row.edge].wave) },
-    drawnMaterialPepper: { value: rows.map((row) => EDGE_LOOKS[row.edge].pepper) },
-    drawnMaterialFine: { value: rows.map((row) => EDGE_LOOKS[row.edge].fine) },
-    drawnMaterialGrit: { value: rows.map((row) => EDGE_LOOKS[row.edge].grit) },
-    drawnMaterialSpill: { value: rows.map((row) => row.spill) },
-    drawnMaterialStand: { value: rows.map((row) => row.stand) },
     drawnBroadTint: { value: new THREE.Color(PAL.sand[3]) },
     drawnFarTint: { value: new THREE.Color(PAL.sandFar) },
   };
+}
+
+function glslFloat(value: number): string {
+  return Number.isInteger(value) ? value.toFixed(1) : String(value);
+}
+
+function constantTable(name: string, type: "float" | "vec3", values: readonly string[]): string {
+  return `const ${type} ${name}[${values.length}] = ${type}[${values.length}](${values.join(", ")});`;
+}
+
+function materialConstants(): string {
+  const rows = GROUND_MATERIAL_IDS.map(groundMaterial);
+  const own = rows.map((row) => lightness(new THREE.Color(row.color)));
+  const sand = lightness(new THREE.Color(groundMaterial("sand").color));
+  const floats = (name: string, values: readonly number[]) => constantTable(name, "float", values.map(glslFloat));
+  const colors = rows.map((row) => {
+    const c = new THREE.Color(row.color);
+    return `vec3(${glslFloat(c.r)}, ${glslFloat(c.g)}, ${glslFloat(c.b)})`;
+  });
+  return [
+    constantTable("drawnMaterialColor", "vec3", colors),
+    floats("drawnMaterialLightness", own),
+    floats("drawnMaterialLiftTo", GROUND_MATERIAL_IDS.map((id, k) => (KEEPS_OWN_TONE.has(id) ? own[k] : Math.max(own[k], sand)))),
+    floats("drawnMaterialSettles", GROUND_MATERIAL_IDS.map((id) => (KEEPS_OWN_TONE.has(id) ? 0 : 1))),
+    floats("drawnMaterialMark", rows.map((row) => MARK_KINDS.indexOf(row.mark))),
+    floats("drawnMaterialWave", rows.map((row) => EDGE_LOOKS[row.edge].wave)),
+    floats("drawnMaterialPepper", rows.map((row) => EDGE_LOOKS[row.edge].pepper)),
+    floats("drawnMaterialFine", rows.map((row) => EDGE_LOOKS[row.edge].fine)),
+    floats("drawnMaterialGrit", rows.map((row) => EDGE_LOOKS[row.edge].grit)),
+    floats("drawnMaterialSpill", rows.map((row) => row.spill)),
+    floats("drawnMaterialStand", rows.map((row) => row.stand)),
+  ].join("\n");
 }
 
 function markIndex(mark: MarkKind): number {
@@ -341,22 +359,12 @@ uniform float groundTileMeters;
 #ifdef GROUND_LANDFORMS
 uniform sampler2D groundLandforms;
 #endif
-uniform vec3 drawnMaterialColor[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialLightness[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialLiftTo[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnMaterialContrast;
-uniform float drawnMaterialSettles[${GROUND_MATERIAL_IDS.length}];
+${materialConstants()}
 uniform sampler2D groundSurround;
 uniform float groundSurroundMeters;
 uniform float drawnSurroundBlend;
 uniform float drawnFarMarks;
-uniform float drawnMaterialMark[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialWave[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialPepper[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialFine[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialGrit[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialSpill[${GROUND_MATERIAL_IDS.length}];
-uniform float drawnMaterialStand[${GROUND_MATERIAL_IDS.length}];
 uniform float drawnEdgeShadowAmount;
 uniform float drawnEdgeShadowWidth;
 uniform float drawnDetailPx;
