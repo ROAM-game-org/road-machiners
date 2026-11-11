@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BOARD_CFG, boardFake, boardItem, type BoardItem, type Fault } from './board-fakes';
 import { applyControl } from './control';
+import { ROOMY_MEMORY } from './schedule-fakes';
 import { runCtl } from './ctl';
 import { BoardReadError, GithubError, ghClient } from './github';
 import { holdCard } from './hold';
@@ -13,7 +14,7 @@ import type { Ctx, FactoryConfig, FactoryState, ReleaseState } from './types';
 const ROOT = resolve('tmp/factory-board-read-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-10-22T19:05:00Z');
-const SCHEDULE = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 11, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1 };
+const SCHEDULE = { wasteReviewDays: 7, maxJobsPerCard: 2, triageWorkers: 3, designWorkers: 11, implementWorkers: 3, verifyWorkers: 1, testWorkers: 1, ...ROOMY_MEMORY };
 const CHASSIS = Array.from({ length: 11 }, (_, i) => 892 + i);
 const RELEASE: ReleaseState = { issue: 843, day: '2026-10-20', postId: null, removed: [], candidate: null, playtest: { seed: 1, runs: 0, lastStart: null, passed: null, fixes: null, blocked: null, decision: null, work: null } };
 
