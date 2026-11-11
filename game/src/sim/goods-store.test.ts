@@ -162,8 +162,26 @@ describe('a sale from the crate store', () => {
     const shopId = shopIds.find((id) => !shopDef(id).goods.includes('salt'))!;
     const w = parkedAt(shopId);
     w.player.storedGoods = { [shopId]: { salt: 2 } };
-    expect(() => sellStoredGood(w, 'salt', 1)).toThrow(`${shopId} does not trade salt`);
+    expect(refusalOf(() => sellStoredGood(w, 'salt', 1))).toEqual({ id: 'notTraded' });
     expect(w.player.storedGoods).toEqual({ [shopId]: { salt: 2 } });
+  });
+
+  it('refuses Ship Metal at Bowl and changes nothing', () => {
+    const w = loaded('bowl', 'relics', 2);
+    const money = w.player.money;
+    expect(refusalOf(() => sellGood(w, 'relics', 1))).toEqual({ id: 'notTraded' });
+    expect(refusalOf(() => buyGood(w, 'relics', 1))).toEqual({ id: 'notTraded' });
+    expect(goodsCount(playerVehicle(w)).relics).toBe(2);
+    expect(w.player.money).toBe(money);
+  });
+
+  it('still sells Ship Metal where it is traded', () => {
+    const shopId = shopIds.find((id) => shopDef(id).goods.includes('relics'))!;
+    const w = loaded(shopId, 'relics', 2);
+    const money = w.player.money;
+    const sold = sellGood(w, 'relics', 1);
+    expect(goodsCount(playerVehicle(sold)).relics).toBe(1);
+    expect(sold.player.money).toBeGreaterThan(money);
   });
 
   it('needs a shop', () => {

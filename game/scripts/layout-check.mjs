@@ -90,6 +90,22 @@ async function openShortMarket(page) {
   });
 }
 
+async function openUntradedMarket(page) {
+  await openTownClear(page);
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { addGoods } = await import('/src/sim/inventory.ts');
+    const { playerVehicle } = await import('/src/sim/damage.ts');
+    const w = structuredClone(g.state);
+    addGoods(w, playerVehicle(w), 'relics', 2);
+    g.apply(w);
+    document.querySelector('.town-page [data-town-go="back"]')?.click();
+    document.querySelector('.town-page [data-town-go="market"]')?.click();
+  });
+  await frames(page);
+  await page.evaluate(() => [...document.querySelectorAll('.town-page .good-row')].at(-1)?.scrollIntoView({ block: 'end' }));
+}
+
 async function openCall(page, node) {
   await page.evaluate(async (node) => {
     const g = window.__ROAM__;
@@ -847,6 +863,7 @@ const STATES = {
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
   'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  'trade-untraded': { setup: openUntradedMarket, teardown: closeTown, check: nestedScrollFaults },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: nestedScrollFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },

@@ -49,7 +49,7 @@ import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
+import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, livePaintPlan, paintTab, planWithSlot, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -483,6 +483,7 @@ export class TownScreen {
           { class: goodsClass(w, "stocked") },
           goodsHead(w, false, true),
           ...def.goods.map((g) => this.goodRow(w, shopId, def, state, g)),
+          ...untradedHeld(shopId, goodsCount(playerVehicle(w))).map((g) => this.untradedRow(w, g)),
         ),
         newsWell(w),
       ),
@@ -533,6 +534,27 @@ export class TownScreen {
       countCell("stock", stock, num(stock, "int"), hints.stock?.title ?? null, hints.stock?.tone ?? ""),
       countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),
+    );
+  }
+
+  private untradedRow(w: World, g: string): HTMLElement {
+    const held = goodsCount(playerVehicle(w))[g] ?? 0;
+    const reason = refusalText(w, { id: "notTraded" });
+    return el(
+      "div",
+      { class: "good-row row" },
+      el("div", { class: "good-name" }, createItemTipIcon(g), el("b", { title: itemTip(g) }, goodName(g))),
+      el("div", { class: "trade buy" }, caption(GOODS_COLUMNS.buy)),
+      el(
+        "div",
+        { class: "trade sell" },
+        caption(GOODS_COLUMNS.sell),
+        reasonButton([lotLabel(t("trade.minus", { n: 1 }), null)], () => this.run((x) => sellGood(x, g, 1)), reason, `${g}:sell1`),
+        reasonButton([lotLabel(t("trade.all"), null)], () => this.run((x) => sellGood(x, g, held)), reason, `${g}:sellAll`),
+      ),
+      el("div", { class: "count stock" }),
+      countCell("held", held, num(held, "int")),
+      el("div", { class: "profit" }),
     );
   }
 
