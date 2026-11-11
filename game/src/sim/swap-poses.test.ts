@@ -38,6 +38,7 @@ describe('swapped items take a pose of their own', () => {
   });
 
   it.each([2, 3, 4, 5, 6, 7] as Rot[])('gives an engine or armor plate a pose of its own from a gun in pose %i', (rot) => {
+    let swaps = 0;
     for (const defId of ['workhorseDiesel', 'scrapPanels']) {
       for (let x = 1; x <= 4; x++) {
         for (let y = 1; y <= 5; y++) {
@@ -50,19 +51,29 @@ describe('swapped items take a pose of their own', () => {
             expect(turnsOf(item)).toContain(move.to.rot);
           }
           const moved = plan.find((m) => m.itemId === other.id);
-          if (moved) expect(cellsTurned(moved.to)).toBe(cellsTurned({ rot }));
+          if (moved) {
+            swaps++;
+            expect(cellsTurned(moved.to)).toBe(cellsTurned({ rot }));
+          }
         }
       }
     }
+    expect(swaps).toBeGreaterThan(0);
   });
 
   it('keeps the exact pose between two guns', () => {
-    const a = part('shotgun', 1, 1, 4);
-    const b = part('shotgun', 3, 1, 0);
-    const v = scoutWith(a, b);
-    const plan = movesOf(v, a.id, { x: 3, y: 1, rot: 4 });
-    const move = plan.find((m) => m.itemId === b.id);
-    if (move) expect(move.to.rot).toBe(4);
+    let swaps = 0;
+    for (let x = 0; x <= 4; x++) {
+      for (let y = 0; y <= 5; y++) {
+        const a = part('shotgun', 1, 1, 4);
+        const b = part('shotgun', x, y, 0);
+        const move = movesOf(scoutWith(a, b), a.id, { x, y, rot: 4 }).find((m) => m.itemId === b.id);
+        if (!move) continue;
+        swaps++;
+        expect(move.to.rot).toBe(4);
+      }
+    }
+    expect(swaps).toBeGreaterThan(0);
   });
 
   it('turns a pose to the receiver by how the cells lie', () => {
