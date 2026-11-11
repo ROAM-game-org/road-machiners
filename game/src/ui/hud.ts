@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { keyLabel, narrowMode, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -247,7 +247,7 @@ export class Hud {
   };
 
   private clearOfDock(floor: number, card: HTMLElement): number {
-    if (phoneMode() || narrowMode()) return floor;
+    if (phoneMode()) return floor;
     const reach = Math.max(...[...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")].map((control) => uiSize().layerRect(control).right));
     return reach > uiSize().layerRect(card).left ? Math.min(floor, uiSize().layerRect(this.top).top - parseFloat(token("--hud-gap"))) : floor;
   }
@@ -320,17 +320,17 @@ export class Hud {
   private growForDrawing(top: number, slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
-    const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
+    const listed = this.infoColumn.querySelector(".hitcard") !== null;
+    const width = wider > 0 ? this.info.offsetWidth + (listed ? 2 * wider : wider) : this.info.offsetWidth;
+    if (wider > 0) {
+      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+      this.inspectedDraw.style.flexBasis = `${need.width - Math.max(width - this.info.offsetWidth, 0)}px`;
+    }
     if (phoneMode()) {
-      const capped = Math.min(width, this.aimWidthCap());
-      if (wider > 0) this.inspectedDraw.style.flexBasis = `${need.width - (width - capped)}px`;
-      this.info.style.width = `${capped}px`;
       const fits = slot - this.inspectedDraw.clientHeight + need.height;
       this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
       return;
     }
-    if (wider > 0) this.inspectedDraw.style.flexBasis = `${need.width}px`;
-    if (wider > 0) this.info.style.width = `${width}px`;
     const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
