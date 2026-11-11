@@ -129,6 +129,18 @@ describe('candidate', () => {
     expect(readState(f.ctx.statePath).release).toMatchObject({ postId: 42, candidate: { sha: 'abc1234' } });
   });
 
+  it('counts an issue merged twice as one change and keeps both merge records for Ship', async () => {
+    const f = fake();
+    const again = issueMerge(3, 'faster trucks', { sha: 'second3'.padEnd(40, '0') });
+    holds(f, [TRUCKS, HORN, again]);
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
+    await candidate(f.ctx, 11);
+    const input = readFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'changelog.md'), 'utf8');
+    expect(input).toBe('#3 faster trucks\n#5 louder horn\n');
+    expect(f.photos[0].caption).toContain('2 changes, full list in the Issue comment above.');
+    expect(readState(f.ctx.statePath).release?.candidate?.features).toEqual([TRUCKS, HORN, again]);
+  });
+
   it('lists the issues bundled into a change under it, so the changelog sums up the bundle in one line', async () => {
     const f = fake();
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: RELEASE, bundles: { '3': [8, 9] } });
@@ -244,5 +256,12 @@ describe('readChanges', () => {
     expect(() => readChanges('[3]', features)).toThrow('needs each entry');
     expect(() => readChanges('not json', features)).toThrow();
     expect(() => readChanges(JSON.stringify([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }, { issue: 9, text: 'c' }]), features)).toThrow('names #3, #5, #9');
+  });
+
+  it('wants one change per issue when the release holds an issue twice, and refuses a second entry for it', () => {
+    const twice = [...features, { issue: 3, title: 'faster trucks' }];
+    const one = JSON.stringify([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }]);
+    expect(readChanges(one, twice)).toEqual([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }]);
+    expect(() => readChanges(JSON.stringify([{ issue: 3, text: 'a' }, { issue: 3, text: 'a' }, { issue: 5, text: 'b' }]), twice)).toThrow('names #3, #3, #5, but the release holds #3, #5');
   });
 });

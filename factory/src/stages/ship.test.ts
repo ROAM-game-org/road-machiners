@@ -166,6 +166,16 @@ describe('ship', () => {
     expect(readState(again.ctx.statePath).release?.candidate).toBeNull();
   });
 
+  it('ships an issue merged twice as one change, closes it once and drops both of its merge records', async () => {
+    const f = shippable();
+    const again = issueMerge(3, 'faster trucks', { sha: 'second3'.padEnd(40, '0') });
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), devMerges: [TRUCKS, again, LATER], release: { ...RELEASE, candidate: candidateOf([TRUCKS, again]) } });
+    await ship(f.ctx, 11, 'Ann');
+    expect(f.calls.filter((call) => call === 'comment Shipped in release 2026-09-29. It is on main and itch.io.')).toHaveLength(1);
+    expect(readState(f.ctx.statePath).devMerges).toEqual([LATER]);
+    expect(f.calls).toContain('message committee - Release 2026-09-29 shipped with 1 changes.');
+  });
+
   it('queues an incident job for each shipped issue labeled bug, and for no other', async () => {
     const f = shippable();
     writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), release: { ...RELEASE, candidate: candidateOf([TRUCKS, issueMerge(4, 'new horn')]) } });

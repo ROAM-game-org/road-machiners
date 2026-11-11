@@ -8,7 +8,7 @@ import { readState, updateState } from '../state';
 import { CANDIDATE_BRANCH, GAME_DIR, OUT_DIR, type Ctx, type IssueMerge, type ReleaseState } from '../types';
 import { bundleOf } from './bundle';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
-import { candidateDir, changelogText, featureLine, passedForCandidate, readChanges, releaseLog, requireRelease, trackingLink, type Feature } from './release-common';
+import { candidateDir, changelogText, featureLine, passedForCandidate, readChanges, releaseLog, requireRelease, toFeatures, trackingLink, type Feature } from './release-common';
 
 export const CANDIDATE_SCOPE = 'rc';
 
@@ -47,6 +47,7 @@ export async function candidate(ctx: Ctx, issue: number): Promise<void> {
   const release = requireRelease(ctx);
   if (release.issue !== issue) throw new Error(`Issue #${issue} is not the tracking issue of the open release, #${release.issue} is`);
   const { sha, features } = requirePlaytested(release);
+  const changed = toFeatures(features);
   const dir = candidateDir(ctx);
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.fetch();
@@ -55,17 +56,17 @@ export async function candidate(ctx: Ctx, issue: number): Promise<void> {
   await ctx.repo.prepareWorkClone(CANDIDATE_BRANCH, CANDIDATE_BRANCH, dir);
   const home = agentHome(dir, GAME_DIR);
   resetOutputs(home);
-  writeFileSync(join(home, OUT_DIR, 'changelog.md'), await changelogInput(ctx, features));
+  writeFileSync(join(home, OUT_DIR, 'changelog.md'), await changelogInput(ctx, changed));
   const log = releaseLog(ctx, 'candidate');
   await ctx.container.shell('checks', dir, playtestScript(playtestCommand(ctx.cfg, true)), log);
   await ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.designModel, prompt: fillPrompt('release', {}), log });
-  const changes = changelogText(readChanges(readOutput(home, 'release.json'), features)) || 'No changes in this candidate.';
+  const changes = changelogText(readChanges(readOutput(home, 'release.json'), changed)) || 'No changes in this candidate.';
   const url = await buildAndDeploy(ctx, dir, CANDIDATE_SCOPE, log, 'candidate');
   recordBuild(ctx.statePath, issue, CANDIDATE_SCOPE);
   const pr = (await ctx.github.pullRequestFor(CANDIDATE_BRANCH)) ?? await ctx.github.openPullRequest(CANDIDATE_BRANCH, 'main', `Release ${release.day}`, `The release candidate of ${release.day}. The factory merges it when the committee presses Ship.`);
   if (staleBuild(ctx, sha)) return;
   await ctx.github.comment(issue, `Release candidate: ${url}\n\n${changes}`);
-  const caption = candidateCaption(release.day, url, trackingLink(ctx, issue), pr, features.length);
+  const caption = candidateCaption(release.day, url, trackingLink(ctx, issue), pr, changed.length);
   const buttons = [[{ text: 'Ship', data: `factory:ship:${issue}` }]];
   const evidence = candidateEvidence(ctx, issue, home);
   await postWithEvidence(ctx, evidence, caption, buttons, {
