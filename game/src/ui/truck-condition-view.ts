@@ -127,10 +127,10 @@ function doneOf(working: PartWork | null | undefined, partId: string): number | 
 
 function markFor(guns: number[] | undefined, done: number | null): HTMLElement | null {
   if (!guns && done === null) return null;
-  const mark = el("div", { class: "condition-mark" });
-  if (guns) mark.append(el("span", { class: "condition-aim", title: t("condition.aimedBy", { guns: verbatim(guns.join(", ")) }) }, verbatim(guns.join(" "))));
-  if (done !== null) mark.append(workMeterEl(done));
-  return mark;
+  const body = el("div", { class: "condition-mark-body" });
+  if (guns) body.append(el("span", { class: "condition-aim", title: t("condition.aimedBy", { guns: verbatim(guns.join(", ")) }) }, verbatim(guns.join(" "))));
+  if (done !== null) body.append(workMeterEl(done));
+  return el("div", { class: "condition-mark" }, body);
 }
 
 function pxToken(name: string): number {
@@ -154,7 +154,8 @@ export class TruckConditionView {
   private readonly marks = el("div", { class: "condition-marks" });
   private readonly flashes = el("div", { class: "condition-flashes" });
   private readonly hit = el("div", { class: "condition-hit" });
-  private readonly tip = el("div", { class: "condition-tip tooltip" });
+  private readonly tipBody = el("div", { class: "condition-tip-body tooltip" });
+  private readonly tip = el("div", { class: "condition-tip" }, this.tipBody);
   private readonly readout = new TruckConditionReadout();
   private drawing: Drawing | null = null;
   private plan: { key: string; plan: ConditionPlan } | null = null;
@@ -192,7 +193,12 @@ export class TruckConditionView {
   fitTo(box: HTMLElement): void {
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
-    this.root.style.zoom = String(Math.min(MAX_FIT_ZOOM, (box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+    this.setZoom(Math.min(MAX_FIT_ZOOM, (box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+  }
+
+  private setZoom(zoom: number): void {
+    this.root.style.zoom = String(zoom);
+    this.root.style.setProperty("--cond-unzoom", String(1 / zoom));
   }
 
   boxFor(cell: number): { width: number; height: number } {
@@ -211,7 +217,7 @@ export class TruckConditionView {
     const drawn = drawing ? this.parts.filter((part) => drawing.has(part.id)) : [];
     const length = 2 * spanOf(vehicle.chassisId).half.x;
     this.scale = CELL / (PX_PER_METER * METERS_PER_CELL);
-    if (this.maxLength !== null) this.root.style.zoom = String(Math.min(1, this.maxLength / length));
+    if (this.maxLength !== null) this.setZoom(Math.min(1, this.maxLength / length));
     this.size = drawing ?? chassisSize(vehicle.chassisId);
     this.stage.style.width = `${this.size.width * this.scale}px`;
     this.stage.style.height = `${this.size.height * this.scale}px`;
@@ -327,14 +333,16 @@ export class TruckConditionView {
     this.tip.style.display = part && this.drawing ? "" : "none";
     if (!part || !this.drawing) return;
     const center = this.drawing.centerOf(part.id);
-    this.tip.replaceChildren(...tipRows(part));
+    this.tipBody.replaceChildren(...tipRows(part));
     this.tip.dataset.side = center.y < this.drawing.height / 2 ? "below" : "above";
     placeAt(this.tip, { x: this.tipX(center.x), y: center.y }, this.scale);
   }
 
   private tipX(x: number): number {
     if (!this.drawing) throw new Error("The condition view has no truck drawn yet");
-    const half = this.tip.offsetWidth / 2 / this.scale;
+    const onScreen = this.stage.getBoundingClientRect().width;
+    const inDrawing = onScreen > 0 ? this.stage.offsetWidth / onScreen : 1;
+    const half = (this.tipBody.getBoundingClientRect().width * inDrawing) / 2 / this.scale;
     return Math.min(Math.max(x, half), Math.max(half, this.drawing.width - half));
   }
 
