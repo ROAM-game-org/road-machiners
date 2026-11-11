@@ -27,7 +27,10 @@ export type ProjectileSpec = {
   casing: CasingSize | null;
   pellets?: boolean;
   rope?: boolean;
+  flames?: boolean;
 };
+
+export type TrailKind = 'smoke' | 'flame';
 
 export function roundSpec(spec: ProjectileSpec, k: number): ProjectileSpec {
   return spec.pellets && k > 0 ? { ...spec, casing: null } : spec;
@@ -46,7 +49,7 @@ export const PROJECTILES: Record<string, ProjectileSpec> = {
   amRifle: { look: 'tracer', speed: PROJECTILE_FLIGHT.amRifle.speed, gapMs: 0, length: 2.2, width: 0.08, color: 0xffd080, flash: 1.1, wobble: 0, casing: 'small' },
   battleRifle: { look: 'tracer', speed: PROJECTILE_FLIGHT.battleRifle.speed, gapMs: 110, length: 1.6, width: 0.06, color: 0xffd080, flash: 0.8, wobble: 0, casing: 'small' },
   flechette: { look: 'tracer', speed: PROJECTILE_FLIGHT.flechette.speed, gapMs: 70, length: 1.8, width: 0.04, color: 0xd8e0e8, flash: 0.8, wobble: 0, casing: null },
-  flamer: { look: 'tracer', speed: PROJECTILE_FLIGHT.flamer.speed, gapMs: 50, length: 0.8, width: 0.3, color: 0xff7a20, flash: 1, wobble: 0.3, casing: null },
+  flamer: { look: 'tracer', speed: PROJECTILE_FLIGHT.flamer.speed, gapMs: 50, length: 0.8, width: 0.3, color: 0xff7a20, flash: 1, wobble: 0.3, casing: null, flames: true },
   pneumobolter: { look: 'shell', speed: PROJECTILE_FLIGHT.pneumobolter.speed, gapMs: 0, length: 0.9, width: 0.08, color: 0xb8b0a0, flash: 0.4, wobble: 0, casing: null },
   slugCannon: { look: 'shell', speed: PROJECTILE_FLIGHT.slugCannon.speed, gapMs: 150, length: 0.4, width: 0.14, color: 0xffad50, flash: 1, wobble: 0, casing: 'large' },
   recoilless: { look: 'shell', speed: PROJECTILE_FLIGHT.recoilless.speed, gapMs: 0, length: 0.7, width: 0.2, color: 0xffad50, flash: 1.6, wobble: 0, casing: null },
@@ -69,6 +72,7 @@ export function projectileOf(key: string): ProjectileSpec {
 
 const GRENADE_ARC = 3;
 const SHELL_TAIL = 3;
+const FLAMER = { puffsPerSecond: 70 };
 const MISSILE = {
   swings: 1.5,
   smokePerSecond: 90,
@@ -221,7 +225,7 @@ export class Projectiles {
   private ahead = new THREE.Vector3();
   private dir = new THREE.Vector3();
 
-  constructor(private scene: THREE.Scene, private smoke: (p: V3) => void) {}
+  constructor(private scene: THREE.Scene, private trailAt: (p: V3, kind: TrailKind) => void) {}
 
   launch(l: Launch): void {
     const obj = this.kit.build(l.spec);
@@ -317,7 +321,8 @@ export class Projectiles {
     f.obj.position.copy(this.at);
     f.obj.quaternion.setFromUnitVectors(X_AXIS, this.dir);
     if (f.spec.look === 'tracer') f.obj.scale.x = Math.min(f.spec.length, this.at.distanceTo(f.from));
-    if (f.spec.look === 'missile') this.trail(f, dt);
+    if (f.spec.look === 'missile') this.trail(f, dt, MISSILE.smokePerSecond, 'smoke');
+    if (f.spec.flames) this.trail(f, dt, FLAMER.puffsPerSecond, 'flame');
     if (f.rope) f.rope.set(f.from, this.at, f.from.distanceTo(this.at), f.ground);
   }
 
@@ -328,10 +333,10 @@ export class Projectiles {
     return out.addScaledVector(f.side, swing);
   }
 
-  private trail(f: Flight, dt: number): void {
-    for (let n = Math.floor(MISSILE.smokePerSecond * dt + Math.random()); n > 0; n--) {
+  private trail(f: Flight, dt: number, perSecond: number, kind: TrailKind): void {
+    for (let n = Math.floor(perSecond * dt + Math.random()); n > 0; n--) {
       const back = this.at.clone().addScaledVector(this.dir, -f.spec.length * (0.8 + Math.random() * 0.4));
-      this.smoke({ x: back.x, y: back.y, z: back.z });
+      this.trailAt({ x: back.x, y: back.y, z: back.z }, kind);
     }
   }
 }
