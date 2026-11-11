@@ -521,7 +521,6 @@ describe('survey way', () => {
       told++;
       for (const step of way) if (step.do === 'leave') kinds[step.at.kind] = (kinds[step.at.kind] ?? 0) + 1;
     }
-    console.log('survey leave cues', told, 'of', pairs.length, JSON.stringify(kinds));
     expect(Object.keys(kinds).filter((k) => !['site', 'deck', 'prop', 'square'].includes(k))).toEqual([]);
     expect(told).toBeGreaterThanOrEqual(90);
   });

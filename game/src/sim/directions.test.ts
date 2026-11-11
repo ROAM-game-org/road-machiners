@@ -375,7 +375,6 @@ describe('leaving the road', () => {
   it('only leaves at a landmark or a square the road enters, or asks again', () => {
     const kinds: Record<string, number> = {};
     for (const { steps } of answers) for (const step of steps) if (step.do === 'leave') kinds[step.at.kind] = (kinds[step.at.kind] ?? 0) + 1;
-    console.log('wreck leave cues', answers.length, JSON.stringify(kinds));
     expect(Object.keys(kinds).filter((k) => !['site', 'deck', 'prop', 'square'].includes(k))).toEqual([]);
     expect(kinds.square).toBeGreaterThan(0);
   });
