@@ -14,7 +14,7 @@ import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type Prepa
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
-import { mergePerf, timed } from "../perf";
+import { mergePerf, timed, type PerfStat } from "../perf";
 import { reportError } from "./crash";
 import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
@@ -538,6 +538,22 @@ export class TurnFailure extends Error {
   }
 }
 
+type WantedTurn = {
+  id: number | null;
+  before: World;
+  lang: QuestLanguage;
+  drive: DriveSnapshot;
+  ready: PreparedTurn | null;
+  failure: string | null;
+  postedAt: number;
+};
+
+const ROUTE_TIMERS = ["route", "route-ahead", "coarse-trip"];
+
+function routeMsOf(perf: Record<string, PerfStat>): number {
+  return ROUTE_TIMERS.reduce((sum, name) => sum + (perf[name]?.total ?? 0), 0);
+}
+
 export class TurnPreparation {
   private readonly load = new WorkerLoad("turn worker");
   private worker: Worker | null = null;
@@ -546,17 +562,9 @@ export class TurnPreparation {
   private serial = 0;
   private warmId = 0;
   private warmed: (() => void) | null = null;
-  private pending: {
-    id: number;
-    before: World;
-    lang: QuestLanguage;
-    drive: DriveSnapshot;
-    queued: boolean;
-    ready: PreparedTurn | null;
-    failure: string | null;
-    postedAt: number;
-  } | null = null;
-  private readonly inFlight = new Set<number>();
+  private pending: WantedTurn | null = null;
+  private running: number | null = null;
+  private lastRouteMs: number | null = null;
   private prepSamples: number[] = [];
   private prepMedian: number | null = null;
 
@@ -567,25 +575,42 @@ export class TurnPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
-      this.load.loaded();
-      const response = event.data;
-      this.inFlight.delete(response.id);
-      if (response.id === this.warmId) this.settleWarm();
-      if ("error" in response) return this.fail(response.id, response.error);
-      mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
-      if (this.pending?.id !== response.id) return;
-      this.noteAnswer(this.pending);
-      this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
+      this.receive(event.data);
+      this.finish(event.data.id);
     };
     worker.onerror = (event) => {
       event.preventDefault();
       if (worker !== this.worker) return;
       this.settleWarm();
       if (this.load.failed(event, () => this.restart())) return this.dropWorker();
-      this.fail(null, workerFailure("Turn worker", event));
+      this.failRunning(workerFailure("Turn worker", event));
     };
-    worker.onmessageerror = () => this.fail(null, "Could not read turn worker response");
+    worker.onmessageerror = () => this.failRunning("Could not read turn worker response");
     return worker;
+  }
+
+  private receive(response: TurnResponse): void {
+    this.load.loaded();
+    if (response.id === this.warmId) this.settleWarm();
+    if ("error" in response) return this.fail(response.id, response.error);
+    if (response.idle) mergePerf(response.idle);
+    if (response.id === this.warmId) return mergePerf({ "turn-warm": response.perf.turn });
+    this.lastRouteMs = routeMsOf(response.perf);
+    mergePerf(response.perf);
+    if (this.pending?.id !== response.id) return;
+    this.notePrep(performance.now() - this.pending.postedAt);
+    this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
+  }
+
+  private finish(id: number | null): void {
+    if (id === this.running) this.running = null;
+    this.postPending();
+  }
+
+  private failRunning(message: string): void {
+    const id = this.running;
+    this.fail(id, message);
+    this.finish(id);
   }
 
   private dropWorker(): void {
@@ -593,19 +618,12 @@ export class TurnPreparation {
     this.worker = null;
     this.terrain = null;
     this.obstacles.forget();
-    this.inFlight.clear();
+    this.running = null;
   }
 
   private restart(): void {
-    const pending = this.pending;
-    if (!pending || pending.ready || pending.failure) return;
-    pending.queued = this.inFlight.size > 0;
-    pending.id = this.post(pending.before, pending.drive);
-    pending.postedAt = performance.now();
-  }
-
-  private noteAnswer(pending: { queued: boolean; postedAt: number }): void {
-    if (!pending.queued) this.notePrep(performance.now() - pending.postedAt);
+    if (this.pending) this.pending.id = null;
+    this.postPending();
   }
 
   private notePrep(ms: number): void {
@@ -616,6 +634,10 @@ export class TurnPreparation {
 
   keptSpeed(): number {
     return this.prepMedian === null ? Infinity : MOVE_MS / this.prepMedian;
+  }
+
+  routeMsOfLastTurn(): number | null {
+    return this.lastRouteMs;
   }
 
   private fail(id: number | null, message: string): void {
@@ -631,7 +653,7 @@ export class TurnPreparation {
   }
 
   warm(world: World, drive: DriveSnapshot): Promise<void> {
-    if (world.player.call || world.player.state === "dead" || this.load.gaveUp || this.load.waiting) return Promise.resolve();
+    if (world.player.call || world.player.state === "dead" || !this.canPost()) return Promise.resolve();
     this.warmId = this.post(world, drive);
     return new Promise((resolve) => (this.warmed = resolve));
   }
@@ -647,14 +669,24 @@ export class TurnPreparation {
 
   prepare(world: World, saved: DriveSnapshot): void {
     if (this.isFresh(world)) return;
-    const queued = this.inFlight.size > 0;
-    this.pending = { id: this.post(world, saved), before: world, lang: currentQuestLanguage(), drive: saved, queued, ready: null, failure: null, postedAt: performance.now() };
+    this.pending = { id: null, before: world, lang: currentQuestLanguage(), drive: saved, ready: null, failure: null, postedAt: 0 };
+    this.postPending();
+  }
+
+  private canPost(): boolean {
+    return this.running === null && !this.load.gaveUp && !this.load.waiting;
+  }
+
+  private postPending(): void {
+    const pending = this.pending;
+    if (!pending || pending.id !== null || pending.failure || !this.canPost()) return;
+    pending.id = this.post(pending.before, pending.drive);
+    pending.postedAt = performance.now();
   }
 
   private post(world: World, saved: DriveSnapshot): number {
     const { terrain, ...state } = world;
     const id = ++this.serial;
-    if (this.load.gaveUp || this.load.waiting) return id;
     this.worker ??= this.createWorker();
     const snapshot = saved.snapshot.slice();
     const request = timed("send-turn-split", () => ({
@@ -668,7 +700,7 @@ export class TurnPreparation {
     }));
     timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
     this.terrain = terrain;
-    this.inFlight.add(id);
+    this.running = id;
     return id;
   }
 
