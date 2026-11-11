@@ -61,7 +61,7 @@ export function haulerLane(world: World, hauler: Vehicle): number {
   return best;
 }
 
-export function underFire(world: World): boolean {
+function underFire(world: World): boolean {
   const alarm = runOf(world).hauler.alarmUntil;
   return alarm !== null && world.turn <= alarm;
 }
