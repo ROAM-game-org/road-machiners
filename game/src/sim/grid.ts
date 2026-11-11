@@ -150,6 +150,15 @@ export function nextTurn(item: GridItem): Rot {
   return WEAPON_CYCLE[(WEAPON_CYCLE.indexOf(item.rot) + 1) % WEAPON_CYCLE.length];
 }
 
+export function poseInPlaceOf(item: GridItem, rot: Rot): Rot {
+  const turns = turnsOf(item);
+  if (turns.includes(rot)) return rot;
+  const across = cellsTurned({ rot });
+  const pose = turns.find((turn) => cellsTurned({ rot: turn }) === across);
+  if (pose === undefined) throw new Error(`No pose for ${item.id} lies like pose ${rot}`);
+  return pose;
+}
+
 export function itemCells(item: GridItem): { x: number; y: number }[] {
   const { w, h } = itemSize(item);
   const out = [];

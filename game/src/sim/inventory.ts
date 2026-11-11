@@ -5,7 +5,7 @@ import { skillEffect } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
-import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, layoutError, mountCellsOf, mountSpots, occupiedCells, placementError, type Cell, type Grid, type Spot } from './grid';
+import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, layoutError, mountCellsOf, mountSpots, occupiedCells, placementError, poseInPlaceOf, type Cell, type Grid, type Spot } from './grid';
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
@@ -443,7 +443,7 @@ export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   if (targets.length > 1) return { plan: null, error: { id: 'twoInTheWay' } };
   const moves: RefitMove[] = [{ itemId, from: getSpot(item), to: getSpot(to) }];
   const target = targets[0];
-  if (target) moves.push({ itemId: target.id, from: getSpot(target), to: getSpot(item) });
+  if (target) moves.push({ itemId: target.id, from: getSpot(target), to: { x: item.x, y: item.y, rot: poseInPlaceOf(target, item.rot) } });
   return planMoves(v, moves);
 }
 

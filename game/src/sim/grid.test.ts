@@ -7,8 +7,8 @@ import { bedRows } from './chassis-features';
 import { barrelClash } from './barrels';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
-import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, bareGrid, belowDeck, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, sideOf, type Cell } from './grid';
+import { makePart, makeVehicle, partWithId } from './factory';
+import { MOUNT_CELLS, baseGrid, bareGrid, belowDeck, cargoCellsGained, cargoRowsOn, cellCount, cellsTurned, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, poseInPlaceOf, sideOf, type Cell } from './grid';
 import { getLayoutError, moveItem, mountPart, storePart, stowSpot } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -497,5 +497,17 @@ describe('loose storage on deck cells', () => {
     expect(spot).not.toBeNull();
     expect(spot.y).toBeLessThan(g.chassisH);
     expect(baseGrid('scout').cells[spot.y][spot.x]).toBe('D');
+  });
+});
+
+describe('poseInPlaceOf', () => {
+  const gun = (rot: number) => ({ id: 'g', kind: 'part', x: 0, y: 0, rot, part: partWithId('pg', 'mg', 0) }) as GridItem;
+  const plate = (rot: number) => ({ id: 'a', kind: 'part', x: 0, y: 0, rot, part: partWithId('pa', 'spacedArmor', 0) }) as GridItem;
+
+  it.each([0, 1, 2, 3, 4, 5, 6, 7] as const)('keeps pose %i for a gun and lays a plate the same way', (rot) => {
+    expect(poseInPlaceOf(gun(0), rot)).toBe(rot);
+    const pose = poseInPlaceOf(plate(0), rot);
+    expect([0, 1]).toContain(pose);
+    expect(cellsTurned({ rot: pose })).toBe(cellsTurned({ rot }));
   });
 });
