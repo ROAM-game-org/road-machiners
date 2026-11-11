@@ -33,8 +33,7 @@ uniform vec3 fireOrange;
 uniform vec3 fireYellow;
 uniform vec3 fireCore;
 uniform vec3 fireLine;
-${FIRE_KNOB_UNIFORMS.map((key) => `uniform float ${key};`).join("\n")}
-float fireHash(vec2 p) {
+${FIRE_KNOB_UNIFORMS.map((key) => `uniform float ${key};\n`).join("")}float fireHash(vec2 p) {
   vec3 q = fract(vec3(p.xyx) * 0.1031);
   q += dot(q, q.yzx + 33.33);
   return fract((q.x + q.y) * q.z);

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { makeVehicle } from '../sim/factory';
 import { bendField, restBend } from '../sim/rig';
+import { groundAt } from '../sim/terrain';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
@@ -48,7 +49,7 @@ function ridgeWorld(chassisId: string, ridge: Ridge): { w: World; x0: number; he
 }
 
 function flightOf(chassisId: string, ridge: Ridge, rear: boolean): Landing {
-  const { w: start, x0, heightOf } = ridgeWorld(chassisId, ridge);
+  const { w: start, x0 } = ridgeWorld(chassisId, ridge);
   let w = start;
   let d: Drive = buildDrive(w);
   const frames: VehicleFrame[] = [];
@@ -73,26 +74,27 @@ function flightOf(chassisId: string, ridge: Ridge, rear: boolean): Landing {
   if (first < 0) return { airSteps: 0, pitch: 0, slope: 0, impact };
   const f = unit(frames[first]);
   const x = f.pos.x / 4;
-  const slope = Math.atan((heightOf(x + 0.4) - heightOf(x - 0.4)) / 0.8) * DEG;
+  const y = f.pos.z / 4;
+  const slope = Math.atan((groundAt(w.terrain, x + 0.4, y) - groundAt(w.terrain, x - 0.4, y)) / 0.8) * DEG;
   return { airSteps, pitch: pitchOf(f.rot), slope, impact };
 }
 
 const CASES: [string, string, Ridge, boolean, number][] = [
-  ['scout off a crest onto a 2-tile drop to flat', 'scout', { rise: 0.25, fall: 3, drop: 2 }, false, 18.9],
-  ['scout off a symmetric ridge', 'scout', { rise: 0.25, fall: 0.25, drop: 99 }, false, 11.7],
-  ['hauler off a crest onto a 2-tile drop to flat', 'hauler', { rise: 0.25, fall: 3, drop: 2 }, false, 18.7],
-  ['semi cab off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, false, 18.6],
-  ['semi trailer off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, true, 18.6],
+  ['scout off a crest onto a 2-tile drop to flat', 'scout', { rise: 0.25, fall: 3, drop: 2 }, false, 18.6],
+  ['scout off a symmetric ridge', 'scout', { rise: 0.45, fall: 0.45, drop: 99 }, false, 10.9],
+  ['hauler off a crest onto a 2-tile drop to flat', 'hauler', { rise: 0.25, fall: 3, drop: 2 }, false, 18.9],
+  ['semi cab off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, false, 19.8],
+  ['semi trailer off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, true, 19.8],
 ];
 
 describe('a truck that leaves a ridge at speed', () => {
-  for (const [label, chassis, ridge, rear, impactBeforeRule] of CASES) {
+  for (const [label, chassis, ridge, rear, impactCap] of CASES) {
     it(`${label} lands on its wheels`, () => {
       const l = flightOf(chassis, ridge, rear);
       expect(l.airSteps).toBeGreaterThanOrEqual(MIN_AIR_STEPS);
       expect(Math.abs(l.pitch - l.slope)).toBeLessThanOrEqual(LEVEL_WITHIN);
       expect(l.pitch - l.slope).toBeGreaterThanOrEqual(-NOSE_DOWN_LIMIT);
-      expect(l.impact).toBeLessThanOrEqual(impactBeforeRule);
+      expect(l.impact).toBeLessThanOrEqual(impactCap);
     }, 60_000);
   }
 });

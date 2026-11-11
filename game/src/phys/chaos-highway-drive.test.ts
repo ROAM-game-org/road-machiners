@@ -45,14 +45,12 @@ function driveToFirstFort(seed: number): FortDrive {
   return { w, turns, stalls, startGap, path };
 }
 
-it('drives a kit truck in physics along the highway, through the scenes, to the first fort pad', () => {
-  for (const seed of [1, 2, 3]) {
-    const { w, turns, stalls, startGap } = driveToFirstFort(seed);
-    console.info(`seed ${seed}: ${turns} turns to the fort from ${startGap.toFixed(0)} tiles`);
-    expect(stalls, `seed ${seed}`).toBe(0);
-    expect(arrived(w), `seed ${seed} after ${turns} turns`).toBe(true);
-    expect(inYard(w, w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos, 1)).toBe(true);
-  }
+it.each([1, 2, 3])('drives a kit truck in physics along the highway of seed %i, through the scenes, to the first fort pad', (seed) => {
+  const { w, turns, stalls, startGap } = driveToFirstFort(seed);
+  console.info(`seed ${seed}: ${turns} turns to the fort from ${startGap.toFixed(0)} tiles`);
+  expect(stalls, `seed ${seed}`).toBe(0);
+  expect(arrived(w), `seed ${seed} after ${turns} turns`).toBe(true);
+  expect(inYard(w, w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos, 1)).toBe(true);
 }, budget(900_000));
 
 it('keeps auto travel on the road and its verge through the widest bend of ten seeds, with no stall', () => {

@@ -67,21 +67,30 @@ function wantedSpeed(s: DriveStats, v: Vehicle, speed: number, order: Exclude<Mo
   return setSpeedTarget(v, s, order) ?? orderSpeed(s, speed, v.pos, order, driveMode(v));
 }
 
-export function advanceFar(w: World, v: Vehicle, fraction?: number): void {
-  const step = stepDriveStats(w, v, fraction);
+export type TurnShare = { fraction: number; movedBefore: number; startsTurn: boolean; endsTurn: boolean };
+
+const WHOLE_TURN: TurnShare = { fraction: 1, movedBefore: 0, startsTurn: true, endsTurn: true };
+
+function shareOf(part: TurnShare | undefined): TurnShare {
+  return part ?? WHOLE_TURN;
+}
+
+export function advanceFar(w: World, v: Vehicle, part?: TurnShare): number {
+  const share = shareOf(part);
+  const step = stepDriveStats(w, v, share.fraction);
   const full = step.stats;
   const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
     brakeFar(v, full, start);
-    return;
+    return 0;
   }
 
   const s = fuelLimited(w, v, onGround(w, v, full), v.speed, order);
   const next = wantedSpeed(s, v, v.speed, order);
   const startSpeed = v.speed;
   const style = { route: routeStyle(w, v), night: avoidsCrater(w, v) };
-  const { points, partial } = farPoints(w, v, order.dest, style, full, s);
+  const { points, partial } = farPoints(w, v, order.dest, style, full, s, share.startsTurn);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2 * step.fraction);
   const { block, walk } = walkFar(w, v, order, points, planned, full.radius);
@@ -94,8 +103,9 @@ export function advanceFar(w: World, v: Vehicle, fraction?: number): void {
   settleSetSpeed(v, startSpeed);
   burnFuel(w, v, walk.moved);
   if (!drivesCoarse(v)) breakCrossed(w, v, walk.path, full.radius);
-  keepFarRoute(v, replans(done, windowEnds, block, walk) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
+  keepFarRoute(v, replans(done, windowEnds, block, walk.moved, share) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
   if (done) arrive(w, v);
+  return walk.moved;
 }
 
 function walkFar(w: World, v: Vehicle, order: DrivenOrder, points: Vec[], planned: FarStep, radius: number): { block: Contact | null; walk: FarStep } {
@@ -147,8 +157,12 @@ function farOutcome(order: DrivenOrder, end: Vec, walk: FarWalk, block: FarBlock
   return { done: dist(end, order.dest) < reach || routeEnds || blockedAtDest(order, block, reach), windowEnds };
 }
 
-function replans(done: boolean, windowEnds: boolean, block: FarBlock, walk: FarWalk): boolean {
-  return done || windowEnds || (block !== null && walk.moved < RULES.arriveRadius);
+function replans(done: boolean, windowEnds: boolean, block: FarBlock, moved: number, share: TurnShare): boolean {
+  return done || windowEnds || stuckThisTurn(block, moved, share);
+}
+
+function stuckThisTurn(block: FarBlock, moved: number, share: TurnShare): boolean {
+  return share.endsTurn && block !== null && share.movedBefore + moved < RULES.arriveRadius;
 }
 
 function endsWindow(walk: FarWalk, partial: boolean): boolean {
@@ -164,11 +178,11 @@ function onGround(w: World, v: Vehicle, s: DriveStats): DriveStats {
   return { ...s, maxSpeed: s.maxSpeed * unpavedTopShare(s.roughCut) };
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: DriveStats, s: DriveStats): { points: Vec[]; partial: boolean } {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: FarStyle, full: DriveStats, s: DriveStats, startsTurn: boolean): { points: Vec[]; partial: boolean } {
   const onRope = getHitchedTowIds(w);
   const coarse = drivesCoarse(v) && !endsAmongParked(w, v, dest, onRope);
   const stored = keptFarRoute(v);
-  if (stored && keepsRoute(stored, dest, style, coarse === drivesCoarse(v))) return { points: stored.points, partial: stored.partial === true };
+  if (stored && keepsRoute(stored, dest, style, coarse === drivesCoarse(v) || !startsTurn)) return { points: stored.points, partial: stored.partial === true };
   const toCoarse = (): { points: Vec[]; partial: boolean } => ({ points: coarsePoints(w, v, dest, full.radius, s.maxSpeed), partial: false });
   return coarse ? toCoarse() : fineOrCoarse(fineRoute(w, v, dest, full.radius, s, onRope), v, dest, toCoarse);
 }
@@ -400,27 +414,27 @@ function stepDriveStats(world: World, v: Vehicle, fraction = 1): { stats: DriveS
   return { stats: { ...full, accel: full.accel * fraction, limpAccel: full.limpAccel * fraction, brake: full.brake * fraction, fuelPerTile: full.fuelPerTile * fraction }, fraction };
 }
 
-type FarMotion = { v: Vehicle; trail: Pose[] };
+type FarMotion = { v: Vehicle; trail: Pose[]; moved: number };
 
 export class FarCombatMotion {
   private moves: FarMotion[];
   private phase = 0;
 
   constructor(private world: World, vehicles: Vehicle[]) {
-    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => ({ v, trail: [poseOf(v)] }));
+    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => ({ v, trail: [poseOf(v)], moved: 0 }));
   }
 
   at(phase: number): void {
     const fraction = phase - this.phase;
     if (fraction < 0) throw new Error('Coarse combat movement cannot go backward');
     if (fraction === 0) return;
-    for (const move of this.moves) this.advance(move, fraction);
+    for (const move of this.moves) this.advance(move, { fraction, movedBefore: move.moved, startsTurn: this.phase === 0, endsTurn: phase === 1 });
     this.phase = phase;
   }
 
-  private advance(move: FarMotion, fraction: number): void {
+  private advance(move: FarMotion, share: TurnShare): void {
     if (this.world.combat.destroyedAt[move.v.id] !== undefined || isKnockedOut(move.v)) move.v.speed = 0;
-    else advanceFar(this.world, move.v, fraction);
+    else move.moved += advanceFar(this.world, move.v, share);
     move.trail.push(poseOf(move.v));
   }
 
