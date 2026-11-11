@@ -68,6 +68,8 @@ export type FactoryConfig = {
   testingBudgetUsd: number;
   hardeningBudgetUsd: number;
   mergingBudgetUsd: number;
+  noCommitRounds: number;
+  suiteRerunFiles: number;
   wasteReviewDays: number;
   itchTarget: string | null;
   butlerKey: string | null;
@@ -287,7 +289,7 @@ export interface GitHub {
 }
 
 export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
-export type SuiteScope = { files: string[]; workers: number };
+export type SuiteScope = { files: string[]; workers: number | null };
 export type FailedTest = { file: string; test: string | null };
 export type SuiteFailures = { failed: FailedTest[]; unfinished: string[]; unhandledErrors: number };
 
@@ -349,6 +351,7 @@ export interface HostRepo {
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
   ownHeads(base: string, branch: string): Promise<string[]>;
+  cleanBaseHeads(base: string, branch: string): Promise<string[]>;
   changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
@@ -403,7 +406,8 @@ export const FACTORY_DIR = 'factory';
 export const BRANCH = (issue: number): string => `factory/issue-${issue}`;
 export const TASK_DIR = '.factory-tasks';
 export const TASK_FILE = (issue: number): string => `${TASK_DIR}/issue-${issue}.md`;
-export const WORK_DIR = (home: string, issue: number): string => `${home}/work/issue-${issue}`;
+export const PLAN_FILE = (issue: number): string => `${TASK_DIR}/issue-${issue}.plan.json`;
+export const WORK_DIR =(home: string, issue: number): string => `${home}/work/issue-${issue}`;
 export const WORK_LOCK = (home: string, name: string): string => `${home}/locks/${name}`;
 export const RUN_LOCK_NAME = (key: string): string => `run-${key}`;
 export const RUN_KEY = { issue: (issue: number): string => `issue-${issue}`, stage: (stage: string): string => `stage-${stage}` };

@@ -9,9 +9,11 @@ import { clearStuck } from './stuck';
 import { MOVE_TARGETS, causeText, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { resetSpend } from './landing-work';
 import { bundleOf } from './stages/bundle';
+import { agentHome, workDir } from './stages/common';
+import { planRecordExists } from './plan-record';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
-import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
+import { GAME_DIR, STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type IssueMerge, type KeptApproval, type LandingWork, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
 
 const SNAPSHOT_AGENT = 'curl/8.0';
 const LOG_TAIL_LINES = 50;
@@ -121,7 +123,6 @@ async function repairCloneCommand(ctx: Ctx, args: string[]): Promise<void> {
   for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge, refuseUnpushed: false })) console.log(line);
 }
 
-// These values start a playtest or stand for its pass, and a pass makes a release candidate. Only the owner sets them, while anyone may clear them.
 const PLAYTEST_PATHS = ['pendingPlaytest', 'release.playtest.passed', 'release.playtest.work'];
 
 function startsPlaytest(path: string, json: string | undefined): boolean {
@@ -167,7 +168,7 @@ async function findCard(ctx: Ctx, value: string | undefined): Promise<Card> {
 async function card(ctx: Ctx, args: string[]): Promise<void> {
   const found = await findCard(ctx, args[0]);
   const state = readState(ctx.statePath);
-  for (const line of [...cardFacts(found, state), ...cardDrift(found, state).map((row) => `drift: ${row}`), ...jobNote(found, state)]) console.log(line);
+  for (const line of [...cardFacts(ctx, found, state), ...cardDrift(found, state).map((row) => `drift: ${row}`), ...jobNote(found, state)]) console.log(line);
 }
 
 function jobNote(found: Card, state: FactoryState): string[] {
@@ -177,7 +178,7 @@ function jobNote(found: Card, state: FactoryState): string[] {
 
 const shown = (value: string | undefined): string => (value === undefined || value === '' ? 'none' : value);
 
-function cardFacts(found: Card, state: FactoryState): string[] {
+function cardFacts(ctx: Ctx, found: Card, state: FactoryState): string[] {
   const key = String(found.issue);
   const posts = Object.entries(state.approvalPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id);
   const running = state.jobs.filter((job) => job.issue === found.issue).map((job) => `${job.stage} since ${job.startedAt}`);
@@ -188,6 +189,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `labels: ${shown(found.labels.join(', '))}`,
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `designed: ${state.designed.includes(found.issue) ? 'yes' : 'no'}`,
+    `planned change record: ${planRecordExists(agentHome(workDir(ctx, found.issue), GAME_DIR), found.issue) ? 'yes' : 'no'}`,
     `design offer: ${shown((state.designOffers[key] ?? []).map((issue) => `#${issue}`).join(', '))}`,
     `bundle: ${shown(bundleOf(state, found.issue).map((issue) => `#${issue}`).join(', '))}`,
     `questions asked: ${shown(state.asked[key])}`,
@@ -200,7 +202,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `kept approval: ${keptText(state.keptApprovals[key])}`,
     `open posts: ${shown(posts.join(', '))}`,
     `build: ${shown(state.builds[key])}`,
-    `suite passed on base failures only: ${shown(state.suiteCleared[key])}`,
+    `suite passed on base or rerun failures only: ${shown(state.suiteCleared[key])}`,
     `running job: ${shown(running.join(', '))}`,
     `failures: ${shown(own.join(' | '))}`,
     `held: ${holdText(state.held[key])}`,
@@ -382,7 +384,6 @@ async function retryPlaytest(ctx: Ctx, issue: number, decision: { by: string; te
     if (state.release === null) return state;
     const playtest = state.release.playtest;
     blocked = playtest.blocked !== null;
-    // Only a blocked playtest, which an order started, runs again. A retry never orders a new one, since its pass makes a release candidate.
     return { ...state, pendingPlaytest: blocked ? decision.by : state.pendingPlaytest, release: { ...state.release, playtest: { ...playtest, blocked: null, decision: recorded ?? playtest.decision } } };
   });
   if (recorded !== null) await ctx.github.comment(issue, `Playtest decision from ${recorded.by}: ${recorded.text}`);

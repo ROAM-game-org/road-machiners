@@ -6,7 +6,6 @@ import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
-// ann is the owner and carl another member.
 const member = (by: string, gated: boolean): string => {
   if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
   if (!['hermes', 'ann', 'carl'].includes(by)) throw new Error(`unknown actor ${by}`);
@@ -175,6 +174,13 @@ describe('read commands', () => {
     expect(out).toContain('labels: hotfix');
     expect(out).toContain('post only: yes');
     expect(out).toContain('designed: yes');
+    expect(out).toContain('planned change record: no');
+    const clone = `${f.ctx.cfg.home}/work/issue-5/game/.factory-tasks`;
+    mkdirSync(clone, { recursive: true });
+    writeFileSync(`${clone}/issue-5.plan.json`, '{"change":"x","howToTry":null}');
+    out.length = 0;
+    await run(f, 'card', '5');
+    expect(out).toContain('planned change record: yes');
     expect(out).toContain('design offer: #7');
     expect(out).toContain('bundle: #8, #9');
     expect(out).toContain('build: abc1234');
