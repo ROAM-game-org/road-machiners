@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { playerVehicle } from '../sim/damage';
+import { haulerOf, playerVehicle } from '../sim/damage';
+import { makePart } from '../sim/factory';
+import { gridOf, placementError } from '../sim/grid';
 import { mountedParts } from '../sim/grid';
 import { takeFromStorage } from '../sim/inventory';
 import { outpostBuyChassis, outpostBuyPart } from '../sim/outposts';
@@ -58,6 +60,28 @@ describe('a saved outpost garage', () => {
 
     expect(playerVehicle(loaded).chassisId).toBe(offer[0]);
     expect(outpostTrucks(loaded, loaded.chaosHighway!.outposts[1])).toEqual(offer.slice(1));
+  });
+});
+
+describe('a saved hauler that holds a part it does not take', () => {
+  it('moves a gun saved on the hauler to storage on load, with its wear', () => {
+    const w = parkedAtOutpost(21);
+    const hauler = haulerOf(w);
+    const gun = makePart(w, 'mg', 1);
+    const grid = gridOf(hauler);
+    const spot = grid.cells.flatMap((row, y) => row.flatMap((c, x) => (c === 'C' ? [{ x, y, rot: 0 as const }] : []))).find((at) => placementError(grid, hauler.items, { id: 'probe', kind: 'part', part: gun, ...at }, null) === null)!;
+    hauler.items.push({ id: 'i-old-gun', kind: 'part', part: gun, ...spot });
+
+    const loaded = reload(w);
+
+    expect(haulerOf(loaded).items.some((it) => it.kind === 'part' && it.part.id === gun.id)).toBe(false);
+    expect(loaded.player.storage).toContainEqual(gun);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+    expect(reload(loaded)).toEqual(loaded);
+    const next = endTurn(loaded, () => {});
+    expect(next.player.xp).toBe(w.player.xp);
   });
 });
 

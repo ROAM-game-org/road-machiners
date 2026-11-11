@@ -1,7 +1,8 @@
 import { CHAOS_HIGHWAY } from '../../data/modes';
 import { isShield, partDef } from '../../data/parts';
 import { haulerOf, playerVehicle } from '../damage';
-import { outpostPartPrice, haulerTakes } from '../outposts';
+import { outpostPartPrice } from '../outposts';
+import { haulerTakes } from '../garage';
 import { dist } from '../vec';
 import { isJunk } from '../wear';
 import { repairCost } from '../economy';

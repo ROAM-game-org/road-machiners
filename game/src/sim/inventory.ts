@@ -6,7 +6,7 @@ import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
 import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, layoutError, mountCellsOf, mountSpots, occupiedCells, placementError, type Cell, type Grid, type Spot } from './grid';
-import { atGarage, requireGarage } from './garage';
+import { atGarage, haulerRefusal, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
 import { cancelJob, startJob } from './jobs';
@@ -383,6 +383,8 @@ export function takeFromStorage(world: World, partId: string, to: Spot, truckId?
     const i = w.player.storage.findIndex((p) => p.id === partId);
     if (i < 0) throw new Error(`No stored part ${partId}`);
     const item: GridItem = { id: newId(w, 'i'), kind: 'part', part: w.player.storage[i], ...to };
+    const refused = haulerRefusal(w, me.id, item.part);
+    if (refused) throw new Refused(refused);
     const err = placementError(gridOf(me), me.items, item, null);
     if (err) throw new Refused(err);
     w.player.storage.splice(i, 1);

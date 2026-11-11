@@ -1,5 +1,6 @@
 
 import { Refused } from '../sim/world';
+import { haulerRefusal } from '../sim/garage';
 import { PERK_NUMBERS } from "../data/skills";
 import { goodsCount } from "../sim/grid";
 import { isBusy, isParkedForWork, repairBlocker, stripRefusal } from "../sim/jobs";
@@ -14,7 +15,7 @@ import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
 import { storeGood, takeStoredGood } from "../sim/goods-store";
-import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle, World } from "../sim/types";
+import type { GridItem, PartInstance, PlacementRefusal, Refusal, Rot, Vehicle, World } from "../sim/types";
 
 const ROTATE_KEY_CODE = "KeyR";
 
@@ -156,6 +157,11 @@ export function pickupProblem(real: Vehicle, plan: RefitLayout, item: GridItem):
   const truck = pickupTruck(real, plan);
   const others = truck.items.filter((it) => it.id !== item.id);
   return placementError(gridOf({ ...truck, items: [...others, item] }), others, item, null);
+}
+
+export function storageProblem(world: World, truckId: string | undefined, real: Vehicle, plan: RefitLayout, item: GridItem): Refusal | null {
+  const refused = item.kind === 'part' ? haulerRefusal(world, truckId, item.part) : null;
+  return refused ?? pickupProblem(real, plan, item);
 }
 
 export function canFieldPatch(real: Vehicle, plannedMounted: boolean, partId: string): boolean {

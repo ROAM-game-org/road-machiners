@@ -310,7 +310,6 @@ export const UI: Translation<typeof EN> = {
   'outpost.soldOut': 'Всё раскуплено',
   'outpost.truck': 'Грузовик',
   'outpost.hauler': 'Фура',
-  'outpost.haulerRefuses': 'На фуру ставят только броню, двигатели и грузовые рамы',
   'outpost.haulerAway': 'Фура стоит не во дворе',
   'hud.haulerTip': 'Фура, цела на {percent}%',
   'outpost.driveOn': 'Ехать дальше',

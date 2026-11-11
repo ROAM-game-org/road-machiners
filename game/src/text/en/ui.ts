@@ -309,7 +309,6 @@ export const UI = {
   'outpost.soldOut': 'Sold out',
   'outpost.truck': 'Truck',
   'outpost.hauler': 'Hauler',
-  'outpost.haulerRefuses': 'The hauler takes armor, engines and cargo frames only',
   'outpost.haulerAway': 'The hauler is not parked in the yard',
   'hud.haulerTip': m('Hauler, {percent}% in one piece', { percent: 'int' }),
   'outpost.driveOn': 'Drive on',

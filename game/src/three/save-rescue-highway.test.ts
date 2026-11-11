@@ -109,6 +109,18 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });
 
+  it('puts a gun carried on the hauler into storage instead of back on the hauler', () => {
+    const save = structuredClone(MID_STRETCH) as Fixture;
+    const hauler = savedTruck(save, save.world.furyRoad.hauler.id);
+    const gun = { id: 'p-old-gun', defId: 'mg', hp: 30, wear: 0 };
+    (hauler.items as unknown[]).push({ id: 'i-old-gun', x: 0, y: 1, rot: 0, kind: 'part', part: gun });
+
+    const { world } = rescued(save);
+
+    expect(haulerOf(world).items.some((it) => it.kind === 'part' && it.part.defId === 'mg')).toBe(false);
+    expect(world.player.storage.filter((p) => p.defId === 'mg')).toHaveLength(1);
+  });
+
   it('reads the wait of a run saved before the run kept one from the outpost it paid', () => {
     const { waitingAt: _waitingAt, ...run } = PAID.world.furyRoad;
     const { world } = rescued({ ...PAID, world: { ...PAID.world, furyRoad: run } } as Fixture);

@@ -97,9 +97,14 @@
 :where(#ui:not(.narrow)) .truck-body {
   overflow: hidden;
 }
-:where(#ui:not(.narrow)) .truck-body > .inv-view,
-:where(#ui:not(.narrow)) .truck-body .inv-wrap {
+:where(#ui:not(.narrow)) .truck-body > .inv-view {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+:where(#ui:not(.narrow)) .truck-body .inv-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 :where(#ui:not(.narrow)) .truck-body .inv-side {
   max-height: 100%;

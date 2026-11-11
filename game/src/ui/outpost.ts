@@ -4,7 +4,8 @@ import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
 import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
 import { goodsCount, mountCellsOf } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
-import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
+import { haulerRefusal } from "../sim/garage";
 import type { PartInstance, World } from "../sim/types";
 import { num, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
@@ -250,7 +251,8 @@ export class OutpostScreen {
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
     const price = outpostPartPrice(w, p, id);
-    const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
+    const refusal = haulerRefusal(w, id, p);
+    const refused = refusal ? refusalText(w, refusal) : null;
     return {
       world: w,
       part: p,

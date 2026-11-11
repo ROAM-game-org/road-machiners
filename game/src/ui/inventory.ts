@@ -86,14 +86,13 @@ import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw
 import { fuelLiters, moneyEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
-import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
+import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, storageProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
-
 
 type Drag = {
   source: ItemSource;
@@ -459,7 +458,7 @@ export class InventoryView {
     if (this.gridTruck === id) return;
     this.gridTruck = id;
     this.plan = {};
-    this.selectedItem = null;
+    this.error = this.selectedItem = null;
     this.preview = null;
   }
 
@@ -990,7 +989,7 @@ export class InventoryView {
   private placementProblem(d: Drag): Refusal | null {
     if (d.source === "grid")
       return planItemMove(this.shown(this.host.world()), d.id, { x: d.item.x, y: d.item.y, rot: d.item.rot }).error;
-    return pickupProblem(plannedTruck(this.host.world(), this.mine(this.host.world())), this.plan, d.item);
+    return storageProblem(this.host.world(), this.gridTruck ?? undefined, plannedTruck(this.host.world(), this.mine(this.host.world())), this.plan, d.item);
   }
 
   private spotAt(cx: number, cy: number): Spot | null {

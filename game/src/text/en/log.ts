@@ -550,6 +550,7 @@ export const LOG = {
   'money.holdUp': m('hold-up, {vehicle}', { vehicle: 'text' }),
   'money.towing': m('towing {vehicle}', { vehicle: 'text' }),
   'refusal.noFit': 'Does not fit there',
+  'refusal.haulerRefuses': 'The hauler takes armor, engines and cargo frames only',
   'refusal.inTheWay': 'Something is in the way',
   'refusal.armorOnly': 'Only armor fits on the edges',
   'refusal.barrel': 'A gun barrel would lie over another gun',

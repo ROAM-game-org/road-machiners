@@ -1,7 +1,8 @@
 import { haulerOf, truckFor } from '../damage';
 import { reachedOutpostAt } from '../chaos-highway';
 import { storePart } from '../inventory';
-import { haulerTakes, outpostBuyPart, outpostPartPrice } from '../outposts';
+import { haulerTakes } from '../garage';
+import { outpostBuyPart, outpostPartPrice } from '../outposts';
 import { isJunk } from '../wear';
 import { gearPlans, jobScorer, type GearJob, type Plan } from './gear';
 import { mountBought, type Orders } from './orders';
