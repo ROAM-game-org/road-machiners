@@ -1,6 +1,6 @@
 import { isKnockedOut } from './defeat';
 import { PHYSICS } from '../data/physics';
-import { combatStepRoundoff, hasTimedFire, stepTimedCombat } from './timed-combat';
+import { combatStepRoundoff, fireSpots, hasTimedFire, stepTimedCombat } from './timed-combat';
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -14,7 +14,9 @@ import { REGION } from '../data/region';
 import { propsAround, propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuelAt, getResources } from './resources';
-import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, type DriveStats } from './stats';
+import { driveStats, fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, vehicleMaxSpeed, type DriveStats } from './stats';
+import { PERF } from '../data/perf';
+import { UNPRICED_WEAPONS } from '../data/weapons';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { tileAt } from './terrain';
 import { driveMode, parkedVehicles, orderSpeed, setSpeedTarget, settleSetSpeed } from './steering';
@@ -416,12 +418,27 @@ function stepDriveStats(world: World, v: Vehicle, fraction = 1): { stats: DriveS
 
 type FarMotion = { v: Vehicle; trail: Pose[]; moved: number };
 
+const LONGEST_RANGE = Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range));
+
+function fireReach(world: World): number {
+  const fastest = Math.max(0, ...world.vehicles.map((v) => vehicleMaxSpeed(world, v)));
+  return PERF.farFireReachInRanges * LONGEST_RANGE + 2 * fastest;
+}
+
+function nearFire(spots: readonly Vec[], reach: number): (v: Vehicle) => boolean {
+  return (v) => spots.some((p) => dist(v.pos, p) <= reach);
+}
+
 export class FarCombatMotion {
   private moves: FarMotion[];
+  private wholeTurn: Vehicle[];
   private phase = 0;
 
   constructor(private world: World, vehicles: Vehicle[]) {
-    this.moves = vehicles.filter(v => !isOnRope(world, v.id)).map(v => ({ v, trail: [poseOf(v)], moved: 0 }));
+    const moving = vehicles.filter(v => !isOnRope(world, v.id));
+    const steps = nearFire(fireSpots(world, world.combat), fireReach(world));
+    this.moves = moving.filter(steps).map(v => ({ v, trail: [poseOf(v)], moved: 0 }));
+    this.wholeTurn = moving.filter(v => !steps(v));
   }
 
   at(phase: number): void {
@@ -441,6 +458,16 @@ export class FarCombatMotion {
   finish(): void {
     this.at(1);
     for (const move of this.moves) move.v.trail = move.trail;
+    for (const v of this.wholeTurn) this.advanceWhole(v);
+  }
+
+  private advanceWhole(v: Vehicle): void {
+    if (this.world.combat.destroyedAt[v.id] === undefined && !isKnockedOut(v)) {
+      advanceFar(this.world, v);
+      return;
+    }
+    v.speed = 0;
+    v.trail = [poseOf(v), poseOf(v)];
   }
 }
 
