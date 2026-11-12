@@ -224,6 +224,35 @@ describe('NPC pleas to NPCs', () => {
     expect(topGoal(b)).toMatchObject({ kind: 'loot' });
   });
 
+  it('a spared mercy that hands over nothing is a plain truce, not a robbery', () => {
+    forceOption('mercyBegged', 'spare');
+    const w = quietWorld();
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
+    const bankBefore = b.resources!.money;
+    feud(w, a, b);
+    plead(w, a, b, 'mercy');
+    expect(isHostile(w, a, b)).toBe(false);
+    expect(stateOf(w, 'truce', a.id, b.id)).not.toBeNull();
+    expect(w.events.filter((e) => e.t === 'holdUp')).toEqual([]);
+    expect(a.brain!.memories.filter((m) => m.fact.kind === 'wronged')).toEqual([]);
+    expect(b.resources!.money).toBe(bankBefore);
+  });
+
+  it('a spared mercy that hands over a crate still records the robbery', () => {
+    forceOption('mercyBegged', 'spare');
+    const w = quietWorld();
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
+    addGoods(w, a, 'scrap', 1);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
+    feud(w, a, b);
+    plead(w, a, b, 'mercy');
+    expect(w.events.filter((e) => e.t === 'holdUp')).toHaveLength(1);
+    expect(a.brain!.memories.some((m) => m.fact.kind === 'wronged' && m.fact.deed === 'robbed')).toBe(true);
+  });
+
   it('a hurt driver pleads with the hostile that hit it', () => {
     forceOption('parley', 'truce');
     forceOption('truceOffered', 'accept');
