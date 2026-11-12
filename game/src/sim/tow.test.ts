@@ -7,7 +7,8 @@ import { partDef } from '../data/parts';
 import { playerVehicle } from './damage';
 import { route, routeLength } from './path';
 import { getKnownSite } from './npc-decisions';
-import { canUseSite, nearestPad, siteGates, sitePads, type Site } from './sites';
+import { canUseSite, everyTruck, nearestPad, siteGates, sitePads, type Site } from './sites';
+import { releaseRearmed } from './npc-service';
 import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateWhere, testDrive , startCombat } from './testkit';
@@ -50,9 +51,11 @@ function stranded(playerPos: Vec = { x: 30, y: 30 }, traderPos: Vec = { x: 40, y
 function endLieUp(w: World, npc: Vehicle): void {
   const goal = topGoal(npc);
   expect(goal?.kind).toBe('rearm');
-  w.turn = goal!.until!;
+  w.player.encounters.pending = null;
   thinkNpc(w, npc);
   resolveNpcActivities(w);
+  w.turn = goal!.until!;
+  releaseRearmed(w);
 }
 
 function runUntil(w: World, max: number, done: (w: World) => boolean): { w: World; turns: number; events: GameEvent[] } {
@@ -67,7 +70,7 @@ function runUntil(w: World, max: number, done: (w: World) => boolean): { w: Worl
 }
 
 const onlyCore = (v: Vehicle) => { v.items = v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core'); };
-const find = (w: World, id: string) => w.vehicles.find((v) => v.id === id)!;
+const find = (w: World, id: string) => everyTruck(w).find((v) => v.id === id)!;
 const feeOf = (w: World) => towData(playerTow(w)!).fee;
 
 function offered(s: Setup, topic: 'tow' | 'towFree' = 'tow'): World {

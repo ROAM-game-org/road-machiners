@@ -33,6 +33,7 @@ export type StateKind = {
   hooks: Partial<Record<StateEnding, (w: World, s: NpcState) => void>>;
   work(w: World, s: NpcState, v: Vehicle): WorkLeft | null;
   binds: boolean;
+  inside: 'keep' | 'end' | 'block';
 };
 
 const never = (): boolean => false;
@@ -56,51 +57,55 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
     },
     work: noWork,
     binds: false,
+    inside: 'block',
   },
-  backedOff: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
+  backedOff: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
   tow: {
     refresh: never,
     check: (w, s) => (s.holder === w.player.vehicleId ? checkPlayerTow(w, s) : null),
     hooks: { fulfilled: payTow, broken: releaseTow },
     work: noWork,
     binds: true,
+    inside: 'block',
   },
-  turnedDown: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
-  towPromise: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false },
+  turnedDown: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false, inside: 'end' },
+  towPromise: { refresh: never, check: strandingOver, hooks: {}, work: noWork, binds: false, inside: 'end' },
   answering: {
     refresh: answerWaits,
     check: (w, s) => (answerDropped(w, s) ? 'broken' : null),
     hooks: { expired: lapseClaim },
     work: noWork,
     binds: true,
+    inside: 'block',
   },
-  truce: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  grievance: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  plea: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  helpRefused: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
+  truce: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
+  grievance: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
+  plea: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'block' },
+  helpRefused: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
   patch: {
     refresh: isPatching,
     check: checkPatch,
     hooks: { fulfilled: settlePatch, expired: lapsePatch, broken: breakPatch },
     work: patchWork,
     binds: true,
+    inside: 'block',
   },
-  trade: { refresh: isMeeting, check: checkTrade, hooks: {}, work: noWork, binds: true },
-  handover: { refresh: isMeeting, check: checkHandover, hooks: {}, work: noWork, binds: true },
-  revenge: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  escort: { refresh: never, check: checkEscort, hooks: { fulfilled: payEscort }, work: noWork, binds: true },
-  strayFire: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAndEndAid, expired: endAid, broken: endAid }, work: aidWork, binds: true },
-  combat: { refresh: never, check: checkCombat, hooks: {}, work: noWork, binds: false },
-  lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false },
-  crew: { refresh: never, check: checkCrew, hooks: endingHooks(endCrewState), work: noWork, binds: true },
-  hire: { refresh: never, check: checkHire, hooks: endingHooks(endHireState), work: noWork, binds: true },
-  lookOver: { refresh: never, check: checkLookOver, hooks: { fulfilled: onLookedOver }, work: lookOverWork, binds: false },
-  sizedUp: { refresh: never, check: checkSizedUp, hooks: {}, work: noWork, binds: false },
-  cavalcade: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: true },
-  offering: { refresh: never, check: checkOffering, hooks: { broken: breakWord }, work: noWork, binds: true },
-  bountyStop: { refresh: never, check: noCheck, hooks: { expired: demandLapsed }, work: noWork, binds: false },
-  drag: { refresh: never, check: checkSunwardDrag, hooks: { fulfilled: dropAtLight, broken: releaseDragged, expired: releaseDragged }, work: noWork, binds: false },
+  trade: { refresh: isMeeting, check: checkTrade, hooks: {}, work: noWork, binds: true, inside: 'block' },
+  handover: { refresh: isMeeting, check: checkHandover, hooks: {}, work: noWork, binds: true, inside: 'block' },
+  revenge: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
+  escort: { refresh: never, check: checkEscort, hooks: { fulfilled: payEscort }, work: noWork, binds: true, inside: 'block' },
+  strayFire: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false, inside: 'keep' },
+  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAndEndAid, expired: endAid, broken: endAid }, work: aidWork, binds: true, inside: 'block' },
+  combat: { refresh: never, check: checkCombat, hooks: {}, work: noWork, binds: false, inside: 'block' },
+  lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false, inside: 'block' },
+  crew: { refresh: never, check: checkCrew, hooks: endingHooks(endCrewState), work: noWork, binds: true, inside: 'block' },
+  hire: { refresh: never, check: checkHire, hooks: endingHooks(endHireState), work: noWork, binds: true, inside: 'block' },
+  lookOver: { refresh: never, check: checkLookOver, hooks: { fulfilled: onLookedOver }, work: lookOverWork, binds: false, inside: 'block' },
+  sizedUp: { refresh: never, check: checkSizedUp, hooks: {}, work: noWork, binds: false, inside: 'block' },
+  cavalcade: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: true, inside: 'block' },
+  offering: { refresh: never, check: checkOffering, hooks: { broken: breakWord }, work: noWork, binds: true, inside: 'block' },
+  bountyStop: { refresh: never, check: noCheck, hooks: { expired: demandLapsed }, work: noWork, binds: false, inside: 'block' },
+  drag: { refresh: never, check: checkSunwardDrag, hooks: { fulfilled: dropAtLight, broken: releaseDragged, expired: releaseDragged }, work: noWork, binds: false, inside: 'block' },
 };
 
 function endingHooks(end: (w: World, s: NpcState, ending: StateEnding) => void): StateKind['hooks'] {
@@ -235,8 +240,21 @@ function runTimer(w: World, s: NpcState, kind: StateKind): void {
   if (s.turnsLeft === 0) endState(w, s, 'expired');
 }
 
+export function blocksShelter(w: World, truckId: string): boolean {
+  return w.states.some((s) => (s.holder === truckId || s.other === truckId) && kindOf(s.kind).inside === 'block');
+}
+
 function partyMissing(w: World, s: NpcState): boolean {
-  return !w.vehicles.some((v) => v.id === s.holder) || !w.vehicles.some((v) => v.id === s.other);
+  const present = kindOf(s.kind).inside === 'keep' ? presentTruck : onTheRoad;
+  return !present(w, s.holder) || !present(w, s.other);
+}
+
+function onTheRoad(w: World, id: string): boolean {
+  return w.vehicles.some((v) => v.id === id);
+}
+
+function presentTruck(w: World, id: string): boolean {
+  return onTheRoad(w, id) || w.sheltered.some((s) => s.vehicle.id === id);
 }
 
 export function feudData(s: NpcState): Extract<StateData, { kind: 'feud' }> {
