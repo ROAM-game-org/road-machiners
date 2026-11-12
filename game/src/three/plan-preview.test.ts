@@ -7,11 +7,11 @@ import { perfSnapshot, resetPerf } from "../perf";
 import { emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
 import { setMoveOrder } from "../sim/world";
-import { reportError } from "./crash";
+import { noteError, reportError } from "./crash";
 import { PAL } from "../render/palette";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 
-vi.mock("./crash", () => ({ reportError: vi.fn() }));
+vi.mock("./crash", () => ({ reportError: vi.fn(), noteError: vi.fn() }));
 
 class TestWorker {
   static latest: TestWorker;
@@ -47,6 +47,7 @@ beforeAll(initPhysics);
 beforeEach(() => {
   vi.stubGlobal("Worker", TestWorker);
   vi.mocked(reportError).mockClear();
+  vi.mocked(noteError).mockClear();
   resetPerf();
   TestWorker.created = 0;
   world = emptyWorld();
@@ -128,6 +129,23 @@ it("reports a failed preview with the worker's stack and hands nothing over", ()
   const reported = vi.mocked(reportError).mock.calls[0][0] as Error;
   expect(reported.message).toBe("Player vehicle p missing from the preview world");
   expect(reported.stack).toContain("at planTurns");
+});
+
+it("hands over a running preview after the worker's idle work failed, and only notes the failure", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const changed = moved();
+  plans.request(changed, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  worker.respond({ idleError: "Error: idle cells broke" });
+  expect(worker.requests).toHaveLength(1);
+  worker.answer(0, plan(true));
+  expect(worker.requests).toHaveLength(2);
+  const answer = plan(false);
+  worker.answer(1, answer);
+  expect(plans.take(changed)).toBe(answer);
+  expect(reportError).not.toHaveBeenCalled();
+  expect((vi.mocked(noteError).mock.calls[0][0] as Error).message).toBe("idle cells broke");
 });
 
 it("reports a worker error event and still posts the next request", () => {
