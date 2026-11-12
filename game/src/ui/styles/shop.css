@@ -1045,9 +1045,6 @@
 .chassis-map .c-D {
   background: var(--map-deck);
 }
-.chassis-map .c-C {
-  background: var(--map-bay);
-}
 .chassis-map .c-E {
   background: var(--map-engine);
 }
@@ -1186,7 +1183,6 @@
   opacity: 0.35;
 }
 .inv-grid[data-hint~="D"] .c-D,
-.inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
 .inv-grid[data-hint~="E"] .bay,
 .inv-grid[data-hint~="F"] .c-F,

@@ -4,7 +4,7 @@ import { chassisPrice, chassisSwapRefusal, paintPrice, partTradePrice, type Supp
 import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
 import { goodsCount } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
-import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepaint, outpostSellGood, outpostSellPart, outpostGoodSellPrice } from "../sim/outposts";
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepaint, outpostSellGood, outpostSellPart, outpostGoodSellPrice } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
@@ -304,7 +304,6 @@ export class OutpostScreen {
 
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
-    const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
-    return garagePartRow(w, this.partLists(), p, this.priceButton(w, t("goods.buy"), outpostPartPrice(w, p, id), (x) => outpostBuyPart(x, p.id, id), refused), t("trade.done.bought"));
+    return garagePartRow(w, this.partLists(), p, this.priceButton(w, t("goods.buy"), outpostPartPrice(w, p, id), (x) => outpostBuyPart(x, p.id, id), null), t("trade.done.bought"));
   }
 }
