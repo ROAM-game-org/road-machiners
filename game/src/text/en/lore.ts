@@ -10,7 +10,7 @@ export const LORE = {
   'lore.part.amRifle': 'Made to wreck engines from far away, in the days when armies still hunted machines. Raiders watch the ridges for its long barrel.',
   'lore.part.autocannon': 'A small cannon that never quite stops. Nose builds the barrels, and every garage in the basin curses the feed.',
   'lore.part.recoilless': 'The tube throws the shell one way and the fire the other, so the truck feels little of it. Drivers still stand well clear of the back.',
-  'lore.part.battleRifle': 'A soldier\'s rifle, quicker than a long rifle. Old Army veterans still teach it, and no two agree how to hold it.',
+  'lore.part.battleRifle': 'A rifle bolted to a truck deck, quicker than a long rifle. Old Army veterans still teach it, and no two agree how to aim it.',
   'lore.part.gatling': 'Six barrels turning on a crank motor, and the motor is the one part nobody in the basin can make. Every one comes off a wreck. You hear the truck before you see it.',
   'lore.part.rocketRack': 'Tubes welded in a row and loaded by hand, one after another. Loading takes long enough that owners make the first volley count.',
   'lore.part.sniperCannon': 'A cannon pared down until it shoots straight. Each driver who owns one swears theirs is the only one that does.',
