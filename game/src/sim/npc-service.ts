@@ -1,5 +1,6 @@
 
 import { NPC_BEHAVIOR, NPC_UPKEEP, NPCS, SPAWN } from '../data/npcs';
+import { npcRepairReserve } from './repair';
 import { SHOPS, shopDef } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -59,9 +60,9 @@ export function resolveResupply(world: World, vehicle: Vehicle, activity: NpcAct
 
 function serviceAt(world: World, vehicle: Vehicle, site: Site): void {
   const kind = 'kind' in site ? site.kind : null;
-  if (kind === 'camp') serviceAtCamp(world, vehicle, site.id, NPC_UPKEEP.repairParts);
-  else if (shopDef(site.id).kind === 'stall') serviceAtStall(world, vehicle, site.id, NPC_UPKEEP.repairParts);
-  else serviceVehicle(world, vehicle, site.id, NPC_UPKEEP.repairParts);
+  if (kind === 'camp') serviceAtCamp(world, vehicle, site.id, npcRepairReserve(vehicle));
+  else if (shopDef(site.id).kind === 'stall') serviceAtStall(world, vehicle, site.id, npcRepairReserve(vehicle));
+  else serviceVehicle(world, vehicle, site.id, npcRepairReserve(vehicle));
 }
 
 function needsFreshGear(world: World, vehicle: Vehicle): boolean {
@@ -176,7 +177,7 @@ export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): 
   return [...profile.towns, ...SERVICE_STALLS];
 }
 
-const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
+export const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
 
 function fuelSense(world: World, vehicle: Vehicle): number {
   const roll = hashRandom(world.seed, ...charCodes(vehicle.id), ...charCodes('fuel'));
@@ -266,7 +267,7 @@ function serviceTrip(world: World, vehicle: Vehicle, profile: NpcProfile, need: 
   return createSiteActivity('resupply', stop.id, need.reason);
 }
 
-function serviceStops(world: World, vehicle: Vehicle, profile: NpcProfile): string[] {
+export function serviceStops(world: World, vehicle: Vehicle, profile: NpcProfile): string[] {
   if (profile.bases.length > 0) return profile.bases;
   if (isStrandedForGood(vehicle)) return servingSiteIds(profile);
   return pumpsOf(vehicle, profile, isBroke(world, vehicle));

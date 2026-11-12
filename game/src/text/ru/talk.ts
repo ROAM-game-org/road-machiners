@@ -141,7 +141,7 @@ export const TALK: Translation<typeof EN> = {
   'line.moveAlong': 'Проезжай.',
   'line.myTruckIsBroken': 'Мой грузовик сломался. Подлатаешь?',
   'line.myTruckIsDead': 'Мой грузовик заглох намертво. Подлатаешь?',
-  'line.needATowTo': 'Дотащить до города?',
+  'line.needATowTo': 'Взять на буксир?',
   'line.neverMind': 'Неважно.',
   'line.noCharge': 'Бесплатно.',
   'line.noChargeHitchUp': 'Бесплатно. Цепляйся.',

@@ -1,6 +1,7 @@
 
 import { isShield, partDef } from '../data/parts';
 import { GOODS } from '../data/goods';
+import { NPCS } from '../data/npcs';
 import { skillEffect } from './progress';
 import { REPAIR } from '../data/wear';
 import { isJunk, maxHp, partValue, restorePart } from './wear';
@@ -13,6 +14,13 @@ function findRepairPart(v: Vehicle, partId: string): PartInstance {
   const part = mountedParts(v).find((p) => p.id === partId);
   if (!part) throw new Error(`${partId} is not a mounted part on ${v.id}`);
   return part;
+}
+
+export function npcRepairReserve(v: Vehicle): number {
+  if (!v.brain) throw new Error(`${v.id} has no driver template for a repair crate reserve`);
+  const template = NPCS[v.brain.templateId];
+  if (!template) throw new Error(`Unknown NPC template ${v.brain.templateId} on ${v.id}`);
+  return template.loadout.repairParts;
 }
 
 export function machiningMult(world: World, v: Vehicle): number {

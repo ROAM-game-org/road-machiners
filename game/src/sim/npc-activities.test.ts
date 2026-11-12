@@ -13,6 +13,7 @@ import { SHOPS } from '../data/market';
 import { partDef } from '../data/parts';
 import { damagePart } from './wear';
 import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChances, optionWeights, tradeOffers, tradeSpend, tripFuelCost, usefulContacts } from './npc-decisions';
+import { npcRepairReserve } from './repair';
 import { visibleDowned, visibleSalvage } from './loot-picks';
 import { affordableBuyCount, getLotTradePrice, getTradePrice, getTradeRate } from './economy';
 import { cargoRoom } from './inventory';
@@ -153,8 +154,9 @@ describe('NPC activities', () => {
     const town = REGION.towns[1].id;
     npc.pos = { ...sitePads(REGION.towns[1])[0] };
     npc.brain!.goals = [{ kind, targetId: town, destination: { ...npc.pos }, phase: 'travel', reason: 'tripToSite' }];
+    const onArrival = standingPressures(w, town);
     finishBusiness(w, npc);
-    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: standingPressures(w, town) } }]);
+    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: onArrival } }]);
   });
 
   it('remembers the prices of a stall where it resupplied', () => {
@@ -372,6 +374,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 50, y: 50 });
     const npc = addVehicle(w, 'independent', 'hauler', ['trailerBox', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    addGoods(w, npc, 'parts', npcRepairReserve(npc));
     npc.resources!.money = 1667;
     npc.resources!.fuel = fuelCap(npc);
     forceOption('idle', 'trade');
@@ -489,7 +492,6 @@ describe('NPC activities', () => {
     corePart(victim, 'cab').hp = 1;
     addGoods(w0, victim, 'scrap', 3);
     for (const key of Object.keys(NPCS)) w0.spawnTimer[key] = Number.MAX_SAFE_INTEGER;
-    let money = raider.resources!.money;
     let w = w0;
     let looted = false;
     let sold = false;
@@ -501,8 +503,7 @@ describe('NPC activities', () => {
         const actor = w.vehicles.find((v) => v.id === raider.id)!;
         const scrap = goodsCount(actor).scrap ?? 0;
         if (scrap > 0) looted = true;
-        if (looted && scrap === 0 && actor.resources!.money > money) { sold = true; break; }
-        money = actor.resources!.money;
+        if (looted && scrap === 0) { sold = true; break; }
       }
     } finally {
       (RULES as { npcDeathChance: number }).npcDeathChance = deathChance;
@@ -789,6 +790,7 @@ describe('NPC activities', () => {
     it('a trader that sells cargo at a town leaves with a full tank and pays the fuel price', () => {
       const { w, npc } = createTrader();
       at(npc, 'bowl');
+      addGoods(w, npc, 'parts', npcRepairReserve(npc));
       addGoods(w, npc, 'salt', 2);
       tankAt(w, npc, 0.1, 167);
       npc.brain!.goals = [goal('sell', 'bowl')];
@@ -803,6 +805,7 @@ describe('NPC activities', () => {
     it('a trader that buys trade cargo at a town buys the planned cargo first, then fills the tank from the rest', () => {
       const { w, npc } = createTrader();
       at(npc, 'bowl');
+      addGoods(w, npc, 'parts', npcRepairReserve(npc));
       const unit = getTradePrice(w, npc, 'bowl', 'grain', 'buy');
       tankAt(w, npc, 0.1, getUpkeepReserve(npc) + unit);
       npc.brain!.goals = [goal('trade', 'bowl', { purchase: { good: 'grain', sellShop: 'nose' } })];

@@ -613,7 +613,7 @@ function cellsOnGrid(chassisId: string, item: GridItem): { x: number; y: number 
 }
 
 function blockersOf(v: Loadout, gun: GridItem): GridItem[] {
-  const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall));
+  const tall = v.items.filter((it) => it.kind === 'part' && Boolean(partDef(it.part.defId).tall) && standsOnModel(v.chassisId, it));
   if (tall.length === 0) return tall;
   const floor = surfaceUnder(v.chassisId, gun);
   if (!Number.isFinite(floor)) return [];
@@ -637,6 +637,10 @@ function surfaceUnder(chassisId: string, item: GridItem): number {
   const cells = cellsOnGrid(chassisId, item);
   if (cells.length === 0) return -Infinity;
   return cachedHeight('floor', chassisId, item, () => highestUnder(chassisId, cellRect(chassisId, cells)));
+}
+
+function standsOnModel(chassisId: string, item: GridItem): boolean {
+  return Number.isFinite(surfaceUnder(chassisId, item));
 }
 
 function floorUnder(chassisId: string, item: GridItem): number {

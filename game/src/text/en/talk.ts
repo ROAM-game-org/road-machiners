@@ -140,7 +140,7 @@ export const TALK = {
   'line.moveAlong': 'Move along.',
   'line.myTruckIsBroken': 'My truck is broken down. Can you patch it?',
   'line.myTruckIsDead': 'My truck is dead out here. Can you patch me up?',
-  'line.needATowTo': 'Need a tow to town?',
+  'line.needATowTo': 'Need a tow?',
   'line.neverMind': 'Never mind.',
   'line.noCharge': 'No charge.',
   'line.noChargeHitchUp': 'No charge. Hitch up.',
