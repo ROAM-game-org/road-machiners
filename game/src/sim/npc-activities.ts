@@ -718,9 +718,9 @@ export function defyThreat(world: World, vehicle: Vehicle, threatener: Vehicle, 
 function onStrandedSeen(world: World, vehicle: Vehicle): void {
   if (inDanger(vehicle) || inCombat(world, vehicle)) return;
   const clients = world.vehicles
-    .filter((client) => !towWaitsForFight(world, client) && !refusesTows(world, vehicle, client) && canCatch(world, vehicle, client))
+    .filter((client) => !towWaitsForFight(world, client) && !refusesTows(world, vehicle, client))
     .map((client) => ({ client, at: strandedAt(world, vehicle, client) }))
-    .filter((c): c is { client: Vehicle; at: Vec } => c.at !== null)
+    .filter((c): c is { client: Vehicle; at: Vec } => c.at !== null && canCatch(world, vehicle, c.client))
     .sort((a, b) => dist(vehicle.pos, a.at) - dist(vehicle.pos, b.at));
   const chosen = clients.find((c) => react(world, vehicle, 'strandedSeen', c.client.id) === 'tow');
   if (chosen) startTow(world, vehicle, chosen.client, chosen.at);
