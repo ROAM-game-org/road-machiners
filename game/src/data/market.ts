@@ -184,7 +184,7 @@ export type ShopKind = 'garage' | 'stall';
 
 export const PRICE_FACTOR = { make: 0.75 };
 
-export const DISTANCE_PREMIUM = { perTile: 0.00093 };
+export const DISTANCE_PREMIUM = { perTile: 0.0011 };
 
 const GARAGE_WEAR: Weighted<number>[] = [
   { value: 0, weight: 1 },
