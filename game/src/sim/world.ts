@@ -87,6 +87,7 @@ import { releaseRearmed } from "./npc-service";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
 import { payoutM } from './money';
+import { shareExplored } from './explored';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -260,6 +261,17 @@ export function cloneWorld(world: World): World {
   return { ...structuredClone(state), obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
 }
 
+function cloneForTurn(world: World): World {
+  const { terrain, obstacles, player, ...state } = world;
+  const { explored, ...playerState } = player;
+  return {
+    ...structuredClone(state),
+    player: { ...structuredClone(playerState), explored: shareExplored(explored) },
+    obstacles: frozenObstacles(obstacles),
+    terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain),
+  } as World;
+}
+
 function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
   if (Object.isFrozen(obstacles)) return obstacles;
   for (const o of obstacles) {
@@ -271,7 +283,7 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
 }
 
 export function update(world: World, fn: (draft: World) => void): World {
-  const draft = cloneWorld(world);
+  const draft = cloneForTurn(world);
   settleDraft(draft, fn);
   return draft;
 }
@@ -386,7 +398,7 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
-  const draft = cloneWorld(world);
+  const draft = cloneForTurn(world);
   endTurnInPlace(draft, move);
   return draft;
 }
