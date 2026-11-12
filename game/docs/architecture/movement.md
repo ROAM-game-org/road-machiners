@@ -168,6 +168,7 @@ Every taste is a cost and never a block, so components and reachability do not c
 - The kept route is `partial`. At its end the truck plans the next window instead of arriving.
 - The route steers around parked trucks, around moving trucks slower than its own top speed and around trucks heading at it, within a turn's drive. A faster truck heading away pulls clear, but an oncoming one does not, so two trucks meeting head on pass each other. It holds short of any other truck and breaks the breakable props it crosses.
 - Every turn, fast or not, samples the player's sight along the drive once in `physicsMove()`, every `LIVE_SIGHT_STEP` tiles and at the end pose. That one track marks the explored tiles and is the playback fog.
+- A turn and every `update()` share `player.explored` with the world before them. The first new tile copies it through `ownExplored()` in `src/sim/explored.ts`, so every writer goes through that function.
 
 ## Cheap far rules
 
