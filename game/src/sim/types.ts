@@ -237,7 +237,6 @@ export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'arm
 export type Refusal =
   | PlacementRefusal
   | { id: 'badLayout'; cause: PlacementRefusal }
-  | { id: 'haulerRefuses' }
   | { id: 'itemGone' }
   | { id: 'cargoOwed' }
   | { id: 'refitRunning' }

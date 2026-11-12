@@ -553,7 +553,6 @@ export const LOG: Translation<typeof EN> = {
   'money.towing': 'буксировка {vehicle, case, gen}',
   'money.holdUp': 'ограбление, {vehicle}',
   'refusal.noFit': 'Сюда не влезает',
-  'refusal.haulerRefuses': 'На фуру ставят только броню, двигатели и грузовые рамы',
   'refusal.inTheWay': 'Что-то мешает',
   'refusal.armorOnly': 'По краям ставится только броня',
   'refusal.barrel': 'Ствол перекрывает другое оружие',

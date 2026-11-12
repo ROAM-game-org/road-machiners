@@ -18,7 +18,6 @@ import { contractPay } from './contract-pay';
 import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
-import { haulerTakes } from './garage';
 import { installSpot, stowSpot } from './inventory';
 import { baseGrid, findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
@@ -316,15 +315,7 @@ function repairOwnTruck(world: World, v: Vehicle): void {
   const gone = !isChassis(v.chassisId);
   if (gone) v.chassisId = startChassis(world, v);
   if (gone || !coresSeated(v) || !coresGraded(v)) reseatCores(world, v);
-  for (const item of [...haulerRefused(world, v), ...fitItems(v)]) displaced(world, item);
-}
-
-function haulerRefused(world: World, v: Vehicle): GridItem[] {
-  if (v.id !== world.chaosHighway?.hauler.id) return [];
-  const refused = v.items.filter((it) => it.kind === 'part' && !isCoreItem(it) && it.part.defId in PARTS && !haulerTakes(it.part));
-  v.items = v.items.filter((it) => !refused.includes(it));
-  forget(v, idsOf(refused));
-  return refused;
+  for (const item of fitItems(v)) displaced(world, item);
 }
 
 function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {

@@ -19,7 +19,6 @@ import { findPart, haulerOf, isPlayerTruck, playerTrucks, playerVehicle } from '
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods, mountPart } from './inventory';
-import { haulerTakes } from './garage';
 import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores, getResources } from './resources';
 import { isOutpostSite } from './highway';
@@ -766,13 +765,9 @@ function carryTruck(world: World, truck: Vehicle, items: CarriedItem[], stay: bo
 function carryPartItem(world: World, into: TruckCarry, item: CarriedItem & { kind: 'part' }): boolean {
   const { defId } = item.part;
   if (!isKnownPart(defId)) return true;
-  if (!isCore(defId)) return into.stay && haulerTakesHere(world, into.truck, item.part) && placePart(world, into.truck, item);
+  if (!isCore(defId)) return into.stay && placePart(world, into.truck, item);
   carryCore(world, into, item.part);
   return true;
-}
-
-function haulerTakesHere(world: World, truck: Vehicle, part: CarriedPart): boolean {
-  return truck.id !== world.chaosHighway?.hauler.id || haulerTakes(part);
 }
 
 function storeParts(world: World, parts: CarriedPart[]): void {

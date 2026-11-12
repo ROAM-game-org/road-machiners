@@ -13,7 +13,6 @@ import { repairPlan } from './repair';
 import { skillEffect } from './progress';
 import { partDef } from '../data/parts';
 import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepairPart, outpostRepaint, outpostSellGood, outpostSellPart, outpostGoodSellPrice } from './outposts';
-import { haulerTakes } from './garage';
 import { partRepairCost, paintPrice } from './economy';
 import { PALETTE_IDS } from '../data/chassis';
 import { canStowPart, stowPart } from './inventory';
@@ -244,7 +243,7 @@ describe('outpost selling, paint and rebuild', () => {
   it('sells a spare from the hauler when the hauler is named, and never a mounted part', () => {
     const w = atOutpost();
     const hauler = haulerOf(w);
-    const spare = w.chaosHighway!.outposts[1].stock.find((p) => haulerTakes(p) && canStowPart(hauler, p))!;
+    const spare = w.chaosHighway!.outposts[1].stock.find((p) => canStowPart(hauler, p))!;
     expect(stowPart(w, hauler, spare)).toBe(true);
     const mounted = mountedParts(playerVehicle(w))[0];
 

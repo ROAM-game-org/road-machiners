@@ -189,9 +189,6 @@
 .inv-cell.c-D {
   background: var(--cell-deck);
 }
-.inv-cell.c-C {
-  background: repeating-linear-gradient(135deg, var(--cell-bay) 0 var(--space-2), var(--cell-bay-line) var(--space-2) calc(var(--space-2) + 1px));
-}
 .inv-cell.c-E {
   background: var(--cell-engine);
 }
@@ -223,7 +220,7 @@
 .inv-grid.drawn .inv-cell:not(.spare):not(.c-dead) {
   opacity: var(--near, 0);
 }
-.inv-grid.drawn .inv-cell:is(.c-D, .c-C, .c-E, .c-plain) {
+.inv-grid.drawn .inv-cell:is(.c-D, .c-E, .c-plain) {
   border-color: var(--cell-grid-line);
 }
 .inv-grid.drawn .inv-cell.c-F::after,
@@ -270,12 +267,11 @@
 .inv-grid.drawn:where(:has(.holding), :has(.inv-ghost)) .inv-cell:not(.spare):not(.c-dead) {
   opacity: 1;
 }
-:where(#ui:has(> .inv-ghost)) .inv-grid.drawn .inv-cell:where(.c-D, .c-C, .c-E, .c-plain):not(.spare),
-.inv-grid.drawn:where(:has(.holding), :has(.inv-ghost)) .inv-cell:where(.c-D, .c-C, .c-E, .c-plain):not(.spare) {
+:where(#ui:has(> .inv-ghost)) .inv-grid.drawn .inv-cell:where(.c-D, .c-E, .c-plain):not(.spare),
+.inv-grid.drawn:where(:has(.holding), :has(.inv-ghost)) .inv-cell:where(.c-D, .c-E, .c-plain):not(.spare) {
   border-color: var(--cell-grid-line-drag);
 }
 .inv-grid.drawn[data-mounts~="D"] .c-D:not(.spare),
-.inv-grid.drawn[data-mounts~="C"] .c-C:not(.spare),
 .inv-grid.drawn[data-mounts~="E"] .c-E:not(.spare),
 .inv-grid.drawn[data-mounts~="E"] .bay:not(.spare),
 .inv-grid.drawn[data-mounts~="F"] .c-F:not(.spare),
@@ -283,7 +279,6 @@
 .inv-grid.drawn[data-mounts~="L"] .c-L:not(.spare),
 .inv-grid.drawn[data-mounts~="R"] .c-R:not(.spare),
 .inv-grid.drawn[data-hint~="D"] .c-D:not(.spare),
-.inv-grid.drawn[data-hint~="C"] .c-C:not(.spare),
 .inv-grid.drawn[data-hint~="E"] .c-E:not(.spare),
 .inv-grid.drawn[data-hint~="E"] .bay:not(.spare),
 .inv-grid.drawn[data-hint~="F"] .c-F:not(.spare),
@@ -396,14 +391,8 @@
 .inv-item.drawn:is([data-tier="hurt"], [data-tier="crit"], [data-tier="broken"]) .inv-art.hidden-part {
   --glow: var(--halo);
 }
-.inv-item.drawn .inv-art.hidden-part.packed {
-  inset: 3px;
-}
 .inv-art.hidden-part .art-glow {
   background: var(--garage-hidden-wash);
-}
-.inv-art.hidden-part.packed .art-glow {
-  border-radius: var(--radius-m);
 }
 .inv-grid .inv-item.drawn:hover .inv-art.hidden-part .art-glow {
   background: var(--garage-hidden-hover);

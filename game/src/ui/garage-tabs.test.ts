@@ -3,7 +3,6 @@ import { partDef } from "../data/parts";
 import { haulerOf, playerVehicle } from "../sim/damage";
 import { canStowPart, stowPart } from "../sim/inventory";
 import { chaosHighwayWorld, parkInYard } from "../sim/testkit";
-import { haulerTakes } from "../sim/garage";
 import { endTurn } from "../sim/world";
 import { filteredStock, GARAGE_TABS, kindFilter, sellableParts, STOCK_FILTERS, stockCount } from "./garage-tabs";
 import { OUTPOST_TABS } from "./outpost";
@@ -33,7 +32,7 @@ describe("the garage tabs the outpost shares with the town", () => {
   it("lists storage and only the shown truck's spares for sale", () => {
     const w = atOutpost();
     const hauler = haulerOf(w);
-    const spare = w.chaosHighway!.outposts[1].stock.find((p) => haulerTakes(p) && canStowPart(hauler, p))!;
+    const spare = w.chaosHighway!.outposts[1].stock.find((p) => canStowPart(hauler, p))!;
     stowPart(w, hauler, spare);
 
     expect(sellableParts(w, hauler).map((p) => p.id)).toEqual([spare.id]);

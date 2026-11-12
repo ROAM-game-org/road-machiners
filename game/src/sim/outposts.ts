@@ -1,7 +1,6 @@
 import { CHAOS_HIGHWAY } from '../data/modes';
 import { ECONOMY, GOODS } from '../data/goods';
 import { playerVehicle, truckFor } from './damage';
-import { haulerRefusal } from './garage';
 import { getResources } from './resources';
 import { applyPaint, spread, takeSellablePart, basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './chaos-highway';
@@ -71,8 +70,6 @@ export function outpostBuyPart(world: World, partId: string, truckId?: string): 
     const truck = truckFor(w, truckId);
     const part = post.stock.find((p) => p.id === partId);
     if (!part) throw new Error(`Outpost ${post.milestone} has no part ${partId}`);
-    const refused = haulerRefusal(w, truck.id, part);
-    if (refused) throw new Refused(refused);
     pay(w, outpostPartPrice(w, part, truck.id));
     const facts = outpostFactsAt(w, post.milestone);
     facts.stock = facts.stock.filter((p) => p.id !== partId);
