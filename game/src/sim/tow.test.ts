@@ -6,6 +6,7 @@ import { MAX_RANK, SKILL_EFFECTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { partDef } from '../data/parts';
 import { playerVehicle } from './damage';
 import { route, routeLength } from './path';
+import { getKnownSite } from './npc-decisions';
 import { canUseSite, everyTruck, nearestPad, siteGates, sitePads, type Site } from './sites';
 import { releaseRearmed } from './npc-service';
 import { getResources } from './resources';
@@ -111,9 +112,9 @@ describe('tow offer', () => {
   it('a trader that sees a stranded player drives over and offers a tow', () => {
     const s = stranded();
     const r = runUntil(s.w, 30, (w) => playerTow(w) !== null);
-    expect(playerTow(r.w)).toMatchObject({ kind: 'tow', holder: s.trader.id, other: r.w.player.vehicleId, data: { kind: 'tow', site: 'bowl', fee: expect.any(Number), waived: 0, hitched: false } });
+    expect(playerTow(r.w)).toMatchObject({ kind: 'tow', holder: s.trader.id, other: r.w.player.vehicleId, data: { kind: 'tow', site: 'dustwell', fee: expect.any(Number), waived: 0, hitched: false } });
     expect(feeOf(r.w)).toBeGreaterThan(TOW.base);
-    expect(r.events.filter((e) => e.t === 'towOffer')).toEqual([{ t: 'towOffer', by: s.trader.id, town: 'bowl', fee: feeOf(r.w) }]);
+    expect(r.events.filter((e) => e.t === 'towOffer')).toEqual([{ t: 'towOffer', by: s.trader.id, town: 'dustwell', fee: feeOf(r.w) }]);
     const trader = find(r.w, s.trader.id);
     expect(dist(trader.pos, playerVehicle(r.w).pos)).toBeLessThan(10 - 1);
     expect(topGoal(trader)?.kind).toBe('tow');
@@ -970,7 +971,7 @@ describe('social on tow fees', () => {
 });
 
 describe('the player towing an NPC', () => {
-  const OFFER = 'Need a tow to town?';
+  const OFFER = 'Need a tow?';
   const HITCH = 'Deal. Hitch up.';
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   const gate = siteGates(bowl)[0];
@@ -1593,5 +1594,23 @@ describe('a refused tow counts for every driver', () => {
     expect(loaded.states).toEqual(w.states);
     const r = runUntil(loaded, 30, (x) => towsPlayer(x, second.id));
     expect(towsPlayer(r.w, second.id)).toBe(false);
+  });
+});
+
+describe('tow to a stall', () => {
+  it('leaves a broke stranded player on the stall pad, where the scrap patch gets the truck driving', () => {
+    const granary = REGION.locations.find((l) => l.id === 'granary')!;
+    const start = { x: granary.pos.x + 40, y: granary.pos.y };
+    const s = stranded(start, { x: start.x + 10, y: start.y });
+    s.w.player.money = 0;
+    const me = playerVehicle(s.w);
+    me.items = me.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind));
+    forceOption('strandedSeen', 'tow');
+    let w = acceptTow(offered(s, 'towFree'));
+    expect(towData(playerTow(w)!).site).toBe('granary');
+    w = runUntil(w, 150, (x) => playerTow(x) === null).w;
+    expect(canUseSite(playerVehicle(w).pos, getKnownSite('granary'))).toBe(true);
+    w = runUntil(w, 3, (x) => !isStranded(x, playerVehicle(x))).w;
+    expect(isStranded(w, playerVehicle(w))).toBe(false);
   });
 });

@@ -940,7 +940,7 @@ describe('physics turns', () => {
     };
     const pick = (text: string) => { w = chooseText(w, text); };
     w = callVehicle(w, npc.id);
-    pick('Need a tow to town?');
+    pick('Need a tow?');
     pick('Deal. Hitch up.');
     w = setMoveOrder(w, { kind: 'stopAt', dest: { x: 60, y: 30 } });
     const start = { ...npc.pos };
