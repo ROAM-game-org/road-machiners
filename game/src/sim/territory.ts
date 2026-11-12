@@ -149,6 +149,22 @@ export function territoryRoads(t: TerritoryDef): { roads: FarmRoad[]; spurs: Far
   return { roads: (wreck?.roads ?? []).map(shift), spurs: (wreck?.spurs ?? []).map(shift) };
 }
 
+export type TrackLine = { points: Vec[]; width: number; fade: number };
+
+export function territoryTracks(t: TerritoryDef): TrackLine[] {
+  const rules = TERRITORIES[t.id];
+  const lines = (roads: readonly FarmRoad[], fade: number) =>
+    roads.filter((road) => road.surface === 'track').map((road): TrackLine => trackLine(t, road, fade));
+  const wreck = rules.wreck;
+  return [...lines(wreck?.roads ?? [], 0), ...lines(wreck?.spurs ?? [], wreck?.spurFade ?? 0), ...lines(rules.farm?.roads ?? [], 0)];
+}
+
+function trackLine(t: TerritoryDef, road: FarmRoad, fade: number): TrackLine {
+  if (road.points.length < 2) throw new Error(`A ${t.id} track needs at least 2 points`);
+  if (!(road.width > 0)) throw new Error(`A ${t.id} track needs a width above 0`);
+  return { points: road.points.map((p) => onMap(t, p)), width: road.width, fade };
+}
+
 export function landingStrips(t: TerritoryDef): LandingStrip[] {
   const wreck = TERRITORIES[t.id].wreck;
   if (!wreck) return [];

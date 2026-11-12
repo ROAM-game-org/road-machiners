@@ -4,10 +4,10 @@ import { REGION } from '../data/region';
 import { TERRITORIES } from '../data/territory';
 import { deckAt } from '../sim/bridge';
 import { siteGap } from '../sim/sites';
-import { isTerritory, territoryRoads } from '../sim/territory';
+import { isTerritory, territoryRoads, territoryTracks } from '../sim/territory';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { TERRAIN_MARGIN, type PaintCanvas } from './groundPaint';
-import { ASPHALT_STYLE, BLUR_REACH, DIRT_ROAD_STYLE, paintRoadMask, REGION_ROAD_STYLE, type RoadHole } from './roadPaint';
+import { ASPHALT_STYLE, drawnTrackLines, paintRoadMask, REGION_ROAD_STYLE, TRACK_FIELD_REACH, trackEdgeAt, trackFieldCodes, type RoadHole } from './roadPaint';
 import { highwayAtlas } from '../sim/highway';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { icarusAtlas, type Atlas } from '../sim/atlas';
@@ -36,6 +36,13 @@ class RecordingContext {
 
   fills: { style: unknown; x: number; y: number; r: number }[] = [];
   fillRect() {}
+  puts = 0;
+  getImageData(_x: number, _y: number, w: number, h: number) {
+    return { data: new Uint8ClampedArray(w * h * 4) };
+  }
+  putImageData() {
+    this.puts++;
+  }
   drawImage() {}
   private disc: { x: number; y: number; r: number } | null = null;
   arc(x: number, y: number, r: number) {
@@ -111,41 +118,10 @@ describe('road mask', () => {
   const mask = paintedMask();
   const { roads, spurs } = territoryRoads(sun);
   const RED = REGION_ROAD_STYLE;
-  const GREEN = DIRT_ROAD_STYLE;
 
-  it('paints a Fallen Sun dirt road green, not red', () => {
-    const road = roads.find((r) => r.points.length > 1 && deckAt(ICARUS_DECKS, (r.points[0].x + r.points[1].x) / 2, (r.points[0].y + r.points[1].y) / 2) === null)!;
-    const p = { x: (road.points[0].x + road.points[1].x) / 2, y: (road.points[0].y + road.points[1].y) / 2 };
-    expect(channelAt(mask, GREEN, p)).toBe(1);
-    expect(channelAt(mask, RED, p)).toBe(0);
-  });
-
-  it('paints every spur green at full strength before its fade', () => {
-    for (const spur of spurs) expect(channelAt(mask, GREEN, backFromEnd(spur.points, SPUR_FADE + 1))).toBe(1);
-  });
-
-  it('fades each spur to nothing over its last tiles', () => {
-    for (const spur of spurs) {
-      const near = channelAt(mask, GREEN, backFromEnd(spur.points, 1));
-      const mid = channelAt(mask, GREEN, backFromEnd(spur.points, 3));
-      expect(channelAt(mask, GREEN, spur.points[spur.points.length - 1])).toBe(0);
-      expect(near).toBeGreaterThan(0);
-      expect(near).toBeLessThan(mid);
-      expect(mid).toBeLessThan(1);
-    }
-  });
-
-  it('paints no green off the dirt roads', () => {
-    const lines = [...roads, ...spurs];
-    let checked = 0;
-    for (let y = -60; y <= 60; y += 4)
-      for (let x = -60; x <= 60; x += 4) {
-        const p = { x: sun.pos.x + x, y: sun.pos.y + y };
-        if (lines.some((r) => polylineDist(p, r.points) < r.width + 1)) continue;
-        checked++;
-        expect(channelAt(mask, GREEN, p), `${x},${y}`).toBe(0);
-      }
-    expect(checked).toBeGreaterThan(300);
+  it('leaves the dirt tracks to the edge field, never to a stroke', () => {
+    expect(mask.strokes.every((s) => s.style === RED)).toBe(true);
+    expect(mask.ctx.puts).toBe(1);
   });
 
   it('keeps the region roads red', () => {
@@ -155,24 +131,10 @@ describe('road mask', () => {
       .map((b, i) => ({ x: (road[i].x + b.x) / 2, y: (road[i].y + b.y) / 2 }))
       .find((m) => deckAt(ICARUS_DECKS, m.x, m.y) === null && [...REGION.towns, ...REGION.locations].every((s) => siteGap(s, m) > 2))!;
     expect(channelAt(mask, RED, p)).toBe(1);
-    expect(channelAt(mask, GREEN, p)).toBe(0);
   });
 
-  it('clips every blurred stroke to its bounds plus the blur reach on whole pixels', () => {
-    const blurred = mask.strokes.filter((s) => s.filter !== 'none');
-    expect(blurred.length).toBeGreaterThan(20);
-    for (const s of blurred) {
-      const sigma = Number(/blur\(([\d.]+)px\)/.exec(s.filter)![1]);
-      const reach = s.width / 2 + BLUR_REACH * sigma;
-      const pts = s.lines.flat();
-      const c = s.clip!;
-      expect(c).not.toBeNull();
-      for (const edge of [c.x, c.y, c.w, c.h]) expect(Number.isInteger(edge)).toBe(true);
-      expect(c.x).toBeLessThanOrEqual(Math.min(...pts.map((p) => p.x)) - reach);
-      expect(c.y).toBeLessThanOrEqual(Math.min(...pts.map((p) => p.y)) - reach);
-      expect(c.x + c.w).toBeGreaterThanOrEqual(Math.max(...pts.map((p) => p.x)) + reach);
-      expect(c.y + c.h).toBeGreaterThanOrEqual(Math.max(...pts.map((p) => p.y)) + reach);
-    }
+  it('blurs no stroke, since the blur would soften the green channel', () => {
+    expect(mask.strokes.every((s) => s.filter === 'none')).toBe(true);
   });
 
   it('strokes the region roads without a clip or filter', () => {
@@ -209,5 +171,60 @@ describe('highway asphalt paint', () => {
     const strokes = paintedMask(highway).strokes.filter((s) => s.lines.length > 0);
 
     expect(new Set(strokes.map((s) => s.style))).toEqual(new Set([ASPHALT_STYLE]));
+  });
+});
+
+describe('track edge field', () => {
+  const lines = territoryTracks(sun);
+  const around = { size: 400, res: 2, from: Math.min(sun.pos.x, sun.pos.y) - 60 };
+  const codes = trackFieldCodes({ ...around }, lines, () => true);
+  const codeAt = (p: Vec) => codes[Math.floor((p.y - around.from) * around.res) * around.size + Math.floor((p.x - around.from) * around.res)];
+  const plain = lines.find((l) => l.fade === 0)!;
+  const spur = lines.find((l) => l.fade > 0)!;
+
+  it('lists every track road of every territory and no old road', () => {
+    const all = REGION.locations.filter(isTerritory).flatMap(territoryTracks);
+    const expected = REGION.locations.filter(isTerritory).flatMap((l) => {
+      const rules = TERRITORIES[l.id];
+      return [...(rules.wreck?.roads ?? []), ...(rules.wreck?.spurs ?? []), ...(rules.farm?.roads ?? [])].filter((r) => r.surface === 'track');
+    });
+    expect(all).toHaveLength(expected.length);
+    expect(all.length).toBeGreaterThan(lines.length);
+    expect(drawnTrackLines(icarusAtlas())).toEqual(all);
+  });
+
+  it('decodes below the midpoint inside a track, at it on the edge, above it outside', () => {
+    const mid = { x: (plain.points[0].x + plain.points[1].x) / 2, y: (plain.points[0].y + plain.points[1].y) / 2 };
+    expect(trackEdgeAt(lines, mid)).toBeCloseTo(-plain.width / 2, 1);
+    expect(codeAt(mid)).toBeLessThan(128);
+    expect(trackEdgeAt([plain], { x: 0, y: 0 })).toBeGreaterThan(TRACK_FIELD_REACH);
+    const dx = plain.points[1].x - plain.points[0].x;
+    const dy = plain.points[1].y - plain.points[0].y;
+    const norm = Math.hypot(dx, dy);
+    const outside = { x: mid.x - (dy / norm) * (plain.width / 2 + 2), y: mid.y + (dx / norm) * (plain.width / 2 + 2) };
+    if (trackEdgeAt(lines, outside) > 1.9) expect(codeAt(outside)).toBeGreaterThan(128);
+  });
+
+  it('narrows a spur to a point at its tip', () => {
+    const tip = spur.points[spur.points.length - 1];
+    const back = backFromEnd(spur.points, spur.fade);
+    expect(trackEdgeAt([spur], tip)).toBeCloseTo(0, 5);
+    expect(trackEdgeAt([spur], backFromEnd(spur.points, spur.fade / 2))).toBeGreaterThan(-spur.width / 2);
+    expect(trackEdgeAt([spur], back)).toBeLessThan(-spur.width / 2 + 1);
+  });
+
+  it('writes the outside code where no track lies, and none on a deck', () => {
+    const mid = { x: (plain.points[0].x + plain.points[1].x) / 2, y: (plain.points[0].y + plain.points[1].y) / 2 };
+    const blocked = trackFieldCodes({ ...around }, lines, () => false);
+    expect(blocked.every((c) => c === 255)).toBe(true);
+    expect(codeAt(mid)).toBeLessThan(255);
+  });
+
+  it('draws no track on Chaos Highway', () => {
+    expect(drawnTrackLines(highwayAtlas(4, 1))).toEqual([]);
+  });
+
+  it('rejects a track line with one point or no width', () => {
+    expect(() => territoryTracks({ ...sun, id: 'nowhere' } as never)).toThrow();
   });
 });
