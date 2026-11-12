@@ -11,7 +11,7 @@ import { contractTruck, isMet } from './market';
 import { handOnMoments } from './moments';
 import { footprint, straighten } from './rig';
 import { isFree } from './spawn';
-import { settleStates } from './states';
+import { blocksShelter, settleStates } from './states';
 import { isOnRope } from './tow';
 import { playerVehicle } from './damage';
 import type { Vehicle, World } from './types';
@@ -262,9 +262,14 @@ export function canEnter(world: World, v: Vehicle, site: Site): boolean {
   return world.vehicles.includes(v) && parkedOn(v, site) && !isBusy(world, v);
 }
 
-function isBusy(world: World, v: Vehicle): boolean {
+export function isBusy(world: World, v: Vehicle): boolean {
   if (inCombat(world, v) || isOnRope(world, v.id) || world.player.call?.with === v.id) return true;
-  return world.states.some((s) => s.holder === v.id || s.other === v.id) || isContracted(world, v.id);
+  return blocksShelter(world, v.id) || isContracted(world, v.id) || holdsEncounter(world, v.id);
+}
+
+function holdsEncounter(world: World, id: string): boolean {
+  const { pending, story } = world.player.encounters;
+  return pending?.driver === id || (story !== null && story.driver === id && story.beat !== 'ended');
 }
 
 function isContracted(world: World, id: string): boolean {
