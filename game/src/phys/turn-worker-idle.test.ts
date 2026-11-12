@@ -41,6 +41,7 @@ function turnWorker() {
   return {
     start: () => worker.onmessage({ data: { kind: 'terrain', terrain } }),
     ask: (id: number) => worker.onmessage({ data: request(id) }),
+    warm: () => worker.onmessage({ data: { kind: 'warm', ...sent.split(state) } }),
   };
 }
 
@@ -101,4 +102,47 @@ it('posts a failure of a camp warm step once, skips the steps after it and still
   const answers = posted.filter((message): message is Answer => 'turn' in message);
   expect(answers.map((answer) => answer.id)).toEqual([1, 2]);
   expect(Object.keys(answers[1].idle ?? {})).toEqual(expect.arrayContaining(['idle', 'camp-warm']));
+});
+
+it('builds the nav layers while idle after a warm request, posts nothing for it, and the next answer builds none', async () => {
+  const worker = turnWorker();
+  await worker.start();
+  await worker.warm();
+  expect(posted).toEqual([]);
+  await idleWorkRuns();
+  await worker.ask(1);
+  const [answer] = posted as Answer[];
+  expect(Object.keys(answer.idle ?? {})).toEqual(expect.arrayContaining(['idle', 'warm-routes']));
+  expect(answer.perf['nav-layer']).toBeUndefined();
+});
+
+it('answers a turn after a warm request with the same turn a cold worker gives', async () => {
+  const cold = turnWorker();
+  await cold.start();
+  await cold.ask(1);
+  const [coldAnswer] = posted as Answer[];
+  posted.length = 0;
+  const warmed = turnWorker();
+  await warmed.start();
+  await warmed.warm();
+  await idleWorkRuns();
+  await warmed.ask(1);
+  const [warmAnswer] = posted as Answer[];
+  expect(warmAnswer.turn.world).toEqual(coldAnswer.turn.world);
+  expect(warmAnswer.turn.result.frames).toEqual(coldAnswer.turn.result.frames);
+});
+
+it('answers a request that arrives while warm slices remain and ends that warm run', async () => {
+  const worker = turnWorker();
+  await worker.start();
+  await worker.warm();
+  await worker.ask(1);
+  expect(posted.map((message) => ('id' in message ? message.id : 'idle'))).toEqual([1]);
+  await idleWorkRuns();
+  expect(posted).toHaveLength(1);
+});
+
+it('fails a warm request that comes before any terrain', async () => {
+  const worker = turnWorker();
+  await expect(worker.warm()).rejects.toThrow('Turn worker has no terrain');
 });
