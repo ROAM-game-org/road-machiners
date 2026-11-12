@@ -57,6 +57,14 @@ describe('climb limit', () => {
     expect(reachedY(route(w, from, to, 0.6, [], me))).toBeGreaterThan(60);
   });
 
+  it('crosses a wall only a little over its limit on a slant, since a slant climbs less than the wall is steep', () => {
+    const w = emptyWorld({ ...from });
+    const me = w.vehicles[0];
+    addGoods(w, me, 'scrap', 400);
+    ravine(Math.min(0.59, climbGrade(w, me) + 0.06), 0.15, w);
+    expect(reachedY(route(w, from, to, 0.6, [], me))).toBeLessThan(60);
+  });
+
   it('ends at the same cell with or without the limit in a closed pit', () => {
     const w = ravine(0.55, null);
     const heavy = loadedHauler(w);
