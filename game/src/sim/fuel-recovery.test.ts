@@ -8,7 +8,7 @@ import { corePart } from './grid';
 import { getResources } from './resources';
 import { tankLeaks } from './supplies';
 import { maxHp } from './wear';
-import { sitePads } from './sites';
+import { everyTruck, sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { endTurn } from './world';
 import type { Vec } from './vec';
@@ -52,7 +52,7 @@ describe('a fuelless majority of NPCs', () => {
     for (let turn = 0; turn < bound; turn++) {
       w = endTurn(w, moveAllFar);
       stalls.push(...w.events.filter((e) => e.t === 'stall'));
-      for (const v of broke) if (getResources(w, w.vehicles.find((x) => x.id === v.id)!).fuel > 0) refuelled.add(v.id);
+      for (const v of broke) { const t = everyTruck(w).find((x) => x.id === v.id)!; if (getResources(w, t).fuel > 0) refuelled.add(v.id); }
     }
 
     expect(stalls).toEqual([]);

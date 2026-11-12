@@ -66,15 +66,25 @@ describe('raider hunting routes on the map', () => {
     }
   }
 
+  type Measure = ReturnType<typeof measure>;
+  let shy: Measure;
+  let plain: Measure;
+
+  it('measures the routes with the road band', () => {
+    shy = measure(REGION.navigation.roadShyBand);
+  }, budget(90_000));
+
+  it('measures the routes without the road band', () => {
+    plain = measure(0);
+  }, budget(90_000));
+
   it('stay off roads and keep a band from them, at a bounded detour', () => {
-    const shy = measure(REGION.navigation.roadShyBand);
-    const plain = measure(0);
     console.log('hunting routes', JSON.stringify({ shy, plain }));
     expect(shy.road).toBeLessThan(plain.road);
     expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
     expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.62);
     expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
-  }, budget(90_000));
+  });
 
   it('still cross a road to reach the far side', () => {
     const road = REGION.roads[0];
