@@ -36,7 +36,7 @@ function viewer(turn: number): { w: World; npc: Vehicle; east: Vec } {
   const w = emptyWorld({ x: 300, y: 300 });
   w.turn = turn;
   const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 100, y: 100 });
-  return { w, npc, east: { x: 115, y: 100 } };
+  return { w, npc, east: { x: 120, y: 100 } };
 }
 
 describe('flare light', () => {
@@ -52,7 +52,7 @@ describe('flare light', () => {
 
   it('at night leaves a point outside the flare at night sight', () => {
     const { w, npc, east } = viewer(night());
-    const south = { x: 100, y: 115 };
+    const south = { x: 100, y: 120 };
 
     launchFlare(w, w.vehicles[0], east, burn());
 
@@ -75,8 +75,8 @@ describe('flare light', () => {
   it('lights the player view at night inside the flare only', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     w.turn = night();
-    const east = { x: 115, y: 100 };
-    const south = { x: 100, y: 115 };
+    const east = { x: 120, y: 100 };
+    const south = { x: 100, y: 120 };
     const dark = visibleTiles(w, { x: 100, y: 100 });
 
     launchFlare(w, w.vehicles[0], east, burn());
