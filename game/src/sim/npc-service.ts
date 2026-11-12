@@ -148,7 +148,7 @@ export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): 
   return [...profile.towns, ...SERVICE_STALLS];
 }
 
-const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
+export const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
 
 function fuelSense(world: World, vehicle: Vehicle): number {
   const roll = hashRandom(world.seed, ...charCodes(vehicle.id), ...charCodes('fuel'));
@@ -238,7 +238,7 @@ function serviceTrip(world: World, vehicle: Vehicle, profile: NpcProfile, need: 
   return createSiteActivity('resupply', stop.id, need.reason);
 }
 
-function serviceStops(world: World, vehicle: Vehicle, profile: NpcProfile): string[] {
+export function serviceStops(world: World, vehicle: Vehicle, profile: NpcProfile): string[] {
   if (profile.bases.length > 0) return profile.bases;
   if (isStrandedForGood(vehicle)) return servingSiteIds(profile);
   return pumpsOf(vehicle, profile, isBroke(world, vehicle));

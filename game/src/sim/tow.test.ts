@@ -108,9 +108,9 @@ describe('tow offer', () => {
   it('a trader that sees a stranded player drives over and offers a tow', () => {
     const s = stranded();
     const r = runUntil(s.w, 30, (w) => playerTow(w) !== null);
-    expect(playerTow(r.w)).toMatchObject({ kind: 'tow', holder: s.trader.id, other: r.w.player.vehicleId, data: { kind: 'tow', site: 'bowl', fee: expect.any(Number), waived: 0, hitched: false } });
+    expect(playerTow(r.w)).toMatchObject({ kind: 'tow', holder: s.trader.id, other: r.w.player.vehicleId, data: { kind: 'tow', site: 'dustwell', fee: expect.any(Number), waived: 0, hitched: false } });
     expect(feeOf(r.w)).toBeGreaterThan(TOW.base);
-    expect(r.events.filter((e) => e.t === 'towOffer')).toEqual([{ t: 'towOffer', by: s.trader.id, town: 'bowl', fee: feeOf(r.w) }]);
+    expect(r.events.filter((e) => e.t === 'towOffer')).toEqual([{ t: 'towOffer', by: s.trader.id, town: 'dustwell', fee: feeOf(r.w) }]);
     const trader = find(r.w, s.trader.id);
     expect(dist(trader.pos, playerVehicle(r.w).pos)).toBeLessThan(10 - 1);
     expect(topGoal(trader)?.kind).toBe('tow');

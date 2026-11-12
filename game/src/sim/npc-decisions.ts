@@ -965,8 +965,7 @@ function towFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject
   const client = subjectOf(world, decision, subject);
   const at = strandedAt(world, vehicle, client);
   if (!at) throw new Error(`${vehicle.id} weighs a tow with no stranded ${client.id} perceived`);
-  const player = client.id === world.player.vehicleId;
-  const sites = player ? REGION.towns : [towSite(world, vehicle, client)];
+  const sites = [towSite(world, vehicle, client)];
   const { factor, crawl, far } = NPC_BEHAVIOR.towNearTown;
   const gate = Math.min(...sites.flatMap((site) => siteGates(site).map((g) => dist(at, g))));
   return factor + (1 - factor) * clamp((gate - crawl) / (far - crawl), 0, 1);

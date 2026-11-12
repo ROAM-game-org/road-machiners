@@ -383,6 +383,10 @@ function shelfEngine(world: World, shopId: string): PartInstance | null {
   return engines.reduce<PartInstance | null>((best, p) => (best && price(best) <= price(p) ? best : p), null);
 }
 
+export function needsTownEngine(world: World, v: Vehicle): boolean {
+  return mountedParts(v, 'engine').length === 0 && !holdsLooseEngine(world, v);
+}
+
 function holdsLooseEngine(world: World, v: Vehicle): boolean {
   return [...spareParts(v), ...world.player.storage].some((p) => partDef(p.defId).kind === 'engine');
 }
