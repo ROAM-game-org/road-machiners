@@ -164,7 +164,8 @@ export function litFlares(world: World): Flare[] {
 }
 
 export function litAt(world: World, p: Vec): boolean {
-  return nightLights(world).some((l) => dist(l.pos, p) <= l.r);
+  if (sunAt(world.turn)) return false;
+  return world.flares.some((f) => dist(f.pos, p) <= f.r) || coreGlowLights().some((l) => dist(l.pos, p) <= l.r);
 }
 
 const BURN_TURNS = flareBurnTurns();
