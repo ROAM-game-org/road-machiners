@@ -891,10 +891,9 @@ export function tasted(t: Taste | null, cost: number, x: number, y: number): num
 }
 
 export function tastedAlong(t: Taste | null, cost: number, x: number, y: number, dx: number, dy: number): number {
-  if (!t) return cost;
-  const c = noisy(t, cost, x, y);
-  const slope = t.slope;
-  if (!slope) return c;
+  const c = tasted(t, cost, x, y);
+  const slope = t?.slope;
+  if (!t || !slope) return c;
   const i = tileIndex(t.size, x, y);
   const dot = slope.x[i] * dx + slope.y[i] * dy;
   return dot > 0 && dot * dot > slope.limit2 * (dx * dx + dy * dy) ? c * REGION.navigation.overClimbCost : c;
