@@ -471,11 +471,11 @@ function claimHolds(world: World, stock: SalvageStock, claimant: Vehicle | undef
 }
 
 function goesFor(world: World, claimant: Vehicle, stock: SalvageStock): boolean {
-  return wantsLoot(claimant, stock.id) || inCombat(world, claimant);
+  return setToLoot(claimant, stock.id) || inCombat(world, claimant);
 }
 
-function wantsLoot(vehicle: Vehicle, stockId: string): boolean {
-  return !!vehicle.brain && vehicle.brain.goals.some((goal) => goal.kind === 'loot' && goal.targetId === stockId);
+export function setToLoot(vehicle: Vehicle, targetId: string): boolean {
+  return !!vehicle.brain && vehicle.brain.goals.some((goal) => goal.kind === 'loot' && goal.targetId === targetId);
 }
 
 export function claimantOf(world: World, stock: SalvageStock): Vehicle | null {
