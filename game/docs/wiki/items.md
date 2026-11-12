@@ -22,7 +22,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | convertible | Convertible | 2 | 1,497 | 9.4 | 2.5 | 3 | 750 | 4840 | 0.6 | 45 | 0.26 | 7 x 15 | cabHardtop, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | openTop |
 | bus | Bus | 2 | 1,900 | 5.5 | 0.9 | 2 | 3000 | 9410 | 0.9 | 110 | 0.45 | 7 x 21 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl | springs |
 | loader | Wheel loader | 3 | 3,816 | 3.6 | 1.6 | 2.5 | 4200 | 9460 | 0.9 | 130 | 0.65 | 8 x 16 | cabBroad, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl | gunMounts |
-| niva | Niva | 2 | 1,575 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 12 | cab, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
+| niva | Niva | 2 | 1,575 | 7.6 | 2.2 | 3 | 520 | 4810 | 0.55 | 42 | 0.21 | 6 x 11 | cab, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose | offRoad |
 | bukhanka | Bukhanka | 2 | 1,725 | 6 | 1.4 | 2.5 | 1250 | 5760 | 0.65 | 78 | 0.3 | 7 x 14 | wheelMid, wheelMid, wheelMid, wheelMid, cabPickup, transmissionMid, tankMid | nose | armored |
 | lincoln | Lincoln | 3 | 3,216 | 8.6 | 2 | 2.2 | 900 | 5940 | 0.85 | 85 | 0.36 | 7 x 18 | wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, cabHardtop, transmissionHeavy, tankHeavy | nose | tourer |
 | semi | Semi | 3 | 3,150 | 6 | 0.8 | 1.5 | 9000 | 16980 | 1.2 | 160 | 0.5 | 9 x 48 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy |  |  |
