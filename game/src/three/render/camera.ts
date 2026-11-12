@@ -18,6 +18,7 @@ const VIEW_EDGE = 0.8;
 const GROUND_RIGHT = new THREE.Vector3(OFFSET.z, 0, -OFFSET.x).normalize();
 const GROUND_UP = new THREE.Vector3(-OFFSET.x, 0, -OFFSET.z).normalize();
 export const SIN_ELEVATION = OFFSET.y / OFFSET.length();
+const COS_ELEVATION = Math.sqrt(1 - SIN_ELEVATION * SIN_ELEVATION);
 
 export class CameraRig {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
@@ -25,7 +26,7 @@ export class CameraRig {
   private chase = new THREE.Vector3();
   private target: V3 | null = null;
   private heading: number | null = null;
-  private lead = new THREE.Vector3();
+  private lead = new THREE.Vector2();
   private moveLead = true;
   private pointInView = false;
   private viewMoved = false;
@@ -69,16 +70,37 @@ export class CameraRig {
     return left;
   }
 
-  private leadOffset(heading: number): THREE.Vector3 {
+  private leadShare(heading: number): THREE.Vector2 {
     const hx = Math.cos(heading);
     const hz = Math.sin(heading);
     const sx = hx * GROUND_RIGHT.x + hz * GROUND_RIGHT.z;
     const sy = (hx * GROUND_UP.x + hz * GROUND_UP.z) * SIN_ELEVATION;
     const len = Math.hypot(sx, sy);
     const toEdge = Math.min(this.camera.right / Math.abs(sx / len), this.camera.top / Math.abs(sy / len));
-    const ox = (LEAD * toEdge * sx) / len;
-    const oy = (LEAD * toEdge * sy) / len;
-    return GROUND_RIGHT.clone().multiplyScalar(ox).addScaledVector(GROUND_UP, oy / SIN_ELEVATION);
+    return new THREE.Vector2((LEAD * toEdge * sx) / len / this.camera.right, (LEAD * toEdge * sy) / len / this.camera.top);
+  }
+
+  private leadMeters(): THREE.Vector3 {
+    return GROUND_RIGHT.clone()
+      .multiplyScalar(this.lead.x * this.camera.right)
+      .addScaledVector(GROUND_UP, (this.lead.y * this.camera.top) / SIN_ELEVATION);
+  }
+
+  private keepInFrame(target: V3): void {
+    const dx = target.x - this.center.x;
+    const dy = target.y - this.center.y;
+    const dz = target.z - this.center.z;
+    const along = (axis: THREE.Vector3) => dx * axis.x + dz * axis.z;
+    const sx = along(GROUND_RIGHT) / this.camera.right;
+    const sy = (along(GROUND_UP) * SIN_ELEVATION + dy * COS_ELEVATION) / this.camera.top;
+    const excessX = sx - Math.min(VIEW_EDGE, Math.max(-VIEW_EDGE, sx));
+    const excessY = sy - Math.min(VIEW_EDGE, Math.max(-VIEW_EDGE, sy));
+    if (excessX === 0 && excessY === 0) return;
+    const shift = GROUND_RIGHT.clone()
+      .multiplyScalar(excessX * this.camera.right)
+      .addScaledVector(GROUND_UP, (excessY * this.camera.top) / SIN_ELEVATION);
+    this.center.add(shift);
+    this.chase.add(shift);
   }
 
   leash(at: V3, radius: number): void {
@@ -162,7 +184,7 @@ export class CameraRig {
   }
 
   dropLead(): void {
-    this.lead.set(0, 0, 0);
+    this.lead.set(0, 0);
   }
 
   readPlace(): void {
@@ -172,10 +194,11 @@ export class CameraRig {
   tick(dtMs: number): void {
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
-      const leadGoal = this.heading === null ? new THREE.Vector3() : this.leadOffset(this.heading);
+      const leadGoal = this.heading === null ? new THREE.Vector2() : this.leadShare(this.heading);
       if (this.moveLead) this.lead.lerp(leadGoal, 1 - Math.exp(-dtMs / LEAD_TAU_MS));
-      this.chase.lerp(new THREE.Vector3(this.target.x, this.target.y, this.target.z).add(this.lead), k);
+      this.chase.lerp(new THREE.Vector3(this.target.x, this.target.y, this.target.z).add(this.leadMeters()), k);
       this.center.lerp(this.chase, k);
+      this.keepInFrame(this.target);
     } else {
       this.chase.copy(this.center);
     }

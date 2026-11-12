@@ -273,6 +273,7 @@ Trucks ease to a stop when travel pauses. That motion is real physics.
 - The rig opens at `DEFAULT_ZOOM` from `src/data/view.ts`, 1.15, and wheel and pinch zoom stay within `ZOOM`.
 - The canvas fills `#game`. `Game.fitView()` sizes the renderer from `#game` on window resize and on any change to its size. The camera measures the canvas for its frustum, rays, `screenOf()` and pans, so the drawn picture and the tap ray share one box.
 - `TruckFollow` decides when the camera follows the truck.
+- While following, the truck stays inside the inner 80% of the view: when the follow lag, a zoom or a window resize would push it out, the view moves the least that keeps it at that edge, also between turns. The look-ahead is a share of the view, so it keeps the truck halfway to the edge at any zoom or window shape.
 - A pan stops following until F, the recenter button, danger in sight, or the truck driving out of view.
 - F and the recenter button put the truck at the screen center by dropping the look-ahead. The look-ahead grows back while turns play in auto mode.
 - Danger in sight and the truck leaving the view resume following and keep the look-ahead.
