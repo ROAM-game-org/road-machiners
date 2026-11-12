@@ -69,14 +69,15 @@ describe('raider hunting routes on the map', () => {
     }
   }
 
-  let shy: ReturnType<typeof measure>;
-  let plain: ReturnType<typeof measure>;
+  type Measure = ReturnType<typeof measure>;
+  let shy: Measure;
+  let plain: Measure;
 
-  it('measures hunting routes with the road band on', () => {
+  it('measures the routes with the road band', () => {
     shy = measure(REGION.navigation.roadShyBand);
   }, budget(90_000));
 
-  it('measures hunting routes with no road band', () => {
+  it('measures the routes without the road band', () => {
     plain = measure(0);
   }, budget(90_000));
 

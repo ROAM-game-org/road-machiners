@@ -112,8 +112,7 @@ function hiddenSprite(look: GarageLook, it: PartItem): GarageSprite | null {
 }
 
 export function hiddenArt(look: GarageLook, it: GridItem, m: GridMetrics, box: PixelRect): HTMLElement | null {
-  if (!hidesInside(look.truck, it)) return null;
-  if (!isPartItem(it) || !(isCore(it.part) || isMounted(look.truck.chassisId, it))) return el("span", { class: "inv-art hidden-part packed" }, el("div", { class: "art-glow" }));
+  if (!hidesInside(look.truck, it) || !isPartItem(it)) return null;
   const sprite = hiddenSprite(look, it);
   return sprite ? placed(glowOf(sprite), sprite, m, box) : null;
 }

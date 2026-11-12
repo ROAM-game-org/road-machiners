@@ -7,7 +7,7 @@ import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
-import type { TerrainTypeId } from './terrain';
+import { TERRAIN, type TerrainTypeId } from './terrain';
 
 export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind; opening: string | null };
 
@@ -88,7 +88,7 @@ export const CHAOS_HIGHWAY = {
   nerve: 0.15,
   playerMargin: GUARD_GAP,
   haulerNear: 20,
-  sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
+  sides: { ahead: 1.8 * TERRAIN.vision.radius, flank: { along: 1.44 * TERRAIN.vision.radius, across: 22, step: 3 } },
   pacing: { near: 30 },
   rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
   sightMargin: 6,
@@ -97,7 +97,7 @@ export const CHAOS_HIGHWAY = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 425, step: 170 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, guardGap: GUARD_GAP, catchUp: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
+  hauler: { lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, guardGap: GUARD_GAP, catchUp: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, accessory: 2, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   stockGrowthStretches: 4,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },

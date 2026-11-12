@@ -155,7 +155,7 @@ describe('the Hollow', () => {
     expect(roadGap).toBeGreaterThan(maxedSight + SUNWARD.sightMargin);
     const sights = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'fallen-sun');
     const siteGaps = discs.flatMap((d) => sights.map((s) => siteGap(s, d.at) - d.r));
-    expect(Math.min(...siteGaps)).toBeGreaterThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+    expect(Math.min(...siteGaps)).toBeGreaterThan(TERRAIN.vision.grayRadius);
   });
 
   it('is a walled scrap fort, smaller than every small site, with a shut gatehouse toward the crater', () => {
@@ -285,7 +285,7 @@ describe('the vigil posts', () => {
     const cars = membersOf(w).filter((v) => v.brain!.templateId === 'cavalcade').sort((a, b) => climbGrade(w, a) - climbGrade(w, b));
     const car = cars[Math.floor(cars.length / 2)];
     const inhabited = [...REGION.towns, ...REGION.locations.filter((s) => s.kind === 'camp')];
-    const gray = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+    const gray = TERRAIN.vision.grayRadius;
     const rides = vigilPosts(w).map((post) => {
       const rider = { ...car, pos: gate, brain: { ...car.brain!, goals: [{ kind: 'explore' as const, targetId: null, destination: post, phase: 'travel' as const, reason: 'rideVigil' as const }] } };
       const path = route(w, gate, post, 0.9, [], rider);

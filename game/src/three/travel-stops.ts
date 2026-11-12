@@ -1,5 +1,5 @@
 import { TERRAIN } from "../data/terrain";
-import { playerVehicle } from "../sim/damage";
+import { isPlayerTruckId, playerVehicle } from "../sim/damage";
 import type { GameEvent, SimNote, World } from "../sim/types";
 import { dist } from "../sim/vec";
 
@@ -29,14 +29,6 @@ const CONTRACT_STOPS: readonly string[] = ["expiring", "overdue", "failed", "lap
 const ESCORT_STOPS: readonly string[] = ["strayed", "hostile", "knockedOut"];
 const GUARD_STOPS: readonly string[] = ["knockedOut", "hostile"];
 
-function ownIds(world: World): string[] {
-  return [world.player.vehicleId, ...(world.chaosHighway ? [world.chaosHighway.hauler.id] : [])];
-}
-
-function isOwn(world: World, id: string): boolean {
-  return ownIds(world).includes(id);
-}
-
 function isTruck(world: World, id: string): boolean {
   return world.vehicles.some((v) => v.id === id);
 }
@@ -46,12 +38,12 @@ function smashedProp(world: World, id: string): boolean {
 }
 
 function ramsTruck(event: Of<"collision">, world: World): boolean {
-  const other = isOwn(world, event.a) ? event.b : isOwn(world, event.b) ? event.a : null;
+  const other = isPlayerTruckId(world, event.a) ? event.b : isPlayerTruckId(world, event.b) ? event.a : null;
   return other !== null && isTruck(world, other);
 }
 
 function hurtsByCrash(event: Of<"collision">, world: World): boolean {
-  return isOwn(world, event.a) && event.hitsA.some((hit) => hit.damage > 0) && !smashedProp(world, event.b);
+  return isPlayerTruckId(world, event.a) && event.hitsA.some((hit) => hit.damage > 0) && !smashedProp(world, event.b);
 }
 
 function stormInSight(event: Of<"weather">, world: World): boolean {
@@ -65,12 +57,12 @@ function weatherBites(event: Of<"weather">, world: World): boolean {
 }
 
 function hitsWall(event: Of<"claymore">, world: World): boolean {
-  return isOwn(world, event.vehicle) && world.obstacles.some((o) => o.id === event.other);
+  return isPlayerTruckId(world, event.vehicle) && world.obstacles.some((o) => o.id === event.other);
 }
 
 const no = (): boolean => false;
 const yes = (): boolean => true;
-const ownVehicle = (event: { vehicle: string }, world: World): boolean => isOwn(world, event.vehicle);
+const ownVehicle = (event: { vehicle: string }, world: World): boolean => isPlayerTruckId(world, event.vehicle);
 
 const STOPS: StopTable = {
   activity: no,
@@ -79,7 +71,7 @@ const STOPS: StopTable = {
   empty: no,
   enteredSite: no,
   leftSite: no,
-  shot: (e, w) => isOwn(w, e.shooter) || isOwn(w, e.target),
+  shot: (e, w) => isPlayerTruckId(w, e.shooter) || isPlayerTruckId(w, e.target),
   partDisabled: ownVehicle,
   cargoSpilled: ownVehicle,
   destroyed: ownVehicle,
