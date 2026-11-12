@@ -120,7 +120,7 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 - The same deed on the same driver counts once a day, so ten hits are one attack, and a driver who refits after a knockout gives no fresh help.
 - Help raises standing with one faction by 15 a day at most. Losses have no cap.
 - Each day standing drifts 10 back toward its start, so a player at −100 is out of the hostile band in 6 days. The Marshalls' desk sells the drift at once: settling lifts a hostile standing to −49, as [Crime and the Marshalls](crime.md#the-desk-at-the-roadhouse) describes.
-- A band change shows in the log with its cause, and raises no toast, since the hover card and the character screen already show the band, like "Scrapjaw now treats you as wary. Old grudges fade with time." A deed names itself, as in "You towed one of their drivers." A settlement has its own line and adds no cause.
+- A band change shows in the log with its cause, like "Scrapjaw now treats you as wary. Old grudges fade with time." It raises no toast, since the hover card and the character screen already show the band. A deed names itself, as in "You towed one of their drivers." A settlement has its own line and adds no cause.
 - On Chaos Highway standing never moves, so the gangs there hold fire on the gun truck until it shoots them. Memories still form.
 
 ## Talk and offers
