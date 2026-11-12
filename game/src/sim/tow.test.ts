@@ -6,6 +6,7 @@ import { MAX_RANK, SKILL_EFFECTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { partDef } from '../data/parts';
 import { playerVehicle } from './damage';
 import { route, routeLength } from './path';
+import { getKnownSite } from './npc-decisions';
 import { canUseSite, nearestPad, siteGates, sitePads, type Site } from './sites';
 import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
@@ -1579,5 +1580,23 @@ describe('a refused tow counts for every driver', () => {
     expect(loaded.states).toEqual(w.states);
     const r = runUntil(loaded, 30, (x) => towsPlayer(x, second.id));
     expect(towsPlayer(r.w, second.id)).toBe(false);
+  });
+});
+
+describe('tow to a stall', () => {
+  it('leaves a broke stranded player on the stall pad, where the scrap patch gets the truck driving', () => {
+    const granary = REGION.locations.find((l) => l.id === 'granary')!;
+    const start = { x: granary.pos.x + 40, y: granary.pos.y };
+    const s = stranded(start, { x: start.x + 10, y: start.y });
+    s.w.player.money = 0;
+    const me = playerVehicle(s.w);
+    me.items = me.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind));
+    forceOption('strandedSeen', 'tow');
+    let w = acceptTow(offered(s, 'towFree'));
+    expect(towData(playerTow(w)!).site).toBe('granary');
+    w = runUntil(w, 150, (x) => playerTow(x) === null).w;
+    expect(canUseSite(playerVehicle(w).pos, getKnownSite('granary'))).toBe(true);
+    w = runUntil(w, 3, (x) => !isStranded(x, playerVehicle(x))).w;
+    expect(isStranded(w, playerVehicle(w))).toBe(false);
   });
 });
