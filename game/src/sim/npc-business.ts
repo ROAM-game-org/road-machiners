@@ -1,10 +1,12 @@
 
 import { NPC_UPKEEP } from '../data/npcs';
+import { npcRepairReserve } from './repair';
 import { inCombat } from './combat';
 import { isParkedForWork, startJob } from './jobs';
 import type { BusinessDeal, Job, NpcActivity, Vehicle, World } from './types';
-import { affordableBuyCount, buyFuel, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
+import { affordableBuyCount, buyFuel, restockRepairParts, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { cargoRoom } from './inventory';
+import type { Site } from './sites';
 import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase } from './npc-activities';
 import { npcProfile, tradeSpend } from './npc-decisions';
 import { fundSupplyRun } from './duty';
@@ -54,13 +56,27 @@ function topUpAtPump(world: World, vehicle: Vehicle, siteId: string): void {
   if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle, siteId);
 }
 
+function isCamp(site: Site): boolean {
+  return 'kind' in site && site.kind === 'camp';
+}
+
+function sellCargoAt(world: World, vehicle: Vehicle, site: Site): void {
+  const reserve = npcRepairReserve(vehicle);
+  if (isCamp(site)) sellAtCamp(world, vehicle, site.id, reserve);
+  else sellVehicleCargo(world, vehicle, site.id, reserve);
+}
+
+function restockAfterSale(world: World, vehicle: Vehicle, site: Site): void {
+  if (!isCamp(site)) restockRepairParts(world, vehicle, site.id, npcRepairReserve(vehicle));
+}
+
 export function resolveSell(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   const site = reachSite(vehicle, activity);
   if (!dealDue(world, vehicle, activity, site)) return;
-  if ('kind' in site && site.kind === 'camp') sellAtCamp(world, vehicle, site.id, NPC_UPKEEP.repairParts);
-  else sellVehicleCargo(world, vehicle, site.id, NPC_UPKEEP.repairParts);
+  sellCargoAt(world, vehicle, site);
   payForLeg(world, vehicle, activity);
   topUpAtPump(world, vehicle, site.id);
+  restockAfterSale(world, vehicle, site);
   onHaulDelivered(world, vehicle, activity);
   finishGoal(world, vehicle, 'soldCargo');
 }

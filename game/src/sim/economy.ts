@@ -1,5 +1,6 @@
 
 import { chassisDef, isTruckPaint, PAINT, samePaint, TOWN_CHASSIS, type TruckPaint } from "../data/chassis";
+import { npcRepairReserve } from "./repair";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -208,6 +209,16 @@ export function serviceVehicle(
   requireVehicleTown(world, vehicle, townId);
   sellVehicleCargo(world, vehicle, townId, retainedParts);
   refuelAndRepair(world, vehicle, townId);
+  restockRepairParts(world, vehicle, townId, retainedParts);
+}
+
+export function restockRepairParts(world: World, vehicle: Vehicle, shopId: string, reserve: number): void {
+  if (!shopTrades(shopId, "parts")) return;
+  const missing = reserve - (goodsCount(vehicle).parts ?? 0);
+  if (missing <= 0) return;
+  const budget = getResources(world, vehicle).money - getUpkeepReserve(vehicle);
+  const count = affordableBuyCount(world, vehicle, shopId, "parts", Math.min(missing, cargoRoom(vehicle)), budget);
+  if (count > 0) tradeGoods(world, vehicle, shopId, "parts", count, "buy");
 }
 
 const BASE_ROAD_MARGIN = ECONOMY.spread + ECONOMY.roadSpread;
@@ -276,7 +287,7 @@ export function serviceAtStall(
   if (shopDef(shopId).kind !== "stall") throw new Error(`${shopId} is no stall`);
   if (isOutlaw(vehicle.faction)) throw new Error("Only non-raiders use stall services");
   sellVehicleCargo(world, vehicle, shopId, retainedParts);
-  refuelAndRepair(world, vehicle, shopId);
+  refuelAndRepair(world, vehicle, shopId);  restockRepairParts(world, vehicle, shopId, retainedParts);
 }
 
 function refuelAndRepair(world: World, vehicle: Vehicle, shopId: string | null): void {
@@ -866,7 +877,7 @@ export function truckSupplyForSale(npc: Vehicle, kind: Supply): number {
 
 export function truckGoodsForSale(npc: Vehicle, good: string): number {
   const held = goodsCount(npc)[good] ?? 0;
-  return good === "parts" ? Math.max(0, held - NPC_UPKEEP.repairParts) : held;
+  return good === "parts" ? Math.max(0, held - npcRepairReserve(npc)) : held;
 }
 
 function requireCount(n: number): void {

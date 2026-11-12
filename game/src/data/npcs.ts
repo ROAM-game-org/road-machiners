@@ -1,6 +1,6 @@
 
 import type { NpcFactionId, StateKindId } from '../sim/types';
-import { CREW, HIRE } from './npc-behavior';
+import { CREW, HIRE, NPC_UPKEEP, ROAD_KIT_PARTS } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
@@ -54,6 +54,7 @@ export type NpcLoadoutTable = {
   spares: SpareTable | null;
   haul: Load;
   minSpeed: number;
+  repairParts: number;
 };
 
 export type LoadoutPriorities = { speed: number; firepower: number; armor: number; cargo: number };
@@ -151,6 +152,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 200, cells: 3 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   gunwagon: {
@@ -177,6 +179,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 400, cells: 5 },
     minSpeed: RAIDER_CHASE_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   trader: {
@@ -204,6 +207,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: CRATE_MASS, cells: 1 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: TRADER_SPARES,
   },
   scavenger: {
@@ -234,6 +238,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: null,
   },
   bowlPatrol: {
@@ -249,6 +254,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   nosePatrol: {
@@ -263,6 +269,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   marshal: {
@@ -277,6 +284,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   courier: {
@@ -301,6 +309,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   roamer: {
@@ -329,6 +338,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: null,
   },
   vulture: {
@@ -358,6 +368,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   convoy: {
@@ -379,6 +390,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   convoyGuard: {
@@ -395,6 +407,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   cavalcade: {
@@ -410,6 +423,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   hunter: {
@@ -424,6 +438,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   merc: {
@@ -440,6 +455,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
 };
@@ -806,7 +822,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
 
 export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

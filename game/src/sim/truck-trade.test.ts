@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
 import { ECONOMY, GOODS } from '../data/goods';
 import { NPC_UPKEEP, NPCS, STATE_TURNS } from '../data/npcs';
+import { npcRepairReserve } from './repair';
 import { PARTS } from '../data/parts';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
@@ -132,7 +133,7 @@ describe('trades', () => {
 
   it('a driver keeps its field repair parts', () => {
     const { w: start, npc } = meeting();
-    const w0 = update(start, (w) => { addGoods(w, find(w, npc.id), 'parts', NPC_UPKEEP.repairParts + 1); });
+    const w0 = update(start, (w) => { addGoods(w, find(w, npc.id), 'parts', npcRepairReserve(npc) + 1); });
     expect(truckGoodsForSale(find(w0, npc.id), 'parts')).toBe(1);
     expect(() => buyTruckGood(w0, npc.id, 'parts', 2)).toThrow('will not sell');
   });

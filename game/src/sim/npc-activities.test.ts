@@ -13,6 +13,7 @@ import { SHOPS } from '../data/market';
 import { partDef } from '../data/parts';
 import { damagePart } from './wear';
 import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChances, optionWeights, tradeOffers, tradeSpend, tripFuelCost, usefulContacts } from './npc-decisions';
+import { npcRepairReserve } from './repair';
 import { visibleDowned, visibleSalvage } from './loot-picks';
 import { affordableBuyCount, getLotTradePrice, getTradePrice, getTradeRate } from './economy';
 import { cargoRoom } from './inventory';
@@ -153,8 +154,9 @@ describe('NPC activities', () => {
     const town = REGION.towns[1].id;
     npc.pos = { ...sitePads(REGION.towns[1])[0] };
     npc.brain!.goals = [{ kind, targetId: town, destination: { ...npc.pos }, phase: 'travel', reason: 'tripToSite' }];
+    const onArrival = standingPressures(w, town);
     finishBusiness(w, npc);
-    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: standingPressures(w, town) } }]);
+    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: onArrival } }]);
   });
 
   it('remembers the prices of a stall where it resupplied', () => {
@@ -789,6 +791,7 @@ describe('NPC activities', () => {
     it('a trader that sells cargo at a town leaves with a full tank and pays the fuel price', () => {
       const { w, npc } = createTrader();
       at(npc, 'bowl');
+      addGoods(w, npc, 'parts', npcRepairReserve(npc));
       addGoods(w, npc, 'salt', 2);
       tankAt(w, npc, 0.1, 167);
       npc.brain!.goals = [goal('sell', 'bowl')];
