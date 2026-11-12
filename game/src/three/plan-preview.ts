@@ -1,6 +1,6 @@
 import type { DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
-import { postLabel, SentObstacles, type PreviewRequest, type IdleFailure, type PreviewResponse, type TerrainRequest } from "../phys/turn";
+import { postLabel, SentObstacles, type PreviewRequest, type IdleFailure, type PreviewResponse, type TerrainRequest, type WarmRequest } from "../phys/turn";
 import { mergePerf, timed } from "../perf";
 import { PAL } from "../render/palette";
 import { orderThrottle, playerOrder } from "../sim/steering";
@@ -41,11 +41,15 @@ export class PlanPreparation {
     if (this.running === null) this.postQueued();
   }
 
-  warm(terrain: World["terrain"]): void {
-    if (this.load.gaveUp || this.load.waiting || this.terrain === terrain) return;
+  warm(world: World): void {
+    if (this.load.gaveUp || this.load.waiting) return;
+    const { terrain, ...state } = world;
     this.worker ??= this.createWorker();
-    this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
-    this.terrain = terrain;
+    if (this.terrain !== terrain) {
+      this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+      this.terrain = terrain;
+    }
+    this.worker.postMessage({ kind: "warm", ...this.obstacles.split(state) } satisfies WarmRequest);
   }
 
   take(world: World): PlanFrames | null {

@@ -220,7 +220,7 @@ export class Game {
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
-    setTimeout(() => this.plans.warm(this.world.terrain));
+    setTimeout(() => this.plans.warm(this.world));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode, [overlay]);
