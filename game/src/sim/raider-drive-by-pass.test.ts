@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { count, runs, SEEDS, SLOW_PASS_TURNS, summary } from '../test/drive-by-scene';
+import { count, runs, type Result, SEEDS, SLOW_PASS_TURNS, summary } from '../test/drive-by-scene';
 
 const FIRST = SEEDS.slice(0, 4);
 const MOST_ENGAGED = 1;
+
+const sizedUp = (run: Result) => run.frames.some((frame) => frame.changes.some((change) => change.endsWith(':sizingUp')));
 
 describe.each([['by day', false], ['at night', true]])('drive-by %s on the real map', (_label, night) => {
   it('leaves no feud with an empty-handed player', () => {
@@ -15,6 +17,7 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
     const empty = runs('playerEmpty', night, SLOW_PASS_TURNS, FIRST);
     const shown = empty.flatMap((r) => r.hover);
     if (!night) expect(shown.length, summary(empty, FIRST)).toBeGreaterThan(0);
-    for (const line of shown) expect(line).toBe('Lets you pass: let you be this time');
+    for (const run of empty)
+      for (const line of run.hover) expect(line, summary(empty, FIRST)).toBe(sizedUp(run) && line.endsWith('nothing worth taking') ? line : 'Lets you pass: let you be this time');
   });
 });

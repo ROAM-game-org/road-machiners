@@ -2,7 +2,6 @@
 import { chassisDef } from '../data/chassis';
 import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
-import { TERRAIN } from '../data/terrain';
 import { isBakedObstacle, propReach } from './mapgen';
 import { CELL, CLEARANCE, NO_CLIMB, nearCliff, staticSet, terrainNav, tileIndex, type StaticSet, type TerrainNav } from './nav/layer';
 import type { Blocker } from './nav/buckets';
@@ -110,7 +109,7 @@ function cellKey(cx: number, cy: number): number {
 }
 
 function exposure(world: World, map: PostMap, p: Vec, limit = Infinity): number {
-  const reach = TERRAIN.vision.radius;
+  const reach = HUNT.groundSight;
   const traffic = trafficOf(world, map);
   let seen = 0;
   for (let cy = Math.floor((p.y - reach) / INDEX_CELL); cy <= Math.floor((p.y + reach) / INDEX_CELL); cy++) {
@@ -203,7 +202,7 @@ function blocks(b: Blocker, p: Vec, reach: number): boolean {
 }
 
 export function seesGround(world: World, p: Vec, ground: Vec): boolean {
-  return dist(p, ground) <= TERRAIN.vision.radius && sees(world, p, ground);
+  return dist(p, ground) <= HUNT.groundSight && sees(world, p, ground);
 }
 
 function sees(world: World, a: Vec, b: Vec): boolean {

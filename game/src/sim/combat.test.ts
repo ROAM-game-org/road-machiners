@@ -5,7 +5,7 @@ import { SPAWN } from '../data/npcs';
 import { REGION } from '../data/region';
 import { getResources } from './resources';
 import { siteGates } from './sites';
-import { autoOrders, beatenBy, crashOnly, chanceSteps, fireWeapons, hitOdds, isHostile, laneOfOffset, missPoint, noteAttack, resolveDestroyed, wreckVehicle } from './combat';
+import { autoOrders, targetBlock, beatenBy, crashOnly, chanceSteps, fireWeapons, hitOdds, isHostile, laneOfOffset, missPoint, noteAttack, resolveDestroyed, wreckVehicle } from './combat';
 import { knockOutNpc } from './defeat';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { thinkNpc, topGoal } from './npc-activities';
@@ -584,12 +584,18 @@ describe('player vision', () => {
   it('auto fire and manual orders ignore raiders out of sight', async () => {
     const { setWeaponOrder } = await import('./world');
     const { autoOrders } = await import('./combat');
-    const { w, me } = duel({ x: 55, y: 30 });
+    const { w, me } = duel({ x: 64, y: 30 });
     w.player.autoFire = true;
     autoOrders(w, me);
     expect(me.weaponOrders).toEqual({});
     const far = w.vehicles.find((v) => v.faction === 'scrapjaw')!;
     expect(() => setWeaponOrder(w, vehicleStats(w, me).weapons[0].part.id, { targetId: far.id, aim: 'body' })).toThrow("Refused: unseen");
+  });
+
+  it('blocks a raider seen past the gun range as range, not unseen', () => {
+    const { w, me, buggy, mg } = duel({ x: 60, y: 30 });
+    refreshVision(w);
+    expect(targetBlock(w, me, mg, buggy)).toBe('range');
   });
 
   it('a rock between you and a raider blocks the shot', () => {
