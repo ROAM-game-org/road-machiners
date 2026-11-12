@@ -285,7 +285,6 @@ export function pxStyle(r: PixelRect): string {
 
 const CELL_TITLE: Record<Cell, Msg | undefined> = {
   D: t("cell.deck"),
-  C: t("cell.bay"),
   E: t("cell.engine"),
   F: t("cell.front"),
   B: t("cell.back"),
