@@ -618,7 +618,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'wake']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'claimRival', 'guardEnded', 'wake']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';

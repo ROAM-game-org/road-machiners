@@ -26,8 +26,8 @@ import { holdsRearm } from "./npc-service";
 import { isWeak, wantsLoot } from "./npc-decisions";
 import { endRun } from "./chaos-highway";
 import { modeRules } from "./settings";
-import type { GameEvent, SalvageStock, Vehicle, World } from "./types";
-import { wreckStockId } from "./salvage";
+import type { Defeat, GameEvent, SalvageStock, Vehicle, World } from "./types";
+import { setToLoot, wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
 import { isRaider, noteDefeat } from "./relations";
@@ -95,7 +95,7 @@ export function advanceKnockout(world: World): string[] | null {
   const me = playerVehicle(world);
   if (!me.defeat) throw new Error("A knocked-out player truck has no defeat");
   const foes = me.defeat.foes;
-  if (attackerWatches(world, me, foes) && p.knockoutTurns < RULES.knockoutMaxTurns) return null;
+  if (foesHoldDown(world, me, me.defeat) && p.knockoutTurns < RULES.knockoutMaxTurns) return null;
   const gaveUp = me.defeat.gaveUp;
   patchBrokenCore(me);
   delete me.defeat;
@@ -217,7 +217,7 @@ function advanceNpcKnockout(world: World, v: Vehicle): void {
   const defeat = v.defeat!;
   if (heldDown(world, v)) return;
   defeat.turns++;
-  if (attackerWatches(world, v, defeat.foes) && defeat.turns < RULES.knockoutMaxTurns) return;
+  if (foesHoldDown(world, v, defeat) && defeat.turns < RULES.knockoutMaxTurns) return;
   patchBrokenCore(v);
   v.defeat = { ...defeat, phase: "retreat", unseen: 0 };
   world.events.push({ t: "npcWake", vehicle: v.id, gaveUp: defeat.gaveUp });
@@ -230,8 +230,16 @@ function heldDown(world: World, v: Vehicle): boolean {
   return job.pickup.vehicleId === v.id && vehicleHasPerk(world, me, "teardown");
 }
 
-function attackerWatches(world: World, v: Vehicle, foes: string[]): boolean {
+function foesHoldDown(world: World, v: Vehicle, defeat: Defeat): boolean {
+  return foeWatches(world, v, defeat.foes) || (defeat.gaveUp && robberComing(world, v, defeat.foes));
+}
+
+function foeWatches(world: World, v: Vehicle, foes: string[]): boolean {
   return world.vehicles.some((x) => foes.includes(x.id) && canVehicleSee(world, x, v.pos));
+}
+
+function robberComing(world: World, v: Vehicle, foes: string[]): boolean {
+  return world.vehicles.some((x) => foes.includes(x.id) && setToLoot(x, v.id));
 }
 
 function advanceRetreat(world: World, v: Vehicle): void {
