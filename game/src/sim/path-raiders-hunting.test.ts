@@ -31,6 +31,8 @@ describe('raider hunting routes on the map', () => {
     return legs;
   }
 
+  let sharedLegs: [Vec, Vec][] | null = null;
+
   function measure(band: number) {
     const saved = REGION.navigation.roadShyBand;
     REGION.navigation.roadShyBand = band;
@@ -41,7 +43,8 @@ describe('raider hunting routes on the map', () => {
       driver.brain = npcBrain('buggy', driver.pos, ['raider']);
       driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
       let length = 0, road = 0, near6 = 0, near10 = 0, samples = 0;
-      const legs = legsOf(w);
+      sharedLegs ??= legsOf(w);
+      const legs = sharedLegs;
       for (const [from, to] of legs) {
         const points = route(w, from, to, 0.8, [], driver);
         length += routeLength(from, points);
@@ -66,15 +69,24 @@ describe('raider hunting routes on the map', () => {
     }
   }
 
+  let shy: ReturnType<typeof measure>;
+  let plain: ReturnType<typeof measure>;
+
+  it('measures hunting routes with the road band on', () => {
+    shy = measure(REGION.navigation.roadShyBand);
+  }, budget(90_000));
+
+  it('measures hunting routes with no road band', () => {
+    plain = measure(0);
+  }, budget(90_000));
+
   it('stay off roads and keep a band from them, at a bounded detour', () => {
-    const shy = measure(REGION.navigation.roadShyBand);
-    const plain = measure(0);
     console.log('hunting routes', JSON.stringify({ shy, plain }));
     expect(shy.road).toBeLessThan(plain.road);
     expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
     expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.62);
     expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
-  }, budget(90_000));
+  });
 
   it('still cross a road to reach the far side', () => {
     const road = REGION.roads[0];

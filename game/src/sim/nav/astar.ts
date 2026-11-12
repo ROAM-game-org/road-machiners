@@ -582,12 +582,14 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
       nearestLeft = left;
     }
     const count = neighbours(n, cur);
+    const cx = cur % n;
+    const cy = (cur - cx) / n;
     for (let k = 0; k < count; k++) {
       const next = around[k];
       if (!canEnter(layer, ov, next, g, corridor, box)) continue;
       const nx = next % n;
-      const ny = Math.floor(next / n);
-      const c = cost[cur] + tastedAlong(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - (cur % n), ny - Math.floor(cur / n));
+      const ny = (next - nx) / n;
+      const c = cost[cur] + tastedAlong(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
       if (seen[next] === g && c >= cost[next]) continue;
       seen[next] = g;
       cost[next] = c;
