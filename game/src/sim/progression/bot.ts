@@ -164,7 +164,9 @@ function answerCall(o: Orders, replies: Partial<Record<TopicId, LineId>> = DEFEN
     const at = `${call.with}:${call.topic}:${call.node}`;
     if (seen.has(at)) throw new Error(`Bot call loops back to ${at}`);
     seen.add(at);
-    const pick = replyPick(currentOptions(o.world).map((option) => option.line), replyTo(o.world, call, replies));
+    const options = currentOptions(o.world);
+    const wanted = replyTo(o.world, call, replies);
+    const pick = wanted ? replyPick(options.map((option) => option.line), wanted) : Math.max(0, options.findIndex((option) => !option.short));
     o.run(call.topic ? (w) => chooseOption(w, pick) : hangUp);
   }
 }

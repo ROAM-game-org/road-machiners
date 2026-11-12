@@ -127,14 +127,14 @@ describe('money in whole M', () => {
 describe('XP per M', () => {
   const PER_M = 3;
 
-  const PROFIT_MARGIN_RATIO_OLD_TO_NEW = 1.75;
+  const PROFIT_MARGIN_RATIO_OLD_TO_NEW = Math.round(((1.75 * 151) / 192) * 100) / 100;
   const HAUL_PAY_RATIO_OLD_TO_NEW = 9.9;
 
   it('pays free tow and aid XP at 0.8 of the base rate, since tows and aid values did not move', () => {
     for (const source of ['freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * PER_M, 10);
   });
 
-  it('pays profit XP at 0.8 of the base rate times the old to new margin of the trade calibration load', () => {
+  it('pays profit XP at 0.8 of the base rate times the old to new margin of the trade calibration load, rescaled from 0.00093 to the 0.0011 premium (issue 1619)', () => {
     expect(XP_SOURCES.profit.weight).toBeCloseTo(0.8 * PER_M * PROFIT_MARGIN_RATIO_OLD_TO_NEW, 10);
   });
 

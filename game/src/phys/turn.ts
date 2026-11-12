@@ -132,7 +132,8 @@ export class SentObstacles {
   }
 }
 export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
-export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
+export type WarmRequest = { kind: 'warm'; world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync };
+export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest | WarmRequest;
 export type WorkerFailure = { id: number; error: string };
 export type IdleFailure = { idleError: string };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
@@ -252,6 +253,12 @@ export function startTurnWorker(): void {
       timed('route-terrain', () => prepareRouteTerrain(request.terrain));
       return;
     }
+    if (request.kind === 'warm') {
+      if (!terrain) throw new Error('Turn worker has no terrain');
+      obstacles = applyObstacles(obstacles, request.obstacles);
+      buildWhileIdle(terrain, { ...request.world, obstacles });
+      return;
+    }
     try {
       obstacles = applyObstacles(obstacles, request.obstacles);
       await ready;
@@ -270,12 +277,22 @@ export function startTurnWorker(): void {
 
 let idleRun = 0;
 
+const ROUTE_RADII = [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))];
+
 function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const run = ++idleRun;
-  const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
-  if (!center) return;
+  const player = world.vehicles.find((v) => v.id === world.player.vehicleId);
+  if (!player) return;
+  const center = player.pos;
+  const own = CHASSIS[player.chassisId].radius;
+  const radii = [own, ...ROUTE_RADII.filter((radius) => radius !== own)];
   const step = () => {
     if (run !== idleRun) return;
+    const radius = radii.shift();
+    if (radius !== undefined) {
+      if (idleStep(run, () => warmRoutes({ ...world, terrain }, [radius]))) setTimeout(step, 0);
+      return;
+    }
     const built = idleStep(run, () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs));
     if (!built) return;
     if (built.value) return void setTimeout(step, 0);
@@ -307,7 +324,6 @@ function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | n
   if (!obstacles) throw new Error('Turn worker has no obstacles');
   if (!terrain) throw new Error('Turn worker has no terrain');
   const world = { ...request.world, obstacles };
-  if (request.terrain && request.kind === 'turn') warmRoutes({ ...world, terrain }, [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))]);
   return { ...request, world, terrain };
 }
 

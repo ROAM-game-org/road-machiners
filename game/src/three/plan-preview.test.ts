@@ -85,6 +85,31 @@ it("sends the terrain only with the first request", () => {
   expect("terrain" in worker.requests[0].world).toBe(false);
 });
 
+it("warms with the terrain and the full obstacle list, so the first preview sends the same obstacles and no terrain", () => {
+  const plans = new PlanPreparation();
+  plans.warm(world);
+  const worker = TestWorker.latest;
+  const posted = worker.requests as unknown as { kind: string; terrain?: unknown; obstacles?: { kind: string; list?: unknown } }[];
+  expect(posted.map((request) => request.kind)).toEqual(["terrain", "warm"]);
+  expect(posted[0].terrain).toBe(world.terrain);
+  expect(posted[1].obstacles).toEqual({ kind: "full", list: world.obstacles });
+  plans.request(world, drive, world.player.vehicleId);
+  expect(worker.requests[2].terrain).toBeNull();
+  expect(worker.requests[2].obstacles).toEqual({ kind: "same" });
+});
+
+it("posts nothing when it warms a worker that is still loading", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  vi.useFakeTimers();
+  worker.onerror?.({ preventDefault() {} } as ErrorEvent);
+  const posts = worker.requests.length;
+  plans.warm(world);
+  expect(worker.requests).toHaveLength(posts);
+  vi.useRealTimers();
+});
+
 it("drops an answer for a world the game has moved on from", () => {
   const plans = new PlanPreparation();
   plans.request(world, drive, world.player.vehicleId);
