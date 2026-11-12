@@ -1289,7 +1289,7 @@ describe('hunting a lost fight target', () => {
   function raiderLosesPlayer() {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 50, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 55, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     sizedUp(w, raider, player);
     forceOption('hostileSeen', 'fight');

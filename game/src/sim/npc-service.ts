@@ -17,7 +17,7 @@ import { heatAt } from './sun';
 import { ECONOMY } from '../data/goods';
 import { route } from './path';
 import { randRange } from './rng';
-import { canUseSite, type Site } from './sites';
+import { canUseSite, enterSite, hasPads, isBusy, leaveSite, parkedOn, type Site } from './sites';
 import { isFree } from './spawn';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
 import { isOnRope } from './tow';
@@ -123,13 +123,41 @@ export function rearmInvalid(world: World, vehicle: Vehicle): GoalReason | null 
   return needsFreshGear(world, vehicle) ? null : 'fitAgain';
 }
 
+export function entersHome(world: World, vehicle: Vehicle, activity: NpcActivity): boolean {
+  return hasPads(homeOfRearm(activity)) && !isBusy(world, vehicle);
+}
+
+function homeOfRearm(activity: NpcActivity): Site {
+  return getKnownSite(activity.targetId!);
+}
+
 export function resolveRearm(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   if (activity.until === undefined) throw new Error(`${vehicle.id} lies up with no until turn`);
+  const home = homeOfRearm(activity);
+  if (entersHome(world, vehicle, activity) && parkedOn(vehicle, home)) {
+    activity.phase = 'act';
+    enterSite(world, vehicle, home);
+    return;
+  }
   if (!liesUp(vehicle)) return;
   activity.phase = 'act';
-  if (world.turn < activity.until) return;
+  if (hasPads(home) || world.turn < activity.until) return;
   refitAtHome(world, vehicle);
   finishGoal(world, vehicle, 'refitted');
+}
+
+export function releaseRearmed(world: World): void {
+  for (const { vehicle, site } of [...world.sheltered]) {
+    const goal = vehicle.brain ? topGoal(vehicle) : null;
+    if (goal?.kind !== 'rearm') continue;
+    if (goal.targetId !== site) throw new Error(`${vehicle.id} lies up for ${goal.targetId} but is inside ${site}`);
+    if (goal.until === undefined) throw new Error(`${vehicle.id} lies up with no until turn`);
+    const fit = rearmInvalid(world, vehicle) !== null;
+    const done = world.turn >= goal.until;
+    if ((!done && !fit) || !leaveSite(world, vehicle.id)) continue;
+    if (done && !fit) refitAtHome(world, vehicle);
+    finishGoal(world, vehicle, done && !fit ? 'refitted' : 'fitAgain');
+  }
 }
 
 type ServiceNeed = { reason: GoalReason };

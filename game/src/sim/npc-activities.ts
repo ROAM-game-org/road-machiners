@@ -55,7 +55,7 @@ import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
-import { beginRearm, fuelReserveFor, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
+import { beginRearm, entersHome, fuelReserveFor, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
 import { isSunwardMember, nightSafe, planSunward, ridesOnSchedule, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
 import { meetingLapsed } from './sunward-crater';
 
@@ -1016,6 +1016,7 @@ export function noteHurt(world: World): void {
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
   if (vehicle.job?.kind === 'search' && searchBelongs(vehicle.job, activity)) return null;
+  if (activity.kind === 'rearm' && entersHome(world, vehicle, activity)) return siteStop(world, vehicle, activity, activity.destination);
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
   if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster', 'sizeUp'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);

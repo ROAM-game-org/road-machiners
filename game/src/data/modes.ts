@@ -7,7 +7,7 @@ import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
-import type { TerrainTypeId } from './terrain';
+import { TERRAIN, type TerrainTypeId } from './terrain';
 
 export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind; opening: string | null };
 
@@ -88,7 +88,7 @@ export const CHAOS_HIGHWAY = {
   nerve: 0.15,
   playerMargin: GUARD_GAP,
   haulerNear: 20,
-  sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
+  sides: { ahead: 1.8 * TERRAIN.vision.radius, flank: { along: 1.44 * TERRAIN.vision.radius, across: 22, step: 3 } },
   pacing: { near: 30 },
   rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
   sightMargin: 6,
