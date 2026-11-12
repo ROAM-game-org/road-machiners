@@ -287,7 +287,8 @@ export function serviceAtStall(
   if (shopDef(shopId).kind !== "stall") throw new Error(`${shopId} is no stall`);
   if (isOutlaw(vehicle.faction)) throw new Error("Only non-raiders use stall services");
   sellVehicleCargo(world, vehicle, shopId, retainedParts);
-  refuelAndRepair(world, vehicle, shopId);  restockRepairParts(world, vehicle, shopId, retainedParts);
+  refuelAndRepair(world, vehicle, shopId);
+  restockRepairParts(world, vehicle, shopId, retainedParts);
 }
 
 function refuelAndRepair(world: World, vehicle: Vehicle, shopId: string | null): void {
