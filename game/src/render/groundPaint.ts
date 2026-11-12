@@ -9,6 +9,7 @@ import { basinUnder, isTerritory } from "../sim/territory";
 import { type Vec } from "../sim/vec";
 import { hash2 } from "./noise";
 import { PAL, mix, shade } from "./palette";
+import { drawnTrackLines, trackEdgeAt } from "./roadPaint";
 
 export const TERRAIN_MARGIN = 10;
 const TYPE_JITTER = 0.6;
@@ -19,6 +20,7 @@ const SAND_WARM = 0.85;
 const DESERT_CALM = 0.85;
 const PATCH_OFFSET = 41.5;
 const YARD_FADE_TILES = 4;
+const TRACK_COVER_TILES = 3;
 
 const DESERT_WEIGHT: Record<LookType, number> = {
   hardpan: 1,
@@ -49,7 +51,7 @@ export function desertWeight(type: LookType): number {
   return DESERT_WEIGHT[type];
 }
 
-export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "furrows"] as const;
+export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "furrows", "ruts"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
 export type EdgeStyle = "smudge" | "pepper" | "gritty" | "hard" | "shore" | "straight";
@@ -71,7 +73,7 @@ const MATERIAL_ROWS: Record<LookType, MaterialRow> = {
   hardpan: { mark: "cracks", edge: "smudge", spill: 0.45, warm: 1, stand: 0 },
   sand: { mark: "windRipples", edge: "smudge", spill: 1, warm: 1, stand: 0.3 },
   field: { mark: "furrows", edge: "smudge", spill: 0.3, warm: 1, stand: 0.5 },
-  track: { mark: "none", edge: "smudge", spill: 0.3, warm: 1, stand: 0 },
+  track: { mark: "ruts", edge: "hard", spill: 0.3, warm: 1, stand: 0 },
   mud: { mark: "puddles", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
   blackMud: { mark: "puddles", edge: "shore", spill: 0, warm: 1, stand: -0.5 },
   saltCrust: { mark: "saltCracks", edge: "smudge", spill: 0.5, warm: 1, stand: 0 },
@@ -112,6 +114,18 @@ export function lookTypes(t: Terrain): readonly LookType[] {
   if (cached) return cached;
   const result = floodLook(t, () => false);
   lookCache.set(t, result);
+  return result;
+}
+
+const groundLookCache = new WeakMap<Terrain, readonly LookType[]>();
+
+export function groundLooks(t: Terrain): readonly LookType[] {
+  const cached = groundLookCache.get(t);
+  if (cached) return cached;
+  const lines = drawnTrackLines(atlasOf(t));
+  const covered = (tile: number) => t.types[tile] === "track" && trackEdgeAt(lines, { x: (tile % t.size) + 0.5, y: Math.floor(tile / t.size) + 0.5 }) < TRACK_COVER_TILES;
+  const result = lines.length === 0 ? lookTypes(t) : floodLook(t, covered);
+  groundLookCache.set(t, result);
   return result;
 }
 
@@ -273,11 +287,12 @@ function tileLook(t: Terrain): TileLook {
   const count = t.size * t.size;
   const color = new Int32Array(count);
   const desert = new Float32Array(count);
-  const look = lookTypes(t);
+  const look = groundLooks(t);
+  const plain = lookTypes(t);
   const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
     const natural = yard.natural[i] === "glass" ? "hardpan" : yard.natural[i];
-    const own = t.types[i];
+    const own = look[i] === plain[i] ? t.types[i] : look[i];
     color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(own), yard.fade[i]) : paintColor(own);
     desert[i] = desertAround(look[i], natural, yard.fade[i]);
   }
@@ -394,7 +409,7 @@ function sandChannel(color: number, sand: number, patch: number, warm: number, k
 }
 
 export function shownLooks(t: Terrain): LookType[] {
-  const looks = lookTypes(t);
+  const looks = groundLooks(t);
   const yard = yardLook(t);
   return looks.map((look, tile) => (yard.fade[tile] >= 0.5 ? look : yard.natural[tile]));
 }

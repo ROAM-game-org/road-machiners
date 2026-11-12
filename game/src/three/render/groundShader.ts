@@ -4,6 +4,7 @@ import { TERRAIN_TYPES } from "../../data/terrain";
 import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
 import { CENTER_GAP, HALF as WEAR_HALF, LINE_HALF, WEAR_NEUTRAL } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
+import { TRACK_FIELD_REACH } from "../../render/roadPaint";
 import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
@@ -18,8 +19,10 @@ import { TUNING } from "./inkTuning";
 const S = PHYSICS.metersPerTile;
 const OWNER = "drawn-ground";
 const DIRT_UNDER = TERRAIN_TYPES.track.color;
-const DIRT_EDGE = 0.44;
-const DIRT_BLEND = 0.12;
+const TRACK_REACH = TRACK_FIELD_REACH;
+const TRACK_RUT_DEPTHS = [1.4, 2.8];
+const TRACK_RUT_WIDTH = 0.1;
+const TRACK_RUT_BREAK = 7;
 const BAND_FROM = "0.1";
 const BAND_FULL = "0.25";
 const GLASS_PLATE = 2;
@@ -227,6 +230,8 @@ function lookUniforms() {
     drawnEdgeWobble: TUNING.edgeWobble,
     drawnWaveSize: TUNING.waveSize,
     drawnTuftInk: TUNING.tufts,
+    drawnTrackEdge: TUNING.trackEdge,
+    drawnTrackRutInk: TUNING.trackRuts,
     drawnHaloAmount: TUNING.halo,
     drawnMaterialContrast: TUNING.materialContrast,
     drawnSurroundBlend: TUNING.surround,
@@ -373,6 +378,8 @@ uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
 uniform float drawnWaveSize;
 uniform float drawnTuftInk;
+uniform float drawnTrackEdge;
+uniform float drawnTrackRutInk;
 uniform float drawnHaloAmount;
 uniform float drawnEdgeSoft;
 `;
@@ -678,6 +685,10 @@ float drawnCrackEdge(vec2 p) {
 float drawnCracks(vec2 p, float cell, float px) {
   return drawnLine(drawnCrackEdge(p / cell) * cell, 0.03, px) * step(0.42, valueNoise(p / (cell * 0.6)));
 }
+float drawnTrackRuts(float depth, vec2 p, float px) {
+  float line = max(drawnLine(abs(depth - ${TRACK_RUT_DEPTHS[0].toFixed(1)}), ${TRACK_RUT_WIDTH.toFixed(2)}, px), drawnLine(abs(depth - ${TRACK_RUT_DEPTHS[1].toFixed(1)}), ${TRACK_RUT_WIDTH.toFixed(2)}, px));
+  return line * step(0.38, valueNoise(p / ${TRACK_RUT_BREAK.toFixed(1)} + 3.0));
+}
 float drawnAsphaltCracks(vec2 p, float px) {
   return drawnCracks(p + 13.0, ${DRAWN_ROAD_CRACK_CELL.toFixed(1)}, px) * step(0.62, valueNoise(p / 14.0));
 }
@@ -896,7 +907,7 @@ const GLASS_BODY = `
 
 const ROAD_BODY = `
   vec3 roadMaskAt = textureLod(roadMask, (vRoadXZ - roadOrigin) / roadMaskMeters, 0.0).rgb;
-  float dirtCover = roadMaskAt.g;
+  float trackEdge = (roadMaskAt.g * 255.0 - 128.0) / 127.0 * ${TRACK_REACH.toFixed(1)};
   float bandMask = roadMaskAt.b;
   vec4 roadLook = vec4(textureLod(roadDetail, (vRoadXZ - roadOrigin) / roadDetailMeters, 8.0).rgb, 0.5);
   float roadWander = textureLod(roadTone, (vRoadXZ - roadOrigin) / roadToneMeters, 0.0).r;
@@ -921,25 +932,32 @@ const ROAD_BODY = `
   float roadEdge = ${ROAD_HALF.toFixed(2)};
   float roadEdgeAa = fwidth(roadFrame.x) * 1.2;
   float roadIn = 1.0 - smoothstep(roadEdge - roadEdgeAa, roadEdge + roadEdgeAa, roadFrame.x);
-  float dirtIn = smoothstep(${DIRT_EDGE} - ${DIRT_BLEND.toFixed(2)}, ${DIRT_EDGE} + ${DIRT_BLEND.toFixed(2)}, dirtCover);
-  diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor, dirtIn);
+  float trackEdgeAa = max(fwidth(trackEdge), 0.0001) * 1.2;
+  float trackIn = 1.0 - smoothstep(-trackEdgeAa, trackEdgeAa, trackEdge);
+  diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor, trackIn);
   diffuseColor.rgb = mix(diffuseColor.rgb, roadColor, roadIn);
   vec2 drawnScratchCell = floor(vec2(roadFrame.y / ${DRAWN_SCRATCH_LONG.toFixed(1)}, roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}));
   float drawnScratch = step(markHash(drawnScratchCell + 7.7), ${DRAWN_SCRATCH_SHARE.toFixed(2)}) * (1.0 - smoothstep(0.1, 0.25, abs(fract(roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}) - 0.5)));
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnScratch * 0.6 * roadIn;
   inkSurface.road = roadIn;
-  float drawnEdgePx = abs(roadFrame.x - roadEdge) / max(roadEdgeAa / 1.2, 0.0001);
-  float drawnEdgeNear = step(roadFrame.x, roadEdge + ${DRAWN_EDGE_LINE_REACH.toFixed(1)});
+  float roadSigned = roadFrame.x - roadEdge;
+  float drawnRoadEdge = min(roadSigned, trackEdge);
+  float drawnEdgePx = abs(drawnRoadEdge) / max(fwidth(drawnRoadEdge), 0.0001);
+  float drawnEdgeStrength = roadSigned <= trackEdge ? 1.0 : drawnTrackEdge;
+  float drawnEdgeNear = step(drawnRoadEdge, ${DRAWN_EDGE_LINE_REACH.toFixed(1)}) * drawnEdgeStrength;
   inkSurface.edge = drawnEdgeLine(drawnEdgePx) * drawnEdgeNear;
 `;
 
 const MARKS_BODY = `
   float drawnPx = max(length(fwidth(vRoadXZ)), 0.0005);
-  float drawnOffRoad = 1.0 - roadIn;
+  float drawnOffRoad = 1.0 - max(roadIn, trackIn);
   float drawnZoomed = 1.0 - smoothstep(${DRAWN_MARK_FADE_FROM.toFixed(2)}, ${DRAWN_MARK_FADE_TO.toFixed(2)}, drawnDetailPx);
   float drawnRoadCrack = 0.0;
   if (roadIn > 0.0) drawnRoadCrack = drawnAsphaltCracks(vRoadXZ, drawnPx) * roadIn;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnRoadCrack;
+  float drawnRutMark = 0.0;
+  if (trackIn > 0.0) drawnRutMark = drawnTrackRuts(-trackEdge * facetSide, vRoadXZ, drawnPx) * trackIn * (1.0 - roadIn);
+  diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnRutMark * drawnZoomed * drawnTrackRutInk;
   int drawnMark = int(drawnMaterialMark[drawnMaterial] + 0.5);
   vec3 drawnFaceNormal = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
   float drawnFlat = smoothstep(${DRAWN_MARK_FLAT_FROM.toFixed(2)}, ${DRAWN_MARK_FLAT_TO.toFixed(2)}, abs(dot(drawnFaceNormal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz))));
@@ -960,7 +978,7 @@ const MARKS_BODY = `
   if (drawnMarked && drawnMark == ${markIndex("ashSmudge")}) drawnDark = smoothstep(0.55, 0.8, valueNoise(vRoadXZ / 2.5)) * 0.5;
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnDark * drawnMarkShow;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.93, 0.88), drawnLight * drawnMarkShow);
-  float drawnRoadVerge = smoothstep(roadEdge - ${DRAWN_ROAD_VERGE.toFixed(1)}, roadEdge - 0.2, roadFrame.x);
+  float drawnRoadVerge = smoothstep(-${DRAWN_ROAD_VERGE.toFixed(1)}, -0.2, drawnRoadEdge);
   float drawnStandShow = drawnFlat * max(drawnOffRoad, drawnRoadVerge);
   float drawnOverhang = abs(drawnToward) * facetSide;
   float drawnStanding = 0.0;

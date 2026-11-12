@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
-import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundMaterialIndex, lookTypes, shownLooks, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, shownLooks, type PaintCanvas } from "../../render/groundPaint";
 import { paintHighwayWear } from "../../render/highwayWear";
 import { paintRoadDetail, paintRoadMask, paintRoadTone, regionRoadRuns, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
@@ -70,7 +70,7 @@ function tileTexture(t: Terrain): { texture: THREE.DataArrayTexture; ready: { va
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
   const shown = shownLooks(t);
-  const look = lookTypes(t);
+  const look = groundLooks(t);
   const glass = glassOf(t);
   const materials = Uint8Array.from(shown, groundMaterialIndex);
   const turns = fieldTurns(shown, t.size);
