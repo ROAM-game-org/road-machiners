@@ -3,8 +3,8 @@ import { restFrame, type VehicleFrame } from '../../phys/frames';
 import { CHASSIS, EXHAUST_VENT } from '../../data/chassis';
 import { cellRect, hulkBoxes, isRig, unitBody, unitsOf } from '../../sim/body';
 import { PARTS } from '../../data/parts';
-import { bareVehicle, makePart, newId } from '../../sim/factory';
-import { baseGrid, corePart, gridOf, isMounted, itemCells, mountedItems, MOUNT_CELLS, mountSpots } from '../../sim/grid';
+import { bareVehicle, makePart, makeVehicle, newId } from '../../sim/factory';
+import { baseGrid, corePart, gridOf, isMounted, itemCells, mountedItems, mountedParts, MOUNT_CELLS, mountSpots } from '../../sim/grid';
 import { defaultSetup } from '../../sim/settings';
 import { PLAIN_KIT } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
@@ -134,6 +134,10 @@ function clearOfBody(chassisId: string, ball: Ball): boolean {
   });
 }
 
+function engineRadius(scale: number): number {
+  return Math.max(startRadius('steam', scale), startRadius('breakdown', scale));
+}
+
 function tailOf(chassisId: string): number {
   return Math.min(...hulkBoxes(chassisId, isRig(chassisId) ? 0 : undefined).map(({ box, x }) => box.x0 + x));
 }
@@ -164,12 +168,13 @@ describe('starting points clear the drawn body', () => {
       const vents = ventsOf(v);
       const douseCorners = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ ...vents.douse, x: vents.douse.x + sx * vents.douse.halfX, z: vents.douse.z + sz * vents.douse.halfZ })));
       const balls = [
-        ...sources.map((p) => frontFrame(chassisId, p, startRadius('hurt'))),
-        frontFrame(chassisId, vents.exhaust, startRadius('exhaust', vents.exhaustScale)),
-        frontFrame(chassisId, vents.engine, Math.max(startRadius('steam'), startRadius('breakdown'))),
+        ...sources.map((p) => frontFrame(chassisId, p, startRadius('hurt', vents.ventScale))),
+        frontFrame(chassisId, vents.exhaust, startRadius('exhaust', vents.ventScale)),
         ...douseCorners.map((p) => frontFrame(chassisId, p, startRadius('douse'))),
       ];
       for (const ball of balls) for (const step of trailed(chassisId, ball)) expect(clearOfBody(chassisId, step), `${chassisId} ball at x ${step.x.toFixed(2)} y ${step.y.toFixed(2)} z ${step.z.toFixed(2)}`).toBe(true);
+      const engine = frontFrame(chassisId, vents.engine, engineRadius(vents.ventScale));
+      expect(clearOfBody(chassisId, engine), `${chassisId} engine ball at y ${engine.y.toFixed(2)}`).toBe(true);
     });
 
     it(`${chassisId}: the dust haze starts behind the last unit`, () => {
@@ -209,6 +214,39 @@ describe('smoke sources on armor plates', () => {
   });
 });
 
+function footprintTop(chassisId: string, p: BodyPoint, radius: number): number {
+  const at = unitsOf(chassisId)[p.unit].offset + p.x;
+  const under = hulkBoxes(chassisId, isRig(chassisId) ? 0 : undefined).filter(({ box, x, y }) => box.x0 + x < at + radius && box.x1 + x > at - radius && -box.y1 + y < p.z + radius && -box.y0 + y > p.z - radius);
+  return Math.max(...under.map(({ box }) => box.z1)) - unitBody(chassisId, 0).half.y;
+}
+
+describe('engine vent per chassis', () => {
+  it.each(Object.keys(CHASSIS))('starts the %s engine smoke on the drawn top over its engine bay', (id) => {
+    const { engine, ventScale } = ventsOf(crowded(id));
+    const radius = engineRadius(ventScale);
+    expect(engine.y - radius).toBeCloseTo(footprintTop(id, engine, radius), 6);
+  });
+
+  it('starts the scout engine smoke on its hood, under its roof', () => {
+    const { engine } = ventsOf(crowded('scout'));
+    const roof = Math.max(...hulkBoxes('scout', undefined).map(({ box }) => box.z1)) - unitBody('scout', 0).half.y;
+    expect(engine.y).toBeLessThan(roof);
+  });
+
+  it('starts the sorokonoga engine smoke on its deck behind the cab-over cab, under the cab top', () => {
+    const { engine } = ventsOf(crowded('sorokonoga'));
+    const cabTop = Math.max(...hulkBoxes('sorokonoga', 0).filter(({ box, x }) => x === 0 && box.x0 >= 0).map(({ box }) => box.z1)) - unitBody('sorokonoga', 0).half.y;
+    expect(engine.y).toBeLessThan(cabTop);
+  });
+
+  it('leaves a broken engine to the engine vent', () => {
+    const v = makeVehicle(crowd, { faction: 'player', chassisId: 'scout', parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 40, y: 40 }, heading: 0, brain: null });
+    const [engine] = mountedParts(v, 'engine');
+    engine.hp = 0;
+    expect(smokeSources(v)).toEqual([]);
+  });
+});
+
 describe('exhaust vent per chassis', () => {
   it('has a vent entry for every chassis', () => {
     for (const id of Object.keys(CHASSIS)) expect(EXHAUST_VENT[id], id).toBeDefined();
@@ -219,8 +257,8 @@ describe('exhaust vent per chassis', () => {
     const roof = Math.max(...hulkBoxes('scout', undefined).map(({ box }) => box.z1)) - unitBody('scout', 0).half.y;
     expect(scout.exhaust.y).toBeLessThan(roof - 0.3);
     expect(scout.exhaust.x).toBeLessThanOrEqual(tailOf('scout') + 1e-6);
-    expect(scout.exhaustScale).toBeLessThan(1);
-    expect(ventsOf(crowded('semi')).exhaustScale).toBe(1);
+    expect(scout.ventScale).toBeLessThan(1);
+    expect(ventsOf(crowded('semi')).ventScale).toBe(1);
   });
 
   it('scales the spawn radius with the scale', () => {
