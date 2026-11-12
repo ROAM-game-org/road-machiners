@@ -184,6 +184,17 @@ describe('tow offer', () => {
     offered({ w: endFight(w, foe), trader: s.trader });
   });
 
+  it('a driver too slow to catch a crawling truck does not set out, and a faster one does', () => {
+    forceOption('strandedSeen', 'tow');
+    const slow = stranded();
+    for (let i = 0; i < 400; i++) slow.trader.items.push({ id: `g${i}`, x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' });
+    expect(vehicleStats(slow.w, slow.trader).maxSpeed).toBeLessThanOrEqual(vehicleStats(slow.w, playerVehicle(slow.w)).maxSpeed);
+    const r = runUntil(slow.w, 30, () => false);
+    expect(r.w.states.some((x) => x.kind === 'answering')).toBe(false);
+    expect(r.events.some((e) => e.t === 'towDropped')).toBe(false);
+    offered(stranded());
+  });
+
   it('a hostile that only passes by does not hold back a tow offer to the player', () => {
     forceOption('strandedSeen', 'tow');
     forceOption('hostileSeen', 'keep');

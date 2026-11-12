@@ -50,7 +50,7 @@ import { hornAtSight } from './road-horn';
 import { chaseStalled, startChase } from './chase';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
-import { claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, refusesTows, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop, towWaitsForFight } from './tow';
+import { canCatch, claimClient, dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, refusesTows, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop, towWaitsForFight } from './tow';
 import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
@@ -721,7 +721,7 @@ function onStrandedSeen(world: World, vehicle: Vehicle): void {
   const clients = world.vehicles
     .filter((client) => !towWaitsForFight(world, client) && !refusesTows(world, vehicle, client))
     .map((client) => ({ client, at: strandedAt(world, vehicle, client) }))
-    .filter((c): c is { client: Vehicle; at: Vec } => c.at !== null)
+    .filter((c): c is { client: Vehicle; at: Vec } => c.at !== null && canCatch(world, vehicle, c.client))
     .sort((a, b) => dist(vehicle.pos, a.at) - dist(vehicle.pos, b.at));
   const chosen = clients.find((c) => react(world, vehicle, 'strandedSeen', c.client.id) === 'tow');
   if (chosen) startTow(world, vehicle, chosen.client, chosen.at);
