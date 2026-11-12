@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { BoardReadError } from '../github';
 import { PublicGitHub } from './snapshot';
 import { EMPTY_STATE } from '../state';
 import type { DashboardConfig } from './config';
@@ -41,10 +42,8 @@ it('fetches only public issue data through read calls', async () => {
   expect(calls.every((args) => args[0] === 'api')).toBe(true);
 });
 
-it('shows the board as unavailable, not as a shorter board, when the items pages hold fewer items than they count', async () => {
-  const result = await read({ hidden: 2 });
-  expect(result.cards).toEqual({ value: null, error: 'GitHub board unavailable' });
-  expect(result.mergeQueue).toEqual({ value: null, error: 'GitHub board unavailable' });
+it('fails the whole read, never a shorter board, when the items pages hold fewer items than they count', async () => {
+  await expect(read({ hidden: 2 })).rejects.toBeInstanceOf(BoardReadError);
 });
 
 it('orders the merge queue by state and hides private cards', async () => {

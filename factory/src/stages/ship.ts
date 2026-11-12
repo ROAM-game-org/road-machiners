@@ -9,7 +9,7 @@ import { closeLanding, markMerged, openLanding } from '../landing-work';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, CANDIDATE_BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type FactoryState, type IssueMerge, type ReleasePost, type ReleaseState, type RunResult } from '../types';
+import { BUG_LABEL, CANDIDATE_BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type FactoryState, type Issue, type IssueMerge, type ReleasePost, type ReleaseState, type RunResult } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
@@ -105,7 +105,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   const post: ReleasePost = { issue, day: release.day, changelog, screenshot: kept, postId: null, draft: null };
   await ctx.github.createRelease(`release-${release.day}`, 'main', `ROAM release ${release.day}`, changelog);
   await deployDev(ctx, agentLog(ctx, issue, 'ship'));
-  queueIncidents(ctx, await closeFeatures(ctx, release.day, features));
+  await closeFeatures(ctx, release.day, features);
   await ctx.github.comment(issue, `Shipped by ${by} in the committee chat. Release ${release.day} is on main and itch.io.`);
   await ctx.github.close(issue, 'completed');
   await moveCard(ctx, issue, 'Done', 'shipped', 'release');
@@ -115,18 +115,21 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   ctx.log('ship', issue, `shipped ${features.length} changes`);
 }
 
-async function closeFeatures(ctx: Ctx, day: string, features: Feature[]): Promise<number[]> {
-  const bugs: number[] = [];
-  for (const feature of features) {
-    const shipped = `Shipped in release ${day}. It is on main and itch.io.`;
-    await ctx.github.comment(feature.issue, shipped);
-    await ctx.github.removeLabel(feature.issue, RELEASE_CANDIDATE_LABEL);
-    await ctx.github.close(feature.issue, 'completed');
-    const bundled = await closeBundle(ctx, feature.issue, shipped);
-    if (await anyBug(ctx, [feature.issue, ...bundled])) bugs.push(feature.issue);
-  }
-  return bugs;
+async function closeFeatures(ctx: Ctx, day: string, features: Feature[]): Promise<void> {
+  for (const feature of features) await closeFeature(ctx, day, feature.issue);
 }
+
+async function closeFeature(ctx: Ctx, day: string, issue: number): Promise<void> {
+  if (closedByShip(await ctx.github.issue(issue))) return ctx.log('ship', issue, 'an earlier run of this ship closed it already');
+  const shipped = `Shipped in release ${day}. It is on main and itch.io.`;
+  await ctx.github.comment(issue, shipped);
+  const bundled = await closeBundle(ctx, issue, shipped);
+  if (await anyBug(ctx, [issue, ...bundled])) queueIncidents(ctx, [issue]);
+  await ctx.github.removeLabel(issue, RELEASE_CANDIDATE_LABEL);
+  await ctx.github.close(issue, 'completed');
+}
+
+const closedByShip = (issue: Issue): boolean => issue.state === 'CLOSED' && !issue.labels.includes(RELEASE_CANDIDATE_LABEL);
 
 function dropShipped(state: FactoryState, tracking: number, shipped: IssueMerge[], post: ReleasePost, now: Date): FactoryState {
   const builds = { ...state.builds };

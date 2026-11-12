@@ -1,6 +1,6 @@
 import { readState, updateState } from '../state';
 import { BRANCH, type Ctx, type Stage } from '../types';
-import { withoutBaseline } from './baseline';
+import { suiteVerdict } from './baseline';
 import { BaselineFailureError } from './checkpoint';
 import { isGameSource } from './common';
 import { remoteSuiteResult } from './remote-suite';
@@ -34,6 +34,10 @@ export async function ownWorkSettled(ctx: Ctx, issue: number, base: string): Pro
   return !(await suiteRequired(ctx, issue, base)) || anyGreen(ctx, issue, await ctx.repo.ownHeads(base, BRANCH(issue)));
 }
 
+export async function cleanMergeSettled(ctx: Ctx, issue: number, base: string): Promise<boolean> {
+  return anyGreen(ctx, issue, await ctx.repo.cleanBaseHeads(base, BRANCH(issue)));
+}
+
 export async function requireSettledSuite(ctx: Ctx, issue: number, base: string, build: string): Promise<void> {
   if (!(await suiteSettled(ctx, issue, base, build))) throw new SuiteNotGreenError(issue, build);
 }
@@ -42,14 +46,20 @@ export async function cardSuiteFailure(ctx: Ctx, stage: Stage, issue: number, ba
   if (await suiteSettled(ctx, issue, base, build)) return null;
   const result = await remoteSuiteResult(ctx, { stage, issue }, build);
   if (result.failure === null) return null;
-  const check = { stage, into: base, base: await ctx.repo.headHash(base), head: build };
+  const check = { stage, issue, into: base, base: await ctx.repo.headHash(base), head: build };
   try {
-    return await withoutBaseline(ctx, check, result);
+    const failure = await suiteVerdict(ctx, check, result, null);
+    if (failure === null) await clearSuite(ctx, stage, issue, build, 'fails only in test files that pass when they run again on the same head');
+    return failure;
   } catch (error) {
     if (!(error instanceof BaselineFailureError)) throw error;
-    const sha = await ctx.repo.fullHash(build);
-    updateState(ctx.statePath, (state) => ({ ...state, suiteCleared: { ...state.suiteCleared, [String(issue)]: sha } }));
-    ctx.log(stage, issue, `the suite fails only on tests that fail on ${base} too, so the card passes it`);
+    await clearSuite(ctx, stage, issue, build, `fails only on tests that fail on ${base} too`);
     return null;
   }
+}
+
+async function clearSuite(ctx: Ctx, stage: Stage, issue: number, build: string, why: string): Promise<void> {
+  const sha = await ctx.repo.fullHash(build);
+  updateState(ctx.statePath, (state) => ({ ...state, suiteCleared: { ...state.suiteCleared, [String(issue)]: sha } }));
+  ctx.log(stage, issue, `the suite ${why}, so the card passes it`);
 }

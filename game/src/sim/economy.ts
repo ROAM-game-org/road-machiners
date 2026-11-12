@@ -18,7 +18,7 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, shopAt, shopNear, shopState, siteOf, stockForSale, takeStockPart } from "./market";
+import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, requireTraded, shopAt, shopNear, shopState, shopTrades, siteOf, stockForSale, takeStockPart } from "./market";
 import { affordableUnits, chargeM, fairM, payoutM, requireWholeM } from "./money";
 import { canUseSite, requireTown, townAt } from "./sites";
 import { reachedOutpostAt } from "./chaos-highway";
@@ -105,6 +105,7 @@ export function tradeGoods(
   requireVehicleShop(world, vehicle, shopId);
   if (!GOODS[good] || !Number.isInteger(count) || count <= 0)
     throw new Error(`Bad trade ${count} ${good}`);
+  if (!shopTrades(shopId, good)) throw new Error(`${shopId} does not trade ${good}`);
   if (direction === "buy") requireStock(world, shopId, good, count);
   const total = getLotTradePrice(world, vehicle, shopId, good, count, direction);
   if (direction === "buy") buyGoods(world, vehicle, shopId, good, count, total);
@@ -485,13 +486,17 @@ export function pay(world: World, amount: number): void {
 
 export function buyGood(world: World, good: string, n: number): World {
   return playerCommand(world, (w) => {
-    tradeGoods(w, playerVehicle(w), requireShop(w), good, n, "buy");
+    const shopId = requireShop(w);
+    requireTraded(shopId, good);
+    tradeGoods(w, playerVehicle(w), shopId, good, n, "buy");
   });
 }
 
 export function sellGood(world: World, good: string, n: number): World {
   return playerCommand(world, (w) => {
-    tradeGoods(w, playerVehicle(w), requireShop(w), good, n, "sell");
+    const shopId = requireShop(w);
+    requireTraded(shopId, good);
+    tradeGoods(w, playerVehicle(w), shopId, good, n, "sell");
   });
 }
 

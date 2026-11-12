@@ -3,6 +3,7 @@ import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, OUT_DIR, TASK_FILE, WONT_DO_
 import { dropOffer, offerToDesign, releaseBundle, takeDesignPicks, type Taken } from './bundle';
 import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, issueText, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
 import { writeGroomedInput } from './groom';
+import { savePlanRecord } from '../plan-record';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
@@ -28,7 +29,10 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const picks = readPicks(readOutput(home, 'bundle.json'));
   await guardAndPush(ctx, issue, base, 'design');
   await reportPicks(ctx, issue, picks, await takeDesignPicks(ctx, issue, picks ?? []));
-  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'), readOutput(home, 'summary.md'));
+  const summary = readOutput(home, 'summary.md');
+  const tryText = readOutput(home, 'try.md');
+  savePlanRecord(home, issue, summary, tryText);
+  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'), summary, tryText);
   await moveCard(ctx, issue, 'Implementation', 'planned');
 }
 
@@ -103,12 +107,16 @@ function planText(task: string): string {
 
 const SUMMARY_CHARS = 3000;
 
-function summaryPart(summary: string | null): string {
-  const text = summary?.trim() ?? '';
-  return text === '' ? '' : `**Planned change**\n\n${text.slice(0, SUMMARY_CHARS)}\n\n`;
+function section(heading: string, body: string | null, limit: number): string {
+  const text = body?.trim() ?? '';
+  return text === '' ? '' : `**${heading}**\n\n${text.slice(0, limit)}\n\n`;
 }
 
-async function postDesign(ctx: Ctx, issue: number, taskFile: string, summary: string | null): Promise<void> {
+function summaryPart(summary: string | null, tryText: string | null): string {
+  return `${section('Planned change', summary, SUMMARY_CHARS)}${section('How to try it', tryText, SUMMARY_CHARS)}`;
+}
+
+async function postDesign(ctx: Ctx, issue: number, taskFile: string, summary: string | null, tryText: string | null): Promise<void> {
   const body = fitComment(taskFile, 'the factory work clone');
-  await ctx.github.comment(issue, `${summaryPart(summary)}<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
+  await ctx.github.comment(issue, `${summaryPart(summary, tryText)}<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
 }

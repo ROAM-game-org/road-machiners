@@ -1798,6 +1798,7 @@
      "meds": "number",
      "parts": "number",
      "rations": "number",
+     "relics": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",

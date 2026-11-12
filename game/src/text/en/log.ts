@@ -592,6 +592,7 @@ export const LOG = {
   'refusal.noCargoRoom': 'Not enough cargo space',
   'refusal.storeFull': m('The store here is full: {cap, plural, one {# crate} other {# crates}}', { cap: 'count' }),
   'refusal.noStock': 'Not that many in stock',
+  'refusal.notTraded': 'Not traded here',
   'refusal.onOrder': 'Held for an order',
   'refusal.theyHaveNoRoom': 'No room on their truck',
   'refusal.noSupplyRoom': 'No room for that much',

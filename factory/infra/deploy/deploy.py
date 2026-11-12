@@ -22,6 +22,7 @@ itch_url = f"https://{itch_user}.itch.io/{itch_game}"
 settings_path = f"{CODE_DIR}/factory/settings.env"
 as_factory = {"_sudo": True, "_sudo_user": FACTORY_USER}
 UPDATE_SCRIPT = f"{FACTORY_ROOT}/factory-update.sh"
+WAIT_SCRIPT = f"{FACTORY_ROOT}/factory-wait-healthy.sh"
 LAYOUT_SCRIPT = f"{FACTORY_ROOT}/factory-layout.sh"
 # The caddy stack's compose file names this path for the tunnel's env.
 TUNNEL_ENV = f"{FACTORY_ROOT}/tunnel.env"
@@ -194,11 +195,19 @@ server.shell(
 # Hermes takes its paths from env. The server layout differs from the Mac default.
 # It mounts the factory root at the same path, so the code link resolves inside its container.
 hermes_env = f"FACTORY_HERMES_DIR={HERMES_DIR} FACTORY_UID={FACTORY_UID} FACTORY_CODE_SOURCE={FACTORY_ROOT} FACTORY_CODE_TARGET={FACTORY_ROOT}"
+files.put(
+    name="Push the health wait script",
+    src=str(FILES / "factory-wait-healthy.sh"),
+    dest=WAIT_SCRIPT,
+    mode="755",
+    _sudo=True,
+)
 server.shell(
     name="compose up: hermes",
     commands=[
         f"cd -P {CODE_DIR} && {hermes_env} timeout 900 docker compose -f factory/hermes/compose.yaml --env-file {settings_path} --env-file {FACTORY_ENV} "
-        "up -d --build --remove-orphans --wait --wait-timeout 180",
+        "up -d --build --remove-orphans",
+        f"{WAIT_SCRIPT} factory-hermes 180",
     ],
     _sudo=True,
 )

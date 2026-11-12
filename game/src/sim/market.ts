@@ -247,6 +247,14 @@ function lotStock(shopId: string, state: ShopState, good: string, direction: 'bu
   return stock;
 }
 
+export function shopTrades(shopId: string, good: string): boolean {
+  return shopDef(shopId).goods.includes(good);
+}
+
+export function requireTraded(shopId: string, good: string): void {
+  if (!shopTrades(shopId, good)) throw new Refused({ id: 'notTraded' });
+}
+
 export function recordTrade(shopId: string, state: ShopState, good: string, units: number, direction: 'buy' | 'sell'): void {
   if (!shopDef(shopId).goods.includes(good)) throw new Error(`${shopId} does not trade ${good}`);
   if (!Number.isInteger(units) || units < 0) throw new Error(`Bad trade unit count ${units}`);

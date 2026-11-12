@@ -906,6 +906,17 @@ describe('tick', () => {
     expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'h8', 'm9', 'd10', 'r11']);
   });
 
+  it('deletes the build of a card whose dev merge was reverted, since that merge never ships', async () => {
+    const h = harness(null, false, [card(10, 'Done'), card(11, 'Done')]);
+    const web = h.ctx.cfg.webRoot;
+    const names = ['dev', 'kept10', 'reverted11'];
+    for (const name of names) mkdirSync(join(web, name), { recursive: true });
+    const merge = (issue: number, reverted: string[]) => ({ issue, title: 't', sha: 'a'.repeat(40), into: 'dev', reverted });
+    writeState(h.ctx.statePath, state({ devMerges: [merge(10, []), merge(11, ['dev'])], builds: { '10': 'kept10', '11': 'reverted11' } }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'kept10']);
+  });
+
   it('keeps the rc build while the tracking card waits in Approval', async () => {
     const h = harness(null, false, [card(20, 'Approval', ['release']), card(9, 'Done')]);
     const web = h.ctx.cfg.webRoot;
@@ -1142,6 +1153,7 @@ describe('tick', () => {
 describe('chooseJobs memory', () => {
   const MEMORY = { ...CFG, jobsMemoryGb: 10, stageMemoryGb: { ...ROOMY_MEMORY.stageMemoryGb, verify: 4, implement: 4, design: 1, merge: 6, playtest: 14 } };
   const ordered = state({ release: RELEASE, lastRelease: null, pendingPlaytest: 'Ann' });
+  const SMALL = { ...MEMORY, stageMemoryGb: { ...MEMORY.stageMemoryGb, design: 0.4, triage: 0.2 } };
 
   it('starts jobs while their reserved memory fits, and makes the next one wait for memory', () => {
     const cards = [card(1, 'Testing'), card(2, 'Implementation'), card(3, 'Implementation')];
@@ -1157,11 +1169,36 @@ describe('chooseJobs memory', () => {
     expect(report.decisions.find((item) => item.issue === 2)?.reasons).toEqual(['memory']);
   });
 
-  it('keeps the memory of a waiting job, so smaller jobs behind it cannot take its place', () => {
-    const busy = state({ jobs: [running('verify', 9), running('implement', 8)] });
-    const report = evaluateSchedule(busy, [card(2, 'Implementation'), card(4, 'Design')], NOW, MEMORY);
+  it('keeps the memory of a waiting job, so a job of 1 GB or more behind it cannot take its place even when it fits alone', () => {
+    const busy = state({ jobs: [running('implement', 8), running('implement', 9)] });
+    const report = evaluateSchedule(busy, [card(4, 'Testing'), card(2, 'Implementation')], NOW, { ...MEMORY, stageMemoryGb: { ...MEMORY.stageMemoryGb, verify: 7, implement: 2 } });
     expect(report.picks).toEqual([]);
+    expect(report.decisions.map((item) => [item.issue, item.reasons])).toEqual([[4, ['memory']], [2, ['memory']]]);
+  });
+
+  it('starts a small job past a waiting larger one when it fits beside the running jobs, like Design behind Implement on Nov 10 (#1591)', () => {
+    const busy = state({ jobs: [running('verify', 9), running('implement', 8)] });
+    const report = evaluateSchedule(busy, [card(2, 'Implementation'), card(4, 'Design')], NOW, SMALL);
+    expect(report.picks).toEqual([{ stage: 'design', issue: 4 }]);
+    expect(report.decisions.find((item) => item.issue === 2)?.reasons).toEqual(['memory']);
+  });
+
+  it('starts no small job that does not fit beside the running jobs', () => {
+    const full = state({ jobs: [running('verify', 9), running('implement', 8), running('design', 7), running('design', 6), running('triage', 5)] });
+    const report = evaluateSchedule(full, [card(4, 'Design')], NOW, { ...SMALL, jobsMemoryGb: 9.2, designWorkers: 3 });
+    expect(report.decisions.find((item) => item.issue === 4)?.reasons).toEqual(['memory']);
+  });
+
+  it('keeps small jobs from passing a waiter that would no longer fit beside every small job once the large ones end', () => {
+    const busy = state({ jobs: [running('merge', null), running('design', 7)] });
+    const report = evaluateSchedule(busy, [card(2, 'Implementation'), card(4, 'Design')], NOW, { ...SMALL, stageMemoryGb: { ...SMALL.stageMemoryGb, implement: 9.4 } });
     expect(report.decisions.map((item) => [item.issue, item.reasons])).toEqual([[2, ['memory']], [4, ['memory']]]);
+  });
+
+  it('starts no small job while a job that needs the whole slice waits, so the slice drains for it', () => {
+    const draining = evaluateSchedule({ ...ordered, jobs: [running('catch-up', 7)] }, [tracking(), card(4, 'Design')], NOW, SMALL, MOVED);
+    expect(draining.picks).toEqual([]);
+    expect(draining.decisions.find((item) => item.issue === 4)?.reasons).toEqual(['memory']);
   });
 
   it('starts a job that needs more than the whole cap only when no job runs', () => {

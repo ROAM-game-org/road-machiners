@@ -107,7 +107,8 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     const done: Resolution[] = [];
     for (const step of steps) {
       if (!started.has(step.into)) started.set(step.into, await commitOf(step.into));
-      const [source, base] = [await tip(step.branch), await tip(step.into)];
+      const base = await tip(step.into);
+      const source = heads.get(step.branch) ?? await resolvedSource(await commitOf(step.branch), base, resolutions, isAncestor);
       const head = await mergeCommit(source, base, step, resolutions, done);
       done.push({ base, source, head });
       heads.set(step.into, head);
@@ -324,7 +325,7 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     },
     diff: async (base, branch) => git(['diff', '--no-renames', `${await ref(base)}...${await ref(branch)}`]),
     readFile: async (branch, path) => git(['show', `${await ref(branch)}:${path}`]),
-    ownHeads: async (base, branch) => ownHeadsIn(run, path, await ref(base), await ref(branch)),
+    ...headWalks(run, path, ref),
     async changedFiles(base, branch) {
       return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
@@ -341,6 +342,13 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       }
     },
   });
+}
+
+async function resolvedSource(source: string, base: string, resolutions: Resolution[], isAncestor: (older: string, newer: string) => Promise<boolean>): Promise<string> {
+  for (const resolved of resolutions) {
+    if (resolved.base === base && resolved.source !== source && (await isAncestor(resolved.source, source))) return resolved.source;
+  }
+  return source;
 }
 
 function workPicks(run: Run, requireNoOpenWork: (dir: string) => Promise<void>): Pick<HostRepo, 'pickIntoWork' | 'unfinishedPick'> {
@@ -373,15 +381,44 @@ function workPicks(run: Run, requireNoOpenWork: (dir: string) => Promise<void>):
   };
 }
 
-async function ownHeadsIn(run: Run, path: string, baseTip: string, branchTip: string): Promise<string[]> {
+function headWalks(run: Run, path: string, ref: (name: string) => Promise<string>): Pick<HostRepo, 'ownHeads' | 'cleanBaseHeads'> {
+  const walk = async (base: string, branch: string, past: (baseTip: string) => PastMerge): Promise<string[]> => {
+    const baseTip = await ref(base);
+    return headsPast(run, path, baseTip, await ref(branch), past(baseTip));
+  };
+  return {
+    ownHeads: (base, branch) => walk(base, branch, (baseTip) => baseMerge(run, path, baseTip)),
+    cleanBaseHeads: (base, branch) => walk(base, branch, (baseTip) => cleanBaseMerge(run, path, baseTip)),
+  };
+}
+
+type PastMerge = (sha: string, parents: string[]) => Promise<boolean>;
+
+async function headsPast(run: Run, path: string, baseTip: string, branchTip: string, walksPast: PastMerge): Promise<string[]> {
   const lines = must(await run('git', [...NO_HOOKS, 'rev-list', '--first-parent', '--parents', branchTip, `^${baseTip}`], { activity: 'git', cwd: path }), `git rev-list ${branchTip}`).trim();
   const heads: string[] = [];
   for (const line of lines === '' ? [] : lines.split('\n')) {
-    const [sha, , mergedIn] = line.split(' ');
+    const [sha, ...parents] = line.split(' ');
     heads.push(sha!);
-    if (mergedIn === undefined || !(await containsIn(run, path, baseTip, mergedIn, baseTip))) return heads;
+    if (!(await walksPast(sha!, parents))) return heads;
   }
   return heads;
+}
+
+function baseMerge(run: Run, path: string, baseTip: string): PastMerge {
+  return async (_sha, parents) => parents[1] !== undefined && containsIn(run, path, baseTip, parents[1], baseTip);
+}
+
+function cleanBaseMerge(run: Run, path: string, baseTip: string): PastMerge {
+  const isBaseMerge = baseMerge(run, path, baseTip);
+  return async (sha, parents) => parents.length === 2 && (await isBaseMerge(sha, parents)) && mergedCleanly(run, path, sha, parents);
+}
+
+async function mergedCleanly(run: Run, path: string, sha: string, parents: string[]): Promise<boolean> {
+  const merged = await run('git', [...NO_HOOKS, 'merge-tree', '--write-tree', '--no-messages', parents[0]!, parents[1]!], { activity: 'git', cwd: path });
+  if (merged.code === 1) return false;
+  const tree = must(merged, `git merge-tree ${parents.join(' ')}`).trim().split('\n')[0];
+  return tree === must(await run('git', [...NO_HOOKS, 'rev-parse', `${sha}^{tree}`], { activity: 'git', cwd: path }), `git rev-parse ${sha}^{tree}`).trim();
 }
 
 async function foreignCommitsIn(run: Run, path: string, head: string, base: string, other: string): Promise<number> {

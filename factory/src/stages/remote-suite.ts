@@ -29,19 +29,35 @@ export async function remoteSuiteResult(ctx: Ctx, at: At, commit: string, scope?
   const id = await onActions(`the dispatch for ${sha} failed`, () => ctx.github.dispatchSuite(sha, scope));
   let startBy = startDeadline(ctx);
   for (let read = 0; ; read++) {
-    const run = await onActions(`reading run ${id} failed`, () => ctx.github.suiteRun(id));
+    const run = await throughOutage(ctx, at, `reading run ${id}`, () => ctx.github.suiteRun(id));
     if (read === 0) ctx.log(at.stage, at.issue, `the ${suiteName(scope)} runs on GitHub Actions for ${sha}: ${run.url}`);
     if (run.done) return verdict(ctx, at, id, sha, run);
-    if (!run.started) startBy = await stillWaiting(ctx, id, run, startBy);
+    if (!run.started) startBy = await stillWaiting(ctx, at, id, run, startBy);
     reportTests(ctx);
-    await new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
+    await pollPause(ctx);
+  }
+}
+
+const pollPause = (ctx: Ctx): Promise<void> => new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
+
+async function throughOutage<T>(ctx: Ctx, at: At, what: string, read: () => Promise<T>): Promise<T> {
+  const since = ctx.now().getTime();
+  for (;;) {
+    try {
+      return await read();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (ctx.now().getTime() - since >= ctx.cfg.suiteReadOutageMinutes * 60_000) throw new SuiteMachineError(`${what} failed for ${ctx.cfg.suiteReadOutageMinutes} minutes in a row, last: ${reason}`);
+      ctx.log(at.stage, at.issue, `${what} failed, so it reads again: ${reason}`);
+      await pollPause(ctx);
+    }
   }
 }
 
 const startDeadline = (ctx: Ctx): number => ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
 
-async function stillWaiting(ctx: Ctx, id: number, run: SuiteRun, startBy: number): Promise<number> {
-  if (await onActions('counting the running suites failed', () => ctx.github.suitesRunning()) > 0) return startDeadline(ctx);
+async function stillWaiting(ctx: Ctx, at: At, id: number, run: SuiteRun, startBy: number): Promise<number> {
+  if (await throughOutage(ctx, at, 'counting the running suites', () => ctx.github.suitesRunning()) > 0) return startDeadline(ctx);
   if (ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes while no other suite ran: ${run.url}`);
   return startBy;
 }
@@ -49,7 +65,7 @@ async function stillWaiting(ctx: Ctx, id: number, run: SuiteRun, startBy: number
 async function verdict(ctx: Ctx, at: At, id: number, sha: string, run: SuiteRun): Promise<SuiteResult> {
   if (run.passed) return { failure: null };
   if (!run.testsFailed) throw new SuiteMachineError(`run ${id} ended ${run.conclusion ?? 'with no conclusion'} outside its test step: ${run.url}`);
-  const log = await onActions(`reading the log of run ${id} failed`, () => ctx.github.suiteLog(id));
+  const log = await throughOutage(ctx, at, `reading the log of run ${id}`, () => ctx.github.suiteLog(id));
   const tail = stripAnsi(log).split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
   const record = await failuresOf(ctx, at, id);
   return { failure: failureText(sha, run.url, tail, record), url: run.url, record };
