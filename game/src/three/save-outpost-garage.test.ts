@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { playerVehicle } from '../sim/damage';
+import { haulerOf, playerVehicle } from '../sim/damage';
+import { makePart, newId } from '../sim/factory';
 import { mountedParts } from '../sim/grid';
-import { takeFromStorage } from '../sim/inventory';
+import { installSpot, takeFromStorage } from '../sim/inventory';
 import { outpostBuyChassis, outpostBuyPart, outpostSellPart } from '../sim/outposts';
 import { advanceChaosHighway, outpostTrucks } from '../sim/chaos-highway';
 import { knockOutNpc } from '../sim/defeat';
@@ -10,7 +11,7 @@ import { corePart } from '../sim/grid';
 import { getResources } from '../sim/resources';
 import { chaosHighwayWorld } from '../sim/testkit';
 import { armorSpot, fillCargo, parkedAtOutpost, stockOfKind } from '../sim/testkit';
-import type { World } from '../sim/types';
+import type { GridItem, World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, writeSave } from './save';
@@ -69,6 +70,30 @@ describe('a saved outpost garage', () => {
 
     expect(playerVehicle(loaded).chassisId).toBe(offer[0]);
     expect(outpostTrucks(loaded, loaded.chaosHighway!.outposts[1])).toEqual(offer.slice(1));
+  });
+});
+
+describe('a saved hauler with a gun and a utility mounted', () => {
+  it('keeps both mounted where they were across a load, and the load awards nothing', () => {
+    const w = parkedAtOutpost(21);
+    const hauler = haulerOf(w);
+    for (const defId of ['mg', 'smokeMortar']) {
+      const part = makePart(w, defId, 1);
+      const probe: GridItem = { id: newId(w, 'i'), kind: 'part', part, x: 0, y: 0, rot: 0 };
+      const spot = installSpot(hauler, probe)!;
+      hauler.items.push({ ...probe, ...spot });
+    }
+
+    const loaded = reload(w);
+
+    expect(haulerOf(loaded).items).toEqual(hauler.items);
+    expect(mountedParts(haulerOf(loaded), 'weapon').map((p) => p.defId)).toContain('mg');
+    expect(mountedParts(haulerOf(loaded), 'utility').map((p) => p.defId)).toContain('smokeMortar');
+    expect(loaded.player.storage).toEqual(w.player.storage);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+    expect(reload(loaded)).toEqual(loaded);
   });
 });
 
