@@ -775,8 +775,8 @@ describe('hunting grounds', () => {
     expect(grounds).toEqual(huntingSpots(TEST_MAP).spots);
   });
 
-  it('keep twice the sight radius apart, so no two watch the same traffic', () => {
-    for (const p of grounds) for (const q of grounds) if (p !== q) expect(dist(p, q)).toBeGreaterThanOrEqual(2 * TERRAIN.vision.radius);
+  it('keep the ground spacing apart, so no two watch the same traffic', () => {
+    for (const p of grounds) for (const q of grounds) if (p !== q) expect(dist(p, q)).toBeGreaterThanOrEqual(HUNT.groundSpacing);
   });
 
   it('stay out of every hazard and lawman reach, and away from towns, stalls and camps', () => {

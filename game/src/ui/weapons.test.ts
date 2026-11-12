@@ -125,8 +125,9 @@ describe("weapon readout at current positions", () => {
 
   it("does not expose a hidden target through a stale order", () => {
     const { world, target, gun } = createDuel();
+    target.pos = { x: 36, y: 30 };
     world.obstacles = [
-      { id: "rock", kind: "rock", pos: { x: 31.5, y: 30 }, r: 1.2 },
+      { id: "rock", kind: "rock", pos: { x: 33, y: 30 }, r: 1.2 },
     ];
     refreshVision(world);
     expect(readout(world, gun)).toEqual({
