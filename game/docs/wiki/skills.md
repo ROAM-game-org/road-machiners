@@ -31,7 +31,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 <!-- wiki:xp-sources -->
 | source | activity family | weight | scaled by difficulty | repeat factor |
 | --- | --- | --- | --- | --- |
-| roughTiles | driving | 0.75 | true | 0.9 |
+| roughTiles | driving | 0.45 | true | 0.9 |
 | ram | driving | 0.25 | true | 0.7 |
 | escape | driving | 8 | true | 0.25 |
 | hit | perception | 6 | true | 0.95 |
@@ -43,7 +43,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | heat | toughness | 0.2 | true | 0.9 |
 | damage | toughness | 1.5 | false | 0.95 |
 | knockout | toughness | 100 | false | 0.5 |
-| profit | social | 4.2 | false | 0.8 |
+| profit | social | 3.312 | false | 0.8 |
 | deal | social | 30 | false | 0.5 |
 | call | social | 8 | false | 0 |
 | honk | social | 2 | false | 0 |

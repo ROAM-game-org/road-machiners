@@ -256,6 +256,16 @@ describe('market', () => {
     expect(sell - buy).toBeLessThan(target * 1.3);
   });
 
+  it('pays the calibration load at least its full haul-wage target, so NPC trade keeps the margin the committee chose (issue 1619)', () => {
+    const w = emptyWorld();
+    const units = TUNED_LOAD.scout;
+    const buy = lotPrice('nose', initShop(w, 'nose'), 'salt', 'buy', ECONOMY.spread, units);
+    const sell = lotPrice('bowl', initShop(w, 'bowl'), 'salt', 'sell', ECONOMY.spread, units);
+    const turns = estimateTurns(siteOf('nose').pos, siteOf('bowl').pos);
+    const target = turns * EFFORT.wage[1] * EFFORT.haulWages;
+    expect(sell - buy).toBeGreaterThanOrEqual(target);
+  });
+
   it('sets haulWages between the pay factor of a full 10 crate contract haul and 1.5 times it', () => {
     const fullHaul = CONTRACTS.haul.rewardFactor + 10 * CONTRACTS.haul.crateFactor;
     expect(EFFORT.haulWages).toBeGreaterThanOrEqual(fullHaul);
