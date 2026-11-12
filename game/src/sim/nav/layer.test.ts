@@ -34,7 +34,12 @@ function mismatchesNear(a: NavLayer, b: NavLayer, from: Vec, to: Vec): number {
 const ROOF_EDGE = 1e-9;
 
 describe('climb taste', () => {
+  let shared: ReturnType<typeof terrainNav> | null = null;
   function sloped() {
+    shared ??= slopedBuild();
+    return shared;
+  }
+  function slopedBuild() {
     const w = emptyWorld();
     const t = editableTerrain(w);
     const n = t.size + 1;
