@@ -6,19 +6,20 @@ olive early VAZ-2121 from in front of its left side. It gives the features: a bl
 and side, a thin bumper with end caps, a character line, big round arches, one long door with a vent pane, a B-pillar, a quarter window about as long as the
 door glass, a narrow C-pillar with slot vents, a flat roof with drip rails and a black sill strip. The photo is a perspective view, so it sets shapes and not lengths.
 Size is the published 2121 (3.72 m by 1.68 m by 1.64 m on a 2.2 m wheelbase) at the jeep's 1.217 scale, which the fixed footprint already matches.
-Grid: 4 columns by 7 rows, 1.94 m across by 4.55 m along. Half height 0.4 m, from PHYSICS.bodies.niva.
+Body: 2.14 m across by 4.47 m along, nose to tail. Half height 0.4 m, from PHYSICS.bodies.niva.
 The ground is 1.10 m below the center, so the flat roof at 0.89 m stands 2.0 m tall and the hood at 0.09 m is 60 % of that.
-A flat hood with a cutout that is the engine bay of the chassis.ts layout, rows 2 to 4 and columns 2 and 3, 1.35 m long and 0.9 m wide.
-Behind it a tall upright cabin with a windshield raked about 27 degrees from upright, under a flat roof that runs back from the windshield top.
+A flat hood with a cutout that is the engine bay of the chassis.ts layout, rows 1 to 3 and columns 2 and 3, 1.35 m long and 0.9 m wide.
+The 9 inner rows of 0.45 m are centred on the body, so the bay starts 0.21 m behind the nose.
+Behind it a tall upright cabin with a windshield raked about 38 degrees from upright, under a flat roof that runs back from the windshield top.
 Each side has a vent pane and a main pane on the door, a B-pillar, a long quarter window and three slot vents in the C-pillar. The tail is near vertical
 with a framed rear window and an upright red-over-amber taillight cluster at each corner.
 The nose is an upright face: a black grille panel 0.7 of the body width with a round headlamp at each end, a clear-over-amber lamp on each wing face, a thin bumper
 with dark end caps and a dark valance under it. The hood rounds down over its front edge.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.25 m below the center. Round arches are cut on them.
+Wheels sit 1.3 m ahead of and behind the center in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.25 m below the center. Round arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.21 m below the collider bottom as skin only.
-Deviations from the references: the hood is 0.40 of the length where the photo car has about 0.34, since the engine bay rows end 40 % behind the nose and
-moving them would change the grid and saved loadouts; the wheels stay on the physics wheelbase of 2.6 m; the body is 1.94 m wide where the real car at scale is 2.04 m;
+Deviations from the references: the hood is 0.37 of the length where the photo car has about 0.34, since the engine bay rows fix where it ends;
+the wheels stay on the physics wheelbase of 2.6 m; the body is 2.14 m wide where the real car at scale is 2.04 m;
 the arch lips are the dark flare band; and the spare wheel, plate, badges, wipers and mud flaps are left out, as are reference 1's gun, armor tiles, antenna and hood gear, which are parts.
 Inferred: the right side by symmetry and the tail, which neither image shows.
 Run: blender --background --python tools/blender/base_niva.py -- public/models/base_niva.glb [tmp/base_niva.png]
