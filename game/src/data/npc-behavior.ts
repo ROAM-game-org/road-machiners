@@ -11,6 +11,8 @@ export const NPC_UTILITY = {
 };
 const LAW_GATE_REACH = 12;
 
+const GROUND_SIGHT = 25;
+
 export const NPC_BEHAVIOR = {
   stallTurns: 100,
   stallJump: 20,
@@ -110,13 +112,13 @@ export const AID = {
 
 export const HUNT = {
   siteDistance: 40,
-  lawReach: NPC_BEHAVIOR.patrolRadius + 25,
+  lawReach: NPC_BEHAVIOR.patrolRadius + GROUND_SIGHT,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
-  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * 25),
+  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * GROUND_SIGHT),
   roadSample: 4,
   groundSpacing: 50,
-  groundSight: 25,
+  groundSight: GROUND_SIGHT,
   postBearings: 12,
   patrolPostSpacing: 20,
   watchTurns: 40,
