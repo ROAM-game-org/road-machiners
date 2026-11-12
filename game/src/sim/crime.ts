@@ -10,7 +10,7 @@ import { getKnownSite, tradeSpend } from './npc-decisions';
 import { bandOf, favors, inTruce, isOrganized, isOutlaw, settleStanding, witnessesOf, type Incident } from './relations';
 import { getResources } from './resources';
 import { modeRules } from './settings';
-import { canUseSite, parkedOn } from './sites';
+import { canUseSite, everyTruck, parkedOn } from './sites';
 import { boundTo } from './states';
 import { followingOf } from './companies';
 import type { CaseIssuer, CaseLead, CasePosse, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
@@ -372,7 +372,7 @@ export function advanceCrimes(world: World): void {
   if (world.crimes.length === 0) return;
   const open = world.crimes.filter((x) => x.status === 'open');
   if (open.length > 0) {
-    const alive = new Set(world.vehicles.map((v) => v.id));
+    const alive = new Set(everyTruck(world).map((v) => v.id));
     for (const c of open) ageCase(world, c, alive);
   }
   const kept = world.crimes.filter((c) => c.closed === null || world.turn - c.closed < CRIME.keepClosedTurns);
