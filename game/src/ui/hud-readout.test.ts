@@ -141,23 +141,8 @@ describe('salvage interaction', () => {
   });
 });
 
-const parkedBase = { world: undefined as World | undefined, saved: '' };
-
-function sharedParkedWorld(): World {
-  if (!parkedBase.world) {
-    parkedBase.world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    parkedBase.saved = JSON.stringify({ scavenged: parkedBase.world.player.scavenged, salvage: parkedBase.world.salvage, vehicles: parkedBase.world.vehicles });
-    return parkedBase.world;
-  }
-  const saved = JSON.parse(parkedBase.saved);
-  parkedBase.world.player.scavenged = saved.scavenged;
-  parkedBase.world.salvage = saved.salvage;
-  parkedBase.world.vehicles = saved.vehicles;
-  return parkedBase.world;
-}
-
 function parkedAt(find: (o: Obstacle) => boolean): { w: World; id: string } {
-  const w = sharedParkedWorld();
+  const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
   const o = w.obstacles.find(find);
   if (!o) throw new Error('No such prop on the test map');
   const me = playerVehicle(w);
