@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
+import type { ParticleBatches } from './particles';
 import { uploadFirst } from '../uploads';
 import { TUNING } from '../inkTuning';
 import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
@@ -28,7 +29,7 @@ export function clumpShape(pick: number): number {
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
-export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch; bank: CardBatch; fire: CardBatch };
+export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch; bank: CardBatch; fire: CardBatch; smoke: CardBatch };
 
 export function bankCardsOf(cards: FxCards): CardBatch {
   return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.bank : cards.lit;
@@ -36,6 +37,14 @@ export function bankCardsOf(cards: FxCards): CardBatch {
 
 export function dustCardsOf(cards: FxCards): CardBatch {
   return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.dust : cards.lit;
+}
+
+export function smokeCardsOf(cards: FxCards): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.smoke : cards.lit;
+}
+
+export function batchesOf(cards: FxCards, main: CardBatch): ParticleBatches {
+  return { main, plumes: dustCardsOf(cards), fire: fireCardsOf(cards, main), smoke: smokeCardsOf(cards) };
 }
 
 export function fireCardsOf(cards: FxCards, main: CardBatch): CardBatch {

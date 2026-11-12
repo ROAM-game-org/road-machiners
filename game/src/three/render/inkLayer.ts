@@ -11,7 +11,7 @@ const LIGHT = { steps: 3, up: 0.6, under: { from: 0.2, to: 0.8 } };
 const BILLOW_FALL_FROM = 0.3;
 const ACCENT = { strength: 1.3, probeMeters: 0.2, facing: 0.15, bendMeters: 0.25 };
 const STREAKS = { first: 1.7, blurMeters: 0.25, thick: { meters: 0.6, from: 1.0, to: 1.3 }, bend: { from: -0.06, to: 0.04 } };
-const KNOB_UNIFORMS = ["dustEdge", "dustThin", "dustThick", "dustShade", "dustShadeReach", "dustBands", "dustBandStep", "dustBandShade", "dustLines", "dustStreaks", "dustStreakPx", "dustStreakDark", "bankShade", "bankLines", "bankCool"] as const;
+const KNOB_UNIFORMS = ["dustEdge", "dustThin", "dustThick", "dustShade", "dustShadeReach", "dustBands", "dustBandStep", "dustBandShade", "dustLines", "dustStreaks", "dustStreakPx", "dustStreakDark", "bankShade", "bankLines", "bankCool", "smokeLines"] as const;
 const COOL_SHADE = [0.6, 0.72, 0.95];
 
 const f = (n: number) => n.toFixed(3);
@@ -20,6 +20,7 @@ type Billow = { edge: string; thin: string; thick: string; shade: string; shadeR
 
 const DUST_BILLOW: Billow = { edge: 'dustEdge', thin: 'dustThin', thick: 'dustThick', shade: 'dustShade', shadeReach: 'dustShadeReach', bands: 'dustBands', bandStep: 'dustBandStep', bandShade: 'dustBandShade', lines: 'dustLines', streaks: 'dustStreaks', streakPx: 'dustStreakPx', streakDark: 'dustStreakDark', cool: '0.0' };
 const BANK_BILLOW: Billow = { ...DUST_BILLOW, shade: 'bankShade', lines: 'bankLines', cool: 'bankCool' };
+const SMOKE_BILLOW: Billow = { ...DUST_BILLOW, lines: 'smokeLines' };
 
 function billowPaint(mass: string, k: Billow): string {
   return `
@@ -92,6 +93,7 @@ const FRAGMENT = `
 uniform sampler2D sceneColor;
 uniform sampler2D dust;
 uniform sampler2D bank;
+uniform sampler2D smoke;
 uniform vec2 uvPerMeter;
 uniform vec3 sunView;
 uniform vec3 sunColor;
@@ -107,11 +109,13 @@ vec2 lightDir() {
 }
 ${billowPaint('dust', DUST_BILLOW)}
 ${billowPaint('bank', BANK_BILLOW)}
+${billowPaint('smoke', SMOKE_BILLOW)}
 void main() {
   vec4 scene = texture2D(sceneColor, vUv);
   vec2 toSun = lightDir();
   vec3 base = paintFire(scene.rgb, vUv / uvPerMeter);
   base = bankPaint(base, toSun);
+  base = smokePaint(base, toSun);
   base = dustPaint(base, toSun);
   gl_FragColor = vec4(base, scene.a);
   #include <colorspace_fragment>
@@ -125,6 +129,7 @@ class DensityPass {
   readonly target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false });
   private readonly scene = new THREE.Scene();
   private readonly clearColor = new THREE.Color();
+  private painted = true;
 
   constructor(readonly batches: readonly CardBatch[]) {
     for (const b of batches) this.scene.add(b.mesh);
@@ -135,11 +140,16 @@ class DensityPass {
   }
 
   fit(size: THREE.Vector2): void {
-    if (this.target.width !== size.x || this.target.height !== size.y) this.target.setSize(size.x, size.y);
+    if (this.target.width === size.x && this.target.height === size.y) return;
+    this.target.setSize(size.x, size.y);
+    this.painted = true;
   }
 
   draw(renderer: THREE.WebGLRenderer, camera: THREE.OrthographicCamera, depth: THREE.DepthTexture, size: THREE.Vector2): void {
-    for (const b of this.batches) b.readDepth(depth, size, camera);
+    const holds = this.holds();
+    if (!holds && !this.painted) return;
+    this.painted = holds;
+    if (holds) for (const b of this.batches) b.readDepth(depth, size, camera);
     const alpha = renderer.getClearAlpha();
     renderer.getClearColor(this.clearColor);
     renderer.setRenderTarget(this.target);
@@ -157,12 +167,14 @@ export class InkLayer {
   readonly dust: CardBatch;
   readonly bank: CardBatch;
   readonly fire: CardBatch;
+  readonly smoke: CardBatch;
   private readonly passes: readonly DensityPass[];
   private readonly sceneTarget: THREE.WebGLRenderTarget;
   private readonly uniforms = {
     sceneColor: { value: null as THREE.Texture | null },
     dust: { value: null as THREE.Texture | null },
     bank: { value: null as THREE.Texture | null },
+    smoke: { value: null as THREE.Texture | null },
     ...fireUniforms(),
     uvPerMeter: { value: new THREE.Vector2(1, 1) },
     sunView: { value: new THREE.Vector3(0, 1, 0) },
@@ -180,19 +192,22 @@ export class InkLayer {
   private readonly size = new THREE.Vector2();
   private readonly densitySize = new THREE.Vector2();
 
-  constructor(shapes: THREE.Texture, capacity: { dust: number; bank: number; fire: number }, fillScreens: number) {
+  constructor(shapes: THREE.Texture, capacity: { dust: number; bank: number; fire: number; smoke: number }, fillScreens: number) {
     this.dust = densityBatch(shapes, capacity.dust, fillScreens);
     this.dust.tintTowardSand(TUNING.dustTint);
     this.bank = densityBatch(shapes, capacity.bank, fillScreens);
     this.fire = densityBatch(shapes, capacity.fire, fillScreens);
+    this.smoke = densityBatch(shapes, capacity.smoke, fillScreens);
     this.fire.fadeDensityRim(FIRE_RIM);
     const dustPass = new DensityPass([this.dust]);
     const bankPass = new DensityPass([this.bank]);
     const firePass = new DensityPass([this.fire]);
-    this.passes = [dustPass, bankPass, firePass];
+    const smokePass = new DensityPass([this.smoke]);
+    this.passes = [dustPass, bankPass, firePass, smokePass];
     this.uniforms.dust.value = dustPass.target.texture;
     this.uniforms.bank.value = bankPass.target.texture;
     this.uniforms.fire.value = firePass.target.texture;
+    this.uniforms.smoke.value = smokePass.target.texture;
     this.quad.frustumCulled = false;
     const depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedInt248Type);
     depthTexture.format = THREE.DepthStencilFormat;

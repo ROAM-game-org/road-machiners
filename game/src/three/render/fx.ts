@@ -18,7 +18,7 @@ import type { GroundAt } from './lines';
 import { Casings, Projectiles, type Muzzle, type ProjectileSpec, type RoundPlan, type ShotCues, type TrailKind } from './projectiles';
 import { CONFIG } from '../../config';
 import { TUNING } from './inkTuning';
-import { CARD_CLOCK, CARD_ORDER, CardBatch, createCardShapes, dustCardsOf, fireCardsOf, GLOW_IN_LIT, type FxCards } from './particles/cards';
+import { CARD_CLOCK, CARD_ORDER, CardBatch, batchesOf, createCardShapes, GLOW_IN_LIT, type FxCards } from './particles/cards';
 import { InkLayer } from './inkLayer';
 import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
@@ -161,13 +161,14 @@ export type CardLights = { sun: THREE.DirectionalLight; sky: THREE.HemisphereLig
 
 export class Fx3D {
   private readonly shapes = createCardShapes(Math.random);
-  readonly inkLayer = new InkLayer(this.shapes, { dust: MAX_PARTICLES + MAX_VIEW_CARDS, bank: MAX_VIEW_CARDS, fire: MAX_GLOW_PARTICLES + MAX_VIEW_CARDS }, CONFIG.fxFillScreens);
+  readonly inkLayer = new InkLayer(this.shapes, { dust: MAX_PARTICLES + MAX_VIEW_CARDS, bank: MAX_VIEW_CARDS, fire: MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, smoke: MAX_PARTICLES + MAX_GLOW_PARTICLES + MAX_VIEW_CARDS }, CONFIG.fxFillScreens);
   readonly cards: FxCards = {
     lit: new CardBatch(MAX_PARTICLES + MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'lit', this.shapes, CONFIG.fxFillScreens),
     glow: new CardBatch(MAX_GLOW_PARTICLES + MAX_VIEW_CARDS, 'glow', this.shapes, CONFIG.fxFillScreens),
     dust: this.inkLayer.dust,
     bank: this.inkLayer.bank,
     fire: this.inkLayer.fire,
+    smoke: this.inkLayer.smoke,
   };
   private readonly nearby = liveNear(() => this.world());
   private readonly particles = new Particles(MAX_PARTICLES, this.nearby);
@@ -381,15 +382,15 @@ export class Fx3D {
     this.glowParticles.tick(dt);
     this.chunks.tick(dt, world.terrain);
     const ink = TUNING.fxInk.value;
-    const plumes = dustCardsOf(this.cards);
-    this.particles.draw({ main: this.cards.lit, plumes, fire: fireCardsOf(this.cards, this.cards.lit) }, ink);
-    if (ink >= INK_SORTED_FIRE) this.glowParticles.draw({ main: this.cards.lit, plumes, fire: fireCardsOf(this.cards, this.cards.lit) }, ink, GLOW_IN_LIT);
-    else this.glowParticles.draw({ main: this.cards.glow, plumes, fire: fireCardsOf(this.cards, this.cards.glow) }, ink);
+    this.particles.draw(batchesOf(this.cards, this.cards.lit), ink);
+    if (ink >= INK_SORTED_FIRE) this.glowParticles.draw(batchesOf(this.cards, this.cards.lit), ink, GLOW_IN_LIT);
+    else this.glowParticles.draw(batchesOf(this.cards, this.cards.glow), ink);
     this.cards.lit.flush(this.rig.camera);
     this.cards.glow.flush(this.rig.camera);
     this.cards.dust.flush(this.rig.camera);
     this.cards.bank.flush(this.rig.camera);
     this.cards.fire.flush(this.rig.camera);
+    this.cards.smoke.flush(this.rig.camera);
     CARD_CLOCK.value += dt;
     this.flashes.tick(dt);
     this.casings.tick(dt, world.terrain, world.turn);
