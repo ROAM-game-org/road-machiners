@@ -146,6 +146,15 @@ describe('NPC repair crate restock', () => {
     expect(getResources(w, npc).money).toBeGreaterThanOrEqual(0);
   });
 
+  it('buys crates back before it loads trade cargo, so the load cannot crowd them out', () => {
+    const w = emptyWorld();
+    const npc = npcAt(w, 'trader', BOWL, 0);
+    npc.brain!.goals = [{ kind: 'trade', targetId: 'bowl', destination: { ...npc.pos }, phase: 'travel', reason: 'buyCargo', purchase: { good: 'grain', sellShop: 'nose' } }];
+    finishBusiness(w, npc);
+    expect(crates(npc)).toBe(ROAD_KIT_PARTS);
+    expect(goodsCount(npc).grain).toBeGreaterThan(0);
+  });
+
   it('sells at a camp and buys no crates there', () => {
     const w = emptyWorld();
     const npc = npcAt(w, 'buggy', CAMP, 1);

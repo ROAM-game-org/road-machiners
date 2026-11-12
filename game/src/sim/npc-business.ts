@@ -86,6 +86,7 @@ export function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivi
   if (!dealDue(world, vehicle, activity, site)) return;
   if (!activity.purchase) throw new Error('Trade activity missing purchase');
   noteShop(world, vehicle, site.id);
+  restockRepairParts(world, vehicle, site.id, npcRepairReserve(vehicle));
   if (activity.reason === 'loadCargo') fundSupplyRun(world, vehicle, tradeSpend(world, vehicle, 'faction'));
   const count = affordableBuyCount(world, vehicle, site.id, activity.purchase.good, cargoRoom(vehicle), tradeSpend(world, vehicle));
   payForLeg(world, vehicle, activity);

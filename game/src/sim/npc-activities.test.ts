@@ -374,6 +374,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 50, y: 50 });
     const npc = addVehicle(w, 'independent', 'hauler', ['trailerBox', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    addGoods(w, npc, 'parts', npcRepairReserve(npc));
     npc.resources!.money = 1667;
     npc.resources!.fuel = fuelCap(npc);
     forceOption('idle', 'trade');
@@ -806,6 +807,7 @@ describe('NPC activities', () => {
     it('a trader that buys trade cargo at a town buys the planned cargo first, then fills the tank from the rest', () => {
       const { w, npc } = createTrader();
       at(npc, 'bowl');
+      addGoods(w, npc, 'parts', npcRepairReserve(npc));
       const unit = getTradePrice(w, npc, 'bowl', 'grain', 'buy');
       tankAt(w, npc, 0.1, getUpkeepReserve(npc) + unit);
       npc.brain!.goals = [goal('trade', 'bowl', { purchase: { good: 'grain', sellShop: 'nose' } })];
