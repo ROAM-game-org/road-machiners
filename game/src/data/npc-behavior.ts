@@ -102,6 +102,8 @@ export const NPC_UPKEEP = {
   tradeReserve: 0.5,
 };
 
+export const ROAD_KIT_PARTS = 6;
+
 export const AID = {
   fillShare: 0.25,
   giftShare: 0.25,

@@ -411,6 +411,15 @@ describe('shadows of tall parts', () => {
     expect(gunBlockers(v, ghost)).toEqual([]);
   });
 
+  it('a tall part stowed in the hauler bed, past the model, blocks no gun', () => {
+    const w = emptyWorld();
+    const v = truckWith(w, 'hauler', [{ defId: 'cannon', x: 2, y: baseGrid('hauler').h }]);
+    putGun(w, v, 'shotgun', freeMounts(w, v, 'shotgun', 2).at(-1)!);
+    const gun = v.items.at(-1)!;
+    expect(() => gunSpans(v, gun)).not.toThrow();
+    expect(gunBlockers(v, gun)).toEqual([]);
+  });
+
   it('a gun facing away from the hauler cab keeps its whole arc', () => {
     const w = emptyWorld();
     const v = truckWith(w, 'hauler', []);

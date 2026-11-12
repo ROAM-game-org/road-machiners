@@ -1,5 +1,6 @@
 
 import { explorePlace } from './explore';
+import { npcRepairReserve } from './repair';
 import { isLingerReason, lingerGoal, lingerInvalid } from './linger';
 import { EXPLORE, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
@@ -170,7 +171,7 @@ export function saleGoal(world: World, vehicle: Vehicle, profile: NpcProfile): N
 }
 
 function saleBuyers(world: World, vehicle: Vehicle, profile: NpcProfile): Site[] {
-  const markets = profile.markets.filter((id) => sellsAnythingAt(vehicle, id, NPC_UPKEEP.repairParts)).map(getKnownSite);
+  const markets = profile.markets.filter((id) => sellsAnythingAt(vehicle, id, npcRepairReserve(vehicle))).map(getKnownSite);
   const onTheBeat = markets.filter((site) => onBeat(vehicle, site.pos));
   const pays = (sites: Site[]) => sites.some((site) => cargoSaleValue(world, vehicle, site.id) > 0);
   return onTheBeat.length > 0 && (pays(onTheBeat) || !pays(markets)) ? onTheBeat : markets;

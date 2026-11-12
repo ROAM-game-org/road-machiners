@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
-import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
 import { gunSpans, openArcShares, spanSides, type Side } from './armor';
@@ -518,7 +518,7 @@ function chooseCargo(world: World, rng: Rng, wearRng: Rng, table: NpcLoadoutTabl
     if (added > 0) carried[good] = (carried[good] ?? 0) + added;
   };
   const stockMassLeft = () => Math.max(0, massLeft() - CRATE_MASS);
-  addGood('parts', Math.min(NPC_UPKEEP.repairParts, Math.floor(stockMassLeft() / CRATE_MASS), cellsLeft()));
+  addGood('parts', Math.min(table.repairParts, Math.floor(stockMassLeft() / CRATE_MASS), cellsLeft()));
   const cargo = chooseGoods(rng, table, level, { cells: cellsLeft(), mass: massLeft() });
   if (cargo) addGood(cargo.good, cargo.count);
   return { spares: addSpareParts(world, wearRng, table, level, load, { mass: stockMassLeft, cells: cellsLeft }, rules), carried };

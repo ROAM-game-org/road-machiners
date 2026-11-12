@@ -13,6 +13,8 @@ import { corePart, goodsCount, mountedParts } from './grid';
 import { maxHp } from './wear';
 import { addGoods, mountPart, removeGoods } from './inventory';
 import { makePart } from './factory';
+import { npcRepairReserve } from './repair';
+import { getResources } from './resources';
 import { thinkNpc, topGoal } from './npc-activities';
 import { agreePatch, dealAvailable, needsPatch, patchData, patchPlan, patchTerms, settlePatch } from './patch';
 import { makePeace } from './parley';
@@ -42,7 +44,7 @@ function setParts(w: World, v: Vehicle, n: number): void {
 }
 const find = (w: World, id: string) => w.vehicles.find((v) => v.id === id)!;
 
-function brokenPlayer(traderParts: number): { w: World; trader: Vehicle } {
+function brokenPlayer(traderParts?: number): { w: World; trader: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   w.player.autoRepair = false;
@@ -50,8 +52,29 @@ function brokenPlayer(traderParts: number): { w: World; trader: Vehicle } {
   setParts(w, playerVehicle(w), 0);
   const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 38, y: 30 }, Math.PI);
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
-  addGoods(w, trader, 'parts', traderParts);
+  addGoods(w, trader, 'parts', traderParts ?? npcRepairReserve(trader));
   return { w, trader };
+}
+
+function breakDriveParts(w: World): void {
+  const me = playerVehicle(w);
+  for (const part of [mountedParts(me, 'engine')[0], corePart(me, 'transmission')!, corePart(me, 'tank')!]) part.hp = 0;
+  getResources(w, me).fuel = 0;
+}
+
+function fitBrokenEngine(w: World, defId: string, wear: number): void {
+  const me = playerVehicle(w);
+  const old = mountedParts(me, 'engine')[0];
+  me.items = me.items.filter((item) => item.kind !== 'part' || item.part !== old);
+  const engine = makePart(w, defId, wear);
+  engine.hp = 0;
+  if (!mountPart(w, me, engine)) throw new Error(`No room for a ${defId}`);
+}
+
+function termsAsked(start: World, traderId: string): unknown {
+  forceOption('patchDeal', 'free');
+  const w = answer(askPatch(start, traderId), 'Engine, gearbox or tank. What would it take?');
+  return w.player.call?.vars.deal;
 }
 
 const patchOutcomes = (events: GameEvent[]) => events.flatMap((e) => (e.t === 'patch' ? [e.outcome] : []));
@@ -86,7 +109,7 @@ describe('asking a driver for a patch', () => {
   });
 
   it('a junk engine needs no patch, since no patch rebuilds it', () => {
-    const { w } = brokenPlayer(4);
+    const { w } = brokenPlayer();
     const engine = mountedParts(playerVehicle(w), 'engine')[0];
     expect(needsPatch(w, playerVehicle(w))).toBe(true);
     engine.wear = CONDITION.maxWear + 1;
@@ -94,7 +117,7 @@ describe('asking a driver for a patch', () => {
   });
 
   it('a broken player in combat cannot ask for a patch', () => {
-    const { w, trader } = brokenPlayer(4);
+    const { w, trader } = brokenPlayer();
     const foe = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 24, y: 30 });
     startCombat(w, foe, playerVehicle(w));
     const open = callVehicle(w, trader.id);
@@ -102,19 +125,19 @@ describe('asking a driver for a patch', () => {
   });
 
   it('a truck that is not broken cannot ask', () => {
-    const { w, trader } = brokenPlayer(4);
+    const { w, trader } = brokenPlayer();
     mountedParts(playerVehicle(w), 'engine')[0].hp = 10;
     const open = callVehicle(w, trader.id);
     expect(asksOf(open)).not.toContain('My truck is broken down. Can you patch it?');
   });
 
   it('agreeing to a patch pays no deal XP until the patch is done', () => {
-    const { w: start, trader } = brokenPlayer(4);
+    const { w: start, trader } = brokenPlayer();
     expect(practiceOf(agreedTerms(start, trader.id, 'free'), 'deal')).toEqual([]);
   });
 
   it('a free patch spends the patcher parts, costs nothing and gets the truck going', () => {
-    const { w: start, trader } = brokenPlayer(4);
+    const { w: start, trader } = brokenPlayer();
     const money = start.player.money;
     let w = agreedTerms(start, trader.id, 'free');
     const needed = patchData(stateOf(w, 'patch', trader.id, w.player.vehicleId)!).parts;
@@ -122,7 +145,7 @@ describe('asking a driver for a patch', () => {
     const r = runUntil(w, 40, (x) => stateOf(x, 'patch', trader.id, x.player.vehicleId) === null);
     w = r.w;
     expect(r.events.filter((e) => e.t === 'patch').map((e) => e.t === 'patch' && e.outcome)).toEqual(['started', 'done']);
-    expect(parts(find(w, trader.id))).toBe(4 - needed);
+    expect(parts(find(w, trader.id))).toBe(npcRepairReserve(trader) - needed);
     expect(w.player.money).toBe(money);
     const engine = mountedParts(playerVehicle(w), 'engine')[0];
     expect(engine.hp).toBe(Math.max(1, Math.round(maxHp(engine) * PATCH.share)));
@@ -130,7 +153,7 @@ describe('asking a driver for a patch', () => {
   });
 
   it('a paid patch charges the client once, into debt if need be', () => {
-    const { w: start, trader } = brokenPlayer(4);
+    const { w: start, trader } = brokenPlayer();
     start.player.money = 0;
     const traderMoney = trader.resources!.money;
     let w = agreedTerms(start, trader.id, 'paid');
@@ -165,7 +188,7 @@ describe('asking a driver for a patch', () => {
   });
 
   it('a driver under attack takes no patch and calls off an agreed one', () => {
-    const { w: start, trader } = brokenPlayer(4);
+    const { w: start, trader } = brokenPlayer();
     let w = agreedTerms(start, trader.id, 'free');
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 34 });
     find(w, trader.id).brain!.attackers[raider.id] = true;
@@ -176,6 +199,26 @@ describe('asking a driver for a patch', () => {
     expect(patchOutcomes(w.events)).toEqual(['broken']);
     expect(stateOf(w, 'patch', trader.id, w.player.vehicleId)).toBeNull();
     expect(find(w, trader.id).brain!.goals.some((g) => g.kind === 'patch')).toBe(false);
+  });
+
+  it('a trader with its road kit patches the engine, gearbox and dry holed tank of a start truck', () => {
+    const { w, trader } = brokenPlayer();
+    breakDriveParts(w);
+    expect(termsAsked(w, trader.id)).toMatchObject({ kind: 'deal', deal: 'free', patcher: 'npc' });
+  });
+
+  it('a trader with its road kit patches a broken worn tuned engine', () => {
+    const { w, trader } = brokenPlayer();
+    fitBrokenEngine(w, 'tunedEngine', 1);
+    expect(termsAsked(w, trader.id)).toMatchObject({ kind: 'deal', deal: 'free', patcher: 'npc' });
+  });
+
+  it('a trader down to two crates cannot patch the engine, gearbox and tank', () => {
+    const { w, trader } = brokenPlayer(2);
+    breakDriveParts(w);
+    forceOption('patchDeal', 'free');
+    const asked = answer(askPatch(w, trader.id), 'Engine, gearbox or tank. Can you do anything?');
+    expect(asked.player.call?.line.line).toBe('notWithWhatI');
   });
 
   it('never rolls a deal its payer cannot cover', () => {
