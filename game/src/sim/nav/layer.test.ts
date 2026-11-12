@@ -10,7 +10,7 @@ import { route } from '../path';
 import type { Obstacle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { blockedAt, CELL, CLEARANCE, climbTaste, cutTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
+import { blockedAt, CELL, CLEARANCE, climbTaste, cutTaste, slowAt, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tastedAlong, tastedCoarse, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer } from './layer';
 import { pieceTable, regionAt } from './cells';
 import { perfSnapshot, resetPerf } from '../../perf';
 import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
@@ -48,12 +48,35 @@ describe('climb taste', () => {
     expect(nav.steep[tileIndex(nav.size, 60, 10)]).toBeCloseTo(0.4, 3);
   });
 
-  it('multiplies cost only on tiles steeper than the limit', () => {
+  it('multiplies cost only on tiles climbed steeper than the limit', () => {
     const nav = sloped();
     const taste = climbTaste(null, nav, 0.3)!;
-    expect(tasted(taste, 1, 10, 10)).toBe(1);
-    expect(tasted(taste, 1, 60, 10)).toBe(REGION.navigation.overClimbCost);
-    expect(tasted(climbTaste(null, nav, 0.45), 1, 60, 10)).toBe(1);
+    expect(tastedAlong(taste, 1, 10, 10, 1, 0)).toBe(1);
+    expect(tastedAlong(taste, 1, 60, 10, 1, 0)).toBe(REGION.navigation.overClimbCost);
+    expect(tastedAlong(climbTaste(null, nav, 0.45), 1, 60, 10, 1, 0)).toBe(1);
+  });
+
+  it('charges a step only by the grade it climbs along its direction', () => {
+    const nav = sloped();
+    const over = REGION.navigation.overClimbCost;
+    const taste = climbTaste(null, nav, 0.3)!;
+    expect(tastedAlong(taste, 1, 60, 10, 1, 0)).toBe(over);
+    expect(tastedAlong(taste, 1, 60, 10, -1, 0)).toBe(1);
+    expect(tastedAlong(taste, 1, 60, 10, 0, 1)).toBe(1);
+    expect(tastedAlong(taste, 1, 60, 10, 1, 1)).toBe(1);
+    expect(tastedAlong(climbTaste(null, nav, 0.25)!, 1, 60, 10, 1, 1)).toBe(over);
+    expect(tastedAlong(taste, 1, 60, 10, 0, 0)).toBe(1);
+    expect(tastedAlong(taste, 1, 10, 10, 1, 0)).toBe(1);
+  });
+
+  it('charges coarse steps by direction and leaves a plain taste alone', () => {
+    const nav = sloped();
+    const taste = climbTaste(null, nav, 0.3)!;
+    const block = Math.ceil(nav.size / 4) * 15 + 15;
+    expect(tastedCoarse(taste, 1, 60, 60, block, block, 4, 0)).toBeGreaterThan(1);
+    expect(tastedCoarse(taste, 1, 60, 60, block, block, -4, 0)).toBe(1);
+    expect(tastedCoarse(taste, 1, 60, 60, block, block, 0, 4)).toBe(1);
+    expect(tastedAlong(null, 3, 60, 10, 1, 0)).toBe(3);
   });
 
   it('leaves a truck that climbs every walkable slope with its taste untouched', () => {

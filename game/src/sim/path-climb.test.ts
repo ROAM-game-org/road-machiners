@@ -53,7 +53,7 @@ describe('climb limit', () => {
     const w = emptyWorld({ ...from });
     const me = w.vehicles[0];
     addGoods(w, me, 'scrap', 400);
-    ravine(Math.min(0.59, climbGrade(w, me) + 0.06), 0.15, w);
+    ravine(Math.min(0.59, climbGrade(w, me) + 0.15), 0.15, w);
     expect(reachedY(route(w, from, to, 0.6, [], me))).toBeGreaterThan(60);
   });
 
@@ -70,5 +70,21 @@ describe('climb limit', () => {
     const heavy = loadedHauler(w);
     const pts = route(w, { x: 40, y: 40 }, { x: 160, y: 40 }, 0.6, [], heavy);
     expect(reachedY(pts)).toBeGreaterThan(60);
+  });
+
+  const sidewaysY = (pts: Vec[]) => Math.max(...pts.map((p) => Math.abs(p.y - 40)));
+
+  it('sends a loaded hauler straight down the wall it cannot climb', () => {
+    const w = ravine(0.5, 0.15);
+    const heavy = loadedHauler(w);
+    const pts = route(w, { x: 80, y: 40 }, { x: 40, y: 40 }, 0.6, [], heavy);
+    expect(sidewaysY(pts)).toBeLessThan(8);
+  });
+
+  it('keeps a long downhill route straight too', () => {
+    const w = ravine(0.5, 0.15);
+    const heavy = loadedHauler(w);
+    const pts = route(w, { x: 160, y: 40 }, { x: 40, y: 40 }, 0.6, [], heavy);
+    expect(sidewaysY(pts)).toBeLessThan(8);
   });
 });

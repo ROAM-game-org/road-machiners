@@ -8,7 +8,7 @@ import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
 import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
-import { tileGrade, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
+import { tileGrade, tileSlope, TYPE_IDS, type BakedMap, type Terrain } from '../terrain';
 import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
@@ -33,8 +33,10 @@ export type TerrainNav = {
   roadShy: Float32Array;
   slow: Float32Array;
   steep: Float32Array;
+  slopeX: Int8Array;
+  slopeY: Int8Array;
   decks: DeckSet;
-  climbShares: Map<number, Float32Array>;
+  climbBlocks: Map<number, Uint8Array>;
 };
 
 export const COARSE = 8;
@@ -66,19 +68,21 @@ function terrainEntry(t: Terrain) {
     const tiles = tileLayers(t);
     const slow = new Float32Array(n * n);
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) slow[y * n + x] = tiles.tileCost[tileIndex(t.size, (x + 0.5) * CELL, (y + 0.5) * CELL)];
-    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks, climbShares: new Map() }, layers: new Map(), tileKeys: null, summary: t.routes ? readSummary(t, t.routes) : null };
+    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks, climbBlocks: new Map() }, layers: new Map(), tileKeys: null, summary: t.routes ? readSummary(t, t.routes) : null };
     terrains.set(t, e);
   }
   return e;
 }
 
-function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'openTile' | 'roadShy' | 'steep'> {
+function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'openTile' | 'roadShy' | 'steep' | 'slopeX' | 'slopeY'> {
   const cliffTile = new Uint8Array(t.size * t.size);
   const tileCost = new Float64Array(t.size * t.size);
   const flatCost = new Float64Array(t.size * t.size);
   const roadTile = new Uint8Array(t.size * t.size);
   const openTile = new Uint8Array(t.size * t.size);
   const steep = new Float32Array(t.size * t.size);
+  const slopeX = new Int8Array(t.size * t.size);
+  const slopeY = new Int8Array(t.size * t.size);
   const bySite = bySiteTiles(t.size, atlasSites(atlasOf(t)).filter((s) => !isTerritory(s)));
   const costs = new Map(TYPE_IDS.map((id) => [id, [routeCost(id, false), routeCost(id, true)]]));
   for (let i = 0; i < t.size * t.size; i++) {
@@ -88,12 +92,24 @@ function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'fl
     const road = type === 'road' ? 1 : 0;
     cliffTile[i] = Number(grade > TERRAIN.drive.maxSlope);
     steep[i] = grade;
+    storeSlope(slopeX, slopeY, i, tileSlope(t, i));
     flatCost[i] = costs.get(type)![bySite[i]];
     tileCost[i] = flatCost[i] * slopeCost(grade);
     roadTile[i] = road * free;
     openTile[i] = (1 - road) * free;
   }
-  return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, roadShy: roadShyField(t.size, roadTile) };
+  return { cliffTile, tileCost, flatCost, roadTile, openTile, steep, slopeX, slopeY, roadShy: roadShyField(t.size, roadTile) };
+}
+
+export const SLOPE_QUANTUM = 200;
+const SLOPE_LIMIT = 127;
+
+function storeSlope(xs: Int8Array, ys: Int8Array, i: number, slope: Vec): void {
+  const mag = Math.hypot(slope.x, slope.y) * SLOPE_QUANTUM;
+  if (!Number.isFinite(mag)) throw new Error(`tileLayers: tile ${i} has a non-finite slope`);
+  const scale = mag > SLOPE_LIMIT ? SLOPE_LIMIT / mag : 1;
+  xs[i] = Math.round(slope.x * SLOPE_QUANTUM * scale);
+  ys[i] = Math.round(slope.y * SLOPE_QUANTUM * scale);
 }
 
 function roadShyField(size: number, roadTile: Uint8Array): Float32Array {
@@ -712,7 +728,9 @@ function neighbourCell(n: number, x: number, y: number): number {
 
 export type Berth = { x: number; y: number; r: number };
 
-export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; cut: Float32Array | null; size: number; climb: number; steep: Float32Array | null; shares: Float32Array | null; berths: Berth[] | null };
+export type Taste = { seed: number; side: number; values: Float32Array | null; shy: Float32Array | null; night: Float32Array | null; cut: Float32Array | null; size: number; climb: number; slope: Slope | null; counts: Uint8Array | null; berths: Berth[] | null };
+
+type Slope = { x: Int8Array; y: Int8Array; limit2: number };
 
 const TASTES_MAX = 256;
 const tastes = new Map<string, Taste>();
@@ -736,7 +754,7 @@ export function makeTaste(seed: number, size: number): Taste {
   const side = Math.ceil(size / scale) + 2;
   const values = new Float32Array(side * side);
   for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) values[y * side + x] = 1 + strength * (hashRandom(seed, x, y) - 0.5);
-  return { seed, side, values, shy: null, night: null, cut: null, size, climb: Infinity, steep: null, shares: null, berths: null };
+  return { seed, side, values, shy: null, night: null, cut: null, size, climb: Infinity, slope: null, counts: null, berths: null };
 }
 
 export function offRoadTaste(taste: Taste, nav: TerrainNav): Taste {
@@ -788,27 +806,61 @@ export function berthTaste(taste: Taste, berths: Berth[]): Taste {
 
 export function climbTaste(taste: Taste | null, nav: TerrainNav, climb: number): Taste | null {
   if (climb >= TERRAIN.drive.maxSlope) return taste;
-  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, cut: null, size: nav.size, climb: Infinity, steep: null, shares: null, berths: null };
-  return { ...base, climb, steep: nav.steep, shares: blockOverClimb(nav, climb) };
+  const base = taste ?? { seed: 0, side: 0, values: null, shy: null, night: null, cut: null, size: nav.size, climb: Infinity, slope: null, counts: null, berths: null };
+  return { ...base, climb, slope: { x: nav.slopeX, y: nav.slopeY, limit2: (climb * SLOPE_QUANTUM) ** 2 }, counts: blockClimbCounts(nav, climb) };
 }
 
 const CLIMB_SHARES_KEPT = 16;
 
-function blockOverClimb(nav: TerrainNav, climb: number): Float32Array {
-  const cached = nav.climbShares.get(climb);
+const SECTORS = 8;
+const SECTOR_DIRS: readonly (readonly [number, number])[] = [[1, 0], [Math.SQRT1_2, Math.SQRT1_2], [0, 1], [-Math.SQRT1_2, Math.SQRT1_2], [-1, 0], [-Math.SQRT1_2, -Math.SQRT1_2], [0, -1], [Math.SQRT1_2, -Math.SQRT1_2]];
+const NOT_COUNTED = 255;
+const BLOCK_TILES = (COARSE * CELL) ** 2;
+
+function blockClimbCounts(nav: TerrainNav, climb: number): Uint8Array {
+  const cached = nav.climbBlocks.get(climb);
   if (cached) return cached;
-  if (nav.climbShares.size >= CLIMB_SHARES_KEPT) nav.climbShares.clear();
-  const span = COARSE * CELL;
-  const side = Math.ceil(nav.size / span);
-  const shares = new Float32Array(side * side);
-  for (let i = 0; i < nav.steep.length; i++) {
-    if (nav.steep[i] <= climb) continue;
-    const bx = Math.floor((i % nav.size) / span);
-    const by = Math.floor(Math.floor(i / nav.size) / span);
-    shares[by * side + bx] += 1 / (span * span);
+  if (nav.climbBlocks.size >= CLIMB_SHARES_KEPT) nav.climbBlocks.clear();
+  const side = Math.ceil(nav.size / (COARSE * CELL));
+  const counts = new Uint8Array(side * side * SECTORS).fill(NOT_COUNTED);
+  nav.climbBlocks.set(climb, counts);
+  return counts;
+}
+
+function sectorOf(dx: number, dy: number): number {
+  let best = 0;
+  let bestDot = -Infinity;
+  for (let k = 0; k < SECTORS; k++) {
+    const dot = SECTOR_DIRS[k][0] * dx + SECTOR_DIRS[k][1] * dy;
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = k;
+    }
   }
-  nav.climbShares.set(climb, shares);
-  return shares;
+  return best;
+}
+
+function countBlock(t: Taste, slope: Slope, block: number, sector: number): number {
+  const span = COARSE * CELL;
+  const side = Math.ceil(t.size / span);
+  const x0 = (block % side) * span;
+  const y0 = Math.floor(block / side) * span;
+  const [ux, uy] = SECTOR_DIRS[sector];
+  const limit = Math.sqrt(slope.limit2);
+  let count = 0;
+  for (let y = y0; y < Math.min(t.size, y0 + span); y++) {
+    for (let x = x0; x < Math.min(t.size, x0 + span); x++) {
+      const i = y * t.size + x;
+      if (slope.x[i] * ux + slope.y[i] * uy > limit) count++;
+    }
+  }
+  return count;
+}
+
+function blockShare(t: Taste, slope: Slope, counts: Uint8Array, block: number, sector: number): number {
+  const k = block * SECTORS + sector;
+  if (counts[k] === NOT_COUNTED) counts[k] = countBlock(t, slope, block, sector);
+  return counts[k] / BLOCK_TILES;
 }
 
 export function tasteAt(t: Taste, x: number, y: number): number {
@@ -833,16 +885,26 @@ function noisy(t: Taste, cost: number, x: number, y: number): number {
 }
 
 export function tasted(t: Taste | null, cost: number, x: number, y: number): number {
-  if (!t) return cost;
-  const c = noisy(t, cost, x, y);
-  return t.steep && t.steep[tileIndex(t.size, x, y)] > t.climb ? c * REGION.navigation.overClimbCost : c;
+  return t ? noisy(t, cost, x, y) : cost;
 }
 
-export function tastedCoarse(t: Taste | null, cost: number, x: number, y: number, blockA: number, blockB: number): number {
+export function tastedAlong(t: Taste | null, cost: number, x: number, y: number, dx: number, dy: number): number {
+  if (!t) return cost;
+  const c = noisy(t, cost, x, y);
+  const slope = t.slope;
+  if (!slope) return c;
+  const i = tileIndex(t.size, x, y);
+  const dot = slope.x[i] * dx + slope.y[i] * dy;
+  return dot > 0 && dot * dot > slope.limit2 * (dx * dx + dy * dy) ? c * REGION.navigation.overClimbCost : c;
+}
+
+export function tastedCoarse(t: Taste | null, cost: number, x: number, y: number, blockA: number, blockB: number, dx: number, dy: number): number {
   if (!t) return cost;
   const c = noisy(t, cost, x, y) * coarseShy(t, x, y);
-  if (!t.shares) return c;
-  return c * (1 + Math.max(t.shares[blockA], t.shares[blockB]) * (REGION.navigation.overClimbCost - 1));
+  if (!t.slope || !t.counts || (dx === 0 && dy === 0)) return c;
+  const sector = sectorOf(dx, dy);
+  const share = Math.max(blockShare(t, t.slope, t.counts, blockA, sector), blockShare(t, t.slope, t.counts, blockB, sector));
+  return c * (1 + share * (REGION.navigation.overClimbCost - 1));
 }
 
 function coarseShy(t: Taste, x: number, y: number): number {
@@ -873,7 +935,7 @@ export function tasteKey(t: Taste | null): string {
   if (!t) return 'plain';
   const styled = withSuffix(withSuffix(noiseKey(t), t.night !== null, 'n'), t.cut !== null, 'cut');
   const berthed = t.berths ? `${styled}:b${berthKey(t.berths)}` : styled;
-  return t.steep ? `${berthed}:c${t.climb}` : berthed;
+  return t.slope ? `${berthed}:c${t.climb}` : berthed;
 }
 
 function smooth(f: number): number {
