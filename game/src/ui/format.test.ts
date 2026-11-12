@@ -822,6 +822,26 @@ describe("player wake-up", () => {
   });
 });
 
+describe("standing band change", () => {
+  const causes = [
+    { cause: { kind: "deed", deed: "robbed" }, band: "unfriendly" },
+    { cause: { kind: "drift", toward: "up" }, band: "neutral" },
+    { cause: { kind: "settled" }, band: "unfriendly" },
+  ] as const;
+
+  it.each(causes)("raises no toast for a $cause.kind change", ({ cause, band }) => {
+    expect(isNotable({ t: "standing", faction: "bowl", band, cause })).toBe(false);
+  });
+
+  it("still writes the log line with its cause, in danger ink for a fall and good ink for a rise", () => {
+    const fall = eventText(emptyWorld(), { t: "standing", faction: "bowl", band: "unfriendly", cause: { kind: "deed", deed: "robbed" } });
+    expect(en(fall?.text)).toBe("Bowl now treats you as wary. You robbed one of their drivers.");
+    expect(fall?.cls).toBe("bad");
+    const rise = eventText(emptyWorld(), { t: "standing", faction: "bowl", band: "friendly", cause: { kind: "drift", toward: "up" } });
+    expect(rise?.cls).toBe("good");
+  });
+});
+
 describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
