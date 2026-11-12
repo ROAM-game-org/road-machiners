@@ -5,7 +5,7 @@ import { makePart } from '../sim/factory';
 import { gridOf, MOUNT_CELLS, mountSpots } from '../sim/grid';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem } from '../sim/types';
-import { faultsOf } from './truck-support-faults';
+import { faultsOf, inPart, partName, spotPartsOf, type SpotPart } from './truck-support-faults';
 
 export const GUN_FILES = 160;
 
@@ -24,12 +24,12 @@ function lookIds(defId: string): string[] {
   return ids;
 }
 
-export type GunCase = { name: string; chassisId: string; defId: string; lookId: string };
+export type GunCase = SpotPart & { name: string; chassisId: string; defId: string; lookId: string };
 
 export function gunCases(): GunCase[] {
   const guns = Object.values(PARTS).filter((def) => def.kind === 'weapon');
   return Object.keys(CHASSIS).flatMap((chassisId) =>
-    guns.flatMap((def) => lookIds(def.id).map((lookId) => ({ name: `${def.id} ${lookId} on the ${chassisId}`, chassisId, defId: def.id, lookId }))),
+    guns.flatMap((def) => lookIds(def.id).flatMap((lookId) => spotPartsOf(chassisId).map((p) => ({ ...p, name: `${def.id} ${lookId} on the ${chassisId}${partName(p)}`, chassisId, defId: def.id, lookId })))),
   );
 }
 
@@ -37,12 +37,12 @@ export function gunCasesOfFile(file: number): GunCase[] {
   return gunCases().filter((_, i) => i % GUN_FILES === file);
 }
 
-export function faultsOfGunLook({ chassisId, defId, lookId }: GunCase): string[] {
+export function faultsOfGunLook({ chassisId, defId, lookId, ...part }: GunCase): string[] {
   const faults: string[] = [];
   const w = emptyWorld();
   const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
   const probe: GridItem = { id: 'probe', kind: 'part', part: { ...makePart(w, defId, 0), id: lookId }, x: 0, y: 0, rot: 0 };
-  for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.weapon)) {
+  for (const spot of inPart(mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.weapon), part)) {
     try {
       faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }));
     } catch (e) {

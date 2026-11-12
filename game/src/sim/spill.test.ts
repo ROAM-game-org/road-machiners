@@ -4,10 +4,13 @@ import { bareGrid, gridOf, itemCells, mountedParts } from './grid';
 import { moveItem } from './inventory';
 import { makePart } from './factory';
 import { spillDeadRows } from './spill';
-import { addVehicle, emptyWorld, testDrive } from './testkit';
+import { addVehicle, emptyWorld, parkedAtOutpost, stockOfKind, testDrive } from './testkit';
+import { haulerOf } from './damage';
+import { outpostBuyPart } from './outposts';
+import { installSpot, takeFromStorage } from './inventory';
 import type { GameEvent, GridItem, PartInstance, Vehicle, World } from './types';
 import { endTurn } from './world';
-import { maxHp } from './wear';
+import { damagePart, maxHp } from './wear';
 import { WEAR } from '../data/wear';
 
 const panniersOf = (v: Vehicle): PartInstance => mountedParts(v, 'cargo').find((p) => p.defId === 'panniers')!;
@@ -144,5 +147,30 @@ describe('built-in bed rows', () => {
     spillDeadRows(w);
     expect(npc.items.some((it) => it.id === 'bed-salt')).toBe(true);
     expect(npc.items.some((it) => it.id === 'part-salt')).toBe(false);
+  });
+});
+
+describe('cargo spills in Chaos Highway', () => {
+  it('a broken hauler cargo frame loses what lies on it for good', () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const frame = stockOfKind(w, 'cargo');
+    const bought = outpostBuyPart(w, frame.id, hauler.id);
+    const frameSpot = installSpot(haulerOf(bought), { id: 'probe-frame', kind: 'part', part: frame, x: 0, y: 0, rot: 0 })!;
+    const fitted = takeFromStorage(bought, frame.id, frameSpot, hauler.id);
+    const truck = haulerOf(fitted);
+    const gun = makePart(fitted, 'mg', 0);
+    truck.items.push({ id: 'stowed-gun', x: 0, y: gridOf(truck).h - 1, rot: 0, kind: 'part', part: gun });
+    const money = fitted.player.money;
+    const storage = fitted.player.storage.length;
+    damagePart(mountedParts(truck, 'cargo').find((p) => p.id === frame.id)!, maxHp(frame), 0);
+
+    const next = endTurn(fitted, testDrive);
+
+    expect(haulerOf(next).items.some((it) => it.kind === 'part' && it.part.id === gun.id)).toBe(false);
+    expect(next.player.storage).toHaveLength(storage);
+    expect(next.player.money).toBe(money);
+    expect(next.salvage.filter((s) => s.pile)).toEqual([]);
+    expect(spills(next)).toEqual([expect.objectContaining({ vehicle: truck.id, pile: null, units: 1 })]);
   });
 });

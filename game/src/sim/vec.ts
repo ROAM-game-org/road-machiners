@@ -25,6 +25,10 @@ export function leadsAwayBy(from: Vec, to: Vec, threat: Vec, degrees: number): b
   return Math.abs(angleDiff(bearing(from, threat), bearing(from, to))) >= degrees * DEG;
 }
 
+export function isAhead(from: Vec, heading: number, p: Vec): boolean {
+  return Math.cos(heading) * (p.x - from.x) + Math.sin(heading) * (p.y - from.y) > 0;
+}
+
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }

@@ -11,7 +11,7 @@ import { escortStatus, turnsLeft } from '../sim/escort-job';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { gameHours } from '../data/time';
-import { playerVehicle, vehicleById } from '../sim/damage';
+import { isPlayerTruckId, playerVehicle, vehicleById } from '../sim/damage';
 import { namedTruck, requireTruck } from '../sim/sites';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
@@ -540,8 +540,9 @@ function escortRefusedText(world: World, e: Extract<GameEvent, { t: 'escortRefus
 }
 
 function cargoSpilledText(world: World, e: Extract<GameEvent, { t: 'cargoSpilled' }>): LogLine {
-  if (e.vehicle !== world.player.vehicleId) return line(t('log.cargoSpilledOther', { who: vehicleName(world, e.vehicle) }), 'good');
-  return line(t('log.cargoSpilledYours', { part: partName(world, e.vehicle, e.part), n: e.units }), 'bad');
+  if (!isPlayerTruckId(world, e.vehicle)) return line(t('log.cargoSpilledOther', { who: vehicleName(world, e.vehicle) }), 'good');
+  const part = partName(world, e.vehicle, e.part);
+  return line(e.pile === null ? t('log.cargoLost', { who: vehicleName(world, e.vehicle), part, n: e.units }) : t('log.cargoSpilledYours', { part, n: e.units }), 'bad');
 }
 
 function pleaText(world: World, e: Extract<GameEvent, { t: 'plea' }>): LogLine | null {
@@ -565,7 +566,7 @@ function playerTowDroppedText(by: Msg, reason: Extract<GameEvent, { t: 'towDropp
 function playerNotices(world: World, ...ids: string[]): boolean {
   if (world.player.fullLog) return true;
   return ids.some((id) => {
-    if (id === world.player.vehicleId) return true;
+    if (isPlayerTruckId(world, id)) return true;
     const v = namedTruck(world, id);
     return v !== undefined && playerSees(world, v.pos);
   });
@@ -953,12 +954,14 @@ function discoverText(e: Extract<GameEvent, { t: 'discover' }>): LogLine | null 
 }
 
 function partDisabledText(world: World, e: Extract<GameEvent, { t: 'partDisabled' }>): LogLine {
-  const cls = e.vehicle === world.player.vehicleId ? 'bad' : 'good';
+  const cls = isPlayerTruckId(world, e.vehicle) ? 'bad' : 'good';
   return line(t('log.partDisabled', { who: vehicleName(world, e.vehicle), part: partName(world, e.vehicle, e.part) }), cls);
 }
 
 function breakdownText(world: World, e: Extract<GameEvent, { t: 'breakdown' }>): LogLine | null {
-  return e.vehicle === world.player.vehicleId ? line(t('log.breakdown', { part: partName(world, e.vehicle, e.part) }), 'bad') : null;
+  const part = partName(world, e.vehicle, e.part);
+  if (!isPlayerTruckId(world, e.vehicle)) return null;
+  return line(e.vehicle === world.player.vehicleId ? t('log.breakdown', { part }) : t('log.breakdownOf', { who: vehicleName(world, e.vehicle), part }), 'bad');
 }
 
 function foundText(e: Extract<GameEvent, { t: 'found' }>): LogLine {

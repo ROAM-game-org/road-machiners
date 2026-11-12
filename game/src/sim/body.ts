@@ -281,7 +281,7 @@ export function surfaceAt(chassisId: string, rect: CellRect): number {
   return best;
 }
 
-function nearestSurface(chassisId: string, rect: CellRect): number {
+export function nearestSurface(chassisId: string, rect: CellRect): number {
   const map = unitShape(chassisId, rect.unit).heights;
   for (let grow = 1; grow <= 4; grow++) {
     const pad = grow * map.cell;
