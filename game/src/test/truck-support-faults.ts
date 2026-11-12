@@ -4,7 +4,7 @@ import { isShield, partDef } from '../data/parts';
 import { BODY_PARTS } from '../render/partLooks';
 import { unitsOf } from '../sim/body';
 import { makePart } from '../sim/factory';
-import { gridOf, isMounted, MOUNT_CELLS, mountSpots } from '../sim/grid';
+import { baseGrid, gridOf, isMounted, MOUNT_CELLS, mountSpots } from '../sim/grid';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle } from '../sim/types';
 import { hidesInside, VehicleView } from '../three/render/vehicle';
@@ -58,13 +58,37 @@ function label(v: Vehicle, name: string): string {
   return `${what} ${role} ${mounted} @${item.x},${item.y} r${item.rot}`;
 }
 
-export function boxFaultsOnEveryDeckCell(chassisId: string): string[] {
+const DECK_CELLS_PER_PART = 80;
+
+export type SpotPart = { part: number; parts: number };
+
+export function spotPartsOf(chassisId: string): SpotPart[] {
+  const deck = baseGrid(chassisId).cells.flat().filter((cell) => cell === 'D').length;
+  const parts = Math.max(1, Math.ceil(deck / DECK_CELLS_PER_PART));
+  return Array.from({ length: parts }, (_, part) => ({ part, parts }));
+}
+
+export function partName({ part, parts }: SpotPart): string {
+  return parts > 1 ? `, spots part ${part + 1} of ${parts}` : '';
+}
+
+export function inPart<T>(spots: readonly T[], { part, parts }: SpotPart): T[] {
+  return spots.filter((_, i) => i % parts === part);
+}
+
+export type BoxCase = SpotPart & { chassisId: string; name: string };
+
+export function boxCases(chassisIds: readonly string[]): BoxCase[] {
+  return chassisIds.flatMap((chassisId) => spotPartsOf(chassisId).map((p) => ({ ...p, chassisId, name: `${chassisId}${partName(p)}` })));
+}
+
+export function boxFaultsOnEveryDeckCell({ chassisId, ...part }: BoxCase): string[] {
   const faults: string[] = [];
   const w = emptyWorld();
   const base = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 30 });
   const box = makePart(w, 'caltrops', 0);
   const probe: GridItem = { id: 'probe', kind: 'part', part: box, x: 0, y: 0, rot: 0 };
-  for (const spot of mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store)) {
+  for (const spot of inPart(mountSpots(gridOf(base), base.items, probe, MOUNT_CELLS.store), part)) {
     faults.push(...faultsOf({ ...base, items: [...base.items, { ...probe, ...spot }] }).map((f) => f.replace(/ v\d+ /, ' ')));
   }
   return faults;

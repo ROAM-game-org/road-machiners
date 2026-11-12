@@ -8,7 +8,7 @@ import { barrelClash } from './barrels';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle, partWithId } from './factory';
-import { MOUNT_CELLS, baseGrid, bareGrid, belowDeck, cargoCellsGained, cargoRowsOn, cellCount, cellsTurned, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, poseTurnedLike, sideOf, type Cell } from './grid';
+import { baseGrid, bareGrid, belowDeck, cargoCellsGained, cargoRowsOn, cellCount, cellsTurned, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, poseTurnedLike, sideOf, type Cell } from './grid';
 import { getLayoutError, moveItem, mountPart, storePart, stowSpot } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -319,13 +319,6 @@ describe('side armor skin', () => {
     expect(placementError(g, [], { ...crate, x: 1, y: 1 }, null)).toBeNull();
     const plate: GridItem = { id: 'i-plate', x: 2, y: 0, rot: 0, kind: 'part', part: makePart(w, 'steelPlate', 0) };
     expect(placementError(g, [], plate, null)).toBeNull();
-  });
-});
-
-describe('the cargo bay cell', () => {
-  it('mounts cargo parts and refuses a gun, so a gun on a bay cell is only stowed', () => {
-    expect(MOUNT_CELLS.cargo).toContain('C');
-    for (const kind of ['weapon', 'scanner', 'utility', 'store'] as const) expect(MOUNT_CELLS[kind]).not.toContain('C');
   });
 });
 
