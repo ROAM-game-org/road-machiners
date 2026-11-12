@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { restFrame, type VehicleFrame } from '../../phys/frames';
 import { CHASSIS } from '../../data/chassis';
 import { cellRect, hulkBoxes, isRig, unitBody, unitsOf } from '../../sim/body';
-import { bareVehicle } from '../../sim/factory';
 import { PARTS } from '../../data/parts';
-import { makePart, newId } from '../../sim/factory';
-import { baseGrid, corePart, isMounted, itemCells, mountedItems } from '../../sim/grid';
+import { bareVehicle, makePart, newId } from '../../sim/factory';
+import { baseGrid, corePart, gridOf, isMounted, itemCells, mountedItems, MOUNT_CELLS, mountSpots } from '../../sim/grid';
 import { defaultSetup } from '../../sim/settings';
 import { PLAIN_KIT } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
@@ -52,6 +51,15 @@ describe('smoke sources', () => {
       const r = cellRect('scout', itemCells(item));
       expect(found).toContainEqual(expect.objectContaining({ unit: 0, x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, damage: 1 }));
     }
+  });
+
+  it('smokes a broken armor plate on the tractor rows where the model has no surface', () => {
+    const v = truck('tractor');
+    const plate = makePart(world, 'steelPlate', 0);
+    const probe: GridItem = { id: 'i-probe', x: 0, y: 0, rot: 0, kind: 'part', part: plate };
+    const spots = mountSpots(gridOf(v), v.items, probe, MOUNT_CELLS.armor);
+    spots.forEach((spot, n) => v.items.push({ id: `i-plate-${n}`, x: spot.x, y: spot.y, rot: spot.rot, kind: 'part', part: { ...makePart(world, 'steelPlate', 0), hp: 0 } }));
+    expect(smokeSources(v).length).toBeGreaterThanOrEqual(spots.length);
   });
 
   it('adds the cab when it is under 35 percent', () => {
