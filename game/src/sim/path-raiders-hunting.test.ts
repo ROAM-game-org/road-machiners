@@ -31,6 +31,8 @@ describe('raider hunting routes on the map', () => {
     return legs;
   }
 
+  let sharedLegs: [Vec, Vec][] | null = null;
+
   function measure(band: number) {
     const saved = REGION.navigation.roadShyBand;
     REGION.navigation.roadShyBand = band;
@@ -41,7 +43,8 @@ describe('raider hunting routes on the map', () => {
       driver.brain = npcBrain('buggy', driver.pos, ['raider']);
       driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
       let length = 0, road = 0, near6 = 0, near10 = 0, samples = 0;
-      const legs = legsOf(w);
+      sharedLegs ??= legsOf(w);
+      const legs = sharedLegs;
       for (const [from, to] of legs) {
         const points = route(w, from, to, 0.8, [], driver);
         length += routeLength(from, points);

@@ -14,7 +14,7 @@ export { isTerritory };
 
 const GROUND_POINTS = 8;
 
-export type CoreZone = { radius: number; healthPerTurn: number; light: { pos: Vec; radius: number } };
+export type CoreZone = { radius: number; healthPerTurn: number; light: { pos: Vec; radius: number }; glow: number };
 export type HazardZone = Omit<Hazard, 'core'> & { id: string; pos: Vec; core: CoreZone | null };
 export type BakedPiece = { look: LandmarkLook; pos: Vec; yaw: number; r: number; sink: number };
 

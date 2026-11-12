@@ -10,12 +10,12 @@ import {
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
 import { fitsBody, frameAt, type VehicleFrame } from "../phys/frames";
-import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type IdleFailure, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf, record, timed, type PerfStat } from "../perf";
-import { reportError } from "./crash";
+import { noteError, reportError } from "./crash";
 import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
 import { currentQuestLanguage } from "../sim/quests";
@@ -537,6 +537,14 @@ export function workerError(workerStack: string): Error {
   return error;
 }
 
+export function isIdleFailure(response: object): response is IdleFailure {
+  return "idleError" in response;
+}
+
+export function noteIdleFailure(failure: IdleFailure): void {
+  noteError(workerError(failure.idleError));
+}
+
 function endPoses(world: World): Record<string, Pose> {
   return Object.fromEntries(world.vehicles.map((v) => [v.id, { pos: v.pos, heading: v.heading }]));
 }
@@ -587,6 +595,7 @@ export class TurnPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
+      if (isIdleFailure(event.data)) return noteIdleFailure(event.data);
       this.receive(event.data);
       this.finish(event.data.id);
     };
@@ -601,7 +610,7 @@ export class TurnPreparation {
     return worker;
   }
 
-  private receive(response: TurnResponse): void {
+  private receive(response: Exclude<TurnResponse, IdleFailure>): void {
     this.load.loaded();
     if (response.id === this.warmId) this.settleWarm();
     if ("error" in response) return this.fail(response.id, response.error);

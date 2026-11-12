@@ -7,10 +7,13 @@ import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { berthsOf, chooseOn } from './tracks';
 import { berthTaste, tasteKey, tasteOf } from './nav/layer';
-import { continueRoute, followRoute, keepRoute, reachesFrom, route, routeLength, type Blocker } from './path';
+import { continueRoute, followRoute, keepRoute, reachesFrom, route, routeAhead, routeLength, type Blocker } from './path';
 import { isCliff, tileAt } from './terrain';
 import type { Vehicle, World } from './types';
-import { siteGates } from './sites';
+import { nearestPad, siteGates } from './sites';
+import { siteOf } from './market';
+import { addGoods } from './inventory';
+import { climbGrade } from './stats';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { dist, polylineDist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
@@ -394,5 +397,35 @@ describe('reachesFrom', () => {
     const w = emptyWorld();
     w.obstacles = [{ id: 'big', pos: { x: 80, y: 60 }, r: 8, kind: 'rock' }];
     expect(() => reachesFrom(w, { x: 80, y: 60 }, 0.6, Infinity)).toThrow(/No nav component/);
+  });
+});
+
+describe('heavy truck from Dustwell to the Bowl', () => {
+  const WINDOW = 240;
+
+  function drive(world: World, driver: Vehicle, dest: Vec): Vec[] {
+    const trail: Vec[] = [];
+    let at = { ...driver.pos };
+    for (let leg = 0; leg < 12 && dist(at, dest) > 2; leg++) {
+      const { points, partial } = routeAhead(world, at, dest, 0.6, [], driver, WINDOW);
+      trail.push(...points);
+      at = points[points.length - 1];
+      if (!partial) break;
+    }
+    return trail;
+  }
+
+  it('crosses the open ground instead of detouring through the Granary', () => {
+    const world = startWorld(1337);
+    const start = nearestPad(siteOf('dustwell'), siteOf('bowl').pos);
+    const goal = nearestPad(siteOf('bowl'), start);
+    const heavy = addVehicle(world, 'independent', 'courier', ['stockEngine', 'plates', 'trailerBox'], { ...start });
+    heavy.brain = npcBrain('trader', heavy.pos, ['trader']);
+    addGoods(world, heavy, 'scrap', 2000);
+    expect(climbGrade(world, heavy)).toBeLessThan(0.15);
+    const trail = drive(world, heavy, goal);
+    const granary = siteOf('granary').pos;
+    expect(Math.min(...trail.map((p) => dist(p, granary)))).toBeGreaterThan(150);
+    expect(routeLength(start, trail)).toBeLessThan(dist(start, goal) * 1.15);
   });
 });

@@ -38,7 +38,7 @@ export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
-  core: { radius: number; healthPerTurn: number; light: Disc } | null;
+  core: { radius: number; healthPerTurn: number; light: Disc; glow: number } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -536,7 +536,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
-        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 } },
+        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 }, glow: 19 },
       },
     },
   },
