@@ -291,6 +291,27 @@ describe('cues', () => {
   });
 });
 
+describe('the target of the directions', () => {
+  it('is never named as a landmark, while another site still is', () => {
+    const world = emptyWorld();
+    const bowl = REGION.towns[0];
+    const spot = { pos: { x: bowl.pos.x + bowl.radius, y: bowl.pos.y }, legStart: { x: bowl.pos.x - 200, y: bowl.pos.y }, leg: [], earlier: [], forks: 1 };
+    expect(landmarkAt(world, { ...spot, target: bowl.id })).not.toEqual({ kind: 'site', id: bowl.id });
+    expect(landmarkAt(world, { ...spot, target: 'elsewhere' })).toEqual({ kind: 'site', id: bowl.id });
+  });
+
+  it('is not the cue of any turn on the way to a town', () => {
+    const w = emptyWorld();
+    const towns = REGION.towns.map((t) => t.id);
+    for (const from of towns) {
+      for (const id of towns.filter((t) => t !== from)) {
+        const named = directionsTo(w, site(from), to(id)).filter((s) => s.do === 'turn' && s.at.kind === 'site' && s.at.id === id);
+        expect(named, `${from} to ${id}`).toEqual([]);
+      }
+    }
+  });
+});
+
 describe('following the steps', () => {
   const w = emptyWorld();
   const grid: Vec[] = [];
