@@ -280,7 +280,11 @@ function repairFits(world: World, siteId: string, budget: number): boolean {
   const broken = !hasWorkingEngine(me) || !isWorking(corePart(me, 'transmission'));
   if (!broken) return budget >= ECONOMY.supplyPrice.fuel;
   const fix = hasWorkingEngine(me) ? basicsRepairCost(world) : repairCost(world);
-  return shopDef(siteId).kind === 'garage' && fix <= budget;
+  return (shopDef(siteId).kind === 'garage' || !needsRebuild(me)) && fix <= budget;
+}
+
+function needsRebuild(me: Vehicle): boolean {
+  return [...mountedParts(me, 'engine'), corePart(me, 'transmission')].some(isJunk);
 }
 
 function serviceStop(o: Orders): Site | null {
