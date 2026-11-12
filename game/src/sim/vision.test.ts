@@ -7,7 +7,7 @@ import { WEATHER } from '../data/weather';
 import { addVehicle, emptyWorld, PLAIN_KIT, practiceOf, settleStorms } from './testkit';
 import { playerVehicle } from './damage';
 import { propsAround } from './prop-index';
-import { litFlares } from './hazards';
+import { nightLights } from './hazards';
 import { tileSteepness } from '../mapgen/bake';
 import { REGION } from '../data/region';
 import { dist } from './vec';
@@ -421,7 +421,7 @@ describe('the viewshed against the line to every tile', () => {
     const out = new Set<number>();
     lineTilesIn(w, from, r, { pos: from, r }, out);
     const lit = sightRadius(w, viewer, true);
-    if (lit > r) for (const f of litFlares(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
+    if (lit > r) for (const f of nightLights(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
     return out;
   }
 
