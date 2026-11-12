@@ -3,10 +3,12 @@ import { restFrame, type VehicleFrame } from '../../phys/frames';
 import { CHASSIS } from '../../data/chassis';
 import { cellRect, hulkBoxes, isRig, unitBody, unitsOf } from '../../sim/body';
 import { bareVehicle } from '../../sim/factory';
-import { corePart, itemCells, mountedItems } from '../../sim/grid';
+import { PARTS } from '../../data/parts';
+import { makePart, newId } from '../../sim/factory';
+import { baseGrid, corePart, isMounted, itemCells, mountedItems } from '../../sim/grid';
 import { defaultSetup } from '../../sim/settings';
 import { PLAIN_KIT } from '../../sim/testkit';
-import type { Vehicle } from '../../sim/types';
+import type { GridItem, Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
@@ -178,5 +180,23 @@ describe('starting points clear the drawn body', () => {
     const [source] = smokeSources(v);
     const top = Math.max(...hulkBoxes('semi', 0).filter(({ x }) => x < 0).map(({ box }) => box.z1)) - unitBody('semi', 0).half.y;
     expect(source.y).toBeGreaterThanOrEqual(top + startRadius('hurt') - 1e-6);
+  });
+});
+
+describe('smoke sources on armor plates', () => {
+  it.each(Object.keys(CHASSIS))('puts a source over every broken armor plate of the %s', (id) => {
+    const v = truck(id);
+    const grid = baseGrid(id);
+    const plate = Object.values(PARTS).find((d) => d.kind === 'armor' && d.w === 1 && d.h === 1);
+    if (!plate) throw new Error('No 1x1 armor plate');
+    const plates: GridItem[] = [];
+    for (let y = 0; y < grid.h; y++) for (let x = 0; x < grid.w; x++) {
+      const item: GridItem = { id: newId(world, 'i'), kind: 'part', x, y, rot: 0, part: makePart(world, plate.id, 0) };
+      if (isMounted(id, item)) plates.push(item);
+    }
+    expect(plates.length).toBeGreaterThan(0);
+    for (const item of plates) if (item.kind === 'part') item.part.hp = 0;
+    v.items.push(...plates);
+    expect(smokeSources(v).length).toBeGreaterThanOrEqual(plates.length);
   });
 });

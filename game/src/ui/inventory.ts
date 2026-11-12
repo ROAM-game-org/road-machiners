@@ -5,7 +5,7 @@ import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { getLotTradePrice, sellPrice } from "../sim/economy";
-import { sellStoredGood, shopTrades, storedHere, storeTotal } from "../sim/goods-store";
+import { sellStoredGood, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
 import { lotLabel, reasonButton } from "./shop-rows";
 import { deepestFirst, gridOf, isMounted, nextTurn, type Cell, type Spot } from "../sim/grid";
@@ -21,7 +21,7 @@ import {
   stowSpot,
   type RefitLayout,
 } from "../sim/inventory";
-import { shopAt } from "../sim/market";
+import { shopAt, shopTrades } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
 import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits } from "../sim/salvage";
@@ -566,7 +566,7 @@ export class InventoryView {
       { class: "inv-chip stored", "data-hold": "", style: toneStyle(good) },
       itemIconEl(item),
       el("span", { class: "stored-name" }, t("inv.goodCount", { good: goodName(good), n: count })),
-      shopTrades(shopId, good) ? this.storedSellCell(w, shopId, good, count) : null,
+      shopTrades(shopId, good) ? this.storedSellCell(w, shopId, good, count) : this.untradedSellCell(w, good, count),
     );
     this.markSelected(chip, item);
     chip.addEventListener("pointerdown", (e) => this.startDrag(e, "storage", good, item, { x: 0, y: 0 }));
@@ -581,6 +581,16 @@ export class InventoryView {
       { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
       reasonButton([lotLabel(t("trade.minus", { n: 1 }), sellPrice(w, shopId, good))], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
       reasonButton([lotLabel(t("trade.all"), allTotal)], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`),
+    );
+  }
+
+  private untradedSellCell(w: World, good: string, count: number): HTMLElement {
+    const reason = this.look() ?? refusalText(w, { id: "notTraded" });
+    return el(
+      "div",
+      { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
+      reasonButton([lotLabel(t("trade.minus", { n: 1 }), null)], () => this.run((x) => sellStoredGood(x, good, 1)), reason, `${good}:storedSell1`),
+      reasonButton([lotLabel(t("trade.all"), null)], () => this.run((x) => sellStoredGood(x, good, count)), reason, `${good}:storedSellAll`),
     );
   }
 

@@ -8,9 +8,9 @@ import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, PLAYTEST_FIXES_BRANCH, RELEASE_CANDIDATE_LABEL, STUCK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type LandingStage, type LandingWork } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
-import { BaselineFailureError, BudgetError, runCost, untilPasses } from './checkpoint';
+import { BaselineFailureError, BudgetError, onceEachHead, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
-import { withoutBaseline } from './baseline';
+import { suiteVerdict } from './baseline';
 import { ownWorkSettled } from './card-suite';
 import { cardFlow, moveCard } from '../card-events';
 import { remoteSuiteResult } from './remote-suite';
@@ -130,7 +130,7 @@ function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   updateState(ctx.statePath, (state) => ({ ...state, devMerges: [...state.devMerges, ...merges] }));
 }
 
-export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock; staleBase?: boolean };
+export type Landing = { stage: LandingStage; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string, limitMinutes?: number) => Promise<string>; clock?: Clock; staleBase?: boolean };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;
@@ -168,10 +168,10 @@ export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number,
 }
 
 async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts: number, fixPrompt: (failure: string) => string): Promise<number> {
-  const checkHead = checksOnceEachHead(ctx, land, () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
+  const checkHead = onceEachHead(ctx.cfg.noCommitRounds, (message) => ctx.log(land.stage, null, message), () => timed(land.clock, 'checks', () => mergedChecks(ctx, land)));
   const check = async (): Promise<string | null> => {
     await refreshKeptBase(ctx, land);
-    return checkHead();
+    return checkHead(await ctx.repo.workHead(land.dir), () => dirtyClone(ctx, land));
   };
   try {
     return await untilPasses(ctx.cfg.mergingBudgetUsd, fixes, check, (failure) => timed(land.clock, 'fixes', () => keptFix(ctx, land, fixPrompt(failure))));
@@ -179,21 +179,6 @@ async function fixUntilPasses(ctx: Ctx, land: Landing, fixes: number, conflicts:
     if (error instanceof BudgetError) throw new BudgetError(`${error.message}\nThe budget counts only fix rounds. The job also spent $${conflicts.toFixed(2)} on conflicts.`);
     throw error;
   }
-}
-
-function checksOnceEachHead(ctx: Ctx, land: Landing, checks: () => Promise<string | null>): () => Promise<string | null> {
-  let checked: { head: string; failure: string | null } | null = null;
-  return async () => {
-    const dirty = await dirtyClone(ctx, land);
-    if (dirty !== null) return dirty;
-    const head = await ctx.repo.workHead(land.dir);
-    if (checked !== null && checked.head === head) {
-      ctx.log(land.stage, null, `the fix round made no commit, so ${head} keeps its failure and the checks do not run again`);
-      return `${checked.failure}\n\nYour last round made no commit, so the head is still ${head} and the factory did not run the checks again. The failure above still stands. Commit the fix. Changes left uncommitted are never tested.`;
-    }
-    checked = { head, failure: await checks() };
-    return checked.failure;
-  };
 }
 
 const MERGE_BATCH_CARDS = 3;
@@ -252,16 +237,16 @@ async function keptFix(ctx: Ctx, land: Landing, prompt: string): Promise<string>
 
 export const LANDING_RESUME_NOTE = 'An earlier job on this same work stopped before it pushed, and this job continues it. The clone keeps your commits and your uncommitted changes, so read git log and git status first and carry on from there. Do not redo work that is already in the clone.';
 
-export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: LandingWork, resumed: boolean): (prompt: string) => Promise<string> {
+export function landingAgent(ctx: Ctx, stage: LandingStage, dir: string, work: LandingWork, resumed: boolean): Landing['agent'] {
   const session = landingSession(ctx, stage, work);
   const log = releaseLog(ctx, `${stage}-${work.into.replaceAll('/', '-')}`);
   let note = resumed;
-  return (prompt) => {
+  return (prompt, limitMinutes) => {
     const run = { dir: session.dir, id: session.id, resume: session.resume };
     const full = note ? `${LANDING_RESUME_NOTE}\n\n${prompt}` : prompt;
     session.resume = true;
     note = false;
-    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: full, log, session: run });
+    return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: full, log, session: run, limitMinutes });
   };
 }
 
@@ -281,7 +266,7 @@ async function conflictRun(ctx: Ctx, land: Landing, { branch, reason, card }: Om
   const owner = card ?? (branch === land.into ? await soleOwner(ctx, land, conflicts) : null);
   const log = releaseLog(ctx, `${land.stage}-${land.into.replaceAll('/', '-')}`);
   const own = owner === null ? null : cardConflictRun(ctx, land.stage, { issue: owner, clone: land.dir, what: `${branch} into ${land.into}`, prompt: cardMergePrompt(owner, branch, land.into, reason, conflicts), log });
-  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }));
+  return own ?? land.agent(fillPrompt('merge-branches', { into: land.into, branch, reason, files: conflicts.map((file) => `- ${file}`).join('\n') }), ctx.cfg.conflictTimeoutMinutes);
 }
 
 async function soleOwner(ctx: Ctx, land: Landing, conflicts: string[]): Promise<number | null> {
@@ -320,8 +305,9 @@ async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
 async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {
   const head = await guardedHead(ctx, land);
   await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
-  const check = { stage: land.stage, into: land.into, base: await ctx.repo.headHash(land.into), head };
-  const suite = remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head).then((result) => (result.failure === null ? null : withoutBaseline(ctx, check, result)));
+  const check = { stage: land.stage, issue: null, into: land.into, base: await ctx.repo.headHash(land.into), head };
+  const fullSuite = () => remoteSuiteResult(ctx, { stage: land.stage, issue: null }, head);
+  const suite = fullSuite().then((result) => (result.failure === null ? null : suiteVerdict(ctx, check, result, fullSuite)));
   suite.catch(() => undefined);
   return { suite };
 }

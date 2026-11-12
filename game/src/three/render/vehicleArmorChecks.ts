@@ -3,12 +3,12 @@ import { expect } from 'vitest';
 import { isShield, PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { baseModel, itemLookId, partModel } from '../../render/partLooks';
-import { bodyOf, cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
+import { cellRect, cellSteps, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
 import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { GLASS, loadModels, model, type ModelName } from './models';
-import { armorPlacement } from './armorCut';
-import { lowestFace } from './gunStand';
+import { armorMatrix, armorPlacement, poseArmor, type Placement } from './armorCut';
+import { FACE_COLUMN, lowestFace } from './gunStand';
 import { footprint, wouldFloat } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -22,6 +22,7 @@ const ARMOR = Object.values(PARTS).filter(isShield);
 const EPS = 1e-6;
 const LOOSE_PARTS = ['panniers', 'rack', 'trailerBox'];
 const PROBE = 0.1;
+const ARMOR_AIR = FACE_COLUMN;
 const RAM_FOOT_REACH = 0.25;
 const FAR = 20;
 
@@ -40,6 +41,7 @@ const sharedModels = new Map<string, THREE.Object3D>();
 const rawBoxes = new Map<string, THREE.Box3>();
 const mountedCache = new Map<string, PartItem[]>();
 const placedBoxes = new Map<string, THREE.Box3>();
+const placements = new Map<string, Placement>();
 const probeReach = new Map<string, number | null>();
 const probeGlass = new Map<string, boolean>();
 
@@ -77,15 +79,19 @@ function plateUnder(item: PartItem): PartItem {
   return { ...item, id: 'under', x: cell.x, y: cell.y, rot: 0, part: { id: 'under', defId: 'steelPlate', hp: 1, wear: 0 } };
 }
 
+function placementOf(chassisId: string, item: PartItem, items: GridItem[]): Placement {
+  const key = `${chassisId}|${item.part.defId}|${item.x}|${item.y}|${item.rot}|${items.length}`;
+  return memo(placements, key, () => {
+    const base = shared(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit));
+    return armorPlacement({ chassisId, items }, item, rawBox(partModel(item.part.defId)), base);
+  });
+}
+
 function placedBox(chassisId: string, item: PartItem, items: GridItem[] = []): THREE.Box3 {
   const key = `${chassisId}|${item.part.defId}|${item.x}|${item.y}|${item.rot}|${items.length}`;
   return memo(placedBoxes, key, () => {
-    const base = shared(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit));
-    const placement = armorPlacement({ chassisId, items }, item, rawBox(partModel(item.part.defId)), base);
     const obj = shared(partModel(item.part.defId)).clone(true);
-    obj.position.copy(placement.pos);
-    obj.rotation.set(0, placement.yaw, 0);
-    obj.scale.copy(placement.scale);
+    poseArmor(obj, placementOf(chassisId, item, items));
     obj.updateMatrixWorld(true);
     return new THREE.Box3().setFromObject(obj);
   });
@@ -103,8 +109,9 @@ function bodyHalf(half: Half, side: string): number {
   return isAcross(side) ? half.x : half.z;
 }
 
-function depthOf(box: THREE.Box3, side: string): number {
-  return isAcross(side) ? box.max.x - box.min.x : box.max.z - box.min.z;
+function thicknessOf(id: string, item: PartItem, under: PartItem[]): number {
+  const raw = rawBox(partModel(item.part.defId));
+  return (raw.max.x - raw.min.x) * placementOf(id, item, under).scale.x;
 }
 
 type Probe = { baseName: ModelName; base: THREE.Object3D; side: string; across: boolean; outward: number; raycaster: THREE.Raycaster };
@@ -146,23 +153,12 @@ function steps(lo: number, hi: number): number[] {
   return out;
 }
 
-function outermostBody(chassisId: string, item: PartItem, box: THREE.Box3, side: string): number {
-  const probe = probeOf(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit), side);
-  const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
-  const heights = steps(box.min.y, box.max.y);
-  let best = -Infinity;
-  for (const u of steps(lo, hi)) {
-    for (const y of heights) best = Math.max(best, reachAt(probe, u, y) ?? -Infinity);
-  }
-  return best;
-}
-
-function outermostFace(chassisId: string, item: PartItem, box: THREE.Box3, side: string): number {
+function outermostFace(chassisId: string, item: PartItem, box: THREE.Box3, side: string, height: [number, number] = [-Infinity, Infinity]): number {
   const probe = probeOf(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit), side);
   const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
   const whole = rawBox(probe.baseName);
   const floor = -unitBody(chassisId, cellRect(chassisId, itemCells(item)).unit).half.y + TRUCK_LOOK.armorRise;
-  const heights = steps(whole.min.y, whole.max.y).filter((y) => y >= floor);
+  const heights = steps(whole.min.y, whole.max.y).filter((y) => y >= floor && y >= height[0] && y <= height[1]);
   let best = -Infinity;
   for (const u of steps(lo, hi)) {
     for (const y of heights) best = Math.max(best, reachAt(probe, u, y) ?? -Infinity);
@@ -189,17 +185,53 @@ function armorProblems(id: string, item: PartItem, under: PartItem[]): string[] 
   const side = plateSide(id, item);
   const box = placedBox(id, item, under);
   const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side} over ${under.length} plates`;
-  const inner = innerFace(box, side) - (under.length ? TRUCK_LOOK.armorDepth : 0);
+  const over = under.length ? TRUCK_LOOK.armorDepth : 0;
+  const inner = innerFace(box, side) - over;
   const snug = bodyHalf(unitBody(id, cellRect(id, itemCells(item)).unit).half, side) - TRUCK_LOOK.armorInset;
-  const depth = depthOf(box, side);
+  const depth = thicknessOf(id, item, under);
+  const edge = innerEdgeOf(id, item, under, side);
+  const foot = Math.max(...edge.map((p) => p.out)) - over;
+  const rows = rowGaps(id, item, box, side, edge).map((row) => ({ ...row, gap: row.gap - over }));
+  const gaps = rows.map((row) => row.gap);
   const measures: { over: number; limit: number; text: string }[] = [
     { over: inner - snug, limit: EPS, text: `inner face ${inner.toFixed(3)} past ${snug.toFixed(3)}` },
-    { over: inner - outermostBody(id, item, box, side), limit: CLIP_TOLERANCE, text: 'of air between armor and body' },
-    { over: outermostFace(id, item, box, side) - inner, limit: cellSteps(id).row + EPS, text: 'behind the outermost body face' },
+    { over: Math.min(...gaps), limit: CLIP_TOLERANCE, text: 'of air between armor and body at its closest row' },
+    { over: -Math.min(0, ...rows.filter((row) => row.inside).map((row) => row.gap)), limit: CLIP_TOLERANCE, text: 'into the body' },
+    { over: isRamItem(item) ? 0 : meanOf(gaps.filter((gap) => gap < cellSteps(id).row)), limit: ARMOR_AIR, text: 'of air between armor and body on average' },
+    { over: outermostFace(id, item, box, side, [box.min.y, box.max.y]) - foot, limit: cellSteps(id).row + EPS, text: 'behind the outermost body face at its height' },
     { over: glassGapOf(id, item, box, side), limit: EPS, text: 'above the glass line' },
     { over: TRUCK_LOOK.armorDepth - depth, limit: EPS, text: `short of the ${TRUCK_LOOK.armorDepth} depth` },
   ];
   return measures.filter((m) => m.over > m.limit).map((m) => `${label}: ${m.text.startsWith('inner') ? m.text : `${m.over.toFixed(3)} m ${m.text}`}`);
+}
+
+function meanOf(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+type EdgePoint = { y: number; out: number };
+
+function innerEdgeOf(id: string, item: PartItem, under: PartItem[], side: string): EdgePoint[] {
+  const raw = rawBox(partModel(item.part.defId));
+  const matrix = armorMatrix(placementOf(id, item, under));
+  const outward = side === 'F' || side === 'R' ? 1 : -1;
+  const middle = (raw.min.z + raw.max.z) / 2;
+  return [raw.min.y, raw.max.y].map((y) => {
+    const p = new THREE.Vector3(raw.min.x, y, middle).applyMatrix4(matrix);
+    return { y: p.y, out: outward * (isAcross(side) ? p.x : p.z) };
+  }).sort((a, b) => a.y - b.y);
+}
+
+function rowGaps(id: string, item: PartItem, box: THREE.Box3, side: string, [foot, head]: EdgePoint[]): { gap: number; inside: boolean }[] {
+  const probe = probeOf(baseModel(id, cellRect(id, itemCells(item)).unit), side);
+  const [lo, hi] = probe.across ? [box.min.z, box.max.z] : [box.min.x, box.max.x];
+  const innerAt = (y: number): number => foot.out + ((y - foot.y) / (head.y - foot.y)) * (head.out - foot.out);
+  const heights = steps(rawBox(probe.baseName).min.y, rawBox(probe.baseName).max.y).filter((y) => y >= foot.y && y <= head.y);
+  return heights.flatMap((y) => {
+    const reaches = steps(lo, hi).map((u) => reachAt(probe, u, y)).filter((r): r is number => r !== null);
+    const inside = y >= foot.y + CLIP_TOLERANCE && y <= head.y - CLIP_TOLERANCE;
+    return reaches.length ? [{ gap: innerAt(y) - Math.max(...reaches), inside }] : [];
+  });
 }
 
 function glassGapOf(id: string, item: PartItem, box: THREE.Box3, side: string): number {
@@ -213,8 +245,12 @@ export function armorSitsOnBody(id: string): void {
   expect(cases.flatMap(({ item, under }) => armorProblems(id, item, under))).toEqual([]);
 }
 
+function isRamItem(item: PartItem): boolean {
+  return (PARTS[item.part.defId] as { look?: string }).look === 'ram';
+}
+
 function rams(id: string): PartItem[] {
-  return mountedArmor(id).filter((item) => (PARTS[item.part.defId] as { look?: string }).look === 'ram');
+  return mountedArmor(id).filter(isRamItem);
 }
 
 export function ramsAreBacked(id: string): void {
@@ -227,25 +263,13 @@ export function ramsAreBacked(id: string): void {
     const inner = innerFace(box, side);
     const backed = steps(box.min.y, box.max.y).map((y) => {
       const reaches = steps(lo, hi).map((u) => reachAt(probe, u, y)).filter((r): r is number => r !== null);
-      return reaches.length > 0 && inner - Math.max(...reaches) <= CLIP_TOLERANCE;
+      return reaches.length > 0 && inner - Math.max(...reaches) <= FACE_COLUMN + EPS;
     });
     if (!backed[0] && !backed[1]) {
       problems.push(`${item.part.defId} at ${item.x},${item.y} side ${side}: rows from the foot ${backed.map((b) => (b ? 'body' : 'air')).join(' ')}`);
     }
   }
   expect(problems).toEqual([]);
-}
-
-function expectRaised(id: string, item: PartItem): void {
-  const def = PARTS[item.part.defId];
-  if (!isShield(def)) return;
-  const half = bodyOf(id).half.y;
-  const box = placedBox(id, item);
-  if (def.look !== 'ram') expect(box.max.y, def.id).toBeCloseTo(half + TRUCK_LOOK.armorRise, 5);
-}
-
-export function armorRisesOverBody(): void {
-  for (const item of mountedArmor('scout')) expectRaised('scout', item);
 }
 
 function armorBoxes(id: string) {

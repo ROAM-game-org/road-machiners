@@ -68,6 +68,33 @@ describe('fetchAsset', () => {
     expect(run.waits).toEqual([1000]);
   });
 
+  it('sends one plain request when the first try succeeds', async () => {
+    const run = net([ok]);
+    await fetchAsset('Model', 'a.glb?v=1', run.net);
+    expect(run.fetch).toHaveBeenCalledTimes(1);
+    expect(run.fetch.mock.calls[0][0]).toBe('a.glb?v=1');
+    expect(run.fetch.mock.calls[0][1]?.cache).toBeUndefined();
+  });
+
+  it('retries past a cached 404 with a marker and a reload', async () => {
+    const run = net([status(404), ok]);
+    await fetchAsset('Model', 'a.glb?v=1', run.net);
+    expect(run.fetch.mock.calls[1][0]).toBe('a.glb?v=1&retry=1');
+    expect(run.fetch.mock.calls[1][1]?.cache).toBe('reload');
+  });
+
+  it('starts the marker query on a plain dev url', async () => {
+    const run = net([status(404), ok]);
+    await fetchAsset('Model', 'a.glb', run.net);
+    expect(run.fetch.mock.calls[1][0]).toBe('a.glb?retry=1');
+  });
+
+  it('keeps the original url in the error of a file that stays missing', async () => {
+    const run = net([status(404), status(404), status(404), status(404)]);
+    const err = await fetchAsset('Model', 'a.glb?v=1', run.net).catch((e: unknown) => e);
+    expect((err as Error).message).toContain('Model a.glb?v=1 failed');
+  });
+
   it('reports a file that stays missing as a status error', async () => {
     const run = net([status(404), status(404), status(404), status(404)]);
     const err = await fetchAsset('Map', 'map.bin', run.net).catch((e: unknown) => e);

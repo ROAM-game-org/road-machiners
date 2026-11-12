@@ -132,6 +132,13 @@ For a feature or a fix, describe what the player will see and do, and every mean
 No code, file names or implementation details.
 It is a plan, so say what the change will do, never that it was built or tested.
 
+Also write play steps to `.factory/try.md`.
+They are the steps a committee member follows in the browser to see the planned change.
+The member plays a build from a link, so start from the loaded game.
+Name where to go, what to do and what to look for.
+Keep it under 400 characters.
+They are steps to try, never a claim that the change was built.
+
 {{writing}}
 
 Git ignores the task file. Never commit it and never force-add it.

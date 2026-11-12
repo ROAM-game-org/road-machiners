@@ -75,10 +75,14 @@ async function buildGone(net: AssetNet): Promise<string | null> {
   return page;
 }
 
-async function attempt(label: string, url: string, init: RequestInit | undefined, net: AssetNet): Promise<Attempt> {
+function retryUrl(url: string, n: number): string {
+  return `${url}${url.includes('?') ? '&' : '?'}retry=${n}`;
+}
+
+async function attempt(label: string, url: string, tryUrl: string, init: RequestInit | undefined, net: AssetNet): Promise<Attempt> {
   let outcome: Awaited<ReturnType<typeof attemptWithin>>;
   try {
-    outcome = await attemptWithin(url, init, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
+    outcome = await attemptWithin(tryUrl, init, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
   } catch (e) {
     return { transient: e };
   }
@@ -89,11 +93,15 @@ async function attempt(label: string, url: string, init: RequestInit | undefined
 
 export async function fetchAssetBody(label: string, url: string, init?: RequestInit, net: AssetNet = BROWSER_NET): Promise<AssetBody> {
   let last: unknown;
+  let sawMissing = false;
   for (let i = 0; i <= net.delaysMs.length; i++) {
     if (i > 0) await net.wait(net.delaysMs[i - 1]);
-    const result = await attempt(label, url, init, net);
+    const result = sawMissing
+      ? await attempt(label, url, retryUrl(url, i), { ...init, cache: 'reload' }, net)
+      : await attempt(label, url, url, init, net);
     if ('body' in result) return result.body;
     if ('missing' in result) {
+      sawMissing = true;
       const page = await buildGone(net);
       if (page !== null) throw new BuildGone(label, url, i + 1, result.missing, page);
       if (!retryable(result.missing.status) || i === net.delaysMs.length) throw result.missing;

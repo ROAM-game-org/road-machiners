@@ -44,7 +44,7 @@ export function cardConflictRun(ctx: Ctx, stage: Stage, conflict: CardConflict):
     return null;
   }
   ctx.log(stage, conflict.issue, `the kept session ${session.id} of #${conflict.issue} resolves the conflict of ${conflict.what}`);
-  return ctx.container.agent({ clone: conflict.clone, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: conflict.prompt, log: conflict.log, session });
+  return ctx.container.agent({ clone: conflict.clone, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: conflict.prompt, log: conflict.log, session, limitMinutes: ctx.cfg.conflictTimeoutMinutes });
 }
 
 export function cardMergePrompt(issue: number, branch: string, into: string, reason: string, files: string[]): string {
@@ -53,9 +53,10 @@ export function cardMergePrompt(issue: number, branch: string, into: string, rea
 
 function conflictAgent(ctx: Ctx, stage: Stage, conflict: MergeConflictError | RevertConflictError, dir: string, log: string, card?: number): Promise<string> {
   const files = conflict.files.map((file) => `- ${file}`).join('\n');
-  if (conflict instanceof RevertConflictError) return ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: fillPrompt('revert-merge', { into: conflict.into, issue: String(conflict.issue), files }), log });
+  const fresh = (prompt: string) => ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log, limitMinutes: ctx.cfg.conflictTimeoutMinutes });
+  if (conflict instanceof RevertConflictError) return fresh(fillPrompt('revert-merge', { into: conflict.into, issue: String(conflict.issue), files }));
   const own = card === undefined ? null : cardConflictRun(ctx, stage, { issue: card, clone: dir, what: `${conflict.branch} into ${conflict.into}`, prompt: cardMergePrompt(card, conflict.branch, conflict.into, conflict.step.message, conflict.files), log });
-  return own ?? ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt: fillPrompt('merge-branches', { into: conflict.into, branch: conflict.branch, reason: conflict.step.message, files }), log });
+  return own ?? fresh(fillPrompt('merge-branches', { into: conflict.into, branch: conflict.branch, reason: conflict.step.message, files }));
 }
 
 function resolve(ctx: Ctx, stage: Stage, conflict: MergeConflictError | RevertConflictError, card?: number): Promise<Resolution> {

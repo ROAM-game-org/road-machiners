@@ -13,7 +13,7 @@ import { remoteSuite } from './remote-suite';
 import { guardDiff } from '../diff-guard';
 import { BASE_BRANCH, agentHome, browserRule, fillPrompt, issueText, playtestCommand, readOutput, resetOutputs } from './common';
 import { judge, logFacts, parseReview, type Finding, type LogFacts, type Outcome, type Review } from './playtest-review';
-import { featureLine, releaseLog, requireRelease } from './release-common';
+import { featureLine, releaseLog, requireRelease, unrevertedMerges } from './release-common';
 
 const LOG = `${OUT_DIR}/playtest/log.jsonl`;
 const BASELINE_LOG = `${OUT_DIR}/playtest/baseline.jsonl`;
@@ -67,7 +67,7 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
 
 async function featuresAt(ctx: Ctx, release: ReleaseState, start: string): Promise<IssueMerge[]> {
   const { devMerges } = readStateOf(ctx);
-  const listed = devMerges.filter((merge) => !release.removed.includes(merge.issue) && merge.reverted.length === 0);
+  const listed = unrevertedMerges(devMerges).filter((merge) => !release.removed.includes(merge.issue));
   const fresh = await Promise.all(listed.map(async (merge) => (await ctx.repo.isMerged(merge.sha, start)) && !(await ctx.repo.isMerged(merge.sha, 'main'))));
   return listed.filter((_merge, index) => fresh[index]);
 }

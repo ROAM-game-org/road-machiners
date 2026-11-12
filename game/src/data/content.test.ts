@@ -280,12 +280,13 @@ describe("utilities", () => {
     expect(holders.map(([id]) => id)).toEqual(["landmark", "hullCache"]);
   });
 
-  it("sets ship relics at tier 3 and trades them only where the Yard and Nose do", () => {
+  it("sets ship relics at tier 3 and trades them at the Yard, Bowl and Nose", () => {
     expect(GOODS.relics.tier).toBe(3);
     const traders = Object.values(SHOPS).filter((shop) => shop.goods.includes("relics")).map((shop) => shop.id);
-    expect(traders.sort()).toEqual(["nose", "salvage-yard"]);
+    expect(traders.sort()).toEqual(["bowl", "nose", "salvage-yard"]);
     expect(SHOPS["salvage-yard"].makes).toContain("relics");
     expect(SHOPS.nose.needs).toContain("relics");
+    expect(SHOPS.bowl.needs).toContain("relics");
   });
 
   const lootTables = (): [string, LootTable][] => [

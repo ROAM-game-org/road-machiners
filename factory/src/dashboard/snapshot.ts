@@ -6,7 +6,7 @@ import { ghClient } from '../github';
 import { must } from '../exec';
 import { readPause } from '../pause';
 import { readState } from '../state';
-import { toFeatures, type Feature } from '../stages/release-common';
+import { toFeatures, unrevertedMerges, type Feature } from '../stages/release-common';
 import { LABELS, type Labels } from './labels';
 import { createWorkerKey, readLiveOperations } from './live';
 import { ADHOC_LABEL, QUEUE_OF, STUCK_LABEL } from '../types';
@@ -47,7 +47,7 @@ function getPublicIssue(stage: string, issue: number | null): number | null {
   return stage === 'adhoc' ? null : issue;
 }
 function readNextFeatures(state: FactoryState): Feature[] {
-  return toFeatures(state.devMerges);
+  return toFeatures(unrevertedMerges(state.devMerges));
 }
 function getFactoryStatus(state: FactoryState, paused: boolean): string {
   if (paused) return 'paused';
@@ -75,10 +75,9 @@ export class PublicGitHub {
   async read(state: FactoryState): Promise<GithubSnapshot> {
     const visibility = (await this.query(['api', `repos/${this.config.repo}`, '--jq', '.visibility'])).trim();
     if (visibility !== 'public') throw new Error('Dashboard requires a public repository');
-    const [board] = await Promise.allSettled([this.readBoard()]);
-    const boardPart = toPart(board, 'board');
-    const cards = mapPart(boardPart, 'cards', ({ cards: raw, issues }) => selectPublicCards(raw, issues));
-    const mergeQueue = mapPart(boardPart, 'merge queue', ({ cards: raw, issues }) => selectMergeQueue(state, raw, issues));
+    const board: Part<{ cards: Card[]; issues: PublicIssue[] }> = { value: await this.readBoard(), error: null };
+    const cards = mapPart(board, 'cards', ({ cards: raw, issues }) => selectPublicCards(raw, issues));
+    const mergeQueue = mapPart(board, 'merge queue', ({ cards: raw, issues }) => selectMergeQueue(state, raw, issues));
     return { cards, mergeQueue };
   }
   private async readBoard(): Promise<{ cards: Card[]; issues: PublicIssue[] }> {

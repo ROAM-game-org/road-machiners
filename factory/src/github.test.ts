@@ -172,6 +172,82 @@ describe('ghClient', () => {
     expect(waits).toHaveLength(3);
   });
 
+  const CONNECT_FAILURES = [
+    'Post "https://api.github.com/graphql": dial tcp 20.250.119.72:443: connect: network is unreachable',
+    'error connecting to api.github.com',
+    'gh: Something went wrong while executing your query on 2026-11-03T22:34:07Z. Please include ABCD-1234 when reporting this issue.',
+  ];
+
+  it('retries a read after a connection that never opened or a GraphQL internal error, with the rate-limit waits', async () => {
+    for (const stderr of CONNECT_FAILURES) {
+      const waits: number[] = [];
+      let calls = 0;
+      const issueJson = JSON.stringify({ number: 7, title: 't', body: '', labels: [], createdAt: 't', state: 'OPEN', author: { login: 'a' } });
+      const run: Run = async () => { calls++; return calls < 3 ? { code: 1, stdout: '', stderr } : ok(issueJson); };
+      expect((await ghClient(run, CFG, async (ms) => { waits.push(ms); }).issue(7)).number).toBe(7);
+      expect(calls).toBe(3);
+      expect(waits).toEqual([15000, 30000]);
+    }
+  });
+
+  it('reads the board through a connection that never opened on every page query', async () => {
+    const inner = fake([], project(ALL));
+    const failed = new Set<string>();
+    const run: Run = async (cmd, args, opts) => {
+      const text = args.join(' ');
+      const kind = ['projectV2(number', 'items(first', 'issues(states: OPEN'].find((key) => text.includes(key));
+      if (kind && !failed.has(kind)) { failed.add(kind); return { code: 1, stdout: '', stderr: CONNECT_FAILURES[0] }; }
+      return inner(cmd, args, opts);
+    };
+    expect((await ghClient(run, CFG, async () => {}).cards()).map((card) => card.issue)).toEqual([7]);
+    expect(failed.size).toBe(3);
+  });
+
+  it('fails a read with the connect error once the retries run out', async () => {
+    for (const stderr of CONNECT_FAILURES) {
+      const waits: number[] = [];
+      let calls = 0;
+      const run: Run = async () => { calls++; return { code: 1, stdout: '', stderr }; };
+      await expect(ghClient(run, CFG, async (ms) => { waits.push(ms); }).issue(7)).rejects.toThrow(stderr);
+      expect(calls).toBe(4);
+      expect(waits).toEqual([15000, 30000, 60000]);
+    }
+  });
+
+  it('never repeats a write or a mutation that failed to connect', async () => {
+    for (const stderr of CONNECT_FAILURES) {
+      const calls: string[][] = [];
+      const run: Run = async (cmd, args, opts) => {
+        const text = args.join(' ');
+        if (args[1] === 'comment' || text.includes('mutation(')) { calls.push(args); return { code: 1, stdout: '', stderr }; }
+        return fake([], project(ALL))(cmd, args, opts);
+      };
+      const client = ghClient(run, CFG, async () => {});
+      await expect(client.comment(1, 'Hello')).rejects.toThrow();
+      await expect(client.move(7, 'Done')).rejects.toThrow();
+      expect(calls).toHaveLength(2);
+    }
+  });
+
+  it('fails a read at once on an error that a retry cannot fix', async () => {
+    const errors = [
+      'gh: HTTP 401: Bad credentials',
+      'gh: HTTP 403: Resource not accessible by integration',
+      "Field 'x' doesn't exist on type 'Y'",
+      'Could not resolve to a ProjectV2 with the number 3.',
+    ];
+    for (const stderr of errors) {
+      let calls = 0;
+      const run: Run = async () => { calls++; return { code: 1, stdout: '', stderr }; };
+      await expect(ghClient(run, CFG, async () => {}).issue(7)).rejects.toThrow(stderr);
+      expect(calls).toBe(1);
+    }
+    let runCalls = 0;
+    const missing: Run = async () => { runCalls++; return { code: 1, stdout: '', stderr: 'gh: Not Found (HTTP 404)' }; };
+    await expect(ghClient(missing, CFG, async () => {}).suiteRun(9)).rejects.toThrow('404');
+    expect(runCalls).toBe(1);
+  });
+
   it('never repeats a write or a mutation that hit a gateway error or timed out', async () => {
     const failures: RunResult[] = [
       { code: 1, stdout: '', stderr: 'gh: HTTP 502' },
@@ -190,6 +266,14 @@ describe('ghClient', () => {
       await expect(client.move(7, 'Done')).rejects.toThrow();
       expect(calls).toHaveLength(2);
     }
+  });
+
+  it('dispatches a rerun of some test files with no worker input when the shard keeps its own worker count', async () => {
+    const calls: string[][] = [];
+    const run: Run = async (_cmd, args) => { calls.push(args); return ok('{"workflow_run_id":79}'); };
+    const sha = 'a'.repeat(40);
+    expect(await ghClient(run, CFG).dispatchSuite(sha, { files: ['src/a.test.ts'], workers: null })).toBe(79);
+    expect(calls[0]).toEqual(['api', '-X', 'POST', 'repos/o/r/actions/workflows/game-suite.yml/dispatches', '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-f', 'inputs[files]=src/a.test.ts', '-F', 'return_run_details=true']);
   });
 
   it('tells reads from writes by their gh arguments', () => {

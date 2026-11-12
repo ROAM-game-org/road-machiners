@@ -1,6 +1,6 @@
-import { ECONOMY } from "../data/goods";
+import { ECONOMY, GOOD_IDS } from "../data/goods";
 import { SHOPS, SHORT_PRESSURE, siteRecipes, type Recipe, type ShopDef } from "../data/market";
-import { knowsMarket, goodStock, pressureOf, shopState, stockShort, type ShopState } from "../sim/market";
+import { knowsMarket, goodStock, pressureOf, shopState, shopTrades, stockShort, type ShopState } from "../sim/market";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
@@ -474,4 +474,8 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
   );
+}
+
+export function untradedHeld(shopId: string, held: Record<string, number>): [string, number][] {
+  return GOOD_IDS.map((g): [string, number] => [g, held[g] ?? 0]).filter(([g, n]) => n > 0 && !shopTrades(shopId, g));
 }

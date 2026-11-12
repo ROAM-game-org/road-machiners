@@ -42,7 +42,7 @@ const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorker
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234', merges: IssueMerge[] = []): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingPlaytest: 'now', devMerges: merges, release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = {
     f, shells: [], prompts: [], sessions: [], devTip: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', passedAncestor: true, onMain: [],

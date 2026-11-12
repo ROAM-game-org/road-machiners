@@ -218,9 +218,14 @@ function renderCapacity(operations) {
   const waits = status === null ? mergeWaits(readQueueWaits()) : null;
   replaceContents('queue-rows', queueOrder.map((name) => createQueueRow(name, operations?.queues[name], waits === null ? null : waits.filter((item) => item.queue === name))));
 }
+function readBoardNote() {
+  const { status, at } = snapshot.github;
+  return status === 'stale' && at ? `Last read ${at.slice(11, 16)} UTC` : '';
+}
 function renderFunnel() {
-  const part = snapshot.github.status === 'ok' ? snapshot.github.value?.cards : null;
+  const part = snapshot.github.value?.cards ?? null;
   const cards = part?.value ?? null;
+  setText('funnel-note', readBoardNote());
   replaceContents('funnel', Object.keys(columnNames).map((column) => {
     const item = createNode('div');
     const value = cards ? cards.filter((card) => card.column === column).length : null;
@@ -243,6 +248,7 @@ function readGithubPart(name) {
 function renderMergeQueue() {
   const { value: items, problem } = readGithubPart('mergeQueue');
   setText('merge-count', items ? String(items.length) : '');
+  setText('merge-note', readBoardNote());
   const rows = items ?? [];
   replaceContents('merge-items', rows.length ? rows.map(createMergeItem) : [createNode('li', problem || 'Empty', 'muted')]);
 }

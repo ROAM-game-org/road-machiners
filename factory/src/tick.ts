@@ -18,7 +18,7 @@ import { repairClone } from './repair-clone';
 import { clearSessions, markResumed, markTimedOut } from './sessions';
 import { requeueKept } from './stages/kept-approval';
 import { adoptQuestionMedia } from './stages/common';
-import { candidateWanted } from './stages/release-common';
+import { candidateWanted, unrevertedMerges } from './stages/release-common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
 import { carriedIssues, offeredIssues } from './stages/bundle';
 import { labelStuckBatch, sweepStuck, type Repair } from './stuck';
@@ -31,7 +31,7 @@ import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, Que
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
-type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers' | 'jobsMemoryGb' | 'stageMemoryGb'>;
+type Due = Pick<FactoryConfig, 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers' | 'jobsMemoryGb' | 'stageMemoryGb' | 'smallJobMemoryGb'>;
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -236,11 +236,23 @@ function wholeSliceFirst<T extends { stage: JobStage }>(cfg: Due, candidates: T[
   return [...candidates.filter(whole), ...candidates.filter((candidate) => !whole(candidate))];
 }
 function waitForMemory(pick: JobPick, running: JobPick[], waiting: JobPick[], cfg: Due): WaitReason[] {
-  const held = [...running, ...waiting].reduce((sum, job) => sum + reservedGb(cfg, job.stage), 0);
-  const needed = Math.round((held + reservedGb(cfg, pick.stage)) * 100) / 100;
-  if (needed <= cfg.jobsMemoryGb) return [];
+  const fits = isSmall(cfg, pick) ? smallFits(pick, running, waiting, cfg) : fitsIn(cfg, [...running, ...waiting, pick]);
+  if (fits) return [];
   waiting.push(pick);
   return ['memory'];
+}
+function sumGb(cfg: Due, jobs: JobPick[]): number {
+  return Math.round(jobs.reduce((sum, job) => sum + reservedGb(cfg, job.stage), 0) * 100) / 100;
+}
+function fitsIn(cfg: Due, jobs: JobPick[]): boolean {
+  return sumGb(cfg, jobs) <= cfg.jobsMemoryGb;
+}
+function isSmall(cfg: Due, job: JobPick): boolean {
+  return reservedGb(cfg, job.stage) < cfg.smallJobMemoryGb;
+}
+function smallFits(pick: JobPick, running: JobPick[], waiting: JobPick[], cfg: Due): boolean {
+  const small = [...running.filter((job) => isSmall(cfg, job)), pick];
+  return fitsIn(cfg, [...running, pick]) && waiting.every((waiter) => fitsIn(cfg, [waiter, ...small]));
 }
 function readHotfixVerifyReasons(pick: JobPick, running: JobPick[], hotfixes: Set<number>): WaitReason[] {
   const inVerify = (job: JobPick): boolean => QUEUE_OF[job.stage] === 'verify' && job.issue !== null && hotfixes.has(job.issue);
@@ -470,7 +482,7 @@ const AWAITING_RELEASE: Column[] = ['Approval', 'Hardening', 'Merging'];
 
 function unreleasedIssues(state: FactoryState, cards: Card[]): number[] {
   const onBoard = cards.filter((card) => AWAITING_RELEASE.includes(card.column)).map((card) => card.issue);
-  const merged = state.devMerges.map((merge) => merge.issue);
+  const merged = unrevertedMerges(state.devMerges).map((merge) => merge.issue);
   return [...onBoard, ...merged];
 }
 
