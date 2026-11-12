@@ -1,12 +1,11 @@
 
-import { perfSnapshot } from "../perf";
+import { perfSnapshot, type PerfStat } from "../perf";
 import { el } from "./dom";
 
 const REFRESH_MS = 500;
 const WINDOW_FRAMES = 120;
-const TIMERS = ["turn", "preview", "route", "fog", "stream-build"];
 
-export function mountPerfPanel(host: HTMLElement): { toggle(): boolean } {
+export function mountPerfPanel(host: HTMLElement, routeMs: () => number | null): { toggle(): boolean } {
   const box = el("div", { class: "perf-panel" });
   box.hidden = true;
   host.append(box);
@@ -22,7 +21,7 @@ export function mountPerfPanel(host: HTMLElement): { toggle(): boolean } {
   requestAnimationFrame(sample);
 
   window.setInterval(() => {
-    if (!box.hidden) box.textContent = readout(frames).join("\n");
+    if (!box.hidden) box.textContent = readout(frames, routeMs()).join("\n");
   }, REFRESH_MS);
 
   return {
@@ -35,7 +34,7 @@ export function mountPerfPanel(host: HTMLElement): { toggle(): boolean } {
 
 const ms = (x: number) => x.toFixed(1).padStart(6);
 
-function readout(frames: number[]): string[] {
+function readout(frames: number[], routeMs: number | null): string[] {
   const lines: string[] = [];
   if (frames.length > 0) {
     const sorted = [...frames].sort((a, b) => a - b);
@@ -44,13 +43,20 @@ function readout(frames: number[]): string[] {
     lines.push(`fps     ${(1000 / mean).toFixed(0).padStart(6)}`);
     lines.push(`p95 ms  ${ms(p95)}`);
   }
-  return [...lines, ...timerLines()];
+  return [...lines, ...timerLines(perfSnapshot(), routeMs)];
 }
 
-function timerLines(): string[] {
-  const snap = perfSnapshot();
-  const lines = TIMERS.map((name) => `${name.padEnd(8)}${snap[name] ? ms(snap[name].last) : "     -"}`);
-  lines.push(`routes  ${String(snap.route?.calls ?? 0).padStart(6)}`);
-  lines.push(`waited  ${String(snap["stream-block"]?.calls ?? 0).padStart(6)}`);
-  return lines;
+const line = (name: string, value: number | undefined) => `${name.padEnd(8)}${value === undefined ? "     -" : ms(value)}`;
+
+export function timerLines(snap: Record<string, PerfStat>, routeMs: number | null): string[] {
+  return [
+    line("wait", snap["turn-wait"]?.last),
+    line("turn", snap.turn?.last),
+    line("preview", snap.preview?.last),
+    line("route", routeMs ?? undefined),
+    line("fog", snap.fog?.last),
+    line("stream-build", snap["stream-build"]?.last),
+    `routes  ${String(snap.route?.calls ?? 0).padStart(6)}`,
+    `waited  ${String(snap["stream-block"]?.calls ?? 0).padStart(6)}`,
+  ];
 }

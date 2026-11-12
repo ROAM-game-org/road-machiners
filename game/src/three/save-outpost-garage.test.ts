@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { mountedParts } from '../sim/grid';
 import { takeFromStorage } from '../sim/inventory';
-import { outpostBuyChassis, outpostBuyPart } from '../sim/outposts';
+import { outpostBuyChassis, outpostBuyPart, outpostSellPart } from '../sim/outposts';
 import { advanceChaosHighway, outpostTrucks } from '../sim/chaos-highway';
 import { knockOutNpc } from '../sim/defeat';
 import { resolveDestroyed } from '../sim/combat';
@@ -47,6 +47,17 @@ describe('a saved outpost garage', () => {
     const after = takeFromStorage(loaded, armor.id, armorSpot(loaded, armor));
     expect(mountedParts(playerVehicle(after), 'armor').map((p) => p.id)).toContain(armor.id);
     expect(playerVehicle(after).job).toBeNull();
+  });
+
+  it('keeps a part sold back to the outpost in its stock across a load', () => {
+    const w = parkedAtOutpost(21);
+    const armor = stockOfKind(w, 'armor');
+    const sold = outpostSellPart(outpostBuyPart(w, armor.id), armor.id);
+
+    const loaded = expectSameAndNoAward(sold);
+
+    expect(loaded.player.storage).toEqual([]);
+    expect(loaded.chaosHighway!.outposts[1].stock.map((p) => p.id)).toContain(armor.id);
   });
 
   it('keeps the swapped truck and the outpost offer less the sold truck across a load', () => {

@@ -3,6 +3,7 @@
 # Usage: factory-update.sh <factory root>
 # It builds the new commit in its own folder, releases/<sha>, then swaps the link releases/current. It never stops a job and never waits for one.
 # A tick and its jobs stay in the release they started in. After the swap, the script removes each old release that no process works in.
+# Hermes must pass its health check within 180 s. Otherwise the script starts the previous release's Hermes again and fails.
 # It records the deployed commit in $home/deployed. A failure leaves the reason in $home/update-failed, which Hermes's incident watch prints, and leaves releases/current alone.
 set -euo pipefail
 root=$(cd "${1:?factory root}" && pwd -P)
@@ -68,6 +69,14 @@ prune() {
   git -C "$repo" worktree prune
 }
 
+# Recreates Hermes from the compose file of the release in $1. Compose leaves a container alone when its image and config are unchanged.
+# It does not wait. factory-wait-healthy.sh does, since compose --wait fails at once on a health check that is passing through unhealthy.
+hermes_up() {
+  (cd "$1" && FACTORY_HERMES_DIR=$root/hermes FACTORY_UID=$(id -u) FACTORY_CODE_SOURCE=$root FACTORY_CODE_TARGET=$root \
+    timeout 900 docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env \
+    up -d --build --remove-orphans)
+}
+
 cd "$repo"
 timeout 120 git fetch --quiet origin main
 target=$(git rev-parse origin/main)
@@ -100,9 +109,15 @@ if [ "$(readlink "$releases/current")" != "$target" ]; then
   fi
   if grep -qE '^factory/(hermes/|settings\.env$)' <<<"$changed"; then
     log "rebuild Hermes"
-    (cd "$release" && FACTORY_HERMES_DIR=$root/hermes FACTORY_UID=$(id -u) FACTORY_CODE_SOURCE=$root FACTORY_CODE_TARGET=$root \
-      timeout 900 docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env \
-      up -d --build --remove-orphans --wait --wait-timeout 180) || fail "Hermes rebuild failed at ${target:0:7}"
+    hermes_up "$release" || fail "Hermes rebuild failed at ${target:0:7}"
+    if ! "$root/factory-wait-healthy.sh" factory-hermes 180; then
+      log "Hermes is not healthy, starting the previous release's Hermes"
+      back="the previous Hermes did not come back healthy"
+      if hermes_up "$releases/$deployed" && "$root/factory-wait-healthy.sh" factory-hermes 180; then
+        back="the previous Hermes is healthy again"
+      fi
+      fail "Hermes did not get healthy at ${target:0:7}, $back"
+    fi
   fi
   building=
   # The temp link and mv -T replace the link in one step, so a reader sees the old release or the new one.

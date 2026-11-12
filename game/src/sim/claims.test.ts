@@ -6,7 +6,7 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { spareParts, stowPart } from './inventory';
-import { acceptContract, advanceContracts, advanceShops, contractReward, deliverContract, estimateTurns, rollContract, shopState, siteOf, type Contract } from './market';
+import { acceptContract, advanceContracts, advanceShops, contractReward, deliverContract, estimateTurns, handInClaimBy, rollContract, takeContract, shopState, siteOf, type Contract } from './market';
 import { sellPart, partTradePrice } from './economy';
 import { bakedTier, shopClue } from './claim-clue';
 import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, isFreeRival, sendRival } from './claims';
@@ -432,7 +432,7 @@ describe('a full search', () => {
 });
 
 describe('rival crews', () => {
-  function rivalWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
+  function rivalWorld(posted: 'board' | 'held' = 'held'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
     const w = cloneWorld(real);
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId);
     for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
@@ -452,6 +452,12 @@ describe('rival crews', () => {
     npc.brain = npcBrain('scavenger', npc.pos, traits);
     npc.brain.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'idle' }];
     return npc;
+  }
+
+  function behind(claim: ClaimContract, distance: number): { x: number; y: number } {
+    const shop = siteOf(claim.shop).pos;
+    const gap = dist(claim.at, shop);
+    return { x: shop.x + ((shop.x - claim.at.x) / gap) * distance, y: shop.y + ((shop.y - claim.at.y) / gap) * distance };
   }
 
   function near(pos: { x: number; y: number }, dx: number): { x: number; y: number } {
@@ -474,8 +480,7 @@ describe('rival crews', () => {
 
   it('sends no rival before the head start runs out, and exactly one after it', () => {
     const { w, claim } = rivalWorld();
-    const bowl = siteOf('bowl').pos;
-    const npc = crew(w, near(bowl, 30));
+    const npc = crew(w, behind(claim, 30));
     w.turn = claim.rivalAt - 1;
     advanceShops(w);
     expect(claim.rival).toBeNull();
@@ -483,7 +488,7 @@ describe('rival crews', () => {
     expect(claim.rival).toBe(npc.id);
     expect(topGoal(npc)).toMatchObject({ kind: 'claim', claim: claim.id, reason: 'claimRun' });
     expect(w.events).toContainEqual({ t: 'claimRival', contract: claim.id, vehicle: npc.id });
-    crew(w, near(bowl, 10));
+    crew(w, behind(claim, 10));
     w.turn = claim.rivalAt + CONTRACTS.claim.rivalRetryTurns;
     advanceShops(w);
     expect(claim.rival).toBe(npc.id);
@@ -491,14 +496,63 @@ describe('rival crews', () => {
     expect(() => sendRival(w, claim)).toThrow(/already/);
   });
 
+  it('posts no rival on a board offer at any turn', () => {
+    const { w, claim } = rivalWorld('board');
+    crew(w, behind(claim, 30));
+    for (const turn of [claim.rivalAt, claim.rivalAt + CONTRACTS.claim.rivalRetryTurns, claim.deadline - 1]) {
+      w.turn = turn;
+      advanceShops(w);
+      expect(claim.rival).toBeNull();
+    }
+    expect(w.events.some((e) => e.t === 'claimRival')).toBe(false);
+  });
+
+  it('starts the head start when the claim is taken', () => {
+    const { w, claim } = rivalWorld('board');
+    const npc = crew(w, behind(claim, 30));
+    w.turn = claim.rivalAt + 200;
+    advanceShops(w);
+    expect(claim.rival).toBeNull();
+    w.turn = claim.rivalAt + 200;
+    takeContract(w, claim.id);
+    expect(claim.rival).toBeNull();
+    expect(claim.rivalAt).toBe(claimRivalAt(w.turn, estimateTurns(siteOf('bowl').pos, claim.at)));
+    w.turn = claim.rivalAt - 1;
+    advanceShops(w);
+    expect(claim.rival).toBeNull();
+    sendDue(w, claim);
+    expect(claim.rival).toBe(npc.id);
+  });
+
+  it('sends no crew from nearer the wreck than the shop', () => {
+    const { w, claim } = rivalWorld();
+    const wreckSide = crew(w, behind(claim, -40));
+    const far = crew(w, behind(claim, 40));
+    sendDue(w, claim);
+    expect(claim.rival).toBe(far.id);
+    expect(topGoal(wreckSide)?.kind).not.toBe('claim');
+    const lone = rivalWorld();
+    crew(lone.w, behind(lone.claim, -40));
+    sendDue(lone.w, lone.claim);
+    expect(lone.claim.rival).toBeNull();
+  });
+
+  it('refuses to send or pay a rival for a claim nobody holds', () => {
+    const { w, claim } = rivalWorld('board');
+    const npc = crew(w, behind(claim, 30));
+    expect(() => sendRival(w, claim)).toThrow(/not held/);
+    claim.rival = npc.id;
+    expect(() => handInClaimBy(w, npc, claim)).toThrow(/not held/);
+    expect(() => takeContract(w, claim.id)).toThrow(/already has a rival/);
+  });
+
   it('sends the nearest free crew of a rival trait and skips busy, knocked-out and other trucks', () => {
     const { w, claim } = rivalWorld();
-    const bowl = siteOf('bowl').pos;
-    const lawman = crew(w, near(bowl, 5), ['lawman']);
-    const searching = crew(w, near(bowl, 6));
+    const lawman = crew(w, behind(claim, 5), ['lawman']);
+    const searching = crew(w, behind(claim, 6));
     searching.job = { kind: 'search', stockId: claim.stockId, turnsLeft: 5, total: 5 };
-    const far = crew(w, near(bowl, 90), ['vulture']);
-    const close = crew(w, near(bowl, 40), ['trader']);
+    const far = crew(w, behind(claim, 90), ['vulture']);
+    const close = crew(w, behind(claim, 40), ['trader']);
     sendDue(w, claim);
     expect(claim.rival).toBe(close.id);
     expect([lawman, searching, far].every((v) => topGoal(v)?.kind !== 'claim')).toBe(true);
@@ -508,7 +562,7 @@ describe('rival crews', () => {
     const { w, claim } = rivalWorld();
     sendDue(w, claim);
     expect(claim.rival).toBeNull();
-    const npc = crew(w, near(siteOf('bowl').pos, 30));
+    const npc = crew(w, behind(claim, 30));
     w.turn = claim.rivalAt + 1;
     advanceShops(w);
     expect(claim.rival).toBeNull();
@@ -533,7 +587,7 @@ describe('rival crews', () => {
 
   it('runs the rival to its wreck, searches, takes the part, and hands it in for the reward', () => {
     const { w, stock, part, claim } = rivalWorld();
-    const npc = crew(w, near(siteOf('bowl').pos, 20));
+    const npc = crew(w, behind(claim, 20));
     sendDue(w, claim);
     const goal = topGoal(npc)!;
     for (let i = 0; i < 20 && carriesNot(npc, part); i++) {
@@ -554,7 +608,8 @@ describe('rival crews', () => {
     expect(getResources(w, npc).money).toBe(money + claim.reward);
     expect(w.player.money).toBe(playerMoney);
     expect(shopState(w, 'bowl').stock.filter((p) => p.id === part.id)).toHaveLength(1);
-    expect(shopState(w, 'bowl').contracts).toEqual([]);
+    expect(w.player.contracts).toEqual([]);
+    expect(w.player.pastContracts.at(-1)).toMatchObject({ outcome: 'lapsed' });
     expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'shopMoney', vehicle: npc.id, amount: claim.reward, kind: 'claimReward' }));
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: npc.id, reason: 'claimOver' }));
@@ -578,7 +633,7 @@ describe('rival crews', () => {
 
   it('keeps the claim live when the player takes the part off the rival, and pays the player on delivery', () => {
     const { w: base, part, claim } = rivalWorld('held');
-    const npc = crew(base, near(siteOf('bowl').pos, 20));
+    const npc = crew(base, behind(claim, 20));
     claim.rival = npc.id;
     stowPart(base, npc, takeFromWreck(base, claim));
     npc.brain!.goals.push({ kind: 'claim', claim: claim.id, left: [], targetId: 'bowl', destination: { ...siteOf('bowl').pos }, phase: 'travel', reason: 'claimRun' });
@@ -600,9 +655,9 @@ describe('rival crews', () => {
 
   it('lapses the claim when a third truck takes the part off the rival', () => {
     const { w, claim } = rivalWorld('held');
-    const npc = crew(w, near(siteOf('bowl').pos, 20));
+    const npc = crew(w, behind(claim, 20));
     claim.rival = npc.id;
-    const raider = crew(w, near(siteOf('bowl').pos, 25), ['raider']);
+    const raider = crew(w, behind(claim, 25), ['raider']);
     stowPart(w, raider, takeFromWreck(w, claim));
     advanceContracts(w);
     expect(w.player.contracts).toEqual([]);
@@ -612,10 +667,10 @@ describe('rival crews', () => {
 
   it('ends the rival run when the offer expires, and frees the part', () => {
     const { w, stock, claim } = rivalWorld();
-    const npc = crew(w, near(siteOf('bowl').pos, 20));
+    const npc = crew(w, behind(claim, 20));
     sendDue(w, claim);
     w.turn = claim.deadline + 1;
-    advanceShops(w);
+    advanceContracts(w);
     expect(claimedPartIn(w, stock)).toBeNull();
     stepRival(w, npc);
     thinkNpc(w, npc);
@@ -625,7 +680,7 @@ describe('rival crews', () => {
 
   it('drops a wrong wreck from the list after searching it, and moves on', () => {
     const { w, claim } = rivalWorld();
-    const npc = crew(w, near(siteOf('bowl').pos, 20));
+    const npc = crew(w, behind(claim, 20));
     sendDue(w, claim);
     const goal = topGoal(npc)!;
     const wrong = goal.left!.find((id) => id !== claim.stockId);
@@ -644,7 +699,7 @@ describe('rival crews', () => {
 
   it('ends the run when the rival gives way to a loot warning', () => {
     const { w, stock, claim } = rivalWorld();
-    const npc = crew(w, near(siteOf('bowl').pos, 20));
+    const npc = crew(w, behind(claim, 20));
     sendDue(w, claim);
     topGoal(npc)!.targetId = stock.id;
     npc.pos = near(stock.pos, 1);
@@ -695,7 +750,7 @@ describe('a rival on the real map', () => {
       endTurnInPlace(w, move);
       turnsPlayed++;
       expect(w.events.filter((e) => e.t === 'stall'), `turn ${w.turn}`).toEqual([]);
-      const live = w.shops[shop].contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
+      const live = w.player.contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
       rival = live?.rival ?? rival;
       const truck = w.vehicles.find((v) => v.id === rival);
       ended = rival !== null && !truck?.brain?.goals.some((g) => g.kind === 'claim');
@@ -704,7 +759,7 @@ describe('a rival on the real map', () => {
 
   it('sends a rival from the shop with the nearest NPCs alive, and never stalls in the first part of the run', () => {
     claim.rivalAt = w.turn + 1;
-    shopState(w, shop).contracts.push(claim);
+    w.player.contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);
     const pads = sitePads(siteOf(shop));
     w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => {

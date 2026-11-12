@@ -3,12 +3,12 @@ import { END, HUB, TOPICS, type TopicId } from '../data/dialogue';
 import { ENCOUNTERS } from '../data/encounters';
 import { REGION } from '../data/region';
 import { SALVAGE } from '../data/salvage';
-import type { TraitId } from '../data/npcs';
+import { NPCS, OPPOSED_TRAITS, type TraitId } from '../data/npcs';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
 import { playerVehicle } from './damage';
 import { chooseText } from './dialogue-testkit';
-import { currentOptions, hangUp, raiseCalls } from './dialogue';
+import { currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
 import { encounterAvailable, encounterOpen, lapseEncounter, onStrangerSeen, tipPrice } from './encounters';
 import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
@@ -394,21 +394,56 @@ describe('the challenge', () => {
   it('keeps a lawman in sight out of the fight', () => {
     const { w } = challengeWorld();
     const law = addVehicle(w, 'bowl', 'scout', ['stockEngine', 'mg'], { x: 30, y: 36 });
-    law.brain = npcBrain('lawman', law.pos, ['lawman']);
+    law.brain = npcBrain('lawman', law.pos, NPCS.noseArmy.traits);
     refreshVision(w);
     const next = pick(w, "Let's go, then.");
     expect(stateOf(next, 'feud', law.id, next.player.vehicleId)).toBeNull();
   });
 
-  it('is never offered to an unarmed driver, a lawman, or a driver the player wronged', () => {
+  it('is never offered to an unarmed driver, a patrol, or a driver the player wronged', () => {
     const unarmed = scene(['scavenger']);
     expect(encounterAvailable(unarmed.w, unarmed.npc, 'challenge')).toBe(false);
-    const law = scene(['lawman'], ['stockEngine', 'mg']);
-    expect(encounterAvailable(law.w, law.npc, 'challenge')).toBe(false);
+    for (const patrol of [NPCS.noseArmy, NPCS.bowlFarmer]) {
+      const law = scene(patrol.traits, ['stockEngine', 'mg']);
+      expect(encounterAvailable(law.w, law.npc, 'challenge')).toBe(false);
+    }
     const wronged = scene(['scavenger'], ['stockEngine', 'mg']);
     expect(encounterAvailable(wronged.w, wronged.npc, 'challenge')).toBe(true);
     remember(wronged.w, wronged.npc, { kind: 'wronged', by: wronged.w.player.vehicleId, deed: 'attacked' });
     expect(encounterAvailable(wronged.w, wronged.npc, 'challenge')).toBe(false);
+  });
+
+  it('is not raised by a Nose Army patrol even when the roll picks it', () => {
+    const s = scene(NPCS.noseArmy.traits, ['stockEngine', 'mg']);
+    forceOption('strangerSeen', 'challenge');
+    s.w.rngState = rngStateForForcedRolls(2);
+    onStrangerSeen(s.w, s.npc);
+    raiseCalls(s.w);
+    expect(s.w.player.encounters.pending).toBeNull();
+    expect(s.w.player.call).toBeNull();
+  });
+
+  it('stays open to brave and scumbag drivers whose role calls strangers out', () => {
+    for (const traits of [['trader', 'brave'], ['scavenger', 'scumbag']] as TraitId[][]) {
+      const s = scene(traits, ['stockEngine', 'mg']);
+      expect(encounterAvailable(s.w, s.npc, 'challenge')).toBe(true);
+    }
+  });
+
+  it('is a topic of exactly the roles that call strangers out, for every trait set a template spawns', () => {
+    const callers: TraitId[] = ['trader', 'scavenger', 'raider', 'courier', 'roamer', 'vulture', 'merc'];
+    const { npc } = scene(['trader']);
+    for (const tpl of Object.values(NPCS)) {
+      for (let mask = 0; mask < 1 << tpl.extraTraits.length; mask++) {
+        const extras = tpl.extraTraits.filter((_, i) => mask & (1 << i)).map((e) => e.trait);
+        if (OPPOSED_TRAITS.some(([a, b]) => extras.includes(a) && extras.includes(b))) continue;
+        const traits = [...tpl.traits, ...extras];
+        npc.brain = npcBrain(traits[0], npc.pos, traits);
+        const expected = tpl.traits.some((t) => callers.includes(t));
+        const only = talkOf(npc).topics.includes('challenge');
+        expect(only, `${tpl.id} ${traits.join(',')}`).toBe(expected);
+      }
+    }
   });
 });
 

@@ -6,7 +6,6 @@ import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
-// ann is the owner and carl another member.
 const member = (by: string, gated: boolean): string => {
   if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
   if (!['hermes', 'ann', 'carl'].includes(by)) throw new Error(`unknown actor ${by}`);
@@ -175,6 +174,13 @@ describe('read commands', () => {
     expect(out).toContain('labels: hotfix');
     expect(out).toContain('post only: yes');
     expect(out).toContain('designed: yes');
+    expect(out).toContain('planned change record: no');
+    const clone = `${f.ctx.cfg.home}/work/issue-5/game/.factory-tasks`;
+    mkdirSync(clone, { recursive: true });
+    writeFileSync(`${clone}/issue-5.plan.json`, '{"change":"x","howToTry":null}');
+    out.length = 0;
+    await run(f, 'card', '5');
+    expect(out).toContain('planned change record: yes');
     expect(out).toContain('design offer: #7');
     expect(out).toContain('bundle: #8, #9');
     expect(out).toContain('build: abc1234');
@@ -234,6 +240,15 @@ describe('read commands', () => {
     out.length = 0;
     await run(f, 'failures');
     expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7\nu merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7,#8 cleared #7\nv control: #9: Issue #9 is not on the board (cause error, log none) rejected hold']);
+  });
+
+  it('release lists a reverted merge apart from the merges that ship', async () => {
+    const f = fake();
+    const merge = (issue: number, reverted: string[]) => ({ issue, title: `t${issue}`, sha: `${issue}`.repeat(40).slice(0, 40), into: 'dev', reverted });
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, []), merge(8, ['dev'])] });
+    await run(f, 'release');
+    expect(out).toContain('merged into dev, not yet shipped: #7 7777777');
+    expect(out).toContain('reverted on dev, never ships: #8 8888888 reverted on dev');
   });
 
   it('help lists every command', async () => {

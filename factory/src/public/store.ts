@@ -381,6 +381,13 @@ export class PublicStore {
     return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, intent, sincere, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, intent, sincere, issue, createdIssue, at).lastInsertRowid);
   }
 
+  candidateReportIssue(release: number, text: string): number | null {
+    const key = textKey(text);
+    const filed = this.db.prepare("select text, created_issue from reports where build = 'rc' and verdict = 'accept' and issue = ? and created_issue is not null order by id").all(release);
+    const same = filed.find((row) => textKey(String(row.text)) === key);
+    return same === undefined ? null : Number(same.created_issue);
+  }
+
   private apply(event: PublicEvent): void {
     if (event.kind === 'reaction-count') return void this.db.prepare('update proposals set channel_counts = ? where chat = ? and message_id = ?').run(JSON.stringify(event.counts), event.chat, event.messageId);
     if (event.kind === 'reaction') return this.applyReaction(event);

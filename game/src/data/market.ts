@@ -154,6 +154,8 @@ export const CONTRACTS = {
 
 export type Threat = Tier;
 
+export const DANGER_PAY: Record<Threat, number> = { 1: 0.6, 2: 1, 3: 1.5 };
+
 export const RAIDER_THREAT = { reach: 40, risky: 1, dangerous: 3 };
 
 export const ESCORT_JOB = {
@@ -163,7 +165,6 @@ export const ESCORT_JOB = {
   holdTurns: 90,
   apartGap: NPC_BEHAVIOR.escortCatchUpGap,
   minWin: { 1: 0.55, 2: 0.65, 3: 0.75 } as Record<Threat, number>,
-  threatPremium: { 1: 0.6, 2: 1, 3: 1.5 } as Record<Threat, number>,
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
 };
 
@@ -419,7 +420,7 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
       { id: 'machinists', inputs: { scrap: 1 }, outputs: { parts: 1 }, everyCycles: 6, ...NO_UPKEEP },
       { id: 'workshop', inputs: { batteries: 1, scrap: 1 }, outputs: { electronics: 1 }, everyCycles: 24, ...NO_UPKEEP },
     ],
-    demand: { salt: 12, tools: 24, rations: 2 },
+    demand: { salt: 12, tools: 24, rations: 2, relics: 24 },
     serviceDaily: { fuelDrums: 45, rations: 1 },
   },
   granary: {

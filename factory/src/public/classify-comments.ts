@@ -1,5 +1,5 @@
 import type { Card, Column, Ctx } from '../types';
-import { TransientFilterError, type Classify, type Decision, type FilterInput, type PublicFilter } from './decision';
+import { FilterRefusalError, TransientFilterError, type Classify, type Decision, type FilterInput, type PublicFilter } from './decision';
 import { isolated } from './isolate';
 import type { Judged, KnownWork, PublicStore, StoredComment } from './store';
 import { rankByWords } from './wiki';
@@ -44,11 +44,20 @@ async function classifyOrRetry(ctx: Ctx, store: PublicStore, classify: Classify,
   try {
     await classifyOne(ctx, store, classify, comment, board);
   } catch (error) {
-    if (!(error instanceof TransientFilterError) || comment.filterAttempts + 1 >= FILTER_ATTEMPTS) throw error;
-    store.classifyLater(comment.id);
-    if (comment.source === 'telegram' && comment.sender !== null) store.returnHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour);
-    ctx.log('public', comment.issue, `the filter failed for now on player comment ${comment.id}, so the next tick tries it again: ${error.message}`);
+    if (error instanceof FilterRefusalError && error.junk) return keepJunkRejected(ctx, comment, error);
+    retryLater(ctx, store, comment, error);
   }
+}
+
+function keepJunkRejected(ctx: Ctx, comment: StoredComment, error: FilterRefusalError): void {
+  ctx.log('public', comment.issue, `the filter refused ${error.refused.join(', ')} on player comment ${comment.id}, which it scores as junk, so it stays rejected`);
+}
+
+function retryLater(ctx: Ctx, store: PublicStore, comment: StoredComment, error: unknown): void {
+  if (!(error instanceof TransientFilterError) || comment.filterAttempts + 1 >= FILTER_ATTEMPTS) throw error;
+  store.classifyLater(comment.id);
+  if (comment.source === 'telegram' && comment.sender !== null) store.returnHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour);
+  ctx.log('public', comment.issue, `the filter failed for now on player comment ${comment.id}, so the next tick tries it again: ${error.message}`);
 }
 
 function overLimit(ctx: Ctx, store: PublicStore, comment: StoredComment): boolean {
@@ -64,7 +73,7 @@ function candidateWork(store: PublicStore, comment: StoredComment, board: KnownW
 }
 
 function filterInput(store: PublicStore, comment: StoredComment, work: KnownWork[]): FilterInput {
-  const judged = { text: comment.text, context: comment.context, work: work.map((known) => `#${known.issue} ${known.text}`), addressed: comment.addressed };
+  const judged = { origin: 'chat' as const, text: comment.text, context: comment.context, work: work.map((known) => `#${known.issue} ${known.text}`), addressed: comment.addressed };
   if (comment.issue === null) return { source: 'message', ...judged };
   return { source: 'comment', parent: store.parentPitch(comment.issue), ...judged };
 }

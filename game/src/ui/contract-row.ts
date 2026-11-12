@@ -70,7 +70,7 @@ function offerCaption(w: World, c: Contract): HTMLElement | null {
   if (c.kind === "escort") return el("div", { class: "job-caption" }, ...escortDetail(w, c));
   if (c.kind === "survey") return el("div", { class: "job-caption", title: surveyClueTip(c) }, threatTag(surveyThreat(w, c), GROUND_WORDS), SPACE, el("span", { class: "dim" }, surveyOpenSquares(c)));
   if (c.kind === "rescue") return c.fulfilled ? null : el("div", { class: "job-caption dim" }, rescueWhere(c));
-  return claimRivalMark(w, c);
+  return null;
 }
 
 function titleEl(c: Contract, summary: Msg, title?: Msg, tagged = true): HTMLElement {

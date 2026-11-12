@@ -70,6 +70,33 @@ describe('design post', () => {
     expect(designComment()).toBe(`comment 7 **Planned change**\n\nTowns will give directions by landmarks you can see from the road.\n\n<details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
   });
 
+  const planPath = () => `${home}/work/issue-7/game/.factory-tasks/issue-7.plan.json`;
+  const withSteps = (summary: string | null, steps: string | null) => fakeCtx((run) => {
+    mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
+    writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
+    if (summary !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/summary.md`, summary);
+    if (steps !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/try.md`, steps);
+  });
+
+  it('saves the plan record and shows the play steps in the comment', async () => {
+    await runStage(withSteps('  Horns get louder.\n', 'Open the garage. Press H. Listen.\n'), 7);
+    expect(JSON.parse(readFileSync(planPath(), 'utf8'))).toEqual({ change: 'Horns get louder.', howToTry: 'Open the garage. Press H. Listen.' });
+    expect(designComment()).toBe(`comment 7 **Planned change**\n\nHorns get louder.\n\n**How to try it**\n\nOpen the garage. Press H. Listen.\n\n<details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+
+  it('saves null for a missing try.md', async () => {
+    await runStage(withSteps('Horns get louder.', null), 7);
+    expect(JSON.parse(readFileSync(planPath(), 'utf8'))).toEqual({ change: 'Horns get louder.', howToTry: null });
+  });
+
+  it('deletes an old record when design wrote neither file', async () => {
+    const ctx = withSteps(null, '  \n');
+    await runStage(withSteps('Old.', 'Old steps.'), 7);
+    expect(existsSync(planPath())).toBe(true);
+    await runStage(ctx, 7);
+    expect(existsSync(planPath())).toBe(false);
+  });
+
   it('posts the collapsed design notes alone when the agent wrote no summary', async () => {
     await runStage(planned(null), 7);
     expect(designComment()).toBe(`comment 7 <details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);

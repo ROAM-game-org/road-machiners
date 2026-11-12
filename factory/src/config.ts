@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
-import type { FactoryConfig, TokenPrice } from './types';
+import { QUEUE_OF, type FactoryConfig, type JobStage, type TokenPrice } from './types';
 
 export function readEnvFiles(settingsPath: string, localPath: string): Record<string, string> {
   const settings = parseEnv(readFileSync(settingsPath, 'utf8'));
@@ -63,12 +63,16 @@ const KEYS = {
   playtestTimeoutMinutes: 'FACTORY_PLAYTEST_TIMEOUT_MINUTES',
   mergeTimeoutMinutes: 'FACTORY_MERGE_TIMEOUT_MINUTES',
   checksTimeoutMinutes: 'FACTORY_CHECKS_TIMEOUT_MINUTES',
+  conflictTimeoutMinutes: 'FACTORY_CONFLICT_TIMEOUT_MINUTES',
   testStallMinutes: 'FACTORY_TEST_STALL_MINUTES',
   suiteStartMinutes: 'FACTORY_SUITE_START_MINUTES',
   suitePollSeconds: 'FACTORY_SUITE_POLL_SECONDS',
+  suiteReadOutageMinutes: 'FACTORY_SUITE_READ_OUTAGE_MINUTES',
   testingBudgetUsd: 'FACTORY_TESTING_BUDGET_USD',
   hardeningBudgetUsd: 'FACTORY_HARDENING_BUDGET_USD',
   mergingBudgetUsd: 'FACTORY_MERGING_BUDGET_USD',
+  noCommitRounds: 'FACTORY_NO_COMMIT_ROUNDS',
+  suiteRerunFiles: 'FACTORY_SUITE_RERUN_FILES',
   wasteReviewDays: 'FACTORY_WASTE_REVIEW_DAYS',
   itchTarget: 'ITCH_TARGET',
   butlerKey: 'BUTLER_API_KEY',
@@ -80,6 +84,10 @@ const KEYS = {
   testWorkers: 'FACTORY_TEST_WORKERS',
   minFreeGb: 'FACTORY_MIN_FREE_GB',
   minAvailableGb: 'FACTORY_MIN_AVAILABLE_GB',
+  jobsMemoryGb: 'FACTORY_JOBS_MEMORY_GB',
+  smallJobMemoryGb: 'FACTORY_SMALL_JOB_MEMORY_GB',
+  browserSlots: 'FACTORY_BROWSER_SLOTS',
+  stageMemoryGb: 'FACTORY_STAGE_MEMORY_GB',
   logDays: 'FACTORY_LOG_DAYS',
   transcriptDays: 'FACTORY_TRANSCRIPT_DAYS',
   cpuLight: 'FACTORY_CPU_LIGHT',
@@ -104,7 +112,7 @@ const KEYS = {
   openaiKey: 'OPENAI_API_KEY',
   filterModel: 'FACTORY_FILTER_MODEL',
   filterTimeoutSeconds: 'FACTORY_FILTER_TIMEOUT_SECONDS',
-  filterSincereMin: 'FACTORY_FILTER_SINCERE_MIN',
+  filterJunkMin: 'FACTORY_FILTER_JUNK_MIN',
   filterPerTick: 'FACTORY_FILTER_PER_TICK',
   reportIpPerHour: 'FACTORY_REPORT_IP_PER_HOUR',
   reportMaxChars: 'FACTORY_REPORT_MAX_CHARS',
@@ -112,7 +120,7 @@ const KEYS = {
 
 const RELEASE_ONLY = new Set<keyof FactoryConfig>(['itchTarget', 'butlerKey']);
 
-const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'agentCompactWindow', 'replyRouteMinutes', 'playtestTurns', 'playtestRuns', 'playtestReviewRepairs', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testStallMinutes', 'suiteStartMinutes', 'suitePollSeconds','testingBudgetUsd', 'hardeningBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays','cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'answersPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars']);
+const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'agentCompactWindow', 'replyRouteMinutes', 'playtestTurns', 'playtestRuns', 'playtestReviewRepairs', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'conflictTimeoutMinutes', 'testStallMinutes', 'suiteStartMinutes', 'suitePollSeconds', 'suiteReadOutageMinutes','testingBudgetUsd', 'hardeningBudgetUsd', 'mergingBudgetUsd', 'noCommitRounds', 'suiteRerunFiles','wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'jobsMemoryGb', 'smallJobMemoryGb', 'browserSlots','logDays', 'transcriptDays','cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'answersPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterJunkMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars']);
 
 export function loadConfig(env: Record<string, string | undefined>): FactoryConfig {
   const missing = Object.entries(KEYS).filter(([field, key]) => !RELEASE_ONLY.has(field as keyof FactoryConfig) && !env[key]?.trim()).map(([, key]) => key);
@@ -159,13 +167,29 @@ function sliceOrOff(key: string, raw: string): string | null {
   throw new Error(`${key} must be a systemd slice name like roam-factory-jobs.slice, or off, got "${raw}".`);
 }
 
-function read(field: keyof FactoryConfig, key: string, raw: string | undefined): string | number | boolean | Record<string, TokenPrice> | null {
+const JOB_STAGES = Object.keys(QUEUE_OF) as JobStage[];
+
+function parseStageMemory(key: string, raw: string): Record<JobStage, number> {
+  const entries = raw.split(/\s+/).map((entry) => {
+    const [stage, gb] = entry.split('=');
+    const value = Number(gb);
+    if (!JOB_STAGES.includes(stage as JobStage) || !Number.isFinite(value) || value <= 0) throw new Error(`${key} entry "${entry}" must be stage=GB with a job stage and a positive number.`);
+    return [stage, value] as const;
+  });
+  const missing = JOB_STAGES.filter((stage) => !entries.some(([listed]) => listed === stage));
+  if (missing.length) throw new Error(`${key} has no memory for ${missing.join(', ')}. Every job stage needs one.`);
+  return Object.fromEntries(entries) as Record<JobStage, number>;
+}
+
+type ConfigValue = string | number | boolean | Record<string, TokenPrice> | Record<JobStage, number> | null;
+
+function read(field: keyof FactoryConfig, key: string, raw: string | undefined): ConfigValue {
   return raw ? parse(field, key, raw) : null;
 }
 
-const PARSERS: Partial<Record<keyof FactoryConfig, (key: string, raw: string) => boolean | string | null | Record<string, TokenPrice>>> = { gpu: onOff, jobsSlice: sliceOrOff, tokenPrices: parsePrices };
+const PARSERS: Partial<Record<keyof FactoryConfig, (key: string, raw: string) => ConfigValue>> = { gpu: onOff, jobsSlice: sliceOrOff, tokenPrices: parsePrices, stageMemoryGb: parseStageMemory };
 
-function parse(field: keyof FactoryConfig, key: string, raw: string): string | number | boolean | Record<string, TokenPrice> | null {
+function parse(field: keyof FactoryConfig, key: string, raw: string): ConfigValue {
   const parser = PARSERS[field];
   if (parser !== undefined) return parser(key, raw);
   if (!NUMBERS.has(field)) return raw;

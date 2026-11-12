@@ -42,7 +42,7 @@ const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorker
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234', merges: IssueMerge[] = []): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, playtestReviewRepairs: 2, gpu: true, suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingPlaytest: 'now', devMerges: merges, release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = {
     f, shells: [], prompts: [], sessions: [], devTip: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', passedAncestor: true, onMain: [],
@@ -353,6 +353,32 @@ describe('playtest', () => {
     run.f.ctx.container.shell = async () => { throw new Error('the checks timed out'); };
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('the checks timed out');
     expect(run.f.logs).toContain('playtest 11 Playing the release seed at abc1234 failed 0 minutes with npm ci');
+  });
+
+  it('waits for the baseline seed run to end before a failed release seed run fails the job', async () => {
+    const run = setup();
+    let baselineEnded = false;
+    run.f.ctx.container.shell = async (_kind: ShellKind, _clone: string, script: string) => {
+      if (script.includes('Playing the release seed')) throw new Error('exit 137');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      baselineEnded = true;
+    };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('exit 137');
+    expect(baselineEnded).toBe(true);
+  });
+
+  it('waits for the release seed run to end before a failed baseline seed run fails the job', async () => {
+    const run = setup();
+    const shell = run.f.ctx.container.shell;
+    let releaseEnded = false;
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      if (script.includes('Playing the baseline seed')) throw new Error('exit 137');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await shell(kind, clone, script, log);
+      releaseEnded = true;
+    };
+    await expect(playtest(run.f.ctx, 11)).rejects.toThrow('exit 137');
+    expect(releaseEnded).toBe(true);
   });
 
   it('blocks a clean verdict of a run that ended in an error', async () => {

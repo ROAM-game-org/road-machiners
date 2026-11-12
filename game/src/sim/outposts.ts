@@ -3,13 +3,14 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { haulerOf, playerVehicle, truckFor } from './damage';
 import { partDef } from '../data/parts';
 import { getResources } from './resources';
-import { basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
+import { applyPaint, spread, takeSellablePart, basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './chaos-highway';
-import { isJunk } from './wear';
-import { addGoods, cargoRoom } from './inventory';
+import { addGoods, cargoRoom, removeGoods } from './inventory';
+import { goodsCount } from './grid';
+import type { TruckPaint } from '../data/chassis';
 import type { PartInstance, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
-import { chargeM } from './money';
+import { chargeM, payoutM, requireWholeM } from './money';
 
 const REPAIR_GOOD = 'parts';
 
@@ -40,7 +41,6 @@ export function outpostRepairPart(world: World, partId: string, truckId?: string
     requireOutpost(w, truckId);
     const part = allParts(truckFor(w, truckId)).find((p) => p.id === partId);
     if (!part) throw new Error(`No truck part ${partId}`);
-    if (isJunk(part)) throw new Error(`${part.defId} is junk and cannot be repaired at an outpost`);
     pay(w, partRepairCost(w, part));
     garageRepair(part);
   });
@@ -107,5 +107,37 @@ export function outpostBuyGood(world: World, n: number): World {
     if (!Number.isInteger(n) || n <= 0 || n > outpostGoodRoom(me)) throw new Error(`Cannot carry ${n} more ${REPAIR_GOOD}`);
     pay(w, outpostGoodPrice() * n);
     addGoods(w, me, REPAIR_GOOD, n);
+  });
+}
+
+export function outpostSellPart(world: World, partId: string, truckId?: string): World {
+  return playerCommand(world, (w) => {
+    const post = requireOutpost(w, truckId);
+    const part = takeSellablePart(w, partId, truckFor(w, truckId));
+    const price = partTradePrice(w, playerVehicle(w), part, 'sell');
+    requireWholeM(price, 'outpostSellPart');
+    w.player.money += price;
+    outpostFactsAt(w, post.milestone).stock.push(part);
+  });
+}
+
+export function outpostGoodSellPrice(world: World): number {
+  return payoutM(GOODS[REPAIR_GOOD].value * (1 - spread(world)));
+}
+
+export function outpostSellGood(world: World, n: number): World {
+  return playerCommand(world, (w) => {
+    requireOutpost(w);
+    const me = playerVehicle(w);
+    if (!Number.isInteger(n) || n <= 0 || n > (goodsCount(me)[REPAIR_GOOD] ?? 0)) throw new Error(`Cannot sell ${n} ${REPAIR_GOOD}`);
+    removeGoods(me, REPAIR_GOOD, n);
+    w.player.money += outpostGoodSellPrice(w) * n;
+  });
+}
+
+export function outpostRepaint(world: World, paint: TruckPaint): World {
+  return playerCommand(world, (w) => {
+    requireOutpost(w);
+    applyPaint(w, paint);
   });
 }

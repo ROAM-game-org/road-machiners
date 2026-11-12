@@ -18,9 +18,10 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, shopAt, shopNear, shopState, siteOf, stockForSale, takeStockPart } from "./market";
+import { addStockPart, goodPrice, goodRate, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, requireSpareGoods, requireTraded, shopAt, shopNear, shopState, shopTrades, siteOf, stockForSale, takeStockPart } from "./market";
 import { affordableUnits, chargeM, fairM, payoutM, requireWholeM } from "./money";
 import { canUseSite, requireTown, townAt } from "./sites";
+import { reachedOutpostAt } from "./chaos-highway";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, keepInStorage, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
@@ -104,6 +105,7 @@ export function tradeGoods(
   requireVehicleShop(world, vehicle, shopId);
   if (!GOODS[good] || !Number.isInteger(count) || count <= 0)
     throw new Error(`Bad trade ${count} ${good}`);
+  if (!shopTrades(shopId, good)) throw new Error(`${shopId} does not trade ${good}`);
   if (direction === "buy") requireStock(world, shopId, good, count);
   const total = getLotTradePrice(world, vehicle, shopId, good, count, direction);
   if (direction === "buy") buyGoods(world, vehicle, shopId, good, count, total);
@@ -484,13 +486,17 @@ export function pay(world: World, amount: number): void {
 
 export function buyGood(world: World, good: string, n: number): World {
   return playerCommand(world, (w) => {
-    tradeGoods(w, playerVehicle(w), requireShop(w), good, n, "buy");
+    const shopId = requireShop(w);
+    requireTraded(shopId, good);
+    tradeGoods(w, playerVehicle(w), shopId, good, n, "buy");
   });
 }
 
 export function sellGood(world: World, good: string, n: number): World {
   return playerCommand(world, (w) => {
-    tradeGoods(w, playerVehicle(w), requireShop(w), good, n, "sell");
+    const shopId = requireShop(w);
+    requireTraded(shopId, good);
+    tradeGoods(w, playerVehicle(w), shopId, good, n, "sell");
   });
 }
 
@@ -535,7 +541,7 @@ export function repairPart(world: World, partId: string): World {
 }
 
 export function canRebuild(world: World, part: PartInstance): boolean {
-  return townAt(world) !== null && isJunk(part) && !part.rebuilt && vehicleHasPerk(world, playerVehicle(world), "rebuild");
+  return (townAt(world) !== null || reachedOutpostAt(world) !== null) && isJunk(part) && !part.rebuilt && vehicleHasPerk(world, playerVehicle(world), "rebuild");
 }
 
 export function garageRepair(part: PartInstance): void {
@@ -611,8 +617,7 @@ export function sellPart(world: World, partId: string): World {
   });
 }
 
-function takeSellablePart(world: World, partId: string): PartInstance {
-  const me = playerVehicle(world);
+export function takeSellablePart(world: World, partId: string, me: Vehicle = playerVehicle(world)): PartInstance {
   const spare = spareParts(me).find((p) => p.id === partId);
   if (spare) {
     me.items = me.items.filter((it) => it.kind !== "part" || it.part.id !== partId);
@@ -704,11 +709,15 @@ export function paintPrice(world: World): number {
 export function repaint(world: World, paint: TruckPaint): World {
   return playerCommand(world, (w) => {
     requireTown(w);
-    if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
-    if (samePaint(w.player.paint, paint)) throw new Error(`The truck is already in ${JSON.stringify(paint)}`);
-    pay(w, paintPrice(w));
-    w.player.paint = { body: paint.body, cab: paint.cab, gear: paint.gear };
+    applyPaint(w, paint);
   });
+}
+
+export function applyPaint(world: World, paint: TruckPaint): void {
+  if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
+  if (samePaint(world.player.paint, paint)) throw new Error(`The truck is already in ${JSON.stringify(paint)}`);
+  pay(world, paintPrice(world));
+  world.player.paint = { body: paint.body, cab: paint.cab, gear: paint.gear };
 }
 
 export function swapChassis(world: World, chassisId: string): void {

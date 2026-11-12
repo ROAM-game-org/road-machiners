@@ -1024,7 +1024,7 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road runs closest, leave the road and head north and a touch east, a few minutes' drive. Boat wrecks on flat ground. found");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road enters square D6, leave the road and head north-west and a touch north, about ten minutes' drive. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
   });

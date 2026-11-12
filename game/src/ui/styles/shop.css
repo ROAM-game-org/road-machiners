@@ -836,7 +836,9 @@
     row-gap: var(--space-3);
   }
   .goods.truck .good-row,
-  .goods.stocked .good-row {
+  .goods.stocked .good-row,
+  .goods.truck.no-profit .good-row,
+  .goods.stocked.no-profit .good-row {
     grid-template-columns: 1fr auto auto auto;
     grid-template-areas:
       "name theirs held profit"
@@ -884,29 +886,6 @@
   gap: var(--space-1);
   font: var(--text-dense) var(--font-mono);
   white-space: nowrap;
-}
-.town-truck-supplies {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding-bottom: var(--space-5);
-}
-.town-truck-supplies .good-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: 0;
-}
-.town-truck-supplies .good-name {
-  flex: 1;
-  min-width: 0;
-}
-.town-truck-supplies .trade {
-  flex: none;
-  width: auto;
-}
-.town-truck-supplies .caption {
-  display: none;
 }
 .service-meter .meter {
   height: var(--meter-l);

@@ -1,6 +1,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
+import { axlesOf } from '../../sim/body';
 import { loadModels, socket, type ModelName } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -11,18 +12,19 @@ await loadModels(async (name) => {
 });
 
 const TOLERANCE = 0.02;
-const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.32, longbed: 0.06, courier: 0.06, hauler: 0.06, wagon: 0.06, tractor: 0.06, jeep: 0.06, carrier: 0.06, loader: 0.06, bus: 0.06, buggy: 0.06, convertible: 0.06, van: 0.06 };
+const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.32, longbed: 0.06, courier: 0.06, hauler: 0.06, wagon: 0.06, tractor: 0.06, sorokonoga: 0.06, jeep: 0.06, carrier: 0.06, loader: 0.06, bus: 0.06, buggy: 0.06, convertible: 0.06, van: 0.06 };
 
 describe('wheel arches of the reference photo bases', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'wagon', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'convertible', 'van'] as const)('%s: arches sit on the physics wheels', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'wagon', 'tractor', 'sorokonoga', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'convertible', 'van'] as const)('%s: arches sit on the physics wheels', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const name = `base_${id}` as ModelName;
     const hub = body.wheelY - PHYSICS.truck.suspensionRest;
     const front = socket(name, 'arch_front');
     const rear = socket(name, 'arch_rear');
     const top = socket(name, 'arch_front_top');
-    expect(Math.abs(front.x - body.wheelX)).toBeLessThan(TOLERANCE);
-    expect(Math.abs(rear.x + body.wheelX)).toBeLessThan(TOLERANCE);
+    const axles = axlesOf(body);
+    expect(Math.abs(front.x - axles.front)).toBeLessThan(TOLERANCE);
+    expect(Math.abs(rear.x - axles.rear)).toBeLessThan(TOLERANCE);
     expect(Math.abs(front.y - hub)).toBeLessThan(TOLERANCE);
     expect(Math.abs(rear.y - hub)).toBeLessThan(TOLERANCE);
     expect(Math.abs(Math.abs(front.z) - body.wheelZ)).toBeLessThan(TOLERANCE);

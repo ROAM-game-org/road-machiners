@@ -13,17 +13,20 @@ function stat(name: string): PerfStat {
   return s;
 }
 
+export function record(name: string, ms: number): void {
+  const s = stat(name);
+  s.last = ms;
+  s.max = Math.max(s.max, ms);
+  s.total += ms;
+  s.calls++;
+}
+
 export function timed<T>(name: string, fn: () => T): T {
   const start = performance.now();
   try {
     return fn();
   } finally {
-    const ms = performance.now() - start;
-    const s = stat(name);
-    s.last = ms;
-    s.max = Math.max(s.max, ms);
-    s.total += ms;
-    s.calls++;
+    record(name, performance.now() - start);
   }
 }
 
@@ -48,6 +51,12 @@ export function mergePerf(incoming: Record<string, PerfStat>): void {
     current.total += measured.total;
     current.calls += measured.calls;
   }
+}
+
+export function takePerf(): Record<string, PerfStat> {
+  const taken = perfSnapshot();
+  resetPerf();
+  return taken;
 }
 
 export function resetPerf(): void {

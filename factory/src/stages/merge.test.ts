@@ -3,10 +3,10 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
-import { STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
+import { AgentTimeoutError, STUCK_LABEL, type AgentRun, type Card, type Ctx, type FailedTest, type Failure, type SuiteFailures, type SuiteScope } from '../types';
 import { CheckTimeoutError } from '../container';
 import { causeOf } from '../fail';
-import { BaselineFailureError, BudgetError } from './checkpoint';
+import { BaselineFailureError, BudgetError, StalledFixError } from './checkpoint';
 
 const deployed: string[] = [];
 vi.mock('../deploy', () => ({ deployDev: async () => { deployed.push('dev'); return 'https://play.test/dev/'; } }));
@@ -89,7 +89,7 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function fakeCtx(budget = 5): Ctx {
   const fake = {
-    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, checksTimeoutMinutes: 45, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0 },
+    cfg: { home, buildModel: 'sonnet', mergingBudgetUsd: budget, noCommitRounds: 3, suiteRerunFiles: 5, checksTimeoutMinutes: 45, conflictTimeoutMinutes: 60, gpu: false, publicUrl: 'https://play.test', committeeChat: 'chat', suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10 },
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -252,12 +252,39 @@ describe('merge queue', () => {
     expect(calls.filter((call) => /^(suite|checks|agent)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent']);
   });
 
+  it('fails after three fix rounds in a row that leave the same fix uncommitted, and runs the checks only once', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    dirty = ['', ...Array(8).fill(' M game/src/sim/fuel.ts\n')];
+    const ctx = fakeCtx(100);
+    ctx.repo.workHead = async () => 'merged1';
+    const error = await merge(ctx).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('changes that are not committed');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent', 'agent']);
+  });
+
+  it('fails after three fix rounds in a row with no commit, with the first failure, the decision cause, stuck labels and nothing pushed', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    failingSuites = 9;
+    const ctx = fakeCtx(100);
+    ctx.repo.workHead = async () => 'merged1';
+    const error = await merge(ctx).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(StalledFixError);
+    expect((error as Error).message).toContain('so merged1 still fails its checks');
+    expect((error as Error).message).toContain('FAIL src/sim/raid.test.ts in run 1');
+    expect(causeOf(error)).toBe('decision');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'agent', 'agent']);
+    expect(calls).toEqual(expect.arrayContaining([`label 5 ${STUCK_LABEL}`, `label 6 ${STUCK_LABEL}`]));
+    expect(readState(`${home}/state.json`).landings.merge?.spentUsd).toBe(3);
+  });
+
   it('sends a fix left uncommitted back first, and then the unchanged head keeps its suite failure', async () => {
     changed = ['game/src/sim/fuel.ts'];
     dirty = ['', ' M game/src/sim/fuel.ts\n', '', ''];
     failingSuites = 1;
     const ctx = fakeCtx();
-    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged2'];
+    const commits = ['card5', 'card6', 'merged1', 'merged1', 'merged1', 'merged2'];
     ctx.repo.workHead = async () => commits.shift() ?? 'merged2';
     await merge(ctx);
     expect(runs[1]!.prompt).toContain('changes that are not committed');
@@ -274,12 +301,12 @@ describe('merge queue', () => {
 
     it('fails with the baseline cause and no fix round when every failed test fails on the base too', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), failing(RAID)];
+      suitePlan = [failing(RAID), failing(RAID), failing(RAID)];
       const error = await merge(fakeCtx()).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(BaselineFailureError);
       expect(causeOf(error)).toBe('baseline');
       expect(runs).toEqual([]);
-      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun dev-tip src/sim/raid.test.ts workers 1']);
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'rerun dev-tip src/sim/raid.test.ts workers 1']);
       expect(calls).toContain('label 5 factory-stuck');
       expect(calls).toContain('label 6 factory-stuck');
       expect(comments.filter((comment) => comment.includes('fail only on tests that also fail on dev at dev-tip'))).toHaveLength(2);
@@ -289,13 +316,15 @@ describe('merge queue', () => {
 
     it('sends only the new failures to the session, names the base ones, and still fails on the base ones alone after the fix', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID, FUEL), failing(RAID), failing(RAID), failing(RAID)];
+      suitePlan = [failing(RAID, FUEL), failing(RAID, FUEL), failing(RAID), failing(RAID), failing(RAID), failing(RAID)];
       await expect(merge(fakeCtx())).rejects.toBeInstanceOf(BaselineFailureError);
       expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('they failed again, so these failures are real: src/sim/fuel.test.ts, src/sim/raid.test.ts.');
       expect(runs[0]!.prompt).toContain('Leave them alone: src/sim/raid.test.ts > raids > reach 5.');
       expect(runs[0]!.prompt).toContain('Fix these, which fail only here: src/sim/fuel.test.ts > burns fuel.');
       expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual([
-        'suite head1', 'rerun dev-tip src/sim/fuel.test.ts,src/sim/raid.test.ts workers 1', 'agent', 'suite head1', 'rerun dev-tip src/sim/raid.test.ts workers 1',
+        'suite head1', 'rerun head1 src/sim/fuel.test.ts,src/sim/raid.test.ts workers null', 'rerun dev-tip src/sim/fuel.test.ts,src/sim/raid.test.ts workers 1', 'agent',
+        'suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'rerun dev-tip src/sim/raid.test.ts workers 1',
       ]);
       expect(ledgerBaselines().map((line) => line.kind === 'baseline' && line.failing)).toEqual([[FUEL], []]);
     });
@@ -303,7 +332,7 @@ describe('merge queue', () => {
     it('never counts a file that failed as a whole as the base\'s, so its own failures reach the session', async () => {
       changed = ['game/src/sim/fuel.ts'];
       const whole = { file: 'src/sim/raid.test.ts', test: null };
-      suitePlan = [failing(whole), failing(whole), { passed: true, record: null }];
+      suitePlan = [failing(whole), failing(whole), failing(whole), { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(1);
       expect(runs[0]!.prompt).not.toContain('Leave them alone');
@@ -312,7 +341,7 @@ describe('merge queue', () => {
 
     it('labels the cards stuck and keeps the baseline cause when the card comment fails', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), failing(RAID)];
+      suitePlan = [failing(RAID), failing(RAID), failing(RAID)];
       const ctx = fakeCtx();
       ctx.github.comment = async () => { throw new Error('gh: HTTP 502'); };
       const error = await merge(ctx).catch((caught: unknown) => caught);
@@ -323,7 +352,7 @@ describe('merge queue', () => {
 
     it('keeps the whole failure when the base passes the failed tests', async () => {
       changed = ['game/src/sim/fuel.ts'];
-      suitePlan = [failing(RAID), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      suitePlan = [failing(RAID), failing(RAID), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(1);
       expect(runs[0]!.prompt).not.toContain('Leave them alone');
@@ -359,10 +388,61 @@ describe('merge queue', () => {
       runs = [];
       calls = [];
       suites = [];
-      suitePlan = [failing(RAID), { passed: false, record: null }, { passed: true, record: null }];
+      suitePlan = [failing(RAID), failing(RAID), { passed: false, record: null }, { passed: true, record: null }];
       await merge(fakeCtx());
       expect(runs).toHaveLength(1);
       expect(runs[0]!.prompt).not.toContain('Leave them alone');
+    });
+  });
+
+  describe('failed files that run again on the same head (#1503)', () => {
+    const RAID = { file: 'src/sim/raid.test.ts', test: null };
+    const failing = (...failed: FailedTest[]) => ({ passed: false, record: { failed, unfinished: [], unhandledErrors: 0 } });
+    const reruns = () => readLedger(home, new Date(0)).filter((line) => line.kind === 'rerun');
+
+    it('runs one new full suite after the failed files pass on the same head, and pushes only once it passes, with no fix round', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      suitePlan = [failing(RAID), { passed: true, record: null }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toEqual([]);
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual(['suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'suite head1', 'push head1 dev']);
+      expect(reruns()).toMatchObject([{ stage: 'merge', issue: null, head: 'head1', files: ['src/sim/raid.test.ts'], outcome: 'passed' }]);
+      expect(comments.filter((text) => text.includes('merged into dev'))).toHaveLength(2);
+    });
+
+    it('takes the fix path with the new failure when the full suite fails again after the rerun passed, and pushes only after the fix passes', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      const FUEL = { file: 'src/sim/fuel.test.ts', test: 'burns fuel' };
+      suitePlan = [failing(RAID), { passed: true, record: null }, failing(FUEL), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 3');
+      expect(runs[0]!.prompt).toContain('- src/sim/fuel.test.ts > burns fuel');
+      expect(calls.filter((call) => /^(suite|rerun|agent|push)/.test(call))).toEqual([
+        'suite head1', 'rerun head1 src/sim/raid.test.ts workers null', 'suite head1', 'rerun dev-tip src/sim/fuel.test.ts workers 1', 'agent', 'suite head1', 'push head1 dev',
+      ]);
+    });
+
+    it('runs nothing again when the failure covers more files than FACTORY_SUITE_RERUN_FILES, and the session gets it', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      const many = ['a', 'b', 'c'].map((name) => ({ file: `src/sim/${name}.test.ts`, test: 'breaks' }));
+      suitePlan = [failing(...many), { passed: true, record: { failed: [], unfinished: [], unhandledErrors: 0 } }, { passed: true, record: null }];
+      const ctx = fakeCtx();
+      ctx.cfg.suiteRerunFiles = 2;
+      await merge(ctx);
+      expect(runs).toHaveLength(1);
+      expect(calls.filter((call) => call.startsWith('rerun'))).toEqual(['rerun dev-tip src/sim/a.test.ts,src/sim/b.test.ts,src/sim/c.test.ts workers 1']);
+      expect(reruns()).toEqual([]);
+    });
+
+    it('keeps the whole failure for the session when the same-head rerun cannot run, and records the unknown outcome', async () => {
+      changed = ['game/src/sim/fuel.ts'];
+      baselineDown = true;
+      suitePlan = [failing(RAID), { passed: true, record: null }];
+      await merge(fakeCtx());
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('src/sim/raid.test.ts (the file itself)');
+      expect(reruns()).toMatchObject([{ outcome: 'unknown' }]);
     });
   });
 
@@ -514,6 +594,24 @@ describe('merge queue', () => {
     expect(runs[0]!.model).toBe('sonnet');
     merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }, { commit: 'c6', conflicts: ['game/src/a.ts'] }] };
     await expect(merge(fakeCtx())).rejects.toThrow('left the merge of factory/issue-6 into dev unfinished');
+  });
+
+  it('limits each conflict agent run and no fix round, and fails the batch as a timeout when a conflict agent passes its limit', async () => {
+    keptSession(6, 'card-6');
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }], dev: [{ commit: 'd1', conflicts: ['game/src/b.ts'] }] };
+    shellFailures = ['FAIL a.test.ts: expected 1 to be 2'];
+    await merge(fakeCtx());
+    expect(runs.map((run) => run.limitMinutes)).toEqual([60, undefined]);
+    merges = { 'factory/issue-6': [{ commit: 'c6', conflicts: ['game/src/a.ts'] }] };
+    calls.length = 0;
+    const ctx = fakeCtx();
+    ctx.container.agent = async () => { throw new AgentTimeoutError('the agent ran past its 60 minute limit, and the factory removed its container.'); };
+    const failed = await merge(ctx).catch((error: unknown) => error);
+    expect(failed).toBeInstanceOf(AgentTimeoutError);
+    expect(causeOf(failed)).toBe('timeout');
+    expect(calls).toContain('label 5 factory-stuck');
+    expect(calls).toContain('label 6 factory-stuck');
+    expect(calls.some((call) => call.startsWith('push'))).toBe(false);
   });
 
   it('resumes the card own kept Testing session for its conflict, and keeps the fix rounds on the merge session', async () => {

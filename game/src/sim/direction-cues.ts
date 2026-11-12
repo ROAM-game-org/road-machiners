@@ -3,7 +3,7 @@ import { atlasOf, atlasSites } from './atlas';
 import { propsAlong, propsAround } from './prop-index';
 import { otherEnd, type RoadGraph } from './road-network';
 import { siteGap, type Site } from './sites';
-import type { Cardinal, Cue, LandmarkLook, Obstacle, Octant, RoadName, Span, World } from './types';
+import type { Cardinal, Cue, LandmarkCue, LandmarkLook, Obstacle, Octant, RoadName, Span, World } from './types';
 import { dist, type Vec } from './vec';
 
 const OCTANTS: Octant[] = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'];
@@ -83,17 +83,21 @@ export function spanOf(tiles: number): Span {
   return tiles < DIRECTIONS.spans.fair ? 'fair' : 'far';
 }
 
-export type CueSpot = { pos: Vec; legStart: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number; junctionHere: boolean };
+export type CueSpot = { pos: Vec; legStart: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number };
+
+export function landmarkAt(world: World, spot: CueSpot): LandmarkCue | null {
+  return siteCue(world, spot) ?? deckCue(world, spot) ?? propCue(world, spot);
+}
 
 export function cueAt(world: World, spot: CueSpot): Cue | null {
-  return siteCue(world, spot) ?? deckCue(world, spot) ?? propCue(world, spot) ?? countCue(spot);
+  return landmarkAt(world, spot) ?? countCue(spot);
 }
 
 function seenFromEarlier(spot: CueSpot, gapAt: (p: Vec) => number): boolean {
   return spot.earlier.some((p) => gapAt(p) <= DIRECTIONS.cueReach);
 }
 
-function siteCue(world: World, spot: CueSpot): Cue | null {
+function siteCue(world: World, spot: CueSpot): LandmarkCue | null {
   const sites = atlasSites(atlasOf(world.terrain))
     .map((site) => ({ site, gap: siteGap(site, spot.pos) }))
     .filter((s) => s.gap <= DIRECTIONS.cueReach)
@@ -102,7 +106,7 @@ function siteCue(world: World, spot: CueSpot): Cue | null {
   return pick ? { kind: 'site', id: pick.site.id } : null;
 }
 
-function deckCue(world: World, spot: CueSpot): Cue | null {
+function deckCue(world: World, spot: CueSpot): LandmarkCue | null {
   const decks = atlasOf(world.terrain).decks.decks;
   const gap = (deck: (typeof decks)[number], p: Vec) => Math.min(dist(p, deck.from), dist(p, deck.to), dist(p, { x: (deck.from.x + deck.to.x) / 2, y: (deck.from.y + deck.to.y) / 2 }));
   const near = decks
@@ -116,7 +120,7 @@ function landmarksOf(props: readonly Obstacle[], look: LandmarkLook): Obstacle[]
   return props.filter((o) => o.kind === 'landmark' && o.look === look);
 }
 
-function propCue(world: World, spot: CueSpot): Cue | null {
+function propCue(world: World, spot: CueSpot): LandmarkCue | null {
   const around = propsAround(world, 'sight', spot.pos, DIRECTIONS.cueReach);
   for (const look of DIRECTIONS.cueLooks) {
     const mine = landmarksOf(around, look).sort((a, b) => dist(a.pos, spot.pos) - dist(b.pos, spot.pos) || (a.id < b.id ? -1 : 1))[0];
@@ -136,7 +140,7 @@ function countable(spot: CueSpot): boolean {
 }
 
 function countCue(spot: CueSpot): Cue | null {
-  if (spot.forks === 0 || (!spot.junctionHere && spot.forks === 1)) return { kind: 'none' };
+  if (spot.forks === 0) return { kind: 'none' };
   if (!countable(spot)) return null;
   if (spot.forks === 1) return { kind: 'none' };
   return spot.forks <= DIRECTIONS.maxCount ? { kind: 'fork', nth: spot.forks } : null;

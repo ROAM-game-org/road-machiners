@@ -14,14 +14,25 @@ const FULL = 'abc1234'.padEnd(40, '5');
 const FULL2 = 'def5678'.padEnd(40, '6');
 const AT = { stage: 'verify' as const, issue: 5 };
 
-type Script = { reads: SuiteRun[]; log?: string; dispatch?: () => Promise<number>; minutesPerRead?: number; running?: number };
+type Read<T> = T | Error;
+type Script = { reads: Read<SuiteRun>[]; log?: string; logReads?: Read<string>[]; dispatch?: () => Promise<number>; minutesPerRead?: number; running?: number; runningReads?: Read<number>[] };
+
+const NOT_FOUND = new Error('gh api repos/o/r/actions/runs/77/jobs failed with exit 1: gh: Not Found (HTTP 404)');
+const CUT_OFF = new Error('gh api repos/o/r/actions/runs/77 failed with exit 1: unexpected end of JSON input');
+
+function answer<T>(read: Read<T> | undefined, what: string): T {
+  if (read === undefined) throw new Error(`read past the scripted ${what}`);
+  if (read instanceof Error) throw read;
+  return read;
+}
 
 function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string[] } {
   const dispatched: string[] = [];
   const logs: string[] = [];
   let minutes = 0;
+  const tick = (): void => { minutes += script.minutesPerRead ?? 1; };
   const ctx = {
-    cfg: { suiteStartMinutes: 15, suitePollSeconds: 0, home: 'tmp/remote-suite' },
+    cfg: { suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10, home: 'tmp/remote-suite' },
     now: () => new Date(Date.UTC(2026, 9, 15, 12, minutes)),
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     repo: { fullHash: async (commit: string) => (commit.length === 40 ? commit : commit.padEnd(40, '5')) },
@@ -29,13 +40,17 @@ function fakeCtx(script: Script): { ctx: Ctx; dispatched: string[]; logs: string
       dispatchSuite: script.dispatch ?? (async (sha: string) => { dispatched.push(sha); return 77; }),
       suiteRun: async (id: number) => {
         expect(id).toBe(77);
-        minutes += script.minutesPerRead ?? 1;
-        const next = script.reads.shift();
-        if (next === undefined) throw new Error('read past the scripted runs');
-        return next;
+        tick();
+        return answer(script.reads.shift(), 'runs');
       },
-      suiteLog: async () => script.log ?? '',
-      suitesRunning: async () => script.running ?? 0,
+      suiteLog: async () => {
+        tick();
+        return script.logReads === undefined ? script.log ?? '' : answer(script.logReads.shift(), 'logs');
+      },
+      suitesRunning: async () => {
+        tick();
+        return script.runningReads === undefined ? script.running ?? 0 : answer(script.runningReads.shift(), 'counts');
+      },
     },
   };
   return { ctx: ctx as unknown as Ctx, dispatched, logs };
@@ -138,14 +153,53 @@ describe('remoteSuite', () => {
     expect(causeOf(new SuiteMachineError('run 77 did not start within 15 minutes'))).toBe('github');
   });
 
-  it('is a machine failure when the dispatch fails', async () => {
-    const { ctx } = fakeCtx({ reads: [], dispatch: async () => { throw new Error('HTTP 422: Workflow does not have workflow_dispatch trigger'); } });
+  it('is a machine failure when the dispatch fails, and never sends it again', async () => {
+    let dispatches = 0;
+    const dispatch = async (): Promise<number> => { dispatches++; throw new Error('HTTP 422: Workflow does not have workflow_dispatch trigger'); };
+    const { ctx } = fakeCtx({ reads: [], dispatch });
     await expect(remoteSuite(ctx, AT, 'abc1234')).rejects.toThrow(SuiteMachineError);
+    expect(dispatches).toBe(1);
   });
 
-  it('is a machine failure when a read of the run fails', async () => {
-    const { ctx } = fakeCtx({ reads: [] });
-    await expect(remoteSuite(ctx, AT, 'abc1234')).rejects.toThrow(SuiteMachineError);
+  it('reads a run again after a 404 on its jobs and passes, with one dispatch', async () => {
+    const { ctx, dispatched, logs } = fakeCtx({ reads: [{ ...RUN, started: true }, NOT_FOUND, NOT_FOUND, { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }] });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
+    expect(dispatched).toEqual([FULL]);
+    expect(logs.filter((line) => line.includes('Not Found (HTTP 404)'))).toHaveLength(2);
+    expect(logs.find((line) => line.includes('HTTP 404'))).toContain('run 77');
+  });
+
+  it('reads a run again after a cut-off answer right after the dispatch', async () => {
+    const { ctx } = fakeCtx({ reads: [CUT_OFF, { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }] });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
+  });
+
+  it('still returns a real test failure after a failed read', async () => {
+    const { ctx } = fakeCtx({ reads: [NOT_FOUND, { ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' }], log: 'FAIL src/sim/fuel.test.ts > burns fuel' });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toContain('FAIL src/sim/fuel.test.ts > burns fuel');
+  });
+
+  it('is a machine failure naming the run and the last error once reads fail for the whole outage window', async () => {
+    const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true }, ...Array(12).fill(NOT_FOUND)] });
+    const failed = remoteSuite(ctx, AT, 'abc1234');
+    await expect(failed).rejects.toThrow(SuiteMachineError);
+    await expect(failed).rejects.toThrow(/run 77 .*10 minutes.*HTTP 404/);
+  });
+
+  it('counts the outage from the newest failed read after a read worked', async () => {
+    const reads = [...Array(9).fill(NOT_FOUND), { ...RUN, started: true }, ...Array(9).fill(NOT_FOUND), { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }];
+    const { ctx } = fakeCtx({ reads });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
+  });
+
+  it('reads the failed log again after a failed read', async () => {
+    const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true, done: true, testsFailed: true, conclusion: 'failure' }], logReads: [CUT_OFF, 'FAIL src/a.test.ts > breaks'] });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toContain('FAIL src/a.test.ts > breaks');
+  });
+
+  it('counts the running suites again after a failed read while its run waits to start', async () => {
+    const { ctx } = fakeCtx({ reads: [RUN, { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }], runningReads: [NOT_FOUND, 1] });
+    expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
   });
 });
 
@@ -202,7 +256,7 @@ describe('the suite calls of the GitHub client', () => {
 
   it('makes a suite over its time limit with no failed test a machine failure, not work for the fix agent', async () => {
     const github = ghClient(apiFake([], { dispatches: '{"workflow_run_id":77}', 'runs/77/jobs': OVER_TIME_JOBS, 'runs/77': FAILED_RUN }), CFG);
-    const ctx = { repo: { fullHash: async () => FULL }, cfg: { suiteStartMinutes: 15, suitePollSeconds: 0 }, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
+    const ctx = { repo: { fullHash: async () => FULL }, cfg: { suiteStartMinutes: 15, suitePollSeconds: 0, suiteReadOutageMinutes: 10 }, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
     await expect(remoteSuite(ctx, AT, FULL)).rejects.toThrow(SuiteMachineError);
   });
 

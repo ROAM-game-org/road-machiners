@@ -8,14 +8,14 @@ import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, SHORT_PRESSUR
 import { dailyFlow, graphEdges, isFoundGood, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
-import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, rivalDue, sendRival, type ClaimTarget } from './claims';
+import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, requireHeld, rivalDue, sendRival, type ClaimTarget } from './claims';
 import { shopMoney } from './economy';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { findSpot, freeCells, goodsCount, gridOf } from './grid';
 import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
 import { cancelJob } from './jobs';
-import { liveClaims, type ClaimContract } from './salvage';
+import { type ClaimContract } from './salvage';
 import { hasBasic, practice } from './progress';
 import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
@@ -247,6 +247,14 @@ function lotStock(shopId: string, state: ShopState, good: string, direction: 'bu
   return stock;
 }
 
+export function shopTrades(shopId: string, good: string): boolean {
+  return shopDef(shopId).goods.includes(good);
+}
+
+export function requireTraded(shopId: string, good: string): void {
+  if (!shopTrades(shopId, good)) throw new Refused({ id: 'notTraded' });
+}
+
 export function recordTrade(shopId: string, state: ShopState, good: string, units: number, direction: 'buy' | 'sell'): void {
   if (!shopDef(shopId).goods.includes(good)) throw new Error(`${shopId} does not trade ${good}`);
   if (!Number.isInteger(units) || units < 0) throw new Error(`Bad trade unit count ${units}`);
@@ -277,6 +285,8 @@ export type Contract =
 
 export type SearchContract = Extract<Contract, { kind: 'search' }>;
 
+export type HaulContract = Extract<Contract, { kind: 'haul' }>;
+
 export type ContractEnd = 'done' | 'failed' | 'late' | 'lapsed' | 'released';
 
 export type PastContract = { contract: Contract; outcome: ContractEnd; turn: number; amount: number };
@@ -295,6 +305,10 @@ export function contractReward(turns: number, cargoValue: number, rush: boolean,
   const perTurn = CONTRACTS.haul.rewardFactor + CONTRACTS.haul.crateFactor * crates;
   const standard = turns * EFFORT.wage[1] * perTurn + commission;
   return fairM(rush ? standard * CONTRACTS.haul.rush.premium : standard);
+}
+
+export function haulReward(c: Pick<HaulContract, 'shop' | 'to' | 'good' | 'units' | 'rush'>): number {
+  return contractReward(estimateTurns(shopPos(c.shop), shopPos(c.to)), c.units * goodValue(c.good), c.rush, c.units);
 }
 
 export function haulWindow(turns: number, rush: boolean): number {
@@ -357,7 +371,7 @@ function rollHaul(world: World, input: RollInput, id: string): Contract {
   const units = randInt(world.marketRng, CONTRACTS.haul.units[0], Math.min(CONTRACTS.haul.units[1], leg.units));
   const turns = estimateTurns(input.shop.pos, leg.to.pos);
   const rush = chance(world.marketRng, CONTRACTS.haul.rush.chance);
-  const reward = contractReward(turns, units * goodValue(leg.good), rush, units);
+  const reward = haulReward({ shop: input.shop.id, to: leg.to.id, good: leg.good, units, rush });
   const window = haulWindow(turns, rush);
   return { id, shop: input.shop.id, kind: 'haul', good: leg.good, units, to: leg.to.id, reward, deadline: world.turn + window, window, rush, tier };
 }
@@ -368,6 +382,11 @@ export function procureTrip(shopId: string, good: string): number {
 
 export function procureReward(units: number, cratePay: number, trip: number): number {
   return units * cratePay + fairM(contractReward(trip, 0, true) * CONTRACTS.procure.travelFactor);
+}
+
+export function procurePay(shopId: string, good: string, units: number): { cratePay: number; reward: number } {
+  const cratePay = fairM(standingPrice(shopId, good, 0));
+  return { cratePay, reward: procureReward(units, cratePay, procureTrip(shopId, good)) };
 }
 
 export function procureWindow(trip: number): number {
@@ -396,10 +415,9 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
   const shortfall = procureShortfall(world, shopId, state, good);
   if (shortfall === 0) throw new Error(`${shopId} cannot order ${good}: it is not short of it, makes it or has it on order`);
   const units = randInt(world.marketRng, CONTRACTS.procure.units[0], Math.min(CONTRACTS.procure.units[1], shortfall));
-  const cratePay = fairM(standingPrice(shopId, good, 0));
-  const trip = procureTrip(shopId, good);
-  const window = procureWindow(trip);
-  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward: procureReward(units, cratePay, trip), deadline: world.turn + window, window, tier: GOODS[good].tier };
+  const { cratePay, reward } = procurePay(shopId, good, units);
+  const window = procureWindow(procureTrip(shopId, good));
+  return { id, shop: shopId, kind: 'procure', good, units, cratePay, reward, deadline: world.turn + window, window, tier: GOODS[good].tier };
 }
 
 export function onOrder(world: World, shopId: string, good: string): boolean {
@@ -409,8 +427,6 @@ export function onOrder(world: World, shopId: string, good: string): boolean {
   );
   return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
-
-export type HaulContract = Extract<Contract, { kind: 'haul' }>;
 
 function openHauls(world: World, good: string): HaulContract[] {
   return world.player.contracts.filter((c): c is HaulContract => c.kind === 'haul' && c.good === good);
@@ -462,13 +478,17 @@ function rollSearch(world: World, input: RollInput, id: string): Contract {
   };
 }
 
+export function claimTravelPay(shopId: string, at: Vec): number {
+  return contractReward(estimateTurns(shopPos(shopId), at), 0, false);
+}
+
 function rollClaim(world: World, input: RollInput, id: string): Contract {
   if (input.claims.length === 0) throw new Error('A claim needs a part lying in a wreck');
   const { stock, part } = pick(world, input.claims);
   const turns = estimateTurns(input.shop.pos, stock.pos);
   const window = claimWindow(turns);
   const tier = PARTS[part.defId].tier;
-  const reward = claimReward(part, contractReward(turns, 0, false));
+  const reward = claimReward(part, claimTravelPay(input.shop.id, stock.pos));
   const rivalAt = claimRivalAt(world.turn, turns);
   return { id, shop: input.shop.id, kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward, deadline: world.turn + window, window, tier, rivalAt, rival: null, leads: [] };
 }
@@ -657,10 +677,11 @@ export function advanceShops(world: World): void {
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
   }
-  for (const c of liveClaims(world)) if (rivalDue(world, c)) sendRival(world, c);
+  for (const c of world.player.contracts) if (c.kind === 'claim' && rivalDue(world, c)) sendRival(world, c);
 }
 
 export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void {
+  requireHeld(world, c);
   if (v.id !== c.rival) throw new Error(`${v.id} is not the rival on claim ${c.id}`);
   if (!canUseSite(v.pos, siteOf(c.shop))) throw new Error(`${v.id} is not at ${c.shop} to hand in claim ${c.id}`);
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === c.partId);
@@ -668,9 +689,7 @@ export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void 
   v.items = v.items.filter((it) => it !== item);
   addStockPart(shopState(world, c.shop), item.part);
   shopMoney(world, v, c.reward, 'claimReward');
-  const board = shopState(world, c.shop);
-  if (board.contracts.includes(c)) board.contracts = board.contracts.filter((x) => x !== c);
-  else finishContract(world, c, 'lapsed', 'rival');
+  finishContract(world, c, 'lapsed', 'rival');
 }
 
 function claimGone(world: World, c: Contract): boolean {
@@ -721,12 +740,22 @@ export function takeContract(w: World, contractId: string): void {
   if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
   if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
   requireSearchTakeable(w, contract);
+  requireNoRival(contract);
   loadContract(w, contract);
-  if (contract.kind === 'escort') takeEscortJob(w, contract);
-  else contract.deadline = w.turn + contract.window;
+  startClock(w, contract);
   board.splice(board.indexOf(contract), 1);
   w.player.contracts.push(contract);
   w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
+}
+
+function requireNoRival(c: Contract): void {
+  if (c.kind === 'claim' && c.rival !== null) throw new Error(`Posted claim ${c.id} already has a rival`);
+}
+
+function startClock(w: World, c: Contract): void {
+  if (c.kind === 'escort') return takeEscortJob(w, c);
+  c.deadline = w.turn + c.window;
+  if (c.kind === 'claim') c.rivalAt = claimRivalAt(w.turn, estimateTurns(shopPos(c.shop), c.at));
 }
 
 export function haulBlocked(world: World, c: Contract): boolean {
