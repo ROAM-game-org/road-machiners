@@ -956,7 +956,7 @@ describe('social on tow fees', () => {
 });
 
 describe('the player towing an NPC', () => {
-  const OFFER = 'Need a tow to town?';
+  const OFFER = 'Need a tow?';
   const HITCH = 'Deal. Hitch up.';
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   const gate = siteGates(bowl)[0];

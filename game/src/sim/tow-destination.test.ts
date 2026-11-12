@@ -80,7 +80,7 @@ describe('tow destination for an NPC', () => {
 
   it('is its camp for a raider', () => {
     const w = quietWorld({ x: 30, y: 30 });
-    const c = addVehicle(w, 'raider', 'buggy', ['stockEngine'], nearDustwell, 0);
+    const c = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], nearDustwell, 0);
     c.brain = npcBrain('buggy', nearDustwell, NPCS.buggy.traits);
     getResources(w, c).money = 5000;
     const helper = tower(w, 'trader', { x: c.pos.x + 8, y: c.pos.y });
