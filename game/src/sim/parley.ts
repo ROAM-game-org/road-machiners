@@ -10,7 +10,7 @@ import { getResources } from './resources';
 import { corePart } from './grid';
 import { defyThreat, finishGoal, pushGoal, topGoal } from './npc-activities';
 import { canArgue, fightOver, warnTruck } from './loot-warning';
-import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
+import { canBeHeldUp, decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
 import { SPARE_LINE } from '../data/dialogue';
 import { modeRules } from './settings';
 import { cargoHaul, cashCut, ransomOf, strippable, haulValue, type Ransom } from './haul';
@@ -243,7 +243,12 @@ export function answersThreat(world: World, npc: Vehicle): ThreatAnswer {
   return decide(world, npc, 'threatened', me.id, perceiveDanger(world, npc, me));
 }
 
+function requireHeldUp(world: World, npc: Vehicle): void {
+  if (!canBeHeldUp(world, npc)) throw new Error(`${npc.id} cannot be held up`);
+}
+
 export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): void {
+  requireHeldUp(world, npc);
   const me = playerVehicle(world);
   if (answer !== 'comply') return defyThreat(world, npc, me, answer);
   reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });
@@ -251,6 +256,7 @@ export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): 
 }
 
 export function settleCashThreat(world: World, npc: Vehicle, answer: ThreatAnswer): void {
+  requireHeldUp(world, npc);
   const me = playerVehicle(world);
   if (answer !== 'comply') return defyThreat(world, npc, me, answer);
   reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });

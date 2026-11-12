@@ -570,8 +570,12 @@ function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
   return !(isRaider(robber) && isOutlaw(target.faction)) && !bandAtLeast(bandToward(w, robber, target), 'friendly');
 }
 
+export function canBeHeldUp(world: World, target: Vehicle): boolean {
+  return !isDefeated(target) && !isOnRope(world, target.id);
+}
+
 function isRobbable(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return hasPerceivedLoot(w, robber, target) && !isKnockedOut(target) && !isOnRope(w, target.id);
+  return hasPerceivedLoot(w, robber, target) && canBeHeldUp(w, target);
 }
 
 function canWarn(world: World, _vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
@@ -937,7 +941,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && knowsCargo(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
+  return canBeHeldUp(world, prey) && wantsLoot(world, robber, prey) && knowsCargo(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {

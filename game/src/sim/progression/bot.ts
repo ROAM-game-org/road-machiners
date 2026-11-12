@@ -31,7 +31,7 @@ import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { fleeDestination, keepsFleeCourse, topGoal } from '../npc-activities';
 import { isPartWorn } from '../npc-repair';
-import { getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, perceiveDanger, getKnownSite, optionWeights } from '../npc-decisions';
+import { canBeHeldUp, getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, perceiveDanger, getKnownSite, optionWeights } from '../npc-decisions';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeFromTruck } from '../salvage';
@@ -880,7 +880,7 @@ export function wouldRob(world: World, v: Vehicle): boolean {
 }
 
 function isAwakeRobTarget(world: World, v: Vehicle): boolean {
-  return v.id !== world.player.vehicleId && isRobTemplate(v) && !isDefeated(v);
+  return v.id !== world.player.vehicleId && isRobTemplate(v) && canBeHeldUp(world, v);
 }
 
 function inRadioSight(world: World, v: Vehicle): boolean {

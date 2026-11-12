@@ -10,7 +10,7 @@ export type TopicId = 'whatDoYouWant' | 'directions' | 'tow' | 'towFree' | 'askT
   | 'tale' | 'salvageTip' | 'challenge' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId | MarshalTopicId | CourierTopicId | MomentId;
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
-  | 'attacksPlayer' | 'farFromTown' | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
+  | 'attacksPlayer' | 'farFromTown' | 'atOdds' | 'atPeace' | 'canHoldUp' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm' | 'playerCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
   | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby' | 'nearClaimWreck' | 'rivalAsked' | 'noRivalAsked'
@@ -536,7 +536,7 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
   rob: {
     id: 'rob',
     once: true,
-    ask: { say: 'dropYourCargoOr', when: ['atPeace', 'npcHasCargo', 'noCutRob'], duringFeud: false },
+    ask: { say: 'dropYourCargoOr', when: ['atPeace', 'canHoldUp', 'npcHasCargo', 'noCutRob'], duringFeud: false },
     raise: null,
     prepare: 'threatAnswer',
     hangUp: ['settleRefused'],
@@ -558,7 +558,7 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
   robCut: {
     id: 'robCut',
     once: true,
-    ask: { say: 'yourMoneyOr', when: ['atPeace', 'noCargoRob'], duringFeud: false },
+    ask: { say: 'yourMoneyOr', when: ['atPeace', 'canHoldUp', 'noCargoRob'], duringFeud: false },
     raise: null,
     prepare: 'robCutAnswer',
     hangUp: ['settleRefused'],
@@ -636,9 +636,9 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
         line: 'whatAreYouLookingAt',
         options: [
           { say: 'nothingMovingOn', when: [], effects: ['endLookWarning'], go: END },
-          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'complies'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'comply' },
-          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'resists'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'fightBack' },
-          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'runs'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'flee' },
+          { say: 'yourLoad', when: ['npcHasCargo', 'canHoldUp', 'noCargoRob', 'complies'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'comply' },
+          { say: 'yourLoad', when: ['npcHasCargo', 'canHoldUp', 'noCargoRob', 'resists'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'fightBack' },
+          { say: 'yourLoad', when: ['npcHasCargo', 'canHoldUp', 'noCargoRob', 'runs'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'flee' },
         ],
       },
       comply: { line: 'allRightItIs', options: [{ say: 'smartChoice', when: [], effects: [], go: END }] },
