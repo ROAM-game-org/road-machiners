@@ -62,9 +62,7 @@ const VALUES = {
   sorokonoga: 1765.67,
 };
 
-const NO_DECK_BLOCK: Record<string, string> = {
-  semi: 'The hauler grid has cargo bay cells and no deck cells, so no gun can mount on it.',
-};
+const NO_DECK_BLOCK: Record<string, string> = {};
 
 const RATED_MASS_BEFORE_RING = {
   scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
@@ -331,6 +329,28 @@ describe('deck blocks for the bigger guns', () => {
   });
 });
 
+describe('niva gun mounting on its short hood grid', () => {
+  const NIVA_HOOD_ROWS = 4;
+  const gun = (defId: string, n: number): GridItem => ({ id: `g-${n}`, x: 0, y: 0, rot: 0, kind: 'part', part: { id: `gp-${n}`, defId, hp: 1, wear: 0 } });
+  const cores = (): GridItem[] => CHASSIS.niva.core.map((c, i) => ({ id: `c-${i}`, x: c.x, y: c.y, rot: c.rot ?? 0, kind: 'part', part: { id: `cp-${i}`, defId: c.defId, hp: 1, wear: 0 } }));
+  const rowsOf = (defId: string, spot: { x: number; y: number; rot: GridItem['rot'] }) => {
+    const def = partDef(defId);
+    const along = spot.rot % 2 === 1 ? def.w : def.h;
+    return { first: spot.y, last: spot.y + along - 1 };
+  };
+  const spotsFor = (defId: string) => mountSpots(baseGrid('niva'), cores(), gun(defId, 0), ['D']).map((s) => rowsOf(defId, s));
+
+  it('mounts a tier 1 gun beside the engine bay on the hood and on the cabin roof', () => {
+    const rows = spotsFor('mg');
+    expect(rows.some((r) => r.last <= NIVA_HOOD_ROWS)).toBe(true);
+    expect(rows.some((r) => r.first > NIVA_HOOD_ROWS)).toBe(true);
+  });
+
+  it('mounts a tier 3 gun on the cabin roof', () => {
+    expect(spotsFor('gatling').some((r) => r.first > NIVA_HOOD_ROWS)).toBe(true);
+  });
+});
+
 describe('shown cores', () => {
   it('shows the transmission and the tank on the junk-built trucks and hides them on the others', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
@@ -417,10 +437,10 @@ describe('chassis abilities', () => {
 });
 
 describe('the semi', () => {
-  it('has cargo bay cells and no deck cells, so a gun, scanner, utility or store part never mounts', () => {
-    const cells = CHASSIS.semi.layout.join('');
-    expect(cells).not.toContain('D');
-    expect(cells).toContain('C');
+  it('has deck cells on the tractor and the trailer, so any part mounts on it', () => {
+    const rows = CHASSIS.semi.layout;
+    expect(rows.slice(0, 13).some((row) => row.includes('D'))).toBe(true);
+    expect(rows.slice(19).some((row) => row.includes('D'))).toBe(true);
   });
 
   it('is in no outpost offer and no NPC template', () => {
