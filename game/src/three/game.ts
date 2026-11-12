@@ -331,7 +331,7 @@ export class Game {
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
-      releaseTurn: () => this.travel.release(performance.now()),
+      releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
@@ -496,7 +496,7 @@ export class Game {
     canvas.addEventListener("pointerleave", () => this.picker.moveTo(null));
     canvas.addEventListener("wheel", (e) => this.rig.zoomBy(e.deltaY), { passive: true });
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") this.travel.release(performance.now());
+      if (e.code === "Space") this.releaseTurn();
     });
     window.addEventListener("blur", () => this.travel.pause());
     document.addEventListener("visibilitychange", () => {
@@ -511,6 +511,10 @@ export class Game {
       if (e.code === "Escape" && e.repeat) return;
       this.runKey(e.code);
     });
+  }
+
+  private releaseTurn(): void {
+    this.travel.release(performance.now());
   }
 
   private pressTurn(): void {
