@@ -9,6 +9,7 @@ import { coreParts } from './grid';
 import type { Blocker } from './path';
 import { getResources } from './resources';
 import { sunAt } from './sun';
+import { hazardZones } from './territory';
 import { poseOf, tailReach, trailUnits } from './rig';
 import type { Flare, GroundField, Pose, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
@@ -145,12 +146,26 @@ export function launchFlare(world: World, v: Vehicle, pos: Vec, burn: FlareBurn)
   world.flares.push({ id: newId(world, 'f'), source: v.id, pos: { ...pos }, r: burn.radius, turnsLeft: burn.turns });
 }
 
+export type NightLight = { pos: Vec; r: number };
+
+let coreGlows: readonly NightLight[] | null = null;
+
+function coreGlowLights(): readonly NightLight[] {
+  coreGlows ??= hazardZones().flatMap((z) => (z.core ? [{ pos: z.core.light.pos, r: z.core.glow }] : []));
+  return coreGlows;
+}
+
+export function nightLights(world: World): readonly NightLight[] {
+  return sunAt(world.turn) ? [] : [...world.flares, ...coreGlowLights()];
+}
+
 export function litFlares(world: World): Flare[] {
   return sunAt(world.turn) ? [] : world.flares;
 }
 
 export function litAt(world: World, p: Vec): boolean {
-  return litFlares(world).some((f) => dist(f.pos, p) <= f.r);
+  if (sunAt(world.turn)) return false;
+  return world.flares.some((f) => dist(f.pos, p) <= f.r) || coreGlowLights().some((l) => dist(l.pos, p) <= l.r);
 }
 
 const BURN_TURNS = flareBurnTurns();

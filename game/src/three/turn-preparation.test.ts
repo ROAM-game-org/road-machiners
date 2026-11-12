@@ -12,11 +12,11 @@ import { setMoveOrder } from "../sim/world";
 import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
 import { perfSnapshot, resetPerf } from "../perf";
 import type { World } from "../sim/types";
-import { reportError } from "./crash";
+import { noteError, reportError } from "./crash";
 import { MOVE_MS, TurnPreparation } from "./travel";
 import { workerFailure } from "./worker-load";
 
-vi.mock("./crash", () => ({ reportError: vi.fn() }));
+vi.mock("./crash", () => ({ reportError: vi.fn(), noteError: vi.fn() }));
 
 const TAIL = 11;
 
@@ -49,6 +49,7 @@ beforeEach(() => {
   TestWorker.created = 0;
   resetPerf();
   vi.mocked(reportError).mockClear();
+  vi.mocked(noteError).mockClear();
   vi.stubGlobal("Worker", TestWorker);
   world = emptyWorld();
   drive = driveSnapshotOf(world);
@@ -163,6 +164,37 @@ it("reports a worker error during a replaced turn and posts the wanted one", () 
   expect(worker.requests).toHaveLength(2);
   worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(next)).toEqual(reply);
+});
+
+it("plays a ready turn after the worker's idle work failed, and only notes the failure", () => {
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  worker.respond({ idleError: "TypeError: no camps here\n    at warmCamps" });
+  expect(turns.take(world)).toEqual(reply);
+  expect(reportError).not.toHaveBeenCalled();
+  const noted = vi.mocked(noteError).mock.calls[0][0] as Error;
+  expect(noted.name).toBe("TypeError");
+  expect(noted.message).toBe("no camps here");
+  expect(noted.stack).toContain("at warmCamps");
+});
+
+it("keeps the running turn and the queued one through an idle failure", () => {
+  const turns = new TurnPreparation(TAIL);
+  turns.prepare(world, drive);
+  const next = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(next, drive);
+  const worker = TestWorker.latest;
+  worker.respond({ idleError: "Error: idle cells broke" });
+  expect(worker.requests).toHaveLength(1);
+  expect(turns.computing()).toBe(true);
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(worker.requests).toHaveLength(2);
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(turns.take(next)).toEqual(reply);
+  expect(reportError).not.toHaveBeenCalled();
+  expect(noteError).toHaveBeenCalledOnce();
 });
 
 it("posts the wanted turn after a replaced turn failed in the worker", () => {

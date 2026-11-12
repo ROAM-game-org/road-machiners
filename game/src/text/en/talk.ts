@@ -276,7 +276,7 @@ export const TALK = {
   'line.lessonLawBareSide': "Never show a shotgun your unarmored side. The blast goes straight into the engine.",
   'line.lessonLawWornCore': 'Check your engine and gearbox before you leave town. Either one worn past service will strand you on the road.',
   'line.lessonLawOverloaded': 'Give a heavy truck more room to stop and turn, not just more time on the road.',
-  'line.lessonLawGates': 'Few drivers start trouble near our gate. We keep that stretch of road. But a fight already on when it reaches our gate keeps going.',
+  'line.lessonLawGates': 'Few drivers start a fight near our gate. We keep that stretch of road. But a fight that is already on when it reaches the gate goes on there.',
   'line.lessonLawFirstShot': "Fire first on a lawful driver and we'll come after you. Start robbing a lawful driver, and we'll come after you just the same.",
   'line.lessonLawLonely': "Keep to roads we patrol. Raiders hunt the lonely stretches we can't see.",
   'line.lessonLawCab': 'For the record, protect your cab. Hits there hurt the driver, and a broken cab ends the fight.',

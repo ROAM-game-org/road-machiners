@@ -519,3 +519,97 @@ describe('camera canvas rect', () => {
     expect(rig.screenOf({ x: 0, y: 0, z: 0 }).x).toBeCloseTo(at.x + 200);
   });
 });
+
+describe('followed truck stays in frame', () => {
+  const size = { w: 1280, h: 720 };
+  const container = {
+    get clientWidth() { return size.w; },
+    get clientHeight() { return size.h; },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: size.w, height: size.h }),
+  } as HTMLElement;
+  const origin = { x: 0, y: 0, z: 0 };
+  const far = { x: 500, y: 0, z: 0 };
+
+  function settled(): { rig: CameraRig; follow: TruckFollow } {
+    size.w = 1280;
+    size.h = 720;
+    vi.stubGlobal('window', new EventTarget());
+    const rig = new CameraRig(container);
+    const follow = new TruckFollow(rig, new KeyPan(() => false), new EventTarget() as HTMLElement);
+    for (let i = 0; i < 300; i++) follow.update(origin, far, 100, 100);
+    return { rig, follow };
+  }
+
+  function share(rig: CameraRig, p: { x: number; y: number; z: number }): { x: number; y: number } {
+    const s = rig.screenOf(p);
+    return { x: Math.abs(s.x - size.w / 2) / (size.w / 2), y: Math.abs(s.y - size.h / 2) / (size.h / 2) };
+  }
+
+  function expectInBox(rig: CameraRig, p: { x: number; y: number; z: number }): void {
+    const s = share(rig, p);
+    expect(s.x).toBeLessThanOrEqual(0.8 + 1e-6);
+    expect(s.y).toBeLessThanOrEqual(0.8 + 1e-6);
+  }
+
+  it('keeps the truck in the box after a zoom to the maximum between turns', () => {
+    const { rig, follow } = settled();
+    rig.zoomBy(-2000);
+    follow.update(origin, far, 16, 0);
+    expectInBox(rig, origin);
+    expect(follow.isFollowing()).toBe(true);
+  });
+
+  it('keeps a truck on a hill in the box after a zoom', () => {
+    const { rig, follow } = settled();
+    const hill = { x: 0, y: 30, z: 0 };
+    rig.zoomBy(-2000);
+    follow.update(hill, far, 16, 0);
+    expectInBox(rig, hill);
+  });
+
+  it.each([[400, 900], [2000, 500]])('keeps the truck in the box after a resize to %i x %i', (w, h) => {
+    const { rig, follow } = settled();
+    size.w = w;
+    size.h = h;
+    rig.resize();
+    follow.update(origin, far, 16, 0);
+    expectInBox(rig, origin);
+  });
+
+  it('keeps a fast truck in the box at maximum zoom', () => {
+    for (const heading of [0, Math.PI / 2, Math.PI, -Math.PI / 4, 2]) {
+      const { rig, follow } = settled();
+      rig.setZoom(ZOOM.max);
+      const truck = { x: 0, y: 0, z: 0 };
+      for (let i = 0; i < 300; i++) {
+        truck.x += Math.cos(heading) * 25 * 0.016;
+        truck.z += Math.sin(heading) * 25 * 0.016;
+        follow.update(truck, { x: truck.x + 500 * Math.cos(heading), y: 0, z: truck.z + 500 * Math.sin(heading) }, 16, 16);
+        expectInBox(rig, truck);
+      }
+    }
+  });
+
+  it('settles the look-ahead halfway to the edge again after a zoom', () => {
+    const { rig, follow } = settled();
+    rig.zoomBy(-2000);
+    for (let i = 0; i < 300; i++) follow.update(origin, far, 100, 100);
+    const s = rig.screenOf(origin);
+    const ox = s.x - 640;
+    const oy = s.y - 360;
+    const toEdge = Math.min(640 / Math.abs(ox || 1e-9), 360 / Math.abs(oy || 1e-9));
+    expect(toEdge).toBeCloseTo(2, 2);
+  });
+
+  it('leaves a panned-away view alone', () => {
+    const { rig, follow } = settled();
+    follow.pan(10, 10);
+    rig.zoomBy(-2000);
+    const before = rig.focus();
+    follow.update(origin, far, 16, 0);
+    const after = rig.focus();
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.z).toBeCloseTo(before.z);
+    expect(follow.isFollowing()).toBe(false);
+  });
+});

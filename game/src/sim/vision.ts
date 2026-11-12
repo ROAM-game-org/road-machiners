@@ -14,7 +14,7 @@ import { weatherOn } from './weather';
 import { dist, segmentDist, type Vec } from './vec';
 import { playerVehicle } from './damage';
 import { cloudsSeenBy, contactDifficulty, contactsOf } from './detect';
-import { litAt, litFlares } from './hazards';
+import { litAt, nightLights } from './hazards';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { sightFactor } from './chassis-features';
 import { PERK_NUMBERS } from '../data/skills';
@@ -72,8 +72,8 @@ function sightDisks(world: World, from: Vec): SightDisk[] {
   const me = playerVehicle(world);
   const r = sightRadius(world, me);
   const lit = sightRadius(world, me, true);
-  const flares = lit > r ? litFlares(world).filter((f) => dist(from, f.pos) - f.r < lit) : [];
-  return [{ pos: from, r, reach: r }, ...flares.map((f) => ({ pos: f.pos, r: f.r, reach: lit }))];
+  const lights = lit > r ? nightLights(world).filter((l) => dist(from, l.pos) - l.r < lit) : [];
+  return [{ pos: from, r, reach: r }, ...lights.map((l) => ({ pos: l.pos, r: l.r, reach: lit }))];
 }
 
 export function playerSeenPropTiles(world: World): number[] {
