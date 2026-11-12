@@ -857,17 +857,11 @@ function onChassis(v: Vehicle, item: GridItem): boolean {
 }
 
 export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
-  if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   const chassis = chassisDef(v.chassisId);
   if (def.kind === 'engine' && isMounted(v.chassisId, item)) return !chassis.showsEngine;
   return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassis.showsCores;
-}
-
-function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
-  const grid = baseGrid(v.chassisId);
-  return !belowDeck(v.chassisId, item) && itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body: THREE.Object3D): { at: Placement; bottom: number; top: number; foot: number; plate: CellRect } {

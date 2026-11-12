@@ -7,7 +7,7 @@ import { loadoutFact, loadoutSlot, type Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
-export type Cell = 'D' | 'C' | 'E' | SideLetter | 'X' | '.';
+export type Cell = 'D' | 'E' | SideLetter | 'X' | '.';
 export type Grid = { chassisId: string; w: number; h: number; chassisH: number; deadFrom: number; cells: (Cell | null)[][] };
 export type Spot = { x: number; y: number; rot: Rot };
 
@@ -16,7 +16,7 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   engine: ['E'],
   armor: ['F', 'B', 'L', 'R'],
   accessory: ['F', 'B', 'L', 'R'],
-  cargo: ['D', 'C'],
+  cargo: ['D'],
   core: ['X'],
   scanner: ['D'],
   store: ['D'],
@@ -87,7 +87,7 @@ function onOwnMounts(g: Grid, item: Extract<GridItem, { kind: 'part' }>): boolea
   const first = letterAt(g, cells[0].x, cells[0].y);
   return first !== null && mountCellsOf(item.part.defId).includes(first) && cells.every((c) => letterAt(g, c.x, c.y) === first);
 }
-const CELL_CHARS: readonly string[] = ['D', 'C', 'E', 'F', 'B', 'L', 'R', 'X', '.'];
+const CELL_CHARS: readonly string[] = ['D', 'E', 'F', 'B', 'L', 'R', 'X', '.'];
 
 const baseGridCache = new Map<string, Grid>();
 

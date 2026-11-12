@@ -8,6 +8,7 @@ import { TEST_MAP } from '../test/map';
 import { carriedWorld, newWorld, type Carried, type CarriedItem } from './world';
 import { playerVehicle } from './damage';
 import { getLayoutError } from './inventory';
+import { isMounted } from './grid';
 import { discoverSite } from './locations';
 import { perkPair } from './progress';
 import { townAt } from './sites';
@@ -84,6 +85,13 @@ describe('carriedWorld', () => {
     const world = carriedWorld(carriedOf({ truck: { chassisId: 'scout', items } }), KIT, () => TEST_MAP, fresh);
     expect(defIds(playerVehicle(world).items)).toContain('mg');
     expect(world.player.storage.map((p) => p.defId)).not.toContain('mg');
+  });
+
+  it('mounts an engine whose old spot is off the bay instead of leaving the truck without one', () => {
+    const items: CarriedItem[] = [{ kind: 'part', part: part('stockEngine'), x: 2, y: 3, rot: 0 }];
+    const truck = playerVehicle(carriedWorld(carriedOf({ truck: { chassisId: 'niva', items } }), KIT, () => TEST_MAP, fresh));
+    const engine = truck.items.find((it) => it.kind === 'part' && it.part.defId === 'stockEngine')!;
+    expect(isMounted('niva', engine)).toBe(true);
   });
 
   it('sells goods with no room at base value and keeps the money books', () => {
