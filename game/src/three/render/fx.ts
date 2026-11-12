@@ -344,8 +344,8 @@ export class Fx3D {
     return look;
   }
 
-  exhaust(p: V3, back: V3): void {
-    this.emissions.exhaust(p, back);
+  exhaust(p: V3, back: V3, scale: number): void {
+    this.emissions.exhaust(p, back, scale);
   }
 
   steam(p: V3): void {
@@ -483,13 +483,13 @@ export class TruckFx {
     const along = -(pose.f.acc.x * back.x + pose.f.acc.z * back.z);
     const cruise = v.speed > traits.maxSpeed * CRUISE_SHARE ? CRUISE_RATE : 0;
     const rate = EXHAUST_RATE * Math.min(1, Math.max(0, along / EXHAUST_FULL_ACCEL)) + cruise;
-    this.puffs(rate, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
+    this.puffs(rate, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back, traits.vents.exhaustScale));
   }
 
   private overdriveExhaust(world: World, v: Vehicle, traits: Traits, pose: Pose, dt: number): void {
     if (!inOverdrive(world, v) || traits.stranded) return;
     const back = { x: -Math.cos(pose.h), y: 0, z: -Math.sin(pose.h) };
-    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
+    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back, traits.vents.exhaustScale));
   }
 
   private steam(heat: number, traits: Traits, pose: Pose, dt: number): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { restFrame, type VehicleFrame } from '../../phys/frames';
-import { CHASSIS } from '../../data/chassis';
+import { CHASSIS, EXHAUST_VENT } from '../../data/chassis';
 import { cellRect, hulkBoxes, isRig, unitBody, unitsOf } from '../../sim/body';
 import { PARTS } from '../../data/parts';
 import { bareVehicle, makePart, newId } from '../../sim/factory';
@@ -165,7 +165,7 @@ describe('starting points clear the drawn body', () => {
       const douseCorners = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ ...vents.douse, x: vents.douse.x + sx * vents.douse.halfX, z: vents.douse.z + sz * vents.douse.halfZ })));
       const balls = [
         ...sources.map((p) => frontFrame(chassisId, p, startRadius('hurt'))),
-        frontFrame(chassisId, vents.exhaust, startRadius('exhaust')),
+        frontFrame(chassisId, vents.exhaust, startRadius('exhaust', vents.exhaustScale)),
         frontFrame(chassisId, vents.engine, Math.max(startRadius('steam'), startRadius('breakdown'))),
         ...douseCorners.map((p) => frontFrame(chassisId, p, startRadius('douse'))),
       ];
@@ -206,5 +206,24 @@ describe('smoke sources on armor plates', () => {
     for (const item of plates) if (item.kind === 'part') item.part.hp = 0;
     v.items.push(...plates);
     expect(smokeSources(v).length).toBeGreaterThanOrEqual(plates.length);
+  });
+});
+
+describe('exhaust vent per chassis', () => {
+  it('has a vent entry for every chassis', () => {
+    for (const id of Object.keys(CHASSIS)) expect(EXHAUST_VENT[id], id).toBeDefined();
+  });
+
+  it('seats the scout tailpipe at the tail, below the roof, and keeps the semi stack and size', () => {
+    const scout = ventsOf(crowded('scout'));
+    const roof = Math.max(...hulkBoxes('scout', undefined).map(({ box }) => box.z1)) - unitBody('scout', 0).half.y;
+    expect(scout.exhaust.y).toBeLessThan(roof - 0.3);
+    expect(scout.exhaust.x).toBeLessThanOrEqual(tailOf('scout') + 1e-6);
+    expect(scout.exhaustScale).toBeLessThan(1);
+    expect(ventsOf(crowded('semi')).exhaustScale).toBe(1);
+  });
+
+  it('scales the spawn radius with the scale', () => {
+    expect(startRadius('exhaust', 0.5)).toBeCloseTo(startRadius('exhaust') / 2);
   });
 });

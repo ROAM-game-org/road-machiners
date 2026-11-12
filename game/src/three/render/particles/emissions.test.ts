@@ -23,6 +23,14 @@ describe('Emissions', () => {
     expect(glow.alive()).toBe(0);
   });
 
+  it('spawns a smaller, slower exhaust puff for a smaller truck', () => {
+    const big = setup();
+    const small = setup();
+    big.emissions.exhaust(at, { x: -1, y: 0, z: 0 });
+    small.emissions.exhaust(at, { x: -1, y: 0, z: 0 }, 0.5);
+    expect(small.lit.alive()).toBe(1);
+  });
+
   it('adds a nozzle glow to a kept missile puff', () => {
     const { lit, glow, emissions } = setup();
     for (let i = 0; i < 40; i++) emissions.missile(at);

@@ -39,11 +39,11 @@ const SPAWN_SPREAD = { exhaust: 0.4, steam: 0.4, douse: 0.5, breakdown: L.billow
 
 export type EmissionKind = keyof typeof SPAWN_SPREAD;
 
-export function startRadius(kind: EmissionKind): number {
+export function startRadius(kind: EmissionKind, scale = 1): number {
   const look = L[kind];
   const growth = kind === 'hurt' ? 1 + L.hurtGrowth : 1;
   const largest = growth * (1 + SPAWN_SPREAD[kind] / 2);
-  return (look.size.from * largest * Math.max(1, inkSizeOf(look, TUNING.fxInk.value))) / 2;
+  return (scale * look.size.from * largest * Math.max(1, inkSizeOf(look, TUNING.fxInk.value))) / 2;
 }
 
 const HURT_LOOKS: ParticleLook[] = L.hurtShades.map((colors) => ({ ...L.hurt, colors }));
@@ -51,10 +51,10 @@ const HURT_LOOKS: ParticleLook[] = L.hurtShades.map((colors) => ({ ...L.hurt, co
 export class Emissions {
   constructor(private readonly lit: Particles, private readonly glow: Particles) {}
 
-  exhaust(p: V3, back: V3): void {
+  exhaust(p: V3, back: V3, scale = 1): void {
     const j = L.exhaustJet;
     const vel = { x: back.x * j.back + rand(j.side), y: j.up.min + Math.random() * j.up.spread, z: back.z * j.back + rand(j.side) };
-    this.lit.spawn(p, vel, L.exhaust, vary(1, SPAWN_SPREAD.exhaust));
+    this.lit.spawn(p, { x: vel.x * scale, y: vel.y * scale, z: vel.z * scale }, L.exhaust, scale * vary(1, SPAWN_SPREAD.exhaust));
   }
 
   steam(p: V3): void {

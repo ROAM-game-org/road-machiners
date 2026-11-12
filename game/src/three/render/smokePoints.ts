@@ -4,15 +4,19 @@ import { cellRect, engineBay, hulkBoxes, isRig, unitBody, unitsOf, type CellRect
 import { corePart, itemCells, mountedItems } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
+import { EXHAUST_VENT } from '../../data/chassis';
 import { startRadius } from './particles/emissions';
 
 export const HURT_CAB = 0.35;
-export const EXHAUST_SIDE = 0.6;
+export const MIN_EXHAUST_SCALE = 0.5;
+const TAILPIPE_HEIGHT = 0.3;
+const STACK_REFERENCE = 'semi';
 
 export type BodyPoint = { unit: number; x: number; y: number; z: number };
 export type SmokeSource = BodyPoint & { damage: number };
 export type TruckVents = {
   exhaust: BodyPoint;
+  exhaustScale: number;
   engine: BodyPoint;
   douse: BodyPoint & { halfX: number; halfZ: number };
   hazeBack: number;
@@ -63,9 +67,11 @@ export function ventsOf(v: Vehicle): TruckVents {
   const halfX = (bay.x1 - bay.x0) / 2;
   const halfZ = (bay.z1 - bay.z0) / 2;
   const engineRadius = Math.max(startRadius('steam'), startRadius('breakdown'));
-  const exhaustAt = { x: cab.x0, z: (cab.z0 + cab.z1) / 2 - (EXHAUST_SIDE * (cab.z1 - cab.z0)) / 2 };
+  const exhaustScale = exhaustScaleOf(id);
+  const exhaustRadius = startRadius('exhaust', exhaustScale);
   return {
-    exhaust: pointOver(id, cab, exhaustAt.x, exhaustAt.z, startRadius('exhaust')),
+    exhaust: exhaustVent(v, cab, exhaustRadius),
+    exhaustScale,
     engine: pointOver(id, bay, bayAt.x, bayAt.z, engineRadius),
     douse: { unit: bay.unit, ...bayAt, y: trailTop(id, bay.unit, bayAt.x, bayAt.z, halfX, halfZ, startRadius('douse')), halfX, halfZ },
     hazeBack: hazeBackOf(id),
@@ -96,4 +102,27 @@ function unitFrame(source: BodyPoint, f: VehicleFrame): Pick<VehicleFrame, 'pos'
   if (source.unit === 0) return f;
   if (source.unit !== 1 || !f.rear) throw new Error(`Smoke source on unit ${source.unit} has no frame for it`);
   return f.rear;
+}
+
+function exhaustScaleOf(chassisId: string): number {
+  const share = unitBody(chassisId, 0).half.z / unitBody(STACK_REFERENCE, 0).half.z;
+  return Math.min(1, Math.max(MIN_EXHAUST_SCALE, share));
+}
+
+function exhaustVent(v: Vehicle, cab: CellRect, radius: number): BodyPoint {
+  const vent = EXHAUST_VENT[v.chassisId];
+  if (!vent) throw new Error(`The ${v.chassisId} has no exhaust vent`);
+  if (vent.at === 'cab') return pointOver(v.chassisId, cab, cab.x0, (cab.z0 + cab.z1) / 2 - (vent.side * (cab.z1 - cab.z0)) / 2, radius);
+  return tailpipe(v.chassisId, vent.side, radius);
+}
+
+function tailpipe(chassisId: string, side: number, radius: number): BodyPoint {
+  const last = unitsOf(chassisId).at(-1)!;
+  const bottom = unitBody(chassisId, 0).half.y;
+  const z = -side * unitBody(chassisId, last.index).half.z;
+  const boxes = straightBoxes(chassisId);
+  const covering = boxes.filter((b) => -b.box.y1 + b.y <= z && -b.box.y0 + b.y >= z);
+  const tail = (covering.length > 0 ? covering : boxes).reduce((a, b) => (b.box.x0 + b.x < a.box.x0 + a.x ? b : a));
+  const y = tail.box.z0 + TAILPIPE_HEIGHT * (tail.box.z1 - tail.box.z0) - bottom;
+  return { unit: last.index, x: tail.box.x0 + tail.x - last.offset - radius, y, z };
 }
