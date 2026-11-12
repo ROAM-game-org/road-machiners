@@ -94,7 +94,6 @@ import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
-
 type Drag = {
   source: ItemSource;
   id: string;
@@ -459,7 +458,7 @@ export class InventoryView {
     if (this.gridTruck === id) return;
     this.gridTruck = id;
     this.plan = {};
-    this.selectedItem = null;
+    this.error = this.selectedItem = null;
     this.preview = null;
   }
 

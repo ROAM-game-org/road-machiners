@@ -83,6 +83,7 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
+import { releaseRearmed } from "./npc-service";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
 import { payoutM } from './money';
@@ -476,6 +477,7 @@ export function endTurnInPlace(
     spawnNpcs(w);
     passMoments(w);
     advanceSunward(w);
+    releaseRearmed(w);
     advanceIntro(w);
     greetAtWell(w);
     advanceShops(w);
