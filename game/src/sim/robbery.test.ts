@@ -6,7 +6,7 @@ import { getResources } from './resources';
 import { isStranded } from './stats';
 import { thinkNpc } from './npc-activities';
 import { chooseOn } from './tracks';
-import { canRob, decide, wantsLoot, lootAppeal, npcProfile, optionWeights, judgeDanger } from './npc-decisions';
+import { canRob, decide, holdsUp, wantsLoot, lootAppeal, npcProfile, optionWeights, judgeDanger } from './npc-decisions';
 import { NPC_BEHAVIOR, TRAITS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { SKILL_EFFECTS } from '../data/skills';
@@ -439,6 +439,27 @@ describe('scumbag robbery', () => {
     const again = robWeight(w, robber, target, judgeDanger(w, robber, target))!;
     expect(again).toBeGreaterThan(0);
     expect(again).toBeLessThan(robWeight(w, robber, other, judgeDanger(w, robber, other))! * 0.05);
+  });
+});
+
+describe('hold-ups of a beaten driver', () => {
+  const beatenPrey = () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const robber = addScumbag(w, { x: 10, y: 10 }, ['heavyMg', 'mg', 'stockEngine']);
+    const target = addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']);
+    sizedUp(w, robber, target);
+    return { w, robber, target };
+  };
+
+  it('is closed to a robber until the driver has refit', () => {
+    const { w, robber, target } = beatenPrey();
+    expect(canRob(w, robber, target)).toBe(true);
+    target.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [robber.id], gaveUp: false };
+    expect(canRob(w, robber, target)).toBe(false);
+    expect(holdsUp(w, robber, target, null)).toBe(false);
+    expect(stateOf(w, 'feud', robber.id, target.id)).toBeNull();
+    delete target.defeat;
+    expect(canRob(w, robber, target)).toBe(true);
   });
 });
 

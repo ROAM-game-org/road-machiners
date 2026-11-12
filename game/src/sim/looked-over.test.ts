@@ -91,6 +91,12 @@ describe('the look warning on the radio', () => {
     expect(endTurn(next, testDrive).player.call?.topic).not.toBe('lookWarning');
   });
 
+  it('offers no threat to a beaten driver, only moving on', () => {
+    const { w, npc } = warned();
+    npc.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [w.player.vehicleId], gaveUp: false };
+    expect(texts(w)).toEqual(['Nothing. Moving on.']);
+  });
+
   it('takes "your load" as a threat, like a hold-up', () => {
     forceOption('threatened', 'comply');
     const { w, npc } = warned();

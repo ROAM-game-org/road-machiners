@@ -37,7 +37,7 @@ import { cashCut, haulVar, ransomOf, showsHaul } from './haul';
 import { hasCargo, hasSalvage, isStoryWreck, storyStock, type ClaimContract } from './salvage';
 import { claimPartHeld, leadOf, rivalRunning } from './claims';
 import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } from './patch';
-import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
+import { canBeHeldUp, decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
 import { addState, aidData, declareFeud, stateOf, towData } from './states';
 import { agreeAid, aidHolds, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
@@ -395,6 +395,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   claimsSpill: (world, npc) => spillClaimOn(world, npc) !== null,
   atOdds: (world, npc) => isHostile(world, npc, playerVehicle(world)),
   atPeace: (world, npc) => !isHostile(world, npc, playerVehicle(world)),
+  canHoldUp: (world, npc) => canBeHeldUp(world, npc),
   noPlayerPlea: (world, npc) => !playerPleaded(world, npc),
   npcHasCargo: (_world, npc) => hasCargo(npc),
   offersTruce: (world, npc) => pendingPlea(world, npc) === 'truce',

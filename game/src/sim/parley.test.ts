@@ -4,13 +4,13 @@ import { SALVAGE } from '../data/salvage';
 import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { playerVehicle } from './damage';
-import { callVehicle, currentLine, currentOptions, endCallIfOut, hangUp, raiseCalls } from './dialogue';
+import { callVehicle, canAskTopic, currentLine, currentOptions, endCallIfOut, hangUp, raiseCalls } from './dialogue';
 import { asksOf, chooseText } from './dialogue-testkit';
 import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { visibleSalvage } from './loot-picks';
-import { makePeace, plead, standDownTo, yieldTo } from './parley';
+import { makePeace, plead, settleCashThreat, settleThreat, standDownTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
 import { addState, endState, stateOf } from './states';
@@ -381,6 +381,59 @@ describe('player pleas', () => {
     w = pick(w, 'Fine. Take it.');
     expect(hasCargo(playerVehicle(w))).toBe(false);
     expect(isHostile(w, w.vehicles.find((v) => v.id === npc.id)!, playerVehicle(w))).toBe(false);
+  });
+});
+
+describe('a driver that cannot be held up', () => {
+  function rich(): { w: World; npc: Vehicle } {
+    const { w, npc } = (() => {
+      const world = quietWorld();
+      const driver = npcAt(world, 'independent', ['trader'], 36);
+      addGoods(world, driver, 'scrap', 2);
+      driver.resources!.money = 500;
+      return { w: world, npc: driver };
+    })();
+    return { w, npc };
+  }
+
+  function beaten(w: World, npc: Vehicle): void {
+    npc.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [w.player.vehicleId], gaveUp: false };
+  }
+
+  const offered = (w: World, npc: Vehicle) => ({
+    rob: canAskTopic(callVehicle(w, npc.id), 'rob'),
+    robCut: canAskTopic(callVehicle(w, npc.id), 'robCut'),
+  });
+
+  it('is offered both demands before it is beaten', () => {
+    const { w, npc } = rich();
+    expect(offered(w, npc)).toEqual({ rob: true, robCut: true });
+  });
+
+  it('is offered neither demand while it retreats, and both again once it has refit', () => {
+    const { w, npc } = rich();
+    beaten(w, npc);
+    expect(offered(w, npc)).toEqual({ rob: false, robCut: false });
+    delete npc.defeat;
+    expect(offered(w, npc)).toEqual({ rob: true, robCut: true });
+  });
+
+  it('is offered neither demand on a tow rope', () => {
+    const { w, npc } = rich();
+    const tower = npcAt(w, 'independent', ['trader'], 40);
+    addState(w, 'tow', tower.id, npc.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: true });
+    expect(offered(w, npc)).toEqual({ rob: false, robCut: false });
+  });
+
+  it('settling a hold-up on it throws and moves nothing', () => {
+    const { w, npc } = rich();
+    beaten(w, npc);
+    const money = w.player.money;
+    expect(() => settleCashThreat(w, npc, 'comply')).toThrow('cannot be held up');
+    expect(() => settleThreat(w, npc, 'fightBack')).toThrow('cannot be held up');
+    expect(w.player.money).toBe(money);
+    expect(hasCargo(npc)).toBe(true);
+    expect(stateOf(w, 'feud', npc.id, w.player.vehicleId)).toBeNull();
   });
 });
 
