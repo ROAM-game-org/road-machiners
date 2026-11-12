@@ -95,6 +95,7 @@ function requireLooting(world: World, loser: Vehicle): void {
 
 function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
+  if (stock === null && value <= 0) return;
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
   noteHandover(world, winner, loser, value);
   world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, value });

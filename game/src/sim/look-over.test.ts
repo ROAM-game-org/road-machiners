@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { LOOK_OVER } from '../data/npcs';
 import { noteAttack } from './combat';
 import { playerVehicle, vehicleById } from './damage';
+import { freeCells } from './grid';
 import { addGoods } from './inventory';
-import { canLookOver, knowsCargo, lookOver, lookOverError, perceivedLoad, startLookOver } from './look-over';
+import { canLookOver, knowsCargo, lookOver, lookOverError, meanCrateValue, perceivedLoad, startLookOver } from './look-over';
+import { ransomValue } from './haul';
 import { cargoValue } from './market';
 import { settleStates, stateOf, workOf } from './states';
-import { addVehicle, emptyWorld, npcBrain, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, sizedUp, startCombat, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn, Refused } from './world';
 
@@ -156,7 +158,34 @@ describe('what a truck knows of a load', () => {
     const me = playerVehicle(w);
     expect(perceivedLoad(w, me, target)).toBe(perceivedLoad(w, me, empty));
     const done = endTurn(lookOver(w, target.id), testDrive);
-    expect(perceivedLoad(done, playerVehicle(done), vehicleById(done, target.id))).toBe(cargoValue(vehicleById(done, target.id)));
+    expect(perceivedLoad(done, playerVehicle(done), vehicleById(done, target.id))).toBe(ransomValue(done, playerVehicle(done), vehicleById(done, target.id)));
+  });
+
+  function npcRobber(w: World, gap: number): Vehicle {
+    const robber = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30 - gap, y: 30 });
+    robber.brain = npcBrain('trader', robber.pos, ['scumbag']);
+    return robber;
+  }
+
+  it('guesses no more than the robber has room for before a look-over', () => {
+    const { w, target } = lookerWorld(5);
+    const robber = npcRobber(w, 5);
+    expect(freeCells(robber)).toBeGreaterThan(0);
+    expect(perceivedLoad(w, robber, target)).toBe(freeCells(robber) * meanCrateValue() * LOOK_OVER.guessShare);
+  });
+
+  it('prices a looked-over load as what the robber can take', () => {
+    const { w, target } = lookerWorld(5);
+    addGoods(w, target, 'meds', 20);
+    const robber = npcRobber(w, 5);
+    sizedUp(w, robber, target);
+    const load = perceivedLoad(w, robber, target);
+    expect(load).toBe(ransomValue(w, robber, target));
+    const cramped = npcRobber(w, 6);
+    addGoods(w, cramped, 'scrap', 99);
+    sizedUp(w, cramped, target);
+    expect(freeCells(cramped)).toBeLessThan(freeCells(robber));
+    expect(perceivedLoad(w, cramped, target)).toBeLessThan(load);
   });
 
   it('gives Cargo eye the load of any truck in sight, near or far', () => {
