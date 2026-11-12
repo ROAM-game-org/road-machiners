@@ -281,9 +281,11 @@ const ROUTE_RADII = [...new Set(Object.values(CHASSIS).map((chassis) => chassis.
 
 function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const run = ++idleRun;
-  const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
-  if (!center) return;
-  const radii = [...ROUTE_RADII];
+  const player = world.vehicles.find((v) => v.id === world.player.vehicleId);
+  if (!player) return;
+  const center = player.pos;
+  const own = CHASSIS[player.chassisId].radius;
+  const radii = [own, ...ROUTE_RADII.filter((radius) => radius !== own)];
   const step = () => {
     if (run !== idleRun) return;
     const radius = radii.shift();
