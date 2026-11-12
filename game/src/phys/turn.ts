@@ -134,8 +134,9 @@ export class SentObstacles {
 export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
+export type IdleFailure = { idleError: string };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
-export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure;
+export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure;
 
 export function postLabel(base: string, request: { terrain: unknown; obstacles: ObstacleSync }): string {
   const obstacles = request.obstacles.kind === 'same' ? '' : `-obstacles-${request.obstacles.kind}`;
@@ -145,7 +146,7 @@ export function postLabel(base: string, request: { terrain: unknown; obstacles: 
 export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: TurnState): PreparedTurn {
   return { ...turn, world: { ...turn.world, obstacles: applyObstacles(before.obstacles, obstacles) } };
 }
-export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure;
+export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure;
 
 function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain.heights);
@@ -274,8 +275,12 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
   if (!center) return;
   const step = () => {
-    if (run === idleRun && timed('idle', () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs))) setTimeout(step, 0);
-    else if (run === idleRun) warmCamps(run, campWarmSteps({ ...world, terrain }));
+    if (run !== idleRun) return;
+    const built = idleStep(run, () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs));
+    if (!built) return;
+    if (built.value) return void setTimeout(step, 0);
+    const camps = idleStep(run, () => campWarmSteps({ ...world, terrain }));
+    if (camps) warmCamps(run, camps.value);
   };
   setTimeout(step, 0);
 }
@@ -283,8 +288,17 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
 function warmCamps(run: number, steps: (() => void)[]): void {
   const next = steps.shift();
   if (!next || run !== idleRun) return;
-  timed('idle', () => timed('camp-warm', next));
-  setTimeout(() => warmCamps(run, steps), 0);
+  if (idleStep(run, () => timed('camp-warm', next))) setTimeout(() => warmCamps(run, steps), 0);
+}
+
+function idleStep<T>(run: number, work: () => T): { value: T } | null {
+  try {
+    return { value: timed('idle', work) };
+  } catch (error) {
+    if (run === idleRun) idleRun++;
+    self.postMessage({ idleError: errorText(error) } satisfies IdleFailure);
+    return null;
+  }
 }
 
 type Answerable =(TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
