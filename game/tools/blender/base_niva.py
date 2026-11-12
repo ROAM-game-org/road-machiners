@@ -74,24 +74,26 @@ BACK = -G.half_x + INSET  # tail face
 SILL = -0.83  # skin only, below the collider bottom
 HOOD = 0.09  # the flat hood top and the beltline
 ROOF = 0.89  # the flat roof: every cabin row's surface
-COWL = 0.45  # the windshield base, against the bay back edge
 LINE = -0.2  # reference 2: the character line, a shallow step in the lower body at about headlamp height
 SILL_HALF = 0.7  # reference 2: the black sill strip runs between the arches
 GRILLE_HALF = 0.72  # reference 2: the grille panel is about 0.7 of the body width
 LAMP_R = 0.11  # reference 2: round headlamps about 0.3 of a tire diameter across
-VENT_FRONT = 0.28  # reference 2: the door starts just behind the front arch with a vent pane
-VENT_BACK = 0.1
-MAIN_FRONT = 0.04  # the thin post between the vent pane and the main pane
-MAIN_BACK = -0.52
-QUARTER_FRONT = -0.74  # reference 2: the B-pillar is about 0.12 m, then a quarter window about as long as the door glass
-QUARTER_BACK = -1.76
+VENT_FRONT = 0.43  # reference 2: the door starts just behind the front arch with a vent pane under the A-pillar
+VENT_TOP_FRONT = 0.1  # the vent pane's top front corner, behind the A-pillar
+VENT_BACK = 0.05
+MAIN_FRONT = 0.0  # the thin post between the vent pane and the main pane
+MAIN_BACK = -0.6
+QUARTER_FRONT = -0.74  # reference 2: the B-pillar is about 0.14 m, then a quarter window about as long as the door glass
+QUARTER_BACK = -1.7
 SLOTS = (-1.84, -1.94, -2.04)  # reference 2: three slot vents in the C-pillar, each 0.04 m wide so it survives game zoom
 SLOT_W = 0.04
 DETAIL_TWIST = 20.0  # dark glass and vents show no shard, so they may fold more than paint
-ROOF_FRONT = 0.0  # reference 1: the windshield top, raked about 27 degrees from upright
-GAME = Grid(rows=10, cols=4, half_height=0.4, length=4.5, width=1.8)  # chassis.ts layout inside its border cells
-BAY_FRONT = GAME.row_x(0.5)  # the engine bay is layout rows 2 to 4, columns 2 and 3
-BAY_BACK = GAME.row_x(3.5)
+ROOF_FRONT = 0.05  # reference 1: the windshield top, raked about 38 degrees from upright over the shorter hood
+GAME = Grid(rows=9, cols=4, half_height=0.4, length=4.05, width=1.8)  # chassis.ts layout inside its border cells, 0.45 m rows centred on the collider
+BAY_FRONT = GAME.row_x(-0.5)  # the engine bay is layout rows 1 to 3, columns 2 and 3
+BAY_BACK = GAME.row_x(2.5)
+COWL = BAY_BACK  # the windshield base, against the bay back edge
+NOSE_AHEAD = 0.2  # the hood lip, lamps and grille need this much body ahead of the bay
 BAY_LEFT = GAME.col_y(0.5)
 BAY_RIGHT = GAME.col_y(2.5)
 BAY_FLOOR = -0.3  # a 0.5 m engine pokes 0.2 m out of the cutout
@@ -146,7 +148,7 @@ def cabin(kit: Kit) -> None:
     )
     lo, hi = HOOD + 0.12, ROOF - 0.13
     side_y = SIDE - 0.1
-    vent = [(VENT_FRONT, lo), (VENT_BACK, lo), (VENT_BACK, hi), (VENT_FRONT - 0.15, hi)]
+    vent = [(VENT_FRONT, lo), (VENT_BACK, lo), (VENT_BACK, hi), (VENT_TOP_FRONT, hi)]
     main = [(MAIN_FRONT, lo), (MAIN_BACK, lo), (MAIN_BACK, hi), (MAIN_FRONT, hi)]
     quarter = [(QUARTER_FRONT, lo + 0.05), (QUARTER_BACK, lo + 0.05), (QUARTER_BACK, hi), (QUARTER_FRONT, hi)]
     check_door_gap("door_glass", VENT_FRONT, MAIN_BACK, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
@@ -197,6 +199,8 @@ def check_niva(kit: Kit) -> None:
     for edge in (BAY_FRONT, BAY_BACK):
         if not any(abs(p.x - edge) < 1e-3 and abs(p.z - HOOD) < 1e-3 for p in xs):
             raise RuntimeError(f"niva hood hole misses the bay edge at x {edge:.3f}")
+    if FRONT - BAY_FRONT < NOSE_AHEAD:
+        raise RuntimeError(f"niva nose at x {FRONT:.3f} is under {NOSE_AHEAD} m ahead of the bay front at {BAY_FRONT:.3f}")
     zs = [(obj.matrix_world @ v.co).z for obj in kit._parts for v in obj.data.vertices]
     if min(zs) < SILL - 0.02 or max(zs) > ROOF + 0.02:
         raise RuntimeError(f"niva height {min(zs):.3f}..{max(zs):.3f} leaves the fixed box")
