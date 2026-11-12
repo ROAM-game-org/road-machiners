@@ -492,7 +492,6 @@ describe('NPC activities', () => {
     corePart(victim, 'cab').hp = 1;
     addGoods(w0, victim, 'scrap', 3);
     for (const key of Object.keys(NPCS)) w0.spawnTimer[key] = Number.MAX_SAFE_INTEGER;
-    let money = raider.resources!.money;
     let w = w0;
     let looted = false;
     let sold = false;
@@ -504,8 +503,7 @@ describe('NPC activities', () => {
         const actor = w.vehicles.find((v) => v.id === raider.id)!;
         const scrap = goodsCount(actor).scrap ?? 0;
         if (scrap > 0) looted = true;
-        if (looted && scrap === 0 && actor.resources!.money > money) { sold = true; break; }
-        money = actor.resources!.money;
+        if (looted && scrap === 0) { sold = true; break; }
       }
     } finally {
       (RULES as { npcDeathChance: number }).npcDeathChance = deathChance;
