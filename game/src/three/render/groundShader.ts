@@ -133,6 +133,8 @@ const DRAWN_SCRATCH_ACROSS = 0.07;
 const DRAWN_SCRATCH_SHARE = 0.05;
 const DRAWN_MARK_DARK = 0.45;
 const ROAD_ALBEDO = "0.186, 0.222, 0.284";
+const EDGE_HANDOVER_TILES = 1;
+export const ASPHALT_MATERIAL = materialId("asphalt");
 const CENTER_LINE_WIDTH = 0.05;
 const CENTER_LINE_FROM = 0.56;
 const CENTER_LINE_STRETCH = 35;
@@ -291,6 +293,12 @@ function materialConstants(): string {
     floats("drawnMaterialSpill", rows.map((row) => row.spill)),
     floats("drawnMaterialStand", rows.map((row) => row.stand)),
   ].join("\n");
+}
+
+function materialId(id: LookType): number {
+  const at = GROUND_MATERIAL_IDS.indexOf(id);
+  if (at < 0) throw new Error(`The ground has no ${id} material`);
+  return at;
 }
 
 function markIndex(mark: MarkKind): number {
@@ -933,6 +941,8 @@ const ROAD_BODY = `
   float roadIn = 1.0 - smoothstep(roadEdge - roadEdgeAa, roadEdge + roadEdgeAa, roadFrame.x);
   float trackEdgeAa = max(fwidth(trackEdge), 0.0001) * 1.2;
   float trackIn = 1.0 - smoothstep(-trackEdgeAa, trackEdgeAa, trackEdge);
+  float drawnPaved = drawnMaterial == ${ASPHALT_MATERIAL} ? 1.0 : 0.0;
+  trackIn *= 1.0 - drawnPaved;
   diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor, trackIn);
   diffuseColor.rgb = mix(diffuseColor.rgb, roadColor, roadIn);
   vec2 drawnScratchCell = floor(vec2(roadFrame.y / ${DRAWN_SCRATCH_LONG.toFixed(1)}, roadFrame.z / ${DRAWN_SCRATCH_ACROSS.toFixed(2)}));
@@ -942,8 +952,8 @@ const ROAD_BODY = `
   float roadSigned = roadFrame.x - roadEdge;
   float drawnRoadEdge = min(roadSigned, trackEdge);
   float drawnEdgePx = abs(drawnRoadEdge) / max(fwidth(drawnRoadEdge), 0.0001);
-  float drawnEdgeStrength = roadSigned <= trackEdge ? 1.0 : drawnTrackEdge;
-  float drawnEdgeNear = step(drawnRoadEdge, ${DRAWN_EDGE_LINE_REACH.toFixed(1)}) * drawnEdgeStrength;
+  float drawnEdgeStrength = mix(drawnTrackEdge, 1.0, smoothstep(-${EDGE_HANDOVER_TILES.toFixed(1)}, ${EDGE_HANDOVER_TILES.toFixed(1)}, trackEdge - roadSigned));
+  float drawnEdgeNear = step(drawnRoadEdge, ${DRAWN_EDGE_LINE_REACH.toFixed(1)}) * drawnEdgeStrength * (1.0 - drawnPaved);
   inkSurface.edge = drawnEdgeLine(drawnEdgePx) * drawnEdgeNear;
 `;
 
