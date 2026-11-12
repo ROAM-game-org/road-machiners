@@ -127,8 +127,9 @@ function drivingSpeed(world: World, v: Vehicle, limpSpeed: number, load: number,
 
 function limitedSpeed(v: Vehicle, from: number, limpSpeed: number, overdrive: boolean, steps: SpeedStep[] | null): number {
   let speed = from;
-  if (speed < RULES.minSpeedCap) {
-    speed = RULES.minSpeedCap;
+  const floor = Math.max(RULES.minSpeedCap, limpSpeed);
+  if (speed < floor) {
+    speed = floor;
     steps?.push({ kind: 'floor', speed });
   }
   if (overdrive) {

@@ -20,6 +20,7 @@ import { fuelForWay, knowsPump } from './npc-service';
 import { skillEffect } from './progress';
 import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
+import { fuelTopSpeed } from './far';
 import { isStranded, vehicleStats } from './stats';
 import { modeRules } from './settings';
 import { getResources } from './resources';
@@ -320,6 +321,15 @@ export function strandedAt(world: World, vehicle: Vehicle, client: Vehicle): Vec
 
 export function refusesTows(world: World, tower: Vehicle, client: Vehicle): boolean {
   return world.states.some((s) => s.kind === 'turnedDown' && s.other === client.id) && !hearsBeacon(world, tower, client);
+}
+
+export function canCatch(world: World, tower: Vehicle, client: Vehicle): boolean {
+  return topSpeed(world, tower) > topSpeed(world, client);
+}
+
+function topSpeed(world: World, v: Vehicle): number {
+  const stats = vehicleStats(world, v);
+  return fuelTopSpeed(world, v, stats, stats.fuelPerTile > 0);
 }
 
 export function steerToStranded(world: World, vehicle: Vehicle, goal: NpcActivity): void {

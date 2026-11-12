@@ -162,6 +162,29 @@ describe('crawling when stranded', () => {
 });
 
 
+describe('a truck under power versus pushed', () => {
+  const crushed = () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    for (let i = 0; i < 400; i++) v.items.push({ id: `g${i}`, x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' });
+    return { w, v };
+  };
+
+  it('is never slower than the pace it would have if pushed', () => {
+    const { w, v } = crushed();
+    expect(vehicleStats(w, v).maxSpeed).toBeGreaterThanOrEqual(RULES.limpSpeed);
+    expect(maxSpeedSteps(w, v).some((step) => step.kind === 'floor' && step.speed >= RULES.limpSpeed)).toBe(true);
+  });
+
+  it('keeps the driver crawl bonus in its floor', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    for (let i = 0; i < 400; i++) me.items.push({ id: `g${i}`, x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' });
+    w.player.ranks.driving = 3;
+    expect(vehicleStats(w, me).maxSpeed).toBeGreaterThanOrEqual(RULES.limpSpeed * (1 + 3 * SKILL_EFFECTS.driving.crawl) - 1e-9);
+  });
+});
+
 describe('a stalled engine', () => {
   it('crawls at limp speed while stalled, but is not stranded', () => {
     const w = emptyWorld();
@@ -412,7 +435,7 @@ describe('max speed steps', () => {
 
   const FROZEN: Record<string, number> = {
     bare: 1.04, stock: 7.381464820803751, manyGuns: 4.906412009420447, brokenGun: 6.504975563928644, overload: 3.0835660446258495,
-    heavy: 1, worn: 6.723083739016797, wheels: 5.33310833303071, overdrive: 9.81734821166899, transmission: 1.04,
+    heavy: 1.04, worn: 6.723083739016797, wheels: 5.33310833303071, overdrive: 9.81734821166899, transmission: 1.04,
     brokenEngine: 1.04, stalled: 1.04, storm: 4.428878892482251, towing: 4.428878892482251,
   };
 
@@ -443,7 +466,7 @@ describe('max speed steps', () => {
           expect(s.speed, `${name} ${s.kind}`).toBeCloseTo(before * s.factor, 10);
         }
         if (s.kind === 'engine') expect(s.speed, name).toBeCloseTo(steps[0].speed + wornDef<EngineDef>(mountedParts(v, 'engine')[0]).speedBonus, 10);
-        if (s.kind === 'floor') expect(s.speed, name).toBe(RULES.minSpeedCap);
+        if (s.kind === 'floor') expect(s.speed, name).toBe(Math.max(RULES.minSpeedCap, RULES.limpSpeed));
         if (s.kind === 'transmission') expect(s.speed, name).toBeLessThan(before);
       });
     }
