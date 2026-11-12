@@ -1114,6 +1114,6 @@ export function autoOrders(world: World, v: Vehicle): void {
 
 export function assignAutoOrders(world: World): void {
   for (const v of world.vehicles) {
-    if (v.faction !== "player" || world.player.autoFire) autoOrders(world, v);
+    if (v.id !== world.player.vehicleId || world.player.autoFire) autoOrders(world, v);
   }
 }
