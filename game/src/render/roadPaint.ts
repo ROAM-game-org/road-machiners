@@ -16,6 +16,8 @@ export const ROAD_TONE_PIXELS = 12;
 const WIDTH = REGION.roadWidth * 0.9;
 const BLUR = 2.4;
 export const TRACK_FIELD_REACH = 4;
+export const DRAWN_ROAD_HALF = 2.7;
+export const TRACK_MOUTH = { tiles: 3, inset: 0.25 };
 const TRACK_FIELD_MID = 128;
 const TRACK_FIELD_SPAN = 127;
 const TRACK_FIELD_OUTSIDE = 255;
@@ -72,7 +74,15 @@ function segmentEdge(line: TrackLine, left: readonly number[], i: number, p: Vec
   const at = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   const remaining = left[i - 1] - t * length;
   const taper = line.fade > 0 ? Math.min(1, remaining / line.fade) : 1;
-  return dist(p, at) - (line.width / 2) * taper;
+  return dist(p, at) - mouthHalf(line, left[0] - remaining, remaining) * taper;
+}
+
+export function mouthHalf(line: TrackLine, fromStart: number, fromEnd: number): number {
+  const lane = line.width / 2;
+  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, along / TRACK_MOUTH.tiles));
+  const atStart = line.joins.start ? open(fromStart) : lane;
+  const atEnd = line.joins.end ? open(fromEnd) : lane;
+  return Math.max(atStart, atEnd);
 }
 
 function trackCode(edge: number): number {
@@ -89,7 +99,7 @@ export function trackFieldCodes(c: Pick<PaintCanvas, "size" | "res" | "from">, l
     for (let i = 1; i < line.points.length; i++) {
       const a = line.points[i - 1];
       const b = line.points[i];
-      const reach = line.width / 2 + TRACK_FIELD_REACH;
+      const reach = (line.joins.start || line.joins.end ? DRAWN_ROAD_HALF : line.width / 2) + TRACK_FIELD_REACH;
       const x0 = Math.max(0, Math.floor(toPx(Math.min(a.x, b.x) - reach)));
       const x1 = Math.min(c.size - 1, Math.ceil(toPx(Math.max(a.x, b.x) + reach)));
       const y0 = Math.max(0, Math.floor(toPx(Math.min(a.y, b.y) - reach)));
@@ -168,7 +178,7 @@ function runsWhere(points: Vec[], keep: (p: Vec) => boolean): Vec[][] {
 
 function drawn(atlas: Atlas, p: Vec): boolean {
   if (deckAt(atlas.decks, p.x, p.y) !== null || bridgeCut(atlas.decks, p.x, p.y) > 0) return false;
-  return !atlasSites(atlas).some((site) => siteGap(site, p) < 0);
+  return !atlasSites(atlas).some((site) => !isTerritory(site) && siteGap(site, p) < 0);
 }
 
 function evenPoints(road: readonly Vec[]): Vec[] {

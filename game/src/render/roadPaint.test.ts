@@ -4,10 +4,10 @@ import { REGION } from '../data/region';
 import { TERRITORIES } from '../data/territory';
 import { deckAt } from '../sim/bridge';
 import { siteGap } from '../sim/sites';
-import { isTerritory, territoryRoads, territoryTracks } from '../sim/territory';
+import { fullRoadEnds, isTerritory, territoryRoads, territoryTracks } from '../sim/territory';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { TERRAIN_MARGIN, type PaintCanvas } from './groundPaint';
-import { ASPHALT_STYLE, drawnTrackLines, paintRoadMask, REGION_ROAD_STYLE, TRACK_FIELD_REACH, trackEdgeAt, trackFieldCodes, type RoadHole } from './roadPaint';
+import { ASPHALT_STYLE, DRAWN_ROAD_HALF, drawnTrackLines, paintRoadMask, regionRoadRuns, REGION_ROAD_STYLE, TRACK_FIELD_REACH, TRACK_MOUTH, trackEdgeAt, trackFieldCodes, type RoadHole } from './roadPaint';
 import { highwayAtlas } from '../sim/highway';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { icarusAtlas, type Atlas } from '../sim/atlas';
@@ -179,7 +179,8 @@ describe('track edge field', () => {
   const around = { size: 400, res: 2, from: Math.min(sun.pos.x, sun.pos.y) - 60 };
   const codes = trackFieldCodes({ ...around }, lines, () => true);
   const codeAt = (p: Vec) => codes[Math.floor((p.y - around.from) * around.res) * around.size + Math.floor((p.x - around.from) * around.res)];
-  const plain = lines.find((l) => l.fade === 0)!;
+  const inWindow = (p: Vec) => [p.x, p.y].every((v) => v - around.from > TRACK_FIELD_REACH && (v - around.from) * around.res < around.size - TRACK_FIELD_REACH * around.res);
+  const plain = lines.find((l) => l.fade === 0 && !l.joins.start && !l.joins.end && l.points.slice(0, 2).every(inWindow))!;
   const spur = lines.find((l) => l.fade > 0)!;
 
   it('lists every track road of every territory and no old road', () => {
@@ -228,3 +229,80 @@ describe('track edge field', () => {
     expect(() => territoryTracks({ ...sun, id: 'nowhere' } as never)).toThrow();
   });
 });
+
+describe('joins of tracks and full roads', () => {
+  const atlas = icarusAtlas();
+  const runs = regionRoadRuns(atlas);
+  const orchard = REGION.locations.filter(isTerritory).find((l) => l.id === 'orchard')!;
+  const lines = territoryTracks(sun);
+  const roadGap = (p: Vec) => Math.min(...runs.map((run) => Math.min(...run.map((q) => dist(p, q))))) - DRAWN_ROAD_HALF;
+  const union = (p: Vec) => Math.min(roadGap(p), trackEdgeAt(lines, p));
+  const joins = fullRoadEnds(sun).map((end) => {
+    const line = lines.find((l) => (l.joins.start && dist(l.points[0], end) < 1) || (l.joins.end && dist(l.points.at(-1)!, end) < 1))!;
+    const points = line.joins.start ? line.points : [...line.points].reverse();
+    return { end, line, points };
+  });
+
+  it('draws every region road to its end inside a territory (IV10)', () => {
+    for (const t of [sun, orchard]) for (const end of fullRoadEnds(t)) expect(roadGap(end), `${t.id} ${end.x},${end.y}`).toBeLessThan(-DRAWN_ROAD_HALF + 0.5);
+  });
+
+  it('still stops region roads at a town with pads', () => {
+    const town = REGION.towns.find((t) => REGION.roads.some((road) => siteGap(t, road[0]) < -2 || siteGap(t, road.at(-1)!) < -2))!;
+    for (const run of runs) for (const p of run) expect(siteGap(town, p), `${p.x},${p.y}`).toBeGreaterThanOrEqual(0);
+  });
+
+  it('leaves no gap from the road end into the first 4 tiles of each joined track (IV11)', () => {
+    expect(joins).toHaveLength(3);
+    for (const { end, line, points } of joins) {
+      for (const p of walk([end, ...points], 4 + dist(end, points[0]), 0.1)) {
+        expect(union(p), `${p.x},${p.y}`).toBeLessThan(0);
+        const dir = ahead(points, p);
+        const across = { x: -dir.y, y: dir.x };
+        const half = line.width / 2 - 0.05;
+        for (const side of [1, -1]) expect(union({ x: p.x + across.x * half * side, y: p.y + across.y * half * side }), `${p.x},${p.y} side ${side}`).toBeLessThan(0);
+      }
+    }
+  });
+
+  it('opens each joined track inside the asphalt cap at the join', () => {
+    for (const { end, points } of joins) {
+      expect(trackEdgeAt(lines, points[0])).toBeCloseTo(-(DRAWN_ROAD_HALF - TRACK_MOUTH.inset), 5);
+      expect(dist(end, points[0]) + DRAWN_ROAD_HALF - TRACK_MOUTH.inset).toBeLessThanOrEqual(DRAWN_ROAD_HALF);
+    }
+  });
+
+  it('keeps a track with no join at its lane width (IV14)', () => {
+    const plain = REGION.locations.filter(isTerritory).flatMap(territoryTracks).filter((l) => !l.joins.start && !l.joins.end && l.fade === 0);
+    for (const line of plain) {
+      const mid = { x: (line.points[0].x + line.points[1].x) / 2, y: (line.points[0].y + line.points[1].y) / 2 };
+      expect(trackEdgeAt([line], mid)).toBeCloseTo(-line.width / 2, 6);
+      expect(trackEdgeAt([line], line.points[0])).toBeCloseTo(-line.width / 2, 6);
+    }
+  });
+});
+
+function walk(points: readonly Vec[], length: number, step: number): Vec[] {
+  const out: Vec[] = [];
+  let gone = 0;
+  for (let i = 1; i < points.length && gone < length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const d = dist(a, b);
+    for (let s = 0; s < d && gone + s <= length; s += step) out.push({ x: a.x + ((b.x - a.x) * s) / d, y: a.y + ((b.y - a.y) * s) / d });
+    gone += d;
+  }
+  return out;
+}
+
+function ahead(points: readonly Vec[], p: Vec): Vec {
+  let best = { d: Infinity, dir: { x: 1, y: 0 } };
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const d = polylineDist(p, [a, b]);
+    const n = dist(a, b);
+    if (d < best.d) best = { d, dir: { x: (b.x - a.x) / n, y: (b.y - a.y) / n } };
+  }
+  return best.dir;
+}
