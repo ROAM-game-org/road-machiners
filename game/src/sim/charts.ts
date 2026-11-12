@@ -1,6 +1,5 @@
 import { REGION } from '../data/region';
 import { EFFORT, SHOPS } from '../data/market';
-import { TERRAIN } from '../data/terrain';
 import { atlasOf, atlasSites, type Atlas } from './atlas';
 import { chartSite } from './locations';
 import { gridSquareArea, gridSquareOf, gridSquares, gridSquareSpan, sameGridSquare, type GridSquare } from './map-grid';
@@ -44,7 +43,7 @@ export function unexploredIn(world: World, square: GridSquare): number {
 
 export function chartPrice(unexplored: number): number {
   if (unexplored <= 0) return 0;
-  return fairM((EFFORT.wage[1] * unexplored) / (2 * TERRAIN.vision.radius * EFFORT.refSpeed));
+  return fairM((EFFORT.wage[1] * unexplored) / (EFFORT.chartSweep * EFFORT.refSpeed));
 }
 
 export function chartsOnSale(world: World, shopId: string): SheetOffer[] {

@@ -437,7 +437,7 @@ describe('the watch', () => {
   });
 
   it('springs on prey that drives into sight, and the fight follows', () => {
-    const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 11);
+    const { w, raider, trader } = watchingRaider(14);
     trader.speed = 4;
     forceOption('hostileSeen', 'fight');
     forceOption('sizedUp', 'rob');

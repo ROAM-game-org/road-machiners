@@ -47,8 +47,8 @@ export function heightNear(t: Terrain, at: Vec, reach: number): (x: number, y: n
 
 export function markHeightAt(t: Terrain, origin: Vec, x: number, y: number): number {
   const h = heightAt(t, x, y);
-  const span = spanAt(decksOf(t.atlas), x, y, T.vision.radius);
-  if (span === null || !besideDeck(span.deck, origin, T.vision.radius)) return h;
+  const span = spanAt(decksOf(t.atlas), x, y, T.vision.deckMarkReach);
+  if (span === null || !besideDeck(span.deck, origin, T.vision.deckMarkReach)) return h;
   const deck = deckHeight(t, span.deck, span.along);
   if (h >= deck) return h;
   const from = heightAt(t, origin.x, origin.y);

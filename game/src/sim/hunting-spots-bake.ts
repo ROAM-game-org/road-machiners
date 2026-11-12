@@ -134,7 +134,7 @@ function traceLeg(world: World, trip: Trip, radius: number, fixed: SalvageStock[
 }
 
 function seenFrom(path: Vec[], p: Vec): boolean {
-  const reach = TERRAIN.vision.radius;
+  const reach = HUNT.groundSight;
   for (let i = 1; i < path.length; i++) if (segmentGap(path[i - 1], path[i], p) <= reach) return true;
   return false;
 }
@@ -189,14 +189,14 @@ type Scored = { p: Vec; score: number };
 
 function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[]): Vec[] {
   const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p) && seesTraffic(world, p, samples));
-  const spacing = 2 * TERRAIN.vision.radius;
+  const spacing = HUNT.groundSpacing;
   const spots: Vec[] = [];
   for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
   return spots;
 }
 
 function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {
-  return samples.some((s) => dist(s, p) <= TERRAIN.vision.radius && seesGround(world, p, s));
+  return samples.some((s) => dist(s, p) <= HUNT.groundSight && seesGround(world, p, s));
 }
 
 function isPeak(candidate: Scored, all: Scored[], spacing: number): boolean {
@@ -222,7 +222,7 @@ function scoreCandidates(size: number, traffic: Float64Array): Scored[] {
 type DiscRow = { dy: number; half: number };
 
 function sightDisc(): DiscRow[] {
-  const reach = TERRAIN.vision.radius;
+  const reach = HUNT.groundSight;
   const rows: DiscRow[] = [];
   for (let dy = -reach; dy <= reach; dy++) rows.push({ dy, half: Math.floor(Math.sqrt(reach * reach - dy * dy)) });
   return rows;
