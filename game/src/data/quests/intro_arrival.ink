@@ -86,7 +86,7 @@ And then, <pause>slowly, <pause>it settles. <pause>The new colors sort themselve
 You feel whole, as if a piece of you had been missing all your life and you never noticed. # speed: slow # reveal: word
 <now>You twist the key.</now> <pause><pause>The starter grinds, and you feel the tired battery behind it. It slows and quits. # page # reveal: char
 <pause><now>You twist it again.</now> <pause>The engine catches for a breath, kicks once like a second heart and dies. # reveal: char
-You lean your forehead on the hot wheel and wait. Then you try once more, and it coughs, misses, coughs again, <pause>and holds. <pause>It runs rough and lopsided, and you feel every missed beat of it. It's the best sound you have heard in your life, or at least since the stars went out this morning. # reveal: word
+You grip the hot wheel with both hands and wait. Then you try once more, and it coughs, misses, coughs again, <pause>and holds. <pause>It runs rough and lopsided, and you feel every missed beat of it. It's the best sound you have heard in your life, or at least since the stars went out this morning. # reveal: word
 You don't have to think about the pedals. Your feet find them on their own, and the truck rolls forward because you want it to. The roof sheet scrapes the length of the cab and slides off the tailgate. The basin opens up in front of the hood.
 The fuel needle sits a little under a quarter. You didn't need to look, because you can feel the empty tank. Your tongue sticks to your teeth. The town in the haze had better be real, and it had better be close.
 -> END
