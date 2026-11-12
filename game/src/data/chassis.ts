@@ -438,7 +438,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 9000, handlingMass: 14100, radius: 1.2,
     layout: [
       ' FFFFFFF ',
-      'LDDDDDDDR',
+      'L DDDDD R',
       'LDDDDDDDR',
       'LDDEEDDDR',
       'LDDEEDDDR',
@@ -449,7 +449,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       'LDDXXXDDR',
       'LDDDDDDDR',
       'LDDDDDDDR',
-      'LDDDDDDDR',
+      'L DDDDD R',
       'L       R',
       'L       R',
       'L       R',
