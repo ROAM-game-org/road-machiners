@@ -1,5 +1,7 @@
 
 import { PARTS, type PartDef } from "../data/parts";
+import { say } from "../text/language";
+import { t } from "../text/msg";
 import { CheatError, give } from "../sim/cheats";
 import { chargeFor, gunFor } from "../sim/factory";
 import { mountCellsOf } from "../sim/grid";
@@ -9,7 +11,7 @@ import { compareBase, partCard } from "./cards";
 import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
-import { filterIcon, kindFilter, STOCK_FILTERS, type StockFilter } from "./town";
+import { filterIcon, kindFilter, STOCK_FILTERS, type StockFilter } from "./garage-tabs";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");
 
@@ -110,7 +112,7 @@ export class FullShopScreen {
         "button",
         {
           class: this.filter === f ? "on" : "",
-          title: f,
+          title: say(t(`trade.filter.${f}`)),
           onclick: () => {
             this.filter = f;
             this.render();

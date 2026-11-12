@@ -16,7 +16,7 @@ import type { V3, VehicleFrame } from '../../phys/frames';
 import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { dent } from './vehicle';
-import { instancedModel, model, SHIP_GLOW_MATERIAL, socket, type ModelName } from './models';
+import { instancedModel, minorProp, model, SHIP_GLOW_MATERIAL, socket, type ModelName } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
@@ -49,6 +49,7 @@ export class ObstacleViews {
   private readonly bows = new Map<string, THREE.Object3D>();
   private readonly breach = breachSpot();
   private readonly batchLooks = new Map<THREE.Material, THREE.Material>();
+  private readonly fortLooks = new Map<THREE.Material, THREE.Material>();
 
   private gates: OutpostGateViews | null = null;
 
@@ -130,13 +131,14 @@ export class ObstacleViews {
   }
 
   private batchMaterial(name: ModelName, source: THREE.Material): THREE.Material {
-    const cached = this.batchLooks.get(source);
+    const looks = FORT_PIECE_MODELS.has(name) ? this.fortLooks : this.batchLooks;
+    const cached = looks.get(source);
     if (cached) return cached;
     const look = source.clone();
     look.userData.shared = true;
     glowShipMaterial(look as THREE.MeshLambertMaterial);
     if (FORT_PIECE_MODELS.has(name)) NIGHT_POOLS.light(look);
-    this.batchLooks.set(source, look);
+    looks.set(source, look);
     return look;
   }
 
@@ -273,7 +275,7 @@ export class ObstacleViews {
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
       this.scope.place(center, reach, () => {
         const placed = list.map((o) => rockPlacement(this.terrain, o));
-        return instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m);
+        return minorProp(instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m));
       });
     }
     return new Set(rocks.map((o) => o.id));

@@ -425,6 +425,11 @@
 .speed-lcd.running {
   color: var(--lcd-ink);
 }
+.speed-lcd.held {
+  text-decoration: underline dotted var(--ink-faint);
+  text-underline-offset: var(--space-2);
+  cursor: help;
+}
 /* The mute switch is the metal toggle, shrunk to the knobs' height. */
 #ui .sound-row button.switch {
   gap: 0;

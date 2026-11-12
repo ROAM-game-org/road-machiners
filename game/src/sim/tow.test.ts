@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { BEACON, TOW } from '../data/tow';
-import { MAX_RANK, SKILL_EFFECTS, XP_SOURCES } from '../data/skills';
+import { MAX_RANK, SKILL_EFFECTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { partDef } from '../data/parts';
 import { playerVehicle } from './damage';
 import { route, routeLength } from './path';
@@ -960,6 +960,7 @@ describe('the player towing an NPC', () => {
   const HITCH = 'Deal. Hitch up.';
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   const gate = siteGates(bowl)[0];
+  const pad = sitePads(bowl)[0];
   const out = { x: (gate.x - bowl.pos.x) / bowl.radius, y: (gate.y - bowl.pos.y) / bowl.radius };
   const at = (d: number) => ({ x: gate.x + out.x * d, y: gate.y + out.y * d });
 
@@ -1034,7 +1035,7 @@ describe('the player towing an NPC', () => {
     const fee = towData(playerTowing(w)!).fee;
     const money = w.player.money;
     const npcMoney = find(w, npc.id).resources!.money;
-    w = setMoveOrder(w, { kind: 'stopAt', dest: gate });
+    w = setMoveOrder(w, { kind: 'stopAt', dest: pad });
     const r = runUntil(w, 60, (x) => playerTowing(x) === null);
     expect(r.events.filter((e) => e.t === 'stateEnded').map((e) => e.t === 'stateEnded' && e.ending)).toEqual(['fulfilled']);
     expect(r.w.player.money).toBe(money + fee);
@@ -1067,20 +1068,20 @@ describe('the player towing an NPC', () => {
     expect(data.waived).toBeGreaterThan(0);
     const money = w.player.money;
     const npcMoney = find(w, npc.id).resources!.money;
-    w = setMoveOrder(w, { kind: 'stopAt', dest: gate });
+    w = setMoveOrder(w, { kind: 'stopAt', dest: pad });
     const r = runUntil(w, 60, (x) => playerTowing(x) === null);
     expect(r.w.player.money).toBe(money);
     expect(find(r.w, npc.id).resources!.money).toBe(npcMoney);
     const practice = r.events.filter((e) => e.t === 'practice' && e.source === 'freeTow');
     expect(practice).toMatchObject([{ amount: data.waived, target: npc.id }]);
-    expect(r.w.player.xpBySource.freeTow).toBeCloseTo(data.waived * XP_SOURCES.freeTow.weight);
+    expect(r.w.player.xpBySource.freeTow).toBeCloseTo(data.waived * XP_SOURCES.freeTow.weight * XP_RULES.gain);
   });
 
   it('a driver towed in with no engine drives on with a fresh one', () => {
     const { w: start, npc } = strandedNpc();
     for (const part of mountedParts(npc, 'engine')) npc.items = npc.items.filter((i) => i.kind !== 'part' || i.part.id !== part.id);
     const w = pick(pick(callVehicle(start, npc.id), OFFER), HITCH);
-    const r = runUntil(setMoveOrder(w, { kind: 'stopAt', dest: gate }), 60, (x) => playerTowing(x) === null);
+    const r = runUntil(setMoveOrder(w, { kind: 'stopAt', dest: pad }), 60, (x) => playerTowing(x) === null);
     const lying = runUntil(r.w, 10, (x) => topGoal(find(x, npc.id))?.kind === 'rearm').w;
     const goal = topGoal(find(lying, npc.id));
     expect(goal).toMatchObject({ kind: 'rearm' });
@@ -1094,7 +1095,7 @@ describe('the player towing an NPC', () => {
 
   it('a paid tow pays no free tow XP', () => {
     let { w } = hitched();
-    w = setMoveOrder(w, { kind: 'stopAt', dest: gate });
+    w = setMoveOrder(w, { kind: 'stopAt', dest: pad });
     const r = runUntil(w, 60, (x) => playerTowing(x) === null);
     expect(playerTowing(r.w)).toBeNull();
     expect(r.events.some((e) => e.t === 'practice' && e.source === 'freeTow')).toBe(false);

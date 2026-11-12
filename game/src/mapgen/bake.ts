@@ -7,8 +7,9 @@ import { ICARUS_KEY, icarusAtlas } from '../sim/atlas';
 import { bakedHeight, broadAt, flattenFactor, reliefAt } from '../sim/elevation';
 import { gradeRoads } from '../sim/road-grade';
 import { ROAD_INDEX } from '../sim/road-index';
+import { onShoulder } from '../sim/shoulder';
 import { chance, randRange, type Rng } from '../sim/rng';
-import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_FIELD, BUILT_GLASS, BUILT_OLD_ROAD, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, groundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
+import { BUILT_BLACK_MUD, BUILT_DITCH, BUILT_CANAL, BUILT_FIELD, BUILT_GLASS, BUILT_OLD_ROAD, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, cornerGroundAt, TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { clearOfSites, onDeck } from '../sim/mapgen';
 import { siteGap } from '../sim/sites';
 import { dist, polylineDist, type Vec } from '../sim/vec';
@@ -120,9 +121,9 @@ export function tileSteepness(heights: ArrayLike<number>, size: number, tile: nu
 
 export function footprintRelief(heights: ArrayLike<number>, size: number, p: BakedProp, segment: boolean): number {
   const t = { size, heights };
-  const seat = groundAt(t, p.pos.x, p.pos.y);
+  const seat = cornerGroundAt(t, p.pos.x, p.pos.y);
   const angles = segment ? [p.yaw, p.yaw + Math.PI] : Array.from({ length: 8 }, (_, k) => (k * Math.PI) / 4);
-  return Math.max(...angles.map((a) => Math.abs(groundAt(t, p.pos.x + Math.cos(a) * p.r, p.pos.y + Math.sin(a) * p.r) - seat)));
+  return Math.max(...angles.map((a) => Math.abs(cornerGroundAt(t, p.pos.x + Math.cos(a) * p.r, p.pos.y + Math.sin(a) * p.r) - seat)));
 }
 
 export function baseLayer(seed: number, size: number): MapDraft {
@@ -164,12 +165,14 @@ const MARKED_TYPES: Record<number, TerrainTypeId> = {
   [BUILT_DIRTY_WATER]: 'dirtyWater',
   [BUILT_TOXIC]: 'toxic',
   [BUILT_TRACK]: 'track',
-  [BUILT_CANAL]: 'canal',
+  [BUILT_CANAL]: 'mud',
   [BUILT_PAD]: 'concrete',
   [BUILT_GLASS]: 'glass',
   [BUILT_BLACK_MUD]: 'blackMud',
   [BUILT_DITCH]: 'sand',
 };
+
+const SHOULDER_YIELDS_TO: ReadonlySet<TerrainTypeId> = new Set(['track', 'canal', 'asphalt', 'concrete', 'glass']);
 
 function pickType(g: GroundInput, x: number, y: number): TerrainTypeId {
   const c = { x: x + 0.5, y: y + 0.5 };
@@ -177,8 +180,13 @@ function pickType(g: GroundInput, x: number, y: number): TerrainTypeId {
   if (built) return built;
   const tile = y * g.d.size + x;
   const marked = MARKED_TYPES[g.d.built[tile]];
+  if (marked && SHOULDER_YIELDS_TO.has(marked)) return marked;
+  return naturalType(g, tile, y * (g.d.size + 1) + x, c, marked);
+}
+
+function naturalType(g: GroundInput, tile: number, k: number, c: Vec, marked: TerrainTypeId | undefined): TerrainTypeId {
+  if (onShoulder(c)) return wingSandType(g, tile, k) ?? 'gravel';
   if (marked) return marked;
-  const k = y * (g.d.size + 1) + x;
   for (const rule of GEOLOGY_RULES) {
     const type = rule(g, tile, k);
     if (type) return type;

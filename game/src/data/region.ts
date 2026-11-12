@@ -363,7 +363,7 @@ export const REGION = {
     roadShyBand: 10,
     overClimbCost: 40,
     climbStep: 0.05,
-    reachClimb: 0.2,
+    reachClimb: 0.15,
   },
   towns: TOWNS,
   locations: [
@@ -546,6 +546,7 @@ export const REGION = {
     [ROADHOUSE_JUNCTION, MARSHAL_POST_AT],
   ]),
   roadWidth: 6,
+  roadShoulder: 1,
   obstacles: {
     roadWrecks: 39,
     roadWreckShoulder: [0.5, 0.85] as [number, number],

@@ -1,0 +1,137 @@
+/* Journal: tabs over one page. Beside the world it is a side column under the right dock; over a scene or on a narrow window it is a modal. */
+#ui .modal.journal-screen {
+  max-width: var(--talk-width);
+}
+#ui .journal-side {
+  position: absolute;
+  right: var(--space-7);
+  width: var(--journal-side-width);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow: hidden;
+  font-size: var(--text-dense);
+  z-index: var(--z-hud);
+}
+.journal-screen .journal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-6);
+}
+.journal-screen .journal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.journal-side .journal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.journal-side .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+.journal-screen .tabs.sub .count {
+  margin-left: var(--space-3);
+  color: var(--ink-muted);
+}
+.journal-screen .jobs {
+  grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
+}
+.journal-past .job {
+  grid-template-areas:
+    "icon what money"
+    "icon tag money";
+  row-gap: var(--space-2);
+}
+.journal-past .job > :nth-child(1) {
+  grid-area: icon;
+}
+.journal-past .job > :nth-child(2) {
+  grid-area: what;
+}
+.journal-past .job > :nth-child(3) {
+  grid-area: tag;
+  justify-self: start;
+}
+.journal-past .job > :nth-child(4) {
+  grid-area: money;
+  justify-self: end;
+}
+.journal-screen .journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.journal-detail {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-faint);
+}
+.journal-screen .jobs > .job:has(+ .journal-detail) {
+  border-bottom: 0;
+}
+#ui .journal-screen button.journal-head {
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+#ui .journal-screen button.journal-head:disabled {
+  cursor: default;
+}
+#ui .journal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-6);
+  width: 100%;
+  text-align: left;
+}
+.journal-note,
+.journal-place {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface-raised);
+  border-left: 4px solid var(--line);
+  line-height: 1.4;
+}
+.journal-note.open,
+.journal-place.open {
+  border-left-color: var(--accent);
+}
+.journal-place.survey .place-body {
+  display: grid;
+  grid-template-columns: var(--survey-picture-w) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.survey-picture {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--surface-raised);
+  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+}
+.survey-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.journal-screen .way-steps {
+  margin: 0;
+}
+#ui:has(.journal-side:not([style*="display: none"])) > .top-center > .panel {
+  max-width: calc((var(--layer-w) / 2 - var(--journal-side-width) - var(--space-7) - var(--space-5)) * 2);
+}

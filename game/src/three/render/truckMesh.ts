@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { Body } from '../../sim/body';
+import { axlesOf, type Body } from '../../sim/body';
+import { WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { EDGE_DISTANCE, MASK_UV, neutralSurface, outlineOf, surfacedMaterial, surfaceOf, type SurfaceName } from './models';
 
 export const BODY_PAINT_SATURATION = 0.8;
@@ -8,6 +9,38 @@ export const BODY_PAINT_SATURATION = 0.8;
 export function bodyPaint(paint: number): number {
   const hsl = new THREE.Color(paint).getHSL({ h: 0, s: 0, l: 0 });
   return new THREE.Color().setHSL(hsl.h, hsl.s * BODY_PAINT_SATURATION, hsl.l).getHex();
+}
+
+export const PAINT_MATERIAL = 'paint';
+
+export function markToned(material: THREE.Material): void {
+  material.userData.toned = true;
+}
+
+export function isToned(material: THREE.Material): boolean {
+  return material.userData.toned === true;
+}
+
+export const OFF_ROLE_TONES: Record<string, number> = { red: 0x48423d, rust: 0x6c6259, rust_side: 0x4d463f, rust_dark: 0x312c28, metal_light: 0x74726c };
+
+export function partTone(material: string, color: number, paint: number, isPart: boolean): number {
+  if (material === PAINT_MATERIAL) return bodyPaint(paint);
+  return isPart ? (OFF_ROLE_TONES[material] ?? color) : color;
+}
+
+export const CHAR = 0x2e241c;
+
+export const CHAR_SHARE = 0.6;
+
+const CHARRING_MATERIALS = new Set([PAINT_MATERIAL, ...Object.keys(OFF_ROLE_TONES)]);
+
+export function charShare(step: number): number {
+  return (CHAR_SHARE * step) / (WEAR_LOOK_STEPS - 1);
+}
+
+export function wornTone(material: string, color: number, step: number, broken: boolean): number {
+  if (!broken && !CHARRING_MATERIALS.has(material)) return color;
+  return new THREE.Color(color).lerp(new THREE.Color(CHAR), charShare(step)).getHex();
 }
 
 export function flipWinding(geo: THREE.BufferGeometry): void {
@@ -57,29 +90,54 @@ type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null;
 type Buckets = Map<string, Bucket>;
 type Owner = { partId: string | null; armor: boolean };
 
-export type MergeSplit = 'parts' | 'armor';
+export type MergeSplit = 'parts' | 'armor' | 'tintedParts';
 
 const NO_ARMOR: ReadonlySet<string> = new Set();
 
 function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSplit): Owner {
   const tagged: string | null = mesh.userData.partId ?? null;
   const armor = tagged !== null && armorIds.has(tagged);
-  return { partId: split === 'parts' ? tagged : null, armor };
+  return { partId: split === 'armor' ? null : tagged, armor };
 }
 
+const worldLooks = new Map<string, THREE.Material>();
+
+export const WORLD_LOOKS = {
+  shadeTree(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const material = o.material as THREE.Material;
+      const key: string | undefined = material.userData.lookKey;
+      if (key === undefined) return;
+      const shared = worldLooks.get(key) ?? material;
+      worldLooks.set(key, shared);
+      shared.userData.shared = true;
+      if (shared !== material) material.dispose();
+      o.material = shared;
+    });
+  },
+};
+
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
-  const { hex, surface, partId, armor, tinted, geos } = bucket;
+  const { hex, surface, tinted, geos } = bucket;
   const merged = mergeGeometries(geos);
   if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
   const material = surfacedMaterial(tinted ? 0xffffff : hex, surface);
   material.vertexColors = tinted;
+  material.userData.lookKey = `${material.color.getHex()}|${surface}|${tinted}`;
   const mesh = new THREE.Mesh(merged, material);
-  if (partId) mesh.userData.partId = partId;
-  if (armor) mesh.userData.armor = true;
+  mesh.name = 'truck-surface';
+  tagMesh(mesh, bucket);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+function tagMesh(mesh: THREE.Mesh, { partId, armor, surface }: Bucket): void {
+  if (partId) mesh.userData.partId = partId;
+  if (armor) mesh.userData.armor = true;
+  if (surface) mesh.userData.surface = surface;
 }
 
 function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner, tinted: boolean): Bucket {
@@ -101,8 +159,8 @@ function movedLamp(lamp: THREE.Mesh, toGroup: THREE.Matrix4): THREE.Mesh {
   return mesh;
 }
 
-export function mergeStatic(group: THREE.Group): THREE.Group {
-  return mergeParts(group, NO_ARMOR, 'parts');
+export function mergeStatic(group: THREE.Group, inWorld = false): THREE.Group {
+  return mergeParts(group, NO_ARMOR, inWorld ? 'tintedParts' : 'parts');
 }
 
 export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, split: MergeSplit): THREE.Group {
@@ -118,7 +176,7 @@ export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, sp
       return;
     }
     const material = o.material as THREE.MeshLambertMaterial;
-    const byTint = split === 'armor';
+    const byTint = split !== 'parts';
     const geo = staticGeometry(o, toGroup);
     bucketFor(buckets, material, ownerOf(o, armorIds, split), byTint).geos.push(byTint ? tinted(geo, material.color) : geo);
     used.push(o);
@@ -173,6 +231,7 @@ function mergedTwin(meshes: THREE.Mesh[], material: THREE.Material, order: numbe
   if (!merged) throw new Error(`Could not merge ${meshes.length} truck meshes into one twin`);
   for (const geo of geos) geo.dispose();
   const twin = new THREE.Mesh(merged, material);
+  twin.name = 'truck-silhouette';
   twin.renderOrder = order;
   return twin;
 }
@@ -191,7 +250,8 @@ export const CONTACT_SHADOW ={ darkness: 0.55, core: 0.125, side: 64, lift: 0.02
 let contactTexture: THREE.DataTexture | null = null;
 
 export function contactShadowFor(b: Body): THREE.Mesh {
-  const length = 2 * Math.max(b.half.x, b.wheelX + b.wheelRadius) * CONTACT_SHADOW.spread.length;
+  const axles = axlesOf(b);
+  const length = 2 * Math.max(b.half.x, Math.abs(axles.front) + b.wheelRadius, Math.abs(axles.rear) + b.wheelRadius) * CONTACT_SHADOW.spread.length;
   const width = 2 * Math.max(b.half.z, b.wheelZ + b.wheelHalfWidth) * CONTACT_SHADOW.spread.width;
   const material = new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, depthWrite: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(length, width), material);

@@ -1,4 +1,4 @@
-import { touchMode } from "./input-mode";
+import { keyLabel, touchMode } from "./input-mode";
 import { partDef } from "../data/parts";
 import { fireBlock, gunOf, hitOdds, roundDamage, type FireBlock } from "../sim/combat";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
@@ -6,18 +6,18 @@ import { findPart, playerVehicle, vehicleById } from "../sim/damage";
 import { vehicleStats, type MountedWeapon } from "../sim/stats";
 import type { Aim, PartInstance, UtilityOrder, Vehicle, World } from "../sim/types";
 import { playerSees } from "../sim/vision";
-import { workOf } from "../sim/states";
+import { workOf, type WorkLeft } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, el, panel, rightColumn } from "./dom";
+import { bottomLeft, el, panel, replaceChanged, rightColumn } from "./dom";
 import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
 import { createSwitch } from "./switch";
 import { TravelSpeed } from "./travel-speed";
 import { canCall } from "./dialogue";
-import { workLabel, workProgress } from "./format";
+import { workLabel } from "./format";
 import { num, t, type Msg, type PlainKey } from "../text/msg";
 import { partName, vehicleTitle } from "../text/names";
 
@@ -48,7 +48,7 @@ export function weaponGrid(count: number): { cols: number; small: boolean } {
 }
 
 export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
-export type JobMark = { label: Msg; progress: number };
+export type JobMark = { label: Msg; work: WorkLeft };
 export type VehicleMark = { weapons: WeaponMark[]; radio: boolean; job: JobMark | null; out: boolean; gaveUp: boolean };
 
 export function vehicleMarks(w: World, hovered: string | null): Map<string, VehicleMark> {
@@ -70,7 +70,17 @@ export function vehicleMarks(w: World, hovered: string | null): Map<string, Vehi
   return marks;
 }
 
+function ownJob(w: World): JobMark | null {
+  const me = playerVehicle(w);
+  const work = workOf(w, me);
+  if (!work) return null;
+  const label = workLabel(w, me, work);
+  return { label: work.queued > 0 ? t("hud.workQueued", { label, k: work.queued }) : label, work: { turnsLeft: work.turnsLeft, total: work.total } };
+}
+
 function markSeenNpcs(w: World, markOf: (id: string) => VehicleMark): void {
+  const own = ownJob(w);
+  if (own) markOf(w.player.vehicleId).job = own;
   for (const v of w.vehicles.filter((x) => x.brain && playerSees(w, x.pos))) {
     const job = seenNpcJob(w, v);
     if (job) markOf(v.id).job = job;
@@ -83,7 +93,7 @@ function markSeenNpcs(w: World, markOf: (id: string) => VehicleMark): void {
 
 function seenNpcJob(w: World, v: Vehicle): JobMark | null {
   const work = workOf(w, v);
-  return work && { label: workLabel(w, v, work), progress: workProgress(work) };
+  return work && { label: workLabel(w, v, work), work: { turnsLeft: work.turnsLeft, total: work.total } };
 }
 
 export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: string): boolean {
@@ -207,6 +217,10 @@ export function canForceReload(mw: MountedWeapon): boolean {
 }
 
 export const NOTHING_TO_HOLD: Msg = t("weapon.noHoldTarget");
+
+function keyedReason(reason: Msg | null, key: number | null): Msg | null {
+  return reason !== null && key !== null ? keyLabel(reason, String(key)) : reason;
+}
 
 function disabledAttrs(reason: Msg | null, title: Msg): Record<string, Msg | string> {
   return reason === null ? { title } : { title: reason, "aria-disabled": "true" };
@@ -332,7 +346,7 @@ export class UtilityRow {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           "aria-label": t("utility.slotLabel", { name, status: status.text }),
-          ...disabledAttrs(locked, key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
+          ...disabledAttrs(keyedReason(locked, key), key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
           onclick: () => locked === null && (key === null ? this.selectUtility(i) : this.host.runKey(`Digit${key}`)),
         },
         el("span", { class: "weapon-number" }, key === null ? null : num(key, "int")),
@@ -409,9 +423,9 @@ export class WeaponPanel {
       this.expanded ? this.renderAllSwitch(locked) : null,
       createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
     );
-    this.root.replaceChildren(head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
+    replaceChanged(this.root, head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
     this.travelSpeed.sync();
-    this.turn.replaceChildren(this.travelSpeed.root, this.renderTurnButton(phase));
+    replaceChanged(this.turn, this.travelSpeed.root, this.renderTurnButton(phase));
   }
 
   stepTravelSpeed(delta: 1 | -1): void {
@@ -500,7 +514,7 @@ export class WeaponPanel {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           'aria-label': t("weapon.slotLabel", status),
-          ...disabledAttrs(locked, t("weapon.slotTitle", { ...status, rounds: mw.def.rounds, damage: roundDamage(w, mw.def), pen: mw.def.round.pen, range: meters(mw.def.range), cooldown: mw.def.cooldown, magazine: mw.def.magazine, reload: mw.def.reload })),
+          ...disabledAttrs(keyedReason(locked, i + 1), keyLabel(t("weapon.slotTitle", { ...status, rounds: mw.def.rounds, damage: roundDamage(w, mw.def), pen: mw.def.round.pen, range: meters(mw.def.range), cooldown: mw.def.cooldown, magazine: mw.def.magazine, reload: mw.def.reload }), String(i + 1))),
           onclick: () => locked === null && this.selectWeapon(selected ? null : mw.part.id),
         },
         el('span', { class: 'weapon-number' }, num(i + 1, 'int')),

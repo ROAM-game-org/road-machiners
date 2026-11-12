@@ -10,6 +10,11 @@ export class FakeNode {
   hidden = false;
   focused = 0;
   constructor(readonly tag: string) {}
+  get childNodes(): (FakeNode | string)[] { return this.children; }
+  isEqualNode(other: FakeNode): boolean {
+    const sameChildren = this.children.length === other.children.length && this.children.every((c, i) => (typeof c === "string" ? c === other.children[i] : c.isEqualNode(other.children[i] as FakeNode)));
+    return this.tag === other.tag && this.className === other.className && sameChildren;
+  }
   get textContent(): string { return this.children.map((c) => (typeof c === "string" ? c : c.textContent)).join(""); }
   set textContent(text: string) { this.children = [text]; }
   append(...c: (FakeNode | string)[]) { for (const n of c) if (typeof n !== "string") n.parent = this; this.children.push(...c); }

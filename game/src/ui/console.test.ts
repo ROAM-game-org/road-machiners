@@ -108,6 +108,15 @@ describe("argument checks", () => {
   });
 });
 
+describe("shaders", () => {
+  it("asks the console to toggle the look menu and changes no world", () => {
+    const result = runCommand(emptyWorld(), "shaders");
+
+    expect(result.shaders).toBe(true);
+    expect(result.world).toBeNull();
+  });
+});
+
 describe("seeall", () => {
   it("asks the console to toggle the see all view and changes no world", () => {
     const result = runCommand(emptyWorld(), "seeall");
@@ -155,6 +164,7 @@ describe("queries", () => {
         "repair",
         "reveal",
         "seeall",
+        "shaders",
         "skills",
         "spawn",
         "sunward",

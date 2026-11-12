@@ -1,17 +1,22 @@
+import { inkGround } from "./inkPaint";
 import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import {
+  paintCanvasOn,
   paintGroundCanvas,
+  paintLandformCanvas,
+  takeBakedPixels,
   TERRAIN_MARGIN,
   type PaintCanvas,
 } from "../../render/groundPaint";
 import { atlasOf } from "../../sim/atlas";
 import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
-import { deckHeight, deckSegments, type DeckSegment, type Terrain } from "../../sim/terrain";
+import { MESH_STEPS, surfaceTriangles } from "../../sim/surface";
+import { deckHeight, deckSegments, groundAt, groundSurface, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
-import { drawRoads } from "./roads";
+import { drawGround, drawnGround, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -20,8 +25,6 @@ const TEXTURE_SIDE = 2048;
 const DENSITY_REFERENCE_TILES = 600;
 const GROUND_PIXELS_PER_TILE = TEXTURE_SIDE / (DENSITY_REFERENCE_TILES + 2 * TERRAIN_MARGIN);
 export const TERRAIN_CHUNK = 32;
-const FACET_TINT = 0.04;
-const FACET_SMOOTH_DAY = 0.5;
 
 export function groundSide(size: number): number {
   if (size > HIGHWAY.size) return TEXTURE_SIDE;
@@ -29,19 +32,11 @@ export function groundSide(size: number): number {
 }
 
 function mapCanvas(w: World, side: number): PaintCanvas {
-  const from = -TERRAIN_MARGIN;
-  const res = side / (w.size + 2 * TERRAIN_MARGIN);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = side;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Could not get terrain canvas context");
-  return {
-    ctx,
-    size: side,
-    res,
-    from,
-    toPx: (tile) => (tile - from) * res,
-  };
+  return paintCanvasOn(ctx, side, w.size);
 }
 
 const groundTextures = new WeakMap<Terrain, THREE.CanvasTexture>();
@@ -57,11 +52,23 @@ export function groundTexture(w: World): THREE.CanvasTexture {
 
 function paintTexture(w: World): THREE.CanvasTexture {
   const c = mapCanvas(w, groundSide(w.size));
-  paintGroundCanvas(c, w.terrain, { hillshade: 0.35 });
+  const baked = takeBakedPixels(w.terrain);
+  if (baked) c.ctx.putImageData(new ImageData(baked as Uint8ClampedArray<ArrayBuffer>, c.size, c.size), 0, 0);
+  else paintGroundCanvas(c, w.terrain);
   const texture = new THREE.CanvasTexture(c.ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.magFilter = THREE.NearestFilter;
+  return texture;
+}
+
+function landformTexture(w: World): THREE.CanvasTexture | null {
+  if (!atlasOf(w.terrain).landforms) return null;
+  const c = mapCanvas(w, groundSide(w.size));
+  paintLandformCanvas(c, w.terrain);
+  const texture = new THREE.CanvasTexture(c.ctx.canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.flipY = false;
   return texture;
 }
 
@@ -84,32 +91,61 @@ export function deckFloorCap(t: Terrain, x: number, y: number): number | null {
   return on === null ? null : deckHeight(t, on.deck, on.along) - DECK_FLOOR_GAP / S;
 }
 
-function drawnHeight(t: Terrain, x: number, y: number): number {
-  const h = t.heights[y * (t.size + 1) + x];
+export function drawnGroundAt(t: Terrain, x: number, y: number): number {
+  const h = groundAt(t, x, y);
   const cap = deckFloorCap(t, x, y);
   return cap === null ? h : Math.min(h, cap);
 }
 
 export function chunkGeometry(t: Terrain, x: number, y: number, width: number, depth: number): THREE.PlaneGeometry {
-  const geo = new THREE.PlaneGeometry(width * S, depth * S, width, depth).rotateX(-Math.PI / 2);
+  const surface = groundSurface(t);
+  const cols = width * MESH_STEPS;
+  const rows = depth * MESH_STEPS;
+  const geo = new THREE.PlaneGeometry(width * S, depth * S, cols, rows).rotateX(-Math.PI / 2);
   const pos = geo.getAttribute("position");
+  const normal = geo.getAttribute("normal");
   const uv = geo.getAttribute("uv");
   const span = t.size + TERRAIN_MARGIN * 2;
-  for (let j = 0; j <= depth; j++)
-    for (let i = 0; i <= width; i++) {
-      const k = j * (width + 1) + i;
-      pos.setXYZ(k, (x + i) * S, drawnHeight(t, x + i, y + j) * S, (y + j) * S);
-      uv.setXY(k, (x + i + TERRAIN_MARGIN) / span, (y + j + TERRAIN_MARGIN) / span);
+  const up = new THREE.Vector3();
+  for (let j = 0; j <= rows; j++)
+    for (let i = 0; i <= cols; i++) {
+      const k = j * (cols + 1) + i;
+      const u = x + i / MESH_STEPS;
+      const v = y + j / MESH_STEPS;
+      const slope = surface.slopeAt(u, v);
+      pos.setXYZ(k, u * S, drawnGroundAt(t, u, v) * S, v * S);
+      normal.setXYZ(k, ...up.set(-slope.x, 1, -slope.y).normalize().toArray());
+      uv.setXY(k, (u + TERRAIN_MARGIN) / span, (v + TERRAIN_MARGIN) / span);
     }
-  geo.computeVertexNormals();
+  geo.setIndex(surfaceTriangles(surface, x, y, width, depth));
   geo.computeBoundingSphere();
   return geo;
 }
 
 export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w));
-  facetGround(material);
+  drawGround(material, drawnGroundOf(w));
+  return litGround(material);
+}
+
+export type CachedGround = { reader: THREE.MeshLambertMaterial; writer: THREE.MeshLambertMaterial; writes: DrawnGround };
+
+export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround {
+  const map = groundTexture(w);
+  const writes = drawnGroundOf(w);
+  const writer = new THREE.MeshLambertMaterial({ map });
+  writeGroundCache(writer, writes);
+  const reader = new THREE.MeshLambertMaterial({ map });
+  readGroundCache(reader, cache, landUniforms(writes.land));
+  return { reader: litGround(reader), writer, writes };
+}
+
+function drawnGroundOf(w: World): DrawnGround {
+  return drawnGround(mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
+}
+
+function litGround(material: THREE.MeshLambertMaterial): THREE.MeshLambertMaterial {
+  inkGround(material);
   NIGHT_POOLS.light(material);
   return material;
 }
@@ -136,35 +172,6 @@ function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number,
   mesh.updateMatrix();
   return { x, y, width, depth, mesh };
 }
-
-function facetGround(material: THREE.MeshLambertMaterial): void {
-  const before = material.onBeforeCompile.bind(material);
-  const key = material.customProgramCacheKey.bind(material);
-  material.onBeforeCompile = (shader, renderer) => {
-    before(shader, renderer);
-    shader.uniforms.facetTile = { value: S };
-    shader.uniforms.facetTint = { value: FACET_TINT };
-    shader.uniforms.facetSmooth = NIGHT_POOLS.level;
-    shader.uniforms.facetSmoothDay = { value: FACET_SMOOTH_DAY };
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float facetTile;\nuniform float facetTint;\nuniform float facetSmooth;\nuniform float facetSmoothDay;")
-      .replace("#include <color_fragment>", `#include <color_fragment>\n${FACET_FRAGMENT}`)
-      .replace("#include <normal_fragment_begin>", `#include <normal_fragment_begin>\n${FACET_NORMAL}`);
-  };
-  material.customProgramCacheKey = () => `${key()}|facets`;
-  material.needsUpdate = true;
-}
-
-const FACET_FRAGMENT = `{
-  vec2 facetAt = vRoadXZ / facetTile;
-  vec2 facetCell = floor(facetAt);
-  vec2 facetIn = facetAt - facetCell;
-  float facetHalf = facetIn.x + facetIn.y > 1.0 ? 1.0 : 0.0;
-  float facetHash = fract(sin(dot(facetCell + facetHalf * vec2(0.37, 0.71), vec2(12.9898, 78.233))) * 43758.5453);
-  diffuseColor.rgb *= 1.0 + (facetHash - 0.5) * 2.0 * facetTint;
-}`;
-
-const FACET_NORMAL = `normal = normalize(mix(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normal, max(facetSmooth, facetSmoothDay)));`;
 
 function deckPick(t: Terrain, deck: Deck, scope: RenderScope): void {
   for (const seg of deckSegments(t, deck)) piecePick(deck, seg, scope);

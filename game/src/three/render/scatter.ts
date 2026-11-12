@@ -7,17 +7,18 @@ import { REGION } from '../../data/region';
 import { SCATTER, type ScatterShare } from '../../data/view';
 import { desertWeight, lookTypes, type LookType } from '../../render/groundPaint';
 import { hash2, valueNoise } from '../../render/noise';
-import { atlasOf, type Atlas } from '../../sim/atlas';
+import { atlasOf, roadEdgeGap, type Atlas } from '../../sim/atlas';
 import { groundAt, type Terrain } from '../../sim/terrain';
 import type { Obstacle } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
-import { instancedModel } from './models';
+import { minorProp } from './models';
+import { instancedProp } from './propInstances';
 import type { RenderScope } from './scope';
 import { deckFloorCap, TERRAIN_CHUNK } from './terrain';
 
 const S = PHYSICS.metersPerTile;
-export const ROAD_GAP = REGION.roadWidth / 2 + 0.3;
+export const ROAD_MARGIN = 0.3;
 export const SHOULDER_TILES = 2;
 export const OBSTACLE_GAP = 0.5;
 export const CACTUS_NEAR_ROCK = 2;
@@ -31,7 +32,6 @@ const CACTUS_ON_DESERT = 0.005;
 const CACTUS_BY_ROCK = 0.03;
 const DEBRIS_CENTER = 0.03;
 const DEBRIS_EDGE = 0.5;
-const DEBRIS_SCRUB = 0.25;
 const PEBBLE_RADIUS ={ min: 0.025, max: 0.045 };
 const SCRUB_RADIUS = { min: 0.07, max: 0.12 };
 const DESERT_STONES_RADIUS = { min: 0.07, max: 0.14 };
@@ -63,7 +63,7 @@ function scatterGroup(chunk: ScatterChunk): THREE.Group {
   for (const name of MODELS) {
     const list = chunk[name];
     if (list.length === 0) continue;
-    const group = instancedModel(name, list.map((p) => p.matrix), list.map((p) => p.tint), (m) => m);
+    const group = instancedProp(name, list.map((p) => p.matrix), list.map((p) => p.tint), (_, source) => source);
     for (const mesh of group.children) {
       mesh.castShadow = CASTS_SHADOW.has(name);
       mesh.receiveShadow = true;
@@ -71,7 +71,7 @@ function scatterGroup(chunk: ScatterChunk): THREE.Group {
     root.add(group);
   }
   root.matrixAutoUpdate = false;
-  return root;
+  return minorProp(root);
 }
 
 function scatterTiles(t: Terrain, obstacles: Obstacle[]): ScatterTiles {
@@ -145,7 +145,7 @@ function tileModel(atlas: Atlas, highway: number | null, block: Block | null, lo
   const p = tilePoint(x, y);
   const across = highway === null ? Infinity : atlas.roadIndex.nearestWithin(p.x, p.y, HIGHWAY.road.asphalt);
   if (across <= HIGHWAY.road.asphalt) return asphaltModel(across, highway ?? 0, x, y);
-  const kind = tileScatter(atlas, oddsIn(block, look), x, y, byRock);
+  const kind = tileScatter(atlas, oddsIn(block, look), x, y, byRock, highway !== null);
   return kind === null ? null : modelOf(kind, desertWeight(look) > 0);
 }
 
@@ -153,7 +153,7 @@ function asphaltModel(across: number, seed: number, x: number, y: number): Scatt
   const chance = DEBRIS_CENTER + (DEBRIS_EDGE - DEBRIS_CENTER) * (across / HIGHWAY.road.asphalt) ** 2;
   const h = hash2(x * 37 + 11 + seed, y * 41 + 13);
   if (h >= chance) return null;
-  return modelOf(h < chance * (1 - DEBRIS_SCRUB) ? 'pebbles' : 'scrub', true);
+  return modelOf('pebbles', true);
 }
 
 const TILE_CORNERS = [[0, 0], [1, 0], [0, 1], [1, 1]];
@@ -176,14 +176,17 @@ function modelOf(kind: ScatterKind, desert: boolean): ScatterModel {
   return kind === 'pebbles' ? 'desert_stones' : 'desert_scrub';
 }
 
-function tileScatter(atlas: Atlas, odds: LookOdds, x: number, y: number, byRock: boolean): ScatterKind | null {
+function tileScatter(atlas: Atlas, odds: LookOdds, x: number, y: number, byRock: boolean, paved: boolean): ScatterKind | null {
   const h = hash2(x * 7 + 3, y * 13 + 5);
   const open = byRock ? odds.byRock : odds.open;
   const shoulder = odds.shoulder;
   if (pick(h, open) === null && pick(h, shoulder) === null) return null;
   const p = tilePoint(x, y);
-  const road = atlas.roadIndex.nearestWithin(p.x, p.y, ROAD_GAP + SHOULDER_TILES);
-  return road < ROAD_GAP ? null : pick(h, road < ROAD_GAP + SHOULDER_TILES ? shoulder : open);
+  const edge = roadEdgeGap(atlas, p, ROAD_MARGIN + SHOULDER_TILES);
+  if (edge < ROAD_MARGIN) return null;
+  if (edge >= ROAD_MARGIN + SHOULDER_TILES) return pick(h, open);
+  const kind = pick(h, shoulder);
+  return paved && kind !== 'pebbles' ? null : kind;
 }
 
 export function regionShare(cx: number, cy: number): ScatterShare {
@@ -239,6 +242,7 @@ type LookOdds = { open: Chances; byRock: Chances; shoulder: Chances };
 
 function chances(type: LookType, shoulder: boolean, byRock: boolean): Chances {
   if (type === 'glass') return { pebbles: 0, scrub: 0, cactus: 0 };
+  if (type === 'concrete') return { pebbles: PEBBLE_CHANCE, scrub: 0, cactus: 0 };
   const w = desertWeight(type);
   if (w === 0) return { pebbles: PEBBLE_CHANCE, scrub: SCRUB_ELSEWHERE, cactus: 0 };
   if (shoulder) return { pebbles: PEBBLE_ON_SHOULDER, scrub: 0, cactus: 0 };

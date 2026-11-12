@@ -1,23 +1,48 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
+import { uploadFirst } from '../uploads';
+import { TUNING } from '../inkTuning';
+import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
-export const CARD_SHAPES = 4;
-export const ROUND_SHAPE = CARD_SHAPES;
-const ATLAS_PX = 256;
-const ATLAS_CELLS = 2;
-const SHAPE_LUMPS = { min: 4, spread: 3 };
-const SHAPE_BLUR_PX = 6;
-const CARD_LIGHT = { scatter: 0.7 };
-const CARD_ORDER = { lit: 904, glow: 906 };
+export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
+
+export type CardKind = 'lit' | 'glow' | 'density';
+
+export const CARD_CLOCK = { value: 0 };
+
+const ATLAS_CELL_PX = 128;
+const ATLAS_PX = ATLAS_CELL_PX * ATLAS_CELLS;
+const CLOUD_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.1, reachSpread: 0.08, blurPx: 6 };
+const CLUMP_LUMPS: LumpLook = { min: 4, spread: 3, reachFrom: 0.16, reachSpread: 0.1, blurPx: 7 };
+const GRAIN = { strength: 1.1, cut: 0.25, soft: 0.6, rim: 0.5, rimWidth: 0.14, layers: [[5, 0.4], [10, 0.3], [20, 0.2], [40, 0.1]] as const };
+export const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
-const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
-const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
-const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
+
+type LumpLook = { min: number; spread: number; reachFrom: number; reachSpread: number; blurPx: number };
+
+export function clumpShape(pick: number): number {
+  if (!(pick >= 0 && pick < 1)) throw new Error(`Clump pick must be in 0 to 1, got ${pick}`);
+  return CLUMP_FIRST + Math.floor(pick * CLUMP_SHAPES);
+}
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
 
-export type FxCards = { lit: CardBatch; glow: CardBatch };
+export type FxCards = { lit: CardBatch; glow: CardBatch; dust: CardBatch; bank: CardBatch; fire: CardBatch };
+
+export function bankCardsOf(cards: FxCards): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.bank : cards.lit;
+}
+
+export function dustCardsOf(cards: FxCards): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.dust : cards.lit;
+}
+
+export function fireCardsOf(cards: FxCards, main: CardBatch): CardBatch {
+  return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.fire : main;
+}
+
+export const INK_DUST_LAYER = 0.5;
 
 export type Card = {
   x: number;
@@ -39,86 +64,6 @@ const DEPTH_BINS = 4096;
 
 const emptyCard =(): Card => ({ x: 0, y: 0, z: 0, size: 0, spin: 0, shape: 0, r: 0, g: 0, b: 0, alpha: 0, sx: 0, sy: 0, sz: 0 });
 
-const VERTEX = `
-  attribute vec3 offset;
-  attribute vec3 stretch;
-  attribute vec2 sizeSpin;
-  attribute float shape;
-  attribute vec4 tint;
-  uniform vec3 sunDir;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec3 vSun;
-  varying vec3 vUp;
-  varying vec2 vDepth;
-  void main() {
-    float c = cos(sizeSpin.y);
-    float s = sin(sizeSpin.y);
-    vec2 turned = mat2(c, s, -s, c) * (uv - 0.5) + 0.5;
-    float col = mod(shape, ${ATLAS_CELLS}.0);
-    float row = floor(shape / ${ATLAS_CELLS}.0);
-    vUv = (turned + vec2(col, row)) / ${ATLAS_CELLS}.0;
-    vBall = (uv - 0.5) * 2.0;
-    vRound = shape > ${CARD_SHAPES - 0.5} ? 1.0 : 0.0;
-    vTint = tint;
-    vSun = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-    vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-    vec4 mv = modelViewMatrix * vec4(offset, 1.0);
-    vec2 along = (modelViewMatrix * vec4(stretch, 0.0)).xy;
-    float reach = length(along);
-    vec2 ax = reach > 0.0001 ? along / reach : vec2(1.0, 0.0);
-    vec2 corner = position.xy * sizeSpin.x;
-    mv.xy += reach > 0.0001 ? ax * position.x * (sizeSpin.x + reach) + vec2(-ax.y, ax.x) * corner.y - along * 0.5 : corner;
-    float centreNdc = projectionMatrix[2][2] * mv.z + projectionMatrix[3][2];
-    vDepth = vec2(centreNdc, projectionMatrix[2][2] * sizeSpin.x * 0.5);
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-
-const LIT_FRAGMENT = `
-  uniform sampler2D shapes;
-  uniform vec3 sunColor;
-  uniform vec3 skyColor;
-  uniform vec3 groundColor;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec3 vSun;
-  varying vec3 vUp;
-  varying vec2 vDepth;
-  void main() {
-    float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
-    if (a <= 0.003) discard;
-    ${BALL_DEPTH}
-    vec3 n = normalize(vec3(vBall, sqrt(max(0.0, 1.0 - dot(vBall, vBall) * 0.5))));
-    vec3 sky = mix(groundColor, skyColor, 0.5 * dot(n, vUp) + 0.5);
-    float wrap = 0.5 * dot(n, vSun) + 0.5;
-    vec3 light = (mix(${CARD_LIGHT.scatter.toFixed(3)}, 1.0, wrap * wrap) * sunColor + sky) * ${(1 / Math.PI).toFixed(6)};
-    gl_FragColor = vec4(vTint.rgb * light, a);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }
-`;
-
-const GLOW_FRAGMENT = `
-  uniform sampler2D shapes;
-  varying vec2 vUv;
-  varying vec2 vBall;
-  varying float vRound;
-  varying vec4 vTint;
-  varying vec2 vDepth;
-  void main() {
-    float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
-    if (a <= 0.003) discard;
-    ${BALL_DEPTH}
-    gl_FragColor = vec4(vTint.rgb, a);
-    #include <colorspace_fragment>
-  }
-`;
-
 export class CardBatch {
   readonly mesh: THREE.Mesh;
   private readonly geo = new THREE.InstancedBufferGeometry();
@@ -128,6 +73,17 @@ export class CardBatch {
     sunColor: { value: new THREE.Color() },
     skyColor: { value: new THREE.Color() },
     groundColor: { value: new THREE.Color() },
+    sceneDepth: { value: null as THREE.Texture | null },
+    densitySize: { value: new THREE.Vector2(1, 1) },
+    nearFar: { value: new THREE.Vector2(0, 1) },
+    densityRim: { value: new THREE.Vector2(DUST_RIM.inner, DUST_RIM.outer) },
+    sandTint: { value: 0 },
+    playSeconds: CARD_CLOCK,
+    fxInk: TUNING.fxInk,
+    smokeLines: TUNING.smokeLines,
+    shadeDark: TUNING.shadeDark,
+    shadeShift: TUNING.shadeShift,
+    castDark: TUNING.castDark,
   };
   private readonly offsets: THREE.InstancedBufferAttribute;
   private readonly stretches: THREE.InstancedBufferAttribute;
@@ -141,7 +97,7 @@ export class CardBatch {
   private readonly binStarts = new Int32Array(DEPTH_BINS + 1);
   private readonly depth = new THREE.Vector3();
 
-  constructor(private readonly capacity: number, private readonly kind: 'lit' | 'glow', shapes: THREE.Texture, private readonly fillScreens: number) {
+  constructor(private readonly capacity: number, private readonly kind: CardKind, shapes: THREE.Texture, private readonly fillScreens: number) {
     if (!(fillScreens > 0)) throw new Error(`CardBatch needs a positive fill ceiling, got ${fillScreens}`);
     this.depths = new Float32Array(capacity);
     const quad = new THREE.PlaneGeometry(1, 1);
@@ -156,8 +112,28 @@ export class CardBatch {
     this.geo.instanceCount = 0;
     this.mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms));
     this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
+    this.mesh.renderOrder = kind === 'glow' ? CARD_ORDER.glow : CARD_ORDER.lit;
     this.uniforms.shapes.value = shapes;
+  }
+
+  drawn(): number {
+    return this.geo.instanceCount;
+  }
+
+  readDepth(depth: THREE.Texture, size: THREE.Vector2, camera: THREE.OrthographicCamera): void {
+    const u = this.uniforms;
+    u.sceneDepth.value = depth;
+    u.densitySize.value.copy(size);
+    u.nearFar.value.set(camera.near, camera.far);
+  }
+
+  tintTowardSand(share: { value: number }): void {
+    this.uniforms.sandTint = share;
+  }
+
+  fadeDensityRim(rim: { inner: number; outer: number }): void {
+    if (this.kind !== 'density') throw new Error(`Only density cards have a density rim, this batch draws ${this.kind}`);
+    this.uniforms.densityRim.value.set(rim.inner, rim.outer);
   }
 
   light(l: CardLight): void {
@@ -190,11 +166,7 @@ export class CardBatch {
       this.tints.setXYZW(i, c.r, c.g, c.b, c.alpha);
     });
     this.geo.instanceCount = this.cards.length;
-    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(0, this.cards.length * a.itemSize);
-      a.needsUpdate = true;
-    }
+    for (const a of [this.offsets, this.stretches, this.sizeSpins, this.shapes, this.tints]) uploadFirst(a, this.cards.length);
     this.cards.length = 0;
   }
 
@@ -255,15 +227,14 @@ export class CardBatch {
   }
 }
 
-function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    vertexShader: VERTEX,
-    fragmentShader: kind === 'lit' ? LIT_FRAGMENT : GLOW_FRAGMENT,
-    uniforms,
-    transparent: true,
-    depthWrite: false,
-    blending: kind === 'lit' ? THREE.NormalBlending : THREE.AdditiveBlending,
-  });
+const CARD_LOOKS: Record<CardKind, Pick<THREE.ShaderMaterialParameters, 'fragmentShader' | 'blending' | 'blendSrc' | 'blendDst' | 'depthTest'>> = {
+  lit: { fragmentShader: LIT_FRAGMENT, blending: THREE.NormalBlending },
+  glow: { fragmentShader: GLOW_FRAGMENT, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor },
+  density: { fragmentShader: DENSITY_FRAGMENT, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, depthTest: false },
+};
+
+function cardMaterial(kind: CardKind, uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({ vertexShader: CARD_VERTEX, uniforms, transparent: true, depthWrite: false, ...CARD_LOOKS[kind] });
 }
 
 export function createCardShapes(random: () => number): THREE.CanvasTexture {
@@ -271,29 +242,69 @@ export function createCardShapes(random: () => number): THREE.CanvasTexture {
   canvas.width = canvas.height = ATLAS_PX;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not create the card shape atlas');
-  const cell = ATLAS_PX / ATLAS_CELLS;
-  ctx.filter = `blur(${SHAPE_BLUR_PX}px)`;
   ctx.fillStyle = '#fff';
-  for (let i = 0; i < CARD_SHAPES; i++) {
-    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
-    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
-    for (const lump of lumpsOf(random)) {
-      ctx.beginPath();
-      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  drawShapes(ctx, random, 0, CARD_SHAPES, CLOUD_LUMPS);
+  drawShapes(ctx, random, CLUMP_FIRST, CLUMP_SHAPES, CLUMP_LUMPS);
+  ctx.filter = 'none';
+  for (let i = CLUMP_FIRST; i < CLUMP_FIRST + CLUMP_SHAPES; i++) grainCell(ctx, random, (i % ATLAS_CELLS) * ATLAS_CELL_PX, Math.floor(i / ATLAS_CELLS) * ATLAS_CELL_PX);
   const texture = new THREE.CanvasTexture(canvas);
   texture.flipY = false;
   return texture;
 }
 
-function lumpsOf(random: () => number): { x: number; y: number; r: number }[] {
-  const n = SHAPE_LUMPS.min + Math.floor(random() * SHAPE_LUMPS.spread);
+type GrainLayer = { cells: number; weight: number; heights: number[] };
+
+function grainCell(ctx: CanvasRenderingContext2D, random: () => number, left: number, top: number): void {
+  const cell = ATLAS_CELL_PX;
+  const layers: GrainLayer[] = GRAIN.layers.map(([cells, weight]) => ({ cells, weight, heights: Array.from({ length: (cells + 1) * (cells + 1) }, random) }));
+  const image = ctx.getImageData(left, top, cell, cell);
+  for (let y = 0; y < cell; y++) {
+    for (let x = 0; x < cell; x++) {
+      const k = (y * cell + x) * 4;
+      image.data.fill(255, k, k + 3);
+      image.data[k + 3] = Math.round(grainedAlpha(image.data[k + 3] / 255, x / cell, y / cell, layers) * 255);
+    }
+  }
+  ctx.putImageData(image, left, top);
+}
+
+function grainedAlpha(alpha: number, u: number, v: number, layers: readonly GrainLayer[]): number {
+  const rim = THREE.MathUtils.clamp((GRAIN.rim - Math.hypot(u - 0.5, v - 0.5)) / GRAIN.rimWidth, 0, 1);
+  const noise = layers.reduce((sum, layer) => sum + layerHeight(layer, u, v) * layer.weight, 0);
+  return THREE.MathUtils.clamp((alpha * rim + (noise - 0.5) * GRAIN.strength - GRAIN.cut) / GRAIN.soft, 0, 1);
+}
+
+function layerHeight(layer: GrainLayer, u: number, v: number): number {
+  const x = u * layer.cells;
+  const y = v * layer.cells;
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const at = (a: number, b: number) => layer.heights[b * (layer.cells + 1) + a];
+  const near = THREE.MathUtils.lerp(at(ix, iy), at(ix + 1, iy), x - ix);
+  const far = THREE.MathUtils.lerp(at(ix, iy + 1), at(ix + 1, iy + 1), x - ix);
+  return THREE.MathUtils.lerp(near, far, y - iy);
+}
+
+function drawShapes(ctx: CanvasRenderingContext2D, random: () => number, first: number, shapes: number, look: LumpLook): void {
+  const cell = ATLAS_CELL_PX;
+  ctx.filter = `blur(${look.blurPx}px)`;
+  for (let i = first; i < first + shapes; i++) {
+    const cx = (i % ATLAS_CELLS) * cell + cell / 2;
+    const cy = Math.floor(i / ATLAS_CELLS) * cell + cell / 2;
+    for (const lump of lumpsOf(random, look)) {
+      ctx.beginPath();
+      ctx.arc(cx + lump.x * cell, cy + lump.y * cell, lump.r * cell, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function lumpsOf(random: () => number, look: LumpLook): { x: number; y: number; r: number }[] {
+  const n = look.min + Math.floor(random() * look.spread);
   const lumps = [{ x: 0, y: 0, r: 0.24 }];
   for (let i = 1; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + random();
-    const reach = 0.1 + random() * 0.08;
+    const reach = look.reachFrom + random() * look.reachSpread;
     lumps.push({ x: Math.cos(a) * reach, y: Math.sin(a) * reach, r: 0.12 + random() * 0.08 });
   }
   return lumps;

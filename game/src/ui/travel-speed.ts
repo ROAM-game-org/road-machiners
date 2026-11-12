@@ -32,12 +32,18 @@ export function speedKey(kind: "slower" | "faster", onclick: () => void): HTMLEl
   return button;
 }
 
+export function heldPick(index: number, playing: number | null): number | null {
+  const pick = CONFIG.travelSpeeds[index];
+  return playing !== null && playing < pick ? pick : null;
+}
+
 export class TravelSpeed {
   readonly root: HTMLElement;
   private readonly slower: HTMLElement;
   private readonly faster: HTMLElement;
   private readonly lcd = el("span", { class: "speed-lcd" });
   private shown: number | null = null;
+  private held: number | null = null;
 
   constructor(private readonly source: SpeedSource) {
     this.slower = speedKey("slower", () => this.step(-1));
@@ -60,8 +66,16 @@ export class TravelSpeed {
     const playing = this.source.playing();
     this.lcd.classList.toggle("running", playing !== null);
     this.show(playing ?? CONFIG.travelSpeeds[index]);
+    this.markHeld(heldPick(index, playing));
     markDisabled(this.slower, index === 0 ? t("turn.speed.slowest") : null);
     markDisabled(this.faster, index === LAST ? t("turn.speed.fastest") : null);
+  }
+
+  private markHeld(pick: number | null): void {
+    if (pick === this.held) return;
+    this.held = pick;
+    this.lcd.classList.toggle("held", pick !== null);
+    bindAttr(this.lcd, "title", pick === null ? t("turn.speed") : t("turn.speed.held", { pick }));
   }
 
   private show(speed: number): void {

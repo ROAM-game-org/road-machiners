@@ -245,8 +245,11 @@
   --panel-l: 420px;
   --panel-xl: 520px;
   --panel-m-height: 340px;
-  --info-lists-height: 100px;
+  --info-card-height: 300px;
+  --info-well-min: 104px;
   --dock-width: 282px;
+  --journal-side-width: 400px;
+  --board-held-width: 400px;
   --minimap-size: 180px;
   --world-map-size: 640px;
   --map-chrome: 190px;
@@ -260,7 +263,7 @@
   --art-band-height: 200px;
   --art-band-phone-height: 72px;
   --ink-band-height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
-  --survey-picture-w: 132px;
+  --survey-picture-w: 96px;
   --quest-text-width: 680px;
   --quest-text-min: 620px;
   --quest-side-width: 230px;
@@ -270,11 +273,16 @@
   --quest-art-zoom: 1.08;
   --modal-close-gutter: 120px;
   --tab-min-width: 85px;
+  --char-width: 1000px;
+  --char-rank-col: 196px;
+  --char-buy-w: 64px;
+  --char-tab-h: 48px;
+  --char-standing-w: 520px;
   --tip-left: 457px;
   --inv-side-width: 235px;
   --inv-side-min: 180px;
   --col-name: 130px;
-  --col-trade: 148px;
+  --col-trade: 176px;
   --col-profit: 64px;
   --card-truck-min: 480px;
   --portrait-w: 128px;
@@ -345,6 +353,7 @@
 
 #ui:where(.compact) {
   --dock-width: 246px;
+  --journal-side-width: 300px;
 }
 
 #ui:where(.narrow) {

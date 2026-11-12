@@ -1,6 +1,6 @@
 
 import { deskAt } from '../sim/crime';
-import type { Msg } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
@@ -17,7 +17,7 @@ import type { Vec } from "../sim/vec";
 import { clickSetSpeed, playerOrder } from "../sim/steering";
 import { actBlock, playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setManualSpeed, setMoveOrder, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";
-import { lookOver } from "../sim/look-over";
+import { knowsCargo, lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
 import { actionBlockReason, contextKey, type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
 import { ContextPicker, getContextActions } from "../ui/hud-readout";
@@ -102,6 +102,7 @@ export type ContextHost = {
   openOutpost: () => void;
   openDowned: (vehicleId: string) => void;
   openLoot: (stockId: string) => void;
+  openLookedOver: (vehicleId: string) => void;
 };
 
 export class TruckContext {
@@ -123,7 +124,14 @@ export class TruckContext {
     const w = this.host.world();
     if (!id) return;
     if (action === 'mark' && !markError(w, id)) this.host.apply(markVehicle(w, id));
-    if (action === 'lookOver') this.refusable(() => lookOver(w, id));
+    if (action === 'lookOver') this.lookOverOrReopen(w, id);
+  }
+
+  private lookOverOrReopen(w: World, id: string): void {
+    const target = w.vehicles.find((v) => v.id === id);
+    if (!target || !knowsCargo(w, playerVehicle(w), target)) return this.refusable(() => lookOver(w, id));
+    if (this.host.playing()) return this.host.note(t('weapon.turnPlaying'));
+    this.host.openLookedOver(id);
   }
 
   private refusable(next: () => World): void {

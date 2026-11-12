@@ -9,7 +9,7 @@ import { ROAD_INDEX } from '../sim/road-index';
 import { randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
 import { basinUnder, isTerritory, landingStrips, reactorPos, territoryCaches, territoryPieces, territoryRoads, type BakedPiece, type LandingStrip } from '../sim/territory';
-import { BUILT_NONE, BUILT_SCRUB, BUILT_TRACK, groundAt, type BakedProp } from '../sim/terrain';
+import { BUILT_NONE, BUILT_SCRUB, BUILT_TRACK, cornerGroundAt, type BakedProp } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
 import { cornerRelief, fillFarm, placeBuildingGroups, touchesMarks } from './farm';
@@ -121,7 +121,7 @@ function seatPieces(d: MapDraft, pieces: readonly BakedPiece[], ease: number): v
   const pulls = new Map<number, { gap: number; centre: number }[]>();
   pieces.forEach((p, n) => {
     const low = anyLookBoxes(pieceObstacle(p, `seat-${n}`)).filter((b) => b.z0 < PHYSICS.truckClearance);
-    const centre = groundAt(before, p.pos.x, p.pos.y) - p.sink;
+    const centre = cornerGroundAt(before, p.pos.x, p.pos.y) - p.sink;
     for (const c of seatCorners(d.size, p, low, ease)) {
       const k = c.j * (d.size + 1) + c.i;
       pulls.set(k, [...(pulls.get(k) ?? []), { gap: c.gap, centre }]);

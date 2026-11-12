@@ -1,5 +1,5 @@
 {
- "mapHash": "73534ed8",
+ "mapHash": "c8331d80",
  "sites": [
   {
    "id": "survey-waterTower-4149",
@@ -1065,55 +1065,6 @@
    ]
   },
   {
-   "id": "survey-ruin-4533",
-   "type": "lookout",
-   "pos": {
-    "x": 846,
-    "y": 912
-   },
-   "props": [
-    {
-     "id": "ruin-4533",
-     "pos": {
-      "x": 846,
-      "y": 912
-     },
-     "reach": 1.4113909367728326
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "fallen-sun",
-     "tiles": 175
-    },
-    {
-     "landmark": "pump-station",
-     "tiles": 225
-    },
-    {
-     "landmark": "kiln",
-     "tiles": 325
-    },
-    {
-     "landmark": "salvage-yard",
-     "tiles": 450
-    },
-    {
-     "landmark": "orchard",
-     "tiles": 500
-    },
-    {
-     "landmark": "dustwell",
-     "tiles": 525
-    },
-    {
-     "landmark": "green-pit",
-     "tiles": 550
-    }
-   ]
-  },
-  {
    "id": "survey-ruin-4534",
    "type": "lookout",
    "pos": {
@@ -1135,76 +1086,6 @@
     {
      "landmark": "salvage-yard",
      "tiles": 300
-    },
-    {
-     "landmark": "fallen-sun",
-     "tiles": 500
-    }
-   ]
-  },
-  {
-   "id": "survey-ruin-4541",
-   "type": "lookout",
-   "pos": {
-    "x": 1125,
-    "y": 747
-   },
-   "props": [
-    {
-     "id": "ruin-4541",
-     "pos": {
-      "x": 1125,
-      "y": 747
-     },
-     "reach": 1.5986739268423114
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "fallen-sun",
-     "tiles": 150
-    },
-    {
-     "landmark": "granary",
-     "tiles": 425
-    },
-    {
-     "landmark": "kiln",
-     "tiles": 450
-    },
-    {
-     "landmark": "nose",
-     "tiles": 500
-    }
-   ]
-  },
-  {
-   "id": "survey-house-4550",
-   "type": "lookout",
-   "pos": {
-    "x": 1287,
-    "y": 435
-   },
-   "props": [
-    {
-     "id": "house-4550",
-     "pos": {
-      "x": 1287,
-      "y": 435
-     },
-     "reach": 1.2331052337212869
-    }
-   ],
-   "lay": "rise",
-   "clues": [
-    {
-     "landmark": "marshal-post",
-     "tiles": 75
-    },
-    {
-     "landmark": "salvage-yard",
-     "tiles": 375
     },
     {
      "landmark": "fallen-sun",
@@ -1979,40 +1860,7 @@
    ]
   },
   {
-   "id": "survey-skiff-26207",
-   "type": "boats",
-   "pos": {
-    "x": 326.1781005859375,
-    "y": 1225.11767578125
-   },
-   "props": [
-    {
-     "id": "skiff-26207",
-     "pos": {
-      "x": 326.1781005859375,
-      "y": 1225.11767578125
-     },
-     "reach": 0.7076589806845472
-    },
-    {
-     "id": "skiff-26208",
-     "pos": {
-      "x": 323.6546630859375,
-      "y": 1224.492919921875
-     },
-     "reach": 0.7076589806845472
-    }
-   ],
-   "lay": "flat",
-   "clues": [
-    {
-     "landmark": "bowl",
-     "tiles": 250
-    }
-   ]
-  },
-  {
-   "id": "survey-skiff-26209",
+   "id": "survey-skiff-26204",
    "type": "boats",
    "pos": {
     "x": 385.6114807128906,
@@ -2020,7 +1868,7 @@
    },
    "props": [
     {
-     "id": "skiff-26209",
+     "id": "skiff-26204",
      "pos": {
       "x": 385.6114807128906,
       "y": 1239.452392578125
@@ -2037,7 +1885,7 @@
    ]
   },
   {
-   "id": "survey-skiff-26213",
+   "id": "survey-skiff-26208",
    "type": "boats",
    "pos": {
     "x": 665.4669799804688,
@@ -2045,7 +1893,7 @@
    },
    "props": [
     {
-     "id": "skiff-26213",
+     "id": "skiff-26208",
      "pos": {
       "x": 665.4669799804688,
       "y": 1323.5369873046875
@@ -2053,7 +1901,7 @@
      "reach": 0.7076589806845472
     },
     {
-     "id": "skiff-26214",
+     "id": "skiff-26209",
      "pos": {
       "x": 662.4804077148438,
       "y": 1324.3123779296875
@@ -2061,7 +1909,7 @@
      "reach": 0.7076589806845472
     },
     {
-     "id": "fishingBoat-26212",
+     "id": "fishingBoat-26207",
      "pos": {
       "x": 660.3289794921875,
       "y": 1322.4962158203125
@@ -2094,7 +1942,7 @@
    ]
   },
   {
-   "id": "survey-fishingBoat-26215",
+   "id": "survey-fishingBoat-26210",
    "type": "boats",
    "pos": {
     "x": 771.047119140625,
@@ -2102,7 +1950,7 @@
    },
    "props": [
     {
-     "id": "fishingBoat-26215",
+     "id": "fishingBoat-26210",
      "pos": {
       "x": 771.047119140625,
       "y": 1362.42626953125

@@ -62,7 +62,6 @@ function knockOutPlayer(world: World, me: Vehicle): void {
   noteKnockout(world, me);
   settleRevenge(world, me);
   world.events.push({ t: "knockout", crash: crashOnly(world, me.id) });
-  openFirstFall(world, me.defeat!.foes);
 }
 
 function layPlayerDown(world: World, me: Vehicle, foes: string[], gaveUp: boolean): void {
@@ -102,6 +101,7 @@ export function advanceKnockout(world: World): string[] | null {
   delete me.defeat;
   p.state = "active";
   world.events.push({ t: "wake", gaveUp });
+  if (!gaveUp) openFirstFall(world, foes);
   return foes;
 }
 

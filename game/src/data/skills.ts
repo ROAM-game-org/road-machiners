@@ -48,7 +48,7 @@ export const MAX_RANK = RANK_COSTS.length;
 export type XpSourceDef = { skill: SkillId; weight: number; scaled: boolean; repeat: number };
 
 export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
-  roughTiles: { skill: 'driving', weight: 0.5, scaled: true, repeat: 0.9 },
+  roughTiles: { skill: 'driving', weight: 0.75, scaled: true, repeat: 0.9 },
   ram: { skill: 'driving', weight: 0.25, scaled: true, repeat: 0.7 },
   escape: { skill: 'driving', weight: 8, scaled: true, repeat: 0.25 },
   hit: { skill: 'perception', weight: 6, scaled: true, repeat: 0.95 },
@@ -56,11 +56,11 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
   discover: { skill: 'perception', weight: 10, scaled: false, repeat: 0 },
   fieldJob: { skill: 'machining', weight: 0.75, scaled: false, repeat: 0.7 },
   patch: { skill: 'machining', weight: 75, scaled: false, repeat: 0.5 },
-  search: { skill: 'machining', weight: 80, scaled: false, repeat: 0 },
-  heat: { skill: 'toughness', weight: 0.3, scaled: true, repeat: 0.9 },
+  search: { skill: 'machining', weight: 15, scaled: false, repeat: 0 },
+  heat: { skill: 'toughness', weight: 0.2, scaled: true, repeat: 0.9 },
   damage: { skill: 'toughness', weight: 1.5, scaled: false, repeat: 0.95 },
   knockout: { skill: 'toughness', weight: 100, scaled: false, repeat: 0.5 },
-  profit: { skill: 'social', weight: 2.4, scaled: false, repeat: 0.8 },
+  profit: { skill: 'social', weight: 4.2, scaled: false, repeat: 0.8 },
   deal: { skill: 'social', weight: 30, scaled: false, repeat: 0.5 },
   call: { skill: 'social', weight: 8, scaled: false, repeat: 0 },
   honk: { skill: 'social', weight: 2, scaled: false, repeat: 0 },
@@ -70,10 +70,9 @@ export const XP_SOURCES: Record<XpSource, XpSourceDef> = {
 };
 
 export const XP_RULES = {
+  gain: 1 / 3,
   easy: 0.25,
   hard: 2,
-  dailyCap: 55,
-  overCap: 0.1,
   repeatHalfLife: 200,
   forgetBelow: 0.01,
   regionTiles: 16,
@@ -166,8 +165,8 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
 };
 
 export const TARGET_DAYS = {
-  one: { 2: 4, 4: 16, 5: 30 },
-  every: { 1: 3, 2: 10 },
+  one: { 4: 48, 5: 90 },
+  every: { 1: 6, 2: 30 },
 } as const satisfies Record<'one' | 'every', Partial<Record<number, number>>>;
 
 export const TARGET_TOLERANCE = 0.3;

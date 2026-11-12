@@ -6,7 +6,7 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { BEAM_CAP, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { BEAM_CAP, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -56,7 +56,6 @@ describe('VehicleLights', () => {
     lights.update(true, 1, origin, xs.map((x) => litAt(x)));
     const shadowed = () => spots(scene).filter((b) => b.castShadow);
     expect(shadowed()).toHaveLength(3);
-    expect(shadowed().every((b) => b.shadow.autoUpdate)).toBe(true);
     const nearNoses = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
     const nose = bodyOf('scout').half.x;
     expect(nearNoses).toEqual([10, 20, 30].map((x) => Math.round(x + nose)));
@@ -65,17 +64,6 @@ describe('VehicleLights', () => {
     expect(shadowed()).toHaveLength(3);
     const moved = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
     expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
-  });
-
-  it('asks every shadowed beam for a fresh shadow map once the context is restored', () => {
-    const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
-    lights.update(true, 1, origin, [10, 20, 30, 40].map((x) => litAt(x)));
-    const shadowed = spots(scene).filter((b) => b.castShadow);
-    for (const b of shadowed) b.shadow.needsUpdate = false;
-    lights.contextRestored();
-    expect(shadowed).toHaveLength(3);
-    expect(shadowed.every((b) => b.shadow.needsUpdate)).toBe(true);
   });
 
   it('holds at most three shadowed beams and the capped plain ones however many trucks are lit', () => {
@@ -92,7 +80,19 @@ describe('VehicleLights', () => {
     expect(spots(scene)).toHaveLength(BEAM_CAP);
   });
 
-  it('zeroes idle beams and stops their shadow passes', () => {
+  it('holds the same lights all night however many trucks are lit, so no shader recompiles when headlights arrive', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    const counts = [0, 1, 2, 5, 12, 3].map((lit) => {
+      lights.update(true, 1, origin, Array.from({ length: lit }, (_, i) => litAt(i * 10)));
+      return spots(scene).length;
+    });
+    expect(counts).toEqual(Array(6).fill(BEAM_CAP));
+    lights.update(true, 1, origin, [litAt(0)]);
+    expect(spots(scene).filter((b) => b.intensity > 0)).toHaveLength(1);
+  });
+
+  it('zeroes idle beams', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
     lights.update(true, 1, origin, [litAt(0), litAt(10), litAt(20)]);
@@ -100,7 +100,6 @@ describe('VehicleLights', () => {
     const beams = spots(scene);
     expect(beams.length).toBeGreaterThan(0);
     expect(beams.every((b) => b.intensity === 0)).toBe(true);
-    expect(beams.filter((b) => b.castShadow).every((b) => !b.shadow.autoUpdate)).toBe(true);
   });
 
   it('removes every beam and frees shadow maps at dawn', () => {
@@ -135,19 +134,19 @@ describe('VehicleLights', () => {
     const all = [{ ...litAt(0), player: true }, litAt(10), litAt(20)];
     const glow = () => scene.children.some((c) => c instanceof THREE.PointLight);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(3);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
     expect(glow()).toBe(true);
     lights.update(false, 0.5, origin, [all[0], litAt(10, false), litAt(20, false)]);
     expect(spots(scene)).toHaveLength(1);
     expect(glow()).toBe(false);
     lights.update(true, 1, origin, all);
-    expect(spots(scene)).toHaveLength(3);
+    expect(spots(scene)).toHaveLength(BEAM_CAP);
     expect(glow()).toBe(true);
   });
 
   it('leaves the sun shadow settings alone', () => {
     const sun = sunLight();
-    expect(sun.shadow.mapSize.x).toBe(2048);
+    expect(sun.shadow.mapSize.x).toBe(SHADOW_MAP);
     expect(sun.shadow.normalBias).toBe(0.3);
   });
 });
@@ -198,7 +197,7 @@ describe('nightLightsWanted', () => {
 describe('lightScene shadow box', () => {
   const light = daylightAt(turnAt(17));
   const sky = new THREE.HemisphereLight();
-  const texel = 160 / 2048;
+  const texel = 160 / SHADOW_MAP;
   const place = (x: number, z: number) => {
     const sun = sunLight();
     lightScene(sun, sky, { x, y: 1.2, z }, light);
@@ -209,7 +208,7 @@ describe('lightScene shadow box', () => {
   };
   const texelOf = (sun: THREE.DirectionalLight, p: THREE.Vector3) => {
     const c = p.clone().applyMatrix4(sun.shadow.matrix);
-    return [c.x * 2048, c.y * 2048];
+    return [c.x * SHADOW_MAP, c.y * SHADOW_MAP];
   };
 
   it('keeps one texel grid on the ground wherever the truck is', () => {

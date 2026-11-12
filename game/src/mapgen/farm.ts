@@ -7,7 +7,7 @@ import { boxDistance, anyLookBoxes, type PosedBox } from '../sim/mapgen';
 import type { GradedPad } from '../sim/road-grade';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
-import { groundAt, type BakedProp } from '../sim/terrain';
+import { cornerGroundAt, type BakedProp } from '../sim/terrain';
 import { angleDiff, bearing, dist, segmentDist, type Vec } from '../sim/vec';
 import { footprintRelief, tileSteepness, type MapDraft } from './bake';
 import { at, gradeTerritoryRoads, mark, markLine, markRoads, onNewRoad, steep, throwOnRoadCliffs, type Touch } from './marks';
@@ -414,7 +414,7 @@ function standsOnFarm(d: MapDraft, t: TerritoryDef, p: BakedProp, segment: boole
 
 export function cornerRelief(d: MapDraft, p: BakedProp): number {
   const ground = { size: d.size, heights: d.heights };
-  const seat = groundAt(ground, p.pos.x, p.pos.y);
+  const seat = cornerGroundAt(ground, p.pos.x, p.pos.y);
   const look = p.kind;
   if (look === 'rock') throw new Error('A farm never places a rock');
   const boxes = anyLookBoxes({ id: `${look}-farm`, pos: p.pos, r: p.r, kind: 'landmark', look, yaw: p.yaw }).filter((b) => b.z0 < PHYSICS.truckClearance);
@@ -423,7 +423,7 @@ export function cornerRelief(d: MapDraft, p: BakedProp): number {
     for (const [i, j] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
       const x = b.center.x + b.axis.x * b.half.x * i - b.axis.y * b.half.y * j;
       const y = b.center.y + b.axis.y * b.half.x * i + b.axis.x * b.half.y * j;
-      worst = Math.max(worst, Math.abs(groundAt(ground, x, y) - seat));
+      worst = Math.max(worst, Math.abs(cornerGroundAt(ground, x, y) - seat));
     }
   }
   return worst;

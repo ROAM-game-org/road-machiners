@@ -13,7 +13,6 @@ import { t, type Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
-const CLEAR = t('weather.clear');
 const tipEn = (line: TipLine) => ({ label: en(line.label), value: en(line.value), tone: line.tone });
 const tipOf = (w: World) => getHudReadout(w).maxSpeedTip.map(tipEn);
 
@@ -56,11 +55,17 @@ describe('max speed tooltip', () => {
       const { w, v } = playerWith(tweak);
       const steps = maxSpeedSteps(w, v);
       if (steps.some((s) => s.kind === 'limp')) continue;
-      const rows = speedRows(CLEAR, steps);
+      const rows = speedRows(steps);
       const total = rows.reduce((sum, r) => sum + r.delta, kph(steps[0].speed));
       expect(total, name).toBe(getHudReadout(w).maxSpeed);
       expect(rows.every((r) => r.delta !== 0), name).toBe(true);
     }
+  });
+
+  it('labels the storm row with the dust storm', () => {
+    const { w, v } = playerWith(CASES.storm);
+    const labels = speedRows(maxSpeedSteps(w, v)).map((r) => en(r.label));
+    expect(labels).toContain(en(t('weather.storm')));
   });
 
   it('shows only short signed lines, never the table or the paragraph', () => {
@@ -106,7 +111,7 @@ describe('max speed tooltip', () => {
       if (steps.some((s) => s.kind === 'limp')) continue;
       const tip = tipOf(w);
       expect(tip[0].value, name).toBe(`${kph(steps[0].speed)} km/h`);
-      expect(tip.length, name).toBe(1 + speedRows(CLEAR, steps).length + speedNotes(w, v, steps).length);
+      expect(tip.length, name).toBe(1 + speedRows(steps).length + speedNotes(w, v, steps).length);
     }
   });
 
@@ -115,7 +120,7 @@ describe('max speed tooltip', () => {
     const readout = getHudReadout(w);
     expect(readout).not.toHaveProperty('maxSpeedRows');
     expect(readout).not.toHaveProperty('maxSpeedNotes');
-    for (const row of speedRows(CLEAR, maxSpeedSteps(w, v))) expect(Object.keys(row).sort()).toEqual(['delta', 'label', 'value']);
+    for (const row of speedRows(maxSpeedSteps(w, v))) expect(Object.keys(row).sort()).toEqual(['delta', 'label', 'value']);
   });
 });
 

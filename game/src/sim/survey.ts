@@ -173,6 +173,11 @@ export function surveyReward(turns: number): number {
   return fairM(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
 }
 
+export function surveyPay(world: World, shopId: string, points: SurveyPoint[]): number {
+  const turns = surveyLoopTurns(siteOf(shopId).pos, points.map((p) => surveySite(world, p.site).pos));
+  return surveyReward(turns);
+}
+
 function pickSites(world: World, free: SurveySite[]): SurveySite[] {
   const rules = CONTRACTS.survey;
   const first = free[randInt(world.marketRng, 0, free.length - 1)];
@@ -189,7 +194,7 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   const points = sites.map((s) => ({ site: s.id, found: false, done: false }));
   const turns = surveyLoopTurns(shop.pos, sites.map((s) => s.pos));
   const window = haulWindow(turns, false);
-  return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
+  return { id, shop: shop.id, kind: 'survey', points, reward: surveyPay(world, shop.id, points), deadline: world.turn + window, window, tier: 1 };
 }
 
 export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay; square: GridSquare };

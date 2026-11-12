@@ -10,7 +10,7 @@ import { endTurn } from '../sim/world';
 import { campWarmSteps } from '../sim/camp-warm';
 import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
-import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
+import { perfSnapshot, resetPerf, takePerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar, isNear, settleWoken } from '../sim/far';
 import { setThinning } from '../sim/fidelity';
@@ -34,7 +34,7 @@ import { errorText } from '../stall';
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 type LanguageTask = WorldTask & { questLanguage: QuestLanguage };
-export type TurnTask = LanguageTask & { tailSteps: number; fastTravel: boolean };
+export type TurnTask = LanguageTask & { tailSteps: number };
 export type LiveSight = { steps: number[]; tiles: number[][]; props: number[][] };
 export type TailPose = { pos: Vec; heading: number; speed: number; bend?: number };
 export type Tail = { frames: TurnFrames; next: DriveSnapshot; poses: Record<string, TailPose> };
@@ -135,7 +135,7 @@ export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
-export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat> } | WorkerFailure;
+export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure;
 
 export function postLabel(base: string, request: { terrain: unknown; obstacles: ObstacleSync }): string {
   const obstacles = request.obstacles.kind === 'same' ? '' : `-obstacles-${request.obstacles.kind}`;
@@ -145,7 +145,7 @@ export function postLabel(base: string, request: { terrain: unknown; obstacles: 
 export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: TurnState): PreparedTurn {
   return { ...turn, world: { ...turn.world, obstacles: applyObstacles(before.obstacles, obstacles) } };
 }
-export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat> } | WorkerFailure;
+export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure;
 
 function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain.heights);
@@ -254,13 +254,15 @@ export function startTurnWorker(): void {
     try {
       obstacles = applyObstacles(obstacles, request.obstacles);
       await ready;
+      const idle = takePerf();
       terrain = request.terrain ?? terrain;
       const task = taskOf(request, obstacles, terrain);
-      resetPerf();
-      answer(task, task.terrain);
+      answer(task, task.terrain, idle);
       buildWhileIdle(task.terrain, task.world);
     } catch (error) {
       self.postMessage({ id: request.id, error: errorText(error) } satisfies WorkerFailure);
+    } finally {
+      resetPerf();
     }
   };
 }
@@ -272,7 +274,7 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const center = world.vehicles.find((v) => v.id === world.player.vehicleId)?.pos;
   if (!center) return;
   const step = () => {
-    if (run === idleRun && buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs)) setTimeout(step, 0);
+    if (run === idleRun && timed('idle', () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs))) setTimeout(step, 0);
     else if (run === idleRun) warmCamps(run, campWarmSteps({ ...world, terrain }));
   };
   setTimeout(step, 0);
@@ -281,7 +283,7 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
 function warmCamps(run: number, steps: (() => void)[]): void {
   const next = steps.shift();
   if (!next || run !== idleRun) return;
-  timed('camp-warm', next);
+  timed('idle', () => timed('camp-warm', next));
   setTimeout(() => warmCamps(run, steps), 0);
 }
 
@@ -295,18 +297,18 @@ function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | n
   return { ...request, world, terrain };
 }
 
-function answer(request: Answerable, terrain: World['terrain']): void {
+function answer(request: Answerable, terrain: World['terrain'], idle: Record<string, PerfStat>): void {
   switch (request.kind) {
     case 'turn': {
       const { world: { obstacles, ...world }, ...turn } = computeRequestedTurn(request, terrain);
       const changed = diffObstacles(request.world.obstacles, obstacles);
-      self.postMessage({ id: request.id, turn: { ...turn, world }, obstacles: changed, perf: perfSnapshot() } satisfies TurnResponse, {
+      self.postMessage({ id: request.id, turn: { ...turn, world }, obstacles: changed, perf: perfSnapshot(), idle } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot, turn.tail?.next.snapshot].flatMap((s) => (s ? [s.buffer as ArrayBuffer] : [])),
       });
       return;
     }
     case 'preview':
-      self.postMessage({ id: request.id, preview: computePreview(request, terrain), perf: perfSnapshot() } satisfies PreviewResponse);
+      self.postMessage({ id: request.id, preview: computePreview(request, terrain), perf: perfSnapshot(), idle } satisfies PreviewResponse);
       return;
     default:
       throw new Error(`Unknown worker request kind ${(request as { kind: unknown }).kind}`);

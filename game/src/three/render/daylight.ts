@@ -1,5 +1,7 @@
 
 import * as THREE from "three";
+import { PERF } from "../../data/perf";
+import { PHYSICS } from "../../data/physics";
 import { TERRAIN } from "../../data/terrain";
 import { TIME } from "../../data/time";
 import { clockOf, sunAt } from "../../sim/sun";
@@ -11,7 +13,9 @@ import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 import { MODEL_FILL } from "./modelFill";
+import { syncInkLight, type InkLight } from "./inkPaint";
 export { enableSunShadows } from "./shadowFilter";
+export { refreshShadows } from "./shadowRefresh";
 
 const MIN_LIGHT_ELEVATION = 6;
 const TWILIGHT = 10;
@@ -19,7 +23,8 @@ const MOON_ELEVATION = 25;
 const MOON_DIR = TERRAIN.light;
 const WHITE = new THREE.Color(0xffffff);
 const GLASS_SATURATION = 0.9;
-const SHADOW_SOFTNESS = 1;
+const SHADOW_SOFTNESS = 1.5;
+export const SHADOW_MAP = 4096;
 
 type Key = {
   h: number;
@@ -165,6 +170,9 @@ function desaturate(c: THREE.Color): THREE.Color {
   return c.setHSL(hsl.h, hsl.s * GLASS_SATURATION, hsl.l);
 }
 
+const GOLDEN_HOUR_FROM = KEYS[1].h;
+const INK_FULL_DAY: InkLight = { ...colorsAt(GOLDEN_HOUR_FROM), elevation: GOLDEN_HOUR_FROM * DEG };
+
 export function daylightAt(turn: number): Daylight {
   const { h, dir } = sunHeight(clockOf(turn).hour);
   const colors = colorsAt(h);
@@ -188,7 +196,9 @@ export function daylightAt(turn: number): Daylight {
 }
 
 const SHADOW_REACH = 80;
-const CASTER_REACH = 70;
+const LOADED_GROUND_METERS = (TERRAIN.vision.radius * TERRAIN.vision.farFactor + PERF.stream.leadTiles) * PHYSICS.metersPerTile;
+const STEEPEST_SUN_STRETCH = 2;
+const CASTER_DEPTH = LOADED_GROUND_METERS * STEEPEST_SUN_STRETCH;
 
 const snapZ = new THREE.Vector3();
 const snapX = new THREE.Vector3();
@@ -217,29 +227,38 @@ export function backdropAt(light: Daylight): THREE.Color {
   return BACKDROP.clone().multiplyScalar((light.sunIntensity + light.skyIntensity) / NOON_REACH);
 }
 
-export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH): void {
+export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH, aim: Daylight = light): void {
   const { camera, mapSize } = sun.shadow;
   coverShadow(camera, reach);
-  const distance = reach + CASTER_REACH;
-  const flat = Math.cos(light.elevation);
+  const distance = reach + CASTER_DEPTH;
+  const flat = Math.cos(aim.elevation);
   const horiz = flat * distance;
-  const lift = Math.sin(light.elevation);
+  const lift = Math.sin(aim.elevation);
   const texel = (camera.right - camera.left) / mapSize.x;
-  const focus = snapToShadowTexels(drawn, { x: light.dir.x * flat, y: lift, z: light.dir.y * flat }, texel);
+  const focus = snapToShadowTexels(drawn, { x: aim.dir.x * flat, y: lift, z: aim.dir.y * flat }, texel);
   sun.target.position.set(focus.x, focus.y, focus.z);
-  sun.position.set(focus.x + light.dir.x * horiz, focus.y + lift * distance, focus.z + light.dir.y * horiz);
+  sun.position.set(focus.x + aim.dir.x * horiz, focus.y + lift * distance, focus.z + aim.dir.y * horiz);
   sun.color.copy(light.sun);
   sun.intensity = light.sunIntensity;
   sky.color.copy(light.sky);
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
   MODEL_FILL.sync(light);
+  syncInkLight(light, INK_FULL_DAY);
+}
+
+export function sunCasters(sun: THREE.DirectionalLight): THREE.OrthographicCamera | null {
+  if (!sun.castShadow || sun.intensity <= 0) return null;
+  sun.updateMatrixWorld();
+  sun.target.updateMatrixWorld();
+  sun.shadow.updateMatrices(sun);
+  return sun.shadow.camera;
 }
 
 export function sunLight(): THREE.DirectionalLight {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
   sun.shadow.normalBias = 0.3;
   sun.shadow.radius = SHADOW_SOFTNESS;
   coverShadow(sun.shadow.camera, SHADOW_REACH);
@@ -249,7 +268,7 @@ export function sunLight(): THREE.DirectionalLight {
 function coverShadow(camera: THREE.OrthographicCamera, reach: number): void {
   if (!(reach > 0 && Number.isFinite(reach))) throw new Error(`Shadow reach must be a finite positive number, got ${reach}`);
   if (camera.right === reach) return;
-  Object.assign(camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 2 * (2 * reach + CASTER_REACH) });
+  Object.assign(camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: CASTER_DEPTH + 3 * reach });
   camera.updateProjectionMatrix();
 }
 
@@ -305,10 +324,6 @@ export class VehicleLights {
 
   constructor(private readonly scene: THREE.Scene) {}
 
-  contextRestored(): void {
-    for (const light of this.shadowed) light.shadow.needsUpdate = true;
-  }
-
   sync(world: World, frames: Record<string, VehicleFrame>, lightTurn: number, reaches: (pos: V3) => boolean, truck: V3): void {
     const lit = world.vehicles
       .filter((v) => frames[v.id] && reaches(frames[v.id].pos))
@@ -329,8 +344,8 @@ export class VehicleLights {
       this.trim(this.shadowed, Math.min(order.length, SHADOW_BEAMS));
       this.trim(this.plain, plainBeams.length);
     }
-    this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam);
-    this.aim(this.plain, plainBeams, false, beam);
+    this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam, night ? SHADOW_BEAMS : 0);
+    this.aim(this.plain, plainBeams, false, beam, night ? PLAIN_BEAMS : 0);
     if (!night) return;
     if (!this.glow) {
       this.glow = new THREE.PointLight(PAL.truckGlow, GLOW_INTENSITY, GLOW_RANGE, GLOW_DECAY);
@@ -364,12 +379,11 @@ export class VehicleLights {
     return beam;
   }
 
-  private aim(pool: THREE.SpotLight[], vehicles: LitVehicle[], shadows: boolean, share: number): void {
-    while (pool.length < vehicles.length) pool.push(this.newBeam(shadows));
+  private aim(pool: THREE.SpotLight[], vehicles: LitVehicle[], shadows: boolean, share: number, held: number): void {
+    while (pool.length < Math.max(vehicles.length, held)) pool.push(this.newBeam(shadows));
     pool.forEach((beam, i) => {
       const v = vehicles[i];
       beam.intensity = v ? BEAM_INTENSITY * share : 0;
-      if (shadows) beam.shadow.autoUpdate = v !== undefined;
       if (v) this.aimAt(beam, v);
     });
   }

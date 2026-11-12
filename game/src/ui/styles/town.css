@@ -23,6 +23,10 @@
   min-height: 0;
   overflow: visible;
 }
+.town-page .ink-panel.fit {
+  flex: none;
+  min-height: 0;
+}
 .town-page .ink-head:has(+ .ink-panel.supplies) .qt-line {
   margin-bottom: 0;
 }
@@ -60,4 +64,55 @@
 #ui .town-page .quest-choice.compact {
   align-self: flex-start;
   padding: var(--space-2) var(--space-6);
+}
+
+.town-page .ink-head-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-9);
+  margin-bottom: var(--space-4);
+}
+.town-page .ink-head-line .quest-place {
+  margin: 0;
+}
+.town-services {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3) var(--space-9);
+  margin-left: auto;
+}
+.town-services .town-repair {
+  padding: 0;
+}
+.town-services .good-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0;
+  border: 0;
+}
+.town-services .good-name {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.town-services .service-meter {
+  width: calc(var(--space-10) * 3);
+}
+.town-services .trade {
+  flex: none;
+  width: auto;
+}
+.town-services .caption {
+  display: none;
+}
+:where(#ui.phone, #ui.narrow) .town-page .town-services {
+  width: 100%;
+  justify-content: flex-start;
+  margin-left: 0;
 }

@@ -4,6 +4,7 @@ import { TIME } from '../../data/time';
 import { CloudShadows } from './cloudShadows';
 import { daylightAt } from './daylight';
 import { withCut } from './armorCut';
+import { topCut } from './armorTop';
 import { ModelFill } from './modelFill';
 import { RenderScope, SightLimit } from './scope';
 
@@ -29,9 +30,25 @@ describe('model fill', () => {
     const material = new THREE.MeshLambertMaterial();
     new ModelFill().shadeTree(meshOf(material));
     const shader = lambertShader(material);
-    expect(Object.keys(shader.uniforms)).toEqual(['modelFill']);
+    expect(Object.keys(shader.uniforms).filter((key) => !key.startsWith('ink'))).toEqual(['modelFill']);
     expect(shader.fragmentShader).toContain('reflectedLight.indirectDiffuse += modelFill * max(normal.z, 0.0)');
     expect(material.customProgramCacheKey()).toContain('|fill');
+  });
+
+  it('keeps lamp and emissive light out of the ink rescale so headlights and lit glass still glow', () => {
+    const material = new THREE.MeshLambertMaterial();
+    new ModelFill().shadeTree(meshOf(material));
+    const source = lambertShader(material).fragmentShader;
+    const at = (code: string) => {
+      const index = source.indexOf(code);
+      expect(index, code).toBeGreaterThan(-1);
+      return index;
+    };
+    expect(at('totalEmissiveRadiance = vec3(0.0);')).toBeGreaterThan(at('#include <emissivemap_fragment>'));
+    expect(at('reflectedLight.directDiffuse = vec3(0.0);')).toBeGreaterThan(at('NUM_SPOT_LIGHTS > 0 ) && defined( RE_Direct )'));
+    expect(at('reflectedLight.directDiffuse = vec3(0.0);')).toBeLessThan(at('NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )'));
+    expect(at('inkToScreen(inkAtLevel(albedo, lit, level, 1.0) + inkLamp)')).toBeGreaterThan(-1);
+    expect(at('inkToScreen(inkGlow)')).toBeGreaterThan(at('vivid * vec3(0.5, 0.5, 0.66)'));
   });
 
   it('patches a material once and keeps the cloud patch beside it', () => {
@@ -50,7 +67,7 @@ describe('model fill', () => {
     const fill = new ModelFill();
     const material = new THREE.MeshLambertMaterial();
     fill.shadeTree(meshOf(material));
-    const copy = withCut(material, { wheels: [], lamps: [] });
+    const copy = withCut(material, { wheels: [], lamps: [], top: topCut({ cell: 0.1, i0: 0, j0: 0, top: [[40]] }, { along: [], across: [] }), stripe: new THREE.Color(), stripeAt: 0 });
     fill.shadeTree(meshOf(copy));
     const shader = lambertShader(copy);
     expect(shader.fragmentShader.match(/uniform vec3 modelFill;/g)).toHaveLength(1);

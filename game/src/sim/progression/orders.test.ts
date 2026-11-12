@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOWN_CHASSIS } from '../../data/chassis';
+import { PARTS } from '../../data/parts';
 import { REGION } from '../../data/region';
 import { startKit } from '../../data/start';
 import { playerVehicle } from '../damage';
@@ -51,9 +52,10 @@ describe('upgradeGear', () => {
     expect(o.world.player.money).toBe(capital);
   });
 
-  it('lets a fighter spend its starting money on a gun, since it keeps no goods money', () => {
+  it('lets a fighter spend its purse on a gun, since it keeps no goods money', () => {
     const w = atBowl();
-    w.player.money = capital;
+    const purse = PARTS.heavyMg.value * 3;
+    w.player.money = purse;
     shopState(w, 'bowl').stock.push(makePart(w, 'heavyMg', 0));
     const o = new Orders(w);
     const gunsBefore = mountedParts(playerVehicle(w), 'weapon').length;
@@ -61,7 +63,7 @@ describe('upgradeGear', () => {
     upgradeGear(o, FIGHTER);
 
     expect(mountedParts(playerVehicle(o.world), 'weapon').length).toBeGreaterThan(gunsBefore);
-    expect(o.world.player.money).toBeLessThan(capital);
+    expect(o.world.player.money).toBeLessThan(purse);
   });
 
   it('mounts a better part from garage storage instead of buying one', () => {

@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import type { GpuContext } from './gpu-context';
+import { CrtPass } from './render/crtPass';
+import type { InkLayer } from './render/inkLayer';
+import type { GroundCache } from './render/groundCache';
+import { INK_DUST_LAYER } from './render/particles/cards';
+import { TUNING, tuningVersion } from './render/inkTuning';
 
 export class ShaderBuildFailed extends Error {
   constructor(detail: string) {
@@ -113,6 +118,9 @@ export class ShaderWarmup {
   private drawnView = '';
   private readonly watched = new WeakSet<THREE.Object3D>();
   private sealed = new WeakSet<THREE.Object3D>();
+  private readonly crt: CrtPass;
+  private groundCache: GroundCache | null = null;
+  private inkLayer: InkLayer | null = null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -122,7 +130,18 @@ export class ShaderWarmup {
     private readonly gpu: GpuContext,
   ) {
     failLoudOnShaderError(renderer, gpu, this.verdicts);
+    this.crt = new CrtPass(renderer);
     gpu.onRestored(() => this.forget());
+  }
+
+  drawGroundThrough(cache: GroundCache): void {
+    this.groundCache = cache;
+  }
+
+  drawScene(): void {
+    const plain = () => this.renderer.render(this.scene, this.camera);
+    if (this.groundCache) this.groundCache.draw(this.camera, plain);
+    else plain();
   }
 
   private forget(): void {
@@ -131,26 +150,46 @@ export class ShaderWarmup {
     this.compiling = new Variants();
     this.sealed = new WeakSet();
     this.drawnView = '';
+    this.groundCache?.forget();
   }
 
   render(worldFrozen: boolean): void {
     this.verdicts.settle(this.gpu, performance.now());
     if (this.gpu.lost()) return;
     const view = this.viewKey();
-    if (worldFrozen && view === this.drawnView) return;
+    if (worldFrozen && view === this.drawnView && !this.groundSettling()) return;
     this.drawnView = view;
     this.holdUncompiled();
     try {
-      this.renderer.render(this.scene, this.camera);
+      this.drawView();
     } finally {
       for (const o of this.held) o.visible = true;
       this.held = [];
     }
   }
 
+  private groundSettling(): boolean {
+    return this.groundCache !== null && this.groundCache.coarse();
+  }
+
+  drawInkLayerThrough(layer: InkLayer): void {
+    this.inkLayer = layer;
+  }
+
+  private drawView(): void {
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithInkLayer());
+    else this.drawWithInkLayer();
+  }
+
+  private drawWithInkLayer(): void {
+    const layer = this.inkLayer;
+    if (layer && TUNING.fxInk.value >= INK_DUST_LAYER && layer.holds()) layer.render(this.renderer, this.camera, () => this.drawScene());
+    else this.drawScene();
+  }
+
   private viewKey(): string {
     const size = this.renderer.getSize(new THREE.Vector2());
-    return `${this.camera.position.toArray()}|${this.camera.quaternion.toArray()}|${this.camera.projectionMatrix.elements}|${size.x}x${size.y}`;
+    return `${tuningVersion()}|${this.camera.position.toArray()}|${this.camera.quaternion.toArray()}|${this.camera.projectionMatrix.elements}|${size.x}x${size.y}`;
   }
 
   ready(root: THREE.Object3D): boolean {

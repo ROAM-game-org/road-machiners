@@ -1,32 +1,34 @@
 import { runCommand } from "./run-command";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
-import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
+import { chassisPrice, chassisSwapRefusal, paintPrice, partTradePrice, type Supply } from "../sim/economy";
 import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/chaos-highway";
-import { goodsCount, mountCellsOf } from "../sim/grid";
+import { goodsCount } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
-import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepaint, outpostSellGood, outpostSellPart, outpostGoodSellPrice } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
-import { num, SPACE, t, type Msg } from "../text/msg";
+import { num, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, refusalText, siteName } from "../text/names";
-import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
+import { chassisPortrait, createIcon, createItemTipIcon, itemTip } from "./cards";
+import { filteredStock, garagePartRow, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type StockFilter } from "./garage-tabs";
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
 import { PartRows, type PartRow } from "./part-rows";
+import type { TruckPaint } from "../data/chassis";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
-const OUTPOST_TABS = ["market", "buyParts", "trucks"] as const satisfies readonly Tab[];
+export const OUTPOST_TABS = ["market", "buyParts", "sellParts", "trucks", "paint"] as const satisfies readonly Tab[];
 type OutpostTab = (typeof OUTPOST_TABS)[number];
 const GOOD_LOT = 4;
 
 function goodsHead(): HTMLElement {
   const c = GOODS_COLUMNS;
-  return el("div", { class: "goods-head row dim" }, el("span", {}, c.good), priceHead(c.buy), el("span", {}), el("span", { class: "end" }, c.held), el("span", {}));
+  return el("div", { class: "goods-head row dim" }, el("span", {}, c.good), priceHead(c.buy), priceHead(c.sell), el("span", { class: "end" }, c.held), el("span", {}));
 }
 
 export function outpostControls(w: World): { leave: boolean; driveOn: boolean } {
@@ -41,6 +43,8 @@ export class OutpostScreen {
   private slots = new RowSlots();
   private rows = new PartRows(() => this.render(), this.slots);
   private inventory: InventoryView;
+  private stockFilter: StockFilter = "all";
+  private paintPlan: TruckPaint | null = null;
 
   constructor(private host: UiHost) {
     this.root.classList.add("town-screen", "outpost-screen");
@@ -54,6 +58,7 @@ export class OutpostScreen {
   }
 
   private fresh(): void {
+    this.paintPlan = null;
     this.rows.collapse();
     this.slots.forget();
   }
@@ -86,9 +91,8 @@ export class OutpostScreen {
     return reasonButton([label], () => this.run(cmd), reason, key, title);
   }
 
-  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = ""): HTMLElement {
-    const short = shortBy(w.player.money, price);
-    return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
+  priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason: Msg | null = null, key = "", title: Msg | null = null): HTMLElement {
+    return buyButton(w.player.money, verb, price, () => this.run(cmd), reason, key, title);
   }
 
   private draw(): void {
@@ -111,11 +115,12 @@ export class OutpostScreen {
       "div",
       { class: "town-shop" },
       el("div", { class: "tabs" }, ...this.tabButtons()),
+      this.stockChips(post),
       this.error ? el("div", { class: "bad" }, this.error) : null,
       el("div", { class: "shop-body" }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
-    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
+    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, {}, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truckBody);
   }
 
@@ -179,6 +184,8 @@ export class OutpostScreen {
   private tabBody(w: World, post: Outpost): HTMLElement {
     if (this.tab === "trucks") return this.trucks(w, post);
     if (this.tab === "buyParts") return this.stock(w, post);
+    if (this.tab === "sellParts") return this.sellParts(w);
+    if (this.tab === "paint") return this.paint(w);
     const id = this.truckId(w);
     const buy = (x: World, k: Supply, n: number) => outpostBuySupply(x, k, n, id);
     const mine = truckFor(w, id);
@@ -205,8 +212,8 @@ export class OutpostScreen {
 
   private driveOn(): void {
     const w = this.host.world();
-    this.leave();
     this.host.apply(driveOn(w));
+    this.leave();
   }
 
   private run(cmd: ShopCommand): void {
@@ -227,46 +234,77 @@ export class OutpostScreen {
     const room = outpostGoodRoom(me);
     const reason = (n: number) => shortBy(w.player.money, price * n) ?? (room < n ? t("trade.noRoom") : null);
     const held = goodsCount(me)[REPAIR_GOOD] ?? 0;
+    const sell = outpostGoodSellPrice(w);
     return el(
       "div",
       { class: "good-row row" },
       el("div", { class: "good-name" }, createItemTipIcon(REPAIR_GOOD), el("b", { title: itemTip(REPAIR_GOOD) }, goodName(REPAIR_GOOD))),
       el(
         "div",
-        { class: "trade buy wide" },
-        caption(GOODS_COLUMNS.buy, true),
-        priceEl(price, shortBy(w.player.money, price) === null),
-        this.button(t("trade.plus", { n: 1 }), (x) => outpostBuyGood(x, 1), reason(1), `${REPAIR_GOOD}:buy1`),
-        this.button(t("trade.plus", { n: GOOD_LOT }), (x) => outpostBuyGood(x, GOOD_LOT), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
+        { class: "trade buy" },
+        caption(GOODS_COLUMNS.buy),
+        buyButton(w.player.money, t("trade.plus", { n: 1 }), price, () => this.run((x) => outpostBuyGood(x, 1)), reason(1), `${REPAIR_GOOD}:buy1`),
+        buyButton(w.player.money, t("trade.plus", { n: GOOD_LOT }), price * GOOD_LOT, () => this.run((x) => outpostBuyGood(x, GOOD_LOT)), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
       ),
+      goodSellCell({
+        good: REPAIR_GOOD,
+        one: sell,
+        all: held ? sell * held : null,
+        reason: held === 0 ? t("trade.nothingToSell") : null,
+        sellOne: () => this.run((x) => outpostSellGood(x, 1)),
+        sellAll: () => this.run((x) => outpostSellGood(x, held)),
+      }),
       el("div", { class: "count held" }, caption(GOODS_COLUMNS.held), el("span", { class: held === 0 ? "num dim" : "num" }, num(held, "int"))),
     );
   }
 
+  private stockChips(post: Outpost): HTMLElement | null {
+    if (this.tab !== "buyParts" || post.stock.length === 0) return null;
+    return stockFilterChips(post.stock, this.stockFilter, (f) => {
+      this.stockFilter = f;
+      this.fresh();
+      this.render();
+      this.rows.toTop(this.root);
+    });
+  }
+
   private stock(w: World, post: Outpost): HTMLElement {
-    const list = `stock:${this.shown}`;
+    const list = `stock:${this.shown}:${this.stockFilter}`;
     if (post.stock.length === 0 && !this.slots.has(list)) return el("div", { class: "dim" }, t("outpost.soldOut"));
-    return this.rows.list(list, post.stock.map((p) => this.partRow(w, p)));
+    const rows = filteredStock(post.stock, this.stockFilter).map((p) => this.partRow(w, p));
+    return partList(this.partLists(), list, rows, t("trade.noneOfKind"));
+  }
+
+  private partLists(): GarageList {
+    return { rows: this.rows, slots: this.slots, inventory: this.inventory };
+  }
+
+  private sellParts(w: World): HTMLElement {
+    const id = this.truckId(w);
+    return sellPartsBody({
+      w,
+      truck: truckFor(w, id),
+      list: this.partLists(),
+      price: (p) => partTradePrice(w, playerVehicle(w), p, "sell"),
+      sell: (p) => this.run((x) => outpostSellPart(x, p.id, id)),
+    });
+  }
+
+  private paint(w: World): HTMLElement {
+    return paintBody({
+      w,
+      plan: this.paintPlan,
+      setPlan: (plan) => {
+        this.paintPlan = plan;
+        this.render();
+      },
+      buy: (plan) => (plan ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => outpostRepaint(x, plan), null, "repaint") : null),
+    });
   }
 
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
-    const price = outpostPartPrice(w, p, id);
-    const short = shortBy(w.player.money, price);
     const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
-    return {
-      world: w,
-      part: p,
-      base: compareBase(this.inventory.selectedPart(), p),
-      price,
-      payable: short === null,
-      action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
-      done: t("trade.done.bought"),
-      onHover: this.hintMounts(p.defId),
-    };
-  }
-
-  private hintMounts(defId: string): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
+    return garagePartRow(w, this.partLists(), p, this.priceButton(w, t("goods.buy"), outpostPartPrice(w, p, id), (x) => outpostBuyPart(x, p.id, id), refused), t("trade.done.bought"));
   }
 }

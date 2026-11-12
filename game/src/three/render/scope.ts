@@ -9,6 +9,7 @@ import { outlineProps } from './models';
 import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
 import { PAL } from '../../render/palette';
+import { injectAfter } from './shaderPatch';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
@@ -33,6 +34,9 @@ export class RenderScope {
   private readonly owner = new Map<THREE.Object3D, Chunk>();
   private readonly frustum = new THREE.Frustum();
   private readonly viewProjection = new THREE.Matrix4();
+  private readonly casterFrustum = new THREE.Frustum();
+  private readonly casterProjection = new THREE.Matrix4();
+  private casts = false;
   private readonly test = new THREE.Box3();
   private readonly prepare: (obj: THREE.Object3D) => void;
   private readonly frameHooks: (() => void)[] = [];
@@ -193,13 +197,13 @@ export class RenderScope {
     this.frameHooks.push(fn);
   }
 
-  update(camera: THREE.OrthographicCamera): void {
+  update(camera: THREE.OrthographicCamera, caster: THREE.OrthographicCamera | null): void {
     this.root.updateWorldMatrix(true, false);
     if (!this.root.matrixWorld.equals(IDENTITY)) throw new Error('Render scope root moved away from the world origin');
     camera.updateMatrixWorld();
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
-    const range = this.cellRange(camera);
+    const range = this.withCaster(this.cellRange(camera), caster);
     for (const chunk of this.attached) if (!inRange(chunk.cell, range, this.perSide)) this.setShown(chunk, false);
     this.showChunksIn(range);
     this.frameHooks.forEach((hook) => hook());
@@ -262,8 +266,19 @@ export class RenderScope {
     };
   }
 
+  private withCaster(range: CellRange, caster: THREE.OrthographicCamera | null): CellRange {
+    this.casts = caster !== null;
+    if (!caster) return range;
+    caster.updateMatrixWorld();
+    this.casterProjection.multiplyMatrices(caster.projectionMatrix, caster.matrixWorldInverse);
+    this.casterFrustum.setFromProjectionMatrix(this.casterProjection);
+    return joinRanges(range, this.cellRange(caster));
+  }
+
   private shows(chunk: Chunk): boolean {
-    return this.limit.meets(chunk.box, MARGIN) && this.frustum.intersectsBox(this.test.copy(chunk.box).expandByScalar(MARGIN));
+    if (!this.limit.meets(chunk.box, MARGIN)) return false;
+    this.test.copy(chunk.box).expandByScalar(MARGIN);
+    return this.frustum.intersectsBox(this.test) || (this.casts && this.casterFrustum.intersectsBox(this.test));
   }
 
   private cellAt(pos: Vec): number {
@@ -291,6 +306,12 @@ export class RenderScope {
 const CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const;
 const REACH_BOX = new THREE.Box2();
 const REACH_POINT = new THREE.Vector2();
+
+function joinRanges(a: CellRange, b: CellRange): CellRange {
+  if (a.x1 < a.x0) return b;
+  if (b.x1 < b.x0) return a;
+  return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+}
 
 function inRange(cell: number, range: CellRange, perSide: number): boolean {
   const cx = cell % perSide;
@@ -337,6 +358,7 @@ export class SightLimit {
   private visible = visibleWindow(WINDOW_STEP, 0, 0);
   private readonly uniforms;
   private readonly patched = new WeakMap<THREE.Material, boolean>();
+  private readonly shadowDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
   constructor(private readonly mapSize: number) {
     this.uniforms = {
@@ -347,6 +369,14 @@ export class SightLimit {
       sightGrey: { value: new THREE.Vector2(TERRAIN.fog.seen.grey, TERRAIN.fog.seen.bright) },
       sightFog: { value: new THREE.Color(PAL.bg) },
       sightFogBand: { value: TERRAIN.vision.edgeFog },
+    };
+    this.shadowDepth.onBeforeCompile = (shader) => {
+      shader.uniforms.sightCenter = this.uniforms.sightCenter;
+      shader.uniforms.sightRadius = this.uniforms.sightRadius;
+      shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'varying vec2 vSightXZ;');
+      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
     };
   }
 
@@ -409,6 +439,7 @@ export class SightLimit {
       const sampled = hasSightAt(o);
       const materials: THREE.Material[] = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of materials) this.patchMaterial(m, grey, sampled);
+      o.customDepthMaterial ??= this.shadowDepth;
     });
   }
 
@@ -431,21 +462,13 @@ export class SightLimit {
         shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', 'vSightAt = sightAt;');
         shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightAt;');
       }
-      shader.vertexShader = inject(
-        shader.vertexShader,
-        '#include <project_vertex>',
-        `vec4 sightWorld = vec4(transformed, 1.0);
-        #ifdef USE_INSTANCING
-        sightWorld = instanceMatrix * sightWorld;
-        #endif
-        vSightXZ = (modelMatrix * sightWorld).xz;`,
-      );
+      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
         'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
-      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
       if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, (${greyAt} - sightWindow.xy) / sightWindow.z).r;
         float sightLuma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
@@ -458,6 +481,14 @@ export class SightLimit {
   }
 }
 
+const SIGHT_XZ_VERTEX = `vec4 sightWorld = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+        sightWorld = instanceMatrix * sightWorld;
+        #endif
+        vSightXZ = (modelMatrix * sightWorld).xz;`;
+
+const SIGHT_DISCARD = 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;';
+
 function hasSightAt(mesh: THREE.Mesh): boolean {
   const sightAt = (mesh.geometry as THREE.BufferGeometry).getAttribute('sightAt');
   if (sightAt === undefined) return false;
@@ -466,6 +497,5 @@ function hasSightAt(mesh: THREE.Mesh): boolean {
 }
 
 function inject(source: string, chunk: string, code: string): string {
-  if (!source.includes(chunk)) throw new Error(`Sight limit cannot patch a shader without ${chunk}`);
-  return source.replace(chunk, `${chunk}\n${code}`);
+  return injectAfter("sight-limit", source, chunk, code);
 }

@@ -55,8 +55,8 @@ function cutCounts(material: THREE.Material): { wheels: number; lamps: number } 
 function uniformsOf(material: THREE.Material): Record<string, { value: unknown }> {
   const shader = {
     uniforms: {} as Record<string, { value: unknown }>,
-    vertexShader: '#include <common>\n#include <project_vertex>',
-    fragmentShader: '#include <common>\n#include <clipping_planes_fragment>\n#include <aomap_fragment>',
+    vertexShader: THREE.ShaderLib.lambert.vertexShader,
+    fragmentShader: THREE.ShaderLib.lambert.fragmentShader,
   };
   material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
   return shader.uniforms;
@@ -204,7 +204,7 @@ describe('portrait scene', () => {
     const key = materialOf(lit[0]).customProgramCacheKey();
     expect(key).toContain('clouds');
     expect(key).toContain('armor-cut');
-    const shader = { uniforms: {} as Record<string, unknown>, vertexShader: '#include <common>\n#include <project_vertex>', fragmentShader: '#include <common>\n#include <clipping_planes_fragment>\n#include <aomap_fragment>' };
+    const shader = { uniforms: {} as Record<string, unknown>, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
     materialOf(lit[0]).onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
     expect(shader.fragmentShader).toContain('cloudDim');
     expect(shader.fragmentShader).toContain('discard');

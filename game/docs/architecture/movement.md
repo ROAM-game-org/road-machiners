@@ -77,6 +77,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 - `rideOf()` in `src/sim/body.ts` gives the collider center's height over flat ground at rest.
 - Each look's `comHeight` puts the center of mass at a fixed height over the ground, as `comY` in the collider frame. A bigger tire lifts the body without lifting its weight.
 - `applyTerrainGrip()` in `src/phys/drive.ts` sets wheel side friction per step from the ground and `rearSideGrip`. The rear tires hold less than the front.
+- `levelInAir()` in `src/phys/air.ts` pulls an airborne, upright unit's pitch spin toward the slope of `heightAt()` under it, capped by `PHYSICS.truck.airLevel*`. It acts only when no wheel of the truck touches, and leaves roll, yaw and takeoff to physics.
 - `holdStill()` in `src/phys/drive.ts` gives a braked, nearly stopped truck a brake hold. After the controller and the harpoon pull each step, it removes the slide along the ground and the yaw spin. It pulls back to an anchor kept in drive memory, capped by the ground grip. A truck holds on any slope its tires grip and slides past that. Trucks with no brakes are not held.
 
 ## Stranded trucks
@@ -145,7 +146,7 @@ Every taste is a cost and never a block, so components and reachability do not c
 - `src/sim/fidelity.ts` sets `LIVE_REACH`, the base far sight radius plus `PERF.liveMargin`. An NPC farther than that from the player has no physics body.
 - Every truck in far sight drives with physics, in fast travel too.
 - `src/sim/far.ts` moves bodiless NPCs along stored routes. They never crash or ram.
-- The physics ground is a square heightfield patch around the player. It reaches `LIVE_REACH` plus `PHYSICS.propLiveMargin` plus `PHYSICS.groundPatchSlack` tiles to each side. `syncDrive()` moves it once the player is more than half the slack from its center, so a physics snapshot never carries the whole map.
+- The physics ground is a square heightfield patch around the player, sampled from `groundAt()` every 2 m like the drawn mesh. It reaches `LIVE_REACH` plus `PHYSICS.propLiveMargin` plus `PHYSICS.groundPatchSlack` tiles to each side. `syncDrive()` moves it once the player is more than half the slack from its center, so a physics snapshot never carries the whole map.
 - A truck wakes `PERF.liveMargin` tiles outside far sight, so the wake is never seen.
 - `settleWoken()` runs before physics gives a far NPC its body. An NPC that wakes inside a prop, on a cliff or on another truck steps out to the nearest clear spot with `spotNear()` in `src/sim/free-spot.ts`, with a still trail there.
 
@@ -196,14 +197,14 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 - The rear unit has two braked, unpowered wheels.
 - Each unit's wheel rays skip the other unit's colliders in `rollUnits()`, since the sorokonoga's bed reaches under its tractor's drive axle.
 - The turn writes the bend of the two bodies back to the truck and checks it against the limit.
-- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the pivot share between the tractor's axles. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
+- `wheelLoads()` splits the rear unit's mass between its own axle and the pivot, and the tractor's own mass and the pivot share between its axles by lever arm about `axlesOf()`, since the tractor's axle midpoint may sit off its origin. It throws on a wheel with no load. Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
 - Far rigs, rigs on a tow rope and the driver's clearance roll have no body. They move the rear unit with `bendStep()`, the tractrix rule the tow bar uses. The rear axle follows the pivot, clamped at the bend limit.
 - Backing runs the bend away, as on a real rig. The driver steers against the bend with the coupling's `backGain`. A backing leg is capped at `backCap` tiles.
 
 ## Player travel
 
 - `src/three/travel.ts` owns automatic order advancement and held-Space state.
-- A click sets a drive-through order. A click on its point switches it between drive-through and stop-at. Shift-click sets stop-at. A click on a site stops at its nearest pad.
+- A click sets a drive-through order. A click on its point switches it between drive-through and stop-at. Shift-click sets stop-at. A click inside a site stops at its nearest pad. `siteUnder()` in `src/sim/sites.ts` reads a fort from its wall outline, so the ground beside the walls takes an ordinary order.
 - `TruckControls.order()` gives every player move order through `playerOrder()` in `src/sim/steering.ts`, which wraps `clickOrder()`. In route mode a click inside the zones' fan, `zoneAt()` and `zoneHalfAngle()`, puts the band's pace on the order and keeps a point beyond the zones' reach. `zonePace()` gives the pace: crawl, the speed now, or none. Any other click keeps the current order's pace.
 - `orderThrottle()` gives the band an order shows for the hover ring and the first turn's color. The pace lives only on the order, so it ends with it, and `setDirect(true)` drops it.
 - `orderSpeed()` in `src/sim/steering.ts` is the one rule for a move order's target speed, in physics, in far travel and in the fuel check. A paced order, through or stop, holds its pace within a turn's accel and brake, and a stop point still slows onto the point. The escort bot's orders carry no pace.
@@ -222,6 +223,8 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Turn worker
 
 - `TurnPreparation` prepares the next turn in the dedicated worker entry point `src/phys/turn-worker.ts` while the current turn plays. The worker uses the same turn pipeline and portable physics snapshots.
+- `TurnPreparation` keeps one request running in the worker and only the newest wanted world queued, the same rule as the preview. It posts that world when the running request answers or fails, so a world replaced before the worker starts it is never computed. The warm-up counts as running.
+- The worker sends the timers it ran between answers, like idle route cells and camp warming under `idle`, beside the turn's own timers in the next answer.
 - Only that entry calls `startTurnWorker()`. `src/phys/turn.ts` exports and starts nothing on import, since `plan.ts` imports it and the dev server would otherwise load it twice in a worker and start two Rapier instances.
 - `initPhysics()` hands every caller one Rapier init.
 - Each turn request carries the active quest language. The worker sets it before the turn, so a scene the turn opens plays in the player's language.
@@ -232,7 +235,7 @@ A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit 
 ## Travel speed
 
 - `Travel` holds the picked travel speed as an index into `CONFIG.travelSpeeds`. The speed control beside the turn button sets it through the `UiHost` hooks `travelSpeedIndex()`, `travelPlaySpeed()` and `stepTravelSpeed()`.
-- `TurnPreparation` measures the worker time of each turn and smooths it with `CONFIG.turnPrepSmoothing`. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
+- `TurnPreparation` times each turn from the moment it is posted to its answer, and keeps the median of the last `CONFIG.turnPrepSamples`. Only one request runs at a time, so the worker starts each one with nothing ahead of it. A speed pick never posts a turn again. `Travel.getSpeed()` returns the largest of `CONFIG.travelSpeeds` at or below the pick and below `MOVE_MS` over that time, never below 1. The speed display prints it. Held Space still fast-forwards and does not move it.
 - Playback eases to that step over `playEaseMs`. A single late turn still shows as a short hitch.
 - The pick is the pace of every turn the player watches: waypoint travel, odd jobs shifts, beacon waits, knocked-out and towed runs, jobs advanced by taps, and combat. `Travel.paceSpeed()` and `getSpeed()` read only the pick, the worker time and the held Space, with no list of runs, so a new job or state follows it without a change.
 - The pick survives pauses and is never saved, like all travel state.

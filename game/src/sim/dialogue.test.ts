@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
+import { PERK_NUMBERS, XP_RULES, XP_SOURCES } from '../data/skills';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import { PERSONALITIES, type PersonalityId } from '../data/personalities';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
+import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
 import { lineKey } from '../text/names';
 import { entryText, schemaOf } from '../text/resolve';
 import { QUESTS, questView } from './quests';
@@ -63,6 +63,11 @@ describe('topic data', () => {
       while (queue.length > 0) {
         for (const option of topic.nodes[queue.pop()!].options) {
           if (option.go === HUB || option.go === END) continue;
+          const handedTopic = handoffTopic(option.go);
+          if (handedTopic) {
+            expect(TOPICS[handedTopic], `${topic.id} → ${option.go}`).toBeDefined();
+            continue;
+          }
           const quest = handoffQuest(option.go);
           if (quest) {
             expect(QUESTS.quests[quest]?.checkpoints, `${topic.id} → ${option.go}`).toContain('start');
@@ -340,7 +345,7 @@ describe('honk', () => {
     npcAt(w, 'trader', 'independent', 36);
     refreshVision(w);
     const once = honk(w);
-    expect(practiceOf(once, 'honk')).toMatchObject([{ amount: 1, difficulty: null, xp: XP_SOURCES.honk.weight }]);
+    expect(practiceOf(once, 'honk')).toMatchObject([{ amount: 1, difficulty: null, xp: XP_SOURCES.honk.weight * XP_RULES.gain }]);
     expect(practiceOf(honk(once), 'honk')).toMatchObject([{ xp: 0 }]);
   });
 
@@ -622,7 +627,7 @@ describe('call practice', () => {
     const open = callVehicle(w, npc.id);
     expect(practiceOf(open, 'call')).toEqual([]);
     const asked = chooseText(open, "Where's the nearest town?");
-    expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight }]);
+    expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight * XP_RULES.gain }]);
   });
 
   it('pays nothing for a topic already taken up with the same driver, and in full with another driver', () => {
@@ -638,7 +643,7 @@ describe('call practice', () => {
     const other = addVehicle(again, 'independent', 'scout', [], { x: 30, y: 36 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     refreshVision(again);
-    expect(ask(again, other.id).player.xp).toBeCloseTo(once.player.xp + XP_SOURCES.call.weight);
+    expect(ask(again, other.id).player.xp).toBeCloseTo(once.player.xp + XP_SOURCES.call.weight * XP_RULES.gain);
   });
 
   it('pays nothing for a call hung up without a topic', () => {
@@ -1356,7 +1361,7 @@ describe('robber truce', () => {
     const { w, robber } = holdup();
     const next = askTruce(w, robber.id);
     expect(next.player.call?.node).toBe('tollCargo');
-    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here are your M's. Now back off.", 'Come and get it.', 'Hang up.']);
+    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here are your M's. Now back off.", 'Come and get it.']);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
   });
 

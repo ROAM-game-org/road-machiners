@@ -1,9 +1,9 @@
+import { volleyLine, volleyOfShot, type Volley } from './volley';
 import { isShield, partDef } from '../data/parts';
 import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
-import type { GridSquare } from '../sim/map-grid';
 import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
@@ -30,14 +30,16 @@ import { hasBasic, hasPerk } from '../sim/progress';
 import { finesOn } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
-import { MAP_GRID, REGION } from '../data/region';
+import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { isJunk, maxHp } from '../sim/wear';
 import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import { directionsText } from './directions-text';
+import { gridSquareText } from './grid-text';
+
+export { gridColumnLetter, gridRowNumber, gridSquareText } from './grid-text';
 import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
@@ -47,7 +49,7 @@ import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { compassText, damage, distanceText, fuelLiters, hp, kph, moneyM, moneyMsg } from './units';
+import { compassText, damage, distanceText, fuelLiters, kph, moneyM, moneyMsg } from './units';
 import { seesAll } from './see-all';
 import { bandAtLeast, isRaider } from '../sim/relations';
 
@@ -136,29 +138,6 @@ export function workProgress(work: WorkLeft): number {
   return 1 - work.turnsLeft / work.total;
 }
 
-export function wearLabel(part: PartInstance): Msg {
-  if (isJunk(part)) return t('cond.junk');
-  if (part.wear === 0) return t('cond.pristine');
-  return t('cond.rebuilt', { n: part.wear });
-}
-
-export type ConditionTier = 'pristine' | `w${number}` | 'junk';
-
-export function conditionTier(part: PartInstance): ConditionTier {
-  if (isJunk(part)) return 'junk';
-  if (part.wear === 0) return 'pristine';
-  return `w${part.wear}`;
-}
-
-export function showsCondition(part: PartInstance): boolean {
-  return partDef(part.defId).kind !== 'core';
-}
-
-export function conditionStatus(part: PartInstance): { text: Msg; tone: 'dim' | 'bad' } {
-  if (isJunk(part)) return { text: t('cond.scrapOnly'), tone: 'dim' };
-  if (part.hp === 0) return { text: t('cond.broken'), tone: 'bad' };
-  return { text: t('cond.hp', { hp: hp(part.hp), max: hp(maxHp(part)) }), tone: 'dim' };
-}
 
 const OBSTACLE_ID = new RegExp(`^(wreck|rock|bld|${OPENING_WRECK_ID}$)`);
 
@@ -273,15 +252,21 @@ export function formatNpcStates(world: World, vehicle: Vehicle): Msg[] {
   return out;
 }
 
-export function formatVehicleState(world: World, vehicle: Vehicle): Msg {
-  const motion = vehicle.speed > 0 ? t('state.moving', { n: kph(vehicle.speed) }) : t('state.parked');
+function shutDownText(world: World, vehicle: Vehicle): Msg | null {
   const left = shutDownTurnsLeft(world, vehicle);
-  const shutDown = left > 0 ? turnsText(t('state.shutDown'), left) : null;
-  const brain = vehicle.brain ? [formatNpcActivity(world, vehicle), ...formatNpcStates(world, vehicle)] : [];
-  const parts = [motion, shutDown, ...brain].filter((part) => part !== null);
-  return parts.reduce((first, rest) => t('state.join', { first, rest }));
+  return left > 0 ? turnsText(t('state.shutDown'), left) : null;
 }
 
+export function formatVehicleState(world: World, vehicle: Vehicle): Msg | null {
+  const parked = kph(vehicle.speed) > 0 ? null : t('state.parked');
+  const brain = vehicle.brain ? [formatNpcActivity(world, vehicle), ...formatNpcStates(world, vehicle)] : [];
+  const parts = [parked, shutDownText(world, vehicle), ...brain].filter((part) => part !== null);
+  return parts.length === 0 ? null : parts.reduce((first, rest) => t('state.join', { first, rest }));
+}
+
+export function formatCardState(world: World, vehicle: Vehicle): Msg | null {
+  return vehicle.id === world.player.vehicleId ? shutDownText(world, vehicle) : formatVehicleState(world, vehicle);
+}
 function turnsText(label: Msg, turnsLeft: number | null): Msg {
   return turnsLeft === null ? label : t('state.withTurns', { label, n: turnsLeft });
 }
@@ -295,7 +280,7 @@ function combatLine(world: World, vehicle: Vehicle): Msg | null {
 }
 
 export type LogSpan = { text: Msg; cls: string };
-export type LogLine = { text: Msg; cls: string; spans?: LogSpan[] };
+export type LogLine = { text: Msg; cls: string; spans?: LogSpan[]; volley?: Volley; stamp?: string };
 
 const line = (text: Msg, cls: string): LogLine => ({ text, cls });
 
@@ -354,11 +339,24 @@ function gunShotText(world: World, e: Extract<GameEvent, { t: 'shot' }>): LogLin
   const me = world.player.vehicleId;
   const damaged = shotDamage(e);
   if (e.shooter !== me && e.target !== me && !damaged.has(me)) return null;
+  return dealtNothing(e, damaged) ? missLine(world, e) : hitText(world, e, damaged);
+}
+
+function hitText(world: World, e: Extract<GameEvent, { t: 'shot' }>, damaged: Map<string, PartHit[]>): LogLine {
+  const me = world.player.vehicleId;
   const strays = [...damaged].filter(([id]) => id !== e.target).flatMap(([id, h]) => [
     { text: t('log.strayHits', { who: vehicleName(world, id) }), cls: '' },
     ...damageSpans(world, id, h),
   ]);
   return spanLine(hurts(damaged.get(me)) ? 'bad' : '', [...aimedSpans(world, e, damaged.get(e.target) ?? []), ...strays]);
+}
+
+function dealtNothing(e: Extract<GameEvent, { t: 'shot' }>, damaged: ReadonlyMap<string, PartHit[]>): boolean {
+  return ![...damaged.values()].some(hurts) && !e.rounds.some((r) => r.crit || hitsAim(e, r));
+}
+
+function missLine(world: World, e: Extract<GameEvent, { t: 'shot' }>): LogLine {
+  return volleyLine(volleyOfShot(`${e.shooter}/${e.weapon}/${e.target}/${e.aim}`, partName(world, e.shooter, e.weapon), vehicleName(world, e.target), e.aim === 'body' ? null : partName(world, e.target, e.aim), e.rounds.length, e.damageChance));
 }
 
 function firedWithLine(world: World, e: Extract<GameEvent, { t: 'shot' }>): boolean {
@@ -714,23 +712,6 @@ export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
 }
 
-const GRID_COLUMNS = ['map.column.a', 'map.column.b', 'map.column.c', 'map.column.d', 'map.column.e', 'map.column.f', 'map.column.g', 'map.column.h'] as const;
-
-export function gridColumnLetter(column: number): Msg {
-  const key = GRID_COLUMNS[column];
-  if (key === undefined) throw new Error(`Map grid column ${column} has no letter`);
-  return t(key);
-}
-
-export function gridRowNumber(row: number): Msg {
-  if (!Number.isInteger(row) || row < 0 || row >= MAP_GRID.squares) throw new Error(`Map grid row ${row} has no number`);
-  return num(row + 1, 'int');
-}
-
-export function gridSquareText(square: GridSquare): Msg {
-  return t('map.square', { column: gridColumnLetter(square.column), row: gridRowNumber(square.row) });
-}
-
 export function surveyClueText(clue: SurveyClue): Msg {
   return t('contract.surveyClue', { square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
@@ -743,13 +724,6 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   if (point.done) throw new Error(`Survey place ${point.site} is already done`);
   const clue = surveyClue(c, point);
   return el('span', { class: 'contract-clue' }, surveyPlaceText(clue), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
-}
-
-export function surveyWayText(world: World, c: SurveyContract, point: SurveyPoint): Msg {
-  const clue = surveyClue(c, point);
-  const way = surveyWay(world, c, point);
-  if (!way) return surveyClueText(clue);
-  return t('contract.surveyWay', { square: gridSquareText(clue.square), site: siteName(c.shop), way: directionsText(way), lay: t(`contract.lay.${clue.lay}`) });
 }
 
 export function surveyWayLine(world: World, c: SurveyContract, point: SurveyPoint): HTMLElement {
@@ -766,6 +740,18 @@ export function surveyWayLines(world: World, c: SurveyContract): HTMLElement[] {
 
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyPlaceLine(c, p));
+}
+
+export function surveyOpenSquares(c: SurveyContract): Msg {
+  return list(c.points.filter((p) => !p.done).map((p) => {
+    const clue = surveyClue(c, p);
+    return concat([t(`contract.placeName.${clue.type}`), SPACE, gridSquareText(clue.square)]);
+  }));
+}
+
+export function surveyClueTip(c: SurveyContract): Msg {
+  const lines = c.points.filter((p) => !p.done).map((p) => surveyPlaceText(surveyClue(c, p)));
+  return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [SPACE, line])));
 }
 
 export function surveyPlacesLeft(c: SurveyContract): Msg {
@@ -1042,6 +1028,7 @@ function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed
 }
 
 const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent, { t: K }>) => LogLine | null } = {
+  roadHorn: () => null,
   activity: activityText,
   stall: stallText,
   preyPassed: preyPassedText,
@@ -1189,10 +1176,6 @@ export function estimateTitle(e: SaleEstimate): Msg | undefined {
     case "unrecorded": return t('goods.noCost');
     default: return t('goods.avgCost', { cost: moneyMsg(e.avgCost) });
   }
-}
-
-export function lotTitle(direction: "buy" | "sell", count: number, total: number): Msg {
-  return direction === "buy" ? t('goods.buyLot', { n: count, total: moneyMsg(total) }) : t('goods.sellLot', { n: count, total: moneyMsg(total) });
 }
 
 export function commandFailure(world: World, err: unknown): Msg {

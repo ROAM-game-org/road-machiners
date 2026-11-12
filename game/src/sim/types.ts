@@ -239,7 +239,6 @@ export type Refusal =
   | { id: 'badLayout'; cause: PlacementRefusal }
   | { id: 'itemGone' }
   | { id: 'cargoOwed' }
-  | { id: 'notHiring' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
   | { id: 'twoInTheWay' }
@@ -449,12 +448,9 @@ export type NpcState = {
 export type Octant = 'east' | 'southEast' | 'south' | 'southWest' | 'west' | 'northWest' | 'north' | 'northEast';
 export type Span = 'near' | 'fair' | 'far';
 export type Cardinal = 'north' | 'east' | 'south' | 'west';
-export type Cue =
-  | { kind: 'site'; id: string }
-  | { kind: 'deck'; id: string }
-  | { kind: 'prop'; look: LandmarkLook }
-  | { kind: 'fork'; nth: number }
-  | { kind: 'none' };
+export type LandmarkCue = { kind: 'site'; id: string } | { kind: 'deck'; id: string } | { kind: 'prop'; look: LandmarkLook };
+export type Cue = LandmarkCue | { kind: 'fork'; nth: number } | { kind: 'none' };
+export type LeaveCue = LandmarkCue | { kind: 'square'; column: number; row: number };
 export type RoadName = { kind: 'to'; site: string } | { kind: 'heading'; octant: Octant };
 export type TurnSide = 'left' | 'right' | 'keepLeft' | 'keepRight';
 export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' | 'place' };
@@ -464,7 +460,7 @@ export type DirectionStep =
   | { do: 'turn'; side: TurnSide; at: Cue; road: RoadName; span: Span }
   | { do: 'arrive'; site: string; area: boolean }
   | { do: 'gate'; side: Cardinal }
-  | { do: 'leave'; at: Cue; octant: Octant; lean: Cardinal | null; span: Span }
+  | { do: 'leave'; at: LeaveCue; octant: Octant; lean: Cardinal | null; span: Span }
   | { do: 'straight'; octant: Octant; span: Span }
   | { do: 'search'; clue: { kind: 'site'; id: string } | { kind: 'wreck' }; rough: boolean }
   | { do: 'askAgain' }
@@ -518,7 +514,6 @@ export type Player = {
   deeds: Deed[];
   xp: number;
   ranks: Record<SkillId, number>;
-  xpToday: Record<SkillId, number>;
   xpWindow: number;
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
@@ -651,6 +646,7 @@ export type GameEvent =
   | { t: 'say'; speaker: string; to: string; line: LineId; vars: CallVars }
   | { t: 'call'; with: string; outcome: 'opened' | 'ended' }
   | { t: 'honk'; vehicle: string }
+  | { t: 'roadHorn'; vehicle: string; cause: RoadHornCause; other: string; at: Vec }
   | { t: 'aidStarted'; giver: string; receiver: string }
   | { t: 'patch'; patcher: string; client: string; outcome: 'started' | 'lapsed' | 'broken' }
   | { t: 'patch'; patcher: string; client: string; outcome: 'done'; price: number }
@@ -782,3 +778,5 @@ export type World = {
 };
 
 export type ShelteredTruck = { vehicle: Vehicle; site: string };
+
+export type RoadHornCause = 'sight' | 'brake';

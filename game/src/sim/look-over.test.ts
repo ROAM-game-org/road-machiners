@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { LOOK_OVER } from '../data/npcs';
+import { noteAttack } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { addGoods } from './inventory';
 import { canLookOver, knowsCargo, lookOver, lookOverError, perceivedLoad, startLookOver } from './look-over';
 import { cargoValue } from './market';
 import { settleStates, stateOf, workOf } from './states';
-import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, startCombat, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn, Refused } from './world';
 
@@ -163,5 +164,51 @@ describe('what a truck knows of a load', () => {
     expect(knowsCargo(w, playerVehicle(w), target)).toBe(false);
     w.player.perks.push('cargoEye');
     expect(knowsCargo(w, playerVehicle(w), target)).toBe(true);
+  });
+});
+
+describe('a look-over and a fight between its trucks', () => {
+  it('refuses to start while the two trucks fight, whoever opened fire, for the player and an NPC', () => {
+    for (const playerOpens of [true, false]) {
+      const { w, target } = lookerWorld(5);
+      const me = playerVehicle(w);
+      if (playerOpens) startCombat(w, me, target);
+      else startCombat(w, target, me);
+      expect(canLookOver(w, me, target)).toEqual({ id: 'inCombat' });
+      expect(canLookOver(w, target, me)).toEqual({ id: 'inCombat' });
+      expect(lookOverError(w, target.id)).toEqual({ id: 'inCombat' });
+    }
+  });
+
+  it('is not refused by a fight with a third truck', () => {
+    const { w, target } = lookerWorld(5);
+    const third = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 36 });
+    startCombat(w, playerVehicle(w), third);
+    expect(refusalOf(w, target)).toBeNull();
+  });
+
+  it('breaks for the player looker when the looked-at truck shoots, teaching nothing', () => {
+    const { w, target } = lookerWorld(5);
+    const next = endTurn(lookOver(w, target.id), (d) => {
+      testDrive(d);
+      noteAttack(d, vehicleById(d, target.id), playerVehicle(d), false);
+    });
+    expect(next.events.some((e) => e.t === 'lookedOver')).toBe(false);
+    expect(next.events.some((e) => e.t === 'stateEnded' && e.state.kind === 'lookOver' && e.ending === 'broken')).toBe(true);
+    expect(stateOf(next, 'sizedUp', next.player.vehicleId, target.id)).toBeNull();
+    expect(knowsCargo(next, playerVehicle(next), vehicleById(next, target.id))).toBe(false);
+  });
+
+  it('breaks for an NPC looker when the player shoots it, teaching nothing', () => {
+    const { w, target } = lookerWorld(5);
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    addGoods(w, playerVehicle(w), 'meds', 3);
+    startLookOver(w, target, playerVehicle(w));
+    const next = endTurn(w, (d) => {
+      testDrive(d);
+      noteAttack(d, playerVehicle(d), vehicleById(d, target.id), false);
+    });
+    expect(next.events.some((e) => e.t === 'lookedOver')).toBe(false);
+    expect(stateOf(next, 'sizedUp', target.id, next.player.vehicleId)).toBeNull();
   });
 });

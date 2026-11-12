@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
 import { fireBlock, fireWeapons, hitOdds } from '../sim/combat';
 import { makePart } from '../sim/factory';
@@ -8,7 +8,7 @@ import { vehicleStats } from '../sim/stats';
 import type { Vehicle, World } from '../sim/types';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import { refreshVision } from '../sim/vision';
-import { hitCardRows } from './hitCard';
+import { HitCard, hitCardRows } from './hitCard';
 import { ammoText } from './weapons';
 import type { Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
@@ -224,5 +224,74 @@ describe('hover card on my own hauler', () => {
     const group = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, 0);
     expect(hitCardRows(w, haulerOf(w).id)).toBeNull();
     expect(hitCardRows(w, group.id)).not.toBeNull();
+  });
+});
+
+class Node_ {
+  className = "";
+  style: Record<string, string> = {};
+  children: Node_[] = [];
+  constructor(readonly tag: string, readonly own = "") {}
+  append(...c: Node_[]) { this.children.push(...c); }
+  replaceChildren(...c: Node_[]) { this.children = c; }
+  setAttribute() {}
+  addEventListener() {}
+  get childElementCount(): number { return this.children.length; }
+  get textContent(): string { return this.own + this.children.map((c) => c.textContent).join(""); }
+  find(cls: string): Node_[] {
+    return [...(this.className.split(" ").includes(cls) ? [this] : []), ...this.children.flatMap((c) => c.find(cls))];
+  }
+}
+
+describe("the rendered hover card", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", { createElement: (t: string) => new Node_(t), createElementNS: (_n: string, t: string) => new Node_(t), createTextNode: (s: string) => new Node_("#text", s) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  function render(world: World, id: string, selected: string | null): Node_ {
+    const host = new Node_("div");
+    new HitCard(host as unknown as HTMLElement).render(world, id, selected);
+    return host.children[0];
+  }
+
+  it("says No weapons for a truck without guns", () => {
+    const world = emptyWorld();
+    const bare = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 33, y: 30 }, Math.PI / 2);
+    refreshVision(world);
+    const wells = render(world, bare.id, null).find("hc-well");
+    expect(wells[1].find("hc-none")[0]?.textContent).toBe("No weapons");
+  });
+
+  it("keeps its box while hidden and drops it only when empty", () => {
+    const { world, them } = createDuel();
+    const host = new Node_("div");
+    const card = new HitCard(host as unknown as HTMLElement);
+    card.render(world, them.id, null);
+    const root = host.children[0];
+    card.show();
+    card.hide();
+    expect(root.style).toMatchObject({ visibility: "hidden" });
+    expect(root.style.display).not.toBe("none");
+    card.show();
+    expect(root.style.visibility).toBe("");
+    card.render(world, null, null);
+    expect(root.style.display).toBe("none");
+  });
+
+  it("marks only the selected gun of mine", () => {
+    const { world, them, mine } = createDuel();
+    expect(render(world, them.id, mine.part.id).find("selected")).toHaveLength(1);
+    expect(render(world, them.id, null).find("selected")).toHaveLength(0);
+  });
+
+  it("prints a reason every blocked row shares once", () => {
+    const { world, me, them } = createDuel();
+    if (!mountPart(world, me, makePart(world, 'mg', 0))) throw new Error('No deck room for a second gun');
+    me.shutDown = { from: world.turn, until: world.turn + 1 };
+    const wells = render(world, them.id, null).find("hc-well");
+    const reasons = wells[0].find("hc-reason");
+    expect(vehicleStats(world, me).weapons.length).toBeGreaterThan(1);
+    expect(reasons.map((r) => r.textContent)).toEqual(["shut down"]);
   });
 });

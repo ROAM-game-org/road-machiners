@@ -46,7 +46,7 @@ const unlinkedPrograms = (page) => page.evaluate(() => {
   const gl = g.renderer.getContext();
   const programs = g.renderer.info.programs;
   const problems = programs.filter((p) => !gl.getProgramParameter(p.program, gl.LINK_STATUS)).map((p) => `program ${p.name || p.cacheKey.slice(p.cacheKey.lastIndexOf('}') + 1)} did not link`);
-  if (!programs.some((p) => p.cacheKey.includes('facets'))) problems.push('no ground program found');
+  if (!programs.some((p) => p.cacheKey.includes('|roads'))) problems.push('no ground program found');
   return problems;
 });
 
@@ -60,7 +60,7 @@ export const missingGroundShare = (page) => page.evaluate(([sentinel, sample]) =
     g.scene.background.setHex(sentinel);
     const copy = new OffscreenCanvas(canvas.width, canvas.height);
     try {
-      try { g.renderer.render(g.scene, g.rig.camera); } catch {}
+      try { g.shaders.drawScene(); } catch {}
       copy.getContext('2d').drawImage(canvas, 0, 0);
     } finally {
       g.scene.background.setHex(background);
@@ -104,7 +104,7 @@ const NIGHT_TURN_FACTOR = 3;
 
 const PANEL_CHECK_MS = 1000;
 
-export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs, retry = async () => {}) => {
+export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs) => {
   const deadline = limitMs === 0 ? Infinity : Date.now() + limitMs;
   for (;;) {
     const left = deadline - Date.now();
@@ -114,8 +114,13 @@ export const waitForTurnDismissingPanels = async (page, turnDone, arg, limitMs, 
     });
     if (done) return;
     await page.keyboard.press('Escape');
-    await retry();
+    await page.evaluate(endTurnIfNotPlayed, arg);
   }
+};
+
+const endTurnIfNotPlayed = (turn) => {
+  const g = window.__ROAM__;
+  if (g.state.turn < turn && !g.travel.isPlaying(g.anim)) g.endTurn();
 };
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
@@ -127,7 +132,7 @@ const playNightTurns = async (page, turns, turnLimitMs) => {
     await waitForTurnDismissingPanels(page, (turn) => {
       const g = window.__ROAM__;
       return g.state.turn >= turn && !g.travel.isPlaying(g.anim);
-    }, next, turnLimitMs * NIGHT_TURN_FACTOR, endTurn);
+    }, next, turnLimitMs * NIGHT_TURN_FACTOR);
   }
 };
 
@@ -218,7 +223,8 @@ export async function checkNightGround(page, { mode, shot, bootLimitMs, turnLimi
   return problems;
 }
 
-const HIGHWAY_ATTEMPTS = 4;
+const HIGHWAY_ATTEMPTS = 6;
+const HIGHWAY_PAUSE_MS = 30000;
 const CRASHED = /crashed|boot screen stayed up/;
 
 export async function checkHighwayNightInSoftware(url, options) {
@@ -227,6 +233,7 @@ export async function checkHighwayNightInSoftware(url, options) {
     problems = await tryHighwayNightInSoftware(url, options);
     if (!problems.some((p) => CRASHED.test(p))) return problems;
     console.log(`The software browser crashed in Chaos Highway on attempt ${attempt}.`);
+    await new Promise((done) => setTimeout(done, HIGHWAY_PAUSE_MS * attempt));
   }
   return problems;
 }

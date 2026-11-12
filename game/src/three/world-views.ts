@@ -16,15 +16,17 @@ import { addShipDecks } from './render/ship-decks';
 import { SiteLights } from './render/siteLights';
 import { addSites, HollowLamps } from './render/sites';
 import { CellStreamer } from './render/streamer';
-import { groundMaterial, terrainMesh } from './render/terrain';
+import { GroundCache, groundCacheUniforms } from './render/groundCache';
+import { cachedGround, groundMaterial, terrainMesh } from './render/terrain';
 
 export type WorldViewHost = {
   scene: THREE.Scene;
   ground: THREE.Group;
   props: THREE.Group;
   play: PlayClock;
-  maxTextureSize: number;
+  renderer: THREE.WebGLRenderer;
   prepare: (root: THREE.Object3D) => void;
+  drawGroundThrough: (cache: GroundCache) => void;
   pinOutpost: () => void;
 };
 
@@ -47,17 +49,25 @@ export function sightAround(limit: SightLimit, streamer: CellStreamer, world: Wo
   return meters;
 }
 
+function groundFor(world: World, host: WorldViewHost): THREE.MeshLambertMaterial {
+  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world);
+  const cacheUniforms = groundCacheUniforms();
+  const { reader, writer, writes } = cachedGround(world, cacheUniforms);
+  host.drawGroundThrough(new GroundCache(host.renderer, host.ground, reader, writer, writes.uniforms, cacheUniforms));
+  return reader;
+}
+
 export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const sightLimit = new SightLimit(world.size);
   const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
   const propScope = new RenderScope(host.props, world.size, sightLimit, true, true);
   const craters = new CraterViews(world, sightLimit, host.scene);
   const scopes = [groundScope, propScope, craters.scope];
-  const ground = groundMaterial(world);
+  const ground = groundFor(world, host);
   const fog = new FogView(world, ground, sightLimit, playerSeenPropTiles(world));
   terrainMesh(world, ground, groundScope, (chunk) => fog.attach(chunk));
   const hollow = world.terrain.atlas.kind === 'icarus' ? new HollowLamps(world.terrain, propScope) : null;
-  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.maxTextureSize });
+  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.renderer.capabilities.maxTextureSize });
   addSites(world.terrain, propScope, host.play, siteLights);
   addShipDecks(world.terrain, propScope);
   const obstacles = new ObstacleViews(propScope, world.terrain, host.pinOutpost);

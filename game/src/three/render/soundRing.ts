@@ -1,6 +1,3 @@
-// Sound around the player's truck: for each truck heard beyond sight, a faint arc about 3 tiles out,
-// pointing toward it, that hums and sends small ripples outward like an engine note made visible.
-// Sound gives a bearing, not a place, so it shows only direction, vagueness, loudness and distance.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -8,6 +5,7 @@ import { PAL } from '../../render/palette';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Contact } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
 const RENDER_ORDER = 906;
@@ -94,7 +92,7 @@ export class SoundRingView {
     const found = this.arcs.get(id);
     if (found) return found;
     const make = () => {
-      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: PAL.contact, transparent: true, opacity: 0, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), overlayMaterial({ color: PAL.contact, opacity: 0, depthTest: false, depthWrite: false }));
       mesh.renderOrder = RENDER_ORDER;
       this.root.add(mesh);
       return mesh;

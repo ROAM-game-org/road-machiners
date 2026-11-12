@@ -14,7 +14,7 @@ import { siteGap } from '../sim/sites';
 import { route } from '../sim/path';
 import { ROAD_INDEX } from '../sim/road-index';
 import { hazardZones, isLootSpot, landingStrips, reactorPos, territoryAt, territoryCaches, territoryEntries, territoryOfStock, territoryPieces, territoryRoads, type BakedPiece, type LandingStrip } from '../sim/territory';
-import { BUILT_CANAL, BUILT_OLD_ROAD, BUILT_PAD, BUILT_TRACK, groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
+import { BUILT_OLD_ROAD, BUILT_PAD, BUILT_TRACK, cornerGroundAt, groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { apronDraws } from './apron';
@@ -35,7 +35,7 @@ const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
 const pieces = territoryPieces(t);
 const inside = TEST_MAP.props.filter((p) => siteGap(fallenSun, p.pos) < 0);
 const SEATED_EASE = 1e-6;
-const MARKED_GROUND: Record<string, number> = { asphalt: BUILT_OLD_ROAD, track: BUILT_TRACK, canal: BUILT_CANAL, concrete: BUILT_PAD };
+const MARKED_GROUND: Record<string, number> = { asphalt: BUILT_OLD_ROAD, track: BUILT_TRACK, concrete: BUILT_PAD };
 const DEBRIS_LOOKS = new Set<string>(rules.patches.flatMap((p) => p.debris.map((d) => d.look)));
 const OLD_ORCHARD = { x: 114, y: 284 };
 const ORCHARD_NOW = REGION.locations.find((l) => l.id === "orchard")!.pos;
@@ -115,7 +115,7 @@ describe('the territory layer', () => {
     const after = fullLayer();
     const w = before.size + 1;
     pieces.forEach((p, k) => {
-      const centre = groundAt(ground, p.pos.x, p.pos.y) - p.sink;
+      const centre = cornerGroundAt(ground, p.pos.x, p.pos.y) - p.sink;
       const corners = cornersUnder(p, k);
       expect(corners.length, p.look).toBeGreaterThan(0);
       for (const c of corners) expect(after.heights[c.y * w + c.x], `${p.look} ${c.x},${c.y}`).toBeCloseTo(centre, 6);
@@ -145,7 +145,7 @@ describe('the territory layer', () => {
   it('keeps the seat in the baked map, to the map file rounding', () => {
     const terrain = TEST_MAP.terrain;
     pieces.forEach((p, k) => {
-      const centre = groundAt(terrain, p.pos.x, p.pos.y);
+      const centre = cornerGroundAt(terrain, p.pos.x, p.pos.y);
       for (const c of cornersUnder(p, k)) expect(Math.abs(terrain.heights[c.y * (terrain.size + 1) + c.x] - centre), `${p.look} ${c.x},${c.y}`).toBeLessThanOrEqual(2 / MAPGEN.heightScale);
     });
   });

@@ -3,6 +3,7 @@ import { REGION } from '../data/region';
 import { GEOLOGY, TERRAIN, type TerrainTypeId } from '../data/terrain';
 import { deckById } from '../sim/bridge';
 import { ROAD_INDEX } from '../sim/road-index';
+import { SHOULDER_REACH } from '../sim/shoulder';
 import { TYPE_IDS } from '../sim/terrain';
 import { groundLayer, newDraft, type MapDraft } from './bake';
 
@@ -128,7 +129,19 @@ describe('ground types from geology marks', () => {
     groundLayer(SEED, d);
 
     const kinds = new Set(Array.from(d.types, (code) => TYPE_IDS[code]));
-    expect([...kinds].sort()).toEqual(['hardpan', 'road', 'sand']);
+    expect([...kinds].sort()).toEqual(['gravel', 'hardpan', 'road', 'sand']);
+  });
+
+  it('lays a gravel shoulder just past the road edge and nowhere farther out', () => {
+    const d = newDraft(REGION.size);
+
+    groundLayer(SEED, d);
+
+    for (let tile = 0; tile < d.types.length; tile++) {
+      if (TYPE_IDS[d.types[tile]] !== 'gravel') continue;
+      const c = { x: (tile % d.size) + 0.5, y: Math.floor(tile / d.size) + 0.5 };
+      expect(ROAD_INDEX.nearestWithin(c.x, c.y, SHOULDER_REACH)).toBeLessThan(SHOULDER_REACH);
+    }
   });
 
   it('drifts sand over the Broken Wing ramps, the hoop feet and the trench floor, and drains the trench', () => {

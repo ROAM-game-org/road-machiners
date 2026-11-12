@@ -21,8 +21,35 @@ export function devEl(tag: string, attrs: Record<string, string | number | boole
 function setAttr(node: HTMLElement, k: string, v: Attrs[string]): void {
   if (v === undefined || v === false) return;
   if (Msg.is(v)) return bindText(node, k, v);
-  if (typeof v === 'function') return node.addEventListener(k.replace(/^on/, '').toLowerCase(), v);
+  if (typeof v === 'function') return listen(node, k.replace(/^on/, '').toLowerCase(), v);
   setPlainAttr(node, k, v);
+}
+
+const LISTENERS = new WeakMap<Node, [string, EventListener][]>();
+
+function listen(node: HTMLElement, type: string, listener: EventListener): void {
+  node.addEventListener(type, listener);
+  LISTENERS.set(node, [...(LISTENERS.get(node) ?? []), [type, listener]]);
+}
+
+function takeListeners(kept: Node, fresh: Node): void {
+  if (kept === fresh) return;
+  for (const [type, listener] of LISTENERS.get(kept) ?? []) kept.removeEventListener(type, listener);
+  const own = LISTENERS.get(fresh) ?? [];
+  for (const [type, listener] of own) kept.addEventListener(type, listener);
+  LISTENERS.set(kept, own);
+  kept.childNodes.forEach((child, i) => takeListeners(child, fresh.childNodes[i]));
+}
+
+export function moveTo(node: HTMLElement, x: number, y: number): void {
+  node.style.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+}
+
+export function replaceChanged(slot: Element, ...next: Node[]): void {
+  const shown = slot.childNodes;
+  const same = shown.length === next.length && next.every((node, i) => node.isEqualNode(shown[i]));
+  if (!same) return slot.replaceChildren(...next);
+  next.forEach((node, i) => takeListeners(shown[i], node));
 }
 
 function setPlainAttr(node: HTMLElement, k: string, v: string | number | true): void {

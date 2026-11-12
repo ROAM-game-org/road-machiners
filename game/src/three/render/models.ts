@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
+import { TUNING } from './inkTuning';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
@@ -256,7 +257,7 @@ export const NAMES = [
   'wrec_sniper',
   'wrec_harpoon',
 
-  'wbar_mg_short',
+  'wbar_mg',
   'wbar_mg_long',
   'wbar_twin',
   'wbar_shotgun',
@@ -266,10 +267,18 @@ export const NAMES = [
   'wbar_sniper',
   'wbar_rocket_tubes',
   'wbar_harpoon',
+  'wbar_hmg',
+  'wbar_gatling',
+  'wbar_recoilless',
+  'wbar_sniper_cannon',
+  'wbar_grenade',
+  'wbar_flamer',
 
-  'wext_scope',
   'wext_shield',
   'wext_drum',
+  'wext_fuel_tanks',
+  'wext_air_tank',
+  'wext_box_mag',
 ] as const;
 export type ModelName = (typeof NAMES)[number];
 
@@ -490,8 +499,10 @@ function toLambert(root: THREE.Object3D): THREE.Object3D {
   return root;
 }
 
+const MINOR_OUTLINE_SHARE = 0.5;
+
 const OUTLINE = {
-  width: { value: 0.5 },
+  width: TUNING.outline,
   viewport: { value: new THREE.Vector2(1, 1) },
 };
 
@@ -505,7 +516,7 @@ export const READY_ARC_BIT = 4;
 export const SPENT_ARC_BIT = 8;
 export const OUTLINE_ORDER = 805;
 
-function outlineMaterial(): THREE.MeshBasicMaterial {
+function outlineMaterial(width: { value: number }): THREE.MeshBasicMaterial {
   const material = new THREE.MeshBasicMaterial({
     color: PAL.outline,
     side: THREE.BackSide,
@@ -515,7 +526,7 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
     stencilFunc: THREE.EqualStencilFunc,
   });
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.outlineWidth = OUTLINE.width;
+    shader.uniforms.outlineWidth = width;
     shader.uniforms.viewport = OUTLINE.viewport;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float outlineWidth;\nuniform vec2 viewport;')
@@ -527,13 +538,24 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
         vec2 outlineDir = (normalMatrix * outlineNormal).xy;
         if (dot(outlineDir, outlineDir) > 1e-8) gl_Position.xy += normalize(outlineDir) * outlineWidth * 2.0 / viewport * gl_Position.w;`);
   };
-  material.customProgramCacheKey = () => 'outline';
+  material.customProgramCacheKey = () => (width === OUTLINE.width ? 'outline' : 'outline-minor');
   material.userData.shared = true;
   return material;
 }
 
-const truckOutline = outlineMaterial();
-const propOutline = outlineMaterial();
+const MINOR_WIDTH = {
+  get value() {
+    return TUNING.outline.value * MINOR_OUTLINE_SHARE;
+  },
+};
+const truckOutline = outlineMaterial(OUTLINE.width);
+const propOutline = { plain: outlineMaterial(OUTLINE.width), instanced: outlineMaterial(OUTLINE.width) };
+const minorOutline = { plain: outlineMaterial(MINOR_WIDTH), instanced: outlineMaterial(MINOR_WIDTH) };
+
+export function minorProp<T extends THREE.Object3D>(obj: T): T {
+  obj.userData.minorOutline = true;
+  return obj;
+}
 
 const WELD_PER_METER = 1e3;
 
@@ -592,6 +614,7 @@ function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
 export function outlineOf(geos: readonly THREE.BufferGeometry[]): THREE.Mesh[] {
   if (geos.length === 0) return [];
   const mesh = new THREE.Mesh(weld(geos), truckOutline);
+  mesh.name = 'truck-outline';
   mesh.onBeforeRender = readViewport;
   mesh.renderOrder = OUTLINE_ORDER;
   mesh.userData.outline = true;
@@ -611,6 +634,7 @@ function weldedOutlineOf(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 export function outlineProps(obj: THREE.Object3D): void {
+  const material = obj.userData.minorOutline === true ? minorOutline : propOutline;
   const meshes: THREE.Mesh[] = [];
   obj.traverse((o) => {
     if (o instanceof THREE.Mesh && !o.userData.outline) meshes.push(o);
@@ -624,7 +648,7 @@ export function outlineProps(obj: THREE.Object3D): void {
       m.stencilZPass = THREE.ReplaceStencilOp;
     }
     const geo = weldedOutlineOf(mesh.geometry);
-    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo) : new THREE.Mesh(geo, propOutline);
+    const outline = mesh instanceof THREE.InstancedMesh ? instancedOutline(mesh, geo, material.instanced) : new THREE.Mesh(geo, material.plain);
     outline.onBeforeRender = readViewport;
     outline.renderOrder = OUTLINE_ORDER;
     outline.userData.outline = true;
@@ -651,8 +675,8 @@ export function registerBakedOutline(merged: THREE.BufferGeometry, parts: readon
   welded.set(merged, outline);
 }
 
-function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry): THREE.InstancedMesh {
-  const outline = new THREE.InstancedMesh(geo, propOutline, mesh.count);
+function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry, material: THREE.Material): THREE.InstancedMesh {
+  const outline = new THREE.InstancedMesh(geo, material, mesh.count);
   outline.instanceMatrix = mesh.instanceMatrix;
   outline.boundingSphere = mesh.boundingSphere;
   outline.boundingBox = mesh.boundingBox;
@@ -670,6 +694,8 @@ const SURFACES = {
   rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0, grain: 0, neutral: 0 },
   grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0, grain: 0, neutral: 0 },
   plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  armor: { dirt: [0.55, 0.54, 0.52], edge: 0.08, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  ram: { dirt: [0.55, 0.54, 0.52], edge: 0.08, chips: 0, shine: 0, grain: 0, neutral: 0 },
 } satisfies Record<string, Surface>;
 
 export type SurfaceName = keyof typeof SURFACES;
@@ -692,6 +718,8 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
   under: 'grime',
   wheel: 'grime',
   soot: 'grime',
+  armor: 'armor',
+  ram: 'ram',
   glass: null,
   light: null,
   glow: null,
@@ -702,8 +730,6 @@ const WEAR = { width: 0.08 };
 const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 0 };
 
 const GRAIN = { scale: 40, amount: 0.05 };
-
-export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body }, grain: { value: GRAIN.amount } };
 
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
@@ -716,17 +742,8 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
   const own = SURFACES[surface];
   const uniforms = {
     surfaceMask: SURFACE_ATLAS,
-    surfaceDirt: { value: new THREE.Vector3(...own.dirt) },
-    surfaceEdge: { value: own.edge },
-    surfaceChips: { value: own.chips },
-    surfaceChipShare: SURFACE_LOOK.chips,
-    surfaceChipAt: SURFACE_LOOK.chipAt,
-    surfaceShine: { value: own.shine },
-    surfaceChrome: SURFACE_LOOK.chrome,
-    surfaceChromeBody: SURFACE_LOOK.chromeBody,
-    surfaceGrain: { value: own.grain },
-    surfaceGrainShare: SURFACE_LOOK.grain,
-    surfaceNeutral: { value: own.neutral },
+    surfaceLook: { value: new THREE.Vector4(...own.dirt, own.edge) },
+    surfaceTone: { value: new THREE.Vector4(own.chips, own.shine, own.grain, own.neutral) },
   };
   material.onBeforeCompile = (shader) => {
     if (!SURFACE_ATLAS.value) throw new Error('Call paintSurfaceMasks() after loadModels() before drawing trucks');
@@ -749,17 +766,19 @@ const SURFACE_UNIFORMS = `varying vec3 vSurfacePos;
 varying vec2 vMaskUv;
 varying vec3 vEdgeDistance;
 uniform sampler2D surfaceMask;
-uniform vec3 surfaceDirt;
-uniform float surfaceEdge;
-uniform float surfaceChips;
-uniform float surfaceChipShare;
-uniform float surfaceChipAt;
-uniform float surfaceShine;
-uniform float surfaceChrome;
-uniform float surfaceChromeBody;
-uniform float surfaceGrain;
-uniform float surfaceGrainShare;
-uniform float surfaceNeutral;
+uniform vec4 surfaceLook;
+uniform vec4 surfaceTone;
+#define surfaceDirt surfaceLook.xyz
+#define surfaceEdge surfaceLook.w
+#define surfaceChips surfaceTone.x
+#define surfaceShine surfaceTone.y
+#define surfaceGrain surfaceTone.z
+#define surfaceNeutral surfaceTone.w
+const float surfaceChipShare = ${f(CHIP.share)};
+const float surfaceChipAt = ${f(CHIP.at)};
+const float surfaceChrome = ${f(CHROME.gain)};
+const float surfaceChromeBody = ${f(CHROME.body)};
+const float surfaceGrainShare = ${f(GRAIN.amount)};
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }

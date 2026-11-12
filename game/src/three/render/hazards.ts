@@ -12,10 +12,11 @@ import { shutDownTurnsLeft } from '../../sim/utility';
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
 import { HarpoonLinesView } from './lines';
-import { CARD_SHAPES, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
+import { bankCardsOf, CARD_SHAPES, dustCardsOf, fireCardsOf, INK_DUST_LAYER, ROUND_SHAPE, type Card, type CardBatch, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { newWake, stepWake, WakeTracker, type WakeMover, type WakeState } from './particles/wake';
 import type { VehicleView } from './vehicle';
+import { TUNING } from './inkTuning';
 
 const S = PHYSICS.metersPerTile;
 
@@ -244,6 +245,8 @@ const SMOKE_LOOK = {
   cardSize: 0.95,
   clearance: 0.3,
   lit: { toward: 0x8a847d, lift: 0.5 },
+  bank: 0xf0e8d8,
+  ink: { puffs: 3, size: 0.35, alpha: 0.45 },
   tint: { min: 0.6, max: 1.4 },
   heightShade: { low: 0.55, high: 1.35 },
   turnRate: 0.12,
@@ -280,8 +283,9 @@ class SmokeCloudsView {
 
   draw(cards: FxCards): void {
     this.shells.draw(cards);
+    const into = bankCardsOf(cards);
     for (const view of this.views.values()) {
-      for (let i = 0; i < view.limit; i++) if (view.puffs[i].card.alpha > 0.003) cards.lit.push(view.puffs[i].card);
+      for (let i = 0; i < view.limit; i++) if (view.puffs[i].card.alpha > 0.003) into.push(view.puffs[i].card);
     }
   }
 
@@ -292,7 +296,7 @@ class SmokeCloudsView {
     const { movers, dt } = this.views.size > 0 ? this.wake.update(positionsOf(views), nowMs) : { movers: [], dt: 0 };
     const share = Math.floor(SMOKE_LOOK.cardBudget / Math.max(1, this.views.size));
     for (const view of this.views.values()) {
-      view.limit = Math.min(view.puffs.length, share);
+      view.limit = Math.min(TUNING.fxInk.value >= INK_DUST_LAYER ? view.puffs.length : softPuffCount(view.cloud), share);
       place(terrain, view, { nowMs, cutaway, movers, dt });
     }
     this.shells.update(nowMs);
@@ -323,8 +327,12 @@ function positionsOf(views: ReadonlyMap<string, VehicleView>): Map<string, { x: 
   return new Map([...views].map(([id, view]) => [id, view.center()]));
 }
 
+function softPuffCount(c: SmokeCloud): number {
+  return Math.min(SMOKE_LOOK.maxPuffs, Math.round(SMOKE_LOOK.basePuffs + SMOKE_LOOK.puffsPerArea * c.r * c.r));
+}
+
 export function puffsOf(c: SmokeCloud): Puff[] {
-  const count = Math.min(SMOKE_LOOK.maxPuffs, Math.round(SMOKE_LOOK.basePuffs + SMOKE_LOOK.puffsPerArea * c.r * c.r));
+  const count = Math.round(softPuffCount(c) * SMOKE_LOOK.ink.puffs);
   const seed = hashId(c.id);
   return Array.from({ length: count }, (_, i) => {
     const k = seed + i * 17;
@@ -343,6 +351,7 @@ export function puffsOf(c: SmokeCloud): Puff[] {
 }
 
 const SMOKE_COLOR = new THREE.Color(PAL.smoke).lerp(new THREE.Color(SMOKE_LOOK.lit.toward), SMOKE_LOOK.lit.lift);
+const SMOKE_BANK_COLOR = new THREE.Color(SMOKE_LOOK.bank);
 
 function smokeCard(k: number, spin: number): Card {
   const shape = Math.floor(hash2(k, 43) * CARD_SHAPES);
@@ -351,10 +360,13 @@ function smokeCard(k: number, spin: number): Card {
 
 function shadeCard(card: Card, shade: number, height: number): void {
   const { low, high } = SMOKE_LOOK.heightShade;
-  const k = shade * (low + (high - low) * Math.min(1, Math.max(0, height / (SMOKE_LOOK.high.to * S))));
-  card.r = SMOKE_COLOR.r * k;
-  card.g = SMOKE_COLOR.g * k;
-  card.b = SMOKE_COLOR.b * k;
+  const soft = shade * (low + (high - low) * Math.min(1, Math.max(0, height / (SMOKE_LOOK.high.to * S))));
+  const inked = TUNING.fxInk.value >= INK_DUST_LAYER;
+  const k = inked ? 1 : soft;
+  const base = inked ? SMOKE_BANK_COLOR : SMOKE_COLOR;
+  card.r = base.r * k;
+  card.g = base.g * k;
+  card.b = base.b * k;
 }
 
 function isShown(world: World, c: { source: string; pos: Vec; r: number }): boolean {
@@ -421,13 +433,14 @@ function placePuff(view: CloudView, p: Puff, step: Step, grown: number, fade: nu
   PUFF_SPOT.height = local.y;
   stepWake(p.wake, PUFF_SPOT, p.side, step.movers, step.dt);
   const card = p.card;
-  card.size = p.size * S * SMOKE_LOOK.cardSize * (0.3 + 0.7 * grown) * (1 + SMOKE_LOOK.dissolve.grow * gone);
+  const inked = TUNING.fxInk.value >= INK_DUST_LAYER;
+  card.size = p.size * S * SMOKE_LOOK.cardSize * (0.3 + 0.7 * grown) * (1 + SMOKE_LOOK.dissolve.grow * gone) * (inked ? SMOKE_LOOK.ink.size : 1);
   card.x = PUFF_SPOT.x + p.wake.ox;
   card.y = view.ground.y + Math.max(local.y, card.size * SMOKE_LOOK.clearance) + SMOKE_LOOK.dissolve.rise * S * gone;
   card.z = PUFF_SPOT.z + p.wake.oz;
   shadeCard(card, p.shade, local.y);
   card.spin = p.spin + (step.nowMs / 1000) * SMOKE_LOOK.turnRate * p.side;
-  card.alpha = p.opacity * fade * cutShare(step.cutaway, PUFF_AT.set(card.x, card.y, card.z), (p.size * S) / 2);
+  card.alpha = p.opacity * fade * cutShare(step.cutaway, PUFF_AT.set(card.x, card.y, card.z), (p.size * S) / 2) * (inked ? SMOKE_LOOK.ink.alpha : 1);
 }
 
 function easeOut(t: number): number {
@@ -681,6 +694,7 @@ export const FLARE_LOOK = {
   flightMs: 1600,
   igniteMs: 300,
   core: 0.5,
+  inkCore: 1.6,
   halo: { size: 3, opacity: 0.75 },
   burst: { size: 4, ms: 300 },
   light: { intensity: 60, reach: 1.6, decay: 1 },
@@ -694,13 +708,15 @@ type FlareView = { flare: Flare; at: THREE.Vector3; shine: FlareShine | null; ig
 type FlareShine = { bright: number; haloScale: number; haloAlpha: number };
 
 const FLARE_SPARK: ParticleLook = { life: 0.9, size: { from: 0.45, to: 0.12 }, colors: [0xfff4d0, 0xffb040, 0xff5014], alpha: { peak: 1, fadeIn: 0.05 }, drag: 0.6, gravity: 9, streak: 0.14, form: 'round' };
-const FLARE_SMOKE: ParticleLook = { life: 4, size: { from: 1, to: 4 }, colors: [0xc89878, 0x9a928c, 0x6c6762], alpha: { peak: 0.4, fadeIn: 0.15 }, drag: 0.5, gravity: -0.9, streak: 0, form: 'cloud' };
+const FLARE_SMOKE: ParticleLook = { life: 4, size: { from: 1, to: 4 }, colors: [0xc89878, 0x9a928c, 0x6c6762], alpha: { peak: 0.4, fadeIn: 0.15 }, drag: 0.5, gravity: -0.9, streak: 0, form: 'cloud', smoke: true };
 const FLARE_FX = {
   sparks: { perSecond: 28, pool: 200, speed: { min: 1.5, spread: 3.5 }, up: 1.2, scale: { min: 0.6, spread: 0.8 } },
   smoke: { perSecond: 8, pool: 120, drift: 0.5, rise: 0.4, scale: { min: 0.8, spread: 0.4 } },
   views: 12,
   maxStepMs: 100,
 };
+
+const HELD_FLARE_LIGHTS = 2;
 
 class FlaresView {
   readonly root = new THREE.Group();
@@ -723,20 +739,21 @@ class FlaresView {
 
   draw(cards: FxCards): void {
     this.flights.draw(cards);
-    this.sparks.draw(cards.glow);
-    this.smoke.draw(cards.lit);
+    this.sparks.draw({ main: cards.glow, plumes: dustCardsOf(cards), fire: fireCardsOf(cards, cards.glow) }, TUNING.fxInk.value);
+    this.smoke.draw({ main: cards.lit, plumes: dustCardsOf(cards), fire: fireCardsOf(cards, cards.lit) }, TUNING.fxInk.value);
     let drawn = 0;
     for (const view of this.views.values()) {
       if (!view.shine || drawn++ >= FLARE_FX.views) continue;
       const { bright, haloScale, haloAlpha } = view.shine;
-      this.glow(cards, view.at, PAL.flare.halo, haloScale * S, haloAlpha);
-      this.glow(cards, view.at, PAL.flare.core, FLARE_LOOK.core * S, bright);
+      const ink = TUNING.fxInk.value;
+      if (ink < INK_DUST_LAYER) this.glow(cards.glow, view.at, PAL.flare.halo, haloScale * S, haloAlpha);
+      this.glow(fireCardsOf(cards, cards.glow), view.at, PAL.flare.core, FLARE_LOOK.core * S * (ink < INK_DUST_LAYER ? 1 : FLARE_LOOK.inkCore), bright);
     }
   }
 
-  private glow(cards: FxCards, at: THREE.Vector3, hex: number, size: number, alpha: number): void {
+  private glow(into: CardBatch, at: THREE.Vector3, hex: number, size: number, alpha: number): void {
     this.color.set(hex);
-    cards.glow.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape: ROUND_SHAPE, r: this.color.r, g: this.color.g, b: this.color.b, alpha, sx: 0, sy: 0, sz: 0 });
+    into.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape: ROUND_SHAPE, r: this.color.r, g: this.color.g, b: this.color.b, alpha, sx: 0, sy: 0, sz: 0 });
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null): void {
@@ -748,7 +765,7 @@ class FlaresView {
     const shown = new Map(world.flares.filter((f) => flareShown(world, f)).map((f) => [f.id, f]));
     ageOut(this.views, shown, nowMs, FLARE_LOOK.burnOutMs);
     for (const f of shown.values()) (this.views.get(f.id) ?? this.makeView(world, views, f, madeThisTurn(clock, 'flares', f.id), nowMs)).flare = f;
-    while (this.lights.length < this.views.size) this.addLight();
+    while (this.lights.length < Math.max(this.views.size, HELD_FLARE_LIGHTS)) this.addLight();
     this.lights.forEach((light) => (light.intensity = 0));
     const progress = clock ? clock.progress : 1;
     [...this.views.values()].forEach((view, i) => this.place(terrain, view, this.lights[i], { nowMs, turn: world.turn, progress, dt }));

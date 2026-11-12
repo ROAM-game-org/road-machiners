@@ -1,5 +1,4 @@
 import { ECONOMY } from "./goods";
-import { EFFORT } from "./market";
 import { RULES } from "./rules";
 import { TIME } from "./time";
 
@@ -11,5 +10,4 @@ export const ODD_JOBS = {
   shiftTurns: SHIFT_TURNS,
   netPerDay: NET_PER_DAY,
   payPerTurn: NET_PER_DAY / TIME.workDayTurns + FOOD_PER_TURN,
-  hireBelow: Math.round(EFFORT.wage[1] * TIME.workDayTurns),
 };

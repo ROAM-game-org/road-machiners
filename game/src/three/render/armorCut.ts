@@ -1,26 +1,48 @@
 import * as THREE from 'three';
-import { isShield, partDef, type ShieldDef } from '../../data/parts';
+import { isShield, partDef, type PartDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
+import { fitRamToBumper, fitToBody, placedBounds, SIDE_FACE, type Placement } from './armorFit';
+import { TOP_MARGIN, unitTopCut, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
+export type { Placement } from './armorFit';
+export { unitTopCut } from './armorTop';
+export { armorModel } from './armorLook';
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
-export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
+export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[]; top: TopCut; stripe: THREE.Color; stripeAt: number };
+export type CutFace = 'plain' | 'capped' | 'striped';
 
 const CORNER_DIGITS = 3;
+const CAP_TONE = 1.05;
+const STRIPE_HALF_WIDTH = 0.04;
 
 export const CUT_SLOTS = { wheels: 6, lamps: 8 };
 
 type Positions = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
-export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box3[], half: Body['half'], look: typeof TRUCK_LOOK): CutSpec {
+export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box3[], half: Body['half'], look: typeof TRUCK_LOOK, top: TopCut, stripe: number): CutSpec {
   return {
     wheels: wheels.map((box) => wheelCut(box, look)),
     lamps: lamps.filter((island) => atEnd(island, half, look)).map((island) => lampWindow(island, look)),
+    top,
+    stripe: new THREE.Color(stripe),
+    stripeAt: sideMiddle(half, look),
   };
+}
+
+function sideMiddle(half: Body['half'], look: typeof TRUCK_LOOK): number {
+  const armorFloor = -half.y + look.armorRise;
+  const bodyTop = half.y;
+  return (armorFloor + bodyTop) / 2;
+}
+
+export function cutFace(mesh: THREE.Mesh): CutFace {
+  if (mesh.userData.outline) return 'plain';
+  return mesh.userData.surface === 'armor' ? 'striped' : 'capped';
 }
 
 function wheelCut(box: THREE.Box3, look: typeof TRUCK_LOOK): WheelCut {
@@ -96,15 +118,38 @@ const VERTEX_DECLARE = 'varying vec3 vCutPos;';
 const VERTEX_SET = 'vCutPos = transformed;';
 const FRAGMENT_DECLARE = `varying vec3 vCutPos;
 uniform vec4 cutWheelAt[CUT_WHEELS];
-uniform float cutWheelHalfWidth[CUT_WHEELS];
+uniform vec4 cutWheelHalfWidth[(CUT_WHEELS + 3) / 4];
 uniform vec3 cutLampMin[CUT_LAMPS];
-uniform vec3 cutLampMax[CUT_LAMPS];`;
+uniform vec3 cutLampMax[CUT_LAMPS];
+uniform sampler2D cutTop;
+uniform vec2 cutTopFirst;
+uniform vec2 cutTopSize;
+uniform float cutTopCell;
+uniform vec3 cutStripe;
+uniform float cutStripeAt;
+float cutTopAt(ivec2 at) {
+  return texelFetch(cutTop, clamp(at, ivec2(0), ivec2(cutTopSize) - 1), 0).r;
+}
+float cutTopHeight(vec3 p) {
+  vec2 cell = vec2(p.x, -p.z) / cutTopCell - cutTopFirst - 0.5;
+  ivec2 at = ivec2(floor(cell));
+  vec2 f = cell - floor(cell);
+  float low = mix(cutTopAt(at), cutTopAt(at + ivec2(1, 0)), f.x);
+  float high = mix(cutTopAt(at + ivec2(0, 1)), cutTopAt(at + ivec2(1, 1)), f.x);
+  return mix(low, high, f.y);
+}`;
 const FRAGMENT_DISCARD = `for (int i = 0; i < CUT_WHEELS; i++) {
-  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i]) discard;
+  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i / 4][i % 4]) discard;
 }
 for (int i = 0; i < CUT_LAMPS; i++) {
   if (all(greaterThan(vCutPos, cutLampMin[i])) && all(lessThan(vCutPos, cutLampMax[i]))) discard;
-}`;
+}
+if (vCutPos.y > cutTopHeight(vCutPos) + ${TOP_MARGIN.toFixed(3)}) discard;`;
+
+const CAP_FRAGMENT = `if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * ${CAP_TONE.toFixed(2)};`;
+const STRIPE_FRAGMENT = `float cutStripeAa = fwidth(vCutPos.y);
+float cutStripeOff = abs(vCutPos.y - cutStripeAt);
+diffuseColor.rgb = mix(diffuseColor.rgb, cutStripe, 1.0 - smoothstep(${STRIPE_HALF_WIDTH.toFixed(3)} - cutStripeAa, ${STRIPE_HALF_WIDTH.toFixed(3)} + cutStripeAa, cutStripeOff));`;
 
 type CutUniforms = Record<string, THREE.IUniform>;
 
@@ -115,6 +160,10 @@ function padded<T>(values: T[], slots: number, empty: () => T, what: string): T[
   return [...values, ...Array.from({ length: slots - values.length }, empty)];
 }
 
+function packedByFour(values: number[]): THREE.Vector4[] {
+  return Array.from({ length: Math.ceil(values.length / 4) }, (_, row) => new THREE.Vector4(...[0, 1, 2, 3].map((k) => values[row * 4 + k] ?? 0)));
+}
+
 function uniformsOf(spec: CutSpec): CutUniforms {
   const known = uniformsOfSpec.get(spec);
   if (known) return known;
@@ -122,9 +171,15 @@ function uniformsOf(spec: CutSpec): CutUniforms {
   const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamps');
   const uniforms: CutUniforms = {
     cutWheelAt: { value: wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) },
-    cutWheelHalfWidth: { value: wheels.map((w) => w.halfWidth) },
+    cutWheelHalfWidth: { value: packedByFour(wheels.map((w) => w.halfWidth)) },
     cutLampMin: { value: lamps.map((b) => b.min.clone()) },
     cutLampMax: { value: lamps.map((b) => b.max.clone()) },
+    cutTop: { value: spec.top.texture },
+    cutTopFirst: { value: spec.top.first },
+    cutTopSize: { value: spec.top.size },
+    cutTopCell: { value: spec.top.cell },
+    cutStripe: { value: spec.stripe },
+    cutStripeAt: { value: spec.stripeAt },
   };
   uniformsOfSpec.set(spec, uniforms);
   return uniforms;
@@ -135,8 +190,10 @@ function insertAfter(source: string, token: string, extra: string): string {
   return source.replace(token, () => `${token}\n${extra}`);
 }
 
-export function withCut<M extends THREE.Material>(source: M, spec: CutSpec): M {
+export function withCut<M extends THREE.Material>(source: M, spec: CutSpec, face: CutFace = 'plain'): M {
   const own = source.clone() as M;
+  const shaded = face !== 'plain' && !(own instanceof THREE.MeshDepthMaterial);
+  if (face !== 'plain') own.side = THREE.DoubleSide;
   const before = source.onBeforeCompile;
   const sourceKey = source.customProgramCacheKey;
   const uniforms = uniformsOf(spec);
@@ -146,30 +203,41 @@ export function withCut<M extends THREE.Material>(source: M, spec: CutSpec): M {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = insertAfter(insertAfter(shader.vertexShader, '#include <common>', VERTEX_DECLARE), '#include <project_vertex>', VERTEX_SET);
     shader.fragmentShader = insertAfter(insertAfter(shader.fragmentShader, '#include <common>', FRAGMENT_DECLARE), '#include <clipping_planes_fragment>', FRAGMENT_DISCARD);
+    if (face === 'striped' && shaded) shader.fragmentShader = insertAfter(shader.fragmentShader, '#include <color_fragment>', STRIPE_FRAGMENT);
+    if (shaded) shader.fragmentShader = insertAfter(shader.fragmentShader, '#include <tonemapping_fragment>', CAP_FRAGMENT);
   };
-  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut`;
+  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut-${face}`;
   return own;
 }
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
-export type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 
 const CELL = PHYSICS.cell;
 
 const SIDE_YAW: Record<SideLetter, number> = { F: 0, B: Math.PI, R: -Math.PI / 2, L: Math.PI / 2 };
-
-const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
-  F: { axis: 'x', outward: 1 },
-  B: { axis: 'x', outward: -1 },
-  R: { axis: 'z', outward: 1 },
-  L: { axis: 'z', outward: -1 },
-};
 
 export function armorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
   const def = partDef(item.part.defId);
   if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
   const side = armorSide(v, item);
   return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box, body) : spareArmorPlacement(v, item, side, box);
+}
+
+export function drawnArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
+  const at = armorPlacement(v, item, box, body);
+  if (!isMounted(v.chassisId, item)) return at;
+  const unit = cellRect(v.chassisId, itemCells(item)).unit;
+  if (isRam(partDef(item.part.defId))) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
+  else fitToBody(at, box, body, unitTopCut(v.chassisId, unit), armorSide(v, item));
+  return at;
+}
+
+export function isRam(def: PartDef): boolean {
+  return isShield(def) && (def as ShieldDef).look === 'ram';
+}
+
+export function cutToBody(def: PartDef): boolean {
+  return isShield(def) && !isRam(def);
 }
 
 function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
@@ -235,10 +303,6 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   pos.y += shift;
   pos[axis] += outward * (Math.min(0, outward * (touchAt(shift) as number) - snug) + overArmor(v, item, def));
   return at;
-}
-
-function placedBounds(at: Placement, box: THREE.Box3): THREE.Box3 {
-  return box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
 }
 
 type Stand = { profile: FaceProfile; placed: THREE.Box3; touchAt: (shift: number) => number | null; floor: number; glassMatters: boolean; ram: boolean; row: number; fail: () => never };

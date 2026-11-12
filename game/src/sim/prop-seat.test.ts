@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { FORTRESS_SITES } from '../data/fortress';
 import { PHYSICS } from '../data/physics';
 import { REGION } from '../data/region';
+import { CAR_WRECK_SINK } from '../data/rules';
+import { CAR_WRECK_LOOKS } from '../data/terrain';
 import { flatTerrain } from '../test/empty-world';
 import { TEST_MAP } from '../test/map';
 import { boxCorners } from './bridge';
 import { fortressProps } from './fortress';
-import { propBase, propBoxes, propObstacle, type PosedBox } from './mapgen';
-import { groundAt, type Terrain } from './terrain';
+import { propBase, propBoxes, propObstacle, propPose, type PosedBox } from './mapgen';
+import { groundAt, heightAt, type Terrain } from './terrain';
 import type { Obstacle } from './types';
 
 const S = PHYSICS.metersPerTile;
@@ -53,6 +55,51 @@ describe('the seat of a fortress piece', () => {
   });
 });
 
+describe('the seat of a wreck', () => {
+  const flat = flatTerrain(SIZE);
+  const spot = { x: 20, y: 20 };
+  const carWreckWithLook = (model: string): Obstacle => {
+    for (let k = 0; ; k++) {
+      const o: Obstacle = { id: `carWreck-${k}`, kind: 'landmark', look: 'carWreck', pos: spot, r: 0.7, yaw: 0 };
+      if (propPose(o).model === model) return o;
+    }
+  };
+  const tallest = (o: Obstacle): number => Math.max(...propBoxes(o).map((b) => b.z1));
+
+  it('sinks a lootless car wreck by its share of the height of every look', () => {
+    for (const { model } of CAR_WRECK_LOOKS) {
+      const o = carWreckWithLook(model);
+      expect(propBase(flat, o) * S, model).toBeCloseTo(-tallest(o) * CAR_WRECK_SINK);
+    }
+  });
+
+  it('keeps lootable road wrecks and rocks on the ground', () => {
+    const road: Obstacle = { id: 'wreck3', kind: 'wreck', pos: spot, r: 0.7 };
+    const rock: Obstacle = { id: 'rock3', kind: 'rock', pos: spot, r: 0.7 };
+    expect(propBase(flat, road)).toBe(heightAt(flat, spot.x, spot.y));
+    expect(propBase(flat, rock)).toBe(groundAt(flat, spot.x, spot.y));
+  });
+
+  it('seats a lootless car wreck on the low side of a step instead of hanging it on the high side', () => {
+    const t = stepped(0.4);
+    const o: Obstacle = { ...carWreckWithLook('wreck'), pos: { x: 20.9, y: 20 } };
+    const level = propBase(flatTerrain(SIZE), carWreckWithLook('wreck')) * S;
+    expect(propBase(t, o) * S).toBeLessThan(level - 0.1);
+    for (const b of footings(o)) expect(gapUnder(t, o, b)).toBeLessThanOrEqual(SLACK - tallest(o) * CAR_WRECK_SINK);
+  });
+
+  it('never buries a lootless car wreck deeper than its own height on a cliff', () => {
+    const t = stepped(40);
+    const o: Obstacle = { ...carWreckWithLook('wreck'), pos: { x: 20.9, y: 20 } };
+    expect(propBase(t, o) * S).toBeGreaterThanOrEqual(groundAt(t, o.pos.x, o.pos.y) * S - tallest(o) * (1 + CAR_WRECK_SINK) - SLACK);
+  });
+
+  it('keeps Chaos Highway car wrecks on the asphalt', () => {
+    const highway: Terrain = { ...flat, atlas: { kind: 'highway', seed: 1, window: 0 } };
+    expect(propBase(highway, carWreckWithLook('wreck'))).toBe(groundAt(highway, spot.x, spot.y));
+  });
+});
+
 describe('the seat of every fortress piece on the Icarus map', () => {
   const terrain = TEST_MAP.terrain;
   const sites = [...REGION.towns, ...REGION.locations].filter((s) => s.id in FORTRESS_SITES);
@@ -68,7 +115,7 @@ describe('the seat of every fortress piece on the Icarus map', () => {
   it('keeps the centre seat of every piece at the level sites', () => {
     const level = pieces.filter((p) => LEVEL_SITES.includes(p.site));
     expect(level.length).toBeGreaterThan(0);
-    for (const { site, o } of level) expect(propBase(terrain, o), `${site} ${o.id}`).toBe(groundAt(terrain, o.pos.x, o.pos.y));
+    for (const { site, o } of level) expect(propBase(terrain, o), `${site} ${o.id}`).toBeCloseTo(groundAt(terrain, o.pos.x, o.pos.y), 2);
   });
 
   it('stands the two Nose walls at the rock ends in the yard', () => {

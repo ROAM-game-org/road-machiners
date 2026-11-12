@@ -8,6 +8,7 @@ const BAKE_REPORT = 'The hunting spots bake logs a report to the terminal of the
 const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
 const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with every truck on the map. It stays English.';
 const DEV_ATLAS = 'The stretch atlas is a dev page that draws the trucks each Chaos Highway stretch can roll. It stays English.';
+const DEV_INK_MENU = 'The ink look menu is a dev tool that opens only with ?tune in the page address. It stays English.';
 const FONT_SAMPLE ='A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
@@ -20,6 +21,8 @@ const SAVE_DB_ERROR = 'An error message of the save database, which only the con
 
 export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/stretch-atlas.ts', text: '*', reason: DEV_ATLAS },
+  { file: 'src/three/render/inkMenu.ts', text: '*', reason: DEV_INK_MENU },
+  { file: 'src/three/render/inkTuning.ts', text: '*', reason: DEV_INK_MENU },
   { file: SAVE_STEP_FILE, text: 'its nearest spot is taken', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'its nearest spot is not legal for it', reason: SAVE_STEP_LOG },
   { file: SAVE_STEP_FILE, text: 'turned from rotation   to   and moved to  , , since it fits nowhere in its own rotation', reason: SAVE_STEP_LOG },
@@ -42,6 +45,10 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/hunting-spots-bake.ts', text: 'Each trip of a kind is equally likely. Prey cruise   tiles a turn, route radius  .', reason: 'A log line of the offline hunting spots bake, which only a developer reads.' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },
   { file: 'src/three/render/shadowFilter.ts', text: 'float getPointShadow', reason: 'A GLSL snippet patched into the shadow shader, with no words in it.' },
+  { file: 'src/three/render/shadowFilter.ts', text: ' Light =  Lights[ i ];', reason: 'A GLSL snippet patched into the light shader, with no words in it.' },
+  { file: 'src/three/render/shadowFilter.ts', text: ' if (  Lights[ i ].color != vec3( 0.0 ) ) {\n \n} ', reason: 'A GLSL snippet patched into the light shader, with no words in it.' },
+  { file: 'src/three/render/shadowFilter.ts', text: 'Lights[ i ].color != vec3( 0.0 )', reason: 'A GLSL snippet patched into the light shader, with no words in it.' },
+  { file: 'src/three/ground-off-thread.ts', text: 'Ground worker', reason: 'An internal error the ground bake reports to the console and the bug report, never shown in words.' },
   { file: 'src/three/save-db.ts', text: 'The   transaction was aborted', reason: SAVE_DB_ERROR },
   { file: 'src/three/save-migrations.ts', text: 'contract   reward', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call money', reason: MIGRATION_LABEL },

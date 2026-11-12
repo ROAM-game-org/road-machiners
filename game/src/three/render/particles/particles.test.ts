@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { perfSnapshot, resetPerf } from '../../../perf';
-import type { Card, CardBatch } from './cards';
+import { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, ROUND_SHAPE, type Card, type CardBatch } from './cards';
+import { TUNING } from '../inkTuning';
 import { alphaAt, colorAt, FAR_COUNTER, OVERWRITE_COUNTER, Particles, sizeAt, type ParticleLook } from './particles';
 
 const LOOK: ParticleLook = { life: 1, size: { from: 1, to: 3 }, colors: [0xff0000, 0x0000ff], alpha: { peak: 0.6, fadeIn: 0.2 }, drag: 0, gravity: 0, streak: 0, form: 'cloud' };
@@ -19,9 +20,9 @@ class RecordingBatch {
 }
 
 function drawn(p: Particles): Card[] {
-  const batch = new RecordingBatch();
-  p.draw(batch as unknown as CardBatch);
-  return batch.cards;
+  const batch = new RecordingBatch() as unknown as CardBatch;
+  p.draw({ main: batch, plumes: batch, fire: batch }, 0);
+  return (batch as unknown as RecordingBatch).cards;
 }
 
 describe('particle curves', () => {
@@ -77,6 +78,19 @@ describe('Particles', () => {
     expect(drawn(p)).toEqual([]);
   });
 
+  it.each([
+    ['cloud', 0, CARD_SHAPES],
+    ['round', ROUND_SHAPE, ROUND_SHAPE + 1],
+    ['clump', CLUMP_FIRST, CLUMP_FIRST + CLUMP_SHAPES],
+  ] as const)('gives a %s particle only its own shapes', (form, first, end) => {
+    const p = new Particles(64, NEAR);
+    for (let i = 0; i < 64; i++) p.spawn(AT, STILL, { ...LOOK, form }, 1);
+    for (const card of drawn(p)) {
+      expect(card.shape).toBeGreaterThanOrEqual(first);
+      expect(card.shape).toBeLessThan(end);
+    }
+  });
+
   it('moves a particle by its velocity and gravity', () => {
     const p = new Particles(1, NEAR);
     p.spawn(AT, { x: 1, y: 0, z: 0 }, { ...LOOK, gravity: -1 }, 1);
@@ -84,5 +98,125 @@ describe('Particles', () => {
     const [card] = drawn(p);
     expect(card.x).toBeGreaterThan(0.4);
     expect(card.y).toBeGreaterThan(0);
+  });
+});
+
+describe('fire turning into smoke', () => {
+  const SMOKE: ParticleLook = { ...LOOK, life: 3 };
+  const FIRE: ParticleLook = { ...LOOK, form: 'round', becomes: { look: SMOKE, share: 1, scale: 2, spread: 0, keepSpeed: 0.5 } };
+
+  it('hands a dying fire particle to the smoke pool where it died', () => {
+    const fire = new Particles(4, NEAR);
+    const smoke = new Particles(4, NEAR);
+    fire.handOff(smoke);
+    fire.spawn(AT, { x: 1, y: 0, z: 0 }, FIRE, 1);
+    fire.tick(0.5);
+    fire.tick(1);
+    expect(fire.alive()).toBe(0);
+    expect(smoke.alive()).toBe(1);
+    const [card] = drawn(smoke);
+    expect(card.x).toBeCloseTo(0.5);
+    expect(card.size).toBeCloseTo(2 * sizeAt(SMOKE, 0));
+  });
+
+  it('lets fire die without smoke when nothing takes the hand-off', () => {
+    const fire = new Particles(4, NEAR);
+    fire.spawn(AT, STILL, FIRE, 1);
+    fire.tick(2);
+    expect(fire.alive()).toBe(0);
+  });
+});
+
+describe('smoke breeze', () => {
+  function driftOf(form: ParticleLook['form']): number {
+    const p = new Particles(1, NEAR);
+    p.spawn(AT, STILL, { ...LOOK, life: 10, form }, 1);
+    for (let i = 0; i < 30; i++) p.tick(0.1);
+    return drawn(p)[0].x;
+  }
+
+  it('carries smoke billows downwind as they rise', () => {
+    expect(driftOf('cloud')).toBeGreaterThan(1);
+  });
+
+  it('leaves dust haze where the wheels threw it', () => {
+    expect(driftOf('haze')).toBe(0);
+  });
+});
+
+describe('ink billow tone', () => {
+  function toneAt(t: number, ink: number): number {
+    const p = new Particles(1, NEAR);
+    p.spawn(AT, STILL, { ...LOOK, life: 10, colors: [0x808080, 0x808080] }, 1);
+    p.tick(t * 7);
+    const batch = new RecordingBatch();
+    const to = batch as unknown as CardBatch;
+    p.draw({ main: to, plumes: to, fire: to }, ink);
+    return batch.cards[0].r;
+  }
+
+  it('starts darker and pales as a billow rises and ages', () => {
+    expect(toneAt(0.05, 1)).toBeLessThan(toneAt(0.05, 0));
+    expect(toneAt(0.9, 1)).toBeGreaterThan(toneAt(0.05, 1));
+  });
+
+  it('leaves the soft look untouched', () => {
+    expect(toneAt(0.9, 0)).toBeCloseTo(new THREE.Color(0x808080).r);
+  });
+});
+
+describe('ink smoke size and fading looks', () => {
+  function cardAt(look: ParticleLook, ink: number): Card {
+    const p = new Particles(1, NEAR);
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = ink;
+    p.spawn(AT, STILL, look, 1);
+    TUNING.fxInk.value = was;
+    random.mockRestore();
+    p.tick(0.5);
+    const batch = new RecordingBatch();
+    const to = batch as unknown as CardBatch;
+    p.draw({ main: to, plumes: to, fire: to }, ink);
+    return batch.cards[0];
+  }
+
+  it('draws smoke at the smoke size knob share at full ink and at full size with ink off', () => {
+    const smoke: ParticleLook = { ...LOOK, smoke: true };
+    expect(cardAt(smoke, 1).size).toBeCloseTo(cardAt(LOOK, 1).size * TUNING.smokeSize.value);
+    expect(cardAt(smoke, 0).size).toBeCloseTo(cardAt(LOOK, 0).size);
+  });
+
+  it('keeps cards that are not smoke at full size at full ink', () => {
+    expect(cardAt(LOOK, 1).size).toBeCloseTo(cardAt(LOOK, 0).size);
+  });
+
+  it('draws an ink off look only with ink off and an ink on look only with ink on', () => {
+    const off: ParticleLook = { ...LOOK, onlyIn: 'inkOff' };
+    const on: ParticleLook = { ...LOOK, onlyIn: 'inkOn' };
+    expect(cardAt(off, 0).alpha).toBeCloseTo(cardAt(LOOK, 0).alpha);
+    expect(cardAt(on, 1).alpha).toBeCloseTo(cardAt(LOOK, 1).alpha);
+  });
+
+  it('does not spend a slot on a look its ink setting hides', () => {
+    const p = new Particles(1, NEAR);
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = 1;
+    p.spawn(AT, STILL, { ...LOOK, onlyIn: 'inkOff' }, 1);
+    TUNING.fxInk.value = 0;
+    p.spawn(AT, STILL, { ...LOOK, onlyIn: 'inkOn' }, 1);
+    TUNING.fxInk.value = was;
+    expect(drawn(p)).toHaveLength(0);
+  });
+
+  it('sends burning looks to the fire batch and the rest to the main batch', () => {
+    const p = new Particles(2, NEAR);
+    p.spawn(AT, STILL, { ...LOOK, burns: true }, 1);
+    p.spawn(AT, STILL, LOOK, 1);
+    const main = new RecordingBatch();
+    const fire = new RecordingBatch();
+    p.draw({ main: main as unknown as CardBatch, plumes: main as unknown as CardBatch, fire: fire as unknown as CardBatch }, 1);
+    expect(fire.cards).toHaveLength(1);
+    expect(main.cards).toHaveLength(1);
   });
 });

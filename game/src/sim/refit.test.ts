@@ -9,7 +9,7 @@ import { advanceJobs, startJob } from './jobs';
 import { makePart } from './factory';
 import { sitePads, townAt } from './sites';
 import { addVehicle, emptyWorld, practiceOf } from './testkit';
-import { findSpot, gridOf, MOUNT_CELLS } from './grid';
+import { findSpot, gridOf, MOUNT_CELLS, turnsOf } from './grid';
 import { planItemMove } from './inventory';
 import type { GridItem, PartInstance, World } from './types';
 
@@ -25,6 +25,34 @@ function startUnmount() {
   const next = moveItem(w, weapon.id, { x: 3, y: CHASSIS.scout.layout.length, rot: 1 });
   return { next, weapon };
 }
+
+describe('a part displaced by a gun', () => {
+  it('takes a pose of its own kind and never throws for any gun pose', () => {
+    const w = emptyWorld();
+    const weapon = getWeapon(w);
+    const others = w.vehicles[0].items.filter((item) => item.id !== weapon.id && item.kind === 'part');
+    expect(others.length).toBeGreaterThan(0);
+    for (const pose of turnsOf(weapon)) {
+      const posed = { ...w.vehicles[0], items: w.vehicles[0].items.map((item) => (item.id === weapon.id ? { ...item, rot: pose } : item)) };
+      for (const target of others) {
+        for (const rot of turnsOf(weapon)) {
+          const result = planItemMove(posed, weapon.id, { x: target.x, y: target.y, rot });
+          const move = result.plan?.moves.find((entry) => entry.itemId === target.id);
+          if (move) expect(turnsOf(target)).toContain(move.to.rot);
+        }
+      }
+    }
+  });
+
+  it('refuses instead of throwing when a turned gun is rotated in place', () => {
+    const w = emptyWorld();
+    const weapon = getWeapon(w);
+    for (const pose of turnsOf(weapon)) {
+      const posed = { ...w.vehicles[0], items: w.vehicles[0].items.map((item) => (item.id === weapon.id ? { ...item, rot: pose } : item)) };
+      for (const next of turnsOf(weapon)) expect(() => planItemMove(posed, weapon.id, { x: weapon.x, y: weapon.y, rot: next })).not.toThrow();
+    }
+  });
+});
 
 describe('field refits', () => {
   it('installs a spare on turn five', () => {
@@ -86,9 +114,12 @@ describe('field refits', () => {
     const { next, weapon } = startUnmount();
     const good = next.vehicles[0].items.find((item) => item.kind === 'good');
     if (!good) throw new Error('Expected goods');
-    const back = moveItem(next, weapon.id, weapon);
-    const job = back.vehicles[0].job;
-    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: weapon.id, from: { x: 3, y: CHASSIS.scout.layout.length, rot: 1 }, to: { x: weapon.x, y: weapon.y, rot: weapon.rot } }]);
+    const panniers = next.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
+    if (!panniers) throw new Error('Expected panniers');
+    const to = { x: 0, y: 14, rot: 0 as const };
+    const queued = moveItem(next, panniers.id, to);
+    const job = queued.vehicles[0].job;
+    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: panniers.id, from: { x: panniers.x, y: panniers.y, rot: panniers.rot }, to }]);
     expect(() => dumpItem(next, good.id)).toThrow('Refused: refitRunning');
   });
 
@@ -130,7 +161,7 @@ describe('field refits', () => {
     const weapon = getWeapon(w);
     const engine = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'stockEngine');
     if (!engine) throw new Error('Expected engine');
-    expect(() => moveItem(w, weapon.id, { x: engine.x, y: engine.y, rot: 0 })).toThrow();
+    expect(() => moveItem(w, weapon.id, { x: engine.x, y: engine.y, rot: 0 })).toThrow('Refused: badLayout');
     expect(w.vehicles[0].job).toBeNull();
   });
 

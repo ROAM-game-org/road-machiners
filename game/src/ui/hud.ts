@@ -1,6 +1,7 @@
 
 import { Drawers } from "./drawers";
-import { keyCap, keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -12,7 +13,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, disabledWith, el, panel, replaceChanged, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
@@ -27,13 +28,11 @@ import {
   surveyClueLines,
   eventText,
   formatNpcPass,
-  workLabel,
-  workProgress,
   formatNpcCargo,
   formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
-  formatVehicleState,
+  formatCardState,
   type LogLine,
   clock,
   stanceTag,
@@ -43,7 +42,7 @@ import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
+import { actionRow, costItem, createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch, lockSlot, stackedLabel } from "./switch";
@@ -53,7 +52,7 @@ import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import type { Refusal } from "../sim/types";
-import { lookOverError } from "../sim/look-over";
+import { knowsCargo, lookOverError } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
 import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
@@ -117,6 +116,7 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  journalBeside: () => boolean;
   openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
@@ -172,14 +172,14 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: keyLabel(busy ? TURN_PLAYING : t("map.full"), "M") },
       t("map.full"),
     ),
   ];
 }
 
-function readoutClass(r: { warning: boolean; danger?: boolean; idle?: boolean }): string {
-  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : "", r.idle ? "idle" : ""].filter(Boolean).join(" ");
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
 }
 
 export class Hud {
@@ -198,7 +198,7 @@ export class Hud {
   private haulerGauge = new HaulerGauge();
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
-  private inspectedAimable = false;
+  private inspectedOther = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -221,19 +221,70 @@ export class Hud {
 
   private readonly dialogue: DialoguePanel;
 
+  private side: HTMLElement | null = null;
+
+  private sideShown(): boolean {
+    return this.side !== null && this.side.style.display !== "none" && this.side.classList.contains("journal-side");
+  }
+
+  private infoShown(): boolean {
+    return this.info.style.display !== "none";
+  }
+
+  placeSide = (node: HTMLElement | null = this.side): void => {
+    this.side = node;
+    if (this.side) this.side.style.visibility = "";
+    if (!this.sideShown()) {
+      this.side?.style.removeProperty("top");
+      this.side?.style.removeProperty("height");
+      return this.coverUnder(this.infoShown() ? uiSize().layerRect(this.info).bottom : null);
+    }
+    const side = this.side!;
+    side.style.visibility = this.infoShown() ? "hidden" : "";
+    const top = uiSize().layerRect(topRight()).bottom + parseFloat(token("--hud-gap"));
+    side.style.top = `${top}px`;
+    side.style.height = `${Math.max(this.sideFloor(side) - top, 0)}px`;
+    if (!this.infoShown()) this.coverUnder(uiSize().layerRect(side).bottom);
+  };
+
+  private clearOfDock(floor: number, card: HTMLElement): number {
+    if (phoneMode()) return floor;
+    const reach = Math.max(...[...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")].map((control) => uiSize().layerRect(control).right));
+    return reach > uiSize().layerRect(card).left ? Math.min(floor, uiSize().layerRect(this.top).top - parseFloat(token("--hud-gap"))) : floor;
+  }
+
+  private sideFloor(side: HTMLElement): number {
+    return this.clearOfDock(uiSize().layerRect(this.log.root).bottom, side);
+  }
+
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
     const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
-    const slot = this.floorOfInfo() - gap - top;
+    const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
+    const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
-    this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
-    if (this.inspectedAimable) this.growForAim(top, slot);
+    this.info.style.maxHeight = phoneMode() ? "none" : "";
+    this.growForDrawing(top, slot);
+    this.fillToFloor(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
+    this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
   };
+
+  private placeQueued = false;
+
+  private placeSoon(): void {
+    if (this.placeQueued) return;
+    this.placeQueued = true;
+    requestAnimationFrame(() => {
+      this.placeQueued = false;
+      this.placeInfo();
+      this.placeSide();
+    });
+  }
 
   private drawerMoved(): void {
     requestAnimationFrame(this.placeInfo);
@@ -266,21 +317,33 @@ export class Hud {
     return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
   }
 
-  private growForAim(top: number, slot: number): void {
+  private growForDrawing(top: number, slot: number): void {
     const need = this.inspected.boxFor(this.aimCellPx());
-    const wider = need.width - this.inspectedDraw.clientWidth;
-    const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
+    this.growHeightForDrawing(top, slot, need.height);
+    const reach = Math.min(1, this.inspectedDraw.clientHeight / need.height);
+    this.growWidthForDrawing(need.width * reach);
+  }
+
+  private growHeightForDrawing(top: number, slot: number, needed: number): void {
     if (phoneMode()) {
-      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
-      const fits = slot - this.inspectedDraw.clientHeight + need.height;
+      const fits = slot - this.inspectedDraw.clientHeight + needed;
       this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
       return;
     }
-    if (wider > 0) this.info.style.width = `${width}px`;
-    const tallest = uiSize().layerRect(this.log.root).bottom - top;
+    const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
-    const fits = tallest - this.inspectedDraw.clientHeight + need.height;
+    const fits = tallest - this.inspectedDraw.clientHeight + needed;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
+  }
+
+  private growWidthForDrawing(needed: number): void {
+    const wider = needed - this.inspectedDraw.clientWidth;
+    if (wider <= 0) return;
+    this.info.style.width = `${Math.min(this.info.offsetWidth + wider, this.aimWidthCap())}px`;
+  }
+
+  private fillToFloor(top: number): void {
+    if (this.inspectedOther && !phoneMode()) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
   }
 
   private coverUnder(bottom: number | null): void {
@@ -312,15 +375,17 @@ export class Hud {
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
-    new ResizeObserver(this.placeInfo).observe(rightDock());
-    new ResizeObserver(this.placeInfo).observe(this.inspectedDraw);
+    const placeSoon = new ResizeObserver(() => this.placeSoon());
+    placeSoon.observe(rightDock());
+    placeSoon.observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
+    window.addEventListener("resize", () => this.placeSide());
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
+    this.recenter.append(el("button", { onclick: () => actions.recenter(), title: keyLabel(t("hud.recenter"), RECENTER_KEY) }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
   }
 
   feedbackOpen(): boolean {
@@ -368,32 +433,8 @@ export class Hud {
   ): void {
     const me = playerVehicle(world);
     const shown = shownWork(action, workOf(world, me));
-    this.action.style.display = action || shown ? "" : "none";
-    if (shown) this.renderWork(shown, workLabel(world, me, shown));
-    else if (action) this.renderActionButton(action, count, index, onUse, onCycle);
-  }
-
-  private renderWork(work: Work, label: Msg): void {
-    const progress = Math.round(workProgress(work) * 100);
-    this.action.replaceChildren(
-      el(
-        "span",
-        { class: "job-label" },
-        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
-      ),
-      el(
-        "span",
-        {
-          class: "job-bar meter progress",
-          role: "progressbar",
-          "aria-label": t("hud.workProgress", { label }),
-          "aria-valuemin": "0",
-          "aria-valuemax": "100",
-          "aria-valuenow": String(progress),
-        },
-        el("span", { style: `width:${progress}%` }),
-      ),
-    );
+    this.action.style.display = action && !shown ? "" : "none";
+    if (action && !shown) this.renderActionButton(action, count, index, onUse, onCycle);
   }
 
   private renderActionButton(action: ContextAction, count: number, index: number, onUse: () => void, onCycle: (step: 1 | -1) => void): void {
@@ -401,13 +442,15 @@ export class Hud {
       "button",
       {
         ...disabledWith(action.ready ? null : (actionBlockReason(action) ?? null), onUse),
+        title: keyLabel(action.label, "E"),
         class: action.combat !== undefined ? "btn-danger" : "",
       },
       action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
       el("button", { class: "cycle", title: touchMode() ? undefined : t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
-    this.action.replaceChildren(
+    replaceChanged(
+      this.action,
       ...(count > 1
         ? [cycle(-1, t("hud.prevMark"), "←"), use, el("span", { class: "count" }, t("hud.count", { n: index + 1, of: count })), cycle(1, t("hud.nextMark"), "→")]
         : [use]),
@@ -466,7 +509,8 @@ export class Hud {
     if (cases.length === 0) return this.wanted.replaceChildren();
     const owed = cases.reduce((sum, c) => sum + caseOwed(c), 0);
     this.wanted.tabIndex = 0;
-    this.wanted.replaceChildren(
+    replaceChanged(
+      this.wanted,
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
       el("div", { class: "wanted-head" }, el("span", { class: "panel-title" }, t("hud.wanted")), el("span", { class: "num wanted-owed" }, moneyEl(owed))),
     );
@@ -479,7 +523,8 @@ export class Hud {
       return;
     }
     this.contracts.style.display = "";
-    this.contracts.replaceChildren(
+    replaceChanged(
+      this.contracts,
       el("h3", { class: "panel-title" }, t("hud.contracts")),
       ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
@@ -521,7 +566,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": reason === null ? undefined : "true",
         onclick: () => reason === null && this.actions.douseEngine(),
-        title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        title: keyLabel(reason ?? t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
       lockSlot(block === "noBasic"),
       t("hud.douse"),
@@ -538,7 +583,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": reason === null ? undefined : "true",
         onclick: () => reason === null && this.actions.firstAid(),
-        title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
+        title: keyLabel(reason ?? t("hud.costsSupplies", { n: cost }), "U"),
       },
       lockSlot(block === "noBasic"),
       t("hud.firstAid"),
@@ -554,7 +599,7 @@ export class Hud {
         "data-action": "character",
         "aria-disabled": busy ? "true" : undefined,
         onclick: () => !busy && this.actions.openCharacter(),
-        title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
+        title: keyLabel(busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       stackedLabel([t("hud.driver"), t("hud.driverMarked")], marked ? 1 : 0),
     );
@@ -568,7 +613,7 @@ export class Hud {
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
-      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
+      { class: "instrument-button", disabled: busy && !this.actions.journalBeside(), onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
     );
   }
@@ -581,6 +626,7 @@ export class Hud {
     this.renderContracts(w);
     this.renderWanted(w);
     this.tips.update(w, this.actions.autoTravel());
+    requestAnimationFrame(() => this.tips.place());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
     const me = playerVehicle(live);
@@ -593,7 +639,8 @@ export class Hud {
 
   private renderClock(clock: ReturnType<typeof getHudReadout>["clock"]): void {
     bindAttr(this.clockSlot, "aria-label", t("hud.clockLabel", { when: clock.full }));
-    this.clockSlot.replaceChildren(
+    replaceChanged(
+      this.clockSlot,
       el("span", { class: "clock-day" }, el("span", {}, el("span", {}, clock.dayLabel)), el("span", {}, el("span", {}, clock.day))),
       el("span", { class: "clock-time" }, el("span", {}, clock.time)),
     );
@@ -613,13 +660,14 @@ export class Hud {
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
-    this.dialSlot.replaceChildren(dial);
-    this.compassSlot.replaceChildren(createCompassDial(readout.heading));
+    replaceChanged(this.dialSlot, dial);
+    replaceChanged(this.compassSlot, createCompassDial(readout.heading));
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 
   private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
-    this.readoutSlot.replaceChildren(
+    replaceChanged(
+      this.readoutSlot,
       ...readout.resources.map((resource) =>
         el(
           "span",
@@ -661,7 +709,8 @@ export class Hud {
   }
 
   private renderActions(w: World, manual: boolean, busy: boolean): void {
-    this.actionSlot.replaceChildren(
+    replaceChanged(
+      this.actionSlot,
       createSwitch({
         on: t("hud.manual"),
         off: t("hud.route"),
@@ -673,7 +722,7 @@ export class Hud {
       }),
       createSwitch({
         on: t("hud.autoPatch"),
-        off: t("hud.noPatch"),
+        off: t("hud.autoPatch"),
         checked: w.player.autoRepair,
         key: "P",
         reason: orderLock(w, busy),
@@ -712,7 +761,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (isNotable(e)) this.toast(line.text);
+      if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
   }
@@ -757,18 +806,19 @@ export class Hud {
     this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
-      this.coverUnder(null);
+      this.placeSide();
       return;
     }
     const aim = this.aimOf(w, v);
-    this.inspectedAimable = aim !== undefined;
+    this.inspectedOther = !isPlayerTruck(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      infoHead(w, v, hostile, this.cardButtons(w, v)),
-      el("div", { class: "info-state" }, wantedMark(w, v), formatVehicleState(w, v)),
+      infoHead(w, v, hostile),
+      el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
+      ...[this.cardButtons(w, v)].flatMap((row) => (row ? [row] : [])),
     );
     this.placeInfo();
   }
@@ -778,16 +828,14 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement | null): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
     "div",
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
-    el("span", { class: "info-quiet", title: quietText }, quietText),
-    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-    ...(buttons ? [buttons] : []),
+    ...(v.faction === "player" ? [] : [el("span", { class: "info-quiet", title: quietText }, quietText), el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
   );
 }
 
@@ -797,22 +845,28 @@ export interface CardHandlers {
   unpin: () => void;
 }
 
-function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
-  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick) }, label, keyCap(key));
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, cost: readonly HTMLElement[] = []): HTMLElement[] {
+  const button = el("button", { class: "btn-s", ...disabledWith(refusal, onclick), title: keyLabel(refusal ?? label, key) }, label);
+  return cost.length === 0 ? [button] : actionRow(button, cost);
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
-  const buttons = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
+  const buttons: HTMLElement[] = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
   if (touchMode()) buttons.push(el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, t("hint.closeMark")));
   return buttons.length === 0 ? null : el("div", { class: "info-actions" }, ...buttons);
 }
 
 function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
   const buttons: HTMLElement[] = [];
-  if (v.brain && modeRules(w).radio) buttons.push(actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
-  if (hasBasic(w, "lookOver")) buttons.push(actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver")));
-  if (hasPerk(w, "spotter")) buttons.push(actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
+  if (v.brain && modeRules(w).radio) buttons.push(...actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
+  if (hasBasic(w, "lookOver")) buttons.push(...lookOverButton(w, v, handlers));
+  if (hasPerk(w, "spotter")) buttons.push(...actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
   return buttons;
+}
+
+function lookOverButton(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  if (knowsCargo(w, playerVehicle(w), v)) return actionButton(t("card.lookOver"), "B", null, () => handlers.act("lookOver"));
+  return actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), [costItem("clock", num(LOOK_OVER.turns, "int"))]);
 }
 
 function reasonOf(w: World, refusal: Refusal | null): Msg | null {

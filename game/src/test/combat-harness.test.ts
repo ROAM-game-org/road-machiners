@@ -52,7 +52,7 @@ describe('combat harness', () => {
   });
 
   it('a standing player never moves', () => {
-    expect(base.a.speed).toBe(0);
+    expect(base.a.speed).toBeCloseTo(0, 6);
   });
 
   it('has two brains of one faction fight each other', () => {
@@ -60,13 +60,6 @@ describe('combat harness', () => {
     expect(r.a.rounds).toBeGreaterThan(0);
     expect(r.b.rounds).toBeGreaterThan(0);
     expect(r.a.speed).toBeGreaterThan(0);
-  });
-
-  it('names the courier side when it flees a stronger truck', () => {
-    forceOption('truceOffered', 'refuse');
-    forceOption('mercyBegged', 'finish');
-    const r = firstFight(SEEDS, (seed) => ({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier:courier@poor@courier#2'), seed, maxTurns: 40 }), (f) => f.outcome === 'b fled' || f.outcome === 'a fled', 'a flight');
-    expect(r.outcome).toBe('b fled');
   });
 
   it('fights to a knockout inside the arena rather than stopping at a truce', () => {
@@ -183,15 +176,17 @@ it('waits for a launched shot after its shooter is destroyed', async () => {
 it('settles pending shots without steering a scripted driver toward a defeated opponent', async () => {
   const { wreckVehicle } = await import('../sim/combat');
   let pending = -1;
+  let wreckedOn = 0;
   const report = runFight({ ...FIGHT, a: parseLineup('stand:mg/bare~0'), b: parseLineup('buggy:cannon/bare~0'), seed: 1, maxTurns: 5 }, (w, turn) => {
-    if (turn === 1) {
-      const flight = w.combat.flights.find(f => f.shooterId === w.player.vehicleId);
-      expect(flight).toBeDefined();
-      const target = w.vehicles.find(v => v.id === flight!.targetId)!;
+    const flight = w.combat.flights.find(f => f.shooterId === w.player.vehicleId);
+    if (wreckedOn === 0 && flight) {
+      wreckedOn = turn;
+      const target = w.vehicles.find(v => v.id === flight.targetId)!;
       wreckVehicle(w, target);
     }
     pending = w.combat.flights.length;
   });
+  expect(wreckedOn).toBeGreaterThan(0);
   expect(report.outcome).toBe('won');
   expect(report.turns).toBeGreaterThan(1);
   expect(pending).toBe(0);

@@ -87,7 +87,7 @@ describe('render scope', () => {
       const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
       const objects = populate(scope);
       const rig = rigAt(spot.x, spot.y, zoom);
-      scope.update(rig.camera);
+      scope.update(rig.camera, null);
       const seen = objects.filter((o) => inView(o, rig.camera));
       expect(seen.length).toBeGreaterThan(0);
       for (const o of seen) expect(attached(o, root)).toBe(true);
@@ -101,15 +101,32 @@ describe('render scope', () => {
     const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
     const objects = populate(scope);
     const first = rigAt(100, 100, 1);
-    scope.update(first.camera);
+    scope.update(first.camera, null);
     const second = rigAt(500, 500, 1);
-    scope.update(second.camera);
+    scope.update(second.camera, null);
     for (const o of objects.filter((x) => inView(x, second.camera))) expect(attached(o, root)).toBe(true);
     for (const o of objects.filter((x) => inView(x, first.camera) && !inView(x, second.camera) && x.scale.x < 20 * S)) expect(attached(o, root)).toBe(false);
     const gone = objects.find((o) => attached(o, root))!;
     scope.remove(gone);
     expect(gone.parent).toBe(null);
     expect(() => scope.remove(gone)).toThrow();
+  });
+
+  it('keeps a chunk off screen attached while it sits in the sun shadow box, so it still casts', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
+    const objects = populate(scope);
+    const rig = rigAt(SIZE / 2, SIZE / 2, 1);
+    const sun = new THREE.OrthographicCamera(-80, 80, 80, -80, 1, 700);
+    const focus = new THREE.Vector3((SIZE / 2) * S, 0, (SIZE / 2) * S);
+    sun.position.copy(focus).add(new THREE.Vector3(-400, 150, 0));
+    sun.lookAt(focus);
+    sun.updateMatrixWorld();
+    scope.update(rig.camera, null);
+    const offScreen = objects.filter((o) => !attached(o, root) && inView(o, sun));
+    expect(offScreen.length).toBeGreaterThan(0);
+    scope.update(rig.camera, sun);
+    for (const o of offScreen) expect(attached(o, root)).toBe(true);
   });
 
   it('rejects objects outside the map', () => {
@@ -126,7 +143,7 @@ describe('render scope', () => {
     const rig = rigAt(SIZE / 2, SIZE / 2, 0.35);
     const center = { x: (SIZE / 2) * S, y: 0, z: (SIZE / 2) * S };
     limit.set(center, 20 * S);
-    scope.update(rig.camera);
+    scope.update(rig.camera, null);
     const near = objects.filter((o) => inView(o, rig.camera) && limit.covers(o.position));
     const far = objects.filter((o) => Math.hypot(o.position.x - center.x, o.position.z - center.z) > 200 * S);
     expect(near.length).toBeGreaterThan(0);
@@ -154,7 +171,7 @@ describe('render scope bounds', () => {
     const scope = new RenderScope(root, SIZE, limit, true, false);
     scope.add(tree, at, 2);
     limit.set({ x: 0, y: 0, z: 0 }, 5 * S);
-    scope.update(rigAt(0, 0, 0.35).camera);
+    scope.update(rigAt(0, 0, 0.35).camera, null);
     return !attached(tree, root);
   }
 
@@ -341,8 +358,8 @@ describe('RenderScope frame hooks', () => {
     let calls = 0;
     scope.onFrame(() => calls++);
     const rig = rigAt(300, 300, 1);
-    scope.update(rig.camera);
-    scope.update(rig.camera);
+    scope.update(rig.camera, null);
+    scope.update(rig.camera, null);
     expect(calls).toBe(2);
   });
 });
@@ -368,7 +385,7 @@ describe('render scope chunk range', () => {
 
   function checkAgainstScan(scope: RenderScope, limit: SightLimit, root: THREE.Object3D, view: { x: number; y: number; zoom: number }): number {
     const rig = rigAt(view.x, view.y, view.zoom);
-    scope.update(rig.camera);
+    scope.update(rig.camera, null);
     const scan = scanned(scope, limit, rig.camera);
     expect(attachedNames(root)).toEqual(new Set(scan.keys()));
     return scan.size;
@@ -411,7 +428,7 @@ describe('render scope chunk range', () => {
     slab.position.set(300 * S, 10, 300 * S);
     scope.add(slab, { x: 300, y: 300 }, 60);
     const rig = rigAt(300 + 70, 300 + 70, 1);
-    scope.update(rig.camera);
+    scope.update(rig.camera, null);
     expect(inView(slab, rig.camera)).toBe(true);
     expect(attached(slab, root)).toBe(true);
   });

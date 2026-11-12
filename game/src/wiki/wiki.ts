@@ -244,7 +244,7 @@ const TABLES: WikiTable[] = [
   { id: 'rank-costs', headers: ['rank', 'xp cost'], rows: () => RANK_COSTS.map((xp, i) => [i + 1, xp]) },
   {
     id: 'xp-sources',
-    headers: ['source', 'activity family', 'weight (xp per unit)', 'scaled by difficulty', 'repeat factor'],
+    headers: ['source', 'activity family', 'weight', 'scaled by difficulty', 'repeat factor'],
     rows: () => entries(XP_SOURCES).map(([id, s]) => [id, s.skill, s.weight, s.scaled, s.repeat]),
   },
   {

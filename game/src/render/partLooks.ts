@@ -182,26 +182,26 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   mg: {
     mount: ['wmount_ring_small', 'wmount_pintle'],
     receiver: ['wrec_mg_a', 'wrec_mg_b'],
-    barrel: ['wbar_mg_short', 'wbar_mg_long', 'wbar_twin'],
-    extra: ['wext_shield', 'wext_drum'],
+    barrel: ['wbar_mg'],
+    extra: [],
   },
   shotgun: {
     mount: ['wmount_ring_small', 'wmount_pintle'],
     receiver: ['wrec_shotgun'],
-    barrel: ['wbar_shotgun', 'wbar_twin'],
-    extra: ['wext_shield', 'wext_drum'],
+    barrel: ['wbar_shotgun'],
+    extra: ['wext_shield'],
   },
   autocannon: {
     mount: ['wmount_ring_wide'],
     receiver: ['wrec_autocannon'],
-    barrel: ['wbar_autocannon', 'wbar_twin'],
-    extra: ['wext_drum', 'wext_shield'],
+    barrel: ['wbar_autocannon'],
+    extra: ['wext_box_mag'],
   },
   cannon: {
     mount: ['wmount_cradle'],
     receiver: ['wrec_cannon'],
     barrel: ['wbar_cannon'],
-    extra: ['wext_shield', 'wext_scope'],
+    extra: ['wext_shield'],
   },
   tankGun: {
     mount: ['wmount_cradle'],
@@ -218,26 +218,26 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   sniperCannon: {
     mount: ['wmount_cradle'],
     receiver: ['wrec_sniper'],
-    barrel: ['wbar_sniper'],
-    extra: ['wext_scope'],
+    barrel: ['wbar_sniper_cannon'],
+    extra: [],
   },
   longRifle: {
     mount: ['wmount_pintle'],
     receiver: ['wrec_mg_b'],
     barrel: ['wbar_mg_long'],
-    extra: ['wext_scope'],
+    extra: [],
   },
   flamer: {
     mount: ['wmount_ring_small'],
     receiver: ['wrec_shotgun'],
-    barrel: ['wbar_shotgun'],
-    extra: ['wext_drum'],
+    barrel: ['wbar_flamer'],
+    extra: ['wext_fuel_tanks'],
   },
   pneumobolter: {
     mount: ['wmount_ring_small', 'wmount_pintle'],
     receiver: ['wrec_autocannon'],
     barrel: ['wbar_autocannon'],
-    extra: ['wext_drum', 'wext_shield'],
+    extra: ['wext_air_tank'],
   },
   slugCannon: {
     mount: ['wmount_ring_wide'],
@@ -248,44 +248,44 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   heavyMg: {
     mount: ['wmount_ring_small'],
     receiver: ['wrec_mg_a', 'wrec_mg_b'],
-    barrel: ['wbar_mg_long', 'wbar_twin'],
-    extra: ['wext_shield', 'wext_drum'],
+    barrel: ['wbar_hmg'],
+    extra: ['wext_shield'],
   },
   amRifle: {
     mount: ['wmount_cradle'],
     receiver: ['wrec_sniper'],
     barrel: ['wbar_sniper'],
-    extra: ['wext_scope'],
+    extra: [],
   },
   recoilless: {
     mount: ['wmount_ring_wide'],
     receiver: ['wrec_cannon'],
-    barrel: ['wbar_cannon'],
-    extra: ['wext_shield'],
+    barrel: ['wbar_recoilless'],
+    extra: [],
   },
   battleRifle: {
     mount: ['wmount_pintle'],
     receiver: ['wrec_mg_b'],
     barrel: ['wbar_mg_long'],
-    extra: ['wext_scope', 'wext_drum'],
+    extra: ['wext_drum'],
   },
   gatling: {
     mount: ['wmount_ring_wide'],
     receiver: ['wrec_autocannon'],
-    barrel: ['wbar_twin'],
-    extra: ['wext_drum'],
+    barrel: ['wbar_gatling'],
+    extra: [],
   },
   grenadeLauncher: {
     mount: ['wmount_ring_wide'],
     receiver: ['wrec_shotgun'],
-    barrel: ['wbar_autocannon'],
+    barrel: ['wbar_grenade'],
     extra: ['wext_drum'],
   },
   flechette: {
     mount: ['wmount_ring_small'],
-    receiver: ['wrec_mg_a'],
-    barrel: ['wbar_mg_long'],
-    extra: ['wext_scope'],
+    receiver: ['wrec_autocannon'],
+    barrel: ['wbar_twin'],
+    extra: [],
   },
   harpoon: {
     mount: ['wmount_pintle', 'wmount_ring_small'],
@@ -338,7 +338,6 @@ export function weaponLook(partId: string, defId: string): WeaponLook {
 
 export const WEAR_LOOK_STEPS = 4;
 export const WORN_GRAY = 0x8c8a84;
-export const GRAY_MAX = 0.35;
 export const DENT_DEPTH = 0.35;
 export const DENT_MAX = 0.15;
 export const DENT_REACH = 0.3;
@@ -363,10 +362,6 @@ export function wearLookStep(part: PartInstance): number {
 
 export function wearShare(step: number): number {
   return Math.sqrt(Math.min(step, WEAR_LOOK_STEPS) / WEAR_LOOK_STEPS);
-}
-
-export function grayShare(step: number): number {
-  return GRAY_MAX * wearShare(step);
 }
 
 export function grayed(hex: number, share: number): number {
@@ -525,24 +520,24 @@ export type IconEntry = {
 };
 
 export const ICON_WEAPON_PICKS: Record<string, WeaponLook> = {
-  mg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_mg_short', extra: 'wext_drum' },
+  mg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_mg', extra: null },
   shotgun: { mount: 'wmount_pintle', receiver: 'wrec_shotgun', barrel: 'wbar_shotgun', extra: 'wext_shield' },
-  longRifle: { mount: 'wmount_pintle', receiver: 'wrec_mg_b', barrel: 'wbar_mg_long', extra: 'wext_scope' },
-  flamer: { mount: 'wmount_ring_small', receiver: 'wrec_shotgun', barrel: 'wbar_shotgun', extra: 'wext_drum' },
-  pneumobolter: { mount: 'wmount_ring_small', receiver: 'wrec_autocannon', barrel: 'wbar_autocannon', extra: 'wext_drum' },
+  longRifle: { mount: 'wmount_pintle', receiver: 'wrec_mg_b', barrel: 'wbar_mg_long', extra: null },
+  flamer: { mount: 'wmount_ring_small', receiver: 'wrec_shotgun', barrel: 'wbar_flamer', extra: 'wext_fuel_tanks' },
+  pneumobolter: { mount: 'wmount_ring_small', receiver: 'wrec_autocannon', barrel: 'wbar_autocannon', extra: 'wext_air_tank' },
   slugCannon: { mount: 'wmount_ring_wide', receiver: 'wrec_autocannon', barrel: 'wbar_cannon', extra: 'wext_shield' },
-  heavyMg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_twin', extra: 'wext_drum' },
-  cannon: { mount: 'wmount_cradle', receiver: 'wrec_cannon', barrel: 'wbar_cannon', extra: 'wext_scope' },
-  amRifle: { mount: 'wmount_cradle', receiver: 'wrec_sniper', barrel: 'wbar_sniper', extra: 'wext_scope' },
-  autocannon: { mount: 'wmount_ring_wide', receiver: 'wrec_autocannon', barrel: 'wbar_autocannon', extra: 'wext_shield' },
-  recoilless: { mount: 'wmount_ring_wide', receiver: 'wrec_cannon', barrel: 'wbar_cannon', extra: 'wext_shield' },
+  heavyMg: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_hmg', extra: 'wext_shield' },
+  cannon: { mount: 'wmount_cradle', receiver: 'wrec_cannon', barrel: 'wbar_cannon', extra: 'wext_shield' },
+  amRifle: { mount: 'wmount_cradle', receiver: 'wrec_sniper', barrel: 'wbar_sniper', extra: null },
+  autocannon: { mount: 'wmount_ring_wide', receiver: 'wrec_autocannon', barrel: 'wbar_autocannon', extra: 'wext_box_mag' },
+  recoilless: { mount: 'wmount_ring_wide', receiver: 'wrec_cannon', barrel: 'wbar_recoilless', extra: null },
   battleRifle: { mount: 'wmount_pintle', receiver: 'wrec_mg_b', barrel: 'wbar_mg_long', extra: 'wext_drum' },
-  gatling: { mount: 'wmount_ring_wide', receiver: 'wrec_autocannon', barrel: 'wbar_twin', extra: 'wext_drum' },
+  gatling: { mount: 'wmount_ring_wide', receiver: 'wrec_autocannon', barrel: 'wbar_gatling', extra: null },
   rocketRack: { mount: 'wmount_ring_wide', receiver: 'wrec_rocket_pod', barrel: 'wbar_rocket_tubes', extra: null },
-  sniperCannon: { mount: 'wmount_cradle', receiver: 'wrec_sniper', barrel: 'wbar_sniper', extra: 'wext_scope' },
-  grenadeLauncher: { mount: 'wmount_ring_wide', receiver: 'wrec_shotgun', barrel: 'wbar_autocannon', extra: 'wext_drum' },
+  sniperCannon: { mount: 'wmount_cradle', receiver: 'wrec_sniper', barrel: 'wbar_sniper_cannon', extra: null },
+  grenadeLauncher: { mount: 'wmount_ring_wide', receiver: 'wrec_shotgun', barrel: 'wbar_grenade', extra: 'wext_drum' },
   tankGun: { mount: 'wmount_cradle', receiver: 'wrec_tank', barrel: 'wbar_tank', extra: 'wext_shield' },
-  flechette: { mount: 'wmount_ring_small', receiver: 'wrec_mg_a', barrel: 'wbar_mg_long', extra: 'wext_scope' },
+  flechette: { mount: 'wmount_ring_small', receiver: 'wrec_autocannon', barrel: 'wbar_twin', extra: null },
   harpoon: { mount: 'wmount_pintle', receiver: 'wrec_harpoon', barrel: 'wbar_harpoon', extra: null },
 };
 
@@ -579,7 +574,7 @@ export function iconCatalog(
 
 type IconDraft = { entry: Omit<IconEntry, 'rank'>; hp: number };
 
-const CAB_ICON_MODELS: Record<string, ModelName> = { cab: 'cab_seat', cabPickup: 'cab_pickup', cabHardtop: 'cab_hardtop' };
+const CAB_ICON_MODELS: Record<string, ModelName> = { cab: 'cab_seat', cabPickup: 'cab_pickup', cabHardtop: 'cab_hardtop', cabBroad: 'cab_pickup' };
 
 function iconModel(defId: string): ModelName {
   if (!BODY_PARTS.has(defId)) return partModel(defId);

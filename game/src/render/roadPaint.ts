@@ -35,6 +35,10 @@ export const DIRT_ROAD_STYLE = "#0f0";
 
 export type RoadHole = { pos: Vec; radius: number };
 
+export function regionRoadRuns(atlas: Atlas): Vec[][] {
+  return atlas.roads.filter((road) => road.lanes === 0).flatMap((road) => runsWhere(evenPoints(road.points), (p) => drawn(atlas, p)));
+}
+
 export function paintRoadMask(c: PaintCanvas, atlas: Atlas, holes: readonly RoadHole[] = []): void {
   const ctx = c.ctx;
   ctx.fillStyle = "#000";

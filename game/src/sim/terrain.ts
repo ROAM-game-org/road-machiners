@@ -3,6 +3,7 @@ import { MAPGEN, TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terr
 import { besideDeck, deckAt, decksOf, decksWithin, spanAt, type Deck } from './bridge';
 import { fnv1a } from '../file-hash';
 import { clamp, type Vec } from './vec';
+import { FOLD, GroundSurface, type Fold } from './surface';
 
 export type AtlasKey = { kind: 'icarus' } | { kind: 'highway'; seed: number; window: number };
 export const ICARUS_KEY: AtlasKey = Object.freeze({ kind: 'icarus' });
@@ -54,7 +55,34 @@ export function markHeightAt(t: Terrain, origin: Vec, x: number, y: number): num
   return Math.abs(from - deck) < Math.abs(from - h) ? deck : h;
 }
 
-export function groundAt(t: { size: number; heights: ArrayLike<number> }, x: number, y: number): number {
+function foldOf(t: Terrain, x: number, y: number): Fold {
+  const slope = groundSlope(t, y * t.size + x);
+  if (Math.hypot(slope.x, slope.y) <= T.drive.maxSlope) return FOLD.smooth;
+  const rising = Math.abs(corner(t, x, y) - corner(t, x + 1, y + 1));
+  const falling = Math.abs(corner(t, x + 1, y) - corner(t, x, y + 1));
+  return rising < falling ? FOLD.cliffAlongRise : FOLD.cliff;
+}
+
+const surfaces = new WeakMap<Terrain, GroundSurface>();
+
+let lastSurface: { terrain: Terrain; surface: GroundSurface } | null = null;
+
+export function groundSurface(t: Terrain): GroundSurface {
+  if (lastSurface?.terrain === t) return lastSurface.surface;
+  let surface = surfaces.get(t);
+  if (!surface) {
+    surface = new GroundSurface({ size: t.size, heights: t.heights, foldOf: (x, y) => foldOf(t, x, y) });
+    surfaces.set(t, surface);
+  }
+  lastSurface = { terrain: t, surface };
+  return surface;
+}
+
+export function groundAt(t: Terrain, x: number, y: number): number {
+  return groundSurface(t).heightAt(x, y);
+}
+
+export function cornerGroundAt(t: { size: number; heights: ArrayLike<number> }, x: number, y: number): number {
   const cx = x < 0 ? 0 : x > t.size ? t.size : x;
   const cy = y < 0 ? 0 : y > t.size ? t.size : y;
   const i = Math.min(Math.floor(cx), t.size - 1);

@@ -30,6 +30,8 @@ import { poseOf } from './rig';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
 import { driveOn } from './chaos-highway';
+import { contractPay } from './contract-pay';
+import type { Contract } from './market';
 import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { stockTarget } from './market';
@@ -161,6 +163,7 @@ function emptyWorldAt(pos: Vec): World {
   const p = w.vehicles[0];
   p.pos = { ...pos };
   p.heading = 0;
+  w.player.autoFire = false;
   refreshVision(w);
   return w;
 }
@@ -341,4 +344,9 @@ export function spotWithoutExplorePlaces(w: World): Vec {
 export function comparableWorld(world: World) {
   const rest = { ...world, terrain: null, obstacles: null };
   return { ...rest, player: { ...rest.player, explored: Buffer.from(rest.player.explored).toString('base64') } };
+}
+
+export function priced<C extends Contract>(world: World, contract: C): C {
+  const pay = contractPay(world, contract);
+  return pay ? { ...contract, ...pay } : contract;
 }

@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { TERRAIN } from '../../data/terrain';
+import { MESH_STEPS } from '../../sim/surface';
 import type { World } from '../../sim/types';
 import type { SightLimit } from './scope';
 import { TERRAIN_CHUNK, type TerrainChunk } from './terrain';
@@ -48,7 +49,7 @@ export class FogView {
     const n = this.size;
     const k = (g.y / TERRAIN_CHUNK) * this.perSide + g.x / TERRAIN_CHUNK;
     if (this.chunks[k]) throw new Error(`Fog already holds the ground chunk at ${g.x},${g.y}`);
-    const look = new THREE.BufferAttribute(new Float32Array((g.width + 1) * (g.depth + 1) * 2), 2);
+    const look = new THREE.BufferAttribute(new Float32Array((g.width * MESH_STEPS + 1) * (g.depth * MESH_STEPS + 1) * 2), 2);
     g.mesh.geometry.setAttribute('fogLook', look);
     const chunk = { x: g.x, y: g.y, width: g.width, depth: g.depth, look };
     this.chunks[k] = chunk;
@@ -122,25 +123,39 @@ export class FogView {
   }
 
   private writeChunk(chunk: FogChunk, n: number): void {
+    const corners = this.cornerLooks(chunk, n);
     const array = chunk.look.array as Float32Array;
-    for (let j = 0; j <= chunk.depth; j++) for (let i = 0; i <= chunk.width; i++) {
-      let grey = 0;
-      let bright = 0;
-      let count = 0;
-      for (let dy = -1; dy <= 0; dy++) for (let dx = -1; dx <= 0; dx++) {
-        const x = chunk.x + i + dx;
-        const y = chunk.y + j + dy;
-        if (x < 0 || y < 0 || x >= n || y >= n) continue;
-        const look = this.lookOf[this.state[y * n + x]];
-        grey += look.grey;
-        bright += look.bright;
-        count++;
+    const row = chunk.width * MESH_STEPS + 1;
+    for (let j = 0; j <= chunk.depth * MESH_STEPS; j++)
+      for (let i = 0; i < row; i++) {
+        const ci = Math.min(Math.floor(i / MESH_STEPS), chunk.width - 1);
+        const cj = Math.min(Math.floor(j / MESH_STEPS), chunk.depth - 1);
+        const fx = i / MESH_STEPS - ci;
+        const fy = j / MESH_STEPS - cj;
+        for (let c = 0; c < 2; c++) {
+          const at = (x: number, y: number) => corners[(y * (chunk.width + 1) + x) * 2 + c];
+          const top = at(ci, cj) + (at(ci + 1, cj) - at(ci, cj)) * fx;
+          const bottom = at(ci, cj + 1) + (at(ci + 1, cj + 1) - at(ci, cj + 1)) * fx;
+          array[(j * row + i) * 2 + c] = top + (bottom - top) * fy;
+        }
       }
-      const k = (j * (chunk.width + 1) + i) * 2;
-      array[k] = grey / count;
-      array[k + 1] = bright / count;
-    }
     chunk.look.needsUpdate = true;
+  }
+
+  private cornerLooks(chunk: FogChunk, n: number): Float32Array {
+    const corners = new Float32Array((chunk.width + 1) * (chunk.depth + 1) * 2);
+    for (let j = 0; j <= chunk.depth; j++)
+      for (let i = 0; i <= chunk.width; i++) {
+        const look = this.cornerLook(chunk.x + i, chunk.y + j, n);
+        corners.set(look, (j * (chunk.width + 1) + i) * 2);
+      }
+    return corners;
+  }
+
+  private cornerLook(x: number, y: number, n: number): [number, number] {
+    const tiles = [x - 1, x].flatMap((tx) => [y - 1, y].map((ty) => ({ tx, ty }))).filter(({ tx, ty }) => tx >= 0 && ty >= 0 && tx < n && ty < n);
+    const looks = tiles.map(({ tx, ty }) => this.lookOf[this.state[ty * n + tx]]);
+    return [looks.reduce((s, l) => s + l.grey, 0) / looks.length, looks.reduce((s, l) => s + l.bright, 0) / looks.length];
   }
 }
 

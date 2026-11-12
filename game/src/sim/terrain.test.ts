@@ -63,7 +63,7 @@ describe("road index", () => {
 
 describe('terrain variety', () => {
   it('has every type with a bake rule on the baked map, with road/site priority', () => {
-    const unruled = ['ash'];
+    const unruled = ['ash', 'canal'];
     const ruled = Object.keys(TERRAIN_TYPES).filter((id) => !unruled.includes(id));
     const t = TEST_MAP.terrain;
     expect(new Set(t.types)).toEqual(new Set(ruled));
@@ -229,17 +229,13 @@ describe("terrain grid", () => {
     for (const shift of [0, 8, 16]) expect((concrete.color >> shift) & 0xff).toBeGreaterThan((asphalt.color >> shift) & 0xff);
   });
 
-  it('paints the Old Orchard canals as canal, which drives like dirty water but shows blue-grey', () => {
+  it('fills the Old Orchard canals with mud', () => {
     const orchard = REGION.locations.find((site) => site.id === 'orchard')!;
     for (const canal of TERRITORIES.orchard.farm!.canals) {
       const [a, b] = canal.points;
       const mid = { x: orchard.pos.x + (a.x + b.x) / 2, y: orchard.pos.y + (a.y + b.y) / 2 };
-      expect(TEST_MAP.terrain.types[tileAt(TEST_MAP.terrain, mid)], `canal at ${mid.x},${mid.y}`).toBe('canal');
+      expect(TEST_MAP.terrain.types[tileAt(TEST_MAP.terrain, mid)], `canal at ${mid.x},${mid.y}`).toBe('mud');
     }
-    const { canal, dirtyWater } = TERRAIN_TYPES;
-    expect([canal.speed, canal.wear, canal.dust]).toEqual([dirtyWater.speed, dirtyWater.wear, dirtyWater.dust]);
-    expect(canal.color & 0xff).toBeGreaterThan(canal.color >> 16);
-    expect(dirtyWater.color & 0xff).toBeLessThan(dirtyWater.color >> 16);
   });
 
   it('carves a canyon and a dry river below the surrounding hills', () => {

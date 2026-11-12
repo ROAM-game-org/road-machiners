@@ -7,8 +7,8 @@ import { bedRows } from './chassis-features';
 import { barrelClash } from './barrels';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
-import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, sideOf, type Cell } from './grid';
+import { makePart, makeVehicle, partWithId } from './factory';
+import { MOUNT_CELLS, baseGrid, bareGrid, belowDeck, cargoCellsGained, cargoRowsOn, cellCount, cellsTurned, findSpot, freeCells, gridOf, layerOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, mountSpots, plateSide, poseTurnedLike, sideOf, type Cell } from './grid';
 import { getLayoutError, moveItem, mountPart, storePart, stowSpot } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -387,12 +387,12 @@ describe('placement from a layout built once', () => {
   function oracleError(g: ReturnType<typeof gridOf>, items: GridItem[], item: GridItem, ignoreId: string | null) {
     const cells = itemCells(item);
     const onChassis = cells.filter((c) => c.y < g.chassisH).length;
-    if ((onChassis !== 0 && onChassis !== cells.length) || !cells.every((c) => g.cells[c.y]?.[c.x] != null)) return { id: 'noFit' };
+    if (!belowDeck(g.chassisId, item) && ((onChassis !== 0 && onChassis !== cells.length) || !cells.every((c) => g.cells[c.y]?.[c.x] != null))) return { id: 'noFit' };
     const layer = oracleLayer(g, item);
     const others = items.filter((o) => o.id !== ignoreId && oracleLayer(g, o) === layer);
     if (others.some((o) => itemCells(o).some((c) => cells.some((d) => d.x === c.x && d.y === c.y)))) return { id: 'inTheWay' };
     const onSkin = item.kind === 'part' && (partDef(item.part.defId).kind === 'armor' || layer === 'accessory');
-    if (!onSkin && cells.some((c) => 'FBLR'.includes(g.cells[c.y][c.x] ?? ' ') && g.cells[c.y][c.x] !== null)) return { id: 'armorOnly' };
+    if (!onSkin && cells.some((c) => 'FBLR'.includes(g.cells[c.y]?.[c.x] ?? ' ') && g.cells[c.y]?.[c.x] != null)) return { id: 'armorOnly' };
     return barrelClash(g.chassisId, items.filter((o) => o.id !== ignoreId), item) ? { id: 'barrel' } : null;
   }
 
@@ -497,5 +497,17 @@ describe('loose storage on deck cells', () => {
     expect(spot).not.toBeNull();
     expect(spot.y).toBeLessThan(g.chassisH);
     expect(baseGrid('scout').cells[spot.y][spot.x]).toBe('D');
+  });
+});
+
+describe('poseTurnedLike', () => {
+  const gun = (rot: number) => ({ id: 'g', kind: 'part', x: 0, y: 0, rot, part: partWithId('pg', 'mg', 0) }) as GridItem;
+  const plate = (rot: number) => ({ id: 'a', kind: 'part', x: 0, y: 0, rot, part: partWithId('pa', 'spacedArmor', 0) }) as GridItem;
+
+  it.each([0, 1, 2, 3, 4, 5, 6, 7] as const)('keeps pose %i for a gun and lays a plate the same way', (rot) => {
+    expect(poseTurnedLike(gun(0), rot)).toBe(rot);
+    const pose = poseTurnedLike(plate(0), rot);
+    expect([0, 1]).toContain(pose);
+    expect(cellsTurned({ rot: pose })).toBe(cellsTurned({ rot }));
   });
 });

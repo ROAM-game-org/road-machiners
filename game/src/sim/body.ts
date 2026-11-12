@@ -1,7 +1,7 @@
 import { chassisDef, type ChassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
-import { baseGrid } from './grid';
+import { baseGrid, engineCells } from './grid';
 import type { ShapeBox } from './mapgen';
 
 export type BodyBox = { at: { x: number; y: number; z: number }; half: { x: number; y: number; z: number } };
@@ -10,6 +10,7 @@ export type Body = {
   half: { x: number; y: number; z: number };
   boxes: BodyBox[];
   wheelX: number;
+  axleMid: number;
   wheelZ: number;
   wheelY: number;
   wheelRadius: number;
@@ -24,9 +25,9 @@ export type Unit = { index: number; body: Body; rows: readonly [number, number];
 
 export type Span = { center: number; half: { x: number; z: number } };
 
-type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
+export type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
 type TruckShape = { boxes: ShapeBox[]; heights: HeightMap };
-type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number };
+type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number; tandem?: number; axleMid?: number };
 type CouplingLook = (typeof PHYSICS.couplings)[keyof typeof PHYSICS.couplings];
 
 const units = new Map<string, readonly Unit[]>();
@@ -118,7 +119,22 @@ function buildBody(chassisId: string, shape: string, look: WheelLook): Body {
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
   const comY = look.comHeight - rideOf(look);
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, tandem: look.tandem ?? null, comY };
+  const span = boxSpan(boxes);
+  if (Math.abs(span.center) > CENTER_TOLERANCE) throw new Error(`Body ${shape} of ${chassisId} has its collider centered ${span.center.toFixed(3)} m off its origin`);
+  return { half, boxes, wheelX: look.wheelX, axleMid: look.axleMid ?? 0, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, tandem: look.tandem ?? null, comY };
+}
+
+const CENTER_TOLERANCE = 0.05;
+
+function boxSpan(boxes: readonly BodyBox[]): { center: number } {
+  const lo = Math.min(...boxes.map((b) => b.at.x - b.half.x));
+  const hi = Math.max(...boxes.map((b) => b.at.x + b.half.x));
+  return { center: (lo + hi) / 2 };
+}
+
+export function axlesOf(b: { wheelX: number; axleMid?: number }): { front: number; rear: number } {
+  const mid = b.axleMid ?? 0;
+  return { front: mid + b.wheelX, rear: mid - b.wheelX };
 }
 
 export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
@@ -139,6 +155,10 @@ function unitShape(chassisId: string, unit: number): TruckShape {
   const found = unitsOf(chassisId)[unit];
   if (!found) throw new Error(`Chassis ${chassisId} has no unit ${unit}`);
   return truckShape(found.shape);
+}
+
+export function bodyTops(chassisId: string, unit: number): HeightMap {
+  return unitShape(chassisId, unit).heights;
 }
 
 function collisionBoxes(chassisId: string, shape: string, halfHeight: number, top: number): BodyBox[] {
@@ -298,7 +318,7 @@ export function surfaceSamples(chassisId: string, unit: number, center: { x: num
 }
 
 export const CLIP_TOLERANCE = 0.05;
-const MIN_KEEP = 0.3;
+const MIN_KEEP = 0.7;
 export const MIN_SUPPORT = 0.9;
 
 export type Rest = { y: number; rect: CellRect; perched: boolean; slope: { x: number; z: number } };
@@ -478,7 +498,7 @@ export function engineFloor(chassisId: string): number {
 }
 
 export function engineBay(chassisId: string): CellRect {
-  const cells = chassisDef(chassisId).layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+  const cells = engineCells(chassisId);
   if (cells.length === 0) throw new Error(`Chassis ${chassisId} has no engine cells`);
   return cellRect(chassisId, cells);
 }

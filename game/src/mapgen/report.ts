@@ -22,7 +22,7 @@ const ZONE_CHECKS = {
   mountains: { heightRange: 40, cliffShare: 0.06 },
   desert: { ground: ['sand'] as TerrainTypeId[], share: 0.6, duneRelief: 0.5, spacing: { band: [25, 100] as [number, number], grid: 60, transect: 300, window: 10, prominence: 0.5 } },
   swamp: { ground: ['blackMud', 'dirtyWater', 'scrub'] as TerrainTypeId[], share: 0.6, sunk: 1 },
-  farmBelt: { ground: ['field', 'track', 'canal', 'sand'] as TerrainTypeId[], share: 0.35, bedRise: 0.05 },
+  farmBelt: { ground: ['field', 'track', 'mud', 'sand'] as TerrainTypeId[], share: 0.35, bedRise: 0.05 },
   crash: { ground: ['glass'] as TerrainTypeId[], share: 0.15 },
 };
 

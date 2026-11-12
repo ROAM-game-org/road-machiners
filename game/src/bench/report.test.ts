@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { boundOf, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
+import { boundOf, driveTurnGaps, drawTotals, emptyBySystem, frameStats, passStats, poolFrames, savingOf, slowFrameSums, spreadOf, turnStats, type FrameRecord, type PassStats } from './report';
 
-const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, calls: 0, timers: {}, ...extra });
+const frame = (real: number, extra: Partial<FrameRecord> = {}): FrameRecord => ({ real, tick: real / 2, render: real / 4, gpu: null, uploadBytes: 0, chunkBuilds: 0, newPrograms: 0, calls: 0, timers: {}, ...extra });
 
 describe('turnStats', () => {
-  const log = { waits: [40, 60], workers: [30], previews: [], steps: {} };
+  const log = { waits: [40, 60], workers: [30], previews: [], starts: [], steps: {} };
 
   it('gives no turn stats when no turn scene ran, and no preview stats without the drive', () => {
     expect(turnStats(['town-day'], { ...log, waits: [], workers: [] })).toMatchObject({ waitMs: null, workerTurnMs: null, previewMs: null });
@@ -13,6 +13,23 @@ describe('turnStats', () => {
 
   it('fails when a scene that measures turns ran but nothing was measured', () => {
     expect(() => turnStats(['drive'], log)).toThrow();
+  });
+});
+
+describe('driveTurnGaps', () => {
+  it('counts a turn that starts while the last one still plays as no wait', () => {
+    const gaps = driveTurnGaps(5);
+    expect(gaps(5, true, 100)).toBeNull();
+    expect(gaps(6, true, 200)).toEqual({ scene: 'drive', ms: 0, ready: true });
+  });
+
+  it('times a turn from the moment playback ended', () => {
+    const gaps = driveTurnGaps(5);
+    expect(gaps(5, false, 100)).toBeNull();
+    expect(gaps(5, false, 150)).toBeNull();
+    expect(gaps(6, true, 340)).toEqual({ scene: 'drive', ms: 240, ready: false });
+    expect(gaps(6, false, 400)).toBeNull();
+    expect(gaps(7, true, 410)).toEqual({ scene: 'drive', ms: 10, ready: false });
   });
 });
 
@@ -62,7 +79,15 @@ describe('poolFrames and spreadOf', () => {
     expect(poolFrames([[frame(1)], [frame(2), frame(3)]]).map((f) => f.real)).toEqual([1, 2, 3]);
   });
 
-  it('divides the gap between two pass medians by the smaller one', () => {
+  it('judges the passes by mean, since GPU backlog stalls move the median without moving the time played', () => {
+    const steady = passStats([frame(20), frame(20), frame(20), frame(20)]);
+    const bursty = passStats([frame(5), frame(5), frame(5), frame(65)]);
+    expect(bursty.real.median).toBe(5);
+    expect(bursty.real.mean).toBe(20);
+    expect(spreadOf([steady, bursty])).toBe(0);
+  });
+
+  it('divides the gap between two pass means by the smaller one', () => {
     const slow = passStats([frame(22)]);
     const fast = passStats([frame(20)]);
     expect(spreadOf([slow, fast])).toBeCloseTo(0.1);
@@ -98,7 +123,7 @@ describe('slowFrameSums', () => {
     const frames = [
       frame(16, { uploadBytes: 999, chunkBuilds: 9, timers: { turn: 5 } }),
       frame(40, { render: 10, tick: 30, uploadBytes: 100, chunkBuilds: 1, timers: { route: 4 } }),
-      frame(120, { render: 20, tick: 25, uploadBytes: 50, chunkBuilds: 2, timers: { route: 6, fog: 1 } }),
+      frame(120, { render: 20, tick: 25, uploadBytes: 50, chunkBuilds: 2, newPrograms: 4, timers: { route: 6, fog: 1 } }),
       frame(150, { render: 5, tick: 6 }),
     ];
     expect(slowFrameSums(frames)).toEqual({
@@ -109,6 +134,8 @@ describe('slowFrameSums', () => {
       uploadBytes: 150,
       chunkBuilds: 3,
       over100WithChunkBuild: 1,
+      newPrograms: 4,
+      over100WithNewPrograms: 1,
     });
   });
 

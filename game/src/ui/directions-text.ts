@@ -1,8 +1,7 @@
-import type { Cue, DirectionStep, RoadName, Span } from '../sim/types';
+import type { Cue, DirectionStep, LandmarkCue, LeaveCue, RoadName, Span } from '../sim/types';
 import { concat, SPACE, t, type Msg } from '../text/msg';
+import { gridSquareText } from './grid-text';
 import { compassName, propName, siteName, siteSign } from '../text/names';
-
-type CueMode = 'turn' | 'leave';
 
 const ORDINALS: Record<number, 'second' | 'third'> = { 2: 'second', 3: 'third' };
 
@@ -12,11 +11,17 @@ function ordinal(nth: number): 'second' | 'third' {
   return word;
 }
 
-export function cueText(cue: Cue, mode: CueMode): Msg {
-  if (cue.kind === 'site' || cue.kind === 'deck') return t('way.cue.site', { site: siteName(cue.id) });
-  if (cue.kind === 'prop') return t('way.cue.prop', { prop: propName(cue.look) });
-  if (cue.kind === 'fork') return t(mode === 'turn' ? `way.cue.fork.${ordinal(cue.nth)}` : `way.cue.pastFork.${ordinal(cue.nth)}`);
-  return t(mode === 'turn' ? 'way.cue.next' : 'way.cue.closest');
+function landmarkText(cue: LandmarkCue): Msg {
+  return cue.kind === 'prop' ? t('way.cue.prop', { prop: propName(cue.look) }) : t('way.cue.site', { site: siteName(cue.id) });
+}
+
+export function cueText(cue: Cue): Msg {
+  if (cue.kind === 'fork') return t(`way.cue.fork.${ordinal(cue.nth)}`);
+  return cue.kind === 'none' ? t('way.cue.next') : landmarkText(cue);
+}
+
+export function leaveCueText(cue: LeaveCue): Msg {
+  return cue.kind === 'square' ? t('way.cue.square', { square: gridSquareText(cue) }) : landmarkText(cue);
 }
 
 export function roadText(name: RoadName): Msg {
@@ -46,7 +51,7 @@ function followText(step: Follow, next: DirectionStep | undefined, target: strin
 type Leave = Extract<DirectionStep, { do: 'leave' }>;
 
 function leaveText(step: Leave): Msg {
-  const words = { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) };
+  const words = { at: leaveCueText(step.at), octant: compassName(step.octant), span: spanText(step.span) };
   return step.lean === null ? t('way.leave', words) : t('way.leaveLean', { ...words, lean: t(`way.lean.${step.lean}`) });
 }
 
@@ -55,7 +60,7 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
     case 'join': return [t('way.join', { octant: compassName(step.octant), span: spanText(step.span) })];
     case 'follow': return [followText(step, next, target), ...haulAfter(step.span, previous)];
     case 'turn': {
-      const at = cueText(step.at, 'turn');
+      const at = cueText(step.at);
       const sentence = leadsTo(step.road, target, next) ? t(`way.turnThere.${step.side}`, { at }) : t(`way.turn.${step.side}`, { at, road: roadText(step.road) });
       return [sentence, ...haulAfter(step.span, previous)];
     }
@@ -73,10 +78,22 @@ function spanOfStep(step: DirectionStep | undefined): Span | null {
   return step && 'span' in step ? step.span : null;
 }
 
-export function directionsText(steps: readonly DirectionStep[]): Msg {
-  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+function stepSentences(steps: readonly DirectionStep[]): Msg[][] {
   const arrival = steps.find((s) => s.do === 'arrive');
   const target = arrival?.do === 'arrive' ? arrival.site : null;
-  const sentences = steps.flatMap((step, i) => stepText(step, steps[i + 1], target, spanOfStep(steps[i - 1])));
+  return steps.map((step, i) => stepText(step, steps[i + 1], target, spanOfStep(steps[i - 1])));
+}
+
+function joinSentences(sentences: Msg[]): Msg {
   return concat(sentences.flatMap((s, i) => (i === 0 ? [s] : [SPACE, s])));
+}
+
+export function directionsSteps(steps: readonly DirectionStep[]): Msg[] {
+  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+  return stepSentences(steps).filter((sentences) => sentences.length > 0).map(joinSentences);
+}
+
+export function directionsText(steps: readonly DirectionStep[]): Msg {
+  if (steps.length === 0) throw new Error('Directions with no step are never spoken');
+  return joinSentences(stepSentences(steps).flat());
 }

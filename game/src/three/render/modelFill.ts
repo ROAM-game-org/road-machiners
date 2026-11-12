@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Daylight } from './daylight';
+import { paintModel } from './inkPaint';
 
 const UNIFORMS = 'uniform vec3 modelFill;';
 
@@ -25,6 +26,7 @@ export class ModelFill {
     const key = material.customProgramCacheKey.bind(material);
     material.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
+      paintModel(shader);
       if (shader.fragmentShader.includes(UNIFORMS)) return;
       Object.assign(shader.uniforms, this.uniforms);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${UNIFORMS}`).replace('#include <aomap_fragment>', FRAGMENT);

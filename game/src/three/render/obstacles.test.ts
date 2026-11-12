@@ -319,7 +319,7 @@ describe('loot colors on props', () => {
     views.sync([], [stock('pile-2', true, { pos: { x: 60, y: 60 }, pile: { until: 99, fromPlayer: true, basis: {} } })], []);
     limit.set({ x: 0, y: 0, z: 0 }, 3 * PHYSICS.metersPerTile);
     const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
-    scope.update(camera);
+    scope.update(camera, null);
     expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
   });
 

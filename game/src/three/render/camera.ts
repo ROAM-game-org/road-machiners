@@ -17,7 +17,7 @@ const LEAD_TAU_MS = 3000;
 const VIEW_EDGE = 0.8;
 const GROUND_RIGHT = new THREE.Vector3(OFFSET.z, 0, -OFFSET.x).normalize();
 const GROUND_UP = new THREE.Vector3(-OFFSET.x, 0, -OFFSET.z).normalize();
-const SIN_ELEVATION = OFFSET.y / OFFSET.length();
+export const SIN_ELEVATION = OFFSET.y / OFFSET.length();
 
 export class CameraRig {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
@@ -165,8 +165,11 @@ export class CameraRig {
     this.lead.set(0, 0, 0);
   }
 
+  readPlace(): void {
+    this.rect = this.view.getBoundingClientRect();
+  }
+
   tick(dtMs: number): void {
-    this.rect = null;
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
       const leadGoal = this.heading === null ? new THREE.Vector3() : this.leadOffset(this.heading);

@@ -2,14 +2,14 @@ import { defaultSetup } from '../sim/settings';
 import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { REGION } from '../data/region';
-import { TERRAIN, type TerrainTypeId } from '../data/terrain';
+import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { TERRITORIES } from '../data/territory';
 import { basin } from '../sim/elevation';
 import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { desertWeight, glassField, lookTypes, paintGroundCanvas, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { adoptGroundBake, desertWeight, EDGE_LOOKS, glassField, glassOf, GROUND_MATERIAL_IDS, groundBakeFits, groundMaterial, groundMaterialIndex, lookTypes, MARK_KINDS, packedLook, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { ICARUS_KEY } from '../sim/atlas';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
@@ -327,5 +327,89 @@ describe('yardLook', () => {
     const far = t.types.findIndex((type, i) => type === 'hardpan' && REGION.towns.every((s) => Math.hypot((i % t.size) - s.pos.x, Math.floor(i / t.size) - s.pos.y) > 120));
     expect(far).toBeGreaterThanOrEqual(0);
     expect(fade[far]).toBe(0);
+  });
+});
+
+describe('ground material table', () => {
+  const groundTypes = (Object.keys(TERRAIN_TYPES) as TerrainTypeId[]).filter((type) => type !== 'road');
+
+  it('has one row for every ground type the map can show', () => {
+    expect([...GROUND_MATERIAL_IDS].sort()).toEqual([...groundTypes].sort());
+  });
+
+  it('fits every material id in the one byte of the tile texture', () => {
+    expect(GROUND_MATERIAL_IDS.length).toBeLessThanOrEqual(256);
+    for (const type of GROUND_MATERIAL_IDS) expect(GROUND_MATERIAL_IDS[groundMaterialIndex(type)]).toBe(type);
+  });
+
+  it('stands plants above bare ground and sinks wet ground below it, so edge shadows fall on the right side', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      expect(groundMaterial(type).stand).toBeGreaterThanOrEqual(-1);
+      expect(groundMaterial(type).stand).toBeLessThanOrEqual(1);
+    }
+    expect(groundMaterial('scrub').stand).toBeGreaterThan(groundMaterial('sand').stand);
+    expect(groundMaterial('sand').stand).toBeGreaterThan(groundMaterial('hardpan').stand);
+    expect(groundMaterial('mud').stand).toBeLessThan(groundMaterial('hardpan').stand);
+    expect(groundMaterial('dirtyWater').stand).toBeLessThan(groundMaterial('hardpan').stand);
+  });
+
+  it('gives every row a valid color, mark, edge look, spill and warmth', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      const row = groundMaterial(type);
+      expect(Number.isInteger(row.color) && row.color >= 0 && row.color <= 0xffffff).toBe(true);
+      expect(MARK_KINDS).toContain(row.mark);
+      expect(EDGE_LOOKS[row.edge]).toBeDefined();
+      expect(row.spill).toBeGreaterThanOrEqual(0);
+      expect(row.spill).toBeLessThanOrEqual(1);
+      expect(row.warm).toBeGreaterThanOrEqual(0);
+      expect(row.warm).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('draws glass on the hardpan color so its plates sit on plain ground', () => {
+    expect(groundMaterial('glass').color).toBe(groundMaterial('hardpan').color);
+  });
+});
+
+const terrain = (): Terrain => ({ size: 2, heights: new Array(9).fill(0), types: ["glass", "sand", "sand", "sand"], atlas: { kind: "none" } } as unknown as Terrain);
+
+describe("ground bake", () => {
+  it("serves the baked glass and look in place of working them out", () => {
+    const t = terrain();
+    const glass = new Uint8Array([9, 9, 9, 9]);
+    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look: packedLook(["mud", "mud", "mud", "mud"]) });
+    expect(glassOf(t)).toBe(glass);
+    expect(lookTypes(t)).toEqual(["mud", "mud", "mud", "mud"]);
+  });
+
+  it("hands the baked pixels over once, since the canvas then owns them", () => {
+    const t = terrain();
+    const pixels = new Uint8ClampedArray(4);
+    adoptGroundBake(t, { pixels, glass: new Uint8Array(4), look: new Uint8Array(0) });
+    expect(takeBakedPixels(t)).toBe(pixels);
+    expect(takeBakedPixels(t)).toBeNull();
+  });
+
+  it("works out the glass when nothing was baked", () => {
+    const t = terrain();
+    expect(takeBakedPixels(t)).toBeNull();
+    expect(glassOf(t)).toEqual(glassField(t));
+  });
+
+  it("places map tiles on the canvas with the terrain margin", () => {
+    const c = paintCanvasOn({} as CanvasRenderingContext2D, 100, 80);
+    expect(c.res).toBe(1);
+    expect(c.toPx(-TERRAIN_MARGIN)).toBe(0);
+    expect(c.toPx(80 + TERRAIN_MARGIN)).toBe(100);
+  });
+
+  it("refuses a cached bake cut for another map or damaged", () => {
+    const t = terrain();
+    const good = { pixels: new Uint8ClampedArray(16 * 4), glass: new Uint8Array(4), look: new Uint8Array(4) };
+    expect(groundBakeFits(t, 4, good)).toBe(true);
+    expect(groundBakeFits(t, 8, good)).toBe(false);
+    expect(groundBakeFits(t, 4, { ...good, glass: new Uint8Array(9) })).toBe(false);
+    expect(groundBakeFits(t, 4, { ...good, look: Uint8Array.of(0, 0, 0, 250) })).toBe(false);
+    expect(groundBakeFits(t, 4, {} as typeof good)).toBe(false);
   });
 });
