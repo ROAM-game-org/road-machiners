@@ -48,3 +48,41 @@ export function withTruckGrids(world: SavedJson): SavedJson {
   const sheltered = (world.sheltered as SavedJson[]).map((s) => ({ ...s, vehicle: movedTruck(s.vehicle as SavedJson) }));
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(movedTruck), sheltered };
 }
+
+const DROPPED_ROW = 1;
+const STAYING_CORES: readonly { defId: string; x: number; y: number }[] = [{ defId: 'tankMid', x: 4, y: 4 }];
+
+function staysPut(item: SavedJson): boolean {
+  if (item.kind !== 'part') return false;
+  const defId = (item.part as SavedJson).defId;
+  return STAYING_CORES.some((core) => core.defId === defId && core.x === item.x && core.y === item.y);
+}
+
+function shifted(item: SavedJson): SavedJson {
+  const y = item.y as number;
+  if (y <= DROPPED_ROW || staysPut(item)) return item;
+  return { ...item, y: y - 1 };
+}
+
+function startsOnDroppedRow(item: SavedJson): boolean {
+  return item.y === DROPPED_ROW && !(item.kind === 'part' && (item.part as SavedJson).defId === 'wheelMid');
+}
+
+function withoutNivaRefit(v: SavedJson): SavedJson {
+  const job = v.job as SavedJson | null | undefined;
+  if (job?.kind !== 'refit') return v;
+  console.warn(`Short Niva hood save step: ${String(v.id)} dropped its refit job, whose spots came from the old grid`);
+  return { ...v, job: null };
+}
+
+function shortNiva(v: SavedJson): SavedJson {
+  if (v.chassisId !== 'niva') return v;
+  const items = (v.items as SavedJson[]).map(shifted);
+  const settled = [...items.filter((it) => !startsOnDroppedRow(it)), ...items.filter(startsOnDroppedRow)];
+  return withoutNivaRefit({ ...v, items: settled });
+}
+
+export function withShortNivaHood(world: SavedJson): SavedJson {
+  const sheltered = (world.sheltered as SavedJson[]).map((s) => ({ ...s, vehicle: shortNiva(s.vehicle as SavedJson) }));
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(shortNiva), sheltered };
+}
