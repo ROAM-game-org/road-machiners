@@ -527,6 +527,15 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
   Object.entries(CHASSIS_INPUTS).map(([id, def]) => [id, finishChassis(def)]),
 );
 
+export type ExhaustVent = { at: 'tail' | 'cab'; side: number };
+
+const STACK_VENT: ExhaustVent = { at: 'cab', side: 0.6 };
+const TAILPIPE_VENT: ExhaustVent = { at: 'tail', side: 0.6 };
+
+export const EXHAUST_VENT: Record<string, ExhaustVent> = Object.fromEntries(
+  Object.keys(CHASSIS).map((id) => [id, ['semi', 'tractor'].includes(id) ? STACK_VENT : TAILPIPE_VENT]),
+);
+
 export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'];
 
 export const TOWN_CHASSIS: Record<string, readonly string[]> = {
