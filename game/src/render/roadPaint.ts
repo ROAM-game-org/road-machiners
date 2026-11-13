@@ -4,7 +4,7 @@ import { HIGHWAY } from "../data/modes";
 import { atlasSites, type Atlas, type AtlasRoad } from "../sim/atlas";
 import { bridgeCut, deckAt } from "../sim/bridge";
 import { isTerritory, siteGap } from "../sim/sites";
-import { territoryTracks, type TrackLine } from "../sim/territory";
+import { fullRoadEnds, territoryTracks, type TrackLine } from "../sim/territory";
 import { dist, type Vec } from "../sim/vec";
 import type { PaintCanvas } from "./groundPaint";
 import { hash2 } from "./noise";
@@ -53,6 +53,12 @@ export function paintRoadMask(c: PaintCanvas, atlas: Atlas, holes: readonly Road
   writeTrackField(c, drawnTrackLines(atlas), (p) => deckAt(atlas.decks, p.x, p.y) === null);
 }
 
+export const SQUARE_END_STEEPNESS = 8;
+
+export function joinedRoadEnds(atlas: Atlas): Vec[] {
+  return atlas.landforms ? REGION.locations.filter(isTerritory).flatMap(fullRoadEnds) : [];
+}
+
 export function drawnTrackLines(atlas: Atlas): TrackLine[] {
   return atlas.landforms ? REGION.locations.filter(isTerritory).flatMap(territoryTracks) : [];
 }
@@ -79,8 +85,7 @@ function segmentEdge(line: TrackLine, left: readonly number[], i: number, p: Vec
 
 export function mouthHalf(line: TrackLine, fromStart: number, fromEnd: number): number {
   const lane = line.width / 2;
-  const pastCap = (along: number) => Math.max(0, along - DRAWN_ROAD_HALF);
-  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, pastCap(along) / TRACK_MOUTH.tiles));
+  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, along / TRACK_MOUTH.tiles));
   const atStart = line.joins.start ? open(fromStart) : lane;
   const atEnd = line.joins.end ? open(fromEnd) : lane;
   return Math.max(atStart, atEnd);

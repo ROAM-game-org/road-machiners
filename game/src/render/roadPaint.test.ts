@@ -272,10 +272,10 @@ describe('joins of tracks and full roads', () => {
     }
   });
 
-  it('holds the mouth at road width until it clears the asphalt cap', () => {
-    for (const { points } of joins) {
-      const clear = walk(points, DRAWN_ROAD_HALF, 0.05).at(-1)!;
-      expect(trackEdgeAt(lines, clear), `${clear.x},${clear.y}`).toBeLessThanOrEqual(-(DRAWN_ROAD_HALF - TRACK_MOUTH.inset) + 1e-6);
+  it('narrows the mouth from road width at the squared road end to the lane over the mouth length', () => {
+    for (const { points, line } of joins) {
+      const done = walk(points, TRACK_MOUTH.tiles, 0.05).at(-1)!;
+      expect(trackEdgeAt(lines, done), `${done.x},${done.y}`).toBeCloseTo(-line.width / 2, 1);
     }
   });
 
