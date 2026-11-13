@@ -21,7 +21,7 @@ class RecordingBatch {
 
 function drawn(p: Particles): Card[] {
   const batch = new RecordingBatch() as unknown as CardBatch;
-  p.draw({ main: batch, plumes: batch, fire: batch }, 0);
+  p.draw({ main: batch, plumes: batch, fire: batch, smoke: batch }, 0);
   return (batch as unknown as RecordingBatch).cards;
 }
 
@@ -151,7 +151,7 @@ describe('ink billow tone', () => {
     p.tick(t * 7);
     const batch = new RecordingBatch();
     const to = batch as unknown as CardBatch;
-    p.draw({ main: to, plumes: to, fire: to }, ink);
+    p.draw({ main: to, plumes: to, fire: to, smoke: to }, ink);
     return batch.cards[0].r;
   }
 
@@ -177,7 +177,7 @@ describe('ink smoke size and fading looks', () => {
     p.tick(0.5);
     const batch = new RecordingBatch();
     const to = batch as unknown as CardBatch;
-    p.draw({ main: to, plumes: to, fire: to }, ink);
+    p.draw({ main: to, plumes: to, fire: to, smoke: to }, ink);
     return batch.cards[0];
   }
 
@@ -215,8 +215,28 @@ describe('ink smoke size and fading looks', () => {
     p.spawn(AT, STILL, LOOK, 1);
     const main = new RecordingBatch();
     const fire = new RecordingBatch();
-    p.draw({ main: main as unknown as CardBatch, plumes: main as unknown as CardBatch, fire: fire as unknown as CardBatch }, 1);
+    p.draw({ main: main as unknown as CardBatch, plumes: main as unknown as CardBatch, fire: fire as unknown as CardBatch, smoke: main as unknown as CardBatch }, 1);
     expect(fire.cards).toHaveLength(1);
     expect(main.cards).toHaveLength(1);
+  });
+
+  describe('smoke batch routing', () => {
+    function routed(look: ParticleLook, ink: number) {
+      const p = new Particles(1, NEAR);
+      p.spawn(AT, STILL, look, 1);
+      const [main, plumes, fire, smoke] = [new RecordingBatch(), new RecordingBatch(), new RecordingBatch(), new RecordingBatch()];
+      const as = (b: RecordingBatch) => b as unknown as CardBatch;
+      p.draw({ main: as(main), plumes: as(plumes), fire: as(fire), smoke: as(smoke) }, ink);
+      return { main: main.cards.length, smoke: smoke.cards.length };
+    }
+
+    it('sends smoke clouds to the smoke batch at full ink', () => {
+      expect(routed({ ...LOOK, smoke: true }, 1)).toEqual({ main: 0, smoke: 1 });
+    });
+
+    it('keeps cards that are not smoke clouds out of the smoke batch', () => {
+      expect(routed(LOOK, 1).smoke).toBe(0);
+      expect(routed({ ...LOOK, smoke: true, form: 'haze' }, 1).smoke).toBe(0);
+    });
   });
 });

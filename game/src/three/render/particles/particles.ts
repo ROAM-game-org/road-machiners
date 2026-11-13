@@ -35,7 +35,7 @@ export type ParticleLook = {
 
 export type ParticleSink = Pick<Particles, 'spawn'>;
 
-export type ParticleBatches = { main: CardBatch; plumes: CardBatch; fire: CardBatch };
+export type ParticleBatches = { main: CardBatch; plumes: CardBatch; fire: CardBatch; smoke: CardBatch };
 
 export const BILLOW_AGE_TONE = { young: 0.8, old: 1.15 };
 
@@ -176,6 +176,7 @@ export class Particles {
 
 function batchOf(look: ParticleLook, to: ParticleBatches): CardBatch {
   if (look.burns) return to.fire;
+  if (look.smoke && look.form === 'cloud') return to.smoke;
   return look.plume ? to.plumes : to.main;
 }
 

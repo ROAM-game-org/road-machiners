@@ -149,6 +149,34 @@ export function territoryRoads(t: TerritoryDef): { roads: FarmRoad[]; spurs: Far
   return { roads: (wreck?.roads ?? []).map(shift), spurs: (wreck?.spurs ?? []).map(shift) };
 }
 
+export type TrackJoins = { start: boolean; end: boolean };
+export type TrackLine = { points: Vec[]; width: number; fade: number; joins: TrackJoins };
+
+export const JOIN_REACH = 0.5;
+
+export function territoryTracks(t: TerritoryDef): TrackLine[] {
+  const rules = TERRITORIES[t.id];
+  const roadEnds = fullRoadEnds(t);
+  const lines = (roads: readonly FarmRoad[], fade: number) =>
+    roads.filter((road) => road.surface === 'track').map((road): TrackLine => trackLine(t, road, fade, roadEnds));
+  const wreck = rules.wreck;
+  return [...lines(wreck?.roads ?? [], 0), ...lines(wreck?.spurs ?? [], wreck?.spurFade ?? 0), ...lines(rules.farm?.roads ?? [], 0)];
+}
+
+export function fullRoadEnds(t: TerritoryDef): Vec[] {
+  return REGION.roads.flatMap((road) => [road[0], road[road.length - 1]]).filter((p) => siteGap(t, p) < 0);
+}
+
+export function trackLine(t: TerritoryDef, road: FarmRoad, fade: number, roadEnds: readonly Vec[]): TrackLine {
+  if (road.points.length < 2) throw new Error(`A ${t.id} track needs at least 2 points`);
+  if (!(road.width > 0)) throw new Error(`A ${t.id} track needs a width above 0`);
+  const points = road.points.map((p) => onMap(t, p));
+  const onRoadEnd = (p: Vec) => roadEnds.some((end) => dist(end, p) <= JOIN_REACH);
+  const joins = { start: onRoadEnd(points[0]), end: onRoadEnd(points[points.length - 1]) };
+  if (fade > 0 && joins.end) throw new Error(`A ${t.id} spur fades out on a full road's end at ${points[points.length - 1].x},${points[points.length - 1].y}`);
+  return { points, width: road.width, fade, joins };
+}
+
 export function landingStrips(t: TerritoryDef): LandingStrip[] {
   const wreck = TERRITORIES[t.id].wreck;
   if (!wreck) return [];

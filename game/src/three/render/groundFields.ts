@@ -2,10 +2,11 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
-import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundMaterialIndex, lookTypes, shownLooks, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, shownLooks, type PaintCanvas } from "../../render/groundPaint";
 import { paintHighwayWear } from "../../render/highwayWear";
-import { paintRoadDetail, paintRoadMask, paintRoadTone, regionRoadRuns, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
+import { paintRoadDetail, joinedRoadEnds, paintRoadMask, paintRoadTone, regionRoadRuns, SQUARE_END_STEEPNESS, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
+import { dist, type Vec } from "../../sim/vec";
 import { fromRoad } from "../../sim/highway";
 import { windowCraters } from "../../sim/road-hazards";
 import { sitePads, type Site } from "../../sim/sites";
@@ -70,7 +71,7 @@ function tileTexture(t: Terrain): { texture: THREE.DataArrayTexture; ready: { va
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
   const shown = shownLooks(t);
-  const look = lookTypes(t);
+  const look = groundLooks(t);
   const glass = glassOf(t);
   const materials = Uint8Array.from(shown, groundMaterialIndex);
   const turns = fieldTurns(shown, t.size);
@@ -178,7 +179,11 @@ function roadFieldTexture(t: Terrain): THREE.DataTexture {
     data[i * 4 + 2] = ROAD_FIELD_REACH * 2;
     data[i * 4 + 3] = t.heights[i];
   }
-  for (const run of regionRoadRuns(atlasOf(t))) markRun(run, side, data, nearest);
+  const atlas = atlasOf(t);
+  const runs = regionRoadRuns(atlas);
+  for (const run of runs) markRun(run, side, data, nearest);
+  const joined = joinedRoadEnds(atlas);
+  for (const run of runs) squareJoinedEnds(run, joined, side, data);
   return linear(new THREE.DataTexture(data, side, side, THREE.RGBAFormat, THREE.FloatType));
 }
 
@@ -203,6 +208,26 @@ function markRun(run: readonly { x: number; y: number }[], side: number, data: F
       }
     if (n < run.length - 1) along += Math.hypot(next.x - p.x, next.y - p.y);
   });
+}
+
+function squareJoinedEnds(run: readonly Vec[], joined: readonly Vec[], side: number, data: Float32Array): void {
+  const first = run[0];
+  const last = run[run.length - 1];
+  if (joined.some((end) => dist(end, last) < 1e-6)) squareEnd(last, run[run.length - 2], side, data);
+  if (joined.some((end) => dist(end, first) < 1e-6)) squareEnd(first, run[1], side, data);
+}
+
+function squareEnd(end: Vec, inward: Vec, side: number, data: Float32Array): void {
+  const length = dist(end, inward);
+  const out = { x: (end.x - inward.x) / length, y: (end.y - inward.y) / length };
+  for (let y = Math.max(0, Math.floor(end.y - ROAD_FIELD_REACH)); y <= Math.min(side - 1, Math.ceil(end.y + ROAD_FIELD_REACH)); y++)
+    for (let x = Math.max(0, Math.floor(end.x - ROAD_FIELD_REACH)); x <= Math.min(side - 1, Math.ceil(end.x + ROAD_FIELD_REACH)); x++) {
+      const beyond = (x - end.x) * out.x + (y - end.y) * out.y;
+      if (beyond <= 0) continue;
+      const across = (x - end.x) * -out.y + (y - end.y) * out.x;
+      const k = y * side + x;
+      data[k * 4] = Math.max(data[k * 4], Math.hypot(across, beyond * SQUARE_END_STEEPNESS));
+    }
 }
 
 function linear<T extends THREE.DataTexture | THREE.DataArrayTexture>(texture: T): T {

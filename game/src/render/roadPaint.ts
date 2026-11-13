@@ -1,11 +1,10 @@
 
-import { REGION, type TerritoryDef } from "../data/region";
-import { TERRITORIES, type FarmRoad, type WreckRules } from "../data/territory";
+import { REGION } from "../data/region";
 import { HIGHWAY } from "../data/modes";
 import { atlasSites, type Atlas, type AtlasRoad } from "../sim/atlas";
 import { bridgeCut, deckAt } from "../sim/bridge";
 import { isTerritory, siteGap } from "../sim/sites";
-import { territoryRoads } from "../sim/territory";
+import { fullRoadEnds, territoryTracks, type TrackLine } from "../sim/territory";
 import { dist, type Vec } from "../sim/vec";
 import type { PaintCanvas } from "./groundPaint";
 import { hash2 } from "./noise";
@@ -14,14 +13,14 @@ import { PAL, mix, shade } from "./palette";
 export const ROAD_DETAIL_SIDE = 256;
 export const ROAD_TONE_SIDE = 64;
 export const ROAD_TONE_PIXELS = 12;
-const WRECKS: { territory: TerritoryDef; wreck: WreckRules }[] = REGION.locations.filter(isTerritory).flatMap((territory) => {
-  const wreck = TERRITORIES[territory.id].wreck;
-  return wreck === null ? [] : [{ territory, wreck }];
-});
 const WIDTH = REGION.roadWidth * 0.9;
 const BLUR = 2.4;
-const DIRT_BLUR = 0.8;
-export const BLUR_REACH = 4;
+export const TRACK_FIELD_REACH = 4;
+export const DRAWN_ROAD_HALF = 2.7;
+export const TRACK_MOUTH = { tiles: 3, inset: 0.25 };
+const TRACK_FIELD_MID = 128;
+const TRACK_FIELD_SPAN = 127;
+const TRACK_FIELD_OUTSIDE = 255;
 const STEP = 0.5;
 const CRACK_MIX = 0.3;
 const CRACK_CELL = 16;
@@ -31,7 +30,6 @@ const STONE_SHARE = 0.012;
 export type RoadImage = { side: number; pixels: Uint8ClampedArray };
 
 export const REGION_ROAD_STYLE = "#f00";
-export const DIRT_ROAD_STYLE = "#0f0";
 
 export type RoadHole = { pos: Vec; radius: number };
 
@@ -50,19 +48,84 @@ export function paintRoadMask(c: PaintCanvas, atlas: Atlas, holes: readonly Road
   ctx.filter = `blur(${BLUR * c.res}px)`;
   ctx.globalCompositeOperation = "copy";
   ctx.drawImage(ctx.canvas, 0, 0);
-  const dirtBlur = DIRT_BLUR * c.res;
-  ctx.filter = `blur(${dirtBlur}px)`;
-  ctx.globalCompositeOperation = "lighten";
-  ctx.strokeStyle = DIRT_ROAD_STYLE;
-  const offDeck = (p: Vec) => deckAt(atlas.decks, p.x, p.y) === null;
-  for (const { territory, wreck } of atlas.landforms ? WRECKS : []) {
-    const { roads, spurs } = territoryRoads(territory);
-    const fade = wreck.spurFade;
-    for (const road of roads) strokeRuns(c, runsWhere(evenPoints(road.points), offDeck), road.width * 0.9, dirtBlur);
-    for (const spur of spurs) strokeSpur(c, spur, fade, offDeck, dirtBlur);
-  }
   ctx.filter = "none";
   paintHighways(c, atlas.roads.filter((r) => r.lanes > 0), holes);
+  writeTrackField(c, drawnTrackLines(atlas), (p) => deckAt(atlas.decks, p.x, p.y) === null);
+}
+
+export const SQUARE_END_STEEPNESS = 8;
+
+export function joinedRoadEnds(atlas: Atlas): Vec[] {
+  return atlas.landforms ? REGION.locations.filter(isTerritory).flatMap(fullRoadEnds) : [];
+}
+
+export function drawnTrackLines(atlas: Atlas): TrackLine[] {
+  return atlas.landforms ? REGION.locations.filter(isTerritory).flatMap(territoryTracks) : [];
+}
+
+export function trackEdgeAt(lines: readonly TrackLine[], p: Vec): number {
+  let best = Infinity;
+  for (const line of lines) {
+    const left = tilesToEnd(line.points);
+    for (let i = 1; i < line.points.length; i++) best = Math.min(best, segmentEdge(line, left, i, p));
+  }
+  return best;
+}
+
+function segmentEdge(line: TrackLine, left: readonly number[], i: number, p: Vec): number {
+  const a = line.points[i - 1];
+  const b = line.points[i];
+  const length = dist(a, b);
+  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (length * length)));
+  const at = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  const remaining = left[i - 1] - t * length;
+  const taper = line.fade > 0 ? Math.min(1, remaining / line.fade) : 1;
+  return dist(p, at) - mouthHalf(line, left[0] - remaining, remaining) * taper;
+}
+
+export function mouthHalf(line: TrackLine, fromStart: number, fromEnd: number): number {
+  const lane = line.width / 2;
+  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, along / TRACK_MOUTH.tiles));
+  const atStart = line.joins.start ? open(fromStart) : lane;
+  const atEnd = line.joins.end ? open(fromEnd) : lane;
+  return Math.max(atStart, atEnd);
+}
+
+function trackCode(edge: number): number {
+  const k = Math.max(-1, Math.min(1, edge / TRACK_FIELD_REACH));
+  return Math.round(TRACK_FIELD_MID + k * TRACK_FIELD_SPAN);
+}
+
+export function trackFieldCodes(c: Pick<PaintCanvas, "size" | "res" | "from">, lines: readonly TrackLine[], onGround: (p: Vec) => boolean): Uint8Array {
+  const codes = new Uint8Array(c.size * c.size).fill(TRACK_FIELD_OUTSIDE);
+  const toTile = (px: number) => px / c.res + c.from;
+  const toPx = (tile: number) => (tile - c.from) * c.res;
+  for (const line of lines) {
+    const left = tilesToEnd(line.points);
+    for (let i = 1; i < line.points.length; i++) {
+      const a = line.points[i - 1];
+      const b = line.points[i];
+      const reach = (line.joins.start || line.joins.end ? DRAWN_ROAD_HALF : line.width / 2) + TRACK_FIELD_REACH;
+      const x0 = Math.max(0, Math.floor(toPx(Math.min(a.x, b.x) - reach)));
+      const x1 = Math.min(c.size - 1, Math.ceil(toPx(Math.max(a.x, b.x) + reach)));
+      const y0 = Math.max(0, Math.floor(toPx(Math.min(a.y, b.y) - reach)));
+      const y1 = Math.min(c.size - 1, Math.ceil(toPx(Math.max(a.y, b.y) + reach)));
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const p = { x: toTile(x + 0.5), y: toTile(y + 0.5) };
+          const code = trackCode(segmentEdge(line, left, i, p));
+          if (code < codes[y * c.size + x] && onGround(p)) codes[y * c.size + x] = code;
+        }
+    }
+  }
+  return codes;
+}
+
+function writeTrackField(c: PaintCanvas, lines: readonly TrackLine[], onGround: (p: Vec) => boolean): void {
+  const image = c.ctx.getImageData(0, 0, c.size, c.size);
+  const codes = trackFieldCodes(c, lines, onGround);
+  for (let i = 0; i < codes.length; i++) image.data[i * 4 + 1] = codes[i];
+  c.ctx.putImageData(image, 0, 0);
 }
 
 function paintHighways(c: PaintCanvas, roads: readonly AtlasRoad[], holes: readonly RoadHole[]): void {
@@ -93,53 +156,15 @@ function paintHoles(c: PaintCanvas, holes: readonly RoadHole[]): void {
   }
 }
 
-function strokeRuns(c: PaintCanvas, runs: Vec[][], width: number, blurPx = 0): void {
+function strokeRuns(c: PaintCanvas, runs: Vec[][], width: number): void {
   const ctx = c.ctx;
   ctx.globalAlpha = 1;
   ctx.lineWidth = width * c.res;
   ctx.lineCap = "butt";
   const lines = runs.map((run) => run.map((p) => ({ x: c.toPx(p.x), y: c.toPx(p.y) })));
-  if (blurPx > 0) return strokeClipped(ctx, lines, blurPx);
   ctx.beginPath();
   for (const line of lines) line.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
   ctx.stroke();
-}
-
-function strokeClipped(ctx: CanvasRenderingContext2D, lines: readonly (readonly { x: number; y: number }[])[], blurPx: number): void {
-  if (!Number.isFinite(blurPx) || blurPx < 0) throw new Error(`Blur radius must be finite and not negative: ${blurPx}`);
-  const drawn = lines.filter((line) => line.length > 1);
-  if (drawn.length === 0) return;
-  const points = drawn.flat();
-  const reach = ctx.lineWidth / 2 + BLUR_REACH * blurPx + 2;
-  const left = Math.floor(Math.min(...points.map((p) => p.x)) - reach);
-  const top = Math.floor(Math.min(...points.map((p) => p.y)) - reach);
-  const right = Math.ceil(Math.max(...points.map((p) => p.x)) + reach);
-  const bottom = Math.ceil(Math.max(...points.map((p) => p.y)) + reach);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(left, top, right - left, bottom - top);
-  ctx.clip();
-  ctx.beginPath();
-  for (const line of drawn) line.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-  ctx.stroke();
-  ctx.restore();
-}
-
-function strokeSpur(c: PaintCanvas, spur: FarmRoad, fade: number, offDeck: (p: Vec) => boolean, blurPx: number): void {
-  const points = evenPoints(spur.points);
-  const left = tilesToEnd(points);
-  const width = spur.width * 0.9;
-  strokeRuns(c, runsWhere(points.filter((_, i) => left[i] >= fade), offDeck), width, blurPx);
-  const ctx = c.ctx;
-  ctx.lineCap = "round";
-  for (let i = 1; i < points.length; i++) {
-    const k = left[i] / fade;
-    if (k >= 1 || k <= 0 || !offDeck(points[i - 1]) || !offDeck(points[i])) continue;
-    ctx.globalAlpha = k;
-    ctx.lineWidth = width * k * c.res;
-    strokeClipped(ctx, [[{ x: c.toPx(points[i - 1].x), y: c.toPx(points[i - 1].y) }, { x: c.toPx(points[i].x), y: c.toPx(points[i].y) }]], blurPx);
-  }
-  ctx.globalAlpha = 1;
 }
 
 function tilesToEnd(points: readonly Vec[]): number[] {
@@ -159,7 +184,7 @@ function runsWhere(points: Vec[], keep: (p: Vec) => boolean): Vec[][] {
 
 function drawn(atlas: Atlas, p: Vec): boolean {
   if (deckAt(atlas.decks, p.x, p.y) !== null || bridgeCut(atlas.decks, p.x, p.y) > 0) return false;
-  return !atlasSites(atlas).some((site) => siteGap(site, p) < 0);
+  return !atlasSites(atlas).some((site) => !isTerritory(site) && siteGap(site, p) < 0);
 }
 
 function evenPoints(road: readonly Vec[]): Vec[] {
