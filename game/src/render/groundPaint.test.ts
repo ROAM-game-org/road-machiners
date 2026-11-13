@@ -393,6 +393,15 @@ describe('ground material table', () => {
     }
   });
 
+  it('rounds the tile corners of every natural edge and keeps built edges square', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      const row = groundMaterial(type);
+      if (row.edge === 'straight') expect(EDGE_LOOKS[row.edge].round, type).toBe(0);
+      else expect(EDGE_LOOKS[row.edge].round, type).toBeGreaterThan(0);
+    }
+    expect(groundMaterial('canal').edge).toBe('straight');
+  });
+
   it('draws glass on the hardpan color so its plates sit on plain ground', () => {
     expect(groundMaterial('glass').color).toBe(groundMaterial('hardpan').color);
   });
