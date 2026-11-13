@@ -578,8 +578,10 @@ DrawnBorder drawnBorderAt(vec2 tile) {
   vec4 wy = drawnSplineWeights(f.y);
   vec4 sx = drawnSplineSlopes(f.x);
   vec4 sy = drawnSplineSlopes(f.y);
-  vec3 spreads[3] = vec3[3](drawnMaskSpread(block.masks.x, wx, wy, sx, sy), drawnMaskSpread(block.masks.y, wx, wy, sx, sy), drawnMaskSpread(block.masks.z, wx, wy, sx, sy));
-  vec3 shares = vec3(spreads[0].x, spreads[1].x, spreads[2].x);
+  vec3 spread0 = drawnMaskSpread(block.masks.x, wx, wy, sx, sy);
+  vec3 spread1 = drawnMaskSpread(block.masks.y, wx, wy, sx, sy);
+  vec3 spread2 = drawnMaskSpread(block.masks.z, wx, wy, sx, sy);
+  vec3 shares = vec3(spread0.x, spread1.x, spread2.x);
   vec3 spills = ${pickMaterial("drawnMaterialSpill")};
   vec3 leads = shares * spills * spills * spills * spills;
   vec3 spillColor = (leads.x * drawnMaterialTone(block.ids.x) + leads.y * drawnMaterialTone(block.ids.y) + leads.z * drawnMaterialTone(block.ids.z)) / max(leads.x + leads.y + leads.z, 0.0001);
@@ -591,7 +593,7 @@ DrawnBorder drawnBorderAt(vec2 tile) {
   vec3 hereSpread = vec3(0.0);
   vec3 thereSpread = vec3(0.0);
   for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++) {
-    vec3 spread = spreads[slot];
+    vec3 spread = slot == 0 ? spread0 : (slot == 1 ? spread1 : spread2);
     bool top = spread.x > hereSpread.x;
     bool next = !top && spread.x > thereSpread.x;
     there = top ? here : (next ? block.ids[slot] : there);
