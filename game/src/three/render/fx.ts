@@ -8,7 +8,8 @@ import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { unitsOf } from '../../sim/body';
-import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
+import { inOverdrive, isStranded, isWorking, vehicleStats } from '../../sim/stats';
+import { mountedParts } from '../../sim/grid';
 import { tileAt, type Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
 import { smokeAt, smokeSources, ventsOf, type SmokeSource, type TruckVents } from './smokePoints';
@@ -288,8 +289,8 @@ export class Fx3D {
     this.emissions.dust(p);
   }
 
-  smoke(p: V3, damage = 0): void {
-    this.emissions.hurt(p, damage);
+  smoke(p: V3, damage: number, scale: number): void {
+    this.emissions.hurt(p, damage, scale);
   }
 
   light({ sun, sky }: CardLights): void {
@@ -345,20 +346,20 @@ export class Fx3D {
     return look;
   }
 
-  exhaust(p: V3, back: V3): void {
-    this.emissions.exhaust(p, back);
+  exhaust(p: V3, back: V3, scale: number): void {
+    this.emissions.exhaust(p, back, scale);
   }
 
-  steam(p: V3): void {
-    this.emissions.steam(p);
+  steam(p: V3, motion: V3, scale: number): void {
+    this.emissions.steam(p, motion, scale);
   }
 
   douseSteam(p: V3): void {
     this.emissions.douse(p);
   }
 
-  breakdownSmoke(p: V3, motion: V3): void {
-    this.emissions.breakdown(p, motion);
+  breakdownSmoke(p: V3, motion: V3, scale: number): void {
+    this.emissions.breakdown(p, motion, scale);
   }
 
   floatText(p: V3, text: Msg, color: string, durationMs: number, rowPx = 0, anchor: (() => V3 | null) | null = null): void {
@@ -441,7 +442,7 @@ const SPEED_JUMP = 1.5;
 const TRAIL_SLACK = 3;
 const TRAIL_SLACK_METERS = 1;
 
-type Traits = { stranded: boolean; maxSpeed: number; smoke: SmokeSource[]; vents: TruckVents };
+type Traits = { stranded: boolean; engineBroken: boolean; maxSpeed: number; smoke: SmokeSource[]; vents: TruckVents };
 type Pose = { f: VehicleFrame; h: number };
 
 export type TruckFxSink = Pick<Fx3D, 'smoke' | 'exhaust' | 'steam' | 'douseSteam' | 'breakdownSmoke' | 'dustHaze' | 'wheelDust' | 'clod'> & { ruts: Pick<Ruts, 'layTracks'> };
@@ -462,11 +463,11 @@ export class TruckFx {
     if (moving || metersPerSecond > CREEP_METERS_PER_SECOND) this.driving(world, v, pose, traits, seen, dt, metersPerSecond);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
-      this.steam(world.player.engineHeat, traits, pose, dt);
+      this.steam(world.player.engineHeat, v, traits, pose, moving, dt);
       this.douseCloud(traits, pose, dt);
     }
-    if (traits.stranded) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(smokeAt(traits.vents.engine, f), motionOf(v, pose.h, moving)));
-    else for (const source of traits.smoke) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(smokeAt(source, f), source.damage));
+    if (traits.engineBroken) this.puffs(BREAKDOWN_RATE, dt, () => this.fx.breakdownSmoke(smokeAt(traits.vents.engine, f), motionOf(v, pose.h, moving), traits.vents.ventScale));
+    for (const source of traits.smoke) this.puffs(DAMAGE_RATE, dt, () => this.fx.smoke(smokeAt(source, f), source.damage, traits.vents.ventScale));
   }
 
   private groundSpeed(id: string, pos: V3, dt: number, topMetersPerSecond: number): number {
@@ -484,19 +485,19 @@ export class TruckFx {
     const along = -(pose.f.acc.x * back.x + pose.f.acc.z * back.z);
     const cruise = v.speed > traits.maxSpeed * CRUISE_SHARE ? CRUISE_RATE : 0;
     const rate = EXHAUST_RATE * Math.min(1, Math.max(0, along / EXHAUST_FULL_ACCEL)) + cruise;
-    this.puffs(rate, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
+    this.puffs(rate, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back, traits.vents.ventScale));
   }
 
   private overdriveExhaust(world: World, v: Vehicle, traits: Traits, pose: Pose, dt: number): void {
     if (!inOverdrive(world, v) || traits.stranded) return;
     const back = { x: -Math.cos(pose.h), y: 0, z: -Math.sin(pose.h) };
-    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back));
+    this.puffs(OVERDRIVE_RATE, dt, () => this.fx.exhaust(smokeAt(traits.vents.exhaust, pose.f), back, traits.vents.ventScale));
   }
 
-  private steam(heat: number, traits: Traits, pose: Pose, dt: number): void {
+  private steam(heat: number, v: Vehicle, traits: Traits, pose: Pose, moving: boolean, dt: number): void {
     if (heat < ENGINE_HEAT.warnAt) return;
     const share = (heat - ENGINE_HEAT.warnAt) / (1 - ENGINE_HEAT.warnAt);
-    this.puffs((STEAM_RATE * (1 + 2 * share)) / 3, dt, () => this.fx.steam(smokeAt(traits.vents.engine, pose.f)));
+    this.puffs((STEAM_RATE * (1 + 2 * share)) / 3, dt, () => this.fx.steam(smokeAt(traits.vents.engine, pose.f), motionOf(v, pose.h, moving), traits.vents.ventScale));
   }
 
   douse(): void {
@@ -558,11 +559,16 @@ export class TruckFx {
     }
     let t = this.traits.get(v.id);
     if (!t) {
-      t = { stranded: isStranded(world, v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v), vents: ventsOf(v) };
+      t = { stranded: isStranded(world, v), engineBroken: engineBroken(v), maxSpeed: vehicleStats(world, v).maxSpeed, smoke: smokeSources(v), vents: ventsOf(v) };
       this.traits.set(v.id, t);
     }
     return t;
   }
+}
+
+function engineBroken(v: Vehicle): boolean {
+  const [engine] = mountedParts(v, 'engine');
+  return engine !== undefined && !isWorking(engine);
 }
 
 function motionOf(v: Vehicle, h: number, moving: boolean): V3 {
