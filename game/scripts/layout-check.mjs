@@ -718,11 +718,13 @@ async function drawingFaults(page) {
     const aim = phone ? Math.max(32, 32 / scale) : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
     const cell = 30 * parseFloat(view.style.zoom || '1');
     const cardBox = card.getBoundingClientRect();
-    const instruments = document.querySelector('#ui .instruments')?.getBoundingClientRect();
-    const under = instruments && instruments.right > cardBox.left && instruments.top > cardBox.top;
     const log = document.querySelector('#ui .log');
     const logBottom = log && log.getClientRects().length > 0 ? log.getBoundingClientRect().bottom : innerHeight;
-    const floor = under ? Math.min(logBottom, instruments.top) : logBottom;
+    const dockTops = ['#ui .instruments', '#ui .weapons']
+      .map((sel) => document.querySelector(sel)?.getBoundingClientRect())
+      .filter((box) => box && box.right > cardBox.left && box.top > cardBox.top)
+      .map((box) => box.top);
+    const floor = Math.min(logBottom, ...dockTops);
     const roomBelow = floor - cardBox.bottom;
     const held = cell < 0.95 * aim && roomBelow > 40;
     return held ? [`the truck drawing is held under its room: cell ${cell.toFixed(1)} px of ${aim.toFixed(1)}, ${roomBelow.toFixed(0)} px left below it`] : [];
