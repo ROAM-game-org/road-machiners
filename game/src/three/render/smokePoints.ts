@@ -88,7 +88,18 @@ export function ventsOf(v: Vehicle): TruckVents {
   };
 }
 
+const SEATS = new Map<string, BodyPoint>();
+
 function lowestSeat(chassisId: string, bay: CellRect, z: number, radius: number): BodyPoint {
+  const key = `${chassisId}:${radius}`;
+  const known = SEATS.get(key);
+  if (known) return known;
+  const seat = findLowestSeat(chassisId, bay, z, radius);
+  SEATS.set(key, seat);
+  return seat;
+}
+
+function findLowestSeat(chassisId: string, bay: CellRect, z: number, radius: number): BodyPoint {
   const center = (bay.x0 + bay.x1) / 2;
   const steps = Math.ceil((bay.x1 - bay.x0) / SEAT_STEP);
   const seats = Array.from({ length: steps + 1 }, (_, i) => bay.x0 + ((bay.x1 - bay.x0) * i) / steps)
