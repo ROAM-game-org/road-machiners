@@ -79,7 +79,8 @@ function segmentEdge(line: TrackLine, left: readonly number[], i: number, p: Vec
 
 export function mouthHalf(line: TrackLine, fromStart: number, fromEnd: number): number {
   const lane = line.width / 2;
-  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, along / TRACK_MOUTH.tiles));
+  const pastCap = (along: number) => Math.max(0, along - DRAWN_ROAD_HALF);
+  const open = (along: number) => DRAWN_ROAD_HALF - TRACK_MOUTH.inset + (lane - DRAWN_ROAD_HALF + TRACK_MOUTH.inset) * smooth(Math.min(1, pastCap(along) / TRACK_MOUTH.tiles));
   const atStart = line.joins.start ? open(fromStart) : lane;
   const atEnd = line.joins.end ? open(fromEnd) : lane;
   return Math.max(atStart, atEnd);

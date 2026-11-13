@@ -272,6 +272,13 @@ describe('joins of tracks and full roads', () => {
     }
   });
 
+  it('holds the mouth at road width until it clears the asphalt cap', () => {
+    for (const { points } of joins) {
+      const clear = walk(points, DRAWN_ROAD_HALF, 0.05).at(-1)!;
+      expect(trackEdgeAt(lines, clear), `${clear.x},${clear.y}`).toBeLessThanOrEqual(-(DRAWN_ROAD_HALF - TRACK_MOUTH.inset) + 1e-6);
+    }
+  });
+
   it('keeps a track with no join at its lane width (IV14)', () => {
     const plain = REGION.locations.filter(isTerritory).flatMap(territoryTracks).filter((l) => !l.joins.start && !l.joins.end && l.fade === 0);
     for (const line of plain) {
