@@ -51,6 +51,9 @@ const PAD_WEAR = { gapCells: 1.8, gapFrom: 0.7, chipCells: 5.5, chipFrom: 0.7, f
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
+const ROUND_NEAR_TILES = 1;
+const ROUND_FAR_TILES = 2;
+const ROUND_REACH_TILES = 1;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
@@ -284,6 +287,7 @@ function materialConstants(): string {
     floats("drawnMaterialPepper", rows.map((row) => EDGE_LOOKS[row.edge].pepper)),
     floats("drawnMaterialFine", rows.map((row) => EDGE_LOOKS[row.edge].fine)),
     floats("drawnMaterialGrit", rows.map((row) => EDGE_LOOKS[row.edge].grit)),
+    floats("drawnMaterialRound", rows.map((row) => EDGE_LOOKS[row.edge].round)),
     floats("drawnMaterialSpill", rows.map((row) => row.spill)),
     floats("drawnMaterialStand", rows.map((row) => row.stand)),
   ].join("\n");
@@ -489,6 +493,43 @@ vec4 drawnSplineSlopes(float f) {
   float g = 1.0 - f;
   return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
 }
+float drawnPairFieldOfTiles(vec2 tile, int here, int there) {
+  vec2 first = floor(tile - 0.5) - 1.0;
+  vec2 f = tile - 0.5 - floor(tile - 0.5);
+  vec4 wx = drawnSplineWeights(f.x);
+  vec4 wy = drawnSplineWeights(f.y);
+  float field = 0.0;
+  for (int j = 0; j < 4; j++)
+    for (int i = 0; i < 4; i++) {
+      int id = drawnMaterialAt(first + vec2(float(i), float(j)) + 0.5);
+      field += (id == here ? 1.0 : (id == there ? -1.0 : 0.0)) * wx[i] * wy[j];
+    }
+  return field;
+}
+float drawnPairField(vec2 tile, int here, int there) {
+  DrawnBlock block;
+  if (!drawnBlockAt(tile, block)) return drawnPairFieldOfTiles(tile, here, there);
+  vec2 f = tile - 0.5 - floor(tile - 0.5);
+  vec4 wx = drawnSplineWeights(f.x);
+  vec4 wy = drawnSplineWeights(f.y);
+  float field = 0.0;
+  for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++) {
+    float side = block.ids[slot] == here ? 1.0 : (block.ids[slot] == there ? -1.0 : 0.0);
+    field += side * drawnMaskShare(block.masks[slot], wx, wy);
+  }
+  return field;
+}
+float drawnRoundedDistance(vec2 tile, int here, int there, float field, vec2 slope) {
+  float speed = max(length(slope), 0.0001);
+  float narrow = field / speed;
+  float share = min(drawnMaterialRound[here], drawnMaterialRound[there]);
+  if (share <= 0.0) return narrow;
+  vec2 along = vec2(-slope.y, slope.x) / speed;
+  float inner = drawnPairField(tile + along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there);
+  float outer = drawnPairField(tile + along * ${ROUND_FAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_FAR_TILES.toFixed(1)}, here, there);
+  float smoothed = (3.0 * field + 2.0 * inner + outer) / 9.0 / speed;
+  return narrow + share * clamp(smoothed - narrow, -${ROUND_REACH_TILES.toFixed(1)}, ${ROUND_REACH_TILES.toFixed(1)});
+}
 vec4 drawnEdgeTraitsOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
@@ -567,7 +608,7 @@ DrawnBorder drawnBorderOfTiles(vec2 tile) {
       field += side * wx[i] * wy[j];
       slope += side * vec2(sx[i] * wy[j], wx[i] * sy[j]);
     }
-  float dist = field / max(length(slope), 0.0001);
+  float dist = drawnRoundedDistance(tile, here, there, field, slope);
   return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
 }
 DrawnBorder drawnBorderAt(vec2 tile) {
@@ -600,7 +641,7 @@ DrawnBorder drawnBorderAt(vec2 tile) {
     hereSpread = top ? spread : hereSpread;
   }
   if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
-  float dist = (hereSpread.x - thereSpread.x) / max(length(hereSpread.yz - thereSpread.yz), 0.0001);
+  float dist = drawnRoundedDistance(tile, here, there, hereSpread.x - thereSpread.x, hereSpread.yz - thereSpread.yz);
   return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
 }
 float drawnStreakAt(vec2 at) {

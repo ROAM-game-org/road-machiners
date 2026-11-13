@@ -53,15 +53,15 @@ export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "
 export type MarkKind = (typeof MARK_KINDS)[number];
 
 export type EdgeStyle = "smudge" | "pepper" | "gritty" | "hard" | "shore" | "straight";
-export type EdgeLook = { wave: number; fine: number; pepper: number; grit: number };
+export type EdgeLook = { wave: number; fine: number; pepper: number; grit: number; round: number };
 
 export const EDGE_LOOKS: Record<EdgeStyle, EdgeLook> = {
-  smudge: { wave: 1, fine: 0, pepper: 0, grit: 0 },
-  pepper: { wave: 0.5, fine: 1, pepper: 1, grit: 0 },
-  gritty: { wave: 1, fine: 0, pepper: 0, grit: 1 },
-  hard: { wave: 0.15, fine: 0.5, pepper: 0.08, grit: 0.5 },
-  shore: { wave: 0.4, fine: 0, pepper: 0, grit: 0 },
-  straight: { wave: 0, fine: 0, pepper: 0, grit: 0 },
+  smudge: { wave: 1, fine: 0, pepper: 0, grit: 0, round: 1 },
+  pepper: { wave: 0.5, fine: 1, pepper: 1, grit: 0, round: 1 },
+  gritty: { wave: 1, fine: 0, pepper: 0, grit: 1, round: 1 },
+  hard: { wave: 0.15, fine: 0.5, pepper: 0.08, grit: 0.5, round: 1 },
+  shore: { wave: 0.4, fine: 0, pepper: 0, grit: 0, round: 1 },
+  straight: { wave: 0, fine: 0, pepper: 0, grit: 0, round: 0 },
 };
 
 type MaterialRow = { mark: MarkKind; edge: EdgeStyle; spill: number; warm: number; stand: number };
