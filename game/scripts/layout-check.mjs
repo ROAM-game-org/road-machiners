@@ -8,6 +8,7 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
+const REPORT = [1512, 945];
 const COMPACT = [1024, 600];
 const PHONE = [390, 844];
 const PHONE_LANDSCAPE = [640, 360];
@@ -623,6 +624,57 @@ const inspectNine = async (page) => {
   await page.waitForFunction(() => window.__ROAM__.hud.portraitSettled(window.__layoutNpc), null, { timeout: 60000 });
 };
 
+const armTruck = async (page) => {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const { makePart } = await import('/src/sim/factory.ts');
+    const { mountPart } = await import('/src/sim/inventory.ts');
+    const { mountedParts } = await import('/src/sim/grid.ts');
+    const { playerVehicle } = await import('/src/sim/damage.ts');
+    const { partDef } = await import('/src/data/parts.ts');
+    window.__layoutWorld = structuredClone(g.state);
+    window.__layoutBaseInstruments = document.querySelector('#ui .instruments').getBoundingClientRect().height;
+    const before = new Set(g.state.vehicles.map((v) => v.id));
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon').world);
+    const donor = world.vehicles.find((v) => !before.has(v.id));
+    const me = playerVehicle(world);
+    me.chassisId = donor.chassisId;
+    me.items = structuredClone(donor.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)));
+    world.vehicles = world.vehicles.filter((v) => v !== donor);
+    if (!mountPart(world, me, makePart(world, 'claymoreRam', 0))) throw new Error(`no room for the claymore ram on ${me.chassisId}`);
+    const guns = () => mountedParts(me).filter((p) => partDef(p.defId).kind === 'weapon').length;
+    while (guns() < 7) if (!mountPart(world, me, makePart(world, 'mg', 0))) throw new Error(`only ${guns()} guns fit on ${me.chassisId}`);
+    g.apply(world);
+  });
+};
+
+const bottomLeftFaults = (page) =>
+  page.evaluate(() => {
+    const faults = [];
+    const box = (sel) => document.querySelector(sel)?.getBoundingClientRect();
+    const instruments = box('#ui .instruments');
+    const base = window.__layoutBaseInstruments;
+    if (Math.abs(instruments.height - base) > 1) faults.push(`the instruments are ${instruments.height.toFixed(0)} px tall with an armed truck and ${base.toFixed(0)} px with the default one`);
+    const weapons = document.querySelector('#ui .weapons');
+    if (!weapons.querySelector('.weapon-slots.two-rows')) faults.push('the weapons panel has no second gun row');
+    const cards = [...weapons.querySelectorAll('.utility-slot')];
+    if (cards.length === 0) faults.push('the weapons panel has no utility card');
+    for (const card of cards) {
+      const cut = [card, ...card.querySelectorAll('*')].some((n) => n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1);
+      if (cut) faults.push('a utility card clips its status');
+    }
+    const ui = document.getElementById('ui');
+    if (!ui.classList.contains('phone')) {
+      const stack = box('#ui .truck-stack');
+      const scale = parseFloat(getComputedStyle(ui).getPropertyValue('--ui-scale')) || 1;
+      const space = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-4')) * scale;
+      const gap = instruments.top - stack.bottom;
+      if (Math.abs(gap - space) > 1) faults.push(`the truck diagram is ${gap.toFixed(0)} px above the instruments, not ${space.toFixed(0)}`);
+    }
+    return faults;
+  });
+
 const CARD = '#ui .info';
 
 const cardPlaceFaults = (page) =>
@@ -666,11 +718,13 @@ async function drawingFaults(page) {
     const aim = phone ? Math.max(32, 32 / scale) : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
     const cell = 30 * parseFloat(view.style.zoom || '1');
     const cardBox = card.getBoundingClientRect();
-    const instruments = document.querySelector('#ui .instruments')?.getBoundingClientRect();
-    const under = instruments && instruments.right > cardBox.left && instruments.top > cardBox.top;
     const log = document.querySelector('#ui .log');
     const logBottom = log && log.getClientRects().length > 0 ? log.getBoundingClientRect().bottom : innerHeight;
-    const floor = under ? Math.min(logBottom, instruments.top) : logBottom;
+    const dockTops = ['#ui .instruments', '#ui .weapons']
+      .map((sel) => document.querySelector(sel)?.getBoundingClientRect())
+      .filter((box) => box && box.right > cardBox.left && box.top > cardBox.top)
+      .map((box) => box.top);
+    const floor = Math.min(logBottom, ...dockTops);
     const roomBelow = floor - cardBox.bottom;
     const held = cell < 0.95 * aim && roomBelow > 40;
     return held ? [`the truck drawing is held under its room: cell ${cell.toFixed(1)} px of ${aim.toFixed(1)}, ${roomBelow.toFixed(0)} px left below it`] : [];
@@ -1123,6 +1177,7 @@ const STATES = {
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'hud-armed': { setup: armTruck, teardown: (page) => page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)), check: async (page) => faultsOf('bottom-left')(await bottomLeftFaults(page)), viewports: [...VIEWPORTS, TALL, COMPACT, REPORT] },
   'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
