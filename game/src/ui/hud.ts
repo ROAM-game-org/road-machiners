@@ -249,8 +249,17 @@ export class Hud {
 
   private clearOfDock(floor: number, card: HTMLElement): number {
     if (phoneMode()) return floor;
-    const reach = Math.max(...[...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")].map((control) => uiSize().layerRect(control).right));
-    return reach > uiSize().layerRect(card).left ? Math.min(floor, uiSize().layerRect(this.top).top - parseFloat(token("--hud-gap"))) : floor;
+    const cardLeft = uiSize().layerRect(card).left;
+    const controls = [...this.top.querySelectorAll<HTMLElement>(".instrument-actions > *")];
+    const reaches = (right: number): boolean => right > cardLeft;
+    const instrumentsReach = reaches(Math.max(...controls.map((control) => uiSize().layerRect(control).right)));
+    const weapons = bottomLeft().querySelector<HTMLElement>(":scope > .weapons");
+    const weaponsBox = weapons && weapons.getClientRects().length > 0 ? uiSize().layerRect(weapons) : null;
+    const tops = [
+      ...(instrumentsReach ? [uiSize().layerRect(this.top).top] : []),
+      ...(weaponsBox && reaches(weaponsBox.right) ? [weaponsBox.top] : []),
+    ];
+    return Math.min(floor, ...tops.map((top) => top - parseFloat(token("--hud-gap"))));
   }
 
   private sideFloor(side: HTMLElement): number {
@@ -276,11 +285,17 @@ export class Hud {
 
   private placeQueued = false;
 
+  private keepTruckOnInstruments(): void {
+    const drop = `${this.top.offsetTop}px`;
+    if (bottomLeft().style.getPropertyValue("--instruments-drop") !== drop) bottomLeft().style.setProperty("--instruments-drop", drop);
+  }
+
   private placeSoon(): void {
     if (this.placeQueued) return;
     this.placeQueued = true;
     requestAnimationFrame(() => {
       this.placeQueued = false;
+      this.keepTruckOnInstruments();
       this.placeInfo();
       this.placeSide();
     });
@@ -378,6 +393,8 @@ export class Hud {
     const placeSoon = new ResizeObserver(() => this.placeSoon());
     placeSoon.observe(rightDock());
     placeSoon.observe(this.inspectedDraw);
+    placeSoon.observe(bottomLeft());
+    placeSoon.observe(this.top);
     window.addEventListener("resize", this.placeInfo);
     window.addEventListener("resize", () => this.placeSide());
     this.toastBox.style.display = "none";
