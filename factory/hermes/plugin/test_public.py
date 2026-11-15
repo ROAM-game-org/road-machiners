@@ -441,12 +441,20 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     factories = []
     tools, middleware = {}, {}
     ctx = SimpleNamespace(
-        register_hook=lambda *a: None, register_tool=lambda **kw: tools.update({kw["name"]: kw["toolset"]}),
+        register_hook=lambda *a: None, register_tool=lambda **kw: tools.update({kw["name"]: kw}),
         register_telegram_handler=factories.append, register_middleware=middleware.__setitem__,
     )
     plugin.register(ctx)
-    assert [name for name, toolset in tools.items() if toolset == "factory_public"] == ["game_search", "game_read", "issue_search", "issue_read"]
-    assert list(middleware) == ["llm_request"]
+    assert [name for name, kw in tools.items() if kw["toolset"] == "factory_public"] == ["game_search", "game_read", "issue_search", "issue_read"]
+    assert list(middleware) == ["llm_request", "llm_execution"]
+    factory_tools = [name for name, kw in tools.items() if kw["toolset"] == "factory"]
+    assert {"factory_queue_task", "factory_status", "factory_report_activity"} <= set(factory_tools)
+    for chat in (DISCUSSION, PROPOSAL_CHAT):
+        monkeypatch.setattr(plugin, "_session_env", lambda name: chat)
+        for name in factory_tools:
+            assert json.loads(tools[name]["handler"]({}))["error"] == "This tool is not available in the player chat."
+    monkeypatch.setattr(plugin, "_session_env", lambda name: "")
+    assert json.loads(tools["factory_queue_task"]["handler"]({}))["error"] == "The request is empty."
     root = logging.getLogger()
     watchers = [handler for handler in root.handlers if isinstance(handler, public.ConflictRestartAlert)]
     for handler in watchers:
@@ -552,3 +560,55 @@ def test_the_config_keeps_plugin_toolsets_out_of_the_player_chats():
         assert set(config["known_plugin_toolsets"][platform]) == {"factory", "factory_public"}
         assert "factory" in config["platform_toolsets"][platform]
         assert "factory_public" not in config["platform_toolsets"][platform]
+
+
+TAGGED = {"model": "m", "instructions": PRIVATE, "input": [{"role": "user", "content": [{"type": "input_text", "text": plugin.PUBLIC_HEADER + "@roam_bot hi"}]}]}
+
+
+def test_a_tagged_request_without_a_chat_id_carries_only_the_public_prompt(tmp_path):
+    on_request = public.make_public_prompt(cfg_for(tmp_path), lambda: "")
+    sent = on_request(request=TAGGED)["request"]
+    assert PRIVATE not in json.dumps(sent) and sent["input"] == TAGGED["input"]
+    chat = {"messages": [{"role": "system", "content": PRIVATE}, {"role": "user", "content": plugin.PUBLIC_HEADER + "hi"}]}
+    assert PRIVATE not in json.dumps(on_request(request=chat)["request"])
+
+
+def test_a_committee_chat_keeps_its_prompt_even_if_a_message_quotes_the_tag_header(tmp_path):
+    on_request = public.make_public_prompt(cfg_for(tmp_path), lambda: COMMITTEE_CHAT)
+    assert on_request(request=TAGGED) is None
+
+
+def test_a_failed_chat_lookup_sends_the_public_prompt(tmp_path):
+    def broken():
+        raise RuntimeError("no session context")
+
+    sent = public.make_public_prompt(cfg_for(tmp_path), broken)(request={"instructions": PRIVATE})["request"]
+    assert sent["instructions"] == public.PUBLIC_PROMPT
+
+
+@pytest.mark.parametrize("chat_id", [DISCUSSION, ""])
+def test_the_guard_sends_only_the_public_prompt_when_the_request_middleware_did_not_run(tmp_path, chat_id):
+    guard = public.make_public_guard(cfg_for(tmp_path), lambda: chat_id)
+    sent = []
+    assert guard(request=TAGGED, next_call=lambda request: sent.append(request) or "response") == "response"
+    assert PRIVATE not in json.dumps(sent) and public.PUBLIC_PROMPT in json.dumps(sent)
+
+
+@pytest.mark.parametrize("chat_id", [COMMITTEE_CHAT, ""])
+def test_the_guard_passes_other_requests_unchanged(tmp_path, chat_id):
+    guard = public.make_public_guard(cfg_for(tmp_path), lambda: chat_id)
+    request = {"instructions": PRIVATE, "input": [{"role": "user", "content": "hi"}]}
+    sent = []
+    guard(request=request, next_call=sent.append)
+    assert sent == [request]
+
+
+def test_the_guard_sends_nothing_when_the_rewrite_fails(tmp_path, monkeypatch):
+    def broken(request):
+        raise RuntimeError("bad request shape")
+
+    monkeypatch.setattr(public, "public_request", broken)
+    guard = public.make_public_guard(cfg_for(tmp_path), lambda: DISCUSSION)
+    sent = []
+    assert guard(request=TAGGED, next_call=sent.append) is None
+    assert sent == []

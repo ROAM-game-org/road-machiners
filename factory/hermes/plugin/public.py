@@ -290,7 +290,7 @@ def make_public_handler(cfg):
 
 
 # A public turn gets only the plugin's read-only public tools. An empty list would fall back to the full toolsets.
-# config.yaml lists the plugin toolsets under known_plugin_toolsets, or Hermes would add the factory toolset to this list.
+# config.yaml lists the plugin toolsets under known_plugin_toolsets, or Hermes would add the factory toolset to this list. Each factory tool refuses here anyway.
 PUBLIC_TOOLSETS = ["factory_public"]
 
 
@@ -330,13 +330,56 @@ def public_request(request: dict) -> dict:
     return result
 
 
+# The start of the header the dispatch hook puts on a player's tag. It marks a public turn when the session has no chat id.
+PUBLIC_MARK = "[Factory: a player tagged you in the public player chat."
+
+
+def tagged_in_public(request: dict) -> bool:
+    items = [*(request.get("messages") or []), *(request.get("input") or [])]
+    return any(isinstance(item, dict) and item.get("role") == "user" and PUBLIC_MARK in json.dumps(item, default=str) for item in items)
+
+
+def is_public_turn(cfg, chat_id: Callable[[], str], request) -> bool:
+    """A player chat's turn. A failed check counts as public, so a fault costs a private turn its prompt and never leaks it."""
+    try:
+        chat = chat_id()
+        return chat in public_chats(cfg) if chat else isinstance(request, dict) and tagged_in_public(request)
+    except Exception:
+        log.exception("Could not tell whether this turn is public, so it gets the public prompt")
+        return True
+
+
 def make_public_prompt(cfg, chat_id: Callable[[], str]):
     def on_request(request=None, **kwargs):
-        if not isinstance(request, dict) or chat_id() not in public_chats(cfg):
+        if not isinstance(request, dict) or not is_public_turn(cfg, chat_id, request):
             return None
         return {"request": public_request(request), "source": "factory", "reason": "public chat"}
 
     return on_request
+
+
+def make_public_guard(cfg, chat_id: Callable[[], str]):
+    """Rewrites a public request again right before the provider call. Hermes sends the original request when an
+    llm_request middleware raises, and calls the provider when this one raises, so a fault here returns no response instead."""
+    def on_execute(request=None, next_call=None, **kwargs):
+        try:
+            sent = public_request(request) if is_public_turn(cfg, chat_id, request) else request
+        except Exception:
+            log.exception("Could not rewrite a public request, so it is not sent")
+            return None
+        return next_call(sent)
+
+    return on_execute
+
+
+def refuse_in_public(cfg, chat_id: Callable[[], str], handler):
+    """A factory tool refuses in a player chat, even if Hermes's config ever puts the factory toolset there."""
+    def handle(args, **kwargs):
+        if is_public_turn(cfg, chat_id, None):
+            return json.dumps({"error": "This tool is not available in the player chat."})
+        return handler(args, **kwargs)
+
+    return handle
 
 
 def make_public_factory(cfg):
