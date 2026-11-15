@@ -7,6 +7,7 @@ import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BY
 import { driveSnapshotOf } from '../phys/turn';
 import { easedStopSteps } from './play-clock';
 import { Travel } from './travel';
+import { startTurnWorker } from './turn-worker-start';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -304,7 +305,6 @@ const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSa
 const groundBaked = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
-travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
@@ -317,7 +317,7 @@ stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-initPhysics().then(() => travel.warm(world, driveSnapshotOf(world))).catch(reportError);
+startTurnWorker(travel, groundBaked, initPhysics(), map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
 stepBoot('building the ground');
 await boot.track('ground', () => groundBaked.then(() => groundTexture(world)));
 stepBoot('waiting for physics and models');
@@ -348,7 +348,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish();
+void boot.finish().then(() => game.warmPlans(), reportError);
 clearMark(window.sessionStorage, saveKey);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
