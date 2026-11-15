@@ -517,9 +517,9 @@ export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1
 export const BOW_BREACH = { along: 10, height: 5, out: 17, radius: 7 };
 const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, penumbra: 0.5 };
 const BREACH_CORE = { radius: 6.2, inset: 1.5, strength: 0.4 };
-const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
+const SHIP_GLOW = { emissive: 0.12, base: 0.2 };
 const SHIP_GLOW_BY_MODEL: Partial<Record<ModelName, { emissive: number; base: number }>> = {
-  power_cell: { emissive: 0.12, base: 0.2 },
+  hull_bay: { emissive: 1.0, base: 0.2 },
 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };

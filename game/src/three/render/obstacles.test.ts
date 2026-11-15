@@ -11,7 +11,7 @@ import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
 import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
-import { loadModels, model } from './models';
+import { loadModels, model, type ModelName } from './models';
 import { RenderScope, SightLimit } from './scope';
 import { buildCells, buildingOnSync } from '../../test/cells';
 
@@ -62,19 +62,19 @@ describe('paintShipGlow', () => {
     expect(metal.emissiveIntensity).toBe(1);
   });
 
-  it('paints a power cell faintly and an escape pod at full strength (IV1, IV2, IV3)', () => {
-    const cell = groupOf('ship_glow');
-    const pod = groupOf('ship_glow');
-
-    paintShipGlow(cell, 'power_cell');
-    paintShipGlow(pod, 'escape_pod');
-
-    const [faint] = materialsOf(cell);
-    const [full] = materialsOf(pod);
-    expect(faint.emissive.getHex()).toBe(PAL.shipGlow);
-    expect(faint.emissiveIntensity).toBeGreaterThan(0);
-    expect(faint.emissiveIntensity).toBeLessThan(full.emissiveIntensity);
-    expect(full.emissiveIntensity).toBe(1);
+  it('paints scenery ship debris faintly and a hull bay at full strength (IV1, IV2, IV3)', () => {
+    const faintNames: ModelName[] = ['escape_pod', 'habitat_cylinder', 'power_cell'];
+    for (const name of faintNames) {
+      const g = groupOf('ship_glow');
+      paintShipGlow(g, name);
+      const [m] = materialsOf(g);
+      expect(m.emissive.getHex()).toBe(PAL.shipGlow);
+      expect(m.emissiveIntensity).toBe(0.12);
+    }
+    const bay = groupOf('ship_glow');
+    paintShipGlow(bay, 'hull_bay');
+    expect(materialsOf(bay)[0].emissive.getHex()).toBe(PAL.shipGlow);
+    expect(materialsOf(bay)[0].emissiveIntensity).toBe(1);
   });
 
   it('adds no light', () => {
@@ -254,7 +254,7 @@ describe('loot colors on props', () => {
     expect(colorsAt(root, 10).length).toBe(plainA.length);
   });
 
-  it('batches power cells faintly and escape pods at full strength (IV1, IV2)', () => {
+  it('batches power cells and escape pods faintly (IV1)', () => {
     const { root, views } = setup();
     const landmark = (id: string, look: 'powerCell' | 'escapePod', x: number): Obstacle => ({ id, pos: { x, y: 12 }, r: 1, kind: 'landmark', look, yaw: 0 });
 
@@ -265,9 +265,7 @@ describe('loot colors on props', () => {
       .filter((m) => m.name === 'ship_glow')
       .map((m) => m.emissiveIntensity);
     expect(glows.length).toBeGreaterThanOrEqual(2);
-    expect(Math.max(...glows)).toBe(1);
-    expect(Math.min(...glows)).toBeGreaterThan(0);
-    expect(Math.min(...glows)).toBeLessThan(1);
+    expect(glows.every((g) => g === 0.12)).toBe(true);
   });
 
   it('keeps a house landmark on its own view so its roof color by id holds', () => {
