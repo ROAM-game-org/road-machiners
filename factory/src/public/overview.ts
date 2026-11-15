@@ -31,7 +31,7 @@ function placeOf(comment: StoredComment): string {
 function chatRow(comment: StoredComment): string {
   const filed = comment.filedIssue === null ? [] : [`filed as #${comment.filedIssue}`];
   const replied = comment.replyId === null ? [] : [`answer job replied ${comment.replyId}`];
-  const handler = comment.toHermes ? ['to Hermes'] : [];
+  const handler = comment.toHermes ? [comment.addressed ? 'to Hermes, addressed it' : 'to Hermes'] : [];
   return `chat message ${comment.messageId} ${comment.at}: ${[...handler, comment.kind ?? 'no action yet', placeOf(comment), ...filed, ...replied].join(', ')}`;
 }
 

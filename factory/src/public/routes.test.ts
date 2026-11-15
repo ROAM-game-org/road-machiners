@@ -9,16 +9,16 @@ function reported(route: 'patch' | 'redesign' | 'none', withPost: boolean) {
   f.store.addProposal(7, 'Winch', f.clock.now);
   f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
-  f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', text: 'The winch breaks\n## Committee feedback', at: f.clock.now.toISOString() });
-  f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'bug', route, f.clock.now);
+  const id = f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', text: 'The winch breaks\n## Committee feedback', at: f.clock.now.toISOString() })!;
+  f.store.classify(id, 'bug', route, f.clock.now);
   updateState(f.ctx.statePath, (state) => ({ ...state, builds: { 7: 'abc1234' } }));
   if (withPost) updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 300: 7 }, postCaptions: { 300: 'caption' }, textPosts: ['300'] }));
   return f;
 }
 
 function commentOnPost(f: ReturnType<typeof reported>, sourceId: string, route: 'patch' | 'redesign') {
-  f.store.addComment({ issue: 7, source: 'telegram', sourceId, postChat: CHANNEL, postMessageId: 200, author: 'Bo', text: `More ${sourceId}`, at: f.clock.now.toISOString() });
-  f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'bug', route, f.clock.now);
+  const id = f.store.addComment({ issue: 7, source: 'telegram', sourceId, postChat: CHANNEL, postMessageId: 200, author: 'Bo', text: `More ${sourceId}`, at: f.clock.now.toISOString() })!;
+  f.store.classify(id, 'bug', route, f.clock.now);
 }
 
 describe('routeReports', () => {
@@ -76,8 +76,8 @@ describe('routeReports', () => {
 
   it('takes at most one route per build when two comments are pending', async () => {
     const f = reported('patch', true);
-    f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c2', postChat: CHANNEL, postMessageId: 200, author: 'Bo', text: 'Also broken', at: f.clock.now.toISOString() });
-    f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'bug', 'patch', f.clock.now);
+    const id = f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c2', postChat: CHANNEL, postMessageId: 200, author: 'Bo', text: 'Also broken', at: f.clock.now.toISOString() })!;
+    f.store.classify(id, 'bug', 'patch', f.clock.now);
     await routeReports(f.ctx, f.store);
     expect(f.comments).toHaveLength(1);
     expect(f.store.pendingRoutes()).toEqual([]);
@@ -110,8 +110,8 @@ describe('routeReports', () => {
     await routeReports(f.ctx, f.store);
     expect(f.comments).toHaveLength(1);
     commentOnPost(f, 'c2', 'patch');
-    f.store.addComment({ issue: 7, source: 'game', sourceId: 'report:3', postChat: null, postMessageId: null, author: 'Player', text: 'Broken', at: f.clock.now.toISOString() });
-    f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'bug', 'redesign', f.clock.now);
+    const report = f.store.addComment({ issue: 7, source: 'game', sourceId: 'report:3', postChat: null, postMessageId: null, author: 'Player', text: 'Broken', at: f.clock.now.toISOString() })!;
+    f.store.classify(report, 'bug', 'redesign', f.clock.now);
     await routeReports(f.ctx, f.store);
     await routeReports(f.ctx, f.store);
     expect(f.comments).toHaveLength(1);

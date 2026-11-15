@@ -43,17 +43,17 @@ def test_write_passed_needs_every_key(tmp_path):
 CHATS = {"FACTORY_COMMITTEE_CHAT": "-100", "FACTORY_PUBLIC_DISCUSSION": "-200", "FACTORY_PROPOSAL_CHAT": "-300"}
 
 
-def test_write_group_chat_admits_the_committee_and_player_chats(tmp_path):
+def test_write_group_chat_admits_the_committee_and_player_chats_and_frees_only_the_player_chats(tmp_path):
     env = tmp_path / ".env"
     env.write_text("TELEGRAM_ALLOWED_USERS=3\n")
     write_group_chat(env, CHATS)
-    assert env.read_text() == "TELEGRAM_ALLOWED_USERS=3\nTELEGRAM_GROUP_ALLOWED_CHATS=-100,-200,-300\n"
+    assert env.read_text() == "TELEGRAM_ALLOWED_USERS=3\nTELEGRAM_GROUP_ALLOWED_CHATS=-100,-200,-300\nTELEGRAM_FREE_RESPONSE_CHATS=-200,-300\n"
 
 
-def test_write_group_chat_names_a_shared_chat_once(tmp_path):
+def test_write_group_chat_names_a_shared_chat_once_and_keeps_a_shared_committee_chat_mention_only(tmp_path):
     env = tmp_path / ".env"
     write_group_chat(env, {**CHATS, "FACTORY_PROPOSAL_CHAT": "-100"})
-    assert env.read_text() == "TELEGRAM_GROUP_ALLOWED_CHATS=-100,-200\n"
+    assert env.read_text() == "TELEGRAM_GROUP_ALLOWED_CHATS=-100,-200\nTELEGRAM_FREE_RESPONSE_CHATS=-200\n"
 
 
 @pytest.mark.parametrize("key", list(CHATS))

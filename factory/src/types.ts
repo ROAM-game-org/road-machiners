@@ -111,7 +111,6 @@ export type FactoryConfig = {
   filterModel: string;
   filterTimeoutSeconds: number;
   filterJunkMin: number;
-  filterPerTick: number;
   reportIpPerHour: number;
   reportMaxChars: number;
 };

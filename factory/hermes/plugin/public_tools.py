@@ -1,8 +1,8 @@
-"""Tools for a Hermes turn in the player chat, the one handler of a player's message to the bot.
+"""Tools for a Hermes turn in the player chat. Hermes is the one handler of every player message there, tagged or not.
 
 The read tools read the game's code, docs and data on main and dev from the factory's host clone, and the repo's public issues and pull requests through GitHub's API.
 Ad hoc issues are hidden, as in the answer job's socket.
-The player tools run `factory player` on the host, which files, links, routes or queues only the session player's own messages to the bot,
+The player tools run `factory player` on the host, which files, links, routes or queues only the session player's own messages in that chat,
 checks every request against the public store and reads issue status from GitHub and the board.
 """
 
@@ -129,7 +129,7 @@ def issue_tools(repo: str, runner: Run = run) -> dict:
     return {"issue_search": search, "issue_read": read}
 
 
-NOT_PUBLIC = "These tools act only for a player's message to the bot in the player chat."
+NOT_PUBLIC = "These tools act only for a player's message in the player chat."
 NO_ANSWER = (
     "UNKNOWN. The factory did not answer, so whether it acted is not known. "
     "Call player_messages to see what was done with the message before you tell the player anything about it."
@@ -221,15 +221,16 @@ SCHEMAS = {
     },
     "player_messages": {
         "description": (
-            "This player's latest messages to you in this chat, newest first: message id, text, the text it replies to, image count, "
-            "the proposal or build thread it was written in, whether that is a card's open build post, and what was done with it. "
+            "This player's latest messages in this chat, tagged or not, newest first: message id, whether it tagged you or replied to you, text, "
+            "the text it replies to, image count, the proposal or build thread it was written in with its title, whether that is a card's open build post, "
+            "and what was done with it. "
             "Use it to find the id of a message, above all one that came while you were busy."
         ),
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     "file_issue": {
         "description": (
-            "File one of this player's messages to you as a new GitHub issue labeled player-report, with their words, the text they replied to, "
+            "File one of this player's messages as a new GitHub issue labeled player-report, with their words, the text they replied to, "
             "their name, a link to the message and its images. bug: a clear report of something broken. idea: only when they explicitly ask to file it. "
             "Returns the issue link and status, or the earlier issue when the same text was filed before. It files a message once."
         ),
@@ -240,8 +241,9 @@ SCHEMAS = {
     },
     "add_to_issue": {
         "description": (
-            "Add one of this player's messages to you, with its images, to the player comments of an open public issue it is about, "
-            "like a proposal, a card in work or an issue filed before. It reaches the issue's next digest. It opens no issue or vote and moves no card. "
+            "Add one of this player's messages, tagged or not, with its images, to the player comments of an open public issue it is about, "
+            "like the proposal or build of its thread, a card in work or an issue filed before. It reaches the issue's next digest, which is how player feedback reaches a card. "
+            "It opens no issue or vote and moves no card. "
             "Returns the issue's status."
         ),
         "parameters": {"type": "object", "properties": {

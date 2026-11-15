@@ -47,7 +47,7 @@ function images(fields: Fields): string[] {
 }
 
 function comment(base: Base, fields: Fields): PublicEvent {
-  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), toHermes: flag(fields, 'toHermes') };
+  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), toHermes: flag(fields, 'toHermes'), addressed: flag(fields, 'addressed') };
 }
 
 const isWholeNumber = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
