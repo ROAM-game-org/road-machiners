@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HANG_UP_LINE, TOLL, TOPICS, type LineId, type TopicId } from '../data/dialogue';
+import { HANG_UP_LINE, STRANGER_TOLL, TOLL, TOPICS, type LineId, type TopicId } from '../data/dialogue';
 import type { TraitId } from '../data/npcs';
 import { NPCS } from '../data/npcs';
 import { PERSONALITY_IDS, TALK_PRICE, type PersonalityId } from '../data/personalities';
@@ -135,9 +135,10 @@ describe('information gates', () => {
     expect(choose(next, 'tooMuch').player.money).toBe(TALK_PRICE - 1);
   });
 
-  it('holds back a help gate until the player has helped the driver', () => {
+  it('holds back a help gate while the driver needs help, and answers free once helped', () => {
     const { w, npc } = driver(['trader'], 'tightLipped');
     backFromNose(w, npc);
+    npc.resources!.fuel = 2;
     const held = choose(callVehicle(w, npc.id), ask('marketNews'));
 
     expect(held.player.call?.topic).toBeNull();
@@ -145,5 +146,32 @@ describe('information gates', () => {
     w.player.talked[npc.id] = { offerAid: 'done' };
     const told = choose(callVehicle(w, npc.id), ask('marketNews'));
     expect(told.player.call?.node).toBe(TOPICS.marketNews.start);
+  });
+
+  it('sells a help-gated answer to a stranger who needs nothing, and takes the payment', () => {
+    const { w, npc } = driver(['trader'], 'tightLipped');
+    backFromNose(w, npc);
+    w.player.money = TALK_PRICE + 50;
+    let next = choose(callVehicle(w, npc.id), ask('marketNews'));
+
+    expect(next.player.call?.node).toBe(STRANGER_TOLL);
+    expect(next.player.call?.line.line).toBe('strangerPays');
+    expect(next.player.call?.vars.price).toEqual({ kind: 'money', amount: TALK_PRICE });
+    next = choose(next, 'dealSendingIt');
+    expect(next.player.call?.node).toBe(TOPICS.marketNews.start);
+    expect(next.player.money).toBe(50);
+    expect(next.vehicles.find((v) => v.id === npc.id)!.resources!.money).toBe(TALK_PRICE);
+  });
+
+  it('lets the player turn the stranger price down, or shows no deal when short', () => {
+    const { w, npc } = driver(['trader'], 'tightLipped');
+    backFromNose(w, npc);
+    w.player.money = TALK_PRICE - 1;
+    const next = choose(callVehicle(w, npc.id), ask('marketNews'));
+
+    expect(offered(next)).toEqual(['tooMuch', HANG_UP_LINE]);
+    const back = choose(next, 'tooMuch');
+    expect(back.player.call?.topic).toBeNull();
+    expect(back.player.money).toBe(TALK_PRICE - 1);
   });
 });

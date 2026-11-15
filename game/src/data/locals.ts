@@ -5,6 +5,8 @@ export const NOTE_IDS = [
   'greenPit', 'orchardIron', 'talkConvoyNotClean',
 ] as const;
 
+export const WAGON_LEADS: readonly NoteId[] = ['wagonBowl', 'wagonNose', 'wagonDag'];
+
 export type NoteId = (typeof NOTE_IDS)[number];
 
 export function isNoteId(id: string): id is NoteId {
