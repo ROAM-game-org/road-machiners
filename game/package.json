@@ -9,6 +9,7 @@
     "test:cached": "vite-node scripts/test-cache.mjs --",
     "playtest": "node scripts/playtest.mjs",
     "boot:check": "node scripts/boot-check.mjs",
+    "boot:memory": "node scripts/boot-memory.mjs",
     "boot:time": "node scripts/boot-time.mjs",
     "sounds:decode-check": "node scripts/sound-decode-check.mjs",
     "ui-playtest": "node scripts/ui-playtest.mjs http://localhost:5173",

@@ -1,4 +1,4 @@
-// Public inputs: voting, build feedback, game reports and chat messages. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
+// Public inputs: voting, build feedback, game reports and chat messages. Every chat message has one handler, Hermes. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
 digraph public {
   rankdir=LR; nodesep=0.3; ranksep=0.55; bgcolor=white; pad=0.3; newrank=true;
   node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.5];
@@ -32,16 +32,21 @@ digraph public {
 
   subgraph cluster_chat {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
-    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
-    plugin [label="Plugin\nstops it before Hermes"];
+    message [label="Player writes in the chat\nkeeps the replied text\nand images", fillcolor="#fde68a", color="#b45309"];
+    plugin [label="Plugin\nwrites the inbox file\nmarks whether it\naddressed the bot"];
+    hermes [label="Hermes, the one handler\nof every chat message\nuntrusted text, public prompt\nno committee order"];
+    tools [label="Player tools\nfactory player on the host\nonly this player's\nown messages"];
+    hermesReply [label="Hermes answers in the thread\nissue numbers and statuses\nonly from tool results"];
+    silent [label="[SILENT]\nno reply to chat\nthat needs nothing", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
     message -> plugin;
+    plugin -> hermes [label="every person's message:\ntagged, untagged, thread\nreply or plain chat"];
+    hermes -> tools;
+    hermes -> hermesReply [label="addressed, or plainly\nneeds the bot"];
   }
 
-  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n60 chat messages an hour per player"];
-  linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
+  filter [label="Decisions API filter\nspam, kind, about the build\ngame reports only\nnever a chat message"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
-  answer [label="Reply in the thread\nin English or Russian\nissue link and status\nnever a canned fallback"];
   answerJob [label="Answer job, one at a time\nat most FACTORY_ANSWERS_PER_DAY\nSonnet reads and runs\nthe game on main,\nreplies with its answer"];
   images [label="Its images and the replied\nperson's image, downloaded once\ninto the issue's media folder"];
   intake [label="Intake\nthen Triage"];
@@ -49,31 +54,30 @@ digraph public {
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
   rejected [label="Dropped as spam", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
-  ignored [label="Ignored\nbots, forwards, commands", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+  ignored [label="Kept nowhere\nbots, forwards, commands\nmessages with no text", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
 
   design -> testing [weight=0];
-  comment -> filter;
+  comment -> plugin;
   feedback -> filter;
-  plugin -> filter;
-  filter -> digest [label="about its thread, a report\nabout the change of a card's build,\nor feedback on the candidate"];
-  filter -> linked [label="off its thread or with none,\nabout known work"];
-  linked -> digest;
-  filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report, or a bug, feature,\npatch or redesign on the candidate"];
-  filter -> answer [label="question"];
-  filter -> answerJob [label="question"];
+  filter -> digest [label="a report about the change\nof a card's build, or\nfeedback on the candidate"];
+  filter -> newIssue [label="game report: bug or feature\noff the build's change, any other\nreport, or a bug, feature, patch\nor redesign on the candidate"];
+  tools -> newIssue [label="file_issue\nbug, or idea asked to file"];
+  tools -> digest [label="add_to_issue\nthread feedback or\nopen known work"];
+  tools -> answerJob [label="queue_answer_job"];
   newIssue -> intake;
   newIssue -> releaseTask [label="from the candidate"];
-  digest -> answer;
-  newIssue -> answer;
   digest -> images;
   newIssue -> images;
 
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
-  filter -> patch [label="patch"];
-  filter -> redesign [label="redesign"];
+  filter -> patch [label="game report: patch"];
+  filter -> redesign [label="game report: redesign"];
+  tools -> patch [label="route_build: patch"];
+  tools -> redesign [label="route_build: redesign"];
   proposal -> proposal [label="closed unposted\nwhile its issue is open:\nopened again"];
 
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];
   plugin -> ignored;
+  hermes -> silent;
 }

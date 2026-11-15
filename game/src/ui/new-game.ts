@@ -2,7 +2,7 @@
 import { GAME_MODES, WORLD_SETTINGS } from "../data/modes";
 import { defaultSetup, parseSetup } from "../sim/settings";
 import type { GameModeId, WorldSettings, WorldSetup } from "../sim/types";
-import type { BootRequest } from "../three/save-slots";
+import type { BootRequest, NewRequest } from "../three/save-slots";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { modeDescription, modeName, settingDescription, settingName } from "../text/names";
@@ -17,6 +17,7 @@ export type NewGameActions = {
   hasAutosave: () => boolean;
   requestBoot: (request: BootRequest) => void;
   reload: () => void;
+  startHere?: (request: NewRequest) => void;
 };
 
 type SettingId = keyof WorldSettings;
@@ -153,7 +154,11 @@ class NewGameScreen {
     });
   }
 
-  private boot(request: BootRequest): void {
+  private boot(request: NewRequest): void {
+    if (this.actions.startHere) {
+      this.close();
+      return this.actions.startHere(request);
+    }
     this.actions.requestBoot(request);
     this.actions.reload();
   }
