@@ -106,7 +106,7 @@ describe('public store', () => {
     expect(store.unclassifiedComments(100).map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
   });
 
-  it('drops a comment on a closed post only once the filter finds it about its thread, so an unrelated report is still filed', () => {
+  it('drops a comment on a closed post only once the filter finds it about its thread, and never an off-topic one', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
     const add = (id: string, text: string) => store.addComment({ issue: 7, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text, at: now.toISOString(), messageId: 1 });
@@ -120,17 +120,17 @@ describe('public store', () => {
     expect(store.dropCommentsOnClosedPosts(now)).toBe(1);
     expect(store.unsentComments()).toEqual([]);
     expect(store.pendingRoutes()).toEqual([]);
-    expect(store.toFile().map((c) => c.text)).toEqual(['Add a minimap']);
-    expect(store.toReply()).toEqual([]);
+    expect(store.comment(other!.id)!.relevance).toBe('other');
   });
 
-  it('keeps a standalone chat message and a game report when posts close, so they are still filed and answered', () => {
+  it('keeps a message to Hermes and a game report when posts close, and never gives the filter a message to Hermes', () => {
     const store = postedStore();
-    store.addComment({ issue: null, source: 'telegram', sourceId: 'c1', postChat: GROUP, postMessageId: null, author: 'Ann', sender: '1', text: '@bot add maps', at: now.toISOString(), messageId: 1 });
+    store.addComment({ issue: null, source: 'telegram', sourceId: `${GROUP}:1`, postChat: GROUP, postMessageId: null, author: 'Ann', sender: '1', text: '@bot add maps', at: now.toISOString(), messageId: 1, toHermes: true });
     store.addComment({ issue: 7, source: 'game', sourceId: 'report:1', postChat: null, postMessageId: null, author: 'Player', text: 'Stalls', at: now.toISOString() });
     store.closeProposal(7, now);
     expect(store.dropCommentsOnClosedPosts(now)).toBe(0);
-    expect(store.unclassifiedComments(100).map((c) => c.text)).toEqual(['@bot add maps', 'Stalls']);
+    expect(store.unclassifiedComments(100).map((c) => c.text)).toEqual(['Stalls']);
+    expect(store.playerMessage(GROUP, 1)!.text).toBe('@bot add maps');
   });
 
   it('maps a reply to a player comment to the issue and post of that comment', () => {
@@ -260,52 +260,51 @@ describe('public store', () => {
     expect(openStore(home).pendingProposals().map((p) => p.issue)).toEqual([7]);
   });
 
-  it('keeps a message with an unknown thread only when the plugin marks it standalone', () => {
+  it('keeps a message with no known thread only when it goes to Hermes', () => {
     const store = postedStore();
     const base = { kind: 'comment' as const, chat: GROUP, author: 'Ann', sender: '42', at: now.toISOString() };
     store.applyEvent({ ...base, updateId: 1, messageId: 60, threadId: 999, text: 'Committee chat reply' });
-    store.applyEvent({ ...base, updateId: 2, messageId: 61, threadId: null, text: '@bot add a minimap', addressed: true, standalone: true });
-    expect(store.unclassifiedComments(100).map((c) => [c.issue, c.text, c.addressed])).toEqual([[null, '@bot add a minimap', true]]);
+    store.applyEvent({ ...base, updateId: 2, messageId: 61, threadId: null, text: 'just chatting' });
+    store.applyEvent({ ...base, updateId: 3, messageId: 62, threadId: null, text: '@bot add a minimap', toHermes: true });
+    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect(store.playerMessages(GROUP, '42', 5).map((c) => [c.messageId, c.toHermes])).toEqual([[62, true]]);
+    expect(store.playerMessage(GROUP, 61)).toBeNull();
   });
 
-  it('keeps off-topic and chatter comments out of the parent digest and routes, and files only off-topic bugs and features', () => {
+  it('keeps off-topic and chatter comments out of the parent digest and never routes a filtered chat comment', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    const texts = ['On topic', 'Off topic', 'Chatter', 'Standalone'];
-    texts.forEach((text, index) => store.applyEvent({ updateId: index + 1, kind: 'comment', chat: CHANNEL, messageId: 201 + index, threadId: index === 3 ? null : 200, author: 'Ann', sender: '42', text, at: now.toISOString(), standalone: true }));
-    const [onTopic, offTopic, chatter, standalone] = store.unclassifiedComments(100);
-    store.classify(onTopic!.id, 'bug', 'patch', now, 'parent');
-    store.classify(offTopic!.id, 'feature', 'redesign', now, 'other');
+    const texts = ['On topic', 'Off topic', 'Chatter'];
+    texts.forEach((text, index) => store.applyEvent({ updateId: index + 1, kind: 'comment', chat: CHANNEL, messageId: 201 + index, threadId: 200, author: 'Ann', sender: '42', text, at: now.toISOString() }));
+    const [onTopic, offTopic, chatter] = store.unclassifiedComments(100);
+    store.classify(onTopic!.id, 'bug', 'none', now, 'parent');
+    store.classify(offTopic!.id, 'feature', 'none', now, 'other');
     store.classify(chatter!.id, 'chatter', 'none', now, 'parent');
-    store.classify(standalone!.id, 'bug', 'none', now, 'other');
     expect(store.unsentComments().map((c) => c.text)).toEqual(['On topic']);
-    expect(store.pendingRoutes().map((c) => c.text)).toEqual(['On topic']);
-    expect(store.toFile().map((c) => c.text)).toEqual(['Off topic', 'Standalone']);
-    expect(store.toReply().map((c) => c.text)).toEqual(['On topic', 'Chatter']);
+    expect(store.pendingRoutes()).toEqual([]);
   });
 
-  it('finds an earlier filed issue by the normalized text and frees a comment for its reply once claimed', () => {
+  it('claims a message for filing once and gives a later message with the same normalized text the earlier issue', () => {
     const store = postedStore();
-    const add = (id: number, text: string) => store.applyEvent({ updateId: id, kind: 'comment', chat: GROUP, messageId: id, threadId: null, author: 'Ann', sender: '42', text, at: now.toISOString(), standalone: true });
+    const add = (id: number, text: string) => store.applyEvent({ updateId: id, kind: 'comment', chat: GROUP, messageId: id, threadId: null, author: 'Ann', sender: '42', text, at: now.toISOString(), toHermes: true });
     add(1, 'Add a MINIMAP!');
     add(2, '@roam_bot add a minimap');
-    for (const comment of store.unclassifiedComments(100)) store.classify(comment.id, 'feature', 'none', now, 'other');
-    const [first, second] = store.toFile();
-    expect(store.claimFiling(first!.id, first!.text, now)).toBeNull();
+    const [second, first] = store.playerMessages(GROUP, '42', 5);
+    expect(store.claimFiling(first!.id, 'feature', first!.text, now)).toEqual({ claimed: true });
+    expect(store.claimFiling(first!.id, 'feature', first!.text, now)).toEqual({ claimed: false, issue: null });
     store.setFiled(first!.id, 571);
-    expect(store.claimFiling(second!.id, second!.text, now)).toBe(571);
-    expect(store.toFile()).toEqual([]);
-    expect(store.toReply().map((c) => [c.text, c.filedIssue])).toEqual([['Add a MINIMAP!', 571], ['@roam_bot add a minimap', null]]);
+    expect(store.claimFiling(second!.id, 'feature', second!.text, now)).toEqual({ claimed: false, issue: 571 });
+    expect(store.comment(second!.id)!.filedIssue).toBe(571);
+    expect(store.link(second!.id, 9, 'feedback', now)).toBe(false);
   });
 
   it('never matches texts that keep no letters or digits', () => {
     const store = postedStore();
-    for (const [id, text] of [[1, '🔥🔥'], [2, '🚚!!']] as const) store.applyEvent({ updateId: id, kind: 'comment', chat: GROUP, messageId: id, threadId: null, author: 'Ann', sender: '42', text, at: now.toISOString(), standalone: true });
-    for (const comment of store.unclassifiedComments(100)) store.classify(comment.id, 'feature', 'none', now, 'other');
-    const [first, second] = store.toFile();
-    store.claimFiling(first!.id, first!.text, now);
+    for (const [id, text] of [[1, '🔥🔥'], [2, '🚚!!']] as const) store.applyEvent({ updateId: id, kind: 'comment', chat: GROUP, messageId: id, threadId: null, author: 'Ann', sender: '42', text, at: now.toISOString(), toHermes: true });
+    const [second, first] = store.playerMessages(GROUP, '42', 5);
+    store.claimFiling(first!.id, 'bug', first!.text, now);
     store.setFiled(first!.id, 571);
-    expect(store.claimFiling(second!.id, second!.text, now)).toBeNull();
+    expect(store.claimFiling(second!.id, 'bug', second!.text, now)).toEqual({ claimed: true });
   });
 
   it('maps a reply to the bot reply of a counted comment to that comment thread', () => {
@@ -331,38 +330,25 @@ describe('public store', () => {
     expect(store.unclassifiedComments(100).map((c) => [c.text, c.sender, c.issue])).toEqual([['Waiting', '42', 7]]);
     store.classify(store.unclassifiedComments(100)[0]!.id, 'feature', 'none', now);
     expect(store.unsentComments().map((c) => c.text)).toEqual(['Waiting']);
-    expect(store.toFile()).toEqual([]);
-    expect(store.toReply()).toEqual([]);
     store.close();
     const columns = new DatabaseSync(storePath(home)).prepare('pragma table_info(comments)').all().map((column) => String(column.name));
     expect(columns).not.toContain('topic');
     expect(openStore(home).unclassifiedComments(100)).toEqual([]);
   });
 
-  it('lists each proposal and each issue filed from the chat once as known work, with the proposal text first', () => {
-    const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
-    store.addProposal(564, 'Landmark directions\n\nTowns give directions by landmarks.\nMore.', now);
-    const add = (sourceId: string, text: string) => store.addComment({ issue: null, source: 'telegram', sourceId, postChat: 'c', postMessageId: null, author: 'Ann', text, at: now.toISOString(), messageId: 1 })!;
-    store.setFiled(add('c:1', 'Add   boats\nplease'), 601);
-    store.setFiled(add('c:2', 'Boats again'), 601);
-    store.setFiled(add('c:3', 'Same as the proposal'), 564);
-    expect(store.knownWork()).toEqual([{ issue: 564, text: 'Landmark directions: Towns give directions by landmarks.' }, { issue: 601, text: 'Add boats please' }]);
-    store.close();
-  });
-
-  it('adds the context, known work, language and link columns to a store of main and keeps its comments', () => {
+  it('adds the context, language and link columns to a store of main and keeps its comments', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     openStore(home).close();
     const db = new DatabaseSync(storePath(home));
     for (const column of ['context', 'work_issue', 'language', 'linked']) db.exec(`alter table comments drop column ${column}`);
-    db.prepare("insert into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, message_id) values (null, 'telegram', 'c:1', 'c', null, 'Ann', 'Hi', ?, 1)").run(now.toISOString());
+    db.prepare("insert into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, message_id) values (7, 'telegram', 'c:1', 'c', 100, 'Ann', 'Hi', ?, 1)").run(now.toISOString());
     db.close();
     const store = openStore(home);
-    expect(store.unclassifiedComments(100).map((c) => [c.text, c.context, c.workIssue, c.language, c.linked])).toEqual([['Hi', null, null, null, false]]);
+    expect(store.unclassifiedComments(100).map((c) => [c.text, c.context, c.language, c.linked])).toEqual([['Hi', null, null, false]]);
     store.close();
   });
 
-  it('moves old comments into the new table and never replies to or files them', () => {
+  it('moves old comments into the new table and never classifies them again', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     openStore(home).close();
     const db = new DatabaseSync(storePath(home));
@@ -372,8 +358,7 @@ describe('public store', () => {
     db.close();
     const store = openStore(home);
     expect(store.unsentComments().map((c) => c.text)).toEqual(['Old']);
-    expect(store.toFile()).toEqual([]);
-    expect(store.toReply()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
     store.addComment({ issue: null, source: 'telegram', sourceId: 'c:2', postChat: 'c', postMessageId: null, author: 'Bob', text: 'New', at: now.toISOString() });
     store.close();
   });

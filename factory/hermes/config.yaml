@@ -16,6 +16,9 @@ platforms:
       # Telegram keeps updates for 24 hours while Hermes is down. Votes and player comments sent during a restart arrive only through that queue.
       drop_pending_on_cold_boot: false
 
+# A player chat thread holds many players. Each gets their own session, so the player tools act for the player whose message started the turn.
+thread_sessions_per_user: true
+
 # Keep Hermes's own notices out of the committee chat.
 compression:
   codex_gpt55_autoraise_notice: false

@@ -30,8 +30,9 @@ function placeOf(comment: StoredComment): string {
 
 function chatRow(comment: StoredComment): string {
   const filed = comment.filedIssue === null ? [] : [`filed as #${comment.filedIssue}`];
-  const replied = comment.replyId === null ? 'no reply' : `replied ${comment.replyId}`;
-  return `chat message ${comment.messageId} ${comment.at}: ${[comment.kind, placeOf(comment), ...filed, replied].join(', ')}`;
+  const replied = comment.replyId === null ? [] : [`answer job replied ${comment.replyId}`];
+  const handler = comment.toHermes ? ['to Hermes'] : [];
+  return `chat message ${comment.messageId} ${comment.at}: ${[...handler, comment.kind ?? 'no action yet', placeOf(comment), ...filed, ...replied].join(', ')}`;
 }
 
 export function publicRows(ctx: Ctx, store: PublicStore): string[] {

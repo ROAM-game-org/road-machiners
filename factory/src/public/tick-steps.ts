@@ -5,9 +5,7 @@ import { postProposal, postProposalGate } from './proposals';
 import { classifyComments } from './classify-comments';
 import type { PublicFilter } from './decision';
 import { sendDigests } from './digest';
-import { fileComments } from './file-comments';
 import { ingest } from './ingest';
-import { sendReplies } from './replies';
 import { routeReports } from './routes';
 import { openStore, type PublicStore } from './store';
 import { countVotes } from './votes';
@@ -20,11 +18,9 @@ const STEPS: Step[] = [
   postProposalGate,
   postProposal,
   countVotes,
-  fileComments,
   placeChatImages,
   sendDigests,
   routeReports,
-  sendReplies,
 ];
 
 export async function publicTick(ctx: Ctx, filter: PublicFilter): Promise<void> {

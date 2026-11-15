@@ -108,8 +108,76 @@ def test_issue_read_shows_an_issue_with_comments_and_hides_ad_hoc_work():
         read({"number": "848; gh issue close 848"})
 
 
-def test_register_puts_every_tool_in_the_public_toolset_and_no_write_tool(tmp_path):
+def test_register_puts_every_tool_in_the_public_toolset(tmp_path):
     registered = []
-    tools.register_public_tools(type("Ctx", (), {"register_tool": lambda self, **kw: registered.append(kw)})(), clone=tmp_path, repo="o/r")
-    assert {tool["name"]: tool["toolset"] for tool in registered} == dict.fromkeys(["game_search", "game_read", "issue_search", "issue_read"], "factory_public")
+    ctx = type("Ctx", (), {"register_tool": lambda self, **kw: registered.append(kw)})()
+    tools.register_public_tools(ctx, clone=tmp_path, repo="o/r", chats=("-200",), session_env=lambda name: "")
+    names = ["game_search", "game_read", "issue_search", "issue_read", "player_messages", "issue_status", "file_issue", "add_to_issue", "route_build", "queue_answer_job"]
+    assert {tool["name"]: tool["toolset"] for tool in registered} == dict.fromkeys(names, "factory_public")
     assert all(tool["schema"]["name"] == tool["name"] for tool in registered)
+    assert all("chat" not in json.dumps(tool["schema"]["parameters"]) and "by" not in tool["schema"]["parameters"]["properties"] for tool in registered)
+
+
+class FakeFactory:
+    def __init__(self, stdout='{"ok": true}', code=0, timeout=False):
+        self.calls, self.stdout, self.code, self.timeout = [], stdout, code, timeout
+
+    def __call__(self, args, timeout=None):
+        self.calls.append((args, timeout))
+        if self.timeout:
+            raise subprocess.TimeoutExpired(args, timeout)
+        return subprocess.CompletedProcess(args, self.code, self.stdout, "")
+
+
+def session(chat="-200", user="42"):
+    return {"HERMES_SESSION_CHAT_ID": chat, "HERMES_SESSION_USER_ID": user}.get
+
+
+def test_player_tools_act_for_the_session_chat_and_user_never_for_the_model():
+    factory = FakeFactory('{"filed": "now", "issue": 601}')
+    handlers = tools.player_tools(("-200", "-300"), session(), factory)
+    assert handlers["file_issue"]({"message": 30, "kind": "bug", "chat": "-100", "by": "1"}) == '{"filed": "now", "issue": 601}'
+    handlers["add_to_issue"]({"message": 31, "issue": 568, "kind": "feedback"})
+    handlers["route_build"]({"message": 32, "route": "patch"})
+    handlers["queue_answer_job"]({"message": 33, "language": "ru"})
+    handlers["issue_status"]({"issue": 568})
+    handlers["player_messages"]({})
+    base = ["factory", "player"]
+    assert [call for call, _ in factory.calls] == [
+        [*base, "file", "--chat", "-200", "--by", "42", "--message", "30", "--kind", "bug"],
+        [*base, "add", "--chat", "-200", "--by", "42", "--message", "31", "--kind", "feedback", "--issue", "568"],
+        [*base, "route", "--chat", "-200", "--by", "42", "--message", "32", "--route", "patch"],
+        [*base, "investigate", "--chat", "-200", "--by", "42", "--message", "33", "--language", "ru"],
+        [*base, "status", "--chat", "-200", "--by", "42", "--issue", "568"],
+        [*base, "messages", "--chat", "-200", "--by", "42"],
+    ]
+    assert {timeout for _, timeout in factory.calls} == {tools.PLAYER_TIMEOUT_SECONDS}
+
+
+@pytest.mark.parametrize("chat,user", [("-100", "42"), ("", "42"), ("-200", ""), ("-200", "hermes")])
+def test_player_tools_refuse_outside_a_players_message_in_the_player_chat(chat, user):
+    factory = FakeFactory()
+    handlers = tools.player_tools(("-200",), session(chat, user), factory)
+    for name, args in (("file_issue", {"message": 1, "kind": "bug"}), ("player_messages", {}), ("issue_status", {"issue": 1})):
+        assert json.loads(handlers[name](args)) == {"error": tools.NOT_PUBLIC}
+    assert factory.calls == []
+
+
+@pytest.mark.parametrize("name,args", [
+    ("file_issue", {"message": 1, "kind": "approve"}), ("file_issue", {"message": "1; rm -rf /", "kind": "bug"}),
+    ("file_issue", {"message": True, "kind": "bug"}), ("add_to_issue", {"message": 1, "issue": -4, "kind": "bug"}),
+    ("route_build", {"message": 1, "route": "merge"}), ("queue_answer_job", {"message": 1, "language": "de"}),
+    ("issue_status", {"issue": "568"}),
+])
+def test_player_tools_refuse_bad_arguments_before_the_factory_runs(name, args):
+    factory = FakeFactory()
+    with pytest.raises(ValueError):
+        tools.player_tools(("-200",), session(), factory)[name](args)
+    assert factory.calls == []
+
+
+def test_player_tools_say_the_outcome_is_unknown_when_the_factory_fails_or_times_out():
+    for factory in (FakeFactory(code=1), FakeFactory(timeout=True)):
+        answer = json.loads(tools.player_tools(("-200",), session(), factory)["file_issue"]({"message": 1, "kind": "bug"}))
+        assert answer == {"error": tools.NO_ANSWER}
+        assert "player_messages" in answer["error"]

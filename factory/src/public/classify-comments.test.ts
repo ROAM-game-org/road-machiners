@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classifyComments } from './classify-comments';
 import { readState } from '../state';
-import { FilterRefusalError, TransientFilterError, type Classify, type Decision, type FilterInput } from './decision';
+import { FilterRefusalError, TransientFilterError, type Classify, type FilterInput } from './decision';
 import { CHANNEL, filterOf, publicFake } from './public-fakes';
 
 const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent' });
@@ -60,33 +60,17 @@ describe('classifyComments', () => {
     expect(seen).toEqual(['ann 1', 'ann 2', 'ann 5', 'ann 6']);
   });
 
-  it('lists the known work that shares words with the message and its context first, then the newest, and keeps the issue the filter picks', async () => {
-    const f = publicFake();
-    f.store.addProposal(564, 'Landmark directions\nTowns give directions by landmarks you can see.', f.clock.now);
-    f.store.addProposal(568, 'Faction reputation\nTowns remember what you did.', f.clock.now);
-    f.store.addProposal(570, 'Cargo insurance\nPay to cover lost cargo.', f.clock.now);
-    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:1', postChat: CHANNEL, postMessageId: null, author: 'Ann', sender: '1', text: 'I meant the directions should name landmarks', at: f.clock.now.toISOString(), context: 'Landmark directions' });
-    const seen: FilterInput[] = [];
-    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), kind: 'feedback', work: 0, language: 'ru' }; }));
-    expect(seen[0]).toMatchObject({ source: 'message', context: 'Landmark directions' });
-    expect(seen[0]!.work![0]).toBe('#564 Landmark directions: Towns give directions by landmarks you can see.');
-    expect(seen[0]!.work!.map((work) => work.split(' ')[0])).toEqual(['#564', '#570', '#568']);
-    const [stored] = f.store.recentChat(1);
-    expect([stored!.kind, stored!.workIssue, stored!.language]).toEqual(['feedback', 564, 'ru']);
-  });
-
-  it('keeps no known work for chatter, a rejected message, or a pick of none, and never lists the comment thread itself', async () => {
+  it('asks the filter only whether a thread comment is junk, chatter or about its thread, and never routes, links or files from it', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch\nPull the truck out of mud.', f.clock.now);
-    f.store.addProposal(8, 'Winch upgrade\nA stronger winch.', f.clock.now);
-    addFrom(f, '1', 'winch thanks');
-    addFrom(f, '2', 'winch spam');
-    addFrom(f, '3', 'winch idea');
+    f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c:1', postChat: CHANNEL, postMessageId: 1, author: 'Ann', sender: '1', text: 'redo the winch', at: f.clock.now.toISOString(), context: 'Winch' });
+    f.store.addComment({ issue: 7, source: 'telegram', sourceId: `${CHANNEL}:2`, postChat: CHANNEL, postMessageId: 1, author: 'Bo', sender: '2', text: '@bot is the winch done?', at: f.clock.now.toISOString(), messageId: 2, toHermes: true });
     const seen: FilterInput[] = [];
-    const decide: Record<string, Partial<Decision>> = { 'winch thanks': { kind: 'chatter', work: 0 }, 'winch spam': { verdict: 'reject', work: 0 }, 'winch idea': { kind: 'feature' } };
-    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), ...decide[input.text] }; }));
-    expect(seen.map((input) => input.work)).toEqual([['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.']]);
-    expect(f.store.recentChat(3).map((comment) => comment.workIssue)).toEqual([null, null, null]);
+    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), kind: 'feature', route: 'redesign', work: 0, filing: true }; }));
+    expect(seen).toEqual([{ origin: 'chat', source: 'comment', parent: 'Winch', text: 'redo the winch', context: 'Winch', work: [], addressed: false }]);
+    const stored = f.store.recentChat(2).filter((comment) => !comment.toHermes);
+    expect(stored.map((comment) => [comment.text, comment.kind, comment.route, comment.filedIssue, comment.linked])).toEqual([['redo the winch', 'feature', 'none', null, false]]);
+    expect(f.store.playerMessage(CHANNEL, 2)!.classifiedAt).toBeNull();
   });
 
   it('tries a comment again on the next tick after a transient filter failure, gives its hit back, and keeps it rejected after three', async () => {

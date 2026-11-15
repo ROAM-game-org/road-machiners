@@ -51,9 +51,8 @@ function setup(answerText: string | null, issue: number | null = null, text = PL
     },
   });
   Object.assign(f.ctx.github, { comments: async () => [] });
-  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true, context })!;
-  f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language });
-  f.store.markReplied(id, f.clock.now);
+  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, toHermes: true, context })!;
+  f.store.setLanguage(id, language);
   updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [id] }));
   return { f, runs, id };
 }
@@ -230,8 +229,8 @@ describe('answer job', () => {
       },
     });
     const add = (sourceId: string, messageId: number, text: string): number => {
-      const id = f.store.addComment({ issue: null, source: 'telegram', sourceId, postChat: CHANNEL, postMessageId: null, author: 'P', sender: String(messageId), text, at: f.clock.now.toISOString(), messageId, addressed: true })!;
-      f.store.classify(id, 'question', 'none', f.clock.now, 'other', { language: 'en' });
+      const id = f.store.addComment({ issue: null, source: 'telegram', sourceId, postChat: CHANNEL, postMessageId: null, author: 'P', sender: String(messageId), text, at: f.clock.now.toISOString(), messageId, toHermes: true })!;
+      f.store.setLanguage(id, 'en');
       return id;
     };
     const minimap = add('c415', 415, 'is the minimap on dev?');
