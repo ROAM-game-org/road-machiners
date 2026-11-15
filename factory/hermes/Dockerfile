@@ -19,6 +19,8 @@ RUN git clone https://github.com/fastfinge/hermes-session-reset-policy.git /opt/
  && rm -rf /opt/hermes-factory/hermes-session-reset-policy/.git
 
 COPY config.yaml /opt/hermes-factory/config.yaml
+# The terminal cwd in config.yaml: an empty folder, owned by root and read-only for Hermes.
+RUN install -d -m 0555 /opt/hermes-factory/no-files
 COPY SOUL.md /opt/hermes-factory/SOUL.md
 COPY --chmod=755 factory-incidents.sh /opt/hermes-factory/factory-incidents.sh
 COPY plugin /opt/hermes-factory/plugin

@@ -430,38 +430,64 @@ def test_a_tag_in_a_command_forward_or_bot_post_stops_hermes(tmp_path):
         assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is True
 
 
-def session(chat, platform="telegram", user="1"):
-    values = {"HERMES_SESSION_CHAT_ID": chat, "HERMES_SESSION_PLATFORM": platform, "HERMES_SESSION_USER_ID": user}
+def session(chat, platform="telegram", user="1", **extra):
+    values = {"HERMES_SESSION_CHAT_ID": chat, "HERMES_SESSION_PLATFORM": platform, "HERMES_SESSION_USER_ID": user, **extra}
     return lambda name: values.get(name, "")
 
 
-def gate_for(tmp_path, chat, platform="telegram", user="1", proposal_chat=PROPOSAL_CHAT):
+CRON = {"chat": "", "platform": "", "user": "", "HERMES_CRON_AUTO_DELIVER_PLATFORM": "telegram"}
+
+
+def gate_for(tmp_path, chat, platform="telegram", user="1", proposal_chat=PROPOSAL_CHAT, **extra):
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
     cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), COMMITTEE_CHAT, committee, DISCUSSION, proposal_chat, str(tmp_path / "public-inbox"))
-    return public.make_public_tool_gate(cfg, session(chat, platform, user))
+    return public.make_public_tool_gate(cfg, session(chat, platform, user, **extra))
 
 
 COMMITTEE_ONLY = [
     "terminal", "process_manage", "read_file", "search_files", "write_file", "patch", "memory", "session_search", "delegate_task", "execute_code",
     "skills_list", "skill_view", "skill_manage", "factory_queue_task", "factory_route_reply", "factory_sender", "factory_report_activity", "unknown_tool",
 ]
+BLOCK = {"action": "block", "message": public.NOT_FOR_PLAYERS}
 
 
-@pytest.mark.parametrize("chat_id, user", [(DISCUSSION, "9"), (PROPOSAL_CHAT, "9"), (DISCUSSION, "1"), ("", "9"), (COMMITTEE_CHAT, "9")])
+@pytest.mark.parametrize("chat_id, user", [(DISCUSSION, "9"), (PROPOSAL_CHAT, "9"), (DISCUSSION, "1"), ("", "9"), ("", "1"), (COMMITTEE_CHAT, "9")])
 def test_a_player_turn_runs_only_the_public_tools(tmp_path, chat_id, user):
     gate = gate_for(tmp_path, chat_id, user=user)
-    for name in [*public.SCHEMAS, "factory_status", "tool_search", "tool_describe", "tool_call"]:
+    for name in [*public.SCHEMAS, "factory_status", "tool_search", "tool_describe", "game_history"]:
         assert gate(tool_name=name, args={}) is None
     for name in COMMITTEE_ONLY:
-        assert gate(tool_name=name, args={"command": "cat /opt/data/.env", "path": "/factory/home/state"}) == {"action": "block", "message": public.NOT_FOR_PLAYERS}
+        assert gate(tool_name=name, args={"command": "cat /opt/data/.env", "path": "/factory/home/state"}) == BLOCK
 
 
-@pytest.mark.parametrize("chat_id, platform, user", [(COMMITTEE_CHAT, "telegram", "1"), (COMMITTEE_CHAT, "telegram", ""), ("", "", "")])
-def test_the_committee_and_cron_run_every_tool(tmp_path, chat_id, platform, user):
+@pytest.mark.parametrize("chat_id, platform, user", [(COMMITTEE_CHAT, "telegram", "1"), ("1", "telegram", "1"), ("-777", "telegram", "1")])
+def test_a_member_outside_the_player_chats_runs_every_tool(tmp_path, chat_id, platform, user):
     gate = gate_for(tmp_path, chat_id, platform, user)
     for name in COMMITTEE_ONLY:
         assert gate(tool_name=name, args={}) is None
+
+
+def test_a_cron_run_runs_every_tool(tmp_path):
+    gate = gate_for(tmp_path, **CRON)
+    for name in COMMITTEE_ONLY:
+        assert gate(tool_name=name, args={}) is None
+
+
+@pytest.mark.parametrize("chat_id, platform, user", [
+    (COMMITTEE_CHAT, "telegram", ""), (COMMITTEE_CHAT, "telegram", " "), ("-777", "telegram", ""), ("1", "telegram", ""),
+    (COMMITTEE_CHAT, "telegram", "boss"), (COMMITTEE_CHAT, "", "1"), (COMMITTEE_CHAT, "slack", "1"), ("", "telegram", ""), ("", "", "1"), ("", "", ""),
+])
+def test_a_turn_with_no_proven_member_runs_only_the_public_tools(tmp_path, chat_id, platform, user):
+    gate = gate_for(tmp_path, chat_id, platform, user)
+    for name in COMMITTEE_ONLY:
+        assert gate(tool_name=name, args={}) == BLOCK
+    assert gate(tool_name="game_read", args={}) is None
+
+
+def test_a_cron_delivery_target_never_lifts_a_chat_turn(tmp_path):
+    for chat_id, user in ((COMMITTEE_CHAT, ""), (DISCUSSION, "9"), ("", "9")):
+        assert gate_for(tmp_path, chat_id, user=user, HERMES_CRON_AUTO_DELIVER_PLATFORM="telegram")(tool_name="terminal", args={}) == BLOCK
 
 
 def test_the_committee_chat_runs_every_tool_when_it_is_the_proposal_chat(tmp_path):
@@ -477,19 +503,101 @@ def test_a_failed_session_or_committee_read_blocks_the_call(tmp_path):
     assert public.make_public_tool_gate(cfg_for(tmp_path), session(COMMITTEE_CHAT))(tool_name="terminal", args={})["action"] == "block"
 
 
+def bridge(monkeypatch):
+    """Hermes's reading of a tool_call: one named tool, and nothing for a connector batch or a call with no name."""
+    def resolve(args):
+        args = args if isinstance(args, dict) else {}
+        if "calls" in args or not args.get("name"):
+            return None, None
+        return args["name"], args.get("arguments") or {}
+
+    monkeypatch.setattr(public, "bridged_call", resolve)
+
+
+def test_a_tool_call_runs_for_a_player_only_when_the_tool_inside_it_does(tmp_path, monkeypatch):
+    bridge(monkeypatch)
+    cache = tmp_path / "cache" / "images"
+    cache.mkdir(parents=True)
+    (cache / "photo.jpg").write_bytes(b"jpg")
+    monkeypatch.setattr(public, "image_cache", lambda: str(cache.resolve()))
+    gate = gate_for(tmp_path, DISCUSSION, user="9")
+    for name in [*public.SCHEMAS, "factory_status"]:
+        assert gate(tool_name="tool_call", args={"name": name, "arguments": {}}) is None
+    assert gate(tool_name="tool_call", args={"name": "vision_analyze", "arguments": {"image_url": str(cache / "photo.jpg")}}) is None
+    for name in COMMITTEE_ONLY:
+        assert gate(tool_name="tool_call", args={"name": name, "arguments": {"command": "id"}}) == BLOCK
+    for args in ({"name": "vision_analyze", "arguments": {"image_url": "/opt/data/.env"}}, {"name": "tool_call", "arguments": {"name": "terminal"}},
+                 {"calls": [{"name": "connectors__x__y"}]}, {}, None):
+        assert gate(tool_name="tool_call", args=args) == BLOCK
+    assert gate_for(tmp_path, COMMITTEE_CHAT)(tool_name="tool_call", args={"name": "terminal"}) is None
+
+
+def test_a_tool_call_blocks_when_hermes_cannot_resolve_it(tmp_path, monkeypatch):
+    def broken(args):
+        raise ImportError("no tool search")
+
+    monkeypatch.setattr(public, "bridged_call", broken)
+    assert gate_for(tmp_path, DISCUSSION, user="9")(tool_name="tool_call", args={"name": "game_read", "arguments": {}}) == BLOCK
+
+
+def web(monkeypatch, addresses, guarded=True):
+    looked = []
+
+    def resolve(host, port):
+        looked.append((host, port))
+        return addresses[host]
+
+    monkeypatch.setattr(public, "resolve_host", resolve)
+    monkeypatch.setattr(public, "hermes_fetch_is_guarded", lambda url: guarded)
+    return looked
+
+
 def test_a_player_turn_looks_only_at_chat_photos_and_web_images(tmp_path, monkeypatch):
     cache = tmp_path / "cache" / "images"
     cache.mkdir(parents=True)
     (cache / "photo.jpg").write_bytes(b"jpg")
     (cache / "link.jpg").symlink_to(tmp_path / "secret")
     monkeypatch.setattr(public, "image_cache", lambda: str(cache.resolve()))
+    web(monkeypatch, {"example.org": ["93.184.215.14", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"]})
     gate = gate_for(tmp_path, DISCUSSION, user="9")
-    for url in ("https://example.org/a.png", "data:image/png;base64,AA==", str(cache / "photo.jpg"), f"file://{cache / 'photo.jpg'}"):
+    for url in ("https://example.org/a.png", "http://example.org:80/a.png", "data:image/png;base64,AA==", str(cache / "photo.jpg"), f"file://{cache / 'photo.jpg'}"):
         assert gate(tool_name="vision_analyze", args={"image_url": url, "question": "?"}) is None
-    for url in ("/opt/data/.env", str(cache / ".." / ".." / "secret"), str(cache / "link.jpg"), str(cache) + "x/a.jpg", "relative.jpg", None):
-        assert gate(tool_name="vision_analyze", args={"image_url": url})["action"] == "block"
+    for url in ("/opt/data/.env", str(cache / ".." / ".." / "secret"), str(cache / "link.jpg"), str(cache) + "x/a.jpg", "relative.jpg", None,
+                "FILE:///opt/data/.env", "~/cache/images/photo.jpg", " https://example.org/a.png"):
+        assert gate(tool_name="vision_analyze", args={"image_url": url}) == BLOCK
     monkeypatch.setattr(public, "image_cache", lambda: 1 / 0)
     assert gate(tool_name="vision_analyze", args={"image_url": str(cache / "photo.jpg")})["action"] == "block"
+
+
+INTERNAL = {
+    "localhost": ["127.0.0.1"], "lan.example": ["192.168.1.5"], "ten.example": ["10.0.0.1"], "cgnat.example": ["100.64.0.1"],
+    "metadata.example": ["169.254.169.254"], "v6.example": ["::1"], "ula.example": ["fd00::1"], "mapped.example": ["::ffff:127.0.0.1"],
+    "zero.example": ["0.0.0.0"], "mixed.example": ["93.184.215.14", "10.0.0.1"], "none.example": [], "multicast.example": ["224.0.0.1"],
+}
+
+
+@pytest.mark.parametrize("url", [
+    *(f"https://{host}/a.png" for host in INTERNAL),
+    "http://127.0.0.1/a.png", "https://[::1]/a.png", "http://2130706433/a.png", "https://example.org:8443/a.png", "http://example.org:443/a.png",
+    "https://user:pass@example.org/a.png", "https://token@example.org/a.png", "https://:secret@example.org/a.png",
+    "ftp://example.org/a.png", "gopher://example.org/", "https:///a.png", "https://example.org:99999/a.png",
+])
+def test_a_player_turn_never_points_vision_at_an_internal_or_credential_bearing_address(tmp_path, monkeypatch, url):
+    web(monkeypatch, {**INTERNAL, "example.org": ["93.184.215.14"], "127.0.0.1": ["127.0.0.1"], "::1": ["::1"], "2130706433": ["127.0.0.1"]})
+    assert gate_for(tmp_path, DISCUSSION, user="9")(tool_name="vision_analyze", args={"image_url": url}) == BLOCK
+
+
+def test_a_web_image_blocks_when_hermes_would_not_guard_its_fetch_or_dns_fails(tmp_path, monkeypatch):
+    gate = gate_for(tmp_path, DISCUSSION, user="9")
+    web(monkeypatch, {"example.org": ["93.184.215.14"]}, guarded=False)
+    assert gate(tool_name="vision_analyze", args={"image_url": "https://example.org/a.png"}) == BLOCK
+    looked = web(monkeypatch, {})
+    assert gate(tool_name="vision_analyze", args={"image_url": "https://unknown.example/a.png"}) == BLOCK
+    assert looked == [("unknown.example", 443)]
+
+
+def test_the_committee_points_vision_anywhere(tmp_path):
+    assert gate_for(tmp_path, COMMITTEE_CHAT)(tool_name="vision_analyze", args={"image_url": "http://127.0.0.1/a.png"}) is None
 
 
 @pytest.mark.parametrize("chat_id", [DISCUSSION, PROPOSAL_CHAT])
@@ -563,7 +671,7 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     monkeypatch.setattr(plugin, "_session_env", session(DISCUSSION))
     plugin.register(ctx)
     assert [name for name, kw in tools.items() if kw["toolset"] == "factory_public"] == [
-        "game_search", "game_read", "issue_search", "issue_read",
+        "game_search", "game_read", "game_history", "issue_search", "issue_read",
         "player_messages", "issue_status", "file_issue", "add_to_issue", "route_build", "queue_answer_job",
     ]
     assert list(middleware) == ["llm_request", "llm_execution"]
@@ -683,6 +791,14 @@ def test_every_telegram_chat_gets_one_tool_list_and_cron_no_player_tools():
         assert {"terminal", "file", "skills", "memory", "session_search", "vision", "factory"} <= set(config["platform_toolsets"][platform])
     assert "factory_public" in config["platform_toolsets"]["telegram"]
     assert "factory_public" not in config["platform_toolsets"]["cron"]
+
+
+def test_chat_references_read_only_an_empty_folder_hermes_cannot_write():
+    import yaml
+
+    cwd = yaml.safe_load((plugin_dir.parent / "config.yaml").read_text())["terminal"]["cwd"]
+    assert cwd == "/opt/hermes-factory/no-files"
+    assert f"RUN install -d -m 0555 {cwd}\n" in (plugin_dir.parent / "Dockerfile").read_text()
 
 
 TAGGED = {"model": "m", "instructions": PRIVATE, "input": [{"role": "user", "content": [{"type": "input_text", "text": plugin.public_header(5, True) + "@roam_bot hi"}]}]}

@@ -86,8 +86,43 @@ print('\n== Member (user 1) posting in the player chat is a player there')
 show('terminal', call('terminal', {'command': 'echo should-not-run'}, chat='-200', user='1'))
 print('\n== Telegram session with no chat id counts as a player chat')
 show('terminal', call('terminal', {'command': 'echo should-not-run'}, chat=''))
+print('\n== No proven member: the committee chat or a DM with no user id, another platform, a turn with no session')
+show('committee chat, no user id: terminal', call('terminal', {'command': 'echo should-not-run'}, chat='-100', user=''))
+show('member DM chat 1, no user id: read_file', call('read_file', {'path': F + '/github-token'}, chat='1', user=''))
+show('committee chat, platform slack, user 1: terminal', call('terminal', {'command': 'echo should-not-run'}, chat='-100', user='1', platform='slack'))
+from gateway.session_context import reset_session_vars
+import contextvars
+def unbound():
+    reset_session_vars()
+    return handle_function_call('terminal', {'command': 'echo should-not-run'}, task_id='probe-unbound')
+show('no session bound at all: terminal', contextvars.Context().run(unbound))
+print('\n== Member (user 1) in a DM (chat 1) keeps every tool')
+show('terminal', call('terminal', {'command': 'echo member-dm-ran'}, chat='1', user='1'))
+print('\n== Vision for a player: internal, credential-bearing or odd-port web addresses block; Hermes would fetch them otherwise')
+loop_block = lambda tool, args, **kw: loop(tool, args, **kw) is not None
+for url in ('http://127.0.0.1:8080/a.png', 'http://169.254.169.254/latest/meta-data/', 'http://10.0.0.1/a.png', 'http://[::1]/a.png', 'http://[::ffff:127.0.0.1]/a.png',
+            'http://2130706433/a.png', 'https://user:pass@example.org/a.png', 'https://example.org:8443/a.png', 'https://example.org/a.png?token=x',
+            'http://host.docker.internal/a.png', 'https://example.org/a.png (no DNS in the probe, so it fails closed)', 'FILE:///tmp/hh/.env', 'data:image/png;base64,AA=='):
+    print(f'  {url}: blocked={loop_block("vision_analyze", {"image_url": url.split(" ")[0]})}')
+print(f'  committee http://127.0.0.1:8080/a.png: blocked={loop_block("vision_analyze", {"image_url": "http://127.0.0.1:8080/a.png"}, chat="-100", user="1")}')
+print('\n== A tool_call the hook sees itself decides the tool inside it')
+for inner in ({'name': 'terminal', 'arguments': {'command': 'id'}}, {'name': 'vision_analyze', 'arguments': {'image_url': H + '/.env'}},
+              {'name': 'factory_queue_task', 'arguments': {'request': 'x'}}, {'calls': [{'name': 'connectors__x__y', 'arguments': {}}]}, {'name': ''},
+              {'name': 'player_messages', 'arguments': {}}):
+    print(f'  player tool_call {json.dumps(inner)[:80]}: blocked={loop_block("tool_call", inner)}')
+print(f'  committee tool_call terminal: blocked={loop_block("tool_call", {"name": "terminal", "arguments": {}}, chat="-100", user="1")}')
 print('\n== Committee chat (-100) and cron keep every tool')
 show('committee terminal', call('terminal', {'command': 'echo committee-ran'}, chat='-100', user='1'))
 show('committee read_file', call('read_file', {'path': F + '/inbox/../state'}, chat='-100', user='1'))
-show('cron terminal', call('terminal', {'command': 'echo cron-ran'}, chat='', user='', platform=''))
+from cron.scheduler import _CronRunScope, _reload_dotenv_and_publish_delivery_target
+def cron(tool, args, job):
+    scope = _CronRunScope(job, job['id'], None)
+    try:
+        scope.enter()
+        _reload_dotenv_and_publish_delivery_target(job)
+        return handle_function_call(tool, args, task_id='probe-cron')
+    finally:
+        scope.exit()
+show('cron terminal, run by the scheduler scope', contextvars.Context().run(cron, 'terminal', {'command': 'echo cron-ran; pwd'}, {'id': 'probejob', 'name': 'probe', 'deliver': 'telegram:-100'}))
+show('cron with no delivery target: terminal', contextvars.Context().run(cron, 'terminal', {'command': 'echo should-not-run'}, {'id': 'probejob2', 'name': 'probe', 'deliver': 'local'}))
 show('committee file_issue (player tool refuses)', call('file_issue', {'message': 501, 'kind': 'bug'}, chat='-100', user='1'))

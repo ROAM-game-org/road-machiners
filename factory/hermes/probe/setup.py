@@ -1,6 +1,6 @@
 # Loads the factory plugin and config.yaml into the Hermes image, with fake secrets and a factory stub on PATH. From the repo root:
 #   docker run --rm -v "$PWD":/w/repo --entrypoint /opt/hermes/.venv/bin/python3 factory-hermes:local /w/repo/factory/hermes/probe/gate.py
-# and the same with turn.py. Each prints what a player, a non-member, a member and cron get from each tool.
+# and the same with turn.py and refs.py. Each prints what a player, a non-member, a member and cron get from each tool, or from a chat reference.
 import json, os, shutil, sys, types
 H = '/tmp/hh'; F = '/tmp/fh'
 for d in (H + '/plugins', F + '/inbox', F + '/state', H + '/cache/images'):

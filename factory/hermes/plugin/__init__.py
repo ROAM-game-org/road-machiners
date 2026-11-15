@@ -2,7 +2,7 @@
 
 A pre_gateway_dispatch hook passes a non-member's message in the committee chat to Hermes as plain chat, and drops it anywhere else.
 Every person's message in the player chat goes to Hermes with a header that marks it as untrusted and says whether it addressed the bot.
-Hermes alone handles it, with its whole tool list, and stays silent when it needs nothing. A tool hook lets a player's turn, or a non-member's in the committee chat, run only the public tools. The public handler stops votes, commands, forwards and bot posts.
+Hermes alone handles it, with its whole tool list, and stays silent when it needs nothing. A tool hook runs every tool only for a committee member outside the player chats, proven by the Telegram user id, and for cron. Every other turn runs only the public tools. The public handler stops votes, commands, forwards and bot posts.
 It answers /committee commands from members in any chat.
 It takes committee messages in the factory chat and writes them to the factory inbox as JSON files.
 A plain reply to an approval post goes to the inbox and to Hermes too, who routes it with a tool.
