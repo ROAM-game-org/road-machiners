@@ -12,10 +12,10 @@ import type { Mood } from '../data/personalities';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, isNoteId, LOCALS, WAGON_LEADS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
-import { WAGON_SEVEN } from '../data/salvage';
+import { WAGON_SEVEN, WAGON_TALK } from '../data/salvage';
 import { REGION, type TownDef } from '../data/region';
 import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
@@ -290,6 +290,8 @@ function aidAnswer(world: World, npc: Vehicle): CallVars {
 
 const HELP_TOPICS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', 'offerPatchWorn', 'patchRequest'];
 
+export const HELP_OFFERS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', 'offerPatchWorn'];
+
 export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   const talked = world.player.talked[npc.id];
   return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
@@ -447,7 +449,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   noHandover: (world, npc) => handoverWith(world, npc) === null,
   sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
   missedSought: (_world, _npc, vars) => sightingVar(vars).seen === null,
-  heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
+  heardWagonNearby: (world, npc) => WAGON_LEADS.some((note) => holdsNote(world, note)) && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= WAGON_TALK.reach,
   nearClaimWreck: (world, npc) => claimSeenBy(world, npc) !== null,
   rivalAsked: (world, npc) => rivalNearWreck(world, requireClaimSeen(world, npc)),
   noRivalAsked: (world, npc) => !rivalNearWreck(world, requireClaimSeen(world, npc)),

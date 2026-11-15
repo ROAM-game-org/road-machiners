@@ -63,7 +63,7 @@ export const LINE_IDS = [
   'seenAnythingWorthA', 'sitTight', 'smartChoice', 'sorryCannotSpareAny', 'spare', 'speakUp',
   'standDownAndLet', 'standingDown', 'stateYourBusiness', 'stopShootingIGive', 'surePullOverAnd', 'surrenderOffer',
   'takeMeToSite', 'takeWhatICarry', 'talk', 'talkFast', 'thanksIWillWait', 'thanksOverAndOut', 'thanksSomethingElse',
-  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'helpMeFirst', 'iKnowWhatYouDid', 'notYourKind',
+  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'strangerPays', 'helpMeFirst', 'iKnowWhatYouDid', 'notYourKind',
   'truceCost', 'understood', 'wantToTrade', 'weAlreadyTalkedAbout', 'weBothDriveAway',
   'weCoveredThat', 'weWillSee', 'whatAreYouOffering', 'whatCanYouOffer', 'whatDoYouWant', 'whatWouldItCost',
   'whatWouldItTake', 'whateverYouCanSpare', 'where', 'whereIsTheNearest', 'townWay', 'siteWay', 'wreckWay', 'yeahMakeItQuick', 'youHeardMeCargo',
@@ -86,6 +86,7 @@ export const HUB = 'hub';
 export const END = 'end';
 export const REFUSED = 'callRefused';
 export const TOLL = 'toll';
+export const STRANGER_TOLL = 'strangerToll';
 
 function ackTopic(id: TopicId, ask: { say: LineId; when: ConditionId[] }, ack: { line: LineId; say: LineId; effect: EffectId }): Topic {
   const options = [{ say: ack.say, when: [], effects: [ack.effect], go: END }];
@@ -97,9 +98,9 @@ function strandedOffer(id: TopicId, when: ConditionId, line: LineId, accept: Lin
   return { id, once: true, ask: null, raise: { when: [when], priority: 5, duringFeud: true, duringCombat: true }, prepare: null, hangUp: ['settleRefused'], start: 'offer', nodes: { offer: { line, options } } };
 }
 
-function tollNode(go: string): DialogueNode {
+function tollNode(line: LineId, go: string): DialogueNode {
   return {
-    line: 'thatCostsYou',
+    line,
     options: [
       { say: 'dealSendingIt', when: ['canPayTalk'], effects: ['payTalk'], go },
       { say: 'tooMuch', when: [], effects: [], go: HUB },
@@ -131,9 +132,9 @@ export function handoffQuest(go: string): string | null {
 }
 
 function withTolls(topics: Record<TopicId, Topic>): Record<TopicId, Topic> {
-  const own = Object.values(topics).find((topic) => topic.ask && TOLL in topic.nodes);
+  const own = Object.values(topics).find((topic) => topic.ask && (TOLL in topic.nodes || STRANGER_TOLL in topic.nodes));
   if (own) throw new Error(`Topic ${own.id} writes its own toll, which withTolls builds`);
-  return Object.fromEntries(Object.entries(topics).map(([id, topic]) => [id, topic.ask ? { ...topic, nodes: { [TOLL]: tollNode(topic.start), ...topic.nodes } } : topic])) as Record<TopicId, Topic>;
+  return Object.fromEntries(Object.entries(topics).map(([id, topic]) => [id, topic.ask ? { ...topic, nodes: { [TOLL]: tollNode('thatCostsYou', topic.start), [STRANGER_TOLL]: tollNode('strangerPays', topic.start), ...topic.nodes } } : topic])) as Record<TopicId, Topic>;
 }
 
 export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...MARSHAL_TOPICS,
