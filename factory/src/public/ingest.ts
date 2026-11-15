@@ -47,7 +47,7 @@ function images(fields: Fields): string[] {
 }
 
 function comment(base: Base, fields: Fields): PublicEvent {
-  const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone') };
+  const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone'), toHermes: flag(fields, 'toHermes') };
   return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), ...reach };
 }
 

@@ -156,7 +156,7 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True, "context": None, "images": [],
+        "addressed": False, "standalone": True, "context": None, "toHermes": False, "images": [],
     }}
 
 
@@ -243,6 +243,7 @@ def test_mention_and_reply_to_the_bot_are_addressed(tmp_path):
         public.handle_public_update(raw, cfg_for(tmp_path), BOT)
     found = written(tmp_path)
     assert [found[name]["addressed"] for name in ("504.json", "505.json", "506.json", "507.json")] == [True, True, True, False]
+    assert [found[name]["toHermes"] for name in ("504.json", "505.json", "506.json", "507.json")] == [True, False, True, False]
 
 
 def test_bots_forwards_inline_bots_commands_and_empty_text_write_nothing_but_stop(tmp_path):
@@ -273,10 +274,10 @@ def test_discussion_member_message_stops_hermes(tmp_path):
 
 def test_committee_chat_reply_writes_comment_and_goes_on(tmp_path):
     cfg = cfg_for(tmp_path, proposal_chat=COMMITTEE_CHAT)
-    stop = public.handle_public_update(comment_update(chat_id=COMMITTEE_CHAT), cfg)
+    stop = public.handle_public_update(comment_update(chat_id=COMMITTEE_CHAT, text="@roam_bot is this in?"), cfg, BOT)
     assert stop is False
     event = written(tmp_path)["504.json"]
-    assert (event["kind"], event["chat"], event["threadId"], event["standalone"]) == ("comment", COMMITTEE_CHAT, 90, False)
+    assert (event["kind"], event["chat"], event["threadId"], event["standalone"], event["toHermes"]) == ("comment", COMMITTEE_CHAT, 90, False, False)
 
 
 def test_committee_chat_plain_message_writes_nothing_and_goes_on(tmp_path):
@@ -373,7 +374,7 @@ def test_a_tag_of_the_bot_goes_on_to_hermes_and_still_reaches_the_inbox(tmp_path
     by_entity["update_id"] = 506
     for raw in (by_name, in_thread, by_entity):
         assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is False
-    assert [event["addressed"] for event in written(tmp_path).values()] == [True, True, True]
+    assert [(event["addressed"], event["toHermes"]) for event in written(tmp_path).values()] == [(True, True)] * 3
 
 
 def test_an_untagged_public_message_stops_hermes(tmp_path):
@@ -395,11 +396,11 @@ def test_a_tag_in_a_command_forward_or_bot_post_stops_hermes(tmp_path):
         assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is True
 
 
-def test_a_public_turn_gets_only_the_todo_toolset(tmp_path):
+def test_a_public_turn_gets_only_the_public_toolset(tmp_path):
     adapter = SimpleNamespace(toolsets_for_source=lambda source: None)
     public.limit_public_toolsets(adapter, cfg_for(tmp_path))
     for chat_id in (DISCUSSION, PROPOSAL_CHAT, int(DISCUSSION)):
-        assert adapter.toolsets_for_source(SimpleNamespace(chat_id=chat_id)) == ["todo"]
+        assert adapter.toolsets_for_source(SimpleNamespace(chat_id=chat_id)) == ["factory_public"]
     assert adapter.toolsets_for_source(SimpleNamespace(chat_id=COMMITTEE_CHAT)) is None
     assert adapter.toolsets_for_source(SimpleNamespace()) is None
 
@@ -408,7 +409,7 @@ def test_the_committee_chat_keeps_its_toolsets_when_it_is_the_proposal_chat(tmp_
     adapter = SimpleNamespace(toolsets_for_source=lambda source: None)
     public.limit_public_toolsets(adapter, cfg_for(tmp_path, proposal_chat=COMMITTEE_CHAT))
     assert adapter.toolsets_for_source(SimpleNamespace(chat_id=COMMITTEE_CHAT)) is None
-    assert adapter.toolsets_for_source(SimpleNamespace(chat_id=DISCUSSION)) == ["todo"]
+    assert adapter.toolsets_for_source(SimpleNamespace(chat_id=DISCUSSION)) == ["factory_public"]
 
 
 @pytest.mark.parametrize("chat_id", [DISCUSSION, PROPOSAL_CHAT])
@@ -438,8 +439,14 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     for key, value in values.items():
         monkeypatch.setenv(key, value)
     factories = []
-    ctx = SimpleNamespace(register_hook=lambda *a: None, register_tool=lambda **kw: None, register_telegram_handler=factories.append)
+    tools, middleware = {}, {}
+    ctx = SimpleNamespace(
+        register_hook=lambda *a: None, register_tool=lambda **kw: tools.update({kw["name"]: kw["toolset"]}),
+        register_telegram_handler=factories.append, register_middleware=middleware.__setitem__,
+    )
     plugin.register(ctx)
+    assert [name for name, toolset in tools.items() if toolset == "factory_public"] == ["game_search", "game_read", "issue_search", "issue_read"]
+    assert list(middleware) == ["llm_request"]
     root = logging.getLogger()
     watchers = [handler for handler in root.handlers if isinstance(handler, public.ConflictRestartAlert)]
     for handler in watchers:
@@ -513,3 +520,35 @@ def test_a_failed_alert_write_does_not_break_logging(conflict_watch, tmp_path, m
     (tmp_path / "public-alert").mkdir()
     monkeypatch.setattr(logging, "raiseExceptions", False)
     log_adapter_line("Telegram polling restarted after conflict retry 1/3")
+
+
+PRIVATE = "SOUL: you manage the factory. MEMORY: the committee chat is -100, ship on Friday."
+
+
+@pytest.mark.parametrize("chat_id", [DISCUSSION, PROPOSAL_CHAT])
+def test_a_player_chat_request_carries_only_the_public_prompt(tmp_path, chat_id):
+    on_request = public.make_public_prompt(cfg_for(tmp_path), lambda: chat_id)
+    codex = {"model": "m", "instructions": PRIVATE, "input": [{"role": "user", "content": "@roam_bot how do winches work?"}], "tools": [{"name": "game_read"}]}
+    chat = {"model": "m", "messages": [{"role": "system", "content": PRIVATE}, {"role": "user", "content": "hi"}]}
+    for request in (codex, chat):
+        sent = on_request(request=request, session_id="s", platform="telegram")["request"]
+        assert PRIVATE not in json.dumps(sent)
+        assert public.PUBLIC_PROMPT in json.dumps(sent)
+    assert on_request(request=codex)["request"]["input"] == codex["input"]
+    assert on_request(request=codex)["request"]["tools"] == codex["tools"]
+
+
+@pytest.mark.parametrize("chat_id", [COMMITTEE_CHAT, "", "-777"])
+def test_other_chats_keep_their_prompt(tmp_path, chat_id):
+    on_request = public.make_public_prompt(cfg_for(tmp_path), lambda: chat_id)
+    assert on_request(request={"instructions": PRIVATE}) is None
+
+
+def test_the_config_keeps_plugin_toolsets_out_of_the_player_chats():
+    import yaml
+
+    config = yaml.safe_load((plugin_dir.parent / "config.yaml").read_text())
+    for platform in ("telegram", "cron"):
+        assert set(config["known_plugin_toolsets"][platform]) == {"factory", "factory_public"}
+        assert "factory" in config["platform_toolsets"][platform]
+        assert "factory_public" not in config["platform_toolsets"][platform]

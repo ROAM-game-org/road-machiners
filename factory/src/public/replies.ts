@@ -41,7 +41,7 @@ const waitsForAddress = (comment: IssueComment): boolean => comment.kind === 'fe
 const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
 
 function asksBot(comment: StoredComment): boolean {
-  if (comment.kind !== 'question') return false;
+  if (comment.kind !== 'question' || comment.toHermes) return false;
   if (isOnThread(comment)) return !waitsForAddress(comment) || comment.addressed;
   return comment.addressed || comment.issue !== null;
 }

@@ -32,11 +32,11 @@ function chat(said: Said[]) {
 
 let update = 0;
 
-function post(f: PublicFake, message: { id: number; text: string; thread?: number | null; sender?: string; addressed?: boolean; context?: string }): void {
+function post(f: PublicFake, message: { id: number; text: string; thread?: number | null; sender?: string; addressed?: boolean; toHermes?: boolean; context?: string }): void {
   const dir = `${f.home}/public-inbox`;
   mkdirSync(dir, { recursive: true });
   update += 1;
-  const event = { updateId: update, kind: 'comment', chat: CHANNEL, messageId: message.id, threadId: message.thread ?? null, author: 'Ann Lee', sender: message.sender ?? '42', text: message.text, at: f.clock.now.toISOString(), addressed: message.addressed ?? false, standalone: true, context: message.context ?? null };
+  const event = { updateId: update, kind: 'comment', chat: CHANNEL, messageId: message.id, threadId: message.thread ?? null, author: 'Ann Lee', sender: message.sender ?? '42', text: message.text, at: f.clock.now.toISOString(), addressed: message.addressed ?? false, toHermes: message.toHermes ?? false, standalone: true, context: message.context ?? null };
   writeFileSync(`${dir}/${String(update).padStart(10, '0')}.json`, JSON.stringify(event));
 }
 
@@ -100,6 +100,19 @@ describe('public chat', () => {
     expect(f.messages).toEqual([]);
     expect(f.created).toEqual([]);
     expect(f.comments).toEqual([]);
+  });
+
+  it('sends no answer job for a question that tagged Hermes, who answers it in the chat, but still files a tagged bug', async () => {
+    const asked = '@roam_bot how do I repair my engine?';
+    const bug = '@roam_bot my truck falls through the bridge near the farm';
+    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }, { text: bug, decision: { kind: 'bug', relevance: 'other', filing: true } }]);
+    post(f, { id: 13, text: asked, addressed: true, toHermes: true });
+    post(f, { id: 14, text: bug, addressed: true, toHermes: true, sender: '43' });
+    await tick();
+    expect(waitingAnswers(f)).toEqual([]);
+    expect(repliesTo(f, 13)).toEqual([]);
+    expect(f.created.map((issue) => issue.labels)).toEqual([['bug', 'player-report']]);
+    expect(repliesTo(f, 14)[0]!.text).toContain('I filed this bug as #601');
   });
 
   it('sends no answer job past the daily cap, so an off-thread question gets no reply and an on-thread one only its issue note', async () => {

@@ -136,10 +136,10 @@ describe('ingest', () => {
 
   it('stores a standalone chat message with its sender, and reads a file with no reach flags', async () => {
     const { f, put } = setup();
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', addressed: true, standalone: true });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', addressed: true, standalone: true, toHermes: true });
     put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bob', sender: '7', text: 'Old file', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.sender, c.addressed, c.messageId])).toEqual([[null, '42', true, 32], [7, '7', false, 33]]);
+    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.sender, c.addressed, c.toHermes, c.messageId])).toEqual([[null, '42', true, true, 32], [7, '7', false, false, 33]]);
   });
 
   it('keeps the replied or quoted text of a chat message as its context, and none when the file has none', async () => {

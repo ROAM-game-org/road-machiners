@@ -34,7 +34,7 @@ digraph public {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
     plugin [label="Plugin\nstops it before Hermes\nunless it tags the bot"];
-    hermesReply [label="Hermes replies in the thread\nuntrusted text, todo toolset only,\nno committee order"];
+    hermesReply [label="Hermes answers in the thread\nuntrusted text, read-only game\nand issue tools, no committee order"];
     message -> plugin;
     plugin -> hermesReply [label="@mention"];
   }
