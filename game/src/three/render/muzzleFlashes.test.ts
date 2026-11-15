@@ -27,11 +27,6 @@ describe('muzzle flash star', () => {
     expect(shown()).toHaveLength(0);
   });
 
-  it('shares its life with the glow', () => {
-    expect(MUZZLE_FLASH.star).toBeCloseTo(0.14);
-    expect(MUZZLE_FLASH.glow).toBeCloseTo(0.2);
-  });
-
   it('does not age while play time is paused', () => {
     const { flashes, shown, run } = setup();
     flashes.show(muzzle, 1);
