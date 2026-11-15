@@ -14,7 +14,7 @@ describe('gpuArgs', () => {
     onPlatform('win32');
     const args = gpuArgs('d3d11');
     expect(args).toContain('--use-angle=d3d11');
-    expect(args.join(' ')).not.toMatch(/vulkan/i);
+    expect(args?.join(' ')).not.toMatch(/vulkan/i);
   });
 
   it('keeps Vulkan as the Windows default', () => {
