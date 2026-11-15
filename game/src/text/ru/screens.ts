@@ -7,6 +7,7 @@ export const SCREENS: Translation<typeof EN> = {
   'menu.unstuck': 'Освободить грузовик',
   'menu.newGame': 'Новая игра',
   'menu.continue': 'Продолжить',
+  'menu.bootUnfinished': 'Прошлый запуск не завершился. Попробуйте ещё раз.',
   'menu.loadSave': 'Загрузить сохранение',
   'menu.close': 'Закрыть',
   'boot.loading': 'Загрузка',

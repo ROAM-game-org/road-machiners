@@ -52,7 +52,8 @@ export function listSaves(slots: SaveSlots, count: number): SlotInfo[] {
 }
 
 export type RoadBoot = { slot: SlotId; reason: 'road' };
-export type BootRequest = SlotId | { new: WorldSetup; intro: boolean } | RoadBoot;
+export type NewRequest = { new: WorldSetup; intro: boolean };
+export type BootRequest = SlotId | NewRequest | RoadBoot;
 
 function requestKey(base: string): string {
   return `${base}.boot`;

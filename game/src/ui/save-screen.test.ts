@@ -46,16 +46,16 @@ const SAVES = [info('slot2', 900, 120), info('auto', 500, 40, 'chaosHighway')];
 
 const importSave = vi.fn();
 
-function open(saves: SlotInfo[]) {
+function open(saves: SlotInfo[], options: { unfinished?: boolean; hasAutosave?: boolean } = {}) {
   const ui = new FakeNode("div");
   const opener = new FakeNode("button");
   vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, activeElement: opener });
   vi.stubGlobal("window", Object.assign(new FakeNode("window"), { localStorage: { getItem: () => null, setItem: vi.fn() } }));
   const requests: BootRequest[] = [];
-  const actions = { hasAutosave: () => true, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
+  const actions = { hasAutosave: () => options.hasAutosave ?? true, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
   const chosen = vi.fn();
   const sound = new SoundSettings({ setBusVolume: vi.fn(), setMuted: vi.fn() } as unknown as Mixer, { getItem: () => null, setItem: vi.fn() } as unknown as Storage);
-  void chooseStart(saves, actions, sound, importSave).then(chosen);
+  void chooseStart(saves, actions, sound, importSave, options.unfinished ?? false).then(chosen);
   const menu = ui.byClass("start-menu")[0];
   return { ui, menu, requests, actions, chosen };
 }
@@ -140,6 +140,36 @@ describe("the start menu", () => {
     expect(ui.byClass("start-menu")).toHaveLength(1);
     expect(chosen).not.toHaveBeenCalled();
     ui.byClass("new-game")[0].button("Back").fire("click");
+  });
+
+  it("starts a new game in the same page, with no boot request and no reload", async () => {
+    const { ui, menu, requests, actions, chosen } = open(SAVES, { hasAutosave: false });
+
+    menu.button("New game").fire("click");
+    ui.byClass("new-game")[0].button("Start").fire("click");
+    await Promise.resolve();
+
+    expect(chosen).toHaveBeenCalledWith(expect.objectContaining({ intro: true, new: expect.objectContaining({ mode: "roaming" }) }));
+    expect(requests).toEqual([]);
+    expect(actions.reload).not.toHaveBeenCalled();
+    expect(ui.byClass("start-menu")).toEqual([]);
+    expect(isNewGameOpen()).toBe(false);
+  });
+
+  it("shows no notice after a normal start", () => {
+    const { menu } = open(SAVES);
+
+    expect(menu.byClass("start-refusal")[0].children).toEqual([]);
+  });
+
+  it("shows one muted line after a start that did not finish, and drops it on the next press", () => {
+    const { menu } = open(SAVES, { unfinished: true });
+
+    const notice = menu.byClass("start-refusal")[0];
+    expect(notice.textContent).toBe("The last start did not finish. Try again.");
+    expect(notice.byClass("bad")).toEqual([]);
+    menu.fire("pointerdown");
+    expect(notice.children).toEqual([]);
   });
 
   it("names the save Continue resumes under the button", () => {

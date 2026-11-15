@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WORLD_SETTINGS } from "../data/modes";
 import type { WorldSettings } from "../sim/types";
 import { settingDescription, settingName } from "../text/names";
-import type { BootRequest } from "../three/save-slots";
+import type { BootRequest, NewRequest } from "../three/save-slots";
 import { resolve } from "../text/resolve";
 import { FakeNode } from "../test/fake-dom";
 import { isConfirmOpen } from "./confirm-dialog";
@@ -30,7 +30,7 @@ function spyStorage() {
 
 let last: FakeNode | null = null;
 
-function open(hasAutosave = true) {
+function open(hasAutosave = true, startHere?: (request: NewRequest) => void) {
   const ui = new FakeNode("div");
   const win = new FakeNode("window");
   const opener = new FakeNode("button");
@@ -40,7 +40,7 @@ function open(hasAutosave = true) {
   vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui, get activeElement() { return FakeNode.active; } });
   vi.stubGlobal("window", Object.assign(win, { localStorage: local, sessionStorage: session }));
   const requests: BootRequest[] = [];
-  const actions = { hasAutosave: () => hasAutosave, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn() };
+  const actions = { hasAutosave: () => hasAutosave, requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn(), startHere };
   const onClose = vi.fn();
   openNewGame(actions, onClose);
   const screen = ui.all((n) => n.className.split(" ").includes("new-game"))[0];
@@ -238,5 +238,17 @@ describe("the New game screen", () => {
     expect(() => screen.button("Start").fire("click")).toThrow(/supplyUse/);
     expect(ui.withClass("confirm-dialog")).toBeNull();
     expect(requests).toEqual([]);
+  });
+
+  it("hands the request to startHere and neither requests a boot nor reloads", () => {
+    const startHere = vi.fn();
+    const { screen, requests, actions, onClose } = open(false, startHere);
+
+    screen.button("Start").fire("click");
+
+    expect(startHere).toHaveBeenCalledWith({ new: expect.objectContaining({ mode: "roaming" }), intro: true });
+    expect(requests).toEqual([]);
+    expect(actions.reload).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
