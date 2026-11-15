@@ -288,9 +288,9 @@ function aidAnswer(world: World, npc: Vehicle): CallVars {
   return { answer: { kind: 'answer', option: 'give' }, aid: aidVar(spareAid(world, npc)) };
 }
 
-const HELP_TOPICS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', 'offerPatchWorn', 'patchRequest'];
-
 export const HELP_OFFERS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', 'offerPatchWorn'];
+
+const HELP_TOPICS: readonly TopicId[] = [...HELP_OFFERS, 'patchRequest'];
 
 export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   const talked = world.player.talked[npc.id];
