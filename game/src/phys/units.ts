@@ -1,6 +1,7 @@
 import { vehicleStats, type VehicleStats } from '../sim/stats';
 import { combatState, hasTimedFire, stepTimedCombat, type TimedCombatState } from '../sim/timed-combat';
 import { FarCombatMotion } from '../sim/far';
+import { hitPushes, type HitPush } from '../sim/hit-push';
 import { isKnockedOut } from '../sim/defeat';
 import { captureImpactMotion, type ImpactMotion } from './contacts';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -234,6 +235,7 @@ export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body
 export class TimedDrive {
   private state: TimedCombatState | undefined;
   private far: FarCombatMotion | undefined;
+  private recordsSeen = 0;
   private starts: { v: Vehicle; pos: Vehicle['pos']; heading: number; speed: number; bend: number | undefined }[] = [];
   constructor(private world: World, private cars: Car[], steps: number, private refresh: (car: Car) => void) {
     const state = combatState(world);
@@ -254,7 +256,25 @@ export class TimedDrive {
       if (c.rear) c.v.bend = liveBend(c);
     }
     stepTimedCombat(this.world, this.state, 1000 / PHYSICS.stepsPerSecond);
+    this.pushFromImpacts(this.state);
     for (const c of this.cars) this.refreshCar(c);
+  }
+  private pushFromImpacts(state: TimedCombatState): void {
+    const fresh = state.records.slice(this.recordsSeen);
+    this.recordsSeen = state.records.length;
+    const bodies = this.cars.map(c => c.v);
+    for (const r of fresh) {
+      if (r.kind !== 'impact' || !r.flight || !r.event) continue;
+      for (const push of hitPushes(this.world, r.flight, r.event, bodies)) this.applyPush(push, state);
+    }
+  }
+  private applyPush(push: HitPush, state: TimedCombatState): void {
+    const car = this.cars.find(c => c.v.id === push.vehicle);
+    if (!car || state.destroyedAt[car.v.id] !== undefined || !this.world.vehicles.includes(car.v)) return;
+    const body = push.unit === 0 ? car.body : car.rear?.body;
+    if (!body) throw new Error(`Hit push on unit ${push.unit} of ${car.v.id}, which has no such body`);
+    const flat = push.impulse * Math.sqrt(1 - push.lift * push.lift);
+    body.applyImpulse({ x: push.dir.x * flat, y: push.impulse * push.lift, z: push.dir.y * flat }, true);
   }
   private refreshCar(car: Car): void {
     if (!this.world.vehicles.includes(car.v) || this.state?.destroyedAt[car.v.id] !== undefined) return this.stopRemovedCar(car);
