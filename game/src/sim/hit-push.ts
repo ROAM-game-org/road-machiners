@@ -13,6 +13,7 @@ type ShotEvent = Extract<GameEvent, { t: 'shot' }>;
 
 export function hitPushes(world: World, flight: TimedShot, event: ShotEvent, bodies: readonly Vehicle[]): HitPush[] {
   const flightDir = flightDirection(flight);
+  if (!flightDir) return [];
   const pushes: HitPush[] = [];
   for (const round of event.rounds) {
     const struck = round.struck === null ? undefined : bodies.find((v) => v.id === round.struck);
@@ -27,9 +28,9 @@ function explodes(flight: TimedShot): boolean {
   return flight.round.craterRadius > 0;
 }
 
-function flightDirection(flight: TimedShot): Vec {
+function flightDirection(flight: TimedShot): Vec | null {
   const length = dist(flight.from, flight.impactAt);
-  if (length === 0) throw new Error('A round with a zero-length flight has no push direction');
+  if (length === 0) return null;
   return { x: (flight.impactAt.x - flight.from.x) / length, y: (flight.impactAt.y - flight.from.y) / length };
 }
 

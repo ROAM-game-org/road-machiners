@@ -80,9 +80,9 @@ describe('hitPushes', () => {
     expect(pushes.every((p) => p.dir.y < 0)).toBe(true);
   });
 
-  it('throws on a zero-length flight', () => {
+  it('pushes nothing for a zero-length flight, which has no direction', () => {
     const { w, target } = scene();
-    expect(() => hitPushes(w, flightOf('mg', { x: 40, y: 30 }, { x: 40, y: 30 }), eventOf(target, {}), [target])).toThrow();
+    expect(hitPushes(w, flightOf('mg', { x: 40, y: 30 }, { x: 40, y: 30 }), eventOf(target, {}), [target])).toEqual([]);
   });
 
   it('names the rear unit for a hit on a trailer', () => {

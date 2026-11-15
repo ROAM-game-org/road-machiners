@@ -52,7 +52,15 @@ describe('combat harness', () => {
   });
 
   it('a standing player never moves', () => {
-    expect(base.a.speed).toBeCloseTo(0, 6);
+    const { kinetic, blast } = RULES.hitPush;
+    setNumber('RULES.hitPush.kinetic=0');
+    setNumber('RULES.hitPush.blast=0');
+    try {
+      expect(runFight(FIGHT).a.speed).toBeCloseTo(0, 6);
+    } finally {
+      setNumber(`RULES.hitPush.kinetic=${kinetic}`);
+      setNumber(`RULES.hitPush.blast=${blast}`);
+    }
   });
 
   it('has two brains of one faction fight each other', () => {
