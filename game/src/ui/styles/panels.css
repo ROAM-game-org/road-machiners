@@ -525,6 +525,24 @@
   margin-top: var(--space-5);
 }
 
+#ui .software {
+  width: var(--panel-l);
+  max-width: calc(100vw - 2 * var(--space-5));
+  text-align: center;
+}
+#ui .software h3 {
+  margin-bottom: var(--space-2);
+}
+.software .software-buttons {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.software .software-buttons button {
+  flex: 1 1 0;
+}
+
 #ui .death {
   position: fixed;
   inset: 0;

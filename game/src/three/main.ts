@@ -27,7 +27,7 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
-import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
+import { loadCameraSetting, loadRenderScaleSetting, renderScaleSetting } from '../ui/camera-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -48,7 +48,9 @@ import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GpuContext } from './gpu-context';
-import { GAME_GL, openWebGL } from './webgl';
+import { drawingRenderer, GAME_GL, openWebGL } from './webgl';
+import { drawsInSoftware } from '../render/renderer-kind';
+import { SoftwareNotice } from '../ui/software-notice';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { startGroundBaker } from './ground-off-thread';
@@ -192,6 +194,13 @@ function newGameWorld(setup: WorldSetup, intro: boolean): World {
 }
 
 const combatPrototype = import.meta.env.DEV && new URLSearchParams(window.location.search).has('combatPrototype');
+
+function warnOfSoftwareDrawing(): void {
+  const renderer = drawingRenderer();
+  if (renderer === null) throw new Error('The game booted with no drawing renderer');
+  if (drawsInSoftware(renderer)) new SoftwareNotice(renderScaleSetting()).show();
+}
+
 const benchMode = new URLSearchParams(window.location.search).has('bench');
 const BENCH_SEED = 1337;
 
@@ -328,7 +337,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish();
+void boot.finish().then(() => { if (!benchMode) warnOfSoftwareDrawing(); }).catch(reportError);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

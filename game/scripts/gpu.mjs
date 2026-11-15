@@ -1,11 +1,11 @@
 import { takeBrowserSlot } from './browser-slot.mjs';
+import { drawsInSoftware } from '../src/render/renderer-kind.ts';
 
 const ANGLE = {
   darwin: ['--use-angle=metal'],
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
   win32: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
 };
-const SOFTWARE_RENDERERS = /SwiftShader|llvmpipe/;
 const SOFTWARE_LAUNCH_ATTEMPTS = 4;
 const SOFTWARE_LAUNCH_PAUSE_MS = 10000;
 const SOFTWARE_ONLY = ['--disable-dev-shm-usage'];
@@ -24,7 +24,7 @@ export function rendererOf(page) {
 }
 
 export function isSoftware(renderer) {
-  return SOFTWARE_RENDERERS.test(renderer);
+  return drawsInSoftware(renderer);
 }
 
 function warnSoftware(renderer) {
