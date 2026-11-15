@@ -2,7 +2,7 @@
 
 A pre_gateway_dispatch hook passes a non-member's message in the committee chat to Hermes as plain chat, and drops it anywhere else.
 Every person's message in the player chat goes to Hermes with a header that marks it as untrusted and says whether it addressed the bot.
-Hermes alone handles it, with the public tools, and stays silent when it needs nothing. The public handler stops votes, commands, forwards and bot posts.
+Hermes alone handles it, with its whole tool list, and stays silent when it needs nothing. A tool hook lets a player's turn, or a non-member's in the committee chat, run only the public tools. The public handler stops votes, commands, forwards and bot posts.
 It answers /committee commands from members in any chat.
 It takes committee messages in the factory chat and writes them to the factory inbox as JSON files.
 A plain reply to an approval post goes to the inbox and to Hermes too, who routes it with a tool.
@@ -26,7 +26,7 @@ from typing import Optional
 from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
 from .observability import register_observation
-from .public import PUBLIC_MARK, Addressed, make_public_factory, make_public_guard, make_public_prompt, public_chats, refuse_in_public, watch_polling_conflicts
+from .public import PUBLIC_MARK, Addressed, make_public_factory, make_public_guard, make_public_prompt, make_public_tool_gate, public_chats, refuse_in_public, watch_polling_conflicts
 from .public_tools import register_public_tools
 from .readiness import Readiness, refusal
 from .status import register_status
@@ -772,6 +772,7 @@ def register(ctx) -> None:
     chat_id = lambda: _session_env("HERMES_SESSION_CHAT_ID").strip()
     ctx.register_middleware("llm_request", make_public_prompt(cfg, chat_id))
     ctx.register_middleware("llm_execution", make_public_guard(cfg, chat_id))
+    ctx.register_hook("pre_tool_call", make_public_tool_gate(cfg, _session_env))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_telegram_handler(make_media_factory(cfg, readiness))
     factory = FactoryTools(ctx, lambda handler: refuse_in_public(cfg, chat_id, handler))
@@ -780,6 +781,7 @@ def register(ctx) -> None:
     factory.register_tool(name=PROPOSAL_TOOL, toolset="factory", schema=PROPOSAL_SCHEMA, handler=make_proposal_handler(cfg))
     factory.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
     factory.register_tool(name=DRAFT_TOOL, toolset="factory", schema=DRAFT_SCHEMA, handler=make_draft_handler(cfg))
-    register_status(factory, public_url=os.environ['FACTORY_PUBLIC_URL'], timeout_seconds=float(os.environ['FACTORY_STATUS_TIMEOUT_MS']) / 1000)
+    # The status tool reads the public dashboard, so it runs in the player chat too.
+    register_status(ctx, public_url=os.environ['FACTORY_PUBLIC_URL'], timeout_seconds=float(os.environ['FACTORY_STATUS_TIMEOUT_MS']) / 1000)
     register_observation(factory, home=Path(cfg.state_dir).parent, heartbeat_ms=float(os.environ['FACTORY_OBSERVATION_HEARTBEAT_MS']))
     register_public_tools(ctx, clone=Path(cfg.state_dir).parent / "repo", repo=os.environ["FACTORY_REPO"], chats=public_chats(cfg), session_env=_session_env)

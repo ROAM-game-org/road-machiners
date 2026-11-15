@@ -70,6 +70,7 @@ plugins:
     - hermes-session-reset-policy
 
 # The file toolset also holds write and patch. Hermes has no read-only file toolset.
+# Every Telegram chat, the player chats included, gets this one list. In a player chat the plugin's pre_tool_call hook runs only the public tools.
 platform_toolsets:
   telegram:
     - terminal
@@ -79,6 +80,7 @@ platform_toolsets:
     - session_search
     - vision
     - factory
+    - factory_public
   # The incident watch job runs with no chat. It resolves incidents and drafts the release post with the same tools.
   cron:
     - terminal
@@ -90,7 +92,7 @@ platform_toolsets:
     - vision
     - factory
 
-# Hermes adds every plugin toolset to a chat's list unless it is known here. The player chats get only factory_public, and the committee and cron keep their lists above.
+# Hermes adds every plugin toolset to a platform's list unless it is known here. So cron keeps its list above, without the player tools.
 known_plugin_toolsets:
   telegram:
     - factory
