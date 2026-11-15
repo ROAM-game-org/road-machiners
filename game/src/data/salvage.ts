@@ -212,6 +212,7 @@ export type StoryWreck = {
 };
 
 export const WAGON_SEVEN = 'story-wagon-seven';
+export const WAGON_TALK = { reach: 200 } as const;
 
 export const STORY_WRECKS: StoryWreck[] = [
   {
