@@ -30,7 +30,7 @@ function setup(files: Record<string, Buffer>) {
 
 function addPhoto(f: PublicFake, issue: number | null, images: string[], relevance: 'parent' | 'other'): number {
   const id = f.store.addComment({ issue, source: 'telegram', sourceId: `c${images.join()}`, postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text: 'the truck clips here', at: f.clock.now.toISOString(), messageId: 13, images })!;
-  f.store.classify(id, 'bug', 'none', f.clock.now, relevance, { language: 'en' });
+  f.store.classify(id, 'bug', 'none', f.clock.now, relevance);
   return id;
 }
 

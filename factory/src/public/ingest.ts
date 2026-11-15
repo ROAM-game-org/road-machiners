@@ -47,8 +47,7 @@ function images(fields: Fields): string[] {
 }
 
 function comment(base: Base, fields: Fields): PublicEvent {
-  const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone') };
-  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), ...reach };
+  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), toHermes: flag(fields, 'toHermes'), addressed: flag(fields, 'addressed') };
 }
 
 const isWholeNumber = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -114,22 +113,36 @@ function inboxNames(dir: string): { named: string[]; stray: string[] } {
   return { named, stray };
 }
 
+const isGone = (error: unknown): boolean => error instanceof Error && 'code' in error && error.code === 'ENOENT';
+
+function readInboxFile(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    if (isGone(error)) return null;
+    throw error;
+  }
+}
+
 export async function ingest(ctx: Ctx, store: PublicStore): Promise<void> {
   const dir = publicInboxDir(ctx.cfg.home);
   if (!existsSync(dir)) return;
   const { named, stray } = inboxNames(dir);
   for (const name of stray) await reject(ctx, dir, name, 'its name is not an update id plus .json');
-  for (const name of named) {
-    const path = join(dir, name);
-    let event: PublicEvent;
-    try {
-      event = parseEvent(readFileSync(path, 'utf8'));
-    } catch (error) {
-      if (!(error instanceof BadEvent)) throw error;
-      await reject(ctx, dir, name, error.message);
-      continue;
-    }
-    store.applyEvent(event);
-    rmSync(path);
+  for (const name of named) await ingestFile(ctx, store, dir, name);
+}
+
+async function ingestFile(ctx: Ctx, store: PublicStore, dir: string, name: string): Promise<void> {
+  const path = join(dir, name);
+  const raw = readInboxFile(path);
+  if (raw === null) return;
+  let event: PublicEvent;
+  try {
+    event = parseEvent(raw);
+  } catch (error) {
+    if (!(error instanceof BadEvent)) throw error;
+    return reject(ctx, dir, name, error.message);
   }
+  store.applyEvent(event);
+  rmSync(path, { force: true });
 }

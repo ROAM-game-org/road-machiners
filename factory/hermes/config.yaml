@@ -16,6 +16,9 @@ platforms:
       # Telegram keeps updates for 24 hours while Hermes is down. Votes and player comments sent during a restart arrive only through that queue.
       drop_pending_on_cold_boot: false
 
+# A player chat thread holds many players. Each gets their own session, so the player tools act for the player whose message started the turn.
+thread_sessions_per_user: true
+
 # Keep Hermes's own notices out of the committee chat.
 compression:
   codex_gpt55_autoraise_notice: false
@@ -86,6 +89,15 @@ platform_toolsets:
     - session_search
     - vision
     - factory
+
+# Hermes adds every plugin toolset to a chat's list unless it is known here. The player chats get only factory_public, and the committee and cron keep their lists above.
+known_plugin_toolsets:
+  telegram:
+    - factory
+    - factory_public
+  cron:
+    - factory
+    - factory_public
 
 # Off everywhere, the command line included. Hermes runs commands through terminal, and game work goes to the factory as ad hoc tasks. The start script owns the incident watch, so Hermes needs no cronjob.
 agent:

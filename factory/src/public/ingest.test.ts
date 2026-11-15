@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readState } from '../state';
-import { CHANNEL, publicFake } from './public-fakes';
+import { CHANNEL, publicFake, storedComments } from './public-fakes';
 import { ingest } from './ingest';
 
 const count = (updateId: number, counts: Record<string, number>) => ({ updateId, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts });
@@ -111,7 +111,7 @@ describe('ingest', () => {
     const { f, put } = setup();
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments(100).map((comment) => comment.text)).toEqual(['The truck stalls']);
+    expect(storedComments(f.store).map((comment) => comment.text)).toEqual(['The truck stalls']);
   });
 
   it('attributes a reply to a build post that replies to the proposal to the issue, and routes it', async () => {
@@ -119,7 +119,7 @@ describe('ingest', () => {
     f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    const [stored] = f.store.unclassifiedComments(100);
+    const [stored] = storedComments(f.store);
     expect(stored!.issue).toBe(7);
     f.store.classify(stored!.id, 'bug', 'patch', f.clock.now);
     expect(f.store.pendingRoutes().map((route) => route.issue)).toEqual([7]);
@@ -131,23 +131,41 @@ describe('ingest', () => {
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 31, author: 'bo', sender: '2', text: 'Same here', at: '2026-10-14T10:01:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments(100).map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
+    expect(storedComments(f.store).map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
   });
 
-  it('stores a standalone chat message with its sender, and reads a file with no reach flags', async () => {
+  it('stores a message to Hermes with its sender, and reads a file with no toHermes flag as a thread comment', async () => {
     const { f, put } = setup();
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', addressed: true, standalone: true });
-    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bob', sender: '7', text: 'Old file', at: '2026-10-14T10:00:00Z' });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', toHermes: true });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bob', sender: '7', text: 'Old file', at: '2026-10-14T10:00:00Z', addressed: true, standalone: true });
+    put('3.json', { updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 34, threadId: null, author: 'cy', sender: '8', text: 'plain chatter', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.sender, c.addressed, c.messageId])).toEqual([[null, '42', true, 32], [7, '7', false, 33]]);
+    expect(storedComments(f.store).map((c) => [c.issue, c.sender, c.toHermes, c.messageId])).toEqual([[null, '42', true, 32], [7, '7', false, 33]]);
+    expect(f.store.playerMessages(CHANNEL, '42', 5).map((c) => [c.issue, c.toHermes, c.messageId])).toEqual([[null, true, 32]]);
+    expect(f.store.playerMessage(CHANNEL, 34)).toBeNull();
+  });
+
+  it('skips a file that another ingest took after this one listed the folder', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 100, author: 'ann', sender: '42', text: 'Stalls', at: '2026-10-14T10:00:00Z' });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bo', sender: '7', text: 'Taken', at: '2026-10-14T10:00:00Z' });
+    const apply = f.store.applyEvent.bind(f.store);
+    f.store.applyEvent = (event) => {
+      if (event.updateId === 1) rmSync(`${inbox}/2.json`);
+      return apply(event);
+    };
+    await ingest(f.ctx, f.store);
+    expect(storedComments(f.store).map((c) => c.text)).toEqual(['Stalls']);
+    expect(readdirSync(inbox)).toEqual([]);
+    expect(f.logs.concat(f.calls).join('\n')).not.toContain('bad');
   });
 
   it('keeps the replied or quoted text of a chat message as its context, and none when the file has none', async () => {
     const { f, put } = setup();
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 900, author: 'ann', sender: '42', text: 'I meant landmarks', at: '2026-10-14T10:00:00Z', standalone: true, context: 'Landmark directions' });
-    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'bob', sender: '7', text: 'Hi', at: '2026-10-14T10:00:00Z', standalone: true });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 900, author: 'ann', sender: '42', text: 'I meant landmarks', at: '2026-10-14T10:00:00Z', toHermes: true, context: 'Landmark directions' });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'ann', sender: '42', text: 'Hi', at: '2026-10-14T10:00:00Z', toHermes: true });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.context])).toEqual([[null, 'Landmark directions'], [null, null]]);
+    expect(f.store.playerMessages(CHANNEL, '42', 5).map((c) => [c.issue, c.context])).toEqual([[null, null], [null, 'Landmark directions']]);
   });
 
   it('moves a comment with a context that is not text to bad', async () => {
@@ -157,10 +175,19 @@ describe('ingest', () => {
     expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
   });
 
-  it('moves a comment with a bad sender flag to bad', async () => {
+  it('moves a comment with a bad toHermes flag to bad', async () => {
     const { f, inbox, put } = setup();
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', addressed: 'yes' });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', toHermes: 'yes' });
     await ingest(f.ctx, f.store);
     expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
+  });
+
+  it('stores the addressed flag of a chat message and moves a file with a bad addressed flag to bad', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot hi', at: '2026-10-14T10:00:00Z', toHermes: true, addressed: true });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'ann', sender: '42', text: 'hi all', at: '2026-10-14T10:00:00Z', toHermes: true, addressed: 'yes' });
+    await ingest(f.ctx, f.store);
+    expect(f.store.playerMessages(CHANNEL, '42', 5).map((c) => [c.messageId, c.addressed])).toEqual([[32, true]]);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['2.json']);
   });
 });

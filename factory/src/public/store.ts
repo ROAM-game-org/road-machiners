@@ -6,7 +6,7 @@ import type { DecisionKind, Relevance, ReplyLanguage } from './decision';
 export type ReactionCountEvent = { updateId: number; kind: 'reaction-count'; chat: string; messageId: number; counts: Record<string, number> };
 export type ReactionEvent = { updateId: number; kind: 'reaction'; chat: string; messageId: number; user: string; emoji: string[] };
 export type ForwardEvent = { updateId: number; kind: 'forward'; chat: string; messageId: number; channelChat: string; channelMessageId: number };
-export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number | null; author: string; sender: string; text: string; at: string; addressed?: boolean; standalone?: boolean; context?: string | null; images?: string[] };
+export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number | null; author: string; sender: string; text: string; at: string; toHermes?: boolean; addressed?: boolean; context?: string | null; images?: string[] };
 export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | CommentEvent;
 
 export type CommentKind = DecisionKind | 'rejected';
@@ -15,16 +15,15 @@ const CLOSED_UNATTEMPTED = 'posted_at is null and attempted_at is null and gate_
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
-export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; addressed: boolean; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; replyId: number | null; context: string | null; workIssue: number | null; language: ReplyLanguage | null; linked: boolean; images: string[]; wantsFiling: boolean; filterAttempts: number };
+export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; classifiedAt: string | null; replyId: number | null; context: string | null; language: ReplyLanguage | null; linked: boolean; images: string[]; toHermes: boolean; addressed: boolean };
 export type IssueComment = StoredComment & { issue: number };
-export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean; context?: string | null; images?: string[] };
-export type KnownWork = { issue: number; text: string };
-export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null; wantsFiling?: boolean };
+export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; toHermes?: boolean; addressed?: boolean; context?: string | null; images?: string[] };
+export type FilingClaim = { claimed: true } | { claimed: false; issue: number | null };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
-const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0, images text, images_issue integer, wants_filing integer not null default 0, filter_attempts integer not null default 0';
+const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0, images text, images_issue integer, wants_filing integer not null default 0, filter_attempts integer not null default 0, to_hermes integer not null default 0';
 const HOUR_MS = 3_600_000;
 const FAILED_HIT = 'failed:';
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
@@ -68,7 +67,7 @@ function migrateComments(db: DatabaseSync): void {
   if (!columns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
   if (!columns.includes('sender')) db.exec('alter table comments add column sender text');
   if (!columns.includes('message_id')) return;
-  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0', 'images text', 'images_issue integer', 'wants_filing integer not null default 0', 'filter_attempts integer not null default 0']) {
+  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0', 'images text', 'images_issue integer', 'wants_filing integer not null default 0', 'filter_attempts integer not null default 0', 'to_hermes integer not null default 0', 'addressed integer not null default 0']) {
     if (!columns.includes(column.split(' ')[0]!)) db.exec(`alter table comments add column ${column}`);
   }
 }
@@ -227,7 +226,7 @@ export class PublicStore {
   addComment(comment: NewComment): number | null {
     const { issue, source, sourceId, postChat, postMessageId, author, text, at } = comment;
     const extra = optionalColumns(comment);
-    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, sender, message_id, addressed, context, images) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at, ...extra);
+    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, sender, message_id, context, images, to_hermes, addressed) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at, ...extra);
     return result.changes === 1 ? Number(result.lastInsertRowid) : null;
   }
 
@@ -236,26 +235,8 @@ export class PublicStore {
     return row === undefined ? null : String(row.pitch).split('\n')[0]!.trim();
   }
 
-  unclassifiedComments(limit: number): StoredComment[] {
-    const waiting = 'select *, row_number() over (partition by coalesce(sender, source_id) order by id) as turn from comments where classified_at is null and dropped_at is null';
-    return this.db.prepare(`select * from (${waiting}) order by turn, id limit ?`).all(limit).map(toComment);
-  }
-
-  classifyLater(id: number): void {
-    this.db.prepare('update comments set kind = null, route = null, classified_at = null, filter_attempts = filter_attempts + 1 where id = ?').run(id);
-  }
-
-  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, relevance: Relevance = 'parent', judged: Judged = {}): void {
-    const sql = 'update comments set kind = ?, route = ?, relevance = ?, classified_at = ?, work_issue = ?, language = ?, wants_filing = ? where id = ?';
-    this.db.prepare(sql).run(kind, route, relevance, now.toISOString(), judged.workIssue ?? null, judged.language ?? null, judged.wantsFiling ? 1 : 0, id);
-  }
-
-  knownWork(): KnownWork[] {
-    const proposals = this.db.prepare('select issue, pitch from proposals order by issue').all().map((row) => ({ issue: Number(row.issue), text: workText(String(row.pitch)) }));
-    const firstFiled = 'select min(id) from comments where filed_issue is not null and linked = 0 group by filed_issue';
-    const filed = this.db.prepare(`select filed_issue, text from comments where id in (${firstFiled}) order by filed_issue`).all().map((row) => ({ issue: Number(row.filed_issue), text: oneLineCut(String(row.text)) }));
-    const proposed = new Set(proposals.map((work) => work.issue));
-    return [...proposals, ...filed.filter((work) => !proposed.has(work.issue))];
+  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, relevance: Relevance = 'parent'): void {
+    this.db.prepare('update comments set kind = ?, route = ?, relevance = ?, classified_at = ? where id = ?').run(kind, route, relevance, now.toISOString(), id);
   }
 
   unsentComments(): IssueComment[] {
@@ -271,43 +252,54 @@ export class PublicStore {
     return Number(this.db.prepare(sql).run(now.toISOString()).changes);
   }
 
-  toFile(): StoredComment[] {
-    const fileable = "(kind in ('bug', 'feature') or work_issue is not null)";
-    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and filed_at is null and ${fileable} and not (issue is not null and ${ON_TOPIC}) order by id`).all().map(toComment);
+  playerMessage(chat: string, messageId: number): StoredComment | null {
+    const row = this.db.prepare("select * from comments where source = 'telegram' and source_id = ?").get(`${chat}:${messageId}`);
+    return row === undefined ? null : toComment(row);
   }
 
-  markFiling(id: number, now: Date): void {
-    this.db.prepare('update comments set filed_at = ? where id = ?').run(now.toISOString(), id);
+  playerMessages(chat: string, sender: string, limit: number): StoredComment[] {
+    return this.db.prepare("select * from comments where source = 'telegram' and to_hermes = 1 and post_chat = ? and sender = ? order by id desc limit ?").all(chat, sender, limit).map(toComment);
   }
 
-  link(id: number, issue: number): void {
-    this.db.prepare("update comments set issue = ?, relevance = 'parent', post_message_id = null, route = 'none', linked = 1 where id = ?").run(issue, id);
+  onOpenBuildPost(comment: StoredComment): boolean {
+    const row = this.db.prepare('select issue, post_chat, post_message_id from comments where id = ?').get(comment.id);
+    if (row === undefined || row.issue === null || row.post_message_id === null) return false;
+    const sql = 'select 1 from build_posts where issue = ? and open = 1 and ((chat = ? and message_id = ?) or (discussion_chat = ? and discussion_id = ?))';
+    const post = Number(row.post_message_id);
+    return this.db.prepare(sql).get(Number(row.issue), String(row.post_chat), post, String(row.post_chat), post) !== undefined;
   }
 
-  claimFiling(id: number, text: string, now: Date): number | null {
-    const key = textKey(text);
-    this.db.prepare('update comments set filed_at = ?, text_key = ? where id = ?').run(now.toISOString(), key, id);
-    if (key === '') return null;
-    const earlier = this.db.prepare('select filed_issue from comments where text_key = ? and filed_issue is not null and id != ? order by id limit 1').get(key, id);
-    return earlier === undefined ? null : Number(earlier.filed_issue);
+  claimFiling(id: number, kind: 'bug' | 'feature', text: string, now: Date): FilingClaim {
+    return this.transaction(() => {
+      const row = this.db.prepare('select filed_at, filed_issue, linked from comments where id = ?').get(id);
+      if (row === undefined) throw new Error(`Player comment ${id} is not in the store.`);
+      if (row.filed_at !== null || Number(row.linked) === 1) return { claimed: false, issue: numberOrNull(row.filed_issue) };
+      const key = textKey(text);
+      const claim = "update comments set filed_at = ?, text_key = ?, kind = ?, route = 'none', relevance = case when issue is null then null else 'other' end, classified_at = ? where id = ?";
+      this.db.prepare(claim).run(now.toISOString(), key, kind, now.toISOString(), id);
+      const earlier = key === '' ? undefined : this.db.prepare('select filed_issue from comments where text_key = ? and filed_issue is not null and id != ? order by id limit 1').get(key, id);
+      if (earlier === undefined) return { claimed: true };
+      this.db.prepare('update comments set filed_issue = ? where id = ?').run(Number(earlier.filed_issue), id);
+      return { claimed: false, issue: Number(earlier.filed_issue) };
+    });
   }
 
   setFiled(id: number, issue: number): void {
     this.db.prepare('update comments set filed_issue = ? where id = ?').run(issue, id);
   }
 
-  filedBefore(comment: StoredComment): boolean {
-    if (comment.filedIssue === null) return false;
-    return this.db.prepare('select 1 from comments where filed_issue = ? and id < ?').get(comment.filedIssue, comment.id) !== undefined;
+  link(id: number, issue: number, kind: CommentKind, now: Date): boolean {
+    const sql = "update comments set issue = ?, kind = ?, relevance = 'parent', post_message_id = null, route = 'none', linked = 1, filed_at = ?, classified_at = ? where id = ? and filed_at is null and linked = 0";
+    return this.db.prepare(sql).run(issue, kind, now.toISOString(), now.toISOString(), id).changes === 1;
   }
 
-  toReply(): StoredComment[] {
-    const filed = `(filed_at is not null or (kind not in ('bug', 'feature') and work_issue is null) or (issue is not null and ${ON_TOPIC}))`;
-    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and replied_at is null and message_id is not null and ${filed} order by id`).all().map(toComment);
+  markRoute(id: number, route: 'patch' | 'redesign', now: Date): boolean {
+    const sql = "update comments set route = ?, kind = 'feedback', relevance = 'parent', classified_at = ? where id = ? and classified_at is null and filed_at is null and issue is not null";
+    return this.db.prepare(sql).run(route, now.toISOString(), id).changes === 1;
   }
 
-  markReplied(id: number, now: Date): void {
-    this.db.prepare('update comments set replied_at = ? where id = ?').run(now.toISOString(), id);
+  setLanguage(id: number, language: ReplyLanguage): void {
+    this.db.prepare('update comments set language = ? where id = ?').run(language, id);
   }
 
   setReplyId(id: number, replyId: number): void {
@@ -330,7 +322,7 @@ export class PublicStore {
   }
 
   recentChat(limit: number): StoredComment[] {
-    return this.db.prepare("select * from comments where source = 'telegram' and classified_at is not null order by id desc limit ?").all(limit).map(toComment);
+    return this.db.prepare("select * from comments where source = 'telegram' and (classified_at is not null or to_hermes = 1) order by id desc limit ?").all(limit).map(toComment);
   }
 
   markSent(ids: number[], now: Date): void {
@@ -356,6 +348,10 @@ export class PublicStore {
 
   beginRoute(issue: number, committeePost: number, now: Date): boolean {
     return this.db.prepare('insert or ignore into route_attempts (issue, committee_post, at) values (?, ?, ?)').run(issue, committeePost, now.toISOString()).changes === 1;
+  }
+
+  routeAttempted(issue: number, committeePost: number): boolean {
+    return this.db.prepare('select 1 from route_attempts where issue = ? and committee_post = ?').get(issue, committeePost) !== undefined;
   }
 
   markRouted(id: number, now: Date): void {
@@ -408,7 +404,7 @@ export class PublicStore {
 
   private applyComment(event: CommentEvent): void {
     const thread = event.threadId === null ? null : this.threadOf(event.chat, event.threadId);
-    if (thread === null && !event.standalone) return;
+    if (thread === null && !event.toHermes) return;
     this.addComment({ issue: thread?.issue ?? null, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread?.post ?? null, author: event.author, text: event.text, at: event.at, ...reachOf(event) });
   }
 
@@ -440,23 +436,15 @@ export class PublicStore {
 
 type Row = Record<string, unknown>;
 
-const WORK_CHARS = 200;
-const oneLineCut = (text: string): string => text.replace(/\s+/g, ' ').trim().slice(0, WORK_CHARS);
-
-function workText(pitch: string): string {
-  const [title, ...rest] = pitch.split('\n').map((line) => line.trim()).filter((line) => line !== '');
-  return oneLineCut(rest.length === 0 ? title ?? '' : `${title}: ${rest[0]}`);
-}
-
 function optionalColumns(comment: NewComment) {
-  return [comment.sender ?? null, comment.messageId ?? null, comment.addressed ? 1 : 0, comment.context ?? null, imagesColumn(comment.images)] as const;
+  return [comment.sender ?? null, comment.messageId ?? null, comment.context ?? null, imagesColumn(comment.images), comment.toHermes ? 1 : 0, comment.addressed ? 1 : 0] as const;
 }
 
 function imagesColumn(images: string[] | undefined): string | null {
   return images?.length ? JSON.stringify(images) : null;
 }
 
-const reachOf =(event: CommentEvent) => ({ sender: event.sender, messageId: event.messageId, addressed: event.addressed, context: event.context ?? null, images: event.images });
+const reachOf = (event: CommentEvent) => ({ sender: event.sender, messageId: event.messageId, toHermes: event.toHermes, addressed: event.addressed, context: event.context ?? null, images: event.images });
 
 const hourOf = (time: Date): string => time.toISOString().slice(0, 13);
 const nextHour = (time: Date): Date => new Date(Math.floor(time.getTime() / HOUR_MS) * HOUR_MS + HOUR_MS);
@@ -486,8 +474,8 @@ function toComment(row: Row): StoredComment {
   return {
     id: Number(row.id), issue: numberOrNull(row.issue), source: row.source as StoredComment['source'], author: String(row.author), text: String(row.text), at: String(row.at),
     kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null, chat: textOrNull(row.post_chat), messageId: numberOrNull(row.message_id), sender: textOrNull(row.sender),
-    addressed: Number(row.addressed) === 1, relevance: row.relevance as Relevance | null, filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at), replyId: numberOrNull(row.reply_id),
-    context: textOrNull(row.context), workIssue: numberOrNull(row.work_issue), language: row.language === 'ru' || row.language === 'en' ? row.language : null, linked: Number(row.linked) === 1,
-    images: row.images === null ? [] : (JSON.parse(String(row.images)) as string[]), wantsFiling: Number(row.wants_filing) === 1, filterAttempts: Number(row.filter_attempts ?? 0),
+    relevance: row.relevance as Relevance | null, filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at), classifiedAt: textOrNull(row.classified_at), replyId: numberOrNull(row.reply_id),
+    context: textOrNull(row.context), language: row.language === 'ru' || row.language === 'en' ? row.language : null, linked: Number(row.linked) === 1,
+    images: row.images === null ? [] : (JSON.parse(String(row.images)) as string[]), toHermes: Number(row.to_hermes) === 1, addressed: Number(row.addressed) === 1,
   };
 }
