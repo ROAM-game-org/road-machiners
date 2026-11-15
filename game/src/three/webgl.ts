@@ -16,10 +16,10 @@ export const GAME_GL: WebGLContextAttributes = {
   alpha: true,
   depth: true,
   stencil: true,
-  antialias: true,
+  antialias: false,
   premultipliedAlpha: true,
   preserveDrawingBuffer: false,
-  powerPreference: 'default',
+  powerPreference: 'high-performance',
 };
 
 let drawing: string | null = null;

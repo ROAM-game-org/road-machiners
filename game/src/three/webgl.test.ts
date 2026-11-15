@@ -35,6 +35,11 @@ const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:156.0) Gecko/20100101 Firefo
 const CHROME = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
 
 describe('openWebGL', () => {
+  it('asks for the fast GPU and no canvas multisampling', () => {
+    expect(GAME_GL.antialias).toBe(false);
+    expect(GAME_GL.powerPreference).toBe('high-performance');
+  });
+
   it('returns the canvas and the context it was given, with the attributes passed through', () => {
     const context = fakeContext('GPU');
     const fake = fakeCanvas({ context });
