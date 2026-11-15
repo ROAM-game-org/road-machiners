@@ -1,13 +1,12 @@
 export interface UnfinishedBoot {
   step: string;
-  startedAt: number;
   request: string;
   version: string;
 }
 
 export class BootUnfinished extends Error {
   constructor(readonly unfinished: UnfinishedBoot) {
-    super(`The last start of ${unfinished.version} did not finish. It died in the step: ${unfinished.step}`);
+    super(`The last start of ${unfinished.version} did not finish. It died in the step: ${unfinished.step}, started from: ${unfinished.request}`);
     this.name = 'BootUnfinished';
   }
 }
@@ -41,13 +40,11 @@ function isMark(value: unknown): value is Mark {
   if (value === 'waiting') return true;
   if (typeof value !== 'object' || value === null) return false;
   const mark = value as Record<string, unknown>;
-  return typeof mark.step === 'string' && typeof mark.startedAt === 'number' && typeof mark.request === 'string' && typeof mark.version === 'string';
+  return typeof mark.step === 'string' && typeof mark.request === 'string' && typeof mark.version === 'string';
 }
 
-export function markStep(session: Storage, base: string, step: string, request: string, version: string, now: number): void {
-  const before = read(session, base);
-  const startedAt = typeof before === 'object' && before !== null ? before.startedAt : now;
-  store(session, base, { step, startedAt, request, version });
+export function markStep(session: Storage, base: string, step: string, request: string, version: string): void {
+  store(session, base, { step, request, version });
 }
 
 export function markWaiting(session: Storage, base: string): void {

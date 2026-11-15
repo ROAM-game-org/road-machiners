@@ -13,29 +13,21 @@ function session(): Storage {
 describe('the boot marker', () => {
   it('hands back a boot left at a step, once', () => {
     const storage = session();
-    markStep(storage, 'roam', 'building the ground', 'new', '2.1.0', 100);
+    markStep(storage, 'roam', 'building the ground', 'new', '2.1.0');
 
-    expect(takeUnfinished(storage, 'roam')).toEqual({ step: 'building the ground', startedAt: 100, request: 'new', version: '2.1.0' });
+    expect(takeUnfinished(storage, 'roam')).toEqual({ step: 'building the ground', request: 'new', version: '2.1.0' });
     expect(takeUnfinished(storage, 'roam')).toBeNull();
-  });
-
-  it('keeps the time the boot began across steps', () => {
-    const storage = session();
-    markStep(storage, 'roam', 'loading the map', 'menu', '2.1.0', 100);
-    markStep(storage, 'roam', 'building the ground', 'menu', '2.1.0', 900);
-
-    expect(takeUnfinished(storage, 'roam')?.startedAt).toBe(100);
   });
 
   it('does not count a menu wait, a cleared mark or a fresh visit', () => {
     const storage = session();
     expect(takeUnfinished(storage, 'roam')).toBeNull();
 
-    markStep(storage, 'roam', 'loading the save', 'menu', '2.1.0', 1);
+    markStep(storage, 'roam', 'loading the save', 'menu', '2.1.0');
     markWaiting(storage, 'roam');
     expect(takeUnfinished(storage, 'roam')).toBeNull();
 
-    markStep(storage, 'roam', 'running', 'menu', '2.1.0', 1);
+    markStep(storage, 'roam', 'running', 'menu', '2.1.0');
     clearMark(storage, 'roam');
     expect(takeUnfinished(storage, 'roam')).toBeNull();
   });
@@ -49,15 +41,16 @@ describe('the boot marker', () => {
 
   it('keeps the quest view and the main game apart', () => {
     const storage = session();
-    markStep(storage, 'roam-quest-view', 'running', 'menu', '2.1.0', 1);
+    markStep(storage, 'roam-quest-view', 'running', 'menu', '2.1.0');
 
     expect(takeUnfinished(storage, 'roam')).toBeNull();
   });
 
   it('names the step and the version in its error', () => {
-    const error = new BootUnfinished({ step: 'building the ground', startedAt: 1, request: 'new', version: '2.1.0' });
+    const error = new BootUnfinished({ step: 'building the ground', request: 'new', version: '2.1.0' });
 
     expect(error.message).toContain('building the ground');
     expect(error.message).toContain('2.1.0');
+    expect(error.message).toContain('new');
   });
 });

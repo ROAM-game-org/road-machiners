@@ -169,7 +169,7 @@ describe("the start menu", () => {
     expect(notice.textContent).toBe("The last start did not finish. Try again.");
     expect(notice.byClass("bad")).toEqual([]);
     menu.fire("pointerdown");
-    expect(notice.children).toEqual([]);
+    expect(menu.byClass("start-refusal")[0].children).toEqual([]);
   });
 
   it("names the save Continue resumes under the button", () => {

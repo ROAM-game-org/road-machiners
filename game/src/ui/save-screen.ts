@@ -54,8 +54,9 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
     const continueButton = el('button', { class: 'btn-l', ...disabledWith(none, () => next && play(next.slot)) }, t('menu.continue'));
     const loadButton = el('button', { class: 'btn-l', ...disabledWith(none, () => saveList.openLoad(saves, play)) }, t('menu.load'));
     const saveList = new SaveList(() => loadButton.focus());
-    const refused = el('div', { class: 'start-refusal' }, ...(unfinished ? [el('div', { class: 'dim', role: 'status' }, t('menu.bootUnfinished'))] : []));
-    const clearNotice = () => refused.replaceChildren();
+    const notice = el('div', { class: 'dim', role: 'status' }, t('menu.bootUnfinished'));
+    const refused = el('div', { class: 'start-refusal' }, ...(unfinished ? [notice] : []));
+    const clearNotice = () => notice.remove();
     root.addEventListener('pointerdown', clearNotice, true);
     root.addEventListener('keydown', clearNotice, true);
     const importFile = async () => {

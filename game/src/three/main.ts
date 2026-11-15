@@ -224,7 +224,7 @@ const unfinishedBoot = takeUnfinished(window.sessionStorage, saveKey);
 let bootRequestKind = 'menu';
 function stepBoot(name: string): void {
   bootStep(name);
-  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION, Date.now());
+  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION);
 }
 function waitOnPlayer(): void {
   markWaiting(window.sessionStorage, saveKey);
