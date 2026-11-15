@@ -2,16 +2,16 @@ import { RULES } from '../data/rules';
 import { blastReach } from './armor';
 import { cellCenter } from './body';
 import { mountedItems, itemCells } from './grid';
-import { unitPose } from './rig';
+import { nearestUnit, unitPose } from './rig';
 import type { TimedShot } from './timed-combat';
-import type { GameEvent, Vehicle, World } from './types';
+import type { GameEvent, Vehicle } from './types';
 import { dist, type Vec } from './vec';
 
 export type HitPush = { vehicle: string; unit: number; dir: Vec; impulse: number; lift: number };
 
 type ShotEvent = Extract<GameEvent, { t: 'shot' }>;
 
-export function hitPushes(world: World, flight: TimedShot, event: ShotEvent, bodies: readonly Vehicle[]): HitPush[] {
+export function hitPushes(flight: TimedShot, event: ShotEvent, bodies: readonly Vehicle[]): HitPush[] {
   const flightDir = flightDirection(flight);
   if (!flightDir) return [];
   const pushes: HitPush[] = [];
@@ -35,7 +35,7 @@ function flightDirection(flight: TimedShot): Vec | null {
 }
 
 function struckPush(v: Vehicle, partId: string | undefined, flight: TimedShot, dir: Vec): HitPush {
-  const unit = partId === undefined ? nearestUnitTo(v, flight.impactAt) : unitOfPart(v, partId);
+  const unit = partId === undefined ? nearestUnit(v, flight.impactAt).unit : unitOfPart(v, partId);
   if (explodes(flight)) return { vehicle: v.id, unit, dir, impulse: flight.round.damage * RULES.hitPush.blast, lift: RULES.hitPush.lift };
   return { vehicle: v.id, unit, dir, impulse: flight.round.damage * RULES.hitPush.kinetic, lift: 0 };
 }
@@ -45,21 +45,6 @@ function unitOfPart(v: Vehicle, partId: string): number {
   const cell = item ? itemCells(item)[0] : undefined;
   if (!cell) throw new Error(`Struck truck ${v.id} has no unit for part ${partId}`);
   return cellCenter(v.chassisId, cell.x, cell.y).unit;
-}
-
-function nearestUnitTo(v: Vehicle, at: Vec): number {
-  const units = [unitPose(v, 0)];
-  const rear = tryUnit(v, 1);
-  if (rear) units.push(rear);
-  return units.reduce((a, b) => (dist(b.pos, at) < dist(a.pos, at) ? b : a)).unit;
-}
-
-function tryUnit(v: Vehicle, unit: number) {
-  try {
-    return unitPose(v, unit);
-  } catch {
-    return null;
-  }
 }
 
 function burstPushes(bodies: readonly Vehicle[], struckId: string | null, burst: Vec, flight: TimedShot, flightDir: Vec): HitPush[] {

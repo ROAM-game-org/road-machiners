@@ -260,12 +260,13 @@ export class TimedDrive {
     for (const c of this.cars) this.refreshCar(c);
   }
   private pushFromImpacts(state: TimedCombatState): void {
+    if (state.records.length === this.recordsSeen) return;
     const fresh = state.records.slice(this.recordsSeen);
     this.recordsSeen = state.records.length;
     const bodies = this.cars.map(c => c.v);
     for (const r of fresh) {
       if (r.kind !== 'impact' || !r.flight || !r.event) continue;
-      for (const push of hitPushes(this.world, r.flight, r.event, bodies)) this.applyPush(push, state);
+      for (const push of hitPushes(r.flight, r.event, bodies)) this.applyPush(push, state);
     }
   }
   private applyPush(push: HitPush, state: TimedCombatState): void {
