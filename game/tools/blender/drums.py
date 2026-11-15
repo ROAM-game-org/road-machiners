@@ -18,7 +18,7 @@ from kit import Kit, parse_args  # noqa: E402
 
 # Colors from src/render/palette.ts.
 COLORS = {
-    "rust": 0x8A4A2A,  # PAL.rust.top
+    "rust": 0x7E5634,  # PAL.hull.rust
     "rust_side": 0x5E3420,  # PAL.rust.side
     "rust_dark": 0x3A2418,  # PAL.rust.dark, the rolling hoops
     "olive": 0x5E6038,  # PAL.nose.top, faded army paint
