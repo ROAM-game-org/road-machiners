@@ -519,7 +519,7 @@ const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, 
 const BREACH_CORE = { radius: 6.2, inset: 1.5, strength: 0.4 };
 const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
 const SHIP_GLOW_BY_MODEL: Partial<Record<ModelName, { emissive: number; base: number }>> = {
-  power_cell: { emissive: 0.3, base: 0.2 },
+  power_cell: { emissive: 0.12, base: 0.2 },
 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };
