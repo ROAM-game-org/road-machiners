@@ -2,13 +2,14 @@
 import { prototypeFightFromSearch } from './prototype-fight';
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
+import { bankTrackLoader, MusicShelf } from '../audio/music-shelf';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BYTES } from '../config';
 import { driveSnapshotOf } from '../phys/turn';
 import { easedStopSteps } from './play-clock';
 import { Travel } from './travel';
 import { startTurnWorker } from './turn-worker-start';
-import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
+import { BANK, BOOT_SOUNDS, MIX, MUSIC_SOUNDS, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
 import { PHYSICS } from '../data/physics';
@@ -291,6 +292,8 @@ const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSup
 const musicFaults: unknown[] = [];
 let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
+sounds.lend(filesOf(MUSIC_SOUNDS));
+const musicShelf = new MusicShelf(sounds, bankTrackLoader(mixer.ctx, soundOptions, (err) => reportMusicFault(err)), (err) => reportMusicFault(err));
 let bankSettled!: () => void;
 const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
 const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }, (err) => reportMusicFault(err));
@@ -326,7 +329,7 @@ stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel));
+const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
