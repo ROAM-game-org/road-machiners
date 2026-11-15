@@ -92,6 +92,7 @@ import { abandonRun, canAbandonRun } from "../sim/chaos-highway";
 import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
+import type { MusicTracks } from "../audio/music-shelf";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { cameraSetting, followRenderScale } from "../ui/camera-setting";
@@ -214,13 +215,16 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
+  warmPlans(): void {
+    this.plans.warm(this.world.terrain);
+  }
+
+  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
-    setTimeout(() => this.plans.warm(this.world.terrain));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode, [overlay]);
@@ -263,7 +267,7 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
-    this.loops = new SoundLoops(player, music);
+    this.loops = new SoundLoops(player, music, tracks);
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);

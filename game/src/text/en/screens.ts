@@ -6,6 +6,7 @@ export const SCREENS = {
   'menu.unstuck': 'Get unstuck',
   'menu.newGame': 'New game',
   'menu.continue': 'Continue',
+  'menu.bootUnfinished': 'The last start did not finish. Try again.',
   'menu.loadSave': 'Load save',
   'menu.close': 'Close',
   'boot.loading': 'Loading',
