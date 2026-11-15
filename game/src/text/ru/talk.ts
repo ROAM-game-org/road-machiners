@@ -312,6 +312,7 @@ export const TALK: Translation<typeof EN> = {
   'line.tooLateForTalk': 'Поздно болтать.',
   'line.tooMuch': 'Слишком дорого.',
   'line.thatCostsYou': 'Это стоит {price}. Заплатишь, расскажу.',
+  'line.strangerPays': 'Чужим задаром не рассказываю. {price}, тогда поговорим.',
   'line.iKnowWhatYouDid': 'Знаю я твои делишки. Поищи, с кем другим поговорить.',
   'line.notYourKind': 'У моих твое имя на плохом счету. Проезжай.',
   'line.helpMeFirst': 'Чужим не рассказываю. Сперва помоги, потом поговорим.',

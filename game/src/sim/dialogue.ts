@@ -1,12 +1,12 @@
 
 import { optionShort } from './dialogue-rules';
-import { BUSY_LINE, END, handoffQuest, handoffTopic, HANG_UP_LINE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
+import { BUSY_LINE, END, handoffQuest, handoffTopic, HANG_UP_LINE, HUB, REFUSED, STRANGER_TOLL, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
 import { BACK_LINE, isGroup, MOOD_GREETINGS, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_MERGE, TOPIC_ROOT, URGENT_TOPICS, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { raiseEncounter } from './encounters';
-import { coldLine, CONDITIONS, EFFECTS, gateOpen, moodOf, opensHelp, PREPARES } from './dialogue-rules';
+import { coldLine, CONDITIONS, EFFECTS, gateOpen, HELP_OFFERS, moodOf, opensHelp, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
@@ -196,7 +196,7 @@ function routeOf(world: World, npc: Vehicle, topic: Topic, vars: CallVars): stri
 
 function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start, handoff = false): void {
   const prepared = topic.prepare ? PREPARES[topic.prepare](world, npc) : {};
-  call.vars = node === TOLL ? { ...prepared, price: { kind: 'money', amount: TALK_PRICE } } : prepared;
+  call.vars = node === TOLL || node === STRANGER_TOLL ? { ...prepared, price: { kind: 'money', amount: TALK_PRICE } } : prepared;
   if (!handoff) practice(world, 'call', 1, null, `${npc.id}:${topic.id}`);
   const go = node === topic.start ? routeOf(world, npc, topic, call.vars) : node;
   const target = handoffTopic(go);
@@ -298,11 +298,18 @@ export function askTopic(world: World, topicId: TopicId): World {
   });
 }
 
+function hasHelpOffer(world: World, npc: Vehicle): boolean {
+  return askable(world, npc).some((topic) => HELP_OFFERS.includes(topic.id));
+}
+
 function ask(world: World, npc: Vehicle, call: Call, topic: Topic): void {
   if (!call.asked.includes(topic.id)) call.asked.push(topic.id);
   if (isSettled(world, npc, topic)) return say(world, npc.id, world.player.vehicleId, talkOf(npc).repeatLine, {});
   const gate = gateOf(npc, topic);
-  if (gate === 'help' && !opensHelp(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {});
+  if (gate === 'help' && !opensHelp(world, npc)) {
+    if (hasHelpOffer(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {});
+    return enterTopic(world, npc, call, topic, STRANGER_TOLL);
+  }
   enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
 }
 
