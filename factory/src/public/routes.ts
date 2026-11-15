@@ -32,30 +32,26 @@ async function sendBack(ctx: Ctx, store: PublicStore, comment: IssueComment, pos
   await markPost(ctx, command, PUBLIC_SENDER);
 }
 
+export type RouteCheck = { post: number } | { blocked: string };
+
+export function routeCheck(ctx: Ctx, store: PublicStore, comment: IssueComment): RouteCheck {
+  const post = committeePost(ctx, comment.issue);
+  if (post === null) return { blocked: 'came too late, the card has no open committee post' };
+  if (hasCommitteeDecision(ctx, comment.issue)) return { blocked: 'came after a committee approval or reply, so it does not route the card' };
+  if (isOnOlderBuild(ctx, store, comment)) return { blocked: 'is on the post of an older build, so it does not route the card' };
+  if (store.routeAttempted(comment.issue, post)) return { blocked: `came after the route of committee post ${post}, so it does not route the card again` };
+  return { post };
+}
+
 export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> {
   for (const comment of store.pendingRoutes()) {
-    const post = committeePost(ctx, comment.issue);
-    if (post === null) {
-      ctx.log('public', comment.issue, `comment ${comment.id} came too late, the card has no open committee post`);
+    const check = routeCheck(ctx, store, comment);
+    if ('blocked' in check || !store.beginRoute(comment.issue, check.post, ctx.now())) {
+      ctx.log('public', comment.issue, `comment ${comment.id} ${'blocked' in check ? check.blocked : 'came after the route of its committee post, so it does not route the card again'}`);
       store.markRouted(comment.id, ctx.now());
       continue;
     }
-    if (hasCommitteeDecision(ctx, comment.issue)) {
-      ctx.log('public', comment.issue, `comment ${comment.id} came after a committee approval or reply, so it does not route the card`);
-      store.markRouted(comment.id, ctx.now());
-      continue;
-    }
-    if (isOnOlderBuild(ctx, store, comment)) {
-      ctx.log('public', comment.issue, `comment ${comment.id} is on the post of an older build, so it does not route the card`);
-      store.markRouted(comment.id, ctx.now());
-      continue;
-    }
-    if (!store.beginRoute(comment.issue, post, ctx.now())) {
-      ctx.log('public', comment.issue, `comment ${comment.id} came after the route of committee post ${post}, so it does not route the card again`);
-      store.markRouted(comment.id, ctx.now());
-      continue;
-    }
-    await sendBackOnce(ctx, store, comment, post);
+    await sendBackOnce(ctx, store, comment, check.post);
   }
 }
 

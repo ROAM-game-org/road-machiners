@@ -66,7 +66,7 @@ describe('feedback route', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
     expect(await response.json()).toEqual({ status: 'sent' });
-    expect(asked).toEqual([{ origin: 'game', source: 'report', text: 'The truck sinks\ninto the road' }]);
+    expect(asked).toEqual([{ source: 'report', text: 'The truck sinks\ninto the road' }]);
     expect(created[0]).toMatch(/^The truck sinks into the road \[bug,player-report\]/);
     expect(created[0]).toContain('> The truck sinks\n> into the road');
     expect(created[0]).toContain('- Version: 2.24.72+abc1234');
@@ -136,7 +136,7 @@ describe('feedback route', () => {
   it('files a bug reported on the candidate as its own issue that names the release, with no release comment (#1331)', async () => {
     const { url, home, store, created, asked } = await start();
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent' });
-    expect(asked).toEqual([{ origin: 'game', source: 'comment', text: 'The truck sinks\ninto the road' }]);
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
     expect(created).toHaveLength(1);
     expect(created[0]).toMatch(/^The truck sinks into the road \[bug,player-report\]/);
     expect(created[0]).toContain('It came from the release candidate of #40.');
@@ -183,7 +183,7 @@ describe('feedback route', () => {
     store.addProposal(12, 'Faction reputation\nTowns remember you.', NOW);
     setDecision({ ...ACCEPT_BUG, kind: 'feature', relevance: 'other' });
     await send(url, request({ build: 'hash12' }));
-    expect(asked).toEqual([{ origin: 'game', source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Faction reputation' }]);
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Faction reputation' }]);
     expect(store.unsentComments()).toEqual([]);
     expect(created).toHaveLength(1);
     expect(created[0]).toMatch(/\[feature-request,player-report\]/);
@@ -193,7 +193,7 @@ describe('feedback route', () => {
     const { url, store, created, asked, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, route: 'redesign', relevance: 'other' });
     await send(url, request({ build: 'hash12' }));
-    expect(asked).toEqual([{ origin: 'game', source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Card 12 title' }]);
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Card 12 title' }]);
     expect(store.unsentComments()).toEqual([]);
     expect(store.pendingRoutes()).toEqual([]);
     expect(created).toHaveLength(1);
@@ -206,7 +206,7 @@ describe('feedback route', () => {
     expect(response.status).toBe(503);
     expect(asked).toEqual([]);
     expect(created).toEqual([]);
-    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect(store.comment(1)).toBeNull();
     expect((await send(url, request({ build: 'hash12' }))).status).toBe(503);
   });
 
@@ -216,7 +216,7 @@ describe('feedback route', () => {
     setDecision({ ...ACCEPT_BUG, kind: 'question', relevance: 'other' });
     await send(url, request({ build: 'hash12' }));
     expect(created).toEqual([]);
-    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect(store.comment(1)).toMatchObject({ issue: 12, source: 'game', kind: 'question', relevance: 'other' });
   });
 
   it('opens an issue for a build with no open approval post and for an unknown build', async () => {
@@ -240,7 +240,7 @@ describe('feedback route', () => {
     expect(response.status).toBe(503);
     expect(await response.text()).toBe('The report could not be checked now. Try again later.');
     expect(created).toEqual([]);
-    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect(store.comment(1)).toBeNull();
   });
 
   it('limits reports per address per hour with 429 and alerts Hermes', async () => {
