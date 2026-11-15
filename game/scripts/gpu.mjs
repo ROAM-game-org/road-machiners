@@ -10,7 +10,11 @@ const SOFTWARE_LAUNCH_ATTEMPTS = 4;
 const SOFTWARE_LAUNCH_PAUSE_MS = 10000;
 const SOFTWARE_ONLY = ['--disable-dev-shm-usage'];
 
-function gpuArgs() {
+export function gpuArgs(backend = 'default') {
+  if (backend === 'd3d11') {
+    if (process.platform !== 'win32') throw new Error('D3D11 exists only on Windows');
+    return ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--disable-dev-shm-usage'];
+  }
   const angle = ANGLE[process.platform];
   if (!angle) return null;
   return [...angle, '--enable-gpu', '--ignore-gpu-blocklist', '--disable-dev-shm-usage'];
@@ -39,8 +43,8 @@ async function probe(browser) {
   return renderer;
 }
 
-async function launchGpu(chromium, options) {
-  const args = gpuArgs();
+async function launchGpu(chromium, { backend, ...options }) {
+  const args = gpuArgs(backend);
   if (args === null) return { browser: null, why: `there are no GPU flags for ${process.platform}` };
   try {
     return { browser: await chromium.launch({ ...options, args: [...args, ...(options.args ?? [])] }) };
@@ -49,7 +53,7 @@ async function launchGpu(chromium, options) {
   }
 }
 
-async function launchSoftware(chromium, options, why) {
+async function launchSoftware(chromium, { backend, ...options }, why) {
   for (let attempt = 1; ; attempt++) {
     const browser = await chromium.launch({ ...options, args: [...SOFTWARE_ONLY, ...(options.args ?? [])] });
     try {

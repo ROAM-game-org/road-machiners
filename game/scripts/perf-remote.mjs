@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-const USAGE = 'Usage: npm run perf:remote -- <runs> [--profile] [--scenes <id,id>]. Set PERF_HOST in .env to the ssh target of a Windows bench machine with node and git.';
+const USAGE = 'Usage: npm run perf:remote -- <runs> [--profile] [--quick] [--scenes <id,id>] [--backend d3d11]. Set PERF_HOST in .env to the ssh target of a Windows bench machine with node and git.';
 const REMOTE_PATH = 'set "PATH=C:\\Program Files\\nodejs;C:\\Program Files\\Git\\cmd;%PATH%"';
 const REMOTE_GAME = 'roam\\game';
 const BUNDLE = 'tmp/perf-remote.bundle';
@@ -22,9 +22,12 @@ function parseArgs(argv) {
 }
 
 function benchArgsOf(argv) {
-  const scenes = argv.filter((arg) => !['--profile', '--quick', '--capped', '--shots'].includes(arg));
-  const known = scenes.length === 0 || (scenes.length === 2 && scenes[0] === '--scenes');
-  if (!known) throw new Error(USAGE);
+  let rest = argv.filter((arg) => !['--profile', '--quick', '--capped', '--shots'].includes(arg));
+  for (const flag of ['--scenes', '--backend']) {
+    const at = rest.indexOf(flag);
+    if (at !== -1) rest = [...rest.slice(0, at), ...rest.slice(at + 2)];
+  }
+  if (rest.length > 0 || (argv.includes('--backend') && argv[argv.indexOf('--backend') + 1] !== 'd3d11')) throw new Error(USAGE);
   return argv;
 }
 

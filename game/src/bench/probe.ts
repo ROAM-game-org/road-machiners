@@ -389,8 +389,8 @@ type TimerExtension = { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number };
 export class GpuTimer {
   private readonly ext: TimerExtension | null;
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
-    this.ext = gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExtension | null;
+  constructor(private readonly gl: WebGL2RenderingContext, enabled: boolean) {
+    this.ext = enabled ? (gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExtension | null) : null;
   }
 
   get available(): boolean {
@@ -509,7 +509,7 @@ export class Probe {
 
   constructor(private readonly game: Game) {
     this.renderer = game.renderer;
-    this.gpu = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext);
+    this.gpu = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext, !new URLSearchParams(location.search).has('notimer'));
   }
 
   install(): void {
