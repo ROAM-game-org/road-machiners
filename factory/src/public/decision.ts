@@ -5,9 +5,8 @@ export type DecisionKind = 'bug' | 'feature' | 'question' | 'feedback' | 'chatte
 export type DecisionIntent = 'sincere' | 'junk';
 export type Relevance = 'parent' | 'other';
 export type ReplyLanguage = 'en' | 'ru';
-export type Decision = { verdict: 'accept' | 'reject'; intent: DecisionIntent; sincere: number; kind: DecisionKind; route: PublicRoute; relevance: Relevance; work?: number; language?: ReplyLanguage; filing?: boolean };
-export type TextOrigin = 'game' | 'chat';
-export type FilterInput = { origin: TextOrigin; source: 'comment' | 'message' | 'report'; text: string; parent?: string | null; context?: string | null; work?: string[]; addressed?: boolean };
+export type Decision = { verdict: 'accept' | 'reject'; intent: DecisionIntent; sincere: number; kind: DecisionKind; route: PublicRoute; relevance: Relevance; language?: ReplyLanguage };
+export type FilterInput = { source: 'comment' | 'report'; text: string; parent?: string | null };
 export type FilterConfig = Pick<FactoryConfig, 'openaiKey' | 'filterModel' | 'filterTimeoutSeconds' | 'filterJunkMin'>;
 export type Classify = (input: FilterInput) => Promise<Decision>;
 export type PublicFilter = { classify: Classify };

@@ -13,6 +13,7 @@ const reported = new Set<string>();
 const warned = new Set<string>();
 let step = 'starting the page';
 const listeners: (() => void)[] = [];
+const crashScreenListeners: (() => void)[] = [];
 const FOREIGN_NOTE = 'Ignored an error from a script outside the game';
 const MUTED_MESSAGE = /^script error\.?$/i;
 
@@ -69,6 +70,10 @@ export function installCrashScreen(): void {
 
 export function keepRunningOnErrors(to: (text: string) => void): void {
   if (!import.meta.env.DEV) report = to;
+}
+
+export function onCrashScreen(listener: () => void): void {
+  crashScreenListeners.push(listener);
 }
 
 export function onEveryError(listener: () => void): void {
@@ -150,6 +155,7 @@ function onFault(err: unknown, facts: ErrorFacts | null): void {
 function showCrash(err: unknown, facts: ErrorFacts | null): void {
   if (shown) return;
   shown = true;
+  for (const listener of crashScreenListeners) listener();
   const text = crashText(err, facts, { version: GAME_VERSION, step, userAgent: navigator.userAgent, page: location.href });
   const box = document.createElement('div');
   box.className = 'crash-screen';

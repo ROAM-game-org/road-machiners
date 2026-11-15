@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readState } from '../state';
 import type { Classify } from './decision';
-import { CHANNEL, filterOf, publicFake } from './public-fakes';
+import { CHANNEL, filterOf, publicFake, storedComments } from './public-fakes';
 import { publicTick } from './tick-steps';
 
 const accept: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent' });
@@ -24,36 +24,24 @@ describe('publicTick', () => {
     expect(f.store.proposal(8)?.closedAt).toBeNull();
   });
 
-  it('rejects only the comment the filter failed on, reports it once and goes on with the rest', async () => {
+  it('never calls the filter for a chat comment and leaves it stored unclassified', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
-    for (const id of ['a', 'b']) f.store.addComment({ issue: 7, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: 100, author: id, text: id, at: f.clock.now.toISOString() });
-    let calls = 0;
-    const flaky: Classify = async (input) => {
-      calls += 1;
-      if (calls === 1) throw new Error('filter down');
+    f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'a', postChat: CHANNEL, postMessageId: 100, author: 'a', text: 'The winch breaks', at: f.clock.now.toISOString() });
+    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'b', sender: '2', text: 'Same here', at: f.clock.now.toISOString(), toHermes: true, addressed: false });
+    f.store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'c', sender: '3', text: 'nice day', at: f.clock.now.toISOString(), toHermes: true, addressed: false });
+    const filtered: string[] = [];
+    const recording: Classify = async (input) => {
+      filtered.push(input.text);
       return accept(input);
     };
-    await publicTick(f.ctx, filterOf(flaky));
-    expect(f.store.unclassifiedComments(100)).toEqual([]);
-    expect(f.comments.map((comment) => comment.body)).toEqual([expect.stringContaining('From b, bug')]);
-    expect(f.comments[0]!.body).not.toContain('From a');
-    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
-    expect(f.calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
-    await publicTick(f.ctx, filterOf(flaky));
-    expect(calls).toBe(2);
-    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
-  });
-
-  it('maps a reject verdict to the rejected kind', async () => {
-    const f = publicFake();
-    f.store.addProposal(7, 'Winch', f.clock.now);
-    f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
-    f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'a', postChat: CHANNEL, postMessageId: 100, author: 'a', text: 'spam', at: f.clock.now.toISOString() });
-    await publicTick(f.ctx, filterOf(async () => ({ verdict: 'reject', intent: 'junk', sincere: 0.05, kind: 'bug', route: 'none', relevance: 'parent' })));
-    expect(f.store.unclassifiedComments(100)).toEqual([]);
+    await publicTick(f.ctx, filterOf(recording));
+    await publicTick(f.ctx, filterOf(recording));
+    expect(filtered).toEqual([]);
+    expect(storedComments(f.store).map((c) => [c.text, c.classifiedAt, c.kind])).toEqual([['The winch breaks', null, null], ['Same here', null, null], ['nice day', null, null]]);
     expect(f.store.unsentComments()).toEqual([]);
     expect(f.comments).toEqual([]);
+    expect(readState(f.ctx.statePath).failures).toEqual([]);
   });
 });

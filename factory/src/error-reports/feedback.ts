@@ -75,9 +75,9 @@ export class Feedback {
   }
 
   private async filterInput(request: FeedbackRequest, issue: number | null): Promise<FilterInput> {
-    if (issue === null) return { origin: 'game', source: 'report', text: request.text };
+    if (issue === null) return { source: 'report', text: request.text };
     const parent = this.deps.store.parentPitch(issue) ?? (request.build === CANDIDATE_BUILD ? null : await this.cardTitle(issue));
-    return parent === null ? { origin: 'game', source: 'comment', text: request.text } : { origin: 'game', source: 'comment', text: request.text, parent };
+    return parent === null ? { source: 'comment', text: request.text } : { source: 'comment', text: request.text, parent };
   }
 
   private async cardTitle(issue: number): Promise<string> {
