@@ -333,6 +333,7 @@ onEveryError(() => game.holdSaves());
 bootStep('running');
 await uiFonts;
 boot.showText();
+gameContext.watchGraphics(() => game.graphicsFacts());
 gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);

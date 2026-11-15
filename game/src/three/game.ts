@@ -64,7 +64,9 @@ import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
 import { buildWorldViews, sightAround } from "./world-views";
-import { type WebGLSurface } from "./webgl";
+import { drawingRenderer, type WebGLSurface } from "./webgl";
+import { FramePace } from "./frame-pace";
+import type { GraphicsFacts } from "./error-report";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
 import { TruckViews } from "./truck-views";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
@@ -94,7 +96,7 @@ import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
-import { cameraSetting, followRenderScale } from "../ui/camera-setting";
+import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
@@ -202,6 +204,8 @@ export class Game {
   private planFor: World | null = null;
   private readonly plans = new PlanPreparation();
   private last = performance.now();
+  private framesSeen = 0;
+  readonly pace = new FramePace();
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
@@ -358,6 +362,12 @@ export class Game {
 
   get state(): World { return this.world; }
   logTexts(): string[] { return this.hud.logTexts(); }
+  graphicsFacts(): GraphicsFacts {
+    const renderer = drawingRenderer();
+    if (renderer === null) throw new Error('The game has no drawing renderer to report');
+    const drawn = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary() };
+  }
 
   get busy(): boolean { return this.anim !== null; }
 
@@ -1099,6 +1109,7 @@ export class Game {
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    if (this.framesSeen++ > 0) this.pace.note(dt);
     this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
