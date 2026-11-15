@@ -33,8 +33,10 @@ digraph public {
   subgraph cluster_chat {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
-    plugin [label="Plugin\nstops it before Hermes"];
+    plugin [label="Plugin\nstops it before Hermes\nunless it tags the bot"];
+    hermesReply [label="Hermes replies in the thread\nuntrusted text, todo toolset only,\nno committee order"];
     message -> plugin;
+    plugin -> hermesReply [label="@mention"];
   }
 
   filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n60 chat messages an hour per player"];

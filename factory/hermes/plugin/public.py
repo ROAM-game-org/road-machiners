@@ -33,10 +33,10 @@ def public_chats(cfg) -> tuple:
     return (cfg.discussion,) if cfg.proposal_chat == cfg.chat else (cfg.discussion, cfg.proposal_chat)
 
 
-def stops_hermes(raw: dict, cfg) -> bool:
+def stops_hermes(raw: dict, cfg, bot: Optional[Bot] = None) -> bool:
     chat = update_chat(raw)
     if update_kind(raw) == "message":
-        return chat in public_chats(cfg)
+        return chat in public_chats(cfg) and not tags_hermes(raw["message"], bot)
     return chat in (cfg.discussion, cfg.proposal_chat)
 
 
@@ -105,6 +105,12 @@ def mentions(message: dict, bot: Bot) -> bool:
         return True
     entities = (message.get("entities") or []) + (message.get("caption_entities") or [])
     return any(entity.get("type") == "text_mention" and entity.get("user", {}).get("id") == bot.id for entity in entities)
+
+
+def tags_hermes(message: dict, bot: Optional[Bot]) -> bool:
+    """A person's @mention of the bot, not a command, forward or bot post. Only such a public message goes on to Hermes."""
+    text = message.get("text") or message.get("caption")
+    return bot is not None and not is_skipped(message, text) and mentions(message, bot)
 
 
 def is_addressed(message: dict, bot: Optional[Bot]) -> bool:
@@ -256,7 +262,7 @@ def watch_polling_conflicts(cfg, restart: Callable[[], None]) -> None:
 
 
 def handle_public_update(raw: dict, cfg, bot: Optional[Bot] = None) -> bool:
-    stop = stops_hermes(raw, cfg)
+    stop = stops_hermes(raw, cfg, bot)
     try:
         event = public_event(raw, cfg, bot)
         if event is not None:
@@ -281,10 +287,27 @@ def make_public_handler(cfg):
     return on_update
 
 
+# A public turn gets only the in-memory todo list: no shell, files, memory, skills, past sessions or factory tools.
+# An empty list would fall back to the full toolsets, so the list names one harmless toolset.
+PUBLIC_TOOLSETS = ["todo"]
+
+
+def limit_public_toolsets(adapter, cfg) -> None:
+    default = adapter.toolsets_for_source
+
+    def toolsets_for_source(source):
+        if str(getattr(source, "chat_id", None)) in public_chats(cfg):
+            return list(PUBLIC_TOOLSETS)
+        return default(source)
+
+    adapter.toolsets_for_source = toolsets_for_source
+
+
 def make_public_factory(cfg):
     def factory(native, adapter) -> None:
         from telegram.ext import MessageHandler, MessageReactionHandler, filters
 
+        limit_public_toolsets(adapter, cfg)
         chats = [int(cfg.discussion), int(cfg.proposal_chat)]
         callback = make_public_handler(cfg)
         native.add_handler(MessageReactionHandler(callback, chat_id=chats), group=PUBLIC_GROUP)

@@ -1,4 +1,6 @@
-"""Keeps TELEGRAM_ALLOWED_USERS in the Hermes .env equal to the committee, admits every sender in the committee chat, and copies the factory values Hermes's shell needs.
+"""Keeps TELEGRAM_ALLOWED_USERS in the Hermes .env equal to the committee, admits every sender in the committee and player chats, and copies the factory values Hermes's shell needs.
+
+The plugin's public handler stops every player chat message but a tag of the bot, so a player reaches Hermes only by a tag.
 
 The supervised gateway reads its env from $HERMES_HOME/.env, not from the start script.
 So the start script runs this file before the gateway starts, and the plugin calls
@@ -16,6 +18,7 @@ KEY = "TELEGRAM_ALLOWED_USERS"
 PASSED = ("FACTORY_REPO", "GH_CONFIG_DIR")
 GROUP_CHAT_KEY = "TELEGRAM_GROUP_ALLOWED_CHATS"
 COMMITTEE_CHAT_KEY = "FACTORY_COMMITTEE_CHAT"
+PUBLIC_CHAT_KEYS = ("FACTORY_PUBLIC_DISCUSSION", "FACTORY_PROPOSAL_CHAT")
 
 
 def with_allowlist(text: str, ids) -> str:
@@ -55,12 +58,16 @@ def write_passed(env_path: Path, environ) -> None:
 
 
 def write_group_chat(env_path: Path, environ) -> None:
-    """Admits every sender in the committee chat. A missing or non-numeric chat id stops the start."""
-    chat = environ.get(COMMITTEE_CHAT_KEY, "")
-    if not chat.lstrip("-").isdigit():
-        raise KeyError(f"The Hermes container env lacks a numeric {COMMITTEE_CHAT_KEY}.")
+    """Admits every sender in the committee chat and the player chats. A missing or non-numeric chat id stops the start."""
+    chats = []
+    for key in (COMMITTEE_CHAT_KEY, *PUBLIC_CHAT_KEYS):
+        chat = environ.get(key, "")
+        if not chat.lstrip("-").isdigit():
+            raise KeyError(f"The Hermes container env lacks a numeric {key}.")
+        if chat not in chats:
+            chats.append(chat)
     current = env_path.read_text() if env_path.exists() else ""
-    _replace(env_path, with_values(current, {GROUP_CHAT_KEY: chat}))
+    _replace(env_path, with_values(current, {GROUP_CHAT_KEY: ",".join(chats)}))
 
 
 def main() -> None:
