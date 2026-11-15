@@ -177,6 +177,16 @@ export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip
     .map((c) => ({ part: c.part, amount: blastAmount(v, c, shields(cells, p, c), round, 1 - meters(p, c.center) / radius) }));
 }
 
+export function blastReach(v: Vehicle, p: Vec, radius: number): { unit: number; reach: number } | null {
+  if (dist(v.pos, p) > radius + Math.hypot(footprint(v.chassisId), sideReach(v.chassisId))) return null;
+  let best: { unit: number; reach: number } | null = null;
+  for (const c of blastCells(v)) {
+    const reach = 1 - meters(p, c.center) / radius;
+    if (reach > 0 && (!best || reach > best.reach)) best = { unit: c.pose.unit, reach };
+  }
+  return best;
+}
+
 function blastCells(v: Vehicle): BlastCell[] {
   return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => {
     const below = belowDeck(v.chassisId, it);

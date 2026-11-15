@@ -23,7 +23,7 @@ import { CARD_CLOCK, CARD_ORDER, CardBatch, batchesOf, createCardShapes, GLOW_IN
 import { InkLayer } from './inkLayer';
 import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
-import { Blasts, type BlastGround } from './particles/blasts';
+import { Blasts, MUZZLE_FLASH, type BlastGround } from './particles/blasts';
 import { Emissions } from './particles/emissions';
 import { moveTo } from '../../ui/dom';
 import { layerPointOf } from '../../ui/ui-size';
@@ -34,9 +34,9 @@ const RISE_METERS = 1.5;
 const LABEL_ROW_PX = 22;
 
 const FLASH = {
-  life: 0.07,
+  life: MUZZLE_FLASH.star,
   endScale: 0.3,
-  max: 48,
+  max: 96,
   order: CARD_ORDER.glow + 1,
 };
 
@@ -70,7 +70,7 @@ function flashGeometry(): THREE.BufferGeometry {
 
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 
-class MuzzleFlashes {
+export class MuzzleFlashes {
   private flashes: Flash[] = [];
   private turn = new THREE.Quaternion();
   private roll = new THREE.Quaternion();
