@@ -527,7 +527,7 @@
 
 #ui .software {
   width: var(--panel-l);
-  max-width: calc(100vw - 2 * var(--space-5));
+  max-width: calc(var(--layer-w) - 2 * var(--space-5));
   text-align: center;
 }
 #ui .software h3 {
