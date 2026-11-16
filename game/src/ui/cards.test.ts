@@ -322,3 +322,19 @@ describe('the speed dial scale', () => {
     expect(speedDialSvg(0, 60, 107, null)).toContain('dial-redline');
   });
 });
+
+describe("stats of the new gear", () => {
+  const shown = (defId: string) => partStats(world, part(defId)).map((s) => `${en(s.label)} ${en(s.text)}`);
+
+  it("shows the battery's gun power and its extra fuel use", () => {
+    expect(shown("gunBattery")).toEqual(expect.arrayContaining(["Gun power +1", "Fuel use +5%"]));
+  });
+
+  it("shows the periscope's sight gain", () => {
+    expect(shown("periscope")).toContain("Sight +20%");
+  });
+
+  it("shows the sacks' armor when loaded and their hold cell", () => {
+    expect(shown("sacks")).toEqual(expect.arrayContaining(["Armor when loaded 6", "Cargo cells +1"]));
+  });
+});

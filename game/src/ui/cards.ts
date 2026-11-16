@@ -1,11 +1,11 @@
 
 import { oilSlickLength } from "../data/utilities";
 import { chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
-import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair, SACK_ARMOR } from "../data/parts";
 import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
-import { bareGrid, cargoCellsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { bareGrid, cargoCellsOn, cellCount, holdCellsOf, mountedParts, type Cell } from "../sim/grid";
 import { isJunk, maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -683,7 +683,7 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   weapon: weaponStats,
   engine: (_, part) => engineStats(part),
   armor: (_, part) => armorStats(part),
-  accessory: (_, part) => armorStats(part),
+  accessory: accessoryStats,
   cargo: cargoStats,
   scanner: (_, part) => [stat("scanner", t("stat.detection"), meters(wornDef<ScannerDef>(part).range), "m", "more")],
   store: (_, part) => storeStats(part),
@@ -696,7 +696,28 @@ function utilityStats(part: PartInstance): Stat[] {
   const d = wornDef<UtilityDef>(part);
   const reload = d.reload === null ? [] : [stat("reload", t("stat.recharge"), d.reload, "t", "less")];
   const lasts = "turns" in d.effect ? [stat("clock", t("stat.lasts"), d.effect.turns, "t", "more")] : [];
-  return [...reload, ...utilityReach(d), ...lasts];
+  return [...reload, ...utilityReach(d), ...lasts, ...passiveGains(d)];
+}
+
+function percentUp(share: number): Msg {
+  return t("chassis.row.percentUp", { n: Math.round(share * 100) });
+}
+
+function passiveGains(d: UtilityDef): Stat[] {
+  const e = d.effect;
+  if (e.type === "battery") {
+    const power = { ...stat("power", t("stat.gunPower"), e.power, null, "more"), text: signed(e.power, 0) };
+    return [power, { ...stat("fuel", t("stat.fuelUse"), e.fuel, null, "less"), text: percentUp(e.fuel) }];
+  }
+  if (e.type === "periscope") return [{ ...stat("scanner", t("effect.sight"), e.sight, null, "more"), text: percentUp(e.sight - 1) }];
+  return [];
+}
+
+function accessoryStats(world: World, part: PartInstance): Stat[] {
+  const cells = holdCellsOf(playerVehicle(world).chassisId, part.defId);
+  if (cells === 0) return armorStats(part);
+  const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
+  return [...armorStats(part), stat("load", t("stat.loadedArmor"), SACK_ARMOR, null, "more"), gained];
 }
 
 function utilityReach(d: UtilityDef): Stat[] {

@@ -495,6 +495,7 @@ export const SCREENS: Translation<typeof EN> = {
   'stat.heat': 'Нагрев',
   'stat.armor': 'Броня',
   'stat.blastArmor': 'Защита от взрыва',
+  'stat.loadedArmor': 'Броня с грузом',
   'stat.ram': 'Урон тараном',
   'stat.repair.none': 'Ремонт: только в мастерской',
   'stat.repair.capped': 'Полевой ремонт: частичный',

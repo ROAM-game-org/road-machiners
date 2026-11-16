@@ -454,6 +454,7 @@ export const SCREENS = {
   'stat.heat': 'Heat',
   'stat.armor': 'Armor',
   'stat.blastArmor': 'Blast armor',
+  'stat.loadedArmor': 'Armor when loaded',
   'stat.ram': 'Ram damage',
   'stat.repair.none': 'Repair: shop only',
   'stat.repair.capped': 'Field repair: partial',

@@ -89,6 +89,7 @@ const TRADER_SPARES: SpareTable = {
     { value: "scrapPanels", weight: 2 },
     { value: "flatFour", weight: 1 },
     { value: "rack", weight: 1 },
+    { value: "spareTire", weight: 2 },
   ],
   count: [
     { value: 0, weight: 2 },
