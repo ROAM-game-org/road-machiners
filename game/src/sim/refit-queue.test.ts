@@ -4,7 +4,7 @@ import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
 import { WORK } from '../data/utilities';
 import { knockOutNpc } from './defeat';
-import { corePart, findSpot, gridOf, MOUNT_CELLS, type Spot } from './grid';
+import { corePart, findSpot, gridOf, holdCell, MOUNT_CELLS, type Spot } from './grid';
 import { makePart } from './factory';
 import { addGoods, mountPart, moveItem, planItemMove, plannedRefit, plannedRefitTurns, plannedTruck, queueRefit, startRefit } from './inventory';
 import { advanceJobs } from './jobs';
@@ -273,7 +273,9 @@ describe('own moves queued behind a pickup', () => {
 
   it('applies a cargo-only plan the moment its turn comes', () => {
     const { w, raider } = downed();
-    me(w).items.push({ id: 'crate', kind: 'good', good: 'scrap', x: 0, y: gridOf(me(w)).h - 1, rot: 0 });
+    const g = gridOf(me(w));
+    const cell = holdCell(g, g.hold.lastIndexOf('.'));
+    me(w).items.push({ id: 'crate', kind: 'good', good: 'scrap', x: cell.x, y: cell.y, rot: 0 });
     const queued = take(w, raider.id, 'mg');
     const crate = me(queued).items.find((it) => it.id === 'crate')!;
     const to = spareSpot(queued, crate);

@@ -12,7 +12,7 @@ import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { corePart, gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { lessonTrade, pickLesson, truckWeaknesses } from './lessons';
-import { vehicleMass } from './mass';
+import { loadMass } from './mass';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { PartInstance, Vehicle, World } from './types';
 
@@ -168,7 +168,7 @@ describe('truck weaknesses', () => {
     const v = playerVehicle(w);
     expect(truckWeaknesses(w, v)).not.toContain('overloaded');
     let n = 0;
-    while (vehicleMass(v) <= chassisDef(v.chassisId).ratedMass) v.items.push({ id: `heavy${n++}`, x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' });
+    while (loadMass(v) <= chassisDef(v.chassisId).ratedMass) v.items.push({ id: `heavy${n++}`, x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' });
     expect(truckWeaknesses(w, v)).toContain('overloaded');
   });
 
