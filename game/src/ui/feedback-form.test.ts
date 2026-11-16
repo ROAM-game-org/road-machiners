@@ -13,6 +13,7 @@ const context: ReportContext = {
   version: "1.2.3+abc1234",
   userAgent: "test",
   language: "en",
+  graphics: null,
   screen: { width: 1280, height: 720, pixelRatio: 1, uiSize: 1 },
   turn: 12,
   log: ["Day 1 08:00 Arrived"],
