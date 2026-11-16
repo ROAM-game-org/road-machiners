@@ -6,7 +6,7 @@ export type DecisionIntent = 'sincere' | 'junk';
 export type Relevance = 'parent' | 'other';
 export type ReplyLanguage = 'en' | 'ru';
 export type Decision = { verdict: 'accept' | 'reject'; intent: DecisionIntent; sincere: number; kind: DecisionKind; route: PublicRoute; relevance: Relevance; language?: ReplyLanguage };
-export type FilterInput = { source: 'comment' | 'report'; text: string; parent?: string | null };
+export type FilterInput = { source: 'comment' | 'report'; text: string; parent?: string | null; origin?: 'chat'; context?: string | null };
 export type FilterConfig = Pick<FactoryConfig, 'openaiKey' | 'filterModel' | 'filterTimeoutSeconds' | 'filterJunkMin'>;
 export type Classify = (input: FilterInput) => Promise<Decision>;
 export type PublicFilter = { classify: Classify };

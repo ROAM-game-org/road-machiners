@@ -37,14 +37,14 @@ digraph public {
     hermes [label="Hermes, the one handler\nof every addressed message\nuntrusted text, public prompt\nno committee order"];
     tools [label="Player tools\nfactory player on the host\nonly this player's\nown messages"];
     hermesReply [label="Hermes answers in the thread\nissue numbers and statuses\nonly from tool results"];
-    untagged [label="Stored, never to Hermes\nuntagged chat, thread replies\nand replies to other players\nno answer, no card", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+    untagged [label="Stored, never to Hermes\nuntagged chat outside a thread\nno answer, no card", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
     message -> plugin;
     plugin -> hermes [label="a tag of the bot or\na reply to Hermes's answer"];
     hermes -> tools;
     hermes -> hermesReply [label="every message it gets"];
   }
 
-  filter [label="Decisions API filter\nspam, kind, about the build\ngame reports only\nnever a chat message"];
+  filter [label="Decisions API filter\nspam, kind, about the build\ngame reports and\nuntagged thread replies"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
   answerJob [label="Answer job, one at a time\nat most FACTORY_ANSWERS_PER_DAY\nSonnet reads and runs\nthe game on main,\nreplies with its answer"];
@@ -80,4 +80,5 @@ digraph public {
   filter -> rejected [label="spam"];
   plugin -> ignored;
   plugin -> untagged;
+  plugin -> filter [label="untagged reply in a\nproposal or build thread"];
 }

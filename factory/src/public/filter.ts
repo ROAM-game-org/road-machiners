@@ -6,6 +6,16 @@ import type { PublicRoute } from './store';
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
 const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', import.meta.url)), 'utf8').trim();
 
+const CHAT_JUNK = {
+  type: 'choice',
+  name: 'junk',
+  instructions: 'A person wrote this in the game\'s Telegram chat, under a proposal or a test build of the game. Read it together with the thread and the message it replies to. People write casually: short, rude, in capitals, or angry at the devs. Is it about the game, its builds or the people in the chat, or is it junk?',
+  choices: [
+    { value: 'feedback', description: 'Anything about the game, its builds or the people in the chat, however short, rude or casual: a bug, a wish, a question, an opinion, thanks, a greeting or talk between players. An insult at the devs that comes with a request is still feedback. "the winch snaps on hills" "both ideas are bad, redo them" "nice build" "who else is testing?"' },
+    { value: 'junk', description: 'Not about the game or the people in the chat: ads, job offers, scams, lists of bot mentions or gibberish. Ads come in any language, often Chinese, and often end with a contact handle. "earn 500 a day, write @x" "空闲时间兼职 @abc12" "@abcbot @defbot @ghibot" "asdf asdf"' },
+  ],
+};
+
 const GAME_JUNK = {
   type: 'choice',
   name: 'junk',
@@ -118,12 +128,13 @@ const hasParent = (input: FilterInput): input is FilterInput & { parent: string 
 
 function inputText(input: FilterInput): string {
   const thread = hasParent(input) ? `Thread: ${input.parent.trim()}\n\n` : '';
-  return `Game: ${GAME}\n\n${thread}Player text: ${input.text}`;
+  const replying = input.context ? `Replying to: ${input.context.replace(/\s+/g, ' ').trim()}\n\n` : '';
+  return `Game: ${GAME}\n\n${thread}${replying}Player text: ${input.text}`;
 }
 
 function commentQuestions(input: FilterInput): Question[] {
   const relevance = hasParent(input) ? [RELEVANCE] : [];
-  return [GAME_JUNK, COMMENT_KIND, ROUTE, ...relevance, LANGUAGE];
+  return [input.origin === 'chat' ? CHAT_JUNK : GAME_JUNK, COMMENT_KIND, ROUTE, ...relevance, LANGUAGE];
 }
 
 function questionsFor(input: FilterInput): Question[] {
