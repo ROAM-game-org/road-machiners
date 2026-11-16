@@ -3,7 +3,7 @@ import { CRATE_MASS, GOODS } from '../data/goods';
 import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
-import { gunSpans, openArcShares, spanSides, type Side } from './armor';
+import { gunLayoutKey, gunSpans, openArcShares, spanSides, type Side } from './armor';
 import { gunsBySide } from './fight-odds';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
@@ -234,18 +234,18 @@ type RankedSpot = { spot: Spot; sides: Side[] };
 const GUN_SPOTS = new Map<string, RankedSpot[]>();
 
 function rankedGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
-  const key = `${v.chassisId}|${JSON.stringify(partDef(item.part.defId))}`;
+  const key = `${JSON.stringify(partDef(item.part.defId))}|${gunLayoutKey(v)}`;
   let spots = GUN_SPOTS.get(key);
   if (!spots) GUN_SPOTS.set(key, (spots = rankGunSpots(v, item)));
   return spots;
 }
 
 function rankGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
-  const core = { ...v, items: v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core') };
+  const core = { ...v, items: v.items.filter((it) => it.kind === 'part' && (partDef(it.part.defId).kind === 'core' || partDef(it.part.defId).tall)) };
   const rank = (spot: Spot) => {
     const gun = { ...item, ...spot };
     const bare = { ...core, items: [...core.items, gun] };
-    return { spot, sides: spanSides(gunSpans(bare, gun)), share: openArcShares(bare)[0] };
+    return { spot, sides: spanSides(gunSpans(bare, gun)), share: Math.min(...openArcShares(bare)) };
   };
   return alongSpots(mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon)).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
 }

@@ -464,7 +464,7 @@ describe('shadows of tall parts', () => {
     for (const gun of mountedItems(v, 'weapon')) {
       const spans = gunSpans(v, gun);
       for (const angle of [0, 30, -30]) expect(spansHold(spans, angle)).toBe(true);
-      expect(gunBlockers(v, gun)).toEqual([]);
+      expect(gunBlockers(v, gun).map((b) => b.id)).not.toContain(coreItem(v, 'cab').id);
     }
   });
 
@@ -508,6 +508,45 @@ describe('shadows of tall parts', () => {
     const v = truckWith(w, 'hauler', []);
     putGun(w, v, 'cannon', freeMounts(w, v, 'cannon', 2).at(-1)!);
     expect(spanDegrees(gunSpans(v, itemOf(v, 'cannon')))).toBe(Math.min((partDef('cannon') as WeaponDef).arc, 360));
+  });
+});
+
+describe('guns shadow guns', () => {
+  function vanWithTailGatling() {
+    const w = emptyWorld();
+    const v = truckWith(w, 'van', []);
+    const tail = freeMounts(w, v, 'gatling').reduce((a, b) => (b.y > a.y ? b : a));
+    putGun(w, v, 'gatling', tail);
+    return { w, v, gatling: itemOf(v, 'gatling') };
+  }
+
+  function gunAhead(w: World, v: Vehicle, of: GridItem, rot: Rot = 0): { x: number; y: number; rot: Rot } {
+    const spots = freeMounts(w, v, 'mg', rot).filter((s) => s.y < of.y && rectOf({ ...of, ...s, id: 'p' }).x0 < rectOf(of).x1 && rectOf({ ...of, ...s, id: 'p' }).x1 > rectOf(of).x0);
+    return spots.reduce((a, b) => (b.y > a.y ? b : a));
+  }
+
+  it('a gun ahead of the van tail gatling cuts its open share (#1678)', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    const alone = spanDegrees(gunSpans(v, gatling));
+    putGun(w, v, 'mg', gunAhead(w, v, gatling));
+    expect(spanDegrees(gunSpans(v, gatling))).toBeLessThan(alone);
+    expect(gunBlockers(v, gatling).map((b) => b.id)).toContain(itemOf(v, 'mg').id);
+  });
+
+  it('two guns on one floor shadow each other', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    putGun(w, v, 'mg', gunAhead(w, v, gatling, 2));
+    const mg = itemOf(v, 'mg');
+    expect(gunBlockers(v, mg).map((b) => b.id)).toContain(gatling.id);
+    expect(openArcShares(v).every((share) => share < 1)).toBe(true);
+  });
+
+  it('a broken gun still shadows the guns behind it', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    putGun(w, v, 'mg', gunAhead(w, v, gatling));
+    const working = spanDegrees(gunSpans(v, gatling));
+    (itemOf(v, 'mg') as Extract<GridItem, { kind: 'part' }>).part.hp = 0;
+    expect(spanDegrees(gunSpans(v, gatling))).toBe(working);
   });
 });
 

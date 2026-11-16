@@ -40,17 +40,36 @@ function topAbove(root: THREE.Object3D, item: GridItem, floor: number): number {
   return top - floor;
 }
 
+function gunTopAbove(root: THREE.Object3D, item: GridItem, floor: number): number {
+  const own = ['head', 'mount'].flatMap((piece) => root.getObjectByName(`${item.id} ${piece}`) ?? []);
+  return Math.max(...own.map((o) => new THREE.Box3().setFromObject(o).max.y)) - floor;
+}
+
+function riseOf(root: THREE.Object3D, item: GridItem, floor: number): number {
+  if (item.kind === 'part' && partDef(item.part.defId).kind === 'weapon') return gunTopAbove(root, item, floor);
+  return topAbove(root, item, floor);
+}
+
 describe('fire cover heights follow the models', () => {
   it.each(Object.keys(TALL_RISE))('%s stands as high as its rise says', (defId) => {
     const { v, item, floor } = aloneOnDeck(defId);
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     view.root.updateMatrixWorld(true);
-    expect(Math.abs(topAbove(view.root, item, floor) - TALL_RISE[defId])).toBeLessThanOrEqual(RISE_TOLERANCE);
+    expect(Math.abs(riseOf(view.root, item, floor) - TALL_RISE[defId])).toBeLessThanOrEqual(RISE_TOLERANCE);
   });
 
   it('every tall part that is not a cab has a rise', () => {
     const tall = Object.keys(PARTS).filter((id) => partDef(id).tall && partDef(id).kind !== 'core');
     expect(tall.sort()).toEqual(Object.keys(TALL_RISE).sort());
+  });
+
+  it('every gun is tall, so it shadows the guns behind it', () => {
+    const short = Object.keys(PARTS).filter((id) => partDef(id).kind === 'weapon' && !partDef(id).tall);
+    expect(short).toEqual([]);
+  });
+
+  it.each(Object.keys(PARTS).filter((id) => partDef(id).kind === 'weapon'))('%s rises above the gun clearance', (defId) => {
+    expect(TALL_RISE[defId]).toBeGreaterThan(GUN_CLEARANCE);
   });
 
   it.each(Object.keys(PARTS).filter((id) => partDef(id).kind === 'weapon'))('%s head sits no lower than the gun clearance over its deck', (defId) => {
