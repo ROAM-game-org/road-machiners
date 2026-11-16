@@ -145,7 +145,9 @@ export type UtilityEffect =
   | { type: 'emitter'; radius: number; turns: number }
   | { type: 'flare'; radius: number; turns: number; minRange: number; maxRange: number }
   | { type: 'crane' }
-  | { type: 'scraper' };
+  | { type: 'scraper' }
+  | { type: 'battery'; power: number; fuel: number }
+  | { type: 'periscope'; sight: number };
 export type UtilityEffectType = UtilityEffect['type'];
 
 export type UtilityDef = PartBase & {
@@ -266,6 +268,8 @@ const PART_BULK: Record<string, PartBulk> = {
   flareCannon: { w: 1, h: 1 },
   scrapersKnife: { w: 1, h: 2 },
   emitter: { w: 2, h: 2 },
+  gunBattery: { w: 1, h: 1 },
+  periscope: { w: 1, h: 1 },
   stockEngine: { w: 2, h: 2 },
   tunedEngine: { w: 2, h: 2 },
   flatFour: { w: 2, h: 2 },

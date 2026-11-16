@@ -157,6 +157,8 @@ export const PART_MODELS: Record<string, ModelName> = {
   flareCannon: 'util_flare',
   scrapersKnife: 'util_scraper',
   emitter: 'util_emitter',
+  gunBattery: 'good_batteries',
+  periscope: 'scanner',
 
   scrap: 'good_scrap',
   salt: 'good_salt',

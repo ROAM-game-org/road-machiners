@@ -1,7 +1,7 @@
 
 import { offRoadWear } from './chassis-features';
 import { ECONOMY } from '../data/goods';
-import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, type ShieldDef, type UtilityDef, type WeaponDef } from '../data/parts';
+import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, type ShieldDef, type UtilityDef, type UtilityEffect, type WeaponDef } from '../data/parts';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { CONDITION, WEAR } from '../data/wear';
 import { playerVehicle } from './damage';
@@ -154,7 +154,11 @@ const wornShield: Worn<ShieldDef> = (def, hp, steps) => ({ ...def, hp, armor: de
 
 const wornScanner: Worn<ScannerDef> = (def, hp, steps) => ({ ...def, hp, range: def.range * worse(steps) });
 
-const wornUtility: Worn<UtilityDef> = (def, hp, steps) => ({ ...def, hp, reload: wornReloadTurns(def.reload, steps) });
+const wornUtility: Worn<UtilityDef> = (def, hp, steps) => ({ ...def, hp, reload: wornReloadTurns(def.reload, steps), effect: wornEffect(def.effect, steps) });
+
+function wornEffect(effect: UtilityEffect, steps: number): UtilityEffect {
+  return effect.type === 'battery' ? { ...effect, power: effect.power * worse(steps) } : effect;
+}
 
 const WORN: Partial<Record<PartKind, Worn<PartDef>>> = {
   weapon: wornWeapon as Worn<PartDef>,

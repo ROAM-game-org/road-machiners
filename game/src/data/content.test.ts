@@ -62,7 +62,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
   cargo: ["panniers", "haulingRack"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",
-    "smokeMortar", "flareCannon", "scrapersKnife", "emitter",
+    "smokeMortar", "flareCannon", "scrapersKnife", "emitter", "gunBattery", "periscope",
   ],
 };
 const addedGoods = ["grain", "textiles", "tools", "batteries", "electronics"];
@@ -233,8 +233,8 @@ describe("equipment variety", () => {
 describe("utilities", () => {
   const utilities = Object.values(PARTS).filter((p) => p.kind === "utility");
 
-  it("prices each of the eight utilities inside its one tier's effort band", () => {
-    expect(utilities).toHaveLength(8);
+  it("prices each of the ten utilities inside its one tier's effort band", () => {
+    expect(utilities).toHaveLength(10);
     for (const def of utilities) {
       const [lo, hi] = EFFORT.bands[def.tier].utility;
       const effort = def.value / EFFORT.wage[def.tier];
@@ -243,9 +243,9 @@ describe("utilities", () => {
     }
   });
 
-  it("gives a reload to every active utility and none to the crane and the scraper", () => {
+  it("gives a reload to every active utility and none to the passive ones", () => {
     const passive = utilities.filter((def) => def.reload === null).map((def) => def.effect.type).sort();
-    expect(passive).toEqual(["crane", "scraper"]);
+    expect(passive).toEqual(["battery", "crane", "periscope", "scraper"]);
   });
 
   it("stocks every utility in a stall or garage and drops it as field loot", () => {

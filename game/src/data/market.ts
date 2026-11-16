@@ -267,7 +267,7 @@ const SHOP_DATA: Record<string, ShopData> = {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
         'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
-        'longRifle', 'heavyMg', 'stockEngine', 'flatFour',
+        'longRifle', 'heavyMg', 'stockEngine', 'flatFour', 'gunBattery',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
@@ -283,7 +283,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['rack', 'panniers', 'haulingRack', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['rack', 'panniers', 'haulingRack', 'sacks', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -298,7 +298,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'plates', 'jerrycans', 'oilSpiller', 'flareCannon'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'periscope', 'plates', 'jerrycans', 'oilSpiller', 'flareCannon'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -313,7 +313,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['jerrycans', 'supplyLocker', 'rack', 'panniers', 'scrapPanels', 'plates', 'mg', 'scanner'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['jerrycans', 'supplyLocker', 'rack', 'panniers', 'sacks', 'scrapPanels', 'plates', 'mg', 'scanner', 'periscope'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],

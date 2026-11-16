@@ -5,10 +5,10 @@ import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { corePart, coreParts, mountedParts } from './grid';
 import type { Vehicle, World } from './types';
 import { addState } from './states';
-import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, plainMaxSpeed, workingEngineCapacity, suppliesCap, vehicleStats, gunReach } from './stats';
+import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, plainFuelPerTile, plainMaxSpeed, workingEngineCapacity, suppliesCap, vehicleStats, gunReach } from './stats';
 import { endTurn } from './world';
 import { CHASSIS } from '../data/chassis';
-import { PARTS, type EngineDef, type StoreDef } from '../data/parts';
+import { PARTS, type EngineDef, type StoreDef, type UtilityDef } from '../data/parts';
 import { makePart } from './factory';
 import { mountPart, stowPart } from './inventory';
 import { addVehicle, emptyWorld } from './testkit';
@@ -544,5 +544,45 @@ describe('gunReach', () => {
     const bare = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 50, y: 40 });
     expect(gunReach(w, armed)).toBe(Math.max(...vehicleStats(w, armed).weapons.map((mw) => mw.def.range)));
     expect(gunReach(w, bare)).toBe(RULES.arriveRadius);
+  });
+});
+
+describe('the battery', () => {
+  const truckWith = (parts: string[]) => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', ...parts], { x: 40, y: 40 });
+    return { w, v, battery: mountedParts(v, 'utility').find((p) => p.defId === 'gunBattery') };
+  };
+  const effectOf = () => (PARTS.gunBattery as UtilityDef).effect as { power: number; fuel: number };
+
+  it('adds its power to the gun capacity and its share to the fuel per tile while it works', () => {
+    const plain = truckWith([]);
+    const { w, v } = truckWith(['gunBattery']);
+    expect(workingEngineCapacity(v)! - workingEngineCapacity(plain.v)!).toBeCloseTo(effectOf().power);
+    expect(plainFuelPerTile(w, v) / plainFuelPerTile(plain.w, plain.v)).toBeCloseTo(1 + effectOf().fuel);
+  });
+
+  it('two batteries add twice', () => {
+    const plain = truckWith([]);
+    const { w, v } = truckWith(['gunBattery', 'gunBattery']);
+    expect(workingEngineCapacity(v)! - workingEngineCapacity(plain.v)!).toBeCloseTo(2 * effectOf().power);
+    expect(plainFuelPerTile(w, v) / plainFuelPerTile(plain.w, plain.v)).toBeCloseTo(1 + 2 * effectOf().fuel);
+  });
+
+  it('a worn battery adds less power', () => {
+    const plain = truckWith([]);
+    const { v, battery } = truckWith(['gunBattery']);
+    battery!.wear = 3;
+    const added = workingEngineCapacity(v)! - workingEngineCapacity(plain.v)!;
+    expect(added).toBeGreaterThan(0);
+    expect(added).toBeLessThan(effectOf().power);
+  });
+
+  it('a broken battery gives no power and costs no fuel', () => {
+    const plain = truckWith([]);
+    const { w, v, battery } = truckWith(['gunBattery']);
+    battery!.hp = 0;
+    expect(workingEngineCapacity(v)).toBeCloseTo(workingEngineCapacity(plain.v)!);
+    expect(plainFuelPerTile(w, v)).toBeCloseTo(plainFuelPerTile(plain.w, plain.v));
   });
 });
