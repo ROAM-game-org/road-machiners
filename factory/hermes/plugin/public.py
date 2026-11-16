@@ -40,10 +40,10 @@ def public_chats(cfg) -> tuple:
     return (cfg.discussion,) if cfg.proposal_chat == cfg.chat else (cfg.discussion, cfg.proposal_chat)
 
 
-def stops_hermes(raw: dict, cfg) -> bool:
+def stops_hermes(raw: dict, cfg, bot: Optional[Bot] = None) -> bool:
     chat = update_chat(raw)
     if update_kind(raw) == "message":
-        return chat in public_chats(cfg) and not to_hermes(raw["message"])
+        return chat in public_chats(cfg) and not to_hermes(raw["message"], cfg, bot)
     return chat in (cfg.discussion, cfg.proposal_chat)
 
 
@@ -145,13 +145,11 @@ def replies_to_bot(message: dict, cfg, bot: Bot) -> bool:
     return not is_factory_post(cfg, str(message["chat"]["id"]), replied["message_id"])
 
 
-def to_hermes(message: dict) -> bool:
-    """Every person's message in a player chat goes on to Hermes, the one handler of player chat. Commands, forwards and bot posts never go on."""
-    return not is_skipped(message, message.get("text") or message.get("caption"))
+def to_hermes(message: dict, cfg, bot: Optional[Bot]) -> bool:
+    return not is_skipped(message, message.get("text") or message.get("caption")) and addresses_bot(message, cfg, bot)
 
 
 def addresses_bot(message: dict, cfg, bot: Optional[Bot]) -> bool:
-    """An @mention of the bot, or a reply to the bot that is no proposal or build post. Hermes answers other chat only when it clearly needs it."""
     return bot is not None and (mentions(message, bot) or replies_to_bot(message, cfg, bot))
 
 
@@ -213,7 +211,7 @@ def comment_event(raw: dict, message: dict, cfg, bot: Optional[Bot]) -> Optional
         "updateId": raw["update_id"], "kind": "comment", "chat": str(message["chat"]["id"]),
         "messageId": message["message_id"], "threadId": reply["message_id"] if reply else message.get("message_thread_id"),
         "author": author_of(message), "sender": sender_of(message), "text": text, "at": iso_date(message["date"]),
-        "context": reply_context(message), "toHermes": True, "addressed": addresses_bot(message, cfg, bot), "images": images_of(message),
+        "context": reply_context(message), "toHermes": to_hermes(message, cfg, bot), "addressed": addresses_bot(message, cfg, bot), "images": images_of(message),
     }
 
 
@@ -310,7 +308,7 @@ def watch_polling_conflicts(cfg, restart: Callable[[], None]) -> None:
 
 
 def handle_public_update(raw: dict, cfg, bot: Optional[Bot] = None, addressed: Optional[Addressed] = None) -> bool:
-    stop = stops_hermes(raw, cfg)
+    stop = stops_hermes(raw, cfg, bot)
     try:
         event = public_event(raw, cfg, bot)
         if event is not None:
@@ -458,11 +456,8 @@ def make_public_tool_gate(cfg, session_env: Callable[[str], str]):
 # So a request from a player chat goes out with this prompt in their place, and the provider never sees them.
 PUBLIC_PROMPT = (
     "You are the bot of ROAM, a turn-based wasteland truck RPG, in its public player chat. An AI factory builds the game from GitHub issues and player votes. "
-    "You see every player message in this chat, tagged or not, and you alone handle it. Nothing else answers it, files it, adds it to an issue or queues work for it. "
-    "For each message decide: answer, act with a tool, or stay silent. Stay silent by responding with exactly [SILENT]. "
-    "When they tagged you or replied to you, answer short and direct in their language and say what you did. "
-    "Ordinary chat between players, greetings, thanks, jokes and talk that needs nothing from you get [SILENT], with no tool call. "
-    "Answer an untagged message only when it plainly asks the bot or the factory something, or reports a bug, and then say what you did. "
+    "You see only the messages that tag you or reply to your own answers, and you alone handle them. Nothing else answers them, files them, adds them to an issue or queues work for them. "
+    "Answer every message you see, short and direct in their language, and say what you did. "
     "Look before you answer: game_search and game_read read the game's code, docs and data on main, the released game, and dev, the next release. Start with CLAUDE.md and game/docs/DESIGN.md. "
     "game_history lists their commits, by path or message words, and shows what a commit changed. "
     "issue_search and issue_read read the repo's public issues and pull requests, and issue_status gives an issue's real status. "
@@ -470,7 +465,7 @@ PUBLIC_PROMPT = (
     "A message with no factory header came while you were busy: find its id there. "
     "The tools below act only on this player's own messages, by message id. "
     "add_to_issue adds a message to the player comments of the open issue it is about. Use it for a comment on the thread's own proposal or build, feedback on it, "
-    "and talk about open work the factory already has, even with no tag and no answer: that is how player feedback reaches the card. Search the open issues first. "
+    "and talk about open work the factory already has. Search the open issues first. "
     "file_issue files the message as a new player-report issue: a bug when the player clearly reports something broken, even with no ask to file it; an idea only when they explicitly ask to file it. "
     "route_build sends the card back as a patch or a redesign only for a reply under a card's open build post that asks to fix or rethink that build. "
     "queue_answer_job asks the answer job, which can run the game, to reply on its own when reading cannot answer a question to you. "
