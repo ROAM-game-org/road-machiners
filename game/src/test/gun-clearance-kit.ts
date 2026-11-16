@@ -303,7 +303,11 @@ export function headY(v: Vehicle, itemId: string, mode: GunView): number {
   return y;
 }
 
-export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+export function aloneOf(v: Vehicle, itemId: string): Vehicle {
   const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
-  return headY({ ...v, items: v.items.filter((it) => !others.has(it as never)) }, itemId, mode);
+  return { ...v, items: v.items.filter((it) => !others.has(it as never)) };
+}
+
+export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+  return headY(aloneOf(v, itemId), itemId, mode);
 }
