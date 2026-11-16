@@ -1,16 +1,17 @@
-import { partDef, TALL_RISE, type WeaponDef } from '../data/parts';
+import { partDef, SACK_ARMOR, TALL_RISE, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
-import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, laneCellShare, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { armorOn, aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, laneCellShare, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { GRID_CELL, cellCenter, spanOf } from './body';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
-import { baseGrid, corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
+import { baseGrid, corePart, coreParts, facingOf, gridOf, holdCell, holdOwners, itemCells, itemSize, mountedItems, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { maxHp } from './wear';
 import { leakFuel } from './supplies';
+import { spillDeadCells } from './spill';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
 import { coreItem, freeMounts, rectOf, roundedSpans, shadowHolds, shadowOf } from '../test/layout-spots';
 import type { GridItem, Rot, Vehicle, World } from './types';
@@ -755,5 +756,39 @@ describe('lanePoint on the sides', () => {
     expect(row).toBeCloseTo(along(2) - along(3), 5);
     expect(along(0) - along(1)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
     expect(along(last - 1) - along(last)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
+  });
+});
+
+describe('sacks', () => {
+  function sacked() {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['sacks', 'stockEngine'], { x: 40, y: 40 });
+    v.items = v.items.filter((it) => it.kind !== 'good');
+    const sack = defOf(v, 'sacks');
+    const at = holdOwners(v).indexOf(sack.id);
+    const load: GridItem = { id: 'grain', ...holdCell(gridOf(v), at), rot: 0, kind: 'good', good: 'salt' };
+    return { w, v, sack, load };
+  }
+
+  it('gives the hull one hold cell of its own', () => {
+    const { v, sack } = sacked();
+    expect(holdOwners(v).filter((owner) => owner === sack.id)).toHaveLength(1);
+  });
+
+  it('armors its spot only while cargo lies on its hold cell', () => {
+    const { v, sack, load } = sacked();
+    const empty = armorOn(v, sack, false);
+    v.items.push(load);
+    expect(armorOn(v, sack, false) - empty).toBe(SACK_ARMOR);
+  });
+
+  it('a broken sack loses the armor and spills its load', () => {
+    const { w, v, sack, load } = sacked();
+    const empty = armorOn(v, sack, false);
+    v.items.push(load);
+    sack.hp = 0;
+    expect(armorOn(v, sack, false)).toBe(empty);
+    spillDeadCells(w);
+    expect(v.items.some((it) => it.id === 'grain')).toBe(false);
   });
 });

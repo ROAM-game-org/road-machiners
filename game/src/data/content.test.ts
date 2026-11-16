@@ -58,7 +58,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
     "cageSection",
     "reinforcedSection",
   ],
-  accessory: ["plowRam", "claymoreRam", "spikeCluster", "spikeStrip"],
+  accessory: ["plowRam", "claymoreRam", "spikeCluster", "spikeStrip", "sacks"],
   cargo: ["panniers", "haulingRack"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",

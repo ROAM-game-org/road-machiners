@@ -46,6 +46,7 @@ export const NAMES = {
   'part.rack': 'Roof rack',
   'part.haulingRack': 'Hauling rack',
   'part.panniers': 'Panniers',
+  'part.sacks': 'Sacks',
   'part.jerrycans': 'Jerrycan rack',
   'part.supplyLocker': 'Supply locker',
   'part.cab': 'Driver seat',

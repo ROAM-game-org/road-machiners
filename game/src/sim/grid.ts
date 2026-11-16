@@ -278,7 +278,10 @@ export function hitGridOf(v: Vehicle): Grid {
 type HoldGiver = { id: string; cells: number; working: boolean };
 
 const HOLD_GIVERS = loadoutSlot((loadout): HoldGiver[] =>
-  (loadoutFact(loadout, KIND_LISTS).cargo ?? []).map((it) => ({ id: it.part.id, cells: cargoCellsOn(loadout.chassisId, it.part.defId), working: it.part.hp > 0 })),
+  (loadoutFact(loadout, KIND_LISTS)[ALL] ?? []).flatMap((it) => {
+    const cells = holdCellsOf(loadout.chassisId, it.part.defId);
+    return cells > 0 ? [{ id: it.part.id, cells, working: it.part.hp > 0 }] : [];
+  }),
 );
 
 export function holdOwners(v: Loadout): readonly (string | null)[] {
@@ -289,6 +292,12 @@ const HOLD_OWNERS = loadoutSlot((loadout): (string | null)[] => {
   const owned = loadoutFact(loadout, HOLD_GIVERS).flatMap((giver) => Array.from({ length: giver.cells }, () => giver.id));
   return [...Array.from({ length: fixedHoldCells(loadout.chassisId) }, () => null), ...owned];
 });
+
+export function holdsItemFor(v: Loadout, partId: string): boolean {
+  const g = gridOf(v);
+  const spots = new Set(holdOwners(v).flatMap((owner, at) => (owner === partId ? [cellKey(holdCell(g, at).x, holdCell(g, at).y)] : [])));
+  return spots.size > 0 && v.items.some((it) => itemCells(it).some((c) => spots.has(cellKey(c.x, c.y))));
+}
 
 export function holdIndex(g: Grid, x: number, y: number): number | null {
   if (y < g.chassisH || x < 1 || x > g.w - 2) return null;
@@ -305,6 +314,12 @@ export function cargoCellsOn(chassisId: string, defId: string): number {
   const def = partDef(defId);
   if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
   return Math.floor(def.cells * cargoCellFactor(chassisId));
+}
+
+export function holdCellsOf(chassisId: string, defId: string): number {
+  const def = partDef(defId);
+  if (def.kind === 'cargo') return cargoCellsOn(chassisId, defId);
+  return def.kind === 'accessory' ? (def.cells ?? 0) : 0;
 }
 
 export function onDeadCell(g: Grid, item: GridItem): boolean {

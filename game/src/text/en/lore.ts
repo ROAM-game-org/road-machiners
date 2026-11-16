@@ -53,6 +53,7 @@ export const LORE = {
   'lore.part.rack': 'A rack over the cab roof, welded from a ladder or a bedframe. Whatever rides on it rides in the weather, so drivers choose their cargo to match.',
   'lore.part.haulingRack': 'A stake bed cut off a farm trailer and welded across the back. It takes twice what a roof rack does, and every driver who sees it knows you haul for a living.',
   'lore.part.panniers': 'Two canvas sacks slung on a frame, like a courier\'s bicycle bags. Small, but they go wherever the truck goes.',
+  'lore.part.sacks': 'Grain sacks lashed along the hull side. Packed with cargo they soak up a burst like sandbags. Empty, they only flap.',
   'lore.part.jerrycans': 'Rows of fuel cans lashed to a rack, each marked in its owner\'s paint. The design was military once. The paint is the New World\'s contribution.',
   'lore.part.supplyLocker': 'A steel locker bolted on for the road\'s small necessities: bread, rope, bandages, spares. Drivers fit the lock first and fill it second.',
   'lore.part.cab': 'The seat the whole truck is built around. Old patches in the upholstery tell you who sat there before.',

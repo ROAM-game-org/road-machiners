@@ -5,12 +5,12 @@ import { chassisDef } from '../data/chassis';
 import { GRID_CELL, cellCenter, cellRect, cellSteps, highestUnder, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
-import { isShield, partDef, TALL_RISE, type PartDef } from '../data/parts';
+import { isShield, partDef, SACK_ARMOR, TALL_RISE, type PartDef } from '../data/parts';
 import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, holdsItemFor, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
@@ -464,7 +464,13 @@ function armorAgainst(def: PartDef, blast: boolean): number {
 
 export function armorOn(v: Vehicle, part: PartInstance, blast: boolean): number {
   const def = wornDef(part);
-  return armorAgainst(def, blast) + partArmorBonus(v.chassisId, def, sitsOnDeck(v, part));
+  return armorAgainst(def, blast) + partArmorBonus(v.chassisId, def, sitsOnDeck(v, part)) + sackArmor(v, part);
+}
+
+function sackArmor(v: Vehicle, part: PartInstance): number {
+  const def = partDef(part.defId);
+  if (def.kind !== 'accessory' || !def.cells || part.hp <= 0) return 0;
+  return holdsItemFor(v, part.id) ? SACK_ARMOR : 0;
 }
 
 function sitsOnDeck(v: Vehicle, part: PartInstance): boolean {

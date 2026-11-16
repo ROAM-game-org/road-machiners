@@ -99,8 +99,9 @@ export type AccessoryDef = PartBase & {
   blastArmor: number;
   fieldRepair: FieldRepair;
   ramMult: number;
-  look: "ram" | "spikes";
+  look: "ram" | "spikes" | "sacks";
   mounts: EdgeLetter[];
+  cells?: number;
   claymore?: ClaymoreDef;
 };
 
@@ -289,6 +290,7 @@ const PART_BULK: Record<string, PartBulk> = {
   reinforcedSection: { w: 1, h: 1 },
   spikeCluster: { w: 1, h: 1 },
   spikeStrip: { w: 1, h: 2 },
+  sacks: { w: 1, h: 1 },
   panniers: { w: 1, h: 2 },
   rack: { w: 1, h: 2 },
   haulingRack: { w: 2, h: 2 },
@@ -718,6 +720,24 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
     look: "spikes",
     mounts: ["F", "B", "L", "R"],
   },
+  sacks: {
+    id: "sacks",
+    kind: "accessory",
+    hp: 20,
+    base: 30,
+    tier: 1,
+    w: 1,
+    h: 1,
+    mass: 10,
+    armor: 1,
+    tall: false,
+    blastArmor: 1,
+    fieldRepair: "full",
+    ramMult: 1,
+    look: "sacks",
+    mounts: ["F", "B", "L", "R"],
+    cells: 1,
+  },
   panniers: {
     id: "panniers",
     kind: "cargo",
@@ -844,6 +864,8 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
     range: 160,
   },
 };
+
+export const SACK_ARMOR = 6;
 
 export const TALL_RISE: Readonly<Record<string, number>> = {
   rack: 0.7,
