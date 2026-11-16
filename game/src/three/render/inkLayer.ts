@@ -1,10 +1,10 @@
 import * as THREE from 'three';
+import { frameTarget } from './frameTarget';
 import { FIRE_PAINT, FIRE_RIM, fireUniforms } from './fireInk';
 import { TUNING } from './inkTuning';
 import { INK_SHADE } from './particles/cardShaders';
 import { CardBatch, type CardLight } from './particles/cards';
 
-const SCENE_SAMPLES = 4;
 const DENSITY_SCALE = 0.5;
 const MASS = { thickAt: 2, litSky: 0.6 };
 const LIGHT = { steps: 3, up: 0.6, under: { from: 0.2, to: 0.8 } };
@@ -211,7 +211,7 @@ export class InkLayer {
     this.quad.frustumCulled = false;
     const depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedInt248Type);
     depthTexture.format = THREE.DepthStencilFormat;
-    this.sceneTarget = new THREE.WebGLRenderTarget(1, 1, { samples: SCENE_SAMPLES, type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, depthBuffer: true, stencilBuffer: true, depthTexture });
+    this.sceneTarget = frameTarget({ depthRead: true, depthTexture });
     this.uniforms.sceneColor.value = this.sceneTarget.texture;
   }
 
