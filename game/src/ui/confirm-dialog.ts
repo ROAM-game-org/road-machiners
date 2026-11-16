@@ -50,7 +50,7 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-describedby", QUESTION_ID);
     bindAttr(dialog, "aria-label", ask.question);
-    dialog.append(el("p", { id: QUESTION_ID }, ask.question), el("div", { class: "confirm-buttons hud-keybed" }, cancel, yes));
+    dialog.append(el("p", { id: QUESTION_ID, class: "hud-screen" }, ask.question), el("div", { class: "confirm-buttons hud-keybed" }, cancel, yes));
     window.addEventListener("keydown", onKey, true);
     cancel.focus();
   });

@@ -415,7 +415,8 @@
   padding: var(--space-1) var(--space-3);
   border: var(--hud-rim-w) solid transparent;
   border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
   box-shadow: none;
   color: var(--hud-amber);
   font: var(--text-dense) var(--font-hud);

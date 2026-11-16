@@ -212,6 +212,8 @@ export class Hud {
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
   private toastBox = panel("toast");
+
+  private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
   private rescue = panel("rescue notice", topCenter());
   private knockedOut = panel("status-mark", topCenter());
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
@@ -456,7 +458,7 @@ export class Hud {
   }
 
   private toast(text: Msg, refusal = false): void {
-    setText(this.toastBox, text);
+    setText(this.toastScreen, text);
     this.toastBox.classList.toggle("bad", refusal);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
@@ -515,7 +517,7 @@ export class Hud {
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
       el("h3", {}, t("hud.underTow")),
-      ...(r.kind === "towed" ? [el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee))] : []),
+      ...(r.kind === "towed" ? [el("div", { class: "hud-screen" }, el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)))] : []),
       el(
         "div",
         { class: "rescue-buttons hud-keybed" },
@@ -529,7 +531,7 @@ export class Hud {
     if (!r) return this.stranded.replaceChildren();
     this.stranded.replaceChildren(
       el("h3", {}, t("hud.stranded")),
-      ...(r.beacon || !r.reason ? [] : [el("div", { class: "dim" }, r.reason)]),
+      ...(r.reason ? [el("div", { class: "hud-screen" }, r.reason)] : []),
       el(
         "div",
         { class: "rescue-buttons hud-keybed" },

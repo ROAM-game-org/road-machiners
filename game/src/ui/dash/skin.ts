@@ -200,6 +200,7 @@ export const KIT = {
   rockerOn: { art: "kit/rocker-on", width: 387, height: 698, boxes: {} },
   wheel: { art: "kit/wheel", width: 247, height: 240, boxes: {} },
   glass: { art: "kit/glass", width: 512, height: 512, boxes: {} },
+  grime: { art: "kit/grime", width: 512, height: 512, boxes: {} },
   olive: { art: "kit/olive", width: 400, height: 400, boxes: {} },
   playkey: { art: "kit/playkey", width: 246, height: 160, boxes: {} },
   rim: { art: "kit/rim", width: 90, height: 90, boxes: {} },
@@ -293,6 +294,7 @@ export async function paintSkin(root: HTMLElement = document.documentElement): P
   root.style.setProperty("--hud-playkey-art", `url("${publicUrl(`hud/${KIT.playkey.art}.webp`)}")`);
   root.style.setProperty("--hud-keycap-lit-art", `url("${publicUrl(`hud/${KIT.keycapLit.art}.webp`)}")`);
   root.style.setProperty("--hud-glass-art", `url("${publicUrl(`hud/${KIT.glass.art}.webp`)}")`);
+  root.style.setProperty("--hud-grime-art", `url("${publicUrl(`hud/${KIT.grime.art}.webp`)}")`);
   const [olive, rim, well] = await Promise.all([KIT.olive, KIT.rim, KIT.well].map((piece) => tinted(piece.art, root)));
   root.style.setProperty("--hud-rim-art", `url("${rim}")`);
   root.style.setProperty("--hud-well-art", `url("${well}")`);

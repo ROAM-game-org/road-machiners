@@ -249,7 +249,7 @@
   --hud-icon-l: 24px;
   --hud-icon-s: 14px;
   --hud-key-h: 34px;
-  --hud-key-edge: 4px;
+  --hud-key-edge: calc(var(--hud-key-h) * 40 / 394);
   --hud-rocker-w: 16px;
   --hud-rocker-h: 30px;
   --hud-lamp-size: 10px;
@@ -265,6 +265,7 @@
   --hud-well-w: 2px;
   --hud-pad: 10px;
   --hud-glass-tile: 256px;
+  --hud-grime-tile: 256px;
   --hud-olive-tile: 400px;
   --hud-olive: #4c402e;
   --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;

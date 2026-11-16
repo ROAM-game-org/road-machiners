@@ -331,9 +331,8 @@ export class Tips {
     if (!tip) return;
     this.box.classList.toggle("opening-tip", tip.opening === true);
     this.box.replaceChildren(
-      el("span", { class: "tip-text" }, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)),
+      el("div", { class: "tip-screen hud-screen" }, el("span", { class: "tip-text" }, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)), el("span", { class: "tip-off-note" }, t("hint.offInMenu"))),
       el("button", { class: "tip-close", "aria-label": t("hint.closeThis"), onclick: () => this.close() }, createIcon("close")),
-      el("span", { class: "tip-off-note" }, t("hint.offInMenu")),
     );
     this.place();
   }

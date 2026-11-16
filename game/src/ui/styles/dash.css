@@ -46,7 +46,8 @@
 #ui :is(.hud-plate, .kit-piece, .key-cap, .rocker) > .plate-tint {
   position: absolute;
   inset: 0;
-  background: var(--hud-housing);
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-housing);
+  background-blend-mode: multiply;
   mix-blend-mode: multiply;
   -webkit-mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
   mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
@@ -602,12 +603,35 @@
   text-shadow: var(--hud-text-glow);
 }
 
+#ui .hud-screen {
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hud-step) solid var(--hud-glass-edge);
+  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
+  letter-spacing: 0.02em;
+}
+
+#ui .hud-screen .dim,
+#ui .tip .tip-off-note {
+  color: var(--hud-amber-soft);
+}
+
+#ui .tip .tip-screen {
+  display: grid;
+  row-gap: var(--space-1);
+}
+
 #ui .toast.bad {
   color: var(--hud-hot);
 }
 
 #ui :is(.info, .contracts, .wanted, .rescue, .stranded, .tip, .dialogue) :is(h3, .panel-title, .info-name) {
-  color: var(--hud-amber);
+  color: var(--hud-print);
+  text-shadow: none;
 }
 
 #ui .drawer-tabs > button {
@@ -625,9 +649,9 @@
   --key-edge: var(--hud-key-edge);
   border-style: solid;
   border-color: transparent;
-  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.2);
+  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.2) stretch;
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
   background: none;
 }
 
@@ -708,7 +732,8 @@
   padding: 0 var(--space-2);
   border: var(--hud-rim-w) solid transparent;
   border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
 }
 
 #ui .tray-cell {
@@ -792,7 +817,8 @@
   border: var(--hud-rim-w) solid transparent;
   border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
   border-radius: 0;
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
   box-shadow: none;
   color: var(--hud-amber);
 }
@@ -955,9 +981,9 @@
   padding: 0;
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
@@ -1001,9 +1027,9 @@
 #ui .drawer-tabs > button {
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   box-shadow: none;
   color: var(--hud-print);
@@ -1011,10 +1037,6 @@
 
 #ui.phone .truck-stack > .truck-condition {
   align-self: center;
-}
-
-#ui .game-menu [role=menu] button:focus-visible {
-  outline-offset: calc(-1 * var(--space-1));
 }
 
 #ui :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
@@ -1038,17 +1060,30 @@
 #ui .condition-tip-body.tooltip {
   box-sizing: border-box;
   max-width: min(var(--panel-m), calc(var(--layer-w) - 2 * var(--hud-inset)));
-  padding: var(--space-2) var(--space-3);
-  border: var(--hud-well-w) solid transparent;
-  border-image: var(--hud-well-art) var(--hud-well-slice) / var(--hud-well-w) stretch;
+  --tip-housing: 3px;
+  isolation: isolate;
+  padding: calc(var(--space-2) + var(--tip-housing) + var(--hud-step)) calc(var(--space-3) + var(--tip-housing) + var(--hud-step));
+  border: var(--hud-rim-w) solid transparent;
+  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
   border-radius: 0;
-  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
   box-shadow: none;
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   letter-spacing: 0.02em;
   white-space: pre-line;
+}
+
+#ui :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip)::before {
+  content: "";
+  position: absolute;
+  inset: var(--tip-housing);
+  z-index: -1;
+  border: var(--hud-step) solid var(--hud-glass-edge);
+  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  pointer-events: none;
 }
 
 #ui :is(.plate-label, .key-print, .dial-text, .knob-mark, .tape-print, .stat-unit, .drawer-tabs > button, .tip-close) {
@@ -1121,13 +1156,10 @@
 }
 
 #ui .top-center > .panel.tip {
-  column-gap: var(--space-3);
-  row-gap: var(--space-1);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  column-gap: var(--space-2);
+  padding: var(--space-1);
 }
 #ui .tip .tip-close {
-  grid-column: 2;
-  grid-row: 1;
   align-self: start;
 }
 
@@ -1139,7 +1171,8 @@
   margin: var(--space-2) calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad));
   padding: var(--space-2) var(--hud-pad);
   border-top: var(--hud-step) solid var(--hud-print-ink);
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat;
+  background-blend-mode: multiply, normal;
   align-self: stretch;
 }
 
@@ -1158,7 +1191,8 @@
   border: var(--hud-rim-w) solid transparent;
   border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
   border-radius: 0;
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
   box-shadow: none;
   color: var(--hud-amber);
   font-family: var(--font-hud);
@@ -1182,9 +1216,9 @@
   padding: 0 var(--space-2);
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   box-shadow: none;
   color: var(--hud-print);
@@ -1210,6 +1244,15 @@
   height: var(--hud-icon);
 }
 
+:is(#ui, #overlay) :is(button.hud-key, button.key-cap:not(.cool-key, .play-key)) > .icon,
+#ui button.key-cap:not(.cool-key, .play-key) > .key-face > .icon {
+  translate: 0 calc(var(--hud-key-edge) * -0.3125);
+}
+
+#ui :is(.tip button.tip-close, .cool-key > .key-face) > .icon {
+  translate: 0 calc(var(--small-key-edge) * -0.3125);
+}
+
 #ui :is(.info, .rescue, .stranded, .minimap) {
   padding: var(--hud-pad);
 }
@@ -1226,7 +1269,8 @@
 }
 
 #ui :is(.action, .game-menu [role=menu]) {
-  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background-blend-mode: multiply, normal;
   text-shadow: none;
 }
 
@@ -1282,8 +1326,8 @@
   height: var(--hud-key-h);
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
 }
 
 #ui .game-menu [role=menu][hidden],
@@ -1335,8 +1379,8 @@
   height: var(--hud-key-h);
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
 }
@@ -1370,7 +1414,8 @@
 }
 
 #ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) :is(h3, .panel-title, .info-name) {
-  font: 700 var(--hud-text-m) / 1.2 var(--font-hud);
+  font: 400 var(--hud-text-m) / 1.2 var(--font-engraved);
+  -webkit-text-stroke: 0.03em currentColor;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1387,8 +1432,8 @@
   text-transform: uppercase;
 }
 
-#ui :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :focus-visible {
-  outline: var(--hud-step) solid var(--hud-amber);
+:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
+  outline: none;
 }
 
 #ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter {
@@ -1465,8 +1510,8 @@
   height: var(--hud-key-h);
   border-style: solid;
   border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
-  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
 }
 
 :is(#ui, #overlay) button.hud-key.on:not(.icon-key)::before {
@@ -1475,7 +1520,7 @@
 
 #ui .cool-key > .key-face {
   position: absolute;
-  inset: 0 0 22% 0;
+  inset: 0;
   display: grid;
   place-items: center;
 }
@@ -1501,11 +1546,33 @@
 }
 
 #ui :is(.tip button.tip-close.tip-close, button.key-cap.cool-key) {
-  --small-key-edge: calc(var(--hud-key-h) * 0.075);
-  border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.6);
-  border-image: var(--hud-keycap-art) 36 36 94 36 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.6) stretch;
+  --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
+  border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
+  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
 }
 
 #ui button.key-cap.cool-key.on {
   border-image-source: var(--hud-keycap-lit-art);
+}
+
+#ui .toast.bad > .hud-screen {
+  color: var(--hud-hot);
+}
+
+#ui .death .death-box > h3 {
+  margin: 0;
+  color: var(--hud-print);
+  font: 400 var(--text-lead) / 1.2 var(--font-engraved);
+  -webkit-text-stroke: 0.03em currentColor;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+
+#ui .death .death-box {
+  font-size: var(--hud-text-m);
+}
+
+#ui .toast {
+  padding: 3px;
 }

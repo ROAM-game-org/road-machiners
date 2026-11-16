@@ -54,7 +54,7 @@ export class DeathScreen {
         "div",
         { class: "death-box hud-frame" },
         el("h3", {}, title),
-        runCaption(world) ?? el("div", { class: "death-caption" }, t("death.epitaph")),
+        runCaption(world) ?? el("div", { class: "death-caption hud-screen" }, t("death.epitaph")),
         el(
           "div",
           { class: "death-buttons hud-keybed" },
@@ -91,5 +91,5 @@ function runCaption(world: World): HTMLElement | null {
   if (!world.chaosHighway) return null;
   const { reached, north } = runEarnings(world);
   const caption = reached > 0 ? t("death.runReached", { mode: modeName("chaosHighway"), site: siteName(outpostId(reached)), north: distanceText(north) }) : t("death.runStart", { mode: modeName("chaosHighway"), north: distanceText(north) });
-  return el("div", { class: "death-caption" }, caption);
+  return el("div", { class: "death-caption hud-screen" }, caption);
 }
