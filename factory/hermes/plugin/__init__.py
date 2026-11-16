@@ -27,7 +27,7 @@ from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
 from .idle_reset import idle_limit, make_idle_reset
 from .observability import register_observation
-from .public import PUBLIC_MARK, Addressed, make_public_factory, make_public_guard, make_public_prompt, make_public_tool_gate, public_chats, refuse_in_public, watch_polling_conflicts
+from .public import PUBLIC_MARK, Addressed, gateway_session_var, guard_iteration_summary, make_public_factory, make_public_guard, make_public_prompt, make_public_tool_gate, public_chats, refuse_in_public, watch_polling_conflicts
 from .public_tools import register_public_tools
 from .readiness import Readiness, refusal
 from .status import register_status
@@ -517,6 +517,10 @@ def _session_env(name: str) -> str:
     return get_session_env(name)
 
 
+def _turn_var(name: str) -> str:
+    return gateway_session_var(name)
+
+
 def _sender(cfg: Config, session_env):
     """Who a tool call acts for: ("member", id, name, chat, message) for a committee member's message, ("hermes", ...) for a session with no user,
     like the incident watch. A session user outside the committee is an error, so nothing acts for them."""
@@ -764,13 +768,13 @@ def register(ctx) -> None:
     ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness, addressed))
     watch_polling_conflicts(cfg, _schedule_restart)
     ctx.register_telegram_handler(make_public_factory(cfg, addressed))
-    chat_id = lambda: _session_env("HERMES_SESSION_CHAT_ID").strip()
-    ctx.register_middleware("llm_request", make_public_prompt(cfg, chat_id))
-    ctx.register_middleware("llm_execution", make_public_guard(cfg, chat_id))
-    ctx.register_hook("pre_tool_call", make_public_tool_gate(cfg, _session_env))
+    ctx.register_middleware("llm_request", make_public_prompt(cfg, _turn_var))
+    ctx.register_middleware("llm_execution", make_public_guard(cfg, _turn_var))
+    guard_iteration_summary(cfg, _turn_var)
+    ctx.register_hook("pre_tool_call", make_public_tool_gate(cfg, _turn_var))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_telegram_handler(make_media_factory(cfg, readiness))
-    factory = FactoryTools(ctx, lambda handler: refuse_in_public(cfg, chat_id, handler))
+    factory = FactoryTools(ctx, lambda handler: refuse_in_public(cfg, _turn_var, handler))
     factory.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
     factory.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
     factory.register_tool(name=PROPOSAL_TOOL, toolset="factory", schema=PROPOSAL_SCHEMA, handler=make_proposal_handler(cfg))
