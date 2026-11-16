@@ -48,6 +48,15 @@ describe('filterWith', () => {
     expect(bodyOf(sent)).toEqual({ model: 'test-model', input: `Game: ${GAME}\n\nThread: Tow other trucks\n\nPlayer text: The tow hook does not attach`, questions: [SENT_JUNK, SENT_COMMENT_KIND, SENT_ROUTE, SENT_RELEVANCE, SENT_LANGUAGE] });
   });
 
+  it('sends a chat thread reply the chat junk question and the text it replies to, and a game comment neither', async () => {
+    const { fetch, sent } = fake(200, answers(junk(0.95, 0.05), pick('kind', 'feedback'), pick('route', 'none'), pick('relevance', 'parent'), pick('language', 'en')));
+    await filterWith(CFG, fetch)({ origin: 'chat', source: 'comment', text: 'too slow', parent: 'Winch', context: 'The winch\n pulls at half speed' });
+    const body = bodyOf(sent);
+    expect(body.input).toBe(`Game: ${GAME}\n\nThread: Winch\n\nReplying to: The winch pulls at half speed\n\nPlayer text: too slow`);
+    expect(body.questions[0].instructions).toContain("Telegram chat, under a proposal or a test build");
+    expect(body.questions.slice(1)).toEqual([SENT_COMMENT_KIND, SENT_ROUTE, SENT_RELEVANCE, SENT_LANGUAGE]);
+  });
+
   it('sends a game comment with no thread no relevance question and no thread line', async () => {
     const { fetch, sent } = fake(200, answers(junk(0.95, 0.05), pick('kind', 'bug'), pick('route', 'patch'), pick('language', 'en')));
     expect(await filterWith(CFG, fetch)({ source: 'comment', text: 'The tow hook does not attach' })).toEqual({ verdict: 'accept', intent: 'sincere', sincere: 0.95, kind: 'bug', route: 'patch', relevance: 'parent', language: 'en' });
