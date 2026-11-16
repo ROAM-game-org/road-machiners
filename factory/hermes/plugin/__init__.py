@@ -25,6 +25,7 @@ from typing import Optional
 
 from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
+from .idle_reset import idle_limit, make_idle_reset
 from .observability import register_observation
 from .public import PUBLIC_MARK, Addressed, make_public_factory, make_public_guard, make_public_prompt, make_public_tool_gate, public_chats, refuse_in_public, watch_polling_conflicts
 from .public_tools import register_public_tools
@@ -766,6 +767,7 @@ def register(ctx) -> None:
     cfg.committee.seed()
     readiness = Readiness(min_words=int(os.environ["FACTORY_ROUTE_MIN_WORDS"]), inbox=cfg.inbox)
     addressed = Addressed()
+    ctx.register_hook("pre_gateway_dispatch", make_idle_reset(idle_limit(os.environ["FACTORY_HERMES_IDLE_RESET_MINUTES"])))
     ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness, addressed))
     watch_polling_conflicts(cfg, _schedule_restart)
     ctx.register_telegram_handler(make_public_factory(cfg, addressed))

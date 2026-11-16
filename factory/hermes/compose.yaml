@@ -25,6 +25,7 @@ services:
       FACTORY_PUBLIC_URL: ${FACTORY_PUBLIC_URL:?set FACTORY_PUBLIC_URL}
       FACTORY_STATUS_TIMEOUT_MS: ${FACTORY_STATUS_TIMEOUT_MS:?set FACTORY_STATUS_TIMEOUT_MS}
       FACTORY_ROUTE_MIN_WORDS: ${FACTORY_ROUTE_MIN_WORDS:?set FACTORY_ROUTE_MIN_WORDS}
+      FACTORY_HERMES_IDLE_RESET_MINUTES: ${FACTORY_HERMES_IDLE_RESET_MINUTES:?set FACTORY_HERMES_IDLE_RESET_MINUTES}
       GH_CONFIG_DIR: /opt/data/.config/gh
       # Hermes's file tools write its own home and the factory home, where it fixes state and branches.
       HERMES_WRITE_SAFE_ROOT: /opt/data:/factory/home
