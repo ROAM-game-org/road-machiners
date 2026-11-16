@@ -1009,3 +1009,9 @@ export function withoutPostedClaimRivals(world: SavedJson): SavedJson {
   const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutRival) }]));
   return { ...world, shops: next };
 }
+
+export function withoutPartClaimsOnBoards(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson>;
+  const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).filter((c) => c.kind !== 'claim') }]));
+  return { ...world, shops: next };
+}
