@@ -689,6 +689,7 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   store: (_, part) => storeStats(part),
   core: () => [],
   utility: (_, part) => utilityStats(part),
+  spare: () => [],
 };
 
 function utilityStats(part: PartInstance): Stat[] {

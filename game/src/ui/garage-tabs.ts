@@ -17,11 +17,13 @@ export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
 export const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks", "paint"];
 
-export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
+export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory" | "spare">;
+
+const FILTER_OF: Partial<Record<PartKind, Exclude<StockFilter, "all">>> = { accessory: "armor", spare: "utility" };
 
 export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
   if (kind === "core") throw new Error("Built-in parts are never in stock");
-  return kind === "accessory" ? "armor" : kind;
+  return FILTER_OF[kind] ?? (kind as Exclude<StockFilter, "all">);
 }
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];

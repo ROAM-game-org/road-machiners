@@ -21,6 +21,7 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   scanner: ['D'],
   store: ['D'],
   utility: ['D'],
+  spare: [],
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
 

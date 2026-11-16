@@ -49,6 +49,7 @@ export const NAMES = {
   'part.sacks': 'Sacks',
   'part.gunBattery': 'Battery',
   'part.periscope': 'Periscope',
+  'part.spareTire': 'Spare tire',
   'part.jerrycans': 'Jerrycan rack',
   'part.supplyLocker': 'Supply locker',
   'part.cab': 'Driver seat',

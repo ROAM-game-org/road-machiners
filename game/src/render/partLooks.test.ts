@@ -200,6 +200,7 @@ const KIND_TONES: Record<PartKind, ItemTone> = {
   scanner: 'other',
   store: 'other',
   utility: 'other',
+  spare: 'other',
 };
 
 describe('item tones', () => {

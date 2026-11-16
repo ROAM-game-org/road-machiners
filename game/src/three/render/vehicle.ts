@@ -476,7 +476,7 @@ export class VehicleView {
 
   private placedPart(v: Vehicle, body: Body, item: PartItem, def: PartDef, paint: number): THREE.Object3D {
     const mounted = isMounted(v.chassisId, item);
-    if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
+    if (isWheel(def) || def.kind === 'spare') return this.spareWheel(v, body, item, paint, standingY(v, item));
     if (isShield(def)) return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
     return this.placeItem(v, item, paint);

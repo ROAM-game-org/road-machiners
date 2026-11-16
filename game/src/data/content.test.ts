@@ -21,7 +21,7 @@ import { makePart, makeVehicle } from "../sim/factory";
 import { wornDef } from "../sim/wear";
 import { CONDITION } from "./wear";
 import { goodsCount, gridOf, isMounted, placementError } from "../sim/grid";
-import { mountPart } from "../sim/inventory";
+import { mountPart, stowPart } from "../sim/inventory";
 import { emptyWorld } from "../sim/testkit";
 import type { World } from "../sim/types";
 import { sitePads } from "../sim/sites";
@@ -60,6 +60,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
   ],
   accessory: ["plowRam", "claymoreRam", "spikeCluster", "spikeStrip", "sacks"],
   cargo: ["panniers", "haulingRack"],
+  spare: ["spareTire"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",
     "smokeMortar", "flareCannon", "scrapersKnife", "emitter", "gunBattery", "periscope",
@@ -118,6 +119,7 @@ describe("equipment variety", () => {
         cargo: 1,
         store: 0,
         utility: 0,
+        spare: 0,
       };
       expect(Object.values(PARTS).filter((p) => p.kind === kind)).toHaveLength(
         originalCounts[kind] + ids.length,
@@ -138,7 +140,8 @@ describe("equipment variety", () => {
             heading: 0,
             brain: null,
           });
-          return mountPart(w, v, makePart(w, id, 0));
+          const part = makePart(w, id, 0);
+          return kind === "spare" ? stowPart(w, v, part) : mountPart(w, v, part);
         });
         expect(fits, id).toBe(true);
       }

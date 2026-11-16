@@ -18,7 +18,7 @@ export type Offer = { part: PartInstance; price: number };
 
 export type Plan<O extends Offer = Offer> = { offer: O; replaces: PartItem | null; cost: number; spot: Spot; jobGain: number; worthGain: number };
 
-const NEVER: readonly PartKind[] = ['core', 'scanner'];
+const NEVER: readonly PartKind[] = ['core', 'scanner', 'spare'];
 
 export function goodsRoom(v: Vehicle): number {
   return freeCells({ ...v, items: v.items.filter((it) => it.kind === 'part') });

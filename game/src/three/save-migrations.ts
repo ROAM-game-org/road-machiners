@@ -849,6 +849,7 @@ export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'withoutPostedClaimRivals', step: withoutPostedClaimRivals },
   { name: 'withShortNivaHood', step: withShortNivaHood },
   { name: 'withCargoCells', step: withCargoCells },
+  { name: 'withSpareTireJob', step: (world) => world },
 ];
 
 export const RELEASE_STEPS: readonly ReleaseStep[] = [

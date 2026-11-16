@@ -536,6 +536,8 @@ export const SCREENS = {
   'inv.verb.patch': 'Patch',
   'inv.verb.strip': 'Strip',
   'inv.verb.weld': 'Weld',
+  'inv.verb.fit': 'Fit',
+  'inv.verb.fitSpare': 'Fit spare',
   'inv.verb.refit': 'Refit',
   'inv.condition': 'Condition',
   'inv.load': 'Load',

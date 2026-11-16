@@ -577,6 +577,8 @@ export const SCREENS: Translation<typeof EN> = {
   'inv.verb.patch': 'Ремонт',
   'inv.verb.strip': 'Разобрать',
   'inv.verb.weld': 'Сварить',
+  'inv.verb.fit': 'Поставить',
+  'inv.verb.fitSpare': 'Запасное колесо',
   'inv.verb.refit': 'Переоснастить',
   'inv.condition': 'Прочность',
   'inv.load': 'Нагрузка',

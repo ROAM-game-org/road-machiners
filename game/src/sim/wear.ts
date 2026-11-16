@@ -5,7 +5,7 @@ import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, 
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { CONDITION, WEAR } from '../data/wear';
 import { playerVehicle } from './damage';
-import { corePart, mountedParts } from './grid';
+import { corePart, coreParts, mountedParts } from './grid';
 import { practice, regionOf } from './progress';
 import { chance, randRange } from './rng';
 import { tileAt } from './terrain';
@@ -243,4 +243,25 @@ export function scrapValue(part: PartInstance): number {
 export function partValue(part: PartInstance): number {
   if (isJunk(part)) return scrapValue(part);
   return partDef(part.defId).value * wearFactor(part.wear);
+}
+
+export function carriedSpare(v: Vehicle): PartInstance | null {
+  const item = v.items.find((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'spare');
+  return item?.kind === 'part' ? item.part : null;
+}
+
+export function damagedWheels(v: Vehicle): PartInstance[] {
+  return coreParts(v, 'wheel').filter((wheel) => wheel.hp < maxHp(wheel));
+}
+
+export function spareTarget(v: Vehicle): PartInstance | null {
+  return damagedWheels(v).sort((a, b) => a.hp / maxHp(a) - b.hp / maxHp(b))[0] ?? null;
+}
+
+export function fitSpare(v: Vehicle, wheelId: string, spareId: string): void {
+  const wheel = coreParts(v, 'wheel').find((p) => p.id === wheelId);
+  if (!wheel) throw new Error(`No wheel ${wheelId} on ${v.id}`);
+  if (!v.items.some((it) => it.kind === 'part' && it.part.id === spareId && partDef(it.part.defId).kind === 'spare')) throw new Error(`No spare ${spareId} on ${v.id}`);
+  wheel.hp = maxHp(wheel);
+  v.items = v.items.filter((it) => !(it.kind === 'part' && it.part.id === spareId));
 }

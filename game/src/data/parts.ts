@@ -13,7 +13,8 @@ export type PartKind =
   | "core"
   | "scanner"
   | "store"
-  | "utility";
+  | "utility"
+  | "spare";
 
 type PartBulk = { w: number; h: number };
 
@@ -126,6 +127,11 @@ export type CoreDef = PartBase & {
   role: "cab" | "transmission" | "wheel" | "tank";
 };
 
+export type SpareDef = PartBase & {
+  kind: "spare";
+  fits: "wheel";
+};
+
 export type ScannerDef = PartBase & {
   kind: "scanner";
   range: number;
@@ -165,7 +171,8 @@ export type PartDef =
   | CoreDef
   | ScannerDef
   | StoreDef
-  | UtilityDef;
+  | UtilityDef
+  | SpareDef;
 
 export type Unpriced<T> = T extends unknown ? Omit<T, 'value'> : never;
 type Unbulked<T> = T extends unknown ? Omit<T, 'value' | 'bulk'> : never;
@@ -191,6 +198,7 @@ type UnpricedByKind = {
   scanner: Omit<ScannerDef, 'value'>;
   core: Omit<CoreDef, 'value'>;
   utility: Omit<UtilityDef, 'value'>;
+  spare: Omit<SpareDef, 'value'>;
 };
 const m = PART_PRICE_MODIFIERS;
 const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
@@ -203,6 +211,7 @@ const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
   scanner: (d) => m.scanner.perRange * d.range,
   core: (d) => m.core.perHp * d.hp,
   utility: (d) => m.utility.perEffectTurn * effectTurns(d.effect) + m.utility.perReachTile * utilityReach(d),
+  spare: () => 0,
 };
 
 function shieldModifier(d: Unpriced<ShieldDef>): number {
@@ -315,6 +324,7 @@ const PART_BULK: Record<string, PartBulk> = {
   tankMid: { w: 1, h: 2 },
   tankHeavy: { w: 1, h: 2 },
   scanner: { w: 1, h: 1 },
+  spareTire: { w: 1, h: 2 },
 };
 
 const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
@@ -836,6 +846,9 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   wheel: {
     id: "wheel", kind: "core", hp: 30, base: 3.33, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, role: "wheel",
   },
+  spareTire: {
+    id: "spareTire", kind: "spare", hp: 30, base: 35, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, fits: "wheel",
+  },
   wheelMid: {
     id: "wheelMid", kind: "core", hp: 50, base: 3.33, tier: 1, w: 1, h: 3, mass: 25, armor: 3, tall: false, role: "wheel",
   },
@@ -870,6 +883,7 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
 };
 
 export const SACK_ARMOR = 6;
+export const SPARE_FIT_WORK = 2.5;
 
 export const TALL_RISE: Readonly<Record<string, number>> = {
   rack: 0.7,

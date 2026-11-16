@@ -60,6 +60,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'weld') return t('job.weld');
   if (job.kind === 'firstAid') return t('job.firstAid');
   if (job.kind === 'oddJobs') return t('job.oddJobs');
+  if (job.kind === 'fitSpare') return t('job.fitSpare');
   if (job.kind === 'survey') return t('job.survey', { place: t(`contract.place.${surveyPlaceType(job.site)}`) });
   return partJobLabel(v, job);
 }
@@ -315,7 +316,7 @@ function partDamage(hits: PartHit[]): Map<string, number> {
 }
 
 const PART_SHORT = {
-  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util',
+  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util', spare: 'whl',
   cab: 'cab', transmission: 'trans', wheel: 'whl', tank: 'tank',
 } as const;
 

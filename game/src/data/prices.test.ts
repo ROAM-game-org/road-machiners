@@ -44,6 +44,7 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
   scanner: ['range'],
   utility: ['turns', 'reach'],
   core: ['hp'],
+  spare: [],
 };
 
 describe('item prices', () => {
