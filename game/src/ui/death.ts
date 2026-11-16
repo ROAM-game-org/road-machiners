@@ -8,6 +8,7 @@ import { t, type Msg } from "../text/msg";
 import { modeName, siteName } from "../text/names";
 import { outpostId } from "../sim/highway";
 import { askConfirm } from "./confirm-dialog";
+import { controls, panelHead, textKey } from "./dash/skin";
 import { disabledWith, el, panel } from "./dom";
 import { CONFIRM_NEW_GAME, openNewGame, type NewGameActions } from "./new-game";
 import { SavePanel, type SavePanelActions } from "./save-panel";
@@ -52,15 +53,13 @@ export class DeathScreen {
     this.root.append(
       el(
         "div",
-        { class: "death-box hud-frame" },
-        el("h3", {}, title),
+        { class: "death-box hud-frame hud-panel" },
+        panelHead(title),
         runCaption(world) ?? el("div", { class: "death-caption hud-screen" }, t("death.epitaph")),
-        el(
-          "div",
-          { class: "death-buttons hud-keybed" },
-          el("button", { ...disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), class: "hud-key" }, t("menu.loadSave")),
-          world.chaosHighway ? el("button", { class: "hud-key", onclick: () => void this.restart(world) }, t("death.restartRun")) : null,
-          el("button", { class: "hud-key", onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
+        controls(
+          textKey(t("menu.loadSave"), disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad())),
+          world.chaosHighway ? textKey(t("death.restartRun"), { onclick: () => void this.restart(world) }) : null,
+          textKey(t("menu.newGame"), { onclick: () => openNewGame(this.actions.newGame, () => {}) }),
         ),
       ),
     );

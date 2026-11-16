@@ -238,45 +238,14 @@
 .info-content {
   display: flex;
   flex-direction: column;
+  gap: var(--hud-panel-gap);
   height: 100%;
   min-height: 0;
 }
-.info-head {
+.info-facts {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-4);
-}
-.info-name {
-  flex-shrink: 0;
-  white-space: nowrap;
-  font-size: var(--text-lead);
-  color: var(--ink-title);
-}
-.info-head .tag {
-  margin-left: auto;
-}
-.info-actions {
-  flex: 0 0 auto;
-  margin-top: var(--space-2);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--space-3);
-}
-.info-quiet {
-  min-width: 0;
-  color: var(--ink-muted);
-}
-.info-head .info-quiet {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.info-state {
-  margin-top: var(--space-1);
-  color: var(--ink);
 }
 .info-wanted {
   float: right;
@@ -285,17 +254,12 @@
   gap: var(--space-2);
   margin-left: var(--space-4);
 }
-.info-state.info-quiet {
-  min-width: 0;
-  color: var(--ink-muted);
-}
 .info-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 .info-draw {
   flex: 1 1 0;
@@ -412,14 +376,14 @@
   column-gap: var(--space-4);
   row-gap: var(--space-1);
   box-sizing: border-box;
-  padding: var(--space-1) var(--space-3);
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  isolation: isolate;
+  padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
+  border: 0;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
-  box-shadow: none;
+  box-shadow: var(--hud-panel-edge);
   color: var(--hud-amber);
-  font: var(--text-dense) var(--font-hud);
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   text-align: left;
   cursor: default;
 }
@@ -477,7 +441,7 @@
 }
 #ui .action:has(.cycle) {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-3);
 }
 .action .count {
@@ -487,26 +451,6 @@
 #ui .rescue {
   min-width: var(--panel-s);
   max-width: var(--panel-m);
-  text-align: center;
-}
-#ui .rescue h3 {
-  margin-bottom: var(--space-2);
-}
-#ui .stranded {
-  text-align: center;
-}
-#ui .status-mark {
-  padding: var(--space-2) var(--space-5);
-}
-#ui .stranded h3 {
-  margin-bottom: var(--space-2);
-}
-.rescue .rescue-buttons,
-.stranded .rescue-buttons {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
 }
 
 #ui .death {
@@ -523,15 +467,8 @@
   box-shadow: none;
 }
 #ui .death .death-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-6);
-  padding: var(--hud-pad);
-}
-#ui .death h3 {
-  font-size: var(--text-hero);
-  color: var(--hud-hot);
+  width: var(--panel-l);
+  max-width: calc(var(--layer-w) - 2 * var(--space-4));
 }
 .save-screen {
   text-align: center;
@@ -548,11 +485,12 @@
 #ui .death button.hud-key[aria-disabled] {
   color: var(--hud-amber-faint);
 }
-#ui .death .death-caption {
-  font-size: var(--text-lead);
-  color: var(--hud-amber-soft);
-}
-.death .death-buttons {
-  display: flex;
-  gap: var(--space-5);
+.hc-tip::before {
+  content: "";
+  position: absolute;
+  inset: var(--hud-panel-gap);
+  z-index: -1;
+  background: var(--hud-glass-fill);
+  box-shadow: var(--hud-recess);
+  pointer-events: none;
 }

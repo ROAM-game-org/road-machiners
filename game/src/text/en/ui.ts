@@ -275,6 +275,7 @@ export const UI = {
   'weapon.allSwitchTitle': 'All fire',
   'weapon.holdHint': 'Stop auto fire and clear this gun\'s target',
   'utility.aiming': 'aiming',
+  'hint.title': 'Tip',
   'hint.closeThis': 'Close this tip',
   'hint.offInMenu': 'You can turn off tips in Menu',
   'hit.deltaUp': m("+{n}%", { n: 'int' }),

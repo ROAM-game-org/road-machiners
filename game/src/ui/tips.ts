@@ -1,5 +1,4 @@
 
-import { createIcon } from "./cards";
 import { touchMode } from "./input-mode";
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
@@ -19,7 +18,8 @@ import { startPose } from "../sim/start-pose";
 import { t } from "../text/msg";
 import { modeRules } from "../sim/settings";
 import { partDef } from "../data/parts";
-import { el, panel } from "./dom";
+import { panel } from "./dom";
+import { panelHead, screen, screenLine } from "./dash/skin";
 import { uiSize } from "./ui-size";
 
 const TIPS_KEY = "roam.tips";
@@ -251,7 +251,7 @@ export class Tips {
     parent: HTMLElement,
     private readonly onTurnedOff: () => void,
   ) {
-    this.box = panel("tip", parent);
+    this.box = panel("tip hud-panel", parent);
     this.seen = readSeen(storage);
     this.off = tipsOff(storage);
     this.box.style.display = "none";
@@ -331,8 +331,8 @@ export class Tips {
     if (!tip) return;
     this.box.classList.toggle("opening-tip", tip.opening === true);
     this.box.replaceChildren(
-      el("div", { class: "tip-screen hud-screen" }, el("span", { class: "tip-text" }, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)), el("span", { class: "tip-off-note" }, t("hint.offInMenu"))),
-      el("button", { class: "tip-close", "aria-label": t("hint.closeThis"), onclick: () => this.close() }, createIcon("close")),
+      panelHead(t("hint.title"), { label: t("hint.closeThis"), onClose: () => this.close() }),
+      screen(screenLine(null, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)), screenLine("dim", t("hint.offInMenu"))),
     );
     this.place();
   }

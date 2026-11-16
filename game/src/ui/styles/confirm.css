@@ -13,20 +13,6 @@
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: var(--z-confirm);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  box-sizing: border-box;
-  padding: var(--hud-pad);
   width: var(--panel-l);
   max-width: calc(var(--layer-w) - 2 * var(--space-4));
-}
-#ui .confirm-dialog p {
-  margin: 0;
-  font-size: var(--text-body);
-}
-#ui .confirm-dialog .confirm-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
 }

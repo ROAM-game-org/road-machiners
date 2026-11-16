@@ -276,6 +276,7 @@ export const UI: Translation<typeof EN> = {
   'weapon.allSwitchTitle': 'Огонь из всего оружия',
   'weapon.holdHint': 'Выключить автоогонь и сбросить цель этого оружия',
   'utility.aiming': 'наведение',
+  'hint.title': 'Совет',
   'hint.closeThis': 'Закрыть совет',
   'hint.offInMenu': 'Подсказки можно отключить в меню.',
   'hit.deltaUp': '+{n}%',

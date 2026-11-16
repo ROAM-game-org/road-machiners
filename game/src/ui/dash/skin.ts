@@ -1,7 +1,8 @@
 import { publicUrl } from "../../public-url";
 import { bindAttr, say, textNode, unbindAttr, type TextAttr } from "../../text/language";
 import { concat, LINE_BREAK, type Msg, verbatim } from "../../text/msg";
-import { el } from "../dom";
+import { createIcon } from "../cards";
+import { el, type Child } from "../dom";
 import { keyTip } from "../input-mode";
 
 export function setText(slot: Element, msg: Msg): void {
@@ -276,6 +277,41 @@ export class Plate<K extends string> {
 
 export function tray(className: string, ...items: HTMLElement[]): HTMLElement {
   return el("div", { class: `hud-tray ${className}` }, ...items);
+}
+
+export type Tone = "dim" | "good" | "bad";
+
+export interface PanelClose {
+  label: Msg;
+  onClose: () => void;
+}
+
+export function panelHead(title: Msg | null, close?: PanelClose): HTMLElement {
+  return el("div", { class: "hud-panel-head" }, title === null ? null : el("h3", { class: "hud-panel-title" }, title), close ? closeKey(close) : null);
+}
+
+export function closeKey(close: PanelClose): HTMLElement {
+  return el("button", { type: "button", class: "hud-close", "aria-label": close.label, onclick: close.onClose }, createIcon("close"));
+}
+
+export function screen(...lines: Child[]): HTMLElement {
+  return el("div", { class: "hud-screen" }, ...lines);
+}
+
+export function screenLine(tone: Tone | null, ...parts: Child[]): HTMLElement {
+  return el("div", { class: tone === null ? "screen-line" : `screen-line ${tone}` }, ...parts);
+}
+
+export function controls(...keys: (HTMLElement | null)[]): HTMLElement {
+  const shown = keys.filter((key): key is HTMLElement => key !== null);
+  return el("div", { class: "hud-controls", "data-count": shown.length }, ...shown);
+}
+
+export function textKey(label: Msg, attrs: Parameters<typeof el>[1], danger = false): HTMLElement {
+  const button = el("button", { type: "button", ...attrs }, label);
+  button.classList.add("hud-key");
+  button.classList.toggle("danger", danger);
+  return button;
 }
 
 export function kitPiece(name: keyof typeof KIT, className: string): HTMLElement {

@@ -1,9 +1,4 @@
 #ui .tip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-6);
-  align-items: start;
-  font-size: var(--text-body);
   z-index: var(--z-toast);
 }
 #ui .end-turn.auto {
@@ -12,14 +7,6 @@
 }
 #ui:has(:is(.dialog:not(.modal), .confirm-dialog)) > .top-center > .tip {
   visibility: hidden;
-}
-#ui .tip .tip-close {
-  justify-self: end;
-}
-#ui .tip .tip-off-note {
-  grid-column: 1 / -1;
-  font-size: var(--text-caption);
-  color: var(--ink-faint);
 }
 #ui .touch-tip {
   position: fixed;

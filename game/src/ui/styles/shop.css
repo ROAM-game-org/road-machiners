@@ -2,13 +2,6 @@
   min-width: var(--panel-m);
   max-width: var(--panel-l);
 }
-.dialogue .dialogue-speaker {
-  color: var(--ink-muted);
-  margin-bottom: var(--space-2);
-}
-.dialogue .dialogue-line {
-  margin-bottom: var(--space-5);
-}
 .dialogue .dialogue-options {
   display: flex;
   flex-direction: column;

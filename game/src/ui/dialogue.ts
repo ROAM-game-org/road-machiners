@@ -13,6 +13,7 @@ import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteNam
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
+import { panelHead } from './dash/skin';
 import { directionsText } from './directions-text';
 import { gridSquareText } from './format';
 import { renderLine } from './quest-text';
@@ -162,7 +163,7 @@ class Horn {
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 export class DialoguePanel {
-  private readonly root = panel('dialogue notice', topCenter());
+  private readonly root = panel('dialogue notice hud-panel', topCenter());
   private readonly horn: Horn;
   private drawn = '';
 
@@ -191,8 +192,8 @@ export class DialoguePanel {
       return el('button', { class: o.seen ? 'dialogue-option seen' : 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, el('span', { class: 'option-key' }, num(i + 1, 'int')), el('span', { class: 'option-line' }, lineText(o.line, call.vars)));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
-    line.classList.add('dialogue-line');
-    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, vehicleTitle(w, npc)), line, el('div', { class: 'dialogue-options' }, ...options));
+    line.classList.add('dialogue-line', 'hud-screen');
+    this.root.replaceChildren(panelHead(vehicleTitle(w, npc)), line, el('div', { class: 'dialogue-options' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

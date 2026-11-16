@@ -14,7 +14,7 @@ import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
 import { bottomLeft, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd } from "./dash/panels";
-import { paintSkin, rockerButton, setAttrText, tray, type RockerView } from "./dash/skin";
+import { controls, paintSkin, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, tray, type RockerView } from "./dash/skin";
 import type { PhoneMenuLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
@@ -204,20 +204,20 @@ export class Hud {
   private inspectedOther = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
-  private contracts = panel("contracts dock-panel", rightDock());
-  private wanted = panel("wanted dock-panel", rightDock());
+  private contracts = panel("contracts dock-panel hud-panel", rightDock());
+  private wanted = panel("wanted dock-panel hud-panel", rightDock());
   private log = new LogPanel();
-  private info = panel("info");
+  private info = panel("info hud-panel");
   private infoBody = el("div", { class: "info-content" });
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
-  private toastBox = panel("toast");
+  private toastBox = panel("toast hud-panel");
 
   private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
-  private rescue = panel("rescue notice", topCenter());
-  private knockedOut = panel("status-mark", topCenter());
+  private rescue = panel("rescue notice hud-panel", topCenter());
+  private knockedOut = panel("status-mark hud-panel", topCenter());
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
-  private stranded = panel("stranded notice", this.truckStack);
+  private stranded = panel("stranded notice hud-panel", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
   private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
@@ -507,7 +507,7 @@ export class Hud {
     const r = getRescueReadout(w);
     const down = rescueOf(r, "knockedOut");
     this.knockedOut.style.display = down ? "" : "none";
-    if (down) this.knockedOut.replaceChildren(el("span", { class: "bad" }, t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut")));
+    if (down) this.knockedOut.replaceChildren(screen(screenLine("bad", t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut"))));
     this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
@@ -516,13 +516,9 @@ export class Hud {
     this.rescue.style.display = r ? "" : "none";
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
-      el("h3", {}, t("hud.underTow")),
-      ...(r.kind === "towed" ? [el("div", { class: "hud-screen" }, el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)))] : []),
-      el(
-        "div",
-        { class: "rescue-buttons hud-keybed" },
-        el("button", { class: "hud-key", onclick: () => this.actions.unhitch() }, t("hud.unhitch")),
-      ),
+      panelHead(t("hud.underTow")),
+      ...(r.kind === "towed" ? [screen(screenLine(null, t("hud.towsYou", { who: r.tower, town: r.town })), screenLine("dim", t("hud.fee"), SPACE, moneyEl(r.fee)))] : []),
+      controls(textKey(t("hud.unhitch"), { onclick: () => this.actions.unhitch() })),
     );
   }
 
@@ -530,15 +526,9 @@ export class Hud {
     this.stranded.style.display = r ? "" : "none";
     if (!r) return this.stranded.replaceChildren();
     this.stranded.replaceChildren(
-      el("h3", {}, t("hud.stranded")),
-      ...(r.reason ? [el("div", { class: "hud-screen" }, r.reason)] : []),
-      el(
-        "div",
-        { class: "rescue-buttons hud-keybed" },
-        r.canEnd
-          ? el("button", { class: "hud-key on", onclick: () => this.actions.endRun() }, t("hud.endRun"))
-          : beaconRocker(r.beacon, () => this.actions.setBeacon(!r.beacon)),
-      ),
+      panelHead(t("hud.stranded")),
+      ...(r.reason ? [screen(screenLine(null, r.reason))] : []),
+      controls(r.canEnd ? textKey(t("hud.endRun"), { onclick: () => this.actions.endRun() }, true) : beaconRocker(r.beacon, () => this.actions.setBeacon(!r.beacon))),
     );
   }
 
@@ -551,7 +541,8 @@ export class Hud {
     replaceChanged(
       this.wanted,
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
-      el("div", { class: "wanted-head" }, el("span", { class: "panel-title" }, t("hud.wanted")), el("span", { class: "num wanted-owed" }, moneyEl(owed))),
+      panelHead(t("hud.wanted")),
+      screen(screenLine("bad", el("span", { class: "num wanted-owed" }, moneyEl(owed)))),
     );
   }
 
@@ -564,9 +555,8 @@ export class Hud {
     this.contracts.style.display = "";
     replaceChanged(
       this.contracts,
-      el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) => heldContractLine(w, c)),
-      ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
+      panelHead(t("hud.contracts")),
+      screen(...w.player.contracts.map((c) => heldContractLine(w, c)), ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : [])),
     );
   }
 
@@ -702,13 +692,13 @@ export class Hud {
     this.inspectedOther = !isPlayerTruck(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
-    this.infoBody.replaceChildren(
-      infoHead(w, v, hostile),
-      el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)),
-      ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
+    const parts = [
+      panelHead(v.brain ? driverName(v) : vehicleTitle(w, v)),
+      shownScreen(screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line)))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
-      ...[this.cardButtons(w, v)].flatMap((row) => (row ? [row] : [])),
-    );
+      this.cardButtons(w, v),
+    ].filter((node) => node !== null);
+    this.infoBody.replaceChildren(...parts);
     this.placeInfo();
   }
 }
@@ -726,15 +716,14 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
+function shownScreen(screenNode: HTMLElement): HTMLElement | null {
+  return screenNode.textContent?.trim() ? screenNode : null;
+}
+
+function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {
+  if (v.faction === "player") return null;
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
-  const quietText = list(quiet);
-  return el(
-    "div",
-    { class: "info-head" },
-    el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
-    ...(v.faction === "player" ? [] : [el("span", { class: "info-quiet", title: quietText }, quietText), el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-  );
+  return el("div", { class: "info-facts" }, el("span", { class: "dim" }, list(quiet)), el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile)));
 }
 
 export interface CardHandlers {
@@ -751,7 +740,7 @@ function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
   const buttons: HTMLElement[] = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
   if (touchMode()) buttons.push(el("button", { class: "hud-key icon-key", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, createIcon("close")));
-  return buttons.length === 0 ? null : el("div", { class: "info-actions hud-keybed" }, ...buttons);
+  return buttons.length === 0 ? null : el("div", { class: "info-actions hud-controls", "data-count": buttons.filter((b) => b.tagName === "BUTTON").length }, ...buttons);
 }
 
 function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {

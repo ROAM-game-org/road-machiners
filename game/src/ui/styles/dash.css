@@ -603,35 +603,39 @@
   text-shadow: var(--hud-text-glow);
 }
 
-#ui .hud-screen {
+:is(#ui, #overlay) .hud-screen {
   box-sizing: border-box;
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  border: var(--hud-step) solid var(--hud-glass-edge);
-  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  border: 0;
+  background: var(--hud-glass-fill);
+  box-shadow: var(--hud-recess);
   color: var(--hud-amber);
+  text-align: left;
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   letter-spacing: 0.02em;
 }
 
-#ui .hud-screen .dim,
-#ui .tip .tip-off-note {
+:is(#ui, #overlay) .hud-screen * {
+  color: inherit;
+}
+
+:is(#ui, #overlay) .hud-screen :is(.dim, .dim *) {
   color: var(--hud-amber-soft);
 }
 
-#ui .tip .tip-screen {
-  display: grid;
-  row-gap: var(--space-1);
+:is(#ui, #overlay) .hud-screen :is(.good, .good *) {
+  color: var(--hud-lamp-green);
+}
+
+:is(#ui, #overlay) .hud-screen :is(.bad, .bad *),
+#ui .hud-screen.bad {
+  color: var(--hud-hot);
 }
 
 #ui .toast.bad {
   color: var(--hud-hot);
-}
-
-#ui :is(.info, .contracts, .wanted, .rescue, .stranded, .tip, .dialogue) :is(h3, .panel-title, .info-name) {
-  color: var(--hud-print);
-  text-shadow: none;
 }
 
 #ui .drawer-tabs > button {
@@ -729,11 +733,11 @@
   align-items: center;
   gap: var(--hud-tray-gap);
   height: var(--hud-tray-h);
-  padding: 0 var(--space-2);
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  padding: var(--hud-rim-w) calc(var(--space-2) + var(--hud-rim-w));
+  border: 0;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
+  box-shadow: var(--hud-panel-edge);
 }
 
 #ui .tray-cell {
@@ -746,9 +750,10 @@
   box-sizing: border-box;
   height: calc(var(--hud-key-h) * 0.85);
   border-radius: 0;
-  border: var(--hud-well-w) solid transparent;
-  border-image: var(--hud-well-art) var(--hud-well-slice) / var(--hud-well-w) stretch;
-  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  border: 0;
+  padding: var(--hud-well-w);
+  background: var(--hud-glass-fill);
+  box-shadow: var(--hud-recess);
 }
 
 #ui .stat-icon {
@@ -814,12 +819,12 @@
   --ink-label: var(--hud-amber-soft);
   --ink-muted: var(--hud-amber-soft);
   --ink-faint: var(--hud-amber-faint);
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  border: 0;
+  border-image: none;
   border-radius: 0;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
-  box-shadow: none;
+  box-shadow: var(--hud-panel-edge);
   color: var(--hud-amber);
 }
 
@@ -974,7 +979,7 @@
   flex: none;
 }
 
-#ui .tip button.tip-close.tip-close {
+:is(#ui, #overlay) button.hud-close.hud-close {
   box-sizing: border-box;
   width: calc(var(--hud-key-h) * 0.7);
   height: calc(var(--hud-key-h) * 0.7);
@@ -991,7 +996,7 @@
   place-items: center;
 }
 
-#ui .tip button.tip-close.tip-close > .icon {
+:is(#ui, #overlay) button.hud-close.hud-close > .icon {
   width: calc(var(--hud-key-h) * 0.4);
   height: calc(var(--hud-key-h) * 0.4);
 }
@@ -1000,8 +1005,8 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .tip-close, .hud-key, .dialogue-option, .rocker) {
-  border: 1px solid var(--hud-amber-dim);
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+  border: 0;
   background: none;
   box-shadow: none;
   color: var(--hud-amber);
@@ -1060,15 +1065,14 @@
 #ui .condition-tip-body.tooltip {
   box-sizing: border-box;
   max-width: min(var(--panel-m), calc(var(--layer-w) - 2 * var(--hud-inset)));
-  --tip-housing: 3px;
   isolation: isolate;
-  padding: calc(var(--space-2) + var(--tip-housing) + var(--hud-step)) calc(var(--space-3) + var(--tip-housing) + var(--hud-step));
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
+  border: 0;
+  border-image: none;
   border-radius: 0;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
-  box-shadow: none;
+  box-shadow: var(--hud-panel-edge);
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
@@ -1079,14 +1083,14 @@
 #ui :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip)::before {
   content: "";
   position: absolute;
-  inset: var(--tip-housing);
+  inset: var(--hud-panel-gap);
   z-index: -1;
-  border: var(--hud-step) solid var(--hud-glass-edge);
-  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  background: var(--hud-glass-fill);
+  box-shadow: var(--hud-recess);
   pointer-events: none;
 }
 
-#ui :is(.plate-label, .key-print, .dial-text, .knob-mark, .tape-print, .stat-unit, .drawer-tabs > button, .tip-close) {
+#ui :is(.plate-label, .key-print, .dial-text, .knob-mark, .tape-print, .stat-unit, .drawer-tabs > button) {
   font-family: var(--font-engraved);
   font-weight: 400;
   -webkit-text-stroke: 0.03em currentColor;
@@ -1155,14 +1159,6 @@
   filter: none;
 }
 
-#ui .top-center > .panel.tip {
-  column-gap: var(--space-2);
-  padding: var(--space-1);
-}
-#ui .tip .tip-close {
-  align-self: start;
-}
-
 :is(#ui, #overlay) .hud-keybed {
   display: flex;
   flex-wrap: wrap;
@@ -1170,9 +1166,6 @@
   gap: var(--space-2);
   margin: var(--space-2) calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad));
   padding: var(--space-2) var(--hud-pad);
-  border-top: var(--hud-step) solid var(--hud-print-ink);
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat;
-  background-blend-mode: multiply, normal;
   align-self: stretch;
 }
 
@@ -1188,12 +1181,12 @@
   --ink-muted: var(--hud-amber-soft);
   --ink-faint: var(--hud-amber-faint);
   box-sizing: border-box;
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  border: 0;
+  border-image: none;
   border-radius: 0;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
-  box-shadow: none;
+  box-shadow: var(--hud-panel-edge);
   color: var(--hud-amber);
   font-family: var(--font-hud);
   text-shadow: var(--hud-text-glow);
@@ -1249,11 +1242,11 @@
   translate: 0 calc(var(--hud-key-edge) * -0.3125);
 }
 
-#ui :is(.tip button.tip-close, .cool-key > .key-face) > .icon {
+#ui :is(button.hud-close, .cool-key > .key-face) > .icon {
   translate: 0 calc(var(--small-key-edge) * -0.3125);
 }
 
-#ui :is(.info, .rescue, .stranded, .minimap) {
+#ui .minimap {
   padding: var(--hud-pad);
 }
 
@@ -1269,14 +1262,15 @@
 }
 
 #ui :is(.action, .game-menu [role=menu]) {
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat padding-box, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  background: var(--hud-panel-fill);
   background-blend-mode: multiply, normal;
+  box-shadow: var(--hud-panel-edge);
   text-shadow: none;
 }
 
 #ui .action {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-2);
   padding: var(--space-2);
 }
@@ -1345,8 +1339,7 @@
 #ui .minimap .minimap-head {
   justify-content: flex-start;
   margin: calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad)) var(--space-2);
-  border-top: 0;
-  border-bottom: var(--hud-step) solid var(--hud-print-ink);
+  border: 0;
 }
 
 #ui .dialogue .dialogue-option {
@@ -1385,14 +1378,11 @@
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
 }
 
-#ui .dialogue .dialogue-speaker {
-  color: var(--hud-amber-soft);
-}
-
 #ui .beacon-switch {
   display: inline-flex;
+  flex-direction: column-reverse;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 #ui .beacon-switch > .rocker {
@@ -1411,13 +1401,6 @@
 
 #ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
   color: var(--hud-hot);
-}
-
-#ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) :is(h3, .panel-title, .info-name) {
-  font: 400 var(--hud-text-m) / 1.2 var(--font-engraved);
-  -webkit-text-stroke: 0.03em currentColor;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 #ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .tip) {
@@ -1476,8 +1459,6 @@
 
 #ui .contracts .contract-line + .contract-line {
   margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: var(--hud-step) solid var(--hud-amber-faint);
 }
 
 #ui .contracts .contract-line .dim {
@@ -1486,14 +1467,9 @@
   font-size: var(--hud-text-s);
 }
 
-#ui :is(.action, .game-menu [role=menu]) {
-  border: var(--hud-rim-w) solid transparent;
-  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
-}
-
-
-
 :is(#ui, #overlay) button.hud-key:not(.icon-key) {
+  flex-direction: column-reverse;
+  gap: var(--space-1);
   min-width: 0;
   min-height: var(--hud-key-h);
   padding: 0;
@@ -1545,7 +1521,7 @@
   translate: 0 0;
 }
 
-#ui :is(.tip button.tip-close.tip-close, button.key-cap.cool-key) {
+:is(#ui, #overlay) :is(button.hud-close.hud-close, button.key-cap.cool-key) {
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
   border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
@@ -1559,20 +1535,50 @@
   color: var(--hud-hot);
 }
 
-#ui .death .death-box > h3 {
+:is(#ui, #overlay) .hud-panel {
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--hud-panel-gap);
+  padding: var(--hud-panel-gap);
+  text-align: left;
+}
+
+:is(#ui, #overlay) .hud-panel .hud-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+:is(#ui, #overlay) .hud-panel .hud-panel-title {
   margin: 0;
   color: var(--hud-print);
-  font: 400 var(--text-lead) / 1.2 var(--font-engraved);
+  font: 400 var(--hud-text-m) / 1.2 var(--font-engraved);
   -webkit-text-stroke: 0.03em currentColor;
   letter-spacing: 0.04em;
+  text-align: left;
   text-transform: uppercase;
   text-shadow: none;
 }
 
-#ui .death .death-box {
-  font-size: var(--hud-text-m);
+:is(#ui, #overlay) .hud-panel .hud-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
 }
 
-#ui .toast {
-  padding: 3px;
+:is(#ui, #overlay) .hud-panel .hud-controls[data-count="1"] {
+  justify-content: center;
+}
+
+:is(#ui, #overlay) button.hud-key.danger:not(.icon-key)::before {
+  border-image-source: var(--hud-keycap-lit-art);
+}
+
+#ui .action > .count {
+  display: flex;
+  align-items: center;
+  height: var(--hud-key-h);
 }

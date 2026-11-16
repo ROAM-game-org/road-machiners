@@ -266,6 +266,11 @@
   --hud-pad: 10px;
   --hud-glass-tile: 256px;
   --hud-grime-tile: 256px;
+  --hud-panel-fill: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat, var(--hud-olive);
+  --hud-panel-edge: inset 0 1px 1px rgb(255 240 205 / 0.3), inset 1px 0 1px rgb(255 240 205 / 0.15), inset 0 -1px 1px rgb(30 18 6 / 0.45), inset -1px 0 1px rgb(30 18 6 / 0.3);
+  --hud-panel-gap: 5px;
+  --hud-recess: inset 0 1px 2px rgb(8 4 1 / 0.8), inset 0 0 1.5px 0.5px rgb(8 4 1 / 0.75), 0 0 1px 0.5px rgb(255 240 205 / 0.12);
+  --hud-glass-fill: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat, var(--hud-screen);
   --hud-olive-tile: 400px;
   --hud-olive: #4c402e;
   --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;
