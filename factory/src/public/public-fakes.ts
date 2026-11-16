@@ -34,7 +34,7 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   f.store = openStore(home);
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
-    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, answersPerDay: 3, minVotes: 3, voteEmoji: '👍 ❤', vetoEmoji: '👎', publicDigestMinutes: 60, reportIpPerHour: 5, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
+    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, answersPerDay: 3, minVotes: 3, voteEmoji: '👍 ❤', vetoEmoji: '👎', publicDigestMinutes: 60, filterPerTick: 10, reportIpPerHour: 5, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
     statePath,
     now: () => f.clock.now,
     log: (stage: string, issue: number | null, msg: string) => { f.logs.push(`${stage} ${issue} ${msg}`); },
