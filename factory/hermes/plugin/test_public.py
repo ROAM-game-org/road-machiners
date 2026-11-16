@@ -501,7 +501,7 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     values = {
         "FACTORY_INBOX": "/in", "FACTORY_STATE_DIR": str(tmp_path / "state"), "FACTORY_COMMITTEE_CHAT": COMMITTEE_CHAT,
         "FACTORY_OBSERVATION_HEARTBEAT_MS": "10000", "FACTORY_PUBLIC_URL": "https://example.org",
-        "FACTORY_STATUS_TIMEOUT_MS": "10000", "FACTORY_ROUTE_MIN_WORDS": "4", "FACTORY_REPO": "owner/repo",
+        "FACTORY_STATUS_TIMEOUT_MS": "10000", "FACTORY_ROUTE_MIN_WORDS": "4", "FACTORY_HERMES_IDLE_RESET_MINUTES": "60", "FACTORY_REPO": "owner/repo",
         "FACTORY_COMMITTEE_DIR": str(tmp_path / "committee"), "FACTORY_COMMITTEE_BOOTSTRAP": "1",
         "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB": "boss", "FACTORY_PUBLIC_DISCUSSION": DISCUSSION,
         "FACTORY_PROPOSAL_CHAT": PROPOSAL_CHAT, "FACTORY_PUBLIC_INBOX": str(tmp_path / "public-inbox"),
