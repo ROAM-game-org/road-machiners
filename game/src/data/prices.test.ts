@@ -45,6 +45,7 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
   utility: ['turns', 'reach'],
   core: ['hp'],
   spare: [],
+  relic: [],
 };
 
 describe('item prices', () => {

@@ -316,7 +316,7 @@ function partDamage(hits: PartHit[]): Map<string, number> {
 }
 
 const PART_SHORT = {
-  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util', spare: 'whl',
+  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util', spare: 'whl', relic: 'cargo',
   cab: 'cab', transmission: 'trans', wheel: 'whl', tank: 'tank',
 } as const;
 

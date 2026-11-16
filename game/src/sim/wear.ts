@@ -245,6 +245,10 @@ export function partValue(part: PartInstance): number {
   return partDef(part.defId).value * wearFactor(part.wear);
 }
 
+export function isRelic(part: PartInstance): boolean {
+  return partDef(part.defId).kind === 'relic';
+}
+
 export function carriedSpare(v: Vehicle): PartInstance | null {
   const item = v.items.find((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'spare');
   return item?.kind === 'part' ? item.part : null;

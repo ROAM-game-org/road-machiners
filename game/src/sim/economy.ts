@@ -11,7 +11,7 @@ import { NPC_UPKEEP } from "../data/npcs";
 import { REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import { fitStores, getResources } from "./resources";
-import { isJunk, maxHp, partValue, rebuildJunk, restorePart, scrapPatchPart, scrapValue, wearFactor } from "./wear";
+import { isJunk, isRelic, maxHp, partValue, rebuildJunk, restorePart, scrapPatchPart, scrapValue, wearFactor } from "./wear";
 import { playerTrucks, playerVehicle, vehicleById } from "./damage";
 import { inFeud } from "./combat";
 import { meetGoal } from "./npc-activities";
@@ -24,7 +24,7 @@ import { affordableUnits, chargeM, fairM, payoutM, requireWholeM } from "./money
 import { canUseSite, requireTown, townAt } from "./sites";
 import { reachedOutpostAt } from "./chaos-highway";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
-import { addGoods, cargoRoom, keepInStorage, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
+import { addGoods, cargoRoom, keepInStorage, mountPart, removeGoods, spareParts, stowParcel, tradedSpares, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
 import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
@@ -181,7 +181,7 @@ function goodsSoldAt(vehicle: Vehicle, buyerId: string, retainedParts: number): 
 }
 
 export function sellsAnythingAt(vehicle: Vehicle, buyerId: string, retainedParts: number): boolean {
-  return goodsSoldAt(vehicle, buyerId, retainedParts).length > 0 || spareParts(vehicle).length > 0;
+  return goodsSoldAt(vehicle, buyerId, retainedParts).length > 0 || tradedSpares(vehicle).length > 0;
 }
 
 export function sellVehicleCargo(
@@ -192,7 +192,7 @@ export function sellVehicleCargo(
 ): void {
   requireVehicleShop(world, vehicle, shopId);
   for (const [good, count] of goodsSoldAt(vehicle, shopId, retainedParts)) tradeGoods(world, vehicle, shopId, good, count, "sell");
-  const spares = spareParts(vehicle);
+  const spares = tradedSpares(vehicle);
   for (const part of spares) {
     shopMoney(world, vehicle, partTradePrice(world, vehicle, part, "sell"), "partSale");
     addStockPart(shopState(world, shopId), part);
@@ -255,7 +255,7 @@ export function sellAtCamp(world: World, vehicle: Vehicle, campId: string, retai
     removeGoods(vehicle, good, count);
     shopMoney(world, vehicle, campGoodPrice(good, count), "campSale");
   }
-  const spares = spareParts(vehicle);
+  const spares = tradedSpares(vehicle);
   for (const part of spares) shopMoney(world, vehicle, campPartPrice(part), "campSale");
   vehicle.items = vehicle.items.filter((item) => item.kind !== "part" || !spares.includes(item.part));
 }
@@ -634,12 +634,12 @@ export function sellPart(world: World, partId: string): World {
 }
 
 export function takeSellablePart(world: World, partId: string, me: Vehicle = playerVehicle(world)): PartInstance {
-  const spare = spareParts(me).find((p) => p.id === partId);
+  const spare = tradedSpares(me).find((p) => p.id === partId);
   if (spare) {
     me.items = me.items.filter((it) => it.kind !== "part" || it.part.id !== partId);
     return spare;
   }
-  const i = world.player.storage.findIndex((p) => p.id === partId);
+  const i = world.player.storage.findIndex((p) => p.id === partId && !isRelic(p));
   if (i < 0) throw new Error(`No sellable part ${partId} here`);
   return world.player.storage.splice(i, 1)[0];
 }
@@ -939,7 +939,7 @@ export function sellTruckGood(world: World, npcId: string, good: string, n: numb
 }
 
 function takeSpare(v: Vehicle, partId: string): PartInstance {
-  const part = spareParts(v).find((p) => p.id === partId);
+  const part = tradedSpares(v).find((p) => p.id === partId);
   if (!part) throw new Error(`${v.id} has no spare part ${partId}`);
   v.items = v.items.filter((it) => it.kind !== "part" || it.part.id !== partId);
   return part;

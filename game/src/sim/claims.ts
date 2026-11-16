@@ -10,7 +10,7 @@ import { navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
-import { isJunk, partValue } from './wear';
+import { isRelic, partValue } from './wear';
 import { dist, type Vec } from './vec';
 import { fairM } from './money';
 
@@ -55,7 +55,7 @@ export function claimTargets(world: World, shopId: string): ClaimTarget[] {
   const fair = claimClueBake({ hash: world.mapHash }).wrecks;
   return claimSpots(world)
     .filter((stock) => !named.has(stock.id) && fair[stock.id]?.tiers[shopId] !== undefined)
-    .flatMap((stock) => [...stock.parts, ...stock.hidden.parts].filter((part) => !isJunk(part)).map((part) => ({ stock, part })));
+    .flatMap((stock) => [...stock.parts, ...stock.hidden.parts].filter(isRelic).map((part) => ({ stock, part })));
 }
 
 function requireTurns(turns: number): void {

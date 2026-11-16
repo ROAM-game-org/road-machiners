@@ -2,7 +2,8 @@ import type { TruckPaint } from "../data/chassis";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { mountCellsOf } from "../sim/grid";
-import { spareParts } from "../sim/inventory";
+import { tradedSpares } from "../sim/inventory";
+import { isRelic } from "../sim/wear";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { num, t, type Msg } from "../text/msg";
 import { compareBase, createIcon, type IconName } from "./cards";
@@ -17,9 +18,9 @@ export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
 export const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks", "paint"];
 
-export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory" | "spare">;
+export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory" | "spare" | "relic">;
 
-const FILTER_OF: Partial<Record<PartKind, Exclude<StockFilter, "all">>> = { accessory: "armor", spare: "utility" };
+const FILTER_OF: Partial<Record<PartKind, Exclude<StockFilter, "all">>> = { accessory: "armor", spare: "utility", relic: "utility" };
 
 export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
   if (kind === "core") throw new Error("Built-in parts are never in stock");
@@ -87,7 +88,7 @@ export function garagePartRow(w: World, list: GarageList, p: PartInstance, actio
 }
 
 export function sellableParts(w: World, truck: Vehicle): PartInstance[] {
-  return [...w.player.storage, ...spareParts(truck)];
+  return [...w.player.storage.filter((p) => !isRelic(p)), ...tradedSpares(truck)];
 }
 
 export type SellPartsBody = {

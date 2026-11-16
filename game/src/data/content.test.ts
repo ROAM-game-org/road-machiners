@@ -38,7 +38,7 @@ beforeAll(() => {
   world.player.money = 33333;
 });
 
-const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
+const addedParts: Record<Exclude<PartKind, "core" | "scanner" | "relic">, string[]> = {
   store: ["jerrycans", "supplyLocker"],
   weapon: [
     "shotgun", "longRifle", "flamer", "pneumobolter", "slugCannon",
@@ -189,7 +189,7 @@ describe("equipment variety", () => {
   it("keeps every part, chassis and good inside its tier's effort band", () => {
     const items: { name: string; kind: ItemKind; tier: 1 | 2 | 3; value: number }[] = [
       ...Object.values(PARTS)
-        .filter((p) => p.kind !== "core")
+        .filter((p) => p.kind !== "core" && p.kind !== "relic")
         .map((p) => ({ name: p.id, kind: p.kind as ItemKind, tier: p.tier, value: p.value })),
       ...Object.values(CHASSIS).map((c) => ({ name: c.id, kind: "chassis" as ItemKind, tier: c.tier, value: c.value })),
       ...Object.values(GOODS).map((g) => ({ name: g.id, kind: "good" as ItemKind, tier: g.tier, value: g.value })),

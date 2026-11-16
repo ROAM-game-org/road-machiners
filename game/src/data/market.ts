@@ -202,7 +202,7 @@ const STALL_WEAR: Weighted<number>[] = [
   { value: 4, weight: 1 },
 ];
 
-const NON_CORE_PARTS = Object.values(PARTS).filter((def) => def.kind !== 'core');
+const NON_CORE_PARTS = Object.values(PARTS).filter((def) => def.kind !== 'core' && def.kind !== 'relic');
 const PART_SHELF_WEIGHT = { utility: 3, emitter: 0.6, other: 1 };
 const GARAGE_PARTS: Weighted<string>[] = NON_CORE_PARTS.map((def) => ({ value: def.id, weight: shelfWeightOf(def) }));
 

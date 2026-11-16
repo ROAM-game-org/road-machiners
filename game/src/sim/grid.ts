@@ -22,6 +22,7 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   store: ['D'],
   utility: ['D'],
   spare: [],
+  relic: [],
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
 

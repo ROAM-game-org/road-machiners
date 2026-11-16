@@ -14,7 +14,8 @@ export type PartKind =
   | "scanner"
   | "store"
   | "utility"
-  | "spare";
+  | "spare"
+  | "relic";
 
 type PartBulk = { w: number; h: number };
 
@@ -132,6 +133,10 @@ export type SpareDef = PartBase & {
   fits: "wheel";
 };
 
+export type RelicDef = PartBase & {
+  kind: "relic";
+};
+
 export type ScannerDef = PartBase & {
   kind: "scanner";
   range: number;
@@ -172,7 +177,8 @@ export type PartDef =
   | ScannerDef
   | StoreDef
   | UtilityDef
-  | SpareDef;
+  | SpareDef
+  | RelicDef;
 
 export type Unpriced<T> = T extends unknown ? Omit<T, 'value'> : never;
 type Unbulked<T> = T extends unknown ? Omit<T, 'value' | 'bulk'> : never;
@@ -199,6 +205,7 @@ type UnpricedByKind = {
   core: Omit<CoreDef, 'value'>;
   utility: Omit<UtilityDef, 'value'>;
   spare: Omit<SpareDef, 'value'>;
+  relic: Omit<RelicDef, 'value'>;
 };
 const m = PART_PRICE_MODIFIERS;
 const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
@@ -212,6 +219,7 @@ const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
   core: (d) => m.core.perHp * d.hp,
   utility: (d) => m.utility.perEffectTurn * effectTurns(d.effect) + m.utility.perReachTile * utilityReach(d),
   spare: () => 0,
+  relic: () => 0,
 };
 
 function shieldModifier(d: Unpriced<ShieldDef>): number {
@@ -325,6 +333,9 @@ const PART_BULK: Record<string, PartBulk> = {
   tankHeavy: { w: 1, h: 2 },
   scanner: { w: 1, h: 1 },
   spareTire: { w: 1, h: 2 },
+  relicStatue: { w: 2, h: 1 },
+  relicShipModule: { w: 2, h: 2 },
+  relicComputer: { w: 1, h: 1 },
 };
 
 const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
@@ -848,6 +859,15 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   },
   spareTire: {
     id: "spareTire", kind: "spare", hp: 30, base: 35, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, fits: "wheel",
+  },
+  relicStatue: {
+    id: "relicStatue", kind: "relic", hp: 40, base: 60, tier: 1, w: 2, h: 1, mass: 100, armor: 2, tall: false,
+  },
+  relicShipModule: {
+    id: "relicShipModule", kind: "relic", hp: 60, base: 90, tier: 1, w: 2, h: 2, mass: 200, armor: 3, tall: false,
+  },
+  relicComputer: {
+    id: "relicComputer", kind: "relic", hp: 20, base: 40, tier: 1, w: 1, h: 1, mass: 50, armor: 1, tall: false,
   },
   wheelMid: {
     id: "wheelMid", kind: "core", hp: 50, base: 3.33, tier: 1, w: 1, h: 3, mass: 25, armor: 3, tall: false, role: "wheel",

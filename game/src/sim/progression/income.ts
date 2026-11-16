@@ -3,7 +3,8 @@ import { REGION } from '../../data/region';
 import { TIME } from '../../data/time';
 import { playerVehicle } from '../damage';
 import { getLotTradePrice, partTradePrice, repairCost } from '../economy';
-import { goodsCount, isMounted } from '../grid';
+import { goodsCount } from '../grid';
+import { tradedSpares } from '../inventory';
 import type { GameEvent, GoalReason, MoneyReason, PartInstance, Vehicle, World } from '../types';
 import { getTradePrice } from '../economy';
 import { isDefeated } from '../defeat';
@@ -136,7 +137,7 @@ function templateKind(v: Vehicle): TargetKind | null {
 function targetSample(world: World, v: Vehicle, kind: TargetKind): TargetSample {
   const guarded = escortsOf(world, v.id).some((e) => !isDefeated(e));
   const boughtGoods = v.brain!.goals[0]?.reason === DELIVER_REASON ? cargoUnits(v) : 0;
-  return { kind, guarded, qualifies: wouldRob(world, v), cargoValue: saleValue(world, goodsCount(v), spareParts(v)), wallet: v.resources!.money, boughtGoods };
+  return { kind, guarded, qualifies: wouldRob(world, v), cargoValue: saleValue(world, goodsCount(v), tradedSpares(v)), wallet: v.resources!.money, boughtGoods };
 }
 
 export function largestTraderLoad(world: World): number {
@@ -167,7 +168,7 @@ function salvageIndex(world: World): number {
 
 export function worth(world: World): number {
   const me = playerVehicle(world);
-  return world.player.money + saleValue(world, goodsCount(me), spareParts(me)) - repairCost(world);
+  return world.player.money + saleValue(world, goodsCount(me), tradedSpares(me)) - repairCost(world);
 }
 
 function saleValue(world: World, goods: Record<string, number>, parts: readonly PartInstance[]): number {
@@ -176,9 +177,6 @@ function saleValue(world: World, goods: Record<string, number>, parts: readonly 
   return goodsValue + parts.reduce((sum, part) => sum + partTradePrice(world, me, part, 'sell'), 0);
 }
 
-function spareParts(v: Vehicle): PartInstance[] {
-  return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [it.part] : []));
-}
 
 function reconcile(label: string, ledger: Record<string, number>, change: number): void {
   const total = Object.values(ledger).reduce((sum, n) => sum + n, 0);

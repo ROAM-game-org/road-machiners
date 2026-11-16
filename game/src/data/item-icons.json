@@ -596,7 +596,7 @@
     },
     "supplyLocker": {
       "index": 58,
-      "hash": "ec4b2f57",
+      "hash": "2dabea46",
       "box": [
         0.0390625,
         0.046875,
@@ -694,8 +694,38 @@
         0.890625
       ]
     },
-    "wheelMid": {
+    "relicStatue": {
       "index": 68,
+      "hash": "9a8d1916",
+      "box": [
+        0.0390625,
+        0.0546875,
+        0.9296875,
+        0.890625
+      ]
+    },
+    "relicShipModule": {
+      "index": 69,
+      "hash": "1ca46ee9",
+      "box": [
+        0.0390625,
+        0.046875,
+        0.921875,
+        0.90625
+      ]
+    },
+    "relicComputer": {
+      "index": 70,
+      "hash": "ccab869c",
+      "box": [
+        0.0390625,
+        0.0390625,
+        0.921875,
+        0.921875
+      ]
+    },
+    "wheelMid": {
+      "index": 71,
       "hash": "cb62b2e1",
       "box": [
         0.0546875,
@@ -705,7 +735,7 @@
       ]
     },
     "wheelHeavy": {
-      "index": 69,
+      "index": 72,
       "hash": "ca32b2a2",
       "box": [
         0.0546875,
@@ -715,7 +745,7 @@
       ]
     },
     "tank": {
-      "index": 70,
+      "index": 73,
       "hash": "47f6bc07",
       "box": [
         0.046875,
@@ -725,7 +755,7 @@
       ]
     },
     "tankLong": {
-      "index": 71,
+      "index": 74,
       "hash": "adc8c7b4",
       "box": [
         0.046875,
@@ -735,7 +765,7 @@
       ]
     },
     "tankMid": {
-      "index": 72,
+      "index": 75,
       "hash": "c1441dfd",
       "box": [
         0.046875,
@@ -745,7 +775,7 @@
       ]
     },
     "tankHeavy": {
-      "index": 73,
+      "index": 76,
       "hash": "2041c5aa",
       "box": [
         0.046875,
@@ -755,7 +785,7 @@
       ]
     },
     "scanner": {
-      "index": 74,
+      "index": 77,
       "hash": "9383f86b",
       "box": [
         0.203125,
@@ -765,7 +795,7 @@
       ]
     },
     "scrap": {
-      "index": 75,
+      "index": 78,
       "hash": "f44ce903",
       "box": [
         0.03125,
@@ -775,7 +805,7 @@
       ]
     },
     "salt": {
-      "index": 76,
+      "index": 79,
       "hash": "ce80cbb6",
       "box": [
         0.0390625,
@@ -785,7 +815,7 @@
       ]
     },
     "meds": {
-      "index": 77,
+      "index": 80,
       "hash": "7cffa2ae",
       "box": [
         0.0390625,
@@ -795,7 +825,7 @@
       ]
     },
     "grain": {
-      "index": 78,
+      "index": 81,
       "hash": "c4094f7a",
       "box": [
         0.0703125,
@@ -805,7 +835,7 @@
       ]
     },
     "textiles": {
-      "index": 79,
+      "index": 82,
       "hash": "89bc4a81",
       "box": [
         0.0390625,
@@ -815,7 +845,7 @@
       ]
     },
     "tools": {
-      "index": 80,
+      "index": 83,
       "hash": "ec6c92cf",
       "box": [
         0.0390625,
@@ -825,7 +855,7 @@
       ]
     },
     "batteries": {
-      "index": 81,
+      "index": 84,
       "hash": "5ed0216a",
       "box": [
         0.0390625,
@@ -835,8 +865,8 @@
       ]
     },
     "electronics": {
-      "index": 82,
-      "hash": "60dcd942",
+      "index": 85,
+      "hash": "b07c933b",
       "box": [
         0.0390625,
         0.0390625,
@@ -845,7 +875,7 @@
       ]
     },
     "parts": {
-      "index": 83,
+      "index": 86,
       "hash": "62dc6c1e",
       "box": [
         0.0390625,
@@ -855,7 +885,7 @@
       ]
     },
     "fuelDrums": {
-      "index": 84,
+      "index": 87,
       "hash": "3d7c9d76",
       "box": [
         0.0390625,
@@ -865,7 +895,7 @@
       ]
     },
     "water": {
-      "index": 85,
+      "index": 88,
       "hash": "8090b441",
       "box": [
         0.0390625,
@@ -875,8 +905,8 @@
       ]
     },
     "relics": {
-      "index": 86,
-      "hash": "b3beac8c",
+      "index": 89,
+      "hash": "11004275",
       "box": [
         0.0390625,
         0.0546875,
@@ -885,7 +915,7 @@
       ]
     },
     "rations": {
-      "index": 87,
+      "index": 90,
       "hash": "77079f06",
       "box": [
         0.0390625,
@@ -895,7 +925,7 @@
       ]
     },
     "parcel": {
-      "index": 88,
+      "index": 91,
       "hash": "a135ab0f",
       "box": [
         0.03125,

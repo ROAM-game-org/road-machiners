@@ -26,7 +26,7 @@ import { playerCommand, Refused } from './world';
 import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
 import { heldCrates } from './goods-store';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
-import { partValue } from './wear';
+import { isRelic, partValue } from './wear';
 import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyPoint, type SurveySite } from './survey';
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
@@ -687,7 +687,7 @@ export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void 
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === c.partId);
   if (item?.kind !== 'part') throw new Error(`${v.id} does not carry the claimed ${c.partId}`);
   v.items = v.items.filter((it) => it !== item);
-  addStockPart(shopState(world, c.shop), item.part);
+  shelveClaimed(world, c.shop, item.part);
   shopMoney(world, v, c.reward, 'claimReward');
   finishContract(world, c, 'lapsed', 'rival');
 }
@@ -824,11 +824,15 @@ function handInClaim(world: World, c: ClaimContract): void {
   const spare = spareParts(v).find((p) => fitsClaim(c, p));
   if (spare) {
     v.items = v.items.filter((it) => it.kind !== 'part' || it.part.id !== spare.id);
-    return addStockPart(shopState(world, c.shop), spare);
+    return shelveClaimed(world, c.shop, spare);
   }
   const stored = world.player.storage.findIndex((p) => fitsClaim(c, p));
   if (stored < 0) throw new Error(`Needs the claimed ${c.defId}, off the truck`);
-  addStockPart(shopState(world, c.shop), world.player.storage.splice(stored, 1)[0]);
+  shelveClaimed(world, c.shop, world.player.storage.splice(stored, 1)[0]);
+}
+
+function shelveClaimed(world: World, shopId: string, part: PartInstance): void {
+  if (!isRelic(part)) addStockPart(shopState(world, shopId), part);
 }
 
 export function contractXp(c: Contract): number {

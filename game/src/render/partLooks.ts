@@ -93,6 +93,7 @@ const KIND_TONES: Record<PartKind, ItemTone> = {
   store: 'other',
   utility: 'other',
   spare: 'other',
+  relic: 'other',
 };
 
 export function itemTone(id: string): ItemTone {
@@ -109,6 +110,9 @@ export const PART_MODELS: Record<string, ModelName> = {
   wheel: 'wheel',
   wheelMid: 'wheel',
   spareTire: 'wheel',
+  relicStatue: 'good_relics',
+  relicShipModule: 'store_locker',
+  relicComputer: 'good_electronics',
   wheelHeavy: 'wheel',
   tank: 'fuel_tank',
   tankLong: 'fuel_tank',
@@ -553,6 +557,7 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   scanner: 'store',
   utility: 'store',
   spare: 'store',
+  relic: 'store',
   core: 'core',
 };
 

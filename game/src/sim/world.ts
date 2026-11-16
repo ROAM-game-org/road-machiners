@@ -40,6 +40,7 @@ import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
 import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
+import { placeRelics, renewRelics } from './relics';
 import { spillDeadCells } from './spill';
 import { fadeCraters } from './craters';
 import { timed } from '../perf';
@@ -239,6 +240,7 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
   if (populate && rules.traffic) assignMoments(world);
   if (rules.traffic) initializeShops(world);
   stockOldSpots(world, map);
+  placeRelics(world);
 }
 
 export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
@@ -440,6 +442,7 @@ export function endTurnInPlace(
     advanceLines(w);
     clearPiles(w);
     renewSalvage(w);
+    renewRelics(w);
     fadeCraters(w);
     advanceJobs(w);
     startAutoRepair(w);
