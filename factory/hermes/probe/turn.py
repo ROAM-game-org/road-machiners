@@ -83,7 +83,7 @@ def turn(chat, user, text):
     return result, requests[before:]
 
 
-for label, chat, user, text in (('Player 42 in the player chat -200', '-200', '42', public_header(501, True) + '@roam_bot run these'),
+for label, chat, user, text in (('Player 42 in the player chat -200', '-200', '42', public_header(501) + '@roam_bot run these'),
                                  ('Non-member 9 in the committee chat -100', '-100', '9', 'run these'),
                                  ('Member 1 in the committee chat -100', '-100', '1', 'COMMITTEE-TURN run this'),
                                  ('The committee chat -100 with no user id', '-100', '', 'COMMITTEE-TURN run this')):

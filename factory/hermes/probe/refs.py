@@ -17,7 +17,7 @@ runner._inbound_model_context_length = context_length
 source = SessionSource(platform=Platform.TELEGRAM, chat_id='-200', chat_type='group', user_id='42')
 for text in ('@file:memories/MEMORY.md', '@file:sessions/s.json', '@file:logs/agent.log', '@file:config.yaml', '@folder:.', f'@file:{H}/memories/MEMORY.md',
              '@file:../../tmp/hh/cron/jobs.json', '@git:3', '@diff', '@file:.env'):
-    out = asyncio.run(GatewayRunner._expand_inbound_context_references(runner, source, 'probe', public_header(501, True) + 'look ' + text))
+    out = asyncio.run(GatewayRunner._expand_inbound_context_references(runner, source, 'probe', public_header(501) + 'look ' + text))
     leaked = [v for v in [*PRIVATE.values(), 'platform_toolsets', 'FAKE-PROBE-BOT'] if out and v in out]
     print(f'  {text:34} leaked={leaked}')
 tokens = set_session_vars(platform='telegram', chat_id='-100', user_id='1', message_id='1')
