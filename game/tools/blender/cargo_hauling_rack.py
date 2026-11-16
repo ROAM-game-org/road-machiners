@@ -32,7 +32,7 @@ def frame(kit: Kit) -> tuple[float, float]:
         kit.box("skirt_end", (BEAM * 0.6, width - 2 * BEAM, 0.28), (x, 0, BEAM + 0.14), "paint", dent_by=0.01)
         for y in (-hy, hy):
             kit.box("gusset", (BEAM, BEAM, 0.05), (x, y, HEIGHT + 0.02), "metal_light", dent_by=0.006)
-    kit.box("floor", (length - 2 * BEAM, width - 2 * BEAM, 0.04), (0, 0, BEAM), "rust_dark")
+    kit.box("floor", (length - 0.02, width - 0.02, 0.04), (0, 0, 0.025), "rust_dark")
     return length, width
 
 

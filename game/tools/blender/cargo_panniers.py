@@ -26,7 +26,7 @@ def frame(kit: Kit) -> tuple[float, float]:
         for y in (-width / 2 + 0.02, width / 2 - 0.02):
             kit.box("post", (0.04, 0.04, 0.32), (x, y, 0.21), "metal")
     for y in (-width / 2 + 0.02, width / 2 - 0.02):
-        kit.box("rail", (length - 0.02, 0.035, 0.035), (0, y, 0.36), "metal_light")
+        kit.box("rail", (length - 0.04, 0.035, 0.035), (0, y, 0.36), "metal_light")
     return length, width
 
 

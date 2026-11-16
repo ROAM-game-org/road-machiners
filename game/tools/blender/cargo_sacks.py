@@ -22,9 +22,9 @@ HEIGHT = 0.7
 
 
 def board(kit: Kit) -> None:
-    kit.box("back", (0.03, CELL_ACROSS - 0.04, HEIGHT), (BACK, 0, HEIGHT / 2), "metal")
+    kit.box("back", (0.03, CELL_ACROSS - 0.04, HEIGHT - 0.01), (BACK, 0, HEIGHT / 2 - 0.005), "metal")
     kit.box("rail", (0.06, CELL_ACROSS - 0.02, 0.04), (BACK + 0.02, 0, HEIGHT - 0.02), "metal_light")
-    kit.box("foot", (0.26, CELL_ACROSS - 0.04, 0.04), (BACK + 0.115, 0, 0.02), "metal")
+    kit.box("foot", (0.27, CELL_ACROSS - 0.03, 0.04), (BACK + 0.11, 0, 0.02), "metal")
     for y in (-0.17, 0.17):
         kit.box(f"hook{y}", (0.07, 0.04, 0.05), (BACK + 0.05, y, HEIGHT - 0.07), "metal_light")
 
