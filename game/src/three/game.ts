@@ -1,4 +1,4 @@
-import { combatFrameMs, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
+import { combatFrameMs, playedKph, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG, PLAY_EASE } from "../config";
@@ -97,7 +97,7 @@ import type { SoundPlayer } from "../audio/player";
 import { cameraSetting, followRenderScale } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
-import { installTouchTips } from "../ui/touch-tip";
+import { installTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
 import { swallowNextClick } from "./ghost-click";
@@ -223,7 +223,7 @@ export class Game {
     setTimeout(() => this.plans.warm(this.world));
 
     subscribeInputMode(() => this.refreshUi());
-    installTouchTips(uiRoot(), touchMode, [overlay]);
+    installTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     refreshShadows(this.renderer, this.scene, this.gpu);
     container.appendChild(this.renderer.domElement);
@@ -269,6 +269,7 @@ export class Game {
     this.weapons = new WeaponPanel(host);
     this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
     this.hud = new Hud({
+      openMenu: () => this.menu.toggle(),
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
@@ -296,15 +297,12 @@ export class Game {
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
-    }, radio, this.renderer, this.gpu);
+    }, radio, this.weapons.deck, this.renderer, this.gpu);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
-      report: () => this.hud.openFeedback(),
-      reportOpen: () => this.hud.feedbackOpen(),
-    }, this.soundSettings);
+    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -540,7 +538,6 @@ export class Game {
     KeyF: { run: () => this.follow.recenter() },
     KeyV: { run: () => cameraSetting().toggle() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
-    KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
     ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
@@ -1115,6 +1112,7 @@ export class Game {
       playCrashes(this.combatHost(), this.crashCues, step);
       this.playRoadHorns(step);
     }
+    this.hud.showSpeed(playedKph(this.anim?.result.frames[playerVehicle(this.world).id], at));
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);

@@ -7,12 +7,14 @@ export interface InputMode {
   phone: boolean;
   slim: boolean;
   narrow: boolean;
+  tight: boolean;
   compact: boolean;
 }
 
 export const PHONE_MAX = { width: 560, height: 480 };
 export const SLIM_MAX_WIDTH = 480;
 export const NARROW_MAX_WIDTH = 720;
+export const TIGHT_MAX_WIDTH = 880;
 export const COMPACT_MAX_WIDTH = 1100;
 export const COARSE_QUERY = "(pointer: coarse)";
 
@@ -22,11 +24,12 @@ export function inputModeOf(coarse: boolean, layer: Extent): InputMode {
     phone: layer.width <= PHONE_MAX.width || layer.height <= PHONE_MAX.height,
     slim: layer.width <= SLIM_MAX_WIDTH,
     narrow: layer.width <= NARROW_MAX_WIDTH,
+    tight: layer.width <= TIGHT_MAX_WIDTH,
     compact: layer.width <= COMPACT_MAX_WIDTH,
   };
 }
 
-const NONE: InputMode = { touch: false, phone: false, slim: false, narrow: false, compact: false };
+const NONE: InputMode = { touch: false, phone: false, slim: false, narrow: false, tight: false, compact: false };
 let shown: InputMode = NONE;
 const listeners = new Set<(mode: InputMode) => void>();
 
@@ -40,6 +43,7 @@ function mark(root: HTMLElement, mode: InputMode): void {
   root.classList.toggle("phone", mode.phone);
   root.classList.toggle("slim", mode.slim);
   root.classList.toggle("narrow", mode.narrow);
+  root.classList.toggle("tight", mode.tight);
   root.classList.toggle("compact", mode.compact);
   shown = mode;
 }
@@ -79,6 +83,10 @@ export function keyLabel(text: Msg, key: string, place: "after" | "before" = "af
   if (touchMode()) return text;
   const cap = t("ui.key", { key });
   return concat(place === "after" ? [text, SPACE, cap] : [cap, SPACE, text]);
+}
+
+export function keyTip(text: Msg, key: string): Msg {
+  return keyLabel(text, key, "before");
 }
 
 export function keyCap(key: string): HTMLElement | null {

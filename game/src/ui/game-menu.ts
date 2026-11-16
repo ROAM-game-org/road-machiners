@@ -1,5 +1,5 @@
 
-import { closeLabel, ESCAPE, keyLabel, touchMode } from "./input-mode";
+import { closeLabel, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -7,6 +7,8 @@ import { setupText } from "../text/names";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { isConfirmOpen } from "./confirm-dialog";
+import { lamp, setData } from "./dash/skin";
+import { createIcon, type IconName } from "./cards";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { desktopHost } from "../three/save-db";
@@ -27,6 +29,8 @@ export type GameMenuActions = SavePanelActions & {
 export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "fullscreen" | "tips" | "help" | "report";
 
 export type PhoneMenuLinks = { report: () => void; reportOpen: () => boolean };
+
+const MENU_ICONS: Record<MenuEntry, IconName> = { new: "star", save: "box", load: "load", unstuck: "wrench", options: "options", fullscreen: "expand", tips: "scanner", help: "journal", report: "bug" };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -196,11 +200,6 @@ export class HelpPanel {
 
 export class GameMenu {
   private root = panel("game-menu", topRight());
-  private button = el(
-    "button",
-    { class: "menu-button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "game-menu-list", title: keyLabel(t("menu.menu"), ESCAPE.key), onclick: () => this.toggle() },
-    t("menu.menu"),
-  ) as HTMLButtonElement;
   private list = el("div", { id: "game-menu-list", role: "menu", "aria-label": t("menu.menu"), hidden: true });
   private items = {} as Record<MenuEntry, HTMLButtonElement>;
   private savePanel: SavePanel;
@@ -224,28 +223,37 @@ export class GameMenu {
   };
 
   private readonly onPointer = (e: PointerEvent) => {
-    if (e.target instanceof Node && this.root.contains(e.target)) return;
+    if (e.target instanceof Node && (this.root.contains(e.target) || this.button.contains(e.target))) return;
     this.closeList(false);
     e.stopPropagation();
     e.preventDefault();
   };
 
   private readonly onFocusOut = (e: FocusEvent) => {
-    if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget)) this.closeList(false);
+    if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget) && !this.button.contains(e.relatedTarget)) this.closeList(false);
   };
 
-  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks, sound: SoundSettings) {
+  private readonly tipsLamp = lamp("key-mark");
+  private readonly labels = {} as Record<MenuEntry, HTMLElement>;
+
+  constructor(private button: HTMLElement, private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks, sound: SoundSettings) {
+    button.setAttribute("aria-haspopup", "menu");
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", "game-menu-list");
     this.options = new OptionsPanel(sound, () => this.button.focus());
     this.help = new HelpPanel(setup);
     this.savePanel = new SavePanel(actions);
+    this.tipsLamp.classList.add("menu-lamp");
     for (const { entry, label } of ENTRIES) {
       const role = entry === "tips" ? "menuitemcheckbox" : "menuitem";
-      const item = el("button", { role, "data-entry": entry, onclick: entry === "fullscreen" ? () => this.toggleFullscreen() : () => this.choose(entry) }, label) as HTMLButtonElement;
+      const text = el("span", { class: "menu-label" }, label);
+      const item = el("button", { role, class: "menu-key", "data-entry": entry, onclick: entry === "fullscreen" ? () => this.toggleFullscreen() : () => this.choose(entry) }, el("span", { class: "menu-cap", "aria-hidden": "true" }, createIcon(MENU_ICONS[entry])), text) as HTMLButtonElement;
+      this.labels[entry] = text;
       this.items[entry] = item;
       this.list.append(item);
     }
     document.addEventListener("fullscreenchange", () => this.refresh());
-    this.root.append(this.button, this.list);
+    this.root.append(this.list);
     this.refresh();
   }
 
@@ -258,10 +266,11 @@ export class GameMenu {
     const saved = this.actions.hasSave();
     for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
     this.items.fullscreen.hidden = !document.fullscreenEnabled;
-    setText(this.items.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
+    setText(this.labels.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
-    setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
+    setData(this.tipsLamp, "lamp", on ? "amber" : "off");
+    if (this.tipsLamp.parentElement !== this.items.tips) this.items.tips.append(this.tipsLamp);
   }
 
   private setReason(item: HTMLButtonElement, reason: Msg | null): void {

@@ -50,14 +50,18 @@ export class DeathScreen {
     this.root.setAttribute("role", "alertdialog");
     bindAttr(this.root, "aria-label", title);
     this.root.append(
-      el("h3", {}, title),
-      runCaption(world) ?? el("div", { class: "dim" }, t("death.epitaph")),
       el(
         "div",
-        { class: "death-buttons" },
-        el("button", disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), t("menu.loadSave")),
-        world.chaosHighway ? el("button", { onclick: () => void this.restart(world) }, t("death.restartRun")) : null,
-        el("button", { onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
+        { class: "death-box hud-frame" },
+        el("h3", {}, title),
+        runCaption(world) ?? el("div", { class: "death-caption" }, t("death.epitaph")),
+        el(
+          "div",
+          { class: "death-buttons hud-keybed" },
+          el("button", { ...disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), class: "hud-key" }, t("menu.loadSave")),
+          world.chaosHighway ? el("button", { class: "hud-key", onclick: () => void this.restart(world) }, t("death.restartRun")) : null,
+          el("button", { class: "hud-key", onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
+        ),
       ),
     );
   }

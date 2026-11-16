@@ -23,23 +23,22 @@ import { roundDamage } from "../sim/combat";
 import { el, type Child } from "./dom";
 import { fuelLiters, hp, kph, meters, mps2 } from "./units";
 import { canvasReadable } from "../three/render/pixelReadback";
+import { PACK_ART } from "./icon-pack";
 
 export const ART = {
+  close: '<path d="M3 2L8 7l5-5 1 1-5 5 5 5-1 1-5-5-5 5-1-1 5-5-5-5z"/>',
+  water: '<path d="M8 1.5c-2.5 4-4.5 6.5-4.5 9a4.5 4.5 0 0 0 9 0c0-2.5-2-5-4.5-9z"/>',
+  prev: '<path d="M10.5 2.5v11L3.5 8z"/>',
+  next: '<path d="M5.5 2.5v11l7-5.5z"/>',
+  plus: '<path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/>',
+  minus: '<path d="M2 7h12v2H2z"/>',
+  expand: '<path d="M2 2h5v2H4v3H2zM9 2h5v5h-2V4H9zM2 9h2v3h3v2H2zM12 9h2v5H9v-2h3z"/>',
+  recenter: '<path d="M7 1h2v3H7zM7 12h2v3H7zM1 7h3v2H1zM12 7h3v2h-3zM8 5.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5z"/>',
   trade: '<path d="M1.5 3.5h8v-2l5 3.5-5 3.5v-2h-8zM14.5 9.5h-8v-2L1.5 11l5 3.5v-2h8z"/>',
-  fuel: '<path d="M2 2h8v13H2zM4 4h4v3.5H4z"/><path d="M10 4.5h2.5L15 7v5.5h-1.5V7.5L12 6h-2z"/>',
   supplies: '<path d="M5.5 1.5L8 3l2.5-1.5v2h-5zM7 3.5h2V5.5H7zM5 5.5h6l2.5 3.5c1 3.5 0 6-5.5 6S1.5 12.5 2.5 9z"/>',
   health: '<path d="M6 1.5h4v4.5h4.5v4H10v4.5H6V10H1.5V6H6z"/>',
-  engineHeat: '<path d="M6.5 1h3v5.5a3 3 0 1 1-3 0zM1.5 13l2.5-1.5L6.5 13l2.5-1.5 2.5 1.5 2.5-1.5v2L11.5 15 9 13.5 6.5 15 4 13.5 1.5 15z"/>',
-  driver: '<path d="M8 2a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM2 15c0-4.5 2.5-5.5 6-5.5s6 1 6 5.5z"/>',
-  truck:
-    '<path d="M1 2.5h9v2h2.5L15 7.5v1H1zM11 5.5h1.5l1.5 2H11z"/><path d="M4.5 10a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM11.5 10a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/>',
-  engine:
-    '<path d="M1.5 7h2V5.5H6V3.5H4.5v-1.5h5v1.5H8V5.5h3L12.5 7H15v4.5h-1.5L12 13H5.5L3.5 11V9.5h-2z"/>',
   armor: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM8 4L12 5.5V8C12 10 10 11.5 8 12.5 6 11.5 4 10 4 8V5.5z"/>',
   cargo: '<path d="M1.5 3h13v11h-13zM3.5 5h9v7h-9z"/><path d="M3.5 5H6l6.5 7H10z"/><path d="M12.5 5H10L3.5 12H6z"/>',
-  wheel:
-    '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/><path d="M7 3.5h2v9H7z"/><path d="M3.5 7h9v2h-9z"/>',
-  transmission: '<path d="M2 3h1.5v4.5h9V3H14v10h-1.5V9h-9v4H2z"/><path d="M8 5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/>',
   cab: '<path d="M2 15V6.5L5 2.5h6.5L14 7v8zM5.5 5.5L4 7.5h8L10.5 5.5z"/>',
   salt: '<path d="M7 3h2v10H7zM4.5 13.5h7V15h-7zM1.5 3h13v1.5h-13zM3 4.5h2V8H3zM11 4.5h2V8h-2zM1 8h6c0 2.5-1.5 4-3 4S1 10.5 1 8zM9 8h6c0 2.5-1.5 4-3 4S9 10.5 9 8z"/>',
   star: '<path d="M8 1.5L10 6L14.5 6.5L11 9.5L12 14L8 11.5L4 14L5 9.5L1.5 6.5L6 6z"/>',
@@ -58,8 +57,6 @@ export const ART = {
   magazine: '<path d="M5 4V3L6 1.5 7 3v1zM9 4V3l1-1.5L11 3v1zM5 5.5h6c.5 3 1.5 6 2.5 9H7.5C7 11 6 8 5 5.5z"/>',
   spread: '<path d="M2 8L14 2.5V4.5zM2 7h12v2H2zM2 8L14 13.5V11.5z"/>',
   arc: '<path d="M8 14.5L2 5.5Q8 1 14 5.5z"/>',
-  speed: '<path d="M1.5 12a6.5 6.5 0 0 1 13 0h-1.5a5 5 0 0 0-10 0z"/><path d="M6.5 12.5L11 6l1.5 1.5-3 5.5z"/><path d="M8 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"/>',
-  accel: '<path d="M1.5 12a4 4 0 0 1 8 0H8a2.5 2.5 0 0 0-5 0z"/><path d="M4 12.5L7.5 8 9 9.5l-3 3.5z"/><path d="M12.5 1.5L15 5h-1.5v8H12V5h-1.5z"/>',
   noise: '<path d="M1.5 6H4l3.5-3v10L4 10H1.5zM9 5.5a2.5 2.5 0 0 1 0 5v-1.5a1 1 0 0 0 0-2zM9 2.5a5.5 5.5 0 0 1 0 11v-1.5a4 4 0 0 0 0-8z"/>',
   ram: '<path d="M1.5 3.5H7L11.5 8 7 12.5H1.5zM13 2h1.5v12H13z"/>',
   rows: '<path d="M1.5 2H7v3H1.5zM8.5 2h6v3h-6zM1.5 6.5h8v3h-8zM11 6.5h3.5v3H11zM1.5 11H5v3H1.5zM6.5 11h8v3h-8z"/>',
@@ -68,7 +65,6 @@ export const ART = {
   turning: '<path d="M3 15V8Q3 3.5 7.5 3.5H10V1.5L14.5 5 10 8.5V6.5H7.5Q6 6.5 6 8V15z"/>',
   cells: '<path d="M1.5 1.5H7V7H1.5zM9 1.5h5.5V7H9zM1.5 9H7v5.5H1.5zM9 9h5.5v5.5H9z"/>',
   load: '<path d="M3.5 2h9v4.5h-9zM4 7.5h1.5v4H4zM10.5 7.5H12v4h-1.5zM1.5 12h13v2.5h-13z"/>',
-  power: '<path d="M9.5 1L3 9h4l-1 6 7-9H9z"/>',
   recoil: '<path d="M3 2.5h12V5h-6l-1 1.5V8H5.5V6.5L3 5zM14.5 11.5h-8v-2L1.5 12.5l5 3v-2h8z"/>',
   blast: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM11 8L9.5 9L9.5 10.5L8 9.5L6.5 10.5L6.5 9L5 8L6.5 7.5L6.5 5.5L8 6.5L9.5 5.5L9.5 7z"/>',
   heat: '<path d="M3.5 3.5a1.5 1.5 0 0 1 3 0V9.5a3 3 0 1 1-3 0zM11 3.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM10 1h2v1.5h-2zM13.5 5h1.5v2h-1.5zM10 9.5h2V11h-2z"/>',
@@ -77,16 +73,23 @@ export const ART = {
   clock: '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M7 4.5h2v3.5h3v2H7z"/>',
   paint: '<path d="M4.5 6h6v9h-6zM5.5 9.5h4v2h-4z"/><path d="M5.5 3.5h4V6h-4zM6.5 2h2v1.5h-2zM11.5 1.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM14 3.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM11.5 5.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2z"/>',
   lock: '<path d="M3 7h10v8H3zM8 9a1.5 1.5 0 0 1 1 2.5V13H7v-1.5A1.5 1.5 0 0 1 8 9z"/><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2h-1.5V5a2 2 0 0 0-4 0v2z"/>',
-  journal: '<path d="M4.5 1.5h9v13h-9zM7 4h4.5v1.5H7zM7 7h4.5v1.5H7zM7 10h2.5v1.5H7z"/><path d="M1.5 3h3v1.5h-3zM1.5 6.5h3V8h-3zM1.5 10h3v1.5h-3z"/>',
   cut: '<path d="M4.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM4.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM11.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM11.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2z"/><path d="M5 9l7.5-7.5L14 3 7 10zM11 9L3.5 1.5 2 3l7 7z"/>',
   gun: '<path d="M1.5 3h8v5.5h-8zM9.5 4.5H15v2H9.5zM13 3h2v1.5h-2zM4 9.5h2L4 15H2zM7 9.5h2l2 5.5H9z"/>',
   wrench: '<path d="M12.5 2L10.5 4.5L11.5 5.5L14 3.5A3.5 3.5 0 0 1 9.5 8.5L4 13.5L2.5 12L7.5 6.5A3.5 3.5 0 0 1 12.5 2z"/>',
   store: '<path d="M2 5L4.5 2.5H14V15H2zM4.5 5h4v2h-4z"/><path d="M10.5 1h2.5v1.5h-2.5z"/>',
+  options: '<path d="M2 3h12v1.5H2zM2 7h12v1.5H2zM2 11.5h12V13H2zM9.5 1.5h2v4h-2zM4 5.5h2v4H4zM10 9.5h2v4h-2z"/>',
+  bug: '<path d="M8 4a3 3 0 0 1 3 3v3.5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3zM6 1.5L7 3.5M10 1.5L9 3.5M1.5 6h3v1.5h-3zM11.5 6h3v1.5h-3zM1.5 10h3v1.5h-3zM11.5 10h3v1.5h-3z"/>',
+  map: '<path d="M1.5 3.5L5.5 2v11L1.5 14.5zM6.5 2l3 1.5v11l-3-1.5zM10.5 3.5l4-1.5v11l-4 1.5z"/>',
+  box: '<path d="M8 1.5L14 4.5L8 7.5L2 4.5zM1.5 5.5L7.5 8.5V15L1.5 12zM8.5 8.5L14.5 5.5V12L8.5 15z"/>',
 } as const;
 
-export type IconName = keyof typeof ART;
+const ICON_ART = { ...ART, ...PACK_ART } as const;
 
-export const ICON_NAMES = Object.keys(ART) as IconName[];
+export type IconName = keyof typeof ICON_ART;
+
+export const ICON_NAMES = Object.keys(ICON_ART) as IconName[];
+
+const isPackIcon = (name: IconName): name is keyof typeof PACK_ART => name in PACK_ART;
 
 const iconName = (name: IconName): Msg => t(`icon.${name}`);
 
@@ -96,7 +99,7 @@ export function createIcon(name: IconName): HTMLElement {
     title: iconName(name),
     "aria-hidden": "true",
   });
-  icon.innerHTML = `<svg viewBox="0 0 16 16" fill-rule="evenodd" focusable="false">${ART[name]}</svg>`;
+  icon.innerHTML = `<svg viewBox="0 0 ${isPackIcon(name) ? 24 : 16} ${isPackIcon(name) ? 24 : 16}" fill-rule="evenodd" focusable="false">${ICON_ART[name]}</svg>`;
   return icon;
 }
 

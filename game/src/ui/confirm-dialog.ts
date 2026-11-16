@@ -18,9 +18,9 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
   return new Promise((resolve) => {
     const opener = document.activeElement as HTMLElement | null;
     const block = panel("confirm-block");
-    const dialog = panel("confirm-dialog dialog");
-    const cancel = el("button", { onclick: () => finish(false) }, t("confirm.cancel"));
-    const yes = el("button", { class: "btn-danger", onclick: () => finish(true) }, ask.yes);
+    const dialog = panel("confirm-dialog hud-frame");
+    const cancel = el("button", { class: "hud-key", onclick: () => finish(false) }, t("confirm.cancel"));
+    const yes = el("button", { class: "hud-key on", onclick: () => finish(true) }, ask.yes);
 
     const onKey = (e: Event) => {
       const key = e as KeyboardEvent;
@@ -50,7 +50,7 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-describedby", QUESTION_ID);
     bindAttr(dialog, "aria-label", ask.question);
-    dialog.append(el("p", { id: QUESTION_ID }, ask.question), el("div", { class: "confirm-buttons" }, cancel, yes));
+    dialog.append(el("p", { id: QUESTION_ID }, ask.question), el("div", { class: "confirm-buttons hud-keybed" }, cancel, yes));
     window.addEventListener("keydown", onKey, true);
     cancel.focus();
   });

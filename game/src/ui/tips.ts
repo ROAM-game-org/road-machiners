@@ -1,4 +1,5 @@
 
+import { createIcon } from "./cards";
 import { touchMode } from "./input-mode";
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
@@ -331,7 +332,7 @@ export class Tips {
     this.box.classList.toggle("opening-tip", tip.opening === true);
     this.box.replaceChildren(
       el("span", { class: "tip-text" }, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)),
-      el("button", { class: "tip-close", title: t("hint.closeThis"), "aria-label": t("hint.closeThis"), onclick: () => this.close() }, t("hint.closeMark")),
+      el("button", { class: "tip-close", "aria-label": t("hint.closeThis"), onclick: () => this.close() }, createIcon("close")),
       el("span", { class: "tip-off-note" }, t("hint.offInMenu")),
     );
     this.place();

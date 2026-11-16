@@ -1,7 +1,7 @@
 import { t } from "../text/msg";
 import { el } from "./dom";
 
-export const DRAWERS = ["truck", "guns", "radio", "log"] as const;
+export const DRAWERS = ["truck", "guns", "radio"] as const;
 export type Drawer = (typeof DRAWERS)[number];
 
 export class Drawers {

@@ -14,30 +14,29 @@
 /* The weapons keep the bottom line, and the instruments go above them only when the two do not fit side by side. */
 .bottom-left {
   position: absolute;
-  left: var(--safe-left);
-  bottom: var(--safe-bottom);
+  left: 0;
+  bottom: 0;
   display: flex;
   flex-direction: row-reverse;
   flex-wrap: wrap-reverse;
   justify-content: flex-end;
-  align-items: stretch;
+  align-items: flex-start;
   gap: var(--hud-gap);
   max-width: calc(var(--layer-w) - var(--space-8) - var(--right-column));
 }
 #ui .bottom-left > .panel {
   position: static;
 }
-#ui .bottom-left > .instruments {
+#ui .bottom-left > .hud-drive {
   order: 1;
 }
 #ui .bottom-left > .weapons {
   order: 0;
   flex: 0 0 auto;
-  align-self: flex-start;
 }
 #ui .bottom-left > .truck-stack {
   position: absolute;
-  left: 0;
+  left: var(--safe-left);
   bottom: calc(100% + var(--space-4));
   display: flex;
   flex-direction: column;
@@ -75,8 +74,9 @@
   right: var(--safe-right);
   top: var(--safe-top);
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  align-items: flex-start;
+  align-items: flex-end;
 }
 #ui .top-right > .panel {
   position: static;

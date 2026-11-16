@@ -11,7 +11,7 @@ describe("save slot row", () => {
     const detail = slotDetail({ slot: "slot1", savedAt: Date.UTC(2026, 9, 9), turn: 0, mode: "roaming" });
     expect(detail.tone).toBe("num");
     expect(en(detail.text)).toBe(en(clock(0).full));
-    expect(en(detail.text)).toMatch(/^Day \d+ \d{1,2}:\d{2}$/);
+    expect(en(detail.text)).toMatch(/^Day \d+, \d{2}:\d{2}$/);
   });
 
   it("keeps the real time for the tooltip", () => {

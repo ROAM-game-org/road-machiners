@@ -1,6 +1,6 @@
 import { bindAttr, say } from "../text/language";
 import { t, type Msg } from "../text/msg";
-import { el, panel, rightColumn } from "./dom";
+import { el } from "./dom";
 import { clock, type LogLine } from "./format";
 import { mergeVolleys, volleyLine } from "./volley";
 
@@ -60,44 +60,15 @@ function lineRow(l: LogLine): HTMLElement {
   );
 }
 
-export class LogStrip {
-  readonly root = panel("log-strip");
-
-  constructor() {
-    this.root.setAttribute("role", "button");
-    this.root.setAttribute("tabindex", "0");
-    bindAttr(this.root, "aria-label", t("log.panel"));
-  }
-
-  show(line: LogLine): void {
-    this.root.replaceChildren(lineRow(line));
-    bindAttr(this.root, "title", line.text);
-  }
-}
-
 export class LogPanel {
   private book = new LogBook();
-  readonly root = panel("log dock-panel", rightColumn());
-  readonly strip = new LogStrip();
-  private box = el("div", { class: "log-lines", tabindex: 0 });
-  private toggle = el(
-    "button",
-    {
-      class: "log-expand",
-      title: t("log.expand"),
-      "aria-label": t("log.expand"),
-      onclick: () => this.flip(),
-    },
-    t("log.expandMark"),
-  );
-
+  readonly lines = el("div", { class: "log-lines", tabindex: 0 });
+  readonly root = el("div", { class: "log" }, this.lines);
+  private get box(): HTMLElement {
+    return this.lines;
+  }
   constructor() {
-    this.root.setAttribute("data-drawer-frame", "log");
-    bindAttr(this.root, "aria-label", t("log.panel"));
-    this.root.append(
-      el("div", { class: "log-head" }, el("h3", { class: "panel-title" }, t("log.title")), this.toggle),
-      this.box,
-    );
+    bindAttr(this.lines, "aria-label", t("log.panel"));
   }
 
   newest(): LogLine | null {
@@ -114,7 +85,6 @@ export class LogPanel {
     const before = this.box.scrollHeight;
     for (const line of lines) this.placeRow(turn, line);
     while (this.box.children.length > this.book.lines.length) this.box.lastElementChild?.remove();
-    this.strip.show(this.newest()!);
     if (reading) this.box.scrollTop += this.box.scrollHeight - before;
   }
 
@@ -122,12 +92,5 @@ export class LogPanel {
     const placed = this.book.place(turn, line);
     if (placed.merged === null) this.box.prepend(lineRow(placed.line));
     else this.box.children[placed.merged].replaceWith(lineRow(placed.line));
-  }
-
-  private flip(): void {
-    const expanded = this.root.classList.toggle("expanded");
-    const title = expanded ? t("log.shrink") : t("log.expand");
-    bindAttr(this.toggle, "title", title);
-    bindAttr(this.toggle, "aria-label", title);
   }
 }

@@ -12,11 +12,10 @@ import { makePart } from "../sim/factory";
 import { mountPart } from "../sim/inventory";
 import { wornReload } from "../sim/utility";
 import { orderLock, lockReason } from "./weapons";
-import { HoverHold, UtilityRow, WeaponPanel, aimAtPart, aimMarks, aimsBody, bodyMarks, InspectPin, gunsLabel, aimName, ammoCells, canForceReload, reloadBlock, getWeaponReadout, toggleBodyAim, vehicleMarks, shortStatus, weaponGrid, utilityKey, utilitySlots, utilityStatus } from "./weapons";
-import { EN } from "../text/en";
+import { HoverHold, UtilityRow, WeaponOrders, aimAtPart, aimMarks, aimsBody, bodyMarks, InspectPin, gunsLabel, aimName, deckViewOf, getWeaponReadout, toggleBodyAim, vehicleMarks, utilityKey, utilitySlots, utilityStatus, weaponsViewOf } from "./weapons";
 import type { Msg } from "../text/msg";
 import { partName } from "../text/names";
-import { entryText, resolve } from "../text/resolve";
+import { resolve } from "../text/resolve";
 
 function readout(world: World, gun: Parameters<typeof getWeaponReadout>[1]) {
   const r = getWeaponReadout(world, gun);
@@ -138,15 +137,6 @@ describe("weapon readout at current positions", () => {
       block: "unseen",
     });
     expect(world.vehicles).toContain(target);
-  });
-
-  it("offers a forced reload only for a partly spent magazine", () => {
-    const { gun } = createDuel();
-    expect(canForceReload(gun)).toBe(false);
-    gun.part.gun = { cooldown: 0, ammo: 1, reloadWork: 0 };
-    expect(canForceReload(gun)).toBe(true);
-    gun.part.gun = { cooldown: 0, ammo: 0, reloadWork: 0 };
-    expect(canForceReload(gun)).toBe(false);
   });
 
   it("keeps disabled status ahead of reload", () => {
@@ -302,28 +292,6 @@ describe("vehicle marks", () => {
   });
 });
 
-describe("ammo cells", () => {
-  it("shows a full magazine as all loaded", () => {
-    expect(ammoCells(3, 3, 0, 4)).toEqual(["loaded", "loaded", "loaded"]);
-  });
-
-  it("shows spent rounds after the loaded ones", () => {
-    expect(ammoCells(5, 2, 0, 4)).toEqual(["loaded", "loaded", "spent", "spent", "spent"]);
-  });
-
-  it("fills spent cells left to right with the reload share", () => {
-    expect(ammoCells(4, 0, 2, 4)).toEqual(["reloading", "reloading", "spent", "spent"]);
-  });
-
-  it("keeps loaded cells while a partly spent gun reloads", () => {
-    expect(ammoCells(4, 1, 1, 2)).toEqual(["loaded", "reloading", "reloading", "spent"]);
-  });
-
-  it("never fills more cells than are spent", () => {
-    expect(ammoCells(4, 3, 3, 4)).toEqual(["loaded", "loaded", "loaded", "reloading"]);
-  });
-});
-
 describe("aiming at parts", () => {
   function wheelOf(target: Vehicle) {
     const wheel = mountedParts(target).find((p) => p.defId === "wheel");
@@ -403,187 +371,6 @@ describe("hover hold", () => {
   });
 });
 
-class FakeNode {
-  className = "";
-  props = new Map<string, string>();
-  style = { setProperty: (k: string, v: string) => { this.props.set(k, v); } };
-  children: (FakeNode | string)[] = [];
-  listeners = new Map<string, ((e: unknown) => void)[]>();
-  attrs = new Map<string, string>();
-  classList = { toggle: (name: string, on: boolean) => { const names = this.className.split(' ').filter((c) => c && c !== name); this.className = (on ? [...names, name] : names).join(' '); } };
-  constructor(readonly tag: string) {}
-  append(...c: (FakeNode | string)[]) { this.children.push(...c); }
-  replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
-  get childNodes(): (FakeNode | string)[] { return this.children; }
-  isEqualNode(): boolean { return false; }
-  setAttribute(k: string, v: string) { this.attrs.set(k, v); }
-  removeAttribute(k: string) { this.attrs.delete(k); }
-  querySelector(sel: string): FakeNode | undefined {
-    const byWeapon = sel.match(/^\[data-weapon="(.*)"\]$/);
-    if (byWeapon) return this.find((n) => n.attrs.get("data-weapon") === byWeapon[1]);
-    if (sel === ".weapon-slots") return this.find((n) => n.className === "weapon-slots");
-    const cls = sel.replace(":scope > .", "");
-    return this.children.find((c): c is FakeNode => typeof c !== "string" && c.className.split(" ").includes(cls));
-  }
-  addEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]); }
-  removeEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, (this.listeners.get(type) ?? []).filter((f) => f !== fn)); }
-  text(): string { return this.children.map((c) => (typeof c === "string" ? c : c.text())).join(""); }
-  find(pred: (n: FakeNode) => boolean): FakeNode | undefined {
-    if (pred(this)) return this;
-    for (const c of this.children) if (typeof c !== "string") { const f = c.find(pred); if (f) return f; }
-    return undefined;
-  }
-  fire(type: string, e: unknown = {}) { for (const f of this.listeners.get(type) ?? []) f(e); }
-}
-
-describe("weapon panel keys and the turn button", () => {
-  const ui = new FakeNode("div");
-  const win = new FakeNode("window");
-
-  afterEach(() => vi.unstubAllGlobals());
-
-  function build(auto = false, setup: (w: World) => void = () => {}) {
-    ui.children = [];
-    win.listeners.clear();
-    vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createElementNS: (_ns: string, t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), getElementById: () => ui });
-    vi.stubGlobal("window", win);
-    const { world, gun } = createDuel();
-    setup(world);
-    const host = {
-      world: () => world,
-      apply: vi.fn(),
-      announce: vi.fn(),
-      selectedWeapon: vi.fn<() => string | null>(() => null),
-      selectWeapon: vi.fn(),
-      selectedUtility: vi.fn<() => string | null>(() => null),
-      selectUtility: vi.fn(),
-      pressTurn: vi.fn(),
-      releaseTurn: vi.fn(),
-      runKey: vi.fn(),
-      searchStock: vi.fn(),
-      autoTravel: () => auto,
-      travelSpeedIndex: vi.fn(() => 0),
-      travelPlaySpeed: () => null,
-      stepTravelSpeed: vi.fn(),
-      getTurnPhase: () => null,
-      menuOpen: () => false,
-    } satisfies UiHost;
-    const panel = new WeaponPanel(host);
-    panel.render();
-    const panels = (ui.children as FakeNode[]).map((n) => n);
-    return { panel, host, gun, row: () => ui.children.map((n) => (n as FakeNode).querySelector(".weapon-slots")).find(Boolean)!, card: (id: string) => ui.children.map((n) => (n as FakeNode).querySelector(`[data-weapon="${id}"]`)).find(Boolean)!, button: (text: string) => panels.map((n) => n.find((b) => b.tag === "button" && (text === "Auto" ? b.text() === text : b.text().includes(text)))).find(Boolean)! };
-  }
-
-  it("selectIndex picks a weapon, picks all again on repeat, and ignores a missing index", () => {
-    const { panel, host, gun } = build();
-    panel.selectIndex(0);
-    expect(host.selectWeapon).toHaveBeenLastCalledWith(gun.part.id);
-    host.selectedWeapon.mockReturnValue(gun.part.id);
-    panel.selectIndex(0);
-    expect(host.selectWeapon).toHaveBeenLastCalledWith(null);
-    host.selectWeapon.mockClear();
-    panel.selectIndex(9);
-    expect(host.selectWeapon).not.toHaveBeenCalled();
-  });
-
-  it("the Q, X and All buttons run their keys", () => {
-    const { host, button } = build();
-    for (const [text, code] of [["Auto fire", "KeyQ"], ["Show", "KeyX"], ["All", "Digit0"]] as const) {
-      button(text).fire("click");
-      expect(host.runKey).toHaveBeenLastCalledWith(code);
-    }
-  });
-
-  it("draws a compact element with the inventory icon, no filler text and no old glyphs", () => {
-    const { card, row } = build();
-    const slot = card(createDuel().gun.part.id);
-    const text = (ui.children as FakeNode[]).map((n) => n.text()).join(" ");
-    for (const prose of ["hold fire", "no target", "MG turret"]) expect(text).not.toContain(prose);
-    expect(slot.find((n) => n.className.split(" ").includes("item-icon"))).toBeDefined();
-    expect(slot.find((n) => /icon-(mg|cannon)/.test(n.className))).toBeUndefined();
-    expect((row() as FakeNode).props.get("--weapon-cols")).toBe("1");
-    expect(row().className).toBe("weapon-slots");
-  });
-
-  it("Auto fire shows its state and Hold is disabled with nothing to hold", () => {
-    const off = build(false, (w) => { playerVehicle(w).weaponOrders = {}; });
-    expect(off.button("Auto fire").attrs.get("aria-checked")).toBe("false");
-    expect(off.button("Hold").attrs.get("aria-disabled")).toBe("true");
-    expect(off.button("Hold").attrs.get("title")).toBe("No target set");
-    const on = build(false, (w) => { w.player.autoFire = true; });
-    expect(on.button("Auto fire").attrs.get("aria-checked")).toBe("true");
-    expect(on.button("Auto fire").className).toBe("switch");
-    expect(on.button("Hold").attrs.has("aria-disabled")).toBe(false);
-  });
-
-  it("Hold is enabled with an order and clears it with auto fire off", () => {
-    const { host, button } = build();
-    expect(button("Hold").attrs.has("aria-disabled")).toBe(false);
-    button("Hold").fire("click");
-    const applied = host.apply.mock.calls[0][0] as World;
-    expect(applied.player.autoFire).toBe(false);
-    expect(Object.keys(playerVehicle(applied).weaponOrders)).toHaveLength(0);
-  });
-
-  it("a harpoon shows the cut button in place of reload, enabled only with its line out, and cutting drops the line", () => {
-    let harpoonId = "";
-    const withHarpoon = (out: boolean) => build(false, (w) => {
-      const me = playerVehicle(w);
-      const harpoon = makePart(w, "harpoon", 0);
-      if (!mountPart(w, me, harpoon)) throw new Error("No deck room for the harpoon");
-      harpoonId = harpoon.id;
-      const other = w.vehicles.find((v) => v !== me)!;
-      if (out) w.lines = [{ id: "l1", from: me.id, fromPart: harpoon.id, to: other.id, toPart: mountedParts(other, "engine")[0].id, length: 10, turnsLeft: 5 }];
-    });
-    const cutIn = (b: ReturnType<typeof build>) => b.card(harpoonId).find((n) => n.className === "weapon-cut")!;
-
-    const slack = withHarpoon(false);
-    expect(slack.card(harpoonId).find((n) => n.className === "weapon-reload")).toBeUndefined();
-    expect(cutIn(slack).attrs.has("aria-disabled")).toBe(true);
-
-    const out = withHarpoon(true);
-    expect(cutIn(out).attrs.has("aria-disabled")).toBe(false);
-    cutIn(out).fire("click");
-    const applied = out.host.apply.mock.calls[0][0] as World;
-    expect(applied.lines).toEqual([]);
-  });
-
-  it("the turn button presses on pointerdown and releases on pointerup of that press", () => {
-    const { host, button } = build();
-    button("Space").fire("pointerdown", { button: 2 });
-    expect(host.pressTurn).not.toHaveBeenCalled();
-    button("Space").fire("pointerdown", { button: 0 });
-    expect(host.pressTurn).toHaveBeenCalledTimes(1);
-    expect(host.releaseTurn).not.toHaveBeenCalled();
-    win.fire("pointerup");
-    expect(host.releaseTurn).toHaveBeenCalledTimes(1);
-    win.fire("pointerup");
-    expect(host.releaseTurn).toHaveBeenCalledTimes(1);
-  });
-
-  it("the speed keys step the travel speed and the readout shows the pick", () => {
-    const { host, panel } = build();
-    const keys = ui.children.map((n) => (n as FakeNode).find((x) => x.className.includes("speed-keys"))).find(Boolean)!;
-    const key = (label: string) => keys.find((n) => n.tag === "button" && n.attrs.get("aria-label") === label)!;
-    key("Faster").fire("click");
-    expect(host.stepTravelSpeed).toHaveBeenLastCalledWith(1);
-    key("Slower").fire("click");
-    expect(host.stepTravelSpeed).toHaveBeenLastCalledWith(-1);
-    expect(keys.text()).toBe("1x");
-    expect(key("Slower").attrs.get("aria-disabled")).toBe("true");
-    expect(key("Faster").attrs.get("aria-disabled")).toBeUndefined();
-    panel.render();
-  });
-
-  it("the Auto look presses the same way", () => {
-    const { host, button } = build(true);
-    button("Auto").fire("pointerdown", { button: 0 });
-    expect(host.pressTurn).toHaveBeenCalledTimes(1);
-    win.fire("pointercancel");
-    expect(host.releaseTurn).toHaveBeenCalledTimes(1);
-  });
-});
-
 function make() {
   const calls = { n: 0 };
   const sight = { seen: true };
@@ -639,64 +426,6 @@ describe("InspectPin", () => {
   });
 });
 
-describe("disabled reasons on the weapon bar", () => {
-  const ui = new FakeNode("div");
-
-  afterEach(() => vi.unstubAllGlobals());
-
-  function build(phase: "moving" | null, setup: (w: World) => void = () => {}) {
-    ui.children = [];
-    vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }), createElementNS: (_ns: string, t: string) => new FakeNode(t), getElementById: () => ui });
-    vi.stubGlobal("window", new FakeNode("window"));
-    const { world } = createDuel();
-    setup(world);
-    const host = {
-      world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
-      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
-      stepTravelSpeed: vi.fn(), getTurnPhase: () => phase, menuOpen: () => false,
-    } satisfies UiHost;
-    new WeaponPanel(host).render();
-    const find = (text: string) => (ui.children as FakeNode[]).map((n) => n.find((b) => b.tag === "button" && b.text().includes(text))).find(Boolean)!;
-    return { host, find };
-  }
-
-  it("names the turn while it plays on every control", () => {
-    const { host, find } = build("moving");
-    for (const text of ["Auto fire", "All", "Hold"]) {
-      expect(find(text).attrs.get("aria-disabled")).toBe("true");
-      expect(find(text).attrs.get("title")).toMatch(/^Turn playing/);
-    }
-    expect(find("Auto fire").attrs.get("title")).toBe("Turn playing [Q]");
-    find("Auto fire").fire("click");
-    expect(host.runKey).not.toHaveBeenCalled();
-  });
-
-  it("names a knocked out driver", () => {
-    const { find } = build(null, (w) => { w.player.state = "knockedOut"; });
-    expect(find("Auto fire").attrs.get("title")).toBe("Knocked out [Q]");
-  });
-
-  it("keeps the knockout reason steady while a turn plays", () => {
-    const { find } = build("moving", (w) => { w.player.state = "knockedOut"; });
-    for (const text of ["Auto fire", "All", "Hold"]) {
-      expect(find(text).attrs.get("aria-disabled")).toBe("true");
-      expect(find(text).attrs.get("title")).toMatch(/^Knocked out/);
-    }
-  });
-
-  it("does not select or toggle auto fire while knocked out", () => {
-    const { host } = build(null, (w) => { w.player.state = "knockedOut"; });
-    const { world } = createDuel();
-    world.player.state = "knockedOut";
-    const panel = new WeaponPanel({ ...host, world: () => world });
-    panel.selectWeapon("x");
-    panel.toggleAuto();
-    panel.pressKey(1);
-    expect(host.selectWeapon).not.toHaveBeenCalled();
-    expect(host.apply).not.toHaveBeenCalled();
-  });
-});
-
 describe("orderLock", () => {
   const reason = (w: World, playing: boolean) => en(orderLock(w, playing));
 
@@ -720,16 +449,6 @@ describe("orderLock", () => {
     expect(en(lockReason(world, null))).not.toBeNull();
   });
 
-  it("says why Reload does nothing", () => {
-    const { gun } = createDuel();
-    expect(en(reloadBlock(gun))).toBe("Magazine full");
-    gun.part.gun = { cooldown: 0, ammo: 0, reloadWork: 0 };
-    expect(en(reloadBlock(gun))).toBe("Reloading");
-    gun.part.gun = { cooldown: 0, ammo: 1, reloadWork: 0 };
-    expect(reloadBlock(gun)).toBeNull();
-    gun.part.hp = 0;
-    expect(en(reloadBlock(gun))).toBe("Broken");
-  });
 });
 
 describe("the utility row", () => {
@@ -929,82 +648,106 @@ describe("the harpoon on the weapon panel", () => {
   });
 });
 
-describe("a utility slot's look", () => {
-  afterEach(() => vi.unstubAllGlobals());
+function hostOf(world: World, edit: Partial<UiHost> = {}): UiHost {
+  return {
+    world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
+    searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
+    stepTravelSpeed: vi.fn(), getTurnPhase: () => null, menuOpen: () => false, ...edit,
+  };
+}
 
-  function renderRow(edit: (w: World, parts: { sprout: string; mortar: string }) => void) {
-    vi.stubGlobal("document", { createElement: (t: string) => new FakeNode(t), createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }) });
+describe("the weapons panel view", () => {
+  it("names the turn while it plays on All and Auto fire", () => {
+    const { world } = createDuel();
+    const view = weaponsViewOf(hostOf(world, { getTurnPhase: () => "moving" }));
+    expect(en(view.all.reason)).toBe("Turn playing");
+    expect(en(view.auto.reason)).toBe("Turn playing");
+  });
+
+  it("names a knocked out driver, also while a turn plays", () => {
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    for (const phase of [null, "moving"] as const) {
+      const view = weaponsViewOf(hostOf(world, { getTurnPhase: () => phase }));
+      expect(en(view.auto.reason)).toBe("Knocked out");
+    }
+  });
+
+  it("lights All with no gun picked and marks the picked gun", () => {
+    const { world, gun } = createDuel();
+    expect(weaponsViewOf(hostOf(world)).all.on).toBe(true);
+    const picked = weaponsViewOf(hostOf(world, { selectedWeapon: () => gun.part.id }));
+    expect(picked.all.on).toBe(false);
+    expect(picked.guns.map((cell) => cell.picked)).toEqual([true]);
+  });
+
+  it("shows one ammo count for a gun and none for a line gun", () => {
+    const s = harpoonDuel();
+    const guns = weaponsViewOf(hostOf(s.w)).guns;
+    const at = vehicleStats(s.w, s.me).weapons.findIndex((m) => m.part.id === s.harpoon.id);
+    expect(guns[at].rounds).toBeNull();
+    expect(guns.filter((_, i) => i !== at).every((cell) => typeof cell.rounds === "number")).toBe(true);
+  });
+
+  it("shows a utility with its short label, state and key", () => {
     const w = emptyWorld();
-    const me = w.vehicles[0];
-    const sprout = makePart(w, "sprout", 0);
-    const mortar = makePart(w, "smokeMortar", 0);
-    for (const part of [sprout, mortar]) if (!mountPart(w, me, part)) throw new Error(`No room for ${part.defId}`);
-    edit(w, { sprout: sprout.id, mortar: mortar.id });
-    const host = { selectedUtility: () => mortar.id } as unknown as UiHost;
-    const row = new UtilityRow(host).render(w, null) as unknown as FakeNode;
-    const slots = row.children as FakeNode[];
-    const badge = (slot: FakeNode) => slot.find((n) => n.className === "slot-badge")?.attrs.get("data-badge") ?? null;
-    const bar = (slot: FakeNode) => {
-      const fill = slot.find((n) => n.className.includes("recharge-bar"))?.children[0];
-      return fill instanceof FakeNode ? fill.attrs.get("style") : null;
-    };
-    return { slots, badge, bar, sprout, mortar };
-  }
-
-  it("gives each slot one data-state, its badge, and at most one aiming slot", () => {
-    const { slots, badge } = renderRow((w, p) => { w.vehicles[0].utilityOrders[p.sprout] = { kind: "self" }; });
-    expect(slots.map((s) => s.attrs.get("data-state"))).toEqual(["set", "aiming"]);
-    expect(slots.map(badge)).toEqual(["check", "crosshair"]);
-    expect(slots.filter((s) => s.attrs.get("data-state") === "aiming")).toHaveLength(1);
-  });
-
-  it("fills the recharge bar as the reload counts down", () => {
-    const { slots, bar, sprout } = renderRow((w, p) => {
-      const part = mountedParts(w.vehicles[0]).find((x) => x.id === p.sprout);
-      if (!part) throw new Error("No Sprout");
-      part.charge = { reload: 1 };
-    });
-    const total = wornReload(sprout);
-    expect(slots[0].attrs.get("data-state")).toBe("recharging");
-    expect(bar(slots[0])).toBe(`width:${Math.round(((total - 1) / total) * 100)}%`);
-    expect(bar(slots[1])).toBeNull();
-  });
-
-  it("shows a broken utility blocked, with no badge", () => {
-    const { slots, badge } = renderRow((w, p) => {
-      const part = mountedParts(w.vehicles[0]).find((x) => x.id === p.sprout);
-      if (!part) throw new Error("No Sprout");
-      part.hp = 0;
-    });
-    expect(slots.map((s) => s.attrs.get("data-state"))).toEqual(["blocked", "aiming"]);
-    expect(badge(slots[0])).toBeNull();
+    if (!mountPart(w, w.vehicles[0], makePart(w, "sprout", 0))) throw new Error("No room for the sprout");
+    const [slot] = weaponsViewOf(hostOf(w)).utilities;
+    expect(en(slot.label)).toBe("SPRT");
+    expect(slot.state).toBe("ready");
+    expect(slot.key).toBe(String(utilityKey(w, 0)));
   });
 });
 
-describe("compact gun grid", () => {
-  it("keeps up to five guns in one row and balances two rows above that", () => {
-    expect(weaponGrid(0)).toEqual({ cols: 0, small: false });
-    expect(weaponGrid(1)).toEqual({ cols: 1, small: false });
-    expect(weaponGrid(5)).toEqual({ cols: 5, small: false });
-    expect(weaponGrid(6)).toEqual({ cols: 3, small: true });
-    expect(weaponGrid(7)).toEqual({ cols: 4, small: true });
-    expect(weaponGrid(10)).toEqual({ cols: 5, small: true });
-    expect(weaponGrid(11)).toEqual({ cols: 6, small: true });
+describe("the radio deck view", () => {
+  it("offers End turn when idle and names the phase while a turn plays", () => {
+    const { world } = createDuel();
+    expect(deckViewOf(hostOf(world)).turn).toMatchObject({ disabled: false, auto: false });
+    const playing = deckViewOf(hostOf(world, { getTurnPhase: () => "moving" })).turn;
+    expect(playing.disabled).toBe(true);
+    expect(en(playing.label)).toMatch(/in progress/);
   });
 
-  it("gives a short state: nothing without an order, a chance, or a short reason", () => {
-    const { world, me, gun } = createDuel();
-    expect(en(shortStatus(gun, getWeaponReadout(world, gun))) ?? "").toMatch(/^\d+%$/);
-    gun.part.gun = { cooldown: 2, ammo: 1, reloadWork: 0 };
-    expect(en(shortStatus(gun, getWeaponReadout(world, gun))) ?? "").toBe("wait 2");
-    gun.part.gun = { cooldown: 0, ammo: 0, reloadWork: 1 };
-    expect(en(shortStatus(gun, getWeaponReadout(world, gun))) ?? "").toBe(`load ${gun.def.reload - 1}`);
-    gun.part.gun = { cooldown: 0, ammo: 1, reloadWork: 0 };
-    gun.part.hp = 0;
-    expect(en(shortStatus(gun, getWeaponReadout(world, gun))) ?? "").toBe("broken");
-    gun.part.hp = 10;
-    me.weaponOrders = {};
-    expect(en(shortStatus(gun, getWeaponReadout(world, gun))) ?? "").toBe("");
-    for (const key of Object.keys(EN).filter((k) => k.startsWith('blockShort.') && !k.endsWith('In'))) expect(entryText('en', key).length).toBeLessThanOrEqual(7);
+  it("stops automatic travel from the same key", () => {
+    const { world } = createDuel();
+    expect(deckViewOf(hostOf(world, { autoTravel: () => true })).turn).toMatchObject({ disabled: false, auto: true });
+  });
+
+  it("shows the knob at the picked travel speed", () => {
+    const { world } = createDuel();
+    expect(deckViewOf(hostOf(world, { travelSpeedIndex: () => 2 })).speed.index).toBe(2);
+  });
+});
+
+describe("weapon orders", () => {
+  it("does not select or toggle auto fire while knocked out", () => {
+    const { world } = createDuel();
+    world.player.state = "knockedOut";
+    const host = hostOf(world);
+    const orders = new WeaponOrders(host);
+    orders.selectWeapon("x");
+    orders.toggleAuto();
+    orders.pressKey(1);
+    expect(host.selectWeapon).not.toHaveBeenCalled();
+    expect(host.apply).not.toHaveBeenCalled();
+  });
+
+  it("picks a gun by key and picks all again on a repeat", () => {
+    const { world, gun } = createDuel();
+    const picked = { id: null as string | null };
+    const host = hostOf(world, { selectedWeapon: () => picked.id, selectWeapon: vi.fn((id: string | null) => { picked.id = id; }) });
+    const orders = new WeaponOrders(host);
+    orders.pressKey(1);
+    expect(picked.id).toBe(gun.part.id);
+    orders.pressKey(1);
+    expect(picked.id).toBeNull();
+  });
+
+  it("steps the travel speed to the knob position picked", () => {
+    const { world } = createDuel();
+    const host = hostOf(world, { travelSpeedIndex: () => 1 });
+    new WeaponOrders(host).goToSpeed(3);
+    expect(host.stepTravelSpeed).toHaveBeenCalledTimes(2);
+    expect(host.stepTravelSpeed).toHaveBeenCalledWith(1);
   });
 });

@@ -1,0 +1,1511 @@
+#ui .hud-plate,
+#ui .hud-tray {
+  pointer-events: auto;
+}
+
+#ui .hud-plate {
+  font-family: var(--font-hud);
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  width: 100%;
+  user-select: none;
+}
+
+#ui .drive-plate {
+  --plate-n: var(--hud-drive-n);
+}
+
+#ui .weapons-plate {
+  --plate-n: var(--hud-weapons-n);
+}
+
+#ui .radio-plate {
+  --plate-n: var(--hud-radio-n);
+}
+
+#ui .hud-plate > * {
+  --hud-text-s: calc(100cqw * 10 / var(--plate-n));
+  --hud-text-m: calc(100cqw * 12 / var(--plate-n));
+  --hud-text-l: calc(100cqw * 20 / var(--plate-n));
+  --hud-icon: calc(100cqw * 20 / var(--plate-n));
+  --hud-lcd-size: calc(100cqw * 24 / var(--plate-n));
+  --hud-rocker-w: calc(100cqw * 16 / var(--plate-n));
+  --hud-rocker-h: calc(100cqw * 30 / var(--plate-n));
+  --hud-lamp-size: calc(100cqw * 10 / var(--plate-n));
+  --hud-bracket: calc(100cqw * 6 / var(--plate-n));
+}
+
+#ui :is(.hud-plate, .kit-piece, .key-cap, .rocker) > .plate-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#ui :is(.hud-plate, .kit-piece, .key-cap, .rocker) > .plate-tint {
+  position: absolute;
+  inset: 0;
+  background: var(--hud-housing);
+  mix-blend-mode: multiply;
+  -webkit-mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
+  mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+#ui .plate-part,
+#ui .kit-piece {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+#ui .plate-drawing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+#ui .drum-sign {
+  display: none;
+}
+
+#ui .drum-sign.shown {
+  display: block;
+}
+
+#ui .plate-spot {
+  display: block;
+}
+
+#ui button.plate-key,
+#ui button.gun-cell,
+#ui button.utility-slot-key,
+#ui button.knob-mark,
+#ui button.gun-page {
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ui .plate-label {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--hud-print);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#ui .key-print {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--hud-print);
+  font: 700 var(--hud-text-s) / 1.05 var(--font-hud);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+#ui .lamp-glow {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+#ui .lamp-glow.lit,
+#ui [data-lamp="amber"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-amber) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-amber);
+}
+
+#ui [data-lamp="green"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-green) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-green);
+}
+
+#ui [data-lamp="red"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-red) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
+}
+
+#ui .hud-drive {
+  width: var(--hud-drive-w);
+}
+
+#ui .drive-drawing .dial-segment {
+  fill: none;
+  stroke: var(--hud-segment-off);
+  stroke-width: 34;
+}
+
+#ui .drive-drawing .dial-segment.beyond {
+  stroke: var(--hud-segment-beyond);
+}
+
+#ui .drive-drawing .dial-segment.lit {
+  stroke: var(--hud-amber);
+  filter: var(--hud-mark-glow);
+}
+
+#ui .drive-drawing .dial-tick {
+  stroke: var(--hud-print-dim);
+  stroke-width: 4;
+}
+
+#ui .drive-drawing .dial-tick.major {
+  stroke: var(--hud-print);
+  stroke-width: 7;
+}
+
+#ui .drive-drawing text {
+  fill: var(--hud-print);
+  font-family: var(--font-hud);
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+#ui .drive-drawing .dial-needle {
+  transform: rotate(var(--needle, 0deg));
+}
+
+#ui .drive-drawing .needle-arm {
+  fill: var(--hud-needle);
+}
+
+#ui .drive-drawing .needle-hub {
+  fill: var(--hud-segment-off);
+  stroke: var(--hud-print-dim);
+  stroke-width: 3;
+}
+
+#ui .drive-drawing .dial-pace {
+  fill: var(--hud-print);
+  transform: rotate(var(--needle, 0deg));
+}
+
+#ui .drive-drawing .dial-pace.hidden {
+  display: none;
+}
+
+#ui .drive-drawing .arc-segment {
+  fill: none;
+  stroke-width: 16;
+}
+
+#ui .drive-drawing .arc-fuel .arc-segment {
+  stroke: var(--hud-fuel);
+}
+
+#ui .drive-drawing .arc-fuel .arc-segment-0 {
+  stroke: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-heat .arc-segment {
+  stroke: var(--hud-heat);
+}
+
+#ui .drive-drawing .arc-heat .arc-segment-4,
+#ui .drive-drawing .arc-heat .arc-segment-5 {
+  stroke: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-fuel text {
+  fill: var(--hud-fuel);
+}
+
+#ui .drive-drawing .arc-heat text {
+  fill: var(--hud-heat);
+}
+
+#ui .drive-drawing .arc-heat .arc-high {
+  fill: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-gauge.warn .arc-segment {
+  filter: drop-shadow(0 0 var(--hud-glow-r) var(--hud-hot));
+}
+
+#ui .drive-drawing .arc-needle .needle-arm {
+  fill: var(--hud-print);
+}
+
+#ui .hud-weapons {
+  width: var(--hud-weapons-w);
+}
+
+#ui .gun-screen {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  background: none;
+  padding: 1.4cqw 1.8cqw 1.4cqw calc(1.8cqw + 100cqw * 10 / var(--plate-n));
+  color: var(--hud-amber);
+  font: 700 var(--hud-text-m) / 1 var(--font-hud);
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui .gun-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 0.6cqw 1.6cqw;
+}
+
+#ui button.gun-cell {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0 0.6cqw;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 0;
+  color: var(--hud-amber);
+  text-shadow: inherit;
+}
+
+#ui button.gun-cell.picked {
+  --bracket: linear-gradient(var(--hud-amber), var(--hud-amber));
+  background:
+    var(--bracket) 0 0 / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
+    var(--bracket) 0 0 / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
+    var(--bracket) 100% 0 / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
+    var(--bracket) 100% 0 / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
+    var(--bracket) 0 100% / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
+    var(--bracket) 0 100% / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
+    var(--bracket) 100% 100% / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
+    var(--bracket) 100% 100% / var(--hud-bracket-w) var(--hud-bracket) no-repeat;
+  filter: var(--hud-mark-glow);
+}
+
+#ui .gun-number {
+  align-self: start;
+  padding-top: 0.6cqw;
+  font-size: var(--hud-text-s);
+}
+
+#ui .gun-shape {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+#ui .gun-shape .icon {
+  width: 100%;
+  height: var(--hud-icon-l);
+  filter: url(#hud-amber-tint) var(--hud-mark-glow);
+}
+
+#ui .gun-belt {
+  width: 1.6cqw;
+  height: 1.8cqw;
+  background: repeating-linear-gradient(to right, var(--hud-amber) 0 0.25cqw, transparent 0.25cqw 0.45cqw);
+}
+
+#ui .gun-rounds {
+  min-width: 3.2cqw;
+  font-size: var(--hud-text-m);
+  text-align: right;
+}
+
+#ui .gun-cell.beltless .gun-belt {
+  visibility: hidden;
+}
+
+#ui .gun-cell[data-light="fault"] {
+  color: var(--hud-hot);
+}
+
+#ui .gun-cell.reloading .gun-rounds {
+  color: var(--hud-amber-faint);
+}
+
+#ui button.gun-page {
+  position: absolute;
+  right: 1cqw;
+  bottom: 0.6cqw;
+  padding: 0.2cqw 0.6cqw;
+  color: var(--hud-amber);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+}
+
+#ui button.gun-page.hidden {
+  display: none;
+}
+
+#ui .auto-label {
+  font-size: var(--hud-text-s);
+  line-height: 1.1;
+  white-space: normal;
+}
+
+#ui .utility-strip {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+#ui button.utility-slot-key {
+  position: relative;
+  height: 78%;
+
+}
+
+#ui .slot-tape {
+  display: grid;
+  place-items: center;
+}
+
+#ui .tape-print {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--hud-print-ink);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#ui .hud-radio {
+  width: var(--hud-radio-w);
+}
+
+#ui .deck-talk {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+#ui .deck-talk .radio-talk.off-air {
+  display: none;
+}
+
+#ui .deck-wheel {
+  overflow: hidden;
+  border-radius: 0;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+#ui .deck-wheel {
+  container-type: inline-size;
+}
+
+#ui .wheel-ribs {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, var(--hud-wheel-wall), transparent 22%, transparent 78%, var(--hud-wheel-wall)),
+    linear-gradient(to bottom, var(--hud-glass-edge), transparent 25%, transparent 75%, var(--hud-glass-edge)),
+    var(--hud-wheel-art) repeat-y;
+  background-size: 100% 100%, 100% 100%, 100% auto;
+  background-position: 0 0, 0 0, 0 calc(var(--wheel-turn, 0) * 32.4cqw);
+}
+
+#ui button.knob-key {
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+#ui .deck-talk > * {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+}
+
+#ui .deck-talk,
+#ui .deck-log {
+  overflow: hidden;
+  border-radius: 0;
+  background: none;
+  padding: 1.6cqw 2.4cqw;
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#ui .deck-log {
+  padding: 1.4cqw 2.4cqw;
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+#ui .deck-lcd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: 0;
+  background: none;
+  color: var(--hud-amber);
+}
+
+#ui .lcd-digits {
+  position: relative;
+  top: 0.1em;
+  z-index: var(--z-lcd-digits);
+  display: inline-block;
+  min-width: calc(var(--lcd-cells, 1) * 1ch);
+  font: 400 var(--hud-lcd-size) / 1 var(--font-lcd-digits);
+  text-align: right;
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui .lcd-digits::before {
+  content: attr(data-ghost);
+  position: absolute;
+  z-index: var(--z-lcd-ghost);
+  top: 0;
+  right: 0;
+  color: var(--hud-lcd-ghost);
+  text-shadow: none;
+}
+
+#ui .lcd-time {
+  display: flex;
+  margin-left: var(--space-6);
+}
+
+#ui .lcd-hour::after {
+  content: ":";
+  font-family: var(--font-lcd-digits);
+}
+
+#ui .knob-marks {
+  position: absolute;
+}
+
+#ui button.knob-mark {
+  position: absolute;
+  translate: -50% -50%;
+  padding: 0.2cqw 0.4cqw;
+  color: var(--hud-print-dim);
+  font: 700 var(--hud-text-m) / 1 var(--font-hud);
+}
+
+#ui button.knob-mark.on {
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui .knob-face {
+  inset: 0;
+  transform: rotate(var(--knob, 0deg));
+}
+
+#ui .play-mark {
+  display: block;
+  width: 2.25cqw;
+  height: 2.7cqw;
+  margin: auto;
+  background: var(--hud-amber);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  filter: var(--hud-mark-glow);
+}
+
+#ui .play-key[data-mode="auto"] .play-mark {
+  width: 3.45cqw;
+  clip-path: polygon(0 0, 50% 50%, 50% 0, 100% 50%, 50% 100%, 50% 50%, 0 100%);
+}
+
+#ui .radio-plate.off-air .deck-talk > * {
+  visibility: hidden;
+}
+
+#ui .deck-talk .radio-keys,
+#ui .deck-talk .radio-ghost {
+  display: none;
+}
+
+#ui .deck-talk .radio-talk,
+#ui .deck-talk .radio-screen,
+#ui .deck-talk .radio-lcd {
+  display: contents;
+}
+
+#ui .deck-talk .radio-talk *,
+#ui .deck-talk .radio-band,
+#ui .deck-talk .radio-text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-shadow: inherit;
+}
+
+#ui .deck-talk .radio-band {
+  display: flex;
+  gap: 1.6cqw;
+}
+
+#ui .deck-talk .radio-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+#ui .deck-log .log-lines {
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+#ui .deck-log .log-lines > div {
+  padding: 0.3cqw 0;
+}
+
+#ui .deck-log .log-time {
+  margin-right: 1cqw;
+  color: var(--hud-print-dim);
+  font: inherit;
+}
+
+#ui :is(.toast, .action, .status-mark) {
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui .toast.bad {
+  color: var(--hud-hot);
+}
+
+#ui :is(.info, .contracts, .wanted, .rescue, .stranded, .tip, .dialogue) :is(h3, .panel-title, .info-name) {
+  color: var(--hud-amber);
+}
+
+#ui .drawer-tabs > button {
+  border: var(--space-1) solid var(--hud-housing);
+  background: var(--hud-glass);
+  color: var(--hud-print);
+}
+
+#ui .drawer-tabs > button.selected {
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui button.key-cap {
+  --key-edge: var(--hud-key-edge);
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.2);
+  border-radius: 0;
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.2) stretch;
+  background: none;
+}
+
+#ui .hud-system button.key-cap {
+  --key-edge: var(--hud-key-edge);
+}
+
+#ui .key-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--hud-print);
+  pointer-events: none;
+}
+
+#ui .key-face > .icon {
+  width: var(--hud-icon);
+  height: var(--hud-icon);
+}
+
+#ui .key-face > .key-print {
+  width: auto;
+  height: auto;
+  font-size: var(--hud-text-s);
+  line-height: 1.05;
+  white-space: normal;
+}
+
+#ui .key-face > .play-mark {
+  margin: 0;
+}
+
+#ui button.rocker {
+  border-radius: 0;
+  background: none;
+}
+
+#ui .kit-lamp-piece > .lamp-glow {
+  position: absolute;
+  inset: 14%;
+  width: auto;
+  height: auto;
+}
+
+#ui .rocker-face {
+  position: absolute;
+  inset: 0;
+}
+
+#ui .rocker-face > .kit-piece {
+  position: absolute;
+  inset: 0;
+}
+
+#ui .rocker-face > .rocker-on,
+#ui :is(.rocker, .rocker-socket).on .rocker-face > .rocker-off {
+  opacity: 0;
+}
+
+#ui :is(.rocker, .rocker-socket).on .rocker-face > .rocker-on {
+  opacity: 1;
+}
+
+#ui .plate-label {
+  font-size: var(--hud-text-s);
+  overflow: visible;
+}
+
+#ui .hud-tray {
+  font-family: var(--font-hud);
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--hud-tray-gap);
+  height: var(--hud-tray-h);
+  padding: 0 var(--space-2);
+  border: var(--hud-rim-w) solid transparent;
+  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+}
+
+#ui .tray-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+#ui .tray-window {
+  box-sizing: border-box;
+  height: calc(var(--hud-key-h) * 0.85);
+  border-radius: 0;
+  border: var(--hud-well-w) solid transparent;
+  border-image: var(--hud-well-art) var(--hud-well-slice) / var(--hud-well-w) stretch;
+  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+}
+
+#ui .stat-icon {
+  display: grid;
+  place-items: center;
+  color: var(--hud-print);
+}
+
+#ui .stat-icon > :is(.icon, .coin) {
+  width: 100%;
+  height: 100%;
+}
+
+#ui .stat-lcd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--hud-text-l) * 5.6);
+  padding: 0;
+  color: var(--hud-amber);
+}
+
+#ui .stat-lcd .lcd-digits {
+  font: 400 var(--hud-lcd-size) / 1 var(--font-lcd-digits);
+}
+
+#ui .stat-lcd .negative,
+#ui .stat-lcd [data-tone="danger"] {
+  color: var(--hud-hot);
+}
+
+#ui .stat-lcd [data-tone="warn"] {
+  color: var(--hud-lamp-amber);
+}
+
+#ui .stat-lcd.stat-short {
+  width: calc(var(--hud-lcd-size) * 1.53 + 2 * var(--space-4));
+}
+
+#ui .stat-unit {
+  font-size: var(--hud-text-m);
+}
+
+#ui .system-key > .key-mark {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  width: 26%;
+  aspect-ratio: 1;
+  visibility: hidden;
+}
+
+#ui .system-key.marked > .key-mark {
+  visibility: visible;
+}
+
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),
+#ui .game-menu [role=menu] {
+  font-family: var(--font-hud);
+  --ink: var(--hud-amber);
+  --ink-bright: var(--hud-amber);
+  --ink-title: var(--hud-amber);
+  --ink-label: var(--hud-amber-soft);
+  --ink-muted: var(--hud-amber-soft);
+  --ink-faint: var(--hud-amber-faint);
+  border: var(--hud-rim-w) solid transparent;
+  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  border-radius: 0;
+  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  box-shadow: none;
+  color: var(--hud-amber);
+}
+
+#ui .lcd-word {
+  position: relative;
+  top: 0.1em;
+  font: 400 var(--hud-lcd-size) / 1 var(--font-lcd-digits);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#ui .deck-talk .radio-band,
+#ui .deck-talk .radio-band > * {
+  font: 700 var(--hud-text-m) / 1.25 var(--font-hud);
+  letter-spacing: 0.05em;
+  color: var(--hud-amber);
+  border: 0;
+}
+
+#ui .plate-pin {
+  position: absolute;
+  translate: -50% -50%;
+  white-space: nowrap;
+}
+
+#ui button.key-cap {
+  width: auto;
+  height: var(--hud-key-h);
+  aspect-ratio: 328 / 394;
+}
+
+#ui button.rocker {
+  width: var(--hud-rocker-w);
+  height: var(--hud-rocker-h);
+}
+
+#ui .kit-lamp-piece {
+  width: var(--hud-lamp-size);
+  height: var(--hud-lamp-size);
+}
+
+#ui .stat-icon {
+  width: var(--hud-icon);
+  height: var(--hud-icon);
+}
+
+#ui .dial-text {
+  color: var(--hud-print);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+}
+
+#ui .dial-number {
+  font-size: var(--hud-text-m);
+}
+
+#ui .dial-unit {
+  color: var(--hud-print);
+  font-size: var(--hud-text-m);
+}
+
+#ui .arc-end.arc-fuel {
+  color: var(--hud-fuel);
+}
+
+#ui .arc-end.arc-heat {
+  color: var(--hud-heat);
+}
+
+#ui .arc-end.arc-high.arc-heat {
+  color: var(--hud-hot);
+}
+
+#ui button.utility-slot-key {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "lamp rocker"
+    "tape rocker";
+  align-items: center;
+  justify-items: center;
+  gap: var(--space-1) var(--space-2);
+  height: auto;
+  aspect-ratio: auto;
+}
+
+#ui .utility-slot-key > .slot-lamp {
+  grid-area: lamp;
+}
+
+#ui .utility-slot-key > .slot-tape {
+  grid-area: tape;
+}
+
+#ui .utility-slot-key > .slot-rocker {
+  grid-area: rocker;
+}
+
+#ui .utility-slot-key > .kit-piece,
+#ui .utility-slot-key > .rocker-socket {
+  position: relative;
+  flex: none;
+}
+
+#ui .slot-tape {
+  display: grid;
+  place-items: center;
+  min-width: calc(var(--hud-text-s) * 3.4);
+  height: calc(var(--hud-text-s) * 1.9);
+  padding: 0 var(--space-2);
+}
+
+#ui .slot-tape > .plate-art {
+  position: absolute;
+  inset: 0;
+}
+
+#ui .slot-tape > .tape-print {
+  position: relative;
+  inset: auto;
+}
+
+#ui .auto-label {
+  width: min-content;
+  white-space: normal;
+  line-height: 1.1;
+}
+
+#ui :is(.hud-drive, .hud-weapons, .hud-radio, .hud-stats, .hud-system) {
+  zoom: var(--hud-zoom);
+}
+
+#ui button.key-cap.plate-part {
+  aspect-ratio: auto;
+}
+
+#ui button.key-cap.on {
+  border-image-source: var(--hud-keycap-lit-art);
+}
+
+#ui .auto-rocker,
+#ui .auto-label {
+  pointer-events: none;
+}
+
+#ui .rocker-socket {
+  width: var(--hud-rocker-w);
+  height: var(--hud-rocker-h);
+}
+
+#ui .hud-tray > button.key-cap {
+  position: relative;
+  flex: none;
+}
+
+#ui .tip button.tip-close.tip-close {
+  box-sizing: border-box;
+  width: calc(var(--hud-key-h) * 0.7);
+  height: calc(var(--hud-key-h) * 0.7);
+  padding: 0;
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-radius: 0;
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  background: none;
+  color: var(--hud-print);
+  font: 400 var(--hud-text-m) / 1 var(--font-engraved);
+  display: grid;
+  place-items: center;
+}
+
+#ui .tip button.tip-close.tip-close > .icon {
+  width: calc(var(--hud-key-h) * 0.4);
+  height: calc(var(--hud-key-h) * 0.4);
+}
+
+#ui .kit-lamp-piece {
+  clip-path: circle(40%);
+}
+
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .tip-close, .hud-key, .dialogue-option, .rocker) {
+  border: 1px solid var(--hud-amber-dim);
+  background: none;
+  box-shadow: none;
+  color: var(--hud-amber);
+}
+
+
+#ui .info .truck-condition {
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.hud-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.hud-tint-flood {
+  flood-color: var(--hud-amber);
+}
+
+#ui .drawer-tabs > button {
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-radius: 0;
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-print);
+}
+
+#ui.phone .truck-stack > .truck-condition {
+  align-self: center;
+}
+
+#ui .game-menu [role=menu] button:focus-visible {
+  outline-offset: calc(-1 * var(--space-1));
+}
+
+#ui :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+  border-color: transparent;
+  background: none;
+  filter: none;
+}
+
+
+#ui .hud-tray.keys-tray {
+  gap: var(--space-1);
+}
+
+#ui .hud-system button.key-cap {
+  width: var(--hud-key-h);
+  aspect-ratio: 1;
+}
+
+#ui .tooltip.hover-tip,
+#ui .tooltip.touch-tip,
+#ui .condition-tip-body.tooltip {
+  box-sizing: border-box;
+  max-width: min(var(--panel-m), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  padding: var(--space-2) var(--space-3);
+  border: var(--hud-well-w) solid transparent;
+  border-image: var(--hud-well-art) var(--hud-well-slice) / var(--hud-well-w) stretch;
+  border-radius: 0;
+  background: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat padding-box, var(--hud-screen) padding-box;
+  box-shadow: none;
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
+  letter-spacing: 0.02em;
+  white-space: pre-line;
+}
+
+#ui :is(.plate-label, .key-print, .dial-text, .knob-mark, .tape-print, .stat-unit, .drawer-tabs > button, .tip-close) {
+  font-family: var(--font-engraved);
+  font-weight: 400;
+  -webkit-text-stroke: 0.03em currentColor;
+  letter-spacing: 0.02em;
+}
+
+#ui .top-left {
+  left: calc(-1 * var(--hud-tray-side));
+  top: calc(-1 * var(--hud-tray-rim));
+}
+
+#ui .top-right {
+  right: calc(-1 * var(--hud-tray-side));
+  top: calc(-1 * var(--hud-tray-rim));
+}
+
+#ui .stat-lcd {
+  width: calc(var(--hud-lcd-size) * 3.06 + 2 * var(--space-4));
+}
+
+#ui .speed-tip .speed-head {
+  color: var(--hud-amber);
+}
+
+#ui .speed-tip .tone-base,
+#ui .speed-tip .tone-plain {
+  color: var(--hud-amber-soft);
+}
+
+#ui .speed-tip .tone-good {
+  color: var(--hud-lamp-green);
+}
+
+#ui .speed-tip .tone-bad {
+  color: var(--hud-hot);
+}
+
+#ui .condition-tip {
+  z-index: var(--z-tip);
+}
+
+#ui .condition-tip-body.tooltip {
+  white-space: nowrap;
+  padding: var(--space-1) var(--space-3);
+}
+
+#ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row {
+  color: var(--hud-amber);
+}
+
+#ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row.base {
+  color: var(--hud-amber-soft);
+}
+
+#ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row.up > .num {
+  color: var(--hud-lamp-green);
+}
+
+#ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row.down > .num {
+  color: var(--hud-hot);
+}
+
+#ui :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) [aria-disabled="true"],
+#ui :is(.hud-plate, .hud-tray, .drawer-tabs) [aria-disabled="true"] {
+  opacity: 1;
+  filter: none;
+}
+
+#ui .top-center > .panel.tip {
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+}
+#ui .tip .tip-close {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+
+:is(#ui, #overlay) .hud-keybed {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin: var(--space-2) calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad));
+  padding: var(--space-2) var(--hud-pad);
+  border-top: var(--hud-step) solid var(--hud-print-ink);
+  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat;
+  align-self: stretch;
+}
+
+#ui .drive-plate .plate-label {
+  letter-spacing: 0;
+}
+
+:is(#ui, #overlay) .hud-frame {
+  --ink: var(--hud-amber);
+  --ink-bright: var(--hud-amber);
+  --ink-title: var(--hud-amber);
+  --ink-label: var(--hud-amber-soft);
+  --ink-muted: var(--hud-amber-soft);
+  --ink-faint: var(--hud-amber-faint);
+  box-sizing: border-box;
+  border: var(--hud-rim-w) solid transparent;
+  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+  border-radius: 0;
+  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  box-shadow: none;
+  color: var(--hud-amber);
+  font-family: var(--font-hud);
+  text-shadow: var(--hud-text-glow);
+}
+
+:is(#ui, #overlay) .hud-engraved {
+  color: var(--hud-print);
+  font-family: var(--font-engraved);
+  text-transform: uppercase;
+}
+
+:is(#ui, #overlay) button.hud-key {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--hud-key-h);
+  min-height: var(--hud-key-h);
+  padding: 0 var(--space-2);
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-radius: 0;
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-print);
+  font: 400 var(--hud-text-m) / 1 var(--font-engraved);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: none;
+}
+
+:is(#ui, #overlay) button.hud-key.on {
+  border-image-source: var(--hud-keycap-lit-art);
+}
+
+:is(#ui, #overlay) button.hud-key:is(:hover, :active, :focus) {
+  border-color: transparent;
+  background: none;
+  filter: none;
+  translate: none;
+}
+
+:is(#ui, #overlay) button.hud-key > .icon {
+  width: var(--hud-icon);
+  height: var(--hud-icon);
+}
+
+#ui :is(.info, .rescue, .stranded, .minimap) {
+  padding: var(--hud-pad);
+}
+
+#ui .recenter {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+#ui .recenter-tray {
+  height: var(--hud-tray-h);
+}
+
+#ui :is(.action, .game-menu [role=menu]) {
+  background: var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat padding-box, var(--hud-olive) padding-box;
+  text-shadow: none;
+}
+
+#ui .action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+#ui .game-menu [role=menu] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+}
+
+#ui .game-menu [role=menu] button.menu-key {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hud-key-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-print);
+  font: 400 var(--hud-text-m) / 1.1 var(--font-engraved);
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#ui .menu-key > .menu-label {
+  flex: 1;
+}
+
+#ui .menu-cap > .icon {
+  width: var(--hud-icon-s);
+  height: var(--hud-icon-s);
+  color: var(--hud-print);
+}
+
+#ui .menu-key > .menu-cap,
+#ui .dialogue .option-key {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--hud-key-h);
+  height: var(--hud-key-h);
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+}
+
+#ui .game-menu [role=menu][hidden],
+#ui .game-menu [role=menu] button.menu-key[hidden] {
+  display: none;
+}
+
+#ui .menu-key > .menu-lamp {
+  position: relative;
+  flex: none;
+  visibility: visible;
+  width: var(--hud-lamp-size);
+}
+
+#ui .minimap .minimap-head {
+  justify-content: flex-start;
+  margin: calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad)) var(--space-2);
+  border-top: 0;
+  border-bottom: var(--hud-step) solid var(--hud-print-ink);
+}
+
+#ui .dialogue .dialogue-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-amber);
+  font: 500 var(--hud-text-m) / 1.3 var(--font-hud);
+  text-align: left;
+}
+
+#ui .dialogue .dialogue-option.seen {
+  color: var(--hud-amber-soft);
+}
+
+#ui .dialogue .dialogue-option[aria-disabled="true"] {
+  color: var(--hud-amber-faint);
+}
+
+#ui .dialogue .option-key {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--hud-key-h);
+  height: var(--hud-key-h);
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+  color: var(--hud-print);
+  font: 400 var(--hud-text-m) / 1 var(--font-engraved);
+}
+
+#ui .dialogue .dialogue-speaker {
+  color: var(--hud-amber-soft);
+}
+
+#ui .beacon-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+#ui .beacon-switch > .rocker {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  width: var(--hud-rocker-w);
+  height: var(--hud-rocker-h);
+}
+
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :is(.num, .tag) {
+  font-family: var(--font-hud);
+  font-variant-numeric: tabular-nums;
+}
+
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
+  color: var(--hud-hot);
+}
+
+#ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) :is(h3, .panel-title, .info-name) {
+  font: 700 var(--hud-text-m) / 1.2 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .tip) {
+  font-size: var(--hud-text-m);
+}
+
+#ui .info .tag {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hud-amber-soft);
+  text-transform: uppercase;
+}
+
+#ui :is(.hud-plate, .hud-tray, .drawer-tabs, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :focus-visible {
+  outline: var(--hud-step) solid var(--hud-amber);
+}
+
+#ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter {
+  background: var(--hud-lcd-ghost);
+}
+
+#ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter > * {
+  background: var(--hud-amber);
+}
+
+#ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter.broken {
+  background: var(--hud-hot);
+}
+
+#ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter.notched > i {
+  background: var(--hud-lcd-ghost);
+}
+
+#ui :is(.info, .truck-stack, .hauler-gauge, .rescue, .stranded) .meter.notched > i.on {
+  background: var(--hud-amber);
+}
+
+#ui .condition-aim {
+  border: 0;
+  border-radius: 0;
+  background: var(--hud-screen);
+  color: var(--hud-hot);
+  font: 700 var(--hud-text-s) / var(--hud-text-s) var(--font-hud);
+  text-shadow: var(--hud-text-glow);
+}
+
+#ui .stat-icon .coin circle {
+  fill: none;
+  stroke: var(--hud-print);
+}
+
+#ui .stat-icon .coin path {
+  stroke: var(--hud-print);
+}
+
+#ui .contracts .contract-line + .contract-line {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--hud-step) solid var(--hud-amber-faint);
+}
+
+#ui .contracts .contract-line .dim {
+  display: block;
+  color: var(--hud-amber-faint);
+  font-size: var(--hud-text-s);
+}
+
+#ui :is(.action, .game-menu [role=menu]) {
+  border: var(--hud-rim-w) solid transparent;
+  border-image: var(--hud-rim-art) var(--hud-rim-slice) / var(--hud-rim-w) stretch;
+}
+
+
+
+:is(#ui, #overlay) button.hud-key:not(.icon-key) {
+  min-width: 0;
+  min-height: var(--hud-key-h);
+  padding: 0;
+  border: 0;
+  border-image: none;
+  color: var(--hud-print);
+}
+
+:is(#ui, #overlay) button.hud-key:not(.icon-key)::before {
+  content: "";
+  box-sizing: border-box;
+  flex: none;
+  width: var(--hud-key-h);
+  height: var(--hud-key-h);
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2);
+  border-image: var(--hud-keycap-art) 20 20 44 20 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.2) stretch;
+}
+
+:is(#ui, #overlay) button.hud-key.on:not(.icon-key)::before {
+  border-image-source: var(--hud-keycap-lit-art);
+}
+
+#ui .cool-key > .key-face {
+  position: absolute;
+  inset: 0 0 22% 0;
+  display: grid;
+  place-items: center;
+}
+
+#ui .cool-key > .key-face > .icon {
+  width: calc(var(--hud-icon) * 0.55);
+  height: calc(var(--hud-icon) * 0.55);
+  color: var(--hud-print);
+}
+
+#ui button.key-cap.play-key {
+  border: 0;
+  border-image: none;
+  background: var(--hud-playkey-art) 0 0 / 100% 100% no-repeat;
+}
+
+#ui .play-key .play-mark {
+  translate: 15% 0;
+}
+
+#ui .play-key[data-mode="auto"] .play-mark {
+  translate: 0 0;
+}
+
+#ui :is(.tip button.tip-close.tip-close, button.key-cap.cool-key) {
+  --small-key-edge: calc(var(--hud-key-h) * 0.075);
+  border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.6);
+  border-image: var(--hud-keycap-art) 36 36 94 36 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.6) stretch;
+}
+
+#ui button.key-cap.cool-key.on {
+  border-image-source: var(--hud-keycap-lit-art);
+}

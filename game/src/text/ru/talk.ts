@@ -521,7 +521,6 @@ export const TALK: Translation<typeof EN> = {
   'call.haulPart': '{part, case, acc}',
   'call.aid': '{fuel} и {supplies}',
   'call.said': '«{line}»',
-  'call.option': '{n}. {line}',
   'radio.ident.0': 'Это Джей-Джей на радио «Время в трубу». Трачу ваше время с тех пор, как упало небо.',
   'radio.ident.1': '«Время в трубу», у микрофона Джей-Джей. Никто не звал, а я всё равно тут.',
   'radio.dawn.0': 'Над котловиной встало солнце. Водоносы опередили его на рынке.',

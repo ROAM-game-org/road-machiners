@@ -142,7 +142,7 @@ describe("contract text", () => {
   const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 9, reward: 1, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
-    expect(en(contractDue({ ...order, deadline: turnsFor((5 * 60 + 19.5) * 60) }))).toBe("by Day 1 12:19");
+    expect(en(contractDue({ ...order, deadline: turnsFor((5 * 60 + 19.5) * 60) }))).toBe("by Day 1, 12:19");
   });
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {
@@ -1253,7 +1253,7 @@ describe("say lines", () => {
 });
 
 const shownMinutes = (turn: number): number => {
-  const [, day, hh, mm] = en(clock(turn).full).match(/^Day (\d+) (\d+):(\d\d)$/)!.map(Number);
+  const [, day, hh, mm] = en(clock(turn).full).match(/^Day (\d+), (\d+):(\d\d)$/)!.map(Number);
   return (day - 1) * 1440 + hh * 60 + mm;
 };
 

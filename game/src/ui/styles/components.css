@@ -33,7 +33,7 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.switch, .instrument-button, .truck-instrument, .end-turn, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .weapon-pick, .weapon-hold, .weapon-reload, .weapon-cut)) {
+:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-cell, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .tip-close, .hud-key, .menu-key)) {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -45,12 +45,12 @@
   line-height: 1;
   white-space: nowrap;
 }
-:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button, .weapon-head button, .log-expand, .tip-close) {
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button) {
   height: var(--btn-h-s);
   padding: 0 var(--space-4);
   font-size: var(--text-dense);
 }
-:is(#ui, #report) :is(.btn-l, .death-buttons button) {
+:is(#ui, #report) .btn-l {
   height: var(--btn-h-l);
   padding: 0 var(--space-8);
   font-size: var(--text-lead);
@@ -214,28 +214,6 @@
   white-space: normal;
 }
 
-/* The reason a control cannot be used, shown over it on hover and focus. */
-#ui [data-reason] {
-  position: relative;
-}
-#ui [data-reason]:is(:hover, :focus-visible)::after {
-  content: attr(data-reason);
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: var(--z-popup);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-raised);
-  border: 1px solid var(--line-bright);
-  color: var(--ink);
-  font: var(--text-dense) var(--font-ui);
-  white-space: nowrap;
-}
-
-#ui[data-pinned-tip] [data-reason]::after {
-  display: none;
-}
 
 /* A line of a tooltip breakdown: the label on the left in the UI face, the value on the right in mono. */
 .tooltip-row {
@@ -321,21 +299,6 @@
 }
 #ui .drawer-tabs > button.marked {
   border-color: var(--danger);
-}
-
-/* The newest log line on one row, on a phone above End turn. A tap opens the Log drawer. It never wraps. */
-.log-strip {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-.log-strip > div {
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .option-switch {
@@ -472,7 +435,7 @@
 .ink-page .ink-body:has(.ink-panel.wide) > .ink-foot {
   grid-column: 1 / -1;
 }
-#ui:has(.town-page.ink-page:not([style*="display: none"])) > .right-column > .log {
+#ui:has(.town-page.ink-page:not([style*="display: none"])) > .right-column > .hud-radio {
   visibility: hidden;
 }
 #ui:not(.narrow) .ink-page .ink-scroll:has(> .ink-panel.wide) {
@@ -560,11 +523,9 @@
   margin-bottom: var(--space-5);
 }
 
-:is(#ui, #report) .dialogue-option.seen,
 :is(#ui, #report) .quest-choice.seen {
   background: var(--surface-sunk);
 }
-:is(#ui, #report) .dialogue-option.seen:hover,
 :is(#ui, #report) .quest-choice.seen:hover {
   background: var(--surface-hover);
 }

@@ -1,44 +1,14 @@
 #ui:where(.narrow) .minimap {
   display: none;
 }
-:where(#ui.narrow) .speed-tip {
-  position: fixed;
-  left: var(--space-6);
-  bottom: 200px;
-}
-:where(#ui.narrow) .instrument-actions {
-  flex-wrap: wrap;
-}
-#ui:where(.narrow) {
-  --right-column: calc(var(--dock-width) + var(--hud-inset));
-}
 #ui:where(.narrow):not(.phone) .right-column {
   right: var(--hud-inset);
-}
-#ui:where(.narrow) .log {
-  height: var(--narrow-log-height);
-}
-#ui:where(.narrow) .radio {
-  --radio-line: var(--space-6);
-  --radio-lines: 4;
-  --knob-size: calc(var(--space-9) - var(--space-1));
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-}
-#ui:where(.narrow) .radio-lcd {
-  font-size: var(--text-caption);
 }
 #ui:where(.narrow) .options-sound {
   --knob-size: calc(var(--space-9) - var(--space-1));
 }
 #ui:where(.narrow) .knob-cell {
   font-size: calc(var(--text-caption) - var(--space-1));
-}
-#ui:where(.narrow):not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) {
-  top: calc(var(--hud-hover-top) + var(--hud-gap));
-}
-#ui:where(.narrow):not(.phone):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
-  width: calc(var(--layer-w) - 2 * var(--hud-inset));
 }
 #ui:where(.narrow) .modal {
   padding: var(--space-8) var(--space-7);
@@ -74,6 +44,19 @@
 :where(#ui.narrow) .modal th {
   padding: var(--space-3) var(--space-2);
 }
-#ui:where(.narrow):has(.help) :is(.right-dock, .log) {
+#ui:where(.narrow):has(.help) :is(.right-dock, .hud-radio) {
   visibility: hidden;
+}
+#ui:where(.tight):not(.phone) {
+  --hud-zoom: var(--hud-zoom-tight);
+}
+#ui:where(.narrow):not(.phone) {
+  --right-column: 0px;
+  --hud-notice-top: calc(2 * (var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap)) - var(--hud-tray-rim));
+}
+#ui:where(.narrow):not(.phone) > .top-right {
+  top: calc(var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap) - 2 * var(--hud-tray-rim));
+}
+#ui:where(.narrow):not(.phone) > .right-column {
+  bottom: calc(var(--hud-weapons-w) * 734 / 1969 * var(--hud-zoom) + var(--hud-gap));
 }

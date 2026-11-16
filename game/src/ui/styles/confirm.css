@@ -3,7 +3,7 @@
   inset: 0;
   z-index: var(--z-confirm);
   padding: 0;
-  background: transparent;
+  background: var(--scrim);
   border: 0;
   box-shadow: none;
 }
@@ -17,6 +17,7 @@
   flex-direction: column;
   gap: var(--space-6);
   box-sizing: border-box;
+  padding: var(--hud-pad);
   width: var(--panel-l);
   max-width: calc(var(--layer-w) - 2 * var(--space-4));
 }

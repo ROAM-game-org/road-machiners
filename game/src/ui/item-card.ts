@@ -19,7 +19,7 @@ import { partName } from "../text/names";
 import { actionRow, baselinePart, conditionTag, costItem, diffStats, jobDone, massStat, offActionRow, partHealthRow, partStats, statGrid, workMeterEl } from "./cards";
 import { disabledWith, el } from "./dom";
 import { commandFailure, jobLabel, workLabel, workProgress } from "./format";
-import { keyLabel, phoneMode } from "./input-mode";
+import { keyTip, phoneMode } from "./input-mode";
 import { canFieldPatch, patchBlocker, planAfterMove, stripBlocker, stripRoomText, turnsToTry, weldBlocker } from "./inventory-moves";
 import { runCommand } from "./run-command";
 import { moneyMsg, pricedEl, priceTag } from "./units";
@@ -125,7 +125,7 @@ export function rotateButton(rotate: () => void, reason: Msg | null): HTMLElemen
   const key = (e: Event) => {
     if ((e as MouseEvent).detail === 0 && !reason) rotate();
   };
-  return el("button", { class: "btn-s", "data-action": "rotate", title: reason ? undefined : keyLabel(t("inv.rotate"), ROTATE_KEYCAP), onpointerdown: press, ...(reason ? disabledWith(reason, () => {}) : { onclick: key }) }, t("inv.rotate"));
+  return el("button", { class: "btn-s", "data-action": "rotate", title: reason ? undefined : keyTip(t("inv.rotate"), ROTATE_KEYCAP), onpointerdown: press, ...(reason ? disabledWith(reason, () => {}) : { onclick: key }) }, t("inv.rotate"));
 }
 
 function rotateCostRow(button: HTMLElement, turns: number): HTMLElement[] {

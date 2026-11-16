@@ -2,8 +2,8 @@
    Nothing in it carries a position number of its own. */
 #ui:not(.phone) .right-column {
   position: absolute;
-  right: var(--space-7);
-  bottom: var(--hud-inset);
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -14,18 +14,15 @@
 }
 #ui:not(.phone) .right-column > .right-dock {
   order: 0;
+  margin-right: var(--space-7);
 }
-#ui:not(.phone) .right-column > .log {
+#ui:not(.phone) .right-column > .hud-radio {
   order: 1;
 }
-#ui:not(.phone) .right-column > .turn-control {
-  order: 2;
-}
 #ui .log {
-  width: var(--dock-width);
-  height: var(--log-height);
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 /* The one owner of the stack above the log: the contracts at the old contracts spot, the radio in the space above.
    Panels in it carry no position numbers of their own. */
@@ -44,41 +41,19 @@
   position: static;
   flex: none;
 }
-#ui .right-dock > .radio {
-  order: 0;
-}
 #ui .right-dock > .contracts {
   order: 1;
-}
-/* Waste Of Time Radio: a pager screen, at the top of the right dock. The drawn parts are in drawings.css. */
-#ui .radio {
-  --radio-line: 14px;
-  --radio-lines: 3;
-  --knob-size: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--steel-2);
-  box-shadow: inset 0 1px 0 var(--bevel-light);
-}
-#ui .radio.off-air .radio-screen {
-  display: none;
-}
-#ui .right-dock > .radio.off-air {
-  align-self: flex-end;
 }
 .radio-text {
   position: relative;
 }
 .radio-text.streaming::after {
-  content: "\2588";
-  animation: radio-cursor 0.5s steps(1) infinite;
-}
-@keyframes radio-cursor {
-  50% {
-    opacity: 0;
-  }
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  vertical-align: text-bottom;
+  background: var(--hud-amber);
 }
 .radio-keys {
   display: flex;
@@ -103,16 +78,6 @@
 .contract-line .claim-rival > .icon {
   width: var(--icon-m);
   height: var(--icon-m);
-}
-#ui .log .panel-title {
-  margin: 0;
-}
-.log-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
 }
 .log-time {
   white-space: nowrap;

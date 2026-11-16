@@ -22,13 +22,11 @@ import { layerPointOf } from '../../ui/ui-size';
 import { overlayMaterial } from './overlay-material';
 
 const S = PHYSICS.metersPerTile;
-const ICON_PX = 26;
 const LIFT = 0.15;
 const DEG_PER_STEP = 5;
 const LINE_WIDTH_PX = 2;
 const FILL_ALPHA = 0.075;
 const LINE_ALPHA = 0.075;
-const ICON_ALPHA = 0.5;
 
 export class WeaponRangeView {
   readonly root = new THREE.Group();
@@ -242,10 +240,7 @@ export class HoverArcsView {
       const id = arc.weapon.part.id;
       if (this.icons.has(id)) continue;
       const number = el('span', { class: 'arc-icon-slot' }, num(arc.slot, 'int'));
-      const node = el('div', { class: 'arc-icon' }, createBareItemIcon(arc.weapon.part.defId), number);
-      node.style.width = `${ICON_PX}px`;
-      node.style.height = `${ICON_PX}px`;
-      node.style.opacity = `${ICON_ALPHA}`;
+      const node = el('div', { class: 'arc-icon hud-frame' }, createBareItemIcon(arc.weapon.part.defId), number);
       this.overlay.appendChild(node);
       this.icons.set(id, node);
     }

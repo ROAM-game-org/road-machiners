@@ -1,8 +1,6 @@
 #ui .dialogue {
   min-width: var(--panel-m);
   max-width: var(--panel-l);
-  background: var(--surface-raised);
-  border-left: 4px solid var(--line-strong);
 }
 .dialogue .dialogue-speaker {
   color: var(--ink-muted);

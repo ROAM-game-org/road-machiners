@@ -1,5 +1,6 @@
 export type Untranslated = { file: string; text: string; reason: string };
 
+const DASH_ATLAS = 'The dashboard atlas is a dev page that shows every dashboard instrument in its states. It stays English.';
 const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
@@ -10,6 +11,7 @@ const SIM_MODE = 'Simulation mode is a dev page that replays a bot run with ever
 const DEV_ATLAS = 'The stretch atlas is a dev page that draws the trucks each Chaos Highway stretch can roll. It stays English.';
 const DEV_INK_MENU = 'The ink look menu is a dev tool that opens only with ?tune in the page address. It stays English.';
 const FONT_SAMPLE ='A sample string that makes the browser load the font. No player reads it.';
+const GAUGE_MARKS = 'The end marks of the fuel and heat gauges are dashboard symbols, printed the same in every language.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
@@ -92,6 +94,11 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/shot.ts', text: '*', reason: 'npm run shot labels the views of a model sheet for developers. It stays English.' },
   { file: 'src/ui/perf-panel.ts', text: '.textContent =', reason: 'The perf panel is a dev readout of frame timings. It stays English.' },
   { file: 'src/ui/guide/page.ts', text: '*', reason: 'The UI guide is a dev page that shows the design system. It stays English.' },
+  { file: 'src/ui/dash/atlas.ts', text: '*', reason: DASH_ATLAS },
+  { file: 'src/ui/dash/panels.ts', text: 'E', reason: GAUGE_MARKS },
+  { file: 'src/ui/dash/panels.ts', text: 'F', reason: GAUGE_MARKS },
+  { file: 'src/ui/dash/panels.ts', text: 'C', reason: GAUGE_MARKS },
+  { file: 'src/ui/dash/panels.ts', text: 'H', reason: GAUGE_MARKS },
   { file: 'src/ui/guide/pieces.ts', text: '*', reason: 'The UI guide is a dev page that shows the design system. It stays English.' },
   { file: 'src/three/crash.ts', text: 'starting the page', reason: CRASH_REPORT },
   { file: 'src/three/crash.ts', text: 'Ignored an error from a script outside the game', reason: CRASH_REPORT },

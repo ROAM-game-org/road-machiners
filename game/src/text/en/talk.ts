@@ -520,7 +520,6 @@ export const TALK = {
   'call.haulPart': m('{part}', { part: 'text' }),
   'call.aid': m('{fuel} and {supplies}', { fuel: 'text', supplies: 'text' }),
   'call.said': m('“{line}”', { line: 'text' }),
-  'call.option': m('{n}. {line}', { n: 'int', line: 'text' }),
   'radio.ident.0': 'This is J.J. on Waste Of Time Radio, wasting your time since the sky fell.',
   'radio.ident.1': 'Waste Of Time Radio, J.J. at the mic. Nobody asked, and here I am anyway.',
   'radio.dawn.0': 'Sun\'s up over the basin. The water sellers have beaten it to market.',

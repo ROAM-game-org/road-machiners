@@ -436,3 +436,7 @@ public licenses.
 
 Creative Commons may be contacted at creativecommons.org.
 
+
+=======================================================================
+
+The car dashboard UI icons in game/src/ui/icon-pack.ts come from UIX Icons Solid by mdrakibshekh, licensed under the MIT License. The license text is at https://github.com/mdrakibshekh/uix-icons/blob/main/LICENSE.

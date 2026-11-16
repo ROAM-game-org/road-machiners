@@ -1,7 +1,8 @@
 import { MINIMAP } from '../data/minimap';
 import type { World } from '../sim/types';
 import { t } from '../text/msg';
-import { keyLabel } from './input-mode';
+import { createIcon } from './cards';
+import { keyTip } from './input-mode';
 import { el, markDisabled, panel, topLeft } from './dom';
 import { mapScene, MapView, observeBox, poseOf, type MapTruck } from './map-view';
 
@@ -15,16 +16,16 @@ export class Minimap {
   private root = panel('minimap', topLeft());
   private step = reachStep(MINIMAP.startReach);
   private view = new MapView({ kind: 'follow', reach: MINIMAP.startReach }, 1, 1);
-  private zoomOut = el('button', { class: 'btn-s', title: t('map.zoomOut'), 'aria-label': t('map.zoomOut'), onclick: () => this.stepTo(this.step + 1) }, t('map.zoomOutMark'));
-  private zoomIn = el('button', { class: 'btn-s', title: t('map.zoomIn'), 'aria-label': t('map.zoomIn'), onclick: () => this.stepTo(this.step - 1) }, t('map.zoomInMark'));
+  private zoomOut = el('button', { class: 'hud-key icon-key', title: t('map.zoomOut'), 'aria-label': t('map.zoomOut'), onclick: () => this.stepTo(this.step + 1) }, createIcon('minus'));
+  private zoomIn = el('button', { class: 'hud-key icon-key', title: t('map.zoomIn'), 'aria-label': t('map.zoomIn'), onclick: () => this.stepTo(this.step - 1) }, createIcon('plus'));
 
   constructor(onOpen: () => void) {
-    const tip = el('div', { class: 'map-tip tooltip', role: 'tooltip' });
-    const open = el('button', { class: 'log-expand', title: keyLabel(t('map.open'), 'M'), 'aria-label': t('map.open'), onclick: onOpen }, t('log.expandMark'));
+    const tip = el('div', { class: 'map-tip tooltip hud-frame', role: 'tooltip' });
+    const open = el('button', { class: 'hud-key icon-key log-expand', title: keyTip(t('map.open'), 'M'), 'aria-label': t('map.open'), onclick: onOpen }, createIcon('expand'));
     this.view.canvas.addEventListener('click', onOpen);
     this.view.bindTip(tip);
     const body = el('div', { class: 'minimap-body' }, this.view.canvas, tip);
-    this.root.append(el('div', { class: 'minimap-head' }, this.zoomOut, this.zoomIn, open), body);
+    this.root.append(el('div', { class: 'minimap-head hud-keybed' }, this.zoomOut, this.zoomIn, open), body);
     observeBox(body, this.view);
     this.mark();
   }

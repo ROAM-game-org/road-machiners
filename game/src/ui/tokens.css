@@ -8,10 +8,27 @@
   font-style: italic;
   font-display: block;
 }
+@font-face {
+  font-family: "TC Calculator Digits";
+  src: url("./fonts/tc-calculator-digits.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Routed Gothic Narrow";
+  src: url("./fonts/routed-gothic-narrow.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
 :root {
   /* Type */
   --font-lcd: "DSEG14 Classic", var(--font-mono);
+  --font-lcd-digits: "TC Calculator Digits", var(--font-mono);
   --font-ui: "Barlow Semi Condensed", "Fira Sans Condensed", sans-serif;
+  --font-hud: "Chakra Petch", var(--font-ui);
+  --font-engraved: "Routed Gothic Narrow", var(--font-ui);
   --font-mono: "IBM Plex Mono", monospace;
   --text-caption: 10px;
   --text-dense: 12px;
@@ -179,6 +196,83 @@
   --coin-rim: #a08a55;
   --coin-mark: #c5b981;
 
+  /* HUD skin: the housing color paints every plate through its mask, the rest is sampled from the approved panels */
+  --hud-housing: #c8a978;
+  --hud-glass: #1c120a;
+  --hud-glass-edge: #0b0704;
+  --hud-amber: #ffb547;
+  --hud-amber-dim: #7a4c1c;
+  --hud-amber-soft: #d9a35a;
+  --hud-amber-faint: #a8773d;
+  --hud-wheel-wall: #000000d9;
+  --hud-amber-glow: #ff8c1a99;
+  --hud-amber-glow-soft: #ff8c1a38;
+  --hud-lcd-ghost: #4a2d12;
+  --hud-print: #f1ddb0;
+  --hud-print-dim: #b59f78;
+  --hud-print-ink: #2b1d0e;
+  --hud-segment-off: #3b2914;
+  --hud-segment-beyond: #5c2412;
+  --hud-needle: #f4a44b;
+  --hud-fuel: #74d39c;
+  --hud-heat: #f2a33a;
+  --hud-hot: #ef4f3a;
+  --hud-lamp-off: #3d2a15;
+  --hud-lamp-amber: #ffae2b;
+  --hud-lamp-green: #7fd14a;
+  --hud-lamp-red: #ff4a2b;
+  --hud-rocker-on: #ff3b2a;
+  --hud-rocker-core: #ffc2a8;
+  --hud-rocker-deep: #7a1408;
+  --hud-screen: #28180b;
+
+  /* HUD skin sizes: each panel's width at the 1280 by 720 layer, and the motion of its instruments */
+  --hud-drive-n: 340;
+  --hud-drive-w: calc(var(--hud-drive-n) * 1px);
+  --hud-weapons-n: 400;
+  --hud-weapons-w: calc(var(--hud-weapons-n) * 1px);
+  --hud-radio-n: 410;
+  --hud-radio-w: calc(var(--hud-radio-n) * 1px);
+  --hud-zoom: 1;
+  --hud-zoom-tight: 0.8;
+  --hud-zoom-phone: 0.8;
+  --hud-radio-scale: 1;
+  --hud-tray-h: 52px;
+  --hud-tray-rim: var(--hud-rim-w);
+  --hud-tray-side: var(--hud-rim-w);
+  --hud-tray-gap: var(--space-4);
+  --hud-text-s: 10px;
+  --hud-text-m: 12px;
+  --hud-text-l: 20px;
+  --hud-lcd-size: 24px;
+  --hud-icon: 20px;
+  --hud-icon-l: 24px;
+  --hud-icon-s: 14px;
+  --hud-key-h: 34px;
+  --hud-key-edge: 4px;
+  --hud-rocker-w: 16px;
+  --hud-rocker-h: 30px;
+  --hud-lamp-size: 10px;
+  --hud-rim: 3px;
+  --hud-rim-s: 2px;
+  --hud-glow-r: 4px;
+  --hud-text-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
+  --hud-mark-glow: drop-shadow(0 0 var(--hud-glow-r) var(--hud-amber-glow-soft));
+  --hud-step: 1px;
+  --hud-rim-slice: 30;
+  --hud-rim-w: 3px;
+  --hud-well-slice: 30;
+  --hud-well-w: 2px;
+  --hud-pad: 10px;
+  --hud-glass-tile: 256px;
+  --hud-olive-tile: 400px;
+  --hud-olive: #4c402e;
+  --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;
+  --hud-emboss: 0 1px 0 #fff3d666;
+  --hud-bracket: 6px;
+  --hud-bracket-w: 2px;
+  --hud-badge: 26px;
+
   /* Light and shade */
   --bevel-light: #ffffff1a;
   --bevel-light-strong: #ffffff26;
@@ -306,12 +400,7 @@
   --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
   --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
   --touch-target: max(32px, calc(32px / var(--ui-scale)));
-  --phone-readouts-h: calc(90px + var(--touch-target));
-  --phone-strip-h: var(--touch-target);
-  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h));
-  --phone-end-w: 96px;
   --phone-speed-w: 128px;
-  --phone-tab-w: 56px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
@@ -320,6 +409,8 @@
   --z-badge: 2;
   --z-hud: 3;
   --z-popup: 5;
+  --z-lcd-digits: 0;
+  --z-lcd-ghost: -1;
   --z-modal: 20;
   --z-over-modal: 21;
   --z-log-open: 22;
@@ -359,8 +450,4 @@
   --lcd-cell-w: 0px;
 }
 
-@media (orientation: landscape) {
-  :root {
-    --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--phone-strip-h));
-  }
-}
+

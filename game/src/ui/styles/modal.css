@@ -11,14 +11,9 @@
   scrollbar-width: thin;
 }
 #ui:has(.modal:not([style*="display: none"]))
-  > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.confirm-block):not(.toast):not(.instruments):not(.log),
+  > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.confirm-block):not(.toast),
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip):not(.dialogue) {
   visibility: hidden;
-}
-/* The hidden commit leaves the stack, so the log drops to the bottom line, clear of the modal. */
-#ui:has(.modal:not(.inventory-screen):not([style*="display: none"])) > .right-column > .turn-control,
-#ui:has(.inventory-screen.over-scene:not([style*="display: none"])) > .right-column > .turn-control {
-  display: none;
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .dialogue {
   position: relative;
@@ -44,23 +39,13 @@
 #ui:has(.modal:not([style*="display: none"])) > .top-right {
   z-index: var(--z-feedback);
 }
-#ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:has(.modal:not([style*="display: none"])) > .right-column > .log,
-#ui:has(.inventory-screen:not([style*="display: none"])) > .right-column > .turn-control {
-  z-index: var(--z-over-modal);
-}
-/* The hidden weapons leave the dock, so the instruments drop to the bottom line instead of wrapping above them. */
-#ui:has(.modal:not([style*="display: none"])) > .bottom-left > .weapons {
+#ui:has(.modal:not([style*="display: none"])) > .bottom-left > :is(.hud-drive, .weapons),
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .hud-radio {
   display: none;
 }
 /* The wide modal reaches under the condition panel, which stands above the instruments. */
 #ui:has(.modal:not([style*="display: none"])) .truck-stack {
   display: none;
-}
-/* The working screen takes the full height down to the bottom edge, so the instruments and the log hide under it. */
-#ui:not(.phone):has(:is(.inventory-screen, .character-screen):not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:not(.phone):has(:is(.inventory-screen, .character-screen):not([style*="display: none"])) > .right-column > .log {
-  visibility: hidden;
 }
 /* Its opening tip stays readable in the free margin beside the frame. */
 #ui:not(.phone):has(.inventory-screen:not([style*="display: none"])) > .top-center > .opening-tip {
@@ -123,6 +108,6 @@
 #ui:has(.ink-page:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui:has(.ink-page:not([style*="display: none"])) > :is(.log, .bottom-left) {
+#ui:has(.ink-page:not([style*="display: none"])) > :is(.right-column, .bottom-left) {
   visibility: hidden;
 }

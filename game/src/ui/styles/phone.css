@@ -13,35 +13,12 @@
   --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
   --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
   --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
-  --phone-tabs-w: calc(4 * var(--phone-tab-w) + 3 * var(--space-2));
   --right-column: 0px;
 }
 
 #ui.phone .bottom-left,
 #ui.phone .right-column {
   display: contents;
-}
-#ui:not(.phone) .log-strip {
-  display: none;
-}
-#ui.phone .log-strip {
-  position: fixed;
-  z-index: var(--z-hud);
-  box-sizing: border-box;
-  left: var(--safe-left);
-  right: var(--safe-right);
-  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
-  height: var(--phone-strip-h);
-  padding: 0 var(--space-4);
-}
-#ui.phone .log-strip:empty {
-  display: none;
-}
-#ui.phone .log-strip > div {
-  font-size: var(--text-caption);
-}
-#ui.phone .log-strip .log-time {
-  display: none;
 }
 #ui.phone .top-center {
   left: var(--safe-left);
@@ -65,134 +42,24 @@
 #ui.phone .drawer-tabs {
   position: fixed;
   z-index: var(--z-hud);
-  left: var(--safe-left);
-  bottom: calc(var(--safe-bottom) + (var(--phone-readouts-h) - var(--btn-h-l)) / 2);
-  width: var(--phone-tabs-w);
   pointer-events: auto;
 }
-#ui.phone .drawer-tabs > button {
-  width: var(--phone-tab-w);
-}
-#ui.phone .turn-control {
-  right: var(--safe-right);
-  bottom: var(--safe-bottom);
-}
-#ui.phone .turn-control {
-  align-items: flex-end;
-}
-#ui.phone .speed-keys {
-  width: var(--phone-speed-w);
-  height: var(--touch-target);
-}
-#ui.phone .speed-keys > .speed-key {
-  flex-basis: var(--touch-target);
-  width: var(--touch-target);
-}
-#ui.phone .end-turn {
-  width: var(--phone-end-w);
-  min-height: var(--btn-h-l);
-  justify-content: center;
-  padding: var(--space-2) var(--space-3);
-  text-align: center;
-  line-height: 1;
-  overflow-wrap: normal;
-}
-#ui.phone .end-turn .icon {
-  display: none;
-}
 
-#ui.phone {
-  --dial-w: 96px;
-  --dial-h: 58px;
-  --compass-w: 44px;
-}
-#ui.phone .bottom-left > .instruments {
-  position: fixed;
-  z-index: var(--z-hud);
-  box-sizing: border-box;
-  left: var(--safe-left);
-  right: var(--safe-right);
-  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h) + var(--hud-gap));
-  height: var(--phone-readouts-h);
-  overflow: hidden;
-  padding: var(--space-1) var(--space-2);
-  column-gap: var(--space-2);
-  row-gap: var(--space-1);
-  grid-template-columns: calc(var(--compass-w) + var(--space-2) + var(--dial-w)) repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(3, auto) 1fr;
-  grid-template-areas:
-    "dial driver fuel supplies"
-    "dial engine heat ."
-    "dial money clock run"
-    "actions actions actions actions";
-}
-#ui.phone .instruments .speedometer {
-  grid-row: 1 / span 3;
-}
-#ui.phone .instruments .resource[data-resource="run"] {
-  grid-area: run;
-}
-#ui.phone .instruments .resource {
-  grid-template-columns: var(--icon-xs) minmax(0, 1fr);
-  justify-content: stretch;
-  padding: var(--space-1) var(--space-2);
-  column-gap: var(--space-1);
-  font-size: var(--text-caption);
-}
-#ui.phone .instruments .resource > :last-child {
-  justify-self: end;
-}
-#ui.phone .instruments .resource :is(.icon, .coin) {
-  width: var(--icon-xs);
-  height: var(--icon-xs);
-}
-#ui.phone .instruments .instrument-clock {
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-}
-#ui.phone .instruments :is(.clock-day, .clock-time) {
-  font-size: var(--text-caption);
-}
-#ui.phone .instruments .instrument-actions {
-  gap: var(--space-1);
-  flex-wrap: nowrap;
-  padding-top: 0;
-  border-top: 0;
-  min-height: 0;
-  justify-content: center;
-  flex-wrap: nowrap;
-}
-#ui.phone .instruments .instrument-actions > * {
-  flex: 1 1 0;
-  min-width: 0;
-  height: var(--touch-target);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  line-height: 1;
-  white-space: normal;
-  overflow-wrap: break-word;
-  padding: 0 var(--space-1);
-}
 #ui.phone .feedback {
   display: none;
 }
 
-#ui.phone :is(.truck-stack, .weapons, .right-dock, .log) {
+#ui.phone :is(.truck-stack, .weapons, .right-dock) {
   display: none;
 }
 #ui.phone[data-drawer="truck"] .bottom-left > .truck-stack,
-#ui.phone[data-drawer="radio"] .right-dock,
-#ui.phone[data-drawer="log"] .log {
+#ui.phone[data-drawer="radio"] .right-dock {
   display: flex;
 }
 #ui.phone[data-drawer="guns"] .weapons {
   display: block;
 }
-#ui.phone :is(.bottom-left > .truck-stack, .weapons, .right-dock, .log) {
+#ui.phone :is(.bottom-left > .truck-stack, .weapons, .right-dock) {
   position: fixed;
   z-index: var(--z-hud);
   box-sizing: border-box;
@@ -219,13 +86,6 @@
   flex-direction: column;
   gap: var(--hud-gap);
 }
-#ui.phone .log.log {
-  flex-direction: column;
-  height: min(var(--drawer-max-h), var(--panel-m-height));
-}
-#ui.phone .log .log-expand {
-  display: none;
-}
 
 #ui.phone .info {
   right: var(--safe-right);
@@ -239,7 +99,7 @@
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(:is(.modal:not([style*="display: none"]), .options, .help)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options, .help)) :is(.drawer-tabs, .hud-drive, .hud-radio, .truck-stack, .weapons, .right-dock, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
@@ -337,73 +197,27 @@
 #ui.phone:has(.game-menu [role="menu"]:not([hidden])) > .top-center {
   visibility: hidden;
 }
-#ui.phone :is(.radio, .options-sound) {
+#ui.phone .options-sound {
   --knob-size: var(--touch-target);
 }
 
-@media (orientation: portrait) {
-  #ui.phone .log-strip {
-    right: calc(var(--safe-right) + var(--phone-speed-w) + var(--hud-gap));
-  }
-  #ui.phone .drawer-tabs {
-    bottom: var(--safe-bottom);
-    right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
-  }
-  #ui.phone .drawer-tabs > button {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 0;
-  }
-}
 
 @media (orientation: landscape) {
-  #ui.phone .bottom-left > .instruments {
-    left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
-    right: calc(var(--safe-right) + var(--phone-speed-w) + var(--hud-gap));
-    bottom: var(--safe-bottom);
-  }
-  #ui.phone .log-strip {
-    left: auto;
-    width: var(--drawer-w);
-    bottom: calc(var(--safe-bottom) + var(--phone-readouts-h) + var(--hud-gap));
-  }
   #ui.phone.phone .weapons {
     right: auto;
-    width: var(--drawer-w);
+    width: var(--hud-weapons-w);
   }
   #ui.phone .bottom-left > .truck-stack {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
   }
-  #ui.phone.phone :is(.right-dock, .log) {
+  #ui.phone.phone .right-dock {
     left: auto;
     width: var(--drawer-w);
   }
-}
 
-#ui.phone .instruments .instrument-actions button.switch {
-  padding: var(--space-1);
-}
-#ui.phone .instruments .instrument-actions .switch::before,
-#ui.phone .instruments .instrument-actions .switch::after {
-  display: none;
-}
-#ui.phone .instruments .instrument-actions .switch-option {
-  white-space: normal;
-  text-align: center;
-  overflow-wrap: normal;
-  line-height: 1;
-}
-#ui.phone .instruments .instrument-actions .switch-handle:has(.switch-lever) {
-  display: none;
-}
-#ui.phone .instruments .speed-value {
-  left: auto;
-  right: 2px;
-  bottom: 1px;
-  transform: none;
-  font-size: var(--text-dense);
+
 }
 #ui.phone .modal.character-screen {
   display: flex;
@@ -469,4 +283,95 @@
   z-index: var(--z-badge);
   display: flex;
   gap: var(--space-2);
+}
+
+#ui.phone {
+  --phone-row-w: calc(var(--layer-w) - var(--safe-left) - var(--safe-right));
+  --phone-strip-h: calc(var(--hud-radio-w) * 287 / 1279);
+  --phone-strip-cut: calc(var(--hud-radio-w) * 560 / 1279);
+  --phone-drive-h: calc(var(--hud-drive-w) * 618 / 1574);
+  --phone-tabs-h: var(--btn-h-l);
+  --hud-weapons-w: var(--phone-row-w);
+}
+#ui.phone .bottom-left > .hud-drive,
+#ui.phone .right-column > .hud-radio {
+  position: fixed;
+  z-index: var(--z-hud);
+}
+#ui.phone .right-column > .hud-radio {
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  height: var(--phone-strip-h);
+  overflow: hidden;
+}
+#ui.phone .right-column > .hud-radio > .hud-plate {
+  margin-top: calc(-1 * var(--phone-strip-cut));
+}
+#ui.phone[data-drawer="radio"] .right-column > .hud-radio {
+  height: auto;
+}
+#ui.phone[data-drawer="radio"] .right-column > .hud-radio > .hud-plate {
+  margin-top: 0;
+}
+#ui.phone .drawer-tabs > button {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+#ui.phone .weapons {
+  padding: 0;
+  background: none;
+  border: 0;
+  overflow: visible;
+}
+@media (orientation: portrait) {
+  #ui.phone {
+    --hud-drive-w: var(--phone-row-w);
+    --hud-radio-w: var(--phone-row-w);
+    --phone-bar-h: calc(var(--phone-strip-h) + var(--phone-drive-h) + var(--phone-tabs-h) + 2 * var(--hud-gap));
+  }
+  #ui.phone[data-drawer="radio"] {
+    --phone-bar-h: calc(var(--hud-radio-w) * 847 / 1279 + var(--phone-tabs-h) + var(--hud-gap));
+  }
+  #ui.phone .bottom-left > .hud-drive {
+    left: var(--safe-left);
+    bottom: calc(var(--safe-bottom) + var(--phone-strip-h) + var(--hud-gap));
+  }
+  #ui.phone[data-drawer="radio"] .bottom-left > .hud-drive {
+    display: none;
+  }
+  #ui.phone .drawer-tabs {
+    left: var(--safe-left);
+    right: var(--safe-right);
+    width: auto;
+    bottom: calc(var(--safe-bottom) + var(--phone-bar-h) - var(--phone-tabs-h) - var(--hud-gap));
+  }
+  #ui.phone {
+    --phone-top-row: calc(2 * var(--hud-tray-h) * var(--hud-zoom-phone) + var(--hud-gap) - 2 * var(--hud-tray-rim) - var(--safe-top));
+  }
+  #ui.phone > .top-right {
+    top: calc(var(--hud-tray-h) * var(--hud-zoom-phone) + var(--hud-gap) - 2 * var(--hud-tray-rim));
+  }
+  #ui.phone :is(.hud-stats, .hud-system) {
+    zoom: var(--hud-zoom-phone);
+  }
+  #ui.phone {
+    --hud-zoom-phone: var(--hud-radio-scale);
+  }
+}
+@media (orientation: landscape) {
+  #ui.phone {
+    --phone-bar-h: calc(var(--phone-drive-h) + var(--phone-tabs-h) + var(--hud-gap));
+    --hud-weapons-w: min(var(--drawer-w), calc(var(--drawer-max-h) * 1969 / 734));
+  }
+  #ui.phone .bottom-left > .hud-drive {
+    left: var(--safe-left);
+    bottom: var(--safe-bottom);
+  }
+  #ui.phone .drawer-tabs {
+    left: var(--safe-left);
+    right: auto;
+    width: var(--hud-drive-w);
+    bottom: calc(var(--safe-bottom) + var(--phone-drive-h) + var(--hud-gap));
+  }
 }

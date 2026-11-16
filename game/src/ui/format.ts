@@ -883,7 +883,7 @@ export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full:
   const { day, hour } = clockOf(turn);
   const hh = Math.floor(hour);
   const mm = Math.floor((hour - hh) * 60);
-  const time = verbatim(`${hh}:${String(mm).padStart(2, '0')}`);
+  const time = verbatim(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
   return { dayLabel: t('clock.day'), day: verbatim(String(day)), time, full: t('clock.full', { day, time }) };
 }
 

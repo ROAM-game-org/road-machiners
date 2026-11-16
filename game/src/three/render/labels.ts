@@ -25,7 +25,7 @@ const LEAD_EXTRA_LIFT_PX = 26;
 
 function labelEl(container: HTMLElement): HTMLDivElement {
   const el = document.createElement('div');
-  el.className = 'world-label';
+  el.className = 'world-label hud-frame';
   container.appendChild(el);
   return el;
 }
@@ -78,7 +78,7 @@ export class Labels {
 }
 
 function weaponChip(mark: WeaponMark): HTMLElement {
-  return el('div', { class: `marker-weapon ${mark.ready ? 'ready' : 'blocked'}`, title: mark.status },
+  return el('div', { class: `marker-weapon hud-frame ${mark.ready ? 'ready' : 'blocked'}` },
     createBareItemIcon(mark.defId),
     el('span', { class: 'marker-slot' }, num(mark.slot, 'int')),
     el('span', { class: 'marker-status' }, mark.status),
@@ -86,7 +86,7 @@ function weaponChip(mark: WeaponMark): HTMLElement {
 }
 
 function jobChip(job: JobMark): HTMLElement {
-  return el('div', { class: 'marker-job' },
+  return el('div', { class: 'marker-job hud-frame' },
     el('span', {}, job.label),
     workMeterBar(job.work, job.label),
   );
@@ -99,8 +99,8 @@ function weaponsRow(weapons: WeaponMark[]): HTMLElement | null {
 function markerNode(mark: VehicleMark): HTMLElement {
   return el('div', { class: 'vehicle-marker' },
     weaponsRow(mark.weapons),
-    mark.radio ? el('div', { class: 'marker-radio' }, keyLabel(t('map.radio'), 'T', 'before')) : null,
-    mark.out ? el('div', { class: 'marker-out' }, mark.gaveUp ? t('npc.gaveUp') : t('npc.knockedOut')) : null,
+    mark.radio ? el('div', { class: 'marker-radio hud-frame' }, keyLabel(t('map.radio'), 'T', 'before')) : null,
+    mark.out ? el('div', { class: 'marker-out hud-frame' }, mark.gaveUp ? t('npc.gaveUp') : t('npc.knockedOut')) : null,
     mark.job ? jobChip(mark.job) : null,
   );
 }

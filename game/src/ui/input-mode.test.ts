@@ -11,19 +11,20 @@ function mediaQueries(width: number, height: number) {
     phone: width <= 560 || height <= 480,
     slim: width <= 480,
     narrow: width <= 720,
+    tight: width <= 880,
     compact: width <= 1100,
   };
 }
 
 describe("input mode", () => {
   it("is touch and phone on a portrait phone", () => {
-    expect(inputModeOf(true, layer(390, 844))).toEqual({ touch: true, phone: true, slim: true, narrow: true, compact: true });
+    expect(inputModeOf(true, layer(390, 844))).toEqual({ touch: true, phone: true, slim: true, narrow: true, tight: true, compact: true });
   });
   it("is touch and phone on a landscape phone", () => {
-    expect(inputModeOf(true, layer(844, 390))).toEqual({ touch: true, phone: true, slim: false, narrow: false, compact: true });
+    expect(inputModeOf(true, layer(844, 390))).toEqual({ touch: true, phone: true, slim: false, narrow: false, tight: true, compact: true });
   });
   it("is none on a desktop window", () => {
-    expect(inputModeOf(false, layer(1280, 720))).toEqual({ touch: false, phone: false, slim: false, narrow: false, compact: false });
+    expect(inputModeOf(false, layer(1280, 720))).toEqual({ touch: false, phone: false, slim: false, narrow: false, tight: false, compact: false });
   });
   it("is phone on a narrow desktop window only at 560 and below", () => {
     expect(inputModeOf(false, layer(700, 800)).phone).toBe(false);
@@ -33,7 +34,7 @@ describe("input mode", () => {
     expect(inputModeOf(true, layer(1024, 768))).toMatchObject({ touch: true, phone: false, narrow: false, compact: true });
   });
   it("matches the old media queries at every boundary at size 100%", () => {
-    for (const width of [479, 480, 481, 559, 560, 561, 719, 720, 721, 1099, 1100, 1101]) {
+    for (const width of [479, 480, 481, 559, 560, 561, 719, 720, 721, 879, 880, 881, 1099, 1100, 1101]) {
       for (const height of [479, 480, 481, 720]) {
         const { touch, ...classes } = inputModeOf(false, layer(width, height));
         expect(touch).toBe(false);

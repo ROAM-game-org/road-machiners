@@ -70,6 +70,8 @@ const GROUPS: Group[] = [
   { title: "Grid cells", prefixes: ["--cell-", "--map-"], sample: swatch },
   { title: "Marks", prefixes: ["--mark-"], sample: swatch },
   { title: "Hardware", prefixes: ["--steel-", "--lcd"], sample: swatch },
+  { title: "HUD skin colors", prefixes: ["--hud-housing", "--hud-glass", "--hud-amber", "--hud-print", "--hud-segment", "--hud-needle", "--hud-fuel", "--hud-heat", "--hud-hot", "--hud-lamp-off", "--hud-lamp-amber", "--hud-lamp-green", "--hud-lamp-red", "--hud-rocker-on", "--hud-rocker-core", "--hud-rocker-deep", "--hud-screen"], sample: swatch },
+  { title: "HUD skin sizes", prefixes: ["--hud-drive-", "--hud-weapons-", "--hud-radio-", "--hud-zoom", "--hud-tray-h", "--hud-tray-rim", "--hud-tray-gap", "--hud-text-", "--hud-icon", "--hud-key-", "--hud-rocker-w", "--hud-rocker-h", "--hud-lamp-size", "--hud-rim", "--hud-rim-s", "--hud-bracket"], sample: valueSample },
   { title: "Light and shade", prefixes: ["--bevel-", "--shade", "--shadow-", "--vignette", "--storm-"], sample: swatch },
   { title: "Spacing", prefixes: ["--space-"], sample: spaceSample },
   { title: "Corners", prefixes: ["--radius-"], sample: radiusSample },
@@ -78,7 +80,7 @@ const GROUPS: Group[] = [
   { title: "Panel sizes", prefixes: ["--panel-", "--dock-", "--modal-"], sample: boxSample },
   {
     title: "Screen sizes",
-    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-"],
+    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-", "--journal-", "--board-", "--char-"],
     sample: boxSample,
   },
   { title: "Garage and plan colors", prefixes: ["--plan-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },

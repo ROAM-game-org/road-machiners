@@ -17,7 +17,7 @@ body {
 #ui {
   --inspection-width: var(--panel-m);
   --inspection-height: var(--panel-m-height);
-  --right-column: calc(var(--dock-width) + var(--space-7));
+  --right-column: calc(var(--hud-radio-w) * var(--hud-zoom) + var(--hud-gap));
   --weapon-card: var(--icon-hero);
   --weapon-gap: var(--space-2);
   --weapon-icon-w: var(--icon-2xl);
@@ -134,9 +134,4 @@ body {
 #ui.touch button.switch {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
-}
-#ui.touch .instrument-actions button.instrument-button {
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
-  align-items: center;
 }

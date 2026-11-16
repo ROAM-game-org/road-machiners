@@ -1,7 +1,7 @@
 import { t, type Msg } from "../text/msg";
 import { createIcon } from "./cards";
 import { el } from "./dom";
-import { keyLabel } from "./input-mode";
+import { keyTip } from "./input-mode";
 
 export interface SwitchOptions {
   on: Msg;
@@ -19,7 +19,7 @@ export function keyCorner(key: string): HTMLElement {
 }
 
 function switchTitle(o: SwitchOptions, reason: Msg | null): Msg {
-  return o.key ? keyLabel(reason ?? o.title, o.key) : (reason ?? o.title);
+  return o.key ? keyTip(reason ?? o.title, o.key) : (reason ?? o.title);
 }
 
 export function createSwitch(o: SwitchOptions): HTMLElement {
@@ -56,6 +56,6 @@ function switchHandle(o: SwitchOptions): HTMLElement {
   return el("span", { class: "switch-handle" }, o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down"));
 }
 
-function switchLever(position: "up" | "down"): HTMLElement {
+export function switchLever(position: "up" | "down"): HTMLElement {
   return el("span", { class: `switch-lever ${position}` }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
 }

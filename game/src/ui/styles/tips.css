@@ -10,7 +10,7 @@
   border-color: var(--accent-warm);
   color: var(--accent);
 }
-#ui:has(.dialog:not(.modal)) > .top-center > .tip {
+#ui:has(:is(.dialog:not(.modal), .confirm-dialog)) > .top-center > .tip {
   visibility: hidden;
 }
 #ui .tip .tip-close {

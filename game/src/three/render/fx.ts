@@ -264,10 +264,10 @@ export class Fx3D {
     this.pending.push({ left: delayMs / 1000, run });
   }
 
-  label(anchor: () => V3 | null, text: Msg, color: string, row: number, delayMs: number, readMs: number): void {
+  label(anchor: () => V3 | null, text: Msg, row: number, delayMs: number, readMs: number): void {
     this.later(delayMs, () => {
       const p = anchor();
-      if (p) this.floatText(p, text, color, readMs, row * LABEL_ROW_PX, anchor);
+      if (p) this.floatText(p, text, readMs, row * LABEL_ROW_PX, anchor);
     });
   }
 
@@ -360,7 +360,7 @@ export class Fx3D {
     this.emissions.breakdown(p, motion);
   }
 
-  floatText(p: V3, text: Msg, color: string, durationMs: number, rowPx = 0, anchor: (() => V3 | null) | null = null): void {
+  floatText(p: V3, text: Msg, durationMs: number, rowPx = 0, anchor: (() => V3 | null) | null = null): void {
     const slot = this.texts.find((x) => !x.used) ?? this.texts.reduce((a, b) => (a.age > b.age ? a : b));
     slot.used = true;
     slot.age = 0;
@@ -369,7 +369,6 @@ export class Fx3D {
     slot.pos = { x: p.x, y: p.y, z: p.z };
     slot.anchor = anchor;
     setText(slot.el, text);
-    slot.el.style.color = color;
     slot.el.style.display = 'block';
     slot.el.style.opacity = '1';
   }
