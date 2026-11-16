@@ -2,12 +2,14 @@
 import { prototypeFightFromSearch } from './prototype-fight';
 import { filesOf, formatSupport, recoverBank, reportFailures, SoundBank, startBank, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
+import { bankTrackLoader, MusicShelf } from '../audio/music-shelf';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BYTES } from '../config';
 import { driveSnapshotOf } from '../phys/turn';
 import { easedStopSteps } from './play-clock';
 import { Travel } from './travel';
-import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
+import { startTurnWorker } from './turn-worker-start';
+import { BANK, BOOT_SOUNDS, MIX, MUSIC_SOUNDS, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
 import { PHYSICS } from '../data/physics';
@@ -39,14 +41,15 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onCrashScreen, onEveryError, onReport, reportError } from './crash';
+import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished } from './boot-marker';
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { AUTOSAVE_SLOTS, carriesOnLoad, clearGame, hasSave, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
 import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
-import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
+import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type NewRequest, type QuestJump, type SlotId } from './save-slots';
 import { GpuContext } from './gpu-context';
 import { drawingRenderer, GAME_GL, openWebGL } from './webgl';
 import { drawsInSoftware } from '../render/renderer-kind';
@@ -71,17 +74,23 @@ async function bootWorld(): Promise<Booted> {
   const request = takeBootRequest(window.sessionStorage, saveKey);
   if (typeof request === 'object' && request !== null) return bootRequested(request);
   const slot = request ?? (await startSlot());
+  if (typeof slot === 'object' && slot !== null) return bootRequested(slot);
   if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), false), BOOT_TEXT.newGame);
   return boot.track('world', () => bootSlot(slot), BOOT_TEXT.loadSave);
 }
 
-async function startSlot(): Promise<SlotId | null> {
+async function startSlot(): Promise<SlotId | NewRequest | null> {
   const saves = listSaves(slots, CONFIG.saveSlots);
   if (urlPlay()) return saves[0]?.slot ?? null;
-  return boot.aside(() => chooseStart(saves, newGameActions, soundSettings, importer));
+  waitOnPlayer();
+  const chosen = await boot.aside(() => chooseStart(saves, newGameActions, soundSettings, importer, unfinishedBoot !== null));
+  stepBoot('loading the save');
+  return chosen;
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
+  bootRequestKind = 'new' in request ? 'new' : 'slot';
+  stepBoot('loading the save');
   if ('new' in request) return boot.track('world', () => freshRun(request.new, request.intro), BOOT_TEXT.newGame);
   return boot.track('world', () => bootSlot(request.slot), BOOT_TEXT.nextWindow);
 }
@@ -136,7 +145,9 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 }
 
 async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
+  waitOnPlayer();
   await boot.aside(() => chooseSaveFate(error, carries, storedSave(slots, slot), newGameActions, soundSettings));
+  stepBoot('loading the save');
   const rescued = asSaveError(() => rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now()));
   if (rescued instanceof SaveError) return rescuedOrNew(rescued, slot, false);
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
@@ -218,6 +229,16 @@ function urlSeed(): number | null {
 installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
+const unfinishedBoot = takeUnfinished(window.sessionStorage, saveKey);
+let bootRequestKind = 'menu';
+function stepBoot(name: string): void {
+  bootStep(name);
+  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION);
+}
+function waitOnPlayer(): void {
+  markWaiting(window.sessionStorage, saveKey);
+}
+onCrashScreen(() => clearMark(window.sessionStorage, saveKey));
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
 loadMinimapSetting(window.localStorage);
@@ -269,16 +290,19 @@ const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
+if (unfinishedBoot) noteError(new BootUnfinished(unfinishedBoot));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const gpu = new GpuContext(surface.canvas, surface.context, reportError);
 const mixer = new Mixer(MIX);
 if (!benchMode) mixer.unlockOn(window);
 const soundSettings = new SoundSettings(mixer, window.localStorage);
-bootStep('loading physics and models');
+stepBoot('loading physics and models');
 const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport() };
 const musicFaults: unknown[] = [];
 let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
+sounds.lend(filesOf(MUSIC_SOUNDS));
+const musicShelf = new MusicShelf(sounds, bankTrackLoader(mixer.ctx, soundOptions, (err) => reportMusicFault(err)), (err) => reportMusicFault(err));
 let bankSettled!: () => void;
 const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
 const kitLoader = bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }, (err) => reportMusicFault(err));
@@ -287,13 +311,12 @@ const loading = Promise.all([
   boot.track('physics', initPhysics()),
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
-bootStep('loading the map');
+stepBoot('loading the map');
 const bakeGround = startGroundBaker();
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
 const groundBaked = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
-travel.sendTerrain(map.terrain);
 gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
@@ -302,20 +325,20 @@ const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
 };
-bootStep('loading the save');
+stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-initPhysics().then(() => travel.warm(world, driveSnapshotOf(world))).catch(reportError);
-bootStep('building the ground');
+startTurnWorker(travel, groundBaked, initPhysics(), map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
+stepBoot('building the ground');
 await boot.track('ground', () => groundBaked.then(() => groundTexture(world)));
-bootStep('waiting for physics and models');
+stepBoot('waiting for physics and models');
 await loading;
-bootStep('starting the game');
+stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel));
+const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
@@ -330,7 +353,7 @@ keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;
 musicFaults.forEach(reportError);
 onEveryError(() => game.holdSaves());
-bootStep('running');
+stepBoot('running');
 await uiFonts;
 boot.showText();
 gameContext.watchGraphics(() => game.graphicsFacts());
@@ -338,7 +361,8 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish().then(() => { if (!benchMode) warnOfSoftwareDrawing(); }).catch(reportError);
+void boot.finish().then(() => { game.warmPlans(); if (!benchMode) warnOfSoftwareDrawing(); }).catch(reportError);
+clearMark(window.sessionStorage, saveKey);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

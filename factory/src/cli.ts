@@ -8,6 +8,7 @@ import { drainInbox } from './inbox';
 import { intake } from './intake';
 import { runJob } from './job';
 import { parseStage } from './jobs';
+import { playerCli } from './public/player';
 import { liftEndedPause, readPause } from './pause';
 import { reportScheduler } from './observability';
 import { realRun } from './exec';
@@ -79,7 +80,13 @@ async function githubToken(): Promise<void> {
   console.log(`GitHub App token written, it expires at ${expiresAt}`);
 }
 
+async function player(args: string[]): Promise<void> {
+  loadEnv();
+  console.log(JSON.stringify(await playerCli(realContext(process.env), args.slice(1))));
+}
+
 const argv = process.argv.slice(2).filter((arg) => arg !== '--');
 if (argv[0] === 'tool') await hermesTool(argv);
+else if (argv[0] === 'player') await player(argv);
 else if (argv[0] === 'github-token') await githubToken();
 else await main(argv);

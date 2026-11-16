@@ -40,14 +40,27 @@ def test_write_passed_needs_every_key(tmp_path):
         write_passed(tmp_path / ".env", {"OTHER": "x"})
 
 
-def test_write_group_chat_admits_the_committee_chat(tmp_path):
+CHATS = {"FACTORY_COMMITTEE_CHAT": "-100", "FACTORY_PUBLIC_DISCUSSION": "-200", "FACTORY_PROPOSAL_CHAT": "-300"}
+
+
+def test_write_group_chat_admits_the_committee_and_player_chats_and_frees_only_the_player_chats(tmp_path):
     env = tmp_path / ".env"
     env.write_text("TELEGRAM_ALLOWED_USERS=3\n")
-    write_group_chat(env, {"FACTORY_COMMITTEE_CHAT": "-100"})
-    assert env.read_text() == "TELEGRAM_ALLOWED_USERS=3\nTELEGRAM_GROUP_ALLOWED_CHATS=-100\n"
+    write_group_chat(env, CHATS)
+    assert env.read_text() == "TELEGRAM_ALLOWED_USERS=3\nTELEGRAM_GROUP_ALLOWED_CHATS=-100,-200,-300\nTELEGRAM_FREE_RESPONSE_CHATS=-200,-300\n"
 
 
-@pytest.mark.parametrize("environ", [{}, {"FACTORY_COMMITTEE_CHAT": ""}, {"FACTORY_COMMITTEE_CHAT": "chat"}])
-def test_write_group_chat_needs_a_numeric_committee_chat(tmp_path, environ):
-    with pytest.raises(KeyError, match="FACTORY_COMMITTEE_CHAT"):
+def test_write_group_chat_names_a_shared_chat_once_and_keeps_a_shared_committee_chat_mention_only(tmp_path):
+    env = tmp_path / ".env"
+    write_group_chat(env, {**CHATS, "FACTORY_PROPOSAL_CHAT": "-100"})
+    assert env.read_text() == "TELEGRAM_GROUP_ALLOWED_CHATS=-100,-200\nTELEGRAM_FREE_RESPONSE_CHATS=-200\n"
+
+
+@pytest.mark.parametrize("key", list(CHATS))
+@pytest.mark.parametrize("value", [None, "", "chat"])
+def test_write_group_chat_needs_numeric_chats(tmp_path, key, value):
+    environ = {k: v for k, v in CHATS.items() if k != key}
+    if value is not None:
+        environ[key] = value
+    with pytest.raises(KeyError, match=key):
         write_group_chat(tmp_path / ".env", environ)

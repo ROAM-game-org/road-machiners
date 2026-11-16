@@ -136,7 +136,7 @@ export class ObstacleViews {
     if (cached) return cached;
     const look = source.clone();
     look.userData.shared = true;
-    glowShipMaterial(look as THREE.MeshLambertMaterial);
+    glowShipMaterial(look as THREE.MeshLambertMaterial, name);
     if (FORT_PIECE_MODELS.has(name)) NIGHT_POOLS.light(look);
     looks.set(source, look);
     return look;
@@ -320,7 +320,7 @@ export function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   if (FORT_PIECE_MODELS.has(pose.model)) lightFortPiece(obj);
   if (pose.model === 'building') paintRoof(obj, o.id);
   g.add(obj);
-  paintShipGlow(obj);
+  paintShipGlow(obj, pose.model);
   if (pose.model === 'reactor') lightCore(obj, g);
   if (pose.model === 'ship_bow') lightBreach(g);
   return g;
@@ -452,15 +452,16 @@ function breachCore(): THREE.Mesh {
   return core;
 }
 
-export function paintShipGlow(obj: THREE.Object3D): void {
-  eachMaterial(obj, glowShipMaterial);
+export function paintShipGlow(obj: THREE.Object3D, name: ModelName): void {
+  eachMaterial(obj, (m) => glowShipMaterial(m, name));
 }
 
-function glowShipMaterial(m: THREE.MeshLambertMaterial): void {
+function glowShipMaterial(m: THREE.MeshLambertMaterial, name: ModelName): void {
   if (m.name !== SHIP_GLOW_MATERIAL) return;
+  const glow = SHIP_GLOW_BY_MODEL[name] ?? SHIP_GLOW;
   m.emissive.setHex(PAL.shipGlow);
-  m.emissiveIntensity = SHIP_GLOW.emissive;
-  m.color.multiplyScalar(SHIP_GLOW.base);
+  m.emissiveIntensity = glow.emissive;
+  m.color.multiplyScalar(glow.base);
 }
 
 function paintRoof(house: THREE.Object3D, id: string): void {
@@ -516,7 +517,10 @@ export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1
 export const BOW_BREACH = { along: 10, height: 5, out: 17, radius: 7 };
 const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, penumbra: 0.5 };
 const BREACH_CORE = { radius: 6.2, inset: 1.5, strength: 0.4 };
-const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
+const SHIP_GLOW = { emissive: 0.12, base: 0.2 };
+const SHIP_GLOW_BY_MODEL: Partial<Record<ModelName, { emissive: number; base: number }>> = {
+  hull_bay: { emissive: 1.0, base: 0.2 },
+};
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };
 const WIRES = ['wire0', 'wire1', 'wire2'];

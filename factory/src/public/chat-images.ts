@@ -2,7 +2,7 @@ import { adoptChatImage } from '../reply-media';
 import { mediaDir } from '../stages/common';
 import type { Ctx } from '../types';
 import { playerName } from './digest';
-import { messageLink } from './file-comments';
+import { messageLink } from './player';
 import type { PublicStore, StoredComment } from './store';
 
 function sourceOf(comment: StoredComment): string {
