@@ -48,6 +48,10 @@ terminal:
     - FACTORY_REPO
     # Hermes runs tools with its own HOME, so gh needs the folder of its login.
     - GH_CONFIG_DIR
+  # Hermes reads the @file, @folder, @git and @diff references in any chat message from this folder, before any tool or hook runs.
+  # Its default is Hermes's home, with its memory, sessions, logs and config. The image makes this folder empty, and Hermes can't write to it.
+  # The shell starts here too, so commands use full paths.
+  cwd: /opt/hermes-factory/no-files
 
 # Hermes acts on the factory without waiting on approval cards. Its prompt waited 5 minutes for an answer nobody saw, then dropped the step. SOUL.md says what to ask the committee first.
 approvals:
@@ -70,6 +74,7 @@ plugins:
     - hermes-session-reset-policy
 
 # The file toolset also holds write and patch. Hermes has no read-only file toolset.
+# Every Telegram chat, the player chats included, gets this one list. In a player chat the plugin's pre_tool_call hook runs only the public tools.
 platform_toolsets:
   telegram:
     - terminal
@@ -79,6 +84,7 @@ platform_toolsets:
     - session_search
     - vision
     - factory
+    - factory_public
   # The incident watch job runs with no chat. It resolves incidents and drafts the release post with the same tools.
   cron:
     - terminal
@@ -90,7 +96,7 @@ platform_toolsets:
     - vision
     - factory
 
-# Hermes adds every plugin toolset to a chat's list unless it is known here. The player chats get only factory_public, and the committee and cron keep their lists above.
+# Hermes adds every plugin toolset to a platform's list unless it is known here. So cron keeps its list above, without the player tools.
 known_plugin_toolsets:
   telegram:
     - factory

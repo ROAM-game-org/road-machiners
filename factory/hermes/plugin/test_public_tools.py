@@ -72,6 +72,45 @@ def test_game_search_runs_only_git_reads(clone):
     assert calls[0][-4:] == ["-e", "--output=/tmp/x", "origin/main", "--"]
 
 
+def commit_id(repo, ref):
+    return subprocess.run(["git", "rev-parse", ref], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_game_history_lists_commits_on_main_or_dev_by_path_and_message(clone):
+    history = tools.game_tools(clone)["game_history"]
+    assert [line.split(" ", 2)[2] for line in history({}).splitlines()] == ["main"]
+    assert [line.split(" ", 2)[2] for line in history({"branch": "dev"}).splitlines()] == ["dev", "main"]
+    assert [line.split(" ", 2)[2] for line in history({"branch": "dev", "path": "CLAUDE.md"}).splitlines()] == ["main"]
+    assert [line.split(" ", 2)[2] for line in history({"branch": "dev", "query": "DEV"}).splitlines()] == ["dev"]
+    assert history({"query": "dev"}) == "No commit."
+
+
+def test_game_history_shows_a_commit_only_from_its_branch(clone):
+    history = tools.game_tools(clone)["game_history"]
+    dev = commit_id(clone, "origin/dev")
+    shown = history({"branch": "dev", "commit": dev[:10]})
+    assert shown.startswith(f"{dev} ") and "-The winch costs 40 scrap.\n+The winch costs 35 scrap." in shown
+    assert history({"commit": dev}) == "No such commit on main."
+    git(clone, "commit", "-q", "--allow-empty", "-m", "unpublished")
+    assert history({"branch": "dev", "commit": commit_id(clone, "HEAD")}) == "No such commit on dev."
+
+
+@pytest.mark.parametrize("args", [
+    {"commit": "HEAD"}, {"commit": "--output=/tmp/x"}, {"commit": "abc"}, {"commit": "origin/main"}, {"commit": "a" * 41},
+    {"path": "../x"}, {"path": "-p"}, {"branch": "factory/secret"},
+])
+def test_game_history_refuses_refs_options_and_paths(clone, args):
+    with pytest.raises(ValueError):
+        tools.game_tools(clone)["game_history"](args)
+
+
+def test_game_history_passes_the_query_as_one_fixed_string(clone):
+    calls = []
+    history = tools.game_tools(clone, lambda args: calls.append(args) or subprocess.CompletedProcess(args, 0, "", ""))["game_history"]
+    assert history({"query": "--output=/tmp/x"}) == "No commit."
+    assert calls[0][2:3] == ["log"] and "--grep=--output=/tmp/x" in calls[0] and calls[0][-2:] == ["origin/main", "--"]
+
+
 class FakeGh:
     def __init__(self, answers):
         self.answers = answers
@@ -112,7 +151,7 @@ def test_register_puts_every_tool_in_the_public_toolset(tmp_path):
     registered = []
     ctx = type("Ctx", (), {"register_tool": lambda self, **kw: registered.append(kw)})()
     tools.register_public_tools(ctx, clone=tmp_path, repo="o/r", chats=("-200",), session_env=lambda name: "")
-    names = ["game_search", "game_read", "issue_search", "issue_read", "player_messages", "issue_status", "file_issue", "add_to_issue", "route_build", "queue_answer_job"]
+    names = ["game_search", "game_read", "game_history", "issue_search", "issue_read", "player_messages", "issue_status", "file_issue", "add_to_issue", "route_build", "queue_answer_job"]
     assert {tool["name"]: tool["toolset"] for tool in registered} == dict.fromkeys(names, "factory_public")
     assert all(tool["schema"]["name"] == tool["name"] for tool in registered)
     assert all("chat" not in json.dumps(tool["schema"]["parameters"]) and "by" not in tool["schema"]["parameters"]["properties"] for tool in registered)
