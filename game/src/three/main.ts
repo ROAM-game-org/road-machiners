@@ -203,7 +203,6 @@ function newGameWorld(setup: WorldSetup, intro: boolean): World {
 }
 
 const combatPrototype = import.meta.env.DEV && new URLSearchParams(window.location.search).has('combatPrototype');
-
 const benchMode = new URLSearchParams(window.location.search).has('bench');
 const BENCH_SEED = 1337;
 
@@ -353,7 +352,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish().then(() => { game.warmPlans(); }).catch(reportError);
+void boot.finish().then(() => game.warmPlans(), reportError);
 clearMark(window.sessionStorage, saveKey);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {

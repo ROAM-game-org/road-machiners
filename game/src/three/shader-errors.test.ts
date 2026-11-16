@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGpu } from '../test/fake-gpu';
+import { TUNING } from './render/inkTuning';
 import { failLoudOnShaderError, SHADER_LOSS_GRACE_MS, ShaderBuildFailed, ShaderVerdicts, ShaderWarmup } from './shader-errors';
 
 describe('failLoudOnShaderError', () => {
@@ -71,13 +72,8 @@ function warmupRenderer() {
       programs.get(o.material as THREE.Material)!.currentProgram = {};
       return new Promise<void>((resolve) => (finish = resolve));
     },
-    render: (scene: THREE.Object3D) => {
-      if (scene instanceof THREE.Scene) drawn.push(scene.children[0].visible);
-    },
+    render: (scene: THREE.Scene) => drawn.push(scene.children[0].visible),
     getSize: (target: THREE.Vector2) => target.copy(size),
-    getDrawingBufferSize: (target: THREE.Vector2) => target.copy(size),
-    getPixelRatio: () => 1,
-    setRenderTarget: () => {},
   };
   const size = new THREE.Vector2(800, 600);
   return { renderer: renderer as unknown as THREE.WebGLRenderer, drawn, size, finish: () => finish() };
@@ -90,6 +86,10 @@ function sceneWith(mesh: THREE.Mesh): THREE.Scene {
 }
 
 describe('ShaderWarmup', () => {
+  beforeEach(() => {
+    TUNING.crt.value = 0;
+  });
+
   it('holds a mesh with an uncompiled material out of the frame until its shader is ready, then draws it', async () => {
     const { renderer, drawn, finish } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
@@ -115,9 +115,6 @@ describe('ShaderWarmup', () => {
       },
       render: () => {},
       getSize: (target: THREE.Vector2) => target.set(800, 600),
-      getDrawingBufferSize: (target: THREE.Vector2) => target.set(800, 600),
-      getPixelRatio: () => 1,
-      setRenderTarget: () => {},
     } as unknown as THREE.WebGLRenderer;
     const warmup = new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())), new THREE.PerspectiveCamera(), (e) => { throw e; }, fakeGpu());
     warmup.render(false);
@@ -242,13 +239,8 @@ describe('ShaderWarmup', () => {
         debug: { onShaderError: null },
         properties: { get: () => ({}) },
         compileAsync: () => Promise.resolve(),
-        render: (scene: THREE.Object3D) => {
-          if (scene instanceof THREE.Scene) seen.push(shown.map((o) => o.visible));
-        },
+        render: () => seen.push(shown.map((o) => o.visible)),
         getSize: (target: THREE.Vector2) => target.set(800, 600),
-        getDrawingBufferSize: (target: THREE.Vector2) => target.set(800, 600),
-        getPixelRatio: () => 1,
-        setRenderTarget: () => {},
       } as unknown as THREE.WebGLRenderer;
       return { renderer, seen };
     }

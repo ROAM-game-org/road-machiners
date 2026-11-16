@@ -177,7 +177,8 @@ export class ShaderWarmup {
   }
 
   private drawView(): void {
-    this.crt.render(() => this.drawWithInkLayer());
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithInkLayer());
+    else this.drawWithInkLayer();
   }
 
   private drawWithInkLayer(): void {
