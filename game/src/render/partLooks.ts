@@ -109,10 +109,10 @@ export const PART_MODELS: Record<string, ModelName> = {
   transmissionHeavy: 'transmission',
   wheel: 'wheel',
   wheelMid: 'wheel',
-  spareTire: 'wheel',
-  relicStatue: 'good_relics',
-  relicShipModule: 'store_locker',
-  relicComputer: 'good_electronics',
+  spareTire: 'spare_tire',
+  relicStatue: 'relic_statue',
+  relicShipModule: 'relic_ship_module',
+  relicComputer: 'relic_old_computer',
   wheelHeavy: 'wheel',
   tank: 'fuel_tank',
   tankLong: 'fuel_tank',
@@ -146,9 +146,9 @@ export const PART_MODELS: Record<string, ModelName> = {
   spikeStrip: 'arm_spike_strip',
 
   rack: 'cargo_rack',
-  haulingRack: 'cargo_heavy_frame',
+  haulingRack: 'cargo_hauling_rack',
   panniers: 'cargo_panniers',
-  sacks: 'arm_scrap_sheet',
+  sacks: 'cargo_sacks',
 
   scanner: 'scanner',
 
@@ -163,8 +163,8 @@ export const PART_MODELS: Record<string, ModelName> = {
   flareCannon: 'util_flare',
   scrapersKnife: 'util_scraper',
   emitter: 'util_emitter',
-  gunBattery: 'good_batteries',
-  periscope: 'scanner',
+  gunBattery: 'util_battery',
+  periscope: 'util_periscope',
 
   scrap: 'good_scrap',
   salt: 'good_salt',
@@ -318,6 +318,17 @@ export type WeaponLook = { mount: ModelName; receiver: ModelName; barrel: ModelN
 export function itemLookId(item: GridItem): string {
   if (item.kind === 'part') return item.part.defId;
   return item.kind === 'good' ? item.good : PARCEL.id;
+}
+
+export const LOADED_MODELS: Record<string, ModelName> = {
+  panniers: 'cargo_panniers_loaded',
+  rack: 'cargo_rack_loaded',
+  haulingRack: 'cargo_hauling_rack_loaded',
+  sacks: 'cargo_sacks_loaded',
+};
+
+export function loadedLook(defId: string, loaded: boolean): ModelName {
+  return (loaded && LOADED_MODELS[defId]) || partModel(defId);
 }
 
 export function partModel(defId: string): ModelName {

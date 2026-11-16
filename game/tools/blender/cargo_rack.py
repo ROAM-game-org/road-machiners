@@ -1,6 +1,7 @@
-"""Open cargo rack for the rack cargo part.
+"""Open roof rack for the rack cargo part, empty.
 
-Footprint 2x1: 0.65 m along (X) by 0.97 m across (Y). About 0.7 m tall. Origin at the footprint center on the deck top.
+Footprint 1x2: 1.3 m along (X) by 0.484 m across (Y). About 0.8 m tall. Origin at the footprint center on the deck top.
+A tube frame over slatted floor, with a painted top rail band. The cargo_rack_loaded model fills the same frame.
 Run: blender --background --python tools/blender/cargo_rack.py -- public/models/cargo_rack.glb [tmp/cargo_rack.png]
 """
 
@@ -14,31 +15,31 @@ from kit import Kit  # noqa: E402
 from parts_common_cargo import CARGO_MAX_H, footprint, frame_box, run  # noqa: E402
 
 SEED = 101
-HEIGHT = 0.7
-BEAM = 0.05
+HEIGHT = 0.8
+BEAM = 0.045
 
 
-def build(kit: Kit) -> None:
-    length, width = footprint(2, 1)
+def frame(kit: Kit) -> tuple[float, float]:
+    length, width = footprint(1, 2)
     frame_box(kit, "frame", length, width, HEIGHT, BEAM, "metal")
-    # Floor slats across the truck.
-    for i in range(4):
-        x = -length / 2 + BEAM + (i + 0.5) * (length - 2 * BEAM) / 4
+    for i in range(5):
+        x = -length / 2 + BEAM + (i + 0.5) * (length - 2 * BEAM) / 5
         kit.box("slat", (0.1, width - 2 * BEAM, 0.03), (x, 0, 0.04), "wood", dent_by=0.005)
-    # Painted top rail band and a mid rail on every side.
-    hx, hy = length / 2 - BEAM / 2, width / 2 - BEAM / 2
+    hy = width / 2 - BEAM / 2
     for y in (-hy, hy):
         kit.box("band", (length - 2 * BEAM, 0.03, 0.12), (0, y, HEIGHT - 0.12), "paint", dent_by=0.006)
         kit.box("mid_x", (length - 2 * BEAM, 0.035, 0.035), (0, y, HEIGHT * 0.45), "metal_light")
         for x in (-length / 6, length / 6):
             kit.box("bar", (0.03, 0.03, HEIGHT - 2 * BEAM), (x, y, HEIGHT / 2), "metal_light")
-    for x in (-hx, hx):
-        kit.box("band", (0.03, width - 2 * BEAM, 0.12), (x, 0, HEIGHT - 0.12), "paint", dent_by=0.006)
-        kit.box("mid_y", (0.035, width - 2 * BEAM, 0.035), (x, 0, HEIGHT * 0.45), "metal_light")
+    return length, width
+
+
+def build(kit: Kit) -> None:
+    frame(kit)
 
 
 def main() -> None:
-    run("cargo_rack", build, SEED, view_size=2.0, w=2, h=1, max_h=CARGO_MAX_H)
+    run("cargo_rack", build, SEED, view_size=2.0, w=1, h=2, max_h=CARGO_MAX_H)
 
 
 if __name__ == "__main__":

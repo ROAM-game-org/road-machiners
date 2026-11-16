@@ -59,7 +59,7 @@ describe('icon catalog', () => {
   });
 
   it('ranks defs that draw alike by HP, then id', () => {
-    expect(['spareTire', 'wheel', 'wheelMid', 'wheelHeavy'].map((id) => entry(id).rank)).toEqual([1, 2, 3, 4]);
+    expect(['wheel', 'wheelMid', 'wheelHeavy'].map((id) => entry(id).rank)).toEqual([1, 2, 3]);
     expect(['tank', 'tankLong', 'tankMid', 'tankHeavy'].map((id) => entry(id).rank)).toEqual([1, 2, 3, 4]);
     expect(['transmission', 'transmissionMid', 'transmissionHeavy'].map((id) => entry(id).rank)).toEqual([1, 2, 3]);
   });
