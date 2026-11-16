@@ -187,7 +187,7 @@ export function climbGrade(world: World, v: Vehicle): number {
   const t = PHYSICS.truck;
   const ratio = vehicleStats(world, v).accel / chassisDef(v.chassisId).accel;
   const sine = Math.min(0.99, Math.max(0, ((t.engineAccel * (1 + t.climbReserve) * ratio) / (t.gravityScale * PHYSICS.gravity)) * t.climbPlanShare));
-  const grade = Math.tan(Math.asin(sine));
+  const grade = Math.min(t.maxClimbGrade, Math.tan(Math.asin(sine)));
   if (!Number.isFinite(grade)) throw new Error(`Climb grade of ${v.id} is not finite`);
   return grade;
 }

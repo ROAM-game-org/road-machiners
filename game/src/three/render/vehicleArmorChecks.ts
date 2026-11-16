@@ -20,7 +20,7 @@ await loadModels(async (name) => {
 
 const ARMOR = Object.values(PARTS).filter(isShield);
 const EPS = 1e-6;
-const LOOSE_PARTS = ['panniers', 'rack', 'trailerBox'];
+const LOOSE_PARTS = ['panniers', 'rack', 'haulingRack'];
 const PROBE = 0.1;
 const ARMOR_AIR = FACE_COLUMN;
 const RAM_FOOT_REACH = 0.25;

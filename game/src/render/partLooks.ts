@@ -140,12 +140,8 @@ export const PART_MODELS: Record<string, ModelName> = {
   spikeStrip: 'arm_spike_strip',
 
   rack: 'cargo_rack',
-  trailerBox: 'cargo_trailer_box',
+  haulingRack: 'cargo_heavy_frame',
   panniers: 'cargo_panniers',
-  flatbed: 'cargo_flatbed',
-  lightFrame: 'cargo_light_frame',
-  enclosedFrame: 'cargo_enclosed_frame',
-  heavyFrame: 'cargo_heavy_frame',
 
   scanner: 'scanner',
 

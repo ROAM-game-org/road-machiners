@@ -5,7 +5,7 @@ import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, t
 import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
-import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { bareGrid, cargoCellsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { isJunk, maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -62,7 +62,6 @@ export const ART = {
   accel: '<path d="M1.5 12a4 4 0 0 1 8 0H8a2.5 2.5 0 0 0-5 0z"/><path d="M4 12.5L7.5 8 9 9.5l-3 3.5z"/><path d="M12.5 1.5L15 5h-1.5v8H12V5h-1.5z"/>',
   noise: '<path d="M1.5 6H4l3.5-3v10L4 10H1.5zM9 5.5a2.5 2.5 0 0 1 0 5v-1.5a1 1 0 0 0 0-2zM9 2.5a5.5 5.5 0 0 1 0 11v-1.5a4 4 0 0 0 0-8z"/>',
   ram: '<path d="M1.5 3.5H7L11.5 8 7 12.5H1.5zM13 2h1.5v12H13z"/>',
-  rows: '<path d="M1.5 2H7v3H1.5zM8.5 2h6v3h-6zM1.5 6.5h8v3h-8zM11 6.5h3.5v3H11zM1.5 11H5v3H1.5zM6.5 11h8v3h-8z"/>',
   hp: '<path d="M8 14.5L2 8.5C1 7 1 3.5 4.5 2.5 6 2.5 7.5 3.5 8 5 8.5 3.5 10 2.5 11.5 2.5 15 3.5 15 7 14 8.5z"/>',
   mass: '<path d="M2.5 14.5L4 6.5H12L13.5 14.5zM8 1a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM8 2.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3z"/>',
   turning: '<path d="M3 15V8Q3 3.5 7.5 3.5H10V1.5L14.5 5 10 8.5V6.5H7.5Q6 6.5 6 8V15z"/>',
@@ -626,7 +625,6 @@ export type StatIcon =
   | "noise"
   | "armor"
   | "ram"
-  | "rows"
   | "hp"
   | "mass"
   | "turning"
@@ -716,11 +714,9 @@ function storeStats(part: PartInstance): Stat[] {
 function cargoStats(world: World, part: PartInstance): Stat[] {
   const d = partDefOf<CargoDef>(part);
   const chassisId = playerVehicle(world).chassisId;
-  const cells = cargoCellsGained(chassisId, part.defId);
-  const extraRows = cargoRowsOn(chassisId, part.defId);
+  const cells = cargoCellsOn(chassisId, part.defId);
   const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
-  const rows = { ...stat("rows", t("stat.extraRows"), extraRows, null, "more"), text: signed(extraRows, 0), unit: t("stat.rowsUnit", { n: extraRows }) };
-  return [gained, rows, tallStat(d)];
+  return [gained, tallStat(d)];
 }
 
 function penStat(d: WeaponDef): Stat {

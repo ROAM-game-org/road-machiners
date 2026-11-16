@@ -283,7 +283,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['rack', 'panniers', 'flatbed', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['rack', 'panniers', 'haulingRack', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -328,7 +328,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['supplyLocker', 'jerrycans', 'flatbed', 'cage', 'scrapSheet', 'shotgun', 'caltrops', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['supplyLocker', 'jerrycans', 'rack', 'cage', 'scrapSheet', 'shotgun', 'caltrops', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],

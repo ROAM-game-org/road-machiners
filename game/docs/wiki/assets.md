@@ -62,12 +62,8 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | spikeCluster | arm_spike_cluster |
 | part | spikeStrip | arm_spike_strip |
 | part | rack | cargo_rack |
-| part | trailerBox | cargo_trailer_box |
+| part | haulingRack | cargo_heavy_frame |
 | part | panniers | cargo_panniers |
-| part | flatbed | cargo_flatbed |
-| part | lightFrame | cargo_light_frame |
-| part | enclosedFrame | cargo_enclosed_frame |
-| part | heavyFrame | cargo_heavy_frame |
 | part | scanner | scanner |
 | part | jerrycans | store_jerrycans |
 | part | supplyLocker | store_locker |

@@ -59,7 +59,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
     "reinforcedSection",
   ],
   accessory: ["plowRam", "claymoreRam", "spikeCluster", "spikeStrip"],
-  cargo: ["panniers", "flatbed", "lightFrame", "enclosedFrame", "heavyFrame"],
+  cargo: ["panniers", "haulingRack"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",
     "smokeMortar", "flareCannon", "scrapersKnife", "emitter",
@@ -115,7 +115,7 @@ describe("equipment variety", () => {
         engine: 2,
         armor: 2,
         accessory: 1,
-        cargo: 2,
+        cargo: 1,
         store: 0,
         utility: 0,
       };
@@ -405,7 +405,7 @@ function partAxes(def: PartDef): number[] {
       return [def.hp / cells, -def.mass / cells, def.armor, def.blastArmor, def.ramMult, repair, tall];
     }
     case "cargo":
-      return [def.hp, -def.mass, def.armor, -cells, tall, def.extraRows];
+      return [def.hp, -def.mass, def.armor, -cells, tall, def.cells];
     case "utility":
       return [def.hp, -def.mass, def.armor, -cells, tall, -(def.reload ?? 0)];
     default:
@@ -422,13 +422,13 @@ function dominates(a: PartDef, b: PartDef): boolean {
 }
 
 describe("part weight by tier", () => {
-  const perUnit = (def: PartDef): number => (def.kind === "cargo" ? def.mass / def.extraRows : def.mass / (def.bulk.w * def.bulk.h));
+  const perUnit = (def: PartDef): number => (def.kind === "cargo" ? def.mass / def.cells : def.mass / (def.bulk.w * def.bulk.h));
   const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 
   const isRam = (p: PartDef): boolean => p.kind === "accessory" && p.look === "ram";
   const meanAt = (defs: PartDef[], tier: number): number => mean(defs.filter((p) => p.tier === tier).map(perUnit));
 
-  it.each(["weapon", "engine", "cargo"])("%s parts weigh less on average at each higher tier", (kind) => {
+  it.each(["weapon", "engine"])("%s parts weigh less on average at each higher tier", (kind) => {
     const byTier = [1, 2, 3].map((tier) => meanAt(Object.values(PARTS).filter((p) => p.kind === kind), tier));
     expect(byTier[1]).toBeLessThan(byTier[0]);
     expect(byTier[2]).toBeLessThan(byTier[1]);
@@ -460,48 +460,27 @@ describe("part weight by tier", () => {
   });
 });
 
-describe("cargo tier curve", () => {
+describe("cargo parts", () => {
   const cargo = Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: "cargo" }> => p.kind === "cargo");
-  const perCell = (p: { extraRows: number; bulk: { w: number; h: number } }): number => p.extraRows / (p.bulk.w * p.bulk.h);
-  const frames = cargo.filter((p) => p.bulk.w === 2 && p.bulk.h === 2);
-
-  it.each(frames.map((p) => p.id))("%s beats any stack of lower-tier carriers on the same cells", (id) => {
-    const frame = PARTS[id] as (typeof cargo)[number];
-    const small = cargo.filter((p) => p.tier < frame.tier && p.bulk.w * p.bulk.h < 4);
-    const best = small.reduce((a, p) => (perCell(p) > perCell(a) ? p : a));
-    const stack = 4 * perCell(best);
-    expect(frame.extraRows, `${id} gives ${frame.extraRows} rows, a stack of ${best.id} gives ${stack} on the same cells`).toBeGreaterThan(stack);
-  });
-
-  it("rows per deck cell rise with tier and the heavy frame beats every tier 2 part", () => {
-    const mean = (tier: number): number => {
-      const xs = cargo.filter((p) => p.tier === tier).map(perCell);
-      return xs.reduce((a, b) => a + b, 0) / xs.length;
-    };
-    expect(mean(2)).toBeGreaterThan(mean(1));
-    expect(mean(3)).toBeGreaterThan(mean(2));
-    const tier2 = cargo.filter((p) => p.tier === 2).map((p) => p.extraRows);
-    expect(PARTS.heavyFrame).toMatchObject({ kind: "cargo" });
-    expect((PARTS.heavyFrame as (typeof cargo)[number]).extraRows).toBeGreaterThan(Math.max(...tier2));
-  });
-
-  const DEV_CARGO: Record<string, { w: number; h: number; hp: number; extraRows: number }> = {
-    panniers: { w: 1, h: 1, hp: 20, extraRows: 1 },
-    rack: { w: 2, h: 1, hp: 30, extraRows: 1 },
-    flatbed: { w: 2, h: 1, hp: 50, extraRows: 2 },
-    trailerBox: { w: 2, h: 2, hp: 60, extraRows: 3 },
-    lightFrame: { w: 2, h: 2, hp: 24, extraRows: 3 },
-    enclosedFrame: { w: 2, h: 2, hp: 110, extraRows: 3 },
-    heavyFrame: { w: 2, h: 2, hp: 90, extraRows: 5 },
+  const REQUESTED: Record<string, { w: number; h: number; tall: boolean; cells: number }> = {
+    panniers: { w: 1, h: 2, tall: false, cells: 3 },
+    rack: { w: 1, h: 2, tall: true, cells: 4 },
+    haulingRack: { w: 2, h: 2, tall: true, cells: 8 },
   };
 
-  it("keeps every cargo part's footprint and HP and never lowers its rows", () => {
-    expect(cargo.map((p) => p.id).sort()).toEqual(Object.keys(DEV_CARGO).sort());
-    for (const p of cargo) {
-      const old = DEV_CARGO[p.id];
-      expect([p.bulk.w, p.bulk.h, p.hp]).toEqual([old.w, old.h, old.hp]);
-      expect(p.extraRows).toBeGreaterThanOrEqual(old.extraRows);
-    }
+  it("are the panniers, the rack and the hauling rack, with the footprint, height and cells the request names", () => {
+    expect(cargo.map((p) => p.id).sort()).toEqual(Object.keys(REQUESTED).sort());
+    for (const p of cargo) expect({ w: p.bulk.w, h: p.bulk.h, tall: p.tall, cells: p.cells }, p.id).toEqual(REQUESTED[p.id]);
+  });
+
+  it("give more cells than their own footprint, so a cargo part always gains room", () => {
+    for (const p of cargo) expect(p.cells, p.id).toBeGreaterThan(p.bulk.w * p.bulk.h);
+  });
+
+  it("trade the low panniers' fewer cells against the tall rack's arc shadow", () => {
+    expect(PARTS.panniers.tall).toBeFalsy();
+    expect(PARTS.rack.tall).toBe(true);
+    expect((PARTS.panniers as (typeof cargo)[number]).cells).toBeLessThan((PARTS.rack as (typeof cargo)[number]).cells);
   });
 });
 
@@ -555,28 +534,26 @@ describe("NPC wallets and trade stakes", () => {
 describe("cargo shop prices", () => {
   const cargo = Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: "cargo" }> => p.kind === "cargo");
   const shopPrice = (p: PartDef): number => partPristineBuyPrice(p.id);
-  const rowsPerM = (p: { extraRows: number; id: string }): number => p.extraRows / shopPrice(PARTS[p.id]);
+  const cellsPerM = (p: { cells: number; id: string }): number => p.cells / shopPrice(PARTS[p.id]);
   const money = START_KITS.standard.money;
 
   it("lets the starting money buy panniers once, with room left for fuel", () => {
     expect(shopPrice(PARTS.panniers)).toBeLessThan(money);
   });
 
-  it("keeps the dearest frame within a few days' worth of a tier 3 weapon price, not above the dearest tier 3 part", () => {
-    expect(shopPrice(PARTS.heavyFrame)).toBeLessThan(shopPrice(PARTS.emitter));
+  it("keeps the hauling rack below the dearest tier 3 part", () => {
+    expect(shopPrice(PARTS.haulingRack)).toBeLessThan(shopPrice(PARTS.emitter));
   });
 
-  it("never asks more for a tier 1 carrier than for a tier 2 frame, and more for each tier", () => {
+  it("never asks more for a tier 1 carrier than for the tier 2 hauling rack", () => {
     const top = (tier: number) => Math.max(...cargo.filter((p) => p.tier === tier).map(shopPrice));
     const low = (tier: number) => Math.min(...cargo.filter((p) => p.tier === tier).map(shopPrice));
     expect(top(1)).toBeLessThan(low(2));
-    expect(top(2)).toBeLessThan(low(3));
   });
 
-  it("gives each tier at least as many rows per M as tier 1, once its tier price factor is taken out", () => {
-    const best = (tier: Tier) => Math.max(...cargo.filter((p) => p.tier === tier).map(rowsPerM)) * TIER_VALUE[tier];
+  it("gives the hauling rack at least as many cells per M as tier 1, once its tier price factor is taken out", () => {
+    const best = (tier: Tier) => Math.max(...cargo.filter((p) => p.tier === tier).map(cellsPerM)) * TIER_VALUE[tier];
     expect(best(2)).toBeGreaterThanOrEqual(best(1));
-    expect(best(3)).toBeGreaterThanOrEqual(best(1));
   });
 
   it("prices a cargo carrier no higher than a tier peer weapon, engine or armor", () => {

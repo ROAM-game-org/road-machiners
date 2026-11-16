@@ -524,28 +524,8 @@
         0.7890625
       ]
     },
-    "rack": {
-      "index": 51,
-      "hash": "a5e11924",
-      "box": [
-        0.0859375,
-        0.046875,
-        0.828125,
-        0.90625
-      ]
-    },
-    "trailerBox": {
-      "index": 52,
-      "hash": "4228c9b1",
-      "box": [
-        0.0625,
-        0.046875,
-        0.875,
-        0.90625
-      ]
-    },
     "panniers": {
-      "index": 53,
+      "index": 51,
       "hash": "59525389",
       "box": [
         0.0546875,
@@ -554,38 +534,18 @@
         0.921875
       ]
     },
-    "flatbed": {
-      "index": 54,
-      "hash": "cfb9db42",
+    "rack": {
+      "index": 52,
+      "hash": "a5e11924",
       "box": [
-        0.046875,
-        0.1484375,
-        0.90625,
-        0.703125
-      ]
-    },
-    "lightFrame": {
-      "index": 55,
-      "hash": "22e66c97",
-      "box": [
-        0.046875,
-        0.0703125,
-        0.90625,
-        0.859375
-      ]
-    },
-    "enclosedFrame": {
-      "index": 56,
-      "hash": "5b44506e",
-      "box": [
-        0.046875,
         0.0859375,
-        0.90625,
-        0.828125
+        0.046875,
+        0.828125,
+        0.90625
       ]
     },
-    "heavyFrame": {
-      "index": 57,
+    "haulingRack": {
+      "index": 53,
       "hash": "014dc5af",
       "box": [
         0.0625,
@@ -595,7 +555,7 @@
       ]
     },
     "jerrycans": {
-      "index": 58,
+      "index": 54,
       "hash": "d6642729",
       "box": [
         0.0390625,
@@ -605,7 +565,7 @@
       ]
     },
     "supplyLocker": {
-      "index": 59,
+      "index": 55,
       "hash": "ec4b2f57",
       "box": [
         0.0390625,
@@ -615,7 +575,7 @@
       ]
     },
     "cab": {
-      "index": 60,
+      "index": 56,
       "hash": "f8180d27",
       "box": [
         0.109375,
@@ -625,7 +585,7 @@
       ]
     },
     "cabPickup": {
-      "index": 61,
+      "index": 57,
       "hash": "26a1f423",
       "box": [
         0.0546875,
@@ -635,7 +595,7 @@
       ]
     },
     "cabHardtop": {
-      "index": 62,
+      "index": 58,
       "hash": "d2fe22de",
       "box": [
         0.046875,
@@ -645,7 +605,7 @@
       ]
     },
     "cabBroad": {
-      "index": 63,
+      "index": 59,
       "hash": "13348e70",
       "box": [
         0.0546875,
@@ -655,7 +615,7 @@
       ]
     },
     "transmission": {
-      "index": 64,
+      "index": 60,
       "hash": "26c5ddfc",
       "box": [
         0.046875,
@@ -665,7 +625,7 @@
       ]
     },
     "transmissionMid": {
-      "index": 65,
+      "index": 61,
       "hash": "bb3121df",
       "box": [
         0.046875,
@@ -675,7 +635,7 @@
       ]
     },
     "transmissionHeavy": {
-      "index": 66,
+      "index": 62,
       "hash": "91ba20a6",
       "box": [
         0.046875,
@@ -685,7 +645,7 @@
       ]
     },
     "wheel": {
-      "index": 67,
+      "index": 63,
       "hash": "8e239513",
       "box": [
         0.0546875,
@@ -695,7 +655,7 @@
       ]
     },
     "wheelMid": {
-      "index": 68,
+      "index": 64,
       "hash": "477f28d4",
       "box": [
         0.0546875,
@@ -705,7 +665,7 @@
       ]
     },
     "wheelHeavy": {
-      "index": 69,
+      "index": 65,
       "hash": "cb62b2e1",
       "box": [
         0.0546875,
@@ -715,7 +675,7 @@
       ]
     },
     "tank": {
-      "index": 70,
+      "index": 66,
       "hash": "47f6bc07",
       "box": [
         0.046875,
@@ -725,7 +685,7 @@
       ]
     },
     "tankLong": {
-      "index": 71,
+      "index": 67,
       "hash": "adc8c7b4",
       "box": [
         0.046875,
@@ -735,7 +695,7 @@
       ]
     },
     "tankMid": {
-      "index": 72,
+      "index": 68,
       "hash": "c1441dfd",
       "box": [
         0.046875,
@@ -745,7 +705,7 @@
       ]
     },
     "tankHeavy": {
-      "index": 73,
+      "index": 69,
       "hash": "2041c5aa",
       "box": [
         0.046875,
@@ -755,7 +715,7 @@
       ]
     },
     "scanner": {
-      "index": 74,
+      "index": 70,
       "hash": "dfdec579",
       "box": [
         0.203125,
@@ -765,7 +725,7 @@
       ]
     },
     "scrap": {
-      "index": 75,
+      "index": 71,
       "hash": "f44ce903",
       "box": [
         0.03125,
@@ -775,7 +735,7 @@
       ]
     },
     "salt": {
-      "index": 76,
+      "index": 72,
       "hash": "ce80cbb6",
       "box": [
         0.0390625,
@@ -785,7 +745,7 @@
       ]
     },
     "meds": {
-      "index": 77,
+      "index": 73,
       "hash": "7cffa2ae",
       "box": [
         0.0390625,
@@ -795,7 +755,7 @@
       ]
     },
     "grain": {
-      "index": 78,
+      "index": 74,
       "hash": "dd739b3f",
       "box": [
         0.0703125,
@@ -805,7 +765,7 @@
       ]
     },
     "textiles": {
-      "index": 79,
+      "index": 75,
       "hash": "89bc4a81",
       "box": [
         0.0390625,
@@ -815,7 +775,7 @@
       ]
     },
     "tools": {
-      "index": 80,
+      "index": 76,
       "hash": "ec6c92cf",
       "box": [
         0.0390625,
@@ -825,7 +785,7 @@
       ]
     },
     "batteries": {
-      "index": 81,
+      "index": 77,
       "hash": "858be8d7",
       "box": [
         0.0390625,
@@ -835,7 +795,7 @@
       ]
     },
     "electronics": {
-      "index": 82,
+      "index": 78,
       "hash": "60dcd942",
       "box": [
         0.0390625,
@@ -845,7 +805,7 @@
       ]
     },
     "parts": {
-      "index": 83,
+      "index": 79,
       "hash": "62dc6c1e",
       "box": [
         0.0390625,
@@ -855,7 +815,7 @@
       ]
     },
     "fuelDrums": {
-      "index": 84,
+      "index": 80,
       "hash": "3d7c9d76",
       "box": [
         0.0390625,
@@ -865,7 +825,7 @@
       ]
     },
     "water": {
-      "index": 85,
+      "index": 81,
       "hash": "8090b441",
       "box": [
         0.0390625,
@@ -875,7 +835,7 @@
       ]
     },
     "relics": {
-      "index": 86,
+      "index": 82,
       "hash": "b3beac8c",
       "box": [
         0.0390625,
@@ -885,7 +845,7 @@
       ]
     },
     "rations": {
-      "index": 87,
+      "index": 83,
       "hash": "77079f06",
       "box": [
         0.0390625,
@@ -895,7 +855,7 @@
       ]
     },
     "parcel": {
-      "index": 88,
+      "index": 84,
       "hash": "a135ab0f",
       "box": [
         0.03125,

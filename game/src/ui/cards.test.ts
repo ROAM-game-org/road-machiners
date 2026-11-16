@@ -79,13 +79,13 @@ describe("cargo cards", () => {
   courierWorld.player.vehicleId = addVehicle(courierWorld, "player", "courier", [], { x: 40, y: 40 }).id;
   const head = (defId: string) => headlineStat(courierWorld, part(defId), null).stat;
 
-  it("headline the net cargo cells on the player's chassis", () => {
-    expect(head("panniers")).toMatchObject({ icon: "cells", value: 5 });
-    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 36 });
+  it("headline the cargo cells a part gives on the player's chassis", () => {
+    expect(head("panniers")).toMatchObject({ icon: "cells", value: 3 });
+    expect(head("haulingRack")).toMatchObject({ icon: "cells", value: 8 });
   });
 
-  it("marks a heavy frame better than panniers", () => {
-    const diff = diffStats(partStats(courierWorld, part("heavyFrame")), partStats(courierWorld, part("panniers"))).find((d) => d.stat.icon === "cells");
+  it("marks a hauling rack better than panniers", () => {
+    const diff = diffStats(partStats(courierWorld, part("haulingRack")), partStats(courierWorld, part("panniers"))).find((d) => d.stat.icon === "cells");
     expect(diff).toMatchObject({ verdict: "better" });
   });
 });

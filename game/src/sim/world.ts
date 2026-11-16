@@ -40,7 +40,7 @@ import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
 import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
-import { spillDeadRows } from './spill';
+import { spillDeadCells } from './spill';
 import { fadeCraters } from './craters';
 import { timed } from '../perf';
 import { noteHurt, resolveNpcActivities } from './npc-activities';
@@ -434,7 +434,7 @@ export function endTurnInPlace(
     followTower(w);
     caltropHits(w);
     applyWear(w);
-    spillDeadRows(w);
+    spillDeadCells(w);
     advanceEngineHeat(w);
     advanceDust(w);
     advanceLines(w);
@@ -453,7 +453,7 @@ export function endTurnInPlace(
     cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
-    spillDeadRows(w);
+    spillDeadCells(w);
     scrapPatch(w);
     healPlayer(w);
     leakFuel(w);

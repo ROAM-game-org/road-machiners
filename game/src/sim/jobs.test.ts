@@ -7,8 +7,7 @@ import { CONDITION, REPAIR } from '../data/wear';
 import { damagePart, maxHp, partValue } from './wear';
 import { makePart } from './factory';
 import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
-import { bedRows } from './chassis-features';
-import { corePart, goodsCount, gridOf, mountedParts } from './grid';
+import { corePart, fixedHoldCells, goodsCount, gridOf, holdCell, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
 import type { Job } from './types';
@@ -470,14 +469,14 @@ describe('strip job', () => {
     expect(next.events.some((e) => e.t === 'job' && e.outcome === 'done')).toBe(true);
   });
 
-  it('refuses to strip a mounted rack that holds a part in its rows', () => {
+  it('refuses to strip a mounted rack that holds a part on its cells', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'player', 'hauler', ['rack'], { x: 60, y: 60 });
     w.player.vehicleId = npc.id;
     const rack = mountedParts(npc, 'cargo').find((p) => p.defId === 'rack')!;
-    const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
-    const row = gridOf(npc).chassisH + bedRows('hauler') + rackRows - 1;
-    npc.items.push({ id: 'i-crate', x: 0, y: row, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    const spot = holdCell(gridOf(npc), fixedHoldCells('hauler'));
+    npc.items = npc.items.filter((it) => !(it.x === spot.x && it.y === spot.y));
+    npc.items.push({ id: 'i-crate', ...spot, rot: 1, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(() => startStrip(w, rack.id)).toThrow('Refused: emptyRackFirst');
   });
 
@@ -530,7 +529,7 @@ describe('field job practice', () => {
   it('pays nothing for a refit that only moves parts the truck has', () => {
     const w = emptyWorld();
     const mg = w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
-    const next = moveItem(w, mg.id, { x: 3, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
+    const next = moveItem(w, mg.id, { x: 1, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
     while (next.vehicles[0].job) advanceJobs(next);
     expect(practiceOf(next, 'fieldJob')).toEqual([]);
   });
@@ -736,7 +735,7 @@ describe('cancelling a refit', () => {
     const w = emptyWorld();
     const mg = w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     const before = structuredClone(w.vehicles[0].items);
-    const started = moveItem(w, mg.id, { x: 3, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
+    const started = moveItem(w, mg.id, { x: 1, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
     advanceJobs(started);
     expect(started.vehicles[0].job).toMatchObject({ kind: 'refit' });
 

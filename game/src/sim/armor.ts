@@ -549,7 +549,7 @@ export function gunLayoutScore(v: Vehicle): number {
 }
 
 function spansIn(v: Loadout, blockers: readonly GridItem[], item: GridItem): FireSpan[] {
-  const shadows = shadowsOf(blockers, item).flatMap((s) => s.pieces);
+  const shadows = mergeSpans(shadowsOf(blockers, item).flatMap((s) => s.pieces));
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));
 }
@@ -568,8 +568,22 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   const oy = item.y + h / 2;
   return tall.filter((blocker) => blocker.id !== item.id).map((blocker) => ({
     blocker,
-    pieces: itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)),
+    pieces: blockerShadow(blocker, ox, oy),
   }));
+}
+
+const BLOCKER_SHADOWS_KEPT = 4096;
+const blockerShadows = new Map<string, FireSpan[]>();
+
+function blockerShadow(blocker: GridItem, ox: number, oy: number): FireSpan[] {
+  const key = `${blocker.kind === 'part' ? blocker.part.defId : blocker.id},${blocker.x},${blocker.y},${blocker.rot},${ox},${oy}`;
+  let pieces = blockerShadows.get(key);
+  if (!pieces) {
+    pieces = mergeSpans(itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)));
+    if (blockerShadows.size >= BLOCKER_SHADOWS_KEPT) blockerShadows.clear();
+    blockerShadows.set(key, pieces);
+  }
+  return pieces;
 }
 
 const cellShadows = new Map<string, readonly FireSpan[]>();
@@ -644,9 +658,10 @@ function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, 
 }
 
 function surfaceUnder(chassisId: string, item: GridItem): number {
-  const cells = cellsOnGrid(chassisId, item);
-  if (cells.length === 0) return -Infinity;
-  return cachedHeight('floor', chassisId, item, () => highestUnder(chassisId, cellRect(chassisId, cells)));
+  return cachedHeight('floor', chassisId, item, () => {
+    const cells = cellsOnGrid(chassisId, item);
+    return cells.length === 0 ? -Infinity : highestUnder(chassisId, cellRect(chassisId, cells));
+  });
 }
 
 function standsOnModel(chassisId: string, item: GridItem): boolean {

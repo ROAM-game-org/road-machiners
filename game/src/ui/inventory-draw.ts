@@ -2,7 +2,7 @@
 import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
-import { baseGrid, cellsTurned, facingOf, gridOf, inEngineBay, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
+import { baseGrid, cellsTurned, facingOf, gridOf, inEngineBay, isDeadCell, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
@@ -327,8 +327,8 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
   const c = g.cells[y][x];
   if (c !== null) return withBayMark(cellEl(c, x, y, m), g.chassisId, x, y);
-  if (y < g.deadFrom) return null;
-  return el("div", { class: "inv-cell c-dead", style: pxStyle(rectOf(m, x, y, 1, 1)), title: t("cell.deadRows") });
+  if (!isDeadCell(g, x, y)) return null;
+  return el("div", { class: "inv-cell c-dead", style: pxStyle(rectOf(m, x, y, 1, 1)), title: t("cell.deadCells") });
 }
 
 function withBayMark(node: HTMLElement, chassisId: string, x: number, y: number): HTMLElement {

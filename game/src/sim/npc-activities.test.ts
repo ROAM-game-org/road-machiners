@@ -372,7 +372,7 @@ describe('NPC activities', () => {
 
   it('spends at most the trade stake on one load', () => {
     const w = emptyWorld({ x: 50, y: 50 });
-    const npc = addVehicle(w, 'independent', 'hauler', ['trailerBox', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['haulingRack', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     addGoods(w, npc, 'parts', npcRepairReserve(npc));
     npc.resources!.money = 1667;
@@ -399,7 +399,7 @@ describe('NPC activities', () => {
   describe('a trade run pays its trip fuel', () => {
     function hauler(money: number) {
       const w = emptyWorld({ x: 50, y: 50 });
-      const npc = addVehicle(w, 'independent', 'hauler', ['trailerBox', 'stockEngine'], { x: 10, y: 10 });
+      const npc = addVehicle(w, 'independent', 'hauler', ['haulingRack', 'stockEngine'], { x: 10, y: 10 });
       npc.brain = npcBrain('trader', npc.pos, ['trader']);
       npc.resources!.money = getUpkeepReserve(npc) + money;
       return { w, npc };
@@ -1413,7 +1413,7 @@ describe('salvage on the way', () => {
 
   it('a driver that a sale would not make room for passes up only that loot', () => {
     const { w, npc } = passingWreck();
-    w.salvage.push({ id: 'wreck901', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'trailerBox', 0)], hidden: emptyHidden() });
+    w.salvage.push({ id: 'wreck901', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'haulingRack', 0)], hidden: emptyHidden() });
     addGoods(w, npc, 'scrap', 2);
     npc.speed = 0;
     expect(canTakeAny(w, npc, w.salvage.find((s) => s.id === 'wreck901')!)).toBe(false);

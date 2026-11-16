@@ -36,25 +36,25 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 <!-- wiki:weapons -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | range (tiles) | cooldown (turns) | magazine (shots) | reload (turns) | arc (deg) | spread (deg) | rounds per shot | recoil (deg) | shake | line (turns) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| mg | MG turret | 1 | 49 | 1 x 3 | 110 | 40 | 3 | false | 12 | 1 | 5 | 2 | 270 | 5 | 6 | 0.5 | 0.5 |  |
-| shotgun | Shotgun | 1 | 60 | 1 x 3 | 100 | 36 | 2 | false | 10 | 1 | 2 | 2 | 90 | 12 | 10 | 1.5 | 0.6 |  |
-| longRifle | Long rifle | 1 | 54 | 1 x 3 | 120 | 30 | 2 | false | 18 | 1 | 3 | 2 | 60 | 1 | 1 | 0.8 | 1 |  |
-| flamer | Flamer | 1 | 69 | 1 x 3 | 100 | 34 | 2 | false | 8 | 1 | 3 | 2 | 90 | 7 | 8 | 0.3 | 0.6 |  |
-| pneumobolter | Pneumobolter | 1 | 69 | 2 x 3 | 150 | 44 | 3 | false | 14 | 1 | 2 | 1 | 60 | 1.6 | 1 | 1.5 | 1.5 |  |
-| slugCannon | Slug cannon | 1 | 67 | 1 x 3 | 160 | 46 | 3 | false | 16 | 1 | 3 | 2 | 180 | 2 | 2 | 3 | 1.5 |  |
-| heavyMg | Heavy MG | 2 | 132 | 1 x 3 | 95 | 50 | 4 | false | 13 | 1 | 5 | 2 | 270 | 4 | 6 | 1.5 | 0.6 |  |
+| mg | MG turret | 1 | 49 | 1 x 3 | 110 | 40 | 3 | true | 12 | 1 | 5 | 2 | 270 | 5 | 6 | 0.5 | 0.5 |  |
+| shotgun | Shotgun | 1 | 60 | 1 x 3 | 100 | 36 | 2 | true | 10 | 1 | 2 | 2 | 90 | 12 | 10 | 1.5 | 0.6 |  |
+| longRifle | Long rifle | 1 | 54 | 1 x 3 | 120 | 30 | 2 | true | 18 | 1 | 3 | 2 | 60 | 1 | 1 | 0.8 | 1 |  |
+| flamer | Flamer | 1 | 69 | 1 x 3 | 100 | 34 | 2 | true | 8 | 1 | 3 | 2 | 90 | 7 | 8 | 0.3 | 0.6 |  |
+| pneumobolter | Pneumobolter | 1 | 69 | 2 x 3 | 150 | 44 | 3 | true | 14 | 1 | 2 | 1 | 60 | 1.6 | 1 | 1.5 | 1.5 |  |
+| slugCannon | Slug cannon | 1 | 67 | 1 x 3 | 160 | 46 | 3 | true | 16 | 1 | 3 | 2 | 180 | 2 | 2 | 3 | 1.5 |  |
+| heavyMg | Heavy MG | 2 | 132 | 1 x 3 | 95 | 50 | 4 | true | 13 | 1 | 5 | 2 | 270 | 4 | 6 | 1.5 | 0.6 |  |
 | cannon | Forward cannon | 2 | 170 | 2 x 3 | 270 | 60 | 3 | true | 13 | 1 | 2 | 2 | 60 | 3.5 | 1 | 6 | 1 |  |
-| amRifle | Anti-materiel rifle | 2 | 117 | 1 x 4 | 190 | 40 | 2 | false | 19 | 1 | 3 | 3 | 45 | 0.8 | 1 | 2 | 1.2 |  |
-| autocannon | Autocannon | 2 | 189 | 2 x 3 | 180 | 56 | 4 | false | 12 | 1 | 4 | 2 | 180 | 4 | 3 | 3 | 0.8 |  |
-| recoilless | Recoilless rifle | 2 | 164 | 1 x 4 | 150 | 40 | 2 | false | 15 | 1 | 2 | 2 | 45 | 1.4 | 1 | 1 | 2 |  |
-| battleRifle | Battle rifle | 2 | 175 | 1 x 4 | 150 | 44 | 3 | false | 17 | 1 | 5 | 1 | 180 | 1.6 | 3 | 2 | 1.4 |  |
-| gatling | Gatling MG | 3 | 381 | 2 x 3 | 150 | 70 | 5 | false | 14 | 1 | 6 | 3 | 270 | 5 | 12 | 2 | 0.7 |  |
-| rocketRack | Rocket rack | 3 | 370 | 2 x 3 | 110 | 32 | 1 | false | 14 | 1 | 1 | 3 | 90 | 6 | 4 | 1 | 1.2 |  |
+| amRifle | Anti-materiel rifle | 2 | 117 | 1 x 4 | 190 | 40 | 2 | true | 19 | 1 | 3 | 3 | 45 | 0.8 | 1 | 2 | 1.2 |  |
+| autocannon | Autocannon | 2 | 189 | 2 x 3 | 180 | 56 | 4 | true | 12 | 1 | 4 | 2 | 180 | 4 | 3 | 3 | 0.8 |  |
+| recoilless | Recoilless rifle | 2 | 164 | 1 x 4 | 150 | 40 | 2 | true | 15 | 1 | 2 | 2 | 45 | 1.4 | 1 | 1 | 2 |  |
+| battleRifle | Battle rifle | 2 | 175 | 1 x 4 | 150 | 44 | 3 | true | 17 | 1 | 5 | 1 | 180 | 1.6 | 3 | 2 | 1.4 |  |
+| gatling | Gatling MG | 3 | 381 | 2 x 3 | 150 | 70 | 5 | true | 14 | 1 | 6 | 3 | 270 | 5 | 12 | 2 | 0.7 |  |
+| rocketRack | Rocket rack | 3 | 370 | 2 x 3 | 110 | 32 | 1 | true | 14 | 1 | 1 | 3 | 90 | 6 | 4 | 1 | 1.2 |  |
 | sniperCannon | Sniper cannon | 3 | 462 | 2 x 4 | 180 | 40 | 2 | true | 20 | 1 | 3 | 3 | 30 | 0.6 | 1 | 2 | 1.4 |  |
-| grenadeLauncher | Grenade launcher | 3 | 441 | 2 x 3 | 130 | 50 | 4 | false | 12 | 1 | 4 | 3 | 180 | 5 | 3 | 2 | 1 |  |
+| grenadeLauncher | Grenade launcher | 3 | 441 | 2 x 3 | 130 | 50 | 4 | true | 12 | 1 | 4 | 3 | 180 | 5 | 3 | 2 | 1 |  |
 | tankGun | Tank gun | 3 | 454 | 2 x 4 | 210 | 90 | 8 | true | 16 | 1 | 2 | 2 | 45 | 2 | 1 | 8 | 2 |  |
-| flechette | Flechette gun | 3 | 492 | 2 x 3 | 120 | 44 | 3 | false | 18 | 1 | 4 | 2 | 180 | 1.2 | 4 | 1.5 | 1.5 |  |
-| harpoon | Harpoon | 2 | 144 | 1 x 3 | 120 | 40 | 4 | false | 8 | 1 | 1 | 5 | 270 | 1 | 1 | 0 | 0.3 | 10 |
+| flechette | Flechette gun | 3 | 492 | 2 x 3 | 120 | 44 | 3 | true | 18 | 1 | 4 | 2 | 180 | 1.2 | 4 | 1.5 | 1.5 |  |
+| harpoon | Harpoon | 2 | 144 | 1 x 3 | 120 | 40 | 4 | true | 8 | 1 | 1 | 5 | 270 | 1 | 1 | 0 | 0.3 | 10 |
 <!-- /wiki:weapons -->
 
 Each weapon's round:
@@ -135,15 +135,11 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 ## Cargo
 
 <!-- wiki:cargo -->
-| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | extra rows |
+| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | cells |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| rack | Roof rack | 1 | 67 | 2 x 1 | 60 | 30 | 1 | false | 2 |
-| trailerBox | Cargo box | 2 | 181 | 2 x 3 | 135 | 60 | 1 | true | 5 |
-| panniers | Panniers | 1 | 34 | 1 x 1 | 60 | 20 | 1 | false | 1 |
-| flatbed | Flatbed extension | 1 | 67 | 2 x 1 | 120 | 50 | 1 | false | 2 |
-| lightFrame | Light cargo frame | 2 | 190 | 2 x 3 | 90 | 24 | 1 | false | 5 |
-| enclosedFrame | Enclosed cargo frame | 2 | 200 | 2 x 3 | 165 | 110 | 8 | true | 5 |
-| heavyFrame | Heavy cargo frame | 3 | 360 | 2 x 3 | 150 | 90 | 3 | true | 6 |
+| panniers | Panniers | 1 | 34 | 1 x 2 | 45 | 20 | 1 | false | 3 |
+| rack | Roof rack | 1 | 39 | 1 x 2 | 60 | 30 | 1 | true | 4 |
+| haulingRack | Hauling rack | 2 | 117 | 2 x 2 | 120 | 60 | 2 | true | 8 |
 <!-- /wiki:cargo -->
 
 ## Scanners
