@@ -40,7 +40,7 @@ function begin(size: number): number {
   return ++gen;
 }
 
-type FreeCellAnswer = { cell: number | null; stamped: number[] };
+type FreeCellAnswer = { cell: number | null; stamped: number[]; ring: number };
 
 const answersByComponents = new WeakMap<Int32Array, Map<string, FreeCellAnswer>>();
 const ANSWERS_MAX = 512;
@@ -48,12 +48,16 @@ const acceptsAll = () => true;
 
 export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = acceptsAll): number | null {
   const comp = layer.grid.pieces.comp;
-  const key = `${layer.id}:${c}:${component}:${maxRing}`;
+  const key = `${layer.id}:${c}:${component}`;
   const known = accepts === acceptsAll ? answersByComponents.get(comp)?.get(key) : undefined;
-  if (known && answerHolds(ov, known)) return known.cell;
+  if (known && answerCovers(known, maxRing) && answerHolds(ov, known)) return known.cell;
   const answer = searchFreeCell(layer, ov, c, component, maxRing, accepts);
   if (accepts === acceptsAll && layer.grid.pieces.comp === comp) rememberAnswer(comp, key, answer);
   return answer.cell;
+}
+
+function answerCovers(answer: FreeCellAnswer, maxRing: number): boolean {
+  return answer.cell === null ? maxRing <= answer.ring : answer.ring <= maxRing;
 }
 
 function answerHolds(ov: Overlay, answer: FreeCellAnswer): boolean {
@@ -82,11 +86,11 @@ function searchFreeCell(layer: NavLayer, ov: Overlay, c: number, component: numb
     const cur = queue[i];
     if (freeIn(layer, cur, component, holds)) {
       if (ov.stamp[cur] === ov.gen) stamped.push(cur);
-      else if (accepts(cur)) return { cell: cur, stamped };
+      else if (accepts(cur)) return { cell: cur, stamped, ring: Math.max(Math.abs((cur % n) - cx), Math.abs((cur - (cur % n)) / n - cy)) };
     }
     tail = ringOut(n, cur, cx, cy, g, maxRing, tail);
   }
-  return { cell: null, stamped };
+  return { cell: null, stamped, ring: maxRing };
 }
 
 function freeIn(layer: NavLayer, c: number, component: number | null, holds: Uint8Array | null): boolean {

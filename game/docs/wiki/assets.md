@@ -68,7 +68,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | rack | cargo_rack |
 | part | haulingRack | cargo_heavy_frame |
 | part | panniers | cargo_panniers |
-| part | sacks | good_grain |
+| part | sacks | arm_scrap_sheet |
 | part | scanner | scanner |
 | part | jerrycans | store_jerrycans |
 | part | supplyLocker | store_locker |

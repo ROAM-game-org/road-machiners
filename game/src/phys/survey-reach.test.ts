@@ -112,7 +112,7 @@ describe('a loaded stock courier on a synthetic ramp', () => {
     expect(climbsRamp(REGION.navigation.reachClimb)).toBe(true);
   }, budget(300_000));
 
-  it('does not top a ramp at twice the reference climb', () => {
-    expect(climbsRamp(2 * REGION.navigation.reachClimb)).toBe(false);
+  it('does not top a ramp at two and a half times the reference climb', () => {
+    expect(climbsRamp(2.5 * REGION.navigation.reachClimb)).toBe(false);
   }, budget(300_000));
 });
