@@ -14,7 +14,7 @@ import { addGoods, applyRefitLayout, getRefitLayout, movesWork, NOTHING_TAKEN, r
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
 import { requireSpareGoods, shopAt, spareGoods } from "./market";
-import { carriedSpare, fitSpare, isJunk, maxHp, spareTarget } from "./wear";
+import { carriedSpare, fitSpare, isJunk, isRelic, maxHp, spareTarget } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup, takeError } from "./salvage";
@@ -183,10 +183,14 @@ export function startStrip(world: World, partId: string): World {
 
 type PartItem = Extract<GridItem, { kind: "part" }>;
 
+export function isStrippable(part: PartInstance): boolean {
+  return partDef(part.defId).kind !== "core" && !isRelic(part);
+}
+
 function findStripItem(v: Vehicle, partId: string): PartItem {
   const item = stripItem(v, partId);
   if (!item) throw new Error(`No part ${partId} on ${v.id}`);
-  if (partDef(item.part.defId).kind === "core") throw new Error("A built-in part cannot be stripped");
+  if (!isStrippable(item.part)) throw new Error("A built-in part or a relic cannot be stripped");
   return item;
 }
 

@@ -72,6 +72,7 @@ export const ART = {
   blast: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM11 8L9.5 9L9.5 10.5L8 9.5L6.5 10.5L6.5 9L5 8L6.5 7.5L6.5 5.5L8 6.5L9.5 5.5L9.5 7z"/>',
   heat: '<path d="M3.5 3.5a1.5 1.5 0 0 1 3 0V9.5a3 3 0 1 1-3 0zM11 3.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM10 1h2v1.5h-2zM13.5 5h1.5v2h-1.5zM10 9.5h2V11h-2z"/>',
   patch: '<path d="M2 10L10 2L14 6L6 14zM6 8L8 6L10 8L8 10z"/>',
+  sight: '<path d="M8 3.5C4.5 3.5 2 6 1 8c1 2 3.5 4.5 7 4.5s6-2.5 7-4.5c-1-2-3.5-4.5-7-4.5zM8 5a3 3 0 1 1 0 6a3 3 0 1 1 0-6z"/><path d="M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"/>',
   tall: '<path d="M8 1.5L11.5 5H9v4h2.5L8 12.5 4.5 9H7V5H4.5zM1.5 13.5h13V15h-13z"/>',
   clock: '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M7 4.5h2v3.5h3v2H7z"/>',
   paint: '<path d="M4.5 6h6v9h-6zM5.5 9.5h4v2h-4z"/><path d="M5.5 3.5h4V6h-4zM6.5 2h2v1.5h-2zM11.5 1.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM14 3.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM11.5 5.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2z"/>',
@@ -631,6 +632,7 @@ export type StatIcon =
   | "cells"
   | "load"
   | "scanner"
+  | "sight"
   | "recoil"
   | "power"
   | "blast"
@@ -710,7 +712,7 @@ function passiveGains(d: UtilityDef): Stat[] {
     const power = { ...stat("power", t("stat.gunPower"), e.power, null, "more"), text: signed(e.power, 0) };
     return [power, { ...stat("fuel", t("stat.fuelUse"), e.fuel, null, "less"), text: percentUp(e.fuel) }];
   }
-  if (e.type === "periscope") return [{ ...stat("scanner", t("effect.sight"), e.sight, null, "more"), text: percentUp(e.sight - 1) }];
+  if (e.type === "periscope") return [{ ...stat("sight", t("effect.sight"), e.sight, null, "more"), text: percentUp(e.sight - 1) }];
   return [];
 }
 

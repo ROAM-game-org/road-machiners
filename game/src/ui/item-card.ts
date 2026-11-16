@@ -4,7 +4,7 @@ import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
 import { atGarage } from "../sim/garage";
 import type { Spot } from "../sim/grid";
 import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, plannedRefit, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
-import { cancelRefit, fitSpareTurns, startFitSpare, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
+import { cancelRefit, fitSpareTurns, startFitSpare, startRepair, startStrip, startWeld, isStrippable, stripTurns, stripYield } from "../sim/jobs";
 import { itemMass } from "../sim/mass";
 import { outpostRepairPart } from "../sim/outposts";
 import { vehicleHasPerk } from "../sim/progress";
@@ -191,7 +191,7 @@ function cargoRows(h: CardHost, item: GridItem): HTMLElement[] {
 
 function partRows(h: CardHost, item: Extract<GridItem, { kind: "part" }>, mounted: boolean): HTMLElement[] {
   const part = item.part;
-  const strips = partDef(part.defId).kind !== "core" && h.me.id === h.world.player.vehicleId;
+  const strips = isStrippable(part) && h.me.id === h.world.player.vehicleId;
   return [
     ...spareRows(h, part, mounted),
     ...(canFieldPatch(h.me, mounted, part.id) ? patchRow(h, part) : []),

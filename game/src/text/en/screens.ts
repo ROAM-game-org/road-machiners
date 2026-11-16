@@ -411,6 +411,7 @@ export const SCREENS = {
   'icon.blast': 'Blast armor',
   'icon.heat': 'Heat',
   'icon.patch': 'Field repair',
+  'icon.sight': 'Sight',
   'icon.tall': 'Tall',
   'icon.clock': 'Time left',
   'icon.paint': 'Paint',

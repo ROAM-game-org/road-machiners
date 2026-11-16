@@ -4,6 +4,7 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { claimReward, claimSpots, claimTargets } from './claims';
 import { sellVehicleCargo, takeSellablePart } from './economy';
+import { isStrippable, startStrip } from './jobs';
 import { partWithId } from './factory';
 import { spareParts, stowPart, tradedSpares } from './inventory';
 import { shopState, siteOf } from './market';
@@ -131,5 +132,14 @@ describe('relics never trade', () => {
     sellVehicleCargo(w, npc, 'bowl', 0);
     expect(spareParts(npc)).toEqual([relic]);
     expect(shopState(w, 'bowl').stock).toHaveLength(shelf);
+  });
+
+  it('cannot be stripped for parts', () => {
+    const { w, relic } = relicWreck();
+    const me = playerVehicle(w);
+    expect(stowPart(w, me, relic)).toBe(true);
+    expect(isStrippable(relic)).toBe(false);
+    expect(() => startStrip(w, relic.id)).toThrow('cannot be stripped');
+    expect(spareParts(playerVehicle(w))).toEqual([relic]);
   });
 });
