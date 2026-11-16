@@ -908,11 +908,11 @@ export const SPARE_FIT_WORK = 2.5;
 export const TALL_RISE: Readonly<Record<string, number>> = {
   rack: 0.7,
   haulingRack: 1.63,
-  mg: 0.64,
-  shotgun: 0.87,
+  mg: 0.5,
+  shotgun: 0.73,
   longRifle: 0.62,
   flamer: 0.68,
-  pneumobolter: 0.92,
+  pneumobolter: 0.78,
   slugCannon: 0.81,
   heavyMg: 0.74,
   cannon: 0.93,
@@ -926,7 +926,7 @@ export const TALL_RISE: Readonly<Record<string, number>> = {
   grenadeLauncher: 0.53,
   tankGun: 0.9,
   flechette: 0.56,
-  harpoon: 0.65,
+  harpoon: 0.79,
 };
 
 export const PARTS: Record<string, PartDef> = Object.fromEntries(

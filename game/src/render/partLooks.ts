@@ -148,7 +148,7 @@ export const PART_MODELS: Record<string, ModelName> = {
   rack: 'cargo_rack',
   haulingRack: 'cargo_heavy_frame',
   panniers: 'cargo_panniers',
-  sacks: 'good_grain',
+  sacks: 'arm_scrap_sheet',
 
   scanner: 'scanner',
 

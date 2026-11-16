@@ -119,9 +119,11 @@ function validatePriorities(p: LoadoutPriorities): void {
   if (!(p.armor + p.firepower > 0)) throw new Error('Loadout priorities need firepower or armor above 0 for the driver to judge a fight');
 }
 
+const SPEED_BOUND_PARTS = new Set(['gunBattery']);
+
 function rollWear(world: World, rng: Rng, level: Level, v: Vehicle): void {
   for (const item of v.items) {
-    if (item.kind !== 'part' || ['core', 'engine'].includes(partDef(item.part.defId).kind)) continue;
+    if (item.kind !== 'part' || ['core', 'engine'].includes(partDef(item.part.defId).kind) || SPEED_BOUND_PARTS.has(item.part.defId)) continue;
     item.part = makePart(world, item.part.defId, wearOf(rng, level));
   }
 }
