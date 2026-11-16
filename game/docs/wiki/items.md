@@ -130,6 +130,7 @@ Accessories bolt on over the armor edge and take no cargo room. Rams mount on th
 | claymoreRam | Claymore ram | 2 | 210 | 4 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
 | spikeCluster | Spike cluster | 1 | 34 | 1 x 1 | 11.25 | 20 | 3 | false | 3 | full | 1.5 | FBLR |  |
 | spikeStrip | Spike strip | 1 | 53 | 1 x 2 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
+| sacks | Sacks | 1 | 32 | 1 x 1 | 3.75 | 20 | 1 | false | 1 | full | 1 | FBLR |  |
 <!-- /wiki:accessories -->
 
 ## Cargo
@@ -173,6 +174,8 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | smokeMortar | Smoke mortar | 2 | 161 | 1 x 3 | 110 | 36 | 3 | false | mortar | 8 | {"radius":4,"turns":5,"minRange":5,"maxRange":16} |
 | flareCannon | Flare cannon | 2 | 110 | 1 x 1 | 50 | 28 | 2 | false | flare | 10 | {"radius":10,"turns":6,"minRange":4,"maxRange":24} |
 | scrapersKnife | Scraper's knife | 2 | 140 | 1 x 3 | 170 | 50 | 4 | false | scraper |  | {} |
+| gunBattery | Battery | 1 | 60 | 1 x 1 | 80 | 24 | 2 | false | battery |  | {"power":1,"fuel":0.05} |
+| periscope | Periscope | 1 | 50 | 1 x 1 | 30 | 18 | 2 | false | periscope |  | {"sight":1.2} |
 | emitter | Emitter | 3 | 563 | 2 x 3 | 200 | 44 | 4 | false | emitter | 10 | {"radius":6,"turns":2} |
 <!-- /wiki:utilities -->
 

@@ -32,6 +32,10 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | transmissionHeavy | transmission |
 | part | wheel | wheel |
 | part | wheelMid | wheel |
+| part | spareTire | wheel |
+| part | relicStatue | good_relics |
+| part | relicShipModule | store_locker |
+| part | relicComputer | good_electronics |
 | part | wheelHeavy | wheel |
 | part | tank | fuel_tank |
 | part | tankLong | fuel_tank |
@@ -64,6 +68,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | rack | cargo_rack |
 | part | haulingRack | cargo_heavy_frame |
 | part | panniers | cargo_panniers |
+| part | sacks | good_grain |
 | part | scanner | scanner |
 | part | jerrycans | store_jerrycans |
 | part | supplyLocker | store_locker |
@@ -75,6 +80,8 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | flareCannon | util_flare |
 | part | scrapersKnife | util_scraper |
 | part | emitter | util_emitter |
+| part | gunBattery | good_batteries |
+| part | periscope | scanner |
 | good | scrap | good_scrap |
 | good | salt | good_salt |
 | good | meds | good_meds |
