@@ -200,7 +200,7 @@ def test_register_seeds_the_file(tmp_path):
     finally:
         plugin.os.environ.clear()
         plugin.os.environ.update(old)
-    assert hooks == ["pre_gateway_dispatch", "pre_gateway_dispatch", "pre_llm_call", "pre_api_request", "pre_tool_call", "post_tool_call", "on_session_end", "on_session_finalize"]
+    assert hooks == ["pre_gateway_dispatch", "pre_gateway_dispatch", "pre_tool_call", "pre_llm_call", "pre_api_request", "pre_tool_call", "post_tool_call", "on_session_end", "on_session_finalize"]
     data = json.loads((tmp_path / "committee" / "committee.json").read_text())
     assert data == {"members": [{"telegram": "1", "github": "boss", "name": None}]}
 
