@@ -13,7 +13,8 @@ const reported = new Set<string>();
 const warned = new Set<string>();
 let step = 'starting the page';
 const listeners: (() => void)[] = [];
-const crashScreenListeners: (() => void)[] = [];
+const bootStopListeners: (() => void)[] = [];
+let lostContextReported = false;
 const FOREIGN_NOTE = 'Ignored an error from a script outside the game';
 const MUTED_MESSAGE = /^script error\.?$/i;
 
@@ -72,8 +73,8 @@ export function keepRunningOnErrors(to: (text: string) => void): void {
   if (!import.meta.env.DEV) report = to;
 }
 
-export function onCrashScreen(listener: () => void): void {
-  crashScreenListeners.push(listener);
+export function onBootStopped(listener: () => void): void {
+  bootStopListeners.push(listener);
 }
 
 export function onEveryError(listener: () => void): void {
@@ -110,7 +111,7 @@ function ignoreForeign(facts: ErrorFacts): void {
 
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
   const kind = faultKind(err);
-  if (kind === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  if (kind === 'webgl') onNoWebGL(err as WebGLUnavailable);
   else if (kind === 'lost') showLostFiles(err as DownloadFailed);
   else if (kind === 'unreachable') warnUnreachable(err as AssetUnreachable);
   else onFault(err, facts);
@@ -152,10 +153,15 @@ function onFault(err: unknown, facts: ErrorFacts | null): void {
   report(`Error: ${text}`);
 }
 
-function showCrash(err: unknown, facts: ErrorFacts | null): void {
-  if (shown) return;
+function stopBoot(): boolean {
+  if (shown) return false;
   shown = true;
-  for (const listener of crashScreenListeners) listener();
+  for (const listener of bootStopListeners) listener();
+  return true;
+}
+
+function showCrash(err: unknown, facts: ErrorFacts | null): void {
+  if (!stopBoot()) return;
   const text = crashText(err, facts, { version: GAME_VERSION, step, userAgent: navigator.userAgent, page: location.href });
   const box = document.createElement('div');
   box.className = 'crash-screen';
@@ -171,13 +177,20 @@ function showCrash(err: unknown, facts: ErrorFacts | null): void {
   document.body.appendChild(box);
 }
 
+function onNoWebGL(err: WebGLUnavailable): void {
+  if (err.lost && !lostContextReported) {
+    lostContextReported = true;
+    for (const sink of sinks) sink(err);
+  }
+  showNoWebGL(err);
+}
+
 function showNoWebGL(err: WebGLUnavailable): void {
   showNotice(noWebGLText(err, navigator.userAgent));
 }
 
 function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; action?: Msg }): void {
-  if (shown) return;
-  shown = true;
+  if (!stopBoot()) return;
   const box = document.createElement('div');
   box.className = 'crash-screen';
   const title = document.createElement('div');
