@@ -42,7 +42,7 @@ import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onCrashScreen, onEveryError, onReport, reportError } from './crash';
-import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished } from './boot-marker';
+import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished, watchBootEnd } from './boot-marker';
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
@@ -221,10 +221,11 @@ installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const unfinishedBoot = takeUnfinished(window.sessionStorage, saveKey);
+watchBootEnd(window, document, window.sessionStorage, saveKey, Date.now);
 let bootRequestKind = 'menu';
 function stepBoot(name: string): void {
   bootStep(name);
-  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION);
+  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION, Date.now());
 }
 function waitOnPlayer(): void {
   markWaiting(window.sessionStorage, saveKey);
@@ -281,7 +282,7 @@ const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
-if (unfinishedBoot) noteError(new BootUnfinished(unfinishedBoot));
+if (unfinishedBoot) noteError(new BootUnfinished(unfinishedBoot, Date.now()));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const gpu = new GpuContext(surface.canvas, surface.context, reportError);
 const mixer = new Mixer(MIX);
