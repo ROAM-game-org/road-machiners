@@ -20,6 +20,7 @@ import { GroundCache, groundCacheUniforms } from './render/groundCache';
 import { cachedGround, groundMaterial, terrainMesh } from './render/terrain';
 
 export type WorldViewHost = {
+  bootStep: (name: string) => void;
   scene: THREE.Scene;
   ground: THREE.Group;
   props: THREE.Group;
@@ -58,6 +59,7 @@ function groundFor(world: World, host: WorldViewHost): THREE.MeshLambertMaterial
 }
 
 export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
+  host.bootStep('building the world views');
   const sightLimit = new SightLimit(world.size);
   const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
   const propScope = new RenderScope(host.props, world.size, sightLimit, true, true);
@@ -76,6 +78,7 @@ export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const shade = new ShadeView(world, ground, host.play);
   const streamer = new CellStreamer(scopes, host.prepare, () => performance.now(), PERF.stream.budgetMs);
   const reach = grayReach(world, playerVehicle(world));
+  host.bootStep('building the first cells');
   streamer.boot(playerVehicle(world).pos, reach, reach + PERF.stream.leadTiles);
   return { sightLimit, scopes, craters, siteLights, obstacles, fog, shade, streamer };
 }
