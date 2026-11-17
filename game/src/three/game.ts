@@ -63,7 +63,7 @@ import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
-import { buildWorldViews, sightAround } from "./world-views";
+import { buildWorldViews, sightAround, type WorldViewHost } from "./world-views";
 import { type WebGLSurface } from "./webgl";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
 import { TruckViews } from "./truck-views";
@@ -180,7 +180,6 @@ export class Game {
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;
-  private readonly view: HTMLElement;
   private readonly markers: VehicleMarkers;
   private live: LiveVision | null = null;
   private hoverGround: Vec | null = null;
@@ -219,27 +218,24 @@ export class Game {
     this.plans.warm(this.world.terrain);
   }
 
-  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks) {
+  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
-
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     refreshShadows(this.renderer, this.scene, this.gpu);
-    container.appendChild(this.renderer.domElement);
-    this.view = container;
+    view.appendChild(this.renderer.domElement);
     this.rig = new CameraRig(this.renderer.domElement);
     this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError, this.gpu);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
-
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
+    const views = buildWorldViews(this.world, { bootStep, drawn, scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
@@ -268,7 +264,7 @@ export class Game {
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     this.loops = new SoundLoops(player, music, tracks);
-
+    bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
     this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
@@ -313,7 +309,7 @@ export class Game {
 
     this.bindInput();
     window.addEventListener("resize", () => this.fitView());
-    new ResizeObserver(() => this.fitView()).observe(container);
+    new ResizeObserver(() => this.fitView()).observe(view);
     this.fitView();
     this.refreshUi();
     void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick((this.last = t))), reportError);
