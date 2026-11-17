@@ -80,8 +80,8 @@ function flightOf(chassisId: string, ridge: Ridge, rear: boolean): Landing {
 }
 
 const CASES: [string, string, Ridge, boolean, number][] = [
-  ['scout off a crest onto a 2-tile drop to flat', 'scout', { rise: 0.25, fall: 3, drop: 2 }, false, 18.6],
-  ['scout off a symmetric ridge', 'scout', { rise: 0.45, fall: 0.45, drop: 99 }, false, 10.9],
+  ['scout off a crest onto a 2-tile drop to flat', 'scout', { rise: 0.25, fall: 3, drop: 2 }, false, 19],
+  ['scout off a symmetric ridge', 'scout', { rise: 0.45, fall: 0.45, drop: 99 }, false, 11],
   ['hauler off a crest onto a 2-tile drop to flat', 'hauler', { rise: 0.25, fall: 3, drop: 2 }, false, 18.9],
   ['semi cab off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, false, 19.8],
   ['semi trailer off a crest onto a 2-tile drop to flat', 'semi', { rise: 0.25, fall: 3, drop: 2 }, true, 19.8],

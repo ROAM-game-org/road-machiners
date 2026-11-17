@@ -22,7 +22,7 @@ A round enters a lane of the struck side and walks through the part grid. Every 
 
 A weapon with a splash radius hurts the lanes near a miss with its splash damage and splash penetration. Splash always counts as blast.
 
-Hits push trucks. A struck truck gets `round.damage` times `RULES.hitPush.kinetic` in N·s along the flight, or times `RULES.hitPush.blast` with an upward share of `RULES.hitPush.lift` for a round that digs craters. Trucks in the burst get the blast push scaled by their reach, away from the burst. `src/sim/hit-push.ts` owns the rule.
+Hits push trucks. A struck truck gets `round.damage` times `RULES.hitPush.kinetic` in newton-seconds along the flight, or times `RULES.hitPush.blast` with an upward share of `RULES.hitPush.lift` for a round that digs craters. Trucks in the burst get the blast push scaled by their reach, away from the burst. `src/sim/hit-push.ts` owns the rule.
 
 ## Crashes
 

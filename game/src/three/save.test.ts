@@ -9,7 +9,7 @@ import { addVehicle, comparableWorld, emptyWorld, npcBrain, priced } from '../si
 import { noteAttack } from '../sim/combat';
 import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
-import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
+import { canStowPart, moveItem, plannedTruck, removeAllGoods, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
 import { buyChart, chartsOnSale } from '../sim/charts';
 import { bareVehicle, makePart } from '../sim/factory';
@@ -464,7 +464,8 @@ describe('game save', () => {
     const world = emptyWorld();
     const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
     if (!weapon) throw new Error('Expected weapon');
-    const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
+    removeAllGoods(world.vehicles[0]);
+    const to = stowSpot(world.vehicles[0], weapon)!;
     const next = moveItem(world, weapon.id, to);
     advanceJobs(next);
     writeSave(slots, 'auto', next, RUN, 1000);
@@ -481,11 +482,13 @@ describe('game save', () => {
     const world = emptyWorld();
     const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
     if (!weapon) throw new Error('Expected weapon');
-    const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
-    const panniers = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
-    if (!panniers) throw new Error('Expected panniers');
+    removeAllGoods(world.vehicles[0]);
+    const to = stowSpot(world.vehicles[0], weapon)!;
+    const cage = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'cage');
+    if (!cage) throw new Error('Expected cage');
     const home = { x: weapon.x, y: weapon.y, rot: weapon.rot };
-    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), panniers.id, { x: 0, y: 14, rot: 0 }), weapon.id, home);
+    const moved = moveItem(world, weapon.id, to);
+    const queued = moveItem(moveItem(moved, cage.id, stowSpot(plannedTruck(moved, moved.vehicles[0]), cage)!), weapon.id, home);
     advanceJobs(queued);
     queued.events = [];
     writeSave(slots, 'auto', queued, RUN, 1000);

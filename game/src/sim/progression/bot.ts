@@ -23,7 +23,7 @@ import { type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { cellKey, corePart, engineCells, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
-import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart, tradedSpares } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
@@ -965,8 +965,8 @@ function cargoForSale(world: World, v: Vehicle): Record<string, number> {
   return Object.fromEntries(Object.entries(forSale).filter(([, n]) => n > 0));
 }
 
-function spareItems(v: Vehicle): { itemId: string; partId: string }[] {
-  return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [{ itemId: it.id, partId: it.part.id }] : []));
+function spareItems(v: Vehicle): { partId: string }[] {
+  return tradedSpares(v).map((part) => ({ partId: part.id }));
 }
 
 function hasCargo(world: World, v: Vehicle): boolean {

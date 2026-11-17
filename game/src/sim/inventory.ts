@@ -20,6 +20,7 @@ import { inCombat } from './combat';
 import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, RefitStep, Refusal, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
 import { requireSpareGoods } from './market';
+import { isRelic } from './wear';
 
 export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = mountCellsOf(part.defId)): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
@@ -168,6 +169,10 @@ export function removeAllGoods(v: Vehicle): void {
 
 export function spareParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [it.part] : []));
+}
+
+export function tradedSpares(v: Vehicle): PartInstance[] {
+  return spareParts(v).filter((part) => !isRelic(part));
 }
 
 function refitTruck(w: World, truckId: string | undefined, atGarageOnly: boolean): Vehicle {

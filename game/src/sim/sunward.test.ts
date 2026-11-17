@@ -747,7 +747,7 @@ describe('the order and the road news', () => {
   const site = (id: string) => [...REGION.towns, ...REGION.locations].find((x) => x.id === id)!;
 
   function trader(w: World, shipment: boolean): Vehicle {
-    const npc = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(site('bowl'))[0] });
+    const npc = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(site('bowl'))[0] });
     npc.brain = npcBrain('convoy', npc.pos, ['supplier']);
     npc.brain.goals = [{ kind: 'sell', targetId: 'granary', destination: { ...site('granary').pos }, phase: 'travel', reason: 'deliverCargo', ...(shipment ? { shipment: { good: 'grain', from: 'bowl', to: 'granary' } } : {}) }];
     addGoods(w, npc, 'grain', 4);

@@ -51,9 +51,8 @@ function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: Salv
   const w = emptyWorld(sitePads(siteOf('bowl'))[0]);
   const stock: SalvageStock = structuredClone(target.stock);
   const part = makePart(w, 'mg', 0);
-  stock.parts = stock.parts.filter((p) => p.id !== target.part.id);
-  stock.hidden.parts = stock.hidden.parts.filter((p) => p.id !== target.part.id);
-  stock.hidden.parts.push(part);
+  stock.parts = [];
+  stock.hidden.parts = [part];
   for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
   stock.goods = { ...stock.goods, scrap: 3 };
   w.salvage = [stock];
@@ -438,7 +437,8 @@ describe('rival crews', () => {
     for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
     const { stock } = claimTargets(w, 'bowl')[0];
     const part = makePart(w, 'mg', 0);
-    stock.hidden.parts.push(part);
+    stock.parts = [];
+    stock.hidden.parts = [part];
     stock.goods = { ...stock.goods, scrap: 2 };
     const claim = claimFor(stock, part, { rivalAt: 50, deadline: 5000 });
     if (posted === 'board') shopState(w, 'bowl').contracts = [claim];

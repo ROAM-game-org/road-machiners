@@ -1,10 +1,10 @@
 
 import { NPC_BEHAVIOR, NPC_UPKEEP } from '../data/npcs';
-import { isJunk, maxHp } from './wear';
+import { carriedSpare, isJunk, maxHp, spareTarget } from './wear';
 import { mountedParts } from './grid';
 import { inCombat } from './combat';
 import { bodyCondition } from './npc-decisions';
-import { startJob } from './jobs';
+import { beginFitSpare, startJob } from './jobs';
 import { withinReach } from './npc-activities';
 import { straightClear } from './path';
 import { repairPlan } from './repair';
@@ -29,10 +29,23 @@ export function isDamaged(vehicle: Vehicle): boolean {
   return isStrandedForGood(vehicle) || drivingPartWorn || bodyCondition(vehicle) <= NPC_BEHAVIOR.fleeCondition;
 }
 
-function chooseRepairPart(world: World, vehicle: Vehicle) {
-  return mountedParts(vehicle)
+type RepairPick = { part: PartInstance; bySpare: boolean };
+
+function condition(part: PartInstance): number {
+  return part.hp / maxHp(part);
+}
+
+function wheelForSpare(vehicle: Vehicle): PartInstance | null {
+  return carriedSpare(vehicle) ? spareTarget(vehicle) : null;
+}
+
+function chooseRepairPart(world: World, vehicle: Vehicle): RepairPick | null {
+  const patched = mountedParts(vehicle)
     .filter((part) => !isJunk(part) && repairPlan(world, vehicle, part.id).parts > 0)
-    .sort((a, b) => a.hp / maxHp(a) - b.hp / maxHp(b))[0];
+    .sort((a, b) => condition(a) - condition(b))[0];
+  const wheel = wheelForSpare(vehicle);
+  if (wheel && (!patched || condition(wheel) <= condition(patched))) return { part: wheel, bySpare: true };
+  return patched ? { part: patched, bySpare: false } : null;
 }
 
 function canSearchForShade(world: World, vehicle: Vehicle): boolean {
@@ -75,10 +88,10 @@ function chooseRepairSpot(world: World, vehicle: Vehicle): Vec | null {
   return shadedSpotNear(world, vehicle, NPC_UPKEEP.shadeSearchRadius);
 }
 
-export function chooseNpcRepair(world: World, vehicle: Vehicle, condition: number): NpcActivity | null {
-  const part = chooseRepairPart(world, vehicle);
-  if (!part) return null;
-  if (part.hp / maxHp(part) > condition) return null;
+export function chooseNpcRepair(world: World, vehicle: Vehicle, threshold: number): NpcActivity | null {
+  const pick = chooseRepairPart(world, vehicle);
+  if (!pick) return null;
+  if (condition(pick.part) > threshold) return null;
   const destination = chooseRepairSpot(world, vehicle);
   return {
     kind: 'repair',
@@ -106,12 +119,16 @@ export function resolveNpcRepair(world: World, vehicle: Vehicle, activity: NpcAc
 
 function startNpcRepair(world: World, vehicle: Vehicle): boolean {
   if (inCombat(world, vehicle)) return false;
-  const part = chooseRepairPart(world, vehicle);
-  if (!part) return true;
-  const plan = repairPlan(world, vehicle, part.id, 1);
+  const pick = chooseRepairPart(world, vehicle);
+  if (!pick) return true;
+  if (pick.bySpare) {
+    beginFitSpare(world, vehicle, pick.part.id);
+    return false;
+  }
+  const plan = repairPlan(world, vehicle, pick.part.id, 1);
   startJob(world, vehicle, {
     kind: 'repair',
-    partId: part.id,
+    partId: pick.part.id,
     parts: plan.parts,
     turnsLeft: plan.turns,
     total: plan.turns,

@@ -4,7 +4,7 @@ import { advanceChaosHighway, endRun } from '../chaos-highway';
 import { chaosHighwayWorld } from '../testkit';
 import type { GameEvent, World } from '../types';
 import { cloneWorld } from '../world';
-import { RunLog } from './run-log';
+import { kitOf, RunLog } from './run-log';
 
 function spawnFirst(w: World): World {
   const next = cloneWorld(w);
@@ -30,7 +30,8 @@ describe('the Chaos Highway run log', () => {
     expect(line.elites).toBe(after.chaosHighway!.groups[0].elites);
     expect(line.money).toBe(Math.round(after.chaosHighway!.groups[0].money));
     expect(line.trucks[0].guns.length).toBeGreaterThan(0);
-    expect(line.trucks[0].armor).toBe(0);
+    const first = after.vehicles.find((v) => v.id === line.trucks[0].id)!;
+    expect(line.trucks[0]).toMatchObject(kitOf(first));
     expect(line.trucks[0].gear).toBeGreaterThan(0);
   });
 

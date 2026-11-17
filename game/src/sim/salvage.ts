@@ -38,7 +38,7 @@ import type { Contract } from './market';
 import { playerCommand, Refused } from './world';
 import { clamp, dist, type Vec } from './vec';
 import { OPENING_WRECK_ID } from './opening';
-import { maxHp } from './wear';
+import { isRelic, maxHp } from './wear';
 import { modeRules } from './settings';
 
 export function initializeSalvage(world: World): void {
@@ -208,23 +208,34 @@ function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): stri
   return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
 }
 
-export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  const reserved = reservedFrom(world, vehicle, stock);
-  if (reserved === null || !hasSalvage(stock)) return false;
-  return hasOnly(stock, reserved);
+function takesRelics(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  return vehicle.id === world.player.vehicleId || claimOn(world, stock)?.rival === vehicle.id;
 }
 
-function hasOnly(stock: SalvageStock, partId: string): boolean {
-  const others = stock.parts.some((p) => p.id !== partId) || stock.hidden.parts.some((p) => p.id !== partId);
+function lockedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): Set<string> {
+  const reserved = reservedFrom(world, vehicle, stock);
+  const locked = new Set<string>(reserved === null ? [] : [reserved]);
+  if (takesRelics(world, vehicle, stock)) return locked;
+  for (const part of [...stock.parts, ...stock.hidden.parts]) if (isRelic(part)) locked.add(part.id);
+  return locked;
+}
+
+export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const locked = lockedFrom(world, vehicle, stock);
+  if (locked.size === 0 || !hasSalvage(stock)) return false;
+  return hasOnly(stock, locked);
+}
+
+function hasOnly(stock: SalvageStock, locked: Set<string>): boolean {
+  const others = stock.parts.some((p) => !locked.has(p.id)) || stock.hidden.parts.some((p) => !locked.has(p.id));
   const plain = Object.values(stock.goods).some((n) => n > 0) || Object.values(stock.hidden.goods).some((n) => n > 0);
   return !others && !plain && !hasStores(stock) && stock.hidden.fuel <= 0 && stock.hidden.supplies <= 0;
 }
 
 export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  const reserved = reservedFrom(world, vehicle, stock);
-  if (reserved === null) return hiddenUnits(stock) > 0 || canTakeRevealed(world, vehicle, stock, stock.parts);
-  const hidden = hiddenUnits(stock) - (stock.hidden.parts.some((p) => p.id === reserved) ? 1 : 0);
-  return hidden > 0 || canTakeRevealed(world, vehicle, stock, stock.parts.filter((p) => p.id !== reserved));
+  const locked = lockedFrom(world, vehicle, stock);
+  const hidden = hiddenUnits(stock) - stock.hidden.parts.filter((p) => locked.has(p.id)).length;
+  return hidden > 0 || canTakeRevealed(world, vehicle, stock, stock.parts.filter((p) => !locked.has(p.id)));
 }
 
 function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, parts: PartInstance[]): boolean {
@@ -273,11 +284,11 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!stock) throw new Error(`Unknown salvage ${stockId}`);
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
-  const reserved = reservedFrom(world, vehicle, stock);
-  const mine = reserved === null ? claimedPartIn(world, stock) : null;
+  const locked = lockedFrom(world, vehicle, stock);
+  const mine = reservedFrom(world, vehicle, stock) === null ? claimedPartIn(world, stock) : null;
   let moved = 0;
   stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
-    if (part.id === reserved || moved >= units || !stowPart(world, vehicle, part)) return true;
+    if (locked.has(part.id) || moved >= units || !stowPart(world, vehicle, part)) return true;
     moved++;
     return false;
   });

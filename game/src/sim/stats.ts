@@ -1,7 +1,7 @@
 
 import { chassisDef, type AbilityId } from '../data/chassis';
 import { accelFactor, arcBonus, chassisAbility, rangeFactor, reloadCut, gunPowerFactor, offRoadCut, topSpeedFactor } from './chassis-features';
-import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/parts';
+import { partDef, type EngineDef, type StoreDef, type UtilityDef, type UtilityEffect, type WeaponDef } from '../data/parts';
 import { MIN_NPC_SPEED, NPCS, PRIORITY_TOP, SPEED_SHARE, type LoadoutPriorities } from '../data/npcs';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
@@ -180,14 +180,15 @@ export function plainFuelPerTile(world: World, v: Vehicle): number {
 }
 
 function fuelPerTileWith(world: World, v: Vehicle, fuelMult: number): number {
-  return chassisDef(v.chassisId).fuelPerTile * fuelMult * RULES.fuelUseFactor * fuelUseScale(world);
+  const battery = 1 + batteryFuel(v);
+  return chassisDef(v.chassisId).fuelPerTile * fuelMult * battery * RULES.fuelUseFactor * fuelUseScale(world);
 }
 
 export function climbGrade(world: World, v: Vehicle): number {
   const t = PHYSICS.truck;
   const ratio = vehicleStats(world, v).accel / chassisDef(v.chassisId).accel;
   const sine = Math.min(0.99, Math.max(0, ((t.engineAccel * (1 + t.climbReserve) * ratio) / (t.gravityScale * PHYSICS.gravity)) * t.climbPlanShare));
-  const grade = Math.tan(Math.asin(sine));
+  const grade = Math.min(t.maxClimbGrade, Math.tan(Math.asin(sine)));
   if (!Number.isFinite(grade)) throw new Error(`Climb grade of ${v.id} is not finite`);
   return grade;
 }
@@ -203,6 +204,7 @@ type LoadoutStats = {
   engine: EngineDef | null;
   gunDraw: number;
   gunCapacity: number | null;
+  batteryFuel: number;
   weapons: readonly MountedWeapon[];
 };
 
@@ -218,6 +220,7 @@ const LOADOUT_STATS = loadoutSlot((l: Loadout): LoadoutStats => {
     engine: worn,
     gunDraw: gunDrawOf(l),
     gunCapacity: worn ? gunCapacityOf(l, worn) : null,
+    batteryFuel: workingBatteries(l).reduce((sum, b) => sum + b.fuel, 0),
     weapons: mountedItems(l, 'weapon').map((item) => ({ part: item.part, def: weaponOn(l, item.part), spans: gunSpans(l, item), facing: facingOf(item), unit: unitOfCells(l.chassisId, itemCells(item)).index })),
   };
 });
@@ -316,7 +319,20 @@ function gunDrawOf(v: Loadout): number {
 }
 
 function gunCapacityOf(v: Loadout, engine: EngineDef): number {
-  return engine.capacity * gunPowerFactor(v.chassisId);
+  return engine.capacity * gunPowerFactor(v.chassisId) + workingBatteries(v).reduce((sum, b) => sum + b.power, 0);
+}
+
+export function batteryFuel(v: Loadout): number {
+  return loadoutFact(v, LOADOUT_STATS).batteryFuel;
+}
+
+type BatteryEffect = Extract<UtilityEffect, { type: 'battery' }>;
+
+function workingBatteries(v: Loadout): BatteryEffect[] {
+  return mountedParts(v, 'utility').flatMap((p) => {
+    const effect = p.hp > 0 ? wornDef<UtilityDef>(p).effect : null;
+    return effect?.type === 'battery' ? [effect] : [];
+  });
 }
 
 export function gunCapacity(v: Vehicle): number | null {

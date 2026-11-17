@@ -20,7 +20,7 @@ const SELL: NpcActivity = { kind: 'sell', targetId: 'nose', destination: { x: 15
 
 function convoyWithGuardAt(guardX: number): { w: World; convoy: Vehicle; guard: Vehicle } {
   const w = emptyWorld({ x: 200, y: 200 });
-  const convoy = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 60, y: 60 });
+  const convoy = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { x: 60, y: 60 });
   convoy.brain!.goals = [{ ...SELL }];
   const guard = createNpc(w, 'convoyGuard', ['guard'], 'scout', ['mg', 'stockEngine'], { x: guardX, y: 60 });
   startEscort(w, guard, convoy, null, 0);
@@ -122,7 +122,7 @@ describe('a leader waiting for a follower that keeps its truck running', () => {
 describe('a far follower', () => {
   function farFollower() {
     const w = emptyWorld({ x: 300, y: 300 });
-    const leader = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 200, y: 60 });
+    const leader = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { x: 200, y: 60 });
     const guard = createNpc(w, 'convoyGuard', ['guard'], 'scout', ['mg', 'stockEngine'], { x: 100, y: 60 });
     const goal = startEscort(w, guard, leader, null, 0);
     steerFollow(w, guard, goal);

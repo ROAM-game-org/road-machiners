@@ -1,16 +1,17 @@
-import { partDef, TALL_RISE, type WeaponDef } from '../data/parts';
+import { partDef, SACK_ARMOR, TALL_RISE, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
-import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, laneCellShare, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { armorOn, aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, laneCellShare, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { GRID_CELL, cellCenter, spanOf } from './body';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
-import { baseGrid, corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
+import { baseGrid, corePart, coreParts, facingOf, gridOf, holdCell, holdOwners, itemCells, itemSize, mountedItems, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { maxHp } from './wear';
 import { leakFuel } from './supplies';
+import { spillDeadCells } from './spill';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
 import { coreItem, freeMounts, rectOf, roundedSpans, shadowHolds, shadowOf } from '../test/layout-spots';
 import type { GridItem, Rot, Vehicle, World } from './types';
@@ -303,15 +304,15 @@ describe('lane depth', () => {
     expect(rear.length).toBe(2);
     for (const p of rear) expect(p.hp).toBeGreaterThan(0);
   });
-  it('a broken cargo box still slows rounds from the rear', () => {
+  it('a broken hauling rack still slows rounds from the rear', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'scrapjaw', 'hauler', ['trailerBox'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['haulingRack'], { x: 40, y: 40 });
     const round = { damage: 50, pen: 4, blast: false, armorShare: 1 };
     const lanes = Array.from({ length: laneCount(v, 'rear') }, (_, lane) => lane);
     const working = lanes.map((lane) => planLane(v, 'rear', lane, round));
     mountedParts(v, 'cargo')[0].hp = 0;
-    const broken = lanes.map((lane) => planLane(v, 'rear', lane, round).filter((h) => h.part.defId !== 'trailerBox'));
-    expect(broken).toEqual(working.map((hits) => hits.filter((h) => h.part.defId !== 'trailerBox')));
+    const broken = lanes.map((lane) => planLane(v, 'rear', lane, round).filter((h) => h.part.defId !== 'haulingRack'));
+    expect(broken).toEqual(working.map((hits) => hits.filter((h) => h.part.defId !== 'haulingRack')));
   });
 });
 
@@ -440,7 +441,7 @@ describe('shadows of tall parts', () => {
     expect(roundedSpans(gunSpans(v, gun))).toEqual(roundedSpans(without({ from: -135, to: 135 }, shadow)));
   });
 
-  it('a cargo box behind a gun blinds it there, and a flat rack does not', () => {
+  it('a tall hauling rack behind a gun blinds it there, and flat panniers do not', () => {
     const w = emptyWorld();
     const base = truckWith(w, 'hauler', []);
     const cab = coreItem(base, 'cab');
@@ -448,13 +449,13 @@ describe('shadows of tall parts', () => {
       const withGun = truckWith(w, 'hauler', []);
       putGun(w, withGun, 'mg', g);
       const gun = itemOf(withGun, 'mg');
-      return freeMounts(w, withGun, 'trailerBox').map((b) => ({ g, b, gun, probe: { ...gun, id: 'box', x: b.x, y: b.y, rot: b.rot, part: makePart(w, 'trailerBox', 0) } as GridItem }));
+      return freeMounts(w, withGun, 'haulingRack').map((b) => ({ g, b, gun, probe: { ...gun, id: 'box', x: b.x, y: b.y, rot: b.rot, part: makePart(w, 'haulingRack', 0) } as GridItem }));
     }).find(({ gun, probe }) => !overlap(gun, probe) && shadowHolds(shadowOf(gun, probe), 130) && !shadowHolds(shadowOf(gun, cab), 130))!;
     const boxed = truckWith(w, 'hauler', []);
     const racked = truckWith(w, 'hauler', []);
     for (const v of [boxed, racked]) putGun(w, v, 'mg', found.g);
-    putGun(w, boxed, 'trailerBox', found.b);
-    putGun(w, racked, 'rack', found.b);
+    putGun(w, boxed, 'haulingRack', found.b);
+    putGun(w, racked, 'panniers', found.b);
     expect(spansHold(gunSpans(boxed, itemOf(boxed, 'mg')), 130)).toBe(false);
     expect(spansHold(gunSpans(racked, itemOf(racked, 'mg')), 130)).toBe(true);
   });
@@ -464,7 +465,7 @@ describe('shadows of tall parts', () => {
     for (const gun of mountedItems(v, 'weapon')) {
       const spans = gunSpans(v, gun);
       for (const angle of [0, 30, -30]) expect(spansHold(spans, angle)).toBe(true);
-      expect(gunBlockers(v, gun)).toEqual([]);
+      expect(gunBlockers(v, gun).map((b) => b.id)).not.toContain(coreItem(v, 'cab').id);
     }
   });
 
@@ -492,14 +493,14 @@ describe('shadows of tall parts', () => {
     const w = emptyWorld();
     const v = truckWith(w, 'hauler', []);
     putGun(w, v, 'mg', freeMounts(w, v, 'mg')[0]);
-    const saved = TALL_RISE.trailerBox;
+    const saved = TALL_RISE.haulingRack;
     const rises = TALL_RISE as Record<string, number>;
-    delete rises.trailerBox;
+    delete rises.haulingRack;
     try {
-      putGun(w, v, 'trailerBox', freeMounts(w, v, 'trailerBox')[0]);
-      expect(() => gunSpans(v, itemOf(v, 'mg'))).toThrow(/trailerBox/);
+      putGun(w, v, 'haulingRack', freeMounts(w, v, 'haulingRack')[0]);
+      expect(() => gunSpans(v, itemOf(v, 'mg'))).toThrow(/haulingRack/);
     } finally {
-      rises.trailerBox = saved;
+      rises.haulingRack = saved;
     }
   });
 
@@ -508,6 +509,45 @@ describe('shadows of tall parts', () => {
     const v = truckWith(w, 'hauler', []);
     putGun(w, v, 'cannon', freeMounts(w, v, 'cannon', 2).at(-1)!);
     expect(spanDegrees(gunSpans(v, itemOf(v, 'cannon')))).toBe(Math.min((partDef('cannon') as WeaponDef).arc, 360));
+  });
+});
+
+describe('guns shadow guns', () => {
+  function vanWithTailGatling() {
+    const w = emptyWorld();
+    const v = truckWith(w, 'van', []);
+    const tail = freeMounts(w, v, 'gatling').reduce((a, b) => (b.y > a.y ? b : a));
+    putGun(w, v, 'gatling', tail);
+    return { w, v, gatling: itemOf(v, 'gatling') };
+  }
+
+  function gunAhead(w: World, v: Vehicle, of: GridItem, rot: Rot = 0): { x: number; y: number; rot: Rot } {
+    const spots = freeMounts(w, v, 'mg', rot).filter((s) => s.y < of.y && rectOf({ ...of, ...s, id: 'p' }).x0 < rectOf(of).x1 && rectOf({ ...of, ...s, id: 'p' }).x1 > rectOf(of).x0);
+    return spots.reduce((a, b) => (b.y > a.y ? b : a));
+  }
+
+  it('a gun ahead of the van tail gatling cuts its open share (#1678)', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    const alone = spanDegrees(gunSpans(v, gatling));
+    putGun(w, v, 'mg', gunAhead(w, v, gatling));
+    expect(spanDegrees(gunSpans(v, gatling))).toBeLessThan(alone);
+    expect(gunBlockers(v, gatling).map((b) => b.id)).toContain(itemOf(v, 'mg').id);
+  });
+
+  it('two guns on one floor shadow each other', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    putGun(w, v, 'mg', gunAhead(w, v, gatling, 2));
+    const mg = itemOf(v, 'mg');
+    expect(gunBlockers(v, mg).map((b) => b.id)).toContain(gatling.id);
+    expect(openArcShares(v).every((share) => share < 1)).toBe(true);
+  });
+
+  it('a broken gun still shadows the guns behind it', () => {
+    const { w, v, gatling } = vanWithTailGatling();
+    putGun(w, v, 'mg', gunAhead(w, v, gatling));
+    const working = spanDegrees(gunSpans(v, gatling));
+    (itemOf(v, 'mg') as Extract<GridItem, { kind: 'part' }>).part.hp = 0;
+    expect(spanDegrees(gunSpans(v, gatling))).toBe(working);
   });
 });
 
@@ -560,7 +600,7 @@ describe('gun layout', () => {
     expect(gunLayoutScore(facingCab)).toBeLessThan(gunLayoutScore(facingAway));
   });
 
-  it('scores a cargo box behind two guns below a flat rack there', () => {
+  it('scores a tall hauling rack behind two guns below flat panniers there', () => {
     const w = emptyWorld();
     const base = truckWith(w, 'hauler', []);
     const spots = freeMounts(w, base, 'mg');
@@ -573,22 +613,22 @@ describe('gun layout', () => {
       return v;
     };
     const behind = withGuns();
-    const boxSpot = freeMounts(w, behind, 'trailerBox').find((b) => {
-      const probe: GridItem = { id: 'box', x: b.x, y: b.y, rot: b.rot, kind: 'part', part: makePart(w, 'trailerBox', 0) };
+    const boxSpot = freeMounts(w, behind, 'haulingRack').find((b) => {
+      const probe: GridItem = { id: 'box', x: b.x, y: b.y, rot: b.rot, kind: 'part', part: makePart(w, 'haulingRack', 0) };
       const guns = mountedItems(behind, 'weapon');
       const inArc = [-130, -90, -45, 45, 90, 130];
       return guns.every((gun) => !overlap(gun, probe)) && guns.some((gun) => inArc.some((a) => shadowHolds(shadowOf(gun, probe), a)));
     })!;
     const boxed = withGuns();
     const racked = withGuns();
-    putGun(w, boxed, 'trailerBox', boxSpot);
-    putGun(w, racked, 'rack', boxSpot);
+    putGun(w, boxed, 'haulingRack', boxSpot);
+    putGun(w, racked, 'panniers', boxSpot);
     expect(gunLayoutScore(boxed)).toBeLessThan(gunLayoutScore(racked));
   });
 
   it('reads the open share of a gun arc: low facing the cab and a box, full once turned away', () => {
     const w = emptyWorld();
-    const box = { defId: 'trailerBox', x: 1, y: 9 };
+    const box = { defId: 'haulingRack', x: 1, y: 9 };
     const share = (gun: { defId: string; x: number; y: number; rot?: Rot }, extra: { defId: string; x: number; y: number }[] = []) => {
       const v = truckWith(w, 'longbed', [gun, ...extra]);
       return openArcShares(v)[0];
@@ -716,5 +756,39 @@ describe('lanePoint on the sides', () => {
     expect(row).toBeCloseTo(along(2) - along(3), 5);
     expect(along(0) - along(1)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
     expect(along(last - 1) - along(last)).toBeCloseTo(half.x - (innerHalf - GRID_CELL / 2), 5);
+  });
+});
+
+describe('sacks', () => {
+  function sacked() {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['sacks', 'stockEngine'], { x: 40, y: 40 });
+    v.items = v.items.filter((it) => it.kind !== 'good');
+    const sack = defOf(v, 'sacks');
+    const at = holdOwners(v).indexOf(sack.id);
+    const load: GridItem = { id: 'grain', ...holdCell(gridOf(v), at), rot: 0, kind: 'good', good: 'salt' };
+    return { w, v, sack, load };
+  }
+
+  it('gives the hull one hold cell of its own', () => {
+    const { v, sack } = sacked();
+    expect(holdOwners(v).filter((owner) => owner === sack.id)).toHaveLength(1);
+  });
+
+  it('armors its spot only while cargo lies on its hold cell', () => {
+    const { v, sack, load } = sacked();
+    const empty = armorOn(v, sack, false);
+    v.items.push(load);
+    expect(armorOn(v, sack, false) - empty).toBe(SACK_ARMOR);
+  });
+
+  it('a broken sack loses the armor and spills its load', () => {
+    const { w, v, sack, load } = sacked();
+    const empty = armorOn(v, sack, false);
+    v.items.push(load);
+    sack.hp = 0;
+    expect(armorOn(v, sack, false)).toBe(empty);
+    spillDeadCells(w);
+    expect(v.items.some((it) => it.id === 'grain')).toBe(false);
   });
 });

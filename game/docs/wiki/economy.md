@@ -142,7 +142,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
 | `ECONOMY.scrapPerKg` | 0.0633 |
 | `EFFORT.wage` | {"1":0.1233,"2":0.3333,"3":0.7333} |
-| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"accessory":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[270,720],"engine":[270,720],"armor":[270,720],"accessory":[270,720],"cargo":[270,720],"scanner":[270,720],"store":[270,720],"utility":[270,720],"chassis":[4200,6300],"good":[50,100]},"3":{"weapon":[405,855],"engine":[405,855],"armor":[405,855],"accessory":[405,855],"cargo":[405,855],"scanner":[405,855],"store":[405,855],"utility":[405,855],"chassis":[4275,6300],"good":[40,80]}} |
+| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"accessory":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"spare":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[270,720],"engine":[270,720],"armor":[270,720],"accessory":[270,720],"cargo":[270,720],"scanner":[270,720],"store":[270,720],"utility":[270,720],"spare":[270,720],"chassis":[4200,6300],"good":[50,100]},"3":{"weapon":[405,855],"engine":[405,855],"armor":[405,855],"accessory":[405,855],"cargo":[405,855],"scanner":[405,855],"store":[405,855],"utility":[405,855],"spare":[405,855],"chassis":[4275,6300],"good":[40,80]}} |
 | `PRODUCTION.elasticity` | 0.6 |
 | `ECONOMY.supplyPrice.fuel` | 1 |
 | `ECONOMY.supplyPrice.supplies` | 1.67 |

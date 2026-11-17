@@ -1,20 +1,20 @@
 
 import { GOODS } from "../data/goods";
-import { partDef } from "../data/parts";
+import { partDef, SPARE_FIT_WORK } from "../data/parts";
 import { RULES } from "../data/rules";
 import { STRIP } from "../data/salvage";
 import { WORK } from "../data/utilities";
 import { PERK_NUMBERS } from "../data/skills";
 import { firstAidTurns, firstAidTurnSupplies, maxHealthOf } from "./health";
 import { inCombat } from "./combat";
-import { playerVehicle } from "./damage";
+import { isPlayerTruck, playerVehicle } from "./damage";
 import { partValue } from "./wear";
 import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mountedParts } from "./grid";
-import { addGoods, applyRefitLayout, getRefitLayout, movesWork, NOTHING_TAKEN, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
+import { addGoods, applyRefitLayout, getRefitLayout, movesWork, NOTHING_TAKEN, refitTurns, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
 import { requireSpareGoods, shopAt, spareGoods } from "./market";
-import { isJunk, maxHp } from "./wear";
+import { carriedSpare, fitSpare, isJunk, isRelic, maxHp, spareTarget } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup, takeError } from "./salvage";
@@ -130,6 +130,46 @@ function canAutoPatch(world: World, v: Vehicle): boolean {
   return !v.job && isParkedForWork(world, v) && freeParts(world, v) > 0 && !inCombat(world, v);
 }
 
+export function fitSpareBlocker(world: World, v: Vehicle): Refusal | null {
+  return workBlocker(world, v) ?? (spareTarget(v) ? null : { id: "noDamagedWheel" });
+}
+
+export function fitSpareTurns(world: World, v: Vehicle): number {
+  return isPlayerTruck(world, v) ? movesWork(world, v, SPARE_FIT_WORK) : refitTurns(world, v, SPARE_FIT_WORK);
+}
+
+export function startFitSpare(world: World, wheelId?: string): World {
+  return playerCommand(world, (w) => {
+    const v = playerVehicle(w);
+    const blocker = fitSpareBlocker(w, v);
+    if (blocker) throw new Refused(blocker);
+    const wheel = wheelId ?? spareTarget(v)?.id;
+    if (!wheel) throw new Refused({ id: "noDamagedWheel" });
+    beginFitSpare(w, v, wheel);
+  });
+}
+
+export function beginFitSpare(world: World, v: Vehicle, wheelId: string): void {
+  const spare = carriedSpare(v);
+  if (!spare) throw new Error(`${v.id} carries no spare tire`);
+  if (!coreParts(v, "wheel").some((p) => p.id === wheelId && p.hp < maxHp(p))) throw new Refused({ id: "noDamagedWheel" });
+  const turns = fitSpareTurns(world, v);
+  if (turns === 0) return fitSpare(v, wheelId, spare.id);
+  startJob(world, v, { kind: "fitSpare", wheelId, spareId: spare.id, turnsLeft: turns, total: turns });
+}
+
+function fitSpareTurn(v: Vehicle, job: Extract<Job, { kind: "fitSpare" }>): boolean {
+  job.turnsLeft = Math.max(0, job.turnsLeft - 1);
+  if (job.turnsLeft > 0) return false;
+  fitSpare(v, job.wheelId, job.spareId);
+  return true;
+}
+
+function isFitSpareStalled(v: Vehicle, job: Extract<Job, { kind: "fitSpare" }>): boolean {
+  const wheel = coreParts(v, "wheel").find((p) => p.id === job.wheelId);
+  return !wheel || wheel.hp >= maxHp(wheel) || !v.items.some((it) => it.kind === "part" && it.part.id === job.spareId);
+}
+
 export function startStrip(world: World, partId: string): World {
   return playerCommand(world, (w) => {
     const v = playerVehicle(w);
@@ -143,10 +183,14 @@ export function startStrip(world: World, partId: string): World {
 
 type PartItem = Extract<GridItem, { kind: "part" }>;
 
+export function isStrippable(part: PartInstance): boolean {
+  return partDef(part.defId).kind !== "core" && !isRelic(part);
+}
+
 function findStripItem(v: Vehicle, partId: string): PartItem {
   const item = stripItem(v, partId);
   if (!item) throw new Error(`No part ${partId} on ${v.id}`);
-  if (partDef(item.part.defId).kind === "core") throw new Error("A built-in part cannot be stripped");
+  if (!isStrippable(item.part)) throw new Error("A built-in part or a relic cannot be stripped");
   return item;
 }
 
@@ -257,6 +301,7 @@ function advanceJob(world: World, v: Vehicle, job: Job): void {
 function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return isRepairStalled(world, v, job);
   if (job.kind === "strip") return isStripStalled(v, job.partId);
+  if (job.kind === "fitSpare") return isFitSpareStalled(v, job);
   if (job.kind === "search") return isSearchStalled(world, v, job);
   if (job.kind === "survey") return isSurveyStalled(world, job);
   return isSiteWorkStalled(world, v, job);
@@ -274,6 +319,7 @@ function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "search") return searchTurn(world, v, job);
   if (job.kind === "survey") return surveyTurn(world, job);
   if (job.kind === "strip") return stripTurn(world, v, job);
+  if (job.kind === "fitSpare") return fitSpareTurn(v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);
   if (job.kind === "firstAid") return firstAidTurn(world, v, job);

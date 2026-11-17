@@ -11,8 +11,8 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, belowDeck, cellsTurned, facingOf, isMounted, itemBulk, itemCells } from '../../sim/grid';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, itemLookId, LOADED_MODELS, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { baseGrid, belowDeck, cellsTurned, facingOf, holdsItemFor, isMounted, itemBulk, itemCells } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
@@ -75,7 +75,7 @@ type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 export function signatureOf(v: Vehicle, playerPaint: TruckPaint): string {
   const items = v.items
     .map((it) => {
-      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : itemLookId(it);
+      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}${carriesLoad(v, it) ? ':loaded' : ''}` : itemLookId(it);
       return `${what}@${it.x},${it.y},${it.rot}`;
     })
     .join(',');
@@ -576,7 +576,7 @@ export class VehicleView {
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number): THREE.Object3D {
-    const obj = itemObject(itemLookId(item));
+    const obj = itemObject(itemLookId(item), carriesLoad(v, item));
     const spot = this.spots.get(item);
     if (!spot) throw new Error(`Item ${item.id} on ${v.chassisId} has no standing spot`);
     const at = footprint(v, item, spot.y);
@@ -597,7 +597,7 @@ export class VehicleView {
   private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
     if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
-    const obj = armorModel(def.id);
+    const obj = armorModel(def.id, carriesLoad(v, item));
     poseArmor(obj, drawnArmorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
     tint(obj, paint, lookOf(item));
     return obj;
@@ -959,6 +959,10 @@ function needsSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
 
 function levelSpot(v: Pick<Vehicle, 'chassisId'>, item: GridItem): ItemSpot {
   return { dx: 0, dz: 0, y: standingY(v, item), slope: { x: 0, z: 0 }, supports: [], held: [] };
+}
+
+function carriesLoad(v: Pick<Vehicle, 'chassisId' | 'items'>, item: GridItem): boolean {
+  return item.kind === 'part' && item.part.defId in LOADED_MODELS && holdsItemFor(v, item.part.id);
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {

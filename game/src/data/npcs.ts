@@ -89,6 +89,7 @@ const TRADER_SPARES: SpareTable = {
     { value: "scrapPanels", weight: 2 },
     { value: "flatFour", weight: 1 },
     { value: "rack", weight: 1 },
+    { value: "spareTire", weight: 2 },
   ],
   count: [
     { value: 0, weight: 2 },
@@ -167,8 +168,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 0.1, firepower: 3, armor: 3, cargo: 0 },
     cargoPart: [
       { value: null, weight: 6 },
-      { value: "rack", weight: 2 },
-      { value: "flatbed", weight: 1 },
+      { value: "rack", weight: 3 },
     ],
     goods: [
       { value: null, weight: 3 },
@@ -198,11 +198,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "trailerBox", weight: 6 },
-      { value: "flatbed", weight: 4 },
-      { value: "lightFrame", weight: 2 },
-      { value: "enclosedFrame", weight: 2 },
-      { value: "heavyFrame", weight: 1 },
+      { value: "haulingRack", weight: 11 },
+      { value: "rack", weight: 4 },
     ],
     goods: NO_GOODS,
     haul: { kg: CRATE_MASS, cells: 1 },
@@ -224,10 +221,9 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "rack", weight: 5 },
+      { value: "rack", weight: 8 },
       { value: "panniers", weight: 4 },
-      { value: "flatbed", weight: 3 },
-      { value: "lightFrame", weight: 1 },
+      { value: "haulingRack", weight: 1 },
     ],
     goods: [
       { value: null, weight: 2 },
@@ -326,9 +322,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 2, firepower: 1, armor: 3, cargo: 2 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "rack", weight: 4 },
+      { value: "rack", weight: 6 },
       { value: "panniers", weight: 3 },
-      { value: "flatbed", weight: 2 },
     ],
     goods: [
       { value: null, weight: 3 },
@@ -354,10 +349,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: "panniers", weight: 5 },
-      { value: "rack", weight: 3 },
-      { value: "flatbed", weight: 2 },
-      { value: "lightFrame", weight: 1 },
-      { value: "trailerBox", weight: 1 },
+      { value: "rack", weight: 5 },
+      { value: "haulingRack", weight: 2 },
     ],
     goods: [
       { value: null, weight: 2 },
@@ -382,10 +375,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
-      { value: "trailerBox", weight: 5 },
-      { value: "flatbed", weight: 3 },
-      { value: "enclosedFrame", weight: 2 },
-      { value: "heavyFrame", weight: 1 },
+      { value: "haulingRack", weight: 8 },
+      { value: "rack", weight: 3 },
     ],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },

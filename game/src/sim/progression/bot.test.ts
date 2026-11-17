@@ -664,7 +664,7 @@ describe('the bot in a fight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel', 'rack'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'heavyDiesel', 'haulingRack', 'rack'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -937,7 +937,7 @@ describe('the bot in a fight', () => {
       const w = emptyWorld({ x: 30, y: 30 });
       const me = playerVehicle(w);
       if (slowed) for (const wheel of mountedParts(me).filter((p) => p.defId.includes('wheel'))) wheel.hp = 0;
-      const raider = addVehicle(w, 'scrapjaw', 'wagon', [...weapons, 'stockEngine'], { x: slowed ? 33 : 36, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'wagon', [...weapons, slowed ? 'tunedEngine' : 'stockEngine'], { x: slowed ? 33 : 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
       return { w, raider, me };

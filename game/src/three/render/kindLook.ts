@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PARTS, type PartKind } from '../../data/parts';
-import { partModel } from '../../render/partLooks';
+import { loadedLook } from '../../render/partLooks';
 import { GUN_LOOK } from './gunLook';
 import { model } from './models';
 import { markToned } from './truckMesh';
@@ -19,8 +19,8 @@ export function kindTones(id: string): Record<string, KindTone> | null {
   return def ? (KIND_LOOK[def.kind] ?? null) : null;
 }
 
-export function itemObject(id: string): THREE.Object3D {
-  const obj = model(partModel(id));
+export function itemObject(id: string, loaded = false): THREE.Object3D {
+  const obj = model(loadedLook(id, loaded));
   const tones = kindTones(id);
   if (tones) obj.traverse((o) => retone(o, tones));
   return obj;

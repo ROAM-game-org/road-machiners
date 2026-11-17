@@ -17,6 +17,7 @@ import { cloudsSeenBy, contactDifficulty, contactsOf } from './detect';
 import { litAt, nightLights } from './hazards';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { sightFactor } from './chassis-features';
+import { periscopeSight } from './utility';
 import { PERK_NUMBERS } from '../data/skills';
 
 function propsNear(world: World, a: Vec, b: Vec): Obstacle[] {
@@ -37,7 +38,7 @@ function conditionFactor(world: World, viewer: Vehicle, lit: boolean): number {
 
 function sightScale(world: World, viewer: Vehicle): number {
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return skill * sightFactor(viewer.chassisId);
+  return skill * sightFactor(viewer.chassisId) * periscopeSight(viewer);
 }
 
 export function grayReach(world: World, viewer: Vehicle): number {

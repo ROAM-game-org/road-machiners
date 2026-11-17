@@ -147,6 +147,7 @@ export type Job =
   | { kind: "oddJobs"; turnsLeft: number; total: number }
   | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
+  | { kind: "fitSpare"; wheelId: string; spareId: string; turnsLeft: number; total: number }
   | RefitJob;
 
 export type BusinessDeal = "resupply" | "sell" | "trade";
@@ -249,6 +250,7 @@ export type Refusal =
   | { id: 'salvagePartGone' }
   | { id: 'builtInStays' }
   | { id: 'emptyRackFirst' }
+  | { id: 'noDamagedWheel' }
   | { id: 'truckOutOfReach' }
   | { id: 'truckPartGone' }
   | { id: 'partQueued' }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { playerVehicle } from '../sim/damage';
-import { bareGrid, freeCells, gridOf } from '../sim/grid';
+import { freeCells, gridOf } from '../sim/grid';
 import { addGoods } from '../sim/inventory';
 import { addVehicle } from '../sim/testkit';
 
@@ -18,7 +18,8 @@ describe('crates on a bed row across a save', () => {
     const me = addVehicle(w, 'player', chassisId, ['stockEngine', 'rack'], first.pos);
     w.vehicles = w.vehicles.filter((v) => v !== first);
     w.player.vehicleId = me.id;
-    const bed = bareGrid(chassisId);
+    const bed = gridOf(me);
+    const holdCells = [...bed.hold].filter((c) => c === '.').length;
     addGoods(w, me, 'salt', freeCells(me));
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', { ...saveOf(w), savedAt: 1000, runId: 'run-1' });
@@ -26,8 +27,8 @@ describe('crates on a bed row across a save', () => {
     const mine = playerVehicle(loaded);
 
     expect(mine.items).toEqual(me.items);
-    expect(gridOf(mine).h).toBe(gridOf(me).h);
-    expect(mine.items.filter((it) => it.kind === 'good' && it.y >= bed.chassisH).length).toBe(bed.w * (gridOf(me).h - bed.chassisH));
+    expect(gridOf(mine).hold).toBe(gridOf(me).hold);
+    expect(mine.items.filter((it) => it.kind === 'good' && it.y >= bed.chassisH).length).toBe(holdCells);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.events).toEqual([]);

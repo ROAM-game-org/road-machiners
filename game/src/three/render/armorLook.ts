@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { isShield, partDef } from '../../data/parts';
-import { partModel } from '../../render/partLooks';
+import { loadedLook, partModel } from '../../render/partLooks';
 import { model } from './models';
 
 export type ArmorGrade = 'steel' | 'spaced' | 'scrap' | 'ceramic' | 'cage' | 'ram';
@@ -62,8 +62,8 @@ export function lookOfArmor(obj: THREE.Object3D, defId: string): void {
   });
 }
 
-export function armorModel(defId: string): THREE.Object3D {
-  const obj = model(partModel(defId));
+export function armorModel(defId: string, loaded = false): THREE.Object3D {
+  const obj = model(loadedLook(defId, loaded));
   lookOfArmor(obj, defId);
   return obj;
 }

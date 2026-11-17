@@ -1,3 +1,4 @@
+import { mountedParts } from './grid';
 import { describe, expect, it } from 'vitest';
 import { route } from './path';
 import type { Vehicle, World } from './types';
@@ -21,8 +22,9 @@ describe('climb limit', () => {
     return w;
   }
   function loadedHauler(w: World): Vehicle {
-    const v = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'haulingRack', 'haulingRack'], { x: 40, y: 40 });
     v.brain = npcBrain('trader', v.pos, ['trader']);
+    for (const engine of mountedParts(v, 'engine')) engine.wear = 4;
     addGoods(w, v, 'scrap', 122);
     return v;
   }

@@ -7,7 +7,8 @@ export type AbilityId = 'bed' | 'nimble' | 'racing' | 'offRoad' | 'armored' | 'g
 
 export type ChassisAbility = {
   id: AbilityId;
-  bedRows?: number;
+  bedCells?: number;
+  goodsMass?: number;
   accel?: number;
   topSpeed?: number;
   nimble?: number;
@@ -21,27 +22,27 @@ export type ChassisAbility = {
   range?: number;
   arc?: number;
   reloadCut?: number;
-  cargoRows?: number;
+  cargoCells?: number;
 };
 
 export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
-  scout: { id: 'bed', bedRows: 1 },
+  scout: { id: 'bed', bedCells: 2, goodsMass: 0.5 },
   buggy: { id: 'nimble', accel: 1.25, nimble: 0.0785 },
   courier: { id: 'racing', topSpeed: 1.25 },
   jeep: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
-  hauler: { id: 'bed', bedRows: 2 },
+  hauler: { id: 'bed', bedCells: 4, goodsMass: 0.5 },
   wagon: { id: 'gunMounts', gunPower: 1.25 },
   van: { id: 'armored', partArmor: 1 },
   convertible: { id: 'openTop', sight: 1.2, range: 1.2 },
   bus: { id: 'springs', mountedMass: 0.5 },
   niva: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
   bukhanka: { id: 'armored', partArmor: 2 },
-  longbed: { id: 'bed', bedRows: 3 },
+  longbed: { id: 'bed', bedCells: 6, goodsMass: 0.5 },
   carrier: { id: 'armored', partArmor: 4 },
   tractor: { id: 'battle', partArmor: 2, gunPower: 1.25 },
   loader: { id: 'gunMounts', gunPower: 1.5 },
   lincoln: { id: 'tourer', sight: 1.25, range: 1.15, topSpeed: 1.15 },
-  sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoRows: 1.5, deckArmor: 1 },
+  sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoCells: 1.5, deckArmor: 1 },
 };
 
 export type OldGrid = { deck: number; armor: number; width: number; row: number; col: number };
@@ -69,10 +70,11 @@ export type ChassisDef = {
   showsEngine: boolean;
   tier: Tier;
   coupling?: { row: number };
-  spareRows?: number;
   oldGrid: OldGrid;
   look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi' | 'sorokonoga';
 };
+
+export const HOLD_BASE_CELLS = 2;
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 20, perArmorCell: 10, perTopSpeed: 26.6667 };
 
@@ -170,7 +172,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'tank', x: 5, y: 9 },
     ],
     oldGrid: { deck: 25, armor: 32, width: 9 },
-    spareRows: 1,
     fuelCap: 80,
     fuelPerTile: 0.4,
     base: -58.33, showsCores: false, showsEngine: true, tier: 1,
@@ -199,7 +200,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     oldGrid: { deck: 4, armor: 26, width: 7 },
     hiddenBay: { x: 2, y: 2, w: 2, h: 3 },
-    spareRows: 2,
     fuelCap: 30,
     fuelPerTile: 0.2,
     base: 60, showsCores: false, showsEngine: false, tier: 1,
@@ -246,7 +246,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 4, y: 8 },
     ],
     oldGrid: { deck: 8, armor: 28, width: 7 },
-    spareRows: 3,
     fuelCap: 24, fuelPerTile: 0.18, base: 73.33, showsCores: false, showsEngine: true, tier: 1, look: 'courier',
   },
   van: {
@@ -263,7 +262,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'tank', x: 4, y: 11 },
     ],
     oldGrid: { deck: 11, armor: 28, width: 7 },
-    spareRows: 1,
     fuelCap: 55, fuelPerTile: 0.24, base: 176.33, showsCores: false, showsEngine: true, tier: 1, look: 'van',
   },
   longbed: {
@@ -296,7 +294,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'tankHeavy', x: 5, y: 3 },
     ],
     oldGrid: { deck: 18, armor: 32, width: 9 },
-    spareRows: 1,
     fuelCap: 70, fuelPerTile: 0.5, base: 806.67, showsCores: false, showsEngine: true, tier: 3, look: 'carrier',
   },
   tractor: {
@@ -313,7 +310,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 6, y: 11 },
     ],
     oldGrid: { deck: 25, armor: 32, width: 9 },
-    spareRows: 1,
     fuelCap: 120, fuelPerTile: 0.6, base: 536.67, showsCores: false, showsEngine: true, tier: 3, look: 'tractor',
   },
   jeep: {
@@ -330,7 +326,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 4, y: 8 },
     ],
     oldGrid: { deck: 8, armor: 28, width: 7 },
-    spareRows: 3,
     fuelCap: 35, fuelPerTile: 0.2, base: 70, showsCores: false, showsEngine: true, tier: 1, look: 'jeep',
   },
   convertible: {
@@ -363,7 +358,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 5, y: 13 },
     ],
     oldGrid: { deck: 36, armor: 38, width: 9 },
-    spareRows: 1,
     fuelCap: 110, fuelPerTile: 0.45, base: 20, showsCores: false, showsEngine: true, tier: 2, look: 'bus',
   },
   loader: {
@@ -380,7 +374,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 6, y: 11 },
     ],
     oldGrid: { deck: 25, armor: 32, width: 9 },
-    spareRows: 1,
     fuelCap: 130, fuelPerTile: 0.65, base: 780, showsCores: false, showsEngine: true, tier: 3, look: 'loader',
   },
   niva: {
@@ -397,7 +390,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 4, y: 7 },
     ],
     oldGrid: { deck: 12, armor: 30, width: 7 },
-    spareRows: 3,
     fuelCap: 42, fuelPerTile: 0.21, base: 306.67, showsCores: false, showsEngine: true, tier: 2, look: 'niva',
   },
   bukhanka: {
@@ -413,7 +405,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'transmissionMid', x: 2, y: 10, rot: 1 },
       { defId: 'tankMid', x: 2, y: 12, rot: 1 },
     ],
-    spareRows: 1,
     oldGrid: { deck: 16, armor: 30, width: 7 },
     fuelCap: 78, fuelPerTile: 0.30, base: 370, showsCores: false, showsEngine: true, tier: 2, look: 'bukhanka',
   },
@@ -518,7 +509,6 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'transmissionHeavy', x: 2, y: 9, rot: 1 },
     ],
     oldGrid: { deck: 34, armor: 46, width: 9 },
-    spareRows: 2,
     fuelCap: 140, fuelPerTile: 0.55, base: 535, showsCores: false, showsEngine: true, tier: 3, coupling: { row: 12 }, look: 'sorokonoga',
   },
 };
@@ -556,7 +546,7 @@ export function chassisDef(id: string): ChassisDef {
   return def;
 }
 
-const ABILITY_FACTORS = ['accel', 'topSpeed', 'gunPower', 'mountedMass', 'sight', 'range', 'cargoRows'] as const;
+const ABILITY_FACTORS = ['accel', 'topSpeed', 'gunPower', 'mountedMass', 'sight', 'range', 'cargoCells', 'goodsMass'] as const;
 
 const valueOr = (value: number | undefined, fallback: number): number => value ?? fallback;
 

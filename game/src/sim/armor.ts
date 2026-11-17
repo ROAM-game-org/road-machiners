@@ -5,12 +5,12 @@ import { chassisDef } from '../data/chassis';
 import { GRID_CELL, cellCenter, cellRect, cellSteps, highestUnder, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
-import { isShield, partDef, TALL_RISE, type PartDef } from '../data/parts';
+import { isShield, partDef, SACK_ARMOR, TALL_RISE, type PartDef } from '../data/parts';
 import { chassisAbility, partArmorBonus } from './chassis-features';
 import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, holdsItemFor, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
@@ -464,7 +464,13 @@ function armorAgainst(def: PartDef, blast: boolean): number {
 
 export function armorOn(v: Vehicle, part: PartInstance, blast: boolean): number {
   const def = wornDef(part);
-  return armorAgainst(def, blast) + partArmorBonus(v.chassisId, def, sitsOnDeck(v, part));
+  return armorAgainst(def, blast) + partArmorBonus(v.chassisId, def, sitsOnDeck(v, part)) + sackArmor(v, part);
+}
+
+function sackArmor(v: Vehicle, part: PartInstance): number {
+  const def = partDef(part.defId);
+  if (def.kind !== 'accessory' || !def.cells || part.hp <= 0) return 0;
+  return holdsItemFor(v, part.id) ? SACK_ARMOR : 0;
 }
 
 function sitsOnDeck(v: Vehicle, part: PartInstance): boolean {
@@ -549,7 +555,7 @@ export function gunLayoutScore(v: Vehicle): number {
 }
 
 function spansIn(v: Loadout, blockers: readonly GridItem[], item: GridItem): FireSpan[] {
-  const shadows = shadowsOf(blockers, item).flatMap((s) => s.pieces);
+  const shadows = mergeSpans(shadowsOf(blockers, item).flatMap((s) => s.pieces));
   const open = arcPieces(v, item).flatMap((piece) => shadows.reduce((left, cut) => left.flatMap((p) => subtract(p, cut)), [piece]));
   return joinAcrossBack(mergeSpans(open));
 }
@@ -568,8 +574,22 @@ function shadowsOf(tall: readonly GridItem[], item: GridItem): { blocker: GridIt
   const oy = item.y + h / 2;
   return tall.filter((blocker) => blocker.id !== item.id).map((blocker) => ({
     blocker,
-    pieces: itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)),
+    pieces: blockerShadow(blocker, ox, oy),
   }));
+}
+
+const BLOCKER_SHADOWS_KEPT = 4096;
+const blockerShadows = new Map<string, FireSpan[]>();
+
+function blockerShadow(blocker: GridItem, ox: number, oy: number): FireSpan[] {
+  const key = `${blocker.kind === 'part' ? blocker.part.defId : blocker.id},${blocker.x},${blocker.y},${blocker.rot},${ox},${oy}`;
+  let pieces = blockerShadows.get(key);
+  if (!pieces) {
+    pieces = mergeSpans(itemCells(blocker).flatMap(({ x, y }) => cellShadow(x, y, ox, oy)));
+    if (blockerShadows.size >= BLOCKER_SHADOWS_KEPT) blockerShadows.clear();
+    blockerShadows.set(key, pieces);
+  }
+  return pieces;
 }
 
 const cellShadows = new Map<string, readonly FireSpan[]>();
@@ -644,9 +664,10 @@ function cachedHeight(what: 'floor' | 'top', chassisId: string, item: GridItem, 
 }
 
 function surfaceUnder(chassisId: string, item: GridItem): number {
-  const cells = cellsOnGrid(chassisId, item);
-  if (cells.length === 0) return -Infinity;
-  return cachedHeight('floor', chassisId, item, () => highestUnder(chassisId, cellRect(chassisId, cells)));
+  return cachedHeight('floor', chassisId, item, () => {
+    const cells = cellsOnGrid(chassisId, item);
+    return cells.length === 0 ? -Infinity : highestUnder(chassisId, cellRect(chassisId, cells));
+  });
 }
 
 function standsOnModel(chassisId: string, item: GridItem): boolean {

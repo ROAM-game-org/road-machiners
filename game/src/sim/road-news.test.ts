@@ -16,7 +16,7 @@ import type { RoadNews, Vehicle, World } from './types';
 const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
 
 function shipping(w: World, good: string, from: string, to: string, crates: number): Vehicle {
-  const npc = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(site(from))[0] });
+  const npc = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(site(from))[0] });
   npc.brain = npcBrain('convoy', npc.pos, ['supplier']);
   npc.brain.goals = [{ kind: 'sell', targetId: to, destination: { ...site(to).pos }, phase: 'travel', reason: 'deliverCargo', shipment: { good, from, to } }];
   if (addGoods(w, npc, good, crates) !== crates) throw new Error('No room for the shipment');
@@ -99,7 +99,7 @@ describe('route choice with road news', () => {
     const w = emptyWorld();
     w.turn = 5000;
     w.shops.bowl.goods.water = 0;
-    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'trailerBox'], { ...sitePads(site('bowl'))[0] });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'haulingRack'], { ...sitePads(site('bowl'))[0] });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.resources = { ...trader.resources!, money: NPCS.trader.money * 10 };
     return { w, trader };
