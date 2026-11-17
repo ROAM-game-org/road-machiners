@@ -20,12 +20,12 @@ function lateNight(): number {
   return t + 1 >= NIGHT ? t : NIGHT;
 }
 
-function setup(lights: SiteLight[]) {
+function setup(lights: SiteLight[], spotShadows = true) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, 1, 1, 1000);
   camera.position.set(0, 50, 50);
   camera.lookAt(0, 0, 0);
-  const pool = new SiteLights(scene, null, { worldSize: 8, maxTextureSize: 64 });
+  const pool = new SiteLights(scene, null, { worldSize: 8, maxTextureSize: 64, spotShadows });
   pool.add(lights, []);
   return { scene, camera, pool };
 }
@@ -54,6 +54,14 @@ describe('SiteLights', () => {
     pool.sync(true, NIGHT, camera, all, FOCUS, 100);
     expect(spotsIn(scene)).toHaveLength(SITE_LIGHT_POOL);
     expect(spots(pool).map((s) => s.castShadow)).toEqual(Array.from({ length: SITE_LIGHT_POOL }, (_, i) => i < SITE_SHADOW_SLOTS));
+  });
+
+  it('casts no shadow when the device cannot fit them and still lights a full pool', () => {
+    const { camera, pool } = setup(many, false);
+    pool.sync(true, NIGHT, camera, all, FOCUS, 100);
+    pool.sync(true, NIGHT, camera, all, FOCUS, 100000);
+    expect(spots(pool).some((s) => s.castShadow)).toBe(false);
+    expect(spots(pool).filter((s) => s.intensity > 0)).toHaveLength(SITE_LIGHT_POOL);
   });
 
   it('ramps its night level up over the fade time at night and back down by day', () => {

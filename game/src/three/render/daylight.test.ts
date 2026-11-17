@@ -49,9 +49,18 @@ describe('beamOrder', () => {
 });
 
 describe('VehicleLights', () => {
+  it('casts no shadow when the device cannot fit them and keeps every beam lit', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene, false);
+    lights.update(true, 1, origin, [10, 20, 30, 40, 50, 60].map((x) => litAt(x)));
+    const beams = spots(scene);
+    expect(beams.some((b) => b.castShadow)).toBe(false);
+    expect(beams.filter((b) => b.intensity > 0)).toHaveLength(BEAM_CAP);
+  });
+
   it('casts shadows from only the three nearest beams, and reassigns them as trucks move', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     const xs = [60, 10, 50, 20, 40, 30];
     lights.update(true, 1, origin, xs.map((x) => litAt(x)));
     const shadowed = () => spots(scene).filter((b) => b.castShadow);
@@ -68,7 +77,7 @@ describe('VehicleLights', () => {
 
   it('holds at most three shadowed beams and the capped plain ones however many trucks are lit', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     const crowd = Array.from({ length: 40 }, (_, i) => litAt(i * 3));
     lights.update(true, 1, origin, crowd);
     expect(spots(scene).filter((b) => b.castShadow)).toHaveLength(3);
@@ -82,7 +91,7 @@ describe('VehicleLights', () => {
 
   it('holds the same lights all night however many trucks are lit, so no shader recompiles when headlights arrive', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     const counts = [0, 1, 2, 5, 12, 3].map((lit) => {
       lights.update(true, 1, origin, Array.from({ length: lit }, (_, i) => litAt(i * 10)));
       return spots(scene).length;
@@ -94,7 +103,7 @@ describe('VehicleLights', () => {
 
   it('zeroes idle beams', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     lights.update(true, 1, origin, [litAt(0), litAt(10), litAt(20)]);
     lights.update(true, 1, origin, [litAt(0, false), litAt(10, false), litAt(20, false)]);
     const beams = spots(scene);
@@ -104,7 +113,7 @@ describe('VehicleLights', () => {
 
   it('removes every beam and frees shadow maps at dawn', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     lights.update(true, 1, origin, [0, 10, 20, 30, 40, 50].map((x) => litAt(x)));
     const maps = spots(scene)
       .filter((b) => b.castShadow)
@@ -117,7 +126,7 @@ describe('VehicleLights', () => {
 
   it('lights the ground ahead of the player by day whenever the switch is on, and nothing else', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     const player = { ...litAt(0), player: true };
     lights.update(false, 0.3, origin, [player, litAt(30, false)]);
     expect(spots(scene)).toHaveLength(1);
@@ -130,7 +139,7 @@ describe('VehicleLights', () => {
 
   it('swaps between the day pool and the night pool and glow at the handovers', () => {
     const scene = new THREE.Scene();
-    const lights = new VehicleLights(scene);
+    const lights = new VehicleLights(scene, true);
     const all = [{ ...litAt(0), player: true }, litAt(10), litAt(20)];
     const glow = () => scene.children.some((c) => c instanceof THREE.PointLight);
     lights.update(true, 1, origin, all);
