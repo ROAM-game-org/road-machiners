@@ -8,6 +8,7 @@ import { playerVehicle } from '../../sim/damage';
 import { inShade, shadeCasters, sunAt, sunHeatAt, type Sun } from '../../sim/sun';
 import type { PlayClock } from '../play-clock';
 import { groundUvPerMeter } from './terrain';
+import { placeInWorld } from './worldPlace';
 import { heightAt } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 
@@ -92,13 +93,11 @@ export class ShadeView {
     material.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
       Object.assign(shader.uniforms, this.haze);
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vHazeXZ;')
-        .replace('#include <project_vertex>', '#include <project_vertex>\nvHazeXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+      placeInWorld(shader);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${HAZE_UNIFORMS}`)
         .replace('#include <map_fragment>', `${HAZE_SHIFT}\n#include <map_fragment>`)
-        .replace('#include <color_fragment>', '#undef vMapUv\n#undef vRoadXZ\n#include <color_fragment>');
+        .replace('#include <color_fragment>', '#undef vMapUv\n#undef vWorldXZ\n#include <color_fragment>');
     };
     material.customProgramCacheKey = () => `${key()}|haze`;
     material.needsUpdate = true;
@@ -177,18 +176,18 @@ function hazeOf(heat: number): number {
   return Math.round(255 * Math.min(1, Math.max(0, (heat - HAZE_FROM) / (HAZE_FULL - HAZE_FROM))));
 }
 
-const HAZE_UNIFORMS = `varying vec2 vHazeXZ;
-uniform sampler2D hazeMask;
+const HAZE_UNIFORMS = `uniform sampler2D hazeMask;
 uniform vec2 hazeOrigin;
 uniform float hazeTime;
 uniform float hazeUvPerMeter;`;
 
 const HAZE_SHIFT = `
-  vec2 hazeCell = (vHazeXZ - hazeOrigin) / ${S.toFixed(4)} + 0.5;
+  vec2 hazeCell = (vWorldXZ - hazeOrigin) / ${S.toFixed(4)} + 0.5;
   float hazeOn = texture2D(hazeMask, hazeCell / ${SIDE.toFixed(1)}).r;
   vec2 hazeShift = vec2(0.0);
+  mat2 hazeMeters = mat2(dFdx(vWorldXZ), dFdy(vWorldXZ));
   if (hazeOn > 0.0) {
-  vec2 hazeP = vHazeXZ;
+  vec2 hazeP = vWorldXZ;
   float hazeT = hazeTime;
   vec2 hazeWarp = ${glslFloat(HAZE.warp.depth)} * vec2(
     sin(hazeP.y * ${glslFloat(TAU / HAZE.warp.wave)} + hazeT * ${glslFloat(HAZE.warp.speed)}),
@@ -208,7 +207,7 @@ ${HAZE.waves.map(waveGlsl).join('\n')}
   }
   #define HAZE_SHIFTED
   #define vMapUv (vMapUv + hazeShift * hazeUvPerMeter)
-  #define vRoadXZ (vRoadXZ + hazeShift)`;
+  #define vWorldXZ (vWorldXZ + hazeShift)`;
 
 function waveGlsl(w: (typeof HAZE.waves)[number]): string {
   const dir = `vec2(${glslFloat(Math.cos(w.heading))}, ${glslFloat(Math.sin(w.heading))})`;

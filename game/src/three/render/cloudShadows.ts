@@ -4,6 +4,7 @@ import { WEATHER } from '../../data/weather';
 import { isOvercast } from '../../sim/weather';
 import { sunAt } from '../../sim/sun';
 import type { World } from '../../sim/types';
+import { placeInWorld } from './worldPlace';
 
 const CLOUDS = WEATHER.clouds;
 const TURN_MS = PHYSICS.turnSeconds * 1000;
@@ -37,16 +38,8 @@ export function driftAt(lightTurn: number): { x: number; y: number } {
   return { x: wrap((-WEATHER.wind.x * tiles) / CLOUDS.scale), y: wrap((-WEATHER.wind.y * tiles) / CLOUDS.scale) };
 }
 
-const VERTEX = `#include <project_vertex>
-vec4 cloudWorld = vec4(transformed, 1.0);
-#ifdef USE_INSTANCING
-cloudWorld = instanceMatrix * cloudWorld;
-#endif
-vCloudXZ = (modelMatrix * cloudWorld).xz;`;
-
 const UNIFORMS = `uniform vec4 cloudParams;
 uniform vec2 cloudShift;
-varying vec2 vCloudXZ;
 const float cloudPeriod = ${CLOUDS.period.toFixed(1)};
 float cloudHash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -65,7 +58,7 @@ float cloudValue(vec2 p, float period) {
 }
 float cloudDim() {
   if (cloudParams.x <= 0.0) return 1.0;
-  vec2 p = vCloudXZ * cloudParams.z + cloudShift;
+  vec2 p = vWorldXZ * cloudParams.z + cloudShift;
   float n = cloudValue(p, cloudPeriod) * 0.75 + cloudValue(p * 2.0, cloudPeriod * 2.0) * 0.25;
   float edge = 0.5 + (0.5 - cloudParams.x) * 0.3;
   float mask = smoothstep(edge - cloudParams.w, edge + cloudParams.w, n);
@@ -100,7 +93,7 @@ export class CloudShadows {
     material.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
       Object.assign(shader.uniforms, this.uniforms);
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vCloudXZ;').replace('#include <project_vertex>', VERTEX);
+      placeInWorld(shader);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${UNIFORMS}`).replace('#include <aomap_fragment>', FRAGMENT);
     };
     material.customProgramCacheKey = () => `${key()}|clouds`;
@@ -125,8 +118,8 @@ export class CloudShadows {
     return this.uniforms.cloudParams.value.x;
   }
 
-  shaderChunks(): { vertex: string; fragment: string } {
-    return { vertex: VERTEX, fragment: `${UNIFORMS}\n${FRAGMENT}` };
+  shaderChunks(): { fragment: string } {
+    return { fragment: `${UNIFORMS}\n${FRAGMENT}` };
   }
 }
 

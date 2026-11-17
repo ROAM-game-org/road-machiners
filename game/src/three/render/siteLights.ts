@@ -74,13 +74,15 @@ export class SiteLights {
   private slots: Slot[] = [];
   private lastMs: number | null = null;
   private level = 0;
+  private readonly shadowSlots: number;
   private readonly lights: SiteLight[] = [];
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly hollow: HollowLamps | null,
-    pools: { worldSize: number; maxTextureSize: number },
+    pools: { worldSize: number; maxTextureSize: number; spotShadows: boolean },
   ) {
+    this.shadowSlots = pools.spotShadows ? SITE_SHADOW_SLOTS : 0;
     NIGHT_POOLS.start(pools.worldSize, pools.maxTextureSize);
   }
 
@@ -119,9 +121,9 @@ export class SiteLights {
     const inView = (l: SiteLight) => frustum.intersectsSphere(sphere.set(centre.set(l.at.x, l.at.y, l.at.z), lookOf(l).range));
     const order = siteLightOrder(this.lights, inView, reaches, focus);
     const shadowed = order.filter((l) => lookOf(l).shadow);
-    const plain = order.filter((l) => !lookOf(l).shadow);
+    const plain = this.shadowSlots > 0 ? order.filter((l) => !lookOf(l).shadow) : order;
     this.slots.forEach((slot, i) => {
-      const light = slot.spot.castShadow ? shadowed[i] : plain[i - SITE_SHADOW_SLOTS];
+      const light = slot.spot.castShadow ? shadowed[i] : plain[i - this.shadowSlots];
       this.drive(slot, light, lightTurn, dt);
     });
   }
@@ -133,7 +135,7 @@ export class SiteLights {
   private fill(): void {
     for (let i = 0; i < SITE_LIGHT_POOL; i++) {
       const spot = new THREE.SpotLight(0xffffff, 0);
-      spot.castShadow = i < SITE_SHADOW_SLOTS;
+      spot.castShadow = i < this.shadowSlots;
       if (spot.castShadow) {
         spot.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
         spot.shadow.normalBias = SHADOW_BIAS;

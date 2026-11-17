@@ -17,7 +17,7 @@ const isNight = (page) => page.evaluate(async () => {
   return !sunAt(window.__ROAM__.state.turn);
 });
 
-const lightUpNight = (page) => page.evaluate(async (hour) => {
+export const lightUpNight = (page) => page.evaluate(async (hour) => {
   const cheats = await import('/src/sim/cheats.ts');
   const { NPCS } = await import('/src/data/npcs.ts');
   const { BEAM_CAP } = await import('/src/three/render/daylight.ts');
@@ -124,7 +124,7 @@ const endTurnIfNotPlayed = (turn) => {
   if (g.state.turn < turn && !g.travel.isPlaying(g.anim)) g.endTurn();
 };
 
-const playNightTurns = async (page, turns, turnLimitMs) => {
+export const playNightTurns = async (page, turns, turnLimitMs) => {
   const endTurn = () => page.evaluate(() => window.__ROAM__.endTurn());
   for (let i = 0; i < turns; i++) {
     if (await page.evaluate(() => window.__ROAM__.state.call !== null)) await page.keyboard.press('Escape');
@@ -148,7 +148,7 @@ const reloadPage = async (page) => {
   return page.reload().catch((e) => (/ERR_ABORTED/.test(e.message) ? page.reload() : Promise.reject(e)));
 };
 
-const waitForGame = async (page, bootLimitMs) => {
+export const waitForGame = async (page, bootLimitMs) => {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
   await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs }).catch(async (cause) => {
     const shown = await page.evaluate(() => document.querySelector('#boot')?.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '');

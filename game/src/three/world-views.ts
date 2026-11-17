@@ -13,6 +13,7 @@ import { addScatter } from './render/scatter';
 import { RenderScope, SightLimit } from './render/scope';
 import { ShadeView } from './render/shade';
 import { addShipDecks } from './render/ship-decks';
+import { spotShadowsFit } from './render/lightBudget';
 import { SiteLights } from './render/siteLights';
 import { addSites, HollowLamps } from './render/sites';
 import { CellStreamer } from './render/streamer';
@@ -71,7 +72,7 @@ export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const fog = new FogView(world, ground, sightLimit, playerSeenPropTiles(world));
   terrainMesh(world, ground, groundScope, (chunk) => fog.attach(chunk));
   const hollow = world.terrain.atlas.kind === 'icarus' ? new HollowLamps(world.terrain, propScope) : null;
-  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.renderer.capabilities.maxTextureSize });
+  const siteLights = new SiteLights(host.scene, hollow, { worldSize: world.size, maxTextureSize: host.renderer.capabilities.maxTextureSize, spotShadows: spotShadowsFit(host.renderer.capabilities.maxVaryings) });
   addSites(world.terrain, propScope, host.play, siteLights);
   addShipDecks(world.terrain, propScope);
   const obstacles = new ObstacleViews(propScope, world.terrain, host.pinOutpost);
