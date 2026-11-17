@@ -1,6 +1,6 @@
 export const WORLD_XZ = 'vWorldXZ';
 
-const DECLARATION = `varying vec2 ${WORLD_XZ};`;
+const DECLARATION = 'varying vec2 vWorldXZ;';
 const WRITE = `vec4 worldPlaceAt = vec4(transformed, 1.0);
 #ifdef USE_INSTANCING
 worldPlaceAt = instanceMatrix * worldPlaceAt;
