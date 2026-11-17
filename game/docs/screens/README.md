@@ -61,7 +61,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 
 ## Not in the gallery
 
-These need a render: the Chaos Highway outpost, trade with a truck, a downed truck, phone layouts, Russian, the larger trucks and other windows.
+These need a render: the Chaos Highway outpost, trade with a truck, a downed truck, a landscape phone, Russian, the larger trucks and other windows.
 
 ## Example
 

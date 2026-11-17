@@ -1,6 +1,6 @@
 /* The one owner of the bottom right: the right dock, the log and End turn, bottom up, one gap apart and right aligned.
    Nothing in it carries a position number of its own. */
-#ui:not(.phone) .right-column {
+#ui .right-column {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -9,14 +9,14 @@
   align-items: flex-end;
   gap: var(--hud-gap);
 }
-#ui:not(.phone) .right-column > .panel {
+#ui .right-column > .panel {
   position: relative;
 }
-#ui:not(.phone) .right-column > .right-dock {
+#ui .right-column > .right-dock {
   order: 0;
   margin-right: var(--space-7);
 }
-#ui:not(.phone) .right-column > .hud-radio {
+#ui .right-column > .hud-radio {
   order: 1;
 }
 #ui .log {
@@ -32,13 +32,13 @@
   flex-direction: column;
   gap: var(--hud-gap);
 }
-#ui:not(.phone) .right-dock {
+#ui .right-dock {
   max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--btn-h-s) - var(--hud-gap) - var(--hud-gap) - var(--hud-gap));
   overflow-y: auto;
   scrollbar-width: thin;
 }
 #ui .right-dock > .panel {
-  position: static;
+  position: relative;
   flex: none;
 }
 #ui .right-dock > .contracts {

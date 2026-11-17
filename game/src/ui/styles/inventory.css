@@ -630,7 +630,6 @@
   top: var(--space-1);
   bottom: auto;
 }
-/* The dump box stays only on the phone, where the card can lie below the fold. */
 .inv-dump {
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
@@ -691,7 +690,7 @@
   margin-left: auto;
 }
 /* The working screen of the road: truck stats, the open truck and the selection. The frame shrinks to its columns. */
-#ui:not(.phone) .modal.inventory-screen {
+#ui .modal.inventory-screen {
   width: fit-content;
   max-width: calc(var(--layer-w) - var(--space-10));
   height: calc(var(--layer-h) - var(--modal-top) - var(--space-4));

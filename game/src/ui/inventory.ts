@@ -35,7 +35,7 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { keyLabel, phoneMode, touchMode } from "./input-mode";
+import { keyLabel, touchMode } from "./input-mode";
 import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookOrTurnReason, lookOverReason } from "./unstuck-reason";
@@ -44,7 +44,7 @@ import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
 import { budgetGroup, truckGroups } from "./truck-panel";
-import { itemActions, itemFacts, jobBlock, rotateButton, ROTATE_KEYCAP, type CardHost } from "./item-card";
+import { itemActions, itemFacts, jobBlock, rotateButton, type CardHost } from "./item-card";
 import { loadMass } from "../sim/mass";
 import {
   blockerIds,
@@ -88,8 +88,8 @@ import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
-import { bindAttr, setText, unbindAttr } from "../text/language";
-import { t, verbatim, type Msg } from "../text/msg";
+import { bindAttr, setText } from "../text/language";
+import { t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
@@ -122,7 +122,6 @@ export class InventoryView {
   private lastPointer: PointerEvent | null = null;
   private holdId: number | null = null;
   private stopScroll: ((e: TouchEvent) => void) | null = null;
-  holdChanged: () => void = () => {};
   private error: Msg | null = null;
   private gridEl: HTMLElement | null = null;
   private root: HTMLElement = el("div", { class: "inv-view" });
@@ -193,7 +192,7 @@ export class InventoryView {
     const me = this.shown(this.host.world());
     const truck = truckMeters(me.chassisId, gridOf(me));
     const height = gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
-    const stacked = phoneMode() || uiRoot().classList.contains("narrow");
+    const stacked = uiRoot().classList.contains("narrow");
     this.scale.apply(key, stacked ? stackedLayout(height, truck) : chooseLayout([{ columns: 1, width: hostedWidth(box, this.root), height }], truck), null);
     this.render();
   }
@@ -258,7 +257,6 @@ export class InventoryView {
         { class: "inv-side" },
         ...this.jobBlock(w),
         ...this.sideList(w),
-        ...(this.dumpZone && phoneMode() && !this.looking ? [el("div", { class: "inv-dump", "data-drop": "dump" }, t("inv.dumpShort"))] : []),
         this.inspection,
       ),
       ...(this.truck ? [this.truckEl(w, this.truck)] : []),
@@ -504,7 +502,7 @@ export class InventoryView {
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
     this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted)), ...(actions.length ? [el("div", { class: "action-rows" }, ...actions)] : []));
-    if (!phoneMode() && !this.head) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (!this.head) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
@@ -736,7 +734,7 @@ export class InventoryView {
   }
 
   private showTruckItem(w: World, item: GridItem): void {
-    const rotates = touchMode() && !phoneMode();
+    const rotates = touchMode();
     this.showCard(w, playerVehicle(w), item, false, rotates ? actionRow(rotateButton(() => this.rotateHeld(), this.look()), []) : []);
   }
 
@@ -789,7 +787,6 @@ export class InventoryView {
     if (this.stopScroll) window.removeEventListener("touchmove", this.stopScroll);
     this.stopScroll = null;
     this.holdId = null;
-    this.holdChanged();
   }
 
   private ownsPointer(e: PointerEvent): boolean {
@@ -816,14 +813,13 @@ export class InventoryView {
       moved: false,
     };
     this.holdId = at.pointerId;
-    this.holdChanged();
     this.error = null;
     this.showDragged(source, item);
     this.onMove(at);
   }
 
   private showDragged(source: ItemSource, item: GridItem): void {
-    if (source !== "grid" || phoneMode()) return;
+    if (source !== "grid") return;
     const w = this.host.world();
     const shown = this.shown(w);
     this.showItem(w, item, item.kind === "part" && isMounted(shown.chassisId, item));
@@ -839,10 +835,6 @@ export class InventoryView {
     const off = this.offGridSelection();
     if (off) return this.previewOffGrid(off.source, off.item);
     this.rotateSelected();
-  }
-
-  canRotate(): boolean {
-    return this.drag !== null || this.preview !== null || this.selectedItem !== null;
   }
 
   private offGridSelection(): { source: ItemSource; item: GridItem } | null {
@@ -1183,24 +1175,9 @@ export class InventoryScreen {
     this.view.commitPlan();
   }
 
-  private markRotate(button: HTMLElement): void {
-    const look = this.view.lookOnlyReason();
-    if (look) {
-      button.setAttribute("aria-disabled", "true");
-      bindAttr(button, "data-reason", look);
-    } else if (this.view.canRotate()) {
-      button.removeAttribute("aria-disabled");
-      unbindAttr(button, "data-reason");
-    } else {
-      button.setAttribute("aria-disabled", "true");
-      bindAttr(button, "data-reason", t(touchMode() ? "inv.rotateNeedsItem" : "inv.rotateNeedsItem.mouse"));
-    }
-  }
-
   render(): void {
     if (!this.isOpen()) return;
-    if (phoneMode()) this.renderStacked();
-    else this.renderBench();
+    this.renderBench();
   }
 
   private closeButton(): HTMLElement {
@@ -1208,33 +1185,9 @@ export class InventoryScreen {
   }
 
   private renderBench(): void {
-    this.view.holdChanged = () => {};
     this.view.setHead({ title: el("h3", { class: "inv-title" }, t("inv.title")), close: this.closeButton() });
     this.root.replaceChildren(this.view.render());
     this.view.fitTo(this.root);
-  }
-
-  private renderStacked(): void {
-    this.view.setHead(null);
-    this.root.style.removeProperty("height");
-    const truck = el("div", { class: "inv-body" }, this.view.render());
-    const rotate = el(
-      "button",
-      {
-        class: "btn-s",
-        "data-action": "rotate",
-        onpointerdown: () => this.view.rotateHeld(),
-        onclick: (e: Event) => {
-          if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
-        },
-      },
-      el("kbd", { class: "key no-touch" }, verbatim(ROTATE_KEYCAP)),
-      t("inv.rotate"),
-    );
-    this.view.holdChanged = () => this.markRotate(rotate);
-    this.markRotate(rotate);
-    this.root.replaceChildren(this.closeButton(), el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate), truck);
-    this.view.fitTo(truck);
   }
 }
 

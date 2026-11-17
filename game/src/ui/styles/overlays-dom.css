@@ -1,5 +1,13 @@
 /* Overlays that scripts build over the 3D view or over a failed load: the crash screen, the perf readout,
    the world labels, the damage numbers and the weapon range icons. Scripts add these classes and set only runtime geometry. */
+#overlay {
+  pointer-events: none;
+}
+
+:where(#overlay) > * {
+  pointer-events: auto;
+}
+
 .crash-screen {
   position: fixed;
   inset: 0;

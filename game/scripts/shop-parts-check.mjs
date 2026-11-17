@@ -31,7 +31,7 @@ async function setup(page) {
     const f = await import('/src/sim/factory.ts');
     const { PARTS } = await import('/src/data/parts.ts');
     let w = c.teleport(g.state, c.placeSpot(g.state, 'nose'));
-    w = structuredClone(w);
+    w = (await import('/src/sim/world.ts')).cloneWorld(w);
     const defs = Object.values(PARTS).filter((d) => d.kind !== 'core');
     const stock = [];
     for (let i = 0; i < 16; i++) stock.push(f.makePart(w, defs[i % defs.length].id, i % 3));

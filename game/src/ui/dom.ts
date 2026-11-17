@@ -104,7 +104,7 @@ export function rightDock(): HTMLElement {
   const column = rightColumn();
   const found = column.querySelector<HTMLElement>(':scope > .right-dock');
   if (found) return found;
-  const dock = el('div', { class: 'right-dock', 'data-drawer-frame': 'radio' });
+  const dock = el('div', { class: 'right-dock' });
   column.append(dock);
   return dock;
 }

@@ -453,7 +453,6 @@ export class WeaponPanel extends WeaponOrders {
       onTurnPress: () => host.pressTurn(),
       onTurnRelease: () => host.releaseTurn(),
     });
-    this.panel.root.setAttribute("data-drawer-frame", "guns");
     this.panel.root.classList.add("weapons");
     bottomLeft().append(this.panel.root);
   }

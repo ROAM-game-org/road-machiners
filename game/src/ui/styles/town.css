@@ -1,17 +1,17 @@
 .town-page.under-quest {
   visibility: hidden;
 }
-#ui:not(.phone, .narrow) .town-page.front-page .ink-band {
+#ui:not(.narrow) .town-page.front-page .ink-band {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: var(--ink-band-height);
 }
-#ui:not(.phone, .narrow) .town-page.front-page .ink-band > .art-band {
+#ui:not(.narrow) .town-page.front-page .ink-band > .art-band {
   flex: 1;
   height: auto;
 }
-#ui:not(.phone, .narrow) .town-page.front-page .ink-body {
+#ui:not(.narrow) .town-page.front-page .ink-body {
   flex: 0 1 auto;
 }
 .town-page .ink-panel.wide > .town-split {
@@ -111,7 +111,7 @@
 .town-services .caption {
   display: none;
 }
-:where(#ui.phone, #ui.narrow) .town-page .town-services {
+:where(#ui.narrow) .town-page .town-services {
   width: 100%;
   justify-content: flex-start;
   margin-left: 0;

@@ -128,3 +128,7 @@
 #ui .hauler-gauge .meter {
   flex: 1;
 }
+
+#ui :is(.top-left, .bottom-left, .truck-stack, .top-center, .top-right) > .hud-panel {
+  position: relative;
+}

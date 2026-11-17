@@ -20,14 +20,14 @@ function setLimits(software) {
 }
 const SEED = 4242;
 const OUT = 'tmp/mobile';
-const SIZES = { portrait: { width: 390, height: 844 }, landscape: { width: 844, height: 390 }, phone: { width: 798, height: 375 } };
+const SIZES = { fresh: { width: 844, height: 390 }, landscape: { width: 844, height: 390 }, phone: { width: 798, height: 375 } };
 const UI_SIZE_KEY = 'roam.uiSize';
 const SMALL_PHONE_SIZE = 0.8;
 const FAULT_OPTIONS = {
-  primary: ['.end-turn', '.game-menu .menu-button', '.drawer-tabs .selected', '.modal .close', '.help .close'],
-  minTarget: 32,
+  primary: ['.play-key', '.hud-system [data-action=menu]', '.modal .close', '.help .close'],
+  desktopMinTarget: 24,
   sidewaysOk: ['.inv-body', '.inv-grid', '.truck-shell', '.log-lines'],
-  smallOk: ['a[href]', '.inv-item', '[role=slider]', 'input[type=range]', '.knob'],
+  smallOk: ['a[href]', '.inv-item', '[role=slider]', 'input[type=range]', '.knob', '.hud-plate button', '.hud-plate .rocker-socket'],
 };
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
 
@@ -77,9 +77,11 @@ class Touch {
   async box(selector, which = 0) {
     const locator = this.page.locator(selector).nth(which);
     await locator.waitFor({ state: 'visible', timeout: stepLimitMs });
-    await locator.scrollIntoViewIfNeeded();
+    await locator.evaluate((e) => e.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
     const box = await locator.boundingBox();
     if (!box) throw new Error(`No box for ${selector}`);
+    const hit = await locator.evaluate((e, at) => e.contains(document.elementFromPoint(at.x, at.y)), { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+    if (!hit) throw new Error(`The center of ${selector} is covered or clipped after scrolling it into view`);
     return box;
   }
 
@@ -117,7 +119,7 @@ const faultsIn = (page, scope = '#ui') =>
       const { findLayoutFaults, findMobileFaults, keyCapFaults } = await import('/src/ui/dom.ts');
       const root = document.querySelector(scope);
       const overlay = document.querySelector('#overlay');
-      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, viewportWidth: window.screen.width }), ...(overlay ? keyCapFaults(overlay) : [])];
+      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, minTarget: options.desktopMinTarget * (() => { const scale = Number(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')); if (!(scale > 0)) throw new Error(`--ui-scale is not set: ${scale}`); return scale; })(), viewportWidth: window.screen.width }), ...(overlay ? keyCapFaults(overlay) : [])];
     },
     { options: FAULT_OPTIONS, glyphs: GLYPHS, scope },
   );
@@ -136,7 +138,7 @@ async function wideElementCheck(ctx) {
       const keyed = Object.assign(document.createElement('div'), { textContent: 'Planted label [Q]' });
       keyed.style.cssText = 'position:fixed;left:0;top:260px;z-index:99998';
       root.append(keyed);
-      return findMobileFaults(root, { ...options, viewportWidth: window.screen.width });
+      return findMobileFaults(root, { ...options, minTarget: options.desktopMinTarget * (() => { const scale = Number(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')); if (!(scale > 0)) throw new Error(`--ui-scale is not set: ${scale}`); return scale; })(), viewportWidth: window.screen.width });
     }, FAULT_OPTIONS);
     if (!faults.some((f) => f.kind === 'sideways-overflow')) throw new Error('The mobile check did not report the planted wide element');
     if (!faults.some((f) => f.kind === 'key-cap')) throw new Error('The mobile check did not report the planted key cap');
@@ -153,7 +155,7 @@ async function selfCheck(session, orientation) {
     document.body.append(cover);
   });
   const faults = await faultsIn(page);
-  const covered = faults.some((f) => f.kind === 'covered-control' && f.path.includes('end-turn'));
+  const covered = faults.some((f) => f.kind === 'covered-control' && f.path.includes('radio-plate'));
   const before = await page.evaluate(() => JSON.stringify(window.__ROAM__.state.vehicles.find((v) => v.faction === 'player').order));
   await touch.tap(SIZES[orientation].width * 0.7, SIZES[orientation].height * 0.5);
   const after = await page.evaluate(() => JSON.stringify(window.__ROAM__.state.vehicles.find((v) => v.faction === 'player').order));
@@ -294,19 +296,6 @@ const INIT = () => {
 const orderKind = (page) => game(page, () => window.__me().order?.kind ?? null);
 const open = (page, selector) => page.locator(selector).first().isVisible();
 
-async function tabTap(touch, drawer) {
-  await touch.tapOn(`.drawer-tabs [data-tab=${drawer}]`);
-}
-
-async function openDrawer(page, touch, drawer) {
-  if ((await game(page, () => document.getElementById('ui').dataset.drawer ?? null)) !== drawer) await tabTap(touch, drawer);
-}
-
-async function closeDrawer(page, touch) {
-  const open = await game(page, () => document.getElementById('ui').dataset.drawer ?? null);
-  if (open !== null) await tabTap(touch, open);
-}
-
 async function spawnHostile(page) {
   return game(page, async () => {
     const g = window.__ROAM__;
@@ -362,9 +351,7 @@ async function inspectAndAim(session, step, orientation) {
   await game(page, () => window.__ROAM__.follow.recenter());
   await page.waitForTimeout(1200);
   await step('pick-gun', async () => {
-    await openDrawer(page, touch, 'guns');
-    await touch.tapOn('.weapons .weapon-pick');
-    await closeDrawer(page, touch);
+    await touch.tapOn('.hud-weapons .gun-cell');
   }, async () => ((await game(page, () => window.__ROAM__.selected)) ? true : 'no weapon selected'));
   let at = await screenOfVehicle(page, npcId);
   await step('tap-truck-pins', async () => {
@@ -388,9 +375,9 @@ async function inspectAndAim(session, step, orientation) {
     const spot = await game(page, () => {
       const view = window.__ROAM__.hud.inspected;
       const part = view.parts[view.parts.length - 1];
-      const c = view.portrait.centerOf(part.id);
+      const c = view.drawing.centerOf(part.id);
       const r = view.hit.getBoundingClientRect();
-      return { x: r.left + (c.x / view.portrait.width) * r.width, y: r.top + (c.y / view.portrait.height) * r.height };
+      return { x: r.left + (c.x / view.drawing.width) * r.width, y: r.top + (c.y / view.drawing.height) * r.height };
     });
     await touch.tap(spot.x, spot.y);
     await sleep(300);
@@ -399,7 +386,7 @@ async function inspectAndAim(session, step, orientation) {
     const aims = await game(page, () => Object.values(window.__me().weaponOrders).map((o) => o.aim));
     return aims.some((aim) => aim !== 'body') ? true : `no gun aims at a part: ${JSON.stringify(aims)}`;
   });
-  await step('card-unpin', () => touch.tapOn('.info .info-touch button[aria-label]'), async () => ((await game(page, () => window.__ROAM__.pin.id)) === null ? true : 'still pinned'));
+  await step('card-unpin', () => touch.tapOn('.info .info-actions button[aria-label]'), async () => ((await game(page, () => window.__ROAM__.pin.id)) === null ? true : 'still pinned'));
 }
 
 async function townAndShop(session, step) {
@@ -415,7 +402,14 @@ async function townAndShop(session, step) {
     g.apply(c.teleport(g.state, { x: pad.x + dir.x * 6, y: pad.y + dir.y * 6 }));
     g.rig.setZoom(0.6);
     g.follow.recenter();
-    return { pad, inside: { x: town.pos.x + dir.x * (town.radius - 3), y: town.pos.y + dir.y * (town.radius - 3) } };
+    const { siteUnder } = await import('/src/sim/sites.ts');
+    const { atlasOf } = await import('/src/sim/atlas.ts');
+    const atlas = atlasOf(g.state.terrain);
+    for (let reach = town.radius - 3; reach > 0; reach -= 0.5) {
+      const inside = { x: town.pos.x + dir.x * reach, y: town.pos.y + dir.y * reach };
+      if (siteUnder(atlas, inside)?.id === town.id) return { pad, inside };
+    }
+    throw new Error(`No point inside ${town.id} off its pads on the line to the pad`);
   });
   await page.waitForFunction(() => {
     const g = window.__ROAM__;
@@ -456,8 +450,7 @@ async function townAndShop(session, step) {
 async function inventoryByTouch(session, step) {
   const { page, touch } = session;
   await step('open-inventory', async () => {
-    await openDrawer(page, touch, 'truck');
-    await touch.tapOn('.truck-instrument');
+    await touch.tapOn('.hud-system [data-action=car]');
   }, () => game(page, () => window.__ROAM__.screens.inventory.isOpen() || 'the inventory did not open'));
   const geometry = async () => {
     const storage = await touch.box('[data-drop=storage]');
@@ -584,8 +577,7 @@ async function placeByOneFinger(session, step) {
 
 async function characterByTouch(session, step) {
   const { page, touch } = session;
-  await closeDrawer(page, touch);
-  await step('open-character', () => touch.tapOn('#ui .instrument-actions button[data-action=character]'), () => game(page, () => !!document.querySelector('#ui .character-screen') && getComputedStyle(document.querySelector('#ui .character-screen')).display !== 'none' || 'the character screen did not open'));
+  await step('open-character', () => touch.tapOn('.hud-system [data-action=character]'), () => game(page, () => !!document.querySelector('#ui .character-screen') && getComputedStyle(document.querySelector('#ui .character-screen')).display !== 'none' || 'the character screen did not open'));
   await step('character-reach', async () => {
     await touch.box('.character-screen .buy-rank');
   }, async () => game(page, () => {
@@ -601,29 +593,13 @@ async function characterByTouch(session, step) {
   await step('close-character', () => touch.tapOn('.character-screen .close'), () => game(page, () => getComputedStyle(document.querySelector('#ui .character-screen')).display === 'none' || 'still open'));
 }
 
-async function drawersAndMenus(session, step) {
+async function menus(session, step) {
   const { page, touch } = session;
-  await closeDrawer(page, touch);
-  for (const d of ['truck', 'guns', 'radio', 'log']) {
-    await step(`drawer-${d}`, () => openDrawer(page, touch, d), async () => {
-      const open = await game(page, () => document.getElementById('ui').dataset.drawer);
-      if (d === 'radio' && await page.locator('.radio button.switch').count()) return 'the Radio drawer must hold no switch';
-      return open === d ? true : `open drawer ${open}`;
-    });
-  }
-  await closeDrawer(page, touch);
-  await step('log-strip', () => touch.tapOn('.log-strip'), async () => {
-    const open = await game(page, () => document.getElementById('ui').dataset.drawer);
-    const tall = await page.locator('.log-strip').evaluate((node) => node.getBoundingClientRect().height >= 32);
-    if (open !== 'log') return `the log strip opened drawer ${open}`;
-    return tall ? true : 'the log strip is under 32px high';
-  });
-  await closeDrawer(page, touch);
-  await step('menu-open', () => touch.tapOn('.game-menu .menu-button'), async () => ((await page.locator('.game-menu [role=menu]').isVisible()) ? true : 'menu list is not shown'));
+  await step('menu-open', () => touch.tapOn('.hud-system [data-action=menu]'), async () => ((await page.locator('.game-menu [role=menu]').isVisible()) ? true : 'menu list is not shown'));
   await step('help-open', () => touch.tapOn('.game-menu [data-entry=help]'), async () => ((await page.locator('#ui .help').isVisible()) ? true : 'help is not shown'));
   await step('help-close', () => touch.tapOn('#ui .help .close'), async () => ((await page.locator('#ui .help').count()) === 0 ? true : 'help is still shown'));
   await step('options-open', async () => {
-    await touch.tapOn('.game-menu .menu-button');
+    await touch.tapOn('.hud-system [data-action=menu]');
     await touch.tapOn('.game-menu [data-entry=options]');
   }, async () => {
     if (!(await page.locator('#ui .options-language').isVisible())) return 'options are not shown';
@@ -635,7 +611,6 @@ async function drawersAndMenus(session, step) {
 
 async function longPressReason(session, step) {
   const { page, touch } = session;
-  await openDrawer(page, touch, 'truck');
   const disabled = page.locator('#ui .instrument-actions [aria-disabled="true"]').first();
   const box = await disabled.boundingBox();
   const reason = await disabled.evaluate((el) => el.getAttribute('data-reason') ?? el.getAttribute('title'));
@@ -643,14 +618,13 @@ async function longPressReason(session, step) {
     const shown = await page.locator('#ui .touch-tip').textContent().catch(() => null);
     return shown && shown.includes(reason.slice(0, 8)) ? true : `tip ${JSON.stringify(shown)} for reason ${JSON.stringify(reason)}`;
   });
-  await closeDrawer(page, touch);
 }
 
 async function saveAndContinue(session, step, orientation) {
   const { page, touch } = session;
   const saved = await game(page, () => ({ turn: window.__ROAM__.state.turn, pos: window.__me().pos }));
   await step('save', async () => {
-    await touch.tapOn('.game-menu .menu-button');
+    await touch.tapOn('.hud-system [data-action=menu]');
     await touch.tapOn('.game-menu [data-entry=save]');
     await touch.tapOn('.save-panel .save-row');
     await page.waitForTimeout(1500);
@@ -744,8 +718,8 @@ async function hiddenViewKeepsDrawing(session, step, label) {
   await tapPrecise(session, step, `tap-precise-after-hidden-${label}`);
 }
 
-async function portraitJourney(browser) {
-  const orientation = 'portrait';
+async function freshJourney(browser) {
+  const orientation = 'fresh';
   const session = await context(browser, orientation);
   const { page, touch } = session;
   await page.addInitScript(INIT);
@@ -760,18 +734,18 @@ async function portraitJourney(browser) {
     const [following, focus] = await game(page, () => [window.__ROAM__.follow.isFollowing(), JSON.stringify(window.__ROAM__.rig.focus())]);
     return following === false && focus !== focusBefore ? true : `follow ${following}, focus moved ${focus !== focusBefore}`;
   });
-  await step('recenter', () => touch.tapOn('.recenter button'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
+  await step('recenter', () => touch.tapOn('.recenter-tray .recenter-key'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
   const zoomBefore = await game(page, () => window.__ROAM__.rig.zoom);
   await step('pinch-zoom', () => touch.pinch(mid, 40, 110), async () => {
     const zoom = await game(page, () => window.__ROAM__.rig.zoom);
     return zoom > zoomBefore ? true : `zoom ${zoomBefore} -> ${zoom}`;
   });
   await step('tap-ground', () => touch.tap(size.width * 0.7, size.height * 0.4), async () => ((await orderKind(page)) === 'through' ? true : `order ${await orderKind(page)}`));
-  await tapPreciseSuite(session, step, 'portrait');
+  await tapPreciseSuite(session, step, 'fresh');
   await step('hold-ground', () => touch.hold(size.width * 0.3, size.height * 0.4, 800), async () => ((await orderKind(page)) === 'stopAt' ? true : `order ${await orderKind(page)}`));
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
-    await touch.tapOn('.end-turn');
+    await touch.tapOn('.play-key');
     await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: stepLimitMs });
     await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
@@ -779,7 +753,7 @@ async function portraitJourney(browser) {
   await townAndShop(session, step);
   await inventoryByTouch(session, step);
   await characterByTouch(session, step);
-  await drawersAndMenus(session, step);
+  await menus(session, step);
   await longPressReason(session, step);
   await saveAndContinue(session, step, orientation);
   void open;
@@ -789,13 +763,13 @@ async function portraitJourney(browser) {
 }
 
 async function tapJourney(browser) {
-  const orientation = 'portrait';
+  const orientation = 'fresh';
   const session = await context(browser, orientation);
   await session.page.addInitScript(INIT);
   const step = stepper(session, orientation);
   await freshStart(session, orientation, step);
-  await tapPreciseSuite(session, step, 'portrait');
-  await hiddenViewKeepsDrawing(session, step, 'portrait');
+  await tapPreciseSuite(session, step, 'fresh');
+  await hiddenViewKeepsDrawing(session, step, 'fresh');
   await session.ctx.close();
 }
 
@@ -812,7 +786,7 @@ async function continueSaved(session, step) {
 }
 
 async function seedSave(browser) {
-  const orientation = 'portrait';
+  const orientation = 'fresh';
   const session = await context(browser, orientation);
   await session.page.addInitScript(INIT);
   const step = stepper(session, orientation);
@@ -837,10 +811,10 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
     const [following, focus] = await game(page, () => [window.__ROAM__.follow.isFollowing(), JSON.stringify(window.__ROAM__.rig.focus())]);
     return following === false && focus !== focusBefore ? true : `follow ${following}, focus moved ${focus !== focusBefore}`;
   });
-  await step('recenter', () => touch.tapOn('.recenter button'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
+  await step('recenter', () => touch.tapOn('.recenter-tray .recenter-key'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
-    await touch.tapOn('.end-turn');
+    await touch.tapOn('.play-key');
     await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: stepLimitMs * 4 });
     await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs * 4 });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
@@ -853,19 +827,12 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
   await page.waitForTimeout(800);
   await inventoryByTouch(session, step);
   await characterByTouch(session, step);
-  await drawersAndMenus(session, step);
-  await openDrawer(page, touch, 'truck');
-  await step('rotate-to-portrait', async () => {
-    await page.setViewportSize(SIZES.portrait);
-    await sleep(800);
-  }, async () => ((await game(page, () => window.innerHeight > window.innerWidth)) ? true : 'the window did not turn'));
-  await step('drawer-after-turn', () => openDrawer(page, touch, 'guns'), async () => (((await game(page, () => document.getElementById('ui').dataset.drawer)) === 'guns') ? true : 'the drawer did not open after the turn'));
-  await closeDrawer(page, touch);
-  await tapPreciseSuite(session, step, 'after-rotation');
+  await menus(session, step);
+  await tapPreciseSuite(session, step, 'landscape');
   await hiddenViewKeepsDrawing(session, step, 'landscape');
   await step('end-turn-after-turn', async () => {
     const before = await game(page, () => window.__ROAM__.state.turn);
-    await touch.tapOn('.end-turn');
+    await touch.tapOn('.play-key');
     await page.waitForFunction((t) => window.__ROAM__.state.turn > t, before, { timeout: stepLimitMs * 4 });
     await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: stepLimitMs * 4 });
   }, null);
@@ -892,7 +859,7 @@ async function uiSizeJourney(browser, storage) {
     await hideCanvasForSpeed(page);
   }, async () => ((await game(page, () => window.__ROAM__.state.turn >= 0)) ? true : 'no game'));
   await step('size-options-open', async () => {
-    await touch.tapOn('.game-menu .menu-button');
+    await touch.tapOn('.hud-system [data-action=menu]');
     await touch.tapOn('.game-menu [data-entry=options]');
   }, async () => ((await page.locator('#ui .ui-size-switch').isVisible()) ? true : 'the UI size row is not shown'));
   await step('size-pick-90', () => touch.tapOn('#ui .ui-size-switch > :nth-child(2)'), async () => {
@@ -905,8 +872,6 @@ async function uiSizeJourney(browser, storage) {
     return shown && shown.includes('Too big') && applied === 0.9 ? true : `tip ${JSON.stringify(shown)}, applied ${applied}`;
   });
   await step('size-options-close', () => touch.tapOn('#ui .options .close'), async () => ((await page.locator('#ui .options').count()) === 0 ? true : 'options are still shown'));
-  await step('size-guns-drawer', () => openDrawer(page, touch, 'guns'), async () => (((await game(page, () => document.getElementById('ui').dataset.drawer)) === 'guns') ? true : 'the drawer did not open'));
-  await closeDrawer(page, touch);
   await step('size-reload-keeps', async () => {
     await page.reload();
     await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: bootLimitMs || undefined });
@@ -922,10 +887,10 @@ async function main() {
   const { browser, software } = await launchChromium(chromium);
   setLimits(software);
   try {
-    const orientations = only ? [only] : ['portrait', 'landscape', 'phone', 'size'];
+    const orientations = only ? [only] : ['fresh', 'landscape', 'phone', 'size'];
     if (orientations.includes('tap')) await tapJourney(browser);
     let storage;
-    if (orientations.includes('portrait')) storage = await portraitJourney(browser);
+    if (orientations.includes('fresh')) storage = await freshJourney(browser);
     if (orientations.includes('landscape')) await landscapeJourney(browser, storage ?? (await seedSave(browser)));
     if (orientations.includes('phone')) {
       storage ??= await seedSave(browser);

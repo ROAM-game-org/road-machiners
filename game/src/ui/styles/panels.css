@@ -379,7 +379,7 @@
   isolation: isolate;
   padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
   border: 0;
-  background: var(--hud-panel-fill);
+  background: var(--hud-housing-fill);
   background-blend-mode: multiply, normal;
   box-shadow: var(--hud-panel-edge);
   color: var(--hud-amber);

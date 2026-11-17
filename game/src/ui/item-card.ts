@@ -19,12 +19,12 @@ import { partName } from "../text/names";
 import { actionRow, baselinePart, conditionTag, costItem, diffStats, jobDone, massStat, offActionRow, partHealthRow, partStats, statGrid, workMeterEl } from "./cards";
 import { disabledWith, el } from "./dom";
 import { commandFailure, jobLabel, workLabel, workProgress } from "./format";
-import { keyTip, phoneMode } from "./input-mode";
+import { keyTip } from "./input-mode";
 import { canFieldPatch, patchBlocker, planAfterMove, stripBlocker, stripRoomText, turnsToTry, weldBlocker } from "./inventory-moves";
 import { runCommand } from "./run-command";
 import { moneyMsg, pricedEl, priceTag } from "./units";
 
-export const ROTATE_KEYCAP = "R";
+const ROTATE_KEYCAP = "R";
 
 export type CardHost = {
   world: World;
@@ -138,7 +138,7 @@ function rotateReason(h: CardHost, itemId: string, to: Spot, turns: number): Msg
 }
 
 function rotateOffered(h: CardHost): boolean {
-  return !phoneMode() && (h.me.job === null || h.me.job.kind === "refit");
+  return (h.me.job === null || h.me.job.kind === "refit");
 }
 
 function rotateRow(h: CardHost, item: GridItem): HTMLElement[] {
@@ -157,7 +157,7 @@ function dumpReason(h: CardHost, item: GridItem): Msg | null {
 }
 
 function dumpRow(h: CardHost, item: GridItem, mounted: boolean): HTMLElement[] {
-  if (!h.dumpZone || phoneMode() || mounted || h.me.job) return [];
+  if (!h.dumpZone || mounted || h.me.job) return [];
   const reason = dumpReason(h, item);
   const button = el("button", { class: "btn-s", "data-drop": "dump", onpointerdown: stopPress, ...disabledWith(reason, () => h.run((world) => dumpItem(world, item.id, h.truckId))) }, t("inv.dumpShort"));
   return reason ? offActionRow(button, reason) : actionRow(button, []);

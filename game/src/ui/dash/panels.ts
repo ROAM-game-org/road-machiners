@@ -159,7 +159,7 @@ export interface ArcSetup {
   tone: "fuel" | "heat";
 }
 
-const ARC_CY = 242;
+const ARC_CY = 254;
 const ARC_SWEEP = 100;
 const ARC_RADIUS = 112;
 const ARC_SEGMENTS = 6;
@@ -260,7 +260,7 @@ export class DrivePanel {
     this.plate.place(this.fuelSpot, "fuel");
     this.plate.place(this.heatSpot, "heat");
     this.cool = this.plate.place(keyCap("cool-key", labels.cool, setup.onCool, createIcon("water")), "coolKey");
-    this.plate.pin(el("span", { class: "plate-label" }, labels.cool), "coolLabel");
+    this.plate.place(el("span", { class: "plate-label cool-label" }, labels.cool), "coolLabel");
     this.manual = this.rocker(labels.manual, "R", setup.onManual, "A");
     this.lights = this.rocker(labels.lights, "L", setup.onLights, "B");
     this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, "C");

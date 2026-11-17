@@ -260,11 +260,24 @@ function housingPicker(): HTMLElement {
   });
 }
 
+function patinaControls(): HTMLElement[] {
+  const root = document.documentElement;
+  const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  return [
+    control("Patina color", el("input", { type: "color", value: token("--hud-patina-color") }) as HTMLInputElement, (v) => root.style.setProperty("--hud-patina-color", v)),
+    range("Patina strength", 0, 0.35, 0.05, Number(token("--hud-patina-strength")), (v) => root.style.setProperty("--hud-patina-strength", String(v))),
+    range("Dust strength", 0.2, 1, 0.05, Number(token("--hud-dust-strength")), (v) => root.style.setProperty("--hud-dust-strength", String(v))),
+    range("Patina on controls", 0, 1, 0.05, Number(token("--hud-control-patina")), (v) => root.style.setProperty("--hud-control-patina", String(v))),
+    range("Patina on screens", 0, 1, 0.05, Number(token("--hud-screen-patina")), (v) => root.style.setProperty("--hud-screen-patina", String(v))),
+  ];
+}
+
 function controls(): HTMLElement {
   return el(
     "section",
     { class: "atlas-panel-controls" },
     housingPicker(),
+    ...patinaControls(),
     range("Speed", 0, 300, 1, state.speed, (v) => (state.speed = v)),
     range("Dial end", 60, 300, 20, state.top, (v) => (state.top = v)),
     range("Fuel", 0, 1, 0.01, state.fuel, (v) => (state.fuel = v)),

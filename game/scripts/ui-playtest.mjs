@@ -78,7 +78,7 @@ async function loadHeavyHud(page) {
     run('spawn buggy');
     run('weather storm');
     run('weather heatwave');
-    const world = structuredClone(game.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     world.player.engineHeat = 0.5;
     world.player.supplies = Math.max(world.player.supplies, 10);
     game.apply(world);
@@ -99,7 +99,7 @@ async function trimGuns(page, count) {
     const game = window.__ROAM__;
     const { partDef } = await import('/src/data/parts.ts');
     const { mountedItems } = await import('/src/sim/grid.ts');
-    const trimmed = structuredClone(game.state);
+    const trimmed = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     const me = trimmed.vehicles.find(v => v.id === trimmed.player.vehicleId);
     const drop = new Set(mountedItems(me, 'weapon').slice(count).map(it => it.part.id));
     me.items = me.items.filter(it => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon' && drop.has(it.part.id)));
@@ -116,9 +116,9 @@ async function settleLayers(page, width) {
 }
 
 async function holdContracts(page, count) {
-  await page.evaluate(count => {
+  await page.evaluate(async count => {
     const g = window.__ROAM__;
-    const w = structuredClone(g.state);
+    const w = (await import('/src/sim/world.ts')).cloneWorld(g.state);
     w.player.contracts = Object.values(w.shops).flatMap(shop => shop.contracts).slice(0, count);
     if (w.player.contracts.length !== count) throw new Error(`The boards hold fewer than ${count} contracts`);
     g.apply(w);
@@ -258,9 +258,9 @@ async function checkGuns(page) {
 
 async function checkOffAir(page) {
   const original = await page.evaluate(() => structuredClone(window.__ROAM__.state));
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const game = window.__ROAM__;
-    const world = structuredClone(game.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     world.setup = { ...world.setup, mode: 'chaosHighway' };
     game.apply(world);
   });

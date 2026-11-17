@@ -17,6 +17,7 @@ MASK_BLUR_PX = 1.2
 MASK_SPECK_AREA = 600
 KEEP_LIGHT = 0.45
 KEEP_GROW = 3
+PAINT_SAT = 0.35
 
 PLATES = {
     'drive': {'width': 1574, 'keep': []},
@@ -79,9 +80,21 @@ def housing_mask(rgba, keep, strict):
             continue
         lit = ndimage.binary_dilation(light[y0:y1, x0:x1] > KEEP_LIGHT, iterations=KEEP_GROW)
         mask[y0:y1, x0:x1] &= ~lit
-    mask = without_specks(mask)
+    metal = solid & ~recesses & ~((sat > PAINT_SAT) & ((hue < HOUSING_HUE[0]) | (hue > HOUSING_HUE[1])))
+    for x0, y0, x1, y1 in keep:
+        metal[y0:y1, x0:x1] &= ~ndimage.binary_dilation(light[y0:y1, x0:x1] > KEEP_LIGHT, iterations=KEEP_GROW)
+    return soft_mask(without_specks(mask)), soft_mask(without_specks(metal)), light
+
+
+def soft_mask(mask):
     soft = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(MASK_BLUR_PX))
-    return np.array(soft).astype(float) / 255, light
+    return np.array(soft).astype(float) / 255
+
+
+def save_mask(mask, alpha_source, size, path):
+    holder = np.zeros((*mask.shape, 4), np.uint8)
+    holder[..., 3] = (mask * alpha_source).astype(np.uint8)
+    Image.fromarray(holder).resize(size, Image.LANCZOS).save(path, quality=WEBP_QUALITY)
 
 
 def plate(name, spec):
@@ -89,24 +102,23 @@ def plate(name, spec):
     if 'scale' in spec:
         spec = {**spec, 'width': round(src.width * spec['scale'])}
     rgba = np.array(src).astype(float)
-    mask, light = housing_mask(rgba, spec['keep'], spec.get('strict', False))
+    mask, metal, light = housing_mask(rgba, spec['keep'], spec.get('strict', False))
     gray = np.clip(light / HOUSING_LIGHT_REF, 0, 1)[..., None] * 255
     rgb = rgba[..., :3] * (1 - mask[..., None]) + gray * mask[..., None]
     out = np.dstack([rgb, rgba[..., 3]]).astype(np.uint8)
     height = round(src.height * spec['width'] / src.width)
     size = (spec['width'], height)
     Image.fromarray(out).resize(size, Image.LANCZOS).save(OUT / f'{name}.webp', quality=WEBP_QUALITY)
-    alpha = (mask * rgba[..., 3]).astype(np.uint8)
-    holder = np.zeros((*alpha.shape, 4), np.uint8)
-    holder[..., 3] = alpha
-    Image.fromarray(holder).resize(size, Image.LANCZOS).save(OUT / f'{name}-housing.webp', quality=WEBP_QUALITY)
+    save_mask(mask, rgba[..., 3], size, OUT / f'{name}-housing.webp')
+    if spec.get('patina', False):
+        save_mask(metal, rgba[..., 3], size, OUT / f'{name}-patina.webp')
     print(f'{name}: {src.width}x{src.height} -> {size[0]}x{size[1]}, housing share {mask.mean():.2f}')
     return spec['width'] / src.width
 
 
 def main():
     (OUT / 'kit').mkdir(parents=True, exist_ok=True)
-    scales = {name: plate(name, spec) for name, spec in PLATES.items()}
+    scales = {name: plate(name, {**spec, 'patina': True}) for name, spec in PLATES.items()}
     for name, (owner, keep) in KIT.items():
         plate(f'kit/{name}', {'scale': scales[owner], 'keep': keep, 'strict': True})
 

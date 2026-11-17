@@ -28,7 +28,7 @@ export type GameMenuActions = SavePanelActions & {
 
 export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "fullscreen" | "tips" | "help" | "report";
 
-export type PhoneMenuLinks = { report: () => void; reportOpen: () => boolean };
+export type FeedbackLinks = { report: () => void; reportOpen: () => boolean };
 
 const MENU_ICONS: Record<MenuEntry, IconName> = { new: "star", save: "box", load: "load", unstuck: "wrench", options: "options", fullscreen: "expand", tips: "scanner", help: "journal", report: "bug" };
 
@@ -236,7 +236,7 @@ export class GameMenu {
   private readonly tipsLamp = lamp("key-mark");
   private readonly labels = {} as Record<MenuEntry, HTMLElement>;
 
-  constructor(private button: HTMLElement, private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks, sound: SoundSettings) {
+  constructor(private button: HTMLElement, private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private feedback: FeedbackLinks, sound: SoundSettings) {
     button.setAttribute("aria-haspopup", "menu");
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-controls", "game-menu-list");
@@ -258,7 +258,7 @@ export class GameMenu {
   }
 
   isOpen(): boolean {
-    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.phone.reportOpen() || isNewGameOpen() || isConfirmOpen();
+    return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.feedback.reportOpen() || isNewGameOpen() || isConfirmOpen();
   }
 
   refresh(): void {
@@ -337,7 +337,7 @@ export class GameMenu {
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
-    } else if (entry === "report") this.phone.report();
+    } else if (entry === "report") this.feedback.report();
     else if (entry === "help") this.help.toggle();
     else this.newGame();
   }

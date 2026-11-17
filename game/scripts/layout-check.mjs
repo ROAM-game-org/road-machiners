@@ -9,8 +9,8 @@ const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en',
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
 const COMPACT = [1024, 600];
-const PHONE = [390, 844];
-const PHONE_LANDSCAPE = [640, 360];
+const PHONE = [844, 390];
+const PHONE_SMALL = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
 const GALLERY = process.env.LAYOUT_GALLERY;
 const OUT = GALLERY ?? 'tmp/layout';
@@ -59,12 +59,12 @@ async function openTown(page, tab) {
 
 const openFullYard = (chassis) => async (page) => {
   await openTownClear(page);
-  await page.evaluate(() => { window.__yardWorld = structuredClone(window.__ROAM__.state); });
+  await page.evaluate(async () => { window.__yardWorld = (await import('/src/sim/world.ts')).cloneWorld(window.__ROAM__.state); });
   await page.evaluate(async (chassis) => {
     const g = window.__ROAM__;
     const c = await import('/src/sim/cheats.ts');
     const e = await import('/src/sim/economy.ts');
-    let world = structuredClone(g.state);
+    let world = (await import('/src/sim/world.ts')).cloneWorld(g.state);
     if (chassis) {
       world.player.money = 1e6;
       world = e.buyChassis(world, chassis);
@@ -93,7 +93,7 @@ async function openShortMarket(page) {
   await page.evaluate(async () => {
     const g = window.__ROAM__;
     const c = await import('/src/sim/cheats.ts');
-    const w = structuredClone(c.teleport(g.state, c.placeSpot(g.state, 'granary')));
+    const w = (await import('/src/sim/world.ts')).cloneWorld(c.teleport(g.state, c.placeSpot(g.state, 'granary')));
     w.shops.granary.goods.grain = 0;
     w.shops.granary.shortSince = { grain: w.turn - 800 };
     w.shops.granary.goods.fuelDrums = 0;
@@ -107,7 +107,8 @@ async function openShortMarket(page) {
     g.screens.town.open();
   });
   await page.evaluate(() => {
-    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    const trace = [];
+    const go = (id) => { const b = document.querySelector(`.town-page [data-town-go="${id}"]`); trace.push(`${id}:${b ? 'hit' : 'none'}:open-before ${window.__ROAM__.screens.town.isOpen()}`); b?.click(); trace.push(`open-after ${window.__ROAM__.screens.town.isOpen()}`); };
     go('back');
     go('market');
   });
@@ -119,7 +120,7 @@ async function openUntradedMarket(page) {
     const g = window.__ROAM__;
     const { addGoods } = await import('/src/sim/inventory.ts');
     const { playerVehicle } = await import('/src/sim/damage.ts');
-    const w = structuredClone(g.state);
+    const w = (await import('/src/sim/world.ts')).cloneWorld(g.state);
     addGoods(w, playerVehicle(w), 'relics', 2);
     g.apply(w);
     document.querySelector('.town-page [data-town-go="back"]')?.click();
@@ -139,7 +140,7 @@ async function openCall(page, node) {
       w = runCommand(w, 'spawn trader').world;
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
-    const next = structuredClone(w);
+    const next = (await import('/src/sim/world.ts')).cloneWorld(w);
     if (node === 'attacker') {
       const { callVehicle } = await import('/src/sim/dialogue.ts');
       const raiderWorld = runCommand(w, 'spawn gunwagon hostile').world;
@@ -179,15 +180,15 @@ async function openCall(page, node) {
   }, node);
 }
 
-const hangUp = (page) => page.evaluate(() => {
+const hangUp = (page) => page.evaluate(async () => {
   const g = window.__ROAM__;
-  const next = structuredClone(g.state);
+  const next = (await import('/src/sim/world.ts')).cloneWorld(g.state);
   next.player.call = null;
   g.apply(next);
 });
 
 const chooseMenuItem = (page, entry) => page.evaluate((entry) => {
-  document.querySelector('#ui .game-menu .menu-button').click();
+  document.querySelector('#ui .hud-system [data-action=menu]').click();
   document.querySelector(`#ui .game-menu [data-entry=${entry}]`).click();
 }, entry);
 
@@ -217,7 +218,7 @@ function frameFaults(page) {
     const frame = screen?.querySelector('.quest-frame');
     if (!frame) return [];
     const { width, height } = frame.getBoundingClientRect();
-    const stacked = screen.classList.contains('stacked') || document.getElementById('ui').classList.contains('phone');
+    const stacked = screen.classList.contains('stacked');
     if (questFrameFits(width, height, stacked)) return [];
     return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
   });
@@ -258,7 +259,7 @@ async function inspectNpc(page, armed) {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
-    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(runCommand(g.state, 'spawn gunwagon hostile').world);
     g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
@@ -280,7 +281,7 @@ async function inspectHauler(page) {
     const { haulerOf, playerVehicle } = await import('/src/sim/damage.ts');
     window.__layoutHauler ??= structuredClone(haulerOf(chaosHighwayWorld()));
     const hauler = structuredClone(window.__layoutHauler);
-    const world = structuredClone(g.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(g.state);
     const me = playerVehicle(world);
     hauler.id = 'layout-hauler';
     hauler.pos = { x: me.pos.x + 3, y: me.pos.y + 3 };
@@ -607,7 +608,7 @@ const inspectNine = async (page) => {
     const { runCommand } = await import('/src/ui/console.ts');
     const { makePart } = await import('/src/sim/factory.ts');
     const { mountPart } = await import('/src/sim/inventory.ts');
-    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(runCommand(g.state, 'spawn gunwagon hostile').world);
     g.hud.tips.setOn(false);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
@@ -643,7 +644,6 @@ const cardShapeFaults = (page) =>
     const draw = rect('.info-draw');
     const content = rect('.info-content');
     const listsBox = rect('.hitcard');
-    const phone = document.querySelector('#ui').classList.contains('phone');
     const scrolls = () => lists && innerHeight >= 720 && lists.scrollHeight > lists.clientHeight + 1;
     const narrow = () => draw.width < content.width - 1;
     const below = () => listsBox && listsBox.height > 0 && draw.bottom > listsBox.top + 1;
@@ -653,7 +653,7 @@ const cardShapeFaults = (page) =>
       [below, 'the drawing is not above the lists'],
     ];
     if (!draw || !content) return [];
-    return rules.filter(([broken]) => !phone && broken()).map(([, message]) => message);
+    return rules.filter(([broken]) => broken()).map(([, message]) => message);
   }, CARD);
 
 async function drawingFaults(page) {
@@ -661,9 +661,7 @@ async function drawingFaults(page) {
     const view = document.querySelector('#ui .info .truck-condition');
     const card = document.querySelector('#ui .info');
     if (!view) return [];
-    const phone = document.getElementById('ui').classList.contains('phone');
-    const scale = parseFloat(getComputedStyle(document.getElementById('ui')).getPropertyValue('--ui-scale')) || 1;
-    const aim = phone ? Math.max(32, 32 / scale) : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
+    const aim = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
     const cell = 30 * parseFloat(view.style.zoom || '1');
     const cardBox = card.getBoundingClientRect();
     const instruments = document.querySelector('#ui .instruments')?.getBoundingClientRect();
@@ -761,7 +759,7 @@ function townMarks(page, withError) {
       page: box(root),
     };
     const ui = document.querySelector('#ui');
-    const grows = !ui.classList.contains('phone') && !ui.classList.contains('narrow');
+    const grows = !ui.classList.contains('narrow');
     const choices = root.querySelector('.ink-choices');
     const above = choices?.previousElementSibling;
     const spare = above ? choices.getBoundingClientRect().top - above.getBoundingClientRect().bottom : 0;
@@ -884,8 +882,8 @@ async function openGarageStorage(page) {
   await page.evaluate(async () => {
     const { makePart } = await import('/src/sim/factory.ts');
     const g = window.__ROAM__;
-    window.__layoutWorld = structuredClone(g.state);
-    const world = structuredClone(g.state);
+    window.__layoutWorld = (await import('/src/sim/world.ts')).cloneWorld(g.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(g.state);
     const { PARTS } = await import('/src/data/parts.ts');
     const ids = (Array.isArray(PARTS) ? PARTS : Object.values(PARTS)).map((part) => part.id).slice(0, 8);
     for (const id of ids) world.player.storage.push(makePart(world, id, 0));
@@ -954,7 +952,6 @@ async function benchFaultsOn(page, where) {
 }
 
 async function inventoryBenchFaults(page) {
-  if (await page.evaluate(() => document.querySelector('#ui').classList.contains('phone'))) return [];
   await page.evaluate(() => { window.__layoutWorld = window.__ROAM__.state; });
   const found = await benchFaultsOn(page, 'start truck');
   await page.evaluate(async () => {
@@ -985,10 +982,12 @@ async function openShopRow(page) {
   await page.evaluate(() => document.querySelector('.town-page .part-sum').click());
 }
 
+const catalogText = (page, key) => page.evaluate(async (k) => (await import('/src/text/language.ts')).say((await import('/src/text/msg.ts')).t(k)), key);
+
 async function openBoardTaken(page) {
-  await page.evaluate(() => { window.__layoutWorld = structuredClone(window.__ROAM__.state); });
+  await page.evaluate(async () => { window.__layoutWorld = (await import('/src/sim/world.ts')).cloneWorld(window.__ROAM__.state); });
   await openTown(page, 'contracts');
-  await page.locator('.town-page button', { hasText: 'Accept' }).first().click();
+  await page.locator('.town-page button', { hasText: await catalogText(page, 'contract.accept') }).first().click();
 }
 
 async function openOutpost(page, tab, truck) {
@@ -1050,7 +1049,7 @@ async function openLookedOver(page) {
   await page.evaluate(async () => {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
-    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(runCommand(g.state, 'spawn gunwagon hostile').world);
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.states.push({ id: 'layout-sized-up', kind: 'sizedUp', holder: world.player.vehicleId, other: npc.id, turnsLeft: 99, born: world.turn, data: { kind: 'none' } });
     g.apply(world);
@@ -1060,7 +1059,7 @@ async function openLookedOver(page) {
 
 async function openNewGameScreen(page) {
   await openStartMenu(page);
-  await page.locator('.start-menu .btn-l', { hasText: 'New game' }).click();
+  await page.locator('.start-menu .btn-l', { hasText: await catalogText(page, 'menu.newGame') }).click();
 }
 
 async function closeNewGameScreen(page) {
@@ -1075,14 +1074,14 @@ const closeDeath = (page) => page.evaluate(() => {
 });
 
 const STATES = {
-  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   log: { setup: fillLog },
-  inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
-  'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
+  'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
-  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
-  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: marketFaults },
-  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE], check: nestedScrollFaults },
+  shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL], check: nestedScrollFaults },
+  trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL], check: marketFaults },
+  'full-shop': { setup: (page) => page.evaluate(() => window.__ROAM__.openFullShop()), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL], check: nestedScrollFaults },
   'trade-untraded': { setup: openUntradedMarket, teardown: closeTown, check: marketFaults },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: marketFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
@@ -1099,12 +1098,12 @@ const STATES = {
   'garage-full-sorokonoga': { setup: openFullYard('sorokonoga'), teardown: closeFullYard, viewports: [...VIEWPORTS, TALL, COMPACT], check: nestedScrollFaults },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown, check: nestedScrollFaults },
   'garage-storage': { setup: openGarageStorage, teardown: closeGarageStorage, check: hostedColumnFaults },
-  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'board-kinds': { setup: openBoardKinds({ offerKinds: ['haul', 'procure', 'escort'], heldCount: 2 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'board-kinds-more': { setup: openBoardKinds({ offerKinds: ['claim', 'search', 'survey'], heldCount: 1 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
   'board-full': { setup: openBoardKinds({ offerKinds: ['haul', 'claim', 'survey'], heldCount: 3 }), teardown: closeBoardKinds, viewports: JOURNAL_VIEWPORTS, check: boardFaults },
-  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_LANDSCAPE] },
+  'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_SMALL] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
@@ -1113,7 +1112,7 @@ const STATES = {
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
-  character: { setup: (page) => key(page, 'KeyC'), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
+  character: { setup: (page) => key(page, 'KeyC'), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
@@ -1166,10 +1165,12 @@ async function recordFaults(page, locale, label, name, state) {
 
 async function leaveState(page, state) {
   if (state.teardown) await state.teardown(page);
+  await page.evaluate(() => window.__ROAM__.apply(window.__captureWorld));
   await frames(page);
 }
 
 async function capture(page, locale, [width, height], [name, state], size = 1) {
+  await page.evaluate(async () => { window.__captureWorld = (await import('/src/sim/world.ts')).cloneWorld(window.__ROAM__.state); });
   await state.setup(page);
   if (isGalleryFiller(name)) return;
   await page.evaluate(() => document.fonts.ready);

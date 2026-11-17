@@ -150,8 +150,8 @@ export const DRIVE_PLATE = {
     face: [36, 43, 782, 586],
     fuel: [762, 89, 1038, 285],
     heat: [1058, 88, 1331, 285],
-    coolKey: [1396, 150, 1502, 262],
-    coolLabel: [1352, 92, 1545, 142],
+    coolKey: [1396, 200, 1502, 308],
+    coolLabel: [1352, 94, 1545, 184],
     rockerA: [857, 414, 950, 537],
     rockerB: [1087, 414, 1179, 537],
     rockerC: [1317, 414, 1410, 537],
@@ -184,10 +184,10 @@ export const RADIO_PLATE = {
     talk: [20, 18, 1028, 205],
     log: [21, 222, 956, 521],
     wheel: [970, 221, 1030, 525],
-    lcd: [122, 590, 571, 668],
-    knob: [722, 592, 798, 668],
-    knobMarks: [620, 566, 900, 694],
-    play: [962, 584, 1104, 676],
+    lcd: [122, 599, 571, 677],
+    knob: [722, 601, 798, 677],
+    knobMarks: [620, 575, 900, 703],
+    play: [962, 593, 1104, 685],
   },
 } as const satisfies PlateSpec<string>;
 
@@ -202,6 +202,7 @@ export const KIT = {
   wheel: { art: "kit/wheel", width: 247, height: 240, boxes: {} },
   glass: { art: "kit/glass", width: 512, height: 512, boxes: {} },
   grime: { art: "kit/grime", width: 512, height: 512, boxes: {} },
+  dust: { art: "kit/dust", width: 1024, height: 1024, boxes: {} },
   olive: { art: "kit/olive", width: 400, height: 400, boxes: {} },
   playkey: { art: "kit/playkey", width: 246, height: 160, boxes: {} },
   rim: { art: "kit/rim", width: 90, height: 90, boxes: {} },
@@ -216,6 +217,11 @@ function pct(part: number, whole: number): string {
 export function boxStyle(box: Box, width: number, height: number): string {
   const [x0, y0, x1, y1] = box;
   return `left:${pct(x0, width)};top:${pct(y0, height)};width:${pct(x1 - x0, width)};height:${pct(y1 - y0, height)}`;
+}
+
+function patinaLayers(art: string): HTMLElement[] {
+  const masks = `--plate-metal:url("${publicUrl(`hud/${art}-patina.webp`)}");--plate-art:url("${publicUrl(`hud/${art}.webp`)}")`;
+  return [el("span", { class: "plate-patina", "aria-hidden": "true", style: masks }), el("span", { class: "plate-glaze", "aria-hidden": "true", style: masks })];
 }
 
 export function artLayers(art: string): HTMLElement[] {
@@ -248,7 +254,7 @@ export class Plate<K extends string> {
   readonly root: HTMLElement;
 
   constructor(readonly spec: PlateSpec<K>, className: string) {
-    this.root = el("div", { class: `hud-plate ${className}`, style: `aspect-ratio:${spec.width} / ${spec.height}` }, ...artLayers(spec.art));
+    this.root = el("div", { class: `hud-plate ${className}`, style: `aspect-ratio:${spec.width} / ${spec.height}` }, ...artLayers(spec.art), ...patinaLayers(spec.art));
   }
 
   place<T extends Element>(node: T, box: K | Box): T {
@@ -315,7 +321,7 @@ export function textKey(label: Msg, attrs: Parameters<typeof el>[1], danger = fa
 }
 
 export function kitPiece(name: keyof typeof KIT, className: string): HTMLElement {
-  return el("span", { class: `kit-piece kit-${name} ${className}` }, ...artLayers(KIT[name].art));
+  return el("span", { class: `kit-piece kit-${name} ${className}`, style: `--kit-art:url("${publicUrl(`hud/${KIT[name].art}.webp`)}")` }, ...artLayers(KIT[name].art));
 }
 
 function loaded(src: string): Promise<HTMLImageElement> {
@@ -331,6 +337,7 @@ export async function paintSkin(root: HTMLElement = document.documentElement): P
   root.style.setProperty("--hud-keycap-lit-art", `url("${publicUrl(`hud/${KIT.keycapLit.art}.webp`)}")`);
   root.style.setProperty("--hud-glass-art", `url("${publicUrl(`hud/${KIT.glass.art}.webp`)}")`);
   root.style.setProperty("--hud-grime-art", `url("${publicUrl(`hud/${KIT.grime.art}.webp`)}")`);
+  root.style.setProperty("--hud-dust-art", `url("${publicUrl(`hud/${KIT.dust.art}.webp`)}")`);
   const [olive, rim, well] = await Promise.all([KIT.olive, KIT.rim, KIT.well].map((piece) => tinted(piece.art, root)));
   root.style.setProperty("--hud-rim-art", `url("${rim}")`);
   root.style.setProperty("--hud-well-art", `url("${well}")`);

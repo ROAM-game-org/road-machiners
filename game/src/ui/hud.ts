@@ -1,6 +1,5 @@
 
-import { Drawers } from "./drawers";
-import { keyTip, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -15,7 +14,7 @@ import { gaveUp } from "../sim/defeat";
 import { bottomLeft, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd } from "./dash/panels";
 import { controls, paintSkin, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, tray, type RockerView } from "./dash/skin";
-import type { PhoneMenuLinks } from "./game-menu";
+import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
 import { LogPanel } from "./log";
@@ -216,11 +215,10 @@ export class Hud {
   private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
   private rescue = panel("rescue notice hud-panel", topCenter());
   private knockedOut = panel("status-mark hud-panel", topCenter());
-  private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
+  private truckStack = el("div", { class: "truck-stack" });
   private stranded = panel("stranded notice hud-panel", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
-  private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
   private readonly dialogue: DialoguePanel;
@@ -252,7 +250,6 @@ export class Hud {
   };
 
   private clearOfDock(floor: number, card: HTMLElement): number {
-    if (phoneMode()) return floor;
     const deck = uiSize().layerRect(this.deck.root);
     return deck.left < uiSize().layerRect(card).right ? Math.min(floor, deck.top - parseFloat(token("--hud-gap"))) : floor;
   }
@@ -268,9 +265,9 @@ export class Hud {
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
     const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
-    const slot = phoneMode() ? floor : Math.min(floor, parseFloat(token("--info-card-height")));
+    const slot = Math.min(floor, parseFloat(token("--info-card-height")));
     this.info.style.height = `${slot}px`;
-    this.info.style.maxHeight = phoneMode() ? "none" : "";
+    this.info.style.maxHeight = "";
     this.growForDrawing(top, slot);
     this.fillToFloor(top);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
@@ -297,33 +294,16 @@ export class Hud {
   }
 
   private conditionRoom(): number {
-    if (phoneMode()) return parseFloat(getComputedStyle(this.truckStack).maxHeight);
     const top = uiSize().layerRect(topLeft()).bottom + parseFloat(token("--hud-gap"));
     return uiSize().layerRect(bottomLeft()).top - parseFloat(token("--space-4")) - top;
   }
 
-  private drawerMoved(): void {
-    requestAnimationFrame(this.placeInfo);
-  }
-
-  markCombat(on: boolean): void {
-    this.drawers.mark("guns", on);
-  }
-
   private floorOfInfo(): number {
-    if (!phoneMode()) return uiSize().layerRect(this.deck.root).top;
-    const open = this.drawers.open();
-    const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
-    const card = uiSize().layerRect(this.info);
-    const tops = [this.drive.root, this.drawers.element, frame, this.recenter]
-      .map((node) => (node ? uiSize().layerRect(node) : undefined))
-      .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
-      .map((box) => box!.top);
-    return Math.min(...tops);
+    return uiSize().layerRect(this.deck.root).top;
   }
 
   private aimCellPx(): number {
-    return phoneMode() ? Math.max(32, 32 / uiSize().applied()) : parseFloat(token("--btn-h-s"));
+    return parseFloat(token("--btn-h-s"));
   }
 
   private aimWidthCap(): number {
@@ -341,11 +321,6 @@ export class Hud {
   }
 
   private growHeightForDrawing(top: number, slot: number, needed: number): void {
-    if (phoneMode()) {
-      const fits = slot - this.inspectedDraw.clientHeight + needed;
-      this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
-      return;
-    }
     const tallest = this.sideFloor(this.info) - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + needed;
@@ -359,7 +334,7 @@ export class Hud {
   }
 
   private fillToFloor(top: number): void {
-    if (this.inspectedOther && !phoneMode()) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
+    if (this.inspectedOther) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
   }
 
   private coverUnder(bottom: number | null): void {
@@ -384,7 +359,6 @@ export class Hud {
     topLeft().prepend(this.stats.root);
     topRight().prepend(this.system.root);
     bottomLeft().prepend(this.drive.root);
-    this.deck.root.setAttribute("data-drawer-frame", "radio");
     this.deck.talk.append(radio.root);
     this.deck.log.append(this.log.root);
     this.deck.bindLog(this.log.lines);
@@ -431,7 +405,7 @@ export class Hud {
     this.feedbackForm.open("bug");
   }
 
-  feedbackLinks(): PhoneMenuLinks {
+  feedbackLinks(): FeedbackLinks {
     return { report: () => this.openFeedback(), reportOpen: () => this.feedbackOpen() };
   }
 

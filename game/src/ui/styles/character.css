@@ -1,4 +1,4 @@
-#ui:not(.phone) .modal.character-screen {
+#ui .modal.character-screen {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);

@@ -1154,7 +1154,7 @@
   align-items: flex-end;
   gap: var(--space-1);
 }
-:where(#ui.phone, #ui.narrow) .board {
+:where(#ui.narrow) .board {
   grid-template-columns: minmax(0, 1fr);
 }
 .job-what {

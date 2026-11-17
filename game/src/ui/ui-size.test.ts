@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appliedSize, fitsLayer, LAYER_MIN, loadUiSize, UI_SIZE_KEY, UI_SIZES, UiSize, type LayerBox } from "./ui-size";
+import { appliedSize, fitsLayer, LAYER_MIN, loadUiSize, TOUCH_LAYER_MIN, UI_SIZE_KEY, UI_SIZES, UiSize, type LayerBox } from "./ui-size";
 
 const PHONE = { width: 798, height: 375 };
 const PORTRAIT = { width: 390, height: 844 };
@@ -40,9 +40,18 @@ describe("fitting steps", () => {
     expect(appliedSize(0.9, PHONE, LAYER_MIN)).toBe(0.9);
     expect(appliedSize(1.3, LAPTOP, LAYER_MIN)).toBe(1.3);
   });
-  it("falls back to 80% on a window too small for any step", () => {
-    expect(appliedSize(1, { width: 400, height: 200 }, LAYER_MIN)).toBe(0.8);
+  it("shrinks to the exact fit on a window too small for any step", () => {
+    expect(appliedSize(1, { width: 400, height: 200 }, LAYER_MIN)).toBeCloseTo(200 / 360);
     expect(appliedSize(1, { width: 512, height: 288 }, LAYER_MIN)).toBe(0.8);
+  });
+  it("gives a landscape phone the desktop layer at a smaller scale", () => {
+    const size = appliedSize(1, PHONE, TOUCH_LAYER_MIN);
+    expect(size).toBeCloseTo(375 / 600);
+    expect(PHONE.width / size).toBeGreaterThanOrEqual(TOUCH_LAYER_MIN.long);
+    expect(PHONE.height / size).toBeCloseTo(TOUCH_LAYER_MIN.short);
+  });
+  it("keeps a touch laptop at its picked step", () => {
+    expect(appliedSize(1, LAPTOP, TOUCH_LAYER_MIN)).toBe(1);
   });
   it("throws on a pick that is no step", () => {
     expect(() => appliedSize(1.1, LAPTOP, LAYER_MIN)).toThrow();
@@ -118,16 +127,16 @@ describe("UiSize", () => {
 
 describe("loadUiSize", () => {
   it("loads 100% for a missing or unknown stored value", () => {
-    expect(loadUiSize(store(), "", false, [], root(), LAPTOP).pick()).toBe(1);
-    expect(loadUiSize(store({ [UI_SIZE_KEY]: "7" }), "", false, [], root(), LAPTOP).pick()).toBe(1);
+    expect(loadUiSize(store(), "", false, [], root(), LAPTOP, false).pick()).toBe(1);
+    expect(loadUiSize(store({ [UI_SIZE_KEY]: "7" }), "", false, [], root(), LAPTOP, false).pick()).toBe(1);
   });
   it("loads the stored pick", () => {
-    expect(loadUiSize(store({ [UI_SIZE_KEY]: "0.8" }), "", false, [], root(), LAPTOP).pick()).toBe(0.8);
+    expect(loadUiSize(store({ [UI_SIZE_KEY]: "0.8" }), "", false, [], root(), LAPTOP, false).pick()).toBe(0.8);
   });
   it("takes ?ui-size in dev for the visit without storing it", () => {
     const saved = store();
-    expect(loadUiSize(saved, "?ui-size=130", true, [], root(), LAPTOP).pick()).toBe(1.3);
+    expect(loadUiSize(saved, "?ui-size=130", true, [], root(), LAPTOP, false).pick()).toBe(1.3);
     expect(saved.data.size).toBe(0);
-    expect(loadUiSize(saved, "?ui-size=130", false, [], root(), LAPTOP).pick()).toBe(1);
+    expect(loadUiSize(saved, "?ui-size=130", false, [], root(), LAPTOP, false).pick()).toBe(1);
   });
 });

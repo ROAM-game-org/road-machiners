@@ -24,6 +24,7 @@ body {
   --weapon-icon-h: var(--icon-l);
   position: absolute;
   inset: 0;
+  overflow: clip;
   pointer-events: none;
   color: var(--ink);
   font: var(--text-body) / 1.4 var(--font-ui);

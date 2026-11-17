@@ -33,9 +33,9 @@ function outlineDiff(base, now) {
 }
 
 async function mutate(page, edit) {
-  await page.evaluate(([source]) => {
+  await page.evaluate(async ([source]) => {
     const game = window.__ROAM__;
-    const world = structuredClone(game.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     new Function('world', `(${source})(world)`)(world);
     game.apply(world);
   }, [edit.toString()]);

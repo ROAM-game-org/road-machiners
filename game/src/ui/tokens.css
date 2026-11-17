@@ -235,11 +235,13 @@
   --hud-radio-w: calc(var(--hud-radio-n) * 1px);
   --hud-zoom: 1;
   --hud-zoom-tight: 0.8;
-  --hud-zoom-phone: 0.8;
   --hud-radio-scale: 1;
   --hud-tray-h: 52px;
   --hud-tray-rim: var(--hud-rim-w);
   --hud-tray-side: var(--hud-rim-w);
+  --hud-tray-slant: calc(var(--hud-tray-h) * 0.5);
+  --hud-tray-slant-angle: 63.435deg;
+  --hud-tray-slant-sin: 0.8944;
   --hud-tray-gap: var(--space-4);
   --hud-text-s: 10px;
   --hud-text-m: 12px;
@@ -266,8 +268,20 @@
   --hud-pad: 10px;
   --hud-glass-tile: 256px;
   --hud-grime-tile: 256px;
-  --hud-panel-fill: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat, var(--hud-olive);
-  --hud-panel-edge: inset 0 1px 1px rgb(255 240 205 / 0.3), inset 1px 0 1px rgb(255 240 205 / 0.15), inset 0 -1px 1px rgb(30 18 6 / 0.45), inset -1px 0 1px rgb(30 18 6 / 0.3);
+  --hud-patina-color: #5e5036;
+  --hud-patina-strength: 0.175;
+  --hud-dust-strength: 0.35;
+  --hud-control-patina: 0.5;
+  --hud-screen-patina: 0.6;
+  --hud-dust-tile: 512px;
+  --hud-patina-tint: color-mix(in srgb, var(--hud-patina-color) calc(min(1, var(--hud-patina-strength) / max(var(--hud-dust-strength), 0.01)) * 100%), transparent);
+  --hud-patina-layer: var(--hud-dust-art) 0 0 / var(--hud-dust-tile) repeat fixed, linear-gradient(var(--hud-patina-tint), var(--hud-patina-tint));
+  --hud-patina-full: var(--hud-dust-strength);
+  --hud-patina-control: calc(var(--hud-dust-strength) * var(--hud-control-patina));
+  --hud-patina-screen: calc(var(--hud-dust-strength) * var(--hud-screen-patina));
+  --hud-print-patina: color-mix(in srgb, var(--hud-print), var(--hud-patina-color) calc(var(--hud-patina-strength) * var(--hud-control-patina) * 100%));
+  --hud-housing-fill: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat, var(--hud-olive);
+  --hud-panel-edge: inset 1px 1px 0 rgb(235 215 175 / 0.35), inset -1px -1px 0 rgb(30 18 6 / 0.5), inset 0 0 0 2.5px rgb(150 128 90 / 0.45), inset 0 0 1.5px 3px rgb(20 12 4 / 0.25);
   --hud-panel-gap: 5px;
   --hud-recess: inset 0 1px 2px rgb(8 4 1 / 0.8), inset 0 0 1.5px 0.5px rgb(8 4 1 / 0.75), 0 0 1px 0.5px rgb(255 240 205 / 0.12);
   --hud-glass-fill: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat, var(--hud-screen);
@@ -359,7 +373,7 @@
   --quest-page-height: 900px;
   --page-bottom: 40px;
   --art-band-height: 200px;
-  --art-band-phone-height: 72px;
+  --art-band-narrow-height: 72px;
   --ink-band-height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
   --survey-picture-w: 96px;
   --quest-text-width: 680px;
@@ -406,7 +420,6 @@
   --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
   --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
   --touch-target: max(32px, calc(32px / var(--ui-scale)));
-  --phone-speed-w: 128px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
@@ -432,6 +445,7 @@
   --z-confirm: 75;
   --z-tip: 80;
   --z-boot: 1000;
+  --z-rotate: 2000;
   --z-drag: 1000;
   --z-crash: 100000;
   --z-report: 100001;

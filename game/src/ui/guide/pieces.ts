@@ -69,7 +69,6 @@ export const PIECES: Piece[] = [
   { name: ".map-view", note: "The map drawing, compass north up and turned to match the 3D view: explored ground on paper, discovered places and the truck. The minimap is a square panel with zoom and open buttons in its head row.", build: () => minimapPiece() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
   { name: ".info-actions", note: "The action row of the truck card, right under the name line: Call, Look over and Mark as small buttons with their key drawn as a keycap off touch. A button the rules refuse stays, dimmed, with its reason.", build: () => infoActions() },
-  { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".speed-keys", note: "The travel speed control above End turn: a slower key, an LCD with the speed in turns per second and a faster key, built from the radio's transport key. The LCD is lit while automatic travel plays and faint while the pick waits. A key at the end of the range is aria-disabled with its reason.", build: () => speedKeys() },
   { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It fills with the sunk surface and keeps its ink, hover and focus.", build: () => seenOptions() },
@@ -119,11 +118,6 @@ function infoActions(): HTMLElement {
   const mark = el("button", { class: "btn-s" }, "Mark", el("kbd", { class: "key" }, "N"));
   mark.setAttribute("aria-disabled", "true");
   return el("div", { class: "info-actions" }, look, mark);
-}
-
-function drawerTabs(): HTMLElement {
-  const tab = (cls: string, label: string): HTMLElement => el("button", { class: `btn-l ${cls}` }, label);
-  return el("div", { class: "drawer-tabs" }, tab("selected", "Truck"), tab("marked", "Guns"), tab("", "Radio"));
 }
 
 function breakdown(): HTMLElement {

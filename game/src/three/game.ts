@@ -431,7 +431,6 @@ export class Game {
     if (!this.anim || this.anim.impacts) this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld(), this.world);
-    this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld(), this.callShown());
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();

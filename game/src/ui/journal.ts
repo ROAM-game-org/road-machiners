@@ -1,6 +1,6 @@
 import { noteBody, noteFrom, noteTitle, fullName, siteName } from '../text/names';
 import { t, num, PLUS, type Msg } from '../text/msg';
-import { keyLabel, narrowMode, phoneMode } from './input-mode';
+import { keyLabel, narrowMode } from './input-mode';
 import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
@@ -84,7 +84,7 @@ export class JournalScreen {
   }
 
   sideForm(): boolean {
-    return !phoneMode() && !narrowMode() && !this.root.classList.contains(OVER_SCENE);
+    return !narrowMode() && !this.root.classList.contains(OVER_SCENE);
   }
 
   toggle(): void {
