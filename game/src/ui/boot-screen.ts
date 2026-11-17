@@ -18,7 +18,7 @@ function part(root: HTMLElement, selector: string): HTMLElement {
 }
 
 export class BootScreen {
-  private readonly progress = new BootProgress();
+  private readonly progress: BootProgress;
   private readonly bar: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly signStages: Element[];
@@ -37,7 +37,9 @@ export class BootScreen {
   private constructor(
     private readonly root: HTMLElement,
     private readonly retry: () => void,
+    stopped: () => void,
   ) {
+    this.progress = new BootProgress(stopped);
     this.bar = part(root, '[role=progressbar]');
     this.stage = part(root, '.boot-stage');
     this.signStages = SIGN_STAGES.map((stage) => part(root, `.boot-sign [data-stage=${stage}]`));
@@ -69,10 +71,10 @@ export class BootScreen {
     this.render();
   }
 
-  static adopt(retry: () => void): BootScreen {
+  static adopt(retry: () => void, stopped: () => void): BootScreen {
     const root = document.getElementById('boot');
     if (!root) throw new Error('#boot element missing from the page');
-    return new BootScreen(root, retry);
+    return new BootScreen(root, retry, stopped);
   }
 
   async track<T>(step: BootStep, work: Promise<T> | (() => T), label?: Msg): Promise<T> {

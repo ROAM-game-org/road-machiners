@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AssetStatusError, AssetUnreachable, BuildGone, DownloadFailed } from '../fetch-asset';
 import { WebGLUnavailable } from './webgl';
 import { crashText, downloadFailedText, faultKind, isForeignError, noteError, onReport, type CrashContext, type ErrorFacts } from './crash';
@@ -107,5 +107,69 @@ describe('noteError', () => {
     noteError(new BuildGone('Model', 'truck.glb', 1, new AssetStatusError('HTTP 403', 403), 'https://game/'));
     expect(sink).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+function pageStandIn() {
+  const element = () => ({ className: '', textContent: '', firstChild: null, append() {}, appendChild() {}, replaceChildren() {}, addEventListener() {}, focus() {} });
+  return {
+    document: { createElement: element, createTextNode: () => ({}), body: element() },
+    location: { origin: 'https://roam-game.online', href: 'https://roam-game.online/', reload() {} },
+  };
+}
+
+async function freshCrash() {
+  vi.resetModules();
+  const page = pageStandIn();
+  vi.stubGlobal('document', page.document);
+  vi.stubGlobal('location', page.location);
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const crash = await import('./crash');
+  const webgl = await import('./webgl');
+  const fetchAsset = await import('../fetch-asset');
+  const stops = vi.fn();
+  const sink = vi.fn();
+  crash.onBootStopped(stops);
+  crash.onReport(sink);
+  return { ...crash, ...webgl, ...fetchAsset, stops, sink };
+}
+
+describe('a screen that ends the boot', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('stops the boot once on the no-WebGL notice', async () => {
+    const crash = await freshCrash();
+    crash.reportError(new crash.WebGLUnavailable('no adapter'));
+    crash.reportError(new crash.WebGLUnavailable('no adapter'));
+
+    expect(crash.stops).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the boot on the lost files notice', async () => {
+    const crash = await freshCrash();
+    crash.reportError(new crash.DownloadFailed('Map', 'maps/icarus.bin', 4, new Error('offline')));
+
+    expect(crash.stops).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the boot on the crash screen', async () => {
+    const crash = await freshCrash();
+    crash.reportError(new Error('broken'));
+
+    expect(crash.stops).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a lost context once and a missing WebGL never', async () => {
+    const crash = await freshCrash();
+    const lost = new crash.WebGLUnavailable('the WebGL context was lost and not restored', { lost: true });
+    crash.reportError(new crash.WebGLUnavailable('no adapter'));
+    crash.reportError(lost);
+    crash.reportError(lost);
+
+    expect(crash.sink).toHaveBeenCalledTimes(1);
+    expect(crash.sink).toHaveBeenCalledWith(lost);
   });
 });
