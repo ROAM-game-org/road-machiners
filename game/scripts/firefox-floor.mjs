@@ -35,7 +35,7 @@ async function judge(page, step, seen) {
   return problems;
 }
 
-async function playHardened(page, url, bootLimitMs) {
+async function playHardened(page, url, bootLimitMs, errors) {
   const seen = { linked: 0, failed: 0 };
   const problems = [];
   await page.goto(playUrl(url));
@@ -47,6 +47,7 @@ async function playHardened(page, url, bootLimitMs) {
   console.log(`hardened Firefox reports ${limit} varying vectors`);
   if (limit > EXPECTED_VARYING_LIMIT) problems.push(`the hardened Firefox pass reports ${limit} varying vectors, not ${EXPECTED_VARYING_LIMIT}, so it does not test the low limit`);
   await page.waitForTimeout(SETTLE_MS);
+  if (errors.length > 0) throw new Error('the game raised an error while it settled by day');
   await playNightTurns(page, DAY_TURNS, TURN_LIMIT_MS);
   problems.push(...(await judge(page, 'Roaming by day', seen)));
   await lightUpNight(page);
@@ -68,7 +69,7 @@ async function tryHardenedFirefox(url, { bootLimitMs }) {
   page.on('crash', () => errors.push('hardened Firefox crashed'));
   await page.addInitScript(countLinks);
   try {
-    return [...(await playHardened(page, url, bootLimitMs)), ...errors];
+    return [...(await playHardened(page, url, bootLimitMs, errors)), ...errors];
   } catch (e) {
     return [...errors, `the hardened Firefox check stopped: ${e.message}`];
   } finally {
