@@ -55,7 +55,7 @@ import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { startGroundBaker } from './ground-off-thread';
-import { groundTexture } from './render/terrain';
+import { drawnGroundOf, groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
 
@@ -328,7 +328,13 @@ const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 startTurnWorker(travel, groundBaked, initPhysics(), map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
 stepBoot('building the ground');
-await boot.track('ground', () => groundBaked.then(() => groundTexture(world)));
+const drawn = await boot.track('ground', async () => {
+  await groundBaked;
+  groundTexture(world);
+  stepBoot('painting the ground fields');
+  await boot.painted();
+  return drawnGroundOf(world);
+});
 stepBoot('waiting for physics and models');
 await loading;
 stepBoot('starting the game');
@@ -337,7 +343,7 @@ radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
   stepBoot('building the renderer');
-  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, stepBoot);
+  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {

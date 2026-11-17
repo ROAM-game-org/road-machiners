@@ -63,7 +63,7 @@ import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
-import { buildWorldViews, sightAround } from "./world-views";
+import { buildWorldViews, sightAround, type WorldViewHost } from "./world-views";
 import { type WebGLSurface } from "./webgl";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
 import { TruckViews } from "./truck-views";
@@ -218,7 +218,7 @@ export class Game {
     this.plans.warm(this.world.terrain);
   }
 
-  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, bootStep: (name: string) => void) {
+  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
@@ -235,7 +235,7 @@ export class Game {
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { bootStep, scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
+    const views = buildWorldViews(this.world, { bootStep, drawn, scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
