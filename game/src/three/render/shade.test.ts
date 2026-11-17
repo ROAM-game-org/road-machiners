@@ -5,6 +5,8 @@ import { shadeCasters, sunAt, sunHeatAt } from '../../sim/sun';
 import { emptyWorld } from '../../sim/testkit';
 import * as THREE from 'three';
 import { PlayClock } from '../play-clock';
+import { CLOUD_SHADOWS } from './cloudShadows';
+import { NIGHT_POOLS } from './lightPools';
 import { cornerLook, ShadeView } from './shade';
 
 function turnFor(hour: number): number {
@@ -117,5 +119,41 @@ describe('shade patch over frames', () => {
     expect(dump(view)).toEqual(dump(build(worldAt(t2))));
     for (let i = 0; i < FRAMES; i++) view.advance();
     expect(dump(view)).toEqual(dump(build(worldAt(t3))));
+  });
+});
+
+describe('one world position varying', () => {
+  const stacked = (order: 'haze-first' | 'haze-last') => {
+    const material = new THREE.MeshLambertMaterial();
+    const play = new PlayClock({ stopMs: 1, startMs: 1, stopFolds: 1 });
+    if (order === 'haze-first') new ShadeView(emptyWorld(), material, play);
+    NIGHT_POOLS.light(material);
+    CLOUD_SHADOWS.shade(material);
+    if (order === 'haze-last') new ShadeView(emptyWorld(), material, play);
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: '#include <common>\n#include <project_vertex>',
+      fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\n#include <aomap_fragment>\n#include <tonemapping_fragment>',
+    };
+    material.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
+    return shader;
+  };
+  const count = (text: string, part: string) => text.split(part).length - 1;
+
+  it.each(['haze-first', 'haze-last'] as const)('declares it once per stage and writes it once with %s', (order) => {
+    const shader = stacked(order);
+    expect(count(shader.vertexShader, 'varying vec2 vWorldXZ;')).toBe(1);
+    expect(count(shader.fragmentShader, 'varying vec2 vWorldXZ;')).toBe(1);
+    expect(count(shader.vertexShader, 'vWorldXZ = ')).toBe(1);
+    expect(shader.vertexShader).not.toMatch(/vPoolXZ|vHazeXZ|vCloudXZ/);
+  });
+
+  it('shifts the world position for the lookups and restores it before the color chunk', () => {
+    const { fragmentShader } = stacked('haze-last');
+    const shifted = fragmentShader.indexOf('#define vWorldXZ (vWorldXZ + hazeShift)');
+    const restored = fragmentShader.indexOf('#undef vWorldXZ');
+    expect(shifted).toBeGreaterThan(-1);
+    expect(restored).toBeGreaterThan(shifted);
+    expect(restored).toBeLessThan(fragmentShader.indexOf('#include <color_fragment>'));
   });
 });
