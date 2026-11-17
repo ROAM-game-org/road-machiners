@@ -15,7 +15,7 @@ const CLOSED_UNATTEMPTED = 'posted_at is null and attempted_at is null and gate_
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
-export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; classifiedAt: string | null; replyId: number | null; context: string | null; language: ReplyLanguage | null; linked: boolean; images: string[]; toHermes: boolean; addressed: boolean };
+export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; classifiedAt: string | null; replyId: number | null; context: string | null; language: ReplyLanguage | null; linked: boolean; images: string[]; filterAttempts: number; toHermes: boolean; addressed: boolean };
 export type IssueComment = StoredComment & { issue: number };
 export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; toHermes?: boolean; addressed?: boolean; context?: string | null; images?: string[] };
 export type FilingClaim = { claimed: true } | { claimed: false; issue: number | null };
@@ -233,6 +233,15 @@ export class PublicStore {
   parentPitch(issue: number): string | null {
     const row = this.db.prepare('select pitch from proposals where issue = ?').get(issue);
     return row === undefined ? null : String(row.pitch).split('\n')[0]!.trim();
+  }
+
+  unclassifiedThreadComments(limit: number): StoredComment[] {
+    const waiting = "select *, row_number() over (partition by coalesce(sender, source_id) order by id) as turn from comments where source = 'telegram' and issue is not null and to_hermes = 0 and classified_at is null and dropped_at is null";
+    return this.db.prepare(`select * from (${waiting}) order by turn, id limit ?`).all(limit).map(toComment);
+  }
+
+  classifyLater(id: number): void {
+    this.db.prepare('update comments set kind = null, route = null, classified_at = null, filter_attempts = filter_attempts + 1 where id = ?').run(id);
   }
 
   classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, relevance: Relevance = 'parent'): void {
@@ -476,6 +485,6 @@ function toComment(row: Row): StoredComment {
     kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null, chat: textOrNull(row.post_chat), messageId: numberOrNull(row.message_id), sender: textOrNull(row.sender),
     relevance: row.relevance as Relevance | null, filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at), classifiedAt: textOrNull(row.classified_at), replyId: numberOrNull(row.reply_id),
     context: textOrNull(row.context), language: row.language === 'ru' || row.language === 'en' ? row.language : null, linked: Number(row.linked) === 1,
-    images: row.images === null ? [] : (JSON.parse(String(row.images)) as string[]), toHermes: Number(row.to_hermes) === 1, addressed: Number(row.addressed) === 1,
+    images: row.images === null ? [] : (JSON.parse(String(row.images)) as string[]), filterAttempts: Number(row.filter_attempts ?? 0), toHermes: Number(row.to_hermes) === 1, addressed: Number(row.addressed) === 1,
   };
 }

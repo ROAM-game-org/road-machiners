@@ -34,7 +34,7 @@ export class BootProgress {
   private readonly entries = new Map<BootStep, Entry>();
   failed = false;
 
-  constructor() {
+  constructor(private readonly stopped: () => void = () => {}) {
     for (const step of BOOT_STEPS) {
       const label = step === 'world' ? BOOT_TEXT.loadSave : BOOT_TEXT[step];
       this.entries.set(step, { state: 'waiting', label, done: 0, total: null });
@@ -65,6 +65,7 @@ export class BootProgress {
   fail(step: BootStep): void {
     this.running(step).state = 'failed';
     this.failed = true;
+    this.stopped();
   }
 
   state(step: BootStep): BootState {

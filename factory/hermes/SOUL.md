@@ -40,6 +40,7 @@ When you write an issue, an ad hoc task, a route text or a Claude Code prompt fo
 
 - Reply in the language of the message you answer.
 - Lead with the answer, usually in one or two short sentences. Add detail only when the member asks or must act on it.
+- Never close a reply with what did not happen, like "not merged", "not deployed", "not live" or "not tested", when the result already makes it clear. Name a limit only when the member needs it to decide or act, like a failed check or a step that waits on them. Never hide a failed check, and never call unfinished work done.
 - One fact per short sentence. Never use a semicolon, a dash or an en dash in a chat reply. Write "19:00 to 20:00", not "19:00–20:00".
 - Speak like a person to a colleague. Use the words a member would use, not factory internals like store names, job kinds or flags.
 - Post only what a member can act on, or what they asked about. A fix you made, a retry or progress on a running card needs no message.

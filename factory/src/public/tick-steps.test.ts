@@ -24,7 +24,7 @@ describe('publicTick', () => {
     expect(f.store.proposal(8)?.closedAt).toBeNull();
   });
 
-  it('never calls the filter for a chat comment and leaves it stored unclassified', async () => {
+  it('filters an untagged thread reply once for its card digest, and never a message that went to Hermes', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
@@ -38,10 +38,10 @@ describe('publicTick', () => {
     };
     await publicTick(f.ctx, filterOf(recording));
     await publicTick(f.ctx, filterOf(recording));
-    expect(filtered).toEqual([]);
-    expect(storedComments(f.store).map((c) => [c.text, c.classifiedAt, c.kind])).toEqual([['The winch breaks', null, null], ['Same here', null, null], ['nice day', null, null]]);
-    expect(f.store.unsentComments()).toEqual([]);
-    expect(f.comments).toEqual([]);
+    expect(filtered).toEqual(['The winch breaks']);
+    expect(storedComments(f.store).map((c) => [c.text, c.classifiedAt === null])).toEqual([['The winch breaks', false], ['Same here', true], ['nice day', true]]);
+    expect(f.comments.map((comment) => comment.issue)).toEqual([7]);
+    expect(f.comments[0]!.body).toContain('The winch breaks');
     expect(readState(f.ctx.statePath).failures).toEqual([]);
   });
 });

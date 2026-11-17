@@ -85,4 +85,15 @@ describe('BootProgress', () => {
     expect(() => p.finish('code')).toThrow('failed');
     expect(() => p.fail('code')).toThrow('failed');
   });
+
+  it('tells its stop listener once, when a step fails', () => {
+    let stops = 0;
+    const p = new BootProgress(() => stops++);
+    p.finish('code');
+    p.start('map');
+    expect(stops).toBe(0);
+    p.fail('map');
+    expect(() => p.fail('map')).toThrow('failed');
+    expect(stops).toBe(1);
+  });
 });

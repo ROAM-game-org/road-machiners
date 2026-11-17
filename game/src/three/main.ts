@@ -41,8 +41,8 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onCrashScreen, onEveryError, onReport, reportError } from './crash';
-import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished } from './boot-marker';
+import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onBootStopped, onEveryError, onReport, reportError } from './crash';
+import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished, watchBootEnd } from './boot-marker';
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
@@ -55,7 +55,7 @@ import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { startGroundBaker } from './ground-off-thread';
-import { groundTexture } from './render/terrain';
+import { drawnGroundOf, groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
 
@@ -221,15 +221,21 @@ installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const unfinishedBoot = takeUnfinished(window.sessionStorage, saveKey);
+watchBootEnd(window, document, window.sessionStorage, saveKey, Date.now);
 let bootRequestKind = 'menu';
+let bootStopped = false;
 function stepBoot(name: string): void {
   bootStep(name);
-  markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION);
+  if (!bootStopped) markStep(window.sessionStorage, saveKey, name, bootRequestKind, GAME_VERSION, Date.now());
 }
 function waitOnPlayer(): void {
   markWaiting(window.sessionStorage, saveKey);
 }
-onCrashScreen(() => clearMark(window.sessionStorage, saveKey));
+function endMark(): void {
+  bootStopped = true;
+  clearMark(window.sessionStorage, saveKey);
+}
+onBootStopped(endMark);
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
 loadMinimapSetting(window.localStorage);
@@ -277,11 +283,11 @@ function soundsArrived(loaded: LoadedBank): void {
   if (loaded.failures.length) whenVisible(() => void recoverSounds(loaded).catch(reportError));
   performance.mark('roam:sounds');
 }
-const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
+const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError), endMark);
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
-if (unfinishedBoot) noteError(new BootUnfinished(unfinishedBoot));
+if (unfinishedBoot) noteError(new BootUnfinished(unfinishedBoot, Date.now()));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const gpu = new GpuContext(surface.canvas, surface.context, reportError);
 const mixer = new Mixer(MIX);
@@ -322,14 +328,23 @@ const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 startTurnWorker(travel, groundBaked, initPhysics(), map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
 stepBoot('building the ground');
-await boot.track('ground', () => groundBaked.then(() => groundTexture(world)));
+const drawn = await boot.track('ground', async () => {
+  await groundBaked;
+  groundTexture(world);
+  stepBoot('painting the ground fields');
+  await boot.painted();
+  return drawnGroundOf(world);
+});
 stepBoot('waiting for physics and models');
 await loading;
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', async () => new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf));
+const game = await boot.track('scene', async () => {
+  stepBoot('building the renderer');
+  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
+});
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
@@ -353,7 +368,7 @@ performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
 void boot.finish().then(() => game.warmPlans(), reportError);
-clearMark(window.sessionStorage, saveKey);
+endMark();
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

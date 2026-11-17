@@ -18,8 +18,11 @@ import { addSites, HollowLamps } from './render/sites';
 import { CellStreamer } from './render/streamer';
 import { GroundCache, groundCacheUniforms } from './render/groundCache';
 import { cachedGround, groundMaterial, terrainMesh } from './render/terrain';
+import type { DrawnGround } from './render/groundShader';
 
 export type WorldViewHost = {
+  drawn: DrawnGround;
+  bootStep: (name: string) => void;
   scene: THREE.Scene;
   ground: THREE.Group;
   props: THREE.Group;
@@ -50,14 +53,15 @@ export function sightAround(limit: SightLimit, streamer: CellStreamer, world: Wo
 }
 
 function groundFor(world: World, host: WorldViewHost): THREE.MeshLambertMaterial {
-  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world);
+  if (!host.renderer.extensions.has('EXT_color_buffer_float')) return groundMaterial(world, host.drawn);
   const cacheUniforms = groundCacheUniforms();
-  const { reader, writer, writes } = cachedGround(world, cacheUniforms);
+  const { reader, writer, writes } = cachedGround(world, host.drawn, cacheUniforms);
   host.drawGroundThrough(new GroundCache(host.renderer, host.ground, reader, writer, writes.uniforms, cacheUniforms));
   return reader;
 }
 
 export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
+  host.bootStep('building the world views');
   const sightLimit = new SightLimit(world.size);
   const groundScope = new RenderScope(host.ground, world.size, sightLimit, false, false);
   const propScope = new RenderScope(host.props, world.size, sightLimit, true, true);
@@ -76,6 +80,7 @@ export function buildWorldViews(world: World, host: WorldViewHost): WorldViews {
   const shade = new ShadeView(world, ground, host.play);
   const streamer = new CellStreamer(scopes, host.prepare, () => performance.now(), PERF.stream.budgetMs);
   const reach = grayReach(world, playerVehicle(world));
-  streamer.boot(playerVehicle(world).pos, reach, reach + PERF.stream.leadTiles);
+  host.bootStep('building the first cells');
+  streamer.boot(playerVehicle(world).pos, reach, reach);
   return { sightLimit, scopes, craters, siteLights, obstacles, fog, shade, streamer };
 }

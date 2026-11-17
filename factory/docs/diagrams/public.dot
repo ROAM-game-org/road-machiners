@@ -34,17 +34,17 @@ digraph public {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     message [label="Player writes in the chat\nkeeps the replied text\nand images", fillcolor="#fde68a", color="#b45309"];
     plugin [label="Plugin\nwrites the inbox file\nmarks whether it\naddressed the bot"];
-    hermes [label="Hermes, the one handler\nof every chat message\nuntrusted text, public prompt\nno committee order"];
+    hermes [label="Hermes, the one handler\nof every addressed message\nuntrusted text, public prompt\nno committee order"];
     tools [label="Player tools\nfactory player on the host\nonly this player's\nown messages"];
     hermesReply [label="Hermes answers in the thread\nissue numbers and statuses\nonly from tool results"];
-    silent [label="[SILENT]\nno reply to chat\nthat needs nothing", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+    untagged [label="Stored, never to Hermes\nuntagged chat outside a thread\nno answer, no card", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
     message -> plugin;
-    plugin -> hermes [label="every person's message:\ntagged, untagged, thread\nreply or plain chat"];
+    plugin -> hermes [label="a tag of the bot or\na reply to Hermes's answer"];
     hermes -> tools;
-    hermes -> hermesReply [label="addressed, or plainly\nneeds the bot"];
+    hermes -> hermesReply [label="every message it gets"];
   }
 
-  filter [label="Decisions API filter\nspam, kind, about the build\ngame reports only\nnever a chat message"];
+  filter [label="Decisions API filter\nspam, kind, about the build\ngame reports and\nuntagged thread replies"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
   answerJob [label="Answer job, one at a time\nat most FACTORY_ANSWERS_PER_DAY\nSonnet reads and runs\nthe game on main,\nreplies with its answer"];
@@ -62,7 +62,7 @@ digraph public {
   filter -> digest [label="a report about the change\nof a card's build, or\nfeedback on the candidate"];
   filter -> newIssue [label="game report: bug or feature\noff the build's change, any other\nreport, or a bug, feature, patch\nor redesign on the candidate"];
   tools -> newIssue [label="file_issue\nbug, or idea asked to file"];
-  tools -> digest [label="add_to_issue\nthread feedback or\nopen known work"];
+  tools -> digest [label="add_to_issue\ntagged thread feedback\nor open known work"];
   tools -> answerJob [label="queue_answer_job"];
   newIssue -> intake;
   newIssue -> releaseTask [label="from the candidate"];
@@ -79,5 +79,6 @@ digraph public {
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];
   plugin -> ignored;
-  hermes -> silent;
+  plugin -> untagged;
+  plugin -> filter [label="untagged reply in a\nproposal or build thread"];
 }

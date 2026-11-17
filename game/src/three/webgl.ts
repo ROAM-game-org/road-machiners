@@ -3,10 +3,12 @@ import { t, type Msg } from '../text/msg';
 
 export class WebGLUnavailable extends Error {
   readonly reason: string | null;
-  constructor(reason: string | null, options?: { cause?: unknown }) {
-    super(`This browser could not create a WebGL 2 context${reason ? `: ${reason}` : ''}`, options);
+  readonly lost: boolean;
+  constructor(reason: string | null, options?: { cause?: unknown; lost?: boolean }) {
+    super(`${options?.lost ? 'The WebGL 2 context failed' : 'This browser could not create a WebGL 2 context'}${reason ? `: ${reason}` : ''}`, options);
     this.name = 'WebGLUnavailable';
     this.reason = reason;
+    this.lost = options?.lost ?? false;
   }
 }
 
