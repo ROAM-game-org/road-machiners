@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { launchChromium } from './gpu.mjs';
 import { emulateWebGL2Floor } from './gpu-floor.mjs';
 import { checkHighwayNightInSoftware, checkNightGround, collectGarbage, NIGHT_TURNS } from './night-ground.mjs';
+import { checkHardenedFirefox } from './firefox-floor.mjs';
 import { playUrl } from './game-url.mjs';
 import { watchStalls } from './stall-watch.mjs';
 
@@ -253,6 +254,10 @@ await checkNoStrayControl('after the reload');
 await browser.close();
 progress('the highway night check starts');
 nightProblems.push(...(await checkHighwayNightInSoftware(url, { shot: '.playtest/night-highway.png', bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
+if (!process.argv.includes('--no-firefox')) {
+  progress('the hardened Firefox check starts');
+  nightProblems.push(...(await checkHardenedFirefox(url, { bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
+}
 
 const problems = [...errors, ...hitProblems, ...languageProblems, ...nightProblems];
 if (state.crashed) problems.push('crash screen shown');
