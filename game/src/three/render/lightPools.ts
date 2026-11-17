@@ -4,6 +4,7 @@ import { PAL } from '../../render/palette';
 import { fortressOutline, fortressFootprint, fortressPieces } from '../../sim/fortress';
 import type { Site } from '../../sim/sites';
 import { pointInPolygon, type Vec } from '../../sim/vec';
+import { placeInWorld } from './worldPlace';
 
 const S = PHYSICS.metersPerTile;
 
@@ -108,21 +109,14 @@ export function samplePools(data: Uint8Array, grid: PoolGrid, p: Vec): number {
   return (at(i, j) * (1 - fu) + at(i + 1, j) * fu) * (1 - fv) + (at(i, j + 1) * (1 - fu) + at(i + 1, j + 1) * fu) * fv;
 }
 
-const POOL_VERTEX = `#include <project_vertex>
-vec4 poolWorld = vec4(transformed, 1.0);
-#ifdef USE_INSTANCING
-poolWorld = instanceMatrix * poolWorld;
-#endif
-vPoolXZ = (modelMatrix * poolWorld).xz;`;
-
 const POOL_FRAGMENT = `if (poolLevel > 0.0) {
   vec3 poolNormal = inverseTransformDirection(normal, viewMatrix);
-  vec2 poolAt = (vPoolXZ + poolNormal.xz * poolPush) / poolSpan;
+  vec2 poolAt = (vWorldXZ + poolNormal.xz * poolPush) / poolSpan;
   gl_FragColor.rgb += diffuseColor.rgb * poolColor * (texture2D(poolMap, poolAt).r * poolGain * poolLevel);
 }
 #include <tonemapping_fragment>`;
 
-const POOL_UNIFORMS = 'uniform sampler2D poolMap;\nuniform float poolSpan;\nuniform float poolPush;\nuniform float poolGain;\nuniform float poolLevel;\nuniform vec3 poolColor;\nvarying vec2 vPoolXZ;';
+const POOL_UNIFORMS = 'uniform sampler2D poolMap;\nuniform float poolSpan;\nuniform float poolPush;\nuniform float poolGain;\nuniform float poolLevel;\nuniform vec3 poolColor;';
 
 function haloTexture(): THREE.DataTexture {
   const n = HALO.texels;
@@ -196,7 +190,7 @@ export class NightPools {
     material.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
       Object.assign(shader.uniforms, this.uniforms);
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vPoolXZ;').replace('#include <project_vertex>', POOL_VERTEX);
+      placeInWorld(shader);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${POOL_UNIFORMS}`).replace('#include <tonemapping_fragment>', POOL_FRAGMENT);
     };
     material.customProgramCacheKey = () => `${key()}|pools`;

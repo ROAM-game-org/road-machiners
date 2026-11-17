@@ -274,13 +274,13 @@ describe('sight limit', () => {
     expect(deckShader.vertexShader).toContain('attribute vec2 sightAt;');
     expect(deckShader.vertexShader).toContain('vSightAt = sightAt;');
     expect(deckShader.fragmentShader).toContain('texture2D(sightVisible, (vSightAt - sightWindow.xy) / sightWindow.z)');
-    expect(deckShader.fragmentShader).toContain('if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
+    expect(deckShader.fragmentShader).toContain('if (distance(vWorldXZ, sightCenter) > sightRadius) discard;');
     expect(deck.customProgramCacheKey()).not.toBe(prop.customProgramCacheKey());
 
     const propShader = shaders(prop);
     expect(propShader.vertexShader).not.toContain('sightAt');
     expect(propShader.fragmentShader).not.toContain('vSightAt');
-    expect(propShader.fragmentShader).toContain('texture2D(sightVisible, (vSightXZ - sightWindow.xy) / sightWindow.z)');
+    expect(propShader.fragmentShader).toContain('texture2D(sightVisible, (vWorldXZ - sightWindow.xy) / sightWindow.z)');
   });
 
   it('rejects one material on a mesh with sight sample points and on one without', () => {

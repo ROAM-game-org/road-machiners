@@ -322,7 +322,10 @@ export class VehicleLights {
   private readonly plain: THREE.SpotLight[] = [];
   private glow: THREE.PointLight | null = null;
 
-  constructor(private readonly scene: THREE.Scene) {}
+  constructor(
+    private readonly scene: THREE.Scene,
+    private readonly spotShadows: boolean,
+  ) {}
 
   sync(world: World, frames: Record<string, VehicleFrame>, lightTurn: number, reaches: (pos: V3) => boolean, truck: V3): void {
     const lit = world.vehicles
@@ -370,7 +373,7 @@ export class VehicleLights {
 
   private newBeam(shadows: boolean): THREE.SpotLight {
     const beam = new THREE.SpotLight(BEAM_COLOR, 0, BEAM_RANGE, BEAM_ANGLE, BEAM_PENUMBRA, BEAM_DECAY);
-    if (shadows) {
+    if (shadows && this.spotShadows) {
       beam.castShadow = true;
       beam.shadow.mapSize.set(BEAM_SHADOW_MAP, BEAM_SHADOW_MAP);
       beam.shadow.normalBias = BEAM_SHADOW_BIAS;

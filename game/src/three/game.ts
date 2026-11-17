@@ -74,6 +74,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
+import { spotShadowsFit } from "./render/lightBudget";
 import { backdropAt, daylightAt, lightScene, RadioLights, refreshShadows, VehicleLights, sunCasters, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
@@ -126,7 +127,7 @@ export class Game {
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
   private readonly play = new PlayClock(PLAY_EASE);
-  private readonly vehicleLights = new VehicleLights(this.scene);
+  private readonly vehicleLights: VehicleLights;
   private readonly siteLights: SiteLights;
   private readonly vignette = Object.assign(document.createElement("div"), {
     className: "vignette",
@@ -220,6 +221,7 @@ export class Game {
 
   constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
+    this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
