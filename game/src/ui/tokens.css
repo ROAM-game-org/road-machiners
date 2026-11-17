@@ -227,7 +227,7 @@
   --hud-screen: #28180b;
 
   /* HUD skin sizes: each panel's width at the 1280 by 720 layer, and the motion of its instruments */
-  --hud-drive-n: 340;
+  --hud-drive-n: 352.7;
   --hud-drive-w: calc(var(--hud-drive-n) * 1px);
   --hud-weapons-n: 400;
   --hud-weapons-w: calc(var(--hud-weapons-n) * 1px);
@@ -239,9 +239,30 @@
   --hud-tray-h: 52px;
   --hud-tray-rim: var(--hud-rim-w);
   --hud-tray-side: var(--hud-rim-w);
-  --hud-tray-slant: calc(var(--hud-tray-h) * 0.5);
-  --hud-tray-slant-angle: 63.435deg;
-  --hud-tray-slant-sin: 0.8944;
+  --hud-visor-art-h: 88;
+  --hud-visor-cap: 120;
+  --hud-visor-stitch: 69;
+  --hud-visor-end-gap: 32;
+  --hud-visor-h: calc((var(--hud-tray-h) + var(--space-2)) * var(--hud-visor-art-h) / var(--hud-visor-stitch));
+  --hud-screen-radius: 5px;
+  --hud-screen-rim: 1.5px;
+  --hud-ink-line: 1px;
+  --hud-brass: #d39b4e;
+  --hud-brass-ink: #1c0e06;
+  --hud-drive-shift: -3px;
+  --hud-drive-sink: 5%;
+  --hud-drive-perspective: 700px;
+  --hud-drive-tilt: 4deg;
+  --hud-drive-depth: 20px;
+  --hud-drive-hood-drop: 12px;
+  --hud-drive-hood-edge: 15.15%;
+  --hud-drive-hood-shadow: drop-shadow(0 3px 4px rgb(0 0 0 / 0.3));
+  --hud-drive-shade: linear-gradient(to bottom, rgb(0 0 0 / 0.18) calc(var(--hud-drive-hood-edge) + var(--hud-drive-hood-drop)), rgb(0 0 0 / 0.07) calc(var(--hud-drive-hood-edge) + 10% + var(--hud-drive-hood-drop)), transparent calc(var(--hud-drive-hood-edge) + 22% + var(--hud-drive-hood-drop)));
+  --hud-drive-key-shadow: drop-shadow(1.5px 2.5px 1.5px rgb(0 0 0 / 0.5));
+  --hud-gauge-glass: linear-gradient(165deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.03) 40%, transparent 55%);
+  --hud-dial-glass: linear-gradient(165deg, rgb(255 255 255 / 0.078), rgb(255 255 255 / 0.018) 40%, transparent 55%);
+  --hud-glass-recess: inset 0 2px 3px rgb(0 0 0 / 0.35);
+  --hud-radio-tuck: 46px;
   --hud-tray-gap: var(--space-4);
   --hud-text-s: 10px;
   --hud-text-m: 12px;
@@ -356,10 +377,15 @@
   --panel-m: 300px;
   --panel-l: 420px;
   --panel-xl: 520px;
+  --hud-panel-xs: 140px;
+  --hud-panel-s: 200px;
+  --hud-panel-m: 282px;
+  --hud-panel-l: 400px;
+  --hud-panel-xl: 560px;
+  --hud-panel-xxl: 800px;
   --panel-m-height: 340px;
-  --info-card-height: 300px;
+  --info-picture-height: 260px;
   --info-well-min: 104px;
-  --dock-width: 282px;
   --journal-side-width: 400px;
   --board-held-width: 400px;
   --minimap-size: 180px;
@@ -430,6 +456,13 @@
   --z-popup: 5;
   --z-lcd-digits: 0;
   --z-lcd-ghost: -1;
+  --z-recess-backing: -1;
+  --z-hud-patina: 50;
+  --z-hud-glaze: 55;
+  --z-hud-part: 60;
+  --z-hud-glass: 66;
+  --z-hud-shade: 70;
+  --z-hud-lit: 65;
   --z-modal: 20;
   --z-over-modal: 21;
   --z-log-open: 22;
@@ -461,12 +494,12 @@
 }
 
 #ui:where(.compact) {
-  --dock-width: 246px;
+  --hud-panel-m: 246px;
   --journal-side-width: 300px;
 }
 
 #ui:where(.narrow) {
-  --dock-width: 200px;
+  --hud-panel-m: 200px;
   --lcd-cell-w: 0px;
 }
 

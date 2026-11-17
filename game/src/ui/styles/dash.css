@@ -118,8 +118,8 @@
   width: 100%;
   height: 100%;
   color: var(--hud-print);
-  font: 700 var(--hud-text-s) / 1.05 var(--font-hud);
-  letter-spacing: 0.03em;
+  font: 400 var(--hud-text-s) / 1.05 var(--font-engraved);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   text-align: center;
 }
@@ -148,13 +148,68 @@
 }
 
 #ui .hud-drive {
+  position: relative;
   width: var(--hud-drive-w);
+  translate: var(--hud-drive-shift) var(--hud-drive-sink);
+}
+
+#ui .hud-drive > :is(.drive-back, .drive-hood) {
+  position: absolute;
+  inset: 0;
+  background: 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+#ui .hud-drive > .drive-back {
+  background-image: var(--hud-drive-back-art);
+}
+
+#ui .hud-drive > .drive-hood {
+  background-image: var(--hud-drive-hood-art);
+  translate: 0 var(--hud-drive-hood-drop);
+  filter: var(--hud-drive-hood-shadow);
+}
+
+#ui .hud-drive > :is(.drive-plate, .drive-back) {
+  -webkit-mask: var(--hud-drive-art) 0 var(--hud-drive-hood-drop) / 100% 100% no-repeat;
+  mask: var(--hud-drive-art) 0 var(--hud-drive-hood-drop) / 100% 100% no-repeat;
+}
+
+#ui .hud-drive > .drive-plate {
+  transform: perspective(var(--hud-drive-perspective)) rotateX(var(--hud-drive-tilt)) translateZ(calc(-1 * var(--hud-drive-depth)));
+  transform-origin: 0 100%;
+}
+
+#ui .drive-plate > .plate-shade {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hud-shade);
+  -webkit-mask: var(--hud-drive-art) 0 0 / 100% 100% no-repeat;
+  mask: var(--hud-drive-art) 0 0 / 100% 100% no-repeat;
+  background: var(--hud-drive-shade);
+  pointer-events: none;
+}
+
+#ui .drive-plate > .plate-glass {
+  z-index: var(--z-hud-glass);
+  background: var(--hud-gauge-glass);
+  box-shadow: var(--hud-glass-recess);
+  pointer-events: none;
+}
+
+#ui .drive-plate > .gauge-glass {
+  border-radius: 9% / 14%;
+}
+
+#ui .drive-plate > .dial-glass {
+  border-radius: 50%;
+  background: var(--hud-dial-glass);
 }
 
 #ui .drive-drawing .dial-segment {
   fill: none;
   stroke: var(--hud-segment-off);
-  stroke-width: 34;
+  stroke-width: 31;
 }
 
 #ui .drive-drawing .dial-segment.beyond {
@@ -1019,37 +1074,38 @@
 
 #ui .hud-tray.keys-tray {
   gap: var(--space-1);
-  padding-left: calc(var(--space-2) + var(--hud-rim-w) + var(--hud-tray-slant));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--hud-tray-slant) 100%);
-}
-
-#ui .hud-tray.stats-tray {
-  padding-right: calc(var(--space-2) + var(--hud-rim-w) + var(--hud-tray-slant));
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--hud-tray-slant)) 100%, 0 100%);
 }
 
 #ui .hud-tray:is(.keys-tray, .stats-tray) {
-  box-shadow: inset 0 -1px 0 rgb(30 18 6 / 0.5), inset 0 -2.5px 0 rgb(150 128 90 / 0.45), inset 0 -3px 1.5px -1.5px rgb(20 12 4 / 0.25);
+  --hud-visor-side: calc(var(--hud-visor-h) * var(--hud-visor-cap) / var(--hud-visor-art-h));
+  --hud-visor-end: calc(var(--hud-visor-h) * var(--hud-visor-end-gap) / var(--hud-visor-art-h));
+  background: none;
+  box-shadow: none;
+  border-image-source: var(--hud-visor-art);
+  border-image-slice: 0 var(--hud-visor-cap) fill;
+  border-image-repeat: stretch;
+  border-image-outset: 0 0 calc(var(--hud-visor-h) - var(--hud-tray-h)) 0;
 }
 
-#ui .hud-tray:is(.keys-tray, .stats-tray)::before {
-  --edge: calc((var(--hud-tray-slant) + var(--hud-rim-w)) * var(--hud-tray-slant-sin));
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 2.5px;
-  width: calc(var(--hud-tray-slant) + var(--hud-rim-w));
-  pointer-events: none;
+#ui .hud-tray.stats-tray {
+  border-image-width: 0 var(--hud-visor-side) 0 0;
+  padding-left: calc(var(--space-2) + var(--hud-tray-side));
+  padding-right: var(--hud-visor-end);
 }
 
-#ui .hud-tray.keys-tray::before {
-  left: 0;
-  background: linear-gradient(calc(180deg + var(--hud-tray-slant-angle)), transparent calc(var(--edge) - 3px), rgb(20 12 4 / 0.12) calc(var(--edge) - 2.5px), rgb(150 128 90 / 0.45) calc(var(--edge) - 2.5px) calc(var(--edge) - 1px), rgb(235 215 175 / 0.35) calc(var(--edge) - 1px));
+#ui .hud-tray.keys-tray {
+  border-image-width: 0 0 0 var(--hud-visor-side);
+  padding-left: var(--hud-visor-end);
+  padding-right: calc(var(--space-2) + var(--hud-tray-side));
 }
 
-#ui .hud-tray.stats-tray::before {
-  right: 0;
-  background: linear-gradient(calc(180deg - var(--hud-tray-slant-angle)), transparent calc(var(--edge) - 3px), rgb(20 12 4 / 0.12) calc(var(--edge) - 2.5px), rgb(150 128 90 / 0.45) calc(var(--edge) - 2.5px) calc(var(--edge) - 1px), rgb(30 18 6 / 0.5) calc(var(--edge) - 1px));
+#ui .hud-tray:is(.keys-tray, .stats-tray)::after {
+  display: none;
+}
+
+#ui .stats-tray .tray-window {
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-recess), 0 0 0 var(--hud-screen-rim) var(--hud-brass), 0 0 0 calc(var(--hud-screen-rim) + var(--hud-ink-line)) var(--hud-brass-ink);
 }
 
 #ui .hud-system button.key-cap {
@@ -1061,7 +1117,6 @@
 #ui .tooltip.touch-tip,
 #ui .condition-tip-body.tooltip {
   box-sizing: border-box;
-  max-width: min(var(--panel-m), calc(var(--layer-w) - 2 * var(--hud-inset)));
   isolation: isolate;
   padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
   border: 0;
@@ -1081,7 +1136,7 @@
   content: "";
   position: absolute;
   inset: var(--hud-panel-gap);
-  z-index: -1;
+  z-index: var(--z-recess-backing);
   background: var(--hud-glass-fill);
   box-shadow: var(--hud-recess);
   pointer-events: none;
@@ -1166,13 +1221,6 @@
   letter-spacing: 0;
 }
 
-#ui .drive-plate .cool-label {
-  place-items: end center;
-  overflow: visible;
-  line-height: 1;
-  white-space: normal;
-}
-
 :is(#ui, #overlay) .hud-frame {
   --ink: var(--hud-amber);
   --ink-bright: var(--hud-amber);
@@ -1237,12 +1285,16 @@
   height: var(--hud-icon);
 }
 
-:is(#ui, #overlay) :is(button.hud-key, button.key-cap:not(.cool-key, .play-key)) > .icon,
-#ui button.key-cap:not(.cool-key, .play-key) > .key-face > .icon {
+:is(#ui, #overlay) :is(button.hud-key, button.key-cap:not(.play-key)) > .icon,
+#ui button.key-cap:not(.play-key) > .key-face > .icon {
   translate: 0 calc(var(--hud-key-edge) * -0.3125);
 }
 
-#ui :is(button.hud-close, .cool-key > .key-face) > .icon {
+#ui button.key-cap > .key-face > .key-print {
+  translate: 0 calc(var(--key-edge) * -0.3125);
+}
+
+#ui button.hud-close > .icon {
   translate: 0 calc(var(--small-key-edge) * -0.3125);
 }
 
@@ -1468,43 +1520,14 @@
 }
 
 :is(#ui, #overlay) button.hud-key:not(.icon-key) {
-  flex-direction: column-reverse;
-  gap: var(--space-1);
-  min-width: 0;
-  min-height: var(--hud-key-h);
-  padding: 0;
-  border: 0;
-  border-image: none;
-  color: var(--hud-print);
+  padding: 0 var(--space-3);
 }
 
-:is(#ui, #overlay) button.hud-key:not(.icon-key)::before {
-  content: "";
-  box-sizing: border-box;
-  flex: none;
-  width: var(--hud-key-h);
-  height: var(--hud-key-h);
-  border-style: solid;
-  border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
-}
-
-:is(#ui, #overlay) button.hud-key.on:not(.icon-key)::before {
-  border-image-source: var(--hud-keycap-lit-art);
-}
-
-#ui .cool-key > .key-face {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-#ui .cool-key > .key-face > .icon {
-  width: calc(var(--hud-icon) * 0.55);
-  height: calc(var(--hud-icon) * 0.55);
-  color: var(--hud-print);
+:is(#ui, #overlay) button.hud-key > .key-label {
+  width: min-content;
+  line-height: 1.05;
+  text-align: center;
+  translate: 0 calc(var(--hud-key-edge) * -0.3125);
 }
 
 #ui button.key-cap.play-key {
@@ -1521,14 +1544,10 @@
   translate: 0 0;
 }
 
-:is(#ui, #overlay) :is(button.hud-close.hud-close, button.key-cap.cool-key) {
+:is(#ui, #overlay) button.hud-close.hud-close {
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
   border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
-}
-
-#ui button.key-cap.cool-key.on {
-  border-image-source: var(--hud-keycap-lit-art);
 }
 
 #ui .toast.bad > .hud-screen {
@@ -1563,7 +1582,7 @@
 
 :is(#ui, #overlay) .hud-panel .hud-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: space-between;
   gap: var(--space-3);
   padding-top: var(--space-1);
@@ -1573,7 +1592,7 @@
   justify-content: flex-end;
 }
 
-:is(#ui, #overlay) button.hud-key.danger:not(.icon-key)::before {
+:is(#ui, #overlay) button.hud-key.danger {
   border-image-source: var(--hud-keycap-lit-art);
 }
 
@@ -1591,14 +1610,14 @@
 }
 
 #ui .hud-plate > .plate-patina {
-  z-index: 50;
+  z-index: var(--z-hud-patina);
   -webkit-mask: var(--plate-metal) 0 0 / 100% 100% no-repeat;
   mask: var(--plate-metal) 0 0 / 100% 100% no-repeat;
   opacity: var(--hud-patina-full);
 }
 
 #ui .hud-plate > .plate-glaze {
-  z-index: 55;
+  z-index: var(--z-hud-glaze);
   -webkit-mask: var(--plate-art) 0 0 / 100% 100% no-repeat, var(--plate-metal) 0 0 / 100% 100% no-repeat;
   -webkit-mask-composite: xor;
   mask: var(--plate-art) 0 0 / 100% 100% no-repeat exclude, var(--plate-metal) 0 0 / 100% 100% no-repeat;
@@ -1618,7 +1637,7 @@
 }
 
 :is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action)::after {
-  z-index: 50;
+  z-index: var(--z-hud-patina);
   opacity: var(--hud-patina-full);
 }
 
@@ -1628,11 +1647,11 @@
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(.hud-screen, .tray-window) {
   position: relative;
-  z-index: 60;
+  z-index: var(--z-hud-part);
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(button.hud-key.icon-key, button.key-cap:not(.play-key), button.hud-close, .menu-key > .menu-cap, button.hud-key:not(.icon-key), button.key-cap.play-key, button.rocker, .rocker-socket, button.knob-key, .kit-piece, .plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
-  z-index: 60;
+  z-index: var(--z-hud-part);
 }
 
 :is(#ui, #overlay) :is(button.hud-key, button.hud-close, .menu-key > .menu-cap) {
@@ -1654,15 +1673,8 @@
   --cap-edge: var(--key-edge);
 }
 
-:is(#ui, #overlay) :is(button.hud-close, button.key-cap.cool-key)::after {
+:is(#ui, #overlay) button.hud-close::after {
   --cap-edge: var(--small-key-edge);
-}
-
-:is(#ui, #overlay) button.hud-key:not(.icon-key)::after {
-  inset: auto auto 0 50%;
-  width: var(--hud-key-h);
-  height: var(--hud-key-h);
-  translate: -50% 0;
 }
 
 :is(#ui, #overlay) button.key-cap.play-key::after {
@@ -1678,7 +1690,7 @@
 }
 
 #ui :is(.play-key > .key-face, .kit-lamp-piece > .lamp-glow, button.knob-mark.on) {
-  z-index: 65;
+  z-index: var(--z-hud-lit);
 }
 
 #ui .kit-lamp-piece > .lamp-glow {
@@ -1687,5 +1699,74 @@
 
 #ui .info .info-body {
   position: relative;
-  z-index: 60;
+  z-index: var(--z-hud-part);
+}
+
+:is(#ui, #overlay) :is(button.hud-key:not(.icon-key):is(.on, .danger), button.key-cap.on:has(> .key-face > .key-print)) {
+  border-image-source: var(--hud-keycap-red-art);
+}
+
+#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .tip, .dialogue, .game-menu [role=menu]),
+:is(#ui, #overlay) :where(.confirm-dialog, .death-box) {
+  --hud-panel-w: var(--hud-panel-m);
+  box-sizing: border-box;
+  width: min(var(--hud-panel-w), calc(var(--layer-w) - 2 * var(--hud-inset)));
+}
+
+#ui .status-mark {
+  --hud-panel-w: var(--hud-panel-xs);
+}
+
+:is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
+  --hud-panel-w: var(--hud-panel-l);
+}
+
+#ui :is(.tip, .dialogue) {
+  --hud-panel-w: var(--hud-panel-xl);
+}
+
+#ui .toast {
+  max-width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
+}
+
+#ui :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip) {
+  max-width: min(var(--hud-panel-m), calc(var(--layer-w) - 2 * var(--hud-inset)));
+}
+
+#ui .stranded .hud-controls {
+  align-items: center;
+  height: calc(var(--hud-text-m) * 1.2 + var(--space-1) + var(--hud-rocker-h));
+}
+
+#ui .beacon-switch > .hud-engraved {
+  line-height: 1.2;
+}
+
+#ui .info {
+  display: flex;
+  flex-direction: column;
+}
+
+#ui .info > .info-content {
+  flex: 0 1 auto;
+  height: auto;
+}
+
+#ui .info .info-body {
+  flex: 0 1 auto;
+}
+
+#ui .info .info-draw {
+  flex: 0 1000 var(--info-picture-height);
+  background: var(--hud-glass-fill);
+  box-shadow: var(--hud-recess);
+}
+
+#ui .drive-plate :is(.cool-key, button.rocker) {
+  filter: var(--hud-drive-key-shadow);
+}
+
+#ui .drive-plate .cool-key {
+  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
+  border-image-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
 }

@@ -92,7 +92,7 @@ const GROUPS: Group[] = [
   {
     title: "Page sizes",
     prefixes: [
-      "--compass-w", "--slider-", "--info-card-height", "--info-well-min", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
+      "--compass-w", "--slider-", "--info-picture-height", "--info-well-min", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
       "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target",
     ],
     sample: boxSample,

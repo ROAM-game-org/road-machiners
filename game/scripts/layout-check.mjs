@@ -658,20 +658,19 @@ const cardShapeFaults = (page) =>
 
 async function drawingFaults(page) {
   return page.evaluate(() => {
-    const view = document.querySelector('#ui .info .truck-condition');
+    const draw = document.querySelector('#ui .info .info-draw');
     const card = document.querySelector('#ui .info');
-    if (!view) return [];
-    const aim = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s'));
-    const cell = 30 * parseFloat(view.style.zoom || '1');
+    if (!draw) return [];
+    const css = getComputedStyle(card);
+    const fixed = parseFloat(css.getPropertyValue('--info-picture-height'));
+    const gap = parseFloat(css.getPropertyValue('--hud-gap'));
+    const scale = card.getBoundingClientRect().width / card.offsetWidth;
+    const deck = document.querySelector('#ui .hud-radio')?.getBoundingClientRect();
     const cardBox = card.getBoundingClientRect();
-    const instruments = document.querySelector('#ui .instruments')?.getBoundingClientRect();
-    const under = instruments && instruments.right > cardBox.left && instruments.top > cardBox.top;
-    const log = document.querySelector('#ui .log');
-    const logBottom = log && log.getClientRects().length > 0 ? log.getBoundingClientRect().bottom : innerHeight;
-    const floor = under ? Math.min(logBottom, instruments.top) : logBottom;
-    const roomBelow = floor - cardBox.bottom;
-    const held = cell < 0.95 * aim && roomBelow > 40;
-    return held ? [`the truck drawing is held under its room: cell ${cell.toFixed(1)} px of ${aim.toFixed(1)}, ${roomBelow.toFixed(0)} px left below it`] : [];
+    const floor = deck && deck.left < cardBox.right ? deck.top - gap * scale : innerHeight;
+    const roomBelow = (floor - cardBox.bottom) / scale;
+    const cut = draw.offsetHeight < fixed - 1 && roomBelow > 1;
+    return cut ? [`the picture screen is ${draw.offsetHeight} px of ${fixed} px with ${roomBelow.toFixed(0)} px left below the card`] : [];
   });
 }
 

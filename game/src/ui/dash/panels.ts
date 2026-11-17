@@ -4,7 +4,7 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
-import { clampShare, setLcd, DRIVE_PLATE, RADIO_PLATE, isOff, keyCap, kitPiece, lamp, Plate, Rocker, setAttrText, tray, setData, setFlag, showControl, svgNode, type RockerView } from "./skin";
+import { clampShare, setLcd, DRIVE_PLATE, RADIO_PLATE, isOff, keyCap, kitPiece, lamp, Plate, Rocker, setAttrText, tray, setData, setFlag, showControl, svgNode, type Box, type RockerView } from "./skin";
 
 export type StatTone = "base" | "warn" | "danger";
 
@@ -92,12 +92,12 @@ export function litSegments(share: number, count: number): number {
   return Math.round(clampShare(share) * count);
 }
 
-const SPEED_DIAL: Dial = { cx: 407, cy: 418, sweep: 230 };
+const SPEED_DIAL: Dial = { cx: DRIVE_PLATE.boxes.dialHub[0], cy: DRIVE_PLATE.boxes.dialHub[1], sweep: 230 };
 const SPEED_SEGMENTS = 30;
-const SEGMENT_RADIUS = 276;
-const UNIT_DROP = 96;
-const TICK_OUTER = 334;
-const LABEL_RADIUS = 200;
+const SEGMENT_RADIUS = 248;
+const UNIT_DROP = 86;
+const TICK_OUTER = 301;
+const LABEL_RADIUS = 180;
 
 export interface SpeedView {
   speed: number;
@@ -111,7 +111,7 @@ export class SpeedDial {
   private readonly segments: SVGElement[] = [];
   private readonly scale = svgNode("g", { class: "dial-scale" });
   private readonly pace = svgNode("path", { class: "dial-pace", d: `M${SPEED_DIAL.cx} ${SPEED_DIAL.cy - TICK_OUTER - 4}l-14 -24h28z`, style: `transform-origin:${SPEED_DIAL.cx}px ${SPEED_DIAL.cy}px` });
-  private readonly needle = needle(SPEED_DIAL, "speed-needle", LABEL_RADIUS - 36, 26);
+  private readonly needle = needle(SPEED_DIAL, "speed-needle", LABEL_RADIUS - 32, 23);
   private drawnTop = 0;
   private numbers: HTMLElement[] = [];
 
@@ -143,7 +143,7 @@ export class SpeedDial {
     if (top === this.drawnTop) return;
     this.drawnTop = top;
     const ticks = scaleTicks(top);
-    this.scale.replaceChildren(...ticks.map((tick) => radial(SPEED_DIAL, tick.major ? "dial-tick major" : "dial-tick", tick.share, TICK_OUTER - (tick.major ? 26 : 12), TICK_OUTER)));
+    this.scale.replaceChildren(...ticks.map((tick) => radial(SPEED_DIAL, tick.major ? "dial-tick major" : "dial-tick", tick.share, TICK_OUTER - (tick.major ? 23 : 11), TICK_OUTER)));
     for (const old of this.numbers) old.remove();
     this.numbers = ticks.filter((tick) => tick.major).map((tick) => {
       const at = polar(SPEED_DIAL, tick.share, LABEL_RADIUS);
@@ -153,13 +153,12 @@ export class SpeedDial {
 }
 
 export interface ArcSetup {
-  cx: number;
+  hub: Box;
   low: Msg;
   high: Msg;
   tone: "fuel" | "heat";
 }
 
-const ARC_CY = 254;
 const ARC_SWEEP = 100;
 const ARC_RADIUS = 112;
 const ARC_SEGMENTS = 6;
@@ -171,7 +170,7 @@ export class ArcGauge {
   private readonly needle: SVGElement;
 
   constructor(setup: ArcSetup, pin: Pin) {
-    this.dial = { cx: setup.cx, cy: ARC_CY, sweep: ARC_SWEEP };
+    this.dial = { cx: setup.hub[0], cy: setup.hub[1], sweep: ARC_SWEEP };
     this.needle = needle(this.dial, "arc-needle", 128, 13);
     this.root.classList.add(`arc-${setup.tone}`);
     const segments = Array.from({ length: ARC_SEGMENTS }, (_, i) =>
@@ -252,19 +251,20 @@ export class DrivePanel {
     const labels = setup.labels;
     const pin: Pin = (node, x, y) => this.plate.pin(node, [x, y]);
     this.speed = new SpeedDial(labels.speedUnit, pin);
-    this.fuel = new ArcGauge({ cx: 908, low: verbatim("E"), high: verbatim("F"), tone: "fuel" }, pin);
-    this.heat = new ArcGauge({ cx: 1194, low: verbatim("C"), high: verbatim("H"), tone: "heat" }, pin);
+    this.fuel = new ArcGauge({ hub: DRIVE_PLATE.boxes.fuelHub, low: verbatim("E"), high: verbatim("F"), tone: "fuel" }, pin);
+    this.heat = new ArcGauge({ hub: DRIVE_PLATE.boxes.heatHub, low: verbatim("C"), high: verbatim("H"), tone: "heat" }, pin);
     this.plate.drawing("drive-drawing").append(this.speed.root, this.fuel.root, this.heat.root);
     this.plate.place(this.speedSpot, "face");
     registerRichTip(this.speedSpot, () => this.speedTip());
     this.plate.place(this.fuelSpot, "fuel");
     this.plate.place(this.heatSpot, "heat");
-    this.cool = this.plate.place(keyCap("cool-key", labels.cool, setup.onCool, createIcon("water")), "coolKey");
-    this.plate.place(el("span", { class: "plate-label cool-label" }, labels.cool), "coolLabel");
+    this.cool = this.plate.place(keyCap("cool-key", labels.cool, setup.onCool, el("span", { class: "key-print" }, labels.cool)), "coolKey");
     this.manual = this.rocker(labels.manual, "R", setup.onManual, "A");
     this.lights = this.rocker(labels.lights, "L", setup.onLights, "B");
     this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, "C");
-    this.root = el("div", { class: "hud-drive" }, this.plate.root);
+    for (const box of ["fuel", "heat", "dialGlass"] as const) this.plate.place(el("span", { class: `plate-glass ${box === "dialGlass" ? "dial-glass" : "gauge-glass"}`, "aria-hidden": "true" }), box);
+    this.plate.root.append(el("span", { class: "plate-shade", "aria-hidden": "true" }));
+    this.root = el("div", { class: "hud-drive" }, el("span", { class: "drive-back", "aria-hidden": "true" }), this.plate.root, el("span", { class: "drive-hood", "aria-hidden": "true" }));
   }
 
   private speedTip(): HTMLElement {

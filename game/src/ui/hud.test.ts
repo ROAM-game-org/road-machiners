@@ -156,7 +156,7 @@ describe('truck card actions', () => {
     expect(buttons.map((b) => b.text())).toEqual(['Radio', 'Look over', 'Mark']);
     expect(row!.all('key')).toHaveLength(0);
     expect(row!.all('cost')).toHaveLength(1);
-    expect(row!.className).toBe('info-actions hud-keybed');
+    expect(row!.className).toBe('info-actions hud-controls');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
   });
 

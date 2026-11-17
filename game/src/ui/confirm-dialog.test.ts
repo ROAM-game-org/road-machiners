@@ -29,7 +29,7 @@ describe("the confirm dialog", () => {
     expect(dialog.attrs["aria-modal"]).toBe("true");
     expect(dialog.textContent).toContain("Load this save?");
     expect(dialog.button("Cancel").focused).toBe(1);
-    expect(dialog.button("Load save").className).toBe("hud-key on");
+    expect(dialog.button("Load save").className).toBe("hud-key danger");
     expect(ui.withClass("confirm-block")).not.toBeNull();
     expect(isConfirmOpen()).toBe(true);
   });

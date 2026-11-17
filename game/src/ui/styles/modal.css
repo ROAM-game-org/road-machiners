@@ -27,7 +27,7 @@
   left: var(--tip-left);
   bottom: var(--hud-inset);
   transform: none;
-  max-width: calc(var(--layer-w) - var(--tip-left) - var(--dock-width) - var(--space-10));
+  max-width: calc(var(--layer-w) - var(--tip-left) - var(--hud-panel-m) - var(--space-10));
   z-index: var(--z-over-modal);
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-left,

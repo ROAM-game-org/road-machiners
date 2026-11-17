@@ -229,7 +229,6 @@
 }
 .info {
   right: var(--space-7);
-  width: var(--dock-width);
   box-sizing: border-box;
   overflow: hidden;
   font-size: var(--text-dense);
@@ -448,11 +447,6 @@
   font-size: var(--text-dense);
   white-space: nowrap;
 }
-#ui .rescue {
-  min-width: var(--panel-s);
-  max-width: var(--panel-m);
-}
-
 #ui .death {
   position: fixed;
   inset: 0;
@@ -465,10 +459,6 @@
   background: var(--scrim-heavy);
   border: 0;
   box-shadow: none;
-}
-#ui .death .death-box {
-  width: var(--panel-l);
-  max-width: calc(var(--layer-w) - 2 * var(--space-4));
 }
 .save-screen {
   text-align: center;
@@ -489,7 +479,7 @@
   content: "";
   position: absolute;
   inset: var(--hud-panel-gap);
-  z-index: -1;
+  z-index: var(--z-recess-backing);
   background: var(--hud-glass-fill);
   box-shadow: var(--hud-recess);
   pointer-events: none;

@@ -18,12 +18,16 @@ MASK_SPECK_AREA = 600
 KEEP_LIGHT = 0.45
 KEEP_GROW = 3
 PAINT_SAT = 0.35
+EVEN_FACE_RED = 150
+EVEN_FACE_BLUR = 30
+EVEN_FACE_MIN_SAT = 0.6
 
 PLATES = {
-    'drive': {'width': 1574, 'keep': []},
+    'drive': {'width': 1633, 'keep': [], 'painted': True},
     'weapons': {'width': 1969, 'keep': [(195, 490, 330, 530), (1688, 490, 1795, 530), (155, 630, 290, 734), (1685, 645, 1820, 734)]},
     'radio': {'width': 1279, 'keep': [(968, 219, 1032, 527)]},
 }
+PAINTED = {'drive-hood': 1633, 'drive-back': 1633, 'visor': 420}
 KIT = {
     'tape': ('weapons', [(0, 0, 167, 76)]),
     'lamp': ('weapons', [(8, 8, 56, 56)]),
@@ -102,9 +106,13 @@ def plate(name, spec):
     if 'scale' in spec:
         spec = {**spec, 'width': round(src.width * spec['scale'])}
     rgba = np.array(src).astype(float)
-    mask, metal, light = housing_mask(rgba, spec['keep'], spec.get('strict', False))
-    gray = np.clip(light / HOUSING_LIGHT_REF, 0, 1)[..., None] * 255
-    rgb = rgba[..., :3] * (1 - mask[..., None]) + gray * mask[..., None]
+    if spec.get('painted', False):
+        mask = metal = np.zeros(rgba.shape[:2])
+        rgb = rgba[..., :3]
+    else:
+        mask, metal, light = housing_mask(rgba, spec['keep'], spec.get('strict', False))
+        gray = np.clip(light / HOUSING_LIGHT_REF, 0, 1)[..., None] * 255
+        rgb = rgba[..., :3] * (1 - mask[..., None]) + gray * mask[..., None]
     out = np.dstack([rgb, rgba[..., 3]]).astype(np.uint8)
     height = round(src.height * spec['width'] / src.width)
     size = (spec['width'], height)
@@ -116,11 +124,32 @@ def plate(name, spec):
     return spec['width'] / src.width
 
 
+def even_face(source, name):
+    rgba = np.array(Image.open(OUT / f'{source}.webp').convert('RGBA')).astype(float)
+    hue, light, sat = hls(rgba[..., :3] / 255)
+    face = soft_mask((sat > EVEN_FACE_MIN_SAT) & ((hue < 20) | (hue > 340)) & (rgba[..., 3] > 200))
+    glow = ndimage.gaussian_filter(rgba[..., 0], EVEN_FACE_BLUR)
+    flat = rgba[..., :3] * (EVEN_FACE_RED / np.maximum(glow, 1))[..., None]
+    rgb = rgba[..., :3] * (1 - face[..., None]) + np.clip(flat, 0, 255) * face[..., None]
+    Image.fromarray(np.dstack([rgb, rgba[..., 3]]).astype(np.uint8)).save(OUT / f'{name}.webp', quality=WEBP_QUALITY)
+    print(f'{name}: even face from {source}, face share {face.mean():.2f}')
+
+
+def painted(name, width):
+    src = Image.open(SOURCE / f'{name}.webp').convert('RGBA')
+    size = (width, round(src.height * width / src.width))
+    src.resize(size, Image.LANCZOS).save(OUT / f'{name}.webp', quality=WEBP_QUALITY)
+    print(f'{name}: {src.width}x{src.height} -> {size[0]}x{size[1]}, painted')
+
+
 def main():
     (OUT / 'kit').mkdir(parents=True, exist_ok=True)
     scales = {name: plate(name, {**spec, 'patina': True}) for name, spec in PLATES.items()}
     for name, (owner, keep) in KIT.items():
         plate(f'kit/{name}', {'scale': scales[owner], 'keep': keep, 'strict': True})
+    even_face('kit/keycap-lit', 'kit/keycap-red')
+    for name, width in PAINTED.items():
+        painted(name, width)
 
 
 main()

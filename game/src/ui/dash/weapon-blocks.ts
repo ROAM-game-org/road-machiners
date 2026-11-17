@@ -167,8 +167,7 @@ export class WeaponsPanel {
     this.pageMark.addEventListener("click", () => this.flip());
     this.screen.append(this.grid, this.pageMark);
     this.plate.place(this.screen, "screen");
-    this.all = this.plate.place(keyCap("all-key", labels.allFire, setup.onAll, el("span", { class: "key-print" })), "allKey");
-    this.plate.pin(el("span", { class: "plate-label auto-label" }, labels.allFire), "allLabel");
+    this.all = this.plate.place(keyCap("all-key", labels.allFire, setup.onAll, el("span", { class: "key-print" }, labels.allFire)), "allKey");
     this.auto = this.plate.place(plateKey("auto-key", labels.autoFire, setup.onAuto), "autoBox");
     this.autoRocker = this.plate.pin(el("span", { class: "rocker-socket auto-rocker" }, rockerFace()), "autoLever");
     this.plate.pin(el("span", { class: "plate-label auto-label" }, labels.autoFire), "autoLabel");

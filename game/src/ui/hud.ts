@@ -200,7 +200,6 @@ export class Hud {
   private haulerGauge = new HaulerGauge();
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
-  private inspectedOther = false;
   private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel hud-panel", rightDock());
@@ -263,13 +262,7 @@ export class Hud {
     const gap = parseFloat(token("--hud-gap"));
     const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
-    this.info.style.width = "";
-    const floor = this.clearOfDock(this.floorOfInfo(), this.info) - gap - top;
-    const slot = Math.min(floor, parseFloat(token("--info-card-height")));
-    this.info.style.height = `${slot}px`;
-    this.info.style.maxHeight = "";
-    this.growForDrawing(top, slot);
-    this.fillToFloor(top);
+    this.info.style.maxHeight = `${this.clearOfDock(this.floorOfInfo(), this.info) - top}px`;
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.placeSide();
     this.inspected.fitTo(this.inspectedDraw);
@@ -302,40 +295,6 @@ export class Hud {
     return uiSize().layerRect(this.deck.root).top;
   }
 
-  private aimCellPx(): number {
-    return parseFloat(token("--btn-h-s"));
-  }
-
-  private aimWidthCap(): number {
-    const layer = uiSize().layerSize();
-    const inset = parseFloat(getComputedStyle(this.info).right);
-    const full = layer.width - 2 * inset;
-    return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
-  }
-
-  private growForDrawing(top: number, slot: number): void {
-    const need = this.inspected.boxFor(this.aimCellPx());
-    this.growHeightForDrawing(top, slot, need.height);
-    const reach = Math.min(1, this.inspectedDraw.clientHeight / need.height);
-    this.growWidthForDrawing(need.width * reach);
-  }
-
-  private growHeightForDrawing(top: number, slot: number, needed: number): void {
-    const tallest = this.sideFloor(this.info) - top;
-    this.info.style.height = `${tallest}px`;
-    const fits = tallest - this.inspectedDraw.clientHeight + needed;
-    this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
-  }
-
-  private growWidthForDrawing(needed: number): void {
-    const wider = needed - this.inspectedDraw.clientWidth;
-    if (wider <= 0) return;
-    this.info.style.width = `${Math.min(this.info.offsetWidth + wider, this.aimWidthCap())}px`;
-  }
-
-  private fillToFloor(top: number): void {
-    if (this.inspectedOther) this.info.style.height = `${this.sideFloor(this.info) - top}px`;
-  }
 
   private coverUnder(bottom: number | null): void {
     for (const below of [...rightDock().children] as HTMLElement[]) {
@@ -464,7 +423,7 @@ export class Hud {
         title: keyTip(action.label, "E"),
         class: action.combat !== undefined ? "hud-key on" : "hud-key",
       },
-      action.label,
+      el("span", { class: "key-label" }, action.label),
     );
     const cycle = (step: 1 | -1, icon: "prev" | "next", key: string) =>
       el("button", { class: "hud-key icon-key cycle", title: touchMode() ? undefined : t("hud.cycleKey", { key }), "aria-label": t(icon === "prev" ? "icon.prev" : "icon.next"), onclick: () => onCycle(step) }, createIcon(icon));
@@ -663,7 +622,6 @@ export class Hud {
       return;
     }
     const aim = this.aimOf(w, v);
-    this.inspectedOther = !isPlayerTruck(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     const parts = [
@@ -707,7 +665,7 @@ export interface CardHandlers {
 }
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, cost: readonly HTMLElement[] = []): HTMLElement[] {
-  const button = el("button", { class: "hud-key", ...disabledWith(refusal, onclick), title: keyTip(refusal ?? label, key) }, label);
+  const button = el("button", { class: "hud-key", ...disabledWith(refusal, onclick), title: keyTip(refusal ?? label, key) }, el("span", { class: "key-label" }, label));
   return cost.length === 0 ? [button] : actionRow(button, cost);
 }
 

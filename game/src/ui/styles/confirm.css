@@ -13,6 +13,4 @@
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: var(--z-confirm);
-  width: var(--panel-l);
-  max-width: calc(var(--layer-w) - 2 * var(--space-4));
 }

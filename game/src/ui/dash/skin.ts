@@ -144,20 +144,23 @@ export interface PlateSpec<K extends string> {
 
 export const DRIVE_PLATE = {
   art: "drive",
-  width: 1574,
-  height: 618,
+  width: 1633,
+  height: 713,
   boxes: {
-    face: [36, 43, 782, 586],
-    fuel: [762, 89, 1038, 285],
-    heat: [1058, 88, 1331, 285],
-    coolKey: [1396, 200, 1502, 308],
-    coolLabel: [1352, 94, 1545, 184],
-    rockerA: [857, 414, 950, 537],
-    rockerB: [1087, 414, 1179, 537],
-    rockerC: [1317, 414, 1410, 537],
-    labelA: [813, 318, 994, 378],
-    labelB: [1043, 318, 1223, 378],
-    labelC: [1273, 318, 1454, 378],
+    face: [36, 138, 782, 681],
+    fuel: [762, 184, 1038, 380],
+    heat: [1058, 183, 1331, 380],
+    coolKey: [1338, 200, 1538, 385],
+    rockerA: [857, 509, 950, 632],
+    rockerB: [1087, 509, 1179, 632],
+    rockerC: [1317, 509, 1410, 632],
+    labelA: [813, 413, 994, 473],
+    labelB: [1043, 413, 1223, 473],
+    labelC: [1273, 413, 1454, 473],
+    dialHub: [407, 513, 407, 513],
+    fuelHub: [908, 349, 908, 349],
+    heatHub: [1194, 349, 1194, 349],
+    dialGlass: [69, 175, 745, 851],
   },
 } as const satisfies PlateSpec<string>;
 
@@ -167,8 +170,7 @@ export const WEAPONS_PLATE = {
   height: 734,
   boxes: {
     screen: [108, 68, 1606, 468],
-    allKey: [1800, 119, 1900, 243],
-    allLabel: [1676, 110, 1784, 250],
+    allKey: [1712, 92, 1900, 282],
     autoBox: [1645, 295, 1920, 450],
     autoLabel: [1676, 300, 1784, 440],
     autoLever: [1812, 318, 1888, 432],
@@ -197,6 +199,7 @@ export const KIT = {
   knob: { art: "kit/knob", width: 148, height: 148, boxes: {} },
   keycap: { art: "kit/keycap", width: 328, height: 394, boxes: {} },
   keycapLit: { art: "kit/keycap-lit", width: 328, height: 394, boxes: {} },
+  keycapRed: { art: "kit/keycap-red", width: 328, height: 394, boxes: {} },
   rockerOff: { art: "kit/rocker-off", width: 387, height: 698, boxes: {} },
   rockerOn: { art: "kit/rocker-on", width: 387, height: 698, boxes: {} },
   wheel: { art: "kit/wheel", width: 247, height: 240, boxes: {} },
@@ -207,6 +210,9 @@ export const KIT = {
   playkey: { art: "kit/playkey", width: 246, height: 160, boxes: {} },
   rim: { art: "kit/rim", width: 90, height: 90, boxes: {} },
   well: { art: "kit/well", width: 90, height: 90, boxes: {} },
+  driveHood: { art: "drive-hood", width: 1633, height: 713, boxes: {} },
+  driveBack: { art: "drive-back", width: 1633, height: 713, boxes: {} },
+  visor: { art: "visor", width: 420, height: 88, boxes: {} },
 } as const satisfies Record<string, PlateSpec<never>>;
 
 
@@ -314,10 +320,7 @@ export function controls(...keys: (HTMLElement | null)[]): HTMLElement {
 }
 
 export function textKey(label: Msg, attrs: Parameters<typeof el>[1], danger = false): HTMLElement {
-  const button = el("button", { type: "button", ...attrs }, label);
-  button.classList.add("hud-key");
-  button.classList.toggle("danger", danger);
-  return button;
+  return el("button", { type: "button", ...attrs, class: danger ? "hud-key danger" : "hud-key" }, el("span", { class: "key-label" }, label));
 }
 
 export function kitPiece(name: keyof typeof KIT, className: string): HTMLElement {
@@ -335,9 +338,14 @@ export async function paintSkin(root: HTMLElement = document.documentElement): P
   root.style.setProperty("--hud-keycap-art", `url("${publicUrl(`hud/${KIT.keycap.art}.webp`)}")`);
   root.style.setProperty("--hud-playkey-art", `url("${publicUrl(`hud/${KIT.playkey.art}.webp`)}")`);
   root.style.setProperty("--hud-keycap-lit-art", `url("${publicUrl(`hud/${KIT.keycapLit.art}.webp`)}")`);
+  root.style.setProperty("--hud-keycap-red-art", `url("${publicUrl(`hud/${KIT.keycapRed.art}.webp`)}")`);
   root.style.setProperty("--hud-glass-art", `url("${publicUrl(`hud/${KIT.glass.art}.webp`)}")`);
   root.style.setProperty("--hud-grime-art", `url("${publicUrl(`hud/${KIT.grime.art}.webp`)}")`);
   root.style.setProperty("--hud-dust-art", `url("${publicUrl(`hud/${KIT.dust.art}.webp`)}")`);
+  root.style.setProperty("--hud-drive-art", `url("${publicUrl(`hud/${DRIVE_PLATE.art}.webp`)}")`);
+  root.style.setProperty("--hud-drive-hood-art", `url("${publicUrl(`hud/${KIT.driveHood.art}.webp`)}")`);
+  root.style.setProperty("--hud-drive-back-art", `url("${publicUrl(`hud/${KIT.driveBack.art}.webp`)}")`);
+  root.style.setProperty("--hud-visor-art", `url("${publicUrl(`hud/${KIT.visor.art}.webp`)}")`);
   const [olive, rim, well] = await Promise.all([KIT.olive, KIT.rim, KIT.well].map((piece) => tinted(piece.art, root)));
   root.style.setProperty("--hud-rim-art", `url("${rim}")`);
   root.style.setProperty("--hud-well-art", `url("${well}")`);
