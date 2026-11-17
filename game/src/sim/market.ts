@@ -13,7 +13,7 @@ import { shopMoney } from './economy';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { findSpot, freeCells, goodsCount, gridOf } from './grid';
-import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
+import { addGoods, removeGoods, spareParts, tradedSpares, stowParcel, type ParcelItem } from './inventory';
 import { cancelJob } from './jobs';
 import { type ClaimContract } from './salvage';
 import { hasBasic, practice } from './progress';
@@ -328,7 +328,7 @@ export function vehicleValue(v: Vehicle): number {
 
 export function cargoValue(v: Vehicle): number {
   const goods = Object.entries(goodsCount(v)).reduce((a, [good, n]) => a + n * goodValue(good), 0);
-  return goods + spareParts(v).reduce((a, p) => a + partValue(p), 0);
+  return goods + tradedSpares(v).reduce((a, p) => a + partValue(p), 0);
 }
 
 export function partPristineBuyPrice(defId: string): number {

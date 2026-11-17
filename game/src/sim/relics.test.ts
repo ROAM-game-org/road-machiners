@@ -7,7 +7,7 @@ import { sellVehicleCargo, takeSellablePart } from './economy';
 import { isStrippable, startStrip } from './jobs';
 import { partWithId } from './factory';
 import { spareParts, stowPart, tradedSpares } from './inventory';
-import { shopState, siteOf } from './market';
+import { cargoValue, shopState, siteOf } from './market';
 import { placeRelics, relicDefFor, relicIdOf } from './relics';
 import { canTakeAny, claimOnly, collectSalvage } from './salvage';
 import { defaultSetup } from './settings';
@@ -120,6 +120,7 @@ describe('relics never trade', () => {
     expect(stowPart(w, me, relic)).toBe(true);
     w.player.storage.push(partWithId('relic-stored', 'relicStatue', 0));
     expect(tradedSpares(me)).toEqual([]);
+    expect(cargoValue(me)).toBe(cargoValue({ ...me, items: me.items.filter((it) => it.kind !== 'part' || it.part.id !== relic.id) }));
     expect(() => takeSellablePart(w, relic.id)).toThrow();
     expect(() => takeSellablePart(w, 'relic-stored')).toThrow();
   });

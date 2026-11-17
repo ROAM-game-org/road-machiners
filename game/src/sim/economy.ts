@@ -468,7 +468,7 @@ function saleValue(world: World, v: Vehicle, shopId: string): number {
     .reduce((sum, [good, count]) => sum + getLotTradePrice(world, v, shopId, good, count, 'sell'), 0);
   const engine = mountedParts(v, 'engine')[0];
   const mounted = mountedParts(v).filter((p) => p !== engine && partDef(p.defId).kind !== 'core');
-  const parts = [...mounted, ...spareParts(v), ...world.player.storage];
+  const parts = [...mounted, ...tradedSpares(v), ...world.player.storage.filter((p) => !isRelic(p))];
   return goods + parts.reduce((sum, p) => sum + partTradePrice(world, v, p, 'sell'), 0);
 }
 
