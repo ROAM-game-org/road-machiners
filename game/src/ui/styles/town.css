@@ -63,7 +63,7 @@
 }
 #ui .town-page .quest-choice.compact {
   align-self: flex-start;
-  padding: var(--space-2) var(--space-6);
+  padding: 0 calc(var(--space-6) - var(--key-edge));
 }
 
 .town-page .ink-head-line {

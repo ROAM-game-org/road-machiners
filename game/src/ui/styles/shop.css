@@ -97,7 +97,7 @@
   display: block;
   height: auto;
   min-height: var(--btn-h-m);
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
   text-align: left;
   font-size: var(--text-lead);
   line-height: 1.35;
@@ -207,12 +207,12 @@
   padding-top: var(--space-6);
 }
 #ui :is(.quest-page, .ink-page) .quest-choice {
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
 }
 #ui :is(.quest-page, .ink-page) .quest-next {
   margin-top: auto;
   align-self: flex-start;
-  padding: var(--space-3) var(--space-9);
+  padding: var(--space-1) calc(var(--space-9) - var(--key-edge)) 0;
 }
 .quest-page .quest-side {
   padding: var(--space-8) var(--space-7);

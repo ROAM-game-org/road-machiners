@@ -47,7 +47,7 @@ body {
   position: absolute;
   pointer-events: auto;
   background: none;
-  border: 0;
+  border: 1px solid transparent;
   border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge-s) stretch;
   padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-panel);
@@ -84,14 +84,16 @@ body {
 }
 :is(#ui, #report) select {
   font: inherit;
+  border: 1px solid;
+  padding: var(--space-2);
   max-width: 100%;
 }
 :is(#ui, #report) :is(select, textarea, input:is([type="text"], [type="search"], :not([type]))) {
   color: var(--ink);
   background: none;
-  border: 0;
+  border-style: solid;
+  border-color: transparent;
   border-image: var(--hud-input-art) var(--hud-input-slice) fill / var(--hud-input-edge) stretch;
-  padding: var(--space-2) var(--space-4);
 }
 :is(#ui, #report) .dim {
   color: var(--ink-muted);

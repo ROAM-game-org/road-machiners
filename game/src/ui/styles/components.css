@@ -334,7 +334,7 @@
   gap: 0;
   overflow: hidden;
   padding: 0;
-  border: 0;
+  border: 2px solid transparent;
   border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge) stretch;
 }
 .ink-page .ink-band {
