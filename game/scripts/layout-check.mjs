@@ -30,7 +30,7 @@ function fillLog(page) {
     const { moneyMsg } = await import('/src/ui/units.ts');
     const lines = [
       t('log.jobCancelled', { what: t('job.remove', { part: n.partName('tankHeavy'), truck: t('vehicle.npc', { profession: n.professionName('convoyGuard'), driver: n.fullName('Dmitri Tulloch') }) }) }),
-      t('log.jobStarted', { what: t('job.repair', { part: n.partName('enclosedFrame') }), n: 12 }),
+      t('log.jobStarted', { what: t('job.repair', { part: n.partName('haulingRack') }), n: 12 }),
       t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(123) }),
       t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(42) }),
       t('note.hazard'),
