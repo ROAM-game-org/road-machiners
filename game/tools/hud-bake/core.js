@@ -40,12 +40,20 @@ function pixelBounds(root, toPx, pad) {
 const VIEWS = ['desktop', 'flat'];
 const WEBP_QUALITY = 0.9;
 
-function viewEye(facePanel, eye) {
+const DESKTOP_VANISH = { x: 640, y: -360 };
+
+function flatView() {
   const view = window.bakeView;
   if (!VIEWS.includes(view)) throw new Error(`part.html needs ?view= one of ${VIEWS.join(', ')}, got ${view}`);
-  if (view === 'desktop') return eye;
-  const center = facePanel.g.localToWorld(new THREE.Vector3(0, 0, facePanel.z));
-  return { x: center.x, y: center.y, z: eye.z };
+  return view === 'flat';
+}
+
+export function vanishFor([x0, y0, x1, y1]) {
+  return flatView() ? { x: (x0 + x1) / 2, y: (y0 + y1) / 2 } : DESKTOP_VANISH;
+}
+
+export function eyeFor(desktop, [x, y]) {
+  return flatView() ? { x, y, z: desktop.z } : desktop;
 }
 
 const FRAME = { eye: { x: 0, y: 6.5, z: 24 }, fov: 19, faceWidthPx: 1279, pad: 16 };
@@ -53,10 +61,9 @@ const FRAME = { eye: { x: 0, y: 6.5, z: 24 }, fov: 19, faceWidthPx: 1279, pad: 1
 export function frame(opts) {
   const { scene, root, facePanel, eye, fov, faceWidthPx, pad } = { ...FRAME, ...opts };
   scene.updateMatrixWorld(true);
-  const at = viewEye(facePanel, eye);
   const camera = new THREE.PerspectiveCamera(fov, 1, 1, 120);
-  camera.position.set(at.x, at.y, at.z);
-  camera.lookAt(at.x, at.y, 0);
+  camera.position.set(eye.x, eye.y, eye.z);
+  camera.lookAt(eye.x, eye.y, 0);
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   const v = new THREE.Vector3();

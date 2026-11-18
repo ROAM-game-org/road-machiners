@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Panel, box, cyl, shade, toon } from '../kit.js';
 import { keycap } from './olive.js';
-import { PPU, plateSpace, makeStage, frame, finishPanels, installBake } from '../core.js';
+import { PPU, plateSpace, makeStage, frame, finishPanels, installBake, eyeFor } from '../core.js';
 
 const S = plateSpace(1279, 695);
 const BOX = {
@@ -154,7 +154,7 @@ strip.add(key, px, py, 0);
 }
 
 finishPanels([body, strip]);
-const view = frame({ scene, root, facePanel: body, eye: { x: 8, y: 6.5, z: 24 }, faceWidthPx: S.width });
+const view = frame({ scene, root, facePanel: body, eye: eyeFor({ x: 8, y: 6.5, z: 24 }, [0, 0]), faceWidthPx: S.width });
 
 const zoneMeta = (z, b) => ({ quad: view.quad(z.panel, z.x, z.y, z.w, z.h, z.z), size: [b[2] - b[0], b[3] - b[1]] });
 const boxQuad = (panel, inP, b, z) => { const [x, y, w, h] = inP(b); return view.quad(panel, x, y, w, h, z); };

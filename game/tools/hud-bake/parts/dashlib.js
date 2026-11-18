@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { toon } from '../kit.js';
-import { PPU, plateSpace, makeStage, frame } from '../core.js';
+import { PPU, plateSpace, makeStage, frame, vanishFor } from '../core.js';
 
 export const K = 4;
 export const GAIN = 1.2;
 export const EYE_Z = 40;
-export const VP = { x: 640, y: -360 };
 
 export function rng(seed) {
   let a = seed >>> 0;
@@ -15,17 +14,18 @@ export function rng(seed) {
 export class Plate {
   constructor(ox, oy, cw, ch, zE = null, k = K) {
     this.ox = ox; this.oy = oy; this.cw = cw; this.ch = ch; this.zE = zE; this.z = 0; this.k = k;
+    this.vp = vanishFor([ox, oy, ox + cw, oy + ch]);
     this.S = plateSpace(cw * k, ch * k);
     this.g = new THREE.Group();
   }
   at(z) { const l = Object.create(this); l.z = z; return l; }
   depthScale() { return this.zE ? (this.zE - this.z) / this.zE : 1; }
-  mx(x) { return this.zE ? VP.x + (x - VP.x) * this.depthScale() : x; }
-  my(y) { return this.zE ? VP.y + (y - VP.y) * this.depthScale() : y; }
+  mx(x) { return this.zE ? this.vp.x + (x - this.vp.x) * this.depthScale() : x; }
+  my(y) { return this.zE ? this.vp.y + (y - this.vp.y) * this.depthScale() : y; }
   ux(x) { return this.S.ux((this.mx(x) - this.ox) * this.k); }
   uy(y) { return this.S.uy((this.my(y) - this.oy) * this.k); }
   len(v) { return v * this.k / PPU * this.depthScale(); }
-  eye() { const l = this.at(0); return { x: l.ux(VP.x), y: l.uy(VP.y), z: this.zE ?? EYE_Z * this.k / K }; }
+  eye() { const l = this.at(0); return { x: l.ux(this.vp.x), y: l.uy(this.vp.y), z: this.zE ?? EYE_Z * this.k / K }; }
   rect([x0, y0, x1, y1]) { return { cx: this.ux((x0 + x1) / 2), cy: this.uy((y0 + y1) / 2), w: this.len(x1 - x0), h: this.len(y1 - y0) }; }
   shape([x0, y0, x1, y1], radii = [0, 0, 0, 0]) {
     return rrShape(this.ux(x0), this.uy(y1), this.ux(x1), this.uy(y0), radii.map((r) => this.len(r)));

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Panel } from '../kit.js';
-import { PPU, plateSpace, makeStage, frame, finishPanels, installBake } from '../core.js';
+import { PPU, plateSpace, makeStage, frame, finishPanels, installBake, vanishFor } from '../core.js';
 
 const K = 2;
 const FACE_CSS = [0, 698, 1280, 720];
@@ -9,7 +9,8 @@ const FRONT_TOP = (706 - FACE_CSS[1]) * K;
 const OVERSCAN = 60 * K;
 const TOP_COLOR = '#48240f';
 const D = 0.18;
-const EYE = { x: 0, y: (S.height / 2 + (360 + FACE_CSS[1]) * K) / PPU, z: 24 };
+const VP = vanishFor(FACE_CSS);
+const EYE = { x: (VP.x - (FACE_CSS[0] + FACE_CSS[2]) / 2) * K / PPU, y: (S.height / 2 + (FACE_CSS[1] - VP.y) * K) / PPU, z: 24 };
 
 const LIT = 1.09;
 const lit = (hex) => `#${hex.slice(1).match(/../g).map((v) => Math.min(255, Math.round(parseInt(v, 16) * LIT)).toString(16).padStart(2, '0')).join('')}`;

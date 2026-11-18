@@ -3,17 +3,19 @@ import { startServer } from './server.mjs';
 import { sheetUrl } from './args.mjs';
 const server = await startServer();
 const out = new URL('./', import.meta.url).pathname;
-const only = process.argv.slice(2);
+const VIEW_FLAG = /^--view=(desktop|flat)$/;
+const view = process.argv.slice(2).find((a) => VIEW_FLAG.test(a))?.match(VIEW_FLAG)[1] ?? 'desktop';
+const only = process.argv.slice(2).filter((a) => !VIEW_FLAG.test(a));
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1700, height: 900 }, deviceScaleFactor: 2 });
 const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/status of 404/.test(m.text())) errors.push(m.text()); });
 page.on('response', (r) => { if (r.status() >= 400 && !/\/out\/[a-z]+\/meta\.json/.test(r.url())) errors.push(`${r.status()} ${r.url()}`); });
-await page.goto(sheetUrl(server));
+await page.goto(`${sheetUrl(server)}?view=${view}`);
 try { await page.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 20000 }); }
 catch { console.error('sheet never became ready:', errors.join(' | ')); await browser.close(); server.close(); process.exit(1); }
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(800);
-if (!only.length || only.includes('full')) await page.locator('#full').screenshot({ path: out + 'check-full.png' });
+if (!only.length || only.includes('full')) await page.locator('#full').screenshot({ path: out + `check-full-${view}.png` });
 const names = await page.$$eval('#rows h3', (hs) => hs.map((h) => h.textContent));
 const pairs = page.locator('#rows .pair');
 for (let i = 0; i < names.length; i++) if (!only.length || only.includes(names[i])) await pairs.nth(i).screenshot({ path: out + `check-${names[i]}.png` });

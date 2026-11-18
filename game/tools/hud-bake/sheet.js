@@ -1,6 +1,6 @@
 import { HUD, INTERFACE, PARTS } from './parts.js';
 
-const VIEW = 'desktop';
+const VIEW = new URLSearchParams(location.search).get('view') ?? 'desktop';
 const V = Date.now();
 const fetchJson = async (url) => { const r = await fetch(`${url}?v=${V}`, { cache: 'no-store' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); };
 

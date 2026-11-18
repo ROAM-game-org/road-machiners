@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { PPU, plateSpace, makeStage, frame, installBake } from '../core.js';
+import { PPU, plateSpace, makeStage, frame, installBake, vanishFor } from '../core.js';
 import { OLIVE, mottle, slab, faceMaterial, brassLip, keycap, crossMark } from './olive.js';
 
 const K = 3.2;
 const CSS = K / PPU;
 const FACE_CSS = [360, 112, 920, 188.8];
-const VP = { x: 640, y: -360 };
 const S = plateSpace((FACE_CSS[2] - FACE_CSS[0]) * K, (FACE_CSS[3] - FACE_CSS[1]) * K);
+const VP = vanishFor(FACE_CSS);
 const EYE = { x: (VP.x - (FACE_CSS[0] + FACE_CSS[2]) / 2) * CSS, y: ((FACE_CSS[1] + FACE_CSS[3]) / 2 - VP.y) * CSS, z: 24 };
 const local = ([x0, y0, x1, y1]) => [((x0 + x1) / 2 - (FACE_CSS[0] + FACE_CSS[2]) / 2) * CSS, ((FACE_CSS[1] + FACE_CSS[3]) / 2 - (y0 + y1) / 2) * CSS, (x1 - x0) * CSS, (y1 - y0) * CSS];
 const KEY_CSS = [891, 117, 914.5, 140.5];

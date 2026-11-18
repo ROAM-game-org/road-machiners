@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Panel, shade, toon, ink } from '../kit.js';
 import { mottle } from './olive.js';
-import { PPU, plateSpace, makeStage, frame, finishPanels, installBake } from '../core.js';
+import { PPU, plateSpace, makeStage, frame, finishPanels, installBake, eyeFor } from '../core.js';
 
 const K = 3.2;
 const FACE_CSS = [360.7, 554.9, 760.7, 704];
@@ -29,7 +29,7 @@ const BRACKETS = [
 
 const LOOK = { housing: '#8d7b5b', top: '#918466', lower: '#5e533b', lowerBounce: '#40382a', copper: '#8f5d44', tan: '#bd9156', clip: '#8e6d42', tanEdge: '#2b1f12', screen: '#322014', brass: '#a38052', brassEdge: '#483824' };
 const KEY_UP = 0.014, KEY_DOWN = -0.004;
-const EYE = { x: 1.269, y: 15.83, z: 24 };
+const EYE = eyeFor({ x: 1.269, y: 15.83, z: 24 }, [0, 0]);
 const BODY_D = 0.236, LOWER_D = 0.2, OVERHANG = 0.35;
 
 
