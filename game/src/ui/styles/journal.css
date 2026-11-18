@@ -14,20 +14,6 @@
   font-size: var(--text-dense);
   z-index: var(--z-hud);
 }
-#ui .journal-side.panel {
-  background: none;
-  border: 0;
-  border-image: var(--hud-slate-art) 9% 6% fill / var(--hud-slate-edge) stretch;
-}
-#ui .journal-side button.close {
-  border: 0;
-  border-radius: 0;
-  background: none;
-  border-image: var(--hud-slate-key-art) 14% 6% fill / var(--hud-slate-key-edge) stretch;
-}
-#ui .journal-side button.close:active {
-  border-image-source: var(--hud-slate-key-down-art);
-}
 .journal-screen .journal-top {
   display: flex;
   justify-content: space-between;

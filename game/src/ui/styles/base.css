@@ -29,6 +29,7 @@ body {
   color: var(--ink);
   font: var(--text-body) / 1.4 var(--font-ui);
   touch-action: manipulation;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
 :is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
   -webkit-touch-callout: none;
@@ -45,8 +46,9 @@ body {
 :is(#ui, #report) .panel {
   position: absolute;
   pointer-events: auto;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-strong);
+  background: none;
+  border: 0;
+  border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge-s) stretch;
   padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-panel);
 }
@@ -82,11 +84,14 @@ body {
 }
 :is(#ui, #report) select {
   font: inherit;
-  color: var(--ink);
-  background: var(--surface-well);
-  border: 1px solid var(--line-strong);
-  padding: var(--space-2);
   max-width: 100%;
+}
+:is(#ui, #report) :is(select, textarea, input:is([type="text"], [type="search"], :not([type]))) {
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-image: var(--hud-input-art) var(--hud-input-slice) fill / var(--hud-input-edge) stretch;
+  padding: var(--space-2) var(--space-4);
 }
 :is(#ui, #report) .dim {
   color: var(--ink-muted);

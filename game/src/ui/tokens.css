@@ -49,34 +49,34 @@
 
   /* Page and surfaces, dark to light */
   --color-void: #1b1c1d;
-  --surface-sunk: #1a1e20;
-  --surface-well: #202529;
-  --surface-dock: #202529e8;
-  --surface-panel: #272b2ef5;
-  --surface-highlight: #2f3437;
-  --surface-raised: #33383b;
-  --surface-hover: #464d50;
+  --surface-sunk: #1d1208;
+  --surface-well: #24170c;
+  --surface-dock: #24170ce8;
+  --surface-panel: #2c1c0ff5;
+  --surface-highlight: #3a2616;
+  --surface-raised: #43301c;
+  --surface-hover: #54391f;
   --surface-overlay: #261c14ee;
   --surface-overlay-shade: #1a1410;
   --scrim: #101316b8;
   --scrim-heavy: #101316e0;
 
   /* Lines, faint to bright */
-  --line-faint: #3b454b;
-  --line-soft: #4b555b;
-  --line: #5d6264;
-  --line-strong: #777e81;
-  --line-bright: #838a8d;
-  --line-hover: #c2b08b;
+  --line-faint: #4a3219;
+  --line-soft: #5c4022;
+  --line: #6e4f2b;
+  --line-strong: #8a6a3c;
+  --line-bright: #a38052;
+  --line-hover: #d9a35a;
   --mark-own: #a4a074;
 
   /* Text */
-  --ink: #e0d8ca;
-  --ink-bright: #f3efde;
-  --ink-title: #dac7a2;
-  --ink-label: #c4b888;
-  --ink-muted: #aaa69e;
-  --ink-faint: #7b7e7c;
+  --ink: #f2bd6a;
+  --ink-bright: #f6e2b6;
+  --ink-title: #f3d39a;
+  --ink-label: #dcaa62;
+  --ink-muted: #c4914f;
+  --ink-faint: #8d6434;
   --ink-overlay: #f0e0b8;
   --ink-on-accent: #1d1a12;
 
@@ -150,16 +150,16 @@
   --cond-cells: rgba(255, 244, 214, 0.22);
 
   /* Truck grid cell kinds: the dark grid in the inventory and the bright map on truck cards */
-  --cell-line: #58656b;
-  --cell-ink: #a0adb2;
-  --cell-plan-line: #b9c6ca;
+  --cell-line: #6e4f2b;
+  --cell-ink: #c4914f;
+  --cell-plan-line: #dcaa62;
   --plan-detail-faint: rgba(185, 198, 202, 0.3);
   --plan-glass-faint: rgba(185, 198, 202, 0.12);
-  --cell-plain: #303d44;
-  --cell-deck: #483e36;
-  --cell-engine: #3d4b50;
-  --cell-side: #414c52;
-  --cell-none: #20292e;
+  --cell-plain: #3d2a17;
+  --cell-deck: #4f3a22;
+  --cell-engine: #45301b;
+  --cell-side: #4a341d;
+  --cell-none: #24170c;
   --cell-grid-line: rgba(255, 244, 214, 0.3);
   --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
   --garage-body-filter: brightness(0.55) saturate(0.55);
@@ -264,8 +264,14 @@
   --hud-bake-desktop-aspect: 1.6;
   --hud-frame-edge: 10px;
   --hud-screen-edge: 4.8px;
-  --hud-slate-edge: 7px;
-  --hud-slate-key-edge: 4px;
+  --hud-slate-edge: 14px;
+  --hud-slate-edge-s: 9px;
+  --hud-slate-slice: 14.8% 10%;
+  --hud-input-edge: 5px;
+  --hud-input-slice: 22% 10%;
+  --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;
+  --scroll-thumb: #a38052;
+  --scroll-track: #1d1208;
   --hud-crt-fill: radial-gradient(ellipse 75% 85% at 50% 48%, #321f0e, #26170a 75%);
   --hud-crt-blur: 0.4;
   --hud-crt-scan: #00000026;
@@ -365,6 +371,9 @@
   --btn-h-s: 24px;
   --btn-h-m: 32px;
   --btn-h-l: 44px;
+  --btn-key-edge-s: 3px;
+  --btn-key-edge-m: 4px;
+  --btn-key-edge-l: 5px;
 
   /* Bars and pips */
   --meter-s: 3px;
