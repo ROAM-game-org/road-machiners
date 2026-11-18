@@ -51,7 +51,7 @@ The top device and the lower box are two devices strapped together. Every weapon
 - Reload and Hold are two icon keys side by side under it, about 1.6 times the old small key. Their names show in the hover tooltip.
 - Reload drops the magazine of every selected gun that is half empty. On a harpoon with its line out, it cuts the line. There is no Cut line key.
 - Hold clears the target of every selected gun and turns auto fire off.
-- Auto fire is a wide key at the bottom of the column with its name on the key. It lights amber while auto fire is on.
+- Auto fire is a translucent red plastic push button at the bottom of the column, with AUTO FIRE printed in coal on the panel beside it. Off, it stands proud of its black bezel, unlit. On, it sits pushed into the bezel and glows red from inside.
 - A key with nothing to act on does nothing and gives its reason: Magazine full, Reloading, Broken, No target set or No line out.
 
 The Hold icon is new: a ring with a slash, on the 16 unit icon grid. Reload uses the existing reload icon.

@@ -7,7 +7,7 @@ import { coinEl } from "../units";
 import { deviceCast } from "./skin";
 import { BakedPart } from "./baked";
 import { BAKED } from "./baked";
-import { clampShare, setLcd, DRIVE_PLATE, isOff, lamp, plateKey, Rocker, setAttrText, setData, setFlag, showControl, svgNode, type Box, type RockerView } from "./skin";
+import { clampShare, setLcd, DRIVE_PLATE, isOff, lamp, plateKey, Rocker, setAttrText, setData, setFlag, showControl, svgNode, type RockerView } from "./skin";
 
 export type StatTone = "base" | "warn" | "danger";
 
@@ -156,39 +156,53 @@ export class SpeedDial {
 }
 
 export interface ArcSetup {
-  hub: Box;
   low: Msg;
   high: Msg;
   tone: "fuel" | "heat";
 }
 
 const ARC_SWEEP = 100;
-const ARC_RADIUS = 112;
 const ARC_SEGMENTS = 6;
-const ARC_LABEL_GAP = 34;
+const ARC_VIEW_W = 100;
+const ARC_REACH = 0.43;
+const ARC_HUB_RISE = 0.16;
+const ARC_STROKE = 0.143;
+const ARC_NEEDLE = 1.14;
+const ARC_HUB = 0.116;
+const ARC_LABEL_GAP = 0.3;
 
 export class ArcGauge {
-  readonly root = svgNode("g", { class: "arc-gauge" });
+  readonly root: HTMLElement;
+  private readonly gauge = svgNode("g", { class: "arc-gauge" });
   private readonly dial: Dial;
   private readonly needle: SVGElement;
 
-  constructor(setup: ArcSetup, pin: Pin) {
-    this.dial = { cx: setup.hub[0], cy: setup.hub[1], sweep: ARC_SWEEP };
-    this.needle = needle(this.dial, "arc-needle", 128, 13);
-    this.root.classList.add(`arc-${setup.tone}`);
-    const segments = Array.from({ length: ARC_SEGMENTS }, (_, i) =>
-      svgNode("path", { class: `arc-segment arc-segment-${i}`, d: arcPath(this.dial, i / ARC_SEGMENTS + 0.01, (i + 0.84) / ARC_SEGMENTS, ARC_RADIUS) }),
-    );
-    const low = polar(this.dial, 0, ARC_RADIUS);
-    const high = polar(this.dial, 1, ARC_RADIUS);
-    this.root.append(...segments, this.needle);
-    pin(dialText(`arc-end arc-${setup.tone}`, setup.low), low.x, low.y + ARC_LABEL_GAP);
-    pin(dialText(`arc-end arc-high arc-${setup.tone}`, setup.high), high.x, high.y + ARC_LABEL_GAP);
+  constructor(setup: ArcSetup, glass: readonly [number, number]) {
+    const height = (ARC_VIEW_W * glass[1]) / glass[0];
+    const radius = ARC_VIEW_W * ARC_REACH;
+    this.dial = { cx: ARC_VIEW_W / 2, cy: height * (1 - ARC_HUB_RISE), sweep: ARC_SWEEP };
+    this.needle = needle(this.dial, "arc-needle", radius * ARC_NEEDLE, radius * ARC_HUB);
+    this.gauge.classList.add(`arc-${setup.tone}`);
+    const segments = svgNode("g", { class: "arc-segments", "stroke-width": (radius * ARC_STROKE).toFixed(2) });
+    segments.append(...Array.from({ length: ARC_SEGMENTS }, (_, i) => svgNode("path", { class: `arc-segment arc-segment-${i}`, d: arcPath(this.dial, i / ARC_SEGMENTS + 0.01, (i + 0.84) / ARC_SEGMENTS, radius) })));
+    this.gauge.append(segments, this.needle);
+    const svg = svgNode("svg", { class: "gauge-drawing", viewBox: `0 0 ${ARC_VIEW_W} ${height.toFixed(2)}`, "aria-hidden": "true" });
+    svg.append(this.gauge);
+    const label = (cls: string, msg: Msg, share: number): HTMLElement => {
+      const at = polar(this.dial, share, radius);
+      const node = dialText(`arc-end ${cls} arc-${setup.tone}`, msg);
+      node.style.left = `${((at.x / ARC_VIEW_W) * 100).toFixed(2)}%`;
+      node.style.top = `${(((at.y + radius * ARC_LABEL_GAP) / height) * 100).toFixed(2)}%`;
+      return node;
+    };
+    this.root = el("div", { class: "gauge-zone", role: "img" }, svg, label("arc-low", setup.low, 0), label("arc-high", setup.high, 1));
   }
 
-  update(share: number, warn: boolean): void {
+  update(share: number, warn: boolean, title: Msg): void {
     turnNeedle(this.needle, this.dial, share);
-    setFlag(this.root, "warn", warn);
+    setFlag(this.gauge, "warn", warn);
+    setAttrText(this.root, "title", title);
+    setAttrText(this.root, "aria-label", title);
   }
 }
 
@@ -245,8 +259,6 @@ export class DrivePanel {
   private readonly heat: ArcGauge;
   private speedView: DriveView | null = null;
   private readonly speedSpot = el("span", { class: "plate-spot", role: "img" });
-  private readonly fuelSpot = el("span", { class: "plate-spot", role: "img" });
-  private readonly heatSpot = el("span", { class: "plate-spot", role: "img" });
   private readonly cool: HTMLButtonElement;
   private readonly manual: Rocker;
   private readonly lights: Rocker;
@@ -256,13 +268,13 @@ export class DrivePanel {
     const labels = setup.labels;
     const pin: Pin = (node, x, y) => this.plate.pin(node, [x, y]);
     this.speed = new SpeedDial(labels.speedUnit, pin);
-    this.fuel = new ArcGauge({ hub: DRIVE_PLATE.boxes.fuelHub, low: verbatim("E"), high: verbatim("F"), tone: "fuel" }, pin);
-    this.heat = new ArcGauge({ hub: DRIVE_PLATE.boxes.heatHub, low: verbatim("C"), high: verbatim("H"), tone: "heat" }, pin);
-    this.plate.drawing("drive-drawing").append(this.speed.root, this.fuel.root, this.heat.root);
+    this.fuel = new ArcGauge({ low: verbatim("E"), high: verbatim("F"), tone: "fuel" }, BAKED.drive.desktop.zones.fuel.size);
+    this.heat = new ArcGauge({ low: verbatim("C"), high: verbatim("H"), tone: "heat" }, BAKED.drive.desktop.zones.heat.size);
+    this.plate.drawing("drive-drawing").append(this.speed.root);
+    this.plate.zone(this.fuel.root, "fuel");
+    this.plate.zone(this.heat.root, "heat");
     this.plate.place(this.speedSpot, "face");
     registerRichTip(this.speedSpot, () => this.speedTip());
-    this.plate.place(this.fuelSpot, "fuel");
-    this.plate.place(this.heatSpot, "heat");
     this.cool = this.plate.zone(plateKey("baked-key cool-key", labels.cool, setup.onCool), "coolHit");
     const sink = this.plate.follow(el("span", { class: "key-print cool-print", "aria-hidden": "true" }, labels.cool), "coolText", "coolTextDown");
     this.cool.addEventListener("pointerdown", () => this.pressCool(true, sink));
@@ -298,14 +310,10 @@ export class DrivePanel {
 
   update(view: DriveView): void {
     this.speed.update(view);
-    this.fuel.update(view.fuel, view.fuelWarn);
-    this.heat.update(view.heat, view.heatWarn);
+    this.fuel.update(view.fuel, view.fuelWarn, view.fuelTitle);
+    this.heat.update(view.heat, view.heatWarn, view.heatTitle);
     this.speedView = view;
     setAttrText(this.speedSpot, "aria-label", view.speedTitle);
-    setAttrText(this.fuelSpot, "title", view.fuelTitle);
-    setAttrText(this.fuelSpot, "aria-label", view.fuelTitle);
-    setAttrText(this.heatSpot, "title", view.heatTitle);
-    setAttrText(this.heatSpot, "aria-label", view.heatTitle);
     [view.manual, view.lights, view.overdrive].forEach((rocker, i) => this.rockerFrames[i].show(`rocker${i}-${rocker.checked ? "on" : "off"}`));
     this.manual.update(view.manual);
     this.lights.update(view.lights);

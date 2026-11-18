@@ -264,46 +264,60 @@
   display: none;
 }
 
-#ui .drive-drawing .arc-segment {
-  fill: none;
-  stroke-width: 16;
+#ui .gauge-zone {
+  overflow: visible;
 }
 
-#ui .drive-drawing .arc-fuel .arc-segment {
+#ui .gauge-zone > .gauge-drawing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+#ui .gauge-zone > .arc-end {
+  position: absolute;
+  translate: -50% -50%;
+}
+
+#ui .gauge-zone .arc-segment {
+  fill: none;
+}
+
+#ui .gauge-zone .arc-fuel .arc-segment {
   stroke: var(--hud-fuel);
 }
 
-#ui .drive-drawing .arc-fuel .arc-segment-0 {
+#ui .gauge-zone .arc-fuel .arc-segment-0 {
   stroke: var(--hud-hot);
 }
 
-#ui .drive-drawing .arc-heat .arc-segment {
+#ui .gauge-zone .arc-heat .arc-segment {
   stroke: var(--hud-heat);
 }
 
-#ui .drive-drawing .arc-heat .arc-segment-4,
-#ui .drive-drawing .arc-heat .arc-segment-5 {
+#ui .gauge-zone .arc-heat .arc-segment-4,
+#ui .gauge-zone .arc-heat .arc-segment-5 {
   stroke: var(--hud-hot);
 }
 
-#ui .drive-drawing .arc-fuel text {
-  fill: var(--hud-fuel);
-}
-
-#ui .drive-drawing .arc-heat text {
-  fill: var(--hud-heat);
-}
-
-#ui .drive-drawing .arc-heat .arc-high {
-  fill: var(--hud-hot);
-}
-
-#ui .drive-drawing .arc-gauge.warn .arc-segment {
+#ui .gauge-zone .arc-gauge.warn .arc-segment {
   filter: drop-shadow(0 0 var(--hud-glow-r) var(--hud-hot));
 }
 
-#ui .drive-drawing .arc-needle .needle-arm {
+#ui .gauge-zone .dial-needle {
+  transform: rotate(var(--needle, 0deg));
+}
+
+#ui .gauge-zone .arc-needle .needle-arm {
   fill: var(--hud-print);
+}
+
+#ui .gauge-zone .needle-hub {
+  fill: var(--hud-segment-off);
+  stroke: var(--hud-print-dim);
+  stroke-width: 1.2;
 }
 
 #ui .hud-weapons {
@@ -568,102 +582,7 @@
   translate: var(--hud-drive-shift) var(--hud-drive-sink);
 }
 
-#ui .drive-drawing .dial-segment {
-  fill: none;
-  stroke: var(--hud-segment-off);
-  stroke-width: 31;
-}
 
-#ui .drive-drawing .dial-segment.beyond {
-  stroke: var(--hud-segment-beyond);
-}
-
-#ui .drive-drawing .dial-segment.lit {
-  stroke: var(--hud-amber);
-  filter: var(--hud-mark-glow);
-}
-
-#ui .drive-drawing .dial-tick {
-  stroke: var(--hud-print-dim);
-  stroke-width: 4;
-}
-
-#ui .drive-drawing .dial-tick.major {
-  stroke: var(--hud-print);
-  stroke-width: 7;
-}
-
-#ui .drive-drawing text {
-  fill: var(--hud-print);
-  font-family: var(--font-hud);
-  font-weight: 700;
-  text-anchor: middle;
-}
-
-#ui .drive-drawing .dial-needle {
-  transform: rotate(var(--needle, 0deg));
-}
-
-#ui .drive-drawing .needle-arm {
-  fill: var(--hud-needle);
-}
-
-#ui .drive-drawing .needle-hub {
-  fill: var(--hud-segment-off);
-  stroke: var(--hud-print-dim);
-  stroke-width: 3;
-}
-
-#ui .drive-drawing .dial-pace {
-  fill: var(--hud-print);
-  transform: rotate(var(--needle, 0deg));
-}
-
-#ui .drive-drawing .dial-pace.hidden {
-  display: none;
-}
-
-#ui .drive-drawing .arc-segment {
-  fill: none;
-  stroke-width: 16;
-}
-
-#ui .drive-drawing .arc-fuel .arc-segment {
-  stroke: var(--hud-fuel);
-}
-
-#ui .drive-drawing .arc-fuel .arc-segment-0 {
-  stroke: var(--hud-hot);
-}
-
-#ui .drive-drawing .arc-heat .arc-segment {
-  stroke: var(--hud-heat);
-}
-
-#ui .drive-drawing .arc-heat .arc-segment-4,
-#ui .drive-drawing .arc-heat .arc-segment-5 {
-  stroke: var(--hud-hot);
-}
-
-#ui .drive-drawing .arc-fuel text {
-  fill: var(--hud-fuel);
-}
-
-#ui .drive-drawing .arc-heat text {
-  fill: var(--hud-heat);
-}
-
-#ui .drive-drawing .arc-heat .arc-high {
-  fill: var(--hud-hot);
-}
-
-#ui .drive-drawing .arc-gauge.warn .arc-segment {
-  filter: drop-shadow(0 0 var(--hud-glow-r) var(--hud-hot));
-}
-
-#ui .drive-drawing .arc-needle .needle-arm {
-  fill: var(--hud-print);
-}
 
 #ui .hud-weapons {
   width: var(--hud-weapons-w);
@@ -1196,12 +1115,11 @@
   inset: auto;
 }
 
-#ui .auto-print {
+#ui .auto-label {
   font-size: var(--hud-text-m);
-}
-
-#ui .auto-print.lit {
-  color: var(--hud-print-ink);
+  line-height: 1.1;
+  white-space: normal;
+  text-align: center;
 }
 
 #ui :is(.hud-drive, .hud-weapons, .hud-radio, .hud-stats, .hud-system) {
@@ -1327,7 +1245,7 @@
 }
 
 #ui .top-right .game-menu [role=menu] {
-  right: calc(var(--hud-tray-side) + var(--hud-inset));
+  right: var(--hud-tray-side);
 }
 
 #ui .speed-tip .speed-head {
@@ -1483,6 +1401,12 @@
   box-shadow: none;
 }
 
+#ui .recenter-tip {
+  position: relative;
+  width: max-content;
+  cursor: pointer;
+}
+
 #ui :is(.action, .game-menu [role=menu]) {
   background: none;
   border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
@@ -1522,7 +1446,7 @@
 }
 
 #ui .menu-key > .menu-label {
-  flex: 1;
+  flex: 0 1 auto;
 }
 
 #ui .menu-cap > .icon {
@@ -1774,7 +1698,7 @@
   position: relative;
 }
 
-:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
+:is(#ui, #overlay) .hud-plate:not(.weapons-plate) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
   color: var(--hud-print);
 }
 
@@ -1894,3 +1818,7 @@
   pointer-events: none;
 }
 
+:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .weapons-plate) :is(.plate-label, .hud-panel-title, .menu-label, .hud-engraved):not(:is(.hud-screen, .tray-window) *) {
+  color: var(--hud-print-coal);
+  text-shadow: var(--hud-print-coal-edge);
+}

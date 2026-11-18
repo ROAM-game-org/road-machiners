@@ -17,7 +17,8 @@ const BOX = {
   key: R(690.5, 567, 755.5, 588),
   reload: R(690.5, 591.5, 721.5, 619),
   hold: R(724.5, 591.5, 755.5, 619),
-  auto: R(690.5, 623, 755.5, 649),
+  autoLabel: R(690.5, 623, 724, 649),
+  auto: R(729, 623.5, 754.5, 648.5),
 };
 const TOP_INSET = { left: 2.2, top: 1.5, right: 2.2, bottom: 6.9 };
 const ICON = 18;
@@ -26,7 +27,6 @@ const iconIn = (box) => { const [x0, y0, x1, y1] = topFace(box), cx = (x0 + x1) 
 BOX.allText = topFace(BOX.key);
 BOX.reloadIcon = iconIn(BOX.reload);
 BOX.holdIcon = iconIn(BOX.hold);
-BOX.autoText = topFace(BOX.auto);
 const SLOT_Y = [663, 697];
 const SLOTS = [[424, 488], [497, 561], [570, 634], [643, 707]].map(([x0, x1]) => R(x0, SLOT_Y[0], x1, SLOT_Y[1]));
 const CLIPS = [
@@ -38,7 +38,7 @@ const BRACKETS = [
   [[716.5, 689.6], [739.6, 690.9], [735.9, 701.8], [712.5, 702.1]],
 ];
 
-const LOOK = { housing: '#8d7b5b', top: '#918466', lower: '#5e533b', lowerBounce: '#40382a', copper: '#8f5d44', tan: '#bd9156', clip: '#8e6d42', tanEdge: '#2b1f12', screen: '#322014', brass: '#a38052', brassEdge: '#483824' };
+const LOOK = { well: '#22180f', housing: '#8d7b5b', top: '#918466', lower: '#5e533b', lowerBounce: '#40382a', copper: '#8f5d44', tan: '#bd9156', clip: '#8e6d42', tanEdge: '#2b1f12', screen: '#322014', brass: '#a38052', brassEdge: '#483824' };
 const KEY_UP = 0.014, KEY_DOWN = -0.004;
 const EYE = eyeFor({ x: 1.269, y: 15.83, z: 24 }, [0, 0]);
 const BODY_D = 0.236, LOWER_D = 0.2, OVERHANG = 0.35;
@@ -104,12 +104,11 @@ const cv = (b, panelBox) => [b[0] - panelBox[0], b[1] - panelBox[1], b[2] - pane
 
 const CAP_D = 0.025;
 const KEY_TOP_Z = FRONT_Z + KEY_UP + CAP_D / 2 + 0.001;
+const WELL = 1.4;
 const KEY_LOOK = { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' };
 const GAIN = 1.12;
 const litToon = (c) => { const m = toon(c); m.color.multiplyScalar(GAIN); return m; };
 const keyMats = { skirt: litToon(KEY_LOOK.skirt), shoulder: litToon(KEY_LOOK.shoulder), top: litToon(KEY_LOOK.top) };
-const KEY_LIT = { skirt: '#8a5a1c', shoulder: '#f0b860', top: '#e8a43c' };
-const litMats = { skirt: litToon(KEY_LIT.skirt), shoulder: new THREE.MeshBasicMaterial({ color: KEY_LIT.shoulder, toneMapped: false }), top: new THREE.MeshBasicMaterial({ color: KEY_LIT.top, toneMapped: false }) };
 const CSS = K / PPU;
 const KEYCAP_H = 3.5 * CSS;
 const rrLocal = (x0, y0, x1, y1, r) => {
@@ -133,7 +132,8 @@ const roundRect = (sh, x0, y0, x1, y1, r) => { sh.moveTo(x0 + r, y0); sh.lineTo(
 const makeKey = (box) => {
   body.paint('base', (c) => {
     const [X0, Y0, X1, Y1] = cv(box, BOX.body);
-    c.fillStyle = '#2b1f12'; c.beginPath(); c.roundRect(X0 - 1.5, Y0 - 1.5, X1 - X0 + 3, Y1 - Y0 + 3, 8); c.fill();
+    const g = WELL * K;
+    c.fillStyle = LOOK.well; c.beginPath(); c.roundRect(X0 - g, Y0 - g, X1 - X0 + 2 * g, Y1 - Y0 + 2 * g, 5 * K); c.fill();
   });
   const [kx, ky, kw, kh] = inBody(adj(box, KEY_TOP_Z)), z0 = -CAP_D / 2, group = new THREE.Group();
   const base = keyLevel(kw, kh, 0, 0, 0, 0, 4), mid = keyLevel(kw, kh, 1.2, 0.6, 1.2, 6.1, 3.4), topS = keyLevel(kw, kh, TOP_INSET.left, TOP_INSET.top, TOP_INSET.right, TOP_INSET.bottom, 2.8);
@@ -143,21 +143,74 @@ const makeKey = (box) => {
   const top = new THREE.Mesh(topGeo, keyMats.top); top.castShadow = true; top.receiveShadow = true;
   group.add(skirt, shoulder, top);
   body.add(group, kx, ky, 0);
-  const [wx, wy, ww, wh] = inBody(adj(box, FRONT_Z + 0.01));
-  const out = 1.8 * CSS, inn = 0.5 * CSS;
-  const shape = new THREE.Shape(); roundRect(shape, -ww / 2 - out, -wh / 2 - out, ww / 2 + out, wh / 2 + out, 0.03);
-  const hole = new THREE.Path(); roundRect(hole, -ww / 2 - inn, -wh / 2 - inn, ww / 2 + inn, wh / 2 + inn, 0.02); shape.holes.push(hole);
-  const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 3, curveSegments: 10 }), toon(LOOK.housing));
-  lip.castShadow = true; lip.receiveShadow = true;
-  body.add(lip, wx, wy, 0);
   const press = (z) => { group.position.z = body.z + z; };
-  const light = (on) => { const m = on ? litMats : keyMats; skirt.material = m.skirt; shoulder.material = m.shoulder; top.material = m.top; };
-  return { press, light };
+  return { press };
 };
 const allKey = makeKey(BOX.key);
 const reloadKey = makeKey(BOX.reload);
 const holdKey = makeKey(BOX.hold);
-const autoKey = makeKey(BOX.auto);
+
+const PLASTIC = { bezel: '#1d1a17', floor: '#120b09', shellOff: '#6a140c', shellOn: '#e8261a', halo: 'rgba(255,60,30,' };
+const BUTTON_H = 4.2, BUTTON_SINK = 3.4, BEZEL_OUT = 1.8, BEZEL_H = 1.2, BUTTON_R = 3, BUTTON_INSET = 0.6;
+const roundShape = (w, h, r) => { const sh = new THREE.Shape(); roundRect(sh, -w / 2, -h / 2, w / 2, h / 2, r); return sh; };
+const plasticButton = (box) => {
+  body.paint('base', (c) => {
+    const [X0, Y0, X1, Y1] = cv(box, BOX.body);
+    c.fillStyle = PLASTIC.floor; c.beginPath(); c.roundRect(X0, Y0, X1 - X0, Y1 - Y0, BUTTON_R * K); c.fill();
+  });
+  const [bx, by, bw, bh] = inBody(adj(box, FRONT_Z + BEZEL_H * CSS));
+  const bezelShape = roundShape(bw + 2 * BEZEL_OUT * CSS, bh + 2 * BEZEL_OUT * CSS, (BUTTON_R + BEZEL_OUT) * CSS);
+  const hole = new THREE.Path(); roundRect(hole, -bw / 2, -bh / 2, bw / 2, bh / 2, BUTTON_R * CSS); bezelShape.holes.push(hole);
+  const bezel = new THREE.Mesh(new THREE.ExtrudeGeometry(bezelShape, { depth: BEZEL_H * CSS, bevelEnabled: false, curveSegments: 12 }), toon(PLASTIC.bezel));
+  bezel.castShadow = true; bezel.receiveShadow = true;
+  body.add(bezel, bx, by, 0);
+  const [kx, ky, kw, kh] = inBody(adj(box, FRONT_Z + BUTTON_H * CSS));
+  const capW = kw - 2 * BUTTON_INSET * CSS, capH = kh - 2 * BUTTON_INSET * CSS, edge = 0.9 * CSS;
+  const capShape = roundShape(capW - 2 * edge, capH - 2 * edge, (BUTTON_R - BUTTON_INSET) * CSS - edge);
+  const capGeo = new THREE.ExtrudeGeometry(capShape, { depth: BUTTON_H * CSS - 2 * edge, bevelEnabled: true, bevelThickness: edge, bevelSize: edge, bevelSegments: 5, curveSegments: 16 });
+  capGeo.translate(0, 0, edge);
+  const shell = { off: new THREE.MeshStandardMaterial({ color: PLASTIC.shellOff, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.94 }), on: new THREE.MeshBasicMaterial({ color: PLASTIC.shellOn, toneMapped: false }) };
+  const cap = new THREE.Mesh(capGeo, shell.off);
+  cap.castShadow = true; cap.receiveShadow = true;
+  const topW = capW - 2 * edge, topH = capH - 2 * edge;
+  const face = (stops, highlight) => {
+    const cvs = document.createElement('canvas'); cvs.width = 256; cvs.height = Math.round(256 * topH / topW);
+    const c = cvs.getContext('2d'), W = cvs.width, H = cvs.height;
+    c.beginPath(); c.roundRect(0, 0, W, H, W * 0.16); c.clip();
+    const g = c.createRadialGradient(W * 0.5, H * 0.52, 0, W * 0.5, H * 0.52, Math.hypot(W, H) * 0.55);
+    for (const [at, color] of stops) g.addColorStop(at, color);
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    const h = c.createRadialGradient(W * 0.36, H * 0.22, 0, W * 0.36, H * 0.22, W * 0.42);
+    h.addColorStop(0, `rgba(255,255,255,${highlight})`); h.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = h; c.fillRect(0, 0, W, H);
+    const tex = new THREE.CanvasTexture(cvs); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    return new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false });
+  };
+  const faces = {
+    off: face([[0, '#8e2418'], [0.55, '#64120b'], [1, '#3a0705']], 0.34),
+    on: face([[0, '#fff3dc'], [0.22, '#ffb27a'], [0.5, '#ff4a26'], [0.85, '#d81c10'], [1, '#a00f08']], 0.22),
+  };
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(topW, topH), faces.off);
+  top.position.z = BUTTON_H * CSS + 0.0006;
+  const halo = document.createElement('canvas'); halo.width = halo.height = 256;
+  const hc = halo.getContext('2d'), hg = hc.createRadialGradient(128, 128, 0, 128, 128, 128);
+  hg.addColorStop(0, `${PLASTIC.halo}0)`); hg.addColorStop(0.5, `${PLASTIC.halo}0)`); hg.addColorStop(0.58, `${PLASTIC.halo}.42)`); hg.addColorStop(1, `${PLASTIC.halo}0)`);
+  hc.fillStyle = hg; hc.fillRect(0, 0, 256, 256);
+  const ht = new THREE.CanvasTexture(halo); ht.colorSpace = THREE.SRGBColorSpace;
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(kw * 1.55, kh * 1.55), new THREE.MeshBasicMaterial({ map: ht, transparent: true, depthWrite: false, toneMapped: false }));
+  glow.position.z = BEZEL_H * CSS + 0.0008;
+  const button = new THREE.Group(); button.add(cap, top);
+  const group = new THREE.Group(); group.add(glow, button);
+  body.add(group, kx, ky, 0);
+  const set = (on) => {
+    cap.material = on ? shell.on : shell.off; top.material = on ? faces.on : faces.off;
+    glow.visible = on; cap.castShadow = !on;
+    button.position.z = on ? -BUTTON_SINK * CSS : 0;
+  };
+  set(false);
+  return { set };
+};
+const autoButton = plasticButton(BOX.auto);
 
 
 
@@ -268,10 +321,9 @@ const meta = {
     screen: zoneAt(BOX.screen, 0.004),
     allText: zoneAt(BOX.allText, KEY_UP + CAP_D / 2 + 0.001),
     allTextDown: zoneAt(BOX.allText, KEY_DOWN + CAP_D / 2 + 0.001),
-    autoText: zoneAt(BOX.autoText, KEY_UP + CAP_D / 2 + 0.001),
-    autoTextDown: zoneAt(BOX.autoText, KEY_DOWN + CAP_D / 2 + 0.001),
+    autoText: zoneAt(BOX.autoLabel, 0.004),
     allHit: zoneAt(BOX.key, KEY_UP + CAP_D / 2 + 0.001),
-    autoHit: zoneAt(BOX.auto, KEY_UP + CAP_D / 2 + 0.001),
+    autoHit: zoneAt(BOX.auto, BEZEL_H * CSS),
     reloadIcon: zoneAt(BOX.reloadIcon, KEY_UP + CAP_D / 2 + 0.001),
     reloadIconDown: zoneAt(BOX.reloadIcon, KEY_DOWN + CAP_D / 2 + 0.001),
     holdIcon: zoneAt(BOX.holdIcon, KEY_UP + CAP_D / 2 + 0.001),
@@ -285,7 +337,7 @@ const meta = {
     reload: { crop: keyCrop(BOX.reload), frames: ['reload-up', 'reload-down'] },
     hold: { crop: keyCrop(BOX.hold), frames: ['hold-up', 'hold-down'] },
     ...Object.fromEntries(SLOT_SPAN.map((b, i) => [`slot${i}`, { crop: slotCrop(b), frames: [`slot${i}`] }])),
-    auto: { crop: keyCrop(BOX.auto), frames: ['auto-up', 'auto-down', 'auto-lit-up', 'auto-lit-down'] },
+    auto: { crop: view.cropAround(view.quad(body, ...inBody(adj(BOX.auto, FRONT_Z + 0.1)), 0.1), 26), frames: ['auto-off', 'auto-on'] },
   },
   kScale: K,
 };
@@ -297,7 +349,7 @@ installBake((scale) => {
     view.render(scale); files[name] = view.crop(scale, meta.sprites[sprite].crop);
     k.press(KEY_UP);
   };
-  for (const k of [allKey, reloadKey, holdKey, autoKey]) k.press(KEY_UP);
+  for (const k of [allKey, reloadKey, holdKey]) k.press(KEY_UP);
   for (const i of SLOTS.keys()) {
     showSlots([i]); view.render(scale);
     files[`slot${i}`] = view.crop(scale, meta.sprites[`slot${i}`].crop);
@@ -308,9 +360,10 @@ installBake((scale) => {
   shootKey(allKey, 'key', 'key-up', KEY_UP); shootKey(allKey, 'key', 'key-down', KEY_DOWN);
   shootKey(reloadKey, 'reload', 'reload-up', KEY_UP); shootKey(reloadKey, 'reload', 'reload-down', KEY_DOWN);
   shootKey(holdKey, 'hold', 'hold-up', KEY_UP); shootKey(holdKey, 'hold', 'hold-down', KEY_DOWN);
-  shootKey(autoKey, 'auto', 'auto-up', KEY_UP); shootKey(autoKey, 'auto', 'auto-down', KEY_DOWN);
-  autoKey.light(true);
-  shootKey(autoKey, 'auto', 'auto-lit-up', KEY_UP); shootKey(autoKey, 'auto', 'auto-lit-down', KEY_DOWN);
-  autoKey.light(false);
+  for (const on of [false, true]) {
+    autoButton.set(on); view.render(scale);
+    files[on ? 'auto-on' : 'auto-off'] = view.crop(scale, meta.sprites.auto.crop);
+  }
+  autoButton.set(false);
   return { files, meta };
 });

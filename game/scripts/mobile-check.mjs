@@ -734,7 +734,7 @@ async function freshJourney(browser) {
     const [following, focus] = await game(page, () => [window.__ROAM__.follow.isFollowing(), JSON.stringify(window.__ROAM__.rig.focus())]);
     return following === false && focus !== focusBefore ? true : `follow ${following}, focus moved ${focus !== focusBefore}`;
   });
-  await step('recenter', () => touch.tapOn('.recenter-tray .recenter-key'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
+  await step('recenter', () => touch.tapOn('.recenter-tip'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
   const zoomBefore = await game(page, () => window.__ROAM__.rig.zoom);
   await step('pinch-zoom', () => touch.pinch(mid, 40, 110), async () => {
     const zoom = await game(page, () => window.__ROAM__.rig.zoom);
@@ -811,7 +811,7 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
     const [following, focus] = await game(page, () => [window.__ROAM__.follow.isFollowing(), JSON.stringify(window.__ROAM__.rig.focus())]);
     return following === false && focus !== focusBefore ? true : `follow ${following}, focus moved ${focus !== focusBefore}`;
   });
-  await step('recenter', () => touch.tapOn('.recenter-tray .recenter-key'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
+  await step('recenter', () => touch.tapOn('.recenter-tip'), async () => ((await game(page, () => window.__ROAM__.follow.isFollowing())) ? true : 'follow is still off'));
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
     await touch.tapOn('.play-key');

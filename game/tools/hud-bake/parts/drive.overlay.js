@@ -70,17 +70,22 @@ function speedDial(api, live) {
   needle(svg, cx, cy, 148 * SCALE, 23 * SCALE, NEEDLE, angle);
 }
 
-function arcGauge(api, name, box, hub, tone, lowItem, highItem, share) {
-  const svg = svgZone(api, name, box), [cx, cy] = hub, sweep = 100, r = 112 * SCALE;
+const GLASS = { fuel: [154.85, 619.25, 210.45, 658.35], heat: [216.35, 619.25, 271.65, 658.35] };
+const ARC = { reach: 0.43, rise: 0.16, stroke: 0.143, needle: 1.14, hub: 0.116, gap: 0.3 };
+
+function arcGauge(api, name, tone, lowItem, highItem, share) {
+  const box = GLASS[name], w = box[2] - box[0], h = box[3] - box[1];
+  const svg = svgZone(api, name, box), cx = box[0] + w / 2, cy = box[3] - h * ARC.rise, sweep = 100, r = w * ARC.reach;
   for (let i = 0; i < 6; i++) {
     const hot = tone === 'fuel' ? i === 0 : i >= 4, color = hot ? '#ef4f3a' : tone === 'fuel' ? '#74d39c' : '#f2a33a';
-    node('path', { d: arc(cx, cy, sweep, i / 6 + 0.01, (i + 0.84) / 6, r), fill: 'none', stroke: color, 'stroke-width': 16 * SCALE }, svg);
+    node('path', { d: arc(cx, cy, sweep, i / 6 + 0.01, (i + 0.84) / 6, r), fill: 'none', stroke: color, 'stroke-width': r * ARC.stroke }, svg);
   }
-  for (const item of [lowItem, highItem]) {
-    const t = node('text', { x: item.box[0] + item.box[2] / 2, y: item.box[1] + item.box[3] / 2, fill: item.color, stroke: item.color, 'font-size': 10, 'letter-spacing': 0.2 }, svg);
+  [lowItem, highItem].forEach((item, i) => {
+    const a = ((i - 0.5) * sweep * Math.PI) / 180;
+    const t = node('text', { x: cx + r * Math.sin(a), y: cy - r * Math.cos(a) + r * ARC.gap, fill: item.color, stroke: item.color, 'font-size': 10, 'letter-spacing': 0.2 }, svg);
     t.textContent = item.text;
-  }
-  needle(svg, cx, cy, 128 * SCALE, 13 * SCALE, PRINT, (share - 0.5) * sweep);
+  });
+  needle(svg, cx, cy, r * ARC.needle, r * ARC.hub, PRINT, (share - 0.5) * sweep);
 }
 
 function glassGloss(api) {
@@ -98,9 +103,8 @@ export default function driveOverlay(api) {
   const gloss = glassGloss(api);
   queueMicrotask(() => gloss.parentElement.append(gloss));
   const ends = live.items.filter((i) => i.cls.includes('arc-end'));
-  const SHIFT = -2.5, shiftItem = (it) => ({ ...it, box: [it.box[0] + SHIFT, it.box[1], it.box[2], it.box[3]] });
-  arcGauge(api, 'fuel', [152 + SHIFT, 614, 222 + SHIFT, 668], [186.1 + SHIFT, 653.5], 'fuel', shiftItem(ends[0]), shiftItem(ends[1]), 0.22);
-  arcGauge(api, 'heat', [212 + SHIFT, 614, 282 + SHIFT, 668], [245.7 + SHIFT, 653.5], 'heat', shiftItem(ends[2]), shiftItem(ends[3]), 0);
+  arcGauge(api, 'fuel', 'fuel', ends[0], ends[1], 0.22);
+  arcGauge(api, 'heat', 'heat', ends[2], ends[3], 0);
 
   const cool = item('Cool engine');
   const coolKey = api.sprite('cool');

@@ -125,13 +125,14 @@ const gaugePaint = (c, b) => {
   g.addColorStop(0, '#2a2418'); g.addColorStop(0.55, '#1b1608'); g.addColorStop(1, '#17120a');
   c.fillStyle = g; c.fillRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
 };
+const GLASS_Z = Z_PANEL + 0.006, GLASS_INSET = 0.95;
+const bounds = (pts) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
 for (const w of [FUEL, HEAT]) {
-  const inner = insetPoly(w.pts, 0.95);
-  const bounds = (pts) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
+  const inner = insetPoly(w.pts, GLASS_INSET);
   const ringShape = LP.poly(w.pts, w.r);
   ringShape.holes.push(LP.poly(inner, w.r - 1));
   P.g.add(extrude(ringShape, { front: Z_PANEL + 0.01, depth: 0.006, bevel: 0.002, bt: 0.002, caps: lit(BRASS), seg: 2 }));
-  P.g.add(glassMesh(LP, bounds(w.pts), { z: Z_PANEL + 0.006, shape: LP.poly(inner, w.r - 1), paint: gaugePaint }));
+  P.g.add(glassMesh(LP, bounds(w.pts), { z: GLASS_Z, shape: LP.poly(inner, w.r - 1), paint: gaugePaint }));
 }
 
 const KEY_H = 0.07, KEY_PRESS = 0.03;
@@ -225,13 +226,13 @@ const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[
 
 const zoneFor = (box, z = 0) => ({ quad: P.quad(view, box, z), size: P.size(box) });
 const DIAL_ZONE = [DIAL.cx - 76, DIAL.cy - 76, DIAL.cx + 76, DIAL.cy + 76];
-const FUEL_ZONE = [152 + GAUGE_SHIFT, 614, 222 + GAUGE_SHIFT, 668];
-const HEAT_ZONE = [212 + GAUGE_SHIFT, 614, 282 + GAUGE_SHIFT, 668];
+const FUEL_ZONE = bounds(insetPoly(FUEL.pts, GLASS_INSET));
+const HEAT_ZONE = bounds(insetPoly(HEAT.pts, GLASS_INSET));
 const LABEL_Z = Z_PANEL + 0.01;
 const zones = {
   dial: zoneFor(DIAL_ZONE, Z_PANEL + 0.012),
-  fuel: zoneFor(FUEL_ZONE, Z_PANEL + 0.012),
-  heat: zoneFor(HEAT_ZONE, Z_PANEL + 0.012),
+  fuel: zoneFor(FUEL_ZONE, GLASS_Z),
+  heat: zoneFor(HEAT_ZONE, GLASS_Z),
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),

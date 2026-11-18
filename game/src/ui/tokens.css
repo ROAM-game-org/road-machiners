@@ -219,6 +219,8 @@
   --hud-print: #f1ddb0;
   --hud-print-dim: #b59f78;
   --hud-print-ink: #2b1d0e;
+  --hud-print-coal: #241c14;
+  --hud-print-coal-edge: 0 1px 0 rgba(255, 240, 205, 0.22);
   --hud-segment-off: #3b2914;
   --hud-segment-beyond: #5c2412;
   --hud-needle: #f4a44b;

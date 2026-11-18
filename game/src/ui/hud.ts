@@ -354,7 +354,7 @@ export class Hud {
     this.knockedOut.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("button", { class: "hud-key icon-key recenter-key", onclick: () => actions.recenter(), title: keyTip(t("hud.recenter"), RECENTER_KEY), "aria-label": t("hud.recenter") }, createIcon("recenter")));
+    this.recenter.append(el("div", { class: "tooltip hover-tip recenter-tip", role: "button", onclick: () => actions.recenter() }, keyTip(t("hud.recenter"), RECENTER_KEY)));
   }
 
   systemKey(name: SystemKey): HTMLButtonElement {

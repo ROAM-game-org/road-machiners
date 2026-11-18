@@ -172,14 +172,13 @@ const KEY_ZONES = {
   all: { name: "all", hit: "allHit", face: "allText", faceDown: "allTextDown" },
   reload: { name: "reload", hit: "reloadHit", face: "reloadIcon", faceDown: "reloadIconDown" },
   hold: { name: "hold", hit: "holdHit", face: "holdIcon", faceDown: "holdIconDown" },
-  auto: { name: "auto", hit: "autoHit", face: "autoText", faceDown: "autoTextDown" },
 } as const satisfies Record<string, KeyZones>;
 
 class PressKey {
   readonly button: HTMLButtonElement;
   private down = false;
 
-  constructor(plate: BakedPart, zones: KeyZones, label: Msg, action: () => void, readonly face: HTMLElement, private readonly frames: SpriteFrames, private readonly frameOf: (down: boolean) => string) {
+  constructor(plate: BakedPart, zones: KeyZones, label: Msg, action: () => void, face: HTMLElement, private readonly frames: SpriteFrames, private readonly frameOf: (down: boolean) => string) {
     this.button = plate.zone(plateKey(`baked-key ${zones.name}-key`, label, action), zones.hit);
     const sink = plate.follow(face, zones.face, zones.faceDown);
     onPress(this.button, (down) => {
@@ -203,8 +202,8 @@ export class WeaponsPanel {
   private readonly all: PressKey;
   private readonly reload: PressKey;
   private readonly hold: PressKey;
-  private readonly auto: PressKey;
-  private autoOn = false;
+  private readonly auto: HTMLButtonElement;
+  private readonly autoFrames: SpriteFrames;
   private readonly plates: SpriteFrames[];
   private cards: GunCard[] = [];
   private slots: UtilitySlot[] = [];
@@ -220,7 +219,9 @@ export class WeaponsPanel {
     this.all = new PressKey(this.plate, KEY_ZONES.all, labels.all, setup.onAll, el("span", { class: "key-print all-print", "aria-hidden": "true" }, labels.all), keyFrames, (down) => `key-${down ? "down" : "up"}`);
     this.reload = new PressKey(this.plate, KEY_ZONES.reload, t("weapon.reload"), setup.onReload, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("reload")), this.plate.sprite("reload", "reload-up"), (down) => `reload-${down ? "down" : "up"}`);
     this.hold = new PressKey(this.plate, KEY_ZONES.hold, t("weapon.hold"), setup.onHold, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("hold")), this.plate.sprite("hold", "hold-up"), (down) => `hold-${down ? "down" : "up"}`);
-    this.auto = new PressKey(this.plate, KEY_ZONES.auto, labels.autoFire, setup.onAuto, el("span", { class: "key-print auto-print", "aria-hidden": "true" }, labels.autoFire), this.plate.sprite("auto", "auto-up"), (down) => `auto-${this.autoOn ? "lit-" : ""}${down ? "down" : "up"}`);
+    this.autoFrames = this.plate.sprite("auto", "auto-off");
+    this.auto = this.plate.zone(plateKey("baked-key auto-key", labels.autoFire, setup.onAuto), "autoHit");
+    this.plate.zone(el("span", { class: "plate-label auto-label" }, labels.autoFire), "autoText");
     this.pageMark = el("button", { type: "button", class: "gun-page" }) as HTMLButtonElement;
     this.pageMark.addEventListener("click", () => this.flip());
     this.screen.append(this.grid, this.pageMark);
@@ -232,16 +233,14 @@ export class WeaponsPanel {
     this.lastView = view;
     this.drawGuns(view.guns);
     this.drawUtilities(view.utilities);
-    this.autoOn = view.auto.on;
-    this.auto.show();
-    setFlag(this.auto.button, "on", view.auto.on);
-    setFlag(this.auto.face, "lit", view.auto.on);
+    this.autoFrames.show(view.auto.on ? "auto-on" : "auto-off");
+    setFlag(this.auto, "on", view.auto.on);
     setFlag(this.all.button, "on", view.all.on);
     showControl(this.all.button, { title: view.all.title, reason: view.all.reason, key: "0" });
     showControl(this.reload.button, { title: t("weapon.reloadKeyHint"), reason: view.reload.reason });
     showControl(this.hold.button, { title: t("weapon.holdHint"), reason: view.hold.reason });
-    this.auto.button.setAttribute("aria-pressed", String(view.auto.on));
-    showControl(this.auto.button, { title: view.auto.title, reason: view.auto.reason, key: "Q" });
+    this.auto.setAttribute("aria-pressed", String(view.auto.on));
+    showControl(this.auto, { title: view.auto.title, reason: view.auto.reason, key: "Q" });
   }
 
   private flip(): void {

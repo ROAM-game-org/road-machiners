@@ -151,8 +151,6 @@ export const DRIVE_PLATE = {
   height: 713,
   boxes: {
     face: [36, 138, 782, 681],
-    fuel: [762, 184, 1038, 380],
-    heat: [1058, 183, 1331, 380],
     coolKey: [1338, 200, 1538, 385],
     rockerA: [857, 509, 950, 632],
     rockerB: [1087, 509, 1179, 632],
@@ -161,8 +159,6 @@ export const DRIVE_PLATE = {
     labelB: [1043, 413, 1223, 473],
     labelC: [1273, 413, 1454, 473],
     dialHub: [407, 513, 407, 513],
-    fuelHub: [894, 336, 894, 336],
-    heatHub: [1184, 336, 1184, 336],
     dialGlass: [69, 175, 745, 851],
   },
 } as const satisfies PlateSpec<string>;
