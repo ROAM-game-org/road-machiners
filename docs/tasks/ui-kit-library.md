@@ -151,7 +151,7 @@ Every shared piece now draws as baked hardware, and all 67 surveyed screens wear
 - `.dialog button.close` became a plain key instead of the `close` piece, since window close keys carry the word Close.
 - `button:hover` in `base.css` stays. The cap's fill paints over its background.
 - The boot screen keeps its old look through `--boot-*` tokens. The crash screen sits outside `#ui`, so it never took the kit.
-- Review found lost state cues on read quest choices, the Skip intro toggle and the Start key, and an invisible gun share on the gauge. All are fixed in f43fe657f, apart from the Start key's accent border, which is gone with no replacement.
+- Review found lost state cues on read quest choices, the Skip intro toggle and the Start key, and an invisible gun share on the gauge. f43fe657f fixes the toggle and the gauge. A read quest choice takes the pressed cap, but in a straight-on view that cap looks almost like rest, so the seen cue is still too weak. The Start key's accent border is gone with no replacement.
 
 ### Assumptions and unknowns
 
@@ -167,6 +167,7 @@ Every shared piece now draws as baked hardware, and all 67 surveyed screens wear
 - Start Options panel overlaps the start keys in pseudo-long text at 1280 by 720.
 - In the engraved face the digit 1 reads like a capital I, as in "1. Machiners' yard".
 - The Start key lost its accent border, and nothing marks it as the main choice.
+- A read choice, `.seen`, needs a stronger mark than the pressed cap.
 - `.btn-danger` has no caller in a screen. The confirm dialog uses `hud-key danger`.
 
 ## Code smells
