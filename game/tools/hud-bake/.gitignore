@@ -1,7 +1,7 @@
-out/
+check-*.png
 current*.png
 clean.png
 state-*.png
 boxes.json
 live.json
-check-*.png
+tree.json

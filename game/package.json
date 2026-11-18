@@ -53,6 +53,8 @@
     "survey:pictures": "node scripts/survey-pictures.mjs",
     "sim:sprites": "node scripts/sim-sprites.mjs",
     "hud-skin": "uv run --quiet --with pillow --with numpy --with scipy python -I tools/hud-skin/build.py",
+    "hud-bake": "node tools/hud-bake/bake.mjs",
+    "hud-bake:sheet": "node tools/hud-bake/sheet.mjs http://localhost:5173",
     "quest-art": "uv run --quiet --with pillow --with numpy python -I tools/quest-art/post.py",
     "quest-art:crops": "uv run --quiet --with pillow python -I tools/quest-art/crops.py",
     "models:bake": "vite-node scripts/models-bake.mjs",

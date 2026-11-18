@@ -7,8 +7,10 @@
 </head>
 <body>
 <script type="module">
-const part = new URLSearchParams(location.search).get('p');
+const query = new URLSearchParams(location.search);
+const part = query.get('p');
 if (!part) throw new Error('part.html needs ?p=<part name>');
+window.bakeView = query.get('view');
 await import(`./parts/${part}.js`);
 </script>
 </body>

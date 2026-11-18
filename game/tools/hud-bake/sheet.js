@@ -1,6 +1,6 @@
-const HUD = ['stats', 'keys', 'drive', 'weapons', 'radio', 'truck', 'rail'];
-const INTERFACE = ['tip', 'menu', 'journal', 'dialog'];
-const PARTS = [...HUD, ...INTERFACE];
+import { HUD, INTERFACE, PARTS } from './parts.js';
+
+const VIEW = 'desktop';
 const V = Date.now();
 const fetchJson = async (url) => { const r = await fetch(`${url}?v=${V}`, { cache: 'no-store' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); };
 
@@ -37,9 +37,7 @@ const boxes = await fetchJson('boxes.json');
 const live = await fetchJson('live.json');
 const baked = {}, broken = {};
 for (const name of PARTS) {
-  const r = await fetch(`out/${name}/meta.json?v=${V}`, { cache: 'no-store' });
-  if (!r.ok) continue;
-  try { baked[name] = { meta: await r.json(), overlay: (await import(`./parts/${name}.overlay.js?v=${V}`)).default }; }
+  try { baked[name] = { meta: await fetchJson(`../../src/ui/dash/baked/${name}.${VIEW}.json`), overlay: (await import(`./parts/${name}.overlay.js?v=${V}`)).default }; }
   catch (e) { broken[name] = e; console.error(`${name}: ${e.stack || e}`); }
 }
 const failBox = (name, e) => {
@@ -63,8 +61,7 @@ function buildPart(name) {
   root.style.width = `${meta.width}px`; root.style.height = `${meta.height}px`;
   root.style.transform = `scale(${scale})`;
   wrap.append(root);
-  if (!meta.bestScale) throw new Error(`${name}: meta has no bestScale, rebake it`);
-  const pic = (file) => `out/${name}/${file}@${meta.bestScale}x.png?v=${V}`;
+  const pic = (file) => `../../public/hud/baked/${name}/${VIEW}/${file}@${Math.max(...meta.scales)}x.webp?v=${V}`;
   const layer = (file, [x0, y0, x1]) => {
     const i = document.createElement('img'); i.className = 'layer'; i.draggable = false; i.src = pic(file);
     i.style.left = `${x0}px`; i.style.top = `${y0}px`; i.style.width = `${x1 - x0}px`;

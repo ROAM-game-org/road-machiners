@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
-import { GAME_URL } from './env.mjs';
+import { gameUrlArg } from './args.mjs';
 import { launchChromium } from '../../scripts/gpu.mjs';
 import { playUrl } from '../../scripts/game-url.mjs';
 import { writeFileSync } from 'node:fs';
+const GAME_URL = gameUrlArg();
 const out = new URL('./', import.meta.url).pathname;
 const { browser } = await launchChromium(chromium);
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });

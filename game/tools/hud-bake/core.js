@@ -37,16 +37,28 @@ function pixelBounds(root, toPx, pad) {
   return [Math.floor(x0 - pad), Math.floor(y0 - pad), Math.ceil(x1 + pad + 40), Math.ceil(y1 + pad + 20)];
 }
 
+const VIEWS = ['desktop', 'flat'];
+const WEBP_QUALITY = 0.9;
+
+function viewEye(facePanel, eye) {
+  const view = window.bakeView;
+  if (!VIEWS.includes(view)) throw new Error(`part.html needs ?view= one of ${VIEWS.join(', ')}, got ${view}`);
+  if (view === 'desktop') return eye;
+  const center = facePanel.g.localToWorld(new THREE.Vector3(0, 0, facePanel.z));
+  return { x: center.x, y: center.y, z: eye.z };
+}
+
 const FRAME = { eye: { x: 0, y: 6.5, z: 24 }, fov: 19, faceWidthPx: 1279, pad: 16 };
 
 export function frame(opts) {
   const { scene, root, facePanel, eye, fov, faceWidthPx, pad } = { ...FRAME, ...opts };
+  scene.updateMatrixWorld(true);
+  const at = viewEye(facePanel, eye);
   const camera = new THREE.PerspectiveCamera(fov, 1, 1, 120);
-  camera.position.set(eye.x, eye.y, eye.z);
-  camera.lookAt(eye.x, eye.y, 0);
+  camera.position.set(at.x, at.y, at.z);
+  camera.lookAt(at.x, at.y, 0);
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
-  scene.updateMatrixWorld(true);
   const v = new THREE.Vector3();
   const measure = camera.clone();
   const ndc = (p) => v.copy(p).project(measure).clone();
@@ -73,11 +85,11 @@ export function frame(opts) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   document.body.append(renderer.domElement);
   const render = (scale) => { renderer.setPixelRatio(scale); renderer.setSize(IW, IH, false); renderer.render(scene, camera); };
-  const shot = () => renderer.domElement.toDataURL('image/png');
+  const shot = () => renderer.domElement.toDataURL('image/webp', WEBP_QUALITY);
   const crop = (scale, [a, b, c, d]) => {
     const cv = document.createElement('canvas'); cv.width = (c - a) * scale; cv.height = (d - b) * scale;
     cv.getContext('2d').drawImage(renderer.domElement, a * scale, b * scale, cv.width, cv.height, 0, 0, cv.width, cv.height);
-    return cv.toDataURL('image/png');
+    return cv.toDataURL('image/webp', WEBP_QUALITY);
   };
   return { camera, IW, IH, img, quad, cropAround, render, shot, crop };
 }
