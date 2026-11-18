@@ -70,6 +70,14 @@ function emitted(fx: TruckFx, spawns: Spawn[], w: World, v: Vehicle, f: VehicleF
   return spawns.slice(before);
 }
 
+function standing(w: World, v: Vehicle): Spawn[] {
+  const { sink, spawns } = recorder();
+  const fx = new TruckFx(sink);
+  const f = restFrame(w, v);
+  for (let i = 0; i < 20; i++) emitted(fx, spawns, w, v, f, false);
+  return spawns;
+}
+
 describe('TruckFx starting points', () => {
   it('puffs smoke, exhaust, steam, douse and haze from the cached body points, outside the drawn rig', () => {
     const w = sandWorld();
@@ -109,17 +117,23 @@ describe('TruckFx starting points', () => {
     for (const h of hazes) expect(h.at.x - rest.pos.x).toBeLessThan(tail);
   });
 
-  it('puffs breakdown smoke from the engine vent when the truck is stranded', () => {
+  it('puffs breakdown smoke from the engine vent when the engine is broken, beside the other broken parts', () => {
     const w = sandWorld();
     const v = semi(w);
     for (const engine of mountedParts(v, 'engine')) engine.hp = 0;
-    const { sink, spawns } = recorder();
-    const fx = new TruckFx(sink);
-    const f = restFrame(w, v);
-    const found: Spawn[] = [];
-    for (let i = 0; i < 20; i++) found.push(...emitted(fx, spawns, w, v, f, false));
+    const found = standing(w, v);
     const breakdown = found.filter((s) => s.kind === 'breakdown');
     expect(breakdown.length).toBeGreaterThan(0);
-    for (const s of breakdown) expect(s.at).toEqual(smokeAt(ventsOf(v).engine, f));
+    for (const s of breakdown) expect(s.at).toEqual(smokeAt(ventsOf(v).engine, restFrame(w, v)));
+    expect(found.some((s) => s.kind === 'smoke')).toBe(true);
+  });
+
+  it('puffs no engine smoke from a truck with no engine or no fuel', () => {
+    const w = sandWorld();
+    const v = semi(w);
+    const dry = { ...v, resources: v.resources && { ...v.resources, fuel: 0 } };
+    w.player.fuel = 0;
+    const bare = { ...v, items: v.items.filter((it) => it.kind !== 'part' || !mountedParts(v, 'engine').includes(it.part)) };
+    for (const truck of [dry, bare]) expect(standing(w, truck).filter((s) => s.kind === 'breakdown' || s.kind === 'exhaust')).toEqual([]);
   });
 });

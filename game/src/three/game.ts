@@ -63,8 +63,10 @@ import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
-import { buildWorldViews, sightAround } from "./world-views";
-import { type WebGLSurface } from "./webgl";
+import { buildWorldViews, sightAround, type WorldViewHost } from "./world-views";
+import { drawingRenderer, type WebGLSurface } from "./webgl";
+import { FramePace } from "./frame-pace";
+import type { GraphicsFacts } from "./error-report";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
 import { TruckViews } from "./truck-views";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
@@ -74,6 +76,7 @@ import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
+import { spotShadowsFit } from "./render/lightBudget";
 import { backdropAt, daylightAt, lightScene, RadioLights, refreshShadows, VehicleLights, sunCasters, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
@@ -92,9 +95,10 @@ import { abandonRun, canAbandonRun } from "../sim/chaos-highway";
 import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
+import type { MusicTracks } from "../audio/music-shelf";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
-import { cameraSetting, followRenderScale } from "../ui/camera-setting";
+import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTips } from "../ui/touch-tip";
@@ -125,7 +129,7 @@ export class Game {
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
   private readonly play = new PlayClock(PLAY_EASE);
-  private readonly vehicleLights = new VehicleLights(this.scene);
+  private readonly vehicleLights: VehicleLights;
   private readonly siteLights: SiteLights;
   private readonly vignette = Object.assign(document.createElement("div"), {
     className: "vignette",
@@ -179,7 +183,6 @@ export class Game {
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;
-  private readonly view: HTMLElement;
   private readonly markers: VehicleMarkers;
   private live: LiveVision | null = null;
   private hoverGround: Vec | null = null;
@@ -202,6 +205,8 @@ export class Game {
   private planFor: World | null = null;
   private readonly plans = new PlanPreparation();
   private last = performance.now();
+  private framesSeen = 0;
+  readonly pace = new FramePace();
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
@@ -214,28 +219,29 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel) {
+  warmPlans(): void {
+    this.plans.warm(this.world);
+  }
+
+  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
+    this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
-    setTimeout(() => this.plans.warm(this.world));
-
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     refreshShadows(this.renderer, this.scene, this.gpu);
-    container.appendChild(this.renderer.domElement);
-    this.view = container;
+    view.appendChild(this.renderer.domElement);
     this.rig = new CameraRig(this.renderer.domElement);
     this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError, this.gpu);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
-
     this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
+    const views = buildWorldViews(this.world, { bootStep, drawn, scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
@@ -263,8 +269,8 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
-    this.loops = new SoundLoops(player, music);
-
+    this.loops = new SoundLoops(player, music, tracks);
+    bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
     this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
@@ -307,7 +313,7 @@ export class Game {
 
     this.bindInput();
     window.addEventListener("resize", () => this.fitView());
-    new ResizeObserver(() => this.fitView()).observe(container);
+    new ResizeObserver(() => this.fitView()).observe(view);
     this.fitView();
     this.refreshUi();
     void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick((this.last = t))), reportError);
@@ -356,6 +362,12 @@ export class Game {
 
   get state(): World { return this.world; }
   logTexts(): string[] { return this.hud.logTexts(); }
+  graphicsFacts(): GraphicsFacts {
+    const renderer = drawingRenderer();
+    if (renderer === null) throw new Error('The game has no drawing renderer to report');
+    const drawn = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary() };
+  }
 
   get busy(): boolean { return this.anim !== null; }
 
@@ -1092,9 +1104,14 @@ export class Game {
     if (import.meta.env.DEV) requestAnimationFrame((t) => this.tick(t));
   }
 
+  private showPlayedSpeed(at: number | null): void {
+    this.hud.showSpeed(playedKph(this.anim?.result.frames[playerVehicle(this.world).id], at));
+  }
+
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    if (this.framesSeen++ > 0) this.pace.note(dt);
     this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
@@ -1111,7 +1128,7 @@ export class Game {
       playCrashes(this.combatHost(), this.crashCues, step);
       this.playRoadHorns(step);
     }
-    this.hud.showSpeed(playedKph(this.anim?.result.frames[playerVehicle(this.world).id], at));
+    this.showPlayedSpeed(at);
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);

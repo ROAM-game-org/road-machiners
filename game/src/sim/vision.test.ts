@@ -15,6 +15,9 @@ import { heightAt } from './terrain';
 import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
+import { PARTS, type UtilityDef } from '../data/parts';
+import { mountedParts } from './grid';
+import { gunReach } from './stats';
 import { sunAt } from './sun';
 import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerSees, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
@@ -624,5 +627,28 @@ describe('playerSees index', () => {
   it('keeps the gray reach of a base truck at 100 tiles', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     expect(grayReach(w, w.vehicles[0])).toBe(100);
+  });
+});
+
+describe('the periscope', () => {
+  const sight = (PARTS.periscope as UtilityDef).effect as { sight: number };
+
+  it('widens sight and the gray reach, and two count once', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const plain = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 30, y: 30 });
+    const one = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'periscope'], { x: 30, y: 40 });
+    const two = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'periscope', 'periscope'], { x: 30, y: 50 });
+    expect(sightRadius(w, one)).toBeCloseTo(sightRadius(w, plain) * sight.sight);
+    expect(grayReach(w, one)).toBeCloseTo(grayReach(w, plain) * sight.sight);
+    expect(sightRadius(w, two)).toBeCloseTo(sightRadius(w, one));
+  });
+
+  it('leaves gun reach alone and stops working when broken', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const plain = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'mg'], { x: 30, y: 30 });
+    const scoped = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'mg', 'periscope'], { x: 30, y: 40 });
+    expect(gunReach(w, scoped)).toBe(gunReach(w, plain));
+    mountedParts(scoped, 'utility').find((p) => p.defId === 'periscope')!.hp = 0;
+    expect(sightRadius(w, scoped)).toBeCloseTo(sightRadius(w, plain));
   });
 });

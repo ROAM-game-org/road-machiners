@@ -9,8 +9,9 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { adoptGroundBake, desertWeight, EDGE_LOOKS, glassField, glassOf, GROUND_MATERIAL_IDS, groundBakeFits, groundMaterial, groundMaterialIndex, lookTypes, MARK_KINDS, packedLook, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
-import { ICARUS_KEY } from '../sim/atlas';
+import { adoptGroundBake, desertWeight, EDGE_LOOKS, glassField, glassOf, GROUND_MATERIAL_IDS, groundBakeFits, groundMaterial, groundLooks, groundMaterialIndex, lookTypes, MARK_KINDS, packedLook, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { atlasOf, ICARUS_KEY } from '../sim/atlas';
+import { drawnTrackLines, trackEdgeAt } from './roadPaint';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const sunBasin = TERRAIN.features.basins.find((b) => b.center.x === sun.pos.x && b.center.y === sun.pos.y)!;
@@ -330,6 +331,32 @@ describe('yardLook', () => {
   });
 });
 
+describe('groundLooks', () => {
+  const t = TEST_MAP.terrain;
+  const lines = drawnTrackLines(atlasOf(t));
+  const under = (i: number) => t.types[i] === 'track' && trackEdgeAt(lines, { x: (i % t.size) + 0.5, y: Math.floor(i / t.size) + 0.5 }) < 3;
+
+  it('gives the tiles under a drawn track the look of the ground beside them', () => {
+    const tiles = t.types.map((_, i) => i).filter(under);
+    expect(tiles.length).toBeGreaterThan(20);
+    for (const i of tiles) expect(groundLooks(t)[i], `tile ${i}`).not.toBe('track');
+  });
+
+  it('keeps those same tiles as track for scatter, which reads lookTypes', () => {
+    const tiles = t.types.map((_, i) => i).filter(under);
+    for (const i of tiles) expect(lookTypes(t)[i]).toBe('track');
+  });
+
+  it('leaves every tile away from a drawn track as it was', () => {
+    for (let i = 0; i < t.types.length; i += 7) if (!under(i) && t.types[i] !== 'road') expect(groundLooks(t)[i]).toBe(lookTypes(t)[i]);
+  });
+
+  it('gives the track material a crisp edge and the ruts mark that the field draws', () => {
+    expect(groundMaterial('track').mark).toBe('ruts');
+    expect(groundMaterial('track').edge).toBe('hard');
+  });
+});
+
 describe('ground material table', () => {
   const groundTypes = (Object.keys(TERRAIN_TYPES) as TerrainTypeId[]).filter((type) => type !== 'road');
 
@@ -364,6 +391,15 @@ describe('ground material table', () => {
       expect(row.warm).toBeGreaterThanOrEqual(0);
       expect(row.warm).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('rounds the tile corners of every natural edge and keeps built edges square', () => {
+    for (const type of GROUND_MATERIAL_IDS) {
+      const row = groundMaterial(type);
+      if (row.edge === 'straight') expect(EDGE_LOOKS[row.edge].round, type).toBe(0);
+      else expect(EDGE_LOOKS[row.edge].round, type).toBeGreaterThan(0);
+    }
+    expect(groundMaterial('canal').edge).toBe('straight');
   });
 
   it('draws glass on the hardpan color so its plates sit on plain ground', () => {

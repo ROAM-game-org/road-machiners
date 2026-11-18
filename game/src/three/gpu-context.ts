@@ -43,7 +43,7 @@ export class GpuContext {
     this.clearDeadline();
     this.deadline = this.timers.set(() => {
       this.deadline = null;
-      this.onUnrestored(new WebGLUnavailable('the WebGL context was lost and not restored'));
+      this.onUnrestored(new WebGLUnavailable('the WebGL context was lost and not restored', { lost: true }));
     }, CONTEXT_RESTORE_MS);
     for (const fn of this.lostListeners) fn();
   }

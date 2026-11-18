@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs';
 import { EMPTY_STATE, writeState } from '../state';
 import { VOTING_LABEL, type Card, type Ctx, type Column, type FactoryConfig } from '../types';
 import type { Classify, PublicFilter } from './decision';
-import { openStore, type PublicStore } from './store';
+import { openStore, type PublicStore, type StoredComment } from './store';
 
 export type SentMessage = { chat: string; text: string; replyTo: number | null | undefined };
 
@@ -61,3 +61,17 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
 }
 
 export const filterOf = (classify: Classify): PublicFilter => ({ classify });
+
+const MISSES_BEFORE_END = 20;
+
+export function storedComments(store: PublicStore): StoredComment[] {
+  const found: StoredComment[] = [];
+  for (let id = 1, misses = 0; misses < MISSES_BEFORE_END; id += 1) {
+    const comment = store.comment(id);
+    if (comment === null) misses += 1;
+    else { found.push(comment); misses = 0; }
+  }
+  return found;
+}
+
+export const waitingComments = (store: PublicStore): StoredComment[] => storedComments(store).filter((comment) => comment.classifiedAt === null && !comment.toHermes);

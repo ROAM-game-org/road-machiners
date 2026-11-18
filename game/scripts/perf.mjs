@@ -21,7 +21,7 @@ const HEAP_SAMPLE_BYTES = 16384;
 const PROFILE_CATEGORIES = ['disabled-by-default-v8.cpu_profiler', 'blink.user_timing', 'devtools.timeline', 'v8', 'disabled-by-default-v8.gc'];
 const TRACE_MAX_BYTES = 400 * 1024 * 1024;
 const SHOT_FRAMES = 60;
-const USAGE = 'Usage: npm run perf [-- --profile] [--quick] [--capped] [--shots] [--scenes <id,id>] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>\n       npm run perf -- --gate <report.json>\n       npm run perf -- --land <report.json> <report.json> <report.json> [...]';
+const USAGE = 'Usage: npm run perf [-- --profile] [--quick] [--capped] [--shots] [--scenes <id,id>] [--backend d3d11] [--url <served build>]\n       npm run perf -- --compare <a.json> <b.json>\n       npm run perf -- --gate <report.json>\n       npm run perf -- --land <report.json> <report.json> <report.json> [...]';
 const LANDED_URL = new URL('./perf-landed.json', import.meta.url);
 const GATE_EXIT = { pass: 0, slower: 1, untrusted: 2 };
 
@@ -57,9 +57,11 @@ function runArgs(argv) {
   const capped = argv.includes('--capped');
   const shots = argv.includes('--shots');
   const scenes = takeValue(argv.filter((arg) => !['--profile', '--quick', '--capped', '--shots'].includes(arg)), '--scenes');
-  const url = takeValue(scenes.rest, '--url');
+  const backend = takeValue(scenes.rest, '--backend');
+  if (backend.value !== null && backend.value !== 'd3d11') throw new Error(`--backend takes d3d11\n${USAGE}`);
+  const url = takeValue(backend.rest, '--url');
   if (url.rest.length > 0) throw new Error(`Unknown arguments ${url.rest.join(' ')}\n${USAGE}`);
-  return { profile, quick, capped, shots, scenes: scenes.value, url: url.value };
+  return { profile, quick, capped, shots, scenes: scenes.value, backend: backend.value, url: url.value };
 }
 
 function commitName() {
@@ -234,13 +236,14 @@ async function frameCapIsOff(page) {
   return median < CAP_PROBE_MAX_MEDIAN_MS;
 }
 
-function benchUrl(base, budget, profile, scenes, shots) {
+function benchUrl(base, budget, profile, scenes, shots, backend = null) {
   const url = new URL(base);
   url.searchParams.set('bench', '');
   if (shots) url.searchParams.set('shots', '');
   if (shots) url.searchParams.set('benchFrames', String(SHOT_FRAMES));
   if (profile) url.searchParams.set('profile', '');
   if (scenes) url.searchParams.set('scenes', scenes);
+  if (backend === 'd3d11') url.searchParams.set('notimer', '');
   url.searchParams.set('savingsAbove', String(budget.frameP99Ms));
   return url.href;
 }
@@ -293,9 +296,9 @@ async function stopHeapSampling(heap) {
   return heap ? (await heap.send('HeapProfiler.stopSampling')).profile : null;
 }
 
-async function playBench(base, budget, tracePath, scenes, capped, shots) {
+async function playBench(base, budget, tracePath, scenes, capped, shots, backend) {
   const others = new OthersCpu();
-  const { browser, software, renderer } = await launchChromium(chromium, { headless: true, args: capped ? ['--mute-audio'] : CHROMIUM_FLAGS });
+  const { browser, software, renderer } = await launchChromium(chromium, { headless: true, backend: backend ?? undefined, args: capped ? ['--mute-audio'] : CHROMIUM_FLAGS });
   try {
     if (software) throw new Error(`Perf got the software renderer ${renderer}. It needs a GPU.`);
     const errors = [];
@@ -306,7 +309,7 @@ async function playBench(base, budget, tracePath, scenes, capped, shots) {
     const frameCapOff = await frameCapIsOff(page);
     if (tracePath) await browser.startTracing(page, { path: tracePath, screenshots: false, categories: PROFILE_CATEGORIES });
     const heap = await startHeapSampling(page, Boolean(tracePath));
-    await page.goto(benchUrl(base, budget, Boolean(tracePath), scenes, shots));
+    await page.goto(benchUrl(base, budget, Boolean(tracePath), scenes, shots, backend));
     const report = await pollBench(page, errors, others, shots);
     others.sample();
     const sampling = await stopHeapSampling(heap);
@@ -336,12 +339,12 @@ function shotsDir(shots, commit) {
   return shots ? `tmp/shots/${commit}` : null;
 }
 
-async function measure(base, budget, commit, { profile, quick, capped, shots, scenes }) {
+async function measure(base, budget, commit, { profile, quick, capped, shots, scenes, backend }) {
   const idle = profile ? { load: await machineLoad(), waitedMs: 0 } : await idleLoad();
   const startedAt = new Date().toISOString();
   const path = reportBase(os.hostname(), commit, startedAt);
   const tracePath = profile ? `${path}.trace.json` : null;
-  const { report, frameCapOff, othersCores, sampling } = await playBench(base, savingsBudget(budget, quick), tracePath, scenes, capped, shotsDir(shots, commit));
+  const { report, frameCapOff, othersCores, sampling } = await playBench(base, savingsBudget(budget, quick), tracePath, scenes, capped, shotsDir(shots, commit), backend);
   const loadEnd = await machineLoad();
   const run = { commit, machine: os.hostname(), cores: os.cpus().length, loadStart: idle.load, idleWaitMs: idle.waitedMs, loadEnd, othersCores, startedAt, frameCapOff, untrusted: [] };
   const wrapped = { bench: report, run };

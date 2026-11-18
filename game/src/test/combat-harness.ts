@@ -35,6 +35,7 @@ import { defaultSetup } from '../sim/settings';
 import { ICARUS_KEY } from '../sim/atlas';
 import { acrossOf, highwayMap, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
+import { exposureAt } from '../sim/watch-posts';
 
 export type Policy = 'stand' | 'orbit' | 'charge' | 'kite';
 export const POLICIES: Policy[] = ['stand', 'orbit', 'charge', 'kite'];
@@ -591,6 +592,11 @@ function steer(w: World, fight: Fight, c: Count): World {
   if (foes.length === 0) return w;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
   return orders(w, policy, fight.orbit, nearest(me, foes));
+}
+
+export function warmFights(fight: Fight): void {
+  const base = baseWorld(baseKit(scriptedTruck(fight)), fight.arena, fight.road ?? null);
+  exposureAt(base, base.vehicles[0].pos);
 }
 
 export function runFight(fight: Fight, watch?: (w: World, turn: number) => void): FightReport {

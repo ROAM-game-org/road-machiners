@@ -10,6 +10,7 @@ import { CLOUD_SHADOWS } from './cloudShadows';
 import { MODEL_FILL } from './modelFill';
 import { PAL } from '../../render/palette';
 import { injectAfter } from './shaderPatch';
+import { placeInWorld } from './worldPlace';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
@@ -373,9 +374,8 @@ export class SightLimit {
     this.shadowDepth.onBeforeCompile = (shader) => {
       shader.uniforms.sightCenter = this.uniforms.sightCenter;
       shader.uniforms.sightRadius = this.uniforms.sightRadius;
-      shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'varying vec2 vSightXZ;');
-      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
-      shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;');
+      placeInWorld(shader);
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'uniform vec2 sightCenter;\nuniform float sightRadius;');
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
     };
   }
@@ -450,23 +450,22 @@ export class SightLimit {
       return;
     }
     this.patched.set(mat, sampled);
-    const greyAt = sampled ? 'vSightAt' : 'vSightXZ';
+    const greyAt = sampled ? 'vSightAt' : 'vWorldXZ';
     const before = mat.onBeforeCompile.bind(mat);
     const key = mat.customProgramCacheKey.bind(mat);
     mat.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
       Object.assign(shader.uniforms, this.uniforms);
-      shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'varying vec2 vSightXZ;');
+      placeInWorld(shader);
       if (sampled) {
         shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'attribute vec2 sightAt;\nvarying vec2 vSightAt;');
         shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', 'vSightAt = sightAt;');
         shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightAt;');
       }
-      shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', SIGHT_XZ_VERTEX);
       shader.fragmentShader = inject(
         shader.fragmentShader,
         '#include <common>',
-        'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
+        'uniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform vec3 sightWindow;\nuniform vec2 sightGrey;\nuniform vec3 sightFog;\nuniform float sightFogBand;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', SIGHT_DISCARD);
       if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, (${greyAt} - sightWindow.xy) / sightWindow.z).r;
@@ -474,20 +473,14 @@ export class SightLimit {
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
       if (grey && !shader.fragmentShader.includes('sightSeen')) throw new Error('Sight limit cannot grey a shader without #include <opaque_fragment>');
-      shader.fragmentShader = inject(shader.fragmentShader, '#include <colorspace_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(sightFog, 1.0)).rgb, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vSightXZ, sightCenter)));');
+      shader.fragmentShader = inject(shader.fragmentShader, '#include <colorspace_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(sightFog, 1.0)).rgb, smoothstep(sightRadius * (1.0 - sightFogBand), sightRadius, distance(vWorldXZ, sightCenter)));');
     };
     mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;
   }
 }
 
-const SIGHT_XZ_VERTEX = `vec4 sightWorld = vec4(transformed, 1.0);
-        #ifdef USE_INSTANCING
-        sightWorld = instanceMatrix * sightWorld;
-        #endif
-        vSightXZ = (modelMatrix * sightWorld).xz;`;
-
-const SIGHT_DISCARD = 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;';
+const SIGHT_DISCARD = 'if (distance(vWorldXZ, sightCenter) > sightRadius) discard;';
 
 function hasSightAt(mesh: THREE.Mesh): boolean {
   const sightAt = (mesh.geometry as THREE.BufferGeometry).getAttribute('sightAt');

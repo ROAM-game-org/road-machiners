@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { CardBatch, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes } from './cards';
+import { batchesOf, CardBatch, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes, type FxCards } from './cards';
+import { TUNING } from '../inkTuning';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
 camera.updateProjectionMatrix();
@@ -131,5 +132,28 @@ describe('card shape atlas', () => {
     expect(at(CELL / 2, CELL / 2)).toBe(255);
     const rim = Array.from({ length: 64 }, (_, i) => at(Math.round(CELL / 2 + Math.cos(i / 10) * CELL * 0.42), Math.round(CELL / 2 + Math.sin(i / 10) * CELL * 0.42)));
     expect(new Set(rim).size).toBeGreaterThan(8);
+  });
+});
+
+describe('smoke batch choice', () => {
+  const lit = new CardBatch(4, 'lit', new THREE.Texture(), 2);
+  const other = new CardBatch(4, 'glow', new THREE.Texture(), 2);
+  const smoke = new CardBatch(4, 'glow', new THREE.Texture(), 2);
+  const cards: FxCards = { lit, glow: other, dust: other, bank: other, fire: other, smoke };
+
+  function smokeBatchAt(ink: number): CardBatch {
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = ink;
+    const chosen = batchesOf(cards, lit).smoke;
+    TUNING.fxInk.value = was;
+    return chosen;
+  }
+
+  it('sends smoke to the ink smoke batch at full ink', () => {
+    expect(smokeBatchAt(1)).toBe(smoke);
+  });
+
+  it('keeps smoke in the lit batch with ink off', () => {
+    expect(smokeBatchAt(0)).toBe(lit);
   });
 });

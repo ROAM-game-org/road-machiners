@@ -242,3 +242,30 @@ it("colors the hover ring and the first turn by the pace the click would hold", 
   const me3 = slow.vehicles.find((v) => v.id === w.player.vehicleId)!;
   expect(firstTurnColor(slow, me3)).toBe(PAL.throttle.brake);
 });
+
+it("starts no worker until the first plan or the warm, and a plan asked before the warm answers and keeps the terrain", () => {
+  const plans = new PlanPreparation();
+  expect(TestWorker.created).toBe(0);
+
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  plans.warm(world);
+  const answer = plan(true);
+  worker.answer(0, answer);
+
+  expect(TestWorker.created).toBe(1);
+  expect(worker.requests.filter((request) => (request.kind as string) === "terrain")).toEqual([]);
+  expect(worker.requests[0]).toMatchObject({ kind: "preview", terrain: world.terrain });
+  expect(plans.take(world)).toBe(answer);
+});
+
+it("sends the terrain once when it warms first and leaves it out of the plan that follows", () => {
+  const plans = new PlanPreparation();
+
+  plans.warm(world);
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+
+  expect(worker.requests.map((request) => request.kind)).toEqual(["terrain", "warm", "preview"]);
+  expect(worker.requests[2]).toMatchObject({ terrain: null });
+});

@@ -40,6 +40,7 @@ describe('GpuContext', () => {
     timers[0].fn();
     expect(reports).toHaveLength(1);
     expect(reports[0]).toBeInstanceOf(WebGLUnavailable);
+    expect((reports[0] as WebGLUnavailable).lost).toBe(true);
   });
 
   it('clears the deadline on a restore', () => {

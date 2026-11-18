@@ -33,7 +33,8 @@ function recordedCards(): { glow: Card[]; lit: Card[]; bank: Card[]; fire: Card[
   const bank: Card[] = [];
   const dust: Card[] = [];
   const fire: Card[] = [];
-  return { glow, lit, bank, fire, batches: { glow: recordingBatch(glow), lit: recordingBatch(lit), bank: recordingBatch(bank), dust: recordingBatch(dust), fire: recordingBatch(fire) } as unknown as FxCards };
+  const smoke: Card[] = [];
+  return { glow, lit, bank, fire, batches: { glow: recordingBatch(glow), lit: recordingBatch(lit), bank: recordingBatch(bank), dust: recordingBatch(dust), fire: recordingBatch(fire), smoke: recordingBatch(smoke) } as unknown as FxCards };
 }
 
 function recordingBatch(cards: Card[]): { push: (card: Card) => void; slot: () => Card } {

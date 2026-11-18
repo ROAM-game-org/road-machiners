@@ -1,11 +1,11 @@
 
 import { oilSlickLength } from "../data/utilities";
 import { chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
-import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair, SACK_ARMOR } from "../data/parts";
 import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
-import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { bareGrid, cargoCellsOn, cellCount, holdCellsOf, mountedParts, type Cell } from "../sim/grid";
 import { isJunk, maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -59,7 +59,6 @@ export const ART = {
   arc: '<path d="M8 14.5L2 5.5Q8 1 14 5.5z"/>',
   noise: '<path d="M1.5 6H4l3.5-3v10L4 10H1.5zM9 5.5a2.5 2.5 0 0 1 0 5v-1.5a1 1 0 0 0 0-2zM9 2.5a5.5 5.5 0 0 1 0 11v-1.5a4 4 0 0 0 0-8z"/>',
   ram: '<path d="M1.5 3.5H7L11.5 8 7 12.5H1.5zM13 2h1.5v12H13z"/>',
-  rows: '<path d="M1.5 2H7v3H1.5zM8.5 2h6v3h-6zM1.5 6.5h8v3h-8zM11 6.5h3.5v3H11zM1.5 11H5v3H1.5zM6.5 11h8v3h-8z"/>',
   hp: '<path d="M8 14.5L2 8.5C1 7 1 3.5 4.5 2.5 6 2.5 7.5 3.5 8 5 8.5 3.5 10 2.5 11.5 2.5 15 3.5 15 7 14 8.5z"/>',
   mass: '<path d="M2.5 14.5L4 6.5H12L13.5 14.5zM8 1a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM8 2.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3z"/>',
   turning: '<path d="M3 15V8Q3 3.5 7.5 3.5H10V1.5L14.5 5 10 8.5V6.5H7.5Q6 6.5 6 8V15z"/>',
@@ -69,6 +68,7 @@ export const ART = {
   blast: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM11 8L9.5 9L9.5 10.5L8 9.5L6.5 10.5L6.5 9L5 8L6.5 7.5L6.5 5.5L8 6.5L9.5 5.5L9.5 7z"/>',
   heat: '<path d="M3.5 3.5a1.5 1.5 0 0 1 3 0V9.5a3 3 0 1 1-3 0zM11 3.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM10 1h2v1.5h-2zM13.5 5h1.5v2h-1.5zM10 9.5h2V11h-2z"/>',
   patch: '<path d="M2 10L10 2L14 6L6 14zM6 8L8 6L10 8L8 10z"/>',
+  sight: '<path d="M8 3.5C4.5 3.5 2 6 1 8c1 2 3.5 4.5 7 4.5s6-2.5 7-4.5c-1-2-3.5-4.5-7-4.5zM8 5a3 3 0 1 1 0 6a3 3 0 1 1 0-6z"/><path d="M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"/>',
   tall: '<path d="M8 1.5L11.5 5H9v4h2.5L8 12.5 4.5 9H7V5H4.5zM1.5 13.5h13V15h-13z"/>',
   clock: '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M7 4.5h2v3.5h3v2H7z"/>',
   paint: '<path d="M4.5 6h6v9h-6zM5.5 9.5h4v2h-4z"/><path d="M5.5 3.5h4V6h-4zM6.5 2h2v1.5h-2zM11.5 1.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM14 3.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM11.5 5.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2z"/>',
@@ -630,13 +630,13 @@ export type StatIcon =
   | "noise"
   | "armor"
   | "ram"
-  | "rows"
   | "hp"
   | "mass"
   | "turning"
   | "cells"
   | "load"
   | "scanner"
+  | "sight"
   | "recoil"
   | "power"
   | "blast"
@@ -689,19 +689,42 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   weapon: weaponStats,
   engine: (_, part) => engineStats(part),
   armor: (_, part) => armorStats(part),
-  accessory: (_, part) => armorStats(part),
+  accessory: accessoryStats,
   cargo: cargoStats,
   scanner: (_, part) => [stat("scanner", t("stat.detection"), meters(wornDef<ScannerDef>(part).range), "m", "more")],
   store: (_, part) => storeStats(part),
   core: () => [],
   utility: (_, part) => utilityStats(part),
+  spare: () => [],
+  relic: () => [],
 };
 
 function utilityStats(part: PartInstance): Stat[] {
   const d = wornDef<UtilityDef>(part);
   const reload = d.reload === null ? [] : [stat("reload", t("stat.recharge"), d.reload, "t", "less")];
   const lasts = "turns" in d.effect ? [stat("clock", t("stat.lasts"), d.effect.turns, "t", "more")] : [];
-  return [...reload, ...utilityReach(d), ...lasts];
+  return [...reload, ...utilityReach(d), ...lasts, ...passiveGains(d)];
+}
+
+function percentUp(share: number): Msg {
+  return t("chassis.row.percentUp", { n: Math.round(share * 100) });
+}
+
+function passiveGains(d: UtilityDef): Stat[] {
+  const e = d.effect;
+  if (e.type === "battery") {
+    const power = { ...stat("power", t("stat.gunPower"), e.power, null, "more"), text: signed(e.power, 0) };
+    return [power, { ...stat("fuel", t("stat.fuelUse"), e.fuel, null, "less"), text: percentUp(e.fuel) }];
+  }
+  if (e.type === "periscope") return [{ ...stat("sight", t("effect.sight"), e.sight, null, "more"), text: percentUp(e.sight - 1) }];
+  return [];
+}
+
+function accessoryStats(world: World, part: PartInstance): Stat[] {
+  const cells = holdCellsOf(playerVehicle(world).chassisId, part.defId);
+  if (cells === 0) return armorStats(part);
+  const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
+  return [...armorStats(part), stat("load", t("stat.loadedArmor"), SACK_ARMOR, null, "more"), gained];
 }
 
 function utilityReach(d: UtilityDef): Stat[] {
@@ -720,11 +743,9 @@ function storeStats(part: PartInstance): Stat[] {
 function cargoStats(world: World, part: PartInstance): Stat[] {
   const d = partDefOf<CargoDef>(part);
   const chassisId = playerVehicle(world).chassisId;
-  const cells = cargoCellsGained(chassisId, part.defId);
-  const extraRows = cargoRowsOn(chassisId, part.defId);
+  const cells = cargoCellsOn(chassisId, part.defId);
   const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
-  const rows = { ...stat("rows", t("stat.extraRows"), extraRows, null, "more"), text: signed(extraRows, 0), unit: t("stat.rowsUnit", { n: extraRows }) };
-  return [gained, rows, tallStat(d)];
+  return [gained, tallStat(d)];
 }
 
 function penStat(d: WeaponDef): Stat {

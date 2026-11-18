@@ -115,7 +115,7 @@ const activityVerb = (kind: Activity | null): string => (kind === null ? 'idles'
 
 const UTILITY: Record<UtilityEffectType | 'claymore', string> = {
   oil: 'drops oil', caltrops: 'drops caltrops', flare: 'fires a flare', mortar: 'fires the mortar', crane: 'works the crane', emitter: 'runs the emitter',
-  scraper: 'runs the scraper', sprout: 'sets a sprout', claymore: 'sets a claymore',
+  scraper: 'runs the scraper', battery: 'charges the battery', periscope: 'looks through the periscope', sprout: 'sets a sprout', claymore: 'sets a claymore',
 };
 
 const PLEA_ANSWER = { true: 'and gets it', false: 'and is refused', null: '' } as const;

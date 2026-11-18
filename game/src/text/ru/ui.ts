@@ -188,7 +188,7 @@ export const UI: Translation<typeof EN> = {
   'newGame.default': 'по умолчанию {pct}',
   'setup.part': '{setting} {pct}',
   'setting.percent': '{n}%',
-  'cell.deadRows': 'Сломанные ряды груза. Почините грузовую деталь, чтобы пользоваться ими.',
+  'cell.deadCells': 'Сломанные ячейки груза. Почините грузовую деталь, чтобы пользоваться ими.',
   'kind.utility': 'оборудование',
   'menu.showTips': 'Показывать советы',
   'menu.closeEsc': 'Закрыть [Esc]',

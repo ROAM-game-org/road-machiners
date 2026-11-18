@@ -12,7 +12,7 @@ import { shutDownTurnsLeft } from '../../sim/utility';
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
 import { HarpoonLinesView } from './lines';
-import { bankCardsOf, CARD_SHAPES, dustCardsOf, fireCardsOf, INK_DUST_LAYER, ROUND_SHAPE, type Card, type CardBatch, type FxCards } from './particles/cards';
+import { bankCardsOf, batchesOf, CARD_SHAPES, fireCardsOf, INK_DUST_LAYER, ROUND_SHAPE, smokeCardsOf, type Card, type CardBatch, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { newWake, stepWake, WakeTracker, type WakeMover, type WakeState } from './particles/wake';
 import type { VehicleView } from './vehicle';
@@ -170,7 +170,7 @@ class FlightsView {
     let left = FLIGHT_CARDS;
     for (const body of this.flying) {
       const n = Math.min(body.live.length, left);
-      for (let i = 0; i < n; i++) cards.lit.push(body.live[i]);
+      for (let i = 0; i < n; i++) smokeCardsOf(cards).push(body.live[i]);
       left -= n;
     }
   }
@@ -739,8 +739,8 @@ class FlaresView {
 
   draw(cards: FxCards): void {
     this.flights.draw(cards);
-    this.sparks.draw({ main: cards.glow, plumes: dustCardsOf(cards), fire: fireCardsOf(cards, cards.glow) }, TUNING.fxInk.value);
-    this.smoke.draw({ main: cards.lit, plumes: dustCardsOf(cards), fire: fireCardsOf(cards, cards.lit) }, TUNING.fxInk.value);
+    this.sparks.draw(batchesOf(cards, cards.glow), TUNING.fxInk.value);
+    this.smoke.draw(batchesOf(cards, cards.lit), TUNING.fxInk.value);
     let drawn = 0;
     for (const view of this.views.values()) {
       if (!view.shine || drawn++ >= FLARE_FX.views) continue;

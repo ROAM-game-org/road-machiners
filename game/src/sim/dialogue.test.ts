@@ -5,15 +5,15 @@ import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import { PERSONALITIES, type PersonalityId } from '../data/personalities';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
+import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, STRANGER_TOLL, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
 import { lineKey } from '../text/names';
 import { entryText, schemaOf } from '../text/resolve';
 import { QUESTS, questView } from './quests';
 import { REGION } from '../data/region';
-import { STORY_WRECKS } from '../data/salvage';
+import { STORY_WRECKS, WAGON_TALK } from '../data/salvage';
 import { playerVehicle } from './damage';
 import { asksOf, chooseText } from './dialogue-testkit';
-import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, hangUp, honk, radioSpeakers, raiseCalls } from './dialogue';
+import { callVehicle, callTrucks, canAskTopic, chooseOption, currentOptions, endCallIfOut, hangUp, honk, radioSpeakers, raiseCalls } from './dialogue';
 import { fireBlock, isHostile } from './combat';
 import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -57,7 +57,7 @@ describe('topic data', () => {
   it('every option leads to a node of its topic, the hub or the end, and every node is reachable', () => {
     for (const topic of Object.values(TOPICS)) {
       expect(topic.nodes[topic.start], `${topic.id} start`).toBeDefined();
-      const entries = [topic.start, ...(topic.ask ? [TOLL] : [])];
+      const entries = [topic.start, ...(topic.ask ? [TOLL, STRANGER_TOLL] : [])];
       const reached = new Set(entries);
       const queue = [...entries];
       while (queue.length > 0) {
@@ -951,7 +951,7 @@ describe('army wagon topic', () => {
 
   function wagonWorld(away = 0): { w: World; npc: Vehicle } {
     const wagon = STORY_WRECKS[0].pos;
-    const at = { x: wagon.x + PERK_NUMBERS.rumorMill.radius - 5 + away, y: wagon.y };
+    const at = { x: wagon.x + WAGON_TALK.reach - 5 + away, y: wagon.y };
     const w = emptyWorld({ x: at.x - 6, y: at.y });
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], at);
     npc.brain = npcBrain('trader', npc.pos, TRAITS_OF.trader);
@@ -970,6 +970,36 @@ describe('army wagon topic', () => {
     expect(next.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonRoad']);
     expect(next.player.rumored).toEqual([]);
     expect(next.player.talked[npc.id]?.armyWagon).toBe('done');
+  });
+
+  it.each(['wagonBowl', 'wagonNose', 'wagonDag'] as const)('offers the question with the %s note alone', (note) => {
+    const { w, npc } = wagonWorld();
+    w.player.notes = [{ id: note, turn: 0 }];
+
+    expect(canAskTopic(callVehicle(w, npc.id), 'armyWagon')).toBe(true);
+  });
+
+  it('offers the question on the first page of the call', () => {
+    const { w, npc } = wagonWorld();
+    w.player.notes = [{ id: 'wagonDag', turn: 0 }];
+
+    expect(currentOptions(callVehicle(w, npc.id)).some((o) => o.topic === 'armyWagon' && !o.option)).toBe(true);
+  });
+
+  it('stays quiet without a lead, and for a driver beyond the wagon reach', () => {
+    const near = wagonWorld();
+    expect(canAskTopic(callVehicle(near.w, near.npc.id), 'armyWagon')).toBe(false);
+    const far = wagonWorld(10);
+    far.w.player.notes = [{ id: 'wagonBowl', turn: 0 }];
+    expect(canAskTopic(callVehicle(far.w, far.npc.id), 'armyWagon')).toBe(false);
+  });
+
+  it('keeps the wagon reach shorter than its distance to Bowl and to the Pump Station', () => {
+    const wagon = STORY_WRECKS[0].pos;
+    for (const id of ['bowl', 'pump-station']) {
+      const place = [...REGION.towns, ...REGION.locations].find((l) => l.id === id)!;
+      expect(dist(place.pos, wagon), id).toBeGreaterThan(WAGON_TALK.reach);
+    }
   });
 
   it('hands the talk over to the driver quest: the call ends and the quest opens in the same command', () => {
@@ -1440,6 +1470,13 @@ describe('asking after someone', () => {
     const open = callVehicle(w, witness.id);
     return chooseText(open, askText);
   };
+
+  it('shows the question on the first page of the call, however many topics are open', () => {
+    const { w, witness } = searchWorld();
+    const options = currentOptions(callVehicle(w, witness.id));
+
+    expect(options.some((o) => o.topic === 'lastSeen' && !o.option)).toBe(true);
+  });
 
   it('reports the remembered place after the target drove on, never its live place', () => {
     const { w, witness, target } = searchWorld();

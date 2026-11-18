@@ -9,10 +9,10 @@ const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', 
 const CHAT_JUNK = {
   type: 'choice',
   name: 'junk',
-  instructions: 'A person wrote this in the game\'s Telegram chat, to the bot or to other people there. Read it together with the message it replies to. People write casually: short, rude, in capitals, or angry at the bot. Is it about the game, its builds or the bot\'s work, or is it junk?',
+  instructions: 'A person wrote this in the game\'s Telegram chat, under a proposal or a test build of the game. Read it together with the thread and the message it replies to. People write casually: short, rude, in capitals, or angry at the devs. Is it about the game, its builds or the people in the chat, or is it junk?',
   choices: [
-    { value: 'feedback', description: 'Anything about the game, its builds, the bot\'s work or the people in the chat, however short, rude or casual: a bug, a wish, an ask to file or redo something, a question, an opinion, thanks, a greeting or talk between players. An insult at the bot or the devs that comes with a request is still feedback. "@bot add a warning before a sandstorm hits" "both ideas are bad, go redo them" "ARE YOU BLIND, WHY DIDNT YOU FILE IT" "@bot you there?" "nice build" Replying to "my truck got stuck after ramming": "@bot file this one"' },
-    { value: 'junk', description: 'Not about the game or the people in the chat: ads, job offers, scams, lists of bot mentions, gibberish, or an ask to file a replied message that is itself only an insult or a joke. Ads come in any language, often Chinese, and often end with a contact handle. "earn 500 a day, write @x" "空闲时间兼职 @abc12" "@abcbot @defbot @ghibot" "asdf asdf" Replying to "devs are clowns": "@bot file this"' },
+    { value: 'feedback', description: 'Anything about the game, its builds or the people in the chat, however short, rude or casual: a bug, a wish, a question, an opinion, thanks, a greeting or talk between players. An insult at the devs that comes with a request is still feedback. "the winch snaps on hills" "both ideas are bad, redo them" "nice build" "who else is testing?"' },
+    { value: 'junk', description: 'Not about the game or the people in the chat: ads, job offers, scams, lists of bot mentions or gibberish. Ads come in any language, often Chinese, and often end with a contact handle. "earn 500 a day, write @x" "空闲时间兼职 @abc12" "@abcbot @defbot @ghibot" "asdf asdf"' },
   ],
 };
 
@@ -37,7 +37,7 @@ const REPORT_KIND = {
   ],
 };
 
-const CHAT_KIND = {
+const COMMENT_KIND = {
   type: 'choice',
   name: 'kind',
   instructions: 'What is it? Read it with the thread or the message it replies to.',
@@ -61,30 +61,6 @@ const LANGUAGE = {
   ],
 };
 
-const FILING = {
-  type: 'choice',
-  name: 'filing',
-  instructions: 'The player wrote to the bot. Should the bot file this as a bug or an idea? A clear report of something broken in the game is a request to file it, even with no word like file or report: the player tells the bot what goes wrong so it gets fixed. An idea is filed only when the player explicitly asks the bot to file, report, record or pass it on.',
-  choices: [
-    { value: 'yes', description: 'A clear report of something broken, or an explicit ask to file. "@bot the truck gets stuck after it hits a rock or a building and will not drive out in auto or manual mode, please fix." "@bot the fuel gauge shows full when the tank is empty." "@bot please file this bug: the truck falls through the bridge." "Record this idea: add a minimap."' },
-    { value: 'no', description: 'Anything else: a greeting, thanks, a question, a remark, a vague complaint with nothing said about what breaks, a wish said in passing, talk about work. "@bot hi." "@bot cool game." "@bot is the bridge bug fixed yet?" "@bot add a minimap?" "@bot I asked them to make it a quest."' },
-  ],
-};
-
-const FILINGS = FILING.choices.map((choice) => choice.value);
-
-const NO_WORK = 'none';
-
-function workQuestion(work: string[]): Question {
-  const listed = work.map((text, index) => ({ value: String(index + 1), description: `Work ${index + 1}: ${text}` }));
-  return {
-    type: 'choice',
-    name: 'work',
-    instructions: 'Each listed work is a proposal, a build or an issue the factory already has. Which one is the player text about? Pick it when the text discusses, explains, clarifies, asks about, reports a problem with, or asks for the same thing as that work. Pick none when the text asks for something that none of them covers.',
-    choices: [...listed, { value: NO_WORK, description: 'The text is about none of the listed work.' }],
-  };
-}
-
 const RELEVANCE = {
   type: 'choice',
   name: 'relevance',
@@ -107,7 +83,7 @@ const ROUTE = {
 };
 
 const JUNK_VALUES = GAME_JUNK.choices.map((choice) => choice.value) as ('feedback' | 'junk')[];
-const KINDS = CHAT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
+const COMMENT_KINDS = COMMENT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
 const REPORT_KINDS = REPORT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
 const RELEVANCES = RELEVANCE.choices.map((choice) => choice.value) as Relevance[];
 const LANGUAGES = LANGUAGE.choices.map((choice) => choice.value);
@@ -150,28 +126,19 @@ export function publicFilterWith(cfg: FilterConfig, fetch: typeof globalThis.fet
 
 const hasParent = (input: FilterInput): input is FilterInput & { parent: string } => typeof input.parent === 'string' && input.parent.trim() !== '';
 
-const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim();
-
 function inputText(input: FilterInput): string {
   const thread = hasParent(input) ? `Thread: ${input.parent.trim()}\n\n` : '';
-  const replying = input.context ? `Replying to: ${oneLine(input.context)}\n\n` : '';
+  const replying = input.context ? `Replying to: ${input.context.replace(/\s+/g, ' ').trim()}\n\n` : '';
   return `Game: ${GAME}\n\n${thread}${replying}Player text: ${input.text}`;
 }
 
-const knownWork = (input: FilterInput): string[] => input.work ?? [];
-
-function chatQuestions(input: FilterInput): Question[] {
-  const route = input.source === 'comment' ? [ROUTE] : [];
+function commentQuestions(input: FilterInput): Question[] {
   const relevance = hasParent(input) ? [RELEVANCE] : [];
-  const work = knownWork(input).length > 0 ? [workQuestion(knownWork(input))] : [];
-  const filing = input.addressed ? [FILING] : [];
-  return [verdictQuestion(input), CHAT_KIND, ...route, ...relevance, ...work, ...filing, LANGUAGE];
+  return [input.origin === 'chat' ? CHAT_JUNK : GAME_JUNK, COMMENT_KIND, ROUTE, ...relevance, LANGUAGE];
 }
 
-const verdictQuestion = (input: FilterInput): Question => (input.origin === 'game' ? GAME_JUNK : CHAT_JUNK);
-
 function questionsFor(input: FilterInput): Question[] {
-  return input.source === 'report' ? [verdictQuestion(input), REPORT_KIND] : chatQuestions(input);
+  return input.source === 'report' ? [GAME_JUNK, REPORT_KIND] : commentQuestions(input);
 }
 
 function relevanceOf(input: FilterInput, answers: Answer[]): Relevance {
@@ -179,20 +146,9 @@ function relevanceOf(input: FilterInput, answers: Answer[]): Relevance {
   return input.source === 'comment' ? 'parent' : 'other';
 }
 
-function workOf(input: FilterInput, answers: Answer[]): { work?: number } {
-  const count = knownWork(input).length;
-  if (count === 0) return {};
-  const picked = choice(answers, 'work', [...Array.from({ length: count }, (_, index) => String(index + 1)), NO_WORK]);
-  return picked === NO_WORK ? {} : { work: Number(picked) - 1 };
-}
-
-function filingOf(input: FilterInput, answers: Answer[]): boolean {
-  return input.addressed === true && choice(answers, 'filing', FILINGS) === 'yes';
-}
-
-function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'work' | 'language' | 'filing'> {
+function languageOf(input: FilterInput, answers: Answer[]): Pick<Decision, 'language'> {
   if (input.source === 'report') return {};
-  return { ...workOf(input, answers), filing: filingOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
+  return { language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
 }
 
 function answersOf(body: unknown, junkMin: number): Answer[] {
@@ -219,10 +175,10 @@ function junkVerdict(cfg: FilterConfig, answers: Answer[]): Verdict {
 function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decision {
   return {
     ...junkVerdict(cfg, answers),
-    kind: choice(answers, 'kind', input.source === 'report' ? REPORT_KINDS : KINDS),
+    kind: choice(answers, 'kind', input.source === 'report' ? REPORT_KINDS : COMMENT_KINDS),
     route: input.source === 'comment' ? choice(answers, 'route', ROUTES) : 'none',
     relevance: relevanceOf(input, answers),
-    ...chatJudgement(input, answers),
+    ...languageOf(input, answers),
   };
 }
 

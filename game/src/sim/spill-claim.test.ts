@@ -7,7 +7,7 @@ import { gridOf, itemCells, mountedParts } from './grid';
 import { pushGoal, topGoal } from './npc-activities';
 import { warnedOff } from './parley';
 import { backedOff, claimantOf, clearPiles } from './salvage';
-import { spillDeadRows } from './spill';
+import { spillDeadCells } from './spill';
 import { addState } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat } from './testkit';
 import type { Faction, GridItem, SalvageStock, Vehicle, World } from './types';
@@ -59,7 +59,7 @@ function robbedPlayer(): { w: World; raider: Vehicle; kept: GridItem[] } {
   w.player.talked[raider.id] = { demand: 'refused' };
   breakLoadedCargo(w, me);
   const kept = me.items.filter((it) => it.y < lastRow(me)).map((it) => ({ ...it }));
-  spillDeadRows(w);
+  spillDeadCells(w);
   return { w, raider, kept };
 }
 
@@ -76,7 +76,7 @@ describe('a robber claims spilled cargo', () => {
     const me = playerVehicle(w);
     const raider = npcAt(w, 'scrapjaw', 36);
     breakLoadedCargo(w, me);
-    spillDeadRows(w);
+    spillDeadCells(w);
     clearPiles(w);
     const pile = spillPile(w);
     expect(claimantOf(w, pile)).toBe(raider);
@@ -89,7 +89,7 @@ describe('a robber claims spilled cargo', () => {
     const raider = npcAt(w, 'scrapjaw', 36);
     w.player.talked[raider.id] = { demand: 'refused' };
     breakLoadedCargo(w, me);
-    spillDeadRows(w);
+    spillDeadCells(w);
     raiseCalls(w);
     expect(w.player.call).toMatchObject({ with: raider.id, topic: 'spillClaim' });
   });
@@ -129,7 +129,7 @@ describe('a robber claims spilled cargo', () => {
     addState(w, 'feud', me.id, foe.id, { kind: 'feud', robbery: false });
     startCombat(w, foe, me);
     breakLoadedCargo(w, me);
-    spillDeadRows(w);
+    spillDeadCells(w);
     expect(spillPile(w).pile!.claim).toBeUndefined();
     raiseCalls(w);
     expect(w.player.call?.topic).not.toBe('spillClaim');
@@ -141,7 +141,7 @@ describe('a robber claims spilled cargo', () => {
     const raider = npcAt(w, 'scrapjaw', 30, 200);
     expect(isHostile(w, raider, me)).toBe(true);
     breakLoadedCargo(w, me);
-    spillDeadRows(w);
+    spillDeadCells(w);
     expect(canVehicleSee(w, raider, spillPile(w).pos)).toBe(false);
     expect(spillPile(w).pile!.claim).toBeUndefined();
   });
@@ -155,7 +155,7 @@ describe('a robber claims spilled cargo', () => {
     startCombat(w, raider, victim);
     breakLoadedCargo(w, victim);
     w.rngState = rngStateForForcedRolls(6);
-    spillDeadRows(w);
+    spillDeadCells(w);
     const pile = spillPile(w);
     expect(isHostile(w, raider, victim)).toBe(false);
     expect(raider.brain!.goals.some((g) => g.kind === 'loot' && g.targetId === pile.id)).toBe(true);
@@ -171,7 +171,7 @@ describe('a robber claims spilled cargo', () => {
     startCombat(w, raider, victim);
     breakLoadedCargo(w, victim);
     w.rngState = rngStateForForcedRolls(6);
-    spillDeadRows(w);
+    spillDeadCells(w);
     expect(isHostile(w, raider, victim)).toBe(true);
     expect(claimantOf(w, spillPile(w))).toBe(raider);
   });

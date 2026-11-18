@@ -31,6 +31,8 @@ const RULES: Record<UseKind, Rule> = {
   claymore: (world, v, part, s) => claymoreOrder(world, v, part, s),
   crane: () => null,
   scraper: () => null,
+  battery: () => null,
+  periscope: () => null,
 };
 
 export function assignUtilityOrders(world: World): void {

@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "smokeSize" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "bankShade" | "bankLines" | "bankCool" | "fireEdge" | "fireBandStep" | "fireLines" | "fireLinePx" | "fireTongue" | "fireTongueSize" | "fireTongueSpeed" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "trackEdge" | "trackRuts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "smokeSize" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "bankShade" | "bankLines" | "bankCool" | "fireEdge" | "fireBandStep" | "fireLines" | "fireLinePx" | "fireTongue" | "fireTongueSize" | "fireTongueSpeed" | "crt";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -23,6 +23,8 @@ export const KNOBS: Record<TuningKey, Knob> = {
   waveSize: { label: "Edge wave size", min: 4, max: 40, step: 1, start: 9, unit: "m" },
   halo: { label: "Sand halo", min: 0, max: 3, step: 0.05, start: 1.5 },
   tufts: { label: "Grass tufts", min: 0, max: 1, step: 0.05, start: 0.6 },
+  trackEdge: { label: "Track edge line", min: 0, max: 1, step: 0.05, start: 0.5 },
+  trackRuts: { label: "Track ruts", min: 0, max: 1, step: 0.05, start: 0.3 },
   edgeShadow: { label: "Edge shadow", min: 0, max: 1, step: 0.05, start: 0.4 },
   edgeShadowWidth: { label: "Edge shadow width", min: 0.05, max: 2, step: 0.05, start: 0.35, unit: "m" },
   shadeLine: { label: "Outline", min: 0, max: 1, step: 0.05, start: 0 },

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
 import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS } from "../data/sounds";
 import type { SoundPlayer } from "../audio/player";
+import type { MusicTracks } from "../audio/music-shelf";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
 import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
@@ -158,7 +159,7 @@ describe("engine sound assignment", () => {
         };
       },
     } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
     const glide = { ...engineGlide(0, 10, 1, MIX, false)!, starts: false };
     const drive = (chassis: string, strain: { from: number; to: number }) => {
       loops.drive(glide, chassis, strain);
@@ -185,7 +186,7 @@ describe("engine sound assignment", () => {
   it("carries pitch and level from one turn into the next while the truck keeps accelerating, so no turn restarts the rev", () => {
     const sets: { rate: number; gain: number }[] = [];
     const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
     const last = () => sets[sets.length - 2];
     const calm = { from: 0, to: 0 };
 
@@ -203,7 +204,7 @@ describe("engine sound assignment", () => {
   it("moves the engine by the turn's world time, holds it while the world rests, and fades it only for a real stop or a parked turn", () => {
     const sets: { rate: number; gain: number }[] = [];
     const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
     const cruise = engineGlide(10, 12, 1, MIX, false)!;
     const last = () => sets[sets.length - 2];
 
@@ -342,89 +343,206 @@ describe("engine strain log", () => {
   });
 });
 
-describe("next track", () => {
-  const fake = () => {
-    const calm: { file?: string; gains: number[]; stops: number[] }[] = [];
-    const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
-    const abandoned: { file?: string; gains: number[]; stops: number[] }[] = [];
+const instantTracks: MusicTracks = { want: () => Promise.resolve(true), release: () => {} };
+
+const landed = () => new Promise<void>((resolve) => setTimeout(resolve));
+
+type Opened = { file?: string; gains: number[]; stops: number[] };
+
+describe("music on demand", () => {
+  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null } as const;
+
+  const fake = (lands: (file: string) => Promise<boolean> = () => Promise.resolve(true)) => {
+    const opened: Record<string, Opened[]> = {};
+    const wanted: string[] = [];
+    const released: string[] = [];
     const player = {
       loop: (id: string, _at: unknown, file?: string) => {
-        const handle = { file, gains: [] as number[], stops: [] as number[] };
-        if (id === "music-calm") calm.push(handle);
-        if (id === "music-quest") quest.push(handle);
-        if (id === "music-abandoned") abandoned.push(handle);
+        const handle: Opened = { file, gains: [], stops: [] };
+        (opened[id] ??= []).push(handle);
         return { set: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
+    const tracks: MusicTracks = {
+      want: (file) => {
+        wanted.push(file);
+        return lands(file);
+      },
+      release: (file) => void released.push(file),
+    };
     const songs: string[] = [];
-    return { calm, quest, abandoned, songs, loops: new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }) };
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }, tracks);
+    return { opened, wanted, released, songs, loops, calm: () => opened["music-calm"] ?? [], quest: () => opened["music-quest"] ?? [], abandoned: () => opened["music-abandoned"] ?? [] };
   };
-  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null } as const;
 
-  it("starts the next quest track on each quest and fades the calm music under it", () => {
+  it("loads nothing until a track is about to play", async () => {
+    const { wanted, loops } = fake();
+    expect(wanted).toEqual([]);
+
+    loops.update({ ...road, place: "town" });
+    await landed();
+
+    expect(wanted).toEqual([SOUNDS["music-town"].files[0]]);
+  });
+
+  it("plays a track that lands late at the current level, and keeps the old one until it does", async () => {
+    let land!: () => void;
+    const late = new Promise<boolean>((resolve) => (land = () => resolve(true)));
+    const files = SOUNDS["music-calm"].files;
+    let asked = 0;
+    const { calm, loops } = fake(() => (asked++ === 0 ? Promise.resolve(true) : late));
+    loops.update(road);
+    await landed();
+    expect(calm()).toHaveLength(1);
+
+    loops.nextTrack();
+    await landed();
+    expect(calm()).toHaveLength(1);
+    expect(calm()[0].stops).toEqual([]);
+
+    land();
+    await landed();
+    expect(calm()).toHaveLength(2);
+    expect(calm()[1].gains).toEqual([1]);
+    expect(calm()[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
+    expect(files.length).toBeGreaterThan(1);
+  });
+
+  it("drops a track that lands after the music moved on, and plays nothing for it", async () => {
+    let land!: () => void;
+    const late = new Promise<boolean>((resolve) => (land = () => resolve(true)));
+    const { calm, wanted, released, loops } = fake(() => late);
+    loops.update(road);
+    loops.update({ ...road, place: "town" });
+    land();
+    await landed();
+
+    expect(calm()).toEqual([]);
+    expect(released).toContain(wanted[0]);
+  });
+
+  it("releases a track after its fade ends and not before", async () => {
+    const { released, calm, loops } = fake();
+    loops.update(road);
+    await landed();
+    vi.useFakeTimers();
+    try {
+      loops.update({ ...road, inQuest: true });
+      await vi.advanceTimersByTimeAsync(MIX.music.fadeSeconds * 1000 - 1);
+      expect(released).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(released).toContain(calm()[0].file);
+      expect(calm()[0].stops).toEqual([0]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a place track that fades back in before its release", async () => {
+    const { released, opened, loops } = fake();
+    const town = { ...road, place: "town" } as const;
+    loops.update(town);
+    await landed();
+    vi.useFakeTimers();
+    try {
+      loops.update(road);
+      loops.update(town);
+      await vi.advanceTimersByTimeAsync(MIX.music.fadeSeconds * 1000 + 2000);
+      expect(released.filter((file) => file.startsWith("music-town"))).toEqual([]);
+      expect(opened["music-town"]).toHaveLength(1);
+      expect(opened["music-town"][0].stops).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays silent and plays nothing when a track fails to load", async () => {
+    const { calm, released, wanted, loops } = fake(() => Promise.resolve(false));
+    loops.update(road);
+    await landed();
+
+    expect(calm()).toEqual([]);
+    expect(released).toEqual(wanted);
+  });
+
+  it("starts the next quest track on each quest and fades the calm music under it", async () => {
     const { calm, quest, loops } = fake();
     loops.update(road);
+    await landed();
     loops.update({ ...road, inQuest: true });
+    await landed();
     loops.update(road);
+    await landed();
     loops.update({ ...road, inQuest: true });
-    expect(quest.map((q) => q.gains)).toEqual([[0], [1, 0], [1]]);
-    expect(quest[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
-    expect(new Set(quest.slice(0, 3).map((q) => q.file)).size).toBe(SOUNDS["music-quest"].files.length);
-    expect(calm[0].gains).toEqual([1, 0]);
-    expect(calm[1].gains).toEqual([1, 0]);
+    await landed();
+    expect(quest().map((q) => q.gains)).toEqual([[1, 0], [1]]);
+    expect(new Set(quest().map((q) => q.file)).size).toBe(2);
+    expect(calm()[0].gains).toEqual([1, 0]);
   });
 
-  it("starts the next ruin track each time the player enters a territory", () => {
+  it("starts the next ruin track each time the player enters a territory", async () => {
     const { abandoned, loops } = fake();
     const ruins = { ...road, place: "abandoned" } as const;
-    loops.update(road);
-    loops.update(ruins);
-    loops.update(road);
-    loops.update(ruins);
-    loops.update(road);
-    loops.update(ruins);
-    expect(abandoned.map((a) => a.gains)).toEqual([[0], [1, 0], [1, 0], [1]]);
-    expect(new Set(abandoned.slice(0, 3).map((a) => a.file)).size).toBe(SOUNDS["music-abandoned"].files.length);
+    for (const place of [ruins, road, ruins, road, ruins]) {
+      loops.update(place);
+      await landed();
+    }
+    expect(abandoned().map((a) => a.file)).toHaveLength(3);
+    expect(new Set(abandoned().map((a) => a.file)).size).toBe(3);
   });
 
-  it("crossfades the calm music to a new track at its current level", () => {
+  it("crossfades the calm music to a new track at its current level", async () => {
     const { calm, loops } = fake();
     loops.update(road);
+    await landed();
     loops.nextTrack();
-    expect(calm).toHaveLength(2);
-    expect(calm[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
-    expect(calm[1].gains).toEqual([1]);
+    await landed();
+    expect(calm()).toHaveLength(2);
+    expect(calm()[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
+    expect(calm()[1].gains).toEqual([1]);
   });
 
-  it("plays every calm track once before any repeats", () => {
+  it("plays every calm track once before any repeats", async () => {
     const { calm, loops } = fake();
     const files = SOUNDS["music-calm"].files;
-    for (let i = 0; i < files.length; i++) loops.nextTrack();
-    const cycle = calm.slice(0, files.length).map((c) => c.file);
+    loops.update(road);
+    await landed();
+    for (let i = 1; i < files.length; i++) {
+      loops.nextTrack();
+      await landed();
+    }
+    const cycle = calm().slice(0, files.length).map((c) => c.file);
     expect([...cycle].sort()).toEqual([...files].sort());
-    expect(calm[files.length].file).toBe(cycle[0]);
+    loops.nextTrack();
+    await landed();
+    expect(calm()[files.length].file).toBe(cycle[0]);
   });
 
-  it("moves combat to the next song and leaves the calm music alone", () => {
+  it("moves combat to the next song and leaves the calm music alone", async () => {
     const { calm, songs, loops } = fake();
     loops.update({ ...road, inCombat: true });
+    await landed();
     loops.nextTrack();
+    await landed();
     expect(songs).toEqual(["next"]);
-    expect(calm).toHaveLength(1);
+    expect(calm()).toHaveLength(0);
   });
 
-  it("changes the quest or ruin track that is playing", () => {
+  it("changes the quest or ruin track that is playing", async () => {
     const { quest, abandoned, songs, loops } = fake();
     loops.update({ ...road, inQuest: true, inCombat: true });
-    const quests = quest.length;
+    await landed();
+    const quests = quest().length;
     loops.nextTrack();
-    expect(quest).toHaveLength(quests + 1);
-    expect(quest.at(-1)!.gains).toEqual([1]);
+    await landed();
+    expect(quest()).toHaveLength(quests + 1);
     loops.update({ ...road, place: "abandoned" });
-    const ruins = abandoned.length;
+    await landed();
+    const ruins = abandoned().length;
     loops.nextTrack();
-    expect(abandoned).toHaveLength(ruins + 1);
-    expect(abandoned.at(-1)!.gains).toEqual([1]);
+    await landed();
+    expect(abandoned()).toHaveLength(ruins + 1);
+    expect(abandoned().at(-1)!.gains).toEqual([1]);
     expect(songs).toEqual([]);
   });
 });

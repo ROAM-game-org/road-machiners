@@ -25,6 +25,8 @@ const ORDER_KIND: Record<UseKind, PlacingKind | null> = {
   flare: 'point',
   crane: null,
   scraper: null,
+  battery: null,
+  periscope: null,
 };
 
 const USE_ORDER: Record<UseKind, number> = {
@@ -37,6 +39,8 @@ const USE_ORDER: Record<UseKind, number> = {
   emitter: 2,
   crane: 3,
   scraper: 3,
+  battery: 3,
+  periscope: 3,
 };
 
 type Use = { vehicle: Vehicle; part: PartInstance; order: UtilityOrder; kind: UseKind };
@@ -60,6 +64,8 @@ const ARMS: Record<UseKind, (world: World, use: Use) => void> = {
   emitter: (world, { vehicle, part }) => pulse(world, vehicle, effectOf(part, 'emitter')),
   crane: passive('crane'),
   scraper: passive('scraper'),
+  battery: passive('battery'),
+  periscope: passive('periscope'),
 };
 
 function effectOf<T extends UtilityEffectType>(part: PartInstance, type: T): Extract<UtilityEffect, { type: T }> {
@@ -209,6 +215,14 @@ export function tickCharges(world: World): void {
 
 export function hasWorkingUtility(v: Vehicle, effect: UtilityEffectType): boolean {
   return mountedParts(v, 'utility').some((p) => p.hp > 0 && (partDef(p.defId) as UtilityDef).effect.type === effect);
+}
+
+export function periscopeSight(v: Vehicle): number {
+  const sights = mountedParts(v, 'utility').flatMap((p) => {
+    const effect = p.hp > 0 ? (partDef(p.defId) as UtilityDef).effect : null;
+    return effect?.type === 'periscope' ? [effect.sight] : [];
+  });
+  return Math.max(1, ...sights);
 }
 
 export function workTimeMult(v: Vehicle): number {

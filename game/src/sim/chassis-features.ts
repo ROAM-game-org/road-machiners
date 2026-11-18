@@ -22,10 +22,11 @@ export const gunPowerFactor = (chassisId: string) => factor(chassisId, (a) => a.
 export const sightFactor = (chassisId: string) => factor(chassisId, (a) => a.sight);
 export const rangeFactor = (chassisId: string) => factor(chassisId, (a) => a.range);
 export const mountedMassShare = (chassisId: string) => factor(chassisId, (a) => a.mountedMass);
-export const cargoRowFactor = (chassisId: string) => factor(chassisId, (a) => a.cargoRows);
+export const cargoCellFactor = (chassisId: string) => factor(chassisId, (a) => a.cargoCells);
+export const goodsMassShare = (chassisId: string) => factor(chassisId, (a) => a.goodsMass);
 export const offRoadWear = (chassisId: string) => factor(chassisId, (a) => a.offRoadWear);
 
-export const bedRows = (chassisId: string) => bonus(chassisId, (a) => a.bedRows);
+export const bedCells = (chassisId: string) => bonus(chassisId, (a) => a.bedCells);
 export const nimbleSpread = (chassisId: string) => bonus(chassisId, (a) => a.nimble);
 export const offRoadCut = (chassisId: string) => bonus(chassisId, (a) => a.offRoadCut);
 export const arcBonus = (chassisId: string) => bonus(chassisId, (a) => a.arc);

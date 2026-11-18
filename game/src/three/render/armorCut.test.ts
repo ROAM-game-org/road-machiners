@@ -269,7 +269,7 @@ describe('withCut', () => {
     const shader = shaderOf(cut);
     expect(shader.fragmentShader).toContain('cloudDim');
     expect(shader.fragmentShader).toContain('discard');
-    expect(shader.vertexShader).toContain('vCloudXZ');
+    expect(shader.vertexShader).toContain('vWorldXZ');
     expect(shader.vertexShader).toContain('vCutPos');
     expect(cut.customProgramCacheKey()).toContain('clouds');
     expect(cut.customProgramCacheKey()).toContain('armor-cut');

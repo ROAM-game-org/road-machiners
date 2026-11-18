@@ -1,3 +1,4 @@
+import { mountedParts } from './grid';
 import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
 import { describe, expect, it } from 'vitest';
@@ -419,8 +420,9 @@ describe('heavy truck from Dustwell to the Bowl', () => {
     const world = startWorld(1337);
     const start = nearestPad(siteOf('dustwell'), siteOf('bowl').pos);
     const goal = nearestPad(siteOf('bowl'), start);
-    const heavy = addVehicle(world, 'independent', 'courier', ['stockEngine', 'plates', 'trailerBox'], { ...start });
+    const heavy = addVehicle(world, 'independent', 'courier', ['stockEngine', 'plates', 'haulingRack', 'haulingRack'], { ...start });
     heavy.brain = npcBrain('trader', heavy.pos, ['trader']);
+    for (const engine of mountedParts(heavy, 'engine')) engine.wear = 4;
     addGoods(world, heavy, 'scrap', 2000);
     expect(climbGrade(world, heavy)).toBeLessThan(0.15);
     const trail = drive(world, heavy, goal);

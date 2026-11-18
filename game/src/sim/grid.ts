@@ -1,6 +1,6 @@
 
-import { chassisDef } from '../data/chassis';
-import { bedRows, cargoRowFactor } from './chassis-features';
+import { chassisDef, HOLD_BASE_CELLS } from '../data/chassis';
+import { bedCells, cargoCellFactor } from './chassis-features';
 import { isShield, partDef, type CoreDef, type PartKind } from '../data/parts';
 import { barrelField, type BarrelField } from './barrels';
 import { loadoutFact, loadoutSlot, type Loadout } from './loadout-memo';
@@ -8,7 +8,7 @@ import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './t
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
 export type Cell = 'D' | 'E' | SideLetter | 'X' | '.';
-export type Grid = { chassisId: string; w: number; h: number; chassisH: number; deadFrom: number; cells: (Cell | null)[][] };
+export type Grid = { chassisId: string; w: number; h: number; chassisH: number; hold: string; cells: (Cell | null)[][] };
 export type Spot = { x: number; y: number; rot: Rot };
 
 export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
@@ -21,6 +21,8 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   scanner: ['D'],
   store: ['D'],
   utility: ['D'],
+  spare: [],
+  relic: [],
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
 
@@ -97,7 +99,7 @@ export function baseGrid(chassisId: string): Grid {
   const rows = chassisDef(chassisId).layout;
   const w = Math.max(...rows.map((r) => r.length));
   const cells = rows.map((r) => Array.from({ length: w }, (_, x) => toCell(r[x] ?? ' ')));
-  const grid = { chassisId, w, h: rows.length, chassisH: rows.length, deadFrom: rows.length, cells };
+  const grid = { chassisId, w, h: rows.length, chassisH: rows.length, hold: '', cells };
   baseGridCache.set(chassisId, grid);
   return grid;
 }
@@ -227,88 +229,108 @@ export function sideOf(v: Vehicle, part: PartInstance): SideLetter | null {
   return letter !== null && SIDES.includes(letter) ? (letter as SideLetter) : null;
 }
 
-const bareGridCache = new Map<string, Grid>();
+export function holdWidth(chassisId: string): number {
+  return baseGrid(chassisId).w - 2;
+}
 
-export function bareGrid(chassisId: string): Grid {
-  const cached = bareGridCache.get(chassisId);
+export function fixedHoldCells(chassisId: string): number {
+  return HOLD_BASE_CELLS + bedCells(chassisId);
+}
+
+const LIVE = '.';
+const DEAD = 'x';
+const GONE = ' ';
+const holdGridCache = new Map<string, Grid>();
+
+function holdGrid(chassisId: string, hold: string): Grid {
+  const key = `${chassisId}|${hold}`;
+  const cached = holdGridCache.get(key);
   if (cached) return cached;
   const base = baseGrid(chassisId);
-  const rows = rowsAtWidth(chassisId, bedRows(chassisId)) + (chassisDef(chassisId).spareRows ?? 0);
-  const bed = Array.from({ length: rows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
+  const width = holdWidth(chassisId);
+  const rows = Math.ceil(hold.trimEnd().length / width);
+  const cellAt = (at: number): Cell | null => (hold[at] === LIVE ? '.' : null);
+  const holdRows = Array.from({ length: rows }, (_, row) => Object.freeze(Array.from({ length: base.w }, (_, x) => (x >= 1 && x <= width ? cellAt(row * width + x - 1) : null))));
   const grid = Object.freeze({
     chassisId,
     w: base.w,
     h: base.h + rows,
     chassisH: base.h,
-    deadFrom: base.h + rows,
-    cells: Object.freeze([...base.cells, ...bed]) as (Cell | null)[][],
+    hold,
+    cells: Object.freeze([...base.cells, ...holdRows]) as (Cell | null)[][],
   });
-  bareGridCache.set(chassisId, grid);
+  holdGridCache.set(key, grid);
   return grid;
 }
 
-const gridCache = new Map<string, Grid>();
-
-export function gridOf(v: Vehicle): Grid {
-  const base = bareGrid(v.chassisId);
-  let working = 0;
-  let dead = 0;
-  for (const it of mountedItems(v, 'cargo')) {
-    const rows = cargoRowsOn(v.chassisId, it.part.defId);
-    if (it.part.hp > 0) working += rows;
-    else dead += rows;
-  }
-  if (working === 0 && dead === 0) return base;
-  const key = `${v.chassisId}|${working}|${dead}`;
-  const cached = gridCache.get(key);
-  if (cached) return cached;
-  const row = (cell: Cell | null) => Object.freeze(Array.from({ length: base.w }, () => cell));
-  const rows = [...Array.from({ length: working }, () => row('.')), ...Array.from({ length: dead }, () => row(null))];
-  const grid = Object.freeze({
-    chassisId: v.chassisId,
-    w: base.w,
-    h: base.h + working + dead,
-    chassisH: base.chassisH,
-    deadFrom: base.h + working,
-    cells: Object.freeze([...base.cells, ...rows]) as (Cell | null)[][],
-  });
-  gridCache.set(key, grid);
-  return grid;
+export function bareGrid(chassisId: string): Grid {
+  return holdGrid(chassisId, LIVE.repeat(fixedHoldCells(chassisId)));
 }
 
-export function cargoCellsGained(chassisId: string, defId: string): number {
-  const def = partDef(defId);
-  if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return cargoRowsOn(chassisId, defId) * baseGrid(chassisId).w - def.w * def.h;
+export function gridOf(v: Loadout): Grid {
+  const givers = loadoutFact(v, HOLD_GIVERS);
+  return holdGrid(v.chassisId, LIVE.repeat(fixedHoldCells(v.chassisId)) + givers.map((giver) => (giver.working ? LIVE : DEAD).repeat(giver.cells)).join(''));
 }
-
-export function cargoRowsOn(chassisId: string, defId: string): number {
-  const def = partDef(defId);
-  if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return rowsAtWidth(chassisId, Math.floor(def.extraRows * cargoRowFactor(chassisId)));
-}
-
-const hitGridCache = new Map<Grid, Grid>();
 
 export function hitGridOf(v: Vehicle): Grid {
   const g = gridOf(v);
-  const spare = chassisDef(v.chassisId).spareRows ?? 0;
-  if (spare === 0) return g;
-  const cached = hitGridCache.get(g);
-  if (cached) return cached;
-  const from = g.chassisH + rowsAtWidth(v.chassisId, bedRows(v.chassisId));
-  const cells = [...g.cells.slice(0, from), ...g.cells.slice(from + spare)];
-  const hit = Object.freeze({ ...g, h: g.h - spare, deadFrom: g.deadFrom - spare, cells: Object.freeze(cells) as (Cell | null)[][] });
-  hitGridCache.set(g, hit);
-  return hit;
+  return holdGrid(v.chassisId, GONE.repeat(HOLD_BASE_CELLS) + g.hold.slice(HOLD_BASE_CELLS));
 }
 
-function rowsAtWidth(chassisId: string, oldRows: number): number {
-  return Math.round((oldRows * chassisDef(chassisId).oldGrid.width) / baseGrid(chassisId).w);
+type HoldGiver = { id: string; cells: number; working: boolean };
+
+const HOLD_GIVERS = loadoutSlot((loadout): HoldGiver[] =>
+  (loadoutFact(loadout, KIND_LISTS)[ALL] ?? []).flatMap((it) => {
+    const cells = holdCellsOf(loadout.chassisId, it.part.defId);
+    return cells > 0 ? [{ id: it.part.id, cells, working: it.part.hp > 0 }] : [];
+  }),
+);
+
+export function holdOwners(v: Loadout): readonly (string | null)[] {
+  return loadoutFact(v, HOLD_OWNERS);
 }
 
-export function onDeadRow(g: Grid, item: GridItem): boolean {
-  return itemCells(item).some((c) => c.y >= g.deadFrom && c.y < g.h);
+const HOLD_OWNERS = loadoutSlot((loadout): (string | null)[] => {
+  const owned = loadoutFact(loadout, HOLD_GIVERS).flatMap((giver) => Array.from({ length: giver.cells }, () => giver.id));
+  return [...Array.from({ length: fixedHoldCells(loadout.chassisId) }, () => null), ...owned];
+});
+
+export function holdsItemFor(v: Loadout, partId: string): boolean {
+  const g = gridOf(v);
+  const spots = new Set(holdOwners(v).flatMap((owner, at) => (owner === partId ? [cellKey(holdCell(g, at).x, holdCell(g, at).y)] : [])));
+  return spots.size > 0 && v.items.some((it) => itemCells(it).some((c) => spots.has(cellKey(c.x, c.y))));
+}
+
+export function holdIndex(g: Grid, x: number, y: number): number | null {
+  if (y < g.chassisH || x < 1 || x > g.w - 2) return null;
+  const at = (y - g.chassisH) * (g.w - 2) + x - 1;
+  return at < g.hold.length ? at : null;
+}
+
+export function holdCell(g: Grid, at: number): { x: number; y: number } {
+  const width = g.w - 2;
+  return { x: 1 + (at % width), y: g.chassisH + Math.floor(at / width) };
+}
+
+export function cargoCellsOn(chassisId: string, defId: string): number {
+  const def = partDef(defId);
+  if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
+  return Math.floor(def.cells * cargoCellFactor(chassisId));
+}
+
+export function holdCellsOf(chassisId: string, defId: string): number {
+  const def = partDef(defId);
+  if (def.kind === 'cargo') return cargoCellsOn(chassisId, defId);
+  return def.kind === 'accessory' ? (def.cells ?? 0) : 0;
+}
+
+export function onDeadCell(g: Grid, item: GridItem): boolean {
+  return itemCells(item).some((c) => isDeadCell(g, c.x, c.y));
+}
+
+export function isDeadCell(g: Grid, x: number, y: number): boolean {
+  const at = holdIndex(g, x, y);
+  return at !== null && g.hold[at] === DEAD;
 }
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;

@@ -33,6 +33,7 @@ export const EFFORT = {
       scanner: [250, 700],
       store: [250, 700],
       utility: [250, 700],
+      spare: [250, 700],
       chassis: [5000, 7500],
       good: [40, 100],
     },
@@ -45,6 +46,7 @@ export const EFFORT = {
       scanner: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
       store: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
       utility: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
+      spare: [180 * TIER_VALUE[2], 480 * TIER_VALUE[2]],
       chassis: [2800 * TIER_VALUE[2], 4200 * TIER_VALUE[2]],
       good: [50, 100],
     },
@@ -57,6 +59,7 @@ export const EFFORT = {
       scanner: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
       store: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
       utility: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
+      spare: [180 * TIER_VALUE[3], 380 * TIER_VALUE[3]],
       chassis: [1900 * TIER_VALUE[3], 2800 * TIER_VALUE[3]],
       good: [40, 80],
     },
@@ -199,7 +202,7 @@ const STALL_WEAR: Weighted<number>[] = [
   { value: 4, weight: 1 },
 ];
 
-const NON_CORE_PARTS = Object.values(PARTS).filter((def) => def.kind !== 'core');
+const NON_CORE_PARTS = Object.values(PARTS).filter((def) => def.kind !== 'core' && def.kind !== 'relic');
 const PART_SHELF_WEIGHT = { utility: 3, emitter: 0.6, other: 1 };
 const GARAGE_PARTS: Weighted<string>[] = NON_CORE_PARTS.map((def) => ({ value: def.id, weight: shelfWeightOf(def) }));
 
@@ -267,7 +270,7 @@ const SHOP_DATA: Record<string, ShopData> = {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
         'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
-        'longRifle', 'heavyMg', 'stockEngine', 'flatFour',
+        'longRifle', 'heavyMg', 'stockEngine', 'flatFour', 'gunBattery', 'spareTire',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
@@ -283,7 +286,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['rack', 'panniers', 'flatbed', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['rack', 'panniers', 'haulingRack', 'sacks', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -298,7 +301,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'plates', 'jerrycans', 'oilSpiller', 'flareCannon'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'periscope', 'plates', 'jerrycans', 'oilSpiller', 'flareCannon', 'spareTire'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -313,7 +316,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['jerrycans', 'supplyLocker', 'rack', 'panniers', 'scrapPanels', 'plates', 'mg', 'scanner'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['jerrycans', 'supplyLocker', 'rack', 'panniers', 'sacks', 'scrapPanels', 'plates', 'mg', 'scanner', 'periscope'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -328,7 +331,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     kind: 'stall',
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['supplyLocker', 'jerrycans', 'flatbed', 'cage', 'scrapSheet', 'shotgun', 'caltrops', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['supplyLocker', 'jerrycans', 'rack', 'cage', 'scrapSheet', 'shotgun', 'caltrops', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],

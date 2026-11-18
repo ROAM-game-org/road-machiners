@@ -16,6 +16,9 @@ platforms:
       # Telegram keeps updates for 24 hours while Hermes is down. Votes and player comments sent during a restart arrive only through that queue.
       drop_pending_on_cold_boot: false
 
+# A player chat thread holds many players. Each gets their own session, so the player tools act for the player whose message started the turn.
+thread_sessions_per_user: true
+
 # Keep Hermes's own notices out of the committee chat.
 compression:
   codex_gpt55_autoraise_notice: false
@@ -45,6 +48,10 @@ terminal:
     - FACTORY_REPO
     # Hermes runs tools with its own HOME, so gh needs the folder of its login.
     - GH_CONFIG_DIR
+  # Hermes reads the @file, @folder, @git and @diff references in any chat message from this folder, before any tool or hook runs.
+  # Its default is Hermes's home, with its memory, sessions, logs and config. The image makes this folder empty, and Hermes can't write to it.
+  # The shell starts here too, so commands use full paths.
+  cwd: /opt/hermes-factory/no-files
 
 # Hermes acts on the factory without waiting on approval cards. Its prompt waited 5 minutes for an answer nobody saw, then dropped the step. SOUL.md says what to ask the committee first.
 approvals:
@@ -56,17 +63,12 @@ approvals:
 cron:
   wrap_response: false
 
-# Hermes core ignores session_reset since v2026.9.11. The hermes-session-reset-policy plugin reads this block and resets a chat that sat idle, on its next message. A chat with a turn in flight never resets.
-session_reset:
-  mode: idle
-  idle_minutes: 60
-
 plugins:
   enabled:
     - factory
-    - hermes-session-reset-policy
 
 # The file toolset also holds write and patch. Hermes has no read-only file toolset.
+# Every Telegram chat, the player chats included, gets this one list. In a player chat the plugin's pre_tool_call hook runs only the public tools.
 platform_toolsets:
   telegram:
     - terminal
@@ -76,6 +78,7 @@ platform_toolsets:
     - session_search
     - vision
     - factory
+    - factory_public
   # The incident watch job runs with no chat. It resolves incidents and drafts the release post with the same tools.
   cron:
     - terminal
@@ -86,6 +89,15 @@ platform_toolsets:
     - session_search
     - vision
     - factory
+
+# Hermes adds every plugin toolset to a platform's list unless it is known here. So cron keeps its list above, without the player tools.
+known_plugin_toolsets:
+  telegram:
+    - factory
+    - factory_public
+  cron:
+    - factory
+    - factory_public
 
 # Off everywhere, the command line included. Hermes runs commands through terminal, and game work goes to the factory as ad hoc tasks. The start script owns the incident watch, so Hermes needs no cronjob.
 agent:

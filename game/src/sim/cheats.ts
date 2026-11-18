@@ -37,7 +37,7 @@ import { fuelCap, suppliesCap } from './stats';
 import { advanceSunward, nextRideOut, orderRides, orderStands, startHuntTonight, sunwardPhase } from './sunward';
 import { fillHollow } from './spawn';
 import { SUNWARD } from '../data/sunward';
-import { spillDeadRows } from './spill';
+import { spillDeadCells } from './spill';
 
 export class CheatError extends Error {}
 
@@ -116,7 +116,7 @@ export function damagePartTo(world: World, defId: string, hp: number): World {
     requireInteger('Hit points', hp, 0, maxHp(part));
     if (hp <= part.hp) {
       damagePart(part, part.hp - hp, 0);
-      spillDeadRows(w);
+      spillDeadCells(w);
       return;
     }
     if (part.hp === 0 && isJunk(part)) throw new CheatError(`${defId} is junk and cannot be rebuilt`);

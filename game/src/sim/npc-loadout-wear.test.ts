@@ -29,6 +29,10 @@ describe('part wear', () => {
       for (const { defId: id, wear } of loadout.parts) {
         expect(wear, id).toBeGreaterThanOrEqual(0);
         expect(wear, id).toBeLessThanOrEqual(CONDITION.maxWear);
+        if (id === 'gunBattery') {
+          expect(wear, id).toBe(0);
+          continue;
+        }
         expect(allowed, id).toContain(wear);
         rolled.add(wear);
       }

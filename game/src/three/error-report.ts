@@ -7,6 +7,9 @@ import { listSaves } from './save-slots';
 import { noteError } from './crash';
 import { TurnFailure } from './travel';
 import { uiSize } from '../ui/ui-size';
+import type { FramePaceSummary } from './frame-pace';
+
+export type GraphicsFacts = { renderer: string; drawn: { width: number; height: number }; renderScale: number; frames: FramePaceSummary };
 
 export type ReportContext = {
   build: string;
@@ -14,6 +17,7 @@ export type ReportContext = {
   userAgent: string;
   language: string;
   screen: { width: number; height: number; pixelRatio: number; uiSize: number };
+  graphics: GraphicsFacts | null;
   turn: number | null;
   log: string[];
   world: object | null;
@@ -37,6 +41,7 @@ const NO_GAME: LiveGame = { turn: null, log: [], world: null, worldTurn: null };
 export class GameContext {
   private source: ReportSource | null = null;
   private slots: SaveSlots | null = null;
+  private graphics: (() => GraphicsFacts) | null = null;
 
   constructor(
     private readonly build: string,
@@ -46,6 +51,10 @@ export class GameContext {
 
   watchSaves(slots: SaveSlots): void {
     this.slots = slots;
+  }
+
+  watchGraphics(source: () => GraphicsFacts): void {
+    this.graphics = source;
   }
 
   watch(source: ReportSource): void {
@@ -65,8 +74,19 @@ export class GameContext {
       version: this.version,
       userAgent: navigator.userAgent,
       language: document.documentElement.lang,
+      graphics: this.graphicsFacts(),
       screen: { width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio, uiSize: uiSize().applied() },
     };
+  }
+
+  private graphicsFacts(): GraphicsFacts | null {
+    if (!this.graphics) return null;
+    try {
+      return this.graphics();
+    } catch (err) {
+      this.onCaptureFailure(err);
+      return null;
+    }
   }
 
   private autosaveOf(): string | null {

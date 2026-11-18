@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { bedRows } from './chassis-features';
 import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
@@ -19,7 +18,7 @@ import {
 } from './cheats';
 import { playerVehicle } from './damage';
 import { maxHealthOf } from './health';
-import { corePart, goodsCount, gridOf, mountedParts } from './grid';
+import { bareGrid, corePart, fixedHoldCells, goodsCount, gridOf, holdCell, mountedParts, onDeadCell } from './grid';
 import { installSpot, removeAllGoods, spareParts, stowPart, stowSpot } from './inventory';
 import { makePart } from './factory';
 import { clockOf } from './sun';
@@ -121,12 +120,12 @@ describe('part cheats', () => {
 
   it('spills the cargo off a cargo part it breaks', () => {
     const loaded = emptyWorld();
-    const row = chassisDef('scout').layout.length + bedRows('scout');
-    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+    const spot = holdCell(bareGrid('scout'), fixedHoldCells('scout'));
+    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', ...spot, rot: 0 });
     const w = damagePartTo(loaded, 'panniers', 0);
     const me = playerVehicle(w);
     const g = gridOf(me);
-    expect(me.items.filter((it) => it.y >= g.deadFrom)).toEqual([]);
+    expect(me.items.filter((it) => onDeadCell(g, it))).toEqual([]);
     expect(w.events.filter((e) => e.t === 'cargoSpilled')).toHaveLength(1);
   });
 

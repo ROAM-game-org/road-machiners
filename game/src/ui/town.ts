@@ -40,7 +40,7 @@ import {
   type Supply,
 } from "../sim/economy";
 import { freeCells, goodsCount, mountCellsOf } from "../sim/grid";
-import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
+import { canStowPart, cargoRoom, spareParts, tradedSpares } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, goodStock, haulShort, isMet, onOrder, spareGoods, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
@@ -941,12 +941,12 @@ export class TruckTradeScreen {
       done,
       onHover: this.hintMounts(p.defId),
     });
-    const theirs = spareParts(npc).map((p) => {
+    const theirs = tradedSpares(npc).map((p) => {
       const price = truckPartPrice(w, p, "buy");
       const reason = canStowPart(me, p) ? null : t("trade.noRoom");
       return row(p, buyButton(w.player.money, t("goods.buy"), price, () => this.run((x) => buyTruckPart(x, npc.id, p.id)), reason), t("trade.done.bought"));
     });
-    const mine = spareParts(me).map((p) => {
+    const mine = tradedSpares(me).map((p) => {
       const price = truckPartPrice(w, p, "sell");
       return row(p, sellButton(t("goods.sell"), price, () => this.run((x) => sellTruckPart(x, npc.id, p.id)), theyLack(npc, price)), t("trade.done.sold"));
     });

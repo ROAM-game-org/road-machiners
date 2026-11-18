@@ -8,6 +8,7 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720]];
 const TALL = [1440, 900];
+const REPORT = [1512, 945];
 const COMPACT = [1024, 600];
 const PHONE = [844, 390];
 const PHONE_SMALL = [640, 360];
@@ -624,6 +625,49 @@ const inspectNine = async (page) => {
   await page.waitForFunction(() => window.__ROAM__.hud.portraitSettled(window.__layoutNpc), null, { timeout: 60000 });
 };
 
+const armTruck = async (page) => {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const { makePart } = await import('/src/sim/factory.ts');
+    const { mountPart } = await import('/src/sim/inventory.ts');
+    const { mountedParts } = await import('/src/sim/grid.ts');
+    const { playerVehicle } = await import('/src/sim/damage.ts');
+    const { partDef } = await import('/src/data/parts.ts');
+    window.__layoutWorld = structuredClone(g.state);
+    window.__layoutBaseDrive = document.querySelector('#ui .hud-drive').getBoundingClientRect().height;
+    const before = new Set(g.state.vehicles.map((v) => v.id));
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon').world);
+    const donor = world.vehicles.find((v) => !before.has(v.id));
+    const me = playerVehicle(world);
+    me.chassisId = donor.chassisId;
+    me.items = structuredClone(donor.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)));
+    world.vehicles = world.vehicles.filter((v) => v !== donor);
+    if (!mountPart(world, me, makePart(world, 'claymoreRam', 0))) throw new Error(`no room for the claymore ram on ${me.chassisId}`);
+    const guns = () => mountedParts(me).filter((p) => partDef(p.defId).kind === 'weapon').length;
+    while (guns() < 7) if (!mountPart(world, me, makePart(world, 'mg', 0))) throw new Error(`only ${guns()} guns fit on ${me.chassisId}`);
+    g.apply(world);
+  });
+};
+
+const bottomLeftFaults = (page) =>
+  page.evaluate(() => {
+    const faults = [];
+    const box = (sel) => document.querySelector(sel)?.getBoundingClientRect();
+    const drive = box('#ui .hud-drive');
+    const weapons = box('#ui .hud-weapons');
+    const radio = box('#ui .hud-radio');
+    const base = window.__layoutBaseDrive;
+    if (Math.abs(drive.height - base) > 1) faults.push(`the drive panel is ${drive.height.toFixed(0)} px tall with an armed truck and ${base.toFixed(0)} px with the default one`);
+    for (const [name, panel] of [['weapons', weapons], ['radio', radio]]) {
+      if (Math.abs(panel.bottom - drive.bottom) > 1) faults.push(`the ${name} panel ends ${(drive.bottom - panel.bottom).toFixed(0)} px off the drive panel's bottom`);
+    }
+    if (document.querySelectorAll('#ui .hud-weapons .utility-slot-key').length === 0) faults.push('the weapons panel has no utility key');
+    const stack = box('#ui .truck-stack');
+    if (stack && stack.height > 0 && stack.bottom > Math.min(drive.top, weapons.top) + 1) faults.push('the truck diagram overlaps the bottom panels');
+    return faults;
+  });
+
 const CARD = '#ui .info';
 
 const cardPlaceFaults = (page) =>
@@ -1114,6 +1158,7 @@ const STATES = {
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  'hud-armed': { setup: armTruck, teardown: (page) => page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)), check: async (page) => faultsOf('bottom-left')(await bottomLeftFaults(page)), viewports: [...VIEWPORTS, TALL, COMPACT, REPORT] },
   'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },

@@ -8,9 +8,19 @@ export class SoundBank {
   private waiting = new Map<string, Set<(buffer: AudioBuffer) => void>>();
 
   private files: ReadonlySet<string>;
+  private lent = new Set<string>();
 
   constructor(files: readonly string[]) {
     this.files = new Set(files);
+  }
+
+  lend(files: readonly string[]): void {
+    for (const file of files) this.lent.add(file);
+  }
+
+  delete(file: string): void {
+    this.check(file);
+    this.buffers.delete(file);
   }
 
   get size(): number {
@@ -47,7 +57,7 @@ export class SoundBank {
   }
 
   private check(file: string): void {
-    if (!this.files.has(file)) throw new Error(`Sound file ${file} is not in the bank`);
+    if (!this.files.has(file) && !this.lent.has(file)) throw new Error(`Sound file ${file} is not in the bank`);
   }
 }
 

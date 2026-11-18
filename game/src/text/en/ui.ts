@@ -187,7 +187,7 @@ export const UI = {
   'newGame.default': m('default {pct}', { pct: 'text' }),
   'setup.part': m('{setting} {pct}', { setting: 'text', pct: 'text' }),
   'setting.percent': m('{n}%', { n: 'int' }),
-  'cell.deadRows': 'Broken cargo rows. Repair the cargo part to use them.',
+  'cell.deadCells': 'Broken cargo cells. Repair the cargo part to use them.',
   'kind.utility': 'utility',
   'menu.showTips': 'Show tips',
   'menu.closeEsc': 'Close [Esc]',

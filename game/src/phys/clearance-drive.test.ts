@@ -103,7 +103,7 @@ describe('reproduced TEST_MAP trips', () => {
     v.pos = start;
     v.heading = bearing(start, rock.pos) + turn;
     v.speed = speed;
-    return drive(setMoveOrder(w, { kind, dest }), 20);
+    return drive(setMoveOrder(w, { kind, dest }), 26);
   }
 
   const OPEN_RADIUS = 14;

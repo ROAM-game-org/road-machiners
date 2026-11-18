@@ -30,7 +30,7 @@ const have = (value = 0): number => value;
 type LineOf = (a: ChassisAbility) => Msg;
 
 const ABILITY_LINES: Record<AbilityId, LineOf> = {
-  bed: (a) => t('chassis.ability.bed.line', { n: have(a.bedRows) }),
+  bed: (a) => t('chassis.ability.bed.line', { n: have(a.bedCells), g: 100 - share(a.goodsMass) }),
   nimble: (a) => t('chassis.ability.nimble.line', { a: pct(a.accel), b: Number(((have(a.nimble) * 180) / Math.PI).toFixed(1)) }),
   racing: (a) => t('chassis.ability.racing.line', { n: pct(a.topSpeed) }),
   offRoad: (a) => t('chassis.ability.offRoad.line', { n: 100 - share(a.offRoadWear) }),
@@ -40,7 +40,7 @@ const ABILITY_LINES: Record<AbilityId, LineOf> = {
   springs: (a) => t('chassis.ability.springs.line', { n: share(a.mountedMass) }),
   openTop: (a) => t('chassis.ability.openTop.line', { a: pct(a.sight), b: pct(a.range) }),
   tourer: (a) => t('chassis.ability.tourer.line', { a: pct(a.sight), b: pct(a.range), c: pct(a.topSpeed) }),
-  trailer: (a) => t('chassis.ability.trailer.line', { a: have(a.arc), b: have(a.reloadCut), c: pct(a.cargoRows), d: have(a.deckArmor) }),
+  trailer: (a) => t('chassis.ability.trailer.line', { a: have(a.arc), b: have(a.reloadCut), c: pct(a.cargoCells), d: have(a.deckArmor) }),
 };
 
 const abilityLine = (a: ChassisAbility): Msg => ABILITY_LINES[a.id](a);

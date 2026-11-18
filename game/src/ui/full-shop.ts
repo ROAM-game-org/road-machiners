@@ -18,7 +18,7 @@ const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> =>
 function shopParts(): PartDef[] {
   const rank = (d: PartDef) => KIND_ORDER.indexOf(kindFilter(d.kind));
   return Object.values(PARTS)
-    .filter((d) => d.kind !== "core")
+    .filter((d) => d.kind !== "core" && d.kind !== "relic")
     .sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.id.localeCompare(b.id));
 }
 

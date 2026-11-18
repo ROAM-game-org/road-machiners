@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 
 COLORS = {
-    "rust": 0x8A4A2A,  # PAL.rust.top
+    "rust": 0x7E5634,  # PAL.hull.rust
     "rust_dark": 0x3A2418,  # PAL.rust.dark, the rolling hoops
     "band": 0x5E6038,  # PAL.nose.top, the faded colour band
     "metal": 0x5A5A58,  # PAL.metal, the lid

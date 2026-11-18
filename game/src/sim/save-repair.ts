@@ -19,7 +19,7 @@ import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
 import { installSpot, stowSpot } from './inventory';
-import { baseGrid, findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
+import { baseGrid, findSpot, gridOf, mountedItems, onDeadCell, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
 import { addShop, contractTruck, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
@@ -412,7 +412,7 @@ function misfits(v: Vehicle): GridItem[] {
 }
 
 function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
-  return onDeadRow(grid, item) || placementError(grid, kept, item, item.id) === null;
+  return onDeadCell(grid, item) || placementError(grid, kept, item, item.id) === null;
 }
 
 function reseatedGun(v: Vehicle, kept: GridItem[], item: GridItem): boolean {

@@ -36,7 +36,7 @@ function cycle(w: World): void {
 }
 
 function truck(w: World, templateId: 'convoy' | 'trader'): Vehicle {
-  const v = addVehicle(w, templateId === 'convoy' ? 'bowl' : 'independent', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 40, y: 40 });
+  const v = addVehicle(w, templateId === 'convoy' ? 'bowl' : 'independent', 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { x: 40, y: 40 });
   v.brain = npcBrain(templateId, v.pos, templateId === 'convoy' ? ['supplier'] : ['trader']);
   v.resources = { ...v.resources!, money: NPCS.convoy.money * 20 };
   v.speed = 0;

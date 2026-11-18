@@ -21,6 +21,7 @@ export const PHYSICS = {
     engineAccel: 12,
     climbReserve: 0.47,
     climbPlanShare: 0.9,
+    maxClimbGrade: 0.55,
     maxSteer: 0.6,
     steerRate: 3,
     holdSpeed: 0.5,

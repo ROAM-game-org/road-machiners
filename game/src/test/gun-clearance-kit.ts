@@ -10,7 +10,7 @@ import { baseGrid, isMounted, itemCells } from '../sim/grid';
 import { emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle, World } from '../sim/types';
 import { loadModels, model, socket } from '../three/render/models';
-import { armorMatrix, armorPlacement } from '../three/render/armorCut';
+import { armorMatrix, drawnArmorPlacement } from '../three/render/armorCut';
 import { footprint, itemSpotOf, VehicleView, wouldFloat } from '../three/render/vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -53,7 +53,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
       const d = partDef(it.part.defId);
       if (isShield(d) && isMounted(v.chassisId, it)) {
         const raw = new THREE.Box3().setFromObject(model(partModel(d.id)));
-        const at = armorPlacement(v, it, raw, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
+        const at = drawnArmorPlacement(v, it, raw, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
         const box = raw.clone().applyMatrix4(armorMatrix(at));
         out.push({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, top: box.max.y, what: d.id });
         continue;
@@ -303,7 +303,11 @@ export function headY(v: Vehicle, itemId: string, mode: GunView): number {
   return y;
 }
 
-export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+export function aloneOf(v: Vehicle, itemId: string): Vehicle {
   const others = new Set(mountedGuns(v).filter((g) => g.id !== itemId));
-  return headY({ ...v, items: v.items.filter((it) => !others.has(it as never)) }, itemId, mode);
+  return { ...v, items: v.items.filter((it) => !others.has(it as never)) };
+}
+
+export function loneHeadY(v: Vehicle, itemId: string, mode: GunView): number {
+  return headY(aloneOf(v, itemId), itemId, mode);
 }

@@ -1,19 +1,22 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initPhysics } from '../phys/drive';
-import { parseLineup, runFight, type FightReport } from './combat-harness';
+import { parseLineup, runFight, warmFights, type FightReport } from './combat-harness';
 import { FIGHT } from './combat-fight';
 
 export function describeArenaSeeds(seeds: readonly number[], aFledOnDev: number): void {
   const outcomes = new Map<number, FightReport['outcome']>();
 
+  const arenaFight = { ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), maxTurns: 200, arena: 9 };
+
   beforeAll(async () => {
     await initPhysics();
+    warmFights({ ...arenaFight, seed: seeds[0] });
   });
 
   describe('combat harness arena', () => {
     for (const seed of seeds) {
       it(`a damaged arena fighter turns back when it cannot escape for repairs, seed ${seed}`, () => {
-        outcomes.set(seed, runFight({ ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed, maxTurns: 200, arena: 9 }).outcome);
+        outcomes.set(seed, runFight({ ...arenaFight, seed }).outcome);
       });
     }
 

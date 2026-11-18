@@ -122,17 +122,16 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
   return geo;
 }
 
-export function groundMaterial(w: World): THREE.MeshLambertMaterial {
+export function groundMaterial(w: World, drawn: DrawnGround): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
-  drawGround(material, drawnGroundOf(w));
+  drawGround(material, drawn);
   return litGround(material);
 }
 
 export type CachedGround = { reader: THREE.MeshLambertMaterial; writer: THREE.MeshLambertMaterial; writes: DrawnGround };
 
-export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround {
+export function cachedGround(w: World, writes: DrawnGround, cache: GroundCacheUniforms): CachedGround {
   const map = groundTexture(w);
-  const writes = drawnGroundOf(w);
   const writer = new THREE.MeshLambertMaterial({ map });
   writeGroundCache(writer, writes);
   const reader = new THREE.MeshLambertMaterial({ map });
@@ -140,7 +139,7 @@ export function cachedGround(w: World, cache: GroundCacheUniforms): CachedGround
   return { reader: litGround(reader), writer, writes };
 }
 
-function drawnGroundOf(w: World): DrawnGround {
+export function drawnGroundOf(w: World): DrawnGround {
   return drawnGround(mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
 }
 

@@ -163,7 +163,7 @@ def env(tmp_path):
         "FACTORY_INBOX": "/in", "FACTORY_STATE_DIR": str(tmp_path / "state"), "FACTORY_COMMITTEE_CHAT": "-100",
         "FACTORY_OBSERVATION_HEARTBEAT_MS": "10000",
         "FACTORY_PUBLIC_URL": "https://example.org", "FACTORY_STATUS_TIMEOUT_MS": "10000",
-        "FACTORY_ROUTE_MIN_WORDS": "4", "FACTORY_REPO": "owner/repo",
+        "FACTORY_ROUTE_MIN_WORDS": "4", "FACTORY_HERMES_IDLE_RESET_MINUTES": "60", "FACTORY_REPO": "owner/repo",
         "FACTORY_COMMITTEE_DIR": str(tmp_path / "committee"),
         "FACTORY_COMMITTEE_BOOTSTRAP": "1", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB": "boss",
         "FACTORY_PUBLIC_DISCUSSION": "-400", "FACTORY_PROPOSAL_CHAT": "-300", "FACTORY_PUBLIC_INBOX": str(tmp_path / "public-inbox"),
@@ -191,7 +191,7 @@ def test_load_config_refuses_a_chat_name(tmp_path, key):
 
 def test_register_seeds_the_file(tmp_path):
     hooks = []
-    ctx = types.SimpleNamespace(register_hook=lambda name, fn: hooks.append(name), register_tool=lambda **kw: None, register_telegram_handler=lambda fn: None)
+    ctx = types.SimpleNamespace(register_hook=lambda name, fn: hooks.append(name), register_tool=lambda **kw: None, register_telegram_handler=lambda fn: None, register_middleware=lambda kind, fn: None)
     plugin_env = env(tmp_path)
     old = plugin.os.environ.copy()
     plugin.os.environ.update(plugin_env)
@@ -200,7 +200,7 @@ def test_register_seeds_the_file(tmp_path):
     finally:
         plugin.os.environ.clear()
         plugin.os.environ.update(old)
-    assert hooks == ["pre_gateway_dispatch", "pre_llm_call", "pre_api_request", "pre_tool_call", "post_tool_call", "on_session_end", "on_session_finalize"]
+    assert hooks == ["pre_gateway_dispatch", "pre_gateway_dispatch", "pre_tool_call", "pre_llm_call", "pre_api_request", "pre_tool_call", "post_tool_call", "on_session_end", "on_session_finalize"]
     data = json.loads((tmp_path / "committee" / "committee.json").read_text())
     assert data == {"members": [{"telegram": "1", "github": "boss", "name": None}]}
 
@@ -675,7 +675,7 @@ def test_register_adds_queue_tool(tmp_path, monkeypatch):
         monkeypatch.setenv(key, value)
     calls = []
     ctx = types.SimpleNamespace(
-        register_hook=lambda *a: None, register_tool=lambda **kw: calls.append(kw), register_telegram_handler=lambda fn: None,
+        register_hook=lambda *a: None, register_tool=lambda **kw: calls.append(kw), register_telegram_handler=lambda fn: None, register_middleware=lambda kind, fn: None,
     )
     plugin.register(ctx)
     assert calls[0]["name"] == "factory_queue_task" and calls[0]["toolset"] == "factory"

@@ -3,9 +3,9 @@ import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { checkKnockout } from './defeat';
 import { callVehicle, honk, raiseCalls } from './dialogue';
-import { corePart, gridOf, mountedParts } from './grid';
+import { corePart, gridOf, holdCell, mountedParts } from './grid';
 import { addGoods, dumpItem } from './inventory';
-import { spillDeadRows } from './spill';
+import { spillDeadCells } from './spill';
 import { fightCornered, thinkNpc, topGoal } from './npc-activities';
 import { optionWeights } from './npc-decisions';
 import { renewSalvage } from './salvage';
@@ -210,9 +210,10 @@ describe('spilled cargo', () => {
     me.items = me.items.filter((it) => it.kind !== 'good');
     addGoods(w, me, 'salt', gridOf(me).w + 1);
     panniers.hp = 0;
-    me.items.filter((it) => it.kind === 'good' && it.good === 'salt').forEach((it) => (it.y = gridOf(me).deadFrom));
+    const dead = holdCell(gridOf(me), gridOf(me).hold.indexOf('x'));
+    me.items.filter((it) => it.kind === 'good' && it.good === 'salt').forEach((it) => Object.assign(it, dead));
 
-    spillDeadRows(w);
+    spillDeadCells(w);
 
     expect(w.salvage).toEqual(before);
     expect(w.events.filter((e) => e.t === 'cargoSpilled')).toEqual([expect.objectContaining({ pile: null })]);
