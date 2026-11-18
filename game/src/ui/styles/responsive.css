@@ -48,8 +48,5 @@
   visibility: hidden;
 }
 #ui:where(.narrow) {
-  --hud-notice-top: calc(2 * (var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap)) - var(--hud-tray-rim));
-}
-#ui:where(.narrow) > .top-right {
-  top: calc(var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap) - 2 * var(--hud-tray-rim));
+  --hud-notice-top: calc(var(--hud-tray-h) * var(--hud-zoom) + 2 * var(--hud-gap));
 }
