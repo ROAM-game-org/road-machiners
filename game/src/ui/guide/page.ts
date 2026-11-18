@@ -4,7 +4,8 @@ import { createIcon, ICON_NAMES, type IconName } from "../cards";
 import { devEl as el, uiRoot } from "../dom";
 import { TOKENS } from "../tokens";
 import { paintSkin } from "../dash/skin";
-import { PIECES } from "./pieces";
+import { PIECES, STATES, kitWindow } from "./pieces";
+import { loadLanguage } from "../../text/language";
 
 type Sample = (name: string) => HTMLElement;
 
@@ -58,10 +59,10 @@ const zSample: Sample = (name) => el("div", {}, `layer ${TOKENS.get(name)}`);
 const valueSample: Sample = (name) => el("div", {}, TOKENS.get(name) ?? "");
 
 const GROUPS: Group[] = [
-  { title: "Fonts", prefixes: ["--font-"], sample: fontSample },
+  { title: "Fonts", prefixes: ["--font-", "--engraved-"], sample: fontSample },
   { title: "Type", prefixes: ["--text-"], sample: typeSample },
   { title: "Surfaces", prefixes: ["--color-", "--surface-", "--scrim"], sample: swatch },
-  { title: "Lines", prefixes: ["--line"], sample: swatch },
+  { title: "Lines", prefixes: ["--line", "--scroll-"], sample: swatch },
   { title: "Text", prefixes: ["--ink"], sample: swatch },
   { title: "Accent", prefixes: ["--accent", "--select"], sample: swatch },
   { title: "Danger", prefixes: ["--danger", "--alarm", "--crash"], sample: swatch },
@@ -147,13 +148,66 @@ function ungrouped(): string[] {
   return [...TOKENS.keys()].filter((n) => !prefixes.some((p) => n.startsWith(p)));
 }
 
+const CHOICES = {
+  lang: ["en", "ru", "pseudo"],
+  housing: ["olive", "leather"],
+  layer: ["full", "compact", "narrow"],
+} as const;
+
+type Choice = keyof typeof CHOICES;
+
+const params = new URLSearchParams(window.location.search);
+
+function picked(name: Choice): string {
+  const value = params.get(name) ?? CHOICES[name][0];
+  if (!(CHOICES[name] as readonly string[]).includes(value)) throw new Error(`ui.html has no ${name} called ${value}`);
+  return value;
+}
+
+function choiceLink(name: Choice, value: string): HTMLElement {
+  const next = new URLSearchParams(params);
+  next.set(name, value);
+  return el("a", { class: picked(name) === value ? "on" : "", href: `?${next}` }, value);
+}
+
+function controls(): HTMLElement {
+  const group = (name: Choice) => el("span", { class: "guide-choice" }, el("b", {}, name), ...CHOICES[name].map((v) => choiceLink(name, v)));
+  return el("nav", { class: "guide-controls" }, group("lang"), group("housing"), group("layer"));
+}
+
+function stateCell(state: (typeof STATES)[number]): HTMLElement {
+  return el("div", { class: "guide-cell kit-state" }, el("div", { class: "kit-sample" }, ...state.build()), el("span", {}, state.name), el("small", {}, state.note));
+}
+
+function kit(): HTMLElement {
+  const layer = picked("layer");
+  return el(
+    "section",
+    { class: `guide-kit layer-${layer}` },
+    el("h2", {}, "Kit"),
+    kitWindow(),
+    el("h2", {}, "States"),
+    el("div", { class: "guide-grid" }, ...STATES.map(stateCell)),
+  );
+}
+
+function applyChoices(root: HTMLElement): void {
+  const layer = picked("layer");
+  if (layer !== "full") root.classList.add(layer);
+  if (layer === "narrow") root.classList.add("compact");
+  if (picked("housing") === "leather") document.documentElement.style.setProperty("--hud-slate-art", "var(--hud-slate-leather-art)");
+}
+
 function render(): void {
   const missed = ungrouped();
   if (missed.length > 0) throw new Error(`ui.html shows no group for: ${missed.join(", ")}`);
   const root = uiRoot();
   root.classList.add("guide");
-  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), icons(), pieces());
+  applyChoices(root);
+  root.append(el("h1", {}, "Road Machiners UI guide"), controls(), kit(), pieces(), icons(), ...GROUPS.map(section));
+  root.querySelector<HTMLElement>(".kit-focus")?.focus();
 }
 
+loadLanguage(window.localStorage, `?lang=${picked("lang")}`, import.meta.env.DEV, document.documentElement);
 paintSkin();
 render();

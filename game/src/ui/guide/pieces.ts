@@ -1,9 +1,9 @@
-import { actionRow, costItem, gaugeEl, statRow, statValueEl } from "../cards";
+import { actionRow, costItem, createIcon, gaugeEl, statRow, statValueEl } from "../cards";
 import { chipEl } from "../chip";
-import { devEl as el } from "../dom";
+import { devEl as el, el as msgEl } from "../dom";
 import { speedKey } from "../travel-speed";
-import { verbatim } from "../../text/msg";
-import { moneyEl } from "../units";
+import { SPACE, t, verbatim, type Msg } from "../../text/msg";
+import { moneyEl, moneyMsg, priceTag, pricedEl } from "../units";
 import { workMeterBar } from "../work-meter";
 
 export interface Piece {
@@ -139,4 +139,65 @@ function optionSwitch(): HTMLElement {
   const choice = (words: string, pressed: boolean, off = false): HTMLElement =>
     el("button", { class: "num", "aria-pressed": String(pressed), ...(off ? { "aria-disabled": "true", title: "Too big for this screen" } : {}) }, words);
   return el("div", { class: "option-switch", role: "group" }, choice("80%", false), choice("100%", true), choice("130%", false, true));
+}
+
+export interface KitState {
+  name: string;
+  note: string;
+  build: () => HTMLElement[];
+}
+
+const kitKey = (label: Msg, cls = "", attrs: Record<string, string> = {}): HTMLElement => msgEl("button", { class: cls, ...attrs }, label);
+
+const offKey = (label: Msg | HTMLElement, reason: Msg): HTMLElement => msgEl("button", { "aria-disabled": "true", title: reason }, label);
+
+const kitTile = (cls: string, label: Msg): HTMLElement => msgEl("div", { class: `tile ${cls}`.trim() }, label);
+
+export const STATES: KitState[] = [
+  { name: "rest", note: "Can be used.", build: () => [kitKey(t("goods.buy")), kitTile("", t("inv.title"))] },
+  { name: "hover", note: "Point at them. A key keeps its look, a tile lights its edge.", build: () => [kitKey(t("goods.buy")), kitTile("", t("inv.title"))] },
+  { name: "focus", note: "The first key takes focus when the sheet opens.", build: () => [kitKey(t("goods.buy"), "kit-focus")] },
+  { name: "selected", note: "A key that is on takes the lit cap. A tile takes the accent.", build: () => [kitKey(t("menu.save"), "on"), kitTile("selected", t("inv.title"))] },
+  { name: "planned", note: "The dashed share a choice would add.", build: () => [gaugeEl(0.4, { after: { left: 0.4, width: 0.25 } })] },
+  { name: "working", note: "Timed work in progress.", build: () => [workMeterBar({ turnsLeft: 3, total: 8 }, t("inv.title"))] },
+  { name: "disabled", note: "The cap stays and the print dims. Hover gives the reason.", build: () => [offKey(t("trade.repairAllVerb"), t("options.uiSizeTooBig"))] },
+  { name: "spent", note: "The row stays with a past-tense tag.", build: () => [msgEl("div", { class: "row spent" }, t("inv.title"), SPACE, msgEl("span", { class: "tag" }, t("trade.done.sold")))] },
+  { name: "seen", note: "Nothing new behind it.", build: () => [msgEl("button", { class: "quest-choice seen" }, t("menu.continue"))] },
+  { name: "unaffordable", note: "The price takes danger ink.", build: () => [offKey(pricedEl(t("goods.buy"), priceTag(544, false)), t("trade.needMore", { price: moneyMsg(344) }))] },
+  { name: "locked", note: "The lock comes before the word.", build: () => [msgEl("button", { "aria-disabled": "true" }, createIcon("lock"), t("goods.buy"))] },
+];
+
+function windowHead(): HTMLElement {
+  return msgEl("div", { class: "kit-head" }, msgEl("h3", {}, t("inv.title")), kitKey(t("inv.close"), "close"));
+}
+
+function windowWell(): HTMLElement {
+  return msgEl(
+    "div",
+    { class: "well" },
+    msgEl("div", { class: "well-group" }, msgEl("div", { class: "meter-row" }, statRow("mass", t("stat.mass"), statValueEl(verbatim("1,680 / 3,840 kg"))), gaugeEl(0.44, { share: { left: 0.3, width: 0.14 } }))),
+    msgEl("div", { class: "well-group" }, statRow("mass", t("inv.condition"), statValueEl(verbatim("38/38"))), statRow("mass", t("options.uiSize"), statValueEl(verbatim("100%")))),
+  );
+}
+
+function windowKeys(): HTMLElement {
+  return msgEl(
+    "div",
+    { class: "kit-keys" },
+    kitKey(t("confirm.cancel")),
+    offKey(t("trade.repairAllVerb"), t("options.uiSizeTooBig")),
+    kitKey(t("hud.endRun"), "btn-danger"),
+    kitKey(t("contract.accept"), "btn-l"),
+  );
+}
+
+export function kitWindow(): HTMLElement {
+  return msgEl(
+    "div",
+    { class: "dialog kit-window" },
+    windowHead(),
+    msgEl("div", { class: "tabs" }, kitKey(t("menu.save"), "on"), kitKey(t("menu.load")), kitKey(t("menu.options"))),
+    msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", {}, t("menu.bootUnfinished")))),
+    windowKeys(),
+  );
 }

@@ -12,7 +12,11 @@
   position: static;
 }
 #ui.guide .confirm-dialog {
+  position: static;
   transform: none;
+}
+#ui.guide .dialog {
+  box-shadow: none;
 }
 #ui.guide h1 {
   margin: 0 0 var(--space-4);
@@ -63,4 +67,69 @@
   gap: var(--space-4);
   padding: var(--space-2) var(--space-3);
   width: fit-content;
+}
+.guide-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-9);
+  margin-bottom: var(--space-7);
+  font: var(--text-body) var(--font-mono);
+}
+.guide-choice {
+  display: flex;
+  gap: var(--space-4);
+}
+.guide-choice a {
+  color: var(--ink-muted);
+}
+.guide-choice a.on {
+  color: var(--accent);
+}
+.guide-kit.layer-compact {
+  max-width: var(--panel-xl);
+}
+.guide-kit.layer-narrow {
+  max-width: var(--panel-l);
+}
+#ui.guide .kit-window {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--panel-xl);
+  box-shadow: none;
+}
+.kit-head,
+.kit-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.kit-head h3 {
+  margin: 0;
+}
+.kit-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-9);
+}
+.kit-body > .well {
+  flex: 1 1 var(--panel-s);
+}
+.kit-side {
+  flex: 1 1 var(--panel-s);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.kit-sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+.kit-sample > :is(.gauge, .meter) {
+  width: 100%;
 }
