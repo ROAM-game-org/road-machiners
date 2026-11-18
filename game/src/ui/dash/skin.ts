@@ -4,6 +4,8 @@ import { concat, LINE_BREAK, type Msg, verbatim } from "../../text/msg";
 import { createIcon } from "../cards";
 import { el, type Child } from "../dom";
 import { keyTip } from "../input-mode";
+import { token } from "../tokens";
+import { uiSize } from "../ui-size";
 
 export function setText(slot: Element, msg: Msg): void {
   if (slot.textContent === say(msg) && slot.firstChild !== null) return;
@@ -170,6 +172,9 @@ export const WEAPONS_PLATE = {
   height: 734,
   boxes: {
     screen: [108, 68, 1606, 468],
+    body: [6, 14, 1962, 512],
+    topTexture: [30, 14, 1930, 56],
+    sideTexture: [10, 20, 26, 500],
     allKey: [1712, 92, 1900, 282],
     autoBox: [1645, 295, 1920, 450],
     autoLabel: [1676, 300, 1784, 440],
@@ -190,6 +195,8 @@ export const RADIO_PLATE = {
     knob: [722, 601, 798, 677],
     knobMarks: [620, 575, 900, 703],
     play: [962, 593, 1104, 685],
+    body: [2, 6, 1278, 692],
+    topTexture: [30, 4, 1250, 11],
   },
 } as const satisfies PlateSpec<string>;
 
@@ -210,9 +217,10 @@ export const KIT = {
   playkey: { art: "kit/playkey", width: 246, height: 160, boxes: {} },
   rim: { art: "kit/rim", width: 90, height: 90, boxes: {} },
   well: { art: "kit/well", width: 90, height: 90, boxes: {} },
-  driveHood: { art: "drive-hood", width: 1633, height: 713, boxes: {} },
+  driveHood: { art: "drive-hood", width: 1633, height: 713, boxes: { top: [0, 4, 1633, 70] } },
   driveBack: { art: "drive-back", width: 1633, height: 713, boxes: {} },
   visor: { art: "visor", width: 420, height: 88, boxes: {} },
+  rail: { art: "rail", width: 1000, height: 26, boxes: {} },
 } as const satisfies Record<string, PlateSpec<never>>;
 
 
@@ -346,6 +354,7 @@ export async function paintSkin(root: HTMLElement = document.documentElement): P
   root.style.setProperty("--hud-drive-hood-art", `url("${publicUrl(`hud/${KIT.driveHood.art}.webp`)}")`);
   root.style.setProperty("--hud-drive-back-art", `url("${publicUrl(`hud/${KIT.driveBack.art}.webp`)}")`);
   root.style.setProperty("--hud-visor-art", `url("${publicUrl(`hud/${KIT.visor.art}.webp`)}")`);
+  root.style.setProperty("--hud-rail-art", `url("${publicUrl(`hud/${KIT.rail.art}.webp`)}")`);
   const [olive, rim, well] = await Promise.all([KIT.olive, KIT.rim, KIT.well].map((piece) => tinted(piece.art, root)));
   root.style.setProperty("--hud-rim-art", `url("${rim}")`);
   root.style.setProperty("--hud-well-art", `url("${well}")`);
@@ -372,4 +381,141 @@ async function tinted(art: string, root: HTMLElement): Promise<string> {
   pen.globalCompositeOperation = "destination-in";
   pen.drawImage(image, 0, 0);
   return out.toDataURL("image/png");
+}
+
+
+interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
+interface Face {
+  shape: Box;
+  texture: Box;
+}
+
+export interface DeviceView {
+  plate: PlateSpec<string>;
+  top: Face;
+  side: Face | null;
+}
+
+const FACES = "device-faces";
+const views = new WeakMap<SVGSVGElement, DeviceView>();
+let patterns = 0;
+
+function facePolygon(kind: "top" | "side", plate: PlateSpec<string>): SVGElement[] {
+  const id = `device-face-${patterns++}`;
+  const pattern = svgNode("pattern", { id, patternUnits: "userSpaceOnUse", x: -5000, y: -5000, width: 10000, height: 10000 });
+  pattern.append(svgNode("image", { href: publicUrl(`hud/${plate.art}.webp`), preserveAspectRatio: "none" }));
+  const defs = svgNode("defs", {});
+  defs.append(pattern);
+  return [defs, svgNode("polygon", { class: `face-${kind} face-paint`, fill: `url(#${id})` }), svgNode("polygon", { class: `face-${kind} face-light` }), svgNode("path", { class: `face-${kind} face-edge` })];
+}
+
+export function deviceCast(): SVGSVGElement {
+  const svg = svgNode("svg", { class: "device-cast", "aria-hidden": "true" }) as SVGSVGElement;
+  svg.append(svgNode("polygon", {}));
+  return svg;
+}
+
+export function deviceFaces(view: DeviceView): SVGSVGElement {
+  const svg = svgNode("svg", { class: FACES, "aria-hidden": "true" }) as SVGSVGElement;
+  views.set(svg, view);
+  if (view.side) svg.append(...facePolygon("side", view.plate));
+  svg.append(...facePolygon("top", view.plate));
+  return svg;
+}
+
+export function placeDashView(): void {
+  const hood = document.querySelector<HTMLElement>("#ui .hud-drive > .drive-hood");
+  if (!hood || hood.getClientRects().length === 0) return;
+  const layer = uiSize().layerSize();
+  const vanish = { x: layer.width * Number(token("--hud-vanish-x")), y: -layer.height * Number(token("--hud-vanish-above")) };
+  const rect = uiSize().layerRect(hood);
+  const [, back, , front] = KIT.driveHood.boxes.top;
+  const frontY = rect.top + (rect.height * front) / KIT.driveHood.height;
+  const backY = rect.top + (rect.height * back) / KIT.driveHood.height;
+  const depth = (frontY - backY) / (frontY - vanish.y);
+  for (const svg of document.querySelectorAll<SVGSVGElement>(`#ui .${FACES}`)) drawFaces(svg, views.get(svg)!, vanish, depth);
+}
+
+function plateToRoot(plate: HTMLElement, spec: PlateSpec<string>): ((x: number, y: number, z?: number) => ScreenPoint) | null {
+  const style = getComputedStyle(plate);
+  if (style.transform === "none") return null;
+  const matrix = new DOMMatrix(style.transform);
+  const [ox, oy] = style.transformOrigin.split(" ").map(parseFloat);
+  const [left, top, width, height] = [plate.offsetLeft, plate.offsetTop, plate.offsetWidth, plate.offsetHeight];
+  return (x, y, z = 0) => {
+    const point = matrix.transformPoint(new DOMPoint((x / spec.width) * width - ox, (y / spec.height) * height - oy, z, 1));
+    return { x: point.x / point.w + left + ox, y: point.y / point.w + top + oy };
+  };
+}
+
+function drawFaces(svg: SVGSVGElement, view: DeviceView, vanish: ScreenPoint, depth: number): void {
+  const root = svg.parentElement!;
+  const plate = root.querySelector<HTMLElement>(":scope > .hud-plate")!;
+  if (plate.getClientRects().length === 0) return;
+  const box = uiSize().layerRect(root);
+  const scale = root.offsetWidth / box.width;
+  const eye = { x: (vanish.x - box.left) * scale, y: (vanish.y - box.top) * scale };
+  plate.style.setProperty("--eye-x", `${eye.x - plate.offsetLeft}px`);
+  plate.style.setProperty("--eye-y", `${eye.y - plate.offsetTop}px`);
+  const turned = plateToRoot(plate, view.plate);
+  const flat = (x: number, y: number): ScreenPoint => ({ x: plate.offsetLeft + (x / view.plate.width) * plate.offsetWidth, y: plate.offsetTop + (y / view.plate.height) * plate.offsetHeight });
+  const at = turned ?? flat;
+  const turnEye = { x: at(view.plate.width, 0).x, y: eye.y };
+  const back = (x: number, y: number): ScreenPoint => {
+    const p = at(x, y);
+    const target = turned ? turnEye : eye;
+    return { x: p.x + (target.x - p.x) * depth, y: p.y + (target.y - p.y) * depth };
+  };
+  drawCast(root, view.plate, at);
+  svg.setAttribute("viewBox", `0 0 ${root.offsetWidth} ${root.offsetHeight}`);
+  svg.style.setProperty("--face-line", `${(Number(token("--hud-art-line")) * plate.offsetWidth) / view.plate.width}px`);
+  const [x0, y0, x1] = view.top.shape;
+  const tl = at(x0, y0);
+  const tr = at(x1, y0);
+  paint(svg, "top", [tl, tr, back(x1, y0), back(x0, y0)], view.top.texture, view.plate);
+  if (view.side) drawSide(svg, view.side, view.plate, at, back, eye.x < tl.x || eye.x > tr.x, eye.x < tl.x);
+}
+
+function drawCast(root: HTMLElement, spec: PlateSpec<string>, at: (x: number, y: number) => ScreenPoint): void {
+  const cast = parseFloat(token("--hud-cast-reach"));
+  const floor = parseFloat(token("--hud-top-depth")) - parseFloat(token("--hud-rail-show"));
+  const bl = at(0, spec.height);
+  const br = at(spec.width, spec.height);
+  const contact = parseFloat(token("--hud-contact-shade"));
+  const castLayer = root.querySelector<SVGSVGElement>(":scope > .device-cast")!;
+  castLayer.setAttribute("viewBox", `0 0 ${root.offsetWidth} ${root.offsetHeight}`);
+  castLayer.querySelector("polygon")!.setAttribute("points", [{ x: bl.x, y: bl.y + contact }, { x: br.x, y: br.y + contact }, { x: br.x + cast, y: br.y - floor }, { x: bl.x + cast, y: bl.y - floor }].map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" "));
+}
+
+function drawSide(svg: SVGSVGElement, side: Face, spec: PlateSpec<string>, at: (x: number, y: number) => ScreenPoint, back: (x: number, y: number) => ScreenPoint, outside: boolean, leftward: boolean): void {
+  const [sx0, sy0, sx1, sy1] = side.shape;
+  const edge = leftward ? sx0 : sx1;
+  const upper = at(edge, sy0);
+  const lower = at(edge, sy1);
+  paint(svg, "side", outside ? [upper, back(edge, sy0), back(edge, sy1), lower] : [], side.texture, spec);
+}
+
+function paint(svg: SVGSVGElement, kind: "top" | "side", points: ScreenPoint[], texture: Box, spec: PlateSpec<string>): void {
+  const list = points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+  for (const polygon of svg.querySelectorAll(`polygon.face-${kind}`)) polygon.setAttribute("points", list);
+  const xy = (p: ScreenPoint): string => `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+  svg.querySelector(`.face-${kind}.face-edge`)!.setAttribute("d", points.length === 0 ? "" : `M${xy(points[0])}L${xy(points[3])}L${xy(points[2])}L${xy(points[1])}`);
+  if (points.length === 0) return;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const [bx, by, bw, bh] = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+  const [tx0, ty0, tx1, ty1] = texture;
+  const sx = bw / (tx1 - tx0);
+  const sy = bh / (ty1 - ty0);
+  const polygon = svg.querySelector(`.face-${kind}.face-paint`)!;
+  const id = polygon.getAttribute("fill")!.slice(5, -1);
+  const image = svg.querySelector(`#${id} > image`)!;
+  image.setAttribute("x", String(bx - tx0 * sx + 5000));
+  image.setAttribute("y", String(by - ty0 * sy + 5000));
+  image.setAttribute("width", String(spec.width * sx));
+  image.setAttribute("height", String(spec.height * sy));
 }

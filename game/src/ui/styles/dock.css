@@ -18,7 +18,7 @@
 }
 #ui .right-column > .hud-radio {
   order: 1;
-  translate: var(--hud-radio-tuck) 0;
+  translate: var(--hud-radio-tuck) calc(-1 * var(--hud-device-lift));
 }
 #ui .log {
   display: flex;

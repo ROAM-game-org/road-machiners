@@ -11,7 +11,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, dashRail, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd } from "./dash/panels";
 import { controls, paintSkin, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, tray, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
@@ -48,6 +48,7 @@ import { getHudReadout, getRescueReadout, overdriveSwitch, type Readout, type Re
 import { actionRow, costItem, createIcon, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
+import { placeDashView } from "./dash/skin";
 import { Tips, type TipSwitch } from "./tips";
 import { fuelLiters, hp, kph, moneyEl } from "./units";
 import { isPlayerTruck, playerVehicle } from "../sim/damage";
@@ -278,6 +279,7 @@ export class Hud {
       this.placeInfo();
       this.placeSide();
       this.capCondition();
+      placeDashView();
     });
   }
 
@@ -317,6 +319,7 @@ export class Hud {
     );
     topLeft().prepend(this.stats.root);
     topRight().prepend(this.system.root);
+    dashRail();
     bottomLeft().prepend(this.drive.root);
     this.deck.talk.append(radio.root);
     this.deck.log.append(this.log.root);

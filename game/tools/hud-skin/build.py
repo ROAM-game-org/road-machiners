@@ -23,11 +23,11 @@ EVEN_FACE_BLUR = 30
 EVEN_FACE_MIN_SAT = 0.6
 
 PLATES = {
-    'drive': {'width': 1633, 'keep': [], 'painted': True},
-    'weapons': {'width': 1969, 'keep': [(195, 490, 330, 530), (1688, 490, 1795, 530), (155, 630, 290, 734), (1685, 645, 1820, 734)]},
-    'radio': {'width': 1279, 'keep': [(968, 219, 1032, 527)]},
+    'drive': {'width': 1633, 'painted': True},
+    'weapons': {'width': 1969, 'painted': True},
+    'radio': {'width': 1279, 'painted': True},
 }
-PAINTED = {'drive-hood': 1633, 'drive-back': 1633, 'visor': 420}
+PAINTED = {'drive-hood': 1633, 'drive-back': 1633, 'visor': 420, 'rail': 1000}
 KIT = {
     'tape': ('weapons', [(0, 0, 167, 76)]),
     'lamp': ('weapons', [(8, 8, 56, 56)]),

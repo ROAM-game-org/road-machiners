@@ -4,6 +4,7 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
+import { deviceCast, deviceFaces } from "./skin";
 import { clampShare, setLcd, DRIVE_PLATE, RADIO_PLATE, isOff, keyCap, kitPiece, lamp, Plate, Rocker, setAttrText, tray, setData, setFlag, showControl, svgNode, type Box, type RockerView } from "./skin";
 
 export type StatTone = "base" | "warn" | "danger";
@@ -506,7 +507,7 @@ export class RadioDeck {
     this.turn.addEventListener("pointerup", () => this.release());
     this.turn.addEventListener("pointercancel", () => this.release());
     this.wheel.addEventListener("pointerdown", (e) => this.dragWheel(e));
-    this.root = el("div", { class: "hud-radio" }, this.plate.root);
+    this.root = el("div", { class: "hud-radio" }, deviceCast(), deviceFaces({ plate: RADIO_PLATE, top: { shape: RADIO_PLATE.boxes.body, texture: RADIO_PLATE.boxes.topTexture }, side: null }), this.plate.root);
     new ResizeObserver(([entry]) => shareRadioScale(entry.contentRect.width)).observe(this.plate.root);
   }
 

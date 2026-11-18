@@ -176,7 +176,7 @@
 }
 
 #ui .hud-drive > .drive-plate {
-  transform: perspective(var(--hud-drive-perspective)) rotateX(var(--hud-drive-tilt)) translateZ(calc(-1 * var(--hud-drive-depth)));
+  transform: perspective(var(--hud-view-perspective)) rotateX(var(--hud-view-tilt)) translateZ(calc(-1 * var(--hud-drive-depth)));
   transform-origin: 0 100%;
 }
 
@@ -1609,6 +1609,10 @@
   pointer-events: none;
 }
 
+#ui :is(.drive-plate, .weapons-plate, .radio-plate) > :is(.plate-patina, .plate-glaze) {
+  display: none;
+}
+
 #ui .hud-plate > .plate-patina {
   z-index: var(--z-hud-patina);
   -webkit-mask: var(--plate-metal) 0 0 / 100% 100% no-repeat;
@@ -1769,4 +1773,73 @@
 #ui .drive-plate .cool-key {
   border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
   border-image-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
+}
+
+#ui > .dash-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--hud-rail-h);
+  pointer-events: none;
+  background:
+    linear-gradient(var(--hud-edge-ink), var(--hud-edge-ink)) 0 calc(var(--hud-top-depth) - 1px) / 100% 1px no-repeat,
+    var(--hud-rail-art) 0 var(--hud-top-depth) / auto var(--hud-rail-front) repeat-x,
+    linear-gradient(to bottom, var(--hud-edge-ink) 0 1px, var(--hud-rail-top) 1px);
+}
+
+#ui .hud-drive::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  bottom: calc(var(--hud-drive-sink) + var(--hud-rail-front));
+  width: var(--hud-cast-reach);
+  height: var(--hud-top-depth);
+  background: var(--hud-cast-shade);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  pointer-events: none;
+}
+
+#ui :is(.hud-weapons, .hud-radio) > .device-faces {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+
+#ui .device-faces > .face-edge {
+  fill: none;
+  stroke: var(--hud-art-ink);
+  stroke-width: var(--face-line);
+  stroke-linejoin: round;
+}
+
+#ui .device-faces > .face-top.face-light {
+  fill: var(--hud-face-lit);
+}
+
+#ui .device-faces > .face-side.face-light {
+  fill: var(--hud-face-shade);
+}
+
+#ui :is(.hud-weapons, .hud-radio) {
+  position: relative;
+}
+
+#ui :is(.hud-weapons, .hud-radio) > .device-cast {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: var(--hud-cast-shade);
+  pointer-events: none;
+}
+
+#ui .radio-plate {
+  transform: perspective(var(--hud-view-perspective)) translateX(calc(100% - var(--eye-x))) rotateY(calc(-1 * var(--hud-radio-turn))) translateX(calc(var(--eye-x) - 100%)) translateZ(var(--hud-radio-near));
+  transform-origin: var(--eye-x) var(--eye-y);
 }

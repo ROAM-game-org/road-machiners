@@ -2,6 +2,7 @@ import { el } from "../dom";
 import { createBareItemIcon } from "../cards";
 import { setData, setText, setAttrText, setFlag, showControl, plateKey, pressIfOn, type Lamp, kitPiece, keyCap, lamp, Plate, rockerFace, WEAPONS_PLATE, amberTint } from "./skin";
 import type { FireBlock } from "../../sim/combat";
+import { deviceCast, deviceFaces } from "./skin";
 import { num, type Msg } from "../../text/msg";
 import type { UtilityState } from "../weapons";
 
@@ -172,7 +173,7 @@ export class WeaponsPanel {
     this.autoRocker = this.plate.pin(el("span", { class: "rocker-socket auto-rocker" }, rockerFace()), "autoLever");
     this.plate.pin(el("span", { class: "plate-label auto-label" }, labels.autoFire), "autoLabel");
     this.plate.place(this.strip, "strip");
-    this.root = el("div", { class: "hud-weapons" }, this.plate.root);
+    this.root = el("div", { class: "hud-weapons" }, deviceCast(), deviceFaces({ plate: WEAPONS_PLATE, top: { shape: WEAPONS_PLATE.boxes.body, texture: WEAPONS_PLATE.boxes.topTexture }, side: { shape: WEAPONS_PLATE.boxes.body, texture: WEAPONS_PLATE.boxes.sideTexture } }), this.plate.root);
   }
 
   update(view: WeaponsView): void {

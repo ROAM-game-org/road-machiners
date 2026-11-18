@@ -22,6 +22,7 @@
   justify-content: flex-end;
   align-items: flex-start;
   gap: var(--hud-gap);
+  row-gap: calc(var(--hud-gap) + var(--hud-device-lift) + var(--hud-drive-sink-px));
   max-width: calc(var(--layer-w) - var(--space-8) - var(--right-column));
 }
 #ui .bottom-left > .panel {
@@ -33,6 +34,7 @@
 #ui .bottom-left > .weapons {
   order: 0;
   flex: 0 0 auto;
+  translate: 0 calc(-1 * var(--hud-device-lift));
 }
 #ui .bottom-left > .truck-stack {
   position: absolute;

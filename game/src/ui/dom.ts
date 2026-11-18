@@ -73,6 +73,15 @@ export function topLeft(): HTMLElement {
   return row;
 }
 
+export function dashRail(): HTMLElement {
+  const root = uiRoot();
+  const found = root.querySelector<HTMLElement>(':scope > .dash-rail');
+  if (found) return found;
+  const rail = el('div', { class: 'dash-rail', 'aria-hidden': 'true' });
+  root.prepend(rail);
+  return rail;
+}
+
 export function bottomLeft(): HTMLElement {
   const root = uiRoot();
   const found = root.querySelector<HTMLElement>(':scope > .bottom-left');
