@@ -1,6 +1,6 @@
 # UI kit library and review sheet
 
-**Status:** reviewing
+**Status:** validating
 **Branch:** hud-dashboard
 **Worktree:** /Users/boris/Documents/Korovan/.worktrees/hud-dashboard
 **Goal:** Every shared UI piece of `game/docs/ui.md` section 12, in every state of section 6, has a version in the baked HUD look, and every screen in `docs/screens/` wears it with its layout unchanged. The user signs both off on the `ui.html` sheet and on a before and after pair of every screen image. The sheet is what later screen-replacement tasks build from, one screen family each. Confirming the goal needs the user's sign-off on the sheet. Useless if: the sheet draws mockup markup that real screens never call; a piece clips in Russian, pseudo-long text or on a narrow layer; the hardware look breaks the grayscale hierarchy of P11 on a dense list; a piece exists only for the sheet; a screen counts as done because old flat markup sits inside a new frame.
@@ -134,8 +134,42 @@ Approach: rebake `slate` as the window housing, retune the ink and surface token
 ## Verify
 
 - Style guard, guide test, gallery test, `src/ui` Vitest, typecheck and the quality gate pass.
-- `npm run playtest` passes on the GPU at 60.5 fps after two fixes outside the kit: Playwright's Firefox was not installed, and the dead-corner check looked only for `.key-cap`, which the baked HUD no longer draws. The second failure also hit the commit before the kit.
+- `src/ui` Vitest passes, 1563 tests. `npm run playtest` passes on the GPU at 60.5 fps after two fixes outside the kit: Playwright's Firefox was not installed, and the dead-corner check looked only for `.key-cap`, which the baked HUD no longer draws. The second failure also hit the commit before the kit.
 - Layout check over 351 captures, before the kit against after: 266 faults gone, 99 new. The new ones come from three causes. Some text differs from run to run, like the radio line, the build hash and the gun card status. The town truck drawing grows, because narrower keys let the yard head fit on one row, and this squeezes the shop truck card and moves wheel hit cells. Long test text makes the start Options panel overlap.
 - The before and after pairs of all 67 surveyed screens are in `game/tmp/kit/before-after.html`. Panels, the ink page and inputs keep their old border boxes, so column lines stay in place (IV4). The one exception is the yard head reflow above.
 - The sheet `ui.html` renders in English, Russian and pseudo text, with olive or leather housings and at the full, compact and narrow widths, with no page errors. It threw on load before this work, because `--engraved-stroke` belonged to no token group.
 - AS1 held: both housings and the key cap stretch to 1200 by 600 and to a long Russian label with no seams. AS2 held: the playtest frame rate stays at 60.
+
+## Conclusion
+
+Every shared piece now draws as baked hardware, and all 67 surveyed screens wear it with their layouts in place. The goal waits on the user's sign-off on `ui.html` and on `game/tmp/kit/before-after.html`.
+
+### Deviations from plan
+
+- The sheet has no desktop and flat view switch. Window pieces bake only the desktop view, so the switch would change nothing.
+- The keycap 9-slice is shared through `--hud-keycap-slice`, not through one moved rule. Key states set `--key-art` and `--key-print`, so the exclusion list of the key rule is written once.
+- `.dialog button.close` became a plain key instead of the `close` piece, since window close keys carry the word Close.
+- `button:hover` in `base.css` stays. The cap's fill paints over its background.
+- The boot screen keeps its old look through `--boot-*` tokens. The crash screen sits outside `#ui`, so it never took the kit.
+- Review found lost state cues on read quest choices, the Skip intro toggle and the Start key, and an invisible gun share on the gauge. All are fixed in f43fe657f, apart from the Start key's accent border, which is gone with no replacement.
+
+### Assumptions and unknowns
+
+- AS1 and AS2 held, as Verify says.
+- IV2 holds only for raw values and button sizes. The style guard does not check frames or colors.
+- UK1 is open. The user picks the olive or leather housing on the sheet, then PH6 runs.
+- UK2 is answered: no screen broke its grid. The follow-ups below are the faults the kit added.
+- UK3 is open. Body ink `--ink` sits close to the accent in hue and brightness. Keys show selection by the lit cap, but a selected tile relies on the accent edge.
+
+### Follow-ups
+
+- Town yard: the head row now fits on one line, so the truck drawing grows. That squeezes the shop truck card, whose delta column escapes by 6px. It also moves wheel hit cells on the trade screen.
+- Start Options panel overlaps the start keys in pseudo-long text at 1280 by 720.
+- In the engraved face the digit 1 reads like a capital I, as in "1. Machiners' yard".
+- The Start key lost its accent border, and nothing marks it as the main choice.
+- `.btn-danger` has no caller in a screen. The confirm dialog uses `hud-key danger`.
+
+## Code smells
+
+- `game/src/ui/styles/components.css:35` — the key rule's exclusion list names 18 classes, and `style-guard.test.ts:58` reads only its first match (GPC4).
+- `game/src/ui/styles/dash.css` — the hud-armed state prints "Guns, page 1 of 2" over the gun cards, before and after the kit.
