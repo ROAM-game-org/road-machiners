@@ -1,6 +1,6 @@
 # UI kit library and review sheet
 
-**Status:** executing
+**Status:** reviewing
 **Branch:** hud-dashboard
 **Worktree:** /Users/boris/Documents/Korovan/.worktrees/hud-dashboard
 **Goal:** Every shared UI piece of `game/docs/ui.md` section 12, in every state of section 6, has a version in the baked HUD look, and every screen in `docs/screens/` wears it with its layout unchanged. The user signs both off on the `ui.html` sheet and on a before and after pair of every screen image. The sheet is what later screen-replacement tasks build from, one screen family each. Confirming the goal needs the user's sign-off on the sheet. Useless if: the sheet draws mockup markup that real screens never call; a piece clips in Russian, pseudo-long text or on a narrow layer; the hardware look breaks the grayscale hierarchy of P11 on a dense list; a piece exists only for the sheet; a screen counts as done because old flat markup sits inside a new frame.
@@ -130,3 +130,12 @@ Approach: rebake `slate` as the window housing, retune the ink and surface token
 - RK2 — A HUD panel that clears its gray box with `border-color` or `background` alone, not the `border` shorthand, would show the slate art. The field screen pairs catch it, and the fix clears the art in that panel's rule.
 - RK3 — The ink page and the quest page carry art and their own surfaces. Their pairs are checked first, and a fight with the housing is listed as a follow-up.
 - Rollback: each phase is one commit on `hud-dashboard`, and nothing reaches dev until the user lands it.
+
+## Verify
+
+- Style guard, guide test, gallery test, `src/ui` Vitest, typecheck and the quality gate pass.
+- `npm run playtest` passes on the GPU at 60.5 fps after two fixes outside the kit: Playwright's Firefox was not installed, and the dead-corner check looked only for `.key-cap`, which the baked HUD no longer draws. The second failure also hit the commit before the kit.
+- Layout check over 351 captures, before the kit against after: 266 faults gone, 99 new. The new ones come from three causes. Some text differs from run to run, like the radio line, the build hash and the gun card status. The town truck drawing grows, because narrower keys let the yard head fit on one row, and this squeezes the shop truck card and moves wheel hit cells. Long test text makes the start Options panel overlap.
+- The before and after pairs of all 67 surveyed screens are in `game/tmp/kit/before-after.html`. Panels, the ink page and inputs keep their old border boxes, so column lines stay in place (IV4). The one exception is the yard head reflow above.
+- The sheet `ui.html` renders in English, Russian and pseudo text, with olive or leather housings and at the full, compact and narrow widths, with no page errors. It threw on load before this work, because `--engraved-stroke` belonged to no token group.
+- AS1 held: both housings and the key cap stretch to 1200 by 600 and to a long Russian label with no seams. AS2 held: the playtest frame rate stays at 60.
