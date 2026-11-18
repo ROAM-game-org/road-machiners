@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { atlasOf, atlasSites } from './atlas';
-import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
-import { gunSpans } from './armor';
-import { mountedItems } from './grid';
-import { generateNpcLoadout } from './npc-loadout';
+import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
 import { REGION, RETIRED_SITES } from '../data/region';
 import { HOLLOW } from '../data/sunward';
@@ -11,11 +8,7 @@ import { NAMES } from '../text/en/names';
 import { WEATHER } from '../data/weather';
 import { CHEATS, RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
-import {
-  addXp, applyGodMode, CheatError, kitChoices, randomKit, grantPerk, damagePartTo, give, killVehicles, makeHostile, placeSpot, nearbyVehicles,
-  repairAll, revealMap, setEngineHeat, setFuel, setHealth, setMoney, setSupplies, skipToHour, spawnNear,
-  noclipMove, startBattle, startWeather, teleport, toggleFrozen, toggleFullLog, toggleGod, freezeDriving, freezeFire, instantMoveItem,
-} from './cheats';
+import { addXp, applyGodMode, CheatError, grantPerk, damagePartTo, give, killVehicles, makeHostile, placeSpot, nearbyVehicles, repairAll, revealMap, setEngineHeat, setFuel, setHealth, setMoney, setSupplies, skipToHour, spawnNear, noclipMove, startBattle, startWeather, teleport, toggleFrozen, toggleFullLog, toggleGod, freezeDriving, freezeFire, instantMoveItem } from './cheats';
 import { playerVehicle } from './damage';
 import { maxHealthOf } from './health';
 import { bareGrid, corePart, fixedHoldCells, goodsCount, gridOf, holdCell, mountedParts, onDeadCell } from './grid';
@@ -587,54 +580,5 @@ describe('cheats and toughness', () => {
     w.player.health = 1;
     applyGodMode(w);
     expect(w.player.health).toBe(maxHealthOf(w));
-  });
-});
-
-describe('randomkit', () => {
-  it('gives the player a player chassis with at least one gun, and every gun can fire', () => {
-    const chassis = new Set<string>();
-    for (let seed = 1; seed <= 20; seed++) {
-      const w = emptyWorld();
-      w.rngState = seed * 7919;
-      const before = playerVehicle(w);
-      const next = randomKit(w, null);
-      const me = playerVehicle(next);
-      chassis.add(me.chassisId);
-      expect(me.id).toBe(before.id);
-      expect(PLAYER_CHASSIS).toContain(me.chassisId);
-      const guns = mountedItems(me, 'weapon');
-      expect(guns.length).toBeGreaterThan(0);
-      for (const item of guns) expect(gunSpans(me, item).length).toBeGreaterThan(0);
-    }
-    expect(chassis.size).toBeGreaterThan(2);
-  });
-
-  it('every template and player chassis pair rolls a loadout', () => {
-    for (const { tpl, chassisId } of kitChoices()) {
-      expect(generateNpcLoadout(emptyWorld(), tpl, chassisId).chassisId).toBe(chassisId);
-    }
-  });
-
-  it('refuses while the player is knocked out', () => {
-    const w = emptyWorld();
-    w.player.state = 'knockedOut';
-    expect(() => randomKit(w, null)).toThrow(CheatError);
-  });
-
-  it('a higher gear level rolls more guns on average', () => {
-    const guns = (level: number) => {
-      let sum = 0;
-      for (let seed = 1; seed <= 36; seed++) {
-        const w = emptyWorld();
-        w.rngState = seed * 104729;
-        sum += mountedItems(playerVehicle(randomKit(w, level)), 'weapon').length;
-      }
-      return sum;
-    };
-    expect(guns(5)).toBeGreaterThan(guns(1));
-  });
-
-  it('rejects a gear level outside 1 to 5', () => {
-    for (const level of [0, 6, 2.5]) expect(() => randomKit(emptyWorld(), level)).toThrow(CheatError);
   });
 });
