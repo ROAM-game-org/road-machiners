@@ -55,6 +55,7 @@ import { startGroundBaker } from './ground-off-thread';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
+import { paintSkin } from '../ui/dash/skin';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -210,6 +211,7 @@ installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
+paintSkin();
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
 loadCameraSetting(window.localStorage);

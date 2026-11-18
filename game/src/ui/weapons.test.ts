@@ -199,8 +199,8 @@ describe("aim query", () => {
     const aimed = toggleBodyAim(world, [gun], target);
     expect(aimsBody(aimed, [gun], target.id)).toBe(true);
     expect(bodyMarks(aimed, target.id)).toEqual([1]);
-    expect(en(gunsLabel(world, null))).toBe("all guns");
-    expect(en(gunsLabel(world, gun.part.id))).toBe("gun 1");
+    expect(en(gunsLabel(world, []))).toBe("No gun selected");
+    expect(en(gunsLabel(world, [gun.part.id]))).toBe("gun 1");
   });
 
   it("moves a part aim to the body, and a second toggle clears it", () => {
@@ -461,8 +461,8 @@ describe("the utility row", () => {
     const host = {
       world: () => world.w,
       apply: vi.fn((next: World) => { world.w = next; }),
-      selectedWeapon: () => null,
-      selectWeapon: vi.fn(),
+      selectedWeapons: () => [],
+      selectWeapons: vi.fn(),
       announce: vi.fn((next: World) => { world.w = next; }),
       selectedUtility: vi.fn<() => string | null>(() => null),
       selectUtility: vi.fn(),
@@ -650,7 +650,7 @@ describe("the harpoon on the weapon panel", () => {
 
 function hostOf(world: World, edit: Partial<UiHost> = {}): UiHost {
   return {
-    world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
+    world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapons: () => [], selectWeapons: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
     searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
     stepTravelSpeed: vi.fn(), getTurnPhase: () => null, menuOpen: () => false, ...edit,
   };
@@ -673,20 +673,27 @@ describe("the weapons panel view", () => {
     }
   });
 
-  it("lights All with no gun picked and marks the picked gun", () => {
+  it("lights All only when every gun is selected, and marks the selected guns", () => {
     const { world, gun } = createDuel();
-    expect(weaponsViewOf(hostOf(world)).all.on).toBe(true);
-    const picked = weaponsViewOf(hostOf(world, { selectedWeapon: () => gun.part.id }));
-    expect(picked.all.on).toBe(false);
+    expect(weaponsViewOf(hostOf(world)).all.on).toBe(false);
+    const picked = weaponsViewOf(hostOf(world, { selectedWeapons: () => [gun.part.id] }));
+    expect(picked.all.on).toBe(true);
     expect(picked.guns.map((cell) => cell.picked)).toEqual([true]);
   });
 
-  it("shows one ammo count for a gun and none for a line gun", () => {
+  it("gives Reload and Hold the reason No gun selected with nothing selected", () => {
+    const { world } = createDuel();
+    const view = weaponsViewOf(hostOf(world));
+    expect(en(view.reload.reason!)).toBe("No gun selected");
+    expect(en(view.hold.reason!)).toBe("No gun selected");
+  });
+
+  it("shows one cell per round for a gun and none for a line gun", () => {
     const s = harpoonDuel();
     const guns = weaponsViewOf(hostOf(s.w)).guns;
     const at = vehicleStats(s.w, s.me).weapons.findIndex((m) => m.part.id === s.harpoon.id);
-    expect(guns[at].rounds).toBeNull();
-    expect(guns.filter((_, i) => i !== at).every((cell) => typeof cell.rounds === "number")).toBe(true);
+    expect(guns[at].cells).toBeNull();
+    expect(guns.filter((_, i) => i !== at).every((cell) => Array.isArray(cell.cells))).toBe(true);
   });
 
   it("shows a utility with its short label, state and key", () => {
@@ -725,22 +732,33 @@ describe("weapon orders", () => {
     world.player.state = "knockedOut";
     const host = hostOf(world);
     const orders = new WeaponOrders(host);
-    orders.selectWeapon("x");
+    orders.selectWeapons(["x"]);
     orders.toggleAuto();
     orders.pressKey(1);
-    expect(host.selectWeapon).not.toHaveBeenCalled();
+    expect(host.selectWeapons).not.toHaveBeenCalled();
     expect(host.apply).not.toHaveBeenCalled();
   });
 
-  it("picks a gun by key and picks all again on a repeat", () => {
+  it("picks a gun alone by key and clears it on a repeat", () => {
     const { world, gun } = createDuel();
-    const picked = { id: null as string | null };
-    const host = hostOf(world, { selectedWeapon: () => picked.id, selectWeapon: vi.fn((id: string | null) => { picked.id = id; }) });
+    const picked = { ids: [] as readonly string[] };
+    const host = hostOf(world, { selectedWeapons: () => picked.ids, selectWeapons: vi.fn((ids: readonly string[]) => { picked.ids = ids; }) });
     const orders = new WeaponOrders(host);
     orders.pressKey(1);
-    expect(picked.id).toBe(gun.part.id);
+    expect(picked.ids).toEqual([gun.part.id]);
     orders.pressKey(1);
-    expect(picked.id).toBeNull();
+    expect(picked.ids).toEqual([]);
+  });
+
+  it("selects every gun with All and clears them on a second press", () => {
+    const { world, gun } = createDuel();
+    const picked = { ids: [] as readonly string[] };
+    const host = hostOf(world, { selectedWeapons: () => picked.ids, selectWeapons: vi.fn((ids: readonly string[]) => { picked.ids = ids; }) });
+    const orders = new WeaponOrders(host);
+    orders.toggleAll();
+    expect(picked.ids).toEqual([gun.part.id]);
+    orders.toggleAll();
+    expect(picked.ids).toEqual([]);
   });
 
   it("steps the travel speed to the knob position picked", () => {

@@ -3,6 +3,7 @@ import "./guide.css";
 import { createIcon, ICON_NAMES, type IconName } from "../cards";
 import { devEl as el, uiRoot } from "../dom";
 import { TOKENS } from "../tokens";
+import { paintSkin } from "../dash/skin";
 import { PIECES } from "./pieces";
 
 type Sample = (name: string) => HTMLElement;
@@ -154,4 +155,5 @@ function render(): void {
   root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), icons(), pieces());
 }
 
+paintSkin();
 render();

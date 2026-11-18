@@ -48,7 +48,7 @@ import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
 import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
-import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
+import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, mountedSelection, weaponsForClick } from "../ui/weapons";
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
@@ -196,7 +196,7 @@ export class Game {
   private readonly hoverHold = new HoverHold((id) => this.setHovered(id), 400);
   private readonly pin = new InspectPin(() => this.onInspectChange(), (v) => this.isVehicleVisible(v));
   private readonly pickRing = new PickRing();
-  private selected: string | null = null;
+  private selected: readonly string[] = [];
   private readonly sightLimit: SightLimit;
   readonly follow: TruckFollow;
   private planFor: World | null = null;
@@ -324,8 +324,8 @@ export class Game {
         const sting = stingOf(next.events, playerVehicle(next).id);
         if (sting) this.sound.ui(sting);
       },
-      selectedWeapon: () => this.selected,
-      selectWeapon: (id) => { if (this.anim || this.modalOpen()) return; this.selected = id; this.refreshUi(); },
+      selectedWeapons: () => this.selected,
+      selectWeapons: (ids) => { if (this.anim || this.modalOpen()) return; this.selected = ids; this.refreshUi(); },
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
@@ -421,7 +421,7 @@ export class Game {
     this.uiStale = false;
     this.menu.refresh();
     const me = playerVehicle(this.world);
-    if (this.selected && !vehicleStats(this.world, me).weapons.some((mw) => mw.part.id === this.selected)) this.selected = null;
+    this.selected = mountedSelection(vehicleStats(this.world, me).weapons, this.selected);
     if (!this.anim) {
       timed("fog", () => this.fog.update(this.world, playerSeenPropTiles(this.world)));
       this.shade.update(this.world);
@@ -538,7 +538,7 @@ export class Game {
     KeyV: { run: () => cameraSetting().toggle() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
-    Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
+    Digit0: { run: () => this.weapons.toggleAll(), noModal: true },
     ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
     KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true },
     ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
@@ -702,10 +702,10 @@ export class Game {
   }
 
   private aimVehicle(id: string): void {
-    if (this.selected === null || !this.canClick()) return;
+    if (this.selected.length === 0 || !this.canClick()) return;
     const target = vehicleById(this.world, id);
     if (isPlayerTruck(this.world, target)) return;
-    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), target));
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), target));
   }
 
   private applyRefusable(next: () => World): void {
@@ -1261,7 +1261,7 @@ export class Game {
     if (hide) return;
     const me = playerVehicle(this.world);
     const s = vehicleStats(this.world, me);
-    const sel = s.weapons.filter((m) => m.part.id === this.selected);
+    const sel = s.weapons.filter((m) => this.selected.includes(m.part.id));
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     this.zones.update(this.world.terrain, me.pos, me.heading, zoneSpeedOf(me), zoneHalfAngle(s, me.speed));
     const hover = this.hoverGround;

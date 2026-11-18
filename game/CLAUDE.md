@@ -52,6 +52,7 @@ Art and sound, in `docs/art/`:
 - [Asset review](docs/art/asset-review.md): the surface faults a model can have, the commands that find them and the independent review a new model gets.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
 - [Quest art](docs/art/quest-art.md): the style prompt and post-process for quest pictures.
+- [HUD bake](docs/art/hud-bake.md): every HUD part is a three.js scene baked to pictures by `npm run hud-bake`, with live text on top.
 - [Sound](docs/sound.md).
 
 Reference:

@@ -110,7 +110,7 @@ p.note { margin: 0 0 10px; color: #c9b58f; max-width: 980px; }
   box-sizing: border-box;
   border-style: solid; border-color: transparent;
   border-width: var(--e) var(--e) calc(var(--e) * 2.1);
-  border-image: url("../../public/hud/kit/keycap.webp") 40 40 84 40 fill / var(--e) var(--e) calc(var(--e) * 2.1) stretch;
+  border-image: url("../../public/hud/baked/pieces/desktop/keycap-up@2x.webp") 10.2% 12.2% 21.3% 12.2% fill / var(--e) var(--e) calc(var(--e) * 2.1) stretch;
   color: var(--hud-print);
   font: 400 var(--text-s) / 1.05 var(--font-engraved);
   -webkit-text-stroke: 0.03em currentColor;
@@ -118,14 +118,14 @@ p.note { margin: 0 0 10px; color: #c9b58f; max-width: 980px; }
   text-transform: uppercase;
   cursor: pointer;
 }
-.key.on { border-image-source: url("../../public/hud/kit/keycap-red.webp"); }
+.key.on { border-image-source: url("../../public/hud/baked/pieces/desktop/keycapRed-up@2x.webp"); }
 .key > * { translate: 0 calc(var(--e) * -0.3125); }
 .key > svg { width: calc(var(--p) * 70); height: calc(var(--p) * 70); fill: currentColor; }
 .key.down { border-width: calc(var(--e) * 1.6) var(--e) calc(var(--e) * 1.5); }
 
 .engraved { display: grid; place-items: center; text-align: center; font: 400 var(--text-s) / 1.1 var(--font-engraved); color: var(--hud-print-ink); text-transform: uppercase; -webkit-text-stroke: 0.03em currentColor; }
-.rocker { background: url("../../public/hud/kit/rocker-off.webp") center / 100% 100% no-repeat; cursor: pointer; }
-.rocker.on { background-image: url("../../public/hud/kit/rocker-on.webp"); }
+.rocker { background: url("../../public/hud/baked/pieces/desktop/rocker-off@2x.webp") center / 100% 100% no-repeat; cursor: pointer; }
+.rocker.on { background-image: url("../../public/hud/baked/pieces/desktop/rocker-on@2x.webp"); }
 
 .lower { display: flex; justify-content: space-evenly; align-items: center; }
 .mount { position: relative; padding: calc(var(--p) * 14) calc(var(--p) * 30); }
@@ -140,12 +140,12 @@ p.note { margin: 0 0 10px; color: #c9b58f; max-width: 980px; }
 .mount > .slot { position: relative; z-index: 2; }
 .lower { --wire-drop: calc(var(--p) * 26); }
 .slot { display: grid; grid-template-columns: auto auto; grid-template-areas: "lamp rocker" "tape rocker"; align-items: center; justify-items: center; gap: calc(var(--p) * 10) calc(var(--p) * 20); }
-.slot > .lamp { grid-area: lamp; position: relative; width: calc(var(--p) * 49); height: calc(var(--p) * 49); background: url("../../public/hud/kit/lamp.webp") center / 100% 100% no-repeat; border-radius: 50%; }
+.slot > .lamp { grid-area: lamp; position: relative; width: calc(var(--p) * 49); height: calc(var(--p) * 49); background: url("../../public/hud/baked/pieces/desktop/lamp@2x.webp") center / 100% 100% no-repeat; border-radius: 50%; }
 .slot > .lamp > i { position: absolute; inset: 14%; border-radius: 50%; }
 .slot > .lamp[data-lamp="green"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #7fd14a 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #7fd14a; }
 .slot > .lamp[data-lamp="amber"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #ffae2b 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #ffae2b; }
 .slot > .lamp[data-lamp="red"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #ff4a2b 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #ff4a2b; }
-.slot > .tape { grid-area: tape; display: grid; place-items: center; min-width: calc(var(--text-s) * 3.4); height: calc(var(--text-s) * 1.9); padding: 0 calc(var(--p) * 20); background: url("../../public/hud/kit/tape.webp") center / 100% 100% no-repeat; color: var(--hud-print-ink); font: 700 var(--text-s) / 1 var(--font-hud); letter-spacing: 0.04em; }
+.slot > .tape { grid-area: tape; display: grid; place-items: center; min-width: calc(var(--text-s) * 3.4); height: calc(var(--text-s) * 1.9); padding: 0 calc(var(--p) * 20); background: url("../../public/hud/baked/pieces/desktop/tape@2x.webp") center / 100% 100% no-repeat; color: var(--hud-print-ink); font: 700 var(--text-s) / 1 var(--font-hud); letter-spacing: 0.04em; }
 .slot > .rocker { grid-area: rocker; width: calc(var(--p) * 79); height: calc(var(--p) * 148); }
 
 #tip { position: fixed; z-index: 9; display: none; background: #c8a978; color: #2b1d0e; font: 600 13px/1.35 var(--font-hud); padding: 6px 10px; border-radius: 3px; box-shadow: 0 4px 12px #0008; white-space: nowrap; pointer-events: none; }
@@ -279,7 +279,7 @@ function plateHtml(size) {
 }
 
 const art = new Image();
-art.src = "../../public/hud/weapons.webp";
+art.src = "../../public/hud/baked/weapons/desktop/housing@2x.webp";
 
 function render() {
   document.getElementById("big").innerHTML = plateHtml("");

@@ -3,10 +3,11 @@ import "./atlas.css";
 import { devEl as el, uiRoot } from "../dom";
 import { t, verbatim, type Msg } from "../../text/msg";
 import { DrivePanel, type DriveView, StatsStrip, SystemKeys, SYSTEM_KEYS, type StatsView, type SystemKey, type SystemKeyView } from "./panels";
-import { WeaponsPanel, type GunCellView, type UtilitySlotView, type WeaponsView } from "./weapon-blocks";
+import { WeaponsPanel, type AmmoCell, type GunCellView, type GunStatus, type UtilitySlotView, type WeaponsView } from "./weapon-blocks";
 import { RadioDeck, TIME_SPEEDS, type DeckView } from "./panels";
 import type { UtilityState } from "../weapons";
-import { KIT, paintSkin } from "./skin";
+import { paintSkin } from "./skin";
+import { BAKED } from "./baked";
 import { publicUrl } from "../../public-url";
 
 const GUNS = ["mg", "autocannon", "flamer", "rocketRack", "gatling", "harpoon", "shotgun", "cannon", "sniperCannon"];
@@ -69,13 +70,16 @@ function driveView(): DriveView {
   };
 }
 
+const SPENT_CELL: Partial<Record<number, AmmoCell>> = { 1: "refill" };
+const FIXTURE_STATUS: Partial<Record<number, GunStatus>> = { 1: { kind: "reloading" }, 2: { kind: "noTarget" }, 4: { kind: "error" } };
+
 function gunViews(): GunCellView[] {
   return Array.from({ length: state.guns }, (_, i) => ({
     defId: GUNS[i],
-    rounds: GUNS[i] === "flamer" ? null : ROUNDS[i],
-    light: i === 2 ? "wait" : i === 4 ? "fault" : "go",
-    picked: state.picked === i,
-    reloading: i === 1,
+    name: say(`Gun ${i + 1}`),
+    cells: GUNS[i] === "flamer" || i === 4 ? null : Array.from({ length: 5 }, (_, c) => (c < ROUNDS[i] ? "loaded" : SPENT_CELL[i] ?? "spent")),
+    status: FIXTURE_STATUS[i] ?? { kind: "aiming", part: say("cab"), chance: say("38%") },
+    picked: state.all || state.picked === i,
     title: say(`Gun ${i + 1}`),
     key: String(i + 1),
   }));
@@ -97,6 +101,8 @@ function weaponsView(): WeaponsView {
     guns: gunViews(),
     all: { on: state.all, title: say("All guns fire"), reason: null },
     auto: { on: state.auto, title: say("Auto fire"), reason: null },
+    reload: { title: say("Reload"), reason: null },
+    hold: { title: say("Hold"), reason: null },
     utilities: utilityViews(),
     pageTitle: (page, pages) => t("hud.gunPage", { page, pages }),
   };
@@ -146,15 +152,17 @@ const drive = new DrivePanel({
 });
 
 const weapons = new WeaponsPanel({
-  labels: { allFire: t("hud.allFire"), autoFire: t("weapon.autoFire") },
+  labels: { all: t("weapon.all"), autoFire: t("weapon.autoFire") },
   onPickGun: (i) => {
     state.picked = state.picked === i ? null : i;
-    state.all = state.picked === null;
+    state.all = false;
   },
   onAll: () => {
     state.picked = null;
-    state.all = true;
+    state.all = !state.all;
   },
+  onReload: () => undefined,
+  onHold: () => undefined,
   onAuto: () => flip("auto"),
   onUtility: () => undefined,
 });
@@ -251,33 +259,10 @@ function range(label: string, min: number, max: number, step: number, value: num
   return control(label, el("input", { type: "range", min, max, step, value }) as HTMLInputElement, (v) => onValue(Number(v)));
 }
 
-function housingPicker(): HTMLElement {
-  const root = document.documentElement;
-  const start = getComputedStyle(root).getPropertyValue("--hud-housing").trim();
-  return control("Housing color", el("input", { type: "color", value: start }) as HTMLInputElement, (v) => {
-    root.style.setProperty("--hud-housing", v);
-    void paintSkin(root);
-  });
-}
-
-function patinaControls(): HTMLElement[] {
-  const root = document.documentElement;
-  const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
-  return [
-    control("Patina color", el("input", { type: "color", value: token("--hud-patina-color") }) as HTMLInputElement, (v) => root.style.setProperty("--hud-patina-color", v)),
-    range("Patina strength", 0, 0.35, 0.05, Number(token("--hud-patina-strength")), (v) => root.style.setProperty("--hud-patina-strength", String(v))),
-    range("Dust strength", 0.2, 1, 0.05, Number(token("--hud-dust-strength")), (v) => root.style.setProperty("--hud-dust-strength", String(v))),
-    range("Patina on controls", 0, 1, 0.05, Number(token("--hud-control-patina")), (v) => root.style.setProperty("--hud-control-patina", String(v))),
-    range("Patina on screens", 0, 1, 0.05, Number(token("--hud-screen-patina")), (v) => root.style.setProperty("--hud-screen-patina", String(v))),
-  ];
-}
-
 function controls(): HTMLElement {
   return el(
     "section",
     { class: "atlas-panel-controls" },
-    housingPicker(),
-    ...patinaControls(),
     range("Speed", 0, 300, 1, state.speed, (v) => (state.speed = v)),
     range("Dial end", 60, 300, 20, state.top, (v) => (state.top = v)),
     range("Fuel", 0, 1, 0.01, state.fuel, (v) => (state.fuel = v)),
@@ -294,12 +279,12 @@ function controls(): HTMLElement {
 }
 
 function artSheet(): HTMLElement {
-  const names = ["drive", "weapons", "radio", ...Object.values(KIT).map((piece) => piece.art)];
+  const parts = Object.keys(BAKED);
   return el(
     "section",
     { class: "art-sheet" },
-    el("h2", {}, "Plates and kit pieces"),
-    el("div", { class: "art-sheet-grid" }, ...names.map((name) => el("figure", {}, el("img", { src: publicUrl(`hud/${name}.webp`), alt: "" }), el("figcaption", {}, name)))),
+    el("h2", {}, "Baked parts"),
+    el("div", { class: "art-sheet-grid" }, ...parts.map((name) => el("figure", {}, el("img", { src: publicUrl(`hud/baked/${name}/desktop/housing@2x.webp`), alt: "" }), el("figcaption", {}, name)))),
   );
 }
 
@@ -307,7 +292,7 @@ function render(): void {
   const root = uiRoot();
   root.classList.add("dash-atlas");
   fillDeck();
-  void paintSkin();
+  paintSkin();
   root.append(assembled(), controls(), artSheet());
   refresh();
   window.setInterval(refresh, 250);

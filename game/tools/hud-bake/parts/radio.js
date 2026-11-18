@@ -127,9 +127,12 @@ const RCSS = 3.1 / PPU;
 const key = new THREE.Group();
 const PLAY_H = 4 * RCSS;
 key.add(keycap(pw, ph, RCSS, PLAY_H, { skirt: '#232427', shoulder: '#55575c', top: '#3a3b40' }).group);
-const tri = new THREE.Shape(); tri.moveTo(-0.055, -0.075); tri.lineTo(0.085, 0); tri.lineTo(-0.055, 0.075); tri.closePath();
-const mark = new THREE.Mesh(new THREE.ShapeGeometry(tri), new THREE.MeshBasicMaterial({ color: '#ffb547', toneMapped: false }));
-mark.position.set(0, 2.7 * RCSS, PLAY_H + 0.002); key.add(mark);
+const triangle = (x0, x1) => { const t = new THREE.Shape(); t.moveTo(x0, -0.075); t.lineTo(x1, 0); t.lineTo(x0, 0.075); t.closePath(); return t; };
+const markMat = new THREE.MeshBasicMaterial({ color: '#ffb547', toneMapped: false });
+const markMesh = (shapes) => { const m = new THREE.Mesh(new THREE.ShapeGeometry(shapes), markMat); m.position.set(0, 2.7 * RCSS, PLAY_H + 0.002); key.add(m); return m; };
+const AUTO_HALF = 0.1075;
+const marks = { play: markMesh([triangle(-0.055, 0.085)]), auto: markMesh([triangle(-AUTO_HALF, 0), triangle(0, AUTO_HALF)]) };
+const showMark = (mode) => { marks.play.visible = mode === 'play'; marks.auto.visible = mode === 'auto'; };
 strip.add(key, px, py, 0);
 
 {
@@ -172,7 +175,7 @@ const meta = {
   },
   sprites: {
     knob: { crop: view.cropAround(boxQuad(strip, inStrip, BOX.knob, 0.1), 46), frames: KNOB_ANGLES.map((_, i) => `knob-${i}`) },
-    play: { crop: view.cropAround(boxQuad(strip, inStrip, BOX.play, 0.06), 30), frames: ['play-up', 'play-down'] },
+    play: { crop: view.cropAround(boxQuad(strip, inStrip, BOX.play, 0.06), 30), frames: ['play-up', 'play-down', 'auto-up', 'auto-down'] },
     wheel: { crop: view.cropAround(boxQuad(body, inBody, BOX.wheel, 0.3), 24), frames: Array.from({ length: WHEEL_FRAMES }, (_, i) => `wheel-${i}`) },
   },
   wheelRibPx: 2 * Math.PI * WHEEL_R / WHEEL_RIBS * PPU,
@@ -181,15 +184,16 @@ const meta = {
 installBake((scale) => {
   const files = {};
   const setKnob = (i) => { knob.rotation.z = -KNOB_ANGLES[i] * Math.PI / 180; };
-  setKnob(1); key.position.z = strip.z + KEY_UP; wheel.rotation.x = 0;
+  setKnob(1); showMark('play'); key.position.z = strip.z + KEY_UP; wheel.rotation.x = 0;
   view.render(scale);
   files.housing = view.shot();
-  files['play-up'] = view.crop(scale, meta.sprites.play.crop);
   for (let i = 0; i < WHEEL_FRAMES; i++) { wheel.rotation.x = i / WHEEL_FRAMES * 2 * Math.PI / WHEEL_RIBS; view.render(scale); files[`wheel-${i}`] = view.crop(scale, meta.sprites.wheel.crop); }
   wheel.rotation.x = 0;
   KNOB_ANGLES.forEach((_, i) => { setKnob(i); view.render(scale); files[`knob-${i}`] = view.crop(scale, meta.sprites.knob.crop); });
-  setKnob(1); key.position.z = strip.z + KEY_DOWN; view.render(scale);
-  files['play-down'] = view.crop(scale, meta.sprites.play.crop);
-  key.position.z = strip.z + KEY_UP;
+  for (const mode of ['play', 'auto']) {
+    showMark(mode); setKnob(1);
+    for (const [state, z] of [['up', KEY_UP], ['down', KEY_DOWN]]) { key.position.z = strip.z + z; view.render(scale); files[`${mode}-${state}`] = view.crop(scale, meta.sprites.play.crop); }
+  }
+  showMark('play'); key.position.z = strip.z + KEY_UP;
   return { files, meta };
 });

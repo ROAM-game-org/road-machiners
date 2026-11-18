@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { needleAngle, litSegments, dialShare, scaleTicks } from "./panels";
-import { knobAngle, lineChanges, wheelTurn } from "./panels";
-import type { FireBlock } from "../../sim/combat";
-import { gunLight, gunPage, type GunLight, utilityEngaged, utilityLamp } from "./weapon-blocks";
+import { knobAngle, lineChanges, wheelFrame, wheelTurn } from "./panels";
+import { gunPage, utilityEngaged, utilityLamp } from "./weapon-blocks";
 import type { UtilityState } from "../weapons";
 
 describe("needleAngle", () => {
@@ -133,39 +132,10 @@ describe("wheelTurn", () => {
   });
 });
 
-const LIGHT_OF: Record<FireBlock, GunLight> = {
-  disabled: "fault",
-  shutDown: "fault",
-  out: "fault",
-  noTarget: "off",
-  cooldown: "wait",
-  empty: "wait",
-  range: "wait",
-  arc: "wait",
-  unseen: "wait",
-  covered: "wait",
-  blocked: "wait",
-  lineOut: "wait",
-  talking: "wait",
-  unmounted: "wait",
-};
-
-describe("gunLight", () => {
-  it("shows go when nothing blocks the gun", () => {
-    expect(gunLight(null)).toBe("go");
-  });
-
-  for (const [block, light] of Object.entries(LIGHT_OF)) {
-    it(`shows ${light} for the ${block} block`, () => {
-      expect(gunLight(block as FireBlock)).toBe(light);
-    });
-  }
-});
-
 const UTILITY_LAMP_OF: Record<UtilityState, string> = {
   ready: "green",
   aiming: "amber",
-  set: "green",
+  set: "amber",
   armed: "amber",
   recharging: "red",
   blocked: "off",
@@ -200,5 +170,13 @@ describe("gunPage", () => {
 
   it("falls back to the last page when guns are removed", () => {
     expect(gunPage(null, null, 1, 4)).toBe(0);
+  });
+});
+
+describe("wheelFrame", () => {
+  it("steps through every baked frame once per rib", () => {
+    expect([0, 1, 2, 3, 4, 5].map((px) => wheelFrame(px, 6))).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(wheelFrame(6, 6)).toBe(0);
+    expect(wheelFrame(-3, 6)).toBe(0);
   });
 });

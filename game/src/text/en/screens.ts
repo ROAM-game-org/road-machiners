@@ -466,6 +466,7 @@ export const SCREENS = {
   'stat.recoil': 'Recoil',
   'stat.spread': 'Spread',
   'icon.cut': 'Cut line',
+  'icon.hold': 'Hold',
   'stat.draw': 'Power draw',
   'stat.topSpeed': 'Top speed',
   'stat.accel': 'Acceleration',

@@ -4,8 +4,10 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
-import { deviceCast, deviceFaces } from "./skin";
-import { clampShare, setLcd, DRIVE_PLATE, RADIO_PLATE, isOff, keyCap, kitPiece, lamp, Plate, Rocker, setAttrText, tray, setData, setFlag, showControl, svgNode, type Box, type RockerView } from "./skin";
+import { deviceCast } from "./skin";
+import { BakedPart } from "./baked";
+import { BAKED } from "./baked";
+import { clampShare, setLcd, DRIVE_PLATE, isOff, lamp, plateKey, Rocker, setAttrText, setData, setFlag, showControl, svgNode, type Box, type RockerView } from "./skin";
 
 export type StatTone = "base" | "warn" | "danger";
 
@@ -235,7 +237,9 @@ export interface DriveView extends SpeedView {
 
 export class DrivePanel {
   readonly root: HTMLElement;
-  private readonly plate = new Plate(DRIVE_PLATE, "drive-plate");
+  private readonly plate = new BakedPart("drive", BAKED.drive, "drive-plate", DRIVE_PLATE);
+  private readonly coolFrames = this.plate.sprite("cool", "cool-up");
+  private readonly rockerFrames = [0, 1, 2].map((i) => this.plate.sprite(`rocker${i}`, `rocker${i}-off`));
   private readonly speed: SpeedDial;
   private readonly fuel: ArcGauge;
   private readonly heat: ArcGauge;
@@ -259,13 +263,14 @@ export class DrivePanel {
     registerRichTip(this.speedSpot, () => this.speedTip());
     this.plate.place(this.fuelSpot, "fuel");
     this.plate.place(this.heatSpot, "heat");
-    this.cool = this.plate.place(keyCap("cool-key", labels.cool, setup.onCool, el("span", { class: "key-print" }, labels.cool)), "coolKey");
-    this.manual = this.rocker(labels.manual, "R", setup.onManual, "A");
-    this.lights = this.rocker(labels.lights, "L", setup.onLights, "B");
-    this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, "C");
-    for (const box of ["fuel", "heat", "dialGlass"] as const) this.plate.place(el("span", { class: `plate-glass ${box === "dialGlass" ? "dial-glass" : "gauge-glass"}`, "aria-hidden": "true" }), box);
-    this.plate.root.append(el("span", { class: "plate-shade", "aria-hidden": "true" }));
-    this.root = el("div", { class: "hud-drive" }, el("span", { class: "drive-back", "aria-hidden": "true" }), this.plate.root, el("span", { class: "drive-hood", "aria-hidden": "true" }));
+    this.cool = this.plate.zone(plateKey("baked-key cool-key", labels.cool, setup.onCool), "coolHit");
+    const sink = this.plate.follow(el("span", { class: "key-print cool-print", "aria-hidden": "true" }, labels.cool), "coolText", "coolTextDown");
+    this.cool.addEventListener("pointerdown", () => this.pressCool(true, sink));
+    for (const end of ["pointerup", "pointercancel", "pointerleave"]) this.cool.addEventListener(end, () => this.pressCool(false, sink));
+    this.manual = this.rocker(labels.manual, "R", setup.onManual, 0);
+    this.lights = this.rocker(labels.lights, "L", setup.onLights, 1);
+    this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, 2);
+    this.root = el("div", { class: "hud-drive" }, this.plate.root);
   }
 
   private speedTip(): HTMLElement {
@@ -274,10 +279,16 @@ export class DrivePanel {
     return el("div", { class: "speed-tip" }, line("speed-head", view.speedTitle), ...view.speedLines.map((entry) => line(`speed-line tone-${entry.tone}`, entry.label, SPACE, entry.value)));
   }
 
-  private rocker(label: Msg, key: string, onFlip: () => void, slot: "A" | "B" | "C"): Rocker {
-    const rocker = new Rocker(label, key, onFlip);
-    this.plate.pin(rocker.root, `rocker${slot}`);
-    this.plate.pin(rocker.label, `label${slot}`);
+  private pressCool(down: boolean, sink: (pressed: boolean) => void): void {
+    const pressed = down && !isOff(this.cool);
+    this.coolFrames.show(pressed ? "cool-down" : "cool-up");
+    sink(pressed);
+  }
+
+  private rocker(label: Msg, key: string, onFlip: () => void, slot: 0 | 1 | 2): Rocker {
+    const rocker = new Rocker(label, key, onFlip, false);
+    this.plate.zone(rocker.root, `rockerHit${slot}`);
+    this.plate.pin(rocker.label, `label${"ABC"[slot]}` as "labelA");
     return rocker;
   }
 
@@ -295,6 +306,7 @@ export class DrivePanel {
     setAttrText(this.fuelSpot, "aria-label", view.fuelTitle);
     setAttrText(this.heatSpot, "title", view.heatTitle);
     setAttrText(this.heatSpot, "aria-label", view.heatTitle);
+    [view.manual, view.lights, view.overdrive].forEach((rocker, i) => this.rockerFrames[i].show(`rocker${i}-${rocker.checked ? "on" : "off"}`));
     this.manual.update(view.manual);
     this.lights.update(view.lights);
     this.overdrive.update(view.overdrive);
@@ -321,15 +333,17 @@ export class StatsStrip {
   private readonly money = el("span", { class: "lcd-digits money-digits" });
   private readonly supplies = el("span", { class: "lcd-digits" });
   private readonly health = el("span", { class: "lcd-digits" });
-  private readonly cells: HTMLElement[];
+  private readonly cells: HTMLElement[][];
+  private readonly plate = new BakedPart("stats", BAKED.stats, "stats-plate", STATS_LAYOUT);
 
   constructor(unit: Msg) {
-    this.cells = [
-      trayCell("money", el("span", { class: "stat-icon" }, coinEl()), el("span", { class: "tray-window stat-lcd" }, this.money)),
-      trayCell("supplies", el("span", { class: "stat-icon" }, createIcon("supplies")), el("span", { class: "tray-window stat-lcd stat-short" }, this.supplies), el("span", { class: "plate-label stat-unit" }, unit)),
-      trayCell("health", el("span", { class: "stat-icon" }, createIcon("health")), el("span", { class: "tray-window stat-lcd stat-short" }, this.health)),
+    const cell = (id: string, icon: HTMLElement, iconZone: string, digits: HTMLElement): HTMLElement[] => [
+      this.plate.zone(el("span", { class: "stat-icon", "data-resource": id, role: "img" }, icon), iconZone),
+      this.plate.zone(el("span", { class: "stat-lcd", "data-resource": id, role: "img" }, digits), id),
     ];
-    this.root = el("div", { class: "hud-stats readouts" }, tray("stats-tray", ...this.cells));
+    this.cells = [cell("money", coinEl(), "coin", this.money), cell("supplies", createIcon("supplies"), "bag", this.supplies), cell("health", createIcon("health"), "cross", this.health)];
+    this.plate.zone(el("span", { class: "plate-label stat-unit" }, unit), "unit");
+    this.root = el("div", { class: "hud-stats readouts" }, this.plate.root);
   }
 
   update(view: StatsView): void {
@@ -339,16 +353,17 @@ export class StatsStrip {
     setData(this.supplies, "tone", view.suppliesTone);
     setLcd(this.health, String(Math.round(view.health)), STAT_CELLS);
     const titles = [view.moneyTitle, view.suppliesTitle, view.healthTitle];
-    this.cells.forEach((cell, i) => {
-      if (i > 0) setAttrText(cell, "title", titles[i]);
-      setAttrText(cell, "aria-label", titles[i]);
+    this.cells.forEach((nodes, i) => {
+      for (const node of nodes) {
+        if (i > 0) setAttrText(node, "title", titles[i]);
+        setAttrText(node, "aria-label", titles[i]);
+      }
     });
   }
 }
 
-function trayCell(id: string, ...parts: HTMLElement[]): HTMLElement {
-  return el("span", { class: "tray-cell", "data-resource": id, role: "img" }, ...parts);
-}
+const STATS_LAYOUT = { width: 304.9, height: 52, boxes: {} };
+const KEYS_LAYOUT = { width: 211, height: 52, boxes: {} };
 
 export type SystemKey = "map" | "journal" | "car" | "character" | "menu";
 
@@ -368,17 +383,27 @@ export class SystemKeys {
   readonly root: HTMLElement;
   private readonly keys: Record<SystemKey, HTMLButtonElement>;
 
+  private readonly plate = new BakedPart("keys", BAKED.keys, "keys-plate", KEYS_LAYOUT);
+
   constructor(labels: Record<SystemKey, Msg>, actions: Record<SystemKey, () => void>) {
-    const entries = SYSTEM_KEYS.map((name) => {
-      const key = keyCap(`system-key system-${name}`, labels[name], actions[name], createIcon(SYSTEM_ICONS[name]));
+    const entries = SYSTEM_KEYS.map((name, i) => {
+      const key = this.plate.zone(plateKey(`baked-key system-key system-${name}`, labels[name], actions[name]), `hit${i}`);
       const mark = lamp("key-mark");
       setData(mark, "lamp", "amber");
       key.append(mark);
       setData(key, "action", name);
+      const frames = this.plate.sprite(`key${i}`, `key${i}-up`);
+      const sink = this.plate.follow(el("span", { class: "key-icon system-icon", "aria-hidden": "true" }, createIcon(SYSTEM_ICONS[name])), `icon${i}`, `icon${i}Down`);
+      const press = (down: boolean): void => {
+        frames.show(down ? `key${i}-down` : `key${i}-up`);
+        sink(down);
+      };
+      key.addEventListener("pointerdown", () => press(!isOff(key)));
+      for (const end of ["pointerup", "pointercancel", "pointerleave"]) key.addEventListener(end, () => press(false));
       return [name, key] as const;
     });
     this.keys = Object.fromEntries(entries) as Record<SystemKey, HTMLButtonElement>;
-    this.root = el("div", { class: "hud-system" }, tray("keys-tray", ...entries.map(([, key]) => key)));
+    this.root = el("div", { class: "hud-system" }, this.plate.root);
   }
 
   button(name: SystemKey): HTMLButtonElement {
@@ -421,6 +446,12 @@ const DAY_CELLS = 2;
 export function wheelTurn(scrollTop: number): number {
   return (scrollTop / WHEEL_RIB_PX) % 1;
 }
+
+export function wheelFrame(scrollTop: number, frames: number): number {
+  return Math.floor(wheelTurn(Math.max(0, scrollTop)) * frames) % frames;
+}
+
+const RADIO_LAYOUT = { width: 1279, height: 695, boxes: {} };
 
 export interface ClockView {
   day: number;
@@ -475,14 +506,17 @@ export class RadioDeck {
   readonly root: HTMLElement;
   readonly talk = el("div", { class: "deck-talk" });
   readonly log = el("div", { class: "deck-log" });
-  private readonly plate = new Plate(RADIO_PLATE, "radio-plate");
-  private readonly wheel = el("span", { class: "deck-wheel", role: "scrollbar", "aria-orientation": "vertical" }, el("span", { class: "wheel-ribs", "aria-hidden": "true" }));
+  private readonly plate = new BakedPart("radio", BAKED.radio, "radio-plate", RADIO_LAYOUT);
+  private readonly wheel = el("span", { class: "deck-wheel", role: "scrollbar", "aria-orientation": "vertical" });
+  private readonly wheelFrames = this.plate.sprite("wheel", "wheel-0");
+  private readonly knobFrames = this.plate.sprite("knob", "knob-1");
+  private readonly playFrames = this.plate.sprite("play", "play-up");
+  private mode: "play" | "auto" = "play";
   private readonly lcdDay = el("span", { class: "lcd-digits lcd-day" });
   private readonly lcdHour = el("span", { class: "lcd-digits lcd-hour" });
   private readonly lcdMinute = el("span", { class: "lcd-digits lcd-minute" });
   private readonly lcd: HTMLElement;
   private readonly knob: HTMLButtonElement;
-  private readonly knobFace = kitPiece("knob", "knob-face");
   private readonly marks: HTMLButtonElement[];
   private readonly turn: HTMLButtonElement;
   private scroller: HTMLElement | null = null;
@@ -490,30 +524,30 @@ export class RadioDeck {
   private index = 0;
 
   constructor(private readonly setup: DeckSetup) {
-    this.plate.place(this.talk, "talk");
-    this.plate.place(this.log, "log");
-    this.plate.place(this.wheel, "wheel");
-    this.lcd = this.plate.place(el("div", { class: "deck-lcd", role: "timer" }, el("span", { class: "lcd-word" }, setup.dayWord), this.lcdDay, el("span", { class: "lcd-time" }, this.lcdHour, this.lcdMinute)), "lcd");
+    this.plate.zone(this.talk, "talk");
+    this.plate.zone(this.log, "log");
+    this.plate.zone(this.wheel, "wheel");
+    this.lcd = this.plate.zone(el("div", { class: "deck-lcd", role: "timer" }, el("span", { class: "lcd-word" }, setup.dayWord), this.lcdDay, el("span", { class: "lcd-time" }, this.lcdHour, this.lcdMinute)), "lcd");
     this.marks = TIME_SPEEDS.map((speed, i) => {
       const mark = el("button", { type: "button", class: "knob-mark", style: this.markStyle(i) }, setup.speedLabel(speed)) as HTMLButtonElement;
       mark.addEventListener("click", () => this.pick(i));
       return mark;
     });
-    this.plate.place(el("div", { class: "knob-marks" }, ...this.marks), "knobMarks");
-    this.knob = this.plate.place(el("button", { type: "button", class: "knob-key" }, this.knobFace) as HTMLButtonElement, "knob");
+    this.plate.zone(el("div", { class: "knob-marks" }, ...this.marks), "knobMarks");
+    this.knob = this.plate.zone(el("button", { type: "button", class: "knob-key" }) as HTMLButtonElement, "knob");
     this.knob.addEventListener("click", () => this.pick((this.index + 1) % TIME_SPEEDS.length));
-    this.turn = this.plate.place(keyCap("play-key", setup.turnLabel, () => undefined, el("span", { class: "play-mark", "aria-hidden": "true" })), "play");
+    this.turn = this.plate.zone(plateKey("baked-key play-key", setup.turnLabel, () => undefined), "play");
     this.turn.addEventListener("pointerdown", (e) => this.press(e));
     this.turn.addEventListener("pointerup", () => this.release());
     this.turn.addEventListener("pointercancel", () => this.release());
     this.wheel.addEventListener("pointerdown", (e) => this.dragWheel(e));
-    this.root = el("div", { class: "hud-radio" }, deviceCast(), deviceFaces({ plate: RADIO_PLATE, top: { shape: RADIO_PLATE.boxes.body, texture: RADIO_PLATE.boxes.topTexture }, side: null }), this.plate.root);
+    this.root = el("div", { class: "hud-radio" }, deviceCast(), this.plate.root);
     new ResizeObserver(([entry]) => shareRadioScale(entry.contentRect.width)).observe(this.plate.root);
   }
 
   bindLog(scroller: HTMLElement): void {
     this.scroller = scroller;
-    scroller.addEventListener("scroll", () => this.wheel.style.setProperty("--wheel-turn", String(wheelTurn(scroller.scrollTop))));
+    scroller.addEventListener("scroll", () => this.wheelFrames.show(`wheel-${wheelFrame(scroller.scrollTop, this.wheelFrames.count())}`));
     this.wheel.addEventListener("wheel", (e) => {
       e.preventDefault();
       scroller.scrollTop += e.deltaY;
@@ -526,16 +560,22 @@ export class RadioDeck {
     setLcd(this.lcdMinute, twoDigits(view.clock.minute), 2);
     setAttrText(this.lcd, "aria-label", view.clock.title);
     this.index = view.speed.index;
-    this.knobFace.style.setProperty("--knob", `${knobAngle(view.speed.index, TIME_SPEEDS.length)}deg`);
+    this.knobFrames.show(`knob-${view.speed.index}`);
     this.marks.forEach((mark, i) => setFlag(mark, "on", i === view.speed.index));
     showControl(this.knob, { title: view.speed.title, reason: view.speed.reason });
     setFlag(this.knob, "running", view.speed.running);
     setAttrText(this.turn, "title", view.turn.title);
     setAttrText(this.turn, "aria-label", view.turn.label);
     setData(this.turn, "mode", view.turn.auto ? "auto" : "turn");
+    this.mode = view.turn.auto ? "auto" : "play";
+    this.showPlay();
     if (view.turn.disabled) this.turn.setAttribute("aria-disabled", "true");
     else this.turn.removeAttribute("aria-disabled");
     setFlag(this.plate.root, "off-air", view.offAir);
+  }
+
+  private showPlay(): void {
+    this.playFrames.show(`${this.mode}-${this.held ? "down" : "up"}`);
   }
 
   private markStyle(i: number): string {
@@ -551,6 +591,7 @@ export class RadioDeck {
   private press(e: PointerEvent): void {
     if (e.button !== 0 || isOff(this.turn) || this.held) return;
     this.held = true;
+    this.showPlay();
     this.turn.setPointerCapture(e.pointerId);
     this.setup.onTurnPress();
   }
@@ -558,6 +599,7 @@ export class RadioDeck {
   private release(): void {
     if (!this.held) return;
     this.held = false;
+    this.showPlay();
     this.setup.onTurnRelease();
   }
 

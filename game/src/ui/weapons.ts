@@ -6,7 +6,7 @@ import { vehicleStats, type MountedWeapon } from "../sim/stats";
 import type { Aim, PartInstance, UtilityOrder, Vehicle, World } from "../sim/types";
 import { playerSees } from "../sim/vision";
 import { workOf, type WorkLeft } from "../sim/states";
-import { actBlock, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
+import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
 import { bottomLeft } from "./dom";
@@ -15,7 +15,7 @@ import { FASTER_KEY, heldPick, SLOWER_KEY } from "./travel-speed";
 import { clockOf } from "../sim/sun";
 import { clock } from "./format";
 import { modeRules } from "../sim/settings";
-import { WeaponsPanel, gunLight, type GunCellView, type UtilitySlotView, type WeaponsView } from "./dash/weapon-blocks";
+import { WeaponsPanel, type AmmoCell, type GunCellView, type GunStatus, type KeyView, type UtilitySlotView, type WeaponsView } from "./dash/weapon-blocks";
 import { RadioDeck, type DeckView, type TurnKeyView } from "./dash/panels";
 import { canCall } from "./dialogue";
 import { workLabel } from "./format";
@@ -97,20 +97,21 @@ export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: 
   return weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === targetId && orders[mw.part.id].aim === "body");
 }
 
-export function gunsLabel(w: World, selected: string | null): Msg {
-  if (!selected) return t("weapon.allGuns");
-  const i = vehicleStats(w, playerVehicle(w)).weapons.findIndex((mw) => mw.part.id === selected);
-  return i < 0 ? t("weapon.allGuns") : t("weapon.gunN", { n: i + 1 });
+export function gunsLabel(w: World, selected: readonly string[]): Msg {
+  if (selected.length === 0) return t("weapon.noGunSelected");
+  if (selected.length > 1) return t("weapon.allGuns");
+  const i = vehicleStats(w, playerVehicle(w)).weapons.findIndex((mw) => mw.part.id === selected[0]);
+  return i < 0 ? t("weapon.noGunSelected") : t("weapon.gunN", { n: i + 1 });
 }
 
 export type AimState = { guns: Msg; body: number[]; bodyAimed: boolean; locked: boolean; hasGuns: boolean };
 
-export function aimStateOf(w: World, selected: string | null, locked: boolean, targetId: string): AimState {
+export function aimStateOf(w: World, selected: readonly string[], locked: boolean, targetId: string): AimState {
   const weapons = weaponsForClick(w, selected);
   return { guns: gunsLabel(w, selected), body: bodyMarks(w, targetId), bodyAimed: aimsBody(w, weapons, targetId), locked, hasGuns: weapons.length > 0 };
 }
 
-type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (next: () => World) => void };
+type AimHost = { world: () => World; selected: () => readonly string[]; canAim: () => boolean; apply: (next: () => World) => void };
 
 export function aimActions(h: AimHost) {
   const guns = () => weaponsForClick(h.world(), h.selected());
@@ -178,6 +179,77 @@ export function ammoText(mw: MountedWeapon): Msg {
 
 
 export const TURN_PLAYING: Msg = t("weapon.turnPlaying");
+
+export function lineOut(w: World, mw: MountedWeapon): boolean {
+  const me = playerVehicle(w);
+  return w.lines.some((line) => line.from === me.id && line.fromPart === mw.part.id);
+}
+
+export function ammoCells(magazine: number, ammo: number, reloadWork: number, reload: number): AmmoCell[] {
+  const spent = magazine - ammo;
+  const filled = reloadWork > 0 ? Math.min(spent, Math.ceil((reloadWork / reload) * spent)) : 0;
+  return Array.from({ length: magazine }, (_, i) => (i < ammo ? "loaded" : i < ammo + filled ? "refill" : "spent"));
+}
+
+const ERROR_BLOCKS: readonly FireBlock[] = ["disabled", "shutDown"];
+
+function broken(mw: MountedWeapon, block: FireBlock | null): boolean {
+  return mw.part.hp <= 0 || (block !== null && ERROR_BLOCKS.includes(block));
+}
+
+function gunAimStatus(w: World, mw: MountedWeapon, readout: ReturnType<typeof getWeaponReadout>): GunStatus {
+  const order = playerVehicle(w).weaponOrders[mw.part.id];
+  if (readout.chance === null || readout.target === null || !order) return { kind: "noTarget" };
+  return { kind: "aiming", part: aimName(readout.target, order.aim), chance: t("hit.chance", { pct: Math.round(readout.chance * 100) }) };
+}
+
+export function gunStatus(w: World, mw: MountedWeapon): GunStatus {
+  const readout = getWeaponReadout(w, mw);
+  if (broken(mw, readout.block)) return { kind: "error" };
+  if (mw.def.line && lineOut(w, mw)) return { kind: "gotEm" };
+  if (gunOf(mw.part).reloadWork > 0 || readout.block === "empty") return { kind: "reloading" };
+  return gunAimStatus(w, mw, readout);
+}
+
+function magazineBlock(mw: MountedWeapon): Msg | null {
+  const gun = gunOf(mw.part);
+  if (gun.ammo === 0 || gun.reloadWork > 0) return t("weapon.reloadBusy");
+  return gun.ammo < mw.def.magazine ? null : t("weapon.reloadFull");
+}
+
+export function reloadBlock(w: World, mw: MountedWeapon): Msg | null {
+  if (mw.part.hp <= 0) return t("weapon.reloadBroken");
+  if (mw.def.line) return lineOut(w, mw) ? null : t("weapon.noLineOut");
+  return magazineBlock(mw);
+}
+
+export const NO_GUN_SELECTED: Msg = t("weapon.noGunSelected");
+
+function firstReason(guns: readonly MountedWeapon[], blockOf: (mw: MountedWeapon) => Msg | null): Msg | null {
+  if (guns.length === 0) return NO_GUN_SELECTED;
+  const reasons = guns.map(blockOf);
+  return reasons.some((r) => r === null) ? null : reasons[0];
+}
+
+export function reloadReason(w: World, guns: readonly MountedWeapon[]): Msg | null {
+  return firstReason(guns, (mw) => reloadBlock(w, mw));
+}
+
+export function holdReason(w: World, guns: readonly MountedWeapon[]): Msg | null {
+  const orders = playerVehicle(w).weaponOrders;
+  return firstReason(guns, (mw) => (orders[mw.part.id] ? null : t("weapon.noHoldTarget")));
+}
+
+export function reloadGuns(w: World, guns: readonly MountedWeapon[]): World {
+  for (const mw of guns.filter((g) => reloadBlock(w, g) === null)) w = mw.def.line ? cutPlayerLine(w, mw.part.id) : reloadWeapon(w, mw.part.id);
+  return w;
+}
+
+export function holdGuns(w: World, guns: readonly MountedWeapon[]): World {
+  let next = setAutoFire(w, false);
+  for (const mw of guns) next = setWeaponOrder(next, mw.part.id, null);
+  return next;
+}
 
 export function orderLock(w: World, playing: boolean): Msg | null {
   if (actBlock(w) === "knockedOut") return t("actBlock.knockedOut");
@@ -325,18 +397,22 @@ function speedTitle(index: number, playing: number | null): Msg {
   return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [LINE_BREAK, line])));
 }
 
-function gunCell(w: World, mw: MountedWeapon, i: number, selected: string | null): GunCellView {
-  const readout = getWeaponReadout(w, mw);
+function gunCell(w: World, mw: MountedWeapon, i: number, selected: readonly string[]): GunCellView {
   const gun = gunOf(mw.part);
+  const status = gunStatus(w, mw);
   return {
     defId: mw.part.defId,
-    rounds: mw.def.line ? null : gun.ammo,
-    light: mw.part.hp <= 0 ? "fault" : gunLight(readout.block),
-    picked: selected === mw.part.id,
-    reloading: gun.reloadWork > 0,
+    name: partName(mw.def.id),
+    cells: mw.def.line || status.kind === "error" ? null : ammoCells(mw.def.magazine, gun.ammo, gun.reloadWork, mw.def.reload),
+    status,
+    picked: selected.includes(mw.part.id),
     title: partName(mw.def.id),
     key: i < SLOT_KEYS ? String(i + 1) : null,
   };
+}
+
+function keyView(title: Msg, locked: Msg | null, reason: Msg | null): KeyView {
+  return { title, reason: locked ?? reason };
 }
 
 function utilitySlotView(host: UiHost, w: World, part: PartInstance, i: number): UtilitySlotView {
@@ -356,11 +432,14 @@ function utilitySlotView(host: UiHost, w: World, part: PartInstance, i: number):
 export function weaponsViewOf(host: UiHost): WeaponsView {
   const w = host.world();
   const locked = lockReason(w, host.getTurnPhase());
-  const selected = host.selectedWeapon();
+  const selected = host.selectedWeapons();
+  const guns = vehicleStats(w, playerVehicle(w)).weapons;
   return {
-    guns: vehicleStats(w, playerVehicle(w)).weapons.map((mw, i) => gunCell(w, mw, i, selected)),
-    all: { on: selected === null, title: t("weapon.allSwitchTitle"), reason: locked },
+    guns: guns.map((mw, i) => gunCell(w, mw, i, selected)),
+    all: { on: guns.length > 0 && selected.length === guns.length, title: t("weapon.allSwitchTitle"), reason: locked },
     auto: { on: w.player.autoFire, title: t("weapon.autoSwitchTitle"), reason: locked },
+    reload: keyView(t("weapon.reload"), locked, reloadReason(w, weaponsForClick(w, selected))),
+    hold: keyView(t("weapon.hold"), locked, holdReason(w, weaponsForClick(w, selected))),
     utilities: utilitySlots(w).map((part, i) => utilitySlotView(host, w, part, i)),
     pageTitle: (page, pages) => t("hud.gunPageTitle", { page, pages }),
   };
@@ -396,9 +475,15 @@ export class WeaponOrders {
     return orderLock(this.host.world(), this.host.getTurnPhase() !== null) !== null;
   }
 
-  selectWeapon(id: string | null): void {
+  selectWeapons(ids: readonly string[]): void {
     if (this.ordersLocked()) return;
-    this.host.selectWeapon(id);
+    this.host.selectWeapons(ids);
+  }
+
+  toggleAll(): void {
+    const w = this.host.world();
+    const all = vehicleStats(w, playerVehicle(w)).weapons.map((mw) => mw.part.id);
+    this.selectWeapons(all.length > 0 && this.host.selectedWeapons().length === all.length ? [] : all);
   }
 
   pressKey(n: number): void {
@@ -413,7 +498,20 @@ export class WeaponOrders {
     const all = vehicleStats(w, playerVehicle(w)).weapons;
     if (i < 0 || i >= all.length) return;
     const id = all[i].part.id;
-    this.selectWeapon(this.host.selectedWeapon() === id ? null : id);
+    const picked = this.host.selectedWeapons();
+    this.selectWeapons(picked.length === 1 && picked[0] === id ? [] : [id]);
+  }
+
+  reloadSelected(): void {
+    if (this.ordersLocked()) return;
+    const w = this.host.world();
+    this.host.apply(reloadGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+  }
+
+  holdSelected(): void {
+    if (this.ordersLocked()) return;
+    const w = this.host.world();
+    this.host.apply(holdGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
   }
 
   toggleAuto(): void {
@@ -436,10 +534,12 @@ export class WeaponPanel extends WeaponOrders {
   constructor(host: UiHost) {
     super(host);
     this.panel = new WeaponsPanel({
-      labels: { allFire: t("hud.allFire"), autoFire: t("weapon.autoFire") },
+      labels: { all: t("weapon.all"), autoFire: t("weapon.autoFire") },
       onPickGun: (i) => this.pressKey(i + 1),
-      onAll: () => this.selectWeapon(null),
+      onAll: () => this.toggleAll(),
       onAuto: () => this.toggleAuto(),
+      onReload: () => this.reloadSelected(),
+      onHold: () => this.holdSelected(),
       onUtility: (i) => this.utilities.selectUtility(i),
     });
     this.deck = new RadioDeck({
@@ -468,12 +568,16 @@ export class WeaponPanel extends WeaponOrders {
   }
 }
 
+export function mountedSelection(mounted: readonly MountedWeapon[], selected: readonly string[]): readonly string[] {
+  const kept = selected.filter((id) => mounted.some((mw) => mw.part.id === id));
+  return kept.length === selected.length ? selected : kept;
+}
+
 export function weaponsForClick(
   world: World,
-  selected: string | null,
+  selected: readonly string[],
 ): readonly MountedWeapon[] {
-  const all = vehicleStats(world, playerVehicle(world)).weapons;
-  return selected ? all.filter((m) => m.part.id === selected) : all;
+  return vehicleStats(world, playerVehicle(world)).weapons.filter((m) => selected.includes(m.part.id));
 }
 
 export class HoverHold {

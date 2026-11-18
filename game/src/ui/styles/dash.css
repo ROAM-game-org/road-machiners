@@ -43,15 +43,64 @@
   pointer-events: none;
 }
 
-#ui :is(.hud-plate, .kit-piece, .key-cap, .rocker) > .plate-tint {
+#ui .baked-part {
+  overflow: visible;
+}
+
+#ui .baked-part > .baked-housing,
+#ui .baked-sprite > .baked-frame {
   position: absolute;
-  inset: 0;
-  background: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-housing);
-  background-blend-mode: multiply;
-  mix-blend-mode: multiply;
-  -webkit-mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
-  mask: var(--plate-mask) 0 0 / 100% 100% no-repeat;
+  max-width: none;
   pointer-events: none;
+}
+
+#ui .baked-sprite {
+  display: contents;
+}
+
+#ui .hud-drive > .drive-plate {
+  scale: var(--hud-drive-fit);
+  translate: 0 var(--hud-drive-fit-drop);
+  transform-origin: 0 100%;
+}
+
+#ui .baked-part :is(.key-icon, .key-print, .plate-label) {
+  pointer-events: none;
+}
+
+#ui .stats-plate {
+  --plate-n: 304.9;
+  width: calc(var(--plate-n) * 1px);
+}
+
+#ui .keys-plate {
+  --plate-n: 211;
+  width: calc(var(--plate-n) * 1px);
+}
+
+#ui .stats-plate > .stat-lcd {
+  justify-content: flex-end;
+}
+
+#ui .system-icon {
+  color: var(--hud-print);
+}
+
+:is(#ui, #overlay) :is(button.key-cap, button.hud-key, button.hud-close):not(.on, .danger, [aria-disabled="true"]):active,
+:is(#ui, #overlay) .menu-key:active > .menu-cap {
+  border-image-source: var(--hud-keycap-down-art);
+}
+
+#ui .cool-print {
+  text-align: center;
+  white-space: normal;
+}
+
+#ui button.baked-key {
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 
 #ui .plate-part,
@@ -82,7 +131,7 @@
 }
 
 #ui button.plate-key,
-#ui button.gun-cell,
+#ui button.gun-card,
 #ui button.utility-slot-key,
 #ui button.knob-mark,
 #ui button.gun-page {
@@ -151,59 +200,6 @@
   position: relative;
   width: var(--hud-drive-w);
   translate: var(--hud-drive-shift) var(--hud-drive-sink);
-}
-
-#ui .hud-drive > :is(.drive-back, .drive-hood) {
-  position: absolute;
-  inset: 0;
-  background: 0 0 / 100% 100% no-repeat;
-  pointer-events: none;
-}
-
-#ui .hud-drive > .drive-back {
-  background-image: var(--hud-drive-back-art);
-}
-
-#ui .hud-drive > .drive-hood {
-  background-image: var(--hud-drive-hood-art);
-  translate: 0 var(--hud-drive-hood-drop);
-  filter: var(--hud-drive-hood-shadow);
-}
-
-#ui .hud-drive > :is(.drive-plate, .drive-back) {
-  -webkit-mask: var(--hud-drive-art) 0 var(--hud-drive-hood-drop) / 100% 100% no-repeat;
-  mask: var(--hud-drive-art) 0 var(--hud-drive-hood-drop) / 100% 100% no-repeat;
-}
-
-#ui .hud-drive > .drive-plate {
-  transform: perspective(var(--hud-view-perspective)) rotateX(var(--hud-view-tilt)) translateZ(calc(-1 * var(--hud-drive-depth)));
-  transform-origin: 0 100%;
-}
-
-#ui .drive-plate > .plate-shade {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-hud-shade);
-  -webkit-mask: var(--hud-drive-art) 0 0 / 100% 100% no-repeat;
-  mask: var(--hud-drive-art) 0 0 / 100% 100% no-repeat;
-  background: var(--hud-drive-shade);
-  pointer-events: none;
-}
-
-#ui .drive-plate > .plate-glass {
-  z-index: var(--z-hud-glass);
-  background: var(--hud-gauge-glass);
-  box-shadow: var(--hud-glass-recess);
-  pointer-events: none;
-}
-
-#ui .drive-plate > .gauge-glass {
-  border-radius: 9% / 14%;
-}
-
-#ui .drive-plate > .dial-glass {
-  border-radius: 50%;
-  background: var(--hud-dial-glass);
 }
 
 #ui .drive-drawing .dial-segment {
@@ -307,90 +303,363 @@
   width: var(--hud-weapons-w);
 }
 
+#ui .weapons-plate {
+  --wp: calc(100cqw / 1929);
+}
+
 #ui .gun-screen {
-  display: flex;
-  flex-direction: column;
-  border-radius: 0;
-  background: none;
-  padding: 1.4cqw 1.8cqw 1.4cqw calc(1.8cqw + 100cqw * 10 / var(--plate-n));
+  overflow: hidden;
+  border-radius: calc(var(--wp) * 22);
+  background: var(--hud-crt-fill);
+  filter: blur(calc(var(--wp) * var(--hud-crt-blur)));
   color: var(--hud-amber);
-  font: 700 var(--hud-text-m) / 1 var(--font-hud);
-  text-shadow: var(--hud-text-glow);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  text-shadow: 0 0 calc(var(--wp) * 5) var(--hud-crt-glow-near), 0 0 calc(var(--wp) * 18) var(--hud-crt-glow-far);
+}
+
+#ui .gun-screen::before,
+#ui .gun-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+#ui .gun-screen::before {
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--wp) * 3), var(--hud-crt-scan) calc(var(--wp) * 3), var(--hud-crt-scan) calc(var(--wp) * 6));
+  mix-blend-mode: multiply;
+}
+
+#ui .gun-screen::after {
+  background: radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%);
+  box-shadow: inset 0 0 calc(var(--wp) * 30) var(--hud-crt-edge);
 }
 
 #ui .gun-grid {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: 0.6cqw 1.6cqw;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: calc(var(--wp) * 16) calc(var(--wp) * 50);
+  padding: calc(var(--wp) * 16) calc(var(--wp) * 6);
 }
 
-#ui button.gun-cell {
+#ui .gun-card {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: calc(var(--wp) * 40) calc(var(--wp) * 130) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  gap: 0 0.6cqw;
-  padding: var(--space-2) var(--space-4);
+  column-gap: calc(var(--wp) * 18);
+  min-width: 0;
+  padding: calc(var(--wp) * 4) calc(var(--wp) * 40) calc(var(--wp) * 4) calc(var(--wp) * 12);
   border-radius: 0;
   color: var(--hud-amber);
+  font: inherit;
   text-shadow: inherit;
-}
-
-#ui button.gun-cell.picked {
-  --bracket: linear-gradient(var(--hud-amber), var(--hud-amber));
-  background:
-    var(--bracket) 0 0 / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
-    var(--bracket) 0 0 / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
-    var(--bracket) 100% 0 / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
-    var(--bracket) 100% 0 / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
-    var(--bracket) 0 100% / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
-    var(--bracket) 0 100% / var(--hud-bracket-w) var(--hud-bracket) no-repeat,
-    var(--bracket) 100% 100% / var(--hud-bracket) var(--hud-bracket-w) no-repeat,
-    var(--bracket) 100% 100% / var(--hud-bracket-w) var(--hud-bracket) no-repeat;
-  filter: var(--hud-mark-glow);
+  cursor: pointer;
 }
 
 #ui .gun-number {
-  align-self: start;
-  padding-top: 0.6cqw;
-  font-size: var(--hud-text-s);
+  grid-column: 1;
+  grid-row: 1 / 3;
+  text-align: center;
 }
 
 #ui .gun-shape {
+  grid-column: 2;
+  grid-row: 1 / 3;
   display: grid;
   place-items: center;
+  min-width: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 #ui .gun-shape .icon {
   width: 100%;
-  height: var(--hud-icon-l);
-  filter: url(#hud-amber-tint) var(--hud-mark-glow);
+  height: calc(var(--wp) * 80);
+  filter: url(#hud-amber-tint) drop-shadow(0 0 calc(var(--wp) * 8) var(--hud-crt-icon-glow));
 }
 
-#ui .gun-belt {
-  width: 1.6cqw;
-  height: 1.8cqw;
-  background: repeating-linear-gradient(to right, var(--hud-amber) 0 0.25cqw, transparent 0.25cqw 0.45cqw);
+#ui .gun-name {
+  grid-column: 3;
+  grid-row: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
 }
 
-#ui .gun-rounds {
-  min-width: 3.2cqw;
-  font-size: var(--hud-text-m);
-  text-align: right;
+#ui .gun-line {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: calc(var(--wp) * 24);
+  min-width: 0;
 }
 
-#ui .gun-cell.beltless .gun-belt {
-  visibility: hidden;
+#ui .gun-cells {
+  display: flex;
+  gap: calc(var(--wp) * 8);
+  height: calc(var(--wp) * 30);
 }
 
-#ui .gun-cell[data-light="fault"] {
+#ui .gun-cell-pip {
+  width: calc(var(--wp) * 18);
+  background: var(--hud-amber);
+  box-shadow: 0 0 calc(var(--wp) * 8) var(--hud-crt-pip-glow);
+}
+
+#ui .gun-cell-pip.spent {
+  background: var(--hud-lcd-ghost);
+  box-shadow: none;
+}
+
+#ui .gun-cell-pip.refill {
+  background: var(--hud-amber-faint);
+  box-shadow: none;
+}
+
+#ui .gun-status-slot {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+#ui .gun-chance {
+  color: var(--hud-good);
+}
+
+#ui :is(.gun-number, .gun-name),
+#ui .gun-status.status-noTarget {
+  color: var(--hud-amber-faint);
+}
+
+#ui .gun-card[data-status="noTarget"] .gun-shape .icon {
+  opacity: 0.6;
+}
+
+#ui .gun-card[data-status="error"] .gun-status {
   color: var(--hud-hot);
 }
 
-#ui .gun-cell.reloading .gun-rounds {
-  color: var(--hud-amber-faint);
+#ui .gun-card[data-status="error"] .gun-shape .icon {
+  filter: url(#hud-amber-tint) hue-rotate(-25deg) saturate(1.6);
+}
+
+#ui .gun-card.ghost {
+  cursor: default;
+}
+
+#ui .gun-card.ghost > .gun-number {
+  color: var(--hud-lcd-ghost);
+  text-shadow: none;
+}
+
+#ui .gun-card.picked {
+  --bracket: linear-gradient(var(--hud-select-bracket), var(--hud-select-bracket));
+  --arm: calc(var(--wp) * 26);
+  --bar: calc(var(--wp) * 6);
+  background:
+    var(--bracket) 0 0 / var(--arm) var(--bar) no-repeat,
+    var(--bracket) 0 0 / var(--bar) var(--arm) no-repeat,
+    var(--bracket) 100% 0 / var(--arm) var(--bar) no-repeat,
+    var(--bracket) 100% 0 / var(--bar) var(--arm) no-repeat,
+    var(--bracket) 0 100% / var(--arm) var(--bar) no-repeat,
+    var(--bracket) 0 100% / var(--bar) var(--arm) no-repeat,
+    var(--bracket) 100% 100% / var(--arm) var(--bar) no-repeat,
+    var(--bracket) 100% 100% / var(--bar) var(--arm) no-repeat;
+}
+
+#ui .key-icon {
+  display: grid;
+  place-items: center;
+  color: var(--hud-print);
+}
+
+#ui .key-icon > .icon {
+  width: 100%;
+  height: 100%;
+}
+
+#ui .all-print {
+  color: var(--hud-print);
+  font-size: var(--hud-text-m);
+}
+
+#ui button.gun-page {
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#ui .plate-label {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--hud-print);
+  font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#ui .key-print {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--hud-print);
+  font: 400 var(--hud-text-s) / 1.05 var(--font-engraved);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+#ui .lamp-glow {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+#ui .lamp-glow.lit,
+#ui [data-lamp="amber"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-amber) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-amber);
+}
+
+#ui [data-lamp="green"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-green) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-green);
+}
+
+#ui [data-lamp="red"] > .lamp-glow {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-red) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
+}
+
+#ui .hud-drive {
+  position: relative;
+  width: var(--hud-drive-w);
+  translate: var(--hud-drive-shift) var(--hud-drive-sink);
+}
+
+#ui .drive-drawing .dial-segment {
+  fill: none;
+  stroke: var(--hud-segment-off);
+  stroke-width: 31;
+}
+
+#ui .drive-drawing .dial-segment.beyond {
+  stroke: var(--hud-segment-beyond);
+}
+
+#ui .drive-drawing .dial-segment.lit {
+  stroke: var(--hud-amber);
+  filter: var(--hud-mark-glow);
+}
+
+#ui .drive-drawing .dial-tick {
+  stroke: var(--hud-print-dim);
+  stroke-width: 4;
+}
+
+#ui .drive-drawing .dial-tick.major {
+  stroke: var(--hud-print);
+  stroke-width: 7;
+}
+
+#ui .drive-drawing text {
+  fill: var(--hud-print);
+  font-family: var(--font-hud);
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+#ui .drive-drawing .dial-needle {
+  transform: rotate(var(--needle, 0deg));
+}
+
+#ui .drive-drawing .needle-arm {
+  fill: var(--hud-needle);
+}
+
+#ui .drive-drawing .needle-hub {
+  fill: var(--hud-segment-off);
+  stroke: var(--hud-print-dim);
+  stroke-width: 3;
+}
+
+#ui .drive-drawing .dial-pace {
+  fill: var(--hud-print);
+  transform: rotate(var(--needle, 0deg));
+}
+
+#ui .drive-drawing .dial-pace.hidden {
+  display: none;
+}
+
+#ui .drive-drawing .arc-segment {
+  fill: none;
+  stroke-width: 16;
+}
+
+#ui .drive-drawing .arc-fuel .arc-segment {
+  stroke: var(--hud-fuel);
+}
+
+#ui .drive-drawing .arc-fuel .arc-segment-0 {
+  stroke: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-heat .arc-segment {
+  stroke: var(--hud-heat);
+}
+
+#ui .drive-drawing .arc-heat .arc-segment-4,
+#ui .drive-drawing .arc-heat .arc-segment-5 {
+  stroke: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-fuel text {
+  fill: var(--hud-fuel);
+}
+
+#ui .drive-drawing .arc-heat text {
+  fill: var(--hud-heat);
+}
+
+#ui .drive-drawing .arc-heat .arc-high {
+  fill: var(--hud-hot);
+}
+
+#ui .drive-drawing .arc-gauge.warn .arc-segment {
+  filter: drop-shadow(0 0 var(--hud-glow-r) var(--hud-hot));
+}
+
+#ui .drive-drawing .arc-needle .needle-arm {
+  fill: var(--hud-print);
+}
+
+#ui .hud-weapons {
+  width: var(--hud-weapons-w);
 }
 
 #ui button.gun-page {
@@ -410,18 +679,6 @@
   font-size: var(--hud-text-s);
   line-height: 1.1;
   white-space: normal;
-}
-
-#ui .utility-strip {
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-}
-
-#ui button.utility-slot-key {
-  position: relative;
-  height: 78%;
-
 }
 
 #ui .slot-tape {
@@ -463,17 +720,6 @@
 
 #ui .deck-wheel {
   container-type: inline-size;
-}
-
-#ui .wheel-ribs {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to right, var(--hud-wheel-wall), transparent 22%, transparent 78%, var(--hud-wheel-wall)),
-    linear-gradient(to bottom, var(--hud-glass-edge), transparent 25%, transparent 75%, var(--hud-glass-edge)),
-    var(--hud-wheel-art) repeat-y;
-  background-size: 100% 100%, 100% 100%, 100% auto;
-  background-position: 0 0, 0 0, 0 calc(var(--wheel-turn, 0) * 32.4cqw);
 }
 
 #ui button.knob-key {
@@ -576,26 +822,6 @@
   text-shadow: var(--hud-text-glow);
 }
 
-#ui .knob-face {
-  inset: 0;
-  transform: rotate(var(--knob, 0deg));
-}
-
-#ui .play-mark {
-  display: block;
-  width: 2.25cqw;
-  height: 2.7cqw;
-  margin: auto;
-  background: var(--hud-amber);
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  filter: var(--hud-mark-glow);
-}
-
-#ui .play-key[data-mode="auto"] .play-mark {
-  width: 3.45cqw;
-  clip-path: polygon(0 0, 50% 50%, 50% 0, 100% 50%, 50% 100%, 50% 50%, 0 100%);
-}
-
 #ui .radio-plate.off-air .deck-talk > * {
   visibility: hidden;
 }
@@ -663,7 +889,8 @@
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border: 0;
-  background: var(--hud-glass-fill);
+  background: none;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
   color: var(--hud-amber);
   text-align: left;
@@ -699,12 +926,8 @@
   border-color: transparent;
   border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
   background: none;
-}
-
-#ui .hud-system button.key-cap {
-  --key-edge: var(--hud-key-edge);
 }
 
 #ui .key-face {
@@ -727,10 +950,6 @@
   font-size: var(--hud-text-s);
   line-height: 1.05;
   white-space: normal;
-}
-
-#ui .key-face > .play-mark {
-  margin: 0;
 }
 
 #ui button.rocker {
@@ -779,15 +998,8 @@
   height: var(--hud-tray-h);
   padding: var(--hud-rim-w) calc(var(--space-2) + var(--hud-rim-w));
   border: 0;
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
-}
-
-#ui .tray-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
 }
 
 #ui .tray-window {
@@ -795,7 +1007,8 @@
   border-radius: 0;
   border: 0;
   padding: 1px var(--hud-well-w);
-  background: var(--hud-glass-fill);
+  background: none;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
 }
 
@@ -857,11 +1070,9 @@
   --ink-muted: var(--hud-amber-soft);
   --ink-faint: var(--hud-amber-faint);
   border: 0;
-  border-image: none;
   border-radius: 0;
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   color: var(--hud-amber);
 }
 
@@ -1002,11 +1213,6 @@
   border-image-source: var(--hud-keycap-lit-art);
 }
 
-#ui .auto-rocker,
-#ui .auto-label {
-  pointer-events: none;
-}
-
 #ui .rocker-socket {
   width: var(--hud-rocker-w);
   height: var(--hud-rocker-h);
@@ -1026,7 +1232,7 @@
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
@@ -1072,47 +1278,6 @@
   filter: none;
 }
 
-#ui .hud-tray.keys-tray {
-  gap: var(--space-1);
-}
-
-#ui .hud-tray:is(.keys-tray, .stats-tray) {
-  --hud-visor-side: calc(var(--hud-visor-h) * var(--hud-visor-cap) / var(--hud-visor-art-h));
-  --hud-visor-end: calc(var(--hud-visor-h) * var(--hud-visor-end-gap) / var(--hud-visor-art-h));
-  background: none;
-  box-shadow: none;
-  border-image-source: var(--hud-visor-art);
-  border-image-slice: 0 var(--hud-visor-cap) fill;
-  border-image-repeat: stretch;
-  border-image-outset: 0 0 calc(var(--hud-visor-h) - var(--hud-tray-h)) 0;
-}
-
-#ui .hud-tray.stats-tray {
-  border-image-width: 0 var(--hud-visor-side) 0 0;
-  padding-left: calc(var(--space-2) + var(--hud-tray-side));
-  padding-right: var(--hud-visor-end);
-}
-
-#ui .hud-tray.keys-tray {
-  border-image-width: 0 0 0 var(--hud-visor-side);
-  padding-left: var(--hud-visor-end);
-  padding-right: calc(var(--space-2) + var(--hud-tray-side));
-}
-
-#ui .hud-tray:is(.keys-tray, .stats-tray)::after {
-  display: none;
-}
-
-#ui .stats-tray .tray-window {
-  border-radius: var(--hud-screen-radius);
-  box-shadow: var(--hud-recess), 0 0 0 var(--hud-screen-rim) var(--hud-brass), 0 0 0 calc(var(--hud-screen-rim) + var(--hud-ink-line)) var(--hud-brass-ink);
-}
-
-#ui .hud-system button.key-cap {
-  width: var(--hud-key-h);
-  aspect-ratio: 1;
-}
-
 #ui .tooltip.hover-tip,
 #ui .tooltip.touch-tip,
 #ui .condition-tip-body.tooltip {
@@ -1120,11 +1285,9 @@
   isolation: isolate;
   padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
   border: 0;
-  border-image: none;
   border-radius: 0;
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
@@ -1137,7 +1300,8 @@
   position: absolute;
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
-  background: var(--hud-glass-fill);
+  background: none;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
   pointer-events: none;
 }
@@ -1145,7 +1309,7 @@
 #ui :is(.plate-label, .key-print, .dial-text, .knob-mark, .tape-print, .stat-unit) {
   font-family: var(--font-engraved);
   font-weight: 400;
-  -webkit-text-stroke: 0.03em currentColor;
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
   letter-spacing: 0.02em;
 }
 
@@ -1230,11 +1394,9 @@
   --ink-faint: var(--hud-amber-faint);
   box-sizing: border-box;
   border: 0;
-  border-image: none;
   border-radius: 0;
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   color: var(--hud-amber);
   font-family: var(--font-hud);
   text-shadow: var(--hud-text-glow);
@@ -1259,7 +1421,7 @@
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   box-shadow: none;
   color: var(--hud-print);
@@ -1285,8 +1447,8 @@
   height: var(--hud-icon);
 }
 
-:is(#ui, #overlay) :is(button.hud-key, button.key-cap:not(.play-key)) > .icon,
-#ui button.key-cap:not(.play-key) > .key-face > .icon {
+:is(#ui, #overlay) :is(button.hud-key, button.key-cap) > .icon,
+#ui button.key-cap > .key-face > .icon {
   translate: 0 calc(var(--hud-key-edge) * -0.3125);
 }
 
@@ -1314,9 +1476,8 @@
 }
 
 #ui :is(.action, .game-menu [role=menu]) {
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   text-shadow: none;
 }
 
@@ -1373,7 +1534,7 @@
   border-style: solid;
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
 }
 
 #ui .game-menu [role=menu][hidden],
@@ -1425,7 +1586,7 @@
   border-style: solid;
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
 }
@@ -1530,24 +1691,10 @@
   translate: 0 calc(var(--hud-key-edge) * -0.3125);
 }
 
-#ui button.key-cap.play-key {
-  border: 0;
-  border-image: none;
-  background: var(--hud-playkey-art) 0 0 / 100% 100% no-repeat;
-}
-
-#ui .play-key .play-mark {
-  translate: 15% 0;
-}
-
-#ui .play-key[data-mode="auto"] .play-mark {
-  translate: 0 0;
-}
-
 :is(#ui, #overlay) button.hud-close.hud-close {
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 40 40 84 40 fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
 }
 
 #ui .toast.bad > .hud-screen {
@@ -1573,7 +1720,7 @@
   margin: 0;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1.2 var(--font-engraved);
-  -webkit-text-stroke: 0.03em currentColor;
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
@@ -1602,51 +1749,8 @@
   height: var(--hud-key-h);
 }
 
-#ui .hud-plate > :is(.plate-patina, .plate-glaze) {
-  position: absolute;
-  inset: 0;
-  background: var(--hud-patina-layer);
-  pointer-events: none;
-}
-
-#ui :is(.drive-plate, .weapons-plate, .radio-plate) > :is(.plate-patina, .plate-glaze) {
-  display: none;
-}
-
-#ui .hud-plate > .plate-patina {
-  z-index: var(--z-hud-patina);
-  -webkit-mask: var(--plate-metal) 0 0 / 100% 100% no-repeat;
-  mask: var(--plate-metal) 0 0 / 100% 100% no-repeat;
-  opacity: var(--hud-patina-full);
-}
-
-#ui .hud-plate > .plate-glaze {
-  z-index: var(--z-hud-glaze);
-  -webkit-mask: var(--plate-art) 0 0 / 100% 100% no-repeat, var(--plate-metal) 0 0 / 100% 100% no-repeat;
-  -webkit-mask-composite: xor;
-  mask: var(--plate-art) 0 0 / 100% 100% no-repeat exclude, var(--plate-metal) 0 0 / 100% 100% no-repeat;
-  opacity: var(--hud-patina-screen);
-}
-
 :is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip, .hc-tip) {
   isolation: isolate;
-}
-
-:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip, .hc-tip, .hud-screen, .tray-window, .kit-piece, button.key-cap.play-key, button.hud-key.icon-key, button.key-cap:not(.play-key), button.hud-close, .menu-key > .menu-cap, button.hud-key:not(.icon-key))::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--hud-patina-layer);
-  pointer-events: none;
-}
-
-:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action)::after {
-  z-index: var(--z-hud-patina);
-  opacity: var(--hud-patina-full);
-}
-
-:is(#ui, #overlay) :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip, .hc-tip, .hud-screen, .tray-window)::after {
-  opacity: var(--hud-patina-screen);
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(.hud-screen, .tray-window) {
@@ -1654,7 +1758,7 @@
   z-index: var(--z-hud-part);
 }
 
-:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(button.hud-key.icon-key, button.key-cap:not(.play-key), button.hud-close, .menu-key > .menu-cap, button.hud-key:not(.icon-key), button.key-cap.play-key, button.rocker, .rocker-socket, button.knob-key, .kit-piece, .plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
+:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(button.hud-key.icon-key, button.key-cap, button.hud-close, .menu-key > .menu-cap, button.hud-key:not(.icon-key), button.rocker, .rocker-socket, button.knob-key, .kit-piece, .plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
   z-index: var(--z-hud-part);
 }
 
@@ -1663,37 +1767,10 @@
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
-  color: var(--hud-print-patina);
+  color: var(--hud-print);
 }
 
-:is(#ui, #overlay) :is(button.hud-key.icon-key, button.key-cap:not(.play-key), button.hud-close, .menu-key > .menu-cap, button.hud-key:not(.icon-key))::after {
-  --cap-edge: var(--hud-key-edge);
-  inset: calc(-1 * var(--cap-edge)) calc(-1 * var(--cap-edge)) calc(-2.1 * var(--cap-edge));
-  -webkit-mask-box-image: var(--hud-keycap-art) 40 40 84 40 / var(--cap-edge) var(--cap-edge) calc(var(--cap-edge) * 2.1) stretch;
-  opacity: var(--hud-patina-control);
-}
-
-:is(#ui, #overlay) button.key-cap:not(.play-key)::after {
-  --cap-edge: var(--key-edge);
-}
-
-:is(#ui, #overlay) button.hud-close::after {
-  --cap-edge: var(--small-key-edge);
-}
-
-:is(#ui, #overlay) button.key-cap.play-key::after {
-  -webkit-mask: var(--hud-playkey-art) 0 0 / 100% 100% no-repeat;
-  mask: var(--hud-playkey-art) 0 0 / 100% 100% no-repeat;
-  opacity: var(--hud-patina-control);
-}
-
-:is(#ui, #overlay) .kit-piece::after {
-  -webkit-mask: var(--kit-art) 0 0 / 100% 100% no-repeat;
-  mask: var(--kit-art) 0 0 / 100% 100% no-repeat;
-  opacity: var(--hud-patina-control);
-}
-
-#ui :is(.play-key > .key-face, .kit-lamp-piece > .lamp-glow, button.knob-mark.on) {
+#ui :is(.kit-lamp-piece > .lamp-glow, button.knob-mark.on) {
   z-index: var(--z-hud-lit);
 }
 
@@ -1762,17 +1839,9 @@
 
 #ui .info .info-draw {
   flex: 0 1000 var(--info-picture-height);
-  background: var(--hud-glass-fill);
+  background: none;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
-}
-
-#ui .drive-plate :is(.cool-key, button.rocker) {
-  filter: var(--hud-drive-key-shadow);
-}
-
-#ui .drive-plate .cool-key {
-  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
-  border-image-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 1.45);
 }
 
 #ui > .dash-rail {
@@ -1782,47 +1851,12 @@
   bottom: 0;
   height: var(--hud-rail-h);
   pointer-events: none;
-  background:
-    linear-gradient(var(--hud-edge-ink), var(--hud-edge-ink)) 0 calc(var(--hud-top-depth) - 1px) / 100% 1px no-repeat,
-    var(--hud-rail-art) 0 var(--hud-top-depth) / auto var(--hud-rail-front) repeat-x,
-    linear-gradient(to bottom, var(--hud-edge-ink) 0 1px, var(--hud-rail-top) 1px);
 }
 
-#ui .hud-drive::after {
-  content: "";
+#ui > .dash-rail > .baked-strip {
   position: absolute;
-  left: 100%;
-  bottom: calc(var(--hud-drive-sink) + var(--hud-rail-front));
-  width: var(--hud-cast-reach);
-  height: var(--hud-top-depth);
-  background: var(--hud-cast-shade);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+  max-width: none;
   pointer-events: none;
-}
-
-#ui :is(.hud-weapons, .hud-radio) > .device-faces {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
-
-#ui .device-faces > .face-edge {
-  fill: none;
-  stroke: var(--hud-art-ink);
-  stroke-width: var(--face-line);
-  stroke-linejoin: round;
-}
-
-#ui .device-faces > .face-top.face-light {
-  fill: var(--hud-face-lit);
-}
-
-#ui .device-faces > .face-side.face-light {
-  fill: var(--hud-face-shade);
 }
 
 #ui :is(.hud-weapons, .hud-radio) {
@@ -1839,7 +1873,3 @@
   pointer-events: none;
 }
 
-#ui .radio-plate {
-  transform: perspective(var(--hud-view-perspective)) translateX(calc(100% - var(--eye-x))) rotateY(calc(-1 * var(--hud-radio-turn))) translateX(calc(var(--eye-x) - 100%)) translateZ(var(--hud-radio-near));
-  transform-origin: var(--eye-x) var(--eye-y);
-}

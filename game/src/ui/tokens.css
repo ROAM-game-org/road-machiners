@@ -16,11 +16,20 @@
   font-display: block;
 }
 @font-face {
-  font-family: "Routed Gothic Narrow";
+  font-family: "HUD Engraved";
   src: url("./fonts/routed-gothic-narrow.woff2") format("woff2");
   font-weight: normal;
   font-style: normal;
   font-display: block;
+}
+@font-face {
+  font-family: "HUD Engraved";
+  src: url("./fonts/opengost-type-a.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+0400-04FF;
+  size-adjust: 116%;
 }
 :root {
   /* Type */
@@ -28,7 +37,8 @@
   --font-lcd-digits: "TC Calculator Digits", var(--font-mono);
   --font-ui: "Barlow Semi Condensed", "Fira Sans Condensed", sans-serif;
   --font-hud: "Chakra Petch", var(--font-ui);
-  --font-engraved: "Routed Gothic Narrow", var(--font-ui);
+  --font-engraved: "HUD Engraved", var(--font-ui);
+  --engraved-stroke: 0.03em;
   --font-mono: "IBM Plex Mono", monospace;
   --text-caption: 10px;
   --text-dense: 12px;
@@ -197,14 +207,12 @@
   --coin-mark: #c5b981;
 
   /* HUD skin: the housing color paints every plate through its mask, the rest is sampled from the approved panels */
-  --hud-housing: #c8a978;
   --hud-glass: #1c120a;
   --hud-glass-edge: #0b0704;
   --hud-amber: #ffb547;
   --hud-amber-dim: #7a4c1c;
   --hud-amber-soft: #d9a35a;
   --hud-amber-faint: #a8773d;
-  --hud-wheel-wall: #000000d9;
   --hud-amber-glow: #ff8c1a99;
   --hud-amber-glow-soft: #ff8c1a38;
   --hud-lcd-ghost: #4a2d12;
@@ -239,11 +247,6 @@
   --hud-tray-h: 52px;
   --hud-tray-rim: var(--hud-rim-w);
   --hud-tray-side: var(--hud-rim-w);
-  --hud-visor-art-h: 88;
-  --hud-visor-cap: 120;
-  --hud-visor-stitch: 69;
-  --hud-visor-end-gap: 32;
-  --hud-visor-h: calc((var(--hud-tray-h) + var(--space-2)) * var(--hud-visor-art-h) / var(--hud-visor-stitch));
   --hud-screen-radius: 5px;
   --hud-screen-rim: 1.5px;
   --hud-ink-line: 1px;
@@ -253,35 +256,35 @@
   --hud-drive-sink-share: 0.05;
   --hud-drive-sink: calc(var(--hud-drive-sink-share) * 100%);
   --hud-drive-sink-px: calc(var(--hud-drive-sink-share) * var(--hud-drive-w) * var(--hud-zoom) * 713 / 1633);
-  --hud-view-perspective: 700px;
-  --hud-view-tilt: 4deg;
+  --hud-drive-fit: calc(345.9 / var(--hud-drive-n));
+  --hud-drive-fit-drop: 3.44%;
   --hud-top-depth: 9px;
-  --hud-vanish-x: 0.5;
-  --hud-vanish-above: 0.5;
+  --hud-bake-desktop-aspect: 1.6;
+  --hud-frame-edge: 10px;
+  --hud-screen-edge: 4.8px;
+  --hud-slate-edge: 7px;
+  --hud-slate-key-edge: 4px;
+  --hud-crt-fill: radial-gradient(ellipse 75% 85% at 50% 48%, #321f0e, #26170a 75%);
+  --hud-crt-blur: 0.4;
+  --hud-crt-scan: #00000026;
+  --hud-crt-vignette: #00000033;
+  --hud-crt-sheen: #fff3d60d;
+  --hud-crt-sheen-fade: #fff3d605;
+  --hud-crt-edge: #00000040;
+  --hud-crt-glow-near: #ffb5474d;
+  --hud-crt-glow-far: #ff8c1a2b;
+  --hud-crt-icon-glow: #ff8c1a55;
+  --hud-crt-pip-glow: #ff8c1a77;
+  --hud-select-bracket: #94672b;
+  --hud-good: #8fe36a;
   --hud-rail-h: 22px;
   --hud-rail-front: calc(var(--hud-rail-h) - var(--hud-top-depth));
   --hud-rail-show: 3px;
   --hud-device-lift: calc(var(--hud-rail-front) + var(--hud-rail-show));
   --hud-cast-reach: 10px;
-  --hud-edge-ink: #1c0e06;
-  --hud-rail-top: #6e3519;
   --hud-cast-shade: rgb(20 8 2 / 0.45);
-  --hud-face-lit: rgb(255 240 210 / 0.16);
-  --hud-face-shade: rgb(20 10 0 / 0.3);
-  --hud-radio-turn: 0.5deg;
-  --hud-art-line: 1.5;
   --hud-contact-shade: 2px;
   --hud-art-ink: rgb(20 14 8 / 0.85);
-  --hud-radio-near: 1px;
-  --hud-drive-depth: 20px;
-  --hud-drive-hood-drop: 12px;
-  --hud-drive-hood-edge: 15.15%;
-  --hud-drive-hood-shadow: drop-shadow(0 3px 4px rgb(0 0 0 / 0.3));
-  --hud-drive-shade: linear-gradient(to bottom, rgb(0 0 0 / 0.18) calc(var(--hud-drive-hood-edge) + var(--hud-drive-hood-drop)), rgb(0 0 0 / 0.07) calc(var(--hud-drive-hood-edge) + 10% + var(--hud-drive-hood-drop)), transparent calc(var(--hud-drive-hood-edge) + 22% + var(--hud-drive-hood-drop)));
-  --hud-drive-key-shadow: drop-shadow(1.5px 2.5px 1.5px rgb(0 0 0 / 0.5));
-  --hud-gauge-glass: linear-gradient(165deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.03) 40%, transparent 55%);
-  --hud-dial-glass: linear-gradient(165deg, rgb(255 255 255 / 0.078), rgb(255 255 255 / 0.018) 40%, transparent 55%);
-  --hud-glass-recess: inset 0 2px 3px rgb(0 0 0 / 0.35);
   --hud-radio-tuck: 46px;
   --hud-tray-gap: var(--space-4);
   --hud-text-s: 10px;
@@ -302,32 +305,11 @@
   --hud-text-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
   --hud-mark-glow: drop-shadow(0 0 var(--hud-glow-r) var(--hud-amber-glow-soft));
   --hud-step: 1px;
-  --hud-rim-slice: 30;
   --hud-rim-w: 3px;
-  --hud-well-slice: 30;
   --hud-well-w: 2px;
   --hud-pad: 10px;
-  --hud-glass-tile: 256px;
-  --hud-grime-tile: 256px;
-  --hud-patina-color: #5e5036;
-  --hud-patina-strength: 0.175;
-  --hud-dust-strength: 0.35;
-  --hud-control-patina: 0.5;
-  --hud-screen-patina: 0.6;
-  --hud-dust-tile: 512px;
-  --hud-patina-tint: color-mix(in srgb, var(--hud-patina-color) calc(min(1, var(--hud-patina-strength) / max(var(--hud-dust-strength), 0.01)) * 100%), transparent);
-  --hud-patina-layer: var(--hud-dust-art) 0 0 / var(--hud-dust-tile) repeat fixed, linear-gradient(var(--hud-patina-tint), var(--hud-patina-tint));
-  --hud-patina-full: var(--hud-dust-strength);
-  --hud-patina-control: calc(var(--hud-dust-strength) * var(--hud-control-patina));
-  --hud-patina-screen: calc(var(--hud-dust-strength) * var(--hud-screen-patina));
-  --hud-print-patina: color-mix(in srgb, var(--hud-print), var(--hud-patina-color) calc(var(--hud-patina-strength) * var(--hud-control-patina) * 100%));
-  --hud-housing-fill: var(--hud-grime-art) 0 0 / var(--hud-grime-tile) repeat, var(--hud-olive-art) 0 0 / var(--hud-olive-tile) repeat, var(--hud-olive);
-  --hud-panel-edge: inset 1px 1px 0 rgb(235 215 175 / 0.35), inset -1px -1px 0 rgb(30 18 6 / 0.5), inset 0 0 0 2.5px rgb(150 128 90 / 0.45), inset 0 0 1.5px 3px rgb(20 12 4 / 0.25);
   --hud-panel-gap: 5px;
   --hud-recess: inset 0 1px 2px rgb(8 4 1 / 0.8), inset 0 0 1.5px 0.5px rgb(8 4 1 / 0.75), 0 0 1px 0.5px rgb(255 240 205 / 0.12);
-  --hud-glass-fill: var(--hud-glass-art) 0 0 / var(--hud-glass-tile) repeat, var(--hud-screen);
-  --hud-olive-tile: 400px;
-  --hud-olive: #4c402e;
   --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;
   --hud-emboss: 0 1px 0 #fff3d666;
   --hud-bracket: 6px;
@@ -477,8 +459,6 @@
   --z-lcd-digits: 0;
   --z-lcd-ghost: -1;
   --z-recess-backing: -1;
-  --z-hud-patina: 50;
-  --z-hud-glaze: 55;
   --z-hud-part: 60;
   --z-hud-glass: 66;
   --z-hud-shade: 70;
@@ -523,4 +503,6 @@
   --lcd-cell-w: 0px;
 }
 
-
+:root:lang(ru) {
+  --engraved-stroke: 0.09em;
+}

@@ -95,12 +95,12 @@ function sharedReason(rows: HitRow[]): Msg | null {
   return rows.every((r) => sameMsg(r.text, rows[0].text)) ? rows[0].text : null;
 }
 
-function well(title: Msg, rows: HitRow[], theirs: boolean, selectedId: string | null): HTMLElement {
+function well(title: Msg, rows: HitRow[], theirs: boolean, selected: readonly string[]): HTMLElement {
   const shared = sharedReason(rows);
   return el('div', { class: `hc-well${theirs ? ' theirs' : ''}` },
     el('div', { class: 'hc-cap' }, title),
     shared ? el('div', { class: 'hc-reason' }, shared) : null,
-    ...(rows.length === 0 ? [el('div', { class: 'hc-none' }, t('hit.noWeapons'))] : rows.map((r) => gunRow(r, theirs, r.key !== null && r.partId === selectedId, shared))),
+    ...(rows.length === 0 ? [el('div', { class: 'hc-none' }, t('hit.noWeapons'))] : rows.map((r) => gunRow(r, theirs, r.key !== null && selected.includes(r.partId), shared))),
   );
 }
 
@@ -112,13 +112,13 @@ export class HitCard {
     container.append(this.root);
   }
 
-  render(world: World, hoveredId: string | null, selectedId: string | null): void {
+  render(world: World, hoveredId: string | null, selected: readonly string[]): void {
     const card = hoveredId === null ? null : hitCardRows(world, hoveredId);
     if (!card) {
       this.root.replaceChildren();
       return this.hide();
     }
-    this.root.replaceChildren(well(t('hit.wellYou'), card.mine, false, selectedId), well(t('hit.wellThem'), card.theirs, true, null));
+    this.root.replaceChildren(well(t('hit.wellYou'), card.mine, false, selected), well(t('hit.wellThem'), card.theirs, true, []));
   }
 
   hide(): void {

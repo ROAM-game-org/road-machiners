@@ -213,7 +213,9 @@
    ],
    "frames": [
     "play-up",
-    "play-down"
+    "play-down",
+    "auto-up",
+    "auto-down"
    ]
   },
   "wheel": {
@@ -236,5 +238,6 @@
  "wheelRibPx": 28.559933214452666,
  "scales": [
   2
- ]
+ ],
+ "source": "95572e9795aa2caf"
 }

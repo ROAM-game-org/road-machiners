@@ -3,11 +3,10 @@
 /* The framed box of a modal, the save panel and the New game screen, with the scrim over the game behind it. */
 :is(#ui, #report) .dialog {
   padding: var(--space-9);
-  background: var(--surface-panel);
-  border: 2px solid var(--line-bright);
-  box-shadow:
-    inset 0 0 0 var(--space-2) var(--line-faint),
-    0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
+  background: none;
+  border: 0;
+  border-image: var(--hud-slate-art) 9% 6% fill / var(--hud-slate-edge) stretch;
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 
 /* A panel of the right dock: the log, the contracts and the radio. */
@@ -593,4 +592,15 @@
 }
 .cost-item .icon svg {
   fill: none;
+}
+
+:is(#ui, #report) .dialog button.close {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  border-image: var(--hud-slate-key-art) 14% 6% fill / var(--hud-slate-key-edge) stretch;
+}
+
+:is(#ui, #report) .dialog button.close:active {
+  border-image-source: var(--hud-slate-key-down-art);
 }

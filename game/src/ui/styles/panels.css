@@ -378,9 +378,8 @@
   isolation: isolate;
   padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
   border: 0;
-  background: var(--hud-housing-fill);
-  background-blend-mode: multiply, normal;
-  box-shadow: var(--hud-panel-edge);
+  background: none;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   color: var(--hud-amber);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   text-align: left;
@@ -480,7 +479,8 @@
   position: absolute;
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
-  background: var(--hud-glass-fill);
+  background: none;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
   pointer-events: none;
 }

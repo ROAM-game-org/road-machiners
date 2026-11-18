@@ -507,6 +507,7 @@ export const SCREENS: Translation<typeof EN> = {
   'stat.recoil': 'Отдача',
   'stat.spread': 'Разброс',
   'icon.cut': 'Перерезать трос',
+  'icon.hold': 'Стоп',
   'stat.draw': 'Отбор мощности',
   'stat.topSpeed': 'Макс. скорость',
   'stat.accel': 'Разгон',
