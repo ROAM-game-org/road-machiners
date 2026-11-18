@@ -1,6 +1,6 @@
 # UI kit library and review sheet
 
-**Status:** planning
+**Status:** executing
 **Branch:** hud-dashboard
 **Worktree:** /Users/boris/Documents/Korovan/.worktrees/hud-dashboard
 **Goal:** Every shared UI piece of `game/docs/ui.md` section 12, in every state of section 6, has a version in the baked HUD look, and every screen in `docs/screens/` wears it with its layout unchanged. The user signs both off on the `ui.html` sheet and on a before and after pair of every screen image. The sheet is what later screen-replacement tasks build from, one screen family each. Confirming the goal needs the user's sign-off on the sheet. Useless if: the sheet draws mockup markup that real screens never call; a piece clips in Russian, pseudo-long text or on a narrow layer; the hardware look breaks the grayscale hierarchy of P11 on a dense list; a piece exists only for the sheet; a screen counts as done because old flat markup sits inside a new frame.
@@ -29,22 +29,23 @@ Every new picture comes from the bake. Each new piece is a three.js scene in `to
 
 Map of shared pieces to hardware, the core of the sheet:
 
-- `.dialog` and the window frame: a large olive housing with a brass lip, from a new `window` piece. The sheet shows two body choices, olive metal and stitched leather, and the user picks one there.
-- `.panel` and `.dock-panel`: the existing baked olive `frame` piece.
+- `.dialog`, `.panel` and `.dock-panel`: the `slate` piece, rebaked as a housing with a brass lip around a dark screen floor, so every word on a window sits on a dark screen and takes the amber inks. `.dialog` already draws `slate`, so its frame changes with the bake alone. The sheet shows two housing choices, olive metal and stitched leather, and the user picks one there. Panels of the HUD kit, `.hud-panel` and `.hud-frame`, keep their own art.
 - `.well`, `.inset`, `.tooltip` and the confirm body: the recessed `screen` piece at window size.
 - Text buttons in three heights, `.btn-s`, plain and `.btn-l`: the keycap piece stretched as a 9-slice, with engraved print. `.btn-danger` takes the red cap. `.on` and `.selected` take the pressed frame.
 - `.tabs` and `.tabs.sub`: a row of keys, the picked tab pressed.
 - `.option-switch`: a row of keys like `.tabs`, the picked value pressed.
-- `.row`, `.stat-row`, `.meter-row`, `.tile`, `.chip`, `.tag`, `.meter` and `.gauge`: on a screen surface, in the four screen colors and the accent, so the meter track still reads at full length.
-- Text inputs of the save name and the feedback form: a recessed screen with a live caret.
+- `.row`, `.stat-row`, `.meter-row`, `.tile`, `.chip`, `.tag`, `.meter` and `.gauge`: on the screen floor. The ink levels become amber steps, so the P11 hierarchy keeps its levels and the meter track still reads at full length. Item tones, the coin and the good and danger inks keep their meaning.
+- Text inputs, text areas and `select`: a recessed input well with a live caret. Range sliders keep their drawing.
 - Scroll bars: brass on the screen color through `scrollbar-color`. Screen files already set `scrollbar-width`, which turns off picture scroll bars in Chromium, so a bake would never show.
 - `.icon`, `.key`, the coin and the item art keep their drawing and take the screen's ink.
 
-Every state of section 6 shows on each control: rest, hover, focus, selected, planned, working, disabled, spent, seen, unaffordable and locked. Hover stays absent on HUD hardware, per section 4.5, so a window key shows hover only as its tooltip.
+Every state of section 6 shows on each control: rest, hover, focus, selected, planned, working, disabled, spent, seen, unaffordable and locked. A key has no hover look, per section 4.5. A clickable row or tile on a screen keeps its hover wash, since section 6 gives hover to things that react to a click. A disabled key keeps its cap and dims its print, as `setOff()` keys on the HUD do.
+
+The crash screen and its notices keep a plain look with no baked art. They report files that did not arrive, so they must draw when no picture loads.
 
 Principle change, approved by the user: P19 says every screen uses physical keys, and flat buttons are gone. Section 4.5 drops "on the game screen" and adds the accent for selection to the screen colors. ui.md and the sheet change in the same commit as the pieces.
 
-The sheet renders in English, Russian and pseudo-long text, in the desktop and flat views, at full width and in the compact and narrow classes.
+The sheet renders in English, Russian and pseudo-long text through the existing `?lang=` switch of `loadLanguage()`. Its samples print real catalog entries, so the sheet needs no new Russian. It renders in the desktop and flat views, at full width and in the compact and narrow classes.
 
 TDD: no. The work is CSS and baked art, judged by eye. The checks are the existing style guard, guide test and `npm run layout`.
 
@@ -70,61 +71,62 @@ TDD: no. The work is CSS and baked art, judged by eye. The checks are the existi
 
 - UK1 — Which body the window frame takes, olive or leather. The user picks it on the sheet.
 - UK2 — How many screens break in the after images and need a follow-up layout task.
+- UK3 — Whether the accent edge of a selection reads against amber text, or a selected row needs a stronger mark such as an amber fill with dark print. The sheet shows it.
 
 ## Plan
 
-Approach: retune the surface tokens to the hardware palette and point the shared classes at baked 9-slice pieces, so every screen changes through `tokens.css`, `base.css` and `components.css` alone. The window housing is the existing `slate` piece rebaked, so no new art variable reaches the screens.
+Approach: rebake `slate` as the window housing, retune the ink and surface tokens to the screen palette, and move the shared button rule onto the keycap art. Every screen changes through `tokens.css`, `base.css` and `components.css` alone. No Three.js code reads a surface, ink or line token, and `dash.css` reads none, so the 3D world and the baked HUD keep their look.
 
 ### PH1 — Baseline images
-- 1.1 `game/docs/screens/*.jpg` (modify): run `npm run screens` on HEAD with the dev server up. The gallery is from Nov 16 and predates the baked HUD, so the before images must come from this branch.
+- 1.1 `game/docs/screens/*.jpg` (modify): run `npm run screens` on HEAD with the dev server up. The gallery dates from Nov 16, before the baked HUD, so the before set must come from this branch. The HUD change owes this re-render anyway.
 - 1.2 Copy the result to `tmp/screens-before/`.
 - Commit: Screens: re-render the gallery with the baked HUD
 
 ### PH2 — Bake the window pieces
-- 2.1 `game/tools/hud-bake/parts/pieces.js:9-21` (modify) `BOXES`: grow the canvas for the new boxes `slateLeather` and `input`.
-- 2.2 `pieces.js:24,49-68` (modify) `slateFrame()`: rebuild as an olive housing with a bevelled slab from `olive.js`, a brass lip and a recessed screen floor, replacing the gray `SLATE` rings. Delete `slateKey` from `BOXES`, `KEYS` and `keyZ()`, since windows close with the `close` key.
-- 2.3 `pieces.js` (modify) new `slateLeatherFrame()`: the same housing with a stitched leather body from `dashlib.js` `stitch()`, `grain()` and `wear()`, matched to `stats.js`.
-- 2.4 `pieces.js` (modify) new `inputWell()`: the `screen` recess with a deeper floor, for text inputs and `select`.
-- 2.5 `game/tools/hud-bake/parts/journal.js` (modify): drop the gray `rings`, `body` and `key` colors so the journal part uses the new slate look.
-- 2.6 Run the full `npm run hud-bake`. It rewrites `public/hud/baked/pieces/` and `src/ui/dash/baked/pieces.*.json`.
-- Respects: IV3, PC1, AS1. Check AS1 on the bake sheet by stretching each piece to 1200 by 700 and to a 300px Russian label.
+- 2.1 `game/tools/hud-bake/parts/pieces.js:6-26` (modify) `CANVAS`, `BOXES`, `SLATE`: grow the canvas for the new boxes `slateLeather` and `input`, and replace the gray `SLATE` colors.
+- 2.2 `pieces.js:49-68` (modify) `slateFrame()`: an olive housing slab from `olive.js` with a brass lip around a recessed floor in the screen brown. Delete `slateKey` from `BOXES`, `KEYS`, `keyZ()` and the bake loop, since a window closes with the `close` key.
+- 2.3 `pieces.js` (modify) new `slateLeatherFrame()`: the same shape with a stitched leather housing from `dashlib.js` `stitch()`, `grain()` and `wear()`, matched to the leather of `stats.js`.
+- 2.4 `pieces.js` (modify) new `inputWell()`: the `screen` recess with a deeper floor and no brass lip.
+- 2.5 Run the full `npm run hud-bake`. It rewrites `public/hud/baked/pieces/` and `src/ui/dash/baked/pieces.*.json`.
+- Respects: IV3, PC1. Check AS1 on a scratch page in `tmp/` by stretching `slate` to 1200 by 700 and the keycap to a 300px label.
 - Commit: HUD bake: olive and leather window housings and an input well
 
 ### PH3 — Restyle the shared pieces
-- 3.1 `game/src/ui/dash/skin.ts:240-243` `paintSkin()`: add `--hud-slate-leather-art` and `--hud-input-art`, and delete `--hud-slate-key-art` and `--hud-slate-key-down-art`.
-- 3.2 `game/src/ui/tokens.css:52-81` (modify): retune `--surface-*`, `--line-*` and `--ink-*` to the screen brown `#342013`, the olive and the amber of the HUD screens. Set `--hud-slate-edge` and add `--hud-input-edge`. Delete `--hud-slate-key-edge`.
-- 3.3 `game/src/ui/styles/base.css:45-90` (modify): `.panel` takes `--hud-frame-art`. `button` takes the keycap 9-slice with `--font-engraved` print and no hover look. `:active`, `.on` and `[aria-pressed="true"]` take `--hud-keycap-down-art`. `select`, `input` and `textarea` take `--hud-input-art`. Scroll bars take `scrollbar-color` from two tokens.
-- 3.4 `game/src/ui/styles/components.css:4-62` (modify): `.dialog` keeps `--hud-slate-art`. `.dock-panel` and `.notice` take the frame art. `.btn-danger` takes `--hud-keycap-red-art`. Button heights keep `--btn-h-*`.
-- 3.5 `components.css:63-290,491-606` (modify): `.tile`, `.chip`, `.well`, `.tooltip` and `.option-switch` take the screen art and the four screen colors plus the accent. `.dialog button.close` takes the `close` piece. `.selected`, `.spent`, `.seen`, `[aria-disabled]`, `.meter`, `.gauge` and the planned dashed look keep their meaning in the new palette.
-- 3.6 `game/src/ui/styles/journal.css:17-30` (modify): delete the slate and slate key rules, so the journal uses the shared `.dialog` and close key.
-- 3.7 Every other file under `game/src/ui/styles/` stays as it is, apart from removing any color or frame that now fights the shared piece. Each removal is listed in the commit.
-- 3.8 `game/docs/ui.md` (modify): P19 says every screen uses physical keys. Section 4.5 drops "on the game screen" and adds the accent to the screen colors. Sections 9, 10 and 12 describe the new frames.
+- 3.1 `game/src/ui/dash/skin.ts:239-243` `paintSkin()`: add `--hud-slate-leather-art` and `--hud-input-art`. Delete the two slate key variables.
+- 3.2 `game/src/ui/tokens.css:52-81` (modify): `--surface-*` become the screen brown and its sunk and raised steps. `--line-*` become brass and dark bronze steps. `--ink`, `--ink-bright`, `--ink-title`, `--ink-label`, `--ink-muted` and `--ink-faint` become amber steps from `--hud-print` down to `--hud-amber-faint`. `--ink-overlay` and `--surface-overlay*` stay, since the in-world overlays keep their look. Add `--hud-input-edge` and the two scroll bar colors. Delete `--hud-slate-key-edge`.
+- 3.3 `game/src/ui/styles/base.css:45-90` (modify): `.panel` takes the slate art in the rule that sets its surface today. Every rule that clears a panel's look with the `border` shorthand, like `.confirm-block` and `.new-game-block`, also clears the art. `button:hover` loses its look. `select`, text `input` and `textarea` take `--hud-input-art`. The page takes the scroll bar colors.
+- 3.4 `game/src/ui/styles/components.css:35-62` (modify): the button rule behind the existing exclusion list takes the keycap 9-slice of `#ui button.key-cap` in `dash.css:843-852`, moved into one shared rule that both read. Print is `--hud-print` in `--font-engraved`, at the sizes the three button heights already set, with no uppercase so widths stay. `.btn-danger` takes `--hud-keycap-red-art`. `:active`, `.on` and `[aria-pressed="true"]` take the pressed art. `[aria-disabled="true"]` dims the print and keeps the cap. `.crash-reload` joins the exclusion list.
+- 3.5 `components.css:63-290,491-606` (modify): `.tile`, `.chip`, `.well` and `.tooltip` take sunk screen surfaces. `.dialog button.close` takes the `close` piece. `.selected`, `.spent`, `.seen`, `.meter`, `.gauge` and the planned dashed look keep their meaning in the new palette.
+- 3.6 `game/src/ui/styles/journal.css:17-30` (modify): delete the slate and slate key rules, so the journal side column takes the shared panel art and close key.
+- 3.7 `game/src/ui/styles/boot.css` (modify): the crash screen keeps its old surface and ink through its own tokens, since it must draw without pictures.
+- 3.8 Other files under `game/src/ui/styles/` change only to remove a color or frame that now fights a shared piece. The commit lists each removal.
+- 3.9 `game/docs/ui.md` (modify): P19 says every screen uses physical keys. Section 4.5 drops "on the game screen", lists the window housing and adds the accent to the screen colors. Sections 6, 9, 10 and 12 describe the key hover rule, the inks, the housing and the input well.
 - Respects: IV2, IV4, PC2. Run `npx vitest run src/ui/style-guard.test.ts src/ui/guide/guide.test.ts`.
 - Commit: UI: every shared piece takes the baked HUD hardware
 
 ### PH4 — The review sheet
-- 4.1 `game/src/ui/guide/page.ts` (modify): add a control bar with text in English, Russian and pseudo-long, the desktop and flat views, the full, compact and narrow layer classes, and the olive or leather window body. The body switch sets `--hud-slate-art` on the sheet root.
-- 4.2 `game/src/ui/guide/pieces.ts:32-76` (modify) `PIECES`: add a states piece that draws a button, a tab row, an option switch, a row and a tile in each section 6 state. Add a window piece: a `.dialog` with a head row, tabs, a well of stat rows and a row of keys. Each sample takes its words from `sampleText(en: string, ru: string): string`, which the text control switches.
+- 4.1 `game/src/ui/guide/page.ts:150-159` (modify): call `loadLanguage()` so `?lang=ru` and `?lang=pseudo` work, and add a control bar with links for the three languages, the desktop and flat views, the full, compact and narrow layer classes, and the olive or leather housing. The housing switch sets `--hud-slate-art` on the sheet root.
+- 4.2 `game/src/ui/guide/pieces.ts:32-76` (modify) `PIECES`: add a states piece that draws a key, a tab row, an option switch, a row and a tile in each state of section 6. Add a window piece: a `.dialog` with a head row, tabs, a well of stat rows, an input and a row of keys. Samples print catalog entries through `t()`, never `verbatim()`.
 - 4.3 `game/src/ui/guide/guide.test.ts` (modify): the states piece must name every state of the section 6 table.
 - Respects: IV1.
-- Commit: UI guide: states, a window and text, view and layer controls
+- Commit: UI guide: states, a window, and language, view, layer and housing controls
 
 ### PH5 — After images and checks
 - 5.1 Run `npm run screens`, then build `tmp/before-after.html` with each before and after image side by side, named by screen.
 - 5.2 Run `npm run layout`, `npm run typecheck`, `npm test` for `src/ui/` and `npm run playtest`.
-- 5.3 Look at every pair against IV4 and PC2, and list each broken screen as a follow-up under `## Conclusion`. This answers UK2.
+- 5.3 Look at every pair against IV4 and PC2, field screens first for RK2. List each broken screen as a follow-up under `## Conclusion`. This answers UK2.
 - Respects: IV4, IV5, AS2.
 - Commit: Screens: the gallery in the baked UI kit
 
 ### PH6 — The user's pick
-- 6.1 After the user picks the body on the sheet, delete the losing housing from `pieces.js`, `skin.ts` and the sheet control. Rebake, rerun the screens and commit. This answers UK1.
+- 6.1 After the user picks the housing and answers UK3 on the sheet, delete the losing housing from `pieces.js`, `skin.ts` and the sheet control. Rebake, rerun the screens and commit.
 - Commit: HUD bake: keep the <olive|leather> window housing
 
 ### Order and dependencies
 - The phases run in order. PH1 needs the HEAD look before any change. PH3 needs the baked art from PH2. PH6 waits on the user.
 
 ### Risks and rollback
-- RK1 — A keycap on every button crowds dense rows like the shop list. The heights stay at the `--btn-h-*` tokens, and a row that crowds becomes a follow-up task instead of a new size.
-- RK2 — The token retune changes the drawn hardware of `drawings.css` that reads `--surface-*`. The before and after pairs of the field screens catch it.
-- RK3 — The ink page and the quest page carry art and their own surfaces. Their pairs are checked first, and a fight with the slate frame is listed as a follow-up.
+- RK1 — A keycap on every button crowds dense rows like the shop list. Heights stay at the `--btn-h-*` tokens, and a crowded row becomes a follow-up task instead of a new size.
+- RK2 — A HUD panel that clears its gray box with `border-color` or `background` alone, not the `border` shorthand, would show the slate art. The field screen pairs catch it, and the fix clears the art in that panel's rule.
+- RK3 — The ink page and the quest page carry art and their own surfaces. Their pairs are checked first, and a fight with the housing is listed as a follow-up.
 - Rollback: each phase is one commit on `hud-dashboard`, and nothing reaches dev until the user lands it.
