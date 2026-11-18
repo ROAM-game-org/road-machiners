@@ -33,6 +33,7 @@ export const UI = {
   'card.call': 'Radio',
   'card.mark': 'Mark',
   'card.lookOver': 'Look over',
+  'card.lookOverTip': m('Look over, takes {n, plural, one {# turn} other {# turns}}', { n: 'count' }),
   'hud.horn': 'Horn',
   'call.knockedOut': 'Their driver is knocked out',
   'money.minus': m("−{n, plural, one {# M} other {# M's}}", { n: 'count' }),

@@ -634,21 +634,18 @@ const cardPlaceFaults = (page) =>
     return [...(card.bottom > innerHeight + 1 ? ['the card runs below the window'] : []), ...(logShown && log.getBoundingClientRect().top < card.bottom ? ['the card overlaps the log'] : [])];
   }, CARD);
 
-const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.hitcard', '.info-column', '.info-body', '.info-content', '.info-draw', '.info-actions'].map((part) => `${CARD} ${part}`)) : []);
+const cardCutFaults = (page) => (page.viewportSize().height >= 720 ? cutFaults(page, ['.info-body', '.info-content', '.info-draw', '.info-actions'].map((part) => `${CARD} ${part}`)) : []);
 
 const cardShapeFaults = (page) =>
   page.evaluate((sel) => {
     const card = document.querySelector(sel);
     const rect = (part) => card.querySelector(part)?.getBoundingClientRect();
-    const lists = card.querySelector('.hitcard');
     const draw = rect('.info-draw');
     const content = rect('.info-content');
     const listsBox = rect('.hitcard');
-    const scrolls = () => lists && innerHeight >= 720 && lists.scrollHeight > lists.clientHeight + 1;
     const narrow = () => draw.width < content.width - 1;
     const below = () => listsBox && listsBox.height > 0 && draw.bottom > listsBox.top + 1;
     const rules = [
-      [scrolls, 'the lists scroll'],
       [narrow, 'the drawing is narrower than the card'],
       [below, 'the drawing is not above the lists'],
     ];
@@ -656,21 +653,17 @@ const cardShapeFaults = (page) =>
     return rules.filter(([broken]) => broken()).map(([, message]) => message);
   }, CARD);
 
-async function drawingFaults(page) {
+async function cardSizeFaults(page) {
   return page.evaluate(() => {
-    const draw = document.querySelector('#ui .info .info-draw');
     const card = document.querySelector('#ui .info');
-    if (!draw) return [];
-    const css = getComputedStyle(card);
-    const fixed = parseFloat(css.getPropertyValue('--info-picture-height'));
-    const gap = parseFloat(css.getPropertyValue('--hud-gap'));
-    const scale = card.getBoundingClientRect().width / card.offsetWidth;
-    const deck = document.querySelector('#ui .hud-radio')?.getBoundingClientRect();
-    const cardBox = card.getBoundingClientRect();
-    const floor = deck && deck.left < cardBox.right ? deck.top - gap * scale : innerHeight;
-    const roomBelow = (floor - cardBox.bottom) / scale;
-    const cut = draw.offsetHeight < fixed - 1 && roomBelow > 1;
-    return cut ? [`the picture screen is ${draw.offsetHeight} px of ${fixed} px with ${roomBelow.toFixed(0)} px left below the card`] : [];
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:min(var(--hud-info-h), calc(var(--layer-h) - 2 * var(--hud-inset)))';
+    document.getElementById('ui').append(probe);
+    const cap = parseFloat(getComputedStyle(card).maxHeight);
+    const fixed = Number.isFinite(cap) ? Math.min(probe.offsetHeight, cap) : probe.offsetHeight;
+    probe.remove();
+    const height = card.offsetHeight;
+    return Math.abs(height - fixed) > 1 ? [`the card is ${height} px tall, not its fixed ${fixed.toFixed(0)} px`] : [];
   });
 }
 
@@ -711,7 +704,7 @@ async function tipFaults(page) {
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
-  const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), drawingFaults(page), tipFaults(page)];
+  const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), cardSizeFaults(page), tipFaults(page)];
   return faultsOf('enemy-card')((await Promise.all(checks)).flat());
 }
 

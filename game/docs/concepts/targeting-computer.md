@@ -47,7 +47,7 @@ A selected card has corner brackets in a solid dim amber, `#94672b`, so the corn
 
 The top device and the lower box are two devices strapped together. Every weapon control sits on the top device's right column, and the lower box holds only the utilities. Keys are physical, so each key always does the same job.
 
-- All is a wide, short red key across the top of the column.
+- All is a wide, short brown key across the top of the column. It keeps one color, since the brackets on the cards show the selection.
 - Reload and Hold are two icon keys side by side under it, about 1.6 times the old small key. Their names show in the hover tooltip.
 - Reload drops the magazine of every selected gun that is half empty. On a harpoon with its line out, it cuts the line. There is no Cut line key.
 - Hold clears the target of every selected gun and turns auto fire off.
@@ -60,7 +60,7 @@ The Hold icon is new: a ring with a slash, on the 16 unit icon grid. Reload uses
 
 Each utility slot keeps its lamp, its tape label with the short name, such as SMK or CLTR, and its rocker. Each slot sits on a bolted metal plate in a dark warm steel with four screws. A wire leaves the plate's right side and runs down behind the lower box edge.
 
-The lamps are green for ready, yellow for aiming and for fires this turn, and red for recharging, and off when blocked. Today `UTILITY_LAMPS` in `src/ui/dash/weapon-blocks.ts` makes a set utility green.
+The lamps are green for ready, yellow for aiming and for fires this turn, and red for recharging, and off when blocked.
 
 ## Screen look
 
@@ -71,7 +71,7 @@ The screen has a static amber CRT look: faint scanlines, a soft phosphor glow on
 Every piece of hardware is modeled in `tools/hud-bake/parts/weapons.js` and baked with `npm run hud-bake`, like the rest of the computer. Nothing is drawn flat in CSS.
 
 - The housing margin left of the screen and above it gets about 40 and 25 plate px thinner.
-- The All key, and the Reload and Hold keys, each with up and down frames, and All with a lit frame.
+- The All key, and the Reload and Hold keys, each with up and down frames.
 - One metal plate per utility slot with its screws and wire.
 
 ## Text

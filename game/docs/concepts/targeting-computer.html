@@ -270,7 +270,7 @@ function plateHtml(size) {
   const iconKey = (name, x) => `<div class="box key" data-key="${name}" style="${box(x, 196, x + 152, 340)}"><svg viewBox="0 0 16 16">${KEY_ICONS[name]}</svg></div>`;
   return `<div class="plate ${size}"><canvas class="art" width="1929" height="709"></canvas>
     <div class="box screen" style="${box(118, 78, 1596, 458)}">${Array.from({ length: 6 }, (_, i) => card(i)).join("")}</div>
-    <div class="box key ${st.all ? "on" : ""}" data-key="all" style="${box(1628, 70, 1942, 186)}"><span>${t.all}</span></div>
+    <div class="box key" data-key="all" style="${box(1628, 70, 1942, 186)}"><span>${t.all}</span></div>
     ${iconKey("reload", 1628)}${iconKey("hold", 1790)}
     <div class="box engraved" style="${box(1640, 362, 1790, 492)}">${t.auto}</div>
     <div class="box rocker ${st.auto ? "on" : ""}" data-key="auto" style="${box(1830, 362, 1898, 492)}"></div>

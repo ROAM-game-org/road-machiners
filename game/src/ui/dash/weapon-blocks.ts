@@ -161,13 +161,26 @@ function onPress(button: HTMLElement, show: (down: boolean) => void): void {
 
 const WEAPONS_LAYOUT = { width: WEAPONS_PLATE.width, height: WEAPONS_PLATE.height, boxes: {} };
 
+interface KeyZones {
+  name: string;
+  hit: string;
+  face: string;
+  faceDown: string;
+}
+
+const KEY_ZONES = {
+  all: { name: "all", hit: "allHit", face: "allText", faceDown: "allTextDown" },
+  reload: { name: "reload", hit: "reloadHit", face: "reloadIcon", faceDown: "reloadIconDown" },
+  hold: { name: "hold", hit: "holdHit", face: "holdIcon", faceDown: "holdIconDown" },
+} as const satisfies Record<string, KeyZones>;
+
 class PressKey {
   readonly button: HTMLButtonElement;
   private down = false;
 
-  constructor(plate: BakedPart, name: string, label: Msg, action: () => void, face: HTMLElement, private readonly frames: SpriteFrames, private readonly frameOf: (down: boolean) => string) {
-    this.button = plate.zone(plateKey(`baked-key ${name}-key`, label, action), `${name}Hit`);
-    const sink = plate.follow(face, `${name}${name === "all" ? "Text" : "Icon"}`, `${name}${name === "all" ? "TextDown" : "IconDown"}`);
+  constructor(plate: BakedPart, zones: KeyZones, label: Msg, action: () => void, face: HTMLElement, private readonly frames: SpriteFrames, private readonly frameOf: (down: boolean) => string) {
+    this.button = plate.zone(plateKey(`baked-key ${zones.name}-key`, label, action), zones.hit);
+    const sink = plate.follow(face, zones.face, zones.faceDown);
     onPress(this.button, (down) => {
       this.down = down;
       sink(down);
@@ -193,7 +206,6 @@ export class WeaponsPanel {
   private readonly lampFrames: SpriteFrames;
   private readonly rockerFrames: SpriteFrames;
   private readonly plates: SpriteFrames[];
-  private allOn = false;
   private cards: GunCard[] = [];
   private slots: UtilitySlot[] = [];
   private gunKey = "";
@@ -204,12 +216,12 @@ export class WeaponsPanel {
     amberTint();
     const labels = setup.labels;
     this.plates = [0, 1, 2, 3].map((i) => this.plate.sprite(`slot${i}`, `slot${i}`));
-    const keyFrames = this.plate.sprite("key", "key-off-up");
+    const keyFrames = this.plate.sprite("key", "key-up");
     this.lampFrames = this.plate.sprite("lamp", "lamp-off");
     this.rockerFrames = this.plate.sprite("rocker", "rocker-off");
-    this.all = new PressKey(this.plate, "all", labels.all, setup.onAll, el("span", { class: "key-print all-print", "aria-hidden": "true" }, labels.all), keyFrames, (down) => `key-${this.allOn ? "on" : "off"}-${down ? "down" : "up"}`);
-    this.reload = new PressKey(this.plate, "reload", t("weapon.reload"), setup.onReload, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("reload")), this.plate.sprite("reload", "reload-up"), (down) => `reload-${down ? "down" : "up"}`);
-    this.hold = new PressKey(this.plate, "hold", t("weapon.hold"), setup.onHold, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("hold")), this.plate.sprite("hold", "hold-up"), (down) => `hold-${down ? "down" : "up"}`);
+    this.all = new PressKey(this.plate, KEY_ZONES.all, labels.all, setup.onAll, el("span", { class: "key-print all-print", "aria-hidden": "true" }, labels.all), keyFrames, (down) => `key-${down ? "down" : "up"}`);
+    this.reload = new PressKey(this.plate, KEY_ZONES.reload, t("weapon.reload"), setup.onReload, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("reload")), this.plate.sprite("reload", "reload-up"), (down) => `reload-${down ? "down" : "up"}`);
+    this.hold = new PressKey(this.plate, KEY_ZONES.hold, t("weapon.hold"), setup.onHold, el("span", { class: "key-icon", "aria-hidden": "true" }, createIcon("hold")), this.plate.sprite("hold", "hold-up"), (down) => `hold-${down ? "down" : "up"}`);
     this.auto = this.plate.zone(plateKey("baked-key auto-key", labels.autoFire, setup.onAuto), "autoHit");
     this.plate.zone(el("span", { class: "plate-label auto-label" }, labels.autoFire), "autoText");
     this.pageMark = el("button", { type: "button", class: "gun-page" }) as HTMLButtonElement;
@@ -223,8 +235,6 @@ export class WeaponsPanel {
     this.lastView = view;
     this.drawGuns(view.guns);
     this.drawUtilities(view.utilities);
-    this.allOn = view.all.on;
-    this.all.show();
     this.lampFrames.show(view.auto.on ? "lamp-on" : "lamp-off");
     this.rockerFrames.show(view.auto.on ? "rocker-on" : "rocker-off");
     setFlag(this.all.button, "on", view.all.on);

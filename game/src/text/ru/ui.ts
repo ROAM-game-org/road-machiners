@@ -34,6 +34,7 @@ export const UI: Translation<typeof EN> = {
   'card.call': 'Рация',
   'card.mark': 'Пометить',
   'card.lookOver': 'Осмотреть',
+  'card.lookOverTip': 'Осмотреть, займёт {n, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}',
   'hud.horn': 'Гудок',
   'call.knockedOut': 'Водитель без сознания',
   'money.minus': '−{n, plural, one {# М} few {# М} many {# М} other {# М}}',

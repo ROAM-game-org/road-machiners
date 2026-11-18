@@ -10,6 +10,7 @@ const BOX = {
   wheel: [970, 221, 1030, 525],
   lcd: [122, 587, 571, 665],
   knob: [722, 589, 798, 665],
+  knobHit: [729, 596, 791, 658],
   knobMarks: [620, 563, 900, 691],
   play: [962, 581, 1104, 673],
 };
@@ -169,7 +170,7 @@ const meta = {
     log: zoneMeta(zones.log, BOX.log),
     lcd: zoneMeta(zones.lcd, BOX.lcd),
     knobMarks: { quad: boxQuad(strip, inStrip, BOX.knobMarks, 0), size: [280, 128] },
-    knob: { quad: boxQuad(strip, inStrip, BOX.knob, 0.2), size: [76, 76] },
+    knob: { quad: boxQuad(strip, inStrip, BOX.knobHit, 0.2), size: [62, 62] },
     play: { quad: boxQuad(strip, inStrip, BOX.play, 0.07), size: [142, 92] },
     wheel: { quad: boxQuad(body, inBody, BOX.wheel, 0.3), size: [60, 304] },
   },

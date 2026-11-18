@@ -155,7 +155,7 @@ export const SCREENS = {
   'hud.driverMarked': 'Driver !',
   'hud.driver': 'Driver',
   'hud.journal': 'Journal',
-  'hud.inventoryTitle': 'Truck inventory',
+  'hud.inventoryTitle': 'Truck',
   'hud.inventoryLabel': 'Open truck inventory',
   'hud.fuelTitle': m('{label}: {level}/{tank} L', { label: 'text', level: 'int', tank: 'int' }),
   'hud.readout': m('{label}: {value}', { label: 'text', value: 'text' }),

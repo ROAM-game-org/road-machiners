@@ -13,7 +13,7 @@ import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
 import { bottomLeft, dashRail, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd } from "./dash/panels";
-import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, tray, type RockerView } from "./dash/skin";
+import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
@@ -45,7 +45,7 @@ import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type Readout, type RescueReadout } from "./hud-readout";
-import { actionRow, costItem, createIcon, repairingPart } from "./cards";
+import { createIcon, repairingPart } from "./cards";
 import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { bakedStrip } from "./dash/baked";
@@ -70,7 +70,7 @@ import { PixelReadback } from "../three/render/pixelReadback";
 import type { GpuContext } from "../three/gpu-context";
 import { backgroundNeeds } from "./garage-draw";
 import { setText } from "../text/language";
-import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { list, SPACE, t, type Msg } from "../text/msg";
 import { isLate, isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
@@ -354,7 +354,7 @@ export class Hud {
     this.knockedOut.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(tray("recenter-tray", el("button", { class: "hud-key icon-key recenter-key", onclick: () => actions.recenter(), title: keyTip(t("hud.recenter"), RECENTER_KEY), "aria-label": t("hud.recenter") }, createIcon("recenter"))));
+    this.recenter.append(el("button", { class: "hud-key icon-key recenter-key", onclick: () => actions.recenter(), title: keyTip(t("hud.recenter"), RECENTER_KEY), "aria-label": t("hud.recenter") }, createIcon("recenter")));
   }
 
   systemKey(name: SystemKey): HTMLButtonElement {
@@ -669,9 +669,8 @@ export interface CardHandlers {
   unpin: () => void;
 }
 
-function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, cost: readonly HTMLElement[] = []): HTMLElement[] {
-  const button = el("button", { class: "hud-key", ...disabledWith(refusal, onclick), title: keyTip(refusal ?? label, key) }, el("span", { class: "key-label" }, label));
-  return cost.length === 0 ? [button] : actionRow(button, cost);
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
+  return [el("button", { class: "hud-key", ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
@@ -690,7 +689,7 @@ function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLEl
 
 function lookOverButton(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
   if (knowsCargo(w, playerVehicle(w), v)) return actionButton(t("card.lookOver"), "B", null, () => handlers.act("lookOver"));
-  return actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), [costItem("clock", num(LOOK_OVER.turns, "int"))]);
+  return actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver"), t("card.lookOverTip", { n: LOOK_OVER.turns }));
 }
 
 function reasonOf(w: World, refusal: Refusal | null): Msg | null {

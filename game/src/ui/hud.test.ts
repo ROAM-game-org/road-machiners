@@ -155,19 +155,20 @@ describe('truck card actions', () => {
     const buttons = row!.withTag('button');
     expect(buttons.map((b) => b.text())).toEqual(['Radio', 'Look over', 'Mark']);
     expect(row!.all('key')).toHaveLength(0);
-    expect(row!.all('cost')).toHaveLength(1);
+    expect(row!.all('cost')).toHaveLength(0);
+    expect(buttons[1].attrs.title).toContain('Look over, takes 1 turn');
     expect(row!.className).toBe('info-actions hud-controls');
     expect(buttons.every((b) => !b.className.includes('touch-only'))).toBe(true);
   });
 
-  it('keeps Look over enabled and free of the clock once the load is known', () => {
+  it('keeps Look over enabled and free of the turn cost once the load is known', () => {
     const { w, npc } = card(5, false);
     addState(w, 'sizedUp', w.player.vehicleId, npc.id, { kind: 'none' });
     const row = cardActions(w, npc, handlers) as unknown as FakeNode;
     const lookOver = row.withTag('button')[1];
     expect(lookOver.text()).toBe('Look over');
     expect(lookOver.attrs['aria-disabled']).toBeUndefined();
-    expect(row.all('cost')).toHaveLength(0);
+    expect(lookOver.attrs.title).not.toContain('takes');
   });
 
   it('shows no Mark button without the spotter perk', () => {

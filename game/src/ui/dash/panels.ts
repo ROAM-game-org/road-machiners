@@ -379,6 +379,8 @@ export interface SystemKeyView {
   hidden?: boolean;
 }
 
+const KEY_ICON_ZONES: readonly (readonly [string, string])[] = [["icon0", "icon0Down"], ["icon1", "icon1Down"], ["icon2", "icon2Down"], ["icon3", "icon3Down"], ["icon4", "icon4Down"]];
+
 export class SystemKeys {
   readonly root: HTMLElement;
   private readonly keys: Record<SystemKey, HTMLButtonElement>;
@@ -393,7 +395,7 @@ export class SystemKeys {
       key.append(mark);
       setData(key, "action", name);
       const frames = this.plate.sprite(`key${i}`, `key${i}-up`);
-      const sink = this.plate.follow(el("span", { class: "key-icon system-icon", "aria-hidden": "true" }, createIcon(SYSTEM_ICONS[name])), `icon${i}`, `icon${i}Down`);
+      const sink = this.plate.follow(el("span", { class: "key-icon system-icon", "aria-hidden": "true" }, createIcon(SYSTEM_ICONS[name])), ...KEY_ICON_ZONES[i]!);
       const press = (down: boolean): void => {
         frames.show(down ? `key${i}-down` : `key${i}-up`);
         sink(down);
@@ -502,6 +504,8 @@ function shareRadioScale(plateWidth: number): void {
   if (plateWidth > 0) root.style.setProperty("--hud-radio-scale", String(plateWidth / units));
 }
 
+const KNOB_MARK_REACH = 44;
+
 export class RadioDeck {
   readonly root: HTMLElement;
   readonly talk = el("div", { class: "deck-talk" });
@@ -580,7 +584,7 @@ export class RadioDeck {
 
   private markStyle(i: number): string {
     const angle = (knobAngle(i, TIME_SPEEDS.length) * Math.PI) / 180;
-    return `left:${(50 + 38 * Math.sin(angle)).toFixed(1)}%;top:${(50 - 38 * Math.cos(angle)).toFixed(1)}%`;
+    return `left:${(50 + KNOB_MARK_REACH * Math.sin(angle)).toFixed(1)}%;top:${(50 - KNOB_MARK_REACH * Math.cos(angle)).toFixed(1)}%`;
   }
 
   private pick(index: number): void {

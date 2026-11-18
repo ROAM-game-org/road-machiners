@@ -155,7 +155,9 @@ document.fonts.add(await font.load());
 const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
 const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
 
-const SW_W = 22, SW_CENTER_Y = 699.2;
+const SW_SCALE = 1.4, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
+const SW_PRINT = [11.5, 17.5];
+const SW_BASE = '#3a3833', SW_HOLE = '#16110c';
 const SW_Z = Z_PANEL + 0.004;
 const SW_TILT = 0.75;
 const EYE_UNITS = P.eye();
@@ -192,14 +194,14 @@ const flutedStem = (radius, length, flutes) => {
   return g;
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
-  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v);
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - 16, cx + 10, SW_CENTER_Y - 9], 'ON', SW_Z + 0.001));
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + 9, cx + 10, SW_CENTER_Y + 16], 'OFF', SW_Z + 0.001));
+  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_SCALE);
+  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
+  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
   const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
   const profile = [[2.4, 0], [2.4, 0.5], [2.9, 1.3], [4.2, 1.4], [4.8, 0.9], [4.9, 0]].map(([x, y]) => new THREE.Vector2(u(x), u(y)));
-  const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(BRASS, { side: THREE.DoubleSide }));
+  const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(SW_BASE, { side: THREE.DoubleSide }));
   ringMesh.rotation.x = Math.PI / 2; ringMesh.position.set(px, py, SW_Z);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(u(2.4), 32), new THREE.MeshBasicMaterial({ color: '#3b2614' }));
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(u(2.4), 32), new THREE.MeshBasicMaterial({ color: SW_HOLE }));
   hole.position.set(px, py, SW_Z + 0.0015);
   const pivot = new THREE.Group();
   pivot.matrixAutoUpdate = false;
@@ -215,7 +217,7 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   pivot.add(neck, stem, capTop);
   for (const m of [ringMesh, stem, capTop, neck]) { m.castShadow = true; m.receiveShadow = true; }
   P.g.add(hole, ringMesh, pivot);
-  return { pivot, at, shear, box: [cx - SW_W / 2, SW_CENTER_Y - 17.2, cx + SW_W / 2, SW_CENTER_Y + 17.2] };
+  return { pivot, at, shear, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => setRocker(r, false));
 

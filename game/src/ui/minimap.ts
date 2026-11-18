@@ -20,7 +20,7 @@ export class Minimap {
   private zoomIn = el('button', { class: 'hud-key icon-key', title: t('map.zoomIn'), 'aria-label': t('map.zoomIn'), onclick: () => this.stepTo(this.step - 1) }, createIcon('plus'));
 
   constructor(onOpen: () => void) {
-    const tip = el('div', { class: 'map-tip tooltip hud-frame', role: 'tooltip' });
+    const tip = el('div', { class: 'map-tip tooltip hud-frame hud-tip-screen', role: 'tooltip' });
     const open = el('button', { class: 'hud-key icon-key log-expand', title: keyTip(t('map.open'), 'M'), 'aria-label': t('map.open'), onclick: onOpen }, createIcon('expand'));
     this.view.canvas.addEventListener('click', onOpen);
     this.view.bindTip(tip);

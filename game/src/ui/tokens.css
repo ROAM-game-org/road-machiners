@@ -291,6 +291,9 @@
   --hud-text-m: 12px;
   --hud-text-l: 20px;
   --hud-lcd-size: 24px;
+  --hud-stat-digit-h: 72cqh;
+  --hud-stat-digit-pad: 14cqh;
+  --hud-clip-far: calc(var(--layer-w) + var(--layer-h));
   --hud-icon: 20px;
   --hud-icon-l: 24px;
   --hud-icon-s: 14px;
@@ -386,7 +389,7 @@
   --hud-panel-xl: 560px;
   --hud-panel-xxl: 800px;
   --panel-m-height: 340px;
-  --info-picture-height: 260px;
+  --hud-info-h: 470px;
   --info-well-min: 104px;
   --journal-side-width: 400px;
   --board-held-width: 400px;
@@ -454,6 +457,7 @@
   --z-accessory: 1;
   --z-grid-lines: 64;
   --z-badge: 2;
+  --z-crt-glass: 2;
   --z-hud: 3;
   --z-popup: 5;
   --z-lcd-digits: 0;
@@ -495,11 +499,13 @@
 
 #ui:where(.compact) {
   --hud-panel-m: 246px;
+  --hud-info-h: 420px;
   --journal-side-width: 300px;
 }
 
 #ui:where(.narrow) {
   --hud-panel-m: 200px;
+  --hud-info-h: 360px;
   --lcd-cell-w: 0px;
 }
 

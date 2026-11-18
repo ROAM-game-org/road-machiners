@@ -30,6 +30,7 @@
 }
 #ui .bottom-left > .hud-drive {
   order: 1;
+  clip-path: inset(calc(-1 * var(--hud-clip-far)) calc(-1 * var(--hud-clip-far)) 0 calc(-1 * var(--hud-clip-far)));
 }
 #ui .bottom-left > .weapons {
   order: 0;

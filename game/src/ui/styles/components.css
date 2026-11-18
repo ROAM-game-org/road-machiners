@@ -32,7 +32,7 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-cell, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
+:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;

@@ -197,7 +197,7 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.driverMarked': 'Водитель !',
   'hud.journal': 'Журнал',
   'hud.driver': 'Водитель',
-  'hud.inventoryTitle': 'Инвентарь грузовика',
+  'hud.inventoryTitle': 'Грузовик',
   'hud.inventoryLabel': 'Открыть инвентарь грузовика',
   'hud.fuelTitle': '{label}: {level}/{tank} л',
   'hud.readout': '{label}: {value}',

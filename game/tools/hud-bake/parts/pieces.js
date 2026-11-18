@@ -17,10 +17,11 @@ const BOXES = {
   slateKey: [200, 110, 266.5, 141.5],
   lamp: [290, 115, 297, 122],
   tape: [310, 110, 343, 125],
-  rocker: [360, 105, 376, 135],
+  rocker: [354, 100, 382, 142],
 };
 const KEYCAPS = { keycap: KEYCAP, keycapLit: { skirt: '#7a4a20', shoulder: '#b27a3a', top: '#94602a' }, keycapRed: { skirt: '#6a1a10', shoulder: '#a8321e', top: '#862414' } };
 const KEY_UP = -0.006, KEY_DOWN = -0.022, KEYCAP_H = 3.5 * CSS;
+const TOGGLE = { scale: 1.4, base: '#3a3833', hole: '#16110c' };
 const SLATE = { body: '#2b2d31', rings: [{ w: 2, color: '#838f94' }, { w: 4, color: '#3b474e' }], keyBorder: '#777e81', keyFill: '#33383b' };
 
 const S = plateSpace(CANVAS[0] * K, CANVAS[1] * K);
@@ -103,8 +104,8 @@ function tapeStrip() {
 
 function toggle() {
   const g = new THREE.Group(), brass = litToon(OLIVE.brass);
-  const base = new THREE.Mesh(new THREE.TorusGeometry(3.6 * CSS, 1 * CSS, 10, 32), brass);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(2.6 * CSS, 24), new THREE.MeshBasicMaterial({ color: '#3b2614' }));
+  const base = new THREE.Mesh(new THREE.TorusGeometry(3.6 * CSS, 1 * CSS, 10, 32), litToon(TOGGLE.base));
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(2.6 * CSS, 24), new THREE.MeshBasicMaterial({ color: TOGGLE.hole }));
   hole.position.z = 0.001;
   const lever = new THREE.Group();
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(1 * CSS, 1.3 * CSS, 9 * CSS, 16), brass);
@@ -114,6 +115,7 @@ function toggle() {
   lever.add(stem, tip);
   for (const m of [base, stem, tip]) m.castShadow = true;
   g.add(base, hole, lever);
+  g.scale.setScalar(TOGGLE.scale);
   groups.lever = lever;
   return place('rocker', g);
 }

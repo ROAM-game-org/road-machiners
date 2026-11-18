@@ -80,6 +80,13 @@
 
 #ui .stats-plate > .stat-lcd {
   justify-content: flex-end;
+  container-type: size;
+  overflow: hidden;
+}
+
+#ui .stats-plate > .stat-lcd > .lcd-digits {
+  margin-right: var(--hud-stat-digit-pad);
+  font-size: var(--hud-stat-digit-h);
 }
 
 #ui .system-icon {
@@ -322,7 +329,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: var(--z-crt-glass);
   border-radius: inherit;
   pointer-events: none;
 }
@@ -344,11 +351,11 @@
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(3, minmax(0, 1fr));
   grid-auto-flow: column;
-  gap: calc(var(--wp) * 16) calc(var(--wp) * 50);
-  padding: calc(var(--wp) * 16) calc(var(--wp) * 6);
+  gap: calc(var(--wp) * 8) calc(var(--wp) * 50);
+  padding: calc(var(--wp) * 10) calc(var(--wp) * 6);
 }
 
-#ui .gun-card {
+#ui .gun-screen .gun-card {
   position: relative;
   display: grid;
   grid-template-columns: calc(var(--wp) * 40) calc(var(--wp) * 130) minmax(0, 1fr);
@@ -356,7 +363,7 @@
   align-items: center;
   column-gap: calc(var(--wp) * 18);
   min-width: 0;
-  padding: calc(var(--wp) * 4) calc(var(--wp) * 40) calc(var(--wp) * 4) calc(var(--wp) * 12);
+  padding: calc(var(--wp) * 6) calc(var(--wp) * 40) calc(var(--wp) * 6) calc(var(--wp) * 12);
   border-radius: 0;
   color: var(--hud-amber);
   font: inherit;
@@ -1402,6 +1409,11 @@
   text-shadow: var(--hud-text-glow);
 }
 
+:is(#ui, #overlay) .hud-frame.hud-tip-screen {
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
+}
+
 :is(#ui, #overlay) .hud-engraved {
   color: var(--hud-print);
   font-family: var(--font-engraved);
@@ -1469,10 +1481,6 @@
   border: 0;
   background: none;
   box-shadow: none;
-}
-
-#ui .recenter-tray {
-  height: var(--hud-tray-h);
 }
 
 #ui :is(.action, .game-menu [role=menu]) {
@@ -1826,19 +1834,32 @@
 #ui .info {
   display: flex;
   flex-direction: column;
+  height: min(var(--hud-info-h), calc(var(--layer-h) - 2 * var(--hud-inset)));
 }
 
 #ui .info > .info-content {
-  flex: 0 1 auto;
-  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 #ui .info .info-body {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+#ui .info .info-column {
   flex: 0 1 auto;
+  max-height: 50%;
+}
+
+#ui .info .hitcard {
+  padding: var(--space-2) var(--space-3);
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
 }
 
 #ui .info .info-draw {
-  flex: 0 1000 var(--info-picture-height);
+  flex: 1 1 0;
   background: none;
   border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);

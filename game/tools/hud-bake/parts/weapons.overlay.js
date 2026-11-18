@@ -75,16 +75,15 @@ export default function weaponsOverlay(api) {
   const autoZone = api.zone('autoText', 'w-print auto');
   autoZone.innerHTML = `<span>${autoFire.text}</span>`;
 
-  let allOn = true, down = false;
+  let down = false;
   const showKey = () => {
-    key.show((allOn ? 0 : 2) + (down ? 1 : 0));
+    key.show(down ? 1 : 0);
     allZone.style.display = down ? 'none' : '';
     allZoneDown.style.display = down ? '' : 'none';
   };
   const allHit = api.zone('allHit', 'hit', 'button');
   allHit.onpointerdown = () => { down = true; showKey(); };
   allHit.onpointerup = allHit.onpointerleave = () => { if (down) { down = false; showKey(); } };
-  allHit.onclick = () => { allOn = !allOn; showKey(); };
 
   let auto = true;
   const autoHit = api.zone('autoHit', 'hit', 'button');
