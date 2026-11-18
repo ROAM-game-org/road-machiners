@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Targeting computer mockup</title>
+<style>
+@font-face { font-family: "Chakra Petch"; font-weight: 700; src: url("../../node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Sans Condensed"; font-weight: 600; src: url("../../node_modules/@fontsource/fira-sans-condensed/files/fira-sans-condensed-cyrillic-600-normal.woff2") format("woff2"); unicode-range: U+0400-04FF; }
+@font-face { font-family: "Routed Gothic Narrow"; src: url("../../src/ui/fonts/routed-gothic-narrow.woff2") format("woff2"); }
+
+:root {
+  --hud-amber: #ffb547;
+  --hud-amber-faint: #a8773d;
+  --hud-lcd-ghost: #4a2d12;
+  --hud-hot: #ef4f3a;
+  --hud-good: #8fe36a;
+  --hud-print-ink: #2b1d0e;
+  --hud-print: #f1ddb0;
+  --font-hud: "Chakra Petch", "Fira Sans Condensed", sans-serif;
+  --font-engraved: "Routed Gothic Narrow", "Fira Sans Condensed", sans-serif;
+}
+
+body { margin: 0; padding: 24px 32px 64px; background: #3a2a1f; color: #e9dcc0; font: 15px/1.4 system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 28px 0 6px; color: #f1ddb0; }
+p.note { margin: 0 0 10px; color: #c9b58f; max-width: 980px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+.bar span { color: #c9b58f; margin-right: 4px; }
+.bar button { font: inherit; padding: 5px 12px; border-radius: 4px; border: 1px solid #a08a55; background: #2a1d14; color: #f1ddb0; cursor: pointer; }
+.bar button.on { background: #a08a55; color: #1c120a; }
+#log { min-height: 22px; color: #f1ddb0; font-weight: 600; margin: 8px 0 0; max-width: 980px; }
+.keys-help { color: #c9b58f; font-size: 13px; }
+
+.plate {
+  --w: 980px;
+  position: relative;
+  width: var(--w);
+  aspect-ratio: 1929 / 709;
+  container-type: inline-size;
+  --p: calc(100cqw / 1929);
+  --text-s: calc(var(--p) * 49);
+  --glow: 0 0 calc(var(--p) * 5) #ffb5474d, 0 0 calc(var(--p) * 18) #ff8c1a2b;
+  user-select: none;
+}
+.plate.real { --w: 400px; }
+.plate > canvas.art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.box { position: absolute; left: calc(var(--x) * var(--p)); top: calc(var(--y) * var(--p)); width: calc(var(--bw) * var(--p)); height: calc(var(--bh) * var(--p)); }
+
+.screen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: calc(var(--p) * 16) calc(var(--p) * 50);
+  padding: calc(var(--p) * 16) calc(var(--p) * 6);
+  box-sizing: border-box;
+  color: var(--hud-amber);
+  font: 700 var(--text-s) / 1 var(--font-hud);
+  text-shadow: var(--glow);
+}
+
+.screen { border-radius: calc(var(--p) * 22); background: radial-gradient(ellipse 75% 85% at 50% 48%, #321f0e, #26170a 75%); filter: blur(calc(var(--p) * 0.4)); }
+.screen::before, .screen::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; }
+.screen::before { background: repeating-linear-gradient(to bottom, #00000000 0, #00000000 calc(var(--p) * 3), #00000026 calc(var(--p) * 3), #00000026 calc(var(--p) * 6)); mix-blend-mode: multiply; }
+.screen::after { background: radial-gradient(ellipse 75% 85% at 50% 50%, #00000000 62%, #00000033 100%), linear-gradient(160deg, #fff3d60d 0, #fff3d605 22%, #00000000 38%); box-shadow: inset 0 0 calc(var(--p) * 30) #00000040; }
+.gun .pip { filter: drop-shadow(0 0 calc(var(--p) * 6) #ffb5473c); }
+.gun {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(var(--p) * 40) calc(var(--p) * 130) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  column-gap: calc(var(--p) * 18);
+  padding: calc(var(--p) * 4) calc(var(--p) * 40) calc(var(--p) * 4) calc(var(--p) * 12);
+  min-width: 0;
+  cursor: pointer;
+}
+.gun.ghost { cursor: default; }
+.gun > .num { grid-column: 1; grid-row: 1 / 3; text-align: center; }
+.gun > .icon { grid-column: 2; grid-row: 1 / 3; width: 100%; height: calc(var(--p) * 80); filter: url(#tint-amber) drop-shadow(0 0 calc(var(--p) * 8) #ff8c1a55); }
+.gun > .name { grid-column: 3; grid-row: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gun > .line2 { grid-column: 3; grid-row: 2; display: flex; justify-content: space-between; align-items: center; gap: calc(var(--p) * 24); min-width: 0; }
+.gun .pips { display: flex; gap: calc(var(--p) * 8); height: calc(var(--p) * 30); }
+.gun .pip { width: calc(var(--p) * 18); background: var(--hud-amber); box-shadow: 0 0 calc(var(--p) * 8) #ff8c1a77; }
+.gun .pip.spent { background: var(--hud-lcd-ghost); box-shadow: none; }
+.gun .pip.refill { background: var(--hud-amber-faint); box-shadow: none; }
+.gun .status { white-space: nowrap; margin-left: auto; }
+.gun .good { color: var(--hud-good); }
+.gun .dim { color: var(--hud-amber-faint); }
+.gun > .num, .gun > .name { color: var(--hud-amber-faint); }
+.gun.wait > .icon { filter: url(#tint-faint); }
+.gun.fault .status { color: var(--hud-hot); }
+.gun.fault > .icon { filter: url(#tint-hot); }
+.gun.ghost, .gun.ghost > .num { color: var(--hud-lcd-ghost); text-shadow: none; }
+.gun.ghost > .icon, .gun.ghost > .name, .gun.ghost > .line2 { visibility: hidden; }
+.gun.picked {
+  --b: linear-gradient(#94672b, #94672b);
+  --l: calc(var(--p) * 26);
+  --t: calc(var(--p) * 6);
+  background:
+    var(--b) 0 0 / var(--l) var(--t) no-repeat, var(--b) 0 0 / var(--t) var(--l) no-repeat,
+    var(--b) 100% 0 / var(--l) var(--t) no-repeat, var(--b) 100% 0 / var(--t) var(--l) no-repeat,
+    var(--b) 0 100% / var(--l) var(--t) no-repeat, var(--b) 0 100% / var(--t) var(--l) no-repeat,
+    var(--b) 100% 100% / var(--l) var(--t) no-repeat, var(--b) 100% 100% / var(--t) var(--l) no-repeat;
+}
+
+.key {
+  --e: calc(var(--bh) * var(--p) * 40 / 394);
+  display: grid; place-items: center;
+  box-sizing: border-box;
+  border-style: solid; border-color: transparent;
+  border-width: var(--e) var(--e) calc(var(--e) * 2.1);
+  border-image: url("../../public/hud/kit/keycap.webp") 40 40 84 40 fill / var(--e) var(--e) calc(var(--e) * 2.1) stretch;
+  color: var(--hud-print);
+  font: 400 var(--text-s) / 1.05 var(--font-engraved);
+  -webkit-text-stroke: 0.03em currentColor;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.key.on { border-image-source: url("../../public/hud/kit/keycap-red.webp"); }
+.key > * { translate: 0 calc(var(--e) * -0.3125); }
+.key > svg { width: calc(var(--p) * 70); height: calc(var(--p) * 70); fill: currentColor; }
+.key.down { border-width: calc(var(--e) * 1.6) var(--e) calc(var(--e) * 1.5); }
+
+.engraved { display: grid; place-items: center; text-align: center; font: 400 var(--text-s) / 1.1 var(--font-engraved); color: var(--hud-print-ink); text-transform: uppercase; -webkit-text-stroke: 0.03em currentColor; }
+.rocker { background: url("../../public/hud/kit/rocker-off.webp") center / 100% 100% no-repeat; cursor: pointer; }
+.rocker.on { background-image: url("../../public/hud/kit/rocker-on.webp"); }
+
+.lower { display: flex; justify-content: space-evenly; align-items: center; }
+.mount { position: relative; padding: calc(var(--p) * 14) calc(var(--p) * 30); }
+.mount > .metal { position: absolute; inset: 0; z-index: 1; border-radius: calc(var(--p) * 10); background: linear-gradient(#73644c, #73644c 72%, #5f523e 72%); box-shadow: 0 0 0 calc(var(--p) * 4) #2b2116, calc(var(--p) * 6) calc(var(--p) * 8) 0 calc(var(--p) * 4) #00000030; }
+.mount > .metal > b { position: absolute; width: calc(var(--p) * 16); height: calc(var(--p) * 16); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #c9b68f, #6b5a40 70%); box-shadow: 0 0 0 calc(var(--p) * 2) #2b2116; }
+.mount > .metal > b::after { content: ""; position: absolute; left: 20%; right: 20%; top: 45%; height: 12%; background: #2b2116; rotate: 35deg; }
+.mount > .metal > b:nth-child(1) { left: calc(var(--p) * 10); top: calc(var(--p) * 10); }
+.mount > .metal > b:nth-child(2) { right: calc(var(--p) * 10); top: calc(var(--p) * 10); }
+.mount > .metal > b:nth-child(3) { left: calc(var(--p) * 10); bottom: calc(var(--p) * 10); }
+.mount > .metal > b:nth-child(4) { right: calc(var(--p) * 10); bottom: calc(var(--p) * 10); }
+.mount > .wire { position: absolute; z-index: 0; left: calc(100% - var(--p) * 20); top: calc(50% - var(--p) * 10); width: calc(var(--p) * 90); height: calc(50% + var(--p) * 10 + var(--wire-drop)); overflow: hidden; }
+.mount > .slot { position: relative; z-index: 2; }
+.lower { --wire-drop: calc(var(--p) * 26); }
+.slot { display: grid; grid-template-columns: auto auto; grid-template-areas: "lamp rocker" "tape rocker"; align-items: center; justify-items: center; gap: calc(var(--p) * 10) calc(var(--p) * 20); }
+.slot > .lamp { grid-area: lamp; position: relative; width: calc(var(--p) * 49); height: calc(var(--p) * 49); background: url("../../public/hud/kit/lamp.webp") center / 100% 100% no-repeat; border-radius: 50%; }
+.slot > .lamp > i { position: absolute; inset: 14%; border-radius: 50%; }
+.slot > .lamp[data-lamp="green"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #7fd14a 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #7fd14a; }
+.slot > .lamp[data-lamp="amber"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #ffae2b 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #ffae2b; }
+.slot > .lamp[data-lamp="red"] > i { background: radial-gradient(circle at 40% 35%, var(--hud-print), #ff4a2b 45%, transparent 72%); box-shadow: 0 0 calc(var(--p) * 24) #ff4a2b; }
+.slot > .tape { grid-area: tape; display: grid; place-items: center; min-width: calc(var(--text-s) * 3.4); height: calc(var(--text-s) * 1.9); padding: 0 calc(var(--p) * 20); background: url("../../public/hud/kit/tape.webp") center / 100% 100% no-repeat; color: var(--hud-print-ink); font: 700 var(--text-s) / 1 var(--font-hud); letter-spacing: 0.04em; }
+.slot > .rocker { grid-area: rocker; width: calc(var(--p) * 79); height: calc(var(--p) * 148); }
+
+#tip { position: fixed; z-index: 9; display: none; background: #c8a978; color: #2b1d0e; font: 600 13px/1.35 var(--font-hud); padding: 6px 10px; border-radius: 3px; box-shadow: 0 4px 12px #0008; white-space: nowrap; pointer-events: none; }
+#tip .bad { color: #8e1e10; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="tint-amber"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 0.71  0 0 0 0 0.28  0 0 0 1 0"/></filter>
+  <filter id="tint-faint"><feColorMatrix type="matrix" values="0 0 0 0 0.66  0 0 0 0 0.47  0 0 0 0 0.24  0 0 0 1 0"/></filter>
+  <filter id="tint-hot"><feColorMatrix type="matrix" values="0 0 0 0 0.94  0 0 0 0 0.31  0 0 0 0 0.23  0 0 0 1 0"/></filter>
+</svg>
+
+<h1>Targeting computer, interactive mockup</h1>
+<p class="note">Click a gun card to select it. All selects every gun, and a second press clears the selection. A second click on a selected card clears it too. Reload and Hold act on the selected guns. Reload on a harpoon cuts its line, and so do the aim buttons below. End turn plays a turn: aimed guns fire, empty guns reload, and the utilities count down.</p>
+<div class="bar"><span>Truck</span><button data-preset="one">1 gun</button><button data-preset="three" class="on">3 guns</button><button data-preset="six">6 guns</button><button data-preset="shut">Shut down</button></div>
+<div class="bar"><span>Language</span><button data-lang="en" class="on">English</button><button data-lang="ru">Russian</button></div>
+<div class="bar"><span>World</span><button data-act="aim-cab">Aim selected at cab</button><button data-act="aim-body">Aim selected at body</button><button data-act="turn">End turn</button><span class="keys-help">Keys: 1 to 6 select a gun, A selects all, Q toggles auto fire, Space ends the turn.</span></div>
+<div id="log"></div>
+<h2>Panel</h2>
+<div id="big"></div>
+<h2>Real size at the 1280 by 720 layer</h2>
+<div id="small"></div>
+<div id="tip"></div>
+
+<script>
+const ICONS = { mg: [0, [0.046875, 0.2421875, 0.875, 0.53125]], cannon: [7, [0.0546875, 0.2578125, 0.84375, 0.5078125]], harpoon: [18, [0.046875, 0.1875, 0.8515625, 0.640625]], rocketRack: [13, [0.046875, 0.140625, 0.90625, 0.71875]], shotgun: [1, [0.046875, 0.109375, 0.890625, 0.78125]], autocannon: [9, [0.0546875, 0.2578125, 0.8515625, 0.515625]], heavyMg: [6, [0.046875, 0.2109375, 0.8515625, 0.578125]] };
+const COLS = 16, ROWS = 6;
+const KEY_ICONS = {
+  reload: '<path d="M8 2a6 6 0 1 0 6 6h-1.5A4.5 4.5 0 1 1 8 3.5zM11 8h4l-2-3.5z"/>',
+  hold: '<path fill-rule="evenodd" d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M3.2 4.3l1.1-1.1 8.5 8.5-1.1 1.1z"/>',
+  cut: '<path d="M4.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM4.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM11.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM11.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2z"/><path d="M5 9l7.5-7.5L14 3 7 10zM11 9L3.5 1.5 2 3l7 7z"/>',
+};
+
+const TEXT = {
+  en: { mg: "MG turret", cannon: "Forward cannon", harpoon: "Harpoon", rocketRack: "Rocket rack", shotgun: "Shotgun", autocannon: "Autocannon", heavyMg: "Heavy MG",
+    all: "All", auto: "Auto fire", hooked: "got 'em", error: "error", reloading: "reloading", noTarget: "no target", line: "line", load: (n) => `load ${n}`, broken: "broken", arc: "arc", range: "range", off: "off", cab: "cab", body: "body", engine: "engine",
+    smokeMortar: "SMK", caltrops: "CLTR",
+    reload: "Reload", reloadHint: "Drop the magazine and refill it. A harpoon cuts its line.", hold: "Hold", holdHint: "Stop auto fire and clear the target", cut: "Cut the line",
+    reloadFull: "Magazine full", reloadBusy: "Reloading", reloadBroken: "Broken", noHoldTarget: "No target set", noLine: "No line out", shutDown: "Shut down", noMagazine: "No magazine", noGun: "No gun selected" },
+  ru: { mg: "Пулеметная турель", cannon: "Курсовая пушка", harpoon: "Гарпун", rocketRack: "Ракетная установка", shotgun: "Дробовик", autocannon: "Автопушка", heavyMg: "Тяжелый пулемет",
+    all: "Все", auto: "Автоогонь", hooked: "got 'em", error: "ошибка", reloading: "перезарядка", noTarget: "нет цели", line: "трос", load: (n) => `заряд ${n}`, broken: "сломано", arc: "сектор", range: "далеко", off: "выкл.", cab: "кабина", body: "корпус", engine: "двигатель",
+    smokeMortar: "ДЫМ", caltrops: "ЧЕСН",
+    reload: "Перезарядка", reloadHint: "Сбросить магазин и снарядить заново. Гарпун перерезает трос.", hold: "Стоп", holdHint: "Выключить автоогонь и сбросить цель", cut: "Перерезать трос",
+    reloadFull: "Магазин полон", reloadBusy: "Идет перезарядка", reloadBroken: "Сломано", noHoldTarget: "Цели нет", noLine: "Трос не выпущен", shutDown: "Выключен", noMagazine: "Нет магазина", noGun: "Оружие не выбрано" },
+};
+const CHANCE = { cab: 38, body: 64, engine: 41 };
+const RELOAD = { mg: 2, cannon: 2, heavyMg: 2, rocketRack: 3, autocannon: 2, shotgun: 2, harpoon: 1 };
+
+const gun = (id, o) => ({ id, mag: 1, ammo: 1, work: 0, broken: false, block: null, target: null, lineOut: 0, ...o });
+const PRESETS = {
+  one: () => ({ shut: false, auto: true, guns: [gun("mg", { mag: 5, ammo: 4, target: "body" })] }),
+  three: () => ({ shut: false, auto: false, guns: [gun("mg", { mag: 5, ammo: 2, target: "cab" }), gun("cannon", { mag: 2, ammo: 0, work: 1 }), gun("harpoon", { lineOut: 6 })] }),
+  six: () => ({ shut: false, auto: true, guns: [
+    gun("mg", { mag: 5, ammo: 5, target: "engine" }), gun("heavyMg", { mag: 5, ammo: 3 }), gun("cannon", { mag: 2, ammo: 2, broken: true }),
+    gun("rocketRack", { mag: 1, ammo: 1, block: "arc", target: "cab" }), gun("autocannon", { mag: 4, ammo: 1, work: 1 }), gun("shotgun", { mag: 2, ammo: 2, block: "range", target: "body" })] }),
+  shut: () => ({ shut: true, auto: true, guns: [gun("mg", { mag: 5, ammo: 5 }), gun("cannon", { mag: 2, ammo: 2 })] }),
+};
+const UTILITIES = () => [{ id: "smokeMortar", kind: "point", reload: 4, state: "ready", left: 0 }, { id: "caltrops", kind: "self", reload: 3, state: "ready", left: 0 }];
+
+let lang = "en";
+let presetName = "three";
+let st;
+function load(name) {
+  presetName = name;
+  st = { ...PRESETS[name](), utilities: UTILITIES(), picked: null, all: false };
+  st.all = true;
+  log("");
+}
+const T = () => TEXT[lang];
+const isHarpoon = (g) => g.id === "harpoon";
+const selected = () => st.guns.filter((_, i) => st.all || st.picked === i);
+
+function gunView(g) {
+  const t = T();
+  if (st.shut || g.broken) return { tone: "fault", status: t.error };
+  if (isHarpoon(g) && g.lineOut) return { status: t.hooked };
+  if (g.work > 0 || g.ammo === 0) return { status: t.reloading };
+  if (g.target && !g.block) return { status: `${t[g.target]} <span class="good">${CHANCE[g.target]}%</span>` };
+  return { tone: "wait", status: t.noTarget };
+}
+
+function pips(g, view) {
+  if (isHarpoon(g) || view.tone === "fault") return "";
+  const refill = g.work ? Math.round((g.work / RELOAD[g.id]) * (g.mag - g.ammo)) : 0;
+  return `<div class="pips">${Array.from({ length: g.mag }, (_, i) => `<i class="pip ${i < g.ammo ? "" : i < g.ammo + refill ? "refill" : "spent"}"></i>`).join("")}</div>`;
+}
+
+function icon(id) {
+  const [index, [x, y, w, h]] = ICONS[id];
+  return `<svg class="icon" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet"><svg viewBox="${(index % COLS) + x} ${Math.floor(index / COLS) + y} ${w} ${h}" width="${w}" height="${h}"><image href="../../public/icons/items.svg" width="${COLS}" height="${ROWS}" preserveAspectRatio="none"/></svg></svg>`;
+}
+
+function card(i) {
+  const g = st.guns[i];
+  if (!g) return `<div class="gun ghost"><span class="num">${i + 1}</span><span class="icon"></span><span class="name"></span><span class="line2"></span></div>`;
+  const v = gunView(g);
+  const picked = st.all || st.picked === i;
+  return `<div class="gun ${v.tone || ""} ${picked ? "picked" : ""}" data-gun="${i}"><span class="num">${i + 1}</span>${icon(g.id)}<div class="name">${T()[g.id]}</div><div class="line2">${pips(g, v)}<div class="status">${v.status}</div></div></div>`;
+}
+
+const TRIM = { x0: 60, x1: 100, y0: 30, y1: 55 };
+const tx = (x) => (x >= TRIM.x1 ? x - (TRIM.x1 - TRIM.x0) : x);
+const ty = (y) => (y >= TRIM.y1 ? y - (TRIM.y1 - TRIM.y0) : y);
+const box = (x, y, x2, y2) => `--x:${tx(x)};--y:${ty(y)};--bw:${tx(x2) - tx(x)};--bh:${ty(y2) - ty(y)}`;
+function paintArt(c) {
+  const g = c.getContext("2d");
+  const dx = TRIM.x1 - TRIM.x0, dy = TRIM.y1 - TRIM.y0;
+  for (const [sx, sw, ox] of [[0, TRIM.x0, 0], [TRIM.x1, 1969 - TRIM.x1, TRIM.x0]])
+    for (const [sy, sh, oy] of [[0, TRIM.y0, 0], [TRIM.y1, 734 - TRIM.y1, TRIM.y0]])
+      g.drawImage(art, sx, sy, sw, sh, ox, oy, sw, sh);
+}
+const LAMPS = { ready: "green", aiming: "amber", set: "amber", recharging: "red", blocked: "off" };
+
+function plateHtml(size) {
+  const t = T();
+  const slots = st.utilities.map((u, i) => {
+    const state = st.shut ? "blocked" : u.state;
+    const wire = `<svg class="wire" viewBox="0 0 90 120" preserveAspectRatio="none"><path d="M0 12 C 50 12, 62 40, 56 130" fill="none" stroke="#2b2116" stroke-width="20"/><path d="M0 12 C 50 12, 62 40, 56 130" fill="none" stroke="#3d3a33" stroke-width="12"/><path d="M0 9 C 47 9, 58 36, 53 130" fill="none" stroke="#6a665b" stroke-width="3"/></svg>`;
+    return `<div class="mount">${wire}<span class="metal"><b></b><b></b><b></b><b></b></span><div class="slot"><span class="lamp" data-lamp="${LAMPS[state]}"><i></i></span><span class="tape">${t[u.id]}</span><span class="rocker ${state === "aiming" || state === "set" ? "on" : ""}" data-utility="${i}"></span></div></div>`;
+  }).join("");
+  const iconKey = (name, x) => `<div class="box key" data-key="${name}" style="${box(x, 196, x + 152, 340)}"><svg viewBox="0 0 16 16">${KEY_ICONS[name]}</svg></div>`;
+  return `<div class="plate ${size}"><canvas class="art" width="1929" height="709"></canvas>
+    <div class="box screen" style="${box(118, 78, 1596, 458)}">${Array.from({ length: 6 }, (_, i) => card(i)).join("")}</div>
+    <div class="box key ${st.all ? "on" : ""}" data-key="all" style="${box(1628, 70, 1942, 186)}"><span>${t.all}</span></div>
+    ${iconKey("reload", 1628)}${iconKey("hold", 1790)}
+    <div class="box engraved" style="${box(1640, 362, 1790, 492)}">${t.auto}</div>
+    <div class="box rocker ${st.auto ? "on" : ""}" data-key="auto" style="${box(1830, 362, 1898, 492)}"></div>
+    <div class="box lower" style="${box(150, 546, 1860, 696)}">${slots}</div>
+  </div>`;
+}
+
+const art = new Image();
+art.src = "../../public/hud/weapons.webp";
+
+function render() {
+  document.getElementById("big").innerHTML = plateHtml("");
+  document.getElementById("small").innerHTML = plateHtml("real");
+  document.querySelectorAll("canvas.art").forEach(paintArt);
+  document.querySelectorAll("[data-preset]").forEach((b) => b.classList.toggle("on", b.dataset.preset === presetName));
+  document.querySelectorAll("[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === lang));
+}
+
+function log(text) { document.getElementById("log").textContent = text; }
+
+function reason(name) {
+  const t = T();
+  if (st.shut) return t.shutDown;
+  const guns = selected();
+  if (!guns.length) return t.noGun;
+  if (name === "reload") {
+    if (guns.some((g) => isHarpoon(g) && g.lineOut && !g.broken)) return null;
+    const mags = guns.filter((g) => !isHarpoon(g));
+    if (!mags.length) return t.noLine;
+    if (mags.some((g) => !g.broken && g.ammo > 0 && g.ammo < g.mag)) return null;
+    if (mags.every((g) => g.broken)) return t.reloadBroken;
+    return mags.some((g) => g.ammo === 0 && !g.broken) ? t.reloadBusy : t.reloadFull;
+  }
+  if (name === "hold") return guns.some((g) => g.target) || st.auto ? null : t.noHoldTarget;
+  return null;
+}
+
+function press(name) {
+  const t = T();
+  if (name === "all") { st.all = !st.all; st.picked = null; log(st.all ? "All guns selected." : "No gun selected."); return render(); }
+  if (name === "auto") { st.auto = !st.auto; log(`Auto fire ${st.auto ? "on" : "off"}.`); return render(); }
+  const why = reason(name);
+  if (why) { log(`${KEY_TITLE[name]()} does nothing: ${why}.`); return; }
+  const guns = selected();
+  if (name === "reload") {
+    const hit = guns.filter((g) => !isHarpoon(g) && !g.broken && g.ammo > 0 && g.ammo < g.mag);
+    hit.forEach((g) => { g.ammo = 0; g.work = 0; });
+    const lines = guns.filter((g) => isHarpoon(g) && g.lineOut && !g.broken);
+    lines.forEach((g) => { g.lineOut = 0; });
+    const parts = [];
+    if (hit.length) parts.push(`gun ${hit.map((g) => st.guns.indexOf(g) + 1).join(", ")} dropped the magazine`);
+    if (lines.length) parts.push(`the harpoon cut its line`);
+    log(`Reload: ${parts.join(", ")}.`);
+  }
+  if (name === "hold") { guns.forEach((g) => { g.target = null; }); st.auto = false; log("Hold: targets cleared, auto fire off."); }
+  render();
+}
+
+const KEY_TITLE = { reload: () => T().reload, hold: () => T().hold };
+const KEY_HINT = { reload: () => T().reloadHint, hold: () => T().holdHint };
+
+function pick(i) {
+  if (!st.guns[i]) return;
+  if (!st.all && st.picked === i) { st.picked = null; log("No gun selected."); }
+  else { st.all = false; st.picked = i; log(`Gun ${i + 1} selected.`); }
+  render();
+}
+
+function aim(part) {
+  if (st.shut) return log(`Aim does nothing: ${T().shutDown}.`);
+  if (!selected().length) return log(`Aim does nothing: ${T().noGun}.`);
+  selected().forEach((g) => { if (!g.broken) g.target = part; });
+  st.auto = false;
+  log(`Selected guns aim at the ${part}. Aiming by hand turns auto fire off.`);
+  render();
+}
+
+function endTurn() {
+  if (!st.shut) {
+    for (const g of st.guns) {
+      if (g.broken) continue;
+      if (st.auto && !g.target && !g.block) g.target = "body";
+      if (isHarpoon(g)) {
+        if (g.lineOut) g.lineOut--;
+        else if (g.target) { g.lineOut = 10; g.target = null; }
+        continue;
+      }
+      const fired = g.ammo > 0 && g.target && !g.block;
+      if (fired) g.ammo--;
+      if (!fired && g.ammo < g.mag) {
+        g.work++;
+        if (g.work >= RELOAD[g.id]) { g.ammo = g.mag; g.work = 0; }
+      }
+    }
+  }
+  for (const u of st.utilities) {
+    if (u.state === "set" || u.state === "aiming") { u.state = "recharging"; u.left = u.reload; }
+    else if (u.state === "recharging" && --u.left === 0) u.state = "ready";
+  }
+  log("Turn played.");
+  render();
+}
+
+function toggleUtility(i) {
+  const u = st.utilities[i];
+  if (st.shut || u.state === "recharging") return log(`${T()[u.id]} does nothing: ${st.shut ? T().shutDown : `recharging, ${u.left} turns left`}.`);
+  u.state = u.state === "ready" ? (u.kind === "point" ? "aiming" : "set") : "ready";
+  log(`${T()[u.id]}: ${u.state === "aiming" ? "click the ground to set the point" : u.state === "set" ? "fires this turn" : "order cleared"}.`);
+  render();
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-gun], [data-key], [data-utility], [data-preset], [data-lang], [data-act]");
+  if (!el) return;
+  if (el.dataset.gun) pick(Number(el.dataset.gun));
+  else if (el.dataset.key) press(el.dataset.key);
+  else if (el.dataset.utility) toggleUtility(Number(el.dataset.utility));
+  else if (el.dataset.preset) { load(el.dataset.preset); render(); }
+  else if (el.dataset.lang) { lang = el.dataset.lang; render(); }
+  else if (el.dataset.act === "turn") endTurn();
+  else if (el.dataset.act) aim(el.dataset.act.slice(4));
+});
+
+document.addEventListener("pointerdown", (e) => { const k = e.target.closest(".key"); if (k) k.classList.add("down"); });
+document.addEventListener("pointerup", () => document.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down")));
+
+const tip = document.getElementById("tip");
+document.addEventListener("pointermove", (e) => {
+  const k = e.target.closest("[data-key]");
+  const name = k?.dataset.key;
+  if (!KEY_TITLE[name]) { tip.style.display = "none"; return; }
+  const why = reason(name);
+  tip.innerHTML = `${KEY_TITLE[name]()}<br>${why ? `<span class="bad">${why}</span>` : KEY_HINT[name]()}`;
+  tip.style.display = "block";
+  tip.style.left = `${e.clientX + 14}px`;
+  tip.style.top = `${e.clientY + 16}px`;
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key >= "1" && e.key <= "6") pick(Number(e.key) - 1);
+  else if (e.key === "a" || e.key === "A") press("all");
+  else if (e.key === "q" || e.key === "Q") press("auto");
+  else if (e.key === " ") { e.preventDefault(); endTurn(); }
+});
+
+load("three");
+art.onload = render;
+</script>
+</body>
+</html>
