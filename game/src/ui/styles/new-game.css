@@ -49,10 +49,6 @@
 #ui .new-game .intro-toggle {
   align-self: flex-start;
 }
-#ui .new-game .intro-toggle.selected {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-}
 #ui .new-game .settings-toggle {
   align-self: flex-start;
 }
@@ -152,9 +148,6 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-5);
-}
-#ui .new-game .new-game-buttons .start {
-  border-color: var(--accent-warm);
 }
 #ui:where(.slim) .new-game {
   width: var(--layer-w);

@@ -32,8 +32,9 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key, .crash-reload)) {
+:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
   --key-edge: var(--btn-key-edge-m);
+  --off-opacity: var(--key-off-opacity);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -45,9 +46,9 @@
   border-color: transparent;
   border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
+  border-image: var(--key-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
   background: none;
-  color: var(--hud-print);
+  color: var(--key-print);
   font-family: var(--font-engraved);
   font-size: var(--text-body);
   -webkit-text-stroke: var(--engraved-stroke) currentColor;
@@ -67,18 +68,25 @@
   padding: 0 calc(var(--space-8) - var(--key-edge));
   font-size: var(--text-lead);
 }
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key, .crash-reload)):is(.on, [aria-pressed="true"]):not([aria-disabled="true"], :disabled) {
-  border-image-source: var(--hud-keycap-lit-art);
+:is(#ui, #report) button {
+  --key-art: var(--hud-keycap-art);
+  --key-print: var(--hud-print);
 }
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key, .crash-reload)):active:not([aria-disabled="true"], :disabled) {
-  border-image-source: var(--hud-keycap-down-art);
+:is(#ui, #report) button:is(.on, .selected, [aria-pressed="true"], [aria-checked="true"]) {
+  --key-art: var(--hud-keycap-lit-art);
 }
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key, .crash-reload)):is([aria-disabled="true"], :disabled) {
-  opacity: 1;
-  color: var(--hud-print-dim);
+:is(#ui, #report) button:is(:active, .seen) {
+  --key-art: var(--hud-keycap-down-art);
 }
 :is(#ui, #report) .btn-danger {
-  border-image-source: var(--hud-keycap-red-art);
+  --key-art: var(--hud-keycap-red-art);
+}
+:is(#ui, #report) .btn-danger:active {
+  --key-art: var(--hud-keycap-red-down-art);
+}
+:is(#ui, #report) button:is([aria-disabled="true"], :disabled) {
+  --key-art: var(--hud-keycap-art);
+  --key-print: var(--hud-print-dim);
 }
 
 /* A line of a list or table that has no box of its own. */
@@ -215,7 +223,7 @@
 
 /* A control that cannot be used now. It keeps hover and focus, and its tooltip says why. */
 :is(#ui, #report) [aria-disabled="true"] {
-  opacity: 0.45;
+  opacity: var(--off-opacity);
   cursor: default;
 }
 :is(#ui, #report) button[aria-disabled="true"]:not(.switch):hover {
@@ -500,12 +508,6 @@
   margin-bottom: var(--space-5);
 }
 
-:is(#ui, #report) .quest-choice.seen {
-  background: var(--surface-sunk);
-}
-:is(#ui, #report) .quest-choice.seen:hover {
-  background: var(--surface-hover);
-}
 
 /* A well: the sunk surface of a thin side column. The middle column of a working screen stays open. */
 .well {
@@ -563,7 +565,7 @@
   bottom: 0;
 }
 .gauge > .fill {
-  background: var(--ink);
+  background: var(--ink-faint);
 }
 .gauge.health > .fill {
   background: var(--good);

@@ -846,7 +846,7 @@
   border-color: transparent;
   border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
   background: none;
 }
 
@@ -1153,7 +1153,7 @@
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
@@ -1351,7 +1351,7 @@
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
   border-radius: 0;
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   background: none;
   box-shadow: none;
   color: var(--hud-print);
@@ -1466,7 +1466,7 @@
   border-style: solid;
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
 }
 
 #ui .game-menu [role=menu][hidden],
@@ -1518,7 +1518,7 @@
   border-style: solid;
   border-color: transparent;
   border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
   color: var(--hud-print);
   font: 400 var(--hud-text-m) / 1 var(--font-engraved);
 }
@@ -1626,7 +1626,7 @@
 :is(#ui, #overlay) button.hud-close.hud-close {
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) 10.2% 12.2% 21.3% 12.2% fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
 }
 
 #ui .toast.bad > .hud-screen {

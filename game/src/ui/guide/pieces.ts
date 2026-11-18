@@ -5,6 +5,7 @@ import { speedKey } from "../travel-speed";
 import { SPACE, t, verbatim, type Msg } from "../../text/msg";
 import { moneyEl, moneyMsg, priceTag, pricedEl } from "../units";
 import { workMeterBar } from "../work-meter";
+import { textKey } from "../dash/skin";
 
 export interface Piece {
   name: string;
@@ -186,7 +187,7 @@ function windowKeys(): HTMLElement {
     { class: "kit-keys" },
     kitKey(t("confirm.cancel")),
     offKey(t("trade.repairAllVerb"), t("options.uiSizeTooBig")),
-    kitKey(t("hud.endRun"), "btn-danger"),
+    textKey(t("hud.endRun"), {}, true),
     kitKey(t("contract.accept"), "btn-l"),
   );
 }
@@ -194,7 +195,7 @@ function windowKeys(): HTMLElement {
 export function kitWindow(): HTMLElement {
   return msgEl(
     "div",
-    { class: "dialog kit-window" },
+    { class: "dialog modal kit-window" },
     windowHead(),
     msgEl("div", { class: "tabs" }, kitKey(t("menu.save"), "on"), kitKey(t("menu.load")), kitKey(t("menu.options"))),
     msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", {}, t("menu.bootUnfinished")))),

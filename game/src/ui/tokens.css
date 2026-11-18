@@ -73,6 +73,8 @@
   /* Text */
   --ink: #f2bd6a;
   --ink-bright: #f6e2b6;
+  --edge-pick: #f3efde;
+  --edge-hover: #c2b08b;
   --ink-title: #f3d39a;
   --ink-label: #dcaa62;
   --ink-muted: #c4914f;
@@ -100,6 +102,13 @@
   --danger-wash: #cc775555;
   --alarm: #fa3934;
   --crash-bg: #280806f5;
+  --boot-ink: #e0d8ca;
+  --boot-ink-title: #dac7a2;
+  --boot-ink-muted: #aaa69e;
+  --boot-surface: #33383b;
+  --boot-surface-hover: #464d50;
+  --boot-line: #777e81;
+  --boot-line-hover: #c2b08b;
   --crash-ink: #ffd8c8;
   --crash-hint: #c8a898;
 
@@ -145,7 +154,7 @@
   --cond-halo-crit: drop-shadow(0 0 2px rgba(255, 120, 40, 0.8)) drop-shadow(0 0 3px rgba(255, 120, 40, 0.5));
   --cond-halo-broken: drop-shadow(0 0 2px rgb(255, 44, 40)) drop-shadow(0 0 4px rgba(255, 44, 40, 0.8));
   --cond-hatch: repeating-linear-gradient(135deg, rgba(8, 8, 8, 0.42) 0 1.5px, transparent 1.5px 5px);
-  --cond-pick-filter: brightness(0) invert(1) drop-shadow(1px 0 0 var(--ink-bright)) drop-shadow(-1px 0 0 var(--ink-bright)) drop-shadow(0 1px 0 var(--ink-bright)) drop-shadow(0 -1px 0 var(--ink-bright));
+  --cond-pick-filter: brightness(0) invert(1) drop-shadow(1px 0 0 var(--edge-pick)) drop-shadow(-1px 0 0 var(--edge-pick)) drop-shadow(0 1px 0 var(--edge-pick)) drop-shadow(0 -1px 0 var(--edge-pick));
   --cond-pick-opacity: 0.55;
   --cond-cells: rgba(255, 244, 214, 0.22);
 
@@ -168,8 +177,8 @@
   --garage-mount-wash: rgba(159, 220, 122, 0.14);
   --garage-mount-line: rgba(159, 220, 122, 0.5);
   --garage-mount-edge: rgb(159, 220, 122);
-  --garage-edge-hover: drop-shadow(1.5px 0 0 var(--line-hover)) drop-shadow(-1.5px 0 0 var(--line-hover)) drop-shadow(0 1.5px 0 var(--line-hover)) drop-shadow(0 -1.5px 0 var(--line-hover));
-  --garage-edge-pick: drop-shadow(2px 0 0 var(--ink-bright)) drop-shadow(-2px 0 0 var(--ink-bright)) drop-shadow(0 2px 0 var(--ink-bright)) drop-shadow(0 -2px 0 var(--ink-bright));
+  --garage-edge-hover: drop-shadow(1.5px 0 0 var(--edge-hover)) drop-shadow(-1.5px 0 0 var(--edge-hover)) drop-shadow(0 1.5px 0 var(--edge-hover)) drop-shadow(0 -1.5px 0 var(--edge-hover));
+  --garage-edge-pick: drop-shadow(2px 0 0 var(--edge-pick)) drop-shadow(-2px 0 0 var(--edge-pick)) drop-shadow(0 2px 0 var(--edge-pick)) drop-shadow(0 -2px 0 var(--edge-pick));
   --garage-edge-danger: drop-shadow(2px 0 0 var(--danger)) drop-shadow(-2px 0 0 var(--danger)) drop-shadow(0 2px 0 var(--danger)) drop-shadow(0 -2px 0 var(--danger));
   --garage-hidden-wash: rgba(232, 222, 196, 0.2);
   --garage-hidden-halo: drop-shadow(0 0 2px rgba(232, 222, 196, 0.8)) drop-shadow(0 0 4px rgba(232, 222, 196, 0.5));
@@ -374,6 +383,8 @@
   --btn-key-edge-s: 3px;
   --btn-key-edge-m: 4px;
   --btn-key-edge-l: 5px;
+  --off-opacity: 0.45;
+  --key-off-opacity: 1;
 
   /* Bars and pips */
   --meter-s: 3px;

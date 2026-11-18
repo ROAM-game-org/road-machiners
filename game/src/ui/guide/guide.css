@@ -93,6 +93,9 @@
 }
 #ui.guide .kit-window {
   position: static;
+  transform: none;
+  width: auto;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);

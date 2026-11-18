@@ -71,7 +71,7 @@ body {
   border-color: var(--line-hover);
 }
 :is(#ui, #report) button:disabled {
-  opacity: 0.45;
+  opacity: var(--off-opacity);
   cursor: default;
 }
 :is(#ui, #report) button:focus-visible,

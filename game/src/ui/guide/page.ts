@@ -66,6 +66,7 @@ const GROUPS: Group[] = [
   { title: "Text", prefixes: ["--ink"], sample: swatch },
   { title: "Accent", prefixes: ["--accent", "--select"], sample: swatch },
   { title: "Danger", prefixes: ["--danger", "--alarm", "--crash"], sample: swatch },
+  { title: "Boot screen", prefixes: ["--boot-"], sample: swatch },
   { title: "Good", prefixes: ["--good"], sample: swatch },
   { title: "Path preview", prefixes: ["--path-"], sample: swatch },
   { title: "Condition", prefixes: ["--cond-"], sample: swatch },
@@ -85,10 +86,10 @@ const GROUPS: Group[] = [
     prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-", "--journal-", "--board-", "--char-"],
     sample: boxSample,
   },
-  { title: "Garage and plan colors", prefixes: ["--plan-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
+  { title: "Garage and plan colors", prefixes: ["--plan-", "--edge-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
   {
     title: "Filters and factors",
-    prefixes: ["--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
+    prefixes: ["--off-opacity", "--key-off-opacity", "--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
     sample: valueSample,
   },
   {

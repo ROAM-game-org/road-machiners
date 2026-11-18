@@ -107,8 +107,6 @@
   display: none;
 }
 #ui :is(.quest-screen, .ink-page) .quest-choice:is(:disabled, [aria-disabled="true"]) {
-  color: var(--ink-muted);
-  opacity: 0.6;
   cursor: default;
 }
 :is(.quest-screen, .ink-page) .quest-held {
