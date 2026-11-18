@@ -94,7 +94,7 @@ const findDeadCorners = () => {
     });
   };
   const panels = [...document.querySelectorAll('#ui .panel')].filter((p) => isShown(p, p.getBoundingClientRect()));
-  const keys = [...document.querySelectorAll('#ui .key-cap')].filter((k) => isShown(k, k.getBoundingClientRect())).map((k) => [k, [k]]);
+  const keys = [...document.querySelectorAll('#ui :is(.key-cap, .baked-key)')].filter((k) => isShown(k, k.getBoundingClientRect())).map((k) => [k, [k]]);
   const single = [...panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c)), ...keys];
   const turn = document.querySelector('#ui .hud-radio .play-key');
   const turnFailures = turn ? [] : ['no turn button'];
