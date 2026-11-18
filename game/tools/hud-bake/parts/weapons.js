@@ -263,7 +263,9 @@ const lowerLocal = (cx, cy, z) => { const [px, py] = adjPt(P(cx, cy), LOWER_FRON
 const SLOT_LOOK = { plate: '#94825f', edge: '#2b2116', screw: '#a8936c', slot: '#2b2116', wire: '#2e2a24' };
 const slotScrew = toon(SLOT_LOOK.screw), slotDark = toon(SLOT_LOOK.slot), wireMat = toon(SLOT_LOOK.wire);
 const CORNER = 2.2;
+const slotGroups = SLOTS.map(() => []);
 for (const [i, b] of SLOTS.entries()) {
+  const before = new Set([...lower.g.children, ...root.children]);
   const [x0, y0, x1, y1] = [b[0] / K + FACE_CSS[0], b[1] / K + FACE_CSS[1], b[2] / K + FACE_CSS[0], b[3] / K + FACE_CSS[1]];
   const poly = [[x0 + CORNER, y0], [x1 - CORNER, y0], [x1, y0 + CORNER], [x1, y1 - CORNER], [x1 - CORNER, y1], [x0 + CORNER, y1], [x0, y1 - CORNER], [x0, y0 + CORNER]];
   plateMesh(poly, SLOT_LOOK.edge, 0.008, 0.002, 1.03);
@@ -282,7 +284,9 @@ for (const [i, b] of SLOTS.entries()) {
   const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 1.7 * CSS, 12), wireMat);
   wire.castShadow = true; wire.receiveShadow = true;
   root.add(ink(wire));
+  for (const m of [...lower.g.children, ...root.children]) if (!before.has(m)) { slotGroups[i].push(m); }
 }
+const showSlots = (shown) => { for (const [i, meshes] of slotGroups.entries()) for (const m of meshes) m.visible = shown.includes(i); };
 
 const PIPE_Z = LOWER_FRONT_Z - 0.07;
 const PIPE_PATH = [[374.5, 650], [374.5, 668], [375.6, 675.5], [379.5, 681.5], [386, 685.5], [393, 687.5]];
@@ -325,6 +329,12 @@ const slotZone = (b) => {
   const [ax, ay] = lowerLocal(x0, y0, SLOT_FRONT), [bx, by] = lowerLocal(x1, y1, SLOT_FRONT);
   return { quad: view.quad(lower, (ax + bx) / 2, (ay + by) / 2, bx - ax, ay - by, SLOT_FRONT), size: [b[2] - b[0], b[3] - b[1]].map((v) => Math.round(v * 100) / 100) };
 };
+const SLOT_SPAN = SLOTS.map((b) => { const [x0, y0, x1] = [b[0] / K + FACE_CSS[0], b[1] / K + FACE_CSS[1], b[2] / K + FACE_CSS[0]]; return R(x0 - 1, y0 - 1, x1 + 8.5, 706); });
+const slotCrop = (b) => {
+  const [x0, y0, x1, y1] = [b[0] / K + FACE_CSS[0], b[1] / K + FACE_CSS[1], b[2] / K + FACE_CSS[0], b[3] / K + FACE_CSS[1]];
+  const [ax, ay] = lowerLocal(x0, y0, SLOT_FRONT), [bx, by] = lowerLocal(x1, y1, SLOT_FRONT);
+  return view.cropAround(view.quad(lower, (ax + bx) / 2, (ay + by) / 2, bx - ax, ay - by, SLOT_FRONT), 12);
+};
 const meta = {
   width: view.IW, height: view.IH,
   face: view.quad(body, ...faceLocal, 0),
@@ -347,6 +357,7 @@ const meta = {
     key: { crop: keyCrop(BOX.key), frames: ['key-on-up', 'key-on-down', 'key-off-up', 'key-off-down'] },
     reload: { crop: keyCrop(BOX.reload), frames: ['reload-up', 'reload-down'] },
     hold: { crop: keyCrop(BOX.hold), frames: ['hold-up', 'hold-down'] },
+    ...Object.fromEntries(SLOT_SPAN.map((b, i) => [`slot${i}`, { crop: slotCrop(b), frames: [`slot${i}`] }])),
     lamp: { crop: view.cropAround(view.quad(body, ...inBody(adj(LAMP_BOX, FRONT_Z + 0.02)), 0.02), 10), frames: ['lamp-off', 'lamp-on'] },
     rocker: { crop: ((c) => [Math.max(0, c[0] - 14), c[1], Math.min(view.IW, c[2] + 14), Math.min(view.IH, c[3] + 34)])(view.cropAround(view.quad(body, ...inBody(adj(BOX.rocker, FRONT_Z + 0.1)), 0.1), 6)), frames: ['rocker-off', 'rocker-on'] },
   },
@@ -364,6 +375,11 @@ installBake((scale) => {
   setRocker(true); setLamp(true);
   for (const k of [allKey, reloadKey, holdKey]) k.press(KEY_UP);
   allKey.setLook(true);
+  for (const i of SLOTS.keys()) {
+    showSlots([i]); view.render(scale);
+    files[`slot${i}`] = view.crop(scale, meta.sprites[`slot${i}`].crop);
+  }
+  showSlots([]);
   view.render(scale);
   files.housing = view.shot();
   files['lamp-on'] = view.crop(scale, meta.sprites.lamp.crop);
