@@ -21,7 +21,7 @@ const BOXES = {
 };
 const KEYCAPS = { keycap: KEYCAP, keycapLit: { skirt: '#7a4a20', shoulder: '#b27a3a', top: '#94602a' }, keycapRed: { skirt: '#6a1a10', shoulder: '#a8321e', top: '#862414' } };
 const KEY_UP = -0.006, KEY_DOWN = -0.022, KEYCAP_H = 3.5 * CSS;
-const TOGGLE = { scale: 1.4, base: '#3a3833', hole: '#16110c' };
+const TOGGLE = { scale: 1.4, ring: 0.7, lever: 1.3, base: '#9a9a92', hole: '#2a2017' };
 const SLATE = { body: '#2b2d31', rings: [{ w: 2, color: '#838f94' }, { w: 4, color: '#3b474e' }], keyBorder: '#777e81', keyFill: '#33383b' };
 
 const S = plateSpace(CANVAS[0] * K, CANVAS[1] * K);
@@ -114,6 +114,9 @@ function toggle() {
   tip.position.y = 9 * CSS;
   lever.add(stem, tip);
   for (const m of [base, stem, tip]) m.castShadow = true;
+  base.scale.setScalar(TOGGLE.ring);
+  hole.scale.setScalar(TOGGLE.ring);
+  lever.scale.set(1, TOGGLE.lever, 1);
   g.add(base, hole, lever);
   g.scale.setScalar(TOGGLE.scale);
   groups.lever = lever;

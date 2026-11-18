@@ -111,6 +111,7 @@ export class JournalScreen {
     if (signature === this.drawn) return;
     this.drawn = signature;
     this.root.classList.toggle('modal', !side);
+    this.root.classList.toggle('dialog', !side);
     this.root.classList.toggle('journal-side', side);
     this.root.replaceChildren(
       el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyLabel(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),

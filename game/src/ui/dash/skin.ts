@@ -161,8 +161,8 @@ export const DRIVE_PLATE = {
     labelB: [1043, 413, 1223, 473],
     labelC: [1273, 413, 1454, 473],
     dialHub: [407, 513, 407, 513],
-    fuelHub: [908, 349, 908, 349],
-    heatHub: [1194, 349, 1194, 349],
+    fuelHub: [894, 336, 894, 336],
+    heatHub: [1184, 336, 1184, 336],
     dialGlass: [69, 175, 745, 851],
   },
 } as const satisfies PlateSpec<string>;

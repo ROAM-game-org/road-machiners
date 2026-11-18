@@ -17,9 +17,7 @@ const BOX = {
   key: R(690.5, 567, 755.5, 588),
   reload: R(690.5, 591.5, 721.5, 619),
   hold: R(724.5, 591.5, 755.5, 619),
-  rocker: R(728, 616, 750, 652),
-  autoHit: R(727, 621, 751, 657),
-  autoText: R(690.5, 622, 723, 645),
+  auto: R(690.5, 623, 755.5, 649),
 };
 const TOP_INSET = { left: 2.2, top: 1.5, right: 2.2, bottom: 6.9 };
 const ICON = 18;
@@ -28,6 +26,7 @@ const iconIn = (box) => { const [x0, y0, x1, y1] = topFace(box), cx = (x0 + x1) 
 BOX.allText = topFace(BOX.key);
 BOX.reloadIcon = iconIn(BOX.reload);
 BOX.holdIcon = iconIn(BOX.hold);
+BOX.autoText = topFace(BOX.auto);
 const SLOT_Y = [663, 697];
 const SLOTS = [[424, 488], [497, 561], [570, 634], [643, 707]].map(([x0, x1]) => R(x0, SLOT_Y[0], x1, SLOT_Y[1]));
 const CLIPS = [
@@ -103,33 +102,14 @@ const cv = (b, panelBox) => [b[0] - panelBox[0], b[1] - panelBox[1], b[2] - pane
   } });
 }
 
-const HUD_FONT = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
-document.fonts.add(await HUD_FONT.load());
-const PRINT = '#241c14', ENGRAVE = 'rgba(255,240,205,.22)';
-const printMesh = (box, word) => {
-  const DENSITY = 20 / K, cv = document.createElement('canvas');
-  cv.width = Math.round((box[2] - box[0]) * DENSITY); cv.height = Math.round((box[3] - box[1]) * DENSITY);
-  const c = cv.getContext('2d'); c.scale(DENSITY, DENSITY);
-  const size = 6.5 * K, mx = (box[2] - box[0]) / 2, my = (box[3] - box[1]) / 2;
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `400 ${size}px "Routed Gothic Narrow"`; c.letterSpacing = `${0.3 * K}px`;
-  c.fillStyle = ENGRAVE; c.fillText(word, mx, my + 1.2);
-  c.fillStyle = PRINT; c.fillText(word, mx, my);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const [x, y, w, h] = inBody(adj(box, FRONT_Z + 0.001));
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
-  body.add(m, x, y, 0.004);
-};
-{
-  const [X0, Y0, X1, Y1] = BOX.rocker, size = 6.5 * K, W = X1 - X0;
-  for (const [word, y] of [['ON', Y0 + size * 1.25], ['OFF', Y1 + size * 0.45]]) printMesh([X0 + W / 2 - 4 * size, y - size, X0 + W / 2 + 4 * size, y + size], word);
-}
-
 const CAP_D = 0.025;
 const KEY_TOP_Z = FRONT_Z + KEY_UP + CAP_D / 2 + 0.001;
 const KEY_LOOK = { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' };
 const GAIN = 1.12;
 const litToon = (c) => { const m = toon(c); m.color.multiplyScalar(GAIN); return m; };
 const keyMats = { skirt: litToon(KEY_LOOK.skirt), shoulder: litToon(KEY_LOOK.shoulder), top: litToon(KEY_LOOK.top) };
+const KEY_LIT = { skirt: '#8a5a1c', shoulder: '#f0b860', top: '#e8a43c' };
+const litMats = { skirt: litToon(KEY_LIT.skirt), shoulder: new THREE.MeshBasicMaterial({ color: KEY_LIT.shoulder, toneMapped: false }), top: new THREE.MeshBasicMaterial({ color: KEY_LIT.top, toneMapped: false }) };
 const CSS = K / PPU;
 const KEYCAP_H = 3.5 * CSS;
 const rrLocal = (x0, y0, x1, y1, r) => {
@@ -171,73 +151,15 @@ const makeKey = (box) => {
   lip.castShadow = true; lip.receiveShadow = true;
   body.add(lip, wx, wy, 0);
   const press = (z) => { group.position.z = body.z + z; };
-  return { press };
+  const light = (on) => { const m = on ? litMats : keyMats; skirt.material = m.skirt; shoulder.material = m.shoulder; top.material = m.top; };
+  return { press, light };
 };
 const allKey = makeKey(BOX.key);
 const reloadKey = makeKey(BOX.reload);
 const holdKey = makeKey(BOX.hold);
+const autoKey = makeKey(BOX.auto);
 
 
-const TOGGLE_SCALE = 2, TOGGLE_BASE = '#3a3833', TOGGLE_HOLE = '#16110c';
-const rocker = new THREE.Group();
-const leverPivot = new THREE.Group();
-const brass = toon(LOOK.brass);
-const brassDark = toon(LOOK.brassEdge);
-{
-  const ringProfile = [[0.042, 0], [0.042, 0.012], [0.05, 0.024], [0.074, 0.026], [0.084, 0.018], [0.086, 0]].map(([x, y]) => new THREE.Vector2(x, y));
-  const ring = new THREE.Mesh(new THREE.LatheGeometry(ringProfile, 48), toon(TOGGLE_BASE, { side: THREE.DoubleSide }));
-  ring.rotation.x = Math.PI / 2;
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.042, 32), new THREE.MeshBasicMaterial({ color: TOGGLE_HOLE }));
-  hole.position.z = 0.001;
-  const STEM_R = 0.024, STEM_L = 0.095, FLUTES = 18;
-  const stemGeo = new THREE.CylinderGeometry(STEM_R, STEM_R * 0.92, STEM_L, FLUTES * 4, 1);
-  const pos = stemGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z);
-    if (r < 1e-4) continue;
-    const ang = Math.atan2(z, x), groove = 0.88 + 0.12 * Math.abs(Math.cos(ang * FLUTES / 2));
-    pos.setX(i, x * groove); pos.setZ(i, z * groove);
-  }
-  stemGeo.computeVertexNormals();
-  const stem = new THREE.Mesh(stemGeo, brass);
-  stem.position.y = STEM_L / 2;
-  const capGeo = new THREE.CylinderGeometry(STEM_R * 0.78, STEM_R * 0.95, 0.018, 32);
-  const cap = new THREE.Mesh(capGeo, brass);
-  cap.position.y = STEM_L + 0.009;
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.03, 16), brassDark);
-  neck.position.y = -0.005;
-  leverPivot.add(neck, stem, cap); leverPivot.position.z = 0.012;
-  for (const m of [ring, stem, cap, neck]) { m.castShadow = true; m.receiveShadow = true; }
-  rocker.add(hole, ring, leverPivot);
-}
-const rockerBox = inBody(adj(BOX.rocker, FRONT_Z + 0.05));
-body.add(rocker, rockerBox[0], rockerBox[1], 0);
-rocker.scale.setScalar(TOGGLE_SCALE);
-rocker.position.y -= 5.5 * K / PPU;
-
-const LAMP_BOX = R(704, 647.5, 710, 653.5);
-const lamp = new THREE.Group();
-const lampLens = { on: new THREE.MeshBasicMaterial({ color: '#ffc867', toneMapped: false }), off: toon('#4a2c0a') };
-let lampDome, lampHalo;
-{
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.009, 10, 32), brass);
-  ring.position.z = 0.006;
-  lampDome = new THREE.Mesh(new THREE.SphereGeometry(0.03, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lampLens.on);
-  lampDome.rotation.x = Math.PI / 2; lampDome.scale.set(1, 0.6, 1);
-  const halo = document.createElement('canvas'); halo.width = halo.height = 128;
-  const hc = halo.getContext('2d'), hg = hc.createRadialGradient(64, 64, 8, 64, 64, 64);
-  hg.addColorStop(0, 'rgba(255,170,60,.8)'); hg.addColorStop(1, 'rgba(255,140,30,0)');
-  hc.fillStyle = hg; hc.fillRect(0, 0, 128, 128);
-  const ht = new THREE.CanvasTexture(halo); ht.colorSpace = THREE.SRGBColorSpace;
-  lampHalo = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.12), new THREE.MeshBasicMaterial({ map: ht, transparent: true, depthWrite: false, toneMapped: false }));
-  lampHalo.position.z = 0.002;
-  ring.castShadow = true;
-  lamp.add(lampHalo, ring, lampDome);
-}
-const lampBox = inBody(adj(LAMP_BOX, FRONT_Z + 0.02));
-body.add(lamp, lampBox[0], lampBox[1], 0);
-lamp.scale.setScalar(1.05);
-const setLamp = (on) => { lampDome.material = lampLens[on ? 'on' : 'off']; lampHalo.visible = on; };
 
 const plateMesh = (poly, color, depth, z, scale = 1) => {
   const zAbs = LOWER_FRONT_Z + z;
@@ -346,9 +268,10 @@ const meta = {
     screen: zoneAt(BOX.screen, 0.004),
     allText: zoneAt(BOX.allText, KEY_UP + CAP_D / 2 + 0.001),
     allTextDown: zoneAt(BOX.allText, KEY_DOWN + CAP_D / 2 + 0.001),
-    autoText: zoneAt(BOX.autoText, 0.004),
+    autoText: zoneAt(BOX.autoText, KEY_UP + CAP_D / 2 + 0.001),
+    autoTextDown: zoneAt(BOX.autoText, KEY_DOWN + CAP_D / 2 + 0.001),
     allHit: zoneAt(BOX.key, KEY_UP + CAP_D / 2 + 0.001),
-    autoHit: zoneAt(BOX.autoHit, 0.1),
+    autoHit: zoneAt(BOX.auto, KEY_UP + CAP_D / 2 + 0.001),
     reloadIcon: zoneAt(BOX.reloadIcon, KEY_UP + CAP_D / 2 + 0.001),
     reloadIconDown: zoneAt(BOX.reloadIcon, KEY_DOWN + CAP_D / 2 + 0.001),
     holdIcon: zoneAt(BOX.holdIcon, KEY_UP + CAP_D / 2 + 0.001),
@@ -362,22 +285,19 @@ const meta = {
     reload: { crop: keyCrop(BOX.reload), frames: ['reload-up', 'reload-down'] },
     hold: { crop: keyCrop(BOX.hold), frames: ['hold-up', 'hold-down'] },
     ...Object.fromEntries(SLOT_SPAN.map((b, i) => [`slot${i}`, { crop: slotCrop(b), frames: [`slot${i}`] }])),
-    lamp: { crop: view.cropAround(view.quad(body, ...inBody(adj(LAMP_BOX, FRONT_Z + 0.02)), 0.02), 10), frames: ['lamp-off', 'lamp-on'] },
-    rocker: { crop: ((c) => [Math.max(0, c[0] - 14), Math.max(0, c[1] - 24), Math.min(view.IW, c[2] + 14), Math.min(view.IH, c[3] + 34)])(view.cropAround(view.quad(body, ...inBody(adj(BOX.rocker, FRONT_Z + 0.1)), 0.1), 6)), frames: ['rocker-off', 'rocker-on'] },
+    auto: { crop: keyCrop(BOX.auto), frames: ['auto-up', 'auto-down', 'auto-lit-up', 'auto-lit-down'] },
   },
   kScale: K,
 };
 
 installBake((scale) => {
   const files = {};
-  const setRocker = (on) => { leverPivot.rotation.x = Math.PI / 2 + (on ? -1.2 : 0.15); };
   const shootKey = (k, sprite, name, z) => {
     k.press(z);
     view.render(scale); files[name] = view.crop(scale, meta.sprites[sprite].crop);
     k.press(KEY_UP);
   };
-  setRocker(true); setLamp(true);
-  for (const k of [allKey, reloadKey, holdKey]) k.press(KEY_UP);
+  for (const k of [allKey, reloadKey, holdKey, autoKey]) k.press(KEY_UP);
   for (const i of SLOTS.keys()) {
     showSlots([i]); view.render(scale);
     files[`slot${i}`] = view.crop(scale, meta.sprites[`slot${i}`].crop);
@@ -385,18 +305,12 @@ installBake((scale) => {
   showSlots([]);
   view.render(scale);
   files.housing = view.shot();
-  files['lamp-on'] = view.crop(scale, meta.sprites.lamp.crop);
-  setLamp(false); view.render(scale);
-  files['lamp-off'] = view.crop(scale, meta.sprites.lamp.crop);
-  setLamp(true);
-  lamp.visible = false; view.render(scale);
-  files['rocker-on'] = view.crop(scale, meta.sprites.rocker.crop);
-  setRocker(false); view.render(scale);
-  files['rocker-off'] = view.crop(scale, meta.sprites.rocker.crop);
-  lamp.visible = true;
-  setRocker(true);
   shootKey(allKey, 'key', 'key-up', KEY_UP); shootKey(allKey, 'key', 'key-down', KEY_DOWN);
   shootKey(reloadKey, 'reload', 'reload-up', KEY_UP); shootKey(reloadKey, 'reload', 'reload-down', KEY_DOWN);
   shootKey(holdKey, 'hold', 'hold-up', KEY_UP); shootKey(holdKey, 'hold', 'hold-down', KEY_DOWN);
+  shootKey(autoKey, 'auto', 'auto-up', KEY_UP); shootKey(autoKey, 'auto', 'auto-down', KEY_DOWN);
+  autoKey.light(true);
+  shootKey(autoKey, 'auto', 'auto-lit-up', KEY_UP); shootKey(autoKey, 'auto', 'auto-lit-down', KEY_DOWN);
+  autoKey.light(false);
   return { files, meta };
 });

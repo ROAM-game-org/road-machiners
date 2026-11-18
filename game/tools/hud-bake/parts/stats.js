@@ -12,7 +12,8 @@ const WINDOWS = { money: [28, 8, 109, 38], supplies: [139.5, 8, 184.3, 38], heal
 const RIM = 1.0;
 const INK_W = 1.1;
 const GLASS_Z = 0.006;
-const LCD_BOX = { money: [32, 13.4, 105.4, 37.4], supplies: [143.5, 13.4, 180.2, 37.4], health: [237.3, 13.4, 274, 37.4] };
+const LCD_INSET = 3.5;
+const LCD_BOX = Object.fromEntries(Object.entries(WINDOWS).map(([k, [x0, y0, x1, y1]]) => [k, [x0 + LCD_INSET, y0 + LCD_INSET, x1 - LCD_INSET, y1 - LCD_INSET]]));
 const ICON_BOX = { coin: [4, 13, 24, 33], bag: [115.4, 13, 135.4, 33], cross: [209.2, 13, 229.2, 33] };
 const UNIT_BOX = [188.2, 13, 201.3, 32];
 

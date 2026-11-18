@@ -504,7 +504,7 @@ function shareRadioScale(plateWidth: number): void {
   if (plateWidth > 0) root.style.setProperty("--hud-radio-scale", String(plateWidth / units));
 }
 
-const KNOB_MARK_REACH = 44;
+const KNOB_MARK_REACH = 36;
 
 export class RadioDeck {
   readonly root: HTMLElement;
@@ -584,7 +584,8 @@ export class RadioDeck {
 
   private markStyle(i: number): string {
     const angle = (knobAngle(i, TIME_SPEEDS.length) * Math.PI) / 180;
-    return `left:${(50 + KNOB_MARK_REACH * Math.sin(angle)).toFixed(1)}%;top:${(50 - KNOB_MARK_REACH * Math.cos(angle)).toFixed(1)}%`;
+    const side = Math.sin(angle) < 0 ? -100 : 0;
+    return `left:${(50 + KNOB_MARK_REACH * Math.sin(angle)).toFixed(1)}%;top:${(50 - KNOB_MARK_REACH * Math.cos(angle)).toFixed(1)}%;translate:${side}% -50%`;
   }
 
   private pick(index: number): void {

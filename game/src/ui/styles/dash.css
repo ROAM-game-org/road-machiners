@@ -682,12 +682,6 @@
   display: none;
 }
 
-#ui .auto-label {
-  font-size: var(--hud-text-s);
-  line-height: 1.1;
-  white-space: normal;
-}
-
 #ui .slot-tape {
   display: grid;
   place-items: center;
@@ -1202,10 +1196,12 @@
   inset: auto;
 }
 
-#ui .auto-label {
-  width: min-content;
-  white-space: normal;
-  line-height: 1.1;
+#ui .auto-print {
+  font-size: var(--hud-text-m);
+}
+
+#ui .auto-print.lit {
+  color: var(--hud-print-ink);
 }
 
 #ui :is(.hud-drive, .hud-weapons, .hud-radio, .hud-stats, .hud-system) {
@@ -1328,6 +1324,10 @@
 #ui .top-right {
   right: calc(-1 * var(--hud-tray-side));
   top: calc(-1 * var(--hud-tray-rim));
+}
+
+#ui .top-right .game-menu [role=menu] {
+  right: calc(var(--hud-tray-side) + var(--hud-inset));
 }
 
 #ui .speed-tip .speed-head {

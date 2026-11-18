@@ -291,8 +291,8 @@
   --hud-text-m: 12px;
   --hud-text-l: 20px;
   --hud-lcd-size: 24px;
-  --hud-stat-digit-h: 72cqh;
-  --hud-stat-digit-pad: 14cqh;
+  --hud-stat-digit-h: 84cqh;
+  --hud-stat-digit-pad: 10cqh;
   --hud-clip-far: calc(var(--layer-w) + var(--layer-h));
   --hud-icon: 20px;
   --hud-icon-l: 24px;

@@ -33,13 +33,12 @@ const byClass = (items, cls) => {
 };
 
 export default function weaponsOverlay(api) {
-  const rocker = api.sprite('rocker', 1);
   const key = api.sprite('key');
-  const lamp = api.sprite('lamp', 1);
+  const autoKey = api.sprite('auto', 2);
   const { items, icons } = api.live;
 
   const number = byClass(items, 'gun-number'), rounds = byClass(items, 'gun-rounds');
-  const allFire = byClass(items, 'key-print'), autoFire = byClass(items, 'auto-label');
+  const allFire = byClass(items, 'key-print'), autoFire = byClass(items, 'auto-print');
   const shape = icons.find((i) => i.tag === 'svg' && i.box[2] > 30 && i.box[2] < 60);
   if (!shape) throw new Error('weapons: no gun icon in live.json');
   const belt = { box: [459.28, 587.61, 6.39, 7.19] };
@@ -74,6 +73,9 @@ export default function weaponsOverlay(api) {
   allZoneDown.style.display = 'none';
   const autoZone = api.zone('autoText', 'w-print auto');
   autoZone.innerHTML = `<span>${autoFire.text}</span>`;
+  const autoZoneDown = api.zone('autoTextDown', 'w-print auto');
+  autoZoneDown.innerHTML = `<span>${autoFire.text}</span>`;
+  autoZoneDown.style.display = 'none';
 
   let down = false;
   const showKey = () => {
@@ -85,7 +87,14 @@ export default function weaponsOverlay(api) {
   allHit.onpointerdown = () => { down = true; showKey(); };
   allHit.onpointerup = allHit.onpointerleave = () => { if (down) { down = false; showKey(); } };
 
-  let auto = true;
+  let auto = true, autoDown = false;
+  const showAuto = () => {
+    autoKey.show((auto ? 2 : 0) + (autoDown ? 1 : 0));
+    autoZone.style.display = autoDown ? 'none' : '';
+    autoZoneDown.style.display = autoDown ? '' : 'none';
+  };
   const autoHit = api.zone('autoHit', 'hit', 'button');
-  autoHit.onclick = () => { auto = !auto; rocker.show(auto ? 1 : 0); lamp.show(auto ? 1 : 0); };
+  autoHit.onpointerdown = () => { autoDown = true; showAuto(); };
+  autoHit.onpointerup = autoHit.onpointerleave = () => { if (autoDown) { autoDown = false; showAuto(); } };
+  autoHit.onclick = () => { auto = !auto; showAuto(); };
 }

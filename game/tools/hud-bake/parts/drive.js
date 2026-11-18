@@ -14,7 +14,7 @@ const GLASS = '#1d1609';
 const DIAL = { cx: 82, cy: 687.1, rGlass: 71.5, rBrass: 73.0 };
 const GAUGE_SHIFT = -2.5;
 const shifted = (pts) => pts.map(([x, y]) => [x + GAUGE_SHIFT, y]);
-const FUEL = { pts: shifted([[156.4, 619.3], [213.9, 618.3], [213.9, 659.3], [160.6, 659.3]]), r: 9 };
+const FUEL = { pts: shifted([[156.4, 618.3], [213.9, 618.3], [213.9, 659.3], [156.4, 659.3]]), r: 9 };
 const HEAT = { pts: shifted([[217.9, 618.3], [275.1, 618.3], [275.1, 659.3], [217.9, 659.3]]), r: 9 };
 const COOL = { box: [276.4, 622.5, 318.2, 659.2], skirt: 5.5 };
 const ROCKERS = [[178.1, 684.8, 194.1, 713.7], [226.1, 684.8, 242.3, 713.7], [274.3, 684.8, 290.6, 713.7]];
@@ -155,9 +155,9 @@ document.fonts.add(await font.load());
 const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
 const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
 
-const SW_SCALE = 1.4, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
-const SW_PRINT = [11.5, 17.5];
-const SW_BASE = '#3a3833', SW_HOLE = '#16110c';
+const SW_RING = 0.85, SW_LEVER = 1.75, SW_LEVER_W = 1.25, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
+const SW_PRINT = [13.5, 19.5];
+const SW_BASE = '#9a9a92', SW_HOLE = '#2a2017';
 const SW_Z = Z_PANEL + 0.004;
 const SW_TILT = 0.75;
 const EYE_UNITS = P.eye();
@@ -194,7 +194,7 @@ const flutedStem = (radius, length, flutes) => {
   return g;
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
-  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_SCALE);
+  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_RING), ul = (v) => L.len(v * SW_LEVER), uw = (v) => L.len(v * SW_LEVER_W);
   P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
   P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
   const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
@@ -207,13 +207,13 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   pivot.matrixAutoUpdate = false;
   const at = new THREE.Vector3(px, py, SW_Z + 0.002);
   const shear = new THREE.Matrix4().set(1, 0, -(px - EYE_UNITS.x) / EYE_UNITS.z, 0, 0, 1, -(py - EYE_UNITS.y) / EYE_UNITS.z, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-  const len = u(8);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(u(1.2), u(1.2), u(2), 16), brassDeep);
-  neck.position.y = u(0.5);
-  const stem = new THREE.Mesh(flutedStem(u(1.7), len, 16), brass);
-  stem.position.y = len / 2 + u(1);
-  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(u(1.35), u(1.65), u(1.1), 28), brass);
-  capTop.position.y = len + u(1.55);
+  const len = ul(8);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.2), uw(1.2), ul(2), 16), brassDeep);
+  neck.position.y = ul(0.5);
+  const stem = new THREE.Mesh(flutedStem(uw(1.7), len, 16), brass);
+  stem.position.y = len / 2 + ul(1);
+  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.35), uw(1.65), uw(1.1), 28), brass);
+  capTop.position.y = len + ul(1) + uw(0.55);
   pivot.add(neck, stem, capTop);
   for (const m of [ringMesh, stem, capTop, neck]) { m.castShadow = true; m.receiveShadow = true; }
   P.g.add(hole, ringMesh, pivot);

@@ -139,7 +139,7 @@ export function sameScene(drawn: QuestLive | null, live: QuestLive | null): bool
 }
 
 export class QuestScreen {
-  private root = panel('modal');
+  private root = panel('modal dialog');
   private shown: QuestLive | null = null;
   private asked: string | null = null;
   private lastAsk: string | null = null;
