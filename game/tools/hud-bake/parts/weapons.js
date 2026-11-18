@@ -9,15 +9,22 @@ const P = (cx, cy) => [(cx - FACE_CSS[0]) * K, (cy - FACE_CSS[1]) * K];
 const R = (x0, y0, x1, y1) => [...P(x0, y0), ...P(x1, y1)];
 const S = plateSpace(Math.round((FACE_CSS[2] - FACE_CSS[0]) * K), (FACE_CSS[3] - FACE_CSS[1]) * K);
 
+const BODY_LEFT = 370.1, BODY_TOP = 562.5;
 const BOX = {
-  body: R(362, 556, 759.3, 658.8),
+  body: R(BODY_LEFT, BODY_TOP, 759.3, 658.8),
   lower: R(386, 640, 745.2, 703),
   screen: R(384, 569.5, 686.5, 648.5),
-  key: R(708, 566.5, 746.5, 604.5),
-  rocker: R(725.5, 611, 747.5, 650),
-  allText: R(710.3, 567.5, 744.2, 596.5),
-  autoText: R(701, 622.5, 723.3, 644.5),
+  key: R(690.5, 567, 755.5, 588),
+  reload: R(690.5, 591.5, 721.5, 619),
+  hold: R(724.5, 591.5, 755.5, 619),
+  rocker: R(728, 616, 750, 652),
+  allText: R(692, 568, 754, 584.5),
+  reloadIcon: R(697, 593, 715, 611),
+  holdIcon: R(731, 593, 749, 611),
+  autoText: R(690.5, 622, 723, 645),
 };
+const SLOT_Y = [663, 697];
+const SLOTS = [[424, 488], [497, 561], [570, 634], [643, 707]].map(([x0, x1]) => R(x0, SLOT_Y[0], x1, SLOT_Y[1]));
 const CLIPS = [
   [[402.8, 658.6], [427.8, 658.0], [428.0, 665.5], [403.4, 664.0]],
   [[714.6, 657.8], [734.0, 657.8], [734.3, 664.5], [715.3, 663.6]],
@@ -52,11 +59,11 @@ const BEVEL = 0.035, BEVEL_T = 0.03;
 let bodyShape;
 {
   const w = body.w, h = body.h, x0 = -w / 2 + BEVEL, x1 = w / 2 - BEVEL, y0 = -h / 2 + BEVEL, y1 = h / 2 - BEVEL;
-  const nx = (cssX) => x0 + (cssX - 362) * K / PPU;
-  const ny = (cssY) => y1 - (cssY - 556) * K / PPU;
+  const nx = (cssX) => x0 + (cssX - BODY_LEFT) * K / PPU;
+  const ny = (cssY) => y1 - (cssY - BODY_TOP) * K / PPU;
   const shape = new THREE.Shape();
   shape.moveTo(x0, y0); shape.lineTo(x1, y0); shape.lineTo(x1, y1); shape.lineTo(x0, y1);
-  shape.lineTo(x0, ny(609)); shape.lineTo(nx(364.8), ny(610)); shape.lineTo(nx(369.6), ny(612.5)); shape.lineTo(nx(369.6), ny(629.5)); shape.lineTo(nx(365.5), ny(634)); shape.lineTo(x0, ny(634.5));
+  shape.lineTo(x0, ny(609)); shape.lineTo(nx(BODY_LEFT + 2.8), ny(610)); shape.lineTo(nx(BODY_LEFT + 7.6), ny(612.5)); shape.lineTo(nx(BODY_LEFT + 7.6), ny(629.5)); shape.lineTo(nx(BODY_LEFT + 3.5), ny(634)); shape.lineTo(x0, ny(634.5));
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, { depth: BODY_D - 2 * BEVEL_T, bevelEnabled: true, bevelThickness: BEVEL_T, bevelSize: BEVEL, bevelOffset: 0, bevelSegments: 3, curveSegments: 4 });
   geo.translate(0, 0, -BODY_D / 2 + BEVEL_T);
@@ -65,7 +72,7 @@ let bodyShape;
   body.body.remove(...body.body.children);
   ink(body.body);
   const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.02, ny(612) - ny(632), 0.05), toon('#a58e66'));
-  hinge.position.set(nx(367.5), (ny(612) + ny(632)) / 2, -0.02); hinge.castShadow = true; hinge.receiveShadow = true;
+  hinge.position.set(nx(BODY_LEFT + 5.5), (ny(612) + ny(632)) / 2, -0.02); hinge.castShadow = true; hinge.receiveShadow = true;
   body.g.add(hinge);
 }
 const lower = new Panel(...sizeOf(LOWER_BOX), { d: LOWER_D, r: 0.015, color: LOOK.lower, side: shade(LOOK.lower, -0.04), seed: 12, wear: 0, bezel: '#3b3026' });
@@ -91,14 +98,6 @@ const cv = (b, panelBox) => [b[0] - panelBox[0], b[1] - panelBox[1], b[2] - pane
   } });
 }
 
-const CAP_D = 0.025;
-const KEY_TOP_Z = FRONT_Z + KEY_UP + CAP_D / 2 + 0.001;
-const keyBox = inBody(adj(BOX.key, KEY_TOP_Z));
-body.paint('base', (c) => {
-  const [X0, Y0, X1, Y1] = cv(BOX.key, BOX.body);
-  c.fillStyle = '#2b1f12'; c.beginPath(); c.roundRect(X0 - 1.5, Y0 - 1.5, X1 - X0 + 3, Y1 - Y0 + 3, 8); c.fill();
-});
-
 const HUD_FONT = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
 document.fonts.add(await HUD_FONT.load());
 const PRINT = '#241c14', ENGRAVE = 'rgba(255,240,205,.22)';
@@ -120,7 +119,8 @@ const printMesh = (box, word) => {
   for (const [word, y] of [['ON', Y0 + size * 1.5], ['OFF', Y1 + size * 0.15]]) printMesh([X0 + W / 2 - 4 * size, y - size, X0 + W / 2 + 4 * size, y + size], word);
 }
 
-const key = new THREE.Group();
+const CAP_D = 0.025;
+const KEY_TOP_Z = FRONT_Z + KEY_UP + CAP_D / 2 + 0.001;
 const KEY_LOOK = { on: { skirt: '#6a120a', shoulder: '#b8382a', top: '#9a1a0e' }, off: { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' } };
 const GAIN = 1.12;
 const litToon = (c) => { const m = toon(c); m.color.multiplyScalar(GAIN); return m; };
@@ -143,29 +143,37 @@ const loftLocal = (sa, za, sb, zb, mat) => {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
 };
-let keyParts;
-{
-  const [, , kw, kh] = keyBox, z0 = -CAP_D / 2;
+const roundRect = (sh, x0, y0, x1, y1, r) => { sh.moveTo(x0 + r, y0); sh.lineTo(x1 - r, y0); sh.quadraticCurveTo(x1, y0, x1, y0 + r); sh.lineTo(x1, y1 - r); sh.quadraticCurveTo(x1, y1, x1 - r, y1); sh.lineTo(x0 + r, y1); sh.quadraticCurveTo(x0, y1, x0, y1 - r); sh.lineTo(x0, y0 + r); sh.quadraticCurveTo(x0, y0, x0 + r, y0); };
+
+const makeKey = (box) => {
+  body.paint('base', (c) => {
+    const [X0, Y0, X1, Y1] = cv(box, BOX.body);
+    c.fillStyle = '#2b1f12'; c.beginPath(); c.roundRect(X0 - 1.5, Y0 - 1.5, X1 - X0 + 3, Y1 - Y0 + 3, 8); c.fill();
+  });
+  const [kx, ky, kw, kh] = inBody(adj(box, KEY_TOP_Z)), z0 = -CAP_D / 2, group = new THREE.Group();
   const base = keyLevel(kw, kh, 0, 0, 0, 0, 4), mid = keyLevel(kw, kh, 1.2, 0.6, 1.2, 6.1, 3.4), topS = keyLevel(kw, kh, 2.2, 1.5, 2.2, 6.9, 2.8);
-  const skirt = loftLocal(base, z0, mid, z0 + KEYCAP_H - 0.012 * 0.8, keyMats.on.skirt);
-  const shoulder = loftLocal(mid, z0 + KEYCAP_H - 0.012 * 0.8, topS, z0 + KEYCAP_H, keyMats.on.shoulder);
+  const skirt = loftLocal(base, z0, mid, z0 + KEYCAP_H - 0.012 * 0.8, keyMats.off.skirt);
+  const shoulder = loftLocal(mid, z0 + KEYCAP_H - 0.012 * 0.8, topS, z0 + KEYCAP_H, keyMats.off.shoulder);
   const topGeo = new THREE.ShapeGeometry(topS, 12); topGeo.translate(0, 0, z0 + KEYCAP_H);
-  const top = new THREE.Mesh(topGeo, keyMats.on.top); top.castShadow = true; top.receiveShadow = true;
-  key.add(skirt, shoulder, top);
-  keyParts = { skirt, shoulder, top };
-}
-const setKeyLook = (on) => { const m = keyMats[on ? 'on' : 'off']; keyParts.skirt.material = m.skirt; keyParts.shoulder.material = m.shoulder; keyParts.top.material = m.top; };
-body.add(key, keyBox[0], keyBox[1], 0);
-{
-  const [wx, wy, ww, wh] = inBody(adj(BOX.key, FRONT_Z + 0.01));
-  const rr = (sh, x0, y0, x1, y1, r) => { sh.moveTo(x0 + r, y0); sh.lineTo(x1 - r, y0); sh.quadraticCurveTo(x1, y0, x1, y0 + r); sh.lineTo(x1, y1 - r); sh.quadraticCurveTo(x1, y1, x1 - r, y1); sh.lineTo(x0 + r, y1); sh.quadraticCurveTo(x0, y1, x0, y1 - r); sh.lineTo(x0, y0 + r); sh.quadraticCurveTo(x0, y0, x0 + r, y0); };
+  const top = new THREE.Mesh(topGeo, keyMats.off.top); top.castShadow = true; top.receiveShadow = true;
+  group.add(skirt, shoulder, top);
+  body.add(group, kx, ky, 0);
+  const [wx, wy, ww, wh] = inBody(adj(box, FRONT_Z + 0.01));
   const out = 1.8 * CSS, inn = 0.5 * CSS;
-  const shape = new THREE.Shape(); rr(shape, -ww / 2 - out, -wh / 2 - out, ww / 2 + out, wh / 2 + out, 0.03);
-  const hole = new THREE.Path(); rr(hole, -ww / 2 - inn, -wh / 2 - inn, ww / 2 + inn, wh / 2 + inn, 0.02); shape.holes.push(hole);
+  const shape = new THREE.Shape(); roundRect(shape, -ww / 2 - out, -wh / 2 - out, ww / 2 + out, wh / 2 + out, 0.03);
+  const hole = new THREE.Path(); roundRect(hole, -ww / 2 - inn, -wh / 2 - inn, ww / 2 + inn, wh / 2 + inn, 0.02); shape.holes.push(hole);
   const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 3, curveSegments: 10 }), toon(LOOK.housing));
   lip.castShadow = true; lip.receiveShadow = true;
   body.add(lip, wx, wy, 0);
-}
+  const setLook = (on) => { const m = keyMats[on ? 'on' : 'off']; skirt.material = m.skirt; shoulder.material = m.shoulder; top.material = m.top; };
+  const press = (z) => { group.position.z = body.z + z; };
+  return { setLook, press };
+};
+const allKey = makeKey(BOX.key);
+const reloadKey = makeKey(BOX.reload);
+const holdKey = makeKey(BOX.hold);
+allKey.setLook(true);
+
 
 const rocker = new THREE.Group();
 const leverPivot = new THREE.Group();
@@ -203,7 +211,7 @@ body.add(rocker, rockerBox[0], rockerBox[1], 0);
 rocker.scale.setScalar(1.45);
 rocker.position.y -= 5.5 * K / PPU;
 
-const LAMP_BOX = R(733.5, 608.5, 739.5, 614.5);
+const LAMP_BOX = R(704, 647.5, 710, 653.5);
 const lamp = new THREE.Group();
 const lampLens = { on: new THREE.MeshBasicMaterial({ color: '#ffc867', toneMapped: false }), off: toon('#4a2c0a') };
 let lampDome, lampHalo;
@@ -250,6 +258,32 @@ const tanPlate = (poly, tan, lit) => {
 for (const poly of CLIPS) tanPlate(poly, LOOK.clip, true);
 for (const poly of BRACKETS) tanPlate(poly, LOOK.tan, false);
 
+const SLOT_FRONT = 0.016;
+const lowerLocal = (cx, cy, z) => { const [px, py] = adjPt(P(cx, cy), LOWER_FRONT_Z + z); const [pcx, pcy] = S.centerOf(LOWER_BOX); return [S.ux(px) - pcx, S.uy(py) - pcy]; };
+const SLOT_LOOK = { plate: '#94825f', edge: '#2b2116', screw: '#a8936c', slot: '#2b2116', wire: '#2e2a24' };
+const slotScrew = toon(SLOT_LOOK.screw), slotDark = toon(SLOT_LOOK.slot), wireMat = toon(SLOT_LOOK.wire);
+const CORNER = 2.2;
+for (const [i, b] of SLOTS.entries()) {
+  const [x0, y0, x1, y1] = [b[0] / K + FACE_CSS[0], b[1] / K + FACE_CSS[1], b[2] / K + FACE_CSS[0], b[3] / K + FACE_CSS[1]];
+  const poly = [[x0 + CORNER, y0], [x1 - CORNER, y0], [x1, y0 + CORNER], [x1, y1 - CORNER], [x1 - CORNER, y1], [x0 + CORNER, y1], [x0, y1 - CORNER], [x0, y0 + CORNER]];
+  plateMesh(poly, SLOT_LOOK.edge, 0.008, 0.002, 1.03);
+  plateMesh(poly, SLOT_LOOK.plate, SLOT_FRONT - 0.004, 0.004);
+  for (const [sx, sy] of [[x0 + 2.6, y0 + 2.6], [x1 - 2.6, y0 + 2.6], [x0 + 2.6, y1 - 2.6], [x1 - 2.6, y1 - 2.6]]) {
+    const [lx, ly] = lowerLocal(sx, sy, SLOT_FRONT);
+    const screw = new THREE.Mesh(new THREE.CylinderGeometry(1.2 * CSS, 1.3 * CSS, 0.006, 16), slotScrew);
+    screw.rotation.x = Math.PI / 2; screw.position.set(lx, ly, lower.z + SLOT_FRONT + 0.003); screw.castShadow = true;
+    const cut = new THREE.Mesh(new THREE.BoxGeometry(1.9 * CSS, 0.35 * CSS, 0.002), slotDark);
+    cut.rotation.z = 0.6 + i * 0.7; cut.position.set(lx, ly, lower.z + SLOT_FRONT + 0.0065);
+    lower.g.add(screw, cut);
+  }
+  const wz = LOWER_FRONT_Z + 0.01;
+  const wirePath = [[x1 - 1, (y0 + y1) / 2, wz], [x1 + 2.4, (y0 + y1) / 2 + 1, wz], [x1 + 3.6, y1 - 6, wz], [x1 + 3.8, 701.5, wz], [x1 + 3.8, 703.6, wz - 0.04], [x1 + 3.8, 704, wz - 0.14]];
+  const pts = wirePath.map(([cx, cy, z]) => { const [px, py] = adjPt(P(cx, cy), z); return new THREE.Vector3(S.ux(px), S.uy(py), z); });
+  const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 1.7 * CSS, 12), wireMat);
+  wire.castShadow = true; wire.receiveShadow = true;
+  root.add(ink(wire));
+}
+
 const PIPE_Z = LOWER_FRONT_Z - 0.07;
 const PIPE_PATH = [[374.5, 650], [374.5, 668], [375.6, 675.5], [379.5, 681.5], [386, 685.5], [393, 687.5]];
 {
@@ -285,6 +319,12 @@ const view = frame({ scene, root, facePanel: body, eye: EYE, faceWidthPx: Math.r
 const faceBox = [0, 0, S.width, (FACE_CSS[3] - FACE_CSS[1]) * K];
 const faceLocal = inBody(faceBox);
 const zoneAt = (b, z) => ({ quad: view.quad(body, ...inBody(adj(b, FRONT_Z + z)), z), size: [b[2] - b[0], b[3] - b[1]].map((v) => Math.round(v * 100) / 100) });
+const keyCrop = (b) => view.cropAround(view.quad(body, ...inBody(adj(b, FRONT_Z + 0.1)), 0.1), 6);
+const slotZone = (b) => {
+  const [x0, y0, x1, y1] = [b[0] / K + FACE_CSS[0], b[1] / K + FACE_CSS[1], b[2] / K + FACE_CSS[0], b[3] / K + FACE_CSS[1]];
+  const [ax, ay] = lowerLocal(x0, y0, SLOT_FRONT), [bx, by] = lowerLocal(x1, y1, SLOT_FRONT);
+  return { quad: view.quad(lower, (ax + bx) / 2, (ay + by) / 2, bx - ax, ay - by, SLOT_FRONT), size: [b[2] - b[0], b[3] - b[1]].map((v) => Math.round(v * 100) / 100) };
+};
 const meta = {
   width: view.IW, height: view.IH,
   face: view.quad(body, ...faceLocal, 0),
@@ -295,9 +335,18 @@ const meta = {
     autoText: zoneAt(BOX.autoText, 0.004),
     allHit: zoneAt(BOX.key, KEY_UP + CAP_D / 2 + 0.001),
     autoHit: zoneAt(BOX.rocker, 0.1),
+    reloadIcon: zoneAt(BOX.reloadIcon, KEY_UP + CAP_D / 2 + 0.001),
+    reloadIconDown: zoneAt(BOX.reloadIcon, KEY_DOWN + CAP_D / 2 + 0.001),
+    holdIcon: zoneAt(BOX.holdIcon, KEY_UP + CAP_D / 2 + 0.001),
+    holdIconDown: zoneAt(BOX.holdIcon, KEY_DOWN + CAP_D / 2 + 0.001),
+    reloadHit: zoneAt(BOX.reload, KEY_UP + CAP_D / 2 + 0.001),
+    holdHit: zoneAt(BOX.hold, KEY_UP + CAP_D / 2 + 0.001),
+    ...Object.fromEntries(SLOTS.map((b, i) => [`slot${i}`, slotZone(b)])),
   },
   sprites: {
-    key: { crop: view.cropAround(view.quad(body, ...inBody(adj(BOX.key, FRONT_Z + 0.1)), 0.1), 6), frames: ['key-on-up', 'key-on-down', 'key-off-up', 'key-off-down'] },
+    key: { crop: keyCrop(BOX.key), frames: ['key-on-up', 'key-on-down', 'key-off-up', 'key-off-down'] },
+    reload: { crop: keyCrop(BOX.reload), frames: ['reload-up', 'reload-down'] },
+    hold: { crop: keyCrop(BOX.hold), frames: ['hold-up', 'hold-down'] },
     lamp: { crop: view.cropAround(view.quad(body, ...inBody(adj(LAMP_BOX, FRONT_Z + 0.02)), 0.02), 10), frames: ['lamp-off', 'lamp-on'] },
     rocker: { crop: ((c) => [Math.max(0, c[0] - 14), c[1], Math.min(view.IW, c[2] + 14), Math.min(view.IH, c[3] + 34)])(view.cropAround(view.quad(body, ...inBody(adj(BOX.rocker, FRONT_Z + 0.1)), 0.1), 6)), frames: ['rocker-off', 'rocker-on'] },
   },
@@ -307,12 +356,14 @@ const meta = {
 installBake((scale) => {
   const files = {};
   const setRocker = (on) => { leverPivot.rotation.x = Math.PI / 2 + (on ? -1.2 : 0.15); };
-  const shootKey = (name, on, z) => {
-    setKeyLook(on); key.position.z = body.z + z;
-    view.render(scale); files[name] = view.crop(scale, meta.sprites.key.crop);
+  const shootKey = (k, sprite, name, on, z) => {
+    k.setLook(on); k.press(z);
+    view.render(scale); files[name] = view.crop(scale, meta.sprites[sprite].crop);
+    k.press(KEY_UP);
   };
   setRocker(true); setLamp(true);
-  setKeyLook(true); key.position.z = body.z + KEY_UP;
+  for (const k of [allKey, reloadKey, holdKey]) k.press(KEY_UP);
+  allKey.setLook(true);
   view.render(scale);
   files.housing = view.shot();
   files['lamp-on'] = view.crop(scale, meta.sprites.lamp.crop);
@@ -325,8 +376,10 @@ installBake((scale) => {
   files['rocker-off'] = view.crop(scale, meta.sprites.rocker.crop);
   lamp.visible = true;
   setRocker(true);
-  shootKey('key-on-up', true, KEY_UP); shootKey('key-on-down', true, KEY_DOWN);
-  shootKey('key-off-up', false, KEY_UP); shootKey('key-off-down', false, KEY_DOWN);
-  setKeyLook(true); key.position.z = body.z + KEY_UP;
+  shootKey(allKey, 'key', 'key-on-up', true, KEY_UP); shootKey(allKey, 'key', 'key-on-down', true, KEY_DOWN);
+  shootKey(allKey, 'key', 'key-off-up', false, KEY_UP); shootKey(allKey, 'key', 'key-off-down', false, KEY_DOWN);
+  allKey.setLook(true);
+  shootKey(reloadKey, 'reload', 'reload-up', false, KEY_UP); shootKey(reloadKey, 'reload', 'reload-down', false, KEY_DOWN);
+  shootKey(holdKey, 'hold', 'hold-up', false, KEY_UP); shootKey(holdKey, 'hold', 'hold-down', false, KEY_DOWN);
   return { files, meta };
 });
