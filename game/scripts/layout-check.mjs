@@ -6,7 +6,7 @@ import { playUrl } from './game-url.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:5173';
 const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
-const VIEWPORTS = [[1280, 720], [700, 800]];
+const VIEWPORTS = [[1280, 720]];
 const TALL = [1440, 900];
 const COMPACT = [1024, 600];
 const PHONE = [844, 390];

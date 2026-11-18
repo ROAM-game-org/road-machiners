@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { needleAngle, litSegments, dialShare, scaleTicks } from "./panels";
-import { knobAngle, lineChanges, wheelFrame, wheelTurn } from "./panels";
+import { knobAngle, lineChanges, wheelFrame, wheelTurn, dashFit } from "./panels";
 import { gunPage, utilityEngaged, utilityLamp } from "./weapon-blocks";
 import type { UtilityState } from "../weapons";
 
@@ -180,3 +180,31 @@ describe("wheelFrame", () => {
     expect(wheelFrame(-3, 6)).toBe(0);
   });
 });
+
+describe("the bottom row fit", () => {
+  const row = { drive: 352.7, weapons: 400, radio: 410, tray: 52, gap: 8 };
+  const width = row.drive + row.weapons + row.radio;
+
+  it("keeps full size and full gaps when the row fits", () => {
+    expect(dashFit({ width: 1512, height: 860 }, row)).toEqual({ zoom: 1, gap: 8 });
+  });
+
+  it("closes the gaps before it shrinks anything", () => {
+    const fit = dashFit({ width: width + 6, height: 860 }, row);
+    expect(fit.zoom).toBe(1);
+    expect(fit.gap).toBeCloseTo(3);
+  });
+
+  it("shrinks the three parts together to the layer width once the gaps are gone", () => {
+    const fit = dashFit({ width: 640, height: 360 }, row);
+    expect(fit.gap).toBe(0);
+    expect(fit.zoom * width).toBeCloseTo(640);
+  });
+
+  it("shrinks for height when the radio and the top tray do not fit", () => {
+    const fit = dashFit({ width: 4000, height: 200 }, row);
+    expect(fit.zoom).toBeLessThan(1);
+    expect(fit.zoom * ((row.radio * 695) / 1279 + row.tray)).toBeCloseTo(200 - 2 * row.gap);
+  });
+});
+

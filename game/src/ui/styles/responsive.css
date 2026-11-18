@@ -47,16 +47,9 @@
 #ui:where(.narrow):has(.help) :is(.right-dock, .hud-radio) {
   visibility: hidden;
 }
-#ui:where(.tight) {
-  --hud-zoom: var(--hud-zoom-tight);
-}
 #ui:where(.narrow) {
-  --right-column: 0px;
   --hud-notice-top: calc(2 * (var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap)) - var(--hud-tray-rim));
 }
 #ui:where(.narrow) > .top-right {
   top: calc(var(--hud-tray-h) * var(--hud-zoom) + var(--hud-gap) - 2 * var(--hud-tray-rim));
-}
-#ui:where(.narrow) > .right-column {
-  bottom: calc(var(--hud-weapons-w) * 734 / 1969 * var(--hud-zoom) + var(--hud-gap));
 }

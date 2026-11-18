@@ -11,19 +11,17 @@
 #ui .top-left > .panel {
   position: static;
 }
-/* The weapons keep the bottom line, and the instruments go above them only when the two do not fit side by side. */
+/* The instruments, the weapons and the radio always share the bottom line. The HUD zoom and the row gap shrink so they fit. */
 .bottom-left {
   position: absolute;
   left: 0;
   bottom: 0;
   display: flex;
   flex-direction: row-reverse;
-  flex-wrap: wrap-reverse;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  align-items: flex-start;
-  gap: var(--hud-gap);
-  row-gap: calc(var(--hud-gap) + var(--hud-device-lift) + var(--hud-drive-sink-px));
-  max-width: calc(var(--layer-w) - var(--space-8) - var(--right-column));
+  align-items: flex-end;
+  gap: var(--hud-row-gap);
 }
 #ui .bottom-left > .panel {
   position: static;

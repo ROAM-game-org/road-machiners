@@ -463,6 +463,27 @@ export function wheelFrame(scrollTop: number, frames: number): number {
 
 const RADIO_LAYOUT = { width: 1279, height: 695, boxes: {} };
 
+export interface DashRow {
+  drive: number;
+  weapons: number;
+  radio: number;
+  tray: number;
+  gap: number;
+}
+
+export interface DashFit {
+  zoom: number;
+  gap: number;
+}
+
+export function dashFit(layer: { width: number; height: number }, row: DashRow): DashFit {
+  const width = row.drive + row.weapons + row.radio;
+  const tall = (row.radio * RADIO_LAYOUT.height) / RADIO_LAYOUT.width + row.tray;
+  const zoom = Math.min(1, layer.width / width, (layer.height - 2 * row.gap) / tall);
+  const gap = Math.max(0, Math.min(row.gap, (layer.width - width * zoom) / 2));
+  return { zoom, gap };
+}
+
 export interface ClockView {
   day: number;
   hour: number;

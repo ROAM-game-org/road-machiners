@@ -244,7 +244,7 @@
   --hud-radio-n: 410;
   --hud-radio-w: calc(var(--hud-radio-n) * 1px);
   --hud-zoom: 1;
-  --hud-zoom-tight: 0.8;
+  --hud-row-gap: var(--hud-gap);
   --hud-radio-scale: 1;
   --hud-tray-h: 52px;
   --hud-tray-rim: var(--hud-rim-w);

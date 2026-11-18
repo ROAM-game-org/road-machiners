@@ -12,7 +12,7 @@ import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
 import { bottomLeft, dashRail, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
-import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd } from "./dash/panels";
+import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit } from "./dash/panels";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
@@ -235,6 +235,13 @@ export class Hud {
     return this.info.style.display !== "none";
   }
 
+  private fitDash = (): void => {
+    const n = (name: string): number => parseFloat(token(name));
+    const fit = dashFit(uiSize().layerSize(), { drive: n("--hud-drive-n"), weapons: n("--hud-weapons-n"), radio: n("--hud-radio-n"), tray: n("--hud-tray-h"), gap: n("--hud-gap") });
+    uiRoot().style.setProperty("--hud-zoom", String(fit.zoom));
+    uiRoot().style.setProperty("--hud-row-gap", `${fit.gap}px`);
+  };
+
   placeSide = (node: HTMLElement | null = this.side): void => {
     this.side = node;
     if (this.side) this.side.style.visibility = "";
@@ -346,6 +353,9 @@ export class Hud {
     placeSoon.observe(rightDock());
     placeSoon.observe(this.inspectedDraw);
     placeSoon.observe(bottomLeft());
+    this.fitDash();
+    window.addEventListener("resize", this.fitDash);
+    uiSize().subscribe(this.fitDash);
     window.addEventListener("resize", this.placeInfo);
     window.addEventListener("resize", () => this.placeSide());
     window.addEventListener("resize", () => this.placeSoon());

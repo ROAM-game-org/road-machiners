@@ -1122,7 +1122,7 @@
   text-align: center;
 }
 
-#ui :is(.hud-drive, .hud-weapons, .hud-radio, .hud-stats, .hud-system) {
+#ui :is(.hud-drive, .hud-weapons, .hud-radio, .hud-stats, .hud-system, .truck-stack) {
   zoom: var(--hud-zoom);
 }
 
