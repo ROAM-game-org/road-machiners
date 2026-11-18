@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { sourceHash } from "../../../tools/hud-bake/source-hash.mjs";
-import { bakeView, homography, mapPoint, warpTransform, type BakedMeta, type Quad } from "./baked";
+import { artSet, bakeView, homography, mapPoint, warpTransform, type BakedMeta, type Quad } from "./baked";
 
 const BOXES = new URL("./baked/", import.meta.url);
 const PICTURES = new URL("../../../public/hud/baked/", import.meta.url);
@@ -55,5 +55,14 @@ describe("warp", () => {
     expect(warpTransform(10, 10, [[0, 0], [20, 0], [20, 20], [0, 20]])).toBe(`matrix3d(${m[0]},${m[3]},0,${m[6]},${m[1]},${m[4]},0,${m[7]},0,0,1,0,${m[2]},${m[5]},0,1)`);
     expect(m[0]).toBeCloseTo(2);
     expect(m[4]).toBeCloseTo(2);
+  });
+});
+
+describe("baked art in CSS variables", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("resolves each picture against the page, since a stylesheet in assets/ would resolve a relative one against itself", () => {
+    vi.stubGlobal("document", { baseURI: "https://play.test/dev/index.html" });
+    expect(artSet([1, 2], (s) => `hud/baked/pieces/desktop/slate@${s}x.webp`, { hashes: {}, base: "./", dev: true })).toBe('image-set(url("https://play.test/dev/hud/baked/pieces/desktop/slate@1x.webp") 1x, url("https://play.test/dev/hud/baked/pieces/desktop/slate@2x.webp") 2x)');
   });
 });

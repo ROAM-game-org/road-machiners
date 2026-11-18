@@ -1,5 +1,4 @@
-import { publicUrl } from "../../public-url";
-import { pieceArt, pieceImage, type BakedMeta } from "./baked";
+import { artSet, pieceArt, pieceImage, type BakedMeta } from "./baked";
 import { BAKED } from "./baked";
 import { bindAttr, say, textNode, unbindAttr, type TextAttr } from "../../text/language";
 import { concat, LINE_BREAK, type Msg, verbatim } from "../../text/msg";
@@ -256,7 +255,7 @@ function frameVars(root: HTMLElement, prefix: string, { meta, part, inset, cssWi
   const k = (x1 - x0) / cssWidth;
   const sides = [y0, meta.width - x1, meta.height - y1, x0];
   const spans = [meta.height, meta.width, meta.height, meta.width];
-  root.style.setProperty(`${prefix}-art`, `image-set(${meta.scales.map((s) => `url("${publicUrl(`hud/baked/${part}/desktop/housing@${s}x.webp`)}") ${s}x`).join(", ")})`);
+  root.style.setProperty(`${prefix}-art`, artSet(meta.scales, (s) => `hud/baked/${part}/desktop/housing@${s}x.webp`));
   root.style.setProperty(`${prefix}-slice`, sides.map((m, i) => `${(((m + inset) / spans[i]) * 100).toFixed(2)}%`).join(" "));
   root.style.setProperty(`${prefix}-width`, sides.map((m) => `${((m + inset) / k).toFixed(2)}px`).join(" "));
   root.style.setProperty(`${prefix}-outset`, sides.map((m) => `${(m / k).toFixed(2)}px`).join(" "));

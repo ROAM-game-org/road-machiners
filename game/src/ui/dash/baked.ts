@@ -1,4 +1,4 @@
-import { publicUrl } from "../../public-url";
+import { BUILD_FILES, publicUrl, type PublicFiles } from "../../public-url";
 import { el } from "../dom";
 import { token } from "../tokens";
 import { uiSize } from "../ui-size";
@@ -276,9 +276,12 @@ export function bakedStrip(part: string, views: BakedViews): HTMLImageElement {
   return img;
 }
 
+export function artSet(scales: readonly number[], file: (scale: number) => string, files: PublicFiles = BUILD_FILES): string {
+  return `image-set(${scales.map((s) => `url("${new URL(publicUrl(file(s), files), document.baseURI).href}") ${s}x`).join(", ")})`;
+}
+
 export function pieceArt(file: string): string {
-  const meta = BAKED.pieces.desktop;
-  return `image-set(${meta.scales.map((s) => `url("${publicUrl(`hud/baked/pieces/desktop/${file}@${s}x.webp`)}") ${s}x`).join(", ")})`;
+  return artSet(BAKED.pieces.desktop.scales, (s) => `hud/baked/pieces/desktop/${file}@${s}x.webp`);
 }
 
 export function pieceImage(file: string, className: string): HTMLImageElement {
