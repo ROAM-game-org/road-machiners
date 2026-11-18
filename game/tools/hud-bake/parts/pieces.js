@@ -1,20 +1,21 @@
 import * as THREE from 'three';
 import { PPU, plateSpace, makeStage, frame, installBake } from '../core.js';
 import { OLIVE, KEYCAP, mottle, slab, faceMaterial, keycap, litToon, brassLip, crossMark } from './olive.js';
-import { Plate, extrude, lit, ring } from './dashlib.js';
+import { grain, wear, stitch, roundPath } from './dashlib.js';
 
 const K = 3.2;
 const CSS = K / PPU;
-const CANVAS = [400, 170];
+const CANVAS = [400, 260];
 const BOXES = {
   frame: [10, 10, 130, 90],
   screen: [150, 10, 230, 50],
   slate: [250, 10, 370, 90],
+  slateLeather: [10, 160, 130, 240],
+  input: [150, 160, 230, 190],
   keycap: [10, 110, 43.5, 143.5],
   keycapLit: [60, 110, 93.5, 143.5],
   keycapRed: [110, 110, 143.5, 143.5],
   close: [160, 110, 183.5, 133.5],
-  slateKey: [200, 110, 266.5, 141.5],
   lamp: [290, 115, 297, 122],
   tape: [310, 110, 343, 125],
   rocker: [354, 100, 382, 142],
@@ -22,7 +23,8 @@ const BOXES = {
 const KEYCAPS = { keycap: KEYCAP, keycapLit: { skirt: '#7a4a20', shoulder: '#b27a3a', top: '#94602a' }, keycapRed: { skirt: '#6a1a10', shoulder: '#a8321e', top: '#862414' } };
 const KEY_UP = -0.006, KEY_DOWN = -0.022, KEYCAP_H = 3.5 * CSS;
 const TOGGLE = { scale: 1.4, ring: 0.7, lever: 1.3, base: '#9a9a92', hole: '#2a2017' };
-const SLATE = { body: '#2b2d31', rings: [{ w: 2, color: '#838f94' }, { w: 4, color: '#3b474e' }], keyBorder: '#777e81', keyFill: '#33383b' };
+const HOUSING = { band: 9, lip: 1.5, depth: 0.06, sink: 0.012, floor: '#342013', leather: '#643015', leatherSide: '#7d4423' };
+const INPUT = { band: 2, depth: 0.02, face: '#342013', floor: '#24160b' };
 
 const S = plateSpace(CANVAS[0] * K, CANVAS[1] * K);
 const local = ([x0, y0, x1, y1]) => [((x0 + x1) / 2 - CANVAS[0] / 2) * CSS, (CANVAS[1] / 2 - (y0 + y1) / 2) * CSS, (x1 - x0) * CSS, (y1 - y0) * CSS];
@@ -47,24 +49,44 @@ function screenWell() {
   return place('screen', g);
 }
 
-function slateFrame() {
-  const P = new Plate(0, 0, CANVAS[0], CANVAS[1], null, K);
-  const box = BOXES.slate;
-  P.g.add(extrude(P.shape(box), { front: 0, depth: 0.05, caps: lit(SLATE.body) }));
-  let outer = box;
-  SLATE.rings.forEach((r, i) => {
-    const inner = [outer[0] + r.w, outer[1] + r.w, outer[2] - r.w, outer[3] - r.w];
-    P.g.add(ring(P, outer, inner, { rOuter: [0, 0, 0, 0], rInner: [0, 0, 0, 0], front: 0.004 + i * 0.002, depth: 0.004, color: r.color, bevel: 0.0005 }));
-    outer = inner;
-  });
-  root.add(P.g);
-  groups.slate = P.g;
-  const key = new THREE.Group();
-  const kb = BOXES.slateKey;
-  key.add(extrude(P.shape(kb, [1.5, 1.5, 1.5, 1.5]), { front: 0.032, depth: 0.03, bevel: 0.003, bt: 0.003, caps: lit(SLATE.keyBorder) }));
-  key.add(extrude(P.shape([kb[0] + 1, kb[1] + 1, kb[2] - 1, kb[3] - 1], [1, 1, 1, 1]), { front: 0.036, depth: 0.004, caps: lit(SLATE.keyFill) }));
-  P.g.add(key);
-  groups.slateKey = key;
+function housingFace(w, h, paintBody) {
+  return faceMaterial(w / CSS * K, h / CSS * K, (c, cw, ch) => paintBody(c, cw, ch));
+}
+
+function oliveBody(c, cw, ch) {
+  c.fillStyle = OLIVE.housing; c.fillRect(0, 0, cw, ch);
+  mottle(c, 0, 0, cw, ch, 53, { strength: 0.5 });
+}
+
+function leatherBody(c, cw, ch) {
+  const box = [0, 0, cw, ch], mid = HOUSING.band * K / 2;
+  c.fillStyle = HOUSING.leather; c.fillRect(0, 0, cw, ch);
+  grain(c, box, 11, 4);
+  wear(c, box, 19, { stains: 2, creases: 10, rubs: 2 });
+  stitch(c, (cc) => roundPath(cc, mid, mid, cw - mid, ch - mid, [mid, mid, mid, mid]), { alpha: 0.55, width: K * 0.4, dash: K * 2, gap: K * 1.2 });
+}
+
+function housing(name, paintBody, sideColor) {
+  const [, , w, h] = local(BOXES[name]);
+  const band = HOUSING.band * CSS, holeW = w - 2 * band, holeH = h - 2 * band;
+  const built = slab({ w, h, depth: HOUSING.depth, bevel: 1.1 * CSS, holes: [[0, 0, holeW, holeH, 1.5 * CSS]], faceMat: housingFace(w, h, paintBody) });
+  if (sideColor) built.mesh.material = [litToon(sideColor), litToon(sideColor)];
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(holeW, holeH), litToon(HOUSING.floor));
+  floor.position.z = HOUSING.depth / 2 - HOUSING.sink; floor.receiveShadow = true;
+  const g = new THREE.Group(); g.add(built.mesh, built.face, floor);
+  brassLip((m, x, y) => { m.position.set(x, y, HOUSING.depth / 2); g.add(m); }, 0, 0, holeW, holeH, HOUSING.lip * CSS, 0.006);
+  return place(name, g);
+}
+
+function inputWell() {
+  const [, , w, h] = local(BOXES.input);
+  const band = INPUT.band * CSS;
+  const built = slab({ w, h, depth: INPUT.depth, bevel: 0.6 * CSS, holes: [[0, 0, w - 2 * band, h - 2 * band, 1 * CSS]], faceMat: housingFace(w, h, (c, cw, ch) => { c.fillStyle = INPUT.face; c.fillRect(0, 0, cw, ch); }) });
+  built.mesh.material = [litToon(INPUT.face), litToon(INPUT.face)];
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w - 2 * band, h - 2 * band), litToon(INPUT.floor));
+  floor.position.z = -INPUT.depth / 2 + 0.002; floor.receiveShadow = true;
+  const g = new THREE.Group(); g.add(built.mesh, built.face, floor);
+  return place('input', g);
 }
 
 function cap(name, colors, mark = false) {
@@ -125,7 +147,9 @@ function toggle() {
 
 oliveFrame();
 screenWell();
-slateFrame();
+housing('slate', oliveBody);
+housing('slateLeather', leatherBody, HOUSING.leatherSide);
+inputWell();
 for (const [name, colors] of Object.entries(KEYCAPS)) cap(name, colors);
 cap('close', KEYCAP, true);
 lampHousing();
@@ -136,11 +160,13 @@ const view = frame({ scene, root, facePanel: { g: root, w: CANVAS[0] * CSS, z: 0
 const quadOf = (box, z = 0) => { const [x, y, w, h] = local(box); return view.quad({ g: root, z: 0 }, x, y, w, h, z); };
 const tight = (box, grow = 0) => view.cropAround(quadOf(box), grow);
 const SHADOW = 3;
-const KEYS = ['keycap', 'keycapLit', 'keycapRed', 'close', 'slateKey'];
+const KEYS = ['keycap', 'keycapLit', 'keycapRed', 'close'];
 const sprites = {
   frame: { crop: tight(BOXES.frame, SHADOW), frames: ['frame'] },
   screen: { crop: tight(BOXES.screen), frames: ['screen'] },
   slate: { crop: tight(BOXES.slate, SHADOW), frames: ['slate'] },
+  slateLeather: { crop: tight(BOXES.slateLeather, SHADOW), frames: ['slateLeather'] },
+  input: { crop: tight(BOXES.input), frames: ['input'] },
   lamp: { crop: tight(BOXES.lamp, 1), frames: ['lamp'] },
   tape: { crop: tight(BOXES.tape, 1), frames: ['tape'] },
   rocker: { crop: tight(BOXES.rocker, 1), frames: ['rocker-off', 'rocker-on'] },
@@ -150,7 +176,7 @@ const zones = Object.fromEntries(Object.entries(BOXES).map(([name, box]) => [nam
 const meta = { width: view.IW, height: view.IH, face: quadOf([0, 0, CANVAS[0], CANVAS[1]]), zones, sprites, kScale: K };
 
 const LEVER = { off: -0.5, on: 0.5 };
-const keyZ = (name, z) => { groups[name].position.z = name === 'slateKey' ? z - KEY_UP : z; };
+const keyZ = (name, z) => { groups[name].position.z = z; };
 
 function pose(down) {
   for (const name of KEYS) keyZ(name, down ? KEY_DOWN : KEY_UP);
@@ -163,7 +189,7 @@ installBake((scale) => {
   pose(false);
   view.render(scale);
   files.housing = view.shot();
-  for (const name of ['frame', 'screen', 'slate', 'lamp', 'tape']) shoot(name, name);
+  for (const name of ['frame', 'screen', 'slate', 'slateLeather', 'input', 'lamp', 'tape']) shoot(name, name);
   shoot('rocker', 'rocker-off');
   for (const name of KEYS) shoot(name, `${name}-up`);
   pose(true);
