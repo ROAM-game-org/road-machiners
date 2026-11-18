@@ -1,0 +1,7 @@
+out/
+current*.png
+clean.png
+state-*.png
+boxes.json
+live.json
+check-*.png
