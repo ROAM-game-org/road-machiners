@@ -176,15 +176,15 @@
 #ui .help {
   position: fixed;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: var(--modal-top);
+  transform: translateX(-50%);
   z-index: var(--z-save);
   box-sizing: border-box;
   display: grid;
   grid-template-columns: auto auto;
   align-items: start;
   gap: var(--space-5) var(--space-9);
-  max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
+  max-height: calc(var(--layer-h) - var(--modal-top) - var(--hud-inset));
   width: max-content;
   max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
