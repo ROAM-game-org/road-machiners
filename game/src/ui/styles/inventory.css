@@ -951,12 +951,13 @@
   flex-wrap: wrap;
 }
 .inv-keys .action-rows {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr) minmax(0, 1.4fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
-  align-items: stretch;
+  align-items: center;
 }
 .inv-keys .action-rows > button {
+  width: auto;
   min-width: max-content;
 }
 .inv-keys .cost {

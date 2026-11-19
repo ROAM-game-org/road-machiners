@@ -938,7 +938,8 @@
   justify-content: center;
   flex-wrap: nowrap;
   gap: var(--space-2);
-  width: calc(var(--space-10) * 3.5);
+  width: max-content;
+  min-width: calc(var(--space-10) * 3.5);
   min-height: 0;
   padding: var(--space-3) var(--space-5);
 }
@@ -1354,7 +1355,7 @@
 #ui.compact :is(.town-repair, .service-row) {
   gap: var(--space-3);
 }
-#ui.tight .town-page .town-split {
+#ui.compact .town-page .town-split {
   flex: none;
   min-height: var(--town-split-min);
 }
