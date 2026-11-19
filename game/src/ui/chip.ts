@@ -70,15 +70,19 @@ export function truckChips(w: World, opts: { feature?: boolean } = {}, truckId?:
   return el(
     "span",
     { class: "chips" },
-    chipEl(moneyEl(w.player.money), { chars: MONEY_CHARS }),
-    chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
-      icon: "mass",
-      readout: true,
-      bad: mass > rated,
-      title: t("inv.loadTitle"),
-      chars: loadChars(),
-    }),
-    powerChipNode(w, me),
+    el(
+      "span",
+      { class: "chip-screen" },
+      chipEl(moneyEl(w.player.money), { chars: MONEY_CHARS }),
+      chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
+        icon: "mass",
+        readout: true,
+        bad: mass > rated,
+        title: t("inv.loadTitle"),
+        chars: loadChars(),
+      }),
+      powerChipNode(w, me),
+    ),
     tapeEl(chassisName(chassisDef(me.chassisId).id)),
     opts.feature === false ? null : featureTape(me.chassisId),
   );

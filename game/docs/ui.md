@@ -183,7 +183,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - A text field or a picker. The baked `input` well on the metal.
 - A screen that scrolls. A rocker wheel on the metal at the screen's right edge, centred on its height, from the radio's baked wheel, through `mountScrollWheels()` in `src/ui/scroll-wheel.ts`. The screen shows no scrollbar. The wheel turns with the scroll, a drag or the mouse wheel over it scrolls the screen, a click pages, and it shows only while the screen can scroll. A screen with no gutter beside it keeps room for the wheel.
 - A picture, such as an item icon, the art band or the truck drawing. On a screen, or the art band across the top of the window, in its own colors.
-- A value in a strip, such as a chip over the art band or the cost beside a key. A readout: a small screen sized for its longest value, so it keeps its size when the value changes.
+- A small value, such as money, load, a price or a cost. It prints on the nearest screen that already holds related content, never on a screen of its own. The chips over the art band share one screen, a service row puts its level, gauge and prices on one screen beside its keys, and the cost of Rotate or Strip prints on the details screen.
 - A level or an amount, such as fuel, load, condition, XP or work done. A gauge on a screen: a row of segments, like the ammo count on the targeting computer.
 - A short message, such as a tip or a passing message. A small HUD panel: the olive frame around one screen, one fixed width per kind. A panel is never drawn as paper or as any other flat shape.
 

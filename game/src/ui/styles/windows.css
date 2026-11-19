@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -237,4 +237,17 @@
   color: var(--hud-amber-faint);
   width: var(--icon-s);
   height: var(--icon-s);
+}
+.chips .chip-screen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-7);
+  padding: var(--space-2) var(--space-5);
+}
+.chips .chip-screen > .chip {
+  border: 0;
+  border-image: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }

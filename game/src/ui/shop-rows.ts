@@ -26,21 +26,20 @@ export type ShopButtons = {
   priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason?: Msg | null, key?: string, title?: Msg | null): HTMLElement;
 };
 
-export function priceReadout(price: number, payable: boolean): HTMLElement {
-  return el("span", { class: "cost readout" }, priceTag(price, payable));
+function priceLine(label: Msg, price: number, payable: boolean): HTMLElement {
+  return el("span", { class: "service-price" }, el("span", { class: "service-label" }, label), priceTag(price, payable));
 }
 
 export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  const pair = (verb: Msg, cost: number, cmd: ShopCommand, key: string): HTMLElement[] => [
-    buttons.button(verb, cmd, cost === 0 ? t("trade.nothingToRepair") : shortBy(w.player.money, cost), key),
-    priceReadout(cost, w.player.money >= cost),
-  ];
+  const basics = basicsRepairCost(w, truck), all = repairCost(w, truck);
+  const key = (verb: Msg, cost: number, cmd: ShopCommand, id: string) => buttons.button(verb, cmd, cost === 0 ? t("trade.nothingToRepair") : shortBy(w.player.money, cost), id);
   return el(
     "div",
     { class: "town-repair" },
     createIcon("tools"),
-    ...pair(t("trade.repairBasicsVerb"), basicsRepairCost(w, truck), repair.basics, "repairBasics"),
-    ...pair(t("trade.repairAllVerb"), repairCost(w, truck), repair.all, "repairAll"),
+    el("div", { class: "service-meter cost readout service-prices" }, priceLine(t("trade.repairBasicsVerb"), basics, w.player.money >= basics), priceLine(t("trade.repairAllVerb"), all, w.player.money >= all)),
+    key(t("trade.repairBasicsVerb"), basics, repair.basics, "repairBasics"),
+    key(t("trade.repairAllVerb"), all, repair.all, "repairAll"),
   );
 }
 
@@ -53,18 +52,7 @@ export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: Supply
 }
 
 export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
-  const room = limit.room;
-  const price = ECONOMY.supplyPrice[k];
-  const afford = Math.min(room, Math.floor(w.player.money / price));
-  const amount = (n: number) => supplyAmount(k, n);
-  const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  const fillUnits = afford > 0 ? afford : Math.max(room, 0);
-  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, [
-    buttons.button(t("goods.buy"), (x) => buy(x, k, 1), reason, `${k}:buy`, t("trade.plusAmount", { amount: amount(1) })),
-    priceReadout(supplyCharge(k, 1), w.player.money >= supplyCharge(k, 1)),
-    buttons.button(t("trade.fillBare"), (x) => (afford > 0 ? buy(x, k, afford) : x), reason, `${k}:fill`, t("trade.fill", { amount: amount(fillUnits) })),
-    priceReadout(supplyCharge(k, fillUnits), afford >= fillUnits),
-  ], limit.tag);
+  return serviceSupplyRow(w, k, buttons, buy, truck, limit);
 }
 
 export function serviceSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
@@ -78,11 +66,14 @@ export function serviceSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
     "div",
     { class: "service-row" },
     createIcon(k),
-    el("div", { class: "service-meter cost readout" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(supplyCap(w, k, truck)) }), limit.tag), bar(have / supplyCap(w, k, truck))),
+    el(
+      "div",
+      { class: "service-meter cost readout" },
+      el("div", { class: "service-level" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(supplyCap(w, k, truck)) }), limit.tag), bar(have / supplyCap(w, k, truck))),
+      el("div", { class: "service-prices" }, priceLine(t("trade.plusAmount", { amount: amount(1) }), supplyCharge(k, 1), w.player.money >= supplyCharge(k, 1)), priceLine(t("trade.fillBare"), supplyCharge(k, fillUnits), afford >= fillUnits)),
+    ),
     buttons.button(t("goods.buy"), (x) => buy(x, k, 1), reason, `${k}:buy`, t("trade.plusAmount", { amount: amount(1) })),
-    priceReadout(supplyCharge(k, 1), w.player.money >= supplyCharge(k, 1)),
-    buttons.button(t("trade.fillBare"), (x) => buy(x, k, afford), reason, `${k}:fill`, t("trade.fill", { amount: amount(fillUnits) })),
-    priceReadout(supplyCharge(k, fillUnits), afford >= fillUnits),
+    buttons.button(t("trade.fillBare"), (x) => (afford > 0 ? buy(x, k, afford) : x), reason, `${k}:fill`, t("trade.fill", { amount: amount(fillUnits) })),
   );
 }
 

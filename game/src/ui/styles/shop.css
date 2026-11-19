@@ -1368,3 +1368,41 @@
   grid-area: 2 / 1;
   width: auto;
 }
+.service-meter.service-prices,
+.service-row > .service-meter.cost {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  column-gap: var(--space-7);
+}
+.service-meter .service-level {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.service-meter .service-prices {
+  display: grid;
+  gap: var(--space-1);
+}
+.service-meter .service-price {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.service-meter .service-label {
+  color: var(--hud-amber-soft);
+  font-family: var(--font-ui);
+}
+.service-prices.service-meter {
+  grid-auto-flow: row;
+  width: max-content;
+  min-width: 0;
+  justify-content: stretch;
+  padding: var(--space-2) var(--space-5);
+}
+#ui .service-row > .service-meter.cost {
+  flex: none;
+  width: max-content;
+  min-width: calc(var(--space-10) * 3.5);
+  padding: var(--space-2) var(--space-5);
+}
