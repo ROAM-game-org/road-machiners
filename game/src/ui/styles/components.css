@@ -5,8 +5,9 @@
   padding: var(--space-9);
   background: none;
   border: 0;
-  border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge) stretch;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
+  color: var(--hud-print-coal);
 }
 
 /* A panel of the right dock: the log, the contracts and the radio. */
@@ -32,9 +33,13 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
+:is(#ui, #report) button:where(:not(.screen-btn, .switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
   --key-edge: var(--btn-key-edge-m);
   --off-opacity: var(--key-off-opacity);
+  --hover-bg: none;
+  --hover-border: transparent;
+  --on-bg: none;
+  --on-border: transparent;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -217,8 +222,8 @@
 /* The one look of a chosen item: accent border and accent wash. A pressed toggle, a picked card and a picked tile all use it. */
 :is(#ui, #report) .selected,
 :is(#ui, #report) button.on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
+  border-color: var(--on-border, var(--accent));
+  background: var(--on-bg, var(--accent-wash));
 }
 
 /* A control that cannot be used now. It keeps hover and focus, and its tooltip says why. */
@@ -227,8 +232,8 @@
   cursor: default;
 }
 :is(#ui, #report) button[aria-disabled="true"]:not(.switch):hover {
-  background: var(--surface-raised);
-  border-color: var(--line-strong);
+  background: var(--hover-bg, var(--surface-raised));
+  border-color: var(--hover-border, var(--line-strong));
 }
 
 /* A note that opens over its anchor on hover and focus. Words in the UI face, numbers in .num. It also gives the reason
@@ -320,8 +325,7 @@
   position: relative;
   height: var(--art-band-height);
   overflow: hidden;
-  border: 1px solid var(--surface-raised);
-  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+  background: var(--hud-glass);
 }
 .art-band img {
   width: 100%;
@@ -342,8 +346,9 @@
   gap: 0;
   overflow: hidden;
   padding: 0;
-  border: 2px solid transparent;
-  border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge) stretch;
+  border: var(--hud-frame-edge) solid transparent;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  color: var(--hud-print-coal);
 }
 .ink-page .ink-band {
   position: relative;
@@ -359,7 +364,6 @@
   right: 0;
   bottom: 0;
   padding: var(--space-8) var(--space-7) var(--space-4);
-  background: linear-gradient(to top, var(--scrim) 40%, transparent);
 }
 .ink-page .quest-frame.inset {
   position: absolute;
@@ -517,7 +521,6 @@
   flex-direction: column;
   gap: var(--space-9);
   padding: var(--space-6);
-  background: var(--surface-sunk);
 }
 .well-group {
   flex: none;

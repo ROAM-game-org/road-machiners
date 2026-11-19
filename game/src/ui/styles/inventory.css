@@ -747,16 +747,29 @@
 }
 #ui .modal .inv-truck-name {
   flex: none;
-  margin: 0;
-  padding-top: var(--space-6);
-  padding-bottom: var(--space-5);
-  font: 700 var(--text-body) / 1.15 var(--font-ui);
-  color: var(--ink);
+  align-self: flex-start;
+  margin: 0 0 var(--space-6);
   white-space: nowrap;
 }
 #ui .inv-bench .inv-truck {
   flex: none;
   margin: 0;
+}
+.inv-middle > .inv-truck {
+  position: relative;
+  isolation: isolate;
+}
+.inv-middle > .inv-truck::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-4) * -1);
+  z-index: var(--z-recess-backing);
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
+  pointer-events: none;
+}
+.inv-bench .inv-side-column > .well {
+  flex: 0 1 auto;
 }
 .inv-bench .inv-target {
   flex: 0 1 auto;

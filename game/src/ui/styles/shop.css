@@ -976,9 +976,6 @@
 .tile.on:hover {
   border-color: var(--accent);
 }
-.modal .tabs button.on {
-  background: var(--accent-wash);
-}
 .truck-head {
   display: flex;
   align-items: center;

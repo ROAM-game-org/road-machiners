@@ -49,8 +49,8 @@
 
   /* Page and surfaces, dark to light */
   --color-void: #1b1c1d;
-  --surface-sunk: #1d1208;
-  --surface-well: #24170c;
+  --surface-sunk: var(--hud-glass);
+  --surface-well: var(--hud-screen);
   --surface-dock: #24170ce8;
   --surface-panel: #2c1c0ff5;
   --surface-highlight: #3a2616;
@@ -71,14 +71,14 @@
   --mark-own: #a4a074;
 
   /* Text */
-  --ink: #f2bd6a;
-  --ink-bright: #f6e2b6;
+  --ink: var(--hud-amber);
+  --ink-bright: var(--hud-amber);
   --edge-pick: #f3efde;
   --edge-hover: #c2b08b;
-  --ink-title: #f3d39a;
-  --ink-label: #dcaa62;
-  --ink-muted: #c4914f;
-  --ink-faint: #8d6434;
+  --ink-title: var(--hud-amber);
+  --ink-label: var(--hud-amber-soft);
+  --ink-muted: var(--hud-amber-soft);
+  --ink-faint: var(--hud-amber-faint);
   --ink-overlay: #f0e0b8;
   --ink-on-accent: #1d1a12;
 
@@ -273,9 +273,6 @@
   --hud-bake-desktop-aspect: 1.6;
   --hud-frame-edge: 10px;
   --hud-screen-edge: 4.8px;
-  --hud-slate-edge: 14px;
-  --hud-slate-edge-s: 9px;
-  --hud-slate-slice: 14.8% 10%;
   --hud-input-edge: 5px;
   --hud-input-slice: 22% 10%;
   --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;

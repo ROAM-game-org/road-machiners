@@ -176,6 +176,7 @@ function windowWell(): HTMLElement {
   return msgEl(
     "div",
     { class: "well" },
+    msgEl("div", { class: "well-group" }, msgEl("div", { class: "kit-offer" }, msgEl("span", {}, t("trade.repairAllVerb")), kitKey(t("contract.accept"), "screen-btn"))),
     msgEl("div", { class: "well-group" }, msgEl("div", { class: "meter-row" }, statRow("mass", t("stat.mass"), statValueEl(verbatim("1,680 / 3,840 kg"))), gaugeEl(0.44, { share: { left: 0.3, width: 0.14 } }))),
     msgEl("div", { class: "well-group" }, statRow("mass", t("inv.condition"), statValueEl(verbatim("38/38"))), statRow("mass", t("options.uiSize"), statValueEl(verbatim("100%")))),
   );
@@ -198,7 +199,8 @@ export function kitWindow(): HTMLElement {
     { class: "dialog modal kit-window" },
     windowHead(),
     msgEl("div", { class: "tabs" }, kitKey(t("menu.save"), "on"), kitKey(t("menu.load")), kitKey(t("menu.options"))),
-    msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", {}, t("menu.bootUnfinished")))),
+    msgEl("h3", { class: "tape kit-tape" }, verbatim("Scout pickup")),
+    msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", { class: "screen-block" }, t("menu.bootUnfinished")))),
     windowKeys(),
   );
 }

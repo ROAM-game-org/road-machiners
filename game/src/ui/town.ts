@@ -50,7 +50,7 @@ import { PartRows, type PartRow } from "./part-rows";
 import { filteredStock, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, sellButton, type PriceHint } from "./shop-rows";
-import { chipEl } from "./chip";
+import { chipEl, truckChips } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
@@ -60,7 +60,7 @@ import { barDrivers, pickTownSection, townPlaces } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
 import { escortStatusText, gameHours, GOODS_COLUMNS, surveyPlacesLeft } from "./format";
-import { InventoryView, truckChips } from "./inventory";
+import { InventoryView } from "./inventory";
 import { boardHeldRow, offerRow } from "./contract-row";
 import { acceptRefusal, boardFull, fullBoardReason, needCell } from "./contract-board";
 import { buyChart, chartsOnSale, type SheetOffer } from "../sim/charts";
@@ -671,6 +671,7 @@ export class TownScreen {
     const full = boardFull(w);
     const offer = (c: Contract): SlotRow => {
       const accept = this.button(t("contract.accept"), (x) => acceptContract(x, c.id), acceptRefusal(w, c, full));
+      accept.classList.add("screen-btn");
       return { id: c.id, row: offerRow(w, c, accept, needCell(w, c)), action: accept, done: t("trade.done.taken") };
     };
     const held = (c: Contract): SlotRow => {
@@ -697,7 +698,9 @@ export class TownScreen {
     const destination = c.kind === "haul" ? c.to : c.shop;
     const verb = DELIVER_VERBS[c.kind];
     if (destination !== shopId) return el("span", { class: "dim" }, t(verb.at, { site: siteName(destination) }));
-    return this.button(t(verb.now), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
+    const deliver = this.button(t(verb.now), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
+    deliver.classList.add("screen-btn");
+    return deliver;
   }
 }
 

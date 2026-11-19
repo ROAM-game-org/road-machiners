@@ -3,7 +3,7 @@ import { MAX_RANK } from "../data/skills";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen, type CharacterTab } from "./character";
-import { truckChips } from "./inventory";
+import { truckChips } from "./chip";
 
 class FakeNode {
   className = "";

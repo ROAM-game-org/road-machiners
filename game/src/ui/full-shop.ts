@@ -10,7 +10,8 @@ import { maxHp } from "../sim/wear";
 import { compareBase, partCard } from "./cards";
 import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
-import { InventoryView, truckChips } from "./inventory";
+import { InventoryView } from "./inventory";
+import { truckChips } from "./chip";
 import { filterIcon, kindFilter, STOCK_FILTERS, type StockFilter } from "./garage-tabs";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");

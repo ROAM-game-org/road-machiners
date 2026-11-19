@@ -1,0 +1,101 @@
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .ink-chips .chip, .town-page:has(.board) .ink-head .qt-line) {
+  --good: var(--hud-lamp-green);
+  --good-bright: var(--hud-lamp-green);
+  --danger: var(--hud-hot);
+  --danger-ink: var(--hud-hot);
+  --danger-bright: var(--hud-hot);
+  --accent: var(--hud-amber);
+  --accent-bright: var(--hud-amber);
+  --accent-warm: var(--hud-amber-soft);
+  --cond-pristine: var(--hud-amber);
+  --cond-w1: var(--hud-amber-soft);
+  --cond-w2: var(--hud-amber-soft);
+  --cond-w3: var(--hud-amber-soft);
+  --cond-w4: var(--hud-amber-soft);
+  --cond-junk: var(--hud-hot);
+  box-sizing: border-box;
+  background: none;
+  border: 0;
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
+  color: var(--hud-amber);
+  text-shadow: var(--hud-text-glow);
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) h3 {
+  margin: 0 0 var(--space-4);
+  color: var(--hud-amber);
+  font: 500 var(--text-body) / 1.2 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) :is(.job, .row) {
+  border-bottom: 0;
+}
+:is(#ui, #report) :is(.panel, .dialog, .kit-head) > :is(h2, h3),
+:is(#ui, #report) .inv-band .inv-title,
+.ink-page .quest-place {
+  color: var(--hud-print-coal);
+  font-family: var(--font-engraved);
+  text-transform: uppercase;
+  text-shadow: var(--hud-print-coal-edge);
+  letter-spacing: 0.04em;
+}
+:is(#ui, #report) .screen-btn {
+  box-sizing: border-box;
+  height: var(--btn-h-s);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hud-amber);
+  border-radius: 0;
+  background: none;
+  color: var(--hud-amber);
+  font: var(--text-dense) var(--font-ui);
+  white-space: nowrap;
+}
+:is(#ui, #report) .screen-btn:hover {
+  background: var(--hud-amber-dim);
+  border-color: var(--hud-amber);
+}
+:is(#ui, #report) .screen-btn:is(.on, .selected, [aria-pressed="true"]) {
+  background: var(--hud-amber);
+  border-color: var(--hud-amber);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+:is(#ui, #report) .screen-btn[aria-disabled="true"] {
+  background: none;
+  border-color: var(--hud-amber-faint);
+  color: var(--hud-amber-faint);
+}
+:is(#ui, #report) :is(h2, h3, div, span).tape {
+  padding: var(--space-2) var(--space-5);
+  background: var(--hud-tape-art) center / 100% 100% no-repeat;
+  color: var(--hud-print-ink);
+  font: 700 var(--text-body) / 1.15 var(--font-hud);
+  letter-spacing: normal;
+  text-transform: none;
+  text-shadow: none;
+}
+.board-offers {
+  padding: var(--space-5) var(--space-6);
+}
+.town-page:has(.board) .ink-head .qt-line {
+  padding: var(--space-3) var(--space-5);
+}
+.ink-page .ink-chips .chip {
+  padding: var(--space-3) var(--space-5);
+}
+.inv-keys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--hud-print-coal);
+  font-size: var(--text-lead);
+  text-shadow: var(--hud-print-coal-edge);
+}
+.inv-keys:empty {
+  display: none;
+}
+:is(#ui, #report) .inv-keys :is(.cost, .cost *, .good, .bad, .dim) {
+  color: var(--hud-print-coal);
+  font-size: var(--text-lead);
+}

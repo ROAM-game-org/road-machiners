@@ -48,9 +48,9 @@ body {
   pointer-events: auto;
   background: none;
   border: 1px solid transparent;
-  border-image: var(--hud-slate-art) var(--hud-slate-slice) fill / var(--hud-slate-edge-s) stretch;
+  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
   padding: var(--space-4) var(--space-5);
-  box-shadow: var(--shadow-panel);
+  color: var(--hud-print-coal);
 }
 :is(#ui, #report) h3 {
   margin: 0 0 var(--space-4);
@@ -67,8 +67,8 @@ body {
   cursor: pointer;
 }
 :is(#ui, #report) button:hover {
-  background: var(--surface-hover);
-  border-color: var(--line-hover);
+  background: var(--hover-bg, var(--surface-hover));
+  border-color: var(--hover-border, var(--line-hover));
 }
 :is(#ui, #report) button:disabled {
   opacity: var(--off-opacity);

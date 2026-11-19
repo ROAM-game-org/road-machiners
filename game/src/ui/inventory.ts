@@ -36,7 +36,6 @@ import type {
   World,
 } from "../sim/types";
 import { keyLabel, touchMode } from "./input-mode";
-import { chipEl } from "./chip";
 import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookOrTurnReason, lookOverReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
@@ -45,7 +44,6 @@ import { itemLookId } from "../render/partLooks";
 import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
 import { budgetGroup, truckGroups } from "./truck-panel";
 import { itemActions, itemFacts, jobBlock, rotateButton, type CardHost } from "./item-card";
-import { loadMass } from "../sim/mass";
 import {
   blockerIds,
   clearFan,
@@ -83,14 +81,13 @@ import {
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
-import { fuelLiters, moneyEl } from "./units";
-import { maxSpeedSteps } from "../sim/stats";
-import { getSearchAction, powerChip } from "./hud-readout";
+import { fuelLiters } from "./units";
+import { getSearchAction } from "./hud-readout";
 import { canFieldPatch, patchBlocker, stripBlocker, stripRoomText, weldBlocker, doubleClickCommand, dragStartOf, planAfterMove, withPlanQueued, takeDropped, pickupProblem, pickupTruck, HOLD_TO_DRAG_MS, isDoubleClick, needsHold, selectionAfterClick, selectionAfterPress, touchGridTap, type ClickedItem, type ItemSource, type LastClick, isRotateKey, storeItem, takeFromStore, turnsToTry } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
-import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
@@ -126,6 +123,7 @@ export class InventoryView {
   private gridEl: HTMLElement | null = null;
   private root: HTMLElement = el("div", { class: "inv-view" });
   private inspection = el("div", { class: "inv-inspection" });
+  private keys = el("div", { class: "inv-keys" });
   private selectedItem: string | null = null;
   private loot: string | null = null;
   private truck: string | null = null;
@@ -267,7 +265,7 @@ export class InventoryView {
     const me = this.mine(w);
     const budget = budgetGroup(w, me, this.selection(w)?.item ?? null);
     const two = this.scale.columns === 2;
-    const name = el("h3", { class: "inv-truck-name" }, chassisName(chassisDef(me.chassisId).id));
+    const name = el("h3", { class: "inv-truck-name tape" }, chassisName(chassisDef(me.chassisId).id));
     const middle = el("div", { class: "inv-middle" }, el("div", { class: "inv-band" }, two ? head.title : null), name, el("div", { class: "inv-truck" }, grid));
     const close = el("div", { class: "inv-band close-band" }, head.close);
     return two ? this.twoColumns(w, me, middle, close, budget, error) : this.threeColumns(w, me, head, middle, close, budget, error);
@@ -279,13 +277,13 @@ export class InventoryView {
       { class: "inv-bench" },
       el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
       middle,
-      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
+      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error), this.keys),
     );
   }
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)));
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error), this.keys));
   }
 
   private sourceList(w: World): HTMLElement[] | null {
@@ -405,6 +403,7 @@ export class InventoryView {
     if (!selection) {
       this.selectedItem = null;
       this.inspection.replaceChildren();
+      this.keys.replaceChildren();
     } else if (selection.own) this.showItem(w, selection.item, selection.mounted);
     else this.showTruckItem(w, selection.item);
   }
@@ -501,8 +500,15 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted)), ...(actions.length ? [el("div", { class: "action-rows" }, ...actions)] : []));
-    if (!this.head) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    const details = el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
+    const rows = actions.length ? [el("div", { class: "action-rows" }, ...actions)] : [];
+    if (this.head) {
+      this.inspection.replaceChildren(details);
+      this.keys.replaceChildren(...rows);
+      return;
+    }
+    this.inspection.replaceChildren(details, ...rows);
+    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
@@ -1189,37 +1195,6 @@ export class InventoryScreen {
     this.root.replaceChildren(this.view.render());
     this.view.fitTo(this.root);
   }
-}
-
-function featureChip(chassisId: string): HTMLElement | null {
-  const name = chassisAbilityName(chassisId);
-  return name ? chipEl(name, { title: chassisAbilityLine(chassisId) ?? name }) : null;
-}
-
-export function truckChips(w: World, opts: { feature?: boolean } = {}, truckId?: string): HTMLElement {
-  const me = truckFor(w, truckId);
-  const mass = loadMass(me);
-  const rated = chassisDef(me.chassisId).ratedMass;
-  return el(
-    "span",
-    { class: "chips" },
-    chipEl(chassisName(chassisDef(me.chassisId).id), { icon: "truck" }),
-    opts.feature === false ? null : featureChip(me.chassisId),
-    chipEl(moneyEl(w.player.money)),
-    chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
-      icon: "mass",
-      readout: true,
-      bad: mass > rated,
-      title: t("inv.loadTitle"),
-    }),
-    powerChipNode(w, me),
-  );
-}
-
-function powerChipNode(w: World, me: Vehicle): HTMLElement {
-  const chip = powerChip(maxSpeedSteps(w, me), me);
-  const cost = chip.cost ? [createIcon("speed"), el("span", { class: "num" }, chip.cost)] : [];
-  return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost });
 }
 
 function fromButton(e: Event): boolean {

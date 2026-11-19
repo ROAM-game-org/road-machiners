@@ -14,7 +14,8 @@ import { filteredStock, garagePartRow, goodSellCell, paintBody, partList, sellPa
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
-import { InventoryView, truckChips } from "./inventory";
+import { InventoryView } from "./inventory";
+import { truckChips } from "./chip";
 import { PartRows, type PartRow } from "./part-rows";
 import type { TruckPaint } from "../data/chassis";
 import { RowSlots } from "./row-slots";

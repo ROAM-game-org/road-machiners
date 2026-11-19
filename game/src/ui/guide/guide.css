@@ -113,6 +113,21 @@
 .kit-head h3 {
   margin: 0;
 }
+#ui.guide .kit-window .kit-tape {
+  font-size: var(--text-body);
+  align-self: flex-start;
+  margin: 0;
+}
+.kit-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.kit-side .screen-block {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+}
 .kit-body {
   display: flex;
   flex-wrap: wrap;

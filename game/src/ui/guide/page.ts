@@ -151,7 +151,6 @@ function ungrouped(): string[] {
 
 const CHOICES = {
   lang: ["en", "ru", "pseudo"],
-  housing: ["olive", "leather"],
   layer: ["full", "compact", "narrow"],
 } as const;
 
@@ -173,7 +172,7 @@ function choiceLink(name: Choice, value: string): HTMLElement {
 
 function controls(): HTMLElement {
   const group = (name: Choice) => el("span", { class: "guide-choice" }, el("b", {}, name), ...CHOICES[name].map((v) => choiceLink(name, v)));
-  return el("nav", { class: "guide-controls" }, group("lang"), group("housing"), group("layer"));
+  return el("nav", { class: "guide-controls" }, group("lang"), group("layer"));
 }
 
 function stateCell(state: (typeof STATES)[number]): HTMLElement {
@@ -196,7 +195,6 @@ function applyChoices(root: HTMLElement): void {
   const layer = picked("layer");
   if (layer !== "full") root.classList.add(layer);
   if (layer === "narrow") root.classList.add("compact");
-  if (picked("housing") === "leather") document.documentElement.style.setProperty("--hud-slate-art", "var(--hud-slate-leather-art)");
 }
 
 function render(): void {

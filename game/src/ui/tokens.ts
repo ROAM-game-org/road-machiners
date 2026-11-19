@@ -16,7 +16,8 @@ export const TOKENS = parseTokens(tokensCss);
 export function token(name: string): string {
   const value = TOKENS.get(name);
   if (value === undefined) throw new Error(`tokens: no ${name} in tokens.css`);
-  return value;
+  const alias = value.match(/^var\((--[a-z0-9-]+)\)$/);
+  return alias ? token(alias[1]!) : value;
 }
 
 export function tokenColor(name: string): number {
