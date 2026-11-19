@@ -40,6 +40,7 @@
   --hover-border: transparent;
   --on-bg: none;
   --on-border: transparent;
+  --focus-ring: none;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;

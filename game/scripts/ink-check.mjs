@@ -32,7 +32,7 @@ function inPage({ surfaces, slabShare, sel }) {
   const near = (a, b) => parse(a).every((x, i) => Math.abs(x - parse(b)[i]) <= 6);
   const isAmberFill = (n) => near(getComputedStyle(n).backgroundColor, allowed.screen[0]) && getComputedStyle(n).backgroundColor !== 'rgba(0, 0, 0, 0)';
   const isCap = (el) => {
-    const cap = el.closest('button');
+    const cap = el.closest('button, kbd, .key');
     return Boolean(cap) && getComputedStyle(cap).borderImageSource !== 'none';
   };
   const isScreen = (n) => n.matches(sel.screen) || getComputedStyle(n).borderImageSource.includes('/screen@') || getComputedStyle(n).borderImageSource.includes('/input@');

@@ -76,7 +76,7 @@ export const PIECES: Piece[] = [
   { name: ".info-actions", note: "The action row of the truck card, right under the name line: Call, Look over and Mark as small buttons with their key drawn as a keycap off touch. A button the rules refuse stays, dimmed, with its reason.", build: () => infoActions() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".speed-keys", note: "The travel speed control above End turn: a slower key, an LCD with the speed in turns per second and a faster key, built from the radio's transport key. The LCD is lit while automatic travel plays and faint while the pick waits. A key at the end of the range is aria-disabled with its reason.", build: () => speedKeys() },
-  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It fills with the sunk surface and keeps its ink, hover and focus.", build: () => seenOptions() },
+  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It prints in faint screen ink and keeps its hover and focus.", build: () => seenOptions() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 

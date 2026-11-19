@@ -79,7 +79,7 @@ body {
 :is(#ui, #report) [tabindex]:focus-visible,
 :is(#ui, #report) summary:focus-visible,
 :is(#ui, #report) a:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring, 2px solid var(--accent));
   outline-offset: 2px;
 }
 :is(#ui, #report) select {

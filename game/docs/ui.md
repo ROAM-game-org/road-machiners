@@ -221,7 +221,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Chips over the art band, such as money and load. Small screens set into the band's lower edge.
 - Prose such as a town or shop description. A screen under the title row.
 - Quest page. The art band on top, the prose and numbered choices on one screen, and the way out as a key on the metal foot.
-- Confirm dialog. Title engraved, the question on a screen, Cancel as a plain key and the yes as a red key, both on metal.
+- Confirm dialog. No title. The question on a screen, Cancel as a plain key and the yes as a red key, both on metal.
 - Tooltip. A thin olive frame around one screen, like the center tip.
 - Text field and picker. The input well on metal, with amber screen ink inside.
 - The crash screen keeps its plain `--crash-*` look, and the boot screen keeps its `--boot-*` look, since both draw before the baked pictures load.
@@ -270,14 +270,14 @@ One grammar for every control and every selectable thing.
 | State | Meaning | Look |
 | --- | --- | --- |
 | rest | Can be used | Surface and line tokens |
-| hover | Under the cursor | Hover line and hover surface. Only things that react to a click change on hover. |
-| focus | Keyboard focus | One accent outline everywhere |
-| selected | The player's current choice | Accent border and accent wash |
+| hover | Under the cursor | A screen line or screen button fills with `--hud-amber-dim`. A key has no hover look. |
+| focus | Keyboard focus | One accent outline on screen pieces and fields. A key shows no outline, since a key shows only its baked art. |
+| selected | The player's current choice | Inverse print on a screen, the lit cap on a key |
 | planned | A choice that is not committed yet | Dashed accent outline |
 | working | Timed work in progress | Accent progress meter |
 | disabled | Cannot be used now | Dimmed, with its reason |
 | spent | The row's own action is done | Dimmed row, past-tense tag in the control's slot, no hover |
-| seen | A radio option or talk choice with nothing new behind it | Sunk surface, same ink. Hover and focus still apply |
+| seen | A radio option or talk choice with nothing new behind it | Faint screen ink. Hover and focus still apply |
 | unaffordable | Needs more money | Price in danger ink |
 | locked | Needs progress, like a rank | Lock icon |
 
