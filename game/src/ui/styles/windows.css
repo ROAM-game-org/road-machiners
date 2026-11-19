@@ -19,6 +19,7 @@
   border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
   color: var(--hud-amber);
+  font-family: var(--font-ui);
   text-shadow: var(--hud-text-glow);
 }
 :is(#ui, #report) :is(.well, .screen-block, .board-offers) h3 {
@@ -128,4 +129,11 @@
 }
 :is(#ui, #report) .screen-line:is(.seen, [aria-disabled="true"]) {
   color: var(--hud-amber-faint);
+}
+
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) .selected:not(.inv-item, .inv-chip) {
+  border-color: var(--hud-amber);
+  background: var(--hud-amber);
+  color: var(--hud-screen);
+  text-shadow: none;
 }

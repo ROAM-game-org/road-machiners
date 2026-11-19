@@ -113,8 +113,17 @@ function section(group: Group): HTMLElement {
   return el("section", {}, el("h2", {}, group.title), el("div", { class: "guide-grid" }, ...names.map((n) => cell(n, group.sample))));
 }
 
+const ON_SCREEN = new Set([".row", ".tile", ".tag", ".spent", ".contract-clue", ".way-steps", ".amount .coin", ".meter", ".meter.progress", ".meter.notched", ".meter.broken", ".well-group", ".stat-row", ".meter-row", ".gauge", ".selected", ".tooltip-row", ".num"]);
+const ON_METAL = new Set([".ink-page", ".panel-title", ".action-rows", ".cost", ".cost-item"]);
+
+function mounted(name: string, piece: HTMLElement): HTMLElement {
+  if (ON_SCREEN.has(name)) return el("div", { class: "screen-block" }, piece);
+  if (ON_METAL.has(name)) return el("div", { class: "panel" }, piece);
+  return piece;
+}
+
 function pieces(): HTMLElement {
-  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, p.build(), el("span", {}, p.name), el("small", {}, p.note)));
+  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, mounted(p.name, p.build()), el("span", {}, p.name), el("small", {}, p.note)));
   return el("section", {}, el("h2", {}, "Shared pieces"), el("div", { class: "guide-grid" }, ...cells));
 }
 

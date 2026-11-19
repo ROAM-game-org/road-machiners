@@ -45,7 +45,7 @@ export const PIECES: Piece[] = [
   { name: ".btn-s", note: "A small button, 24px high, for rows, cards and small panels.", build: () => text("button", "btn-s", "Small") },
   { name: ".btn-l", note: "A large button, 44px high, for a screen's main choice.", build: () => text("button", "btn-l", "Large") },
   { name: ".btn-danger", note: "A hostile action.", build: () => text("button", "btn-danger", "Danger") },
-  { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
+  { name: ".row", note: "A list line on a screen, set apart from the next by space.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: chipSample },
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
@@ -82,7 +82,7 @@ export const PIECES: Piece[] = [
 
 function inkPage(): HTMLElement {
   const choice = (words: string, reason: string | null = null): HTMLElement =>
-    el("button", { class: "quest-choice", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
+    el("button", { class: "quest-choice screen-line", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
   return el(
     "div",
     { class: "ink-page" },
@@ -93,17 +93,17 @@ function inkPage(): HTMLElement {
       el(
         "div",
         { class: "ink-scroll" },
-        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose compound"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-        el("div", { class: "ink-choices quest-choices" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
+        el("div", { class: "ink-head" }, text("h2", "quest-place tape", "Nose compound"), text("p", "qt-line screen-block", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices screen-block" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
       ),
-      el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
+      el("div", { class: "ink-foot" }, text("button", "quest-choice compact", "3. Drive on"), text("div", "ink-status bad", "")),
     ),
   );
 }
 
 function seenOptions(): HTMLElement {
-  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option${extra}` }, words);
-  return el("div", { class: "dialogue-options" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
+  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option screen-line${extra}` }, words);
+  return el("div", { class: "dialogue-options screen-block" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
 }
 
 function minimapPiece(): HTMLElement {
