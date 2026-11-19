@@ -55,9 +55,18 @@ function inPage({ surfaces, slabShare, sel }) {
   };
   const ownWords = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
   const area = (el) => el.getBoundingClientRect().width * el.getBoundingClientRect().height;
+  const clipped = (el, box) => {
+    const r = el.getBoundingClientRect();
+    return Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left)) * Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top));
+  };
+  const insideScreen = (el) => {
+    for (let n = el.parentElement; n; n = n.parentElement) if (isScreen(n)) return true;
+    return false;
+  };
   const slabFaults = (win) => {
-    const outer = [...win.querySelectorAll('*')].filter((s) => isScreen(s) && shown(s) && !s.parentElement.closest(sel.screen));
-    const share = outer.reduce((sum, s) => sum + area(s), 0) / area(win);
+    const box = win.getBoundingClientRect();
+    const outer = [...win.querySelectorAll('*')].filter((s) => isScreen(s) && shown(s) && !insideScreen(s));
+    const share = outer.reduce((sum, s) => sum + clipped(s, box), 0) / area(win);
     const faults = [];
     if (getComputedStyle(win).borderImageSource.includes('slate')) faults.push({ kind: 'slab', path: win.className, text: 'window drawn with the slate screen piece' });
     if (share > slabShare) faults.push({ kind: 'slab', path: win.className, text: `screens cover ${Math.round(share * 100)}% of the window` });
