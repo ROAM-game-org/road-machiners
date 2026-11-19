@@ -99,3 +99,30 @@
   color: var(--hud-print-coal);
   font-size: var(--text-lead);
 }
+:is(#ui, #report) .screen-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--btn-h-m);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--hud-amber);
+  font: var(--text-body) / 1.35 var(--font-ui);
+  text-align: left;
+  text-shadow: var(--hud-text-glow);
+}
+:is(#ui, #report) .screen-line:hover {
+  background: var(--hud-amber-dim);
+}
+:is(#ui, #report) .screen-line:is(.on, .selected, [aria-pressed="true"]) {
+  background: var(--hud-amber);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+:is(#ui, #report) .screen-line:is(.seen, [aria-disabled="true"]) {
+  color: var(--hud-amber-faint);
+}
