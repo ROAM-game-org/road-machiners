@@ -5,7 +5,7 @@
   padding: var(--space-9);
   background: none;
   border: 0;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
   color: var(--hud-print-coal);
 }
@@ -354,7 +354,7 @@
   overflow: hidden;
   padding: 0;
   border: var(--hud-frame-edge) solid transparent;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   color: var(--hud-print-coal);
 }
 .ink-page .ink-band {

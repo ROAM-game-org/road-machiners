@@ -919,7 +919,7 @@
   padding: var(--hud-rim-w) calc(var(--space-2) + var(--hud-rim-w));
   border: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
 }
 
 #ui .tray-window {
@@ -992,7 +992,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   color: var(--hud-amber);
 }
 
@@ -1208,7 +1208,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
@@ -1321,7 +1321,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   color: var(--hud-amber);
   font-family: var(--font-hud);
   text-shadow: var(--hud-text-glow);
@@ -1409,7 +1409,7 @@
 
 #ui :is(.action, .game-menu [role=menu]) {
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   text-shadow: none;
 }
 

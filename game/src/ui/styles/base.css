@@ -48,7 +48,7 @@ body {
   pointer-events: auto;
   background: none;
   border: 1px solid transparent;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
   padding: var(--space-4) var(--space-5);
   color: var(--hud-print-coal);
 }
