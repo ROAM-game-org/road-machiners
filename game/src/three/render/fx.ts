@@ -19,7 +19,7 @@ import type { GroundAt } from './lines';
 import { Casings, Projectiles, type Muzzle, type ProjectileSpec, type RoundPlan, type ShotCues, type TrailKind } from './projectiles';
 import { CONFIG } from '../../config';
 import { TUNING } from './inkTuning';
-import { CARD_CLOCK, CARD_ORDER, CardBatch, batchesOf, createCardShapes, GLOW_IN_LIT, type FxCards } from './particles/cards';
+import { CARD_CLOCK, CARD_ORDER, CardBatch, batchesOf, createCardShapes, GLOW_IN_LIT, openCardFrame, type FxCards } from './particles/cards';
 import { InkLayer } from './inkLayer';
 import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
@@ -373,6 +373,10 @@ export class Fx3D {
     setText(slot.el, text);
     slot.el.style.display = 'block';
     slot.el.style.opacity = '1';
+  }
+
+  beginFrame(): void {
+    openCardFrame(this.cards);
   }
 
   tick(playMs: number, realMs: number, world: World, combatMs: number): void {
