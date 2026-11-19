@@ -626,7 +626,7 @@ export class TownScreen {
 
   private chartsMap(): HTMLElement {
     if (this.chartsBox) return this.chartsBox;
-    const box = el("div", { class: "charts-map" }, this.chartsView.canvas);
+    const box = el("div", { class: "charts-map screen-block" }, this.chartsView.canvas);
     observeBox(box, this.chartsView);
     this.chartsBox = box;
     return box;
