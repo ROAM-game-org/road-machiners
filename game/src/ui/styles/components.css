@@ -67,6 +67,9 @@
   padding: 0 calc(var(--space-4) - var(--key-edge));
   font-size: var(--text-dense);
 }
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button):lang(en) {
+  -webkit-text-stroke: 0;
+}
 :is(#ui, #report) .btn-l {
   --key-edge: var(--btn-key-edge-l);
   height: var(--btn-h-l);
