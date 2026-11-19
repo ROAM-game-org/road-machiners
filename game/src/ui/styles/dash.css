@@ -803,7 +803,7 @@
   font: inherit;
 }
 
-#ui :is(.action, .status-mark) {
+#ui :is(.toast, .action, .status-mark) {
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
 }
@@ -814,7 +814,10 @@
   padding: var(--space-2) var(--space-3);
   border: 0;
   background: none;
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   color: var(--hud-amber);
   text-align: left;
   text-shadow: var(--hud-text-glow);
@@ -836,6 +839,10 @@
 
 :is(#ui, #overlay) .hud-screen :is(.bad, .bad *),
 #ui .hud-screen.bad {
+  color: var(--hud-hot);
+}
+
+#ui .toast.bad {
   color: var(--hud-hot);
 }
 
@@ -927,7 +934,10 @@
   border: 0;
   padding: 1px var(--hud-well-w);
   background: none;
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
 }
 
 #ui .stat-icon {
@@ -978,7 +988,7 @@
   visibility: inherit;
 }
 
-#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),
 #ui .game-menu [role=menu] {
   font-family: var(--font-hud);
   --ink: var(--hud-amber);
@@ -1168,7 +1178,7 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
   border: 0;
   background: none;
   box-shadow: none;
@@ -1191,7 +1201,7 @@
   flood-color: var(--hud-amber);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
   border-color: transparent;
   background: none;
   filter: none;
@@ -1220,7 +1230,10 @@
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
   background: none;
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   pointer-events: none;
 }
 
@@ -1287,7 +1300,7 @@
   color: var(--hud-hot);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) [aria-disabled="true"],
+#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) [aria-disabled="true"],
 #ui :is(.hud-plate, .hud-tray) [aria-disabled="true"] {
   opacity: 1;
   filter: none;
@@ -1325,7 +1338,10 @@
 }
 
 :is(#ui, #overlay) .hud-frame.hud-tip-screen {
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
 }
 
 :is(#ui, #overlay) .hud-engraved {
@@ -1498,16 +1514,16 @@
   height: var(--hud-rocker-h);
 }
 
-#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :is(.num, .tag) {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :is(.num, .tag) {
   font-family: var(--font-hud);
   font-variant-numeric: tabular-nums;
 }
 
-#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
   color: var(--hud-hot);
 }
 
-#ui :is(.info, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) {
+#ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .tip) {
   font-size: var(--hud-text-m);
 }
 
@@ -1519,7 +1535,7 @@
   text-transform: uppercase;
 }
 
-:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .action, .note, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
+:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
   outline: none;
 }
 
@@ -1586,6 +1602,10 @@
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
   border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
+}
+
+#ui .toast.bad > .hud-screen {
+  color: var(--hud-hot);
 }
 
 :is(#ui, #overlay) .hud-panel {
@@ -1674,7 +1694,7 @@
   border-image-source: var(--hud-keycap-red-art);
 }
 
-#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .game-menu [role=menu]),
+#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .tip, .toast, .game-menu [role=menu]),
 :is(#ui, #overlay) :where(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-m);
   box-sizing: border-box;
@@ -1686,6 +1706,14 @@
 }
 
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
+  --hud-panel-w: var(--hud-panel-l);
+}
+
+#ui .tip {
+  --hud-panel-w: var(--hud-panel-xl);
+}
+
+#ui .toast {
   --hud-panel-w: var(--hud-panel-l);
 }
 
@@ -1750,7 +1778,10 @@
   height: calc(var(--text-caption) * 1.4 + 3 * (var(--text-dense) * 1.3 + var(--space-1)) + 4 * var(--space-2));
   align-content: start;
   padding: var(--space-2) var(--space-3);
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   scrollbar-width: none;
 }
 
@@ -1758,7 +1789,10 @@
   flex: 1 1 0;
   width: auto;
   background: none;
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
 }
 
 #ui .info > .info-content > .hud-controls {

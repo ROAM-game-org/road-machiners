@@ -213,9 +213,9 @@ export class Hud {
   private infoBody = el("div", { class: "info-content" });
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
-  private toastBox = panel("toast note");
+  private toastBox = panel("toast hud-panel");
 
-  private toastText = this.toastBox.appendChild(el("p", { class: "note-text" }));
+  private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
   private rescue = panel("rescue notice hud-panel", topCenter());
   private knockedOut = panel("status-mark hud-panel", topCenter());
   private truckStack = el("div", { class: "truck-stack" });
@@ -414,8 +414,9 @@ export class Hud {
     return this.infoColumn;
   }
 
-  private toast(text: Msg): void {
-    setText(this.toastText, text);
+  private toast(text: Msg, refusal = false): void {
+    setText(this.toastScreen, text);
+    this.toastBox.classList.toggle("bad", refusal);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(
@@ -606,7 +607,7 @@ export class Hud {
   }
 
   refuse(text: Msg): void {
-    this.toast(text);
+    this.toast(text, true);
   }
 
   note(w: World, text: Msg, cls: string): void {

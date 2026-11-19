@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -16,7 +16,10 @@
   box-sizing: border-box;
   background: none;
   border: 0;
-  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   color: var(--hud-amber);
   font-family: var(--font-ui);
   text-shadow: var(--hud-text-glow);
@@ -47,8 +50,10 @@
   border: 1px solid var(--hud-amber);
   border-radius: 0;
   background: none;
+  box-shadow: var(--hud-line-glow);
   color: var(--hud-amber);
   font: var(--text-dense) var(--font-ui);
+  text-shadow: var(--hud-text-glow);
   white-space: nowrap;
 }
 :is(#ui, #report) .screen-btn:hover {
@@ -57,6 +62,7 @@
 }
 :is(#ui, #report) .screen-btn:is(.on, .selected, [aria-pressed="true"]) {
   background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
   border-color: var(--hud-amber);
   color: var(--hud-screen);
   text-shadow: none;
@@ -64,6 +70,7 @@
 :is(#ui, #report) .screen-btn[aria-disabled="true"] {
   background: none;
   border-color: var(--hud-amber-faint);
+  box-shadow: none;
   color: var(--hud-amber-faint);
 }
 :is(#ui, #report) :is(h2, h3, div, span).tape {
@@ -136,6 +143,7 @@
 }
 :is(#ui, #report) .screen-line:is(.on, .selected, [aria-pressed="true"]) {
   background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
   color: var(--hud-screen);
   text-shadow: none;
 }
@@ -146,6 +154,7 @@
 :is(#ui, #report) :is(.well, .screen-block, .board-offers) .selected:not(.inv-item, .inv-chip) {
   border-color: var(--hud-amber);
   background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
   color: var(--hud-screen);
   text-shadow: none;
 }
@@ -213,4 +222,11 @@
 }
 .inv-chip:has(> .segments) {
   padding-bottom: calc(var(--space-2) + var(--gauge-h) + var(--space-1));
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .hud-screen) .tag {
+  box-shadow: var(--hud-line-glow);
+  text-shadow: var(--hud-text-glow);
+}
+#ui :is(.minimap .minimap-body, .map-tab) {
+  padding: var(--hud-screen-edge);
 }

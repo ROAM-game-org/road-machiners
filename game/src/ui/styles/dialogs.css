@@ -54,45 +54,6 @@
   font-size: var(--text-heading);
   line-height: 1;
 }
-#ui .panel.note {
-  --note-w: var(--hud-panel-xl);
-  box-sizing: border-box;
-  width: min(var(--note-w), calc(var(--layer-w) - 2 * var(--hud-inset)));
-  padding: var(--space-7) var(--space-9) var(--space-6);
-  border: 0;
-  background: none;
-  border-image: var(--hud-note-art) var(--hud-note-slice) fill / var(--hud-note-edge) / var(--hud-note-outset) stretch;
-  color: var(--hud-print-ink);
-  font: var(--text-body) / 1.35 var(--font-ui);
-  text-align: left;
-  text-shadow: none;
-}
-#ui .toast.note {
-  --note-w: var(--hud-panel-l);
-}
-#ui .top-center > .panel.note {
-  position: relative;
-}
-#ui .panel.note :is(h3, p) {
-  margin: 0;
-  color: var(--hud-print-ink);
-  font: inherit;
-  letter-spacing: normal;
-  text-shadow: none;
-  text-transform: none;
-}
-#ui .panel.note .note-title {
-  font-weight: 700;
-}
-#ui .panel.note .note-aside {
-  margin-top: var(--space-3);
-  font-size: var(--text-dense);
-}
-#ui .panel.note > .hud-close {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-}
 #ui .panel.dialogue {
   --talk-wheel: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
   width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));

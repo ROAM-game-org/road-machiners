@@ -151,7 +151,7 @@ The in-game HUD is one set of 3D hardware, baked to pictures. Baked art carries 
 - Panels. Every box that is not a baked part is a panel built from the panel kit in `src/ui/dash/skin.ts`: `panelHead()`, `screen()`, `screenLine()`, `controls()`, `textKey()` and `closeKey()`. Its housing is the baked olive frame, drawn as a 9-slice border image, so a panel can take any size. The 9-slice cuts the frame just past its bevel, `--hud-frame-slice`, and draws that edge at `--hud-frame-bevel`, close to its baked size. A wider cut squeezes the bevel into a thin double line at some UI sizes. Windows such as the journal and the inventory are built the same way, by the grammar of 4.6.
 - Panel layout. The title sits at the top left, left aligned, in engraved print. A panel that closes has one close key, the same small key with the X icon, at the right of the title row. Text that changes sits on a screen. One control is centered, and two or more sit at the left and right edges. A destructive key is red, so every confirm dialog's yes key is red.
 - Panel sizes. A HUD panel takes its width from six steps, each about 1.4 times the last, anchored on the cursor card: `--hud-panel-xs` 140px, `--hud-panel-s` 200px, `--hud-panel-m` 282px, `--hud-panel-l` 400px, `--hud-panel-xl` 560px and `--hud-panel-xxl` 800px. Medium narrows to 246px on a compact layer and to 200px on a narrow one. The knocked-out mark is extra small. The cursor card, contracts, wanted, the menu list, stranded and rescue are medium. The confirm dialog and the death box are large. The tip and the dialogue are extra large. The toast and the tooltips are as wide as their text, the toast at most large and a tooltip at most medium. A panel keeps its size across its states, so stranded holds one box with the beacon switch and with End run. A new panel picks a step and never sets its own width.
-- Screens. A screen is the baked screen recess with its brass lip, drawn as a 9-slice with `--hud-screen-slice` and `--hud-screen-edge`. The slice holds only the lip, so the lip shows at full width on every screen, like the targeting computer. A screen draws no CSS shadow or ring of its own, since the baked lip is its only edge. Its inks, fonts and states are in 4.6.
+- Screens. A screen is the baked screen lip, a dark edge and a brass rim with rounded corners like the targeting computer's window, drawn as a 9-slice with `--hud-screen-slice` and `--hud-screen-edge`. Every screen, in the HUD and in the windows, takes the same glass behind its content: the scanlines, vignette and sheen of `--hud-screen-glass` and the inner shade of `--hud-screen-shade`. Anything drawn on the glass, such as a screen button, a tag, a selection, a gauge segment or a diagram cell, glows like the print. A map is a picture on a screen. The slice holds only the lip, so the lip shows at full width on every screen, like the targeting computer. A screen draws no CSS shadow or ring of its own, since the baked lip is its only edge. Its inks, fonts and states are in 4.6.
 - Windows. Every `.panel` and `.dialog` that is not a HUD kit panel is a window, built by the grammar of 4.6: olive metal from `--hud-frame-art`, one screen per block of content, keys on the metal. The crash screen keeps a plain look with its own `--crash-*` tokens, since it reports files that did not arrive and must draw without pictures.
 - Keys. Every button on every screen is a physical key, never a box with text. A key's look is its art, so a screen never draws a key's state with `background`, `border` or `border-color`, since the cap paints over them. A state on a key sets `--key-art` or `--key-print` instead: `.on`, `.selected`, `aria-pressed` and `aria-checked` take the lit cap, `:active` takes the pressed cap. A screen that sets a key's padding subtracts `var(--key-edge)` from each side, so the key keeps the size of its box. A plain `button` outside the drawn hardware is the baked keycap as a 9-slice, with its label in the engraved face and `--hud-print` ink. A disabled key keeps its cap and dims its print to `--hud-print-dim`, and `.btn-danger` takes the red cap, pressed or not. An action on one line of a list is a screen button, not a key, by 4.6. On the HUD `button.hud-key` is the key cap with an engraved label, an icon or both. A key with no icon prints its label on the cap. The key grows to fit its label, and each word sits on its own centered line, so End run takes two lines. Keys in one row share one height. A lit or danger key with text uses the red cap. A list of actions, such as the menu, is a column of icon keys with printed labels beside them. A pressed key shows its baked pressed frame.
 - Targeting computer. The screen always shows six gun cards, three rows of two, with a static amber CRT look from the `--hud-crt-*` tokens. A card shows the gun number, its picture, its name, one cell per round and one status: the aimed part and the hit chance, no target, reloading, error or got 'em. The number and the name are always dim. A click on a card selects that gun alone, All selects every gun, and a second press clears the selection. Reload and Hold act on the selected guns and say No gun selected when none is. The spec is [targeting-computer.md](concepts/targeting-computer.md).
@@ -173,10 +173,10 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 - Window body. The plain olive `frame` piece, 9-sliced over the whole window. Olive metal shows in the title row, in the gutters between screens and in the key strip. The piece has a thin ink edge and a light rim like the targeting computer's housing, and a plain centre, so it stretches to any size without smearing. Every panel's padding clears the frame's bevel, so no screen touches the rim. A notice like the death box or a confirm has one fixed size per kind, wide enough for its text in every language.
 - Fixed words of a window, such as its title or the label of a group of keys. Engraved print on metal, `--font-engraved`, uppercase, ink `--hud-print-coal` with `--hud-print-coal-edge`. Only short fixed words, never data.
-- A name from the game used as a heading, such as the truck, a person or a shop. Tape on metal: the `tape` piece, stretched to fit, with `--font-hud` bold in `--hud-print-ink`. A driver wrote it, so a game value can sit off a screen on tape, and on paper.
+- A name from the game used as a heading, such as the truck, a person or a shop. Tape on metal: the `tape` piece, stretched to fit, with `--font-hud` bold in `--hud-print-ink`. A driver wrote it, so tape is the one place a game value sits off a screen.
 - Anything the game changes: values, lists, prose, prices, descriptions, quest text, the inventory drawing. A screen: the baked `screen` piece, 9-sliced, set into the metal. A window has one screen per block of content, never one screen for the whole window.
 - A fixed action of the window, such as Close, Back, Rotate, Strip, Fill or End run. A key on the metal.
-- A persistent choice, such as a tab, a filter, a mode or a setting that stays. A key that stays lit while it is on, or a rocker for on and off. A level is a knob.
+- A persistent choice, such as a tab, a filter, a mode or a setting that stays. A key that stays lit while it is on, or a rocker for on and off. A level is a knob: the baked `knob` cap with its turning `knobPointer`, built by `knobControl()` in `src/ui/sound.ts`, with its name engraved under it. Where the exact value matters, as in the world settings, it prints on a readout beside the knob, and the default is an engraved mark at the knob's edge. A slider is never used, since a fader cannot sit on glass.
 - An action that belongs to one line of a list, such as Buy, Sell or Accept on a row that scrolls. A screen button: an outlined word on the screen beside its line. A key cannot sit on glass or follow a scrolling row.
 - A choice among options the game wrote, such as quest choices or save slots. Screen lines, each with its number, on the screen.
 - A status that is on or off, such as a warning. A lamp on the metal.
@@ -185,13 +185,12 @@ The one rule: what the game changes lives on a screen, and what the player press
 - A picture, such as an item icon, the art band or the truck drawing. On a screen, or the art band across the top of the window, in its own colors.
 - A value in a strip, such as a chip over the art band or the cost beside a key. A readout: a small screen sized for its longest value, so it keeps its size when the value changes.
 - A level or an amount, such as fuel, load, condition, XP or work done. A gauge on a screen: a row of segments, like the ammo count on the targeting computer.
-- Content whose size changes too much for a fixed screen, such as a tip or a passing message. Paper: the `note` piece stuck to the metal or to the dash, sized by its text.
+- A short message, such as a tip or a passing message. A small HUD panel: the olive frame around one screen, one fixed width per kind. A panel is never drawn as paper or as any other flat shape.
 
 #### Inks per surface
 
 - Metal: `--hud-print-coal` only. No amber, no cream, no accent, no good or bad color on metal. Coal on olive measures 3.8 to 1, so metal print is at least `--text-lead` and short.
 - Tape: `--hud-print-ink` only.
-- Paper: `--hud-print-ink` only, in `--font-ui`.
 - Screen: `--hud-amber` for main text, `--hud-amber-soft` for secondary text, `--hud-amber-faint` for an option that is off or done, `--hud-lamp-green` for good and `--hud-hot` for bad. Nothing else. No cream, no coal, no white, no gray.
 - Plain cap: `--hud-print`, and `--hud-print-dim` when the key is disabled.
 - Lit cap and red cap: `--hud-print`. A key's print never changes color with its state. Only the cap changes.
@@ -204,7 +203,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Content longer than its screen scrolls inside it with the rocker wheel. The screen never grows to fit.
 - A list with a fixed most, such as the three held contracts, gets a screen sized for the most, and its empty slots print faint.
 - The window itself has a fixed size per kind. A talk window does not grow with the number of replies, and a shop does not change size between tabs.
-- These rules and the grid hold on a desktop layer. On a narrow layer the columns stack and the window scrolls, so only the rules for keys, gauges, inks and paper apply there. `npm run layout` checks them in `scripts/hardware-check.mjs`.
+- These rules and the grid hold on a desktop layer. On a narrow layer the columns stack and the window scrolls, so only the rules for keys, gauges and inks apply there. `npm run layout` checks them in `scripts/hardware-check.mjs`.
 
 #### The grid
 
@@ -224,11 +223,6 @@ The one rule: what the game changes lives on a screen, and what the player press
 - A planned change shows in the same gauge. Segments a plan will fill print in `--hud-amber-faint`, like rounds being reloaded, and the share of one picked part prints lit while the rest of the load prints in `--hud-amber-soft`.
 - A gauge has a fixed number of segments, so it keeps its length for every value. The exact value prints beside it in `--font-mono`.
 - A flat filled bar is never used.
-
-#### Paper
-
-- Paper is the baked `note` piece: off-white paper with tape across its top corners, 9-sliced so it takes any size. It holds content too varied for a fixed screen, such as a tip or a passing message, and it sits on the metal or on the dash, never on a screen.
-- A note takes the width of its kind and the height of its text. Its close key, when it has one, sits on the paper's top right corner.
 
 #### Fonts per role
 
@@ -263,7 +257,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Goods rows on a trade screen. One column grid down the list: icon, name, stock and held, then the Buy and Sell screen buttons, each column of buttons one width.
 - Held contracts on the board. A screen sized for the three a truck can hold, beside the offers screen and as tall as it.
 - A talk window. One fixed window per call: the line screen sized for three lines and the replies screen sized for six replies.
-- A tip and a passing message. Notes on paper, stuck to the dash.
+- A tip and a passing message. A small HUD panel: the olive frame, the engraved title and close key on the metal, the words on one screen.
 - Chips over the art band, such as money and load. Small screens set into the band's lower edge.
 - Prose such as a town or shop description. A screen under the title row.
 - Quest page. The art in the left column, the tape and one screen of full column height in the middle with the prose and the numbered choices, the way out as a key on the metal under it, and the stats and facts on a second screen of full height at the right. The town's ink page keeps the art band on top.
@@ -282,7 +276,7 @@ A screen built with this grammar fails review if any of these hold:
 - Fixed labels and titles sit on a screen instead of the metal.
 - Selection is shown by hue alone.
 - Its layout moves against the screen before the HUD work.
-- A material is painted in CSS gradients instead of taken from a baked piece.
+- A material or a part looks painted in flat: a flat fill, a bare outline or a shape with no depth where the hardware would show a lip, a bevel, glass or a shadow. Every material comes from a baked piece, and every screen has the same glass.
 - A screen changes its size or its place with its content, its tab or its state.
 - Two screens side by side have different tops or bottoms, or two stacked screens of one column have different edges.
 - A key prints a count, a price, a level, XP, progress or a picture of the player's things.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PPU, plateSpace, makeStage, frame, installBake } from '../core.js';
 import { OLIVE, KEYCAP, mottle, slab, faceMaterial, keycap, litToon, brassLip, crossMark } from './olive.js';
 import { grain, wear, stitch, roundPath } from './dashlib.js';
+import { box, cyl } from '../kit.js';
 
 const K = 3.2;
 const CSS = K / PPU;
@@ -18,15 +19,16 @@ const BOXES = {
   close: [160, 110, 183.5, 133.5],
   lamp: [290, 115, 297, 122],
   tape: [310, 110, 343, 125],
-  note: [250, 160, 370, 240],
   rocker: [354, 100, 382, 142],
+  knob: [200, 108, 232, 140],
+  knobPointer: [240, 108, 272, 140],
 };
 const KEYCAPS = { keycap: KEYCAP, keycapLit: { skirt: '#7a4a20', shoulder: '#b27a3a', top: '#94602a' }, keycapRed: { skirt: '#6a1a10', shoulder: '#a8321e', top: '#862414' } };
 const KEY_UP = -0.006, KEY_DOWN = -0.022, KEYCAP_H = 3.5 * CSS;
 const TOGGLE = { scale: 1.4, ring: 0.7, lever: 1.3, base: '#9a9a92', hole: '#2a2017' };
 const HOUSING = { band: 9, lip: 1.5, depth: 0.06, sink: 0.012, floor: '#342013', leather: '#643015', leatherSide: '#7d4423' };
+const KNOB = { r: 0.13, top: 0.118, depth: 0.07, body: '#4a4a4c', pointer: '#f1ead6', socket: 0.16, socketDepth: 0.012, socketColor: '#232323' };
 const INPUT = { band: 2, depth: 0.02, face: '#342013', floor: '#24160b' };
-const NOTE = { paper: '#ffffff', tape: '#d9c9a0', step: 6, wobble: 0.5, tapeLength: 14, tapeWidth: 5.5, tapeInset: 2.8, shadows: [[0.4, 0.6, 0.14], [0.8, 1.2, 0.07]], reach: { side: 14, below: 6 } };
 
 const S = plateSpace(CANVAS[0] * K, CANVAS[1] * K);
 const local = ([x0, y0, x1, y1]) => [((x0 + x1) / 2 - CANVAS[0] / 2) * CSS, (CANVAS[1] / 2 - (y0 + y1) / 2) * CSS, (x1 - x0) * CSS, (y1 - y0) * CSS];
@@ -42,12 +44,24 @@ function oliveFrame() {
   return place('frame', g);
 }
 
+const SCREEN = { edge: '#483824', brass: '#a38052', glass: '#322014', rim: [[0, 5], [1.6, 4], [4.8, 1.5]] };
+
+function screenFace(w, h) {
+  const cv = document.createElement('canvas'); cv.width = Math.round(w / CSS * K); cv.height = Math.round(h / CSS * K);
+  const c = cv.getContext('2d'), s = cv.width / (w / CSS);
+  [SCREEN.edge, SCREEN.brass, SCREEN.glass].forEach((color, i) => {
+    const [inset, r] = SCREEN.rim[i];
+    c.fillStyle = color; c.beginPath(); c.roundRect(inset * s, inset * s, cv.width - 2 * inset * s, cv.height - 2 * inset * s, r * s); c.fill();
+  });
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  return litToon('#ffffff', { map: tex, transparent: true });
+}
+
 function screenWell() {
   const [, , w, h] = local(BOXES.screen);
   const g = new THREE.Group();
-  const fill = new THREE.Mesh(new THREE.PlaneGeometry(w, h), litToon('#342013'));
-  fill.receiveShadow = true; g.add(fill);
-  brassLip((m, x, y) => { m.position.set(x, y, 0.0075); g.add(m); }, 0, 0, w - 3 * CSS, h - 3 * CSS, 1.5 * CSS, 0.0075);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), screenFace(w, h));
+  face.receiveShadow = true; g.add(face);
   return place('screen', g);
 }
 
@@ -114,67 +128,16 @@ function lampHousing() {
   return place('lamp', g);
 }
 
-function tapeShape(w, h) {
+function tapeStrip() {
+  const [, , w, h] = local(BOXES.tape);
   const shape = new THREE.Shape();
   const jag = 0.6 * CSS;
   shape.moveTo(-w / 2, -h / 2); shape.lineTo(w / 2 - jag, -h / 2); shape.lineTo(w / 2, -h / 4); shape.lineTo(w / 2 - jag, 0); shape.lineTo(w / 2, h / 4); shape.lineTo(w / 2 - jag, h / 2);
   shape.lineTo(-w / 2 + jag, h / 2); shape.lineTo(-w / 2, h / 4); shape.lineTo(-w / 2 + jag, 0); shape.lineTo(-w / 2, -h / 4); shape.closePath();
-  return shape;
-}
-
-function tapeStrip() {
-  const [, , w, h] = local(BOXES.tape);
-  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(tapeShape(w, h), { depth: 0.002, bevelEnabled: false }), litToon(NOTE.tape));
+  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.002, bevelEnabled: false }), litToon('#d9c9a0'));
   mesh.castShadow = true;
   const g = new THREE.Group(); g.add(mesh);
   return place('tape', g);
-}
-
-const wobbleAt = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return (s - Math.floor(s)) * NOTE.wobble * CSS; };
-
-function paperEdge([from, to, inward], side) {
-  const count = Math.round(Math.hypot(to[0] - from[0], to[1] - from[1]) / (NOTE.step * CSS));
-  return Array.from({ length: count }, (_, i) => {
-    const t = i / count, push = i === 0 ? 0 : wobbleAt(side * 100 + i);
-    return new THREE.Vector2(from[0] + (to[0] - from[0]) * t + inward[0] * push, from[1] + (to[1] - from[1]) * t + inward[1] * push);
-  });
-}
-
-function paperShape(w, h) {
-  const x = w / 2, y = h / 2;
-  const sides = [[[-x, y], [x, y], [0, -1]], [[x, y], [x, -y], [-1, 0]], [[x, -y], [-x, -y], [0, 1]], [[-x, -y], [-x, y], [1, 0]]];
-  return new THREE.Shape(sides.flatMap(paperEdge));
-}
-
-function paperLayer(shape, color, z, opacity) {
-  const material = opacity === undefined ? litToon(color) : new THREE.MeshBasicMaterial({ color, transparent: true, opacity });
-  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material);
-  mesh.position.z = z;
-  return mesh;
-}
-
-function cornerTape(side, w, h) {
-  const length = NOTE.tapeLength * CSS, width = NOTE.tapeWidth * CSS, inset = NOTE.tapeInset * CSS;
-  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(tapeShape(length, width), { depth: 0.002, bevelEnabled: false }), litToon(NOTE.tape));
-  mesh.position.set(side * (w / 2 - inset), h / 2 - inset, 0.004);
-  mesh.rotation.z = -side * Math.PI / 4;
-  mesh.castShadow = true;
-  return mesh;
-}
-
-function noteSheet() {
-  const [, , w, h] = local(BOXES.note);
-  const shape = paperShape(w, h);
-  const g = new THREE.Group();
-  NOTE.shadows.forEach(([dx, dy, opacity], i) => {
-    const shadow = paperLayer(shape, '#000000', -0.002 - i * 0.001, opacity);
-    shadow.position.x = dx * CSS; shadow.position.y = -dy * CSS;
-    g.add(shadow);
-  });
-  const paper = paperLayer(shape, NOTE.paper, 0);
-  paper.receiveShadow = true;
-  g.add(paper, cornerTape(-1, w, h), cornerTape(1, w, h));
-  return place('note', g);
 }
 
 function toggle() {
@@ -198,8 +161,23 @@ function toggle() {
   return place('rocker', g);
 }
 
+function knobCap() {
+  const g = new THREE.Group();
+  const socket = cyl(KNOB.socket, KNOB.socketDepth, KNOB.socketColor, { noInk: true }); socket.position.z = KNOB.socketDepth / 2; g.add(socket);
+  const body = cyl(KNOB.r, KNOB.depth, KNOB.body, { r2: KNOB.top, noInk: true }); body.position.z = KNOB.depth / 2; g.add(body);
+  return place('knob', g);
+}
+
+function knobPointer() {
+  const g = new THREE.Group();
+  const mark = box(0.03, 0.08, 0.02, KNOB.pointer, 0.006, { noInk: true }); mark.position.set(0, 0.07, KNOB.depth + 0.01); g.add(mark);
+  return place('knobPointer', g);
+}
+
 oliveFrame();
 screenWell();
+knobCap();
+knobPointer();
 housing('slate', oliveBody);
 housing('slateLeather', leatherBody, HOUSING.leatherSide);
 inputWell();
@@ -207,14 +185,12 @@ for (const [name, colors] of Object.entries(KEYCAPS)) cap(name, colors);
 cap('close', KEYCAP, true);
 lampHousing();
 tapeStrip();
-noteSheet();
 toggle();
 
 const view = frame({ scene, root, facePanel: { g: root, w: CANVAS[0] * CSS, z: 0 }, eye: { x: 0, y: 0, z: 24 }, faceWidthPx: S.width });
 const quadOf = (box, z = 0) => { const [x, y, w, h] = local(box); return view.quad({ g: root, z: 0 }, x, y, w, h, z); };
 const tight = (box, grow = 0) => view.cropAround(quadOf(box), grow);
 const SHADOW = 3;
-const noteCrop = () => { const [x0, y0, x1, y1] = tight(BOXES.note); return [x0 - NOTE.reach.side, y0 - NOTE.reach.side, x1 + NOTE.reach.side, y1 + NOTE.reach.below]; };
 const KEYS = ['keycap', 'keycapLit', 'keycapRed', 'close'];
 const sprites = {
   frame: { crop: tight(BOXES.frame, SHADOW), frames: ['frame'] },
@@ -224,8 +200,9 @@ const sprites = {
   input: { crop: tight(BOXES.input), frames: ['input'] },
   lamp: { crop: tight(BOXES.lamp, 1), frames: ['lamp'] },
   tape: { crop: tight(BOXES.tape, 1), frames: ['tape'] },
-  note: { crop: noteCrop(), frames: ['note'] },
   rocker: { crop: tight(BOXES.rocker, 1), frames: ['rocker-off', 'rocker-on'] },
+  knob: { crop: tight(BOXES.knob), frames: ['knob'] },
+  knobPointer: { crop: tight(BOXES.knobPointer), frames: ['knobPointer'] },
   ...Object.fromEntries(KEYS.map((name) => [name, { crop: tight(BOXES[name]), frames: [`${name}-up`, `${name}-down`] }])),
 };
 const zones = Object.fromEntries(Object.entries(BOXES).map(([name, box]) => [name, { quad: quadOf(box), size: [(box[2] - box[0]) * K, (box[3] - box[1]) * K] }]));
@@ -245,7 +222,7 @@ installBake((scale) => {
   pose(false);
   view.render(scale);
   files.housing = view.shot();
-  for (const name of ['frame', 'screen', 'slate', 'slateLeather', 'input', 'lamp', 'tape', 'note']) shoot(name, name);
+  for (const name of ['frame', 'screen', 'slate', 'slateLeather', 'input', 'lamp', 'tape', 'knob', 'knobPointer']) shoot(name, name);
   shoot('rocker', 'rocker-off');
   for (const name of KEYS) shoot(name, `${name}-up`);
   pose(true);

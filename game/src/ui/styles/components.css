@@ -293,7 +293,9 @@
   border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
   border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
   color: var(--hud-print);
-  font: var(--text-dense) var(--font-mono);
+  font: var(--text-dense) var(--font-engraved);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 

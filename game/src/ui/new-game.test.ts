@@ -7,11 +7,23 @@ import { resolve } from "../text/resolve";
 import { FakeNode } from "../test/fake-dom";
 import { isConfirmOpen } from "./confirm-dialog";
 import { isNewGameOpen, openNewGame } from "./new-game";
+import { knobAngle } from "./sound";
 
-function sliderOf(screen: FakeNode, id: string): FakeNode {
-  const found = screen.all((n) => n.tag === "input" && n.attrs.id === `setting-${id}`)[0];
-  if (!found) throw new Error(`No ${id} slider`);
+function rowOf(screen: FakeNode, id: string): FakeNode {
+  const found = screen.all((n) => n.attrs["data-setting"] === id)[0];
+  if (!found) throw new Error(`No ${id} setting`);
   return found;
+}
+
+function knobOf(screen: FakeNode, id: string): FakeNode {
+  const found = rowOf(screen, id).all((n) => n.attrs.role === "slider")[0];
+  if (!found) throw new Error(`No ${id} knob`);
+  return found;
+}
+
+function valueOf(screen: FakeNode, id: string): number {
+  const readout = rowOf(screen, id).all((n) => n.className.includes("setting-value"))[0];
+  return Number(readout.textContent.replace("%", "")) / 100;
 }
 
 async function settle(): Promise<void> {
@@ -46,8 +58,8 @@ function open(hasAutosave = true, startHere?: (request: NewRequest) => void) {
   const screen = ui.all((n) => n.className.split(" ").includes("new-game"))[0];
   last = screen;
   const slide = (id: string, value: number) => {
-    const input = sliderOf(screen, id);
-    input.fire("input", { target: { value: String(value) } });
+    const steps = Math.round((value - valueOf(screen, id)) / WORLD_SETTINGS[id as keyof WorldSettings].step);
+    for (let i = 0; i < Math.abs(steps); i++) knobOf(screen, id).fire("keydown", { code: steps > 0 ? "ArrowRight" : "ArrowLeft" });
   };
   const wroteStorage = () => [local, session].some((s) => s.setItem.mock.calls.length + s.removeItem.mock.calls.length + s.clear.mock.calls.length > 0);
   return { ui, win, screen, opener, actions, requests, onClose, slide, wroteStorage };
@@ -81,13 +93,12 @@ describe("the New game screen", () => {
     expect(screen.all((n) => n.attrs["data-setting"] === "enemyGearGrowth")).toEqual([]);
     screen.all((n) => n.attrs["data-mode"] === "chaosHighway")[0].fire("click");
     for (const [id, def] of Object.entries(WORLD_SETTINGS)) {
-      const slider = sliderOf(screen, id);
-      expect([slider.attrs.min, slider.attrs.max, slider.attrs.step, slider.attrs.value]).toEqual([def.min, def.max, def.step, def.default].map(String));
-      const row = screen.all((n) => n.attrs["data-setting"] === id)[0];
-      expect(row.textContent).toContain(resolve(settingName(id as keyof WorldSettings), "en"));
-      expect(row.textContent).toBe(`${resolve(settingName(id as keyof WorldSettings), "en")}100%`);
-      expect(row.all((n) => n.tag === "label")[0].attrs.title).toBe(resolve(settingDescription(id as keyof WorldSettings), "en"));
-      expect(row.all((n) => n.className === "default-tick")[0].attrs.style).toBe(`--default-at: ${(def.default - def.min) / (def.max - def.min)}`);
+      const row = rowOf(screen, id);
+      expect(valueOf(screen, id)).toBeCloseTo(def.default);
+      expect(row.all((n) => n.className === "knob-label")[0].textContent).toBe(resolve(settingName(id as keyof WorldSettings), "en"));
+      expect(row.all((n) => n.className.includes("setting-value"))[0].textContent).toBe("100%");
+      expect(row.all((n) => n.className === "knob-cell")[0].attrs.title).toBe(resolve(settingDescription(id as keyof WorldSettings), "en"));
+      expect(row.all((n) => n.className === "knob-default")[0].attrs.style).toBe(`--knob-angle: ${knobAngle((def.default - def.min) / (def.max - def.min))}deg`);
     }
   });
 
@@ -231,13 +242,13 @@ describe("the New game screen", () => {
     expect(requests).toEqual([{ new: { mode: "chaosHighway", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 0.5 } }, intro: true }]);
   });
 
-  it("refuses to start with a value off the slider's grid, before it asks", () => {
-    const { ui, screen, slide, requests } = open();
-    slide("supplyUse", 1.1);
-
-    expect(() => screen.button("Start").fire("click")).toThrow(/supplyUse/);
-    expect(ui.withClass("confirm-dialog")).toBeNull();
-    expect(requests).toEqual([]);
+  it("turns a knob one step of its setting per key and stops at the ends", () => {
+    const { screen } = open();
+    const def = WORLD_SETTINGS.supplyUse;
+    knobOf(screen, "supplyUse").fire("keydown", { code: "ArrowRight" });
+    expect(valueOf(screen, "supplyUse")).toBeCloseTo(def.default + def.step);
+    for (let i = 0; i < 100; i++) knobOf(screen, "supplyUse").fire("keydown", { code: "ArrowLeft" });
+    expect(valueOf(screen, "supplyUse")).toBeCloseTo(def.min);
   });
 
   it("hands the request to startHere and neither requests a boot nor reloads", () => {

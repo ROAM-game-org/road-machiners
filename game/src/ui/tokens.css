@@ -273,15 +273,14 @@
   --hud-bake-desktop-aspect: 1.6;
   --hud-frame-slice: 2.4% 1.6%;
   --hud-frame-bevel: 8px;
-  --hud-screen-slice: 4% 2%;
+  --hud-screen-slice: 13.6% 6.8%;
+  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 2px, var(--hud-crt-scan) 2px 4px), radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%), var(--hud-crt-fill);
+  --hud-screen-shade: inset 0 0 var(--space-4) var(--hud-crt-edge), inset 0 var(--space-1) var(--space-2) var(--hud-crt-edge);
   --gauge-h: 8px;
   --gauge-cell-w: 5px;
-  --hud-screen-edge: 3px;
+  --hud-screen-edge: 5px;
   --hud-input-edge: 5px;
   --hud-input-slice: 22% 10%;
-  --hud-note-slice: 17% 11.1% 3.3%;
-  --hud-note-edge: 30px 29px 6px;
-  --hud-note-outset: 10px 9px 4px;
   --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;
   --scroll-thumb: #a38052;
   --scroll-track: #1d1208;
@@ -327,6 +326,8 @@
   --hud-rim-s: 2px;
   --hud-glow-r: 4px;
   --hud-text-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
+  --hud-fill-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
+  --hud-line-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft), inset 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
   --hud-mark-glow: drop-shadow(0 0 var(--hud-glow-r) var(--hud-amber-glow-soft));
   --hud-step: 1px;
   --hud-rim-w: 3px;
@@ -398,8 +399,9 @@
   --lcd-cell-w: 88px;
   --dial-h: 65px;
   --compass-w: 60px;
-  --slider-thumb: 12px;
-  --slider-track: 4px;
+  --slider-thumb: 14px;
+  --slider-thumb-h: 20px;
+  --slider-track: 8px;
   --slider-tick: 20px;
 
   /* Panel widths and heights */

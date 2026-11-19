@@ -622,7 +622,8 @@
 .footprint i {
   width: var(--pip);
   height: var(--pip);
-  background: var(--steel-7);
+  background: var(--hud-amber-soft);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
 }
 
 /* Stat cells: icon, value and the change against the player's own. */
@@ -1095,22 +1096,24 @@
   background: none;
 }
 .chassis-map .c-plain {
-  background: var(--map-plain);
+  background: var(--hud-amber-dim);
 }
 .chassis-map .c-D {
-  background: var(--map-deck);
+  background: var(--hud-amber-soft);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
 }
 .chassis-map .c-E {
-  background: var(--map-engine);
+  background: var(--hud-amber);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
 }
 .chassis-map .c-X {
-  background: var(--map-none);
+  background: var(--hud-lcd-ghost);
 }
 .chassis-map .c-F,
 .chassis-map .c-B,
 .chassis-map .c-L,
 .chassis-map .c-R {
-  background: var(--map-side);
+  background: var(--hud-amber-faint);
 }
 
 /* Contracts: one row per job. */

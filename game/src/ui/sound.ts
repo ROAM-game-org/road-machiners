@@ -35,8 +35,12 @@ export function dragged(start: number, dx: number, dy: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export function turned(value: number, steps: number): number {
-  return Math.min(1, Math.max(0, Math.round(value * STEPS + steps) / STEPS));
+export function turned(value: number, steps: number, count = STEPS): number {
+  return Math.min(1, Math.max(0, Math.round(value * count + steps) / count));
+}
+
+export function snapped(value: number, count: number): number {
+  return Math.round(value * count) / count;
 }
 
 export function knobAngle(value: number): number {
@@ -114,46 +118,59 @@ export function soundSection(settings: SoundSettings): SoundView {
   return { root, dispose: () => [mute, ...knobs].forEach((v) => v.dispose()) };
 }
 
-function knobCell(settings: SoundSettings, bus: Bus): SoundView {
-  const dial = el("div", { class: "knob-dial" }, el("span", { class: "knob-notch" }));
-  const knob = el("div", { class: "knob", role: "slider", tabindex: 0, "aria-label": t("sound.volume", { bus: LABEL[bus] }), "aria-valuemin": 0, "aria-valuemax": 100 }, dial);
+export type KnobSpec = { label: Msg; aria: Msg; value: () => number; set: (share: number) => void; text: () => Msg; count?: number; mark?: number };
+
+export function knobControl(spec: KnobSpec): { root: HTMLElement; draw: () => void } {
+  const count = spec.count ?? STEPS;
+  const dial = el("div", { class: "knob-dial" });
+  const mark = spec.mark === undefined ? null : el("span", { class: "knob-default", style: `--knob-angle: ${knobAngle(spec.mark)}deg` });
+  const knob = el("div", { class: "knob", role: "slider", tabindex: 0, "aria-label": spec.aria, "aria-valuemin": 0, "aria-valuemax": 100 }, mark, dial);
   const readout = el("span", { class: "knob-readout" });
-  const cell = el("div", { class: "knob-cell" }, knob, el("span", { class: "knob-labels" }, el("span", { class: "knob-label" }, LABEL[bus]), readout));
+  const cell = el("div", { class: "knob-cell" }, knob, el("span", { class: "knob-labels" }, el("span", { class: "knob-label" }, spec.label), readout));
   const draw = () => {
-    const volume = settings.volume(bus);
-    const percent = Math.round(volume * 100);
-    knob.setAttribute("aria-valuenow", String(percent));
-    bindAttr(knob, "aria-valuetext", t("sound.percent", { n: percent }));
-    setText(readout, t("sound.percent", { n: percent }));
-    knob.style.setProperty("--knob-angle", `${knobAngle(volume)}deg`);
+    knob.setAttribute("aria-valuenow", String(Math.round(spec.value() * 100)));
+    bindAttr(knob, "aria-valuetext", spec.text());
+    setText(readout, spec.text());
+    knob.style.setProperty("--knob-angle", `${knobAngle(spec.value())}deg`);
   };
-  bindDrag(cell, settings, bus);
+  bindDrag(cell, spec, count);
   cell.addEventListener("wheel", (e) => {
     e.preventDefault();
-    settings.setVolume(bus, turned(settings.volume(bus), -Math.sign(e.deltaY)));
+    spec.set(turned(spec.value(), -Math.sign(e.deltaY), count));
   });
   knob.addEventListener("keydown", (e) => {
     const steps = KNOB_KEYS[e.code];
     if (steps === undefined) return;
     e.preventDefault();
     e.stopPropagation();
-    settings.setVolume(bus, turned(settings.volume(bus), steps));
+    spec.set(turned(spec.value(), steps, count));
   });
   draw();
-  return { root: cell, dispose: settings.onChange(draw) };
+  return { root: cell, draw };
 }
 
-function bindDrag(cell: HTMLElement, settings: SoundSettings, bus: Bus): void {
+function knobCell(settings: SoundSettings, bus: Bus): SoundView {
+  const knob = knobControl({
+    label: LABEL[bus],
+    aria: t("sound.volume", { bus: LABEL[bus] }),
+    value: () => settings.volume(bus),
+    set: (share) => settings.setVolume(bus, share),
+    text: () => t("sound.percent", { n: Math.round(settings.volume(bus) * 100) }),
+  });
+  return { root: knob.root, dispose: settings.onChange(knob.draw) };
+}
+
+function bindDrag(cell: HTMLElement, spec: KnobSpec, count: number): void {
   let drag: { pointerId: number; x: number; y: number; value: number } | null = null;
   cell.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || drag) return;
     e.preventDefault();
     cell.setPointerCapture(e.pointerId);
-    drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, value: settings.volume(bus) };
+    drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, value: spec.value() };
     cell.classList.add("turning");
   });
   cell.addEventListener("pointermove", (e) => {
-    if (drag?.pointerId === e.pointerId) settings.setVolume(bus, dragged(drag.value, e.clientX - drag.x, e.clientY - drag.y));
+    if (drag?.pointerId === e.pointerId) spec.set(snapped(dragged(drag.value, e.clientX - drag.x, e.clientY - drag.y), count));
   });
   cell.addEventListener("lostpointercapture", (e) => {
     if (drag?.pointerId !== e.pointerId) return;

@@ -65,84 +65,8 @@
 .new-game .world-settings[hidden] {
   display: none;
 }
-.new-game .settings-rows {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  column-gap: var(--space-6);
-  row-gap: var(--space-6);
-  align-items: center;
-}
 .new-game .world-settings .reset {
   align-self: flex-start;
-}
-.new-game .setting-row {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
-  align-items: center;
-}
-.new-game .setting-row label {
-  font-weight: bold;
-  color: var(--hud-amber);
-  cursor: help;
-}
-.new-game .setting-row .setting-value {
-  min-width: var(--space-10);
-  text-align: right;
-  font: var(--text-body) var(--font-mono);
-  color: var(--hud-amber);
-}
-.new-game .setting-slider {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.new-game .setting-slider input {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  height: var(--slider-thumb);
-  appearance: none;
-  background: transparent;
-}
-.new-game .setting-slider input::-webkit-slider-runnable-track {
-  height: var(--slider-track);
-  background: var(--hud-amber-faint);
-}
-.new-game .setting-slider input::-moz-range-track {
-  height: var(--slider-track);
-  background: var(--hud-amber-faint);
-}
-.new-game .setting-slider input::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--slider-thumb);
-  height: var(--slider-thumb);
-  margin-top: calc((var(--slider-track) - var(--slider-thumb)) / 2);
-  background: var(--hud-amber);
-  border: 0;
-  border-radius: 0;
-}
-.new-game .setting-slider input::-moz-range-thumb {
-  width: var(--slider-thumb);
-  height: var(--slider-thumb);
-  background: var(--hud-amber);
-  border: 0;
-  border-radius: 0;
-}
-.new-game .setting-slider input:focus-visible {
-  outline: 2px solid var(--hud-amber);
-  outline-offset: var(--space-1);
-}
-.new-game .setting-slider .default-tick {
-  position: absolute;
-  top: calc(50% - var(--slider-tick) / 2);
-  left: calc(var(--slider-thumb) / 2 + var(--default-at) * (100% - var(--slider-thumb)));
-  width: var(--space-1);
-  height: var(--slider-tick);
-  transform: translateX(-50%);
-  background: var(--hud-amber-soft);
-  pointer-events: none;
 }
 .new-game .new-game-buttons {
   display: flex;
@@ -153,4 +77,19 @@
   width: var(--layer-w);
   height: var(--layer-h);
   padding: var(--space-6);
+}
+.new-game .settings-knobs {
+  --knob-size: 32px;
+  display: flex;
+  gap: var(--space-9);
+}
+.new-game .setting-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.new-game .setting-knob > .knob-cell {
+  flex: none;
+  gap: var(--space-3);
 }

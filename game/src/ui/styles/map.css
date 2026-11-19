@@ -41,8 +41,9 @@
 }
 .map-tab .map-view {
   position: absolute;
-  inset: 0;
-  height: 100%;
+  inset: var(--hud-screen-edge);
+  width: auto;
+  height: auto;
   aspect-ratio: auto;
   cursor: grab;
   touch-action: none;
