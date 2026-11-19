@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PPU, plateSpace, makeStage, frame, installBake } from '../core.js';
-import { OLIVE, KEYCAP, mottle, slab, faceMaterial, keycap, litToon, brassLip, crossMark } from './olive.js';
+import { OLIVE, KEYCAP, mottle, mottleTile, slab, faceMaterial, keycap, litToon, brassLip, crossMark } from './olive.js';
 import { grain, wear, stitch, roundPath } from './dashlib.js';
 import { box, cyl } from '../kit.js';
 
@@ -36,33 +36,58 @@ const { scene, root } = makeStage();
 const groups = {};
 const place = (name, g, z = 0) => { const [x, y] = local(BOXES[name]); g.position.set(x, y, z); root.add(g); groups[name] = g; return g; };
 
-function oliveFrame() {
-  const [, , w, h] = local(BOXES.frame);
-  const faceMat = faceMaterial(w / CSS * K, h / CSS * K, (c, cw, ch) => { c.fillStyle = OLIVE.housing; c.fillRect(0, 0, cw, ch); });
-  const panel = slab({ w, h, depth: 0.06, bevel: 1.1 * CSS, faceMat });
-  const g = new THREE.Group(); g.add(panel.mesh, panel.face);
-  return place('frame', g);
-}
+const RES = 4;
 
-const SCREEN = { edge: '#483824', brass: '#a38052', glass: '#322014', rim: [[0, 5], [1.6, 4], [4.8, 1.5]] };
-
-function screenFace(w, h) {
-  const cv = document.createElement('canvas'); cv.width = Math.round(w / CSS * K); cv.height = Math.round(h / CSS * K);
-  const c = cv.getContext('2d'), s = cv.width / (w / CSS);
-  [SCREEN.edge, SCREEN.brass, SCREEN.glass].forEach((color, i) => {
-    const [inset, r] = SCREEN.rim[i];
-    c.fillStyle = color; c.beginPath(); c.roundRect(inset * s, inset * s, cv.width - 2 * inset * s, cv.height - 2 * inset * s, r * s); c.fill();
-  });
+function drawnPlane(name, paint) {
+  const [, , w, h] = local(BOXES[name]);
+  const wu = w / CSS, hu = h / CSS, px = K * RES;
+  const cv = document.createElement('canvas'); cv.width = Math.round(wu * px); cv.height = Math.round(hu * px);
+  const c = cv.getContext('2d');
+  c.scale(px, px);
+  paint(c, wu, hu, px);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  return litToon('#ffffff', { map: tex, transparent: true });
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true })));
+  return place(name, g);
 }
+
+const rr = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
+
+const FRAME = { ink: '#2b2014', light: '#b3a17a', shade: '#5f4f36', radius: 2, inkW: 0.35, bevelW: 1.1, slice: 2.2, seed: 41, scratches: 1.5 };
+
+function bevelRing(c, wu, hu, { inset, width, radius, light, shade }) {
+  c.save();
+  rr(c, inset, inset, wu - 2 * inset, hu - 2 * inset, radius); c.clip();
+  c.fillStyle = shade; c.fillRect(0, 0, wu, hu);
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(wu, 0); c.lineTo(wu - inset - width, inset + width); c.lineTo(inset + width, hu - inset - width); c.lineTo(0, hu); c.closePath();
+  c.fillStyle = light; c.fill();
+  c.restore();
+}
+
+function oliveFrame() {
+  return drawnPlane('frame', (c, wu, hu, px) => {
+    rr(c, 0, 0, wu, hu, FRAME.radius); c.fillStyle = FRAME.ink; c.fill();
+    bevelRing(c, wu, hu, { inset: FRAME.inkW, width: FRAME.bevelW - FRAME.inkW, radius: FRAME.radius - FRAME.inkW, light: FRAME.light, shade: FRAME.shade });
+    const faceR = FRAME.radius - FRAME.bevelW;
+    rr(c, FRAME.bevelW, FRAME.bevelW, wu - 2 * FRAME.bevelW, hu - 2 * FRAME.bevelW, faceR);
+    c.fillStyle = OLIVE.housing; c.fill();
+    c.save(); c.clip();
+    const tile = mottleTile((wu - 2 * FRAME.slice) * K, (hu - 2 * FRAME.slice) * K, RES, FRAME.seed, FRAME.scratches);
+    const pattern = c.createPattern(tile, 'repeat');
+    pattern.setTransform(new DOMMatrix().translateSelf(FRAME.slice * px, FRAME.slice * px));
+    c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = pattern; c.fillRect(0, 0, wu * px, hu * px);
+    c.restore();
+  });
+}
+
+const SCREEN = { brass: '#a38052', brassLight: '#c7a36c', brassShade: '#7a5c34', glass: '#322014', radius: 4, brassW: 3.2 };
 
 function screenWell() {
-  const [, , w, h] = local(BOXES.screen);
-  const g = new THREE.Group();
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), screenFace(w, h));
-  face.receiveShadow = true; g.add(face);
-  return place('screen', g);
+  return drawnPlane('screen', (c, wu, hu) => {
+    bevelRing(c, wu, hu, { inset: 0, width: 0.8, radius: SCREEN.radius, light: SCREEN.brassLight, shade: SCREEN.brassShade });
+    rr(c, 0.8, 0.8, wu - 1.6, hu - 1.6, SCREEN.radius - 0.8); c.fillStyle = SCREEN.brass; c.fill();
+    rr(c, SCREEN.brassW, SCREEN.brassW, wu - 2 * SCREEN.brassW, hu - 2 * SCREEN.brassW, 1.5); c.fillStyle = SCREEN.glass; c.fill();
+  });
 }
 
 function housingFace(w, h, paintBody) {
@@ -128,16 +153,29 @@ function lampHousing() {
   return place('lamp', g);
 }
 
+const TAPE = { paper: '#ddcda3', edge: 'rgba(70,48,24,0.55)', fibre: ['rgba(255,248,225,0.35)', 'rgba(120,96,60,0.22)'], jag: 0.6, fibres: 260, seed: 7 };
+
+function tapePath(c, wu, hu) {
+  const j = TAPE.jag;
+  c.beginPath();
+  c.moveTo(j, 0); c.lineTo(wu - j, 0); c.lineTo(wu, hu / 4); c.lineTo(wu - j, hu / 2); c.lineTo(wu, hu * 3 / 4); c.lineTo(wu - j, hu);
+  c.lineTo(j, hu); c.lineTo(0, hu * 3 / 4); c.lineTo(j, hu / 2); c.lineTo(0, hu / 4); c.closePath();
+}
+
 function tapeStrip() {
-  const [, , w, h] = local(BOXES.tape);
-  const shape = new THREE.Shape();
-  const jag = 0.6 * CSS;
-  shape.moveTo(-w / 2, -h / 2); shape.lineTo(w / 2 - jag, -h / 2); shape.lineTo(w / 2, -h / 4); shape.lineTo(w / 2 - jag, 0); shape.lineTo(w / 2, h / 4); shape.lineTo(w / 2 - jag, h / 2);
-  shape.lineTo(-w / 2 + jag, h / 2); shape.lineTo(-w / 2, h / 4); shape.lineTo(-w / 2 + jag, 0); shape.lineTo(-w / 2, -h / 4); shape.closePath();
-  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.002, bevelEnabled: false }), litToon('#d9c9a0'));
-  mesh.castShadow = true;
-  const g = new THREE.Group(); g.add(mesh);
-  return place('tape', g);
+  return drawnPlane('tape', (c, wu, hu) => {
+    tapePath(c, wu, hu); c.fillStyle = TAPE.paper; c.fill();
+    c.save(); c.clip();
+    let a = TAPE.seed;
+    const rnd = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
+    for (let i = 0; i < TAPE.fibres; i++) {
+      const x = rnd() * wu, y = rnd() * hu, len = 0.3 + rnd() * 1.2, ang = (rnd() - 0.5) * 0.6;
+      c.strokeStyle = TAPE.fibre[i % 2]; c.lineWidth = 0.08;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); c.stroke();
+    }
+    c.restore();
+    tapePath(c, wu, hu); c.strokeStyle = TAPE.edge; c.lineWidth = 0.25; c.stroke();
+  });
 }
 
 function toggle() {
@@ -193,13 +231,13 @@ const tight = (box, grow = 0) => view.cropAround(quadOf(box), grow);
 const SHADOW = 3;
 const KEYS = ['keycap', 'keycapLit', 'keycapRed', 'close'];
 const sprites = {
-  frame: { crop: tight(BOXES.frame, SHADOW), frames: ['frame'] },
+  frame: { crop: tight(BOXES.frame), frames: ['frame'] },
   screen: { crop: tight(BOXES.screen), frames: ['screen'] },
   slate: { crop: tight(BOXES.slate, SHADOW), frames: ['slate'] },
   slateLeather: { crop: tight(BOXES.slateLeather, SHADOW), frames: ['slateLeather'] },
   input: { crop: tight(BOXES.input), frames: ['input'] },
   lamp: { crop: tight(BOXES.lamp, 1), frames: ['lamp'] },
-  tape: { crop: tight(BOXES.tape, 1), frames: ['tape'] },
+  tape: { crop: tight(BOXES.tape), frames: ['tape'] },
   rocker: { crop: tight(BOXES.rocker, 1), frames: ['rocker-off', 'rocker-on'] },
   knob: { crop: tight(BOXES.knob), frames: ['knob'] },
   knobPointer: { crop: tight(BOXES.knobPointer), frames: ['knobPointer'] },

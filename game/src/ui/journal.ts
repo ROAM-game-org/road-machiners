@@ -1,6 +1,6 @@
 import { noteBody, noteFrom, noteTitle, fullName, siteName } from '../text/names';
 import { t, PLUS, type Msg } from '../text/msg';
-import { keyLabel, narrowMode } from './input-mode';
+import { keyTip, narrowMode } from './input-mode';
 import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
@@ -116,7 +116,7 @@ export class JournalScreen {
     this.root.classList.toggle('dialog', !side);
     this.root.classList.toggle('journal-side', side);
     this.root.replaceChildren(
-      el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyLabel(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),
+      el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyTip(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),
       el('div', { class: 'tabs sub' }, ...ALL_TABS.map((id) => this.tabButton(id, id === tab))),
       el('div', { class: 'journal-body screen-block' }, this.page(w, journal, tab)),
     );

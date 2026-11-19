@@ -1,7 +1,7 @@
 import { bindAttr } from "../text/language";
 import { t, type Msg } from "../text/msg";
-import { el, isBrowserChord, panel } from "./dom";
-import { controls, textKey } from "./dash/skin";
+import { isBrowserChord, panel } from "./dom";
+import { controls, metalLine, textKey } from "./dash/skin";
 
 export type ConfirmAsk = { question: Msg; yes: Msg };
 
@@ -51,7 +51,7 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-describedby", QUESTION_ID);
     bindAttr(dialog, "aria-label", ask.question);
-    dialog.append(el("p", { id: QUESTION_ID, class: "hud-screen" }, ask.question), controls(cancel, yes));
+    dialog.append(metalLine(ask.question, QUESTION_ID), controls(cancel, yes));
     window.addEventListener("keydown", onKey, true);
     cancel.focus();
   });

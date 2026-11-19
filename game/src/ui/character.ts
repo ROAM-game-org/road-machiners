@@ -10,7 +10,7 @@ import type { UiHost } from './host';
 import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { concat, MINUS_SIGN, num, PLUS, t, type Msg, type PlainKey } from '../text/msg';
-import { keyLabel } from './input-mode';
+import { keyTip } from './input-mode';
 import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName, standingDeedName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
@@ -79,7 +79,7 @@ export class CharacterScreen {
     return el('div', { class: 'char-top' },
       el('h3', {}, t('character.title')),
       el('div', { class: 'tabs sub' }, ...this.offered(world).map(button), ...(map ? [this.mapTab().controls] : [])),
-      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(map ? 'map.close' : 'character.close'), map ? 'M' : 'C')));
+      el('button', { class: 'close', title: keyTip(t(map ? 'map.close' : 'character.close'), map ? 'M' : 'C'), onclick: () => this.close() }, t(map ? 'map.close' : 'character.close')));
   }
 
   private page(world: World): HTMLElement[] {

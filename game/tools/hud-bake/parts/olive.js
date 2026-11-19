@@ -37,16 +37,45 @@ function chip(c, rnd, x, y, w, h) {
   c.fillStyle = 'rgba(215,195,150,0.3)'; c.fill();
 }
 
-export const mottle = (c, x, y, w, h, seed, { strength = 1 } = {}) => {
-  const rnd = seeded(seed);
-  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+const MOTTLE = { strength: 1, clip: true, chips: true };
+
+function marks(c, rnd, [x, y, w, h], { strength, chips }) {
   c.lineCap = 'round';
   const scratches = Math.round(w * h / 9000 * strength);
   for (let i = 0; i < scratches; i++) scratch(c, rnd, x, y, w, h);
-  const chips = Math.round((w + h) / 40 * strength);
-  for (let i = 0; i < chips; i++) chip(c, rnd, x, y, w, h);
+  const chipCount = Math.round((w + h) / 40 * strength) * Number(chips);
+  for (let i = 0; i < chipCount; i++) chip(c, rnd, x, y, w, h);
+}
+
+export const mottle = (c, x, y, w, h, seed, options) => {
+  const o = { ...MOTTLE, ...options };
+  c.save();
+  if (o.clip) { c.beginPath(); c.rect(x, y, w, h); c.clip(); }
+  marks(c, seeded(seed), [x, y, w, h], o);
   c.restore();
 };
+
+const SPECKLE = { perPx: 1 / 5, light: 'rgba(235,220,185,0.10)', dark: 'rgba(40,28,14,0.12)', size: [0.5, 1.4] };
+
+function speckle(c, w, h, rnd) {
+  const count = Math.round(w * h * SPECKLE.perPx);
+  for (let i = 0; i < count; i++) {
+    const d = SPECKLE.size[0] + rnd() * (SPECKLE.size[1] - SPECKLE.size[0]);
+    c.fillStyle = rnd() < 0.5 ? SPECKLE.light : SPECKLE.dark;
+    c.fillRect(rnd() * (w - d), rnd() * (h - d), d, d);
+  }
+}
+
+export function mottleTile(w, h, res, seed, strength) {
+  const cv = document.createElement('canvas'); cv.width = Math.round(w * res); cv.height = Math.round(h * res);
+  const c = cv.getContext('2d');
+  c.scale(res, res);
+  speckle(c, w, h, seeded(seed + 1));
+  for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) {
+    c.save(); c.translate(dx, dy); mottle(c, 0, 0, w, h, seed, { strength, clip: false, chips: false }); c.restore();
+  }
+  return cv;
+}
 
 export const rrShape = (x0, y0, x1, y1, r, Ctor = THREE.Shape) => {
   const s = new Ctor();

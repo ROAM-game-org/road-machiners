@@ -2,13 +2,16 @@ import { inkFaults } from './ink-check.mjs';
 
 export const NEAR_MISS = 24;
 export const BAR = { maxHeight: 10, minWidth: 24 };
+export const SCREEN_PAD = 12;
+export const MIN_LINES = 1.8;
 
 const SELECTORS = {
   window: '.dialog, .ink-page, .confirm-dialog, #ui > .panel, .modal, .hud-panel, .journal-side',
   screen: '.hud-screen, .screen-block, .well, input, textarea, select',
-  readout: '.chip, .cost, .ink-chips *, .scroll-wheel',
+  readout: '.chip, .chip-screen, .cost, .ink-chips *, .scroll-wheel',
   cap: 'button, kbd, .key',
   fixedLabel: 'kbd, .option-switch > button',
+  edgeToEdge: 'input, textarea, select, .minimap-body, .map-tab',
 };
 
 export const FIXED_GROUPS = {
@@ -23,7 +26,7 @@ export const FIXED_GROUPS = {
   inspect: { window: '.info', states: ['inspect', 'inspect-unarmed', 'inspect-hauler', 'inspect-nine'] },
 };
 
-function inPage({ sel, near, bar, groupWindow }) {
+function inPage({ sel, near, bar, pad, minLines, groupWindow }) {
   const shown = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -64,7 +67,9 @@ function inPage({ sel, near, bar, groupWindow }) {
   };
   const isCap = (el) => el.matches(sel.cap) && art(el) !== 'none' && shown(el);
   const capFault = (cap) => {
-    const words = cap.innerText.replace(/\[[^\]]*\]/g, '');
+    const bare = cap.cloneNode(true);
+    bare.querySelectorAll('.priced .price').forEach((price) => price.remove());
+    const words = bare.innerText.replace(/\[[^\]]*\]/g, '');
     if (/\d/.test(words)) return { kind: 'key-state', path: name(cap), text: `the key prints ${words.trim().replace(/\s+/g, ' ').slice(0, 30)}` };
     return cap.querySelector('img, canvas, .chassis-portrait') ? { kind: 'key-state', path: name(cap), text: 'the key shows a picture of the game' } : null;
   };
@@ -81,9 +86,24 @@ function inPage({ sel, near, bar, groupWindow }) {
     const buttons = [...screen.querySelectorAll('.screen-btn')].filter(shown).map((b) => ({ name: name(b), rect: rectOf(b) }));
     return pairs(buttons).filter(([a, b]) => columnMiss(a.rect, b.rect)).map(([a, b]) => ({ kind: 'row-grid', path: `${a.name} | ${b.name}`, text: `buttons at ${Math.round(a.rect.l)} to ${Math.round(a.rect.r)} and ${Math.round(b.rect.l)} to ${Math.round(b.rect.r)} miss one column` }));
   };
+  const ownText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+  const isContent = (el) => shown(el) && (ownText(el) || el.matches('img, canvas, button, .icon'));
+  const insets = (r, box) => [r.l - box.l, box.r - r.r, r.t - box.t, box.b - r.b];
+  const insetOf = (el, screen, box) => Math.min(...insets(rectOf(el), box).slice(0, scrollsWithin(el, screen.parentElement) ? 2 : 4));
+  const padFault = (screen) => {
+    const box = rectOf(screen);
+    const close = [...screen.querySelectorAll('*')].filter(isContent).map((el) => ({ el, inset: insetOf(el, screen, box) })).find((c) => c.inset < pad - 1);
+    return close ? [{ kind: 'screen-pad', path: `${name(screen)} > ${name(close.el)}`, text: `content sits ${Math.round(close.inset)} px from the rim, the screen pad is ${pad}` }] : [];
+  };
+  const textScreens = (win) => outerScreens(win).filter((s) => !s.matches(sel.readout) && !s.matches(sel.edgeToEdge));
+  const padFaults = (win) => textScreens(win).flatMap(padFault);
+  const innerHeight = (s, st) => s.getBoundingClientRect().height - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
+  const lineHeight = (st) => (st.lineHeight === 'normal' ? parseFloat(st.fontSize) * 1.2 : parseFloat(st.lineHeight));
+  const oneLine = (s) => { const st = getComputedStyle(s); return innerHeight(s, st) < minLines * lineHeight(st); };
+  const lineFaults = (win) => textScreens(win).filter(oneLine).map((s) => ({ kind: 'screen-one-line', path: name(s), text: `a screen ${Math.round(s.getBoundingClientRect().height)} px high holds one line` }));
   const desktop = !document.querySelector('#ui.narrow, #ui.tight');
   const layoutFaults = (win) => (desktop ? [...gridFaults(win), ...outerScreens(win).flatMap(rowFaults)] : []);
-  const windowFaults = (win) => [...layoutFaults(win), ...keyFaults(win), ...barFaults(win)];
+  const windowFaults = (win) => [...layoutFaults(win), ...padFaults(win), ...lineFaults(win), ...keyFaults(win), ...barFaults(win)];
   const tops = [...document.querySelectorAll(sel.window)].filter((w) => shown(w) && !w.parentElement.closest(sel.window));
   const fixedOf = (win) => [{ name: name(win), rect: rectOf(win) }, ...outerScreens(win).map((s) => ({ name: name(s), rect: rectOf(s) }))];
   const group = groupWindow ? [...document.querySelectorAll(groupWindow)].find(shown) : null;
@@ -109,6 +129,6 @@ function fixedFaults(group, state, { fixed, label }) {
 
 export async function hardwareFaults(page, state, locale, viewport) {
   const group = groupOf(state);
-  const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, groupWindow: group ? group[1].window : null });
+  const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, pad: SCREEN_PAD, minLines: MIN_LINES, groupWindow: group ? group[1].window : null });
   return [...await inkFaults(page), ...[...seen.faults, ...(group && seen.compares && locale !== 'pseudo' ? fixedFaults(group[0], state, { ...seen, label: `${locale} ${viewport}` }) : [])].map((f) => ({ sizes: '', ...f }))];
 }

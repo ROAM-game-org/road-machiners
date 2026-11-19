@@ -811,7 +811,7 @@
 :is(#ui, #overlay) .hud-screen {
   box-sizing: border-box;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--hud-screen-pad);
   border: 0;
   background: none;
   border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
@@ -839,10 +839,6 @@
 
 :is(#ui, #overlay) .hud-screen :is(.bad, .bad *),
 #ui .hud-screen.bad {
-  color: var(--hud-hot);
-}
-
-#ui .toast.bad {
   color: var(--hud-hot);
 }
 
@@ -925,7 +921,7 @@
   padding: var(--hud-rim-w) calc(var(--space-2) + var(--hud-rim-w));
   border: 0;
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
 }
 
 #ui .tray-window {
@@ -1000,7 +996,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
 }
 
@@ -1216,7 +1212,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
@@ -1331,7 +1327,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
   font-family: var(--font-hud);
   text-shadow: var(--hud-text-glow);
@@ -1421,7 +1417,7 @@
 
 #ui :is(.action, .game-menu [role=menu]) {
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   text-shadow: none;
 }
 
@@ -1604,10 +1600,6 @@
   border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
 }
 
-#ui .toast.bad > .hud-screen {
-  color: var(--hud-hot);
-}
-
 :is(#ui, #overlay) .hud-panel {
   box-sizing: border-box;
   display: grid;
@@ -1640,6 +1632,10 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding-top: var(--space-1);
+}
+
+:is(#ui, #overlay) .hud-panel .hud-controls > button {
+  white-space: nowrap;
 }
 
 :is(#ui, #overlay) .hud-panel .hud-controls[data-count="1"] {
@@ -1763,7 +1759,7 @@
 
 #ui .info .info-content > .hud-screen {
   flex: none;
-  height: calc(4 * var(--hud-text-m) * 1.25 + 2 * var(--space-2));
+  height: calc(4 * var(--hud-text-m) * 1.25 + 2 * var(--hud-screen-pad-y));
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -1775,9 +1771,9 @@
 }
 
 #ui .info .hitcard {
-  height: calc(var(--text-caption) * 1.4 + 3 * (var(--text-dense) * 1.3 + var(--space-1)) + 4 * var(--space-2));
+  height: calc(var(--text-caption) * 1.4 + 3 * (var(--text-dense) * 1.3 + var(--space-1)) + 2 * var(--space-2) + 2 * var(--hud-screen-pad-y));
   align-content: start;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--hud-screen-pad);
   border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
   background: var(--hud-screen-glass);
   border-radius: var(--hud-screen-radius);
@@ -1788,6 +1784,7 @@
 #ui .info .info-draw {
   flex: 1 1 0;
   width: auto;
+  padding: var(--hud-screen-pad);
   background: none;
   border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
   background: var(--hud-screen-glass);

@@ -79,7 +79,7 @@ import { list, num, t, type Msg } from "../text/msg";
 import { canteenName, driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, townHeading, vehicleTitle } from "../text/names";
 import { commandFailure, stanceTag } from "./format";
 import { seesAll } from "./see-all";
-import { ESCAPE, keyLabel, keyTip } from "./input-mode";
+import { ESCAPE, keyTip } from "./input-mode";
 import { deskAt } from "../sim/crime";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts";
@@ -857,7 +857,7 @@ export class TruckTradeScreen {
     const truck = el("div", { class: "town-truck" }, el("div", { class: "town-band" }, this.inventory.keysEl), truckBody);
     const shop = el("div", { class: "town-shop" }, el("div", { class: "town-band" }, el("div", { class: "tabs" }, ...this.tabButtons())), el("div", { class: "shop-body screen-block" }, this.tabBody(w, npc)));
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
+      el("button", { class: "close", title: keyTip(t("trade.leave"), ESCAPE.key), onclick: () => this.close() }, t("trade.leave")),
       el("h3", {}, vehicleTitle(w, npc), truckChips(w), partnerChips(npc)),
       el("div", { class: "town-split banded" }, truck, shop),
       el("div", { class: "outpost-foot" }, el("div", { class: "bad" }, this.error)),
@@ -1031,7 +1031,7 @@ function shopBody(body: HTMLElement, screen: boolean): HTMLElement {
 }
 
 function proseEl(text: Msg): HTMLElement {
-  return el("p", { class: "qt-line screen-block" }, text);
+  return el("p", { class: "qt-line" }, text);
 }
 
 function proseOf(shopId: string, page: TownPage): Msg {
@@ -1044,7 +1044,7 @@ export function heldSlots(placed: HTMLElement[]): HTMLElement[] {
 }
 
 function wayOutKey(c: TownChoice, i: number): HTMLElement {
-  const key = reasonButton([keyLabel(c.label, ESCAPE.key)], c.go, c.reason, "", keyTip(c.label, String(i + 1)));
+  const key = reasonButton([c.label], c.go, c.reason, "", keyTip(c.label, String(i + 1)));
   key.className = "quest-choice compact";
   return key;
 }

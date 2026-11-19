@@ -1,7 +1,7 @@
 
 import { PARTS, type PartDef } from "../data/parts";
 import { say } from "../text/language";
-import { keyLabel } from "./input-mode";
+import { ESCAPE, keyTip } from "./input-mode";
 import { t } from "../text/msg";
 import { CheatError, give } from "../sim/cheats";
 import { chargeFor, gunFor } from "../sim/factory";
@@ -71,7 +71,7 @@ export class FullShopScreen {
       el("div", { class: "shop-body screen-block" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, say(keyLabel(t("trade.leave"), "Esc"))),
+      el("button", { class: "close", title: say(keyTip(t("trade.leave"), ESCAPE.key)), onclick: () => this.close() }, say(t("trade.leave"))),
       el("h3", {}, say(t("fullShop.title")), truckChips(w)),
       el("div", { class: "town-split banded" }, truck, shop),
       el("div", { class: "outpost-foot" }, el("div", { class: "bad" }, this.error)),

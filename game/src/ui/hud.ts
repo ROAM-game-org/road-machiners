@@ -215,7 +215,7 @@ export class Hud {
   private action = panel("action");
   private toastBox = panel("toast hud-panel");
 
-  private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
+  private toastScreen = this.toastBox.appendChild(el("p", { class: "metal-line" }));
   private rescue = panel("rescue notice hud-panel", topCenter());
   private knockedOut = panel("status-mark hud-panel", topCenter());
   private truckStack = el("div", { class: "truck-stack" });

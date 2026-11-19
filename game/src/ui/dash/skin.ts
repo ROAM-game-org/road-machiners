@@ -219,6 +219,10 @@ export function screen(...lines: Child[]): HTMLElement {
   return el("div", { class: "hud-screen" }, ...lines);
 }
 
+export function metalLine(text: Msg, id?: string): HTMLElement {
+  return el("p", { class: "metal-line", ...(id === undefined ? {} : { id }) }, text);
+}
+
 export function screenLine(tone: Tone | null, ...parts: Child[]): HTMLElement {
   return el("div", { class: tone === null ? "screen-line" : `screen-line ${tone}` }, ...parts);
 }

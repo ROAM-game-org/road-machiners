@@ -43,7 +43,6 @@ export { gridColumnLetter, gridRowNumber, gridSquareText } from './grid-text';
 import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
-import { keyLabel } from './input-mode';
 import { driverName, factionName, standingCauseText, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import { t, type Msg } from "../text/msg";
 import { choiceButton, GARAGE_ONLY, heldSlots, townPageOnOpen, type TownChoice } from "./town";
+import { supplyCharge } from "../sim/economy";
 import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
@@ -218,6 +219,7 @@ class FakeNode {
     const here = pred(this) ? [this] : [];
     return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
   }
+  querySelector: (sel: string) => FakeNode | null = () => null;
   has(cls: string): boolean {
     return this.className.split(" ").includes(cls);
   }
@@ -308,13 +310,10 @@ describe("the supply rows of the front page", () => {
     const w = emptyWorld();
     const asked: number[] = [];
     const buttons = {
-      button: (_label: Msg, cmd: (x: World) => World) => {
-        cmd(w);
-        return new FakeNode("button") as unknown as HTMLElement;
-      },
+      button: () => new FakeNode("button") as unknown as HTMLElement,
       priceButton: (_w: World, _verb: Msg, _price: number, cmd: (x: World) => World) => {
         cmd(w);
-        return new FakeNode("button") as unknown as HTMLElement;
+        return keyWithPrice();
       },
     };
     const buy = (x: World, _k: string, n: number) => {
@@ -326,26 +325,32 @@ describe("the supply rows of the front page", () => {
     expect(asked).toEqual([1, 3]);
   });
 
-  it("print fixed words on the keys and leave every price to the readouts", () => {
+  it("print the verb and the price on the keys and show only the level on the screen", () => {
     const w = emptyWorld();
     const labels: Msg[] = [];
-    let priced = 0;
+    const prices: number[] = [];
     const buttons = {
-      button: (label: Msg) => {
-        labels.push(label);
-        return new FakeNode("button") as unknown as HTMLElement;
-      },
-      priceButton: () => {
-        priced += 1;
-        return new FakeNode("button") as unknown as HTMLElement;
+      button: () => new FakeNode("button") as unknown as HTMLElement,
+      priceButton: (_w: World, verb: Msg, price: number) => {
+        labels.push(verb);
+        prices.push(price);
+        return keyWithPrice();
       },
     };
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
-    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null });
+    const row = limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null }) as unknown as FakeNode;
     expect(labels).toEqual([t("goods.buy"), t("trade.fillBare")]);
-    expect(priced).toBe(0);
+    expect(prices).toEqual([supplyCharge("fuel", 1), supplyCharge("fuel", 3)]);
+    expect(row.all((n) => n.has("service-price"))).toEqual([]);
   });
 });
+
+function keyWithPrice(): HTMLElement {
+  const key = new FakeNode("button");
+  const price = Object.assign(new FakeNode("span"), { prepend: () => {} });
+  key.querySelector = (sel: string) => (sel === ".price" ? price : null);
+  return key as unknown as HTMLElement;
+}
 
 describe("the way out of a town page", () => {
   beforeEach(() => {
@@ -360,13 +365,13 @@ describe("the way out of a town page", () => {
 
   it("prints the same words whatever the number of choices and keeps its number in the tooltip", () => {
     const keys = [0, 4, 6].map((index) => wayOut("back", t("town.back"), index));
-    expect(keys.map((key) => key.text())).toEqual(["Back [Esc]", "Back [Esc]", "Back [Esc]"]);
+    expect(keys.map((key) => key.text())).toEqual(["Back", "Back", "Back"]);
     expect(keys.map((key) => key.attrs.get("title"))).toEqual(["[1] Back", "[5] Back", "[7] Back"]);
   });
 
   it("keeps the leave key of the front page apart from the screen lines", () => {
     const leave = wayOut("leave", t("town.go.leave"), 6);
-    expect(leave.text()).toBe("Drive on [Esc]");
+    expect(leave.text()).toBe("Drive on");
     expect(leave.has("compact")).toBe(true);
     expect(leave.dataset.townGo).toBe("leave");
     const line = choiceButton({ id: "garage", label: t("town.section.garage"), reason: null, go: () => {} }, 0) as unknown as FakeNode;

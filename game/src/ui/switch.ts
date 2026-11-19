@@ -1,4 +1,4 @@
-import { t, type Msg } from "../text/msg";
+import type { Msg } from "../text/msg";
 import { createIcon } from "./cards";
 import { el, spokenReason } from "./dom";
 import { keyTip } from "./input-mode";
@@ -12,10 +12,6 @@ export interface SwitchOptions {
   reason?: Msg | null;
   locked?: boolean;
   onclick: () => void;
-}
-
-export function keyCorner(key: string): HTMLElement {
-  return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
 }
 
 function switchTitle(o: SwitchOptions, locked: Msg | null): Msg {
@@ -37,7 +33,6 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
     },
     stackedLabel([o.on, o.off], o.checked ? 0 : 1, "switch-option"),
     switchHandle(o),
-    o.key ? keyCorner(o.key) : null,
   );
 }
 

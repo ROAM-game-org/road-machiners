@@ -35,7 +35,7 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { keyLabel, touchMode } from "./input-mode";
+import { keyTip, touchMode } from "./input-mode";
 import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookOrTurnReason, lookOverReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
@@ -1178,7 +1178,7 @@ export class InventoryScreen {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("inv.close"), "I"));
+    return el("button", { class: "close", title: keyTip(t("inv.close"), "I"), onclick: () => this.close() }, t("inv.close"));
   }
 
   private renderBench(): void {

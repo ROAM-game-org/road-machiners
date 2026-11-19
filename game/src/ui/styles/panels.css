@@ -392,7 +392,7 @@
   padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
   border: 0;
   background: none;
-  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   text-align: left;

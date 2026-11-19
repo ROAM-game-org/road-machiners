@@ -85,7 +85,3 @@ export function keyCap(key: string): HTMLElement | null {
   if (touchMode()) return null;
   return el("kbd", { class: "key" }, verbatim(key));
 }
-
-export function closeLabel(): Msg {
-  return touchMode() ? t("menu.close") : t("menu.closeEsc");
-}

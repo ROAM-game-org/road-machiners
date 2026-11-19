@@ -1,5 +1,5 @@
 
-import { closeLabel } from "./input-mode";
+import { ESCAPE, keyTip } from "./input-mode";
 import type { GameModeId } from "../sim/types";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
@@ -97,7 +97,7 @@ export class SaveList {
     this.root = panel("save-panel dialog");
     this.root.setAttribute("role", "dialog");
     bindAttr(this.root, "aria-label", title);
-    this.root.append(el("h3", {}, title), el("div", { class: "screen-block save-slots" }, ...rows), ...foot, el("button", { class: "close", onclick: () => this.close() }, closeLabel()));
+    this.root.append(el("h3", {}, title), el("div", { class: "screen-block save-slots" }, ...rows), ...foot, el("button", { class: "close", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close")));
     window.addEventListener("keydown", this.onKey, true);
   }
 

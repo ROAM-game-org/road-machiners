@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -23,6 +23,9 @@
   color: var(--hud-amber);
   font-family: var(--font-ui);
   text-shadow: var(--hud-text-glow);
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .quest-page .quest-side) {
+  padding: var(--hud-screen-pad);
 }
 :is(#ui, #report) :is(.well, .screen-block, .board-offers) h3 {
   margin: 0 0 var(--space-4);
@@ -75,23 +78,14 @@
 }
 :is(#ui, #report) :is(h2, h3, div, span).tape {
   padding: var(--space-2) var(--space-5);
-  background: var(--hud-tape-art) center / 100% 100% no-repeat;
+  border: 0;
+  border-image: var(--hud-tape-art) 8% 6% fill / 2px 6px round;
+  background: none;
   color: var(--hud-print-ink);
   font: 700 var(--text-body) / 1.15 var(--font-hud);
   letter-spacing: normal;
   text-transform: none;
   text-shadow: none;
-}
-:where(#ui, #report) .screen-block {
-  padding: var(--space-4) var(--space-5);
-}
-.board-offers {
-  padding: var(--space-2) var(--space-5);
-}
-.town-page .qt-line.screen-block,
-.town-page:has(.board) .ink-head .qt-line {
-  margin-bottom: var(--space-3);
-  padding: var(--space-2) var(--space-5);
 }
 .chips .chip {
   padding: var(--space-3) var(--space-5);
@@ -227,6 +221,7 @@
   padding-bottom: calc(var(--space-2) + var(--gauge-h) + var(--space-1));
 }
 :is(#ui, #report) :is(.well, .screen-block, .board-offers, .hud-screen) .tag {
+  align-self: start;
   box-shadow: var(--hud-line-glow);
   text-shadow: var(--hud-text-glow);
 }

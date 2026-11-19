@@ -933,15 +933,15 @@
   min-width: calc(var(--chip-ch) * 1.25ch + var(--icon-s) + var(--space-3) + 2 * var(--space-5));
 }
 .service-row > .service-meter.cost {
+  flex: none;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  flex-wrap: nowrap;
   gap: var(--space-2);
-  width: max-content;
-  min-width: calc(var(--space-10) * 3.5);
+  width: calc(var(--space-10) * 3.5);
+  min-width: 0;
   min-height: 0;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-2) var(--space-5);
 }
 .service-meter {
   display: flex;
@@ -1099,24 +1099,22 @@
   background: none;
 }
 .chassis-map .c-plain {
-  background: var(--hud-amber-dim);
+  background: var(--map-plain);
 }
 .chassis-map .c-D {
-  background: var(--hud-amber-soft);
-  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
+  background: var(--map-deck);
 }
 .chassis-map .c-E {
-  background: var(--hud-amber);
-  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
+  background: var(--map-engine);
 }
 .chassis-map .c-X {
-  background: var(--hud-lcd-ghost);
+  background: var(--map-none);
 }
 .chassis-map .c-F,
 .chassis-map .c-B,
 .chassis-map .c-L,
 .chassis-map .c-R {
-  background: var(--hud-amber-faint);
+  background: var(--map-side);
 }
 
 /* Contracts: one row per job. */
@@ -1346,9 +1344,6 @@
   }
 }
 
-#ui.compact .service-row > .service-meter.cost {
-  width: calc(var(--space-10) * 2.25);
-}
 #ui.compact :is(.town-services, .outpost-services) {
   column-gap: var(--space-6);
 }
@@ -1367,42 +1362,4 @@
 #ui.tight .town-split.banded .inv-wrap > .inv-side {
   grid-area: 2 / 1;
   width: auto;
-}
-.service-meter.service-prices,
-.service-row > .service-meter.cost {
-  display: grid;
-  grid-auto-flow: column;
-  align-items: center;
-  column-gap: var(--space-7);
-}
-.service-meter .service-level {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.service-meter .service-prices {
-  display: grid;
-  gap: var(--space-1);
-}
-.service-meter .service-price {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-.service-meter .service-label {
-  color: var(--hud-amber-soft);
-  font-family: var(--font-ui);
-}
-.service-prices.service-meter {
-  grid-auto-flow: row;
-  width: var(--service-repair-w);
-  min-width: 0;
-  justify-content: stretch;
-  padding: var(--space-2) var(--space-5);
-}
-#ui .service-row > .service-meter.cost {
-  flex: none;
-  width: var(--service-supply-w);
-  min-width: 0;
-  padding: var(--space-2) var(--space-5);
 }

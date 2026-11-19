@@ -3,7 +3,7 @@ import { setText, bindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { gzip, type GameContext, type ReportContext } from "../three/error-report";
 import { el, panel } from "./dom";
-import { closeLabel } from "./input-mode";
+import { ESCAPE, keyTip } from "./input-mode";
 
 export const FEEDBACK_TEXT_LIMIT = 3000;
 
@@ -95,7 +95,7 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "close", onclick: () => this.close() }, closeLabel());
+    return el("button", { class: "close", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close"));
   }
 
   private offContent(): HTMLElement[] {

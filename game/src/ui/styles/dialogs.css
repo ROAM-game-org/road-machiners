@@ -116,3 +116,21 @@
   color: inherit;
   font: var(--text-dense) var(--font-mono);
 }
+:is(#ui, #overlay) .hud-panel > .metal-line {
+  margin: 0;
+  color: var(--hud-print-coal);
+  font: var(--text-lead) / 1.35 var(--font-engraved);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+}
+:is(#ui, #overlay) :is(.confirm-dialog, .death-box) .hud-controls {
+  flex-wrap: wrap;
+}
+:is(#ui, #overlay) :is(.confirm-dialog, .death-box) button.hud-key > .key-label {
+  width: max-content;
+  white-space: nowrap;
+}
+:is(#ui, #overlay) .death-box {
+  --hud-panel-w: var(--hud-panel-xl);
+}
