@@ -1,15 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "../text/msg";
+import type * as DomModule from "./dom";
 
 type Node = { tag: string; props: Record<string, unknown>; children: unknown[] };
 
-vi.mock("./dom", () => ({
+vi.mock("./dom", async (actual) => ({
+  ...(await actual<typeof DomModule>()),
   el: (tag: string, props: Record<string, unknown> | null, ...children: unknown[]): Node => ({ tag, props: props ?? {}, children: children.flat().filter((c) => c !== null) }),
 }));
 vi.mock("./cards", () => ({ createIcon: (name: string) => ({ tag: "svg", props: { class: `icon-${name}` }, children: [] }) }));
 vi.mock("./input-mode", () => ({ keyLabel: (title: unknown) => title }));
 
 const { createSwitch, lockSlot, stackedLabel } = await import("./switch");
+const { TURN_PLAYING } = await import("./dom");
 
 function find(node: unknown, test: (n: Node) => boolean): Node[] {
   if (typeof node !== "object" || node === null || !("children" in node)) return [];
@@ -41,6 +44,11 @@ describe("switch", () => {
     const stack = stackedLabel([t("hud.driver"), t("hud.driverMarked")], 1) as unknown as Node;
     expect(hasClass(stack.children[0] as Node, "label-reserve")).toBe(true);
     expect(hasClass(stack.children[1] as Node, "label-reserve")).toBe(false);
+  });
+  it("locks during a turn and titles itself without Turn playing", () => {
+    const sw = createSwitch({ ...base, checked: true, reason: TURN_PLAYING }) as unknown as Node;
+    expect(sw.props["aria-disabled"]).toBe("true");
+    expect(sw.props.title).toBe(base.title);
   });
   it("keeps the lock slot when unlocked", () => {
     expect(hasClass(lockSlot(false) as unknown as Node, "label-reserve")).toBe(true);

@@ -9,7 +9,7 @@ import { workOf, type WorkLeft } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft } from "./dom";
+import { bottomLeft, TURN_PLAYING } from "./dom";
 import type { UiHost } from "./host";
 import { FASTER_KEY, heldPick, SLOWER_KEY } from "./travel-speed";
 import { clockOf } from "../sim/sun";
@@ -178,7 +178,6 @@ export function ammoText(mw: MountedWeapon): Msg {
 
 
 
-export const TURN_PLAYING: Msg = t("weapon.turnPlaying");
 
 export function lineOut(w: World, mw: MountedWeapon): boolean {
   const me = playerVehicle(w);

@@ -70,7 +70,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   fireTongue: { label: "Tongue reach", min: 0, max: 3, step: 0.05, start: 0.9, unit: "m" },
   fireTongueSize: { label: "Tongue size", min: 0.1, max: 3, step: 0.05, start: 0.8, unit: "m" },
   fireTongueSpeed: { label: "Tongue rise speed", min: 0, max: 5, step: 0.1, start: 1.5 },
-  crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0.1 },
+  crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0 },
 };
 
 export function tuningOn(): boolean {

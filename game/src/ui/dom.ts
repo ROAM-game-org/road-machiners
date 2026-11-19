@@ -1,5 +1,5 @@
 import { bindAttr, boundMsg, TEXT_ATTRS, textNode, unbindAttr, type TextAttr } from '../text/language';
-import { Msg, VERBATIM, type DevLocale } from '../text/msg';
+import { Msg, t, VERBATIM, type DevLocale } from '../text/msg';
 
 type TextAttrs = { [K in TextAttr]?: Msg };
 type Attrs = TextAttrs & Record<string, string | number | boolean | Msg | ((e: Event) => void) | undefined>;
@@ -159,11 +159,18 @@ export function topCenter(): HTMLElement {
   return stack;
 }
 
+export const TURN_PLAYING: Msg = t('weapon.turnPlaying');
+
+export function spokenReason(reason: Msg | null): Msg | null {
+  return reason === null || reason.key === TURN_PLAYING.key ? null : reason;
+}
+
 type ClickAttrs = { onclick: () => void; 'aria-disabled'?: string; 'data-reason'?: Msg };
 
 export function disabledWith(reason: Msg | null, onclick: () => void): ClickAttrs {
   if (reason === null) return { onclick };
-  return { onclick: () => {}, 'aria-disabled': 'true', 'data-reason': reason };
+  const spoken = spokenReason(reason);
+  return spoken === null ? { onclick: () => {}, 'aria-disabled': 'true' } : { onclick: () => {}, 'aria-disabled': 'true', 'data-reason': spoken };
 }
 
 export function markDisabled(node: HTMLElement, reason: Msg | null): void {
@@ -173,7 +180,9 @@ export function markDisabled(node: HTMLElement, reason: Msg | null): void {
     return;
   }
   node.setAttribute('aria-disabled', 'true');
-  bindAttr(node, 'data-reason', reason);
+  const spoken = spokenReason(reason);
+  if (spoken === null) unbindAttr(node, 'data-reason');
+  else bindAttr(node, 'data-reason', spoken);
 }
 
 function bindText(node: HTMLElement, k: string, msg: Msg): void {

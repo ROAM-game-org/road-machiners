@@ -977,7 +977,7 @@
 }
 
 #ui .system-key.marked > .key-mark {
-  visibility: visible;
+  visibility: inherit;
 }
 
 #ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),

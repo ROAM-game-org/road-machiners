@@ -349,7 +349,7 @@ export class StatsStrip {
       this.plate.zone(el("span", { class: "stat-icon", "data-resource": id, role: "img" }, icon), iconZone),
       this.plate.zone(el("span", { class: "stat-lcd", "data-resource": id, role: "img" }, digits), id),
     ];
-    this.cells = [cell("money", coinEl(), "coin", this.money), cell("supplies", createIcon("supplies"), "bag", this.supplies), cell("health", createIcon("health"), "cross", this.health)];
+    this.cells = [cell("money", coinEl(), "coin", this.money), cell("supplies", cellIcon("supplies"), "bag", this.supplies), cell("health", cellIcon("health"), "cross", this.health)];
     this.plate.zone(el("span", { class: "plate-label stat-unit" }, unit), "unit");
     this.root = el("div", { class: "hud-stats readouts" }, this.plate.root);
   }
@@ -368,6 +368,12 @@ export class StatsStrip {
       }
     });
   }
+}
+
+function cellIcon(name: "supplies" | "health"): HTMLElement {
+  const icon = createIcon(name);
+  setAttrText(icon, "title", null);
+  return icon;
 }
 
 const STATS_LAYOUT = { width: 304.9, height: 52, boxes: {} };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { t } from "../text/msg";
-import { disabledWith, isBrowserChord, namesKey } from "./dom";
+import { disabledWith, isBrowserChord, namesKey, TURN_PLAYING } from "./dom";
 
 const NO_SAVES = t("save.none");
 
@@ -38,6 +38,15 @@ describe("disabledWith", () => {
     expect(click).not.toHaveBeenCalled();
     expect(attrs["aria-disabled"]).toBe("true");
     expect(attrs["data-reason"]).toBe(NO_SAVES);
+  });
+
+  it("blocks the click during a turn and keeps Turn playing out of the tooltip", () => {
+    const click = vi.fn();
+    const attrs = disabledWith(TURN_PLAYING, click);
+    attrs.onclick();
+    expect(click).not.toHaveBeenCalled();
+    expect(attrs["aria-disabled"]).toBe("true");
+    expect(attrs["data-reason"]).toBeUndefined();
   });
 });
 

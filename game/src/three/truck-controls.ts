@@ -1,6 +1,6 @@
 
 import { deskAt } from '../sim/crime';
-import { t, type Msg } from '../text/msg';
+import type { Msg } from '../text/msg';
 import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
@@ -21,6 +21,7 @@ import { knowsCargo, lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
 import { actionBlockReason, contextKey, type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
 import { ContextPicker, getContextActions } from "../ui/hud-readout";
+import { TURN_PLAYING } from "../ui/dom";
 
 export type ControlsHost = {
   world: () => World;
@@ -130,7 +131,7 @@ export class TruckContext {
   private lookOverOrReopen(w: World, id: string): void {
     const target = w.vehicles.find((v) => v.id === id);
     if (!target || !knowsCargo(w, playerVehicle(w), target)) return this.refusable(() => lookOver(w, id));
-    if (this.host.playing()) return this.host.note(t('weapon.turnPlaying'));
+    if (this.host.playing()) return this.host.note(TURN_PLAYING);
     this.host.openLookedOver(id);
   }
 

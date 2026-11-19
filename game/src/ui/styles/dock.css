@@ -18,7 +18,8 @@
 }
 #ui .right-column > .hud-radio {
   order: 1;
-  translate: var(--hud-radio-tuck) calc(-1 * var(--hud-device-lift));
+  translate: var(--hud-radio-tuck) 0;
+  margin-bottom: var(--hud-device-lift);
 }
 #ui .log {
   display: flex;
@@ -34,7 +35,6 @@
   gap: var(--hud-gap);
 }
 #ui .right-dock {
-  max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--btn-h-s) - var(--hud-gap) - var(--hud-gap) - var(--hud-gap));
   overflow-y: auto;
   scrollbar-width: thin;
 }
