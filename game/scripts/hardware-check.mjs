@@ -71,7 +71,7 @@ function inPage({ sel, near, bar, groupWindow }) {
   const filled = (s) => alpha(s.backgroundColor) > 0.05 || s.backgroundImage.includes('gradient');
   const barLike = (el) => {
     const r = el.getBoundingClientRect();
-    return r.height >= 1 && r.height <= bar.maxHeight && r.width >= bar.minWidth && !el.textContent.trim() && filled(getComputedStyle(el));
+    return r.height >= 1 && r.height <= bar.maxHeight && r.width >= bar.minWidth && !el.textContent.trim() && !el.closest('.inv-grid') && filled(getComputedStyle(el));
   };
   const barFaults = (win) => [...win.querySelectorAll('*')].filter((el) => shown(el) && barLike(el) && !barLike(el.parentElement)).map((el) => ({ kind: 'flat-bar', path: name(el), text: `a flat bar ${Math.round(el.getBoundingClientRect().width)} px wide` }));
   const columnMiss = (a, b) => (nearMiss(a.l, b.l) || (Math.abs(a.l - b.l) <= 1 && Math.abs(a.r - b.r) > 1) ? a : null);
@@ -105,8 +105,8 @@ function fixedFaults(group, state, { fixed, label }) {
   return fixed.map((s, i) => [s, base.fixed[i]]).filter(([s, b]) => moved(s, b)).map(([s, b]) => ({ kind: 'screen-changes', path: s.name, text: `${size(s)}, in ${base.state} ${size(b)}` }));
 }
 
-export async function hardwareFaults(page, state, locale) {
+export async function hardwareFaults(page, state, locale, viewport) {
   const group = groupOf(state);
   const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, groupWindow: group ? group[1].window : null });
-  return [...await inkFaults(page), ...[...seen.faults, ...(group && seen.compares && locale !== 'pseudo' ? fixedFaults(group[0], state, seen) : [])].map((f) => ({ sizes: '', ...f }))];
+  return [...await inkFaults(page), ...[...seen.faults, ...(group && seen.compares && locale !== 'pseudo' ? fixedFaults(group[0], state, { ...seen, label: `${locale} ${viewport}` }) : [])].map((f) => ({ sizes: '', ...f }))];
 }

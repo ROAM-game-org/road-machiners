@@ -1197,7 +1197,7 @@ const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` 
 const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
 
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {

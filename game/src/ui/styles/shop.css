@@ -860,7 +860,7 @@
     display: none;
   }
   .good-row {
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: minmax(0, 1fr) var(--goods-count-w) var(--goods-count-w);
     grid-template-areas:
       "name held profit"
       "buy buy sell";
@@ -870,7 +870,7 @@
   .goods.stocked .good-row,
   .goods.truck.no-profit .good-row,
   .goods.stocked.no-profit .good-row {
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: minmax(0, 1fr) var(--goods-count-w) var(--goods-count-w) var(--goods-count-w);
     grid-template-areas:
       "name theirs held profit"
       "buy buy sell sell";
