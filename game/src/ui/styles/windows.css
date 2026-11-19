@@ -230,3 +230,8 @@
 #ui :is(.minimap .minimap-body, .map-tab) {
   padding: var(--hud-screen-edge);
 }
+:is(#ui, #report) .inv-keys .cost.off .icon {
+  color: var(--hud-amber-faint);
+  width: var(--icon-s);
+  height: var(--icon-s);
+}

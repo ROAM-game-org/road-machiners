@@ -1352,3 +1352,16 @@
 #ui.compact :is(.town-repair, .service-row) {
   gap: var(--space-3);
 }
+#ui.compact .town-page .town-split {
+  flex: none;
+  min-height: var(--town-split-min);
+}
+#ui.compact .town-split.banded .inv-wrap {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(var(--town-split-min), 1fr) auto;
+  row-gap: var(--space-9);
+}
+#ui.compact .town-split.banded .inv-wrap > .inv-side {
+  grid-area: 2 / 1;
+  width: auto;
+}

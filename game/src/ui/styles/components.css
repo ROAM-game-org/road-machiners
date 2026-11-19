@@ -583,3 +583,9 @@
 .cost-item .icon svg[viewBox="0 0 24 24"] {
   fill: none;
 }
+.ink-page .ink-foot > .tabs {
+  order: 1;
+  flex: none;
+  margin: 0;
+  padding: 0;
+}

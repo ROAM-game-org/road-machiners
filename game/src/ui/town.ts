@@ -116,6 +116,7 @@ export class TownScreen {
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
+  private footKeys: HTMLElement[] = [];
   private paintPlan: TruckPaint | null = null;
   private slots = new RowSlots();
   private rows = new PartRows(() => this.render(), this.slots);
@@ -317,11 +318,13 @@ export class TownScreen {
     const buttons = this.choices.map((c, i) => choiceButton(c, i));
     const exit = buttons.pop();
     const status = el("div", { class: "ink-status bad", ...(this.error ? { title: this.error } : {}) }, this.error);
+    const keys = this.footKeys;
+    this.footKeys = [];
     return el(
       "div",
       { class: "ink-body" },
       el("div", { class: "ink-scroll" }, head, panel, el("div", { class: buttons.length > 0 ? "ink-choices quest-choices screen-block" : "ink-choices quest-choices" }, ...buttons)),
-      el("div", { class: "ink-foot" }, exit ?? null, status),
+      el("div", { class: "ink-foot" }, exit ?? null, ...keys, status),
     );
   }
 
@@ -416,7 +419,8 @@ export class TownScreen {
       trucks: () => ({ head: [], body: this.trucks(w, shopId), screen: true }),
       paint: () => ({ head: [], body: this.paint(w), screen: true }),
     }[this.garageTab]();
-    return { head: [el("div", { class: "tabs sub" }, ...buttons), ...(column.head.length > 0 ? column.head : [el("div", { class: "tabs sub" })])], body: column.body, screen: column.screen };
+    this.footKeys = column.head;
+    return { head: [el("div", { class: "tabs sub" }, ...buttons)], body: column.body, screen: column.screen };
   }
 
   private parkedDrivers(w: World, shopId: string): HTMLElement {

@@ -24,6 +24,6 @@
   max-width: none;
   pointer-events: none;
 }
-#ui .scroll-wheeled.scroll-wheeled:not(.shop-body, .truck-body, .rank-ladder) {
+#ui .scroll-wheeled.scroll-wheeled:not(.shop-body, .truck-body, .rank-ladder, .ink-panel) {
   margin-right: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
 }

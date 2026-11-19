@@ -252,6 +252,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Shop row Buy with its price. A screen button on the row's screen. The price is part of the button's label.
 - Contract offers with Accept. One screen holds the list. Accept is a screen button on each row.
 - Tabs such as Buy parts, Sell parts and Trucks, and the filter row. Keys on metal, the current one lit. A key prints only its fixed word or icon, never a count.
+- Part filters of a shop. Icon keys on the foot row at the right end, under the shop screen, so the tab band keeps one row on every tab and the screens keep their place.
 - The truck switch of a shop. Keys that print TRUCK and HAULER. The drawing of the truck is on the truck's screen, not on the key.
 - Skills on the character screen. A key per skill prints only its name and icon. The skill's XP gauge, rank and price are on the screen beside the keys.
 - Goods rows on a trade screen. One column grid down the list: icon, name, stock and held, then the Buy and Sell screen buttons, each column of buttons one width.

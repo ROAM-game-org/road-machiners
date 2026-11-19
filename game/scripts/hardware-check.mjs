@@ -45,7 +45,9 @@ function inPage({ sel, near, bar, groupWindow }) {
   const outerScreens = (win) => [...win.querySelectorAll('*')].filter((s) => isScreen(s) && shown(s) && !insideScreen(s));
   const overlap = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0) > 1;
   const sideBySide = (a, b) => !overlap(a.l, a.r, b.l, b.r) && overlap(a.t, a.b, b.t, b.b);
-  const unlevel = (a, b) => Math.abs(a.t - b.t) > 1 || Math.abs(a.b - b.b) > 1;
+  const contains = (a, b) => a.t <= b.t + 1 && a.b >= b.b - 1;
+  const spans = (a, b) => (Math.abs(a.t - b.t) <= 1 || Math.abs(a.b - b.b) <= 1) && (contains(a, b) || contains(b, a));
+  const unlevel = (a, b) => (Math.abs(a.t - b.t) > 1 || Math.abs(a.b - b.b) > 1) && !spans(a, b);
   const nearMiss = (x, y) => Math.abs(x - y) > 1 && Math.abs(x - y) < near;
   const missedEdge = (a, b) => ['l', 't', 'r', 'b'].find((k) => nearMiss(a[k], b[k]));
   const pairFault = (a, b) => {

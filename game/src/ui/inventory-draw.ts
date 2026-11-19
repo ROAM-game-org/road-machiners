@@ -12,7 +12,7 @@ import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
 import { coreArt, dressGrid, drawnSprite, hiddenArt, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
-import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
+import { conditionMeter, createIcon, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { byId, t, type Msg } from "../text/msg";
 import { rotateButton } from "./item-card";
 import { goodName, partName } from "../text/names";
@@ -575,5 +575,5 @@ export function markWorking(node: HTMLElement, done: number): HTMLElement {
 
 export function idleActions(reason: Msg): HTMLElement {
   const strip = el("button", { class: "btn-s", ...disabledWith(reason, () => {}) }, t("inv.verb.strip"));
-  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), el("span", { class: "cost off" }), strip, el("span", { class: "cost off" }));
+  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), el("span", { class: "cost off" }, createIcon("clock")), strip, el("span", { class: "cost off" }, createIcon("clock")));
 }
