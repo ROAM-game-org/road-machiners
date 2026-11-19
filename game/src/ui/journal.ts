@@ -115,8 +115,8 @@ export class JournalScreen {
     this.root.classList.toggle('journal-side', side);
     this.root.replaceChildren(
       el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyLabel(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),
-      ...(tab === null ? [el('div', { class: 'dim' }, t('journal.empty'))] : tabs.length === 1 ? [] : [el('div', { class: 'tabs sub' }, ...tabs.map((id) => this.tabButton(id, id === tab, journal)))]),
-      ...(tab === null ? [] : [el('div', { class: 'journal-body' }, this.page(w, journal, tab))]),
+      ...(tab === null ? [el('div', { class: 'screen-block' }, el('div', { class: 'dim' }, t('journal.empty')))] : tabs.length === 1 ? [] : [el('div', { class: 'tabs sub' }, ...tabs.map((id) => this.tabButton(id, id === tab, journal)))]),
+      ...(tab === null ? [] : [el('div', { class: 'journal-body screen-block' }, this.page(w, journal, tab))]),
     );
   }
 
@@ -158,7 +158,7 @@ export class JournalScreen {
 
   private surveyPlace(w: World, c: SurveyContract, point: SurveyPoint, open: boolean): HTMLElement {
     const clue = surveyClue(c, point);
-    const head = el('button', { class: `journal-head place-head${open ? ' on' : ''}`, 'aria-expanded': open ? 'true' : 'false', disabled: point.done, onclick: (e: Event) => { this.open('work', placeId(c, point)); (e.currentTarget as HTMLElement | null)?.blur(); } }, el('span', {}, t(`contract.look.${clue.type}`)), el('span', { class: 'dim' }, gridSquareText(clue.square)), placeTag(point));
+    const head = el('button', { class: 'screen-line journal-head place-head', 'aria-expanded': open ? 'true' : 'false', disabled: point.done, onclick: (e: Event) => { this.open('work', placeId(c, point)); (e.currentTarget as HTMLElement | null)?.blur(); } }, el('span', {}, t(`contract.look.${clue.type}`)), el('span', { class: 'dim' }, gridSquareText(clue.square)), placeTag(point));
     if (point.done || !open) return el('div', { class: 'journal-place survey' }, head);
     const way = surveyWay(w, c, point);
     return el(
@@ -178,7 +178,7 @@ export class JournalScreen {
   }
 
   private noteEntry(e: JournalNote, open: boolean): HTMLElement {
-    const head = el('button', { class: `journal-head note-head${open ? ' on' : ''}`, 'aria-expanded': open ? 'true' : 'false', onclick: (ev: Event) => { this.open('notes', e.id); (ev.currentTarget as HTMLElement | null)?.blur(); } }, el('b', {}, e.title), el('span', { class: 'dim' }, t('journal.day', { day: e.day })));
+    const head = el('button', { class: 'screen-line journal-head note-head', 'aria-expanded': open ? 'true' : 'false', onclick: (ev: Event) => { this.open('notes', e.id); (ev.currentTarget as HTMLElement | null)?.blur(); } }, el('b', {}, e.title), el('span', { class: 'dim' }, t('journal.day', { day: e.day })));
     return el('div', { class: `journal-note${open ? ' open' : ''}` }, head, open ? el('div', { class: 'dim' }, e.from) : null, open ? el('div', {}, e.body) : null);
   }
 }
