@@ -603,10 +603,16 @@
   position: relative;
   isolation: isolate;
 }
+.town-truck .inv-truck:has(.inv-grid.drawn)::before {
+  right: var(--space-9);
+}
+.town-truck .inv-grid {
+  background: none;
+}
 .town-truck .inv-truck::before {
   content: "";
   position: absolute;
-  inset: 0 var(--space-9) 0 0;
+  inset: 0;
   z-index: var(--z-recess-backing);
   border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
   box-shadow: var(--hud-recess);
