@@ -79,7 +79,7 @@
   gap: var(--space-3) var(--space-9);
   margin-left: auto;
 }
-.town-services .town-repair {
+:is(.town-services, .outpost-services) .town-repair {
   padding: 0;
 }
 .town-services .good-row {

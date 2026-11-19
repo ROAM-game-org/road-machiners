@@ -53,7 +53,7 @@ function drawnPlane(name, paint) {
 
 const rr = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
 
-const FRAME = { ink: '#2b2014', light: '#b3a17a', shade: '#5f4f36', radius: 2, inkW: 0.35, bevelW: 1.1, slice: 2.2, seed: 41, scratches: 0.5 };
+const FRAME = { ink: '#2b2014', light: '#b3a17a', shade: '#5f4f36', radius: 2, inkW: 0.35, bevelW: 1.1, slice: 2.2, seed: 41, marks: 1 };
 
 function bevelRing(c, wu, hu, { inset, width, radius, light, shade }) {
   c.save();
@@ -72,7 +72,7 @@ function oliveFrame() {
     rr(c, FRAME.bevelW, FRAME.bevelW, wu - 2 * FRAME.bevelW, hu - 2 * FRAME.bevelW, faceR);
     c.fillStyle = OLIVE.housing; c.fill();
     c.save(); c.clip();
-    const tile = mottleTile((wu - 2 * FRAME.slice) * K, (hu - 2 * FRAME.slice) * K, RES, FRAME.seed, FRAME.scratches);
+    const tile = mottleTile((wu - 2 * FRAME.slice) * K, (hu - 2 * FRAME.slice) * K, RES, FRAME.seed, FRAME.marks);
     const pattern = c.createPattern(tile, 'repeat');
     pattern.setTransform(new DOMMatrix().translateSelf(FRAME.slice * px, FRAME.slice * px));
     c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = pattern; c.fillRect(0, 0, wu * px, hu * px);

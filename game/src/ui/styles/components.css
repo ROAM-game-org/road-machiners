@@ -87,7 +87,7 @@
   --key-print: var(--hud-print);
 }
 :is(#ui, #report) button:is(.on, .selected, [aria-pressed="true"], [aria-checked="true"]) {
-  --key-art: var(--hud-keycap-lit-art);
+  --key-art: var(--hud-keycap-lit-down-art);
 }
 :is(#ui, #report) button:is(:active, .seen) {
   --key-art: var(--hud-keycap-down-art);
