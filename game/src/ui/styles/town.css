@@ -63,7 +63,7 @@
 .town-page .ink-head-line {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4) var(--space-9);
   margin-bottom: var(--space-4);
