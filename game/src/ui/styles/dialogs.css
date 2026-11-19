@@ -54,3 +54,15 @@
   font-size: var(--text-heading);
   line-height: 1;
 }
+#ui .dialogue .dialogue-options .screen-line:hover {
+  background: var(--hud-amber-dim);
+}
+#ui .dialogue .dialogue-options .option-key {
+  display: inline;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-image: none;
+  color: inherit;
+  font: var(--text-dense) var(--font-mono);
+}

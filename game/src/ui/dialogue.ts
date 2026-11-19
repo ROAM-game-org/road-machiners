@@ -13,7 +13,6 @@ import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteNam
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
-import { panelHead } from './dash/skin';
 import { directionsText } from './directions-text';
 import { gridSquareText } from './format';
 import { renderLine } from './quest-text';
@@ -189,11 +188,11 @@ export class DialoguePanel {
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) => {
       const short = o.short ? t('trade.needMore', { price: moneyMsg(o.short) }) : null;
-      return el('button', { class: o.seen ? 'dialogue-option seen' : 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, el('span', { class: 'option-key' }, num(i + 1, 'int')), el('span', { class: 'option-line' }, lineText(o.line, call.vars)));
+      return el('button', { class: o.seen ? 'screen-line dialogue-option seen' : 'screen-line dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, el('span', { class: 'option-key' }, num(i + 1, 'int')), el('span', { class: 'option-line' }, lineText(o.line, call.vars)));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line', 'hud-screen');
-    this.root.replaceChildren(panelHead(vehicleTitle(w, npc)), line, el('div', { class: 'dialogue-options' }, ...options));
+    this.root.replaceChildren(el('div', { class: 'hud-panel-head' }, el('h3', { class: 'tape' }, vehicleTitle(w, npc))), line, el('div', { class: 'dialogue-options screen-block' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

@@ -247,7 +247,7 @@
 .info-content {
   display: flex;
   flex-direction: column;
-  gap: var(--hud-panel-gap);
+  gap: var(--space-6);
   height: 100%;
   min-height: 0;
 }
