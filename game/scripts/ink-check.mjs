@@ -35,10 +35,11 @@ function inPage({ surfaces, slabShare, sel }) {
     const cap = el.closest('button');
     return Boolean(cap) && getComputedStyle(cap).borderImageSource !== 'none';
   };
+  const isScreen = (n) => n.matches(sel.screen) || getComputedStyle(n).borderImageSource.includes('/screen@') || getComputedStyle(n).borderImageSource.includes('/input@');
   const glassOf = (el) => {
     for (let n = el; n && !n.matches(sel.window); n = n.parentElement) {
       if (isAmberFill(n)) return 'inverse';
-      if (n.matches(sel.screen)) return 'screen';
+      if (isScreen(n)) return 'screen';
     }
     return 'metal';
   };
@@ -55,7 +56,7 @@ function inPage({ surfaces, slabShare, sel }) {
   const ownWords = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
   const area = (el) => el.getBoundingClientRect().width * el.getBoundingClientRect().height;
   const slabFaults = (win) => {
-    const outer = [...win.querySelectorAll(sel.screen)].filter((s) => shown(s) && !s.parentElement.closest(sel.screen));
+    const outer = [...win.querySelectorAll('*')].filter((s) => isScreen(s) && shown(s) && !s.parentElement.closest(sel.screen));
     const share = outer.reduce((sum, s) => sum + area(s), 0) / area(win);
     const faults = [];
     if (getComputedStyle(win).borderImageSource.includes('slate')) faults.push({ kind: 'slab', path: win.className, text: 'window drawn with the slate screen piece' });
