@@ -9,7 +9,7 @@ export const INK_SURFACES = {
 export const SLAB_SHARE = 0.85;
 
 const SELECTORS = {
-  window: '.dialog, .ink-page, .confirm-dialog, #ui > .panel, .modal',
+  window: '.dialog, .ink-page, .confirm-dialog, #ui > .panel, .modal, .notice, .dialogue',
   screen: '.hud-screen, .screen-block, .well, input, textarea, select',
   tape: '.tape, .tape-print, .kit-tape, .slot-tape',
 };
