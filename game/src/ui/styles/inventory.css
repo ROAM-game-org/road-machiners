@@ -816,6 +816,9 @@
 }
 .inv-bench .inv-side-column > .well {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 .inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
   flex: 1 1 auto;
@@ -954,7 +957,7 @@
   align-items: stretch;
 }
 .inv-keys .action-rows > button {
-  min-width: 0;
+  min-width: max-content;
 }
 .inv-keys .cost {
   overflow: hidden;
@@ -1042,4 +1045,19 @@
 }
 .inv-side {
   gap: var(--space-7);
+}
+.inv-costs {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: var(--space-2) var(--space-7);
+  margin-top: var(--space-5);
+  font: var(--text-dense) var(--font-mono);
+}
+.inv-cost {
+  display: contents;
+}
+.inv-cost-verb {
+  color: var(--hud-amber-soft);
+  font: var(--text-dense) var(--font-ui);
+  text-transform: uppercase;
 }

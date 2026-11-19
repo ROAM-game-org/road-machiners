@@ -61,6 +61,7 @@
   letter-spacing: 0.02em;
   line-height: 1;
   text-transform: uppercase;
+  text-box: trim-both cap alphabetic;
   white-space: nowrap;
 }
 :is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button) {

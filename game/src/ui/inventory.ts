@@ -52,7 +52,7 @@ import {
   gridEl,
   itemBox,
   itemName,
-  idleActions,
+  idleActions, splitActions,
   chooseLayout,
   stackedLayout,
   truckMeters,
@@ -508,9 +508,9 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    const details = el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
-    this.inspection.replaceChildren(details);
-    this.keys.replaceChildren(actions.length > 0 ? el("div", { class: "action-rows" }, ...actions) : idleActions(t("inv.dragToGrid")));
+    const { keys, costs } = splitActions(actions);
+    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted), costs.length > 0 ? el("div", { class: "inv-costs" }, ...costs) : null));
+    this.keys.replaceChildren(keys.length > 0 ? el("div", { class: "action-rows" }, ...keys) : idleActions(t("inv.dragToGrid")));
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {

@@ -355,7 +355,7 @@ export class QuestScreen {
   }
 
   private lookRow(): HTMLElement {
-    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
     return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 

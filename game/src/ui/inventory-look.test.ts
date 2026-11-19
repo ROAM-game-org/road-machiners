@@ -100,7 +100,7 @@ describe("the inventory during a scene", () => {
       expect(button.attrs.get("aria-disabled")).toBe("true");
       expect(button.attrs.get("data-reason")).toBe("Not during a scene");
     }
-    expect(rows[0].all((n) => n.className === "cost off").length).toBe(buttons.length);
+    expect(root.all((n) => n.className === "cost off").length).toBe(buttons.length);
   });
 
   it("turns every world command of a loot screen off with the reason, and applies nothing on a click", () => {
@@ -152,13 +152,13 @@ describe("the inventory with nothing picked", () => {
     return ui.children[ui.children.length - 1] as FakeNode;
   }
 
-  it("keeps the Rotate and Strip keys in the foot row, off, each with a readout beside it", () => {
+  it("keeps the Rotate and Strip keys in the foot row, off, with no value beside them", () => {
     const foot = benchRoot().all((n) => n.className === "inv-foot")[0];
     const rows = foot.all((n) => n.className === "action-rows")[0];
     const buttons = rows.all((n) => n.tag === "button");
     expect(buttons).toHaveLength(2);
     for (const button of buttons) expect(button.attrs.get("aria-disabled")).toBe("true");
-    expect(rows.all((n) => n.className === "cost off")).toHaveLength(2);
+    expect(rows.all((n) => n.className.includes("cost"))).toHaveLength(0);
   });
 
   it("keeps the details screen and prints one idle line in it", () => {

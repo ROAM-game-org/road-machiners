@@ -15,6 +15,7 @@ export const SCROLL_SCREENS = [
   ".inv-body",
   ".inv-details > .stat-grid",
   ".inv-bench .well .inv-storage",
+  ".inv-bench .inv-side-column > .well",
   ".rank-ladder",
   ".ink-page .ink-panel",
   ".ink-page .ink-scroll",

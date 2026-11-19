@@ -164,6 +164,9 @@
 #ui .quest-page .quest-side .quest-stats.screen-block {
   padding: 0;
   border-image: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 .segments {
   display: inline-flex;

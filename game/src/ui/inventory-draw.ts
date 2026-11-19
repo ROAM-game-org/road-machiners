@@ -12,8 +12,8 @@ import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
 import { coreArt, dressGrid, drawnSprite, hiddenArt, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
-import { conditionMeter, createIcon, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
-import { byId, t, type Msg } from "../text/msg";
+import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
+import { byId, t, verbatim, type Msg } from "../text/msg";
 import { rotateButton } from "./item-card";
 import { goodName, partName } from "../text/names";
 
@@ -575,5 +575,15 @@ export function markWorking(node: HTMLElement, done: number): HTMLElement {
 
 export function idleActions(reason: Msg): HTMLElement {
   const strip = el("button", { class: "btn-s", ...disabledWith(reason, () => {}) }, t("inv.verb.strip"));
-  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), el("span", { class: "cost off" }, createIcon("clock")), strip, el("span", { class: "cost off" }, createIcon("clock")));
+  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), strip);
+}
+
+export function splitActions(actions: HTMLElement[]): { keys: HTMLElement[]; costs: HTMLElement[] } {
+  const isCost = (node: HTMLElement) => node.className.split(" ").includes("cost");
+  return { keys: actions.filter((node) => !isCost(node)), costs: actions.flatMap((node, i) => (isCost(node) ? [actionCost(actions[i - 1], node)] : [])) };
+}
+
+function actionCost(key: HTMLElement | undefined, cost: HTMLElement): HTMLElement {
+  if (!key) throw new Error("An action cost has no key before it");
+  return el("div", { class: "inv-cost" }, el("span", { class: "inv-cost-verb" }, verbatim(key.textContent ?? "")), cost);
 }

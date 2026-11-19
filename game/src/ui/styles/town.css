@@ -203,3 +203,9 @@
 .town-page .ink-choices:empty {
   display: none;
 }
+.town-page.ink-page .ink-body {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+.town-page.ink-page .ink-scroll > :is(.ink-head, .ink-panel, .ink-choices) {
+  width: 100%;
+}
