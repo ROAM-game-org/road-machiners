@@ -34,7 +34,7 @@ const place = (name, g, z = 0) => { const [x, y] = local(BOXES[name]); g.positio
 
 function oliveFrame() {
   const [, , w, h] = local(BOXES.frame);
-  const faceMat = faceMaterial(w / CSS * K, h / CSS * K, (c, cw, ch) => { c.fillStyle = OLIVE.housing; c.fillRect(0, 0, cw, ch); mottle(c, 0, 0, cw, ch, 41); });
+  const faceMat = faceMaterial(w / CSS * K, h / CSS * K, (c, cw, ch) => { c.fillStyle = OLIVE.housing; c.fillRect(0, 0, cw, ch); });
   const panel = slab({ w, h, depth: 0.06, bevel: 1.1 * CSS, faceMat });
   const g = new THREE.Group(); g.add(panel.mesh, panel.face);
   return place('frame', g);

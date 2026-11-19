@@ -159,16 +159,16 @@
   --cond-cells: rgba(255, 244, 214, 0.22);
 
   /* Truck grid cell kinds: the dark grid in the inventory and the bright map on truck cards */
-  --cell-line: #6e4f2b;
-  --cell-ink: #c4914f;
-  --cell-plan-line: #dcaa62;
+  --cell-line: #58656b;
+  --cell-ink: #a0adb2;
+  --cell-plan-line: #b9c6ca;
   --plan-detail-faint: rgba(185, 198, 202, 0.3);
   --plan-glass-faint: rgba(185, 198, 202, 0.12);
-  --cell-plain: #3d2a17;
-  --cell-deck: #4f3a22;
-  --cell-engine: #45301b;
-  --cell-side: #4a341d;
-  --cell-none: #24170c;
+  --cell-plain: #303d44;
+  --cell-deck: #483e36;
+  --cell-engine: #3d4b50;
+  --cell-side: #414c52;
+  --cell-none: #20292e;
   --cell-grid-line: rgba(255, 244, 214, 0.3);
   --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
   --garage-body-filter: brightness(0.55) saturate(0.55);
@@ -273,7 +273,8 @@
   --hud-bake-desktop-aspect: 1.6;
   --hud-frame-slice: 2.4% 1.6%;
   --hud-frame-bevel: 8px;
-  --hud-screen-edge: 4.8px;
+  --hud-screen-slice: 4% 2%;
+  --hud-screen-edge: 3px;
   --hud-input-edge: 5px;
   --hud-input-slice: 22% 10%;
   --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;
@@ -327,7 +328,6 @@
   --hud-well-w: 2px;
   --hud-pad: 10px;
   --hud-panel-gap: 5px;
-  --hud-recess: inset 0 1px 2px rgb(8 4 1 / 0.8), inset 0 0 1.5px 0.5px rgb(8 4 1 / 0.75), 0 0 1px 0.5px rgb(255 240 205 / 0.12);
   --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;
   --hud-emboss: 0 1px 0 #fff3d666;
   --hud-bracket: 6px;
@@ -481,6 +481,7 @@
   --z-lcd-digits: 0;
   --z-lcd-ghost: -1;
   --z-recess-backing: -1;
+  --z-screen-tape: 1;
   --z-hud-part: 60;
   --z-hud-glass: 66;
   --z-hud-shade: 70;

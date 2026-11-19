@@ -18,6 +18,7 @@ const outlineMat = new THREE.ShaderMaterial({
   fragmentShader: 'void main(){ gl_FragColor=vec4(.105,.094,.102,1.); }',
 });
 export function ink(m) { m.add(new THREE.Mesh(m.geometry, outlineMat)); return m; }
+export function inkAt(m, t) { const mat = outlineMat.clone(); mat.uniforms.t.value = t; m.add(new THREE.Mesh(m.geometry, mat)); return m; }
 const asMat = (c) => (c?.isMaterial ? c : toon(c));
 const finishMesh = (m, o) => { m.castShadow = !o.noShadow; m.receiveShadow = true; if (!o.noInk) ink(m); return m; };
 

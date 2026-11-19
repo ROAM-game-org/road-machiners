@@ -104,7 +104,7 @@ function weaponsView(): WeaponsView {
     reload: { title: say("Reload"), reason: null },
     hold: { title: say("Hold"), reason: null },
     utilities: utilityViews(),
-    pageTitle: (page, pages) => t("hud.gunPage", { page, pages }),
+    pageTitle: (page, pages) => t("hud.gunPageTitle", { page, pages }),
   };
 }
 

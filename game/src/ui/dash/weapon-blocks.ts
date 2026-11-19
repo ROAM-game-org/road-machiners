@@ -268,8 +268,9 @@ export class WeaponsPanel {
     if (shown.some((node, i) => this.grid.children[i] !== node)) this.grid.replaceChildren(...shown);
     setFlag(this.pageMark, "hidden", pages < 2);
     if (pages > 1) {
-      setText(this.pageMark, view.pageTitle(this.page + 1, pages));
+      setText(this.pageMark, t("hud.gunPage", { page: this.page + 1, pages }));
       setAttrText(this.pageMark, "title", view.pageTitle(this.page + 1, pages));
+      setAttrText(this.pageMark, "aria-label", view.pageTitle(this.page + 1, pages));
     }
   }
 
@@ -282,6 +283,7 @@ export class WeaponsPanel {
       this.plate.zone(slot.root, `slot${index}`);
     }
     while (this.slots.length > utilities.length) this.slots.pop()!.root.remove();
+    this.plate.layout();
     utilities.forEach((utility, i) => this.slots[i].update(utility));
     this.plates.forEach((frames, i) => (i < utilities.length ? frames.show(`slot${i}`) : frames.hide()));
   }

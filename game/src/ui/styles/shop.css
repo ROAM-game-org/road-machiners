@@ -59,7 +59,7 @@
 }
 .quest-screen .quest-talk {
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .quest-screen :is(.quest-talk, .quest-text) {
   overflow-anchor: none;
@@ -153,8 +153,7 @@
     var(--quest-side-width);
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
-  padding: 0;
-  border-left: 2px solid var(--line);
+  padding: var(--hud-frame-bevel);
   box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 .quest-page .quest-art {
@@ -190,7 +189,7 @@
   display: flex;
   flex-direction: column;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 :is(.quest-page, .ink-page) .quest-place {
   margin: 0 0 var(--space-6);
@@ -207,8 +206,16 @@
 #ui :is(.quest-page, .ink-page) .quest-choice:not(.screen-line) {
   padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
 }
-#ui :is(.quest-page, .ink-page) .quest-next {
+#ui .quest-page .quest-text > .quest-body {
+  flex: 1 1 auto;
+}
+#ui .quest-page .quest-next {
+  margin-top: var(--space-6);
+}
+#ui .ink-page .quest-next {
   margin-top: auto;
+}
+#ui :is(.quest-page, .ink-page) .quest-next {
   align-self: flex-start;
   padding: var(--space-1) calc(var(--space-9) - var(--key-edge)) 0;
 }
@@ -219,7 +226,7 @@
   flex-direction: column;
   gap: var(--space-7);
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 #ui .quest-page .quest-side .close {
   position: static;
@@ -1246,7 +1253,7 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   padding: var(--space-5) var(--space-6);
 }
 .quest-text > .quest-place.tape {
@@ -1271,4 +1278,15 @@
 }
 #ui .screen-line:disabled:hover {
   background: none;
+}
+.town-truck > .truck-switch {
+  padding-top: 0;
+}
+@container (max-width: 640px) {
+  .paint-tab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+#ui .quest-page .quest-side {
+  margin: var(--space-4);
 }

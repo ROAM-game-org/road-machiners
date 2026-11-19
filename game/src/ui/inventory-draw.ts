@@ -252,8 +252,10 @@ export function benchRooms(frame: HTMLElement, root: HTMLElement, grid: HTMLElem
   if (!middle || !grid || !bench) throw new Error("The inventory bench is not rendered");
   const style = getComputedStyle(frame);
   const top = uiSize().toLayer(grid.getBoundingClientRect().top - middle.getBoundingClientRect().top);
-  const height = middle.clientHeight - top;
-  const across = pxOf(style.maxWidth) - sidePadding(frame) - 2 * pxOf(style.borderLeftWidth);
+  const truck = middle.querySelector(".inv-truck");
+  if (!truck) throw new Error("The inventory bench has no truck screen");
+  const height = middle.clientHeight - top - pxOf(getComputedStyle(truck).paddingBottom);
+  const across = pxOf(style.maxWidth) - sidePadding(frame) - 2 * pxOf(style.borderLeftWidth) - sidePadding(truck);
   const column = widthOf(root.querySelector(".inv-side-column")) + pxOf(getComputedStyle(bench).columnGap);
   return [
     { columns: 3, width: across - 2 * column, height },

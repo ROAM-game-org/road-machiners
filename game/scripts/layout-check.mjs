@@ -963,7 +963,7 @@ const BENCH_AUDIT = () => {
   const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
-  const tops = all('.well, .inv-truck-name').map((n) => Math.round(n.getBoundingClientRect().top));
+  const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
   const title = frame.querySelector('.inv-title');
   const close = frame.querySelector('.close');
   return [

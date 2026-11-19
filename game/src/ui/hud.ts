@@ -12,7 +12,8 @@ import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
 import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
-import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit } from "./dash/panels";
+import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
+import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
@@ -340,6 +341,7 @@ export class Hud {
     this.deck.talk.append(radio.root);
     this.deck.log.append(this.log.root);
     this.deck.bindLog(this.log.lines);
+    mountScrollWheels(uiRoot(), SCROLL_SCREENS, wheelFrame);
     rightColumn().append(this.deck.root);
     const readback = new PixelReadback(renderer, gpu);
     this.portraits = new TruckPortraits(renderer, gpu, readback);

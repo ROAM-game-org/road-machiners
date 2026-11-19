@@ -494,7 +494,6 @@
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   pointer-events: none;
 }

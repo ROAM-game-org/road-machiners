@@ -273,7 +273,7 @@ export const UI: Translation<typeof EN> = {
   'weapon.statusReady': 'Готово',
   'weapon.switchShow': 'Показать',
   'weapon.switchHide': 'Скрыть',
-  'weapon.autoFire': 'Автоогонь',
+  'weapon.autoFire': 'Авто\u00ADогонь',
   'weapon.autoOff': 'Автоогонь выкл.',
   'weapon.autoSwitchTitle': 'Целиться в ближайшего врага',
   'weapon.allOn': 'Всё',

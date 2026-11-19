@@ -19,7 +19,7 @@
   min-height: 0;
   margin-top: var(--space-4);
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .inv-body .inv-wrap {
   margin-top: 0;
@@ -77,7 +77,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .outpost-road {
   display: flex;
@@ -109,7 +109,7 @@
 :where(#ui:not(.narrow)) .truck-body .inv-side {
   max-height: 100%;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .town-shop > .tabs {
   padding: 0 0 var(--space-4);
@@ -557,7 +557,7 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 /* One row form: a stat grid in a card prints like the rows of the truck column, with one value edge. */
 .inv-inspection .stat-grid {
@@ -602,6 +602,7 @@
 .town-truck .inv-truck {
   position: relative;
   isolation: isolate;
+  padding: var(--space-3);
 }
 .town-truck .inv-truck:has(.inv-grid.drawn)::before {
   right: var(--space-9);
@@ -614,8 +615,7 @@
   position: absolute;
   inset: 0;
   z-index: var(--z-recess-backing);
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   pointer-events: none;
 }
 .inv-chip {
@@ -775,10 +775,16 @@
   white-space: nowrap;
 }
 #ui .modal .inv-truck-name {
-  flex: none;
-  align-self: flex-start;
-  margin: 0 0 var(--space-6);
+  position: absolute;
+  top: calc(var(--btn-h-m) + var(--space-9));
+  left: var(--space-5);
+  z-index: var(--z-screen-tape);
+  margin: 0;
+  transform: translateY(-50%);
   white-space: nowrap;
+}
+.inv-middle {
+  position: relative;
 }
 #ui .inv-bench .inv-truck {
   flex: none;
@@ -787,18 +793,18 @@
 .inv-middle > .inv-truck {
   position: relative;
   isolation: isolate;
+  padding: var(--space-4);
 }
 .inv-middle > .inv-truck::before {
   content: "";
   position: absolute;
-  inset: calc(var(--space-4) * -1);
+  inset: 0;
   z-index: var(--z-recess-backing);
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   pointer-events: none;
 }
 .inv-bench .inv-side-column > .well {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
 }
 .inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
   flex: 1 1 auto;
@@ -814,7 +820,7 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .inv-bench.two .well {
   gap: var(--space-6);

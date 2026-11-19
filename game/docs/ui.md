@@ -151,7 +151,7 @@ The in-game HUD is one set of 3D hardware, baked to pictures. Baked art carries 
 - Panels. Every box that is not a baked part is a panel built from the panel kit in `src/ui/dash/skin.ts`: `panelHead()`, `screen()`, `screenLine()`, `controls()`, `textKey()` and `closeKey()`. Its housing is the baked olive frame, drawn as a 9-slice border image, so a panel can take any size. The 9-slice cuts the frame just past its bevel, `--hud-frame-slice`, and draws that edge at `--hud-frame-bevel`, close to its baked size. A wider cut squeezes the bevel into a thin double line at some UI sizes. Windows such as the journal and the inventory are built the same way, by the grammar of 4.6.
 - Panel layout. The title sits at the top left, left aligned, in engraved print. A panel that closes has one close key, the same small key with the X icon, at the right of the title row. Text that changes sits on a screen. One control is centered, and two or more sit at the left and right edges. A destructive key is red, so every confirm dialog's yes key is red.
 - Panel sizes. A HUD panel takes its width from six steps, each about 1.4 times the last, anchored on the cursor card: `--hud-panel-xs` 140px, `--hud-panel-s` 200px, `--hud-panel-m` 282px, `--hud-panel-l` 400px, `--hud-panel-xl` 560px and `--hud-panel-xxl` 800px. Medium narrows to 246px on a compact layer and to 200px on a narrow one. The knocked-out mark is extra small. The cursor card, contracts, wanted, the menu list, stranded and rescue are medium. The confirm dialog and the death box are large. The tip and the dialogue are extra large. The toast and the tooltips are as wide as their text, the toast at most large and a tooltip at most medium. A panel keeps its size across its states, so stranded holds one box with the beacon switch and with End run. A new panel picks a step and never sets its own width.
-- Screens. A screen is the baked screen recess with its brass lip, drawn as a 9-slice. Its inks, fonts and states are in 4.6.
+- Screens. A screen is the baked screen recess with its brass lip, drawn as a 9-slice with `--hud-screen-slice` and `--hud-screen-edge`. The slice holds only the lip, so the lip shows at full width on every screen, like the targeting computer. A screen draws no CSS shadow or ring of its own, since the baked lip is its only edge. Its inks, fonts and states are in 4.6.
 - Windows. Every `.panel` and `.dialog` that is not a HUD kit panel is a window, built by the grammar of 4.6: olive metal from `--hud-frame-art`, one screen per block of content, keys on the metal. The crash screen keeps a plain look with its own `--crash-*` tokens, since it reports files that did not arrive and must draw without pictures.
 - Keys. Every button on every screen is a physical key, never a box with text. A key's look is its art, so a screen never draws a key's state with `background`, `border` or `border-color`, since the cap paints over them. A state on a key sets `--key-art` or `--key-print` instead: `.on`, `.selected`, `aria-pressed` and `aria-checked` take the lit cap, `:active` takes the pressed cap. A screen that sets a key's padding subtracts `var(--key-edge)` from each side, so the key keeps the size of its box. A plain `button` outside the drawn hardware is the baked keycap as a 9-slice, with its label in the engraved face and `--hud-print` ink. A disabled key keeps its cap and dims its print to `--hud-print-dim`, and `.btn-danger` takes the red cap, pressed or not. An action on one line of a list is a screen button, not a key, by 4.6. On the HUD `button.hud-key` is the key cap with an engraved label, an icon or both. A key with no icon prints its label on the cap. The key grows to fit its label, and each word sits on its own centered line, so End run takes two lines. Keys in one row share one height. A lit or danger key with text uses the red cap. A list of actions, such as the menu, is a column of icon keys with printed labels beside them. A pressed key shows its baked pressed frame.
 - Targeting computer. The screen always shows six gun cards, three rows of two, with a static amber CRT look from the `--hud-crt-*` tokens. A card shows the gun number, its picture, its name, one cell per round and one status: the aimed part and the hit chance, no target, reloading, error or got 'em. The number and the name are always dim. A click on a card selects that gun alone, All selects every gun, and a second press clears the selection. Reload and Hold act on the selected guns and say No gun selected when none is. The spec is [targeting-computer.md](concepts/targeting-computer.md).
@@ -169,7 +169,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 #### Content to surface
 
-- Window body. The plain olive `frame` piece, 9-sliced over the whole window. Olive metal shows in the title row, in the gutters between screens and in the key strip.
+- Window body. The plain olive `frame` piece, 9-sliced over the whole window. Olive metal shows in the title row, in the gutters between screens and in the key strip. The piece has one solid ink edge and a plain centre, so it stretches to any size without smearing. Every panel's padding clears the frame's bevel, so no screen touches the rim. A notice like the death box or a confirm takes the width of its content, up to `--hud-panel-l`.
 - Fixed words of a window, such as its title or the label of a group of keys. Engraved print on metal, `--font-engraved`, uppercase, ink `--hud-print-coal` with `--hud-print-coal-edge`. Only short fixed words, never data.
 - A name from the game used as a heading, such as the truck, a person or a shop. Tape on metal: the `tape` piece, stretched to fit, with `--font-hud` bold in `--hud-print-ink`. A driver wrote it, so it is the one place a game value sits off a screen.
 - Anything the game changes: values, lists, prose, prices, descriptions, quest text, the inventory drawing. A screen: the baked `screen` piece, 9-sliced, set into the metal. A window has one screen per block of content, never one screen for the whole window.
@@ -179,6 +179,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - A choice among options the game wrote, such as quest choices or save slots. Screen lines, each with its number, on the screen.
 - A status that is on or off, such as a warning. A lamp on the metal.
 - A text field or a picker. The baked `input` well on the metal.
+- A screen that scrolls. A rocker wheel on the metal at the screen's right edge, centred on its height, from the radio's baked wheel, through `mountScrollWheels()` in `src/ui/scroll-wheel.ts`. The screen shows no scrollbar. The wheel turns with the scroll, a drag or the mouse wheel over it scrolls the screen, a click pages, and it shows only while the screen can scroll. A screen with no gutter beside it keeps room for the wheel.
 - A picture, such as an item icon, the art band or the truck drawing. On a screen, or the art band across the top of the window, in its own colors.
 
 #### Inks per surface
@@ -192,7 +193,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 #### Fonts per role
 
-- Engraved print on metal and on caps: `--font-engraved`, uppercase. Latin is Routed Gothic Narrow and Cyrillic is OpenGost Type A with `--engraved-stroke`.
+- Engraved print on metal and on caps: `--font-engraved`, uppercase, on every key in every window. Latin is Routed Gothic Narrow and Cyrillic is OpenGost Type A with `--engraved-stroke`.
 - Screen heading, the first line of a screen that names its content, like WOT RADIO or OFFERS: `--font-hud`, uppercase. Chakra Petch has no Cyrillic, so Russian draws in Fira Sans Condensed.
 - Screen words: `--font-ui`. Barlow Semi Condensed in Latin, Fira Sans Condensed in Russian.
 - Screen numbers, such as prices, weights, chances and counts: `--font-mono`, IBM Plex Mono in both languages.
@@ -212,15 +213,15 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 - Window title. Engraved on metal, top left. The close key is at the right of the title row.
 - A shop or town heading like Machiners' yard. Tape, since the name comes from the game. A fixed screen name like Inventory is engraved.
-- The truck name over the inventory drawing. Tape on the metal above the drawing's screen.
+- The truck name over the inventory drawing. Tape stuck across the top lip of the drawing's screen, so the three column screens start level.
 - Stats beside the drawing. One screen per column.
-- Rotate and Strip under the part details. Keys in a key strip on metal below the details screen. A live count or price beside a key may print on the cap, at most one number.
+- Rotate and Strip under the part details. Keys in a key strip on metal below the details screen. The live cost beside a key, with its icon, sits on a small screen at the key's right.
 - Shop row Buy with its price. A screen button on the row's screen. The price is part of the button's label.
 - Contract offers with Accept. One screen holds the list. Accept is a screen button on each row.
 - Tabs such as Buy parts, Sell parts and Trucks, and the filter row. Keys on metal, the current one lit. A filter key may print its count.
 - Chips over the art band, such as money and load. Small screens set into the band's lower edge.
 - Prose such as a town or shop description. A screen under the title row.
-- Quest page. The art band on top, the prose and numbered choices on one screen, and the way out as a key on the metal foot.
+- Quest page. The art in the left column, the tape and one screen of full column height in the middle with the prose and the numbered choices, the way out as a key on the metal under it, and the stats and facts on a second screen of full height at the right. The town's ink page keeps the art band on top.
 - Confirm dialog. No title. The question on a screen, Cancel as a plain key and the yes as a red key, both on metal.
 - Tooltip. A thin olive frame around one screen, like the center tip.
 - Text field and picker. The input well on metal, with amber screen ink inside.

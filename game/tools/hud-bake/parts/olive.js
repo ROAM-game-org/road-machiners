@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { toon, ink } from '../kit.js';
+import { toon, inkAt } from '../kit.js';
 
 export const OLIVE = { housing: '#8d7b5b', edge: '#918466', brass: '#a38052', hole: '#24180d', floor: '#1c130b', print: '#e4d1a5' };
 export const KEYCAP = { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' };
@@ -79,6 +79,8 @@ export function keycap(w, h, css, height, colors = KEYCAP) {
   return { group: g, topBox };
 }
 
+const SLAB_INK = 0.007;
+
 export function slab({ w, h, depth, bevel, holes = [], faceMat }) {
   const outline = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
   const shape = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
@@ -88,7 +90,7 @@ export function slab({ w, h, depth, bevel, holes = [], faceMat }) {
   const sides = litToon(OLIVE.edge);
   const mesh = new THREE.Mesh(geo, [sides, sides]);
   mesh.castShadow = true; mesh.receiveShadow = true;
-  ink(mesh);
+  inkAt(mesh, SLAB_INK);
   const faceShape = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
   for (const [cx, cy, hw, hh, r] of holes) faceShape.holes.push(rrShape(cx - hw / 2, cy - hh / 2, cx + hw / 2, cy + hh / 2, r, THREE.Path));
   const fgeo = new THREE.ShapeGeometry(faceShape, 8);

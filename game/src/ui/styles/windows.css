@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost:not(:empty), .quest-page .quest-side) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -16,8 +16,7 @@
   box-sizing: border-box;
   background: none;
   border: 0;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   color: var(--hud-amber);
   font-family: var(--font-ui);
   text-shadow: var(--hud-text-glow);
@@ -101,9 +100,16 @@
 .inv-keys:empty {
   display: none;
 }
-:is(#ui, #report) .inv-keys :is(.cost, .cost *, .good, .bad, .dim) {
-  color: var(--hud-print-coal);
-  font-size: var(--text-lead);
+:is(#ui, #report) .inv-keys .cost:not(:empty) {
+  align-self: stretch;
+  justify-self: start;
+  min-width: 8em;
+  padding: 0 var(--space-4);
+  color: var(--hud-amber);
+  font-size: var(--text-body);
+}
+:is(#ui, #report) .inv-keys .cost .icon {
+  color: var(--hud-amber);
 }
 :is(#ui, #report) .screen-line {
   display: flex;
@@ -138,4 +144,11 @@
   background: var(--hud-amber);
   color: var(--hud-screen);
   text-shadow: none;
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) :is(.card-name b, .part-name b, .ability-name) {
+  font-weight: 600;
+}
+#ui .quest-page .quest-side .quest-stats.screen-block {
+  padding: 0;
+  border-image: none;
 }

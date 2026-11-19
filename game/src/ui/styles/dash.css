@@ -365,8 +365,8 @@
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(3, minmax(0, 1fr));
   grid-auto-flow: column;
-  gap: calc(var(--wp) * 8) calc(var(--wp) * 50);
-  padding: calc(var(--wp) * 10) calc(var(--wp) * 6);
+  gap: calc(var(--wp) * 8) calc(var(--wp) * 70);
+  padding: calc(var(--wp) * 10) calc(var(--wp) * 90) calc(var(--wp) * 10) calc(var(--wp) * 6);
 }
 
 #ui .gun-screen .gun-card {
@@ -377,7 +377,7 @@
   align-items: center;
   column-gap: calc(var(--wp) * 18);
   min-width: 0;
-  padding: calc(var(--wp) * 6) calc(var(--wp) * 40) calc(var(--wp) * 6) calc(var(--wp) * 12);
+  padding: calc(var(--wp) * 6) calc(var(--wp) * 10) calc(var(--wp) * 6) calc(var(--wp) * 12);
   border-radius: 0;
   color: var(--hud-amber);
   font: inherit;
@@ -590,11 +590,15 @@
 
 #ui button.gun-page {
   position: absolute;
-  right: 1cqw;
-  bottom: 0.6cqw;
-  padding: 0.2cqw 0.6cqw;
+  top: calc(var(--wp) * 10);
+  right: calc(var(--wp) * 6);
+  bottom: calc(var(--wp) * 10);
+  display: grid;
+  place-items: center;
+  width: calc(var(--wp) * 84);
   color: var(--hud-amber);
   font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  text-shadow: inherit;
 }
 
 #ui button.gun-page.hidden {
@@ -810,8 +814,7 @@
   padding: var(--space-2) var(--space-3);
   border: 0;
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   color: var(--hud-amber);
   text-align: left;
   text-shadow: var(--hud-text-glow);
@@ -928,8 +931,7 @@
   border: 0;
   padding: 1px var(--hud-well-w);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
 }
 
 #ui .stat-icon {
@@ -1222,8 +1224,7 @@
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
   pointer-events: none;
 }
 
@@ -1328,8 +1329,7 @@
 }
 
 :is(#ui, #overlay) .hud-frame.hud-tip-screen {
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
 }
 
 :is(#ui, #overlay) .hud-engraved {
@@ -1637,7 +1637,7 @@
   box-sizing: border-box;
   display: grid;
   gap: var(--hud-panel-gap);
-  padding: var(--hud-panel-gap);
+  padding: calc(var(--hud-frame-bevel) + var(--space-1));
   text-align: left;
 }
 
@@ -1732,6 +1732,9 @@
 
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-l);
+  width: fit-content;
+  min-width: var(--hud-panel-s);
+  max-width: min(var(--hud-panel-w), calc(var(--layer-w) - 2 * var(--hud-inset)));
 }
 
 #ui :is(.tip, .dialogue) {
@@ -1778,15 +1781,13 @@
 
 #ui .info .hitcard {
   padding: var(--space-2) var(--space-3);
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
 }
 
 #ui .info .info-draw {
   flex: 1 1 0;
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
 }
 
 #ui > .dash-rail {
