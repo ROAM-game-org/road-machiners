@@ -31,7 +31,7 @@ body {
   touch-action: manipulation;
   scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
-:is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
+:is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, label, summary) {
   -webkit-touch-callout: none;
   user-select: none;
 }

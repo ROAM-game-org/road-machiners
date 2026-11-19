@@ -1,8 +1,8 @@
 # UI kit library and review sheet
 
-**Status:** validating
-**Branch:** hud-dashboard
-**Worktree:** /Users/boris/Documents/Korovan/.worktrees/hud-dashboard
+**Status:** done
+**Branch:** ui-kit
+**Worktree:** /Users/boris/Documents/Korovan/.worktrees/ui-kit
 **Goal:** Every shared UI piece of `game/docs/ui.md` section 12, in every state of section 6, has a version in the baked HUD look, and every screen in `docs/screens/` wears it with its layout unchanged. The user signs both off on the `ui.html` sheet and on a before and after pair of every screen image. The sheet is what later screen-replacement tasks build from, one screen family each. Confirming the goal needs the user's sign-off on the sheet. Useless if: the sheet draws mockup markup that real screens never call; a piece clips in Russian, pseudo-long text or on a narrow layer; the hardware look breaks the grayscale hierarchy of P11 on a dense list; a piece exists only for the sheet; a screen counts as done because old flat markup sits inside a new frame.
 **Mode:** interactive
 
@@ -142,6 +142,8 @@ Approach: rebake `slate` as the window housing, retune the ink and surface token
 
 ## Conclusion
 
+The user signed off on the kit, and it is the game's UI on dev. Section 4.5 and 4.6 of `game/docs/ui.md` own its rules. The rounds after the redo set the textured frame, one screen padding, crisp tapes, prices on service keys, shortcuts in tooltips, no one-line screens, the ink hatch on the metal and toggles that latch down. The full layout check reports no clipped text, overflow, padding, one-line screen, grid, key or ink fault in English or Russian.
+
 The first kit was rejected. It stretched one big brown screen piece, `slate`, across every window, and amber text sat everywhere. The redo writes the hardware grammar into ui.md section 4.6 first. It says which surface each kind of content sits on, which inks and fonts each surface allows, and how each hard case is solved. Windows are now olive metal with one screen per block of content, engraved coal titles, tape for game names and keys on the metal.
 
 `scripts/ink-check.mjs` runs in every layout-check pass. It reports text in an ink its surface does not allow, a window that is mostly screen, and a screen inside a screen. It covers windows, the ink page, the confirm dialog, notices and the call dialog. It does not cover the HUD dash, tips or the inspect card, which belong to the HUD skin. On branch `kit-grammar` it finds no fault in any state, locale or viewport except the inspect card of the hauler at 1440x900, a HUD panel.
@@ -177,6 +179,7 @@ The full layout check, at 1280x720, 1024x600, 844x390 and 640x360 in English, Ru
 - Fixed inventory items like the Wheel overlap and cannot be reached on many screens. The HUD branch had this before the kit.
 - The help notes line in Russian still reports a leak fault. The text is fully visible.
 - The inspect card header is built in `hud.ts` as engraved text, not tape.
+- The supplies key reads Buy 1 with no unit, and the step of the fuel key sits inside `.price` so the key-state check reads it as part of the price.
 
 ## Code smells
 
