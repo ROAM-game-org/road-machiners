@@ -1109,6 +1109,7 @@ export class Game {
   }
 
   private frame(now: number): void {
+    this.fx.beginFrame();
     const dt = now - this.last;
     this.last = now;
     if (this.framesSeen++ > 0) this.pace.note(dt);
