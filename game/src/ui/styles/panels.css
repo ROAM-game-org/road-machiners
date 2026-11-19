@@ -185,6 +185,7 @@
   align-items: start;
   gap: var(--space-5) var(--space-9);
   max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
+  width: max-content;
   max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
   font-size: var(--text-dense);
@@ -197,8 +198,8 @@
 }
 .help-groups {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(4, max-content);
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-7);
 }
 .help-group {
@@ -220,6 +221,7 @@
 .help-group,
 .help-does {
   color: var(--hud-print-coal);
+  font-family: var(--font-engraved);
   font-size: var(--text-lead);
   text-shadow: var(--hud-print-coal-edge);
 }
@@ -233,6 +235,8 @@
   text-shadow: var(--hud-print-coal-edge);
 }
 .help-notes {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--space-4) var(--space-5);
   color: var(--hud-amber-soft);
   font-size: var(--text-dense);
