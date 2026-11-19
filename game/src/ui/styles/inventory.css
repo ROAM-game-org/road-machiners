@@ -801,7 +801,7 @@
   flex: 0 1 auto;
 }
 .inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
-  display: none;
+  flex: 1 1 auto;
 }
 .inv-bench .inv-target {
   flex: 0 1 auto;

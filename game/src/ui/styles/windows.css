@@ -80,10 +80,11 @@
   padding: var(--space-4) var(--space-5);
 }
 .board-offers {
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-2) var(--space-5);
 }
 .town-page:has(.board) .ink-head .qt-line {
-  padding: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-5);
 }
 .chips .chip {
   padding: var(--space-3) var(--space-5);
