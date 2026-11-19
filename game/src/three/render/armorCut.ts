@@ -5,7 +5,8 @@ import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { fitRamToBumper, placedBounds, settleOnBody, SIDE_FACE, type Placement } from './armorFit';
+import { armorModel } from './armorLook';
+import { clearPlates, fitRamToBumper, placedBounds, poseArmor, settleOnBody, SIDE_FACE, type Placement } from './armorFit';
 import { TOP_MARGIN, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
@@ -228,7 +229,11 @@ export function drawnArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, ite
   const at = armorPlacement(v, item, box, body);
   if (!isMounted(v.chassisId, item)) return at;
   const unit = cellRect(v.chassisId, itemCells(item)).unit;
-  if (isRam(partDef(item.part.defId))) fitRamToBumper(at, box, body, armorSide(v, item), unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
+  const def = partDef(item.part.defId);
+  if (!isRam(def)) return at;
+  const side = armorSide(v, item);
+  fitRamToBumper(at, box, body, side, unitBody(v.chassisId, unit).wheelY - PHYSICS.truck.suspensionRest);
+  clearPlates(at, box, platesBehind(v, item, body), side);
   return at;
 }
 
@@ -304,7 +309,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const upright = (): void => void (pos[axis] += outward * Math.min(0, outward * (touchAt(shift) as number) - snug));
   if (def.look === 'ram') upright();
   else settleOnBody(at, box, { profile, axis, toBodyTop: !across, upright, fail });
-  pos[axis] += (outward * overArmor(v, item, def)) / Math.cos(at.lean);
+  if (def.kind === 'accessory') clearPlates(at, box, platesBehind(v, item, body), side);
   return at;
 }
 
@@ -372,13 +377,21 @@ function airBehind(body: THREE.Object3D, axis: 'x' | 'z', outward: number, later
 
 const RAM_ROW = 0.1;
 
-function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
-  return def.kind === 'accessory' && armorUnder(v, item) ? TRUCK_LOOK.armorDepth : 0;
-}
-
-function armorUnder(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem): boolean {
+function platesBehind(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, body: THREE.Object3D): THREE.Object3D | null {
   const cells = new Set(itemCells(item).map((c) => `${c.x},${c.y}`));
-  return v.items.some((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)));
+  const side = plateSide(v.chassisId, item);
+  const plates = v.items.filter(
+    (it): it is PartItem => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && plateSide(v.chassisId, it) === side && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)),
+  );
+  if (plates.length === 0) return null;
+  const group = new THREE.Group();
+  for (const plate of plates) {
+    const drawn = armorModel(plate.part.defId);
+    poseArmor(drawn, armorPlacement(v, plate, new THREE.Box3().setFromObject(drawn), body));
+    group.add(drawn);
+  }
+  group.updateMatrixWorld(true);
+  return group;
 }
 
 function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {

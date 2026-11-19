@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CLIP_TOLERANCE } from '../../sim/body';
 import type { SideLetter } from '../../sim/grid';
 import { STEEPEST_LEAN } from './armorTop';
-import { bodyFace, FACE_COLUMN, type FaceProfile } from './gunStand';
+import { bodyFace, FACE_COLUMN, faceProfile, type FaceProfile } from './gunStand';
 
 export type Placement = { pos: THREE.Vector3; yaw: number; lean: number; scale: THREE.Vector3 };
 
@@ -44,6 +44,28 @@ function pullToBody(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: 
   if (face === null) throw new Error(`Ram on side ${side} finds no body face at its height to sit against`);
   const gap = outward * ((outward > 0 ? placed.min[axis] : placed.max[axis]) - face);
   if (gap > 0) at.pos[axis] -= outward * gap;
+}
+
+export function clearPlates(at: Placement, box: THREE.Box3, plates: THREE.Object3D | null, side: SideLetter): void {
+  if (plates === null) return;
+  const { axis, outward } = SIDE_FACE[side];
+  const across = axis === 'x' ? 'z' : 'x';
+  const placed = placedBounds(at, box);
+  const profile = faceProfile(plates, axis, outward, [placed.min[across], placed.max[across]]);
+  const [foot, head] = innerEdge(at, box, axis, outward);
+  const innerAt = (y: number): number => foot.out + ((y - foot.y) / (head.y - foot.y)) * (head.out - foot.out);
+  const behind = profile.reach.flatMap((reach, index) => {
+    const y = profile.bottom + (index + 0.5) * FACE_COLUMN;
+    return reach !== null && y >= placed.min.y && y <= placed.max.y ? [reach - innerAt(y)] : [];
+  });
+  if (behind.length === 0) return failIfSharingHeight(plates, placed, side);
+  const shortfall = Math.max(...behind);
+  if (shortfall > 0) at.pos[axis] += outward * shortfall;
+}
+
+function failIfSharingHeight(plates: THREE.Object3D, placed: THREE.Box3, side: SideLetter): void {
+  const box = new THREE.Box3().setFromObject(plates);
+  if (Math.min(box.max.y, placed.max.y) - Math.max(box.min.y, placed.min.y) > FACE_COLUMN) throw new Error(`Plates under an accessory on side ${side} share its height but show no face to stand in front of`);
 }
 
 type Row = { index: number; y: number; reach: number };
