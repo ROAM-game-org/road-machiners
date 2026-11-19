@@ -86,7 +86,7 @@
 }
 .town-truck {
   padding-right: var(--space-9);
-  border-right: 1px solid var(--line-soft);
+  border-right: 1px solid transparent;
 }
 .town-truck .inv-wrap {
   margin-top: 0;
@@ -526,7 +526,7 @@
   flex-direction: column;
   gap: var(--space-9);
   min-height: 0;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid transparent;
   padding-top: var(--space-7);
 }
 .well > .inv-inspection {
@@ -585,9 +585,38 @@
 }
 .inv-storage {
   min-height: calc(var(--icon-hero) + var(--space-7));
+  padding: var(--space-5);
+}
+.inv-storage:not(.screen-block) {
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
-  padding: var(--space-5);
+}
+.inv-bench .well .inv-storage {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.inv-storage .inv-chip {
+  background: none;
+}
+.town-truck .inv-truck {
+  position: relative;
+  isolation: isolate;
+}
+.town-truck .inv-truck:has(.inv-grid.drawn)::before {
+  right: var(--space-9);
+}
+.town-truck .inv-grid {
+  background: none;
+}
+.town-truck .inv-truck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-recess-backing);
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
+  pointer-events: none;
 }
 .inv-chip {
   position: relative;
@@ -869,4 +898,7 @@
 }
 .inv-view.short-layer .inv-inspection {
   gap: var(--space-6);
+}
+.inv-keys > button {
+  align-self: flex-start;
 }

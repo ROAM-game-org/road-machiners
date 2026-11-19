@@ -108,7 +108,8 @@ describe("the inventory during a scene", () => {
     w.player.quests.live = { ...SCENE };
     const { screen, applied } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const commands = loot.all((n) => n.tag === "button");
     expect(commands.length).toBeGreaterThan(0);
     for (const button of commands) {
@@ -122,7 +123,8 @@ describe("the inventory during a scene", () => {
     const { w, stock } = spotWorld();
     const { screen } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const takeAll = loot.all((n) => n.tag === "button").filter((b) => !b.attrs.has("aria-disabled"));
     expect(takeAll.length).toBeGreaterThan(0);
   });
@@ -147,7 +149,8 @@ describe("the inventory while knocked out", () => {
     w.player.state = "knockedOut";
     const { screen, applied } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const commands = loot.all((n) => n.tag === "button");
     expect(commands.length).toBeGreaterThan(0);
     for (const button of commands) {
@@ -158,8 +161,8 @@ describe("the inventory while knocked out", () => {
 
     w.player.state = "active";
     screen.openLoot(stock.id);
-    const woke = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
-    expect(woke.all((n) => n.tag === "button").filter((b) => !b.attrs.has("aria-disabled")).length).toBeGreaterThan(0);
+    const woke = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys");
+    expect(woke.flatMap((part) => part.all((n) => n.tag === "button")).filter((b) => !b.attrs.has("aria-disabled")).length).toBeGreaterThan(0);
   });
 
   it("throws if a command reaches the view while knocked out", () => {

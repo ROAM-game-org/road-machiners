@@ -93,7 +93,7 @@
   flex-direction: column;
   gap: var(--space-2);
 }
-#ui :is(.quest-screen, .ink-page) .quest-choice {
+#ui :is(.quest-screen, .ink-page) .quest-choice:not(.screen-line) {
   display: block;
   height: auto;
   min-height: var(--btn-h-m);
@@ -159,7 +159,7 @@
 }
 .quest-page .quest-art {
   padding: var(--space-7);
-  border-right: 1px solid var(--surface-raised);
+  border-right: 1px solid transparent;
 }
 :is(.quest-page, .ink-page) .quest-frame {
   width: 100%;
@@ -204,7 +204,7 @@
   margin-top: auto;
   padding-top: var(--space-6);
 }
-#ui :is(.quest-page, .ink-page) .quest-choice {
+#ui :is(.quest-page, .ink-page) .quest-choice:not(.screen-line) {
   padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
 }
 #ui :is(.quest-page, .ink-page) .quest-next {
@@ -214,7 +214,7 @@
 }
 .quest-page .quest-side {
   padding: var(--space-8) var(--space-7);
-  border-left: 1px solid var(--surface-raised);
+  border-left: 1px solid transparent;
   display: flex;
   flex-direction: column;
   gap: var(--space-7);
@@ -355,7 +355,6 @@
 }
 .tabs.sub .count {
   font: var(--text-dense) var(--font-mono);
-  color: var(--ink-muted);
 }
 
 /* Cards: one part or truck with its icon stats. The box comes from .tile. */
@@ -703,8 +702,6 @@
 .road-news {
   margin-top: var(--space-6);
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-sunk);
-  border-left: 2px solid var(--danger);
 }
 .news-head {
   font-size: var(--text-dense);
@@ -734,9 +731,6 @@
 .goods-head .price-head {
   justify-content: flex-end;
   width: var(--icon-3xl);
-}
-.good-row:hover {
-  background: var(--surface-highlight);
 }
 .good-name {
   display: flex;
@@ -906,15 +900,16 @@
   gap: var(--space-2);
 }
 .paint-slot-name {
-  font-size: var(--text-caption);
-  color: var(--ink-label);
+  color: var(--hud-print-coal);
+  font: var(--text-lead) var(--font-engraved);
+  text-transform: uppercase;
+  text-shadow: var(--hud-print-coal-edge);
 }
 .paint-switch > button {
   flex: 1;
 }
 #ui .paint-switch > button.planned {
-  outline: 1px dashed var(--accent);
-  outline-offset: 1px;
+  --key-art: var(--hud-keycap-down-art);
 }
 .paint-swatch {
   display: block;
@@ -967,8 +962,7 @@
 .truck-card .card-foot {
   flex-wrap: wrap;
 }
-.tile.on,
-.truck-card.own {
+.tile.on {
   border-color: var(--accent);
   border-left-color: var(--tone, var(--accent));
   background: var(--accent-wash);
@@ -1016,7 +1010,6 @@
   align-self: flex-start;
   width: max-content;
   padding: var(--map-pad);
-  background: var(--surface-sunk);
 }
 .chassis-map i {
   width: var(--map-cell);
@@ -1196,4 +1189,86 @@
 .truck-switch .chassis-portrait {
   --portrait-w: calc(var(--icon-l) * 1.6);
   --portrait-h: var(--icon-l);
+}
+
+:is(#ui, #report) button:not(.screen-btn, .screen-line, .part-sum) :is(.price, .amount, .count, .stat-val, .num, .cap, .tag) {
+  color: inherit;
+}
+#ui .part-sum {
+  --hover-bg: var(--hud-amber-dim);
+  --hover-border: transparent;
+}
+#ui .part-sum[aria-expanded="true"] {
+  --hover-bg: transparent;
+}
+.shop-body.screen-block {
+  padding: var(--space-2) var(--space-4);
+}
+.screen-block .tile {
+  background: none;
+  border: 0;
+}
+.screen-block .tile:hover {
+  border: 0;
+}
+.town-shop > .bad,
+.ink-foot .ink-status.bad {
+  color: var(--hud-print-coal);
+}
+.supply-rows .cap,
+.ink-panel.supplies .cap {
+  display: none;
+}
+.truck-head .card-name b {
+  white-space: normal;
+}
+.supply-rows .row,
+.supply-rows .good-row {
+  border: 0;
+}
+.supply-rows .good-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+.supply-rows .good-name.supply {
+  flex: none;
+}
+.supply-rows .service-meter {
+  flex: none;
+  width: calc(var(--space-10) * 4);
+}
+.paint-preview.screen-block {
+  padding: var(--space-4);
+}
+.quest-text > .quest-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  padding: var(--space-5) var(--space-6);
+}
+.quest-text > .quest-place.tape {
+  align-self: flex-start;
+}
+.quest-text > .quest-next {
+  margin-top: auto;
+}
+.service-meter.screen-block {
+  padding: var(--space-2) var(--space-3);
+}
+.screen-block .quest-stat {
+  border: 0;
+}
+.screen-block .quest-fact {
+  padding-left: 0;
+  border: 0;
+}
+#ui .screen-line:disabled {
+  color: var(--hud-amber-faint);
+  cursor: default;
+}
+#ui .screen-line:disabled:hover {
+  background: none;
 }

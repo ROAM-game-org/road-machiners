@@ -7,7 +7,7 @@ import { instantMoveItem } from "../sim/cheats";
 import { getLotTradePrice, sellPrice } from "../sim/economy";
 import { sellStoredGood, storedHere, storeTotal } from "../sim/goods-store";
 import { GOODS_STORE } from "../data/market";
-import { lotLabel, reasonButton } from "./shop-rows";
+import { lotLabel, rowButton } from "./shop-rows";
 import { deepestFirst, gridOf, isMounted, nextTurn, type Cell, type Spot } from "../sim/grid";
 import {
   dumpItem,
@@ -124,6 +124,7 @@ export class InventoryView {
   private root: HTMLElement = el("div", { class: "inv-view" });
   private inspection = el("div", { class: "inv-inspection" });
   private keys = el("div", { class: "inv-keys" });
+  private lootKeys = el("div", { class: "inv-keys" });
   private selectedItem: string | null = null;
   private loot: string | null = null;
   private truck: string | null = null;
@@ -241,6 +242,7 @@ export class InventoryView {
     this.showFan(me, this.selectedGun(me));
     this.drawPreview(grid, me);
     const error = this.error ? el("div", { class: "bad" }, this.error) : el("div");
+    if (!this.loot) this.lootKeys.replaceChildren();
     this.root.replaceChildren(...(this.head ? [this.benchEl(w, this.head, grid, error)] : [this.hostedEl(w, grid), error]));
     return this.root;
   }
@@ -275,7 +277,7 @@ export class InventoryView {
     return el(
       "div",
       { class: "inv-bench" },
-      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
+      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w)), this.lootKeys),
       middle,
       el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error), this.keys),
     );
@@ -283,7 +285,7 @@ export class InventoryView {
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error), this.keys));
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error), this.lootKeys, this.keys));
   }
 
   private sourceList(w: World): HTMLElement[] | null {
@@ -500,7 +502,7 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    const details = el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
+    const details = el("div", { class: this.head ? "well-group inv-details" : "well-group inv-details screen-block" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
     const rows = actions.length ? [el("div", { class: "action-rows" }, ...actions)] : [];
     if (this.head) {
       this.inspection.replaceChildren(details);
@@ -525,6 +527,10 @@ export class InventoryView {
     return item.kind === "parcel" ? parcelTitle(w, item) : itemName(item);
   }
 
+  private storageClass(extra: string): string {
+    return ["inv-storage", extra, this.head ? "" : "screen-block"].filter(Boolean).join(" ");
+  }
+
   private storageEl(w: World): HTMLElement {
     const chips = w.player.storage.map((p) => {
       const d = partDef(p.defId);
@@ -546,7 +552,7 @@ export class InventoryView {
     });
     return el(
       "div",
-      { class: "inv-storage", "data-drop": "storage" },
+      { class: this.storageClass(""), "data-drop": "storage" },
       el("h3", {}, t("inv.storage")),
       ...chips,
     );
@@ -557,7 +563,7 @@ export class InventoryView {
     const chips = Object.entries(stored).map(([good, count]) => this.storedCrateChip(w, shopId, good, count));
     return el(
       "div",
-      { class: "inv-storage inv-crates", "data-drop": "storage" },
+      { class: this.storageClass("inv-crates"), "data-drop": "storage" },
       el("h3", {}, t("inv.storedCrates"), el("span", { class: "inv-fill", title: t("inv.storedRule") }, t("inv.storedFill", { n: storeTotal(w, shopId), cap: GOODS_STORE.crates }))),
       ...(chips.length ? chips : [el("div", { class: "dim" }, t("inv.storageEmptyCrates"))]),
     );
@@ -583,8 +589,8 @@ export class InventoryView {
     return el(
       "div",
       { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
-      reasonButton([lotLabel(t("trade.minus", { n: 1 }), sellPrice(w, shopId, good))], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
-      reasonButton([lotLabel(t("trade.all"), allTotal)], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`),
+      rowButton([lotLabel(t("trade.minus", { n: 1 }), sellPrice(w, shopId, good))], () => this.run((x) => sellStoredGood(x, good, 1)), look, `${good}:storedSell1`),
+      rowButton([lotLabel(t("trade.all"), allTotal)], () => this.run((x) => sellStoredGood(x, good, count)), look, `${good}:storedSellAll`),
     );
   }
 
@@ -593,8 +599,8 @@ export class InventoryView {
     return el(
       "div",
       { class: "trade sell", onpointerdown: (e: Event) => e.stopPropagation() },
-      reasonButton([lotLabel(t("trade.minus", { n: 1 }), null)], () => this.run((x) => sellStoredGood(x, good, 1)), reason, `${good}:storedSell1`),
-      reasonButton([lotLabel(t("trade.all"), null)], () => this.run((x) => sellStoredGood(x, good, count)), reason, `${good}:storedSellAll`),
+      rowButton([lotLabel(t("trade.minus", { n: 1 }), null)], () => this.run((x) => sellStoredGood(x, good, 1)), reason, `${good}:storedSell1`),
+      rowButton([lotLabel(t("trade.all"), null)], () => this.run((x) => sellStoredGood(x, good, count)), reason, `${good}:storedSellAll`),
     );
   }
 
@@ -661,30 +667,19 @@ export class InventoryView {
     const stock = w.salvage.find((s) => s.id === stockId);
     if (!stock) throw new Error(`Unknown salvage ${stockId}`);
     const site = REGION.locations.find((l) => l.id === stockId);
-    const chips = [
-      ...this.lootPartChips(w, stock),
-      ...this.lootGoodChips(stock),
-      ...this.lootStoresButton(stock),
-    ];
+    const loose = [...this.lootPartChips(w, stock), ...this.lootGoodChips(stock)];
+    const stores = this.lootStoresButton(stock);
+    const present = loose.length + stores.length > 0;
+    this.lootKeys.replaceChildren(
+      ...stores,
+      ...(needsSearch(w, stock) ? [this.searchButton(w, stock)] : []),
+      ...(present ? [el("button", { ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))) }, t("inv.takeAll"))] : []),
+    );
     return el(
       "div",
       { class: "inv-storage inv-loot" },
       el("h3", {}, site ? t("inv.salvageAt", { site: siteName(site.id) }) : t("inv.salvage")),
-      ...(chips.length
-        ? chips
-        : [el("div", { class: "dim" }, hiddenUnits(stock) > 0 ? t("inv.nothingFound") : t("inv.nothingLeft"))]),
-      ...(needsSearch(w, stock) ? [this.searchButton(w, stock)] : []),
-      ...(chips.length
-        ? [
-            el(
-              "button",
-              {
-                ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))),
-              },
-              t("inv.takeAll"),
-            ),
-          ]
-        : []),
+      ...(present ? loose : [el("div", { class: "dim" }, hiddenUnits(stock) > 0 ? t("inv.nothingFound") : t("inv.nothingLeft"))]),
     );
   }
 

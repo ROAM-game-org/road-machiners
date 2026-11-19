@@ -20,7 +20,7 @@ import { PartRows, type PartRow } from "./part-rows";
 import type { TruckPaint } from "../data/chassis";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
+import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, screenButton, shortBy, supplyRow, truckCards, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
 export const OUTPOST_TABS = ["market", "buyParts", "sellParts", "trucks", "paint"] as const satisfies readonly Tab[];
@@ -118,11 +118,16 @@ export class OutpostScreen {
       el("div", { class: "tabs" }, ...this.tabButtons()),
       this.stockChips(post),
       this.error ? el("div", { class: "bad" }, this.error) : null,
-      el("div", { class: "shop-body" }, this.tabBody(w, post)),
+      el("div", { class: this.bodyClass() }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
     this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, {}, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truckBody);
+  }
+
+  private bodyClass(): string {
+    const lists: OutpostTab[] = ["buyParts", "sellParts", "trucks"];
+    return lists.includes(this.tab) ? "shop-body screen-block" : "shop-body";
   }
 
   private leaveButton(w: World): HTMLElement[] {
@@ -190,7 +195,12 @@ export class OutpostScreen {
     const id = this.truckId(w);
     const buy = (x: World, k: Supply, n: number) => outpostBuySupply(x, k, n, id);
     const mine = truckFor(w, id);
-    return el("div", { class: "goods" }, goodsHead(), supplyRow(w, "fuel", this, buy, mine), supplyRow(w, "supplies", this, buy, mine), this.goodRow(w));
+    return el(
+      "div",
+      { class: "outpost-market" },
+      el("div", { class: "supply-rows" }, supplyRow(w, "fuel", this, buy, mine), supplyRow(w, "supplies", this, buy, mine)),
+      el("div", { class: "goods screen-block" }, goodsHead(), this.goodRow(w)),
+    );
   }
 
   private trucks(w: World, post: Outpost): HTMLElement {
@@ -244,8 +254,8 @@ export class OutpostScreen {
         "div",
         { class: "trade buy" },
         caption(GOODS_COLUMNS.buy),
-        buyButton(w.player.money, t("trade.plus", { n: 1 }), price, () => this.run((x) => outpostBuyGood(x, 1)), reason(1), `${REPAIR_GOOD}:buy1`),
-        buyButton(w.player.money, t("trade.plus", { n: GOOD_LOT }), price * GOOD_LOT, () => this.run((x) => outpostBuyGood(x, GOOD_LOT)), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`),
+        screenButton(buyButton(w.player.money, t("trade.plus", { n: 1 }), price, () => this.run((x) => outpostBuyGood(x, 1)), reason(1), `${REPAIR_GOOD}:buy1`)),
+        screenButton(buyButton(w.player.money, t("trade.plus", { n: GOOD_LOT }), price * GOOD_LOT, () => this.run((x) => outpostBuyGood(x, GOOD_LOT)), reason(GOOD_LOT), `${REPAIR_GOOD}:buy${GOOD_LOT}`)),
       ),
       goodSellCell({
         good: REPAIR_GOOD,
@@ -305,6 +315,6 @@ export class OutpostScreen {
 
   private partRow(w: World, p: PartInstance): PartRow {
     const id = this.truckId(w);
-    return garagePartRow(w, this.partLists(), p, this.priceButton(w, t("goods.buy"), outpostPartPrice(w, p, id), (x) => outpostBuyPart(x, p.id, id), null), t("trade.done.bought"));
+    return garagePartRow(w, this.partLists(), p, screenButton(this.priceButton(w, t("goods.buy"), outpostPartPrice(w, p, id), (x) => outpostBuyPart(x, p.id, id), null)), t("trade.done.bought"));
   }
 }

@@ -68,7 +68,7 @@ export class FullShopScreen {
       { class: "town-shop" },
       el("div", { class: "tabs sub" }, ...this.filterButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
-      el("div", { class: "shop-body" }, el("div", { class: "cards" }, ...this.cards(w))),
+      el("div", { class: "shop-body screen-block" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
@@ -86,7 +86,7 @@ export class FullShopScreen {
         world: w,
         part,
         base: compareBase(this.inventory.selectedPart(), part),
-        action: el("button", { onclick: () => this.take(w, d.id) }, "Take"),
+        action: el("button", { class: "screen-btn", onclick: () => this.take(w, d.id) }, "Take"),
         onHover: this.hintMounts(d.id),
       });
     });

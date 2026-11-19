@@ -74,7 +74,7 @@ export function supplyCap(w: World, k: Supply, truck: Vehicle = playerVehicle(w)
   return k === "fuel" ? fuelCap(truck) : suppliesCap(truck);
 }
 
-export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, buys: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
+export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, buys: HTMLElement[], tag: HTMLElement | null = null, onScreen = false): HTMLElement {
   const amount = (n: number) => supplyAmount(k, n);
   return el(
     "div",
@@ -83,7 +83,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       "div",
       { class: "good-name supply" },
       createIcon(k),
-      el("div", { class: "service-meter" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
+      el("div", { class: onScreen ? "service-meter" : "service-meter screen-block" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
       tag,
     ),
     theirs,
@@ -101,11 +101,21 @@ export function buyButton(money: number, verb: Msg, price: number, click: () => 
 }
 
 export function sellButton(verb: Msg, price: number, click: () => void, reason: Msg | null = null): HTMLElement {
-  return reasonButton([pricedEl(verb, priceTag(price, true))], click, reason);
+  return rowButton([pricedEl(verb, priceTag(price, true))], click, reason);
+}
+
+export function screenButton(button: HTMLElement): HTMLElement {
+  button.classList.remove("btn-s");
+  button.classList.add("screen-btn");
+  return button;
 }
 
 export function reasonButton(label: Child[], click: () => void, reason: Msg | null, key = "", title: Msg | null = null): HTMLElement {
   return el("button", { ...reasonAttrs(reason, title), "data-key": key || undefined, onclick: () => reason || click() }, ...label);
+}
+
+export function rowButton(label: Child[], click: () => void, reason: Msg | null, key = "", title: Msg | null = null): HTMLElement {
+  return screenButton(reasonButton(label, click, reason, key, title));
 }
 
 export function lotLabel(verb: Msg, price: number | null, payable = true, hint: PriceHint | null = null): Child {
@@ -171,7 +181,7 @@ export function paintTab(choice: PaintChoice): HTMLElement {
   return el(
     "div",
     { class: "paint-tab" },
-    el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
+    el("div", { class: "paint-preview screen-block" }, chassisPortrait(choice.chassisId, shown)),
     el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
   );
 }
@@ -256,7 +266,7 @@ function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer):
   const cost = chassisPrice(w, id);
   const price = cost < 0 ? el("span", { class: "price good" }, PLUS, moneyEl(-cost)) : priceTag(cost, offer.reason === null);
   const title = offer.reason ? null : t("trade.includesTradeIn", { price: moneyMsg(chassisTradeIn(w)) });
-  return reasonButton([pricedEl(t("trade.swapVerb"), price)], offer.swap, offer.reason, "", title);
+  return rowButton([pricedEl(t("trade.swapVerb"), price)], offer.swap, offer.reason, "", title);
 }
 
 type DeskCommand = (cmd: (w: World) => World) => void;
@@ -274,9 +284,9 @@ export function deskBody(w: World, run: DeskCommand, slots: RowSlots): HTMLEleme
   return el(
     "div",
     { class: "desk-body" },
-    cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
-    settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
-    cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
+    cases.length > 0 ? el("div", { class: "desk-group screen-block" }, ...cases, payAll) : null,
+    settles.length > 0 ? el("div", { class: "desk-group screen-block" }, ...settles) : null,
+    cases.length === 0 && settles.length === 0 ? el("p", { class: "dim screen-block" }, t("desk.empty")) : null,
   );
 }
 
@@ -295,13 +305,13 @@ function caseRow(w: World, c: CrimeCase, run: DeskCommand): SlotRow {
 }
 
 function payButton(w: World, verb: Msg, price: number, shown: HTMLElement, click: () => void): HTMLElement {
-  return reasonButton([pricedEl(verb, shown)], click, shortBy(w.player.money, price));
+  return rowButton([pricedEl(verb, shown)], click, shortBy(w.player.money, price));
 }
 
 function settleRow(w: World, q: SettlementQuote, run: DeskCommand): SlotRow {
   const short = shortBy(w.player.money, q.price);
   const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
-  const settle = reasonButton([pricedEl(t("desk.settle"), priceTag(q.price, short === null))], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
+  const settle = rowButton([pricedEl(t("desk.settle"), priceTag(q.price, short === null))], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
   const row = el("div", { class: "row desk-settle" }, el("span", {}, factionName(q.faction)), el("span", { class: "tag bad" }, t("band.hostile")), settle);
   return { id: q.faction, row, action: settle, done: t("trade.done.settled") };
 }
