@@ -191,7 +191,7 @@ export class DialoguePanel {
       return el('button', { class: o.seen ? 'screen-line dialogue-option seen' : 'screen-line dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, el('span', { class: 'option-key' }, num(i + 1, 'int')), el('span', { class: 'option-line' }, lineText(o.line, call.vars)));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
-    line.classList.add('dialogue-line', 'hud-screen');
+    line.classList.add('dialogue-line', 'screen-block');
     this.root.replaceChildren(el('div', { class: 'hud-panel-head' }, el('h3', { class: 'tape' }, vehicleTitle(w, npc))), line, el('div', { class: 'dialogue-options screen-block' }, ...options));
   }
 

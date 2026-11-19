@@ -276,13 +276,12 @@ export class QuestScreen {
     for (const cls of ['dialog', 'ink-page', 'in-town']) this.root.classList.toggle(cls, town !== null);
     this.restack();
     const endMs = town ? this.drawInTown(w, view, town) : this.drawAlone(w, view);
-    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
     this.placeScroll(scroll, before);
   }
 
   private scrollBox(): HTMLElement | null {
-    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text');
+    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text, .quest-body');
   }
 
   private placeScroll(kind: ScrollKind, before: number): void {
@@ -313,6 +312,7 @@ export class QuestScreen {
         el('div', { class: 'ink-status' }, this.errorLine()),
         parts.side,
       ),
+      this.look,
     );
     return drawn.endMs;
   }
@@ -363,7 +363,7 @@ export class QuestScreen {
     this.artStage.clear();
     const drawn = this.drawParagraphs(w, this.pageAt(view), true);
     const text = el('div', { class: 'quest-talk' }, this.askLine(), ...drawn.nodes);
-    this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
+    this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine(), this.look);
     return drawn.endMs;
   }
 
@@ -384,8 +384,9 @@ export class QuestScreen {
     const end = this.pageEnd(w, view, drawn.endMs, true);
     const keyEnd = end.tagName === 'BUTTON';
     const body = el('div', { class: 'quest-body screen-block' }, ...drawn.nodes, keyEnd ? null : end);
-    const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place tape' }, verbatim(place)) : null, body, keyEnd ? end : null, this.errorLine());
-    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), text, this.side(w, view));
+    const middle = el('div', { class: 'quest-mid' }, place ? el('h2', { class: 'quest-place tape' }, verbatim(place)) : null, body);
+    const foot = el('div', { class: 'quest-foot' }, this.look, el('div', { class: 'quest-way' }, keyEnd ? end : null, this.errorLine()));
+    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), middle, this.side(w, view), foot);
     return drawn.endMs;
   }
 

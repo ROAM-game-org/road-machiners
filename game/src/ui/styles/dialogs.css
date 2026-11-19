@@ -54,15 +54,104 @@
   font-size: var(--text-heading);
   line-height: 1;
 }
+#ui .panel.note {
+  --note-w: var(--hud-panel-xl);
+  box-sizing: border-box;
+  width: min(var(--note-w), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  padding: var(--space-7) var(--space-9) var(--space-6);
+  border: 0;
+  background: none;
+  border-image: var(--hud-note-art) var(--hud-note-slice) fill / var(--hud-note-edge) / var(--hud-note-outset) stretch;
+  color: var(--hud-print-ink);
+  font: var(--text-body) / 1.35 var(--font-ui);
+  text-align: left;
+  text-shadow: none;
+}
+#ui .toast.note {
+  --note-w: var(--hud-panel-l);
+}
+#ui .top-center > .panel.note {
+  position: relative;
+}
+#ui .panel.note :is(h3, p) {
+  margin: 0;
+  color: var(--hud-print-ink);
+  font: inherit;
+  letter-spacing: normal;
+  text-shadow: none;
+  text-transform: none;
+}
+#ui .panel.note .note-title {
+  font-weight: 700;
+}
+#ui .panel.note .note-aside {
+  margin-top: var(--space-3);
+  font-size: var(--text-dense);
+}
+#ui .panel.note > .hud-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
+#ui .panel.dialogue {
+  --talk-wheel: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
+  width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+}
+#ui .dialogue .hud-panel-head {
+  height: calc(var(--text-body) * 1.15 + 2 * var(--space-2));
+}
+#ui .dialogue .hud-panel-head > .tape {
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+#ui .dialogue :is(.dialogue-line, .dialogue-options) {
+  box-sizing: border-box;
+  margin: 0 var(--talk-wheel) 0 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#ui .dialogue .dialogue-line {
+  height: calc(3 * var(--text-body) * 1.35 + 2 * var(--space-3));
+  padding: var(--space-3) var(--space-5);
+  font: var(--text-body) / 1.35 var(--font-ui);
+}
+#ui .dialogue .dialogue-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: calc(6 * var(--btn-h-s) + 5 * var(--space-1) + 2 * var(--space-3));
+  padding: var(--space-3);
+}
+#ui .dialogue .dialogue-option {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-amber);
+  font: var(--text-body) / 1.2 var(--font-ui);
+  text-align: left;
+}
+#ui .dialogue .dialogue-option.seen {
+  color: var(--hud-amber-soft);
+}
+#ui .dialogue .dialogue-option[aria-disabled="true"] {
+  color: var(--hud-amber-faint);
+}
 #ui .dialogue .dialogue-options .screen-line:hover {
   background: var(--hud-amber-dim);
 }
 #ui .dialogue .dialogue-options .option-key {
-  display: inline;
-  width: auto;
-  height: auto;
-  border: 0;
-  border-image: none;
+  flex: none;
+  width: 1.5em;
   color: inherit;
   font: var(--text-dense) var(--font-mono);
 }

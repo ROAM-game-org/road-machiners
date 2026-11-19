@@ -198,9 +198,6 @@
 .meter.s {
   height: var(--meter-s);
 }
-.meter.l {
-  height: var(--meter-l);
-}
 .meter.broken {
   background: var(--danger-ink);
 }
@@ -208,22 +205,6 @@
   background: var(--surface-sunk);
 }
 .meter.progress > * {
-  background: var(--accent);
-}
-.meter.notched {
-  display: flex;
-  gap: var(--space-1);
-  height: var(--meter-l);
-  background: none;
-  overflow: visible;
-  min-width: calc(var(--cells) * var(--pip) + (var(--cells) - 1) * var(--space-1));
-}
-.meter.notched > i {
-  flex: 1;
-  height: 100%;
-  background: var(--line-soft);
-}
-.meter.notched > i.on {
   background: var(--accent);
 }
 
@@ -562,32 +543,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-/* A bar on a well: its track is lighter than the well, so the bar's full length shows. */
-.gauge {
-  position: relative;
-  height: var(--meter-m);
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-.gauge > i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-}
-.gauge > .fill {
-  background: var(--ink-faint);
-}
-.gauge.health > .fill {
-  background: var(--good);
-}
-.gauge > .share {
-  background: var(--accent);
-}
-.gauge > .after {
-  background: var(--accent-wash);
-  outline: 1px dashed var(--accent);
-  outline-offset: -1px;
 }
 /* An action row: one verb button of a width shared by the list, then its cost or the reason it is off. */
 .action-rows {

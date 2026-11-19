@@ -1,5 +1,5 @@
 import { createIcon, type IconName } from "./cards";
-import { chassisDef } from "../data/chassis";
+import { chassisDef, HAULER_CHASSIS, PLAYER_CHASSIS } from "../data/chassis";
 import { truckFor } from "../sim/damage";
 import { loadMass } from "../sim/mass";
 import { maxSpeedSteps } from "../sim/stats";
@@ -18,22 +18,49 @@ export type ChipOptions = {
   bad?: boolean;
   extra?: HTMLElement[];
   className?: string;
+  chars?: number;
 };
 
-export function chipEl(value: Child, opts: ChipOptions = {}): HTMLElement {
-  const classes = ["chip", opts.bad ? "bad" : "", opts.className ?? ""].filter(Boolean).join(" ");
-  const attrs: Record<string, string | Msg> = {
-    class: classes,
+function chipClasses(opts: ChipOptions): string {
+  const fixed = opts.chars === undefined ? "" : "fixed";
+  return ["chip", opts.bad ? "bad" : "", fixed, opts.className ?? ""].filter(Boolean).join(" ");
+}
+
+function chipAttrs(opts: ChipOptions): Record<string, string | Msg> {
+  return {
+    class: chipClasses(opts),
+    ...(opts.chars === undefined ? {} : { style: `--chip-ch:${opts.chars}` }),
     ...(opts.title ? { title: opts.title } : {}),
     ...(opts.label ? { "aria-label": opts.label } : {}),
   };
-  const shown = opts.readout && value !== null ? el("span", { class: "num" }, value) : value;
-  return el("span", attrs, opts.icon ? createIcon(opts.icon) : null, shown, ...(opts.extra ?? []));
 }
 
-function featureChip(chassisId: string): HTMLElement | null {
+export function chipEl(value: Child, opts: ChipOptions = {}): HTMLElement {
+  const shown = opts.readout && value !== null ? el("span", { class: "num" }, value) : value;
+  return el("span", chipAttrs(opts), opts.icon ? createIcon(opts.icon) : null, shown, ...(opts.extra ?? []));
+}
+
+const MONEY_CHARS = 9;
+const POWER_CHARS = 20;
+const LOAD_GLYPHS = 6;
+const COUNT_PAD = 1;
+
+function thousands(n: number): number {
+  return Math.round(n).toLocaleString("en-US").length;
+}
+
+function loadChars(): number {
+  const rated = Math.max(...[...PLAYER_CHASSIS, HAULER_CHASSIS].map((id) => chassisDef(id).ratedMass));
+  return 2 * thousands(rated) + LOAD_GLYPHS + COUNT_PAD;
+}
+
+function tapeEl(name: Msg, title?: Msg): HTMLElement {
+  return el("span", { class: "tape", ...(title ? { title } : {}) }, name);
+}
+
+function featureTape(chassisId: string): HTMLElement | null {
   const name = chassisAbilityName(chassisId);
-  return name ? chipEl(name, { title: chassisAbilityLine(chassisId) ?? name }) : null;
+  return name ? tapeEl(name, chassisAbilityLine(chassisId) ?? name) : null;
 }
 
 export function truckChips(w: World, opts: { feature?: boolean } = {}, truckId?: string): HTMLElement {
@@ -43,21 +70,22 @@ export function truckChips(w: World, opts: { feature?: boolean } = {}, truckId?:
   return el(
     "span",
     { class: "chips" },
-    chipEl(chassisName(chassisDef(me.chassisId).id), { icon: "truck" }),
-    opts.feature === false ? null : featureChip(me.chassisId),
-    chipEl(moneyEl(w.player.money)),
+    chipEl(moneyEl(w.player.money), { chars: MONEY_CHARS }),
     chipEl(t("speed.loadChip", { mass: Math.round(mass), rated: Math.round(rated) }), {
       icon: "mass",
       readout: true,
       bad: mass > rated,
       title: t("inv.loadTitle"),
+      chars: loadChars(),
     }),
     powerChipNode(w, me),
+    tapeEl(chassisName(chassisDef(me.chassisId).id)),
+    opts.feature === false ? null : featureTape(me.chassisId),
   );
 }
 
 function powerChipNode(w: World, me: Vehicle): HTMLElement {
   const chip = powerChip(maxSpeedSteps(w, me), me);
   const cost = chip.cost ? [createIcon("speed"), el("span", { class: "num" }, chip.cost)] : [];
-  return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost });
+  return chipEl(chip.ratio, { icon: "power", readout: !chip.words, bad: chip.over, title: chip.detail, label: chip.detail, extra: cost, chars: POWER_CHARS });
 }

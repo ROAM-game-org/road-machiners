@@ -5,7 +5,7 @@ import { mountCellsOf } from "../sim/grid";
 import { tradedSpares } from "../sim/inventory";
 import { isRelic } from "../sim/wear";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { num, t, type Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { compareBase, createIcon, type IconName } from "./cards";
 import { el } from "./dom";
 import { GOODS_COLUMNS } from "./format";
@@ -50,11 +50,11 @@ export function filteredStock(stock: PartInstance[], f: StockFilter): PartInstan
 }
 
 export function stockFilterChips(stock: PartInstance[], current: StockFilter, pick: (f: StockFilter) => void): HTMLElement {
-  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f), current === f, pick)));
+  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f) === 0, current === f, pick)));
 }
 
-function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
-  const empty = count === 0 && f !== "all";
+function stockFilterChip(f: StockFilter, none: boolean, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
+  const empty = none && f !== "all";
   return el(
     "button",
     {
@@ -66,7 +66,6 @@ function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: S
       },
     },
     f === "all" ? t("trade.filter.all") : filterIcon(f),
-    el("span", { class: "count" }, num(count, "int")),
   );
 }
 

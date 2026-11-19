@@ -62,18 +62,18 @@ export class FullShopScreen {
     if (!this.isOpen()) return;
     const w = this.host.world();
     const truckBody = el("div", { class: "truck-body" }, this.inventory.render());
-    const truck = el("div", { class: "town-truck" }, truckBody);
+    const truck = el("div", { class: "town-truck" }, el("div", { class: "town-band" }, this.inventory.keysEl), truckBody);
     const shop = el(
       "div",
       { class: "town-shop" },
-      el("div", { class: "tabs sub" }, ...this.filterButtons()),
-      this.error ? el("div", { class: "bad" }, this.error) : null,
+      el("div", { class: "town-band" }, el("div", { class: "tabs sub" }, ...this.filterButtons())),
       el("div", { class: "shop-body screen-block" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
       el("h3", {}, "Full shop", truckChips(w)),
-      el("div", { class: "town-split" }, truck, shop),
+      el("div", { class: "town-split banded" }, truck, shop),
+      el("div", { class: "outpost-foot" }, el("div", { class: "bad" }, this.error)),
     );
     this.inventory.fitTo(truckBody);
   }
@@ -120,7 +120,6 @@ export class FullShopScreen {
           },
         },
         f === "all" ? "All" : filterIcon(f),
-        el("span", { class: "count" }, `${this.parts.filter((d) => f === "all" || kindFilter(d.kind) === f).length}`),
       ),
     );
   }

@@ -213,9 +213,9 @@ export class Hud {
   private infoBody = el("div", { class: "info-content" });
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
-  private toastBox = panel("toast hud-panel");
+  private toastBox = panel("toast note");
 
-  private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
+  private toastText = this.toastBox.appendChild(el("p", { class: "note-text" }));
   private rescue = panel("rescue notice hud-panel", topCenter());
   private knockedOut = panel("status-mark hud-panel", topCenter());
   private truckStack = el("div", { class: "truck-stack" });
@@ -414,9 +414,8 @@ export class Hud {
     return this.infoColumn;
   }
 
-  private toast(text: Msg, refusal = false): void {
-    setText(this.toastScreen, text);
-    this.toastBox.classList.toggle("bad", refusal);
+  private toast(text: Msg): void {
+    setText(this.toastText, text);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(
@@ -607,7 +606,7 @@ export class Hud {
   }
 
   refuse(text: Msg): void {
-    this.toast(text, true);
+    this.toast(text);
   }
 
   note(w: World, text: Msg, cls: string): void {
@@ -648,13 +647,12 @@ export class Hud {
     const aim = this.aimOf(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
-    const parts = [
+    this.infoBody.replaceChildren(
       panelHead(v.brain ? driverName(v) : vehicleTitle(w, v)),
-      shownScreen(screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line)))),
+      screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
-      this.cardButtons(w, v),
-    ].filter((node) => node !== null);
-    this.infoBody.replaceChildren(...parts);
+      this.cardButtons(w, v) ?? controls(),
+    );
     this.placeInfo();
   }
 }
@@ -670,10 +668,6 @@ function beaconRocker(on: boolean, flip: () => void): HTMLElement {
 
 function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind: K): Extract<RescueReadout, { kind: K }> | null {
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
-}
-
-function shownScreen(screenNode: HTMLElement): HTMLElement | null {
-  return screenNode.textContent?.trim() ? screenNode : null;
 }
 
 function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {

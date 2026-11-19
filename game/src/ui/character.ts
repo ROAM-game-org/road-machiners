@@ -4,7 +4,7 @@ import { REPAIR } from '../data/wear';
 import { maxHealthOf } from '../sim/health';
 import { buyRank, canBuyRank, choosePerk, hasPerk, pendingPerkPairs, rankCost } from '../sim/progress';
 import type { SkillId, World } from '../sim/types';
-import { createIcon, type IconName } from './cards';
+import { createIcon, segmentGauge, type IconName } from './cards';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
 import { standingNum, standingStep } from './format';
@@ -106,18 +106,14 @@ export class CharacterScreen {
   }
 
   private skillTabs(world: World, shown: SkillId): HTMLElement {
-    return el('div', { class: 'char-tabs' }, ...SKILL_IDS.map((id) => this.skillTab(world, id, id === shown)), pool(world));
+    return el('div', { class: 'char-skills' },
+      el('div', { class: 'char-tabs' }, ...SKILL_IDS.map((id) => this.skillTab(id, id === shown))),
+      el('div', { class: 'char-tabs' }, skillStrip(world), pool(world)));
   }
 
-  private skillTab(world: World, skill: SkillId, on: boolean): HTMLElement {
-    const rank = world.player.ranks[skill];
-    const picking = pendingPerkPairs(world).some((pair) => pair.skill === skill);
-    const cost = rank < MAX_RANK ? rankCost(rank + 1) : null;
+  private skillTab(skill: SkillId, on: boolean): HTMLElement {
     return el('button', { class: `skill-tab${on ? ' on' : ''}`, 'data-skill': skill, title: t('character.grows', { what: skillGrows(skill) }), onclick: () => { this.skill = skill; this.render(); } },
-      el('span', { class: 'skill-tab-line' },
-        el('span', { class: 'skill-tab-name' }, plainIcon(SKILL_ICON[skill]), skillName(skill), picking ? el('span', { class: 'pick-tag' }, t('character.pickOpen')) : null)),
-      el('span', { class: 'skill-tab-line' }, pips(rank),
-        cost === null ? null : el('span', { class: `skill-tab-cost num${world.player.xp >= cost ? '' : ' short'}` }, t('character.xpPool', { n: cost }))));
+      plainIcon(SKILL_ICON[skill]), skillName(skill));
   }
 
   private skillPage(world: World, skill: SkillId): HTMLElement {
@@ -186,15 +182,27 @@ function basicCard(skill: SkillId, owned: boolean): HTMLElement {
     el('div', { class: 'perk-text' }, el('b', {}, basicName(basic)), el('span', {}, basicRule(basic))));
 }
 
-function pool(world: World): HTMLElement {
-  const p = world.player;
-  return el('div', { class: 'char-pool screen-block' },
-    el('div', { class: 'char-pool-row xp' }, el('span', {}, t('character.xpLabel')), el('span', { class: 'num' }, num(Math.floor(p.xp), 'int'))),
-    el('div', { class: 'char-pool-row' }, el('span', {}, t('character.health')), el('span', { class: 'num' }, t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) }))));
+function skillStrip(world: World): HTMLElement {
+  return el('div', { class: 'skill-strip screen-block' }, ...SKILL_IDS.map((id) => skillStat(world, id)));
 }
 
-function pips(rank: number): HTMLElement {
-  return el('span', { class: 'rank-pips' }, ...Array.from({ length: MAX_RANK }, (_, i) => el('i', { class: i < rank ? 'on' : '' })));
+function skillStat(world: World, skill: SkillId): HTMLElement {
+  const rank = world.player.ranks[skill];
+  const cost = rank < MAX_RANK ? rankCost(rank + 1) : null;
+  const picking = pendingPerkPairs(world).some((pair) => pair.skill === skill);
+  return el('div', { class: 'skill-stat', 'data-stat': skill },
+    el('span', { class: 'skill-rank' }, segmentGauge(rank / MAX_RANK, { cells: MAX_RANK }), el('span', { class: 'num' }, t('readout.ofMax', { n: rank, max: MAX_RANK }))),
+    cost === null ? null : el('span', { class: `skill-cost num${world.player.xp >= cost ? '' : ' short'}` }, t('character.xpPool', { n: cost })),
+    picking ? el('span', { class: 'pick-tag' }, t('character.pickOpen')) : null);
+}
+
+function pool(world: World): HTMLElement {
+  const p = world.player;
+  const max = maxHealthOf(world);
+  return el('div', { class: 'char-pool screen-block' },
+    el('div', { class: 'char-pool-row xp' }, el('span', {}, t('character.xpLabel')), el('span', { class: 'num' }, num(Math.floor(p.xp), 'int'))),
+    el('div', { class: 'char-pool-row' }, el('span', {}, t('character.health')), el('span', { class: 'num' }, t('readout.ofMax', { n: hp(p.health), max }))),
+    segmentGauge(p.health / max));
 }
 
 function plainIcon(name: IconName): HTMLElement {

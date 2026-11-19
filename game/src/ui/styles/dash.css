@@ -803,7 +803,7 @@
   font: inherit;
 }
 
-#ui :is(.toast, .action, .status-mark) {
+#ui :is(.action, .status-mark) {
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
 }
@@ -836,10 +836,6 @@
 
 :is(#ui, #overlay) .hud-screen :is(.bad, .bad *),
 #ui .hud-screen.bad {
-  color: var(--hud-hot);
-}
-
-#ui .toast.bad {
   color: var(--hud-hot);
 }
 
@@ -982,7 +978,7 @@
   visibility: inherit;
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),
+#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue),
 #ui .game-menu [role=menu] {
   font-family: var(--font-hud);
   --ink: var(--hud-amber);
@@ -1172,7 +1168,7 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
   border: 0;
   background: none;
   box-shadow: none;
@@ -1195,7 +1191,7 @@
   flood-color: var(--hud-amber);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+#ui :is(.hud-plate, .hud-tray, .info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
   border-color: transparent;
   background: none;
   filter: none;
@@ -1291,7 +1287,7 @@
   color: var(--hud-hot);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) [aria-disabled="true"],
+#ui :is(.hud-plate, .hud-tray, .info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) [aria-disabled="true"],
 #ui :is(.hud-plate, .hud-tray) [aria-disabled="true"] {
   opacity: 1;
   filter: none;
@@ -1455,8 +1451,7 @@
   color: var(--hud-print);
 }
 
-#ui .menu-key > .menu-cap,
-#ui .dialogue .option-key {
+#ui .menu-key > .menu-cap {
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -1487,42 +1482,6 @@
   border: 0;
 }
 
-#ui .dialogue .dialogue-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--hud-amber);
-  font: 500 var(--hud-text-m) / 1.3 var(--font-hud);
-  text-align: left;
-}
-
-#ui .dialogue .dialogue-option.seen {
-  color: var(--hud-amber-soft);
-}
-
-#ui .dialogue .dialogue-option[aria-disabled="true"] {
-  color: var(--hud-amber-faint);
-}
-
-#ui .dialogue .option-key {
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--hud-key-h);
-  height: var(--hud-key-h);
-  border-style: solid;
-  border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
-  color: var(--hud-print);
-  font: 400 var(--hud-text-m) / 1 var(--font-engraved);
-}
-
 #ui .beacon-switch {
   display: inline-flex;
   flex-direction: column-reverse;
@@ -1539,16 +1498,16 @@
   height: var(--hud-rocker-h);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :is(.num, .tag) {
+#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu]) :is(.num, .tag) {
   font-family: var(--font-hud);
   font-variant-numeric: tabular-nums;
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
+#ui :is(.info, .action, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue) .bad {
   color: var(--hud-hot);
 }
 
-#ui :is(.info, .toast, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .tip) {
+#ui :is(.info, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) {
   font-size: var(--hud-text-m);
 }
 
@@ -1560,7 +1519,7 @@
   text-transform: uppercase;
 }
 
-:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
+:is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .action, .note, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
   outline: none;
 }
 
@@ -1627,10 +1586,6 @@
   --small-key-edge: calc(var(--hud-key-h) * 0.7 * 40 / 394);
   border-width: var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1);
   border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
-}
-
-#ui .toast.bad > .hud-screen {
-  color: var(--hud-hot);
 }
 
 :is(#ui, #overlay) .hud-panel {
@@ -1719,7 +1674,7 @@
   border-image-source: var(--hud-keycap-red-art);
 }
 
-#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .tip, .dialogue, .game-menu [role=menu]),
+#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .game-menu [role=menu]),
 :is(#ui, #overlay) :where(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-m);
   box-sizing: border-box;
@@ -1732,17 +1687,6 @@
 
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-l);
-  width: fit-content;
-  min-width: var(--hud-panel-s);
-  max-width: min(var(--hud-panel-w), calc(var(--layer-w) - 2 * var(--hud-inset)));
-}
-
-#ui :is(.tip, .dialogue) {
-  --hud-panel-w: var(--hud-panel-xl);
-}
-
-#ui .toast {
-  max-width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
 }
 
 #ui :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip) {
@@ -1767,27 +1711,58 @@
 #ui .info > .info-content {
   flex: 1 1 0;
   min-height: 0;
+  gap: var(--hud-panel-gap);
+  margin-right: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
 }
 
 #ui .info .info-body {
   flex: 1 1 0;
   min-height: 0;
+  gap: var(--hud-panel-gap);
 }
 
 #ui .info .info-column {
-  flex: 0 1 auto;
-  max-height: 50%;
+  flex: none;
+}
+
+#ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
+  box-sizing: border-box;
+}
+
+#ui .info :is(.hud-screen, .hitcard).scroll-wheeled.scroll-wheeled {
+  margin-right: 0;
+}
+
+#ui .info .info-content > .hud-screen {
+  flex: none;
+  height: calc(4 * var(--hud-text-m) * 1.25 + 2 * var(--space-2));
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+#ui .info .hud-screen .screen-line {
+  min-height: 0;
+  padding: 0;
+  font: inherit;
 }
 
 #ui .info .hitcard {
+  height: calc(var(--text-caption) * 1.4 + 3 * (var(--text-dense) * 1.3 + var(--space-1)) + 4 * var(--space-2));
+  align-content: start;
   padding: var(--space-2) var(--space-3);
   border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+  scrollbar-width: none;
 }
 
 #ui .info .info-draw {
   flex: 1 1 0;
+  width: auto;
   background: none;
   border-image: var(--hud-screen-art) var(--hud-screen-slice) fill / var(--hud-screen-edge) stretch;
+}
+
+#ui .info > .info-content > .hud-controls {
+  min-height: calc(var(--hud-key-h) + var(--space-1));
 }
 
 #ui > .dash-rail {

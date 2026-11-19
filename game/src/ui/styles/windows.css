@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost:not(:empty), .quest-page .quest-side) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line, .inv-keys .cost, .cost.readout, .quest-page .quest-side) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -100,13 +100,17 @@
 .inv-keys:empty {
   display: none;
 }
-:is(#ui, #report) .inv-keys .cost:not(:empty) {
+:is(#ui, #report) .inv-keys .cost {
   align-self: stretch;
-  justify-self: start;
-  min-width: 8em;
+  justify-self: stretch;
+  box-sizing: border-box;
+  min-height: var(--btn-h-s);
   padding: 0 var(--space-4);
   color: var(--hud-amber);
   font-size: var(--text-body);
+}
+:is(#ui, #report) .inv-keys .cost.off {
+  color: var(--hud-amber-faint);
 }
 :is(#ui, #report) .inv-keys .cost .icon {
   color: var(--hud-amber);
@@ -151,4 +155,62 @@
 #ui .quest-page .quest-side .quest-stats.screen-block {
   padding: 0;
   border-image: none;
+}
+.segments {
+  display: inline-flex;
+  flex: none;
+  width: fit-content;
+  gap: var(--space-1);
+  height: var(--gauge-h);
+  vertical-align: middle;
+}
+.segments > i {
+  width: var(--gauge-cell-w);
+  min-width: 0;
+  background: var(--hud-lcd-ghost);
+}
+.segments > i.on {
+  background: var(--hud-amber);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
+}
+.segments > i.rest {
+  background: var(--hud-amber-soft);
+}
+.segments > i.plan {
+  background: var(--hud-amber-faint);
+}
+.segments.warn > i.on {
+  background: var(--hud-hot);
+}
+.segments.warn > i.rest {
+  background: color-mix(in srgb, var(--hud-hot) 55%, var(--hud-lcd-ghost));
+}
+.segments.good > i.on {
+  background: var(--hud-lamp-green);
+}
+.segments.job-bar {
+  display: flex;
+  margin-inline: auto;
+}
+.inv-item > .segments {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--space-1);
+  width: auto;
+  height: var(--meter-m);
+  justify-content: center;
+  gap: 1px;
+}
+:is(.inv-item, .inv-chip).working > .segments.progress {
+  top: var(--space-1);
+  bottom: auto;
+}
+.inv-chip > .segments {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-2);
+}
+.inv-chip:has(> .segments) {
+  padding-bottom: calc(var(--space-2) + var(--gauge-h) + var(--space-1));
 }

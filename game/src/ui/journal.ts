@@ -1,5 +1,5 @@
 import { noteBody, noteFrom, noteTitle, fullName, siteName } from '../text/names';
-import { t, num, PLUS, type Msg } from '../text/msg';
+import { t, PLUS, type Msg } from '../text/msg';
 import { keyLabel, narrowMode } from './input-mode';
 import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
@@ -61,6 +61,8 @@ export function claimLeads(c: ClaimContract): ClaimLeadNote[] {
 
 export type JournalTab = 'work' | 'wrecks' | 'notes' | 'past';
 
+const ALL_TABS: JournalTab[] = ['work', 'wrecks', 'notes', 'past'];
+
 export function journalTabs(j: Journal): JournalTab[] {
   const filled: [JournalTab, number][] = [['work', j.work.length], ['wrecks', j.wrecks.length], ['notes', j.notes.length], ['past', j.past.length]];
   return filled.filter(([, n]) => n > 0).map(([tab]) => tab);
@@ -105,7 +107,7 @@ export class JournalScreen {
     const w = this.host.world();
     const journal = journalEntries(w);
     const tabs = journalTabs(journal);
-    const tab = this.tab !== null && tabs.includes(this.tab) ? this.tab : (tabs[0] ?? null);
+    const tab = this.tab ?? tabs[0] ?? 'work';
     const side = this.sideForm();
     const signature = JSON.stringify([side, tab, this.opened, w.turn, journal.work, journal.wrecks, journal.notes.map((n) => n.id), journal.past.length, journal.past[0]?.record.turn]);
     if (signature === this.drawn) return;
@@ -115,14 +117,13 @@ export class JournalScreen {
     this.root.classList.toggle('journal-side', side);
     this.root.replaceChildren(
       el('div', { class: 'journal-top' }, el('h3', { class: 'panel-title' }, createIcon('journal'), t('journal.title')), el('button', { class: 'close', title: keyLabel(t('journal.close'), 'J'), onclick: () => this.close() }, t('journal.close'))),
-      ...(tab === null ? [el('div', { class: 'screen-block' }, el('div', { class: 'dim' }, t('journal.empty')))] : tabs.length === 1 ? [] : [el('div', { class: 'tabs sub' }, ...tabs.map((id) => this.tabButton(id, id === tab, journal)))]),
-      ...(tab === null ? [] : [el('div', { class: 'journal-body screen-block' }, this.page(w, journal, tab))]),
+      el('div', { class: 'tabs sub' }, ...ALL_TABS.map((id) => this.tabButton(id, id === tab))),
+      el('div', { class: 'journal-body screen-block' }, this.page(w, journal, tab)),
     );
   }
 
-  private tabButton(id: JournalTab, on: boolean, journal: Journal): HTMLElement {
-    const count = { work: journal.work.length, wrecks: journal.wrecks.length, notes: journal.notes.length, past: journal.past.length }[id];
-    return el('button', { class: on ? 'on' : '', onclick: (e: Event) => { this.tab = id; this.render(); (e.currentTarget as HTMLElement | null)?.blur(); } }, t(`journal.${id}`), el('span', { class: 'count' }, num(count, 'int')));
+  private tabButton(id: JournalTab, on: boolean): HTMLElement {
+    return el('button', { class: on ? 'on' : '', onclick: (e: Event) => { this.tab = id; this.render(); (e.currentTarget as HTMLElement | null)?.blur(); } }, t(`journal.${id}`));
   }
 
   private open(tab: JournalTab, id: string): void {
@@ -131,6 +132,7 @@ export class JournalScreen {
   }
 
   private page(w: World, journal: Journal, tab: JournalTab): HTMLElement {
+    if (journal[tab].length === 0) return el('div', { class: 'journal-idle' }, t('journal.empty'));
     if (tab === 'work') return this.workPage(w, journal.work);
     if (tab === 'wrecks') return el('div', { class: 'journal-list' }, ...journal.wrecks.map(wreckSquareEntry));
     if (tab === 'notes') return this.notesPage(journal.notes);

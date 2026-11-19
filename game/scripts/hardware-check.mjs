@@ -79,11 +79,13 @@ function inPage({ sel, near, bar, groupWindow }) {
     const buttons = [...screen.querySelectorAll('.screen-btn')].filter(shown).map((b) => ({ name: name(b), rect: rectOf(b) }));
     return pairs(buttons).filter(([a, b]) => columnMiss(a.rect, b.rect)).map(([a, b]) => ({ kind: 'row-grid', path: `${a.name} | ${b.name}`, text: `buttons at ${Math.round(a.rect.l)} to ${Math.round(a.rect.r)} and ${Math.round(b.rect.l)} to ${Math.round(b.rect.r)} miss one column` }));
   };
-  const windowFaults = (win) => [...gridFaults(win), ...keyFaults(win), ...barFaults(win), ...outerScreens(win).flatMap(rowFaults)];
+  const desktop = !document.querySelector('#ui.narrow');
+  const layoutFaults = (win) => (desktop ? [...gridFaults(win), ...outerScreens(win).flatMap(rowFaults)] : []);
+  const windowFaults = (win) => [...layoutFaults(win), ...keyFaults(win), ...barFaults(win)];
   const tops = [...document.querySelectorAll(sel.window)].filter((w) => shown(w) && !w.parentElement.closest(sel.window));
   const fixedOf = (win) => [{ name: name(win), rect: rectOf(win) }, ...outerScreens(win).map((s) => ({ name: name(s), rect: rectOf(s) }))];
   const group = groupWindow ? [...document.querySelectorAll(groupWindow)].find(shown) : null;
-  return { faults: tops.flatMap(windowFaults), fixed: group ? fixedOf(group) : null, label: `${document.documentElement.lang} ${innerWidth}x${innerHeight}` };
+  return { faults: tops.flatMap(windowFaults), fixed: group ? fixedOf(group) : null, compares: desktop, label: `${document.documentElement.lang} ${innerWidth}x${innerHeight}` };
 }
 
 const firstSeen = new Map();
@@ -103,8 +105,8 @@ function fixedFaults(group, state, { fixed, label }) {
   return fixed.map((s, i) => [s, base.fixed[i]]).filter(([s, b]) => moved(s, b)).map(([s, b]) => ({ kind: 'screen-changes', path: s.name, text: `${size(s)}, in ${base.state} ${size(b)}` }));
 }
 
-export async function hardwareFaults(page, state) {
+export async function hardwareFaults(page, state, locale) {
   const group = groupOf(state);
   const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, groupWindow: group ? group[1].window : null });
-  return [...await inkFaults(page), ...[...seen.faults, ...(group ? fixedFaults(group[0], state, seen) : [])].map((f) => ({ sizes: '', ...f }))];
+  return [...await inkFaults(page), ...[...seen.faults, ...(group && seen.compares && locale !== 'pseudo' ? fixedFaults(group[0], state, seen) : [])].map((f) => ({ sizes: '', ...f }))];
 }

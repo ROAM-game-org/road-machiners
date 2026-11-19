@@ -274,9 +274,14 @@
   --hud-frame-slice: 2.4% 1.6%;
   --hud-frame-bevel: 8px;
   --hud-screen-slice: 4% 2%;
+  --gauge-h: 8px;
+  --gauge-cell-w: 5px;
   --hud-screen-edge: 3px;
   --hud-input-edge: 5px;
   --hud-input-slice: 22% 10%;
+  --hud-note-slice: 17% 11.1% 3.3%;
+  --hud-note-edge: 30px 29px 6px;
+  --hud-note-outset: 10px 9px 4px;
   --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;
   --scroll-thumb: #a38052;
   --scroll-track: #1d1208;

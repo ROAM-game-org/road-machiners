@@ -1,7 +1,7 @@
 #ui .modal.character-screen {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-9);
   width: min(var(--char-width), calc(var(--layer-w) - var(--space-10)));
   height: calc(var(--layer-h) - var(--modal-top) - var(--space-4));
   overflow: hidden;
@@ -35,66 +35,70 @@
   margin-left: auto;
 }
 
-.char-tabs {
+.char-skills {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.char-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) var(--col-trade);
   gap: var(--space-2);
 }
 #ui .skill-tab {
-  flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
-  gap: var(--space-1);
-  height: var(--char-tab-h);
+  justify-content: flex-start;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--btn-h-m);
   padding: 0 calc(var(--space-4) - var(--key-edge));
   text-align: left;
   font-size: var(--text-body);
 }
-.skill-tab-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.skill-tab-name {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.skill-tab-name .icon {
+.skill-tab .icon {
   width: var(--icon-s);
   height: var(--icon-s);
 }
-.pick-tag {
-  margin-left: var(--space-2);
-  color: inherit;
+.skill-strip {
+  grid-column: 1 / 6;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: var(--space-2);
+  align-content: center;
+  padding: var(--space-3) 0;
+}
+.skill-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
   font-size: var(--text-dense);
 }
-.skill-tab-cost {
+.skill-rank {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.skill-cost {
+  color: var(--ink-muted);
   white-space: nowrap;
-  font-size: var(--text-dense);
-  color: inherit;
 }
-.rank-pips {
-  display: inline-flex;
-  gap: var(--space-1);
+.skill-cost.short {
+  color: var(--danger-ink);
 }
-.rank-pips > i {
-  width: var(--space-4);
-  height: var(--space-4);
-  box-sizing: border-box;
+.pick-tag {
+  align-self: flex-start;
+  padding: 0 var(--space-3);
   border: 1px solid currentColor;
-}
-.rank-pips > i.on {
-  background: currentColor;
+  font-size: var(--text-dense);
 }
 .char-pool {
+  grid-column: 6;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
 }
 .char-pool-row {
   display: flex;
@@ -115,7 +119,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-9);
 }
 .effect-strip,
 .rank-row {
@@ -149,7 +153,7 @@
 }
 
 .rank-ladder {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;

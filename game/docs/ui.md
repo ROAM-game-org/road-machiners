@@ -204,6 +204,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Content longer than its screen scrolls inside it with the rocker wheel. The screen never grows to fit.
 - A list with a fixed most, such as the three held contracts, gets a screen sized for the most, and its empty slots print faint.
 - The window itself has a fixed size per kind. A talk window does not grow with the number of replies, and a shop does not change size between tabs.
+- These rules and the grid hold on a desktop layer. On a narrow layer the columns stack and the window scrolls, so only the rules for keys, gauges, inks and paper apply there. `npm run layout` checks them in `scripts/hardware-check.mjs`.
 
 #### The grid
 
@@ -219,7 +220,8 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 #### Gauges
 
-- A gauge is a row of segments on a screen, like the ammo count on the targeting computer. Full segments print in the screen's main ink and empty segments in `--hud-amber-dim`. A gauge that warns prints its full segments in `--hud-hot`.
+- A gauge is a row of segments on a screen, like the ammo count on the targeting computer, built by `segmentGauge()` in `src/ui/cards.ts`. Full segments print in `--hud-amber`, empty segments in `--hud-lcd-ghost` like spent rounds, and a load or draw over capacity prints every segment in `--hud-hot`.
+- A planned change shows in the same gauge. Segments a plan will fill print in `--hud-amber-faint`, like rounds being reloaded, and the share of one picked part prints lit while the rest of the load prints in `--hud-amber-soft`.
 - A gauge has a fixed number of segments, so it keeps its length for every value. The exact value prints beside it in `--font-mono`.
 - A flat filled bar is never used.
 

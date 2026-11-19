@@ -237,7 +237,7 @@ export function kitPiece(name: keyof typeof PIECES, className: string): HTMLElem
 }
 
 export function paintSkin(root: HTMLElement = document.documentElement): void {
-  const art = { "--hud-keycap-art": "keycap-up", "--hud-keycap-down-art": "keycap-down", "--hud-keycap-lit-art": "keycapLit-up", "--hud-keycap-red-art": "keycapRed-up", "--hud-keycap-red-down-art": "keycapRed-down", "--hud-frame-art": "frame", "--hud-screen-art": "screen", "--hud-tape-art": "tape", "--hud-input-art": "input" };
+  const art = { "--hud-keycap-art": "keycap-up", "--hud-keycap-down-art": "keycap-down", "--hud-keycap-lit-art": "keycapLit-up", "--hud-keycap-red-art": "keycapRed-up", "--hud-keycap-red-down-art": "keycapRed-down", "--hud-frame-art": "frame", "--hud-screen-art": "screen", "--hud-tape-art": "tape", "--hud-note-art": "note", "--hud-input-art": "input" };
   for (const [name, file] of Object.entries(art)) root.style.setProperty(name, pieceArt(file));
   frameVars(root, "--hud-truck-frame", { meta: BAKED.truck.desktop, part: "truck", inset: TRUCK_FRAME_INSET, cssWidth: TRUCK_CARD_CSS_W });
 }

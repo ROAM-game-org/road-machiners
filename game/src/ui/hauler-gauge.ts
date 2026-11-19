@@ -2,8 +2,16 @@ import { haulerOf } from "../sim/damage";
 import { haulerShare } from "../sim/hauler";
 import type { World } from "../sim/types";
 import { t } from "../text/msg";
-import { chassisPortrait } from "./cards";
+import { chassisPortrait, segmentGauge } from "./cards";
 import { el } from "./dom";
+
+export function haulerReadout(share: number): HTMLElement[] {
+  const percent = Math.round(share * 100);
+  return [
+    segmentGauge(share, { title: t("hud.haulerTip", { percent }) }),
+    el("span", { class: share === 0 ? "num bad" : "num" }, t("setting.percent", { n: percent })),
+  ];
+}
 
 export class HaulerGauge {
   readonly root = el("div", { class: "hauler-gauge" });
@@ -14,11 +22,7 @@ export class HaulerGauge {
       return;
     }
     const hauler = haulerOf(w);
-    const share = haulerShare(hauler);
     this.root.style.display = "";
-    this.root.replaceChildren(
-      chassisPortrait(hauler.chassisId, w.player.paint),
-      el("div", { class: `meter${share === 0 ? " broken" : ""}`, title: t("hud.haulerTip", { percent: Math.round(share * 100) }) }, el("div", { style: `width:${share * 100}%` })),
-    );
+    this.root.replaceChildren(chassisPortrait(hauler.chassisId, w.player.paint), ...haulerReadout(haulerShare(hauler)));
   }
 }

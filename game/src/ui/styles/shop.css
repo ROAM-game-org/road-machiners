@@ -53,6 +53,9 @@
   align-items: center;
   gap: var(--space-4);
 }
+#ui .ink-page .talk-head .dim {
+  color: inherit;
+}
 #ui .quest-screen .talk-head .close {
   position: static;
   margin-left: auto;
@@ -142,23 +145,26 @@
 
 /* Page view: art, one page of text with its choices, and the quest's numbers and facts. */
 #ui .modal.quest-screen.quest-page {
+  --quest-pad: calc(var(--hud-frame-bevel) + var(--space-6));
+  --quest-foot-h: var(--btn-h-m);
+  --quest-screens-h: calc(var(--page-height) - var(--quest-pad) * 2 - var(--quest-foot-h) - var(--space-9));
   top: var(--modal-top);
   width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
   height: var(--page-height);
   max-height: none;
+  --quest-art-col: min(calc(var(--quest-screens-h) * 3 / 4), calc(100% - var(--quest-side-width) - var(--panel-l) - var(--space-9) * 2));
   display: grid;
-  grid-template-columns:
-    min(calc(var(--page-height) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
-    minmax(0, 1fr)
-    var(--quest-side-width);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 0;
-  padding: var(--hud-frame-bevel);
+  grid-template-columns: var(--quest-art-col) minmax(0, 1fr) var(--quest-side-width);
+  grid-template-rows: minmax(0, 1fr) var(--quest-foot-h);
+  gap: var(--space-9);
+  padding: var(--quest-pad);
   box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 .quest-page .quest-art {
-  padding: var(--space-7);
-  border-right: 1px solid transparent;
+  min-height: 0;
+}
+.quest-page .quest-frame {
+  box-sizing: border-box;
 }
 :is(.quest-page, .ink-page) .quest-frame {
   width: 100%;
@@ -180,16 +186,49 @@
   from { transform: scale(1); }
   to { transform: scale(var(--quest-art-zoom)); }
 }
-.quest-page .quest-text {
-  width: 100%;
-  max-width: var(--quest-text-width);
-  justify-self: center;
-  box-sizing: border-box;
-  padding: var(--space-9) var(--space-10) var(--space-8);
+.quest-page .quest-mid {
+  position: relative;
+  min-height: 0;
   display: flex;
-  flex-direction: column;
+}
+.quest-page .quest-mid > .quest-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  overflow-anchor: none;
   scrollbar-width: none;
+  padding: calc(var(--space-5) + var(--space-6)) var(--space-6) var(--space-6);
+  font-size: var(--text-lead);
+  line-height: 1.55;
+}
+.quest-page .quest-mid > .quest-place.tape {
+  position: absolute;
+  top: 0;
+  left: var(--space-5);
+  z-index: var(--z-screen-tape);
+  max-width: calc(100% - var(--space-5) * 2);
+  margin: 0;
+  transform: translateY(-50%);
+}
+.quest-page .quest-foot {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(min-content, var(--quest-art-col)) minmax(0, 1fr) var(--quest-side-width);
+  column-gap: var(--space-9);
+  align-items: center;
+}
+.quest-page .quest-look {
+  display: flex;
+}
+.quest-page .quest-way {
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.quest-page .quest-way > .error {
+  color: var(--hud-print-coal);
 }
 :is(.quest-page, .ink-page) .quest-place {
   margin: 0 0 var(--space-6);
@@ -206,12 +245,6 @@
 #ui :is(.quest-page, .ink-page) .quest-choice:not(.screen-line) {
   padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
 }
-#ui .quest-page .quest-text > .quest-body {
-  flex: 1 1 auto;
-}
-#ui .quest-page .quest-next {
-  margin-top: var(--space-6);
-}
 #ui .ink-page .quest-next {
   margin-top: auto;
 }
@@ -220,13 +253,16 @@
   padding: var(--space-1) calc(var(--space-9) - var(--key-edge)) 0;
 }
 .quest-page .quest-side {
-  padding: var(--space-8) var(--space-7);
-  border-left: 1px solid transparent;
+  min-height: 0;
+  padding: calc(var(--space-5) + var(--space-6)) var(--space-6) var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-7);
   overflow: auto;
   scrollbar-width: none;
+}
+#ui .quest-page :is(.quest-body, .quest-side).scroll-wheeled.scroll-wheeled {
+  margin-right: 0;
 }
 #ui .quest-page .quest-side .close {
   position: static;
@@ -632,8 +668,12 @@
 }
 
 /* Market: one row per good, buy and sell each beside their price. The line under each row comes from .row. */
+#ui {
+  --btn-trade-w: 104px;
+}
 .goods {
   --col-profit: 108px;
+  --col-trade: calc(2 * var(--btn-trade-w) + var(--space-2));
   display: flex;
   flex-direction: column;
 }
@@ -770,8 +810,8 @@
   min-width: 13ch;
 }
 .good-row .trade:not(.supply-buy) > button {
-  flex: 1 1 0;
-  min-width: max-content;
+  flex: none;
+  width: var(--btn-trade-w);
 }
 .good-name.supply {
   min-width: 0;
@@ -862,13 +902,42 @@
 }
 
 /* Garage repair bar and the meter of a fuel or supplies row. */
-.town-repair {
+.town-repair,
+.service-row {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: 0 0 var(--space-5);
   position: relative;
   z-index: var(--z-hud);
+}
+.town-repair {
+  padding: 0 0 var(--space-5);
+}
+.cost.readout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  min-width: calc(var(--icon-s) + 6ch);
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-4);
+  font: var(--text-body) var(--font-mono);
+}
+.cost.readout .price {
+  min-width: 0;
+}
+.chip.fixed {
+  box-sizing: border-box;
+  min-width: calc(var(--chip-ch) * 1.25ch + var(--icon-s) + var(--space-3) + 2 * var(--space-5));
+}
+.service-row > .service-meter.cost {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  width: calc(var(--space-10) * 3);
+  min-height: var(--btn-h-m);
 }
 .service-meter {
   display: flex;
@@ -884,13 +953,13 @@
 /* Paint: the chassis in the planned paint on the left, one palette row per surface on the right, Buy under the rows. */
 .paint-tab {
   display: grid;
-  grid-template-columns: calc(var(--portrait-w) * 1.5) 1fr;
+  grid-template-columns: calc(var(--portrait-w) * 1.1) minmax(0, 1fr);
   gap: var(--space-7);
   align-items: start;
 }
 .paint-preview .chassis-portrait {
-  width: calc(var(--portrait-w) * 1.5);
-  height: calc(var(--portrait-h) * 1.5);
+  width: calc(var(--portrait-w) * 1.1);
+  height: calc(var(--portrait-h) * 1.1);
 }
 .paint-slots {
   display: flex;
@@ -907,20 +976,20 @@
   gap: var(--space-2);
 }
 .paint-slot-name {
-  color: var(--hud-print-coal);
-  font: var(--text-lead) var(--font-engraved);
+  color: var(--hud-amber-soft);
+  font: var(--text-dense) var(--font-hud);
   text-transform: uppercase;
-  text-shadow: var(--hud-print-coal-edge);
 }
 .paint-switch > button {
-  flex: 1;
+  flex: none;
+  width: calc(var(--icon-3xl) * 0.75);
 }
-#ui .paint-switch > button.planned {
-  --key-art: var(--hud-keycap-down-art);
+.paint-switch > .screen-btn.planned {
+  border-style: dashed;
 }
 .paint-swatch {
   display: block;
-  width: var(--icon-m);
+  width: var(--icon-s);
   height: var(--icon-xs);
   margin: 0 auto;
   border: 1px solid var(--line-soft);
@@ -930,7 +999,7 @@
   display: grid;
   grid-template-columns: 1fr var(--icon-xs);
   grid-template-rows: var(--space-1) 1fr var(--space-2);
-  width: var(--icon-2xl);
+  width: var(--icon-l);
   height: var(--icon-s);
   margin: 0 auto;
 }
@@ -1192,11 +1261,6 @@
   gap: var(--space-2);
 }
 
-/* The outpost's truck switch: the player's truck and the hauler, each with its portrait. */
-.truck-switch .chassis-portrait {
-  --portrait-w: calc(var(--icon-l) * 1.6);
-  --portrait-h: var(--icon-l);
-}
 
 :is(#ui, #report) button:not(.screen-btn, .screen-line, .part-sum) :is(.price, .amount, .count, .stat-val, .num, .cap, .tag) {
   color: inherit;
@@ -1229,6 +1293,10 @@
 .truck-head .card-name b {
   white-space: normal;
 }
+.truck-head > .screen-btn {
+  flex: none;
+  width: calc(var(--btn-trade-w) * 1.4);
+}
 .supply-rows .row,
 .supply-rows .good-row {
   border: 0;
@@ -1245,22 +1313,6 @@
 .supply-rows .service-meter {
   flex: none;
   width: calc(var(--space-10) * 4);
-}
-.paint-preview.screen-block {
-  padding: var(--space-4);
-}
-.quest-text > .quest-body {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow: auto;
-  scrollbar-width: none;
-  padding: var(--space-5) var(--space-6);
-}
-.quest-text > .quest-place.tape {
-  align-self: flex-start;
-}
-.quest-text > .quest-next {
-  margin-top: auto;
 }
 .service-meter.screen-block {
   padding: var(--space-2) var(--space-3);
@@ -1282,11 +1334,18 @@
 .town-truck > .truck-switch {
   padding-top: 0;
 }
-@container (max-width: 640px) {
+@container (max-width: 440px) {
   .paint-tab {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-#ui .quest-page .quest-side {
-  margin: var(--space-4);
+
+#ui.compact .service-row > .service-meter.cost {
+  width: calc(var(--space-10) * 2.25);
+}
+#ui.compact :is(.town-services, .outpost-services) {
+  column-gap: var(--space-6);
+}
+#ui.compact :is(.town-repair, .service-row) {
+  gap: var(--space-3);
 }

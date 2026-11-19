@@ -98,14 +98,46 @@ describe("character screen", () => {
     expect(next.all(classed("rank-cost"))[0].text()).toBe("200 XP");
   });
 
-  it("has a tab per skill with its next rank cost, and none on a maxed skill", () => {
+  it("has a key per skill that prints only its name, with the rank and the price on a screen beside the keys", () => {
     const world = emptyWorld();
     world.player.ranks.social = MAX_RANK;
-    const tabs = openCharacter(world).all(classed("skill-tab"));
+    const root = openCharacter(world);
+    const tabs = root.all(classed("skill-tab"));
     expect(tabs.map((tab) => tab.attrs.get("data-skill"))).toEqual(["driving", "perception", "machining", "toughness", "social"]);
-    expect(tabs[0].all(classed("skill-tab-cost"))[0].text()).toBe("200 XP");
-    expect(tabs[4].all(classed("skill-tab-cost"))).toHaveLength(0);
+    expect(tabs.map((tab) => tab.text())).toEqual(["Driving", "Perception", "Machining", "Toughness", "Social"]);
     expect(tabs[0].attrs.get("title")).toMatch(/^Earns XP from /);
+    const stats = root.all(classed("skill-stat"));
+    expect(stats.map((stat) => stat.attrs.get("data-stat"))).toEqual(["driving", "perception", "machining", "toughness", "social"]);
+    expect(stats[0].all(classed("skill-cost"))[0].text()).toBe("200 XP");
+    expect(stats[4].all(classed("skill-cost"))).toHaveLength(0);
+  });
+
+  it("shows each skill's rank as a gauge of MAX_RANK segments with the exact rank beside it", () => {
+    const world = emptyWorld();
+    world.player.ranks.driving = 3;
+    world.player.ranks.social = MAX_RANK;
+    const stats = openCharacter(world).all(classed("skill-stat"));
+    const lit = (stat: FakeNode) => stat.all((n) => n.tag === "i" && classed("on")(n)).length;
+    const segments = (stat: FakeNode) => stat.all((n) => n.tag === "i").length;
+    expect(stats.map(segments)).toEqual([MAX_RANK, MAX_RANK, MAX_RANK, MAX_RANK, MAX_RANK]);
+    expect(stats.map(lit)).toEqual([3, 0, 0, 0, MAX_RANK]);
+    expect(stats[0].all(classed("skill-rank"))[0].text()).toBe("3 / 5");
+  });
+
+  it("marks a skill with the price it cannot pay", () => {
+    const world = emptyWorld();
+    world.player.xp = 200;
+    const stats = openCharacter(world).all(classed("skill-stat"));
+    expect(stats[0].all(classed("skill-cost"))[0].className).not.toContain("short");
+    world.player.xp = 199;
+    const poor = openCharacter(world).all(classed("skill-stat"));
+    expect(poor[0].all(classed("skill-cost"))[0].className).toContain("short");
+  });
+
+  it("shows the health as a gauge beside the exact value", () => {
+    const world = emptyWorld();
+    const pool = openCharacter(world).all(classed("char-pool"))[0];
+    expect(pool.all((n) => n.tag === "i")).toHaveLength(10);
   });
 
   it("shows a row for every rank, with the gains only on the rank to buy", () => {
@@ -143,12 +175,14 @@ describe("character screen", () => {
     expect(root.all(classed("rank-gains"))[0].children.map((c) => (c as FakeNode).text())[0]).toBe("−4 pts");
   });
 
-  it("opens on a skill with a perk to pick, tags its tab and offers both perks", () => {
+  it("opens on a skill with a perk to pick, tags its stat cell and offers both perks", () => {
     const world = emptyWorld();
     world.player.ranks.perception = 2;
     const root = openCharacter(world);
     expect(root.all((n) => classed("skill-tab")(n) && classed("on")(n))[0].attrs.get("data-skill")).toBe("perception");
     expect(root.all(classed("pick-tag"))).toHaveLength(1);
+    expect(root.all((n) => n.attrs.get("data-stat") === "perception")[0].all(classed("pick-tag"))).toHaveLength(1);
+    expect(root.all(classed("skill-tab")).flatMap((tab) => tab.all(classed("pick-tag")))).toHaveLength(0);
     expect(pickButtons(root)).toHaveLength(2);
   });
 
@@ -261,6 +295,10 @@ describe("truck chips", () => {
     stubDom();
     return (truckChips(emptyWorld(), opts) as unknown as FakeNode).all((n) => n.className.split(" ").includes("chip"));
   };
+  const tapesOf = (opts?: { feature?: boolean }): FakeNode[] => {
+    stubDom();
+    return (truckChips(emptyWorld(), opts) as unknown as FakeNode).all((n) => n.className.split(" ").includes("tape"));
+  };
   const hasIcon = (chip: FakeNode, name: string) => chip.all((n) => n.className.split(" ").includes(`icon-${name}`)).length > 0;
 
   it("prints the mass as numbers in the mono class with one kg and the mass icon", () => {
@@ -276,19 +314,25 @@ describe("truck chips", () => {
     expect(power.text()).not.toMatch(/power|speed/i);
   });
 
-  it("leaves the chassis feature off the chips when asked", () => {
-    const withFeature = chipsOf();
-    const without = chipsOf({ feature: false });
-    expect(without.length).toBe(withFeature.length - 1);
+  it("leaves the chassis feature off the tape when asked", () => {
+    const withFeature = tapesOf();
+    const without = tapesOf({ feature: false });
+    expect(without).toHaveLength(1);
+    expect(withFeature.length).toBeGreaterThanOrEqual(without.length);
+  });
+
+  it("sizes the three readouts for their longest value", () => {
+    const sized = chipsOf().filter((c) => c.className.split(" ").includes("fixed"));
+    expect(sized).toHaveLength(3);
   });
 
   it("never counts the player's free cells", () => {
     expect(chipsOf().some((c) => hasIcon(c, "cells"))).toBe(false);
   });
 
-  it("keeps words out of the mono class", () => {
-    const truck = chipsOf().find((c) => hasIcon(c, "truck"))!;
-    expect(truck.all((n) => n.className === "num")).toHaveLength(0);
+  it("puts the truck name on tape, never on a chip", () => {
+    expect(chipsOf().some((c) => hasIcon(c, "truck"))).toBe(false);
+    expect(tapesOf({ feature: false })[0].all((n) => n.className === "num")).toHaveLength(0);
   });
 });
 

@@ -263,7 +263,7 @@ describe("the rendered hover card", () => {
     expect(wells[1].find("hc-none")[0]?.textContent).toBe("No weapons");
   });
 
-  it("keeps its box while hidden and drops it only when empty", () => {
+  it("keeps its box while hidden and while empty", () => {
     const { world, them } = createDuel();
     const host = new Node_("div");
     const card = new HitCard(host as unknown as HTMLElement);
@@ -276,7 +276,8 @@ describe("the rendered hover card", () => {
     card.show();
     expect(root.style.visibility).toBe("");
     card.render(world, null, []);
-    expect(root.style.display).toBe("none");
+    expect(root.children).toHaveLength(0);
+    expect(root.style.display).not.toBe("none");
   });
 
   it("marks only the selected gun of mine", () => {

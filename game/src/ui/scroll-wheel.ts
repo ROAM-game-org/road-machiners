@@ -23,6 +23,10 @@ export const SCROLL_SCREENS = [
   ".quest-text",
   ".quest-body",
   ".quest-side",
+  ".dialogue .dialogue-line",
+  ".dialogue .dialogue-options",
+  ".info .info-content > .hud-screen",
+  ".info .hitcard",
 ].join(", ");
 
 const FLAT = BAKED.radio.flat;

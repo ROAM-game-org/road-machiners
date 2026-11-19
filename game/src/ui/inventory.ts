@@ -52,11 +52,13 @@ import {
   gridEl,
   itemBox,
   itemName,
+  idleActions,
   chooseLayout,
   stackedLayout,
   truckMeters,
   benchRooms,
   hostedWidth,
+  bandedHeight,
   overflowIn,
   scrollAncestor,
   targetRoom,
@@ -124,7 +126,7 @@ export class InventoryView {
   private root: HTMLElement = el("div", { class: "inv-view" });
   private inspection = el("div", { class: "inv-inspection" });
   private keys = el("div", { class: "inv-keys" });
-  private lootKeys = el("div", { class: "inv-keys" });
+  private lootKeys = el("div", { class: "inv-keys loot" });
   private selectedItem: string | null = null;
   private loot: string | null = null;
   private truck: string | null = null;
@@ -190,7 +192,7 @@ export class InventoryView {
   private fitHosted(box: HTMLElement, key: string): void {
     const me = this.shown(this.host.world());
     const truck = truckMeters(me.chassisId, gridOf(me));
-    const height = gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
+    const height = bandedHeight(box, this.root) ?? gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
     const stacked = uiRoot().classList.contains("narrow");
     this.scale.apply(key, stacked ? stackedLayout(height, truck) : chooseLayout([{ columns: 1, width: hostedWidth(box, this.root), height }], truck), null);
     this.render();
@@ -243,24 +245,23 @@ export class InventoryView {
     this.drawPreview(grid, me);
     const error = this.error ? el("div", { class: "bad" }, this.error) : el("div");
     if (!this.loot) this.lootKeys.replaceChildren();
-    this.root.replaceChildren(...(this.head ? [this.benchEl(w, this.head, grid, error)] : [this.hostedEl(w, grid), error]));
+    this.root.replaceChildren(this.head ? this.benchEl(w, this.head, grid, error) : this.hostedEl(w, grid, error));
     return this.root;
   }
 
-  private hostedEl(w: World, grid: HTMLElement): HTMLElement {
+  private hostedEl(w: World, grid: HTMLElement, error: HTMLElement): HTMLElement {
+    const target = this.truck ? [this.truckEl(w, this.truck)] : [];
+    const stores = this.sideList(w);
     return el(
       "div",
       { class: "inv-wrap" },
       el("div", { class: "inv-truck" }, el("div", { class: "truck-shell" }, grid)),
-      el(
-        "div",
-        { class: "inv-side" },
-        ...this.jobBlock(w),
-        ...this.sideList(w),
-        this.inspection,
-      ),
-      ...(this.truck ? [this.truckEl(w, this.truck)] : []),
+      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, ...this.jobBlock(w), this.inspection, error, ...stores, ...target),
     );
+  }
+
+  get keysEl(): HTMLElement {
+    return this.keys;
   }
 
   private benchEl(w: World, head: BenchHead, grid: HTMLElement, error: HTMLElement): HTMLElement {
@@ -277,15 +278,20 @@ export class InventoryView {
     return el(
       "div",
       { class: "inv-bench" },
-      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w)), this.lootKeys),
+      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
       middle,
-      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error), this.keys),
+      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
+      this.footEl(),
     );
   }
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error), this.lootKeys, this.keys));
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)), this.footEl());
+  }
+
+  private footEl(): HTMLElement {
+    return el("div", { class: "inv-foot" }, this.lootKeys, this.keys);
   }
 
   private sourceList(w: World): HTMLElement[] | null {
@@ -404,8 +410,8 @@ export class InventoryView {
     const selection = this.selection(w);
     if (!selection) {
       this.selectedItem = null;
-      this.inspection.replaceChildren();
-      this.keys.replaceChildren();
+      this.inspection.replaceChildren(el("p", { class: "dim idle" }, t("inv.selectHint")));
+      this.keys.replaceChildren(idleActions(t("inv.selectHint")));
     } else if (selection.own) this.showItem(w, selection.item, selection.mounted);
     else this.showTruckItem(w, selection.item);
   }
@@ -502,15 +508,9 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    const details = el("div", { class: this.head ? "well-group inv-details" : "well-group inv-details screen-block" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
-    const rows = actions.length ? [el("div", { class: "action-rows" }, ...actions)] : [];
-    if (this.head) {
-      this.inspection.replaceChildren(details);
-      this.keys.replaceChildren(...rows);
-      return;
-    }
-    this.inspection.replaceChildren(details, ...rows);
-    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    const details = el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted));
+    this.inspection.replaceChildren(details);
+    this.keys.replaceChildren(actions.length > 0 ? el("div", { class: "action-rows" }, ...actions) : idleActions(t("inv.dragToGrid")));
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
@@ -525,10 +525,6 @@ export class InventoryView {
 
   private itemTitle(w: World, item: GridItem): Msg {
     return item.kind === "parcel" ? parcelTitle(w, item) : itemName(item);
-  }
-
-  private storageClass(extra: string): string {
-    return ["inv-storage", extra, this.head ? "" : "screen-block"].filter(Boolean).join(" ");
   }
 
   private storageEl(w: World): HTMLElement {
@@ -552,7 +548,7 @@ export class InventoryView {
     });
     return el(
       "div",
-      { class: this.storageClass(""), "data-drop": "storage" },
+      { class: "inv-storage", "data-drop": "storage" },
       el("h3", {}, t("inv.storage")),
       ...chips,
     );
@@ -563,7 +559,7 @@ export class InventoryView {
     const chips = Object.entries(stored).map(([good, count]) => this.storedCrateChip(w, shopId, good, count));
     return el(
       "div",
-      { class: this.storageClass("inv-crates"), "data-drop": "storage" },
+      { class: "inv-storage inv-crates", "data-drop": "storage" },
       el("h3", {}, t("inv.storedCrates"), el("span", { class: "inv-fill", title: t("inv.storedRule") }, t("inv.storedFill", { n: storeTotal(w, shopId), cap: GOODS_STORE.crates }))),
       ...(chips.length ? chips : [el("div", { class: "dim" }, t("inv.storageEmptyCrates"))]),
     );
