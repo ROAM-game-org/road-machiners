@@ -32,6 +32,7 @@ export class CameraRig {
   private viewMoved = false;
   private tether: { at: V3; radius: number } | null = null;
   private zoom = DEFAULT_ZOOM;
+  private warned = false;
   private ray = new THREE.Raycaster();
   private rect: { left: number; top: number; width: number; height: number } | null = null;
 
@@ -52,7 +53,15 @@ export class CameraRig {
       this.camera,
       aspect >= 1 ? { left: -half * aspect, right: half * aspect, top: half, bottom: -half } : { left: -half, right: half, top: half / aspect, bottom: -half / aspect },
     );
+    const { left, right, top, bottom } = this.camera;
+    if (![left, right, top, bottom].every(Number.isFinite)) throw new Error(`Camera view extents must be finite, got zoom ${this.zoom}`);
     this.camera.updateProjectionMatrix();
+  }
+
+  private refuse(what: string, value: number): void {
+    if (this.warned) return;
+    this.warned = true;
+    console.warn(`Camera ignored an unusable ${what} number from the browser: ${value}`);
   }
 
   follow(p: V3 | null, heading: number | null = null, moveLead = true): void {
@@ -110,6 +119,8 @@ export class CameraRig {
   }
 
   panBy(dxPx: number, dyPx: number): void {
+    if (!(this.view.clientWidth > 0)) return;
+    if (!Number.isFinite(dxPx) || !Number.isFinite(dyPx)) return this.refuse("pan", Number.isFinite(dxPx) ? dyPx : dxPx);
     this.target = null;
     this.heading = null;
     this.viewMoved = true;
@@ -140,6 +151,7 @@ export class CameraRig {
   }
 
   zoomByFactor(factor: number): void {
+    if (!(factor > 0 && Number.isFinite(factor))) return this.refuse("zoom", factor);
     this.viewMoved = true;
     this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * factor));
     this.resize();
