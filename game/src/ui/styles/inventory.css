@@ -585,9 +585,32 @@
 }
 .inv-storage {
   min-height: calc(var(--icon-hero) + var(--space-7));
+  padding: var(--space-5);
+}
+.inv-storage:not(.screen-block) {
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
-  padding: var(--space-5);
+}
+.inv-bench .well .inv-storage {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.inv-storage .inv-chip {
+  background: none;
+}
+.town-truck .inv-truck {
+  position: relative;
+  isolation: isolate;
+}
+.town-truck .inv-truck::before {
+  content: "";
+  position: absolute;
+  inset: 0 var(--space-9) 0 0;
+  z-index: var(--z-recess-backing);
+  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
+  box-shadow: var(--hud-recess);
+  pointer-events: none;
 }
 .inv-chip {
   position: relative;

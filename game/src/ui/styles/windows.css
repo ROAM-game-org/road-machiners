@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .ink-chips .chip, .town-page:has(.board) .ink-head .qt-line) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip, .town-page:has(.board) .ink-head .qt-line) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -81,7 +81,7 @@
 .town-page:has(.board) .ink-head .qt-line {
   padding: var(--space-3) var(--space-5);
 }
-.ink-page .ink-chips .chip {
+.chips .chip {
   padding: var(--space-3) var(--space-5);
 }
 .inv-keys {

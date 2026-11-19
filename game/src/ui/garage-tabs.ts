@@ -12,7 +12,7 @@ import { GOODS_COLUMNS } from "./format";
 import type { InventoryView } from "./inventory";
 import type { PartRow, PartRows } from "./part-rows";
 import type { RowSlots } from "./row-slots";
-import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, reasonButton, sellButton } from "./shop-rows";
+import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, rowButton, sellButton } from "./shop-rows";
 
 export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
@@ -140,7 +140,7 @@ export function goodSellCell(sell: GoodSell): HTMLElement {
     "div",
     { class: "trade sell" },
     caption(GOODS_COLUMNS.sell),
-    reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
-    reasonButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
+    rowButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
+    rowButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
   );
 }
