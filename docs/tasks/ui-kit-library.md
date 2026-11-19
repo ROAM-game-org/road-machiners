@@ -154,6 +154,8 @@ The layout check at 1280x720, 1024x600, 844x390 and 640x360, in English, Russian
 - The canteen people list sits right under the prose, not at the foot of the page.
 - The start menu is a framed device, and it hides while Options or New game is open.
 - The death box is the HUD skin's panel, from the HUD work.
+- In Russian the help panel wraps its four key groups to two rows, so while it is open it covers the HUD's bottom row. Before, the fourth group sat off screen.
+- Fixed truck parts with overlapping hit boxes, such as the two wheels, report one more unreachable part on some inventory screens, since the drawing sits 2px higher.
 
 ### Deviations from plan
 
