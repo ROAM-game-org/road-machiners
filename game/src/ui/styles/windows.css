@@ -82,6 +82,7 @@
 .board-offers {
   padding: var(--space-2) var(--space-5);
 }
+.town-page .qt-line.screen-block,
 .town-page:has(.board) .ink-head .qt-line {
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-5);
