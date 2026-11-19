@@ -33,7 +33,7 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.screen-btn, .screen-line, .switch, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
+:is(#ui, #report) button:where(:not(.screen-btn, .screen-line, .switch, .radio-next, .inv-item, .part-sum, .mode-card, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
   --key-edge: var(--btn-key-edge-m);
   --off-opacity: var(--key-off-opacity);
   --hover-bg: none;
@@ -69,6 +69,9 @@
 }
 :is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button):lang(en) {
   -webkit-text-stroke: 0;
+}
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button):lang(ru) {
+  -webkit-text-stroke-width: 0.012em;
 }
 :is(#ui, #report) .btn-l {
   --key-edge: var(--btn-key-edge-l);

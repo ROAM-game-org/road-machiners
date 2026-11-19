@@ -124,11 +124,11 @@ export class CharacterScreen {
     const rank = world.player.ranks[skill];
     const effects = skillEffectRows(skill, rank);
     return el('div', { class: 'char-page skill-page', style: `--effects:${effects.length}` },
-      el('div', { class: 'effect-strip' }, el('span', {}),
+      el('div', { class: 'effect-strip screen-block' }, el('span', {}),
         el('div', { class: 'effect-grid' }, ...effects.map((e) => el('div', { class: 'effect-cell' },
           el('span', { class: 'effect-label' }, e.label),
           el('span', { class: `effect-total num${e.none ? ' zero' : ''}` }, e.total))))),
-      el('div', { class: 'rank-ladder' }, ...Array.from({ length: MAX_RANK }, (_, i) => this.rankRow(world, skill, i + 1))));
+      el('div', { class: 'rank-ladder screen-block' }, ...Array.from({ length: MAX_RANK }, (_, i) => this.rankRow(world, skill, i + 1))));
   }
 
   private rankRow(world: World, skill: SkillId, level: number): HTMLElement {
@@ -155,7 +155,7 @@ export class CharacterScreen {
   private buyButton(world: World, skill: SkillId): HTMLElement {
     const blocked = canBuyRank(world, skill);
     return el('button', {
-      class: 'btn-s buy-rank',
+      class: 'screen-btn buy-rank',
       ...disabledWith(lookReason(world) ?? (blocked ? refusalText(world, blocked) : null), () => this.host.announce(buyRank(this.host.world(), skill))),
     }, t('character.buyRank'));
   }
@@ -172,7 +172,7 @@ export class CharacterScreen {
   private pickButton(world: World, id: PerkId): HTMLElement {
     const state = world.player.state;
     const reason = lookReason(world) ?? (state === 'active' ? null : refusalText(world, { id: 'notActive', state }));
-    return el('button', { class: 'btn-s pick-perk', ...disabledWith(reason, () => this.host.apply(choosePerk(this.host.world(), id))) }, t('character.pickPerk'));
+    return el('button', { class: 'screen-btn pick-perk', ...disabledWith(reason, () => this.host.apply(choosePerk(this.host.world(), id))) }, t('character.pickPerk'));
   }
 }
 
@@ -188,7 +188,7 @@ function basicCard(skill: SkillId, owned: boolean): HTMLElement {
 
 function pool(world: World): HTMLElement {
   const p = world.player;
-  return el('div', { class: 'char-pool' },
+  return el('div', { class: 'char-pool screen-block' },
     el('div', { class: 'char-pool-row xp' }, el('span', {}, t('character.xpLabel')), el('span', { class: 'num' }, num(Math.floor(p.xp), 'int'))),
     el('div', { class: 'char-pool-row' }, el('span', {}, t('character.health')), el('span', { class: 'num' }, t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) }))));
 }
@@ -204,7 +204,7 @@ function plainIcon(name: IconName): HTMLElement {
 }
 
 function standingPage(world: World): HTMLElement {
-  return el('div', { class: 'char-page standing-page' }, ...standingBands(world).map((row) => standingRow(world, row)));
+  return el('div', { class: 'char-page standing-page' }, el('div', { class: 'screen-block standing-list' }, ...standingBands(world).map((row) => standingRow(world, row))));
 }
 
 function standingRow(world: World, row: StandingRow): HTMLElement {
