@@ -1,6 +1,7 @@
 
 import { PARTS, type PartDef } from "../data/parts";
 import { say } from "../text/language";
+import { keyLabel } from "./input-mode";
 import { t } from "../text/msg";
 import { CheatError, give } from "../sim/cheats";
 import { chargeFor, gunFor } from "../sim/factory";
@@ -70,8 +71,8 @@ export class FullShopScreen {
       el("div", { class: "shop-body screen-block" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
-      el("h3", {}, "Full shop", truckChips(w)),
+      el("button", { class: "close", onclick: () => this.close() }, say(keyLabel(t("trade.leave"), "Esc"))),
+      el("h3", {}, say(t("fullShop.title")), truckChips(w)),
       el("div", { class: "town-split banded" }, truck, shop),
       el("div", { class: "outpost-foot" }, el("div", { class: "bad" }, this.error)),
     );
@@ -86,7 +87,7 @@ export class FullShopScreen {
         world: w,
         part,
         base: compareBase(this.inventory.selectedPart(), part),
-        action: el("button", { class: "screen-btn", onclick: () => this.take(w, d.id) }, "Take"),
+        action: el("button", { class: "screen-btn", onclick: () => this.take(w, d.id) }, say(t("fullShop.take"))),
         onHover: this.hintMounts(d.id),
       });
     });
@@ -119,7 +120,7 @@ export class FullShopScreen {
             this.render();
           },
         },
-        f === "all" ? "All" : filterIcon(f),
+        f === "all" ? say(t("trade.filter.all")) : filterIcon(f),
       ),
     );
   }
