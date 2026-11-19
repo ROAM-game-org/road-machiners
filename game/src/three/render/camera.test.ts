@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CameraRig, KeyPan, TruckFollow, VIEW_METERS, ZOOM } from './camera';
 import { PHYSICS } from '../../data/physics';
 import { DEFAULT_ZOOM, VIEW } from '../../data/view';
+import { daylightAt, lightScene, sunLight } from './daylight';
 
 const S = PHYSICS.metersPerTile;
 
@@ -34,6 +35,56 @@ describe('camera resize', () => {
     const after = rig.screenOf(point);
     expect(after.x).toBeCloseTo(before.x);
     expect(after.y).toBeCloseTo(before.y);
+  });
+});
+
+describe('camera input from the browser', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([Number.NaN, 0, -1, Number.POSITIVE_INFINITY])('ignores a zoom factor of %s and keeps lighting the scene', (factor) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rig = rigAt();
+    rig.tick(0);
+    const point = { x: 5, y: 0, z: 3 };
+    const reach = rig.groundReach();
+    const before = rig.screenOf(point);
+    rig.zoomByFactor(factor);
+    rig.zoomBy(Number.NaN);
+    rig.tick(0);
+    expect(rig.groundReach()).toBe(reach);
+    expect(rig.screenOf(point)).toEqual(before);
+    expect(() => lightScene(sunLight(), new THREE.HemisphereLight(), rig.focus(), daylightAt(0), rig.groundReach())).not.toThrow();
+  });
+
+  it('ignores a pan with a bad number', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rig = rigAt();
+    const before = { ...rig.focus() };
+    rig.panBy(Number.NaN, 0);
+    rig.panBy(0, Number.POSITIVE_INFINITY);
+    expect(rig.focus()).toEqual(before);
+  });
+
+  it('ignores a pan while the view has no width', () => {
+    const size = { w: 1280 };
+    const rig = new CameraRig({
+      get clientWidth() { return size.w; },
+      clientHeight: 720,
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+    } as HTMLElement);
+    const before = { ...rig.focus() };
+    size.w = 0;
+    rig.panBy(10, 0);
+    expect(rig.focus()).toEqual(before);
+  });
+
+  it('warns once per rig', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rig = rigAt();
+    rig.zoomByFactor(Number.NaN);
+    rig.zoomByFactor(Number.NaN);
+    rig.panBy(Number.NaN, 0);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });
 

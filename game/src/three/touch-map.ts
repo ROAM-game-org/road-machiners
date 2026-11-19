@@ -109,7 +109,8 @@ export class TouchGestures {
 
   private pinch(): TouchIntent | null {
     const spread = this.spread();
-    if (this.pinchDistance <= 0 || spread <= 0) {
+    if (!(spread > 0 && Number.isFinite(spread))) return null;
+    if (!(this.pinchDistance > 0)) {
       this.pinchDistance = spread;
       return null;
     }
