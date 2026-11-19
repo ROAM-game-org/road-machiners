@@ -209,7 +209,7 @@
 .town-page.ink-page .ink-scroll > :is(.ink-head, .ink-panel, .ink-choices) {
   width: 100%;
 }
-#ui.compact .ink-page .ink-scroll:has(> .ink-panel.wide) {
+#ui.tight .ink-page .ink-scroll:has(> .ink-panel.wide) {
   overflow-y: auto;
 }
 .town-page.ink-page .ink-scroll {
