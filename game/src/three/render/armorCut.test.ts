@@ -191,16 +191,18 @@ describe('clearPlates', () => {
       const [foot, head] = [-0.25, 0.25].map((local) => new THREE.Vector3(-0.1, local, 0).applyMatrix4(matrix));
       return foot.x + ((y - foot.y) / (head.y - foot.y)) * (head.x - foot.x);
     };
-    const rows = [0.05, 0.15, 0.25, 0.35, 0.45].map((y) => innerAtHeight(leaning.pos.y + y - 0.25 + 0.05));
+    const rows = [0.05, 0.15, 0.25, 0.35, 0.45].map((y) => innerAtHeight(placedBounds(leaning, blade()).min.y + y));
     expect(Math.min(...rows)).toBeGreaterThanOrEqual(FACE - 1e-6);
     expect(Math.min(...rows)).toBeLessThan(FACE + 0.02);
   });
 
-  it('fails loudly when plates share its height but show no face', () => {
-    const hollow = new THREE.Group();
-    hollow.add(new THREE.Mesh(cube([0.12, 0.5, 1.6], [2.06, 0.5, 5])));
-    hollow.updateMatrixWorld(true);
-    expect(() => clearPlates(at(2.1), blade(), hollow, 'F')).toThrow(/share its height/);
+  it('leaves an accessory alone when the plates under it show no face in its span', () => {
+    const open = new THREE.Group();
+    open.add(new THREE.Mesh(cube([0.12, 0.5, 0.1], [2.06, 0.3, 5])));
+    open.updateMatrixWorld(true);
+    const stays = at(2.1);
+    clearPlates(stays, blade(), open, 'F');
+    expect(stays.pos.x).toBeCloseTo(2.1, 5);
   });
 });
 

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CLIP_TOLERANCE } from '../../sim/body';
 import type { SideLetter } from '../../sim/grid';
 import { STEEPEST_LEAN } from './armorTop';
-import { bodyFace, FACE_COLUMN, faceProfile, type FaceProfile } from './gunStand';
+import { bodyFace, FACE_COLUMN, type FaceProfile } from './gunStand';
 
 export type Placement = { pos: THREE.Vector3; yaw: number; lean: number; scale: THREE.Vector3 };
 
@@ -51,21 +51,18 @@ export function clearPlates(at: Placement, box: THREE.Box3, plates: THREE.Object
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x' ? 'z' : 'x';
   const placed = placedBounds(at, box);
-  const profile = faceProfile(plates, axis, outward, [placed.min[across], placed.max[across]]);
+  const lateral: [number, number] = [placed.min[across], placed.max[across]];
   const [foot, head] = innerEdge(at, box, axis, outward);
   const innerAt = (y: number): number => foot.out + ((y - foot.y) / (head.y - foot.y)) * (head.out - foot.out);
-  const behind = profile.reach.flatMap((reach, index) => {
-    const y = profile.bottom + (index + 0.5) * FACE_COLUMN;
-    return reach !== null && y >= placed.min.y && y <= placed.max.y ? [reach - innerAt(y)] : [];
-  });
-  if (behind.length === 0) return failIfSharingHeight(plates, placed, side);
-  const shortfall = Math.max(...behind);
+  const shortfalls: number[] = [];
+  for (let bottom = placed.min.y; bottom < placed.max.y - 1e-6; bottom += FACE_COLUMN) {
+    const y = bottom + FACE_COLUMN / 2;
+    const face = y >= foot.y && y <= head.y ? bodyFace(plates, axis, outward, lateral, [bottom, bottom + FACE_COLUMN]) : null;
+    if (face !== null) shortfalls.push(outward * face - innerAt(y));
+  }
+  if (shortfalls.length === 0) return;
+  const shortfall = Math.max(...shortfalls);
   if (shortfall > 0) at.pos[axis] += outward * shortfall;
-}
-
-function failIfSharingHeight(plates: THREE.Object3D, placed: THREE.Box3, side: SideLetter): void {
-  const box = new THREE.Box3().setFromObject(plates);
-  if (Math.min(box.max.y, placed.max.y) - Math.max(box.min.y, placed.min.y) > FACE_COLUMN) throw new Error(`Plates under an accessory on side ${side} share its height but show no face to stand in front of`);
 }
 
 type Row = { index: number; y: number; reach: number };
