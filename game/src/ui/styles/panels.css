@@ -187,7 +187,6 @@
   max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
   max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
-  background: var(--surface-panel);
   font-size: var(--text-dense);
 }
 .help .close {
@@ -200,20 +199,29 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, max-content);
-  gap: var(--space-9);
+  gap: var(--space-7);
 }
 .help-group {
   display: grid;
   grid-template-columns: max-content max-content;
   align-content: start;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
+  gap: var(--space-2) var(--space-4);
 }
 .help-title {
   grid-column: 1 / -1;
   margin-bottom: var(--space-2);
-  color: var(--ink-title);
-  font-size: var(--text-body);
+  color: var(--hud-print-coal);
+  font: var(--text-lead) var(--font-engraved);
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+  text-transform: uppercase;
+}
+.help-group,
+.help-does {
+  color: var(--hud-print-coal);
+  font-size: var(--text-lead);
+  text-shadow: var(--hud-print-coal-edge);
 }
 .help-keys {
   display: flex;
@@ -221,11 +229,13 @@
   gap: var(--space-2);
 }
 .help-on {
-  color: var(--ink-muted);
+  color: var(--hud-print-coal);
+  text-shadow: var(--hud-print-coal-edge);
 }
 .help-notes {
-  color: var(--ink-faint);
-  font-size: var(--text-caption);
+  padding: var(--space-4) var(--space-5);
+  color: var(--hud-amber-soft);
+  font-size: var(--text-dense);
 }
 .info {
   right: var(--space-7);

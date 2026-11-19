@@ -179,7 +179,7 @@ export class HelpPanel {
     root.append(
       el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
       el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
-      el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
+      el("div", { class: "help-notes screen-block" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
