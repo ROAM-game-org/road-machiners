@@ -21,7 +21,7 @@ A part file builds its scene, then calls `installBake()` from `tools/hud-bake/co
 
 - Model the hardware. Recesses are cut holes with a floor, never painted rings. Keys sit sunk in their holes. Lamps are flat domes lying on the panel.
 - Use the shared kits: `parts/olive.js` for olive housings, keycaps, brass lips and wear, `parts/dashlib.js` for leather plates, and `parts/slate.js` for slate windows.
-- Wear is light scratches and small edge chips from `mottle()`, never soft blotches.
+- Metal carries ink marks from `mottle()`: an even field of short diagonal hatch strokes in faint dark ink, like a pen drawing, never grain, scratches, chips or blotches. The game is drawn, not real, so no surface imitates real wear.
 - Print on olive panels is dark coal, `rgb(36, 28, 20)`, with a light lower edge.
 - Bake no words. Text that the player reads goes in a zone as live HTML.
 - A shared piece, such as a keycap, the lamp or a panel frame, belongs in `parts/pieces.js`, on a transparent background with a tight crop. The game frames the panel and keycap pieces as 9-slice border images, so they fit any size.

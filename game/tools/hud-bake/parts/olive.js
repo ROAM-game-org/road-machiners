@@ -12,39 +12,29 @@ const seeded = (seed) => {
   return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 };
 
-function scratch(c, rnd, x, y, w, h) {
-  const sx = x + rnd() * w, sy = y + rnd() * h, len = 12 + rnd() * 55, ang = (rnd() - 0.5) * 0.9 + (rnd() < 0.25 ? Math.PI / 2 : 0);
-  const ex = sx + Math.cos(ang) * len, ey = sy + Math.sin(ang) * len, bend = (rnd() - 0.5) * len * 0.15;
-  c.beginPath(); c.moveTo(sx, sy); c.quadraticCurveTo((sx + ex) / 2 - Math.sin(ang) * bend, (sy + ey) / 2 + Math.cos(ang) * bend, ex, ey);
-  c.lineWidth = 0.7 + rnd() * 0.6;
-  c.strokeStyle = rnd() < 0.7 ? 'rgba(225,205,160,0.22)' : 'rgba(30,22,12,0.22)';
-  c.stroke();
+const HATCH = { angle: -0.95, len: [5, 10], gap: 2.6, lines: [2, 3], width: 0.8, ink: 'rgba(43,32,20,0.16)', cell: 38 };
+
+function hatchLine(c, x, y, len) {
+  const dx = Math.cos(HATCH.angle) * len, dy = Math.sin(HATCH.angle) * len;
+  c.beginPath(); c.moveTo(x, y); c.lineTo(x + dx, y + dy); c.stroke();
 }
 
-const CHIP_EDGE = 10;
-
-function chipPoint(rnd, x, y, w, h) {
-  const side = rnd() * 4 | 0, t = rnd(), d = rnd() * CHIP_EDGE;
-  if (side === 0) return [x + t * w, y + d];
-  if (side === 1) return [x + t * w, y + h - d];
-  return [side === 2 ? x + d : x + w - d, y + t * h];
+function hatch(c, rnd, cx, cy) {
+  const n = HATCH.lines[0] + Math.floor(rnd() * (HATCH.lines[1] - HATCH.lines[0] + 1));
+  const nx = -Math.sin(HATCH.angle), ny = Math.cos(HATCH.angle), ux = Math.cos(HATCH.angle), uy = Math.sin(HATCH.angle);
+  for (let i = 0; i < n; i++) {
+    const len = HATCH.len[0] + rnd() * (HATCH.len[1] - HATCH.len[0]), shift = (rnd() - 0.5) * HATCH.gap;
+    hatchLine(c, cx + nx * i * HATCH.gap + ux * shift, cy + ny * i * HATCH.gap + uy * shift, len);
+  }
 }
 
-function chip(c, rnd, x, y, w, h) {
-  const [px, py] = chipPoint(rnd, x, y, w, h);
-  const r = 0.8 + rnd() * 1.6;
-  c.beginPath(); c.ellipse(px, py, r * 1.6, r, rnd() * Math.PI, 0, Math.PI * 2);
-  c.fillStyle = 'rgba(215,195,150,0.3)'; c.fill();
-}
+const MOTTLE = { strength: 1, clip: true };
 
-const MOTTLE = { strength: 1, clip: true, chips: true };
-
-function marks(c, rnd, [x, y, w, h], { strength, chips }) {
-  c.lineCap = 'round';
-  const scratches = Math.round(w * h / 9000 * strength);
-  for (let i = 0; i < scratches; i++) scratch(c, rnd, x, y, w, h);
-  const chipCount = Math.round((w + h) / 40 * strength) * Number(chips);
-  for (let i = 0; i < chipCount; i++) chip(c, rnd, x, y, w, h);
+function marks(c, rnd, [x, y, w, h], { strength }) {
+  c.lineCap = 'round'; c.lineWidth = HATCH.width; c.strokeStyle = HATCH.ink;
+  const cols = Math.max(1, Math.round(w / HATCH.cell * Math.sqrt(strength))), rows = Math.max(1, Math.round(h / HATCH.cell * Math.sqrt(strength)));
+  const cw = w / cols, ch = h / rows;
+  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) hatch(c, rnd, x + (i + 0.15 + rnd() * 0.7) * cw, y + (j + 0.15 + rnd() * 0.7) * ch);
 }
 
 export const mottle = (c, x, y, w, h, seed, options) => {
@@ -55,24 +45,12 @@ export const mottle = (c, x, y, w, h, seed, options) => {
   c.restore();
 };
 
-const SPECKLE = { perPx: 1 / 5, light: 'rgba(235,220,185,0.10)', dark: 'rgba(40,28,14,0.12)', size: [0.5, 1.4] };
-
-function speckle(c, w, h, rnd) {
-  const count = Math.round(w * h * SPECKLE.perPx);
-  for (let i = 0; i < count; i++) {
-    const d = SPECKLE.size[0] + rnd() * (SPECKLE.size[1] - SPECKLE.size[0]);
-    c.fillStyle = rnd() < 0.5 ? SPECKLE.light : SPECKLE.dark;
-    c.fillRect(rnd() * (w - d), rnd() * (h - d), d, d);
-  }
-}
-
 export function mottleTile(w, h, res, seed, strength) {
   const cv = document.createElement('canvas'); cv.width = Math.round(w * res); cv.height = Math.round(h * res);
   const c = cv.getContext('2d');
   c.scale(res, res);
-  speckle(c, w, h, seeded(seed + 1));
   for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) {
-    c.save(); c.translate(dx, dy); mottle(c, 0, 0, w, h, seed, { strength, clip: false, chips: false }); c.restore();
+    c.save(); c.translate(dx, dy); mottle(c, 0, 0, w, h, seed, { strength, clip: false }); c.restore();
   }
   return cv;
 }
