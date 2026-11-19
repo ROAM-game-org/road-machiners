@@ -81,7 +81,7 @@ function inPage({ sel, near, bar, groupWindow }) {
     const buttons = [...screen.querySelectorAll('.screen-btn')].filter(shown).map((b) => ({ name: name(b), rect: rectOf(b) }));
     return pairs(buttons).filter(([a, b]) => columnMiss(a.rect, b.rect)).map(([a, b]) => ({ kind: 'row-grid', path: `${a.name} | ${b.name}`, text: `buttons at ${Math.round(a.rect.l)} to ${Math.round(a.rect.r)} and ${Math.round(b.rect.l)} to ${Math.round(b.rect.r)} miss one column` }));
   };
-  const desktop = !document.querySelector('#ui.narrow');
+  const desktop = !document.querySelector('#ui.narrow, #ui.tight');
   const layoutFaults = (win) => (desktop ? [...gridFaults(win), ...outerScreens(win).flatMap(rowFaults)] : []);
   const windowFaults = (win) => [...layoutFaults(win), ...keyFaults(win), ...barFaults(win)];
   const tops = [...document.querySelectorAll(sel.window)].filter((w) => shown(w) && !w.parentElement.closest(sel.window));

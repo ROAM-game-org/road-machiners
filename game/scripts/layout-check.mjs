@@ -525,9 +525,9 @@ const journalEntryFaults = (page) =>
     const body = document.querySelector(`${sel} .journal-body`);
     const open = body?.querySelector('.journal-place.open, .journal-note.open');
     if (!open) return [];
-    const cut = open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom;
+    const cut = (open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom) * Number(body.scrollHeight <= body.clientHeight + 1);
     const side = body.closest('.journal-side') !== null && window.innerHeight >= 700;
-    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal`] : [];
+    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal and the body cannot scroll`] : [];
   }, JOURNAL);
 
 const journalOverlapFaults = (page) =>
@@ -796,8 +796,8 @@ function townMarks(page, withError) {
     };
     const ui = document.querySelector('#ui');
     const grows = !ui.classList.contains('narrow');
-    const choices = root.querySelector('.ink-choices');
-    const above = choices?.previousElementSibling;
+    const choices = root.querySelector('.ink-choices'), shownBefore = (node) => (node ? [...node.parentElement.children].slice(0, [...node.parentElement.children].indexOf(node)).filter((n) => n.getBoundingClientRect().height > 0).pop() : null);
+    const above = shownBefore(choices);
     const spare = above ? choices.getBoundingClientRect().top - above.getBoundingClientRect().bottom : 0;
     return { ...marks, grows, spare, withError };
   }, withError);
