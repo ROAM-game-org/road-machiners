@@ -276,6 +276,8 @@
   --hud-screen-shade: inset 0 0 var(--space-4) var(--hud-crt-edge), inset 0 var(--space-1) var(--space-2) var(--hud-crt-edge);
   --goods-count-w: 9ch;
   --town-split-min: 260px;
+  --service-supply-w: 208px;
+  --service-repair-w: 192px;
   --gauge-h: 8px;
   --gauge-cell-w: 5px;
   --hud-screen-edge: 5px;

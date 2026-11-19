@@ -1395,14 +1395,14 @@
 }
 .service-prices.service-meter {
   grid-auto-flow: row;
-  width: max-content;
+  width: var(--service-repair-w);
   min-width: 0;
   justify-content: stretch;
   padding: var(--space-2) var(--space-5);
 }
 #ui .service-row > .service-meter.cost {
   flex: none;
-  width: max-content;
-  min-width: calc(var(--space-10) * 3.5);
+  width: var(--service-supply-w);
+  min-width: 0;
   padding: var(--space-2) var(--space-5);
 }
