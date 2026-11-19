@@ -4,6 +4,7 @@ export const NEAR_MISS = 24;
 export const BAR = { maxHeight: 10, minWidth: 24 };
 export const SCREEN_PAD = 12;
 export const MIN_LINES = 1.8;
+const ROW_GAP = 4;
 
 const SELECTORS = {
   window: '.dialog, .ink-page, .confirm-dialog, #ui > .panel, .modal, .hud-panel, .journal-side',
@@ -26,7 +27,7 @@ export const FIXED_GROUPS = {
   inspect: { window: '.info', states: ['inspect', 'inspect-unarmed', 'inspect-hauler', 'inspect-nine'] },
 };
 
-function inPage({ sel, near, bar, pad, minLines, groupWindow }) {
+function inPage({ sel, near, bar, pad, minLines, rowGap, groupWindow }) {
   const shown = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -99,7 +100,18 @@ function inPage({ sel, near, bar, pad, minLines, groupWindow }) {
   const padFaults = (win) => textScreens(win).flatMap(padFault);
   const innerHeight = (s, st) => s.getBoundingClientRect().height - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
   const lineHeight = (st) => (st.lineHeight === 'normal' ? parseFloat(st.fontSize) * 1.2 : parseFloat(st.lineHeight));
-  const oneLine = (s) => { const st = getComputedStyle(s); return Boolean(s.innerText.trim()) && innerHeight(s, st) < minLines * lineHeight(st); };
+  const textTops = (s) => {
+    const walker = document.createTreeWalker(s, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    const tops = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      range.selectNodeContents(n);
+      tops.push(...[...range.getClientRects()].filter((r) => r.height > 0).map((r) => r.top));
+    }
+    return tops;
+  };
+  const textRows = (s) => textTops(s).sort((a, b) => a - b).filter((top, i, all) => i === 0 || top - all[i - 1] > rowGap).length;
+  const oneLine = (s) => { const st = getComputedStyle(s); return Boolean(s.innerText.trim()) && innerHeight(s, st) < minLines * lineHeight(st) && textRows(s) < 2; };
   const lineFaults = (win) => textScreens(win).filter(oneLine).map((s) => ({ kind: 'screen-one-line', path: name(s), text: `a screen ${Math.round(s.getBoundingClientRect().height)} px high holds one line` }));
   const desktop = !document.querySelector('#ui.narrow, #ui.tight');
   const layoutFaults = (win) => (desktop ? [...gridFaults(win), ...outerScreens(win).flatMap(rowFaults)] : []);
@@ -130,6 +142,6 @@ function fixedFaults(group, state, { fixed, label }) {
 
 export async function hardwareFaults(page, state, locale, viewport) {
   const group = groupOf(state);
-  const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, pad: SCREEN_PAD, minLines: MIN_LINES, groupWindow: group ? group[1].window : null });
+  const seen = await page.evaluate(inPage, { sel: SELECTORS, near: NEAR_MISS, bar: BAR, pad: SCREEN_PAD, minLines: MIN_LINES, rowGap: ROW_GAP, groupWindow: group ? group[1].window : null });
   return [...await inkFaults(page), ...[...seen.faults, ...(group && seen.compares && locale !== 'pseudo' ? fixedFaults(group[0], state, { ...seen, label: `${locale} ${viewport}` }) : [])].map((f) => ({ sizes: '', ...f }))];
 }
