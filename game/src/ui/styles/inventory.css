@@ -899,3 +899,6 @@
 .inv-view.short-layer .inv-inspection {
   gap: var(--space-6);
 }
+.inv-keys > button {
+  align-self: flex-start;
+}
