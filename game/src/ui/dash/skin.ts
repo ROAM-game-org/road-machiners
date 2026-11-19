@@ -3,7 +3,7 @@ import { BAKED } from "./baked";
 import { bindAttr, say, textNode, unbindAttr, type TextAttr } from "../../text/language";
 import { concat, LINE_BREAK, type Msg, verbatim } from "../../text/msg";
 import { createIcon } from "../cards";
-import { el, type Child } from "../dom";
+import { el, spokenReason, type Child } from "../dom";
 import { keyTip } from "../input-mode";
 import { token } from "../tokens";
 
@@ -39,7 +39,7 @@ export function setData(node: HTMLElement, name: string, value: string): void {
 export function setOff(node: HTMLElement, reason: Msg | null): void {
   if (reason === null) node.removeAttribute("aria-disabled");
   else node.setAttribute("aria-disabled", "true");
-  setAttrText(node, "data-reason", reason);
+  setAttrText(node, "data-reason", spokenReason(reason));
 }
 
 export type Lamp = "off" | "amber" | "green" | "red";
@@ -51,11 +51,12 @@ export interface ControlView {
 }
 
 export function showControl(button: HTMLElement, view: ControlView): void {
-  const said = view.reason ? concat([view.title, LINE_BREAK, view.reason]) : view.title;
+  const spoken = spokenReason(view.reason);
+  const said = spoken ? concat([view.title, LINE_BREAK, spoken]) : view.title;
   const tip = view.key ? keyTip(said, view.key) : said;
   setAttrText(button, "title", tip);
   setOff(button, view.reason);
-  if (view.reason) setAttrText(button, "data-reason", tip);
+  if (spoken) setAttrText(button, "data-reason", tip);
 }
 
 export function isOff(node: Element): boolean {

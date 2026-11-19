@@ -11,7 +11,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, dashRail, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit } from "./dash/panels";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
@@ -46,7 +46,7 @@ import { gameContext } from "../three/error-report";
 import { FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type Readout, type RescueReadout } from "./hud-readout";
 import { createIcon, repairingPart } from "./cards";
-import { aimMarks, orderLock, TURN_PLAYING, type AimState } from "./weapons";
+import { aimMarks, orderLock, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { bakedStrip } from "./dash/baked";
 import { BAKED } from "./dash/baked";
@@ -285,11 +285,18 @@ export class Hud {
     this.placeQueued = true;
     requestAnimationFrame(() => {
       this.placeQueued = false;
+      this.placeDock();
       this.placeInfo();
       this.placeSide();
       this.capCondition();
       placeDeviceCasts();
     });
+  }
+
+  private placeDock(): void {
+    const gap = parseFloat(token("--hud-gap"));
+    const top = uiSize().layerRect(topRight()).bottom + gap;
+    rightDock().style.maxHeight = `${Math.max(uiSize().layerRect(this.deck.root).top - gap - top, 0)}px`;
   }
 
   private capCondition(): void {

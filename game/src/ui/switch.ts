@@ -1,6 +1,6 @@
 import { t, type Msg } from "../text/msg";
 import { createIcon } from "./cards";
-import { el } from "./dom";
+import { el, spokenReason } from "./dom";
 import { keyTip } from "./input-mode";
 
 export interface SwitchOptions {
@@ -18,7 +18,8 @@ export function keyCorner(key: string): HTMLElement {
   return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
 }
 
-function switchTitle(o: SwitchOptions, reason: Msg | null): Msg {
+function switchTitle(o: SwitchOptions, locked: Msg | null): Msg {
+  const reason = spokenReason(locked);
   return o.key ? keyTip(reason ?? o.title, o.key) : (reason ?? o.title);
 }
 

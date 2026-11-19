@@ -264,7 +264,7 @@ export const UI: Translation<typeof EN> = {
   'weapon.noGunSelected': 'Оружие не выбрано',
   'weapon.all': 'Все',
   'weapon.reload': 'Перезарядка',
-  'weapon.reloadKeyHint': 'Сбросить магазин и снарядить заново. Гарпун перерезает трос.',
+  'weapon.reloadKeyHint': 'Сбросить магазин и снарядить заново.',
   'weapon.hold': 'Стоп',
   'weapon.status.noTarget': 'нет цели',
   'weapon.status.reloading': 'перезарядка',

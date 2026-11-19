@@ -263,7 +263,7 @@ export const UI = {
   'weapon.noGunSelected': 'No gun selected',
   'weapon.all': 'All',
   'weapon.reload': 'Reload',
-  'weapon.reloadKeyHint': 'Drop the magazine and refill it. A harpoon cuts its line.',
+  'weapon.reloadKeyHint': 'Drop the magazine and refill it.',
   'weapon.hold': 'Hold',
   'weapon.status.noTarget': 'no target',
   'weapon.status.reloading': 'reloading',
