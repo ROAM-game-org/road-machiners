@@ -54,16 +54,19 @@
   align-items: baseline;
   flex-wrap: wrap;
   column-gap: var(--space-4);
-  font-size: var(--text-dense);
-  color: var(--hud-amber-soft);
+  color: var(--hud-print-coal);
+  font: var(--text-lead) / 1.35 var(--font-engraved);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  text-shadow: var(--hud-print-coal-edge);
+}
+#ui .start-menu .start-save * {
+  color: inherit;
+  font: inherit;
 }
 .start-menu .start-save .save-name {
   display: flex;
   gap: var(--space-4);
   white-space: nowrap;
-}
-.start-menu .start-save .save-name b {
-  color: var(--hud-amber);
 }
 #ui:has(.new-game, .options, .save-panel) .start-menu .start-device {
   visibility: hidden;

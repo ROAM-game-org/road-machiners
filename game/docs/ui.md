@@ -200,7 +200,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 #### Screens are fixed
 
 - A screen is a fixed part of its device. Its size and its place come from the window's grid, never from its content. The content changes and the screen stays.
-- A screen is never one line high. A single fixed sentence of the window, such as a town's flavor line, a confirm question or a toast, prints on the metal under the title in `--hud-print-coal` and the engraved font. A list screen keeps room for at least three rows even when it holds one. Number readouts, such as the money chips, and inputs are instruments and keep one line.
+- A screen is never one line high. A single fixed sentence of the window, such as a town's flavor line, a confirm question or a toast, prints on the metal under the title in `--hud-print-coal` and the engraved font. A list screen keeps room for at least two rows even when it holds one. Number readouts, such as the money chips, and inputs are instruments and keep one line.
 - Every screen keeps one padding from its brass rim to its content, `--hud-screen-pad`. A screen file never sets its own. `scripts/hardware-check.mjs` reports content closer than 12px to the rim and a screen that holds one line.
 - A window keeps the same screens on every tab and in every state. A screen with nothing to show stays in place and prints one faint idle line, such as NO PART PICKED.
 - Content longer than its screen scrolls inside it with the rocker wheel. The screen never grows to fit.

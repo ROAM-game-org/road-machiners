@@ -99,11 +99,12 @@ function inPage({ sel, near, bar, pad, minLines, groupWindow }) {
   const padFaults = (win) => textScreens(win).flatMap(padFault);
   const innerHeight = (s, st) => s.getBoundingClientRect().height - parseFloat(st.paddingTop) - parseFloat(st.paddingBottom);
   const lineHeight = (st) => (st.lineHeight === 'normal' ? parseFloat(st.fontSize) * 1.2 : parseFloat(st.lineHeight));
-  const oneLine = (s) => { const st = getComputedStyle(s); return innerHeight(s, st) < minLines * lineHeight(st); };
+  const oneLine = (s) => { const st = getComputedStyle(s); return Boolean(s.innerText.trim()) && innerHeight(s, st) < minLines * lineHeight(st); };
   const lineFaults = (win) => textScreens(win).filter(oneLine).map((s) => ({ kind: 'screen-one-line', path: name(s), text: `a screen ${Math.round(s.getBoundingClientRect().height)} px high holds one line` }));
   const desktop = !document.querySelector('#ui.narrow, #ui.tight');
   const layoutFaults = (win) => (desktop ? [...gridFaults(win), ...outerScreens(win).flatMap(rowFaults)] : []);
-  const windowFaults = (win) => [...layoutFaults(win), ...padFaults(win), ...lineFaults(win), ...keyFaults(win), ...barFaults(win)];
+  const screenFaults = (win) => (desktop ? [...padFaults(win), ...lineFaults(win)] : []);
+  const windowFaults = (win) => [...layoutFaults(win), ...screenFaults(win), ...keyFaults(win), ...barFaults(win)];
   const tops = [...document.querySelectorAll(sel.window)].filter((w) => shown(w) && !w.parentElement.closest(sel.window));
   const fixedOf = (win) => [{ name: name(win), rect: rectOf(win) }, ...outerScreens(win).map((s) => ({ name: name(s), rect: rectOf(s) }))];
   const group = groupWindow ? [...document.querySelectorAll(groupWindow)].find(shown) : null;

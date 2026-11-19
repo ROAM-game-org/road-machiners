@@ -808,6 +808,11 @@
 .priced > .price {
   min-width: 0;
 }
+#ui button:not(.screen-btn) .priced .amount {
+  justify-content: flex-end;
+  min-width: calc(var(--icon-s) + 4ch);
+  font-variant-numeric: tabular-nums;
+}
 .supply-buy > button {
   min-width: 13ch;
 }

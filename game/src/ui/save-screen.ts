@@ -79,7 +79,7 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
 
 function continueCaption(info: SlotInfo, continueButton: HTMLElement): HTMLElement {
   continueButton.setAttribute('aria-describedby', 'start-save');
-  return el('div', { class: 'start-save screen-block', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
+  return el('div', { class: 'start-save', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
 }
 
 function downloadSave(stored: unknown): void {

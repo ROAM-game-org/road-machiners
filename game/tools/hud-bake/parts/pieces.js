@@ -53,7 +53,7 @@ function drawnPlane(name, paint) {
 
 const rr = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
 
-const FRAME = { ink: '#2b2014', light: '#b3a17a', shade: '#5f4f36', radius: 2, inkW: 0.35, bevelW: 1.1, slice: 2.2, seed: 41, scratches: 1.5 };
+const FRAME = { ink: '#2b2014', light: '#b3a17a', shade: '#5f4f36', radius: 2, inkW: 0.35, bevelW: 1.1, slice: 2.2, seed: 41, scratches: 0.5 };
 
 function bevelRing(c, wu, hu, { inset, width, radius, light, shade }) {
   c.save();

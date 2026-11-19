@@ -110,9 +110,11 @@
   justify-content: flex-start;
   margin-left: 0;
 }
+.town-page :is(.ink-choices, .ink-panel.fit).screen-block {
+  min-height: calc(2 * var(--btn-h-s) + 2 * var(--hud-screen-pad-y));
+}
 .town-page .ink-choices.screen-block {
   gap: 0;
-  min-height: calc(3 * var(--btn-h-s) + 2 * var(--hud-screen-pad-y));
   margin-top: var(--space-9);
 }
 #ui .town-page .ink-choices .screen-line {
