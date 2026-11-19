@@ -11,9 +11,10 @@
   overflow: auto;
   font-size: var(--text-dense);
 }
-.options h3 {
-  margin-right: var(--space-10);
-  font-size: var(--text-body);
+#ui .options h3 {
+  margin: 0 var(--space-10) var(--space-3) 0;
+  font-size: var(--text-heading);
+  line-height: 1;
 }
 .options .close {
   position: absolute;
@@ -21,13 +22,15 @@
   top: var(--space-4);
 }
 .options h4 {
-  margin: 0 0 var(--space-3);
-  color: var(--ink-muted);
-  font-size: var(--text-dense);
-  font-weight: normal;
+  margin: 0 0 var(--space-2);
+  color: var(--hud-print-coal);
+  font: var(--text-lead) / 1.1 var(--font-engraved);
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+  text-transform: uppercase;
 }
 .options section + section {
-  margin-top: var(--space-5);
+  margin-top: var(--space-3);
 }
 #ui .options-sound {
   --knob-size: 28px;
@@ -40,4 +43,9 @@
 .options .sound-row .sound-mute {
   align-items: center;
   margin-left: var(--space-2);
+}
+.options .knob-cell {
+  color: var(--hud-print-coal);
+  font-size: var(--text-dense);
+  text-shadow: var(--hud-print-coal-edge);
 }

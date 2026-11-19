@@ -4,7 +4,6 @@ import type { Mixer } from "../audio/mixer";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { el } from "./dom";
-import { createSwitch } from "./switch";
 
 const KEY = "roam-sound";
 const BUSES: Bus[] = ["music", "sfx", "ambient", "ui"];
@@ -100,7 +99,9 @@ function muteSwitch(settings: SoundSettings): SoundView {
   const root = el("div", { class: "sound-mute" });
   const draw = () => {
     const muted = settings.muted();
-    root.replaceChildren(createSwitch({ on: t("sound.on"), off: t("sound.mute"), checked: !muted, title: muted ? t("sound.unmuteTitle") : t("sound.muteTitle"), onclick: () => settings.toggleMute() }));
+    const key = el("button", { type: "button", "aria-pressed": String(!muted), onclick: () => settings.toggleMute() }, t("sound.on"));
+    bindAttr(key, "title", muted ? t("sound.unmuteTitle") : t("sound.muteTitle"));
+    root.replaceChildren(key);
   };
   draw();
   return { root, dispose: settings.onChange(draw) };

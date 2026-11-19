@@ -75,6 +75,9 @@
   text-transform: none;
   text-shadow: none;
 }
+:where(#ui, #report) .screen-block {
+  padding: var(--space-4) var(--space-5);
+}
 .board-offers {
   padding: var(--space-5) var(--space-6);
 }

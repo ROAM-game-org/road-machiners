@@ -6,24 +6,37 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-8);
   max-width: none;
   background: var(--color-void);
   border: 0;
   box-shadow: none;
 }
+#ui .start-menu .start-device {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  width: calc(var(--panel-s) + 2 * var(--space-9) + var(--space-10));
+  max-width: calc(var(--layer-w) - 2 * var(--space-4));
+  box-shadow: none;
+}
 #ui .start-menu h1 {
   margin: 0;
-  padding-bottom: var(--space-4);
-  border-bottom: 2px solid var(--danger);
-  font: 700 var(--text-hero) / 1.1 var(--font-ui);
-  color: var(--ink-title);
+  text-align: center;
+}
+#ui .start-menu h1 .tape {
+  display: inline-block;
+  font-size: var(--text-heading);
+}
+#ui .start-menu .start-refusal:empty {
+  display: none;
 }
 .start-menu .start-buttons {
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  width: var(--panel-s);
+  width: 100%;
 }
 .start-menu .start-others {
   display: flex;
@@ -42,7 +55,7 @@
   flex-wrap: wrap;
   column-gap: var(--space-4);
   font-size: var(--text-dense);
-  color: var(--ink-muted);
+  color: var(--hud-amber-soft);
 }
 .start-menu .start-save .save-name {
   display: flex;
@@ -50,5 +63,8 @@
   white-space: nowrap;
 }
 .start-menu .start-save .save-name b {
-  color: var(--ink);
+  color: var(--hud-amber);
+}
+#ui:has(.new-game, .options, .save-panel) .start-menu .start-device {
+  visibility: hidden;
 }

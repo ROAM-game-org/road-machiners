@@ -55,7 +55,7 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
     const loadButton = el('button', { class: 'btn-l', ...disabledWith(none, () => saveList.openLoad(saves, play)) }, t('menu.load'));
     const saveList = new SaveList(() => loadButton.focus());
     const notice = el('div', { class: 'dim', role: 'status' }, t('menu.bootUnfinished'));
-    const refused = el('div', { class: 'start-refusal' }, ...(unfinished ? [notice] : []));
+    const refused = el('div', { class: 'start-refusal screen-block' }, ...(unfinished ? [notice] : []));
     const clearNotice = () => notice.remove();
     root.addEventListener('pointerdown', clearNotice, true);
     root.addEventListener('keydown', clearNotice, true);
@@ -71,14 +71,15 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
     const startOptions = new OptionsPanel(sound, () => optionsButton.focus());
     optionsButton.addEventListener('click', () => startOptions.open());
     const resumes = next === null ? [] : [continueCaption(next, continueButton)];
-    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, importButton(() => void importFile(), 'btn-l'), newGameButton, optionsButton)), refused);
+    const device = el('div', { class: 'start-device dialog' }, el('h1', {}, el('span', { class: 'tape' }, TITLE)), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, importButton(() => void importFile(), 'btn-l'), newGameButton, optionsButton)), refused);
+    root.append(device);
     (next === null ? newGameButton : continueButton).focus();
   });
 }
 
 function continueCaption(info: SlotInfo, continueButton: HTMLElement): HTMLElement {
   continueButton.setAttribute('aria-describedby', 'start-save');
-  return el('div', { class: 'start-save', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
+  return el('div', { class: 'start-save screen-block', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
 }
 
 function downloadSave(stored: unknown): void {

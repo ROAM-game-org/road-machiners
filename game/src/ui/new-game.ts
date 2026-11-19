@@ -41,7 +41,7 @@ class NewGameScreen {
   private readonly opener = document.activeElement as HTMLElement | null;
   private readonly block = panel("new-game-block");
   private readonly root = panel("new-game dialog");
-  private readonly modes = el("div", { class: "mode-list", role: "radiogroup", "aria-label": t("newGame.mode") });
+  private readonly modes = el("div", { class: "mode-list screen-block", role: "radiogroup", "aria-label": t("newGame.mode") });
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, t("newGame.settings"));
   private readonly settings = el("div", { class: "world-settings", hidden: true });
   private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, t("newGame.skipIntro"));
@@ -76,7 +76,7 @@ class NewGameScreen {
   private render(): void {
     this.modes.replaceChildren(...MODE_IDS.map((id) => this.modeCard(id)));
     this.settings.replaceChildren(
-      ...SETTING_IDS.filter((id) => WORLD_SETTINGS[id].modes.includes(this.draft.mode)).map((id) => this.settingRow(id)),
+      el("div", { class: "screen-block settings-rows" }, ...SETTING_IDS.filter((id) => WORLD_SETTINGS[id].modes.includes(this.draft.mode)).map((id) => this.settingRow(id))),
       el("button", { class: "reset", onclick: () => this.reset() }, t("newGame.reset")),
     );
   }
@@ -85,7 +85,7 @@ class NewGameScreen {
     const selected = this.draft.mode === id;
     return el(
       "button",
-      { class: `mode-card${selected ? " selected" : ""}`, role: "radio", "aria-checked": String(selected), "data-mode": id, onclick: () => this.pickMode(id) },
+      { class: `screen-line mode-card${selected ? " selected" : ""}`, role: "radio", "aria-checked": String(selected), "data-mode": id, onclick: () => this.pickMode(id) },
       el("b", {}, modeName(id)),
       el("span", {}, modeDescription(id)),
     );

@@ -40,11 +40,10 @@
 }
 #ui .new-game .mode-card b {
   font-size: var(--text-lead);
-  color: var(--ink-title);
+  color: inherit;
 }
-#ui .new-game .mode-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-wash);
+#ui .new-game .mode-card span {
+  color: inherit;
 }
 #ui .new-game .intro-toggle {
   align-self: flex-start;
@@ -59,21 +58,22 @@
   content: " ▾";
 }
 .new-game .world-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.new-game .world-settings[hidden] {
+  display: none;
+}
+.new-game .settings-rows {
   display: grid;
   grid-template-columns: auto 1fr auto;
   column-gap: var(--space-6);
   row-gap: var(--space-6);
   align-items: center;
-  padding: var(--space-5) var(--space-6);
-  border: 1px solid var(--line-soft);
-  background: var(--surface-well);
-}
-.new-game .world-settings[hidden] {
-  display: none;
 }
 .new-game .world-settings .reset {
-  grid-column: 1 / -1;
-  justify-self: start;
+  align-self: flex-start;
 }
 .new-game .setting-row {
   display: grid;
@@ -83,14 +83,14 @@
 }
 .new-game .setting-row label {
   font-weight: bold;
-  color: var(--ink-title);
+  color: var(--hud-amber);
   cursor: help;
 }
 .new-game .setting-row .setting-value {
   min-width: var(--space-10);
   text-align: right;
   font: var(--text-body) var(--font-mono);
-  color: var(--accent-bright);
+  color: var(--hud-amber);
 }
 .new-game .setting-slider {
   position: relative;
@@ -108,30 +108,30 @@
 }
 .new-game .setting-slider input::-webkit-slider-runnable-track {
   height: var(--slider-track);
-  background: var(--line);
+  background: var(--hud-amber-faint);
 }
 .new-game .setting-slider input::-moz-range-track {
   height: var(--slider-track);
-  background: var(--line);
+  background: var(--hud-amber-faint);
 }
 .new-game .setting-slider input::-webkit-slider-thumb {
   appearance: none;
   width: var(--slider-thumb);
   height: var(--slider-thumb);
   margin-top: calc((var(--slider-track) - var(--slider-thumb)) / 2);
-  background: var(--accent-warm);
+  background: var(--hud-amber);
   border: 0;
   border-radius: 0;
 }
 .new-game .setting-slider input::-moz-range-thumb {
   width: var(--slider-thumb);
   height: var(--slider-thumb);
-  background: var(--accent-warm);
+  background: var(--hud-amber);
   border: 0;
   border-radius: 0;
 }
 .new-game .setting-slider input:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--hud-amber);
   outline-offset: var(--space-1);
 }
 .new-game .setting-slider .default-tick {
@@ -141,7 +141,7 @@
   width: var(--space-1);
   height: var(--slider-tick);
   transform: translateX(-50%);
-  background: var(--ink-label);
+  background: var(--hud-amber-soft);
   pointer-events: none;
 }
 .new-game .new-game-buttons {

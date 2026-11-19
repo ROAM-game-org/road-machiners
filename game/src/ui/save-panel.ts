@@ -64,7 +64,7 @@ export function saveSummary(info: SlotInfo): HTMLElement[] {
 }
 
 export function saveRow(slot: SlotId, info: SlotInfo | null, onclick: () => void): HTMLElement {
-  return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
+  return el("button", { class: "screen-line save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
 }
 
 export class SaveList {
@@ -89,15 +89,15 @@ export class SaveList {
 
   openLoad(infos: SlotInfo[], pick: (slot: SlotId) => void): void {
     const rows = infos.map((info) => saveRow(info.slot, info, () => pick(info.slot)));
-    this.show(t("menu.load"), rows.length > 0 ? rows : [el("div", { class: "dim" }, t("save.none"))]);
+    this.show(t("menu.load"), rows.length > 0 ? rows : [el("div", { class: "dim" }, t("save.none"))], []);
   }
 
-  show(title: Msg, rows: HTMLElement[]): void {
+  show(title: Msg, rows: HTMLElement[], foot: HTMLElement[]): void {
     this.dismiss();
     this.root = panel("save-panel dialog");
     this.root.setAttribute("role", "dialog");
     bindAttr(this.root, "aria-label", title);
-    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, closeLabel()));
+    this.root.append(el("h3", {}, title), el("div", { class: "screen-block save-slots" }, ...rows), ...foot, el("button", { class: "close", onclick: () => this.close() }, closeLabel()));
     window.addEventListener("keydown", this.onKey, true);
   }
 
@@ -131,7 +131,7 @@ export class SavePanel {
       el("button", { onclick: () => this.actions.exportLog(), title: t("save.exportLogTitle") }, t("save.exportLog")),
       importButton(() => void this.importFile()),
     );
-    this.list.show(t("menu.save"), [...rows, exports, ...(refusal === null ? [] : [refusalLine(refusal)])]);
+    this.list.show(t("menu.save"), rows, [exports, ...(refusal === null ? [] : [el("div", { class: "screen-block" }, refusalLine(refusal))])]);
   }
 
   private async importFile(): Promise<void> {
