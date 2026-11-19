@@ -19,7 +19,7 @@
   min-height: 0;
   margin-top: var(--space-4);
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .inv-body .inv-wrap {
   margin-top: 0;
@@ -77,7 +77,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .outpost-road {
   display: flex;
@@ -86,12 +86,7 @@
 }
 .town-truck {
   padding-right: var(--space-9);
-  border-right: 1px solid var(--line-soft);
-}
-.town-truck .inv-wrap {
-  margin-top: 0;
-  justify-content: flex-start;
-  gap: var(--space-9);
+  border-right: 1px solid transparent;
 }
 /* The grid fits this column on a desktop layer, so only the selection scrolls when the column is short. */
 :where(#ui:not(.narrow)) .truck-body {
@@ -102,14 +97,25 @@
   display: flex;
   flex-direction: column;
 }
+.inv-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--inv-side-width);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: var(--space-9);
+  justify-content: start;
+}
+.inv-wrap > .inv-truck {
+  grid-area: 1 / 1;
+}
+.inv-wrap > .inv-side {
+  grid-area: 1 / 2;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
 :where(#ui:not(.narrow)) .truck-body .inv-wrap {
   flex: 1 1 auto;
   min-height: 0;
-}
-:where(#ui:not(.narrow)) .truck-body .inv-side {
-  max-height: 100%;
-  overflow-y: auto;
-  scrollbar-width: thin;
 }
 .town-shop > .tabs {
   padding: 0 0 var(--space-4);
@@ -122,13 +128,6 @@
 }
 .modal .tabs.sub button {
   min-width: 0;
-}
-.inv-wrap {
-  display: flex;
-  gap: var(--space-10);
-  align-items: flex-start;
-  justify-content: center;
-  margin-top: var(--space-7);
 }
 .inv-truck {
   flex: none;
@@ -526,7 +525,7 @@
   flex-direction: column;
   gap: var(--space-9);
   min-height: 0;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid transparent;
   padding-top: var(--space-7);
 }
 .well > .inv-inspection {
@@ -557,7 +556,7 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 /* One row form: a stat grid in a card prints like the rows of the truck column, with one value edge. */
 .inv-inspection .stat-grid {
@@ -585,9 +584,41 @@
 }
 .inv-storage {
   min-height: calc(var(--icon-hero) + var(--space-7));
+  padding: var(--space-5);
+}
+.inv-storage:not(.screen-block) {
   background: var(--surface-well);
   border: 1px solid var(--line-soft);
-  padding: var(--space-5);
+}
+.inv-bench .well .inv-storage {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.inv-storage .inv-chip {
+  background: none;
+}
+.town-truck .inv-truck {
+  position: relative;
+  isolation: isolate;
+  padding: var(--space-3);
+}
+.town-truck .inv-truck:has(.inv-grid.drawn)::before {
+  right: var(--space-9);
+}
+.town-truck .inv-grid {
+  background: none;
+}
+.town-truck .inv-truck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-recess-backing);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+  pointer-events: none;
 }
 .inv-chip {
   position: relative;
@@ -689,6 +720,10 @@
 .inv-chip.stored > .trade {
   margin-left: auto;
 }
+.inv-chip.stored > .trade > button {
+  flex: none;
+  width: var(--btn-trade-w);
+}
 /* The working screen of the road: truck stats, the open truck and the selection. The frame shrinks to its columns. */
 #ui .modal.inventory-screen {
   width: fit-content;
@@ -706,8 +741,10 @@
   min-height: 0;
   display: grid;
   grid-template-columns: calc(var(--inv-side-width) + var(--space-6) * 2) auto calc(var(--inv-side-width) + var(--space-6) * 2);
-  grid-template-rows: minmax(0, 1fr);
+  --inv-foot-h: calc(2 * var(--btn-h-s) + var(--space-2));
+  grid-template-rows: minmax(0, 1fr) var(--inv-foot-h);
   column-gap: var(--space-10);
+  row-gap: var(--space-4);
   justify-content: center;
   font: var(--text-dense) var(--font-ui);
 }
@@ -746,17 +783,45 @@
   white-space: nowrap;
 }
 #ui .modal .inv-truck-name {
-  flex: none;
+  position: absolute;
+  top: calc(var(--btn-h-m) + var(--space-9));
+  left: var(--space-5);
+  z-index: var(--z-screen-tape);
   margin: 0;
-  padding-top: var(--space-6);
-  padding-bottom: var(--space-5);
-  font: 700 var(--text-body) / 1.15 var(--font-ui);
-  color: var(--ink);
+  transform: translateY(-50%);
   white-space: nowrap;
+}
+.inv-middle {
+  position: relative;
 }
 #ui .inv-bench .inv-truck {
   flex: none;
   margin: 0;
+}
+.inv-middle > .inv-truck {
+  position: relative;
+  isolation: isolate;
+  padding: var(--space-4);
+}
+.inv-middle > .inv-truck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-recess-backing);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+  pointer-events: none;
+}
+.inv-bench .inv-side-column > .well {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
+  flex: 1 1 auto;
 }
 .inv-bench .inv-target {
   flex: 0 1 auto;
@@ -769,7 +834,7 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .inv-bench.two .well {
   gap: var(--space-6);
@@ -856,4 +921,144 @@
 }
 .inv-view.short-layer .inv-inspection {
   gap: var(--space-6);
+}
+.inv-keys > button {
+  align-self: flex-start;
+}
+
+.inv-bench > .inv-side-column,
+.inv-bench > .inv-middle {
+  grid-row: 1;
+}
+.inv-foot {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-items: start;
+}
+.inv-bench.two > .inv-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.inv-foot > .inv-keys {
+  grid-column: 2 / -1;
+}
+.inv-foot > .inv-keys.loot {
+  grid-column: 1;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.inv-keys .action-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+.inv-keys .action-rows > button {
+  width: auto;
+  min-width: max-content;
+}
+.inv-keys .cost {
+  overflow: hidden;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.town-split.banded {
+  --town-truck-w: min(calc(var(--inv-side-width) + 2 * var(--space-9) + 300px), calc(100% - var(--panel-l) - var(--space-9)));
+  grid-template-columns: var(--town-truck-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  row-gap: var(--space-4);
+}
+.town-split.banded .inv-truck {
+  margin-right: 0;
+}
+.town-split.banded .truck-shell,
+.town-split.banded .truck-shell:has(> .inv-grid.drawn) {
+  padding: var(--space-3);
+}
+.town-split.banded .inv-truck:has(.inv-grid.drawn)::before {
+  right: 0;
+}
+.town-split.banded > :is(.town-truck, .town-shop) {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+  container-type: normal;
+}
+.town-split.banded .shop-body {
+  grid-row: 2;
+  container-type: inline-size;
+}
+.town-split.banded .truck-body {
+  grid-row: 2;
+}
+.town-band {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.town-band:empty {
+  display: none;
+}
+.town-band > .tabs.sub:empty {
+  min-height: var(--btn-h-s);
+}
+#ui .modal.outpost-screen {
+  height: calc(var(--layer-h) - var(--modal-top) - var(--space-4));
+}
+.outpost-services {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-7);
+  margin-bottom: var(--space-4);
+}
+.outpost-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  justify-content: space-between;
+}
+.outpost-foot {
+  min-height: var(--btn-h-l);
+  padding-top: var(--space-5);
+}
+.outpost-foot > .outpost-road {
+  margin-left: auto;
+}
+.outpost-foot > .bad:empty {
+  display: none;
+}
+
+.inv-side .inv-storage {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.inv-side .inv-inspection {
+  gap: var(--space-5);
+  padding-top: 0;
+  border-top: 0;
+}
+.inv-side {
+  gap: var(--space-7);
+}
+.inv-costs {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: var(--space-2) var(--space-7);
+  margin-top: var(--space-5);
+  font: var(--text-dense) var(--font-mono);
+}
+.inv-cost {
+  display: contents;
+}
+.inv-cost-verb {
+  color: var(--hud-amber-soft);
+  font: var(--text-dense) var(--font-ui);
+  text-transform: uppercase;
 }

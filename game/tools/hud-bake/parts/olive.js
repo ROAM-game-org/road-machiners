@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { toon, ink } from '../kit.js';
+import { toon, inkAt } from '../kit.js';
 
 export const OLIVE = { housing: '#8d7b5b', edge: '#918466', brass: '#a38052', hole: '#24180d', floor: '#1c130b', print: '#e4d1a5' };
 export const KEYCAP = { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' };
@@ -37,16 +37,45 @@ function chip(c, rnd, x, y, w, h) {
   c.fillStyle = 'rgba(215,195,150,0.3)'; c.fill();
 }
 
-export const mottle = (c, x, y, w, h, seed, { strength = 1 } = {}) => {
-  const rnd = seeded(seed);
-  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+const MOTTLE = { strength: 1, clip: true, chips: true };
+
+function marks(c, rnd, [x, y, w, h], { strength, chips }) {
   c.lineCap = 'round';
   const scratches = Math.round(w * h / 9000 * strength);
   for (let i = 0; i < scratches; i++) scratch(c, rnd, x, y, w, h);
-  const chips = Math.round((w + h) / 40 * strength);
-  for (let i = 0; i < chips; i++) chip(c, rnd, x, y, w, h);
+  const chipCount = Math.round((w + h) / 40 * strength) * Number(chips);
+  for (let i = 0; i < chipCount; i++) chip(c, rnd, x, y, w, h);
+}
+
+export const mottle = (c, x, y, w, h, seed, options) => {
+  const o = { ...MOTTLE, ...options };
+  c.save();
+  if (o.clip) { c.beginPath(); c.rect(x, y, w, h); c.clip(); }
+  marks(c, seeded(seed), [x, y, w, h], o);
   c.restore();
 };
+
+const SPECKLE = { perPx: 1 / 5, light: 'rgba(235,220,185,0.10)', dark: 'rgba(40,28,14,0.12)', size: [0.5, 1.4] };
+
+function speckle(c, w, h, rnd) {
+  const count = Math.round(w * h * SPECKLE.perPx);
+  for (let i = 0; i < count; i++) {
+    const d = SPECKLE.size[0] + rnd() * (SPECKLE.size[1] - SPECKLE.size[0]);
+    c.fillStyle = rnd() < 0.5 ? SPECKLE.light : SPECKLE.dark;
+    c.fillRect(rnd() * (w - d), rnd() * (h - d), d, d);
+  }
+}
+
+export function mottleTile(w, h, res, seed, strength) {
+  const cv = document.createElement('canvas'); cv.width = Math.round(w * res); cv.height = Math.round(h * res);
+  const c = cv.getContext('2d');
+  c.scale(res, res);
+  speckle(c, w, h, seeded(seed + 1));
+  for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) {
+    c.save(); c.translate(dx, dy); mottle(c, 0, 0, w, h, seed, { strength, clip: false, chips: false }); c.restore();
+  }
+  return cv;
+}
 
 export const rrShape = (x0, y0, x1, y1, r, Ctor = THREE.Shape) => {
   const s = new Ctor();
@@ -79,6 +108,8 @@ export function keycap(w, h, css, height, colors = KEYCAP) {
   return { group: g, topBox };
 }
 
+const SLAB_INK = 0.007;
+
 export function slab({ w, h, depth, bevel, holes = [], faceMat }) {
   const outline = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
   const shape = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
@@ -88,7 +119,7 @@ export function slab({ w, h, depth, bevel, holes = [], faceMat }) {
   const sides = litToon(OLIVE.edge);
   const mesh = new THREE.Mesh(geo, [sides, sides]);
   mesh.castShadow = true; mesh.receiveShadow = true;
-  ink(mesh);
+  inkAt(mesh, SLAB_INK);
   const faceShape = rrShape(-w / 2 + bevel, -h / 2 + bevel, w / 2 - bevel, h / 2 - bevel, bevel * 0.8);
   for (const [cx, cy, hw, hh, r] of holes) faceShape.holes.push(rrShape(cx - hw / 2, cy - hh / 2, cx + hw / 2, cy + hh / 2, r, THREE.Path));
   const fgeo = new THREE.ShapeGeometry(faceShape, 8);

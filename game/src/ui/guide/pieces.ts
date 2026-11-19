@@ -21,7 +21,7 @@ const chipSample = (): HTMLElement =>
 const sample = (cls: string, words: string): HTMLElement => el("div", { class: cls }, words);
 
 const confirmSample = (): HTMLElement =>
-  el("div", { class: "dialog confirm-dialog" }, el("p", {}, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
+  el("div", { class: "dialog confirm-dialog" }, el("p", { class: "screen-block" }, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
 
 const wellRows = (): HTMLElement => statRow("mass", verbatim("Load"), statValueEl(verbatim("1,680 / 3,840 kg")));
 
@@ -36,12 +36,16 @@ export const PIECES: Piece[] = [
   { name: ".confirm-dialog", note: "The yes or no question of a command that throws away progress, in the center, with Cancel and a danger yes button.", build: confirmSample },
   { name: ".dock-panel", note: "A panel of the right dock.", build: () => sample("dock-panel", "A dock panel") },
   { name: ".notice", note: "A box at the top middle that waits for a choice.", build: () => sample("notice panel", "A notice") },
+  { name: ".screen-block", note: "A screen set into a window, one per block of changing content.", build: () => sample("screen-block", "Changing content") },
+  { name: ".screen-line", note: "One choice the game wrote, on a screen, with its number first.", build: () => el("div", { class: "screen-block" }, text("button", "screen-line", "1. Ask about the road"), text("button", "screen-line selected", "2. Picked line"), text("button", "screen-line seen", "3. Read before")) },
+  { name: ".screen-btn", note: "The action of one line of a list, drawn on its screen.", build: () => el("div", { class: "screen-block" }, text("button", "screen-btn", "Accept"), " ", text("button", "screen-btn selected", "Picked")) },
+  { name: ".tape", note: "A name from the game used as a heading on metal.", build: () => text("span", "tape", "Scout pickup") },
   { name: ".panel-title", note: "The heading of a small HUD panel.", build: () => text("h3", "panel-title", "Title") },
   { name: "button", note: "The default button.", build: () => text("button", "", "Button") },
   { name: ".btn-s", note: "A small button, 24px high, for rows, cards and small panels.", build: () => text("button", "btn-s", "Small") },
   { name: ".btn-l", note: "A large button, 44px high, for a screen's main choice.", build: () => text("button", "btn-l", "Large") },
   { name: ".btn-danger", note: "A hostile action.", build: () => text("button", "btn-danger", "Danger") },
-  { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
+  { name: ".row", note: "A list line on a screen, set apart from the next by space.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: chipSample },
   { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
@@ -72,13 +76,13 @@ export const PIECES: Piece[] = [
   { name: ".info-actions", note: "The action row of the truck card, right under the name line: Call, Look over and Mark as small buttons with their key drawn as a keycap off touch. A button the rules refuse stays, dimmed, with its reason.", build: () => infoActions() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".speed-keys", note: "The travel speed control above End turn: a slower key, an LCD with the speed in turns per second and a faster key, built from the radio's transport key. The LCD is lit while automatic travel plays and faint while the pick waits. A key at the end of the range is aria-disabled with its reason.", build: () => speedKeys() },
-  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It fills with the sunk surface and keeps its ink, hover and focus.", build: () => seenOptions() },
+  { name: ".seen", note: "An option with nothing new behind it: a radio option or a talk choice the player has heard out. It prints in faint screen ink and keeps its hover and focus.", build: () => seenOptions() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
 function inkPage(): HTMLElement {
   const choice = (words: string, reason: string | null = null): HTMLElement =>
-    el("button", { class: "quest-choice", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
+    el("button", { class: "quest-choice screen-line", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
   return el(
     "div",
     { class: "ink-page" },
@@ -89,17 +93,17 @@ function inkPage(): HTMLElement {
       el(
         "div",
         { class: "ink-scroll" },
-        el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose compound"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
-        el("div", { class: "ink-choices quest-choices" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
+        el("div", { class: "ink-head" }, text("h2", "quest-place tape", "Nose compound"), text("p", "qt-line screen-block", "The hull leans over the sheds like a cliff that rusts.")),
+        el("div", { class: "ink-choices quest-choices screen-block" }, choice("1. Machiners' yard"), choice("2. Do odd jobs for 4 hours", "For drivers under 100 M")),
       ),
-      el("div", { class: "ink-foot" }, choice("3. Drive on"), text("div", "ink-status bad", "")),
+      el("div", { class: "ink-foot" }, text("button", "quest-choice compact", "3. Drive on"), text("div", "ink-status bad", "")),
     ),
   );
 }
 
 function seenOptions(): HTMLElement {
-  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option${extra}` }, words);
-  return el("div", { class: "dialogue-options" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
+  const option = (words: string, extra = ""): HTMLElement => el("button", { class: `dialogue-option screen-line${extra}` }, words);
+  return el("div", { class: "dialogue-options screen-block" }, option("1. About the road…"), option("2. Want to trade?", " seen"), option("3. Hang up."));
 }
 
 function minimapPiece(): HTMLElement {
@@ -176,6 +180,7 @@ function windowWell(): HTMLElement {
   return msgEl(
     "div",
     { class: "well" },
+    msgEl("div", { class: "well-group" }, msgEl("div", { class: "kit-offer" }, msgEl("span", {}, t("trade.repairAllVerb")), kitKey(t("contract.accept"), "screen-btn"))),
     msgEl("div", { class: "well-group" }, msgEl("div", { class: "meter-row" }, statRow("mass", t("stat.mass"), statValueEl(verbatim("1,680 / 3,840 kg"))), gaugeEl(0.44, { share: { left: 0.3, width: 0.14 } }))),
     msgEl("div", { class: "well-group" }, statRow("mass", t("inv.condition"), statValueEl(verbatim("38/38"))), statRow("mass", t("options.uiSize"), statValueEl(verbatim("100%")))),
   );
@@ -198,7 +203,8 @@ export function kitWindow(): HTMLElement {
     { class: "dialog modal kit-window" },
     windowHead(),
     msgEl("div", { class: "tabs" }, kitKey(t("menu.save"), "on"), kitKey(t("menu.load")), kitKey(t("menu.options"))),
-    msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", {}, t("menu.bootUnfinished")))),
+    msgEl("h3", { class: "tape kit-tape" }, verbatim("Scout pickup")),
+    msgEl("div", { class: "kit-body" }, windowWell(), msgEl("div", { class: "kit-side" }, msgEl("input", { type: "text", value: "1,680 kg" }), msgEl("select", {}, msgEl("option", {}, t("menu.newGame"))), msgEl("p", { class: "screen-block" }, t("menu.bootUnfinished")))),
     windowKeys(),
   );
 }

@@ -365,8 +365,8 @@
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(3, minmax(0, 1fr));
   grid-auto-flow: column;
-  gap: calc(var(--wp) * 8) calc(var(--wp) * 50);
-  padding: calc(var(--wp) * 10) calc(var(--wp) * 6);
+  gap: calc(var(--wp) * 8) calc(var(--wp) * 70);
+  padding: calc(var(--wp) * 10) calc(var(--wp) * 90) calc(var(--wp) * 10) calc(var(--wp) * 6);
 }
 
 #ui .gun-screen .gun-card {
@@ -377,7 +377,7 @@
   align-items: center;
   column-gap: calc(var(--wp) * 18);
   min-width: 0;
-  padding: calc(var(--wp) * 6) calc(var(--wp) * 40) calc(var(--wp) * 6) calc(var(--wp) * 12);
+  padding: calc(var(--wp) * 6) calc(var(--wp) * 10) calc(var(--wp) * 6) calc(var(--wp) * 12);
   border-radius: 0;
   color: var(--hud-amber);
   font: inherit;
@@ -590,11 +590,15 @@
 
 #ui button.gun-page {
   position: absolute;
-  right: 1cqw;
-  bottom: 0.6cqw;
-  padding: 0.2cqw 0.6cqw;
+  top: calc(var(--wp) * 10);
+  right: calc(var(--wp) * 6);
+  bottom: calc(var(--wp) * 10);
+  display: grid;
+  place-items: center;
+  width: calc(var(--wp) * 84);
   color: var(--hud-amber);
   font: 700 var(--hud-text-s) / 1 var(--font-hud);
+  text-shadow: inherit;
 }
 
 #ui button.gun-page.hidden {
@@ -807,11 +811,13 @@
 :is(#ui, #overlay) .hud-screen {
   box-sizing: border-box;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--hud-screen-pad);
   border: 0;
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   color: var(--hud-amber);
   text-align: left;
   text-shadow: var(--hud-text-glow);
@@ -833,10 +839,6 @@
 
 :is(#ui, #overlay) .hud-screen :is(.bad, .bad *),
 #ui .hud-screen.bad {
-  color: var(--hud-hot);
-}
-
-#ui .toast.bad {
   color: var(--hud-hot);
 }
 
@@ -919,7 +921,7 @@
   padding: var(--hud-rim-w) calc(var(--space-2) + var(--hud-rim-w));
   border: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
 }
 
 #ui .tray-window {
@@ -928,8 +930,10 @@
   border: 0;
   padding: 1px var(--hud-well-w);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
 }
 
 #ui .stat-icon {
@@ -992,7 +996,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
 }
 
@@ -1208,7 +1212,7 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
   text-shadow: var(--hud-text-glow);
   font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
@@ -1222,8 +1226,10 @@
   inset: var(--hud-panel-gap);
   z-index: var(--z-recess-backing);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
   pointer-events: none;
 }
 
@@ -1321,15 +1327,17 @@
   border: 0;
   border-radius: 0;
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   color: var(--hud-amber);
   font-family: var(--font-hud);
   text-shadow: var(--hud-text-glow);
 }
 
 :is(#ui, #overlay) .hud-frame.hud-tip-screen {
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
 }
 
 :is(#ui, #overlay) .hud-engraved {
@@ -1409,7 +1417,7 @@
 
 #ui :is(.action, .game-menu [role=menu]) {
   background: none;
-  border-image: var(--hud-frame-art) 9% fill / var(--hud-frame-edge) / 1px stretch;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   text-shadow: none;
 }
 
@@ -1455,8 +1463,7 @@
   color: var(--hud-print);
 }
 
-#ui .menu-key > .menu-cap,
-#ui .dialogue .option-key {
+#ui .menu-key > .menu-cap {
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -1485,42 +1492,6 @@
   justify-content: flex-start;
   margin: calc(-1 * var(--hud-pad)) calc(-1 * var(--hud-pad)) var(--space-2);
   border: 0;
-}
-
-#ui .dialogue .dialogue-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--hud-amber);
-  font: 500 var(--hud-text-m) / 1.3 var(--font-hud);
-  text-align: left;
-}
-
-#ui .dialogue .dialogue-option.seen {
-  color: var(--hud-amber-soft);
-}
-
-#ui .dialogue .dialogue-option[aria-disabled="true"] {
-  color: var(--hud-amber-faint);
-}
-
-#ui .dialogue .option-key {
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--hud-key-h);
-  height: var(--hud-key-h);
-  border-style: solid;
-  border-color: transparent;
-  border-width: var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1);
-  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--hud-key-edge) var(--hud-key-edge) calc(var(--hud-key-edge) * 2.1) stretch;
-  color: var(--hud-print);
-  font: 400 var(--hud-text-m) / 1 var(--font-engraved);
 }
 
 #ui .beacon-switch {
@@ -1629,15 +1600,11 @@
   border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--small-key-edge) var(--small-key-edge) calc(var(--small-key-edge) * 2.1) stretch;
 }
 
-#ui .toast.bad > .hud-screen {
-  color: var(--hud-hot);
-}
-
 :is(#ui, #overlay) .hud-panel {
   box-sizing: border-box;
   display: grid;
   gap: var(--hud-panel-gap);
-  padding: var(--hud-panel-gap);
+  padding: calc(var(--hud-frame-bevel) + var(--space-1));
   text-align: left;
 }
 
@@ -1665,6 +1632,10 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding-top: var(--space-1);
+}
+
+:is(#ui, #overlay) .hud-panel .hud-controls > button {
+  white-space: nowrap;
 }
 
 :is(#ui, #overlay) .hud-panel .hud-controls[data-count="1"] {
@@ -1719,7 +1690,7 @@
   border-image-source: var(--hud-keycap-red-art);
 }
 
-#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .tip, .dialogue, .game-menu [role=menu]),
+#ui :where(.info, .contracts, .wanted, .stranded, .rescue, .status-mark, .tip, .toast, .game-menu [role=menu]),
 :is(#ui, #overlay) :where(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-m);
   box-sizing: border-box;
@@ -1734,12 +1705,12 @@
   --hud-panel-w: var(--hud-panel-l);
 }
 
-#ui :is(.tip, .dialogue) {
+#ui .tip {
   --hud-panel-w: var(--hud-panel-xl);
 }
 
 #ui .toast {
-  max-width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  --hud-panel-w: var(--hud-panel-l);
 }
 
 #ui :is(.tooltip.hover-tip, .tooltip.touch-tip, .condition-tip-body.tooltip) {
@@ -1764,29 +1735,65 @@
 #ui .info > .info-content {
   flex: 1 1 0;
   min-height: 0;
+  gap: var(--hud-panel-gap);
+  margin-right: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
 }
 
 #ui .info .info-body {
   flex: 1 1 0;
   min-height: 0;
+  gap: var(--hud-panel-gap);
 }
 
 #ui .info .info-column {
-  flex: 0 1 auto;
-  max-height: 50%;
+  flex: none;
+}
+
+#ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
+  box-sizing: border-box;
+}
+
+#ui .info :is(.hud-screen, .hitcard).scroll-wheeled.scroll-wheeled {
+  margin-right: 0;
+}
+
+#ui .info .info-content > .hud-screen {
+  flex: none;
+  height: calc(4 * var(--hud-text-m) * 1.25 + 2 * var(--hud-screen-pad-y));
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+#ui .info .hud-screen .screen-line {
+  min-height: 0;
+  padding: 0;
+  font: inherit;
 }
 
 #ui .info .hitcard {
-  padding: var(--space-2) var(--space-3);
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  height: calc(var(--text-caption) * 1.4 + 3 * (var(--text-dense) * 1.3 + var(--space-1)) + 2 * var(--space-2) + 2 * var(--hud-screen-pad-y));
+  align-content: start;
+  padding: var(--hud-screen-pad);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+  scrollbar-width: none;
 }
 
 #ui .info .info-draw {
   flex: 1 1 0;
+  width: auto;
+  padding: var(--hud-screen-pad);
   background: none;
-  border-image: var(--hud-screen-art) 12% 6% fill / var(--hud-screen-edge) stretch;
-  box-shadow: var(--hud-recess);
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+}
+
+#ui .info > .info-content > .hud-controls {
+  min-height: calc(var(--hud-key-h) + var(--space-1));
 }
 
 #ui > .dash-rail {

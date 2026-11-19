@@ -412,32 +412,67 @@ export function footprint(w: number, h: number): HTMLElement {
   );
 }
 
-export function conditionMeter(part: PartInstance): HTMLElement {
-  const max = maxHp(part);
-  const broken = part.hp === 0;
-  return el(
-    "div",
-    { class: `meter${broken ? " broken" : ""}`, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) },
-    el("div", { style: `width:${(part.hp / max) * 100}%` }),
-  );
-}
-
 export type GaugeSpan = { left: number; width: number };
+export type GaugeTone = "warn" | "good";
+export type CellState = "off" | "on" | "rest" | "plan";
 
-function gaugeSpan(cls: string, span: GaugeSpan): HTMLElement {
-  const left = Math.min(1, Math.max(0, span.left));
-  const width = Math.min(1 - left, Math.max(0, span.width));
-  return el("i", { class: cls, style: `left:${left * 100}%;width:${width * 100}%` });
+export const GAUGE_CELLS = 10;
+export const TILE_CELLS = 5;
+
+export function litCells(share: number, cells: number): number {
+  if (!(share > 0)) return 0;
+  if (share >= 1) return cells;
+  return Math.min(cells - 1, Math.max(1, Math.round(share * cells)));
 }
 
-export function gaugeEl(fill: number, opts: { share?: GaugeSpan | null; after?: GaugeSpan | null; health?: boolean } = {}): HTMLElement {
-  return el(
-    "div",
-    { class: opts.health ? "gauge health" : "gauge" },
-    gaugeSpan("fill", { left: 0, width: fill }),
-    opts.share ? gaugeSpan("share", opts.share) : null,
-    opts.after ? gaugeSpan("after", opts.after) : null,
-  );
+type CellRun = { from: number; to: number };
+
+function partRun(share: GaugeSpan | null | undefined, lit: number, cells: number): CellRun | null {
+  if (!share || !(share.width > 0) || lit === 0) return null;
+  const from = Math.max(0, Math.min(lit - 1, Math.floor(share.left * cells)));
+  return { from, to: Math.min(lit, Math.max(from + 1, Math.round((share.left + share.width) * cells))) };
+}
+
+function plannedCells(fill: number, after: GaugeSpan | null | undefined, lit: number, cells: number): number {
+  if (!after || !(after.width > 0)) return lit;
+  return Math.min(cells, Math.max(lit + 1, litCells(fill + after.width, cells)));
+}
+
+function outsideRun(run: CellRun | null, i: number): boolean {
+  return run !== null && (i < run.from || i >= run.to);
+}
+
+function cellState(i: number, lit: number, planned: number, part: CellRun | null): CellState {
+  if (i >= planned) return "off";
+  if (i >= lit) return "plan";
+  return outsideRun(part, i) ? "rest" : "on";
+}
+
+export function cellStates(fill: number, cells: number, spans: { share?: GaugeSpan | null; after?: GaugeSpan | null } = {}): CellState[] {
+  const lit = litCells(fill, cells);
+  const planned = plannedCells(fill, spans.after, lit, cells);
+  const part = partRun(spans.share, lit, cells);
+  return Array.from({ length: cells }, (_, i) => cellState(i, lit, planned, part));
+}
+
+type CellAttrs = NonNullable<Parameters<typeof el>[1]>;
+
+export function cellsEl(states: readonly CellState[], tone?: GaugeTone, attrs: CellAttrs = {}): HTMLElement {
+  const look = ["segments", tone, attrs.class].filter(Boolean).join(" ");
+  return el("span", { role: "presentation", ...attrs, class: look }, ...states.map((s) => el("i", { class: s === "off" ? "" : s, "aria-hidden": "true" })));
+}
+
+export function segmentGauge(share: number, opts: { cells?: number; tone?: GaugeTone; title?: Msg } = {}): HTMLElement {
+  return cellsEl(cellStates(share, opts.cells ?? GAUGE_CELLS), opts.tone, { title: opts.title });
+}
+
+export function gaugeEl(fill: number, opts: { share?: GaugeSpan | null; after?: GaugeSpan | null; tone?: GaugeTone } = {}): HTMLElement {
+  return cellsEl(cellStates(fill, GAUGE_CELLS, opts), opts.tone ?? (fill > 1 ? "warn" : undefined));
+}
+
+export function conditionMeter(part: PartInstance, cells = TILE_CELLS): HTMLElement {
+  const max = maxHp(part);
+  return segmentGauge(part.hp / max, { cells, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) });
 }
 
 export function statRow(icon: IconName, label: Msg, value: Child, title?: Msg): HTMLElement {
@@ -456,7 +491,7 @@ export function partHealthRow(part: PartInstance): HTMLElement | null {
   if (!showsCondition(part)) return null;
   const status = conditionStatus(part);
   const value = status.tone === "dim" && !isJunk(part) ? t("cond.value", { hp: hp(part.hp), max: hp(maxHp(part)) }) : status.text;
-  return meterRow(statRow("wrench", t("inv.condition"), statValueEl(value, status.tone === "bad" ? "bad" : "")), gaugeEl(part.hp / maxHp(part), { health: true }));
+  return meterRow(statRow("wrench", t("inv.condition"), statValueEl(value, status.tone === "bad" ? "bad" : "")), gaugeEl(part.hp / maxHp(part)));
 }
 
 export function costItem(icon: IconName, value: Child, tone = ""): HTMLElement {
@@ -481,7 +516,7 @@ export function repairingPart(w: World, v: Vehicle): { partId: string; done: num
 }
 
 export function workMeterEl(done: number): HTMLElement {
-  return el("div", { class: "meter s progress" }, el("div", { style: `width:${done * 100}%` }));
+  return cellsEl(cellStates(done, TILE_CELLS), undefined, { class: "progress" });
 }
 
 export function wearLabel(part: PartInstance): Msg {
@@ -564,7 +599,7 @@ export function partCard(o: PartCardOptions): HTMLElement {
     ),
     conditionRow(o.part),
     ...(o.base ? [compareLine(o.base)] : []),
-    conditionMeter(o.part),
+    conditionMeter(o.part, GAUGE_CELLS),
     statGrid(diffs),
     el("div", { class: "card-foot" }, el("span"), o.action),
   );
@@ -581,15 +616,16 @@ export function partDetail(world: World, part: PartInstance, base: PartInstance 
   const hpText = hpReadout(part);
   return [
     ...(base ? [compareLine(base)] : []),
-    el("div", { class: "part-hp" }, conditionMeter(part), hpText ? el("span", { class: "num dim" }, hpText) : null),
+    el("div", { class: "part-hp" }, conditionMeter(part, GAUGE_CELLS), hpText),
     ...(rest.length ? [statGrid(rest)] : []),
     el("p", { class: "dim" }, partLore(part.defId)),
   ];
 }
 
-function hpReadout(part: PartInstance): Msg | null {
+export function hpReadout(part: PartInstance): HTMLElement | null {
+  if (conditionTier(part) === "junk") return null;
   const status = conditionStatus(part);
-  return status.tone === "dim" && conditionTier(part) !== "junk" ? status.text : null;
+  return el("span", { class: `num ${status.tone}` }, status.text);
 }
 
 export function compareBase(selected: PartInstance | null, part: PartInstance): PartInstance | null {

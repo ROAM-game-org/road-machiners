@@ -12,7 +12,7 @@
 }
 #ui:where(.narrow) .modal {
   padding: var(--space-8) var(--space-7);
-  height: calc(var(--layer-h) - var(--narrow-modal-clearance));
+  height: calc(var(--layer-h) - min(var(--narrow-modal-clearance), var(--layer-h) * 0.35));
 }
 :where(#ui.narrow) .inv-wrap {
   flex-direction: column;

@@ -23,7 +23,7 @@
   font-size: var(--text-heading);
   color: var(--ink-title);
 }
-#ui.guide h2 {
+#ui.guide :is(section, .guide-kit) > h2 {
   margin: var(--space-10) 0 var(--space-5);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line-soft);
@@ -92,7 +92,7 @@
   max-width: var(--panel-l);
 }
 #ui.guide .kit-window {
-  position: static;
+  position: relative;
   transform: none;
   width: auto;
   height: auto;
@@ -112,6 +112,21 @@
 }
 .kit-head h3 {
   margin: 0;
+}
+#ui.guide .kit-window .kit-tape {
+  font-size: var(--text-body);
+  align-self: flex-start;
+  margin: 0;
+}
+.kit-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.kit-side .screen-block {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
 }
 .kit-body {
   display: flex;

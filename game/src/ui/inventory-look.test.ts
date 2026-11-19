@@ -100,7 +100,7 @@ describe("the inventory during a scene", () => {
       expect(button.attrs.get("aria-disabled")).toBe("true");
       expect(button.attrs.get("data-reason")).toBe("Not during a scene");
     }
-    expect(rows[0].all((n) => n.className === "cost off").length).toBe(buttons.length);
+    expect(root.all((n) => n.className === "cost off").length).toBe(buttons.length);
   });
 
   it("turns every world command of a loot screen off with the reason, and applies nothing on a click", () => {
@@ -108,7 +108,8 @@ describe("the inventory during a scene", () => {
     w.player.quests.live = { ...SCENE };
     const { screen, applied } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys loot");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const commands = loot.all((n) => n.tag === "button");
     expect(commands.length).toBeGreaterThan(0);
     for (const button of commands) {
@@ -122,7 +123,8 @@ describe("the inventory during a scene", () => {
     const { w, stock } = spotWorld();
     const { screen } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys loot");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const takeAll = loot.all((n) => n.tag === "button").filter((b) => !b.attrs.has("aria-disabled"));
     expect(takeAll.length).toBeGreaterThan(0);
   });
@@ -133,6 +135,35 @@ describe("the inventory during a scene", () => {
     const { screen } = screenOver(world);
     const view = (screen as unknown as { view: { run(cmd: (w: World) => World): void } }).view;
     expect(() => view.run((w) => w)).toThrow("Inventory command in look mode");
+  });
+});
+
+describe("the inventory with nothing picked", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  function benchRoot(): FakeNode {
+    const world = emptyWorld();
+    addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
+    const { screen } = screenOver(world);
+    screen.toggle();
+    return ui.children[ui.children.length - 1] as FakeNode;
+  }
+
+  it("keeps the Rotate and Strip keys in the foot row, off, with no value beside them", () => {
+    const foot = benchRoot().all((n) => n.className === "inv-foot")[0];
+    const rows = foot.all((n) => n.className === "action-rows")[0];
+    const buttons = rows.all((n) => n.tag === "button");
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) expect(button.attrs.get("aria-disabled")).toBe("true");
+    expect(rows.all((n) => n.className.includes("cost"))).toHaveLength(0);
+  });
+
+  it("keeps the details screen and prints one idle line in it", () => {
+    const idle = benchRoot().all((n) => n.className === "dim idle");
+    expect(idle).toHaveLength(1);
   });
 });
 
@@ -147,7 +178,8 @@ describe("the inventory while knocked out", () => {
     w.player.state = "knockedOut";
     const { screen, applied } = screenOver(w);
     screen.openLoot(stock.id);
-    const loot = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
+    const lootParts = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys loot");
+    const loot = { all: (match: (n: FakeNode) => boolean) => lootParts.flatMap((part) => part.all(match)) };
     const commands = loot.all((n) => n.tag === "button");
     expect(commands.length).toBeGreaterThan(0);
     for (const button of commands) {
@@ -158,8 +190,8 @@ describe("the inventory while knocked out", () => {
 
     w.player.state = "active";
     screen.openLoot(stock.id);
-    const woke = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot"))[0];
-    expect(woke.all((n) => n.tag === "button").filter((b) => !b.attrs.has("aria-disabled")).length).toBeGreaterThan(0);
+    const woke = (ui.children[ui.children.length - 1] as FakeNode).all((n) => n.className.includes("inv-loot") || n.className === "inv-keys loot");
+    expect(woke.flatMap((part) => part.all((n) => n.tag === "button")).filter((b) => !b.attrs.has("aria-disabled")).length).toBeGreaterThan(0);
   });
 
   it("throws if a command reaches the view while knocked out", () => {

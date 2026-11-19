@@ -113,8 +113,17 @@ function section(group: Group): HTMLElement {
   return el("section", {}, el("h2", {}, group.title), el("div", { class: "guide-grid" }, ...names.map((n) => cell(n, group.sample))));
 }
 
+const ON_SCREEN = new Set([".row", ".tile", ".tag", ".spent", ".contract-clue", ".way-steps", ".amount .coin", ".meter", ".meter.progress", ".meter.notched", ".meter.broken", ".well-group", ".stat-row", ".meter-row", ".gauge", ".selected", ".tooltip-row", ".num"]);
+const ON_METAL = new Set([".ink-page", ".panel-title", ".action-rows", ".cost", ".cost-item"]);
+
+function mounted(name: string, piece: HTMLElement): HTMLElement {
+  if (ON_SCREEN.has(name)) return el("div", { class: "screen-block" }, piece);
+  if (ON_METAL.has(name)) return el("div", { class: "panel" }, piece);
+  return piece;
+}
+
 function pieces(): HTMLElement {
-  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, p.build(), el("span", {}, p.name), el("small", {}, p.note)));
+  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, mounted(p.name, p.build()), el("span", {}, p.name), el("small", {}, p.note)));
   return el("section", {}, el("h2", {}, "Shared pieces"), el("div", { class: "guide-grid" }, ...cells));
 }
 
@@ -151,7 +160,6 @@ function ungrouped(): string[] {
 
 const CHOICES = {
   lang: ["en", "ru", "pseudo"],
-  housing: ["olive", "leather"],
   layer: ["full", "compact", "narrow"],
 } as const;
 
@@ -173,7 +181,7 @@ function choiceLink(name: Choice, value: string): HTMLElement {
 
 function controls(): HTMLElement {
   const group = (name: Choice) => el("span", { class: "guide-choice" }, el("b", {}, name), ...CHOICES[name].map((v) => choiceLink(name, v)));
-  return el("nav", { class: "guide-controls" }, group("lang"), group("housing"), group("layer"));
+  return el("nav", { class: "guide-controls" }, group("lang"), group("layer"));
 }
 
 function stateCell(state: (typeof STATES)[number]): HTMLElement {
@@ -196,7 +204,6 @@ function applyChoices(root: HTMLElement): void {
   const layer = picked("layer");
   if (layer !== "full") root.classList.add(layer);
   if (layer === "narrow") root.classList.add("compact");
-  if (picked("housing") === "leather") document.documentElement.style.setProperty("--hud-slate-art", "var(--hud-slate-leather-art)");
 }
 
 function render(): void {

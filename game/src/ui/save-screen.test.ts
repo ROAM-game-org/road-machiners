@@ -19,6 +19,7 @@ class FakeNode {
   listeners = new Map<string, ((e: unknown) => void)[]>();
   parent: FakeNode | null = null;
   focused = 0;
+  style = { props: {} as Record<string, string>, setProperty(k: string, v: string) { this.props[k] = v; } };
   constructor(readonly tag: string) {}
   get textContent(): string { return this.children.map((c) => (typeof c === "string" ? c : c.textContent)).join(""); }
   set textContent(text: string) { this.children = [text]; }

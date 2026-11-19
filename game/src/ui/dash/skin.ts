@@ -219,6 +219,10 @@ export function screen(...lines: Child[]): HTMLElement {
   return el("div", { class: "hud-screen" }, ...lines);
 }
 
+export function metalLine(text: Msg, id?: string): HTMLElement {
+  return el("p", { class: "metal-line", ...(id === undefined ? {} : { id }) }, text);
+}
+
 export function screenLine(tone: Tone | null, ...parts: Child[]): HTMLElement {
   return el("div", { class: tone === null ? "screen-line" : `screen-line ${tone}` }, ...parts);
 }
@@ -237,7 +241,7 @@ export function kitPiece(name: keyof typeof PIECES, className: string): HTMLElem
 }
 
 export function paintSkin(root: HTMLElement = document.documentElement): void {
-  const art = { "--hud-keycap-art": "keycap-up", "--hud-keycap-down-art": "keycap-down", "--hud-keycap-lit-art": "keycapLit-up", "--hud-keycap-red-art": "keycapRed-up", "--hud-keycap-red-down-art": "keycapRed-down", "--hud-frame-art": "frame", "--hud-screen-art": "screen", "--hud-slate-art": "slate", "--hud-slate-leather-art": "slateLeather", "--hud-input-art": "input" };
+  const art = { "--hud-keycap-art": "keycap-up", "--hud-keycap-down-art": "keycap-down", "--hud-keycap-lit-art": "keycapLit-up", "--hud-keycap-red-art": "keycapRed-up", "--hud-keycap-red-down-art": "keycapRed-down", "--hud-frame-art": "frame", "--hud-screen-art": "screen", "--hud-tape-art": "tape", "--hud-input-art": "input", "--hud-knob-art": "knob", "--hud-knob-pointer-art": "knobPointer" };
   for (const [name, file] of Object.entries(art)) root.style.setProperty(name, pieceArt(file));
   frameVars(root, "--hud-truck-frame", { meta: BAKED.truck.desktop, part: "truck", inset: TRUCK_FRAME_INSET, cssWidth: TRUCK_CARD_CSS_W });
 }

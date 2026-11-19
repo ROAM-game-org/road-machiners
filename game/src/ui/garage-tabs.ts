@@ -5,14 +5,14 @@ import { mountCellsOf } from "../sim/grid";
 import { tradedSpares } from "../sim/inventory";
 import { isRelic } from "../sim/wear";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { num, t, type Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { compareBase, createIcon, type IconName } from "./cards";
 import { el } from "./dom";
 import { GOODS_COLUMNS } from "./format";
 import type { InventoryView } from "./inventory";
 import type { PartRow, PartRows } from "./part-rows";
 import type { RowSlots } from "./row-slots";
-import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, reasonButton, sellButton } from "./shop-rows";
+import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, rowButton, sellButton } from "./shop-rows";
 
 export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
@@ -50,11 +50,11 @@ export function filteredStock(stock: PartInstance[], f: StockFilter): PartInstan
 }
 
 export function stockFilterChips(stock: PartInstance[], current: StockFilter, pick: (f: StockFilter) => void): HTMLElement {
-  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f), current === f, pick)));
+  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f) === 0, current === f, pick)));
 }
 
-function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
-  const empty = count === 0 && f !== "all";
+function stockFilterChip(f: StockFilter, none: boolean, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
+  const empty = none && f !== "all";
   return el(
     "button",
     {
@@ -66,7 +66,6 @@ function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: S
       },
     },
     f === "all" ? t("trade.filter.all") : filterIcon(f),
-    el("span", { class: "count" }, num(count, "int")),
   );
 }
 
@@ -140,7 +139,7 @@ export function goodSellCell(sell: GoodSell): HTMLElement {
     "div",
     { class: "trade sell" },
     caption(GOODS_COLUMNS.sell),
-    reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
-    reasonButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
+    rowButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
+    rowButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
   );
 }

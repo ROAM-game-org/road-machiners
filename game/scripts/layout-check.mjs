@@ -525,9 +525,9 @@ const journalEntryFaults = (page) =>
     const body = document.querySelector(`${sel} .journal-body`);
     const open = body?.querySelector('.journal-place.open, .journal-note.open');
     if (!open) return [];
-    const cut = open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom;
+    const cut = (open.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom) * Number(body.scrollHeight <= body.clientHeight + 1);
     const side = body.closest('.journal-side') !== null && window.innerHeight >= 700;
-    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal`] : [];
+    return side && cut > 1 ? [`the open entry is cut by ${Math.round(cut)}px inside the side journal and the body cannot scroll`] : [];
   }, JOURNAL);
 
 const journalOverlapFaults = (page) =>
@@ -796,8 +796,8 @@ function townMarks(page, withError) {
     };
     const ui = document.querySelector('#ui');
     const grows = !ui.classList.contains('narrow');
-    const choices = root.querySelector('.ink-choices');
-    const above = choices?.previousElementSibling;
+    const choices = root.querySelector('.ink-choices'), shownBefore = (node) => (node ? [...node.parentElement.children].slice(0, [...node.parentElement.children].indexOf(node)).filter((n) => n.getBoundingClientRect().height > 0).pop() : null);
+    const above = shownBefore(choices);
     const spare = above ? choices.getBoundingClientRect().top - above.getBoundingClientRect().bottom : 0;
     return { ...marks, grows, spare, withError };
   }, withError);
@@ -963,7 +963,7 @@ const BENCH_AUDIT = () => {
   const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
-  const tops = all('.well, .inv-truck-name').map((n) => Math.round(n.getBoundingClientRect().top));
+  const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
   const title = frame.querySelector('.inv-title');
   const close = frame.querySelector('.close');
   return [
@@ -1197,7 +1197,7 @@ const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` 
 const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
 
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {

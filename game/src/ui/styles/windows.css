@@ -1,0 +1,248 @@
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
+  --good: var(--hud-lamp-green);
+  --good-bright: var(--hud-lamp-green);
+  --danger: var(--hud-hot);
+  --danger-ink: var(--hud-hot);
+  --danger-bright: var(--hud-hot);
+  --accent: var(--hud-amber);
+  --accent-bright: var(--hud-amber);
+  --accent-warm: var(--hud-amber-soft);
+  --cond-pristine: var(--hud-amber);
+  --cond-w1: var(--hud-amber-soft);
+  --cond-w2: var(--hud-amber-soft);
+  --cond-w3: var(--hud-amber-soft);
+  --cond-w4: var(--hud-amber-soft);
+  --cond-junk: var(--hud-hot);
+  box-sizing: border-box;
+  background: none;
+  border: 0;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+  color: var(--hud-amber);
+  font-family: var(--font-ui);
+  text-shadow: var(--hud-text-glow);
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .quest-page .quest-side) {
+  padding: var(--hud-screen-pad);
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) h3 {
+  margin: 0 0 var(--space-4);
+  color: var(--hud-amber);
+  font: 500 var(--text-body) / 1.2 var(--font-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) :is(.job, .row) {
+  border-bottom: 0;
+}
+:is(#ui, #report) :is(.panel, .dialog, .kit-head) > :is(h2, h3),
+:is(#ui, #report) .inv-band .inv-title,
+.ink-page .quest-place {
+  color: var(--hud-print-coal);
+  font-family: var(--font-engraved);
+  text-transform: uppercase;
+  text-shadow: var(--hud-print-coal-edge);
+  letter-spacing: 0.04em;
+}
+:is(#ui, #report) .screen-btn {
+  box-sizing: border-box;
+  height: var(--btn-h-s);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hud-amber);
+  border-radius: 0;
+  background: none;
+  box-shadow: var(--hud-line-glow);
+  color: var(--hud-amber);
+  font: var(--text-dense) var(--font-ui);
+  text-shadow: var(--hud-text-glow);
+  white-space: nowrap;
+}
+:is(#ui, #report) .screen-btn:hover {
+  background: var(--hud-amber-dim);
+  border-color: var(--hud-amber);
+}
+:is(#ui, #report) .screen-btn:is(.on, .selected, [aria-pressed="true"]) {
+  background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
+  border-color: var(--hud-amber);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+:is(#ui, #report) .screen-btn[aria-disabled="true"] {
+  background: none;
+  border-color: var(--hud-amber-faint);
+  box-shadow: none;
+  color: var(--hud-amber-faint);
+}
+:is(#ui, #report) :is(h2, h3, div, span).tape {
+  padding: var(--space-2) var(--space-5);
+  border: 0;
+  border-image: var(--hud-tape-art) 8% 6% fill / 2px 6px round;
+  background: none;
+  color: var(--hud-print-ink);
+  font: 700 var(--text-body) / 1.15 var(--font-hud);
+  letter-spacing: normal;
+  text-transform: none;
+  text-shadow: none;
+}
+.chips .chip {
+  padding: var(--space-3) var(--space-5);
+}
+.inv-keys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--hud-print-coal);
+  font-size: var(--text-lead);
+  text-shadow: var(--hud-print-coal-edge);
+}
+.inv-keys:empty {
+  display: none;
+}
+:is(#ui, #report) .inv-keys .cost {
+  align-self: stretch;
+  justify-self: stretch;
+  box-sizing: border-box;
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-4);
+  color: var(--hud-amber);
+  font-size: var(--text-body);
+}
+:is(#ui, #report) .inv-keys .cost.off {
+  color: var(--hud-amber-faint);
+}
+:is(#ui, #report) .inv-keys .cost .icon {
+  color: var(--hud-amber);
+}
+:is(#ui, #report) .screen-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--btn-h-m);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--hud-amber);
+  font: var(--text-body) / 1.35 var(--font-ui);
+  text-align: left;
+  text-shadow: var(--hud-text-glow);
+}
+:is(#ui, #report) .screen-line:hover {
+  background: var(--hud-amber-dim);
+}
+:is(#ui, #report) .screen-line:is(.on, .selected, [aria-pressed="true"]) {
+  background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+:is(#ui, #report) .screen-line:is(.seen, [aria-disabled="true"]) {
+  color: var(--hud-amber-faint);
+}
+
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) .selected:not(.inv-item, .inv-chip) {
+  border-color: var(--hud-amber);
+  background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers) :is(.card-name b, .part-name b, .ability-name) {
+  font-weight: 600;
+}
+#ui .quest-page .quest-side .quest-stats.screen-block {
+  padding: 0;
+  border-image: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.segments {
+  display: inline-flex;
+  flex: none;
+  width: fit-content;
+  gap: var(--space-1);
+  height: var(--gauge-h);
+  vertical-align: middle;
+}
+.segments > i {
+  width: var(--gauge-cell-w);
+  min-width: 0;
+  background: var(--hud-lcd-ghost);
+}
+.segments > i.on {
+  background: var(--hud-amber);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
+}
+.segments > i.rest {
+  background: var(--hud-amber-soft);
+}
+.segments > i.plan {
+  background: var(--hud-amber-faint);
+}
+.segments.warn > i.on {
+  background: var(--hud-hot);
+}
+.segments.warn > i.rest {
+  background: color-mix(in srgb, var(--hud-hot) 55%, var(--hud-lcd-ghost));
+}
+.segments.good > i.on {
+  background: var(--hud-lamp-green);
+}
+.segments.job-bar {
+  display: flex;
+  margin-inline: auto;
+}
+.inv-item > .segments {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--space-1);
+  width: auto;
+  height: var(--meter-m);
+  justify-content: center;
+  gap: 1px;
+}
+:is(.inv-item, .inv-chip).working > .segments.progress {
+  top: var(--space-1);
+  bottom: auto;
+}
+.inv-chip > .segments {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-2);
+}
+.inv-chip:has(> .segments) {
+  padding-bottom: calc(var(--space-2) + var(--gauge-h) + var(--space-1));
+}
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .hud-screen) .tag {
+  align-self: start;
+  box-shadow: var(--hud-line-glow);
+  text-shadow: var(--hud-text-glow);
+}
+#ui :is(.minimap .minimap-body, .map-tab) {
+  padding: var(--hud-screen-edge);
+}
+:is(#ui, #report) .inv-keys .cost.off .icon {
+  color: var(--hud-amber-faint);
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.chips .chip-screen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-7);
+  padding: var(--space-3) var(--space-5);
+}
+.chips .chip-screen > .chip {
+  border: 0;
+  border-image: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}

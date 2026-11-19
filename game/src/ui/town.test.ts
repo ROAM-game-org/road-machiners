@@ -1,12 +1,12 @@
-import { supplyCharge } from "../sim/economy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
-import type { Msg } from "../text/msg";
-import { GARAGE_ONLY, townPageOnOpen } from "./town";
+import { t, type Msg } from "../text/msg";
+import { choiceButton, GARAGE_ONLY, heldSlots, townPageOnOpen, type TownChoice } from "./town";
+import { supplyCharge } from "../sim/economy";
 import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
-import { RELIEF, SHOPS } from "../data/market";
+import { CONTRACTS, RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
@@ -200,6 +200,7 @@ describe("the front page prose", () => {
 
 class FakeNode {
   className = "";
+  dataset: Record<string, string> = {};
   style = { setProperty: () => {} };
   children: (FakeNode | string)[] = [];
   attrs = new Map<string, string>();
@@ -218,6 +219,7 @@ class FakeNode {
     const here = pred(this) ? [this] : [];
     return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
   }
+  querySelector: (sel: string) => FakeNode | null = () => null;
   has(cls: string): boolean {
     return this.className.split(" ").includes(cls);
   }
@@ -308,13 +310,10 @@ describe("the supply rows of the front page", () => {
     const w = emptyWorld();
     const asked: number[] = [];
     const buttons = {
-      button: (_label: Msg, cmd: (x: World) => World) => {
-        cmd(w);
-        return new FakeNode("button") as unknown as HTMLElement;
-      },
+      button: () => new FakeNode("button") as unknown as HTMLElement,
       priceButton: (_w: World, _verb: Msg, _price: number, cmd: (x: World) => World) => {
         cmd(w);
-        return new FakeNode("button") as unknown as HTMLElement;
+        return keyWithPrice();
       },
     };
     const buy = (x: World, _k: string, n: number) => {
@@ -326,19 +325,83 @@ describe("the supply rows of the front page", () => {
     expect(asked).toEqual([1, 3]);
   });
 
-  it("put the price of each purchase on its button", () => {
+  it("print the verb and the price on the keys and show only the level on the screen", () => {
     const w = emptyWorld();
-    const priced: number[] = [];
+    const labels: Msg[] = [];
+    const prices: number[] = [];
     const buttons = {
       button: () => new FakeNode("button") as unknown as HTMLElement,
-      priceButton: (_w: World, _verb: Msg, price: number) => {
-        priced.push(price);
-        return new FakeNode("button") as unknown as HTMLElement;
+      priceButton: (_w: World, verb: Msg, price: number) => {
+        labels.push(verb);
+        prices.push(price);
+        return keyWithPrice();
       },
     };
-    const price = ECONOMY.supplyPrice.fuel;
-    w.player.money = price * 3;
-    limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null });
-    expect(priced).toEqual([supplyCharge("fuel", 1), supplyCharge("fuel", 3)]);
+    w.player.money = ECONOMY.supplyPrice.fuel * 3;
+    const row = limitedSupplyRow(w, "fuel", buttons as never, ((x: World) => x) as never, playerVehicle(w), { room: 10, tag: null }) as unknown as FakeNode;
+    expect(labels).toEqual([t("goods.buy"), t("trade.fillBare")]);
+    expect(prices).toEqual([supplyCharge("fuel", 1), supplyCharge("fuel", 3)]);
+    expect(row.all((n) => n.has("service-price"))).toEqual([]);
+  });
+});
+
+function keyWithPrice(): HTMLElement {
+  const key = new FakeNode("button");
+  const price = Object.assign(new FakeNode("span"), { prepend: () => {} });
+  key.querySelector = (sel: string) => (sel === ".price" ? price : null);
+  return key as unknown as HTMLElement;
+}
+
+describe("the way out of a town page", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const wayOut = (id: string, label: Msg, index: number) => choiceButton({ id, label, reason: null, go: () => {} } as TownChoice, index) as unknown as FakeNode;
+
+  it("prints the same words whatever the number of choices and keeps its number in the tooltip", () => {
+    const keys = [0, 4, 6].map((index) => wayOut("back", t("town.back"), index));
+    expect(keys.map((key) => key.text())).toEqual(["Back", "Back", "Back"]);
+    expect(keys.map((key) => key.attrs.get("title"))).toEqual(["[1] Back", "[5] Back", "[7] Back"]);
+  });
+
+  it("keeps the leave key of the front page apart from the screen lines", () => {
+    const leave = wayOut("leave", t("town.go.leave"), 6);
+    expect(leave.text()).toBe("Drive on");
+    expect(leave.has("compact")).toBe(true);
+    expect(leave.dataset.townGo).toBe("leave");
+    const line = choiceButton({ id: "garage", label: t("town.section.garage"), reason: null, go: () => {} }, 0) as unknown as FakeNode;
+    expect(line.has("screen-line")).toBe(true);
+    expect(line.text()).toBe("1. Machiners' yard");
+  });
+});
+
+describe("the held contracts on the board", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const row = () => new FakeNode("div") as unknown as HTMLElement;
+  const slots = (placed: number) => heldSlots(Array.from({ length: placed }, row)) as unknown as FakeNode[];
+
+  it("fills the slots a truck can hold with faint empty ones", () => {
+    for (let held = 0; held <= CONTRACTS.maxActive; held++) {
+      const shown = slots(held);
+      expect(shown).toHaveLength(CONTRACTS.maxActive);
+      expect(shown.filter((slot) => slot.has("slot"))).toHaveLength(CONTRACTS.maxActive - held);
+    }
+    expect(slots(0)[0].text()).toBe("Empty");
+  });
+
+  it("keeps every row, a delivered one included, when more rows than slots are placed", () => {
+    expect(slots(CONTRACTS.maxActive + 1)).toHaveLength(CONTRACTS.maxActive + 1);
   });
 });

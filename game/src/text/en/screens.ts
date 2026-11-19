@@ -673,6 +673,8 @@ export const SCREENS = {
   'trade.toStorage': 'No room: goes to storage',
   'trade.noneOfKind': 'No parts of this kind in stock.',
   'trade.noStock': 'No parts in stock.',
+  'fullShop.title': 'Full shop',
+  'fullShop.take': 'Take',
   'trade.filter.all': 'All',
   'trade.filter.weapon': 'Weapons',
   'trade.filter.engine': 'Engines',

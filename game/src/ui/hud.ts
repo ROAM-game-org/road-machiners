@@ -12,7 +12,8 @@ import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
 import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
-import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit } from "./dash/panels";
+import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
+import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
@@ -214,7 +215,7 @@ export class Hud {
   private action = panel("action");
   private toastBox = panel("toast hud-panel");
 
-  private toastScreen = this.toastBox.appendChild(el("div", { class: "hud-screen" }));
+  private toastScreen = this.toastBox.appendChild(el("p", { class: "metal-line" }));
   private rescue = panel("rescue notice hud-panel", topCenter());
   private knockedOut = panel("status-mark hud-panel", topCenter());
   private truckStack = el("div", { class: "truck-stack" });
@@ -340,6 +341,7 @@ export class Hud {
     this.deck.talk.append(radio.root);
     this.deck.log.append(this.log.root);
     this.deck.bindLog(this.log.lines);
+    mountScrollWheels(uiRoot(), SCROLL_SCREENS, wheelFrame);
     rightColumn().append(this.deck.root);
     const readback = new PixelReadback(renderer, gpu);
     this.portraits = new TruckPortraits(renderer, gpu, readback);
@@ -646,13 +648,12 @@ export class Hud {
     const aim = this.aimOf(w, v);
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
-    const parts = [
+    this.infoBody.replaceChildren(
       panelHead(v.brain ? driverName(v) : vehicleTitle(w, v)),
-      shownScreen(screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line)))),
+      screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
-      this.cardButtons(w, v),
-    ].filter((node) => node !== null);
-    this.infoBody.replaceChildren(...parts);
+      this.cardButtons(w, v) ?? controls(),
+    );
     this.placeInfo();
   }
 }
@@ -668,10 +669,6 @@ function beaconRocker(on: boolean, flip: () => void): HTMLElement {
 
 function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind: K): Extract<RescueReadout, { kind: K }> | null {
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
-}
-
-function shownScreen(screenNode: HTMLElement): HTMLElement | null {
-  return screenNode.textContent?.trim() ? screenNode : null;
 }
 
 function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {

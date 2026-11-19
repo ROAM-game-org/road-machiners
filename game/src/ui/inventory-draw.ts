@@ -7,13 +7,14 @@ import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
 import { workOf } from "../sim/states";
-import { el } from "./dom";
+import { disabledWith, el } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
 import { coreArt, dressGrid, drawnSprite, hiddenArt, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
-import { byId, t, type Msg } from "../text/msg";
+import { byId, t, verbatim, type Msg } from "../text/msg";
+import { rotateButton } from "./item-card";
 import { goodName, partName } from "../text/names";
 
 const SPARE_GAP_CELLS = 0.3;
@@ -236,6 +237,7 @@ function sidePadding(node: Element | null): number {
 export function hostedWidth(box: HTMLElement, root: HTMLElement): number {
   const split = box.closest(".town-split");
   if (!split) return Infinity;
+  if (split.classList.contains("banded")) return bandedWidth(root);
   const shop = split.querySelector(".town-shop");
   const column = box.parentElement;
   if (!shop || !column) throw new Error("A hosted inventory sits outside its split");
@@ -246,14 +248,31 @@ export function hostedWidth(box: HTMLElement, root: HTMLElement): number {
   return widthOf(split) - gaps - shopRoom - widthOf(root.querySelector(".inv-side")) - wrapGap - sidePadding(root.querySelector(".truck-shell"));
 }
 
+export function bandedHeight(box: HTMLElement, root: HTMLElement): number | null {
+  if (!box.closest(".town-split.banded")) return null;
+  const truck = root.querySelector(".inv-truck");
+  if (!truck) throw new Error("A hosted inventory has no truck screen");
+  const style = getComputedStyle(truck);
+  const shell = getComputedStyle(root.querySelector(".truck-shell") ?? truck);
+  return uiSize().toLayer(truck.getBoundingClientRect().height) - pxOf(style.paddingTop) - pxOf(style.paddingBottom) - pxOf(shell.paddingTop) - pxOf(shell.paddingBottom);
+}
+
+function bandedWidth(root: HTMLElement): number {
+  const truck = root.querySelector(".inv-truck");
+  if (!truck) throw new Error("A hosted inventory has no truck screen");
+  return widthOf(truck) - sidePadding(truck) - sidePadding(root.querySelector(".truck-shell"));
+}
+
 export function benchRooms(frame: HTMLElement, root: HTMLElement, grid: HTMLElement | null): FitRoom[] {
   const middle = root.querySelector(".inv-middle");
   const bench = root.querySelector(".inv-bench");
   if (!middle || !grid || !bench) throw new Error("The inventory bench is not rendered");
   const style = getComputedStyle(frame);
   const top = uiSize().toLayer(grid.getBoundingClientRect().top - middle.getBoundingClientRect().top);
-  const height = middle.clientHeight - top;
-  const across = pxOf(style.maxWidth) - sidePadding(frame) - 2 * pxOf(style.borderLeftWidth);
+  const truck = middle.querySelector(".inv-truck");
+  if (!truck) throw new Error("The inventory bench has no truck screen");
+  const height = middle.clientHeight - top - pxOf(getComputedStyle(truck).paddingBottom);
+  const across = pxOf(style.maxWidth) - sidePadding(frame) - 2 * pxOf(style.borderLeftWidth) - sidePadding(truck);
   const column = widthOf(root.querySelector(".inv-side-column")) + pxOf(getComputedStyle(bench).columnGap);
   return [
     { columns: 3, width: across - 2 * column, height },
@@ -552,4 +571,19 @@ export function markWorking(node: HTMLElement, done: number): HTMLElement {
   node.classList.add("working");
   node.append(workMeterEl(done));
   return node;
+}
+
+export function idleActions(reason: Msg): HTMLElement {
+  const strip = el("button", { class: "btn-s", ...disabledWith(reason, () => {}) }, t("inv.verb.strip"));
+  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), strip);
+}
+
+export function splitActions(actions: HTMLElement[]): { keys: HTMLElement[]; costs: HTMLElement[] } {
+  const isCost = (node: HTMLElement) => node.className.split(" ").includes("cost");
+  return { keys: actions.filter((node) => !isCost(node)), costs: actions.flatMap((node, i) => (isCost(node) ? [actionCost(actions[i - 1], node)] : [])) };
+}
+
+function actionCost(key: HTMLElement | undefined, cost: HTMLElement): HTMLElement {
+  if (!key) throw new Error("An action cost has no key before it");
+  return el("div", { class: "inv-cost" }, el("span", { class: "inv-cost-verb" }, verbatim(key.textContent ?? "")), cost);
 }

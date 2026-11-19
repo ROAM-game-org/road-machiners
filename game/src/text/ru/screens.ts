@@ -702,6 +702,8 @@ export const SCREENS: Translation<typeof EN> = {
   'trade.toStorage': 'Нет места: уйдет в гараж',
   'trade.noneOfKind': 'Деталей такого вида нет.',
   'trade.noStock': 'Деталей нет.',
+  'fullShop.title': 'Все детали',
+  'fullShop.take': 'Взять',
   'trade.filter.all': 'Все',
   'trade.filter.weapon': 'Оружие',
   'trade.filter.engine': 'Двигатели',

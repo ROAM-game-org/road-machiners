@@ -49,8 +49,8 @@
 
   /* Page and surfaces, dark to light */
   --color-void: #1b1c1d;
-  --surface-sunk: #1d1208;
-  --surface-well: #24170c;
+  --surface-sunk: var(--hud-glass);
+  --surface-well: var(--hud-screen);
   --surface-dock: #24170ce8;
   --surface-panel: #2c1c0ff5;
   --surface-highlight: #3a2616;
@@ -71,14 +71,14 @@
   --mark-own: #a4a074;
 
   /* Text */
-  --ink: #f2bd6a;
-  --ink-bright: #f6e2b6;
+  --ink: var(--hud-amber);
+  --ink-bright: var(--hud-amber);
   --edge-pick: #f3efde;
   --edge-hover: #c2b08b;
-  --ink-title: #f3d39a;
-  --ink-label: #dcaa62;
-  --ink-muted: #c4914f;
-  --ink-faint: #8d6434;
+  --ink-title: var(--hud-amber);
+  --ink-label: var(--hud-amber-soft);
+  --ink-muted: var(--hud-amber-soft);
+  --ink-faint: var(--hud-amber-faint);
   --ink-overlay: #f0e0b8;
   --ink-on-accent: #1d1a12;
 
@@ -159,16 +159,16 @@
   --cond-cells: rgba(255, 244, 214, 0.22);
 
   /* Truck grid cell kinds: the dark grid in the inventory and the bright map on truck cards */
-  --cell-line: #6e4f2b;
-  --cell-ink: #c4914f;
-  --cell-plan-line: #dcaa62;
+  --cell-line: #58656b;
+  --cell-ink: #a0adb2;
+  --cell-plan-line: #b9c6ca;
   --plan-detail-faint: rgba(185, 198, 202, 0.3);
   --plan-glass-faint: rgba(185, 198, 202, 0.12);
-  --cell-plain: #3d2a17;
-  --cell-deck: #4f3a22;
-  --cell-engine: #45301b;
-  --cell-side: #4a341d;
-  --cell-none: #24170c;
+  --cell-plain: #303d44;
+  --cell-deck: #483e36;
+  --cell-engine: #3d4b50;
+  --cell-side: #414c52;
+  --cell-none: #20292e;
   --cell-grid-line: rgba(255, 244, 214, 0.3);
   --cell-grid-line-drag: rgba(255, 244, 214, 0.55);
   --garage-body-filter: brightness(0.55) saturate(0.55);
@@ -264,18 +264,24 @@
   --hud-brass: #96703c;
   --hud-brass-ink: #1c0e06;
   --hud-drive-shift: -3px;
-  --hud-drive-sink-share: 0.05;
-  --hud-drive-sink: calc(var(--hud-drive-sink-share) * 100%);
-  --hud-drive-sink-px: calc(var(--hud-drive-sink-share) * var(--hud-drive-w) * var(--hud-zoom) * 713 / 1633);
+  --hud-drive-sink: calc(-1 * var(--hud-device-lift));
   --hud-drive-fit: calc(345.9 / var(--hud-drive-n));
-  --hud-drive-fit-drop: 3.44%;
+  --hud-drive-fit-drop: 0%;
   --hud-top-depth: 9px;
   --hud-bake-desktop-aspect: 1.6;
-  --hud-frame-edge: 10px;
-  --hud-screen-edge: 4.8px;
-  --hud-slate-edge: 14px;
-  --hud-slate-edge-s: 9px;
-  --hud-slate-slice: 14.8% 10%;
+  --hud-frame-slice: 2.74% 1.83%;
+  --hud-frame-bevel: 8px;
+  --hud-screen-slice: 13.6% 6.8%;
+  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 2px, var(--hud-crt-scan) 2px 4px), radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%), var(--hud-crt-fill);
+  --hud-screen-shade: inset 0 0 var(--space-4) var(--hud-crt-edge), inset 0 var(--space-1) var(--space-2) var(--hud-crt-edge);
+  --goods-count-w: 9ch;
+  --town-split-min: 260px;
+  --gauge-h: 8px;
+  --gauge-cell-w: 5px;
+  --hud-screen-edge: 5px;
+  --hud-screen-pad-y: calc(var(--hud-screen-edge) + var(--space-4));
+  --hud-screen-pad-x: calc(var(--hud-screen-edge) + var(--space-5));
+  --hud-screen-pad: var(--hud-screen-pad-y) var(--hud-screen-pad-x);
   --hud-input-edge: 5px;
   --hud-input-slice: 22% 10%;
   --hud-keycap-slice: 10.2% 12.2% 21.3% 12.2%;
@@ -323,13 +329,14 @@
   --hud-rim-s: 2px;
   --hud-glow-r: 4px;
   --hud-text-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
+  --hud-fill-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
+  --hud-line-glow: 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft), inset 0 0 var(--hud-glow-r) var(--hud-amber-glow-soft);
   --hud-mark-glow: drop-shadow(0 0 var(--hud-glow-r) var(--hud-amber-glow-soft));
   --hud-step: 1px;
   --hud-rim-w: 3px;
   --hud-well-w: 2px;
   --hud-pad: 10px;
   --hud-panel-gap: 5px;
-  --hud-recess: inset 0 1px 2px rgb(8 4 1 / 0.8), inset 0 0 1.5px 0.5px rgb(8 4 1 / 0.75), 0 0 1px 0.5px rgb(255 240 205 / 0.12);
   --hud-engrave: 0 -1px 0 #2b1d0ecc, 0 1px 0 #fff3d640;
   --hud-emboss: 0 1px 0 #fff3d666;
   --hud-bracket: 6px;
@@ -395,8 +402,9 @@
   --lcd-cell-w: 88px;
   --dial-h: 65px;
   --compass-w: 60px;
-  --slider-thumb: 12px;
-  --slider-track: 4px;
+  --slider-thumb: 14px;
+  --slider-thumb-h: 20px;
+  --slider-track: 8px;
   --slider-tick: 20px;
 
   /* Panel widths and heights */
@@ -483,6 +491,7 @@
   --z-lcd-digits: 0;
   --z-lcd-ghost: -1;
   --z-recess-backing: -1;
+  --z-screen-tape: 1;
   --z-hud-part: 60;
   --z-hud-glass: 66;
   --z-hud-shade: 70;

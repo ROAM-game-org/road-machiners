@@ -4,6 +4,7 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
+import { bindWheel } from "../scroll-wheel";
 import { deviceCast } from "./skin";
 import { BakedPart } from "./baked";
 import { BAKED } from "./baked";
@@ -558,7 +559,6 @@ export class RadioDeck {
   private readonly knob: HTMLButtonElement;
   private readonly marks: HTMLButtonElement[];
   private readonly turn: HTMLButtonElement;
-  private scroller: HTMLElement | null = null;
   private held = false;
   private index = 0;
 
@@ -579,18 +579,12 @@ export class RadioDeck {
     this.turn.addEventListener("pointerdown", (e) => this.press(e));
     this.turn.addEventListener("pointerup", () => this.release());
     this.turn.addEventListener("pointercancel", () => this.release());
-    this.wheel.addEventListener("pointerdown", (e) => this.dragWheel(e));
     this.root = el("div", { class: "hud-radio" }, deviceCast(), this.plate.root);
     new ResizeObserver(([entry]) => shareRadioScale(entry.contentRect.width)).observe(this.plate.root);
   }
 
   bindLog(scroller: HTMLElement): void {
-    this.scroller = scroller;
-    scroller.addEventListener("scroll", () => this.wheelFrames.show(`wheel-${wheelFrame(scroller.scrollTop, this.wheelFrames.count())}`));
-    this.wheel.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      scroller.scrollTop += e.deltaY;
-    }, { passive: false });
+    bindWheel(this.wheel, scroller, (top) => this.wheelFrames.show(`wheel-${wheelFrame(top, this.wheelFrames.count())}`));
   }
 
   update(view: DeckView): void {
@@ -641,21 +635,5 @@ export class RadioDeck {
     this.held = false;
     this.showPlay();
     this.setup.onTurnRelease();
-  }
-
-  private dragWheel(down: PointerEvent): void {
-    const scroller = this.scroller;
-    if (scroller === null || down.button !== 0) return;
-    const start = scroller.scrollTop;
-    this.wheel.setPointerCapture(down.pointerId);
-    const move = (e: PointerEvent): void => {
-      scroller.scrollTop = start + (e.clientY - down.clientY) * 2;
-    };
-    const stop = (): void => {
-      this.wheel.removeEventListener("pointermove", move);
-    };
-    this.wheel.addEventListener("pointermove", move);
-    this.wheel.addEventListener("pointerup", stop, { once: true });
-    this.wheel.addEventListener("pointercancel", stop, { once: true });
   }
 }

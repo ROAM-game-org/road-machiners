@@ -142,33 +142,41 @@ Approach: rebake `slate` as the window housing, retune the ink and surface token
 
 ## Conclusion
 
-Every shared piece now draws as baked hardware, and all 67 surveyed screens wear it with their layouts in place. The goal waits on the user's sign-off on `ui.html` and on `game/tmp/kit/before-after.html`.
+The first kit was rejected. It stretched one big brown screen piece, `slate`, across every window, and amber text sat everywhere. The redo writes the hardware grammar into ui.md section 4.6 first. It says which surface each kind of content sits on, which inks and fonts each surface allows, and how each hard case is solved. Windows are now olive metal with one screen per block of content, engraved coal titles, tape for game names and keys on the metal.
+
+`scripts/ink-check.mjs` runs in every layout-check pass. It reports text in an ink its surface does not allow, a window that is mostly screen, and a screen inside a screen. It covers windows, the ink page, the confirm dialog, notices and the call dialog. It does not cover the HUD dash, tips or the inspect card, which belong to the HUD skin. On branch `kit-grammar` it finds no fault in any state, locale or viewport except the inspect card of the hauler at 1440x900, a HUD panel.
+
+The full layout check, at 1280x720, 1024x600, 844x390 and 640x360 in English, Russian and pseudo text, falls from 2628 faults on the commit before the redo to 2517. Some states rose and stay open: the full garage at 1024x600 from 12 to 78 control overlaps, the sorokonoga garage at 1280x720 from 24 to 57, trade at 844x390 from 112 to 144, the inventory at 640x360 from 124 to 144 bench faults, and the outpost hauler trucks tab from 48 to 55 text escapes. The before/after page compares every state with dev at bd834d46e, the last dev commit merged into the HUD branch. The goal waits on the user's sign-off on `ui.html` and on `game/tmp/kit/before-after.html` in the hud-dashboard worktree.
+
+### Layout changes that remain
+
+- The full garage at 1024x600 keeps the base's 4 overlaps in English and reports 37 in Russian and pseudo text. The truck draws with 8px cells in every language. In Russian it sits on a fractional pixel, so neighbouring part boxes touch by a fraction of a pixel and the check counts each touch. The picture matches the English one.
+- The canteen people list sits right under the prose, not at the foot of the page.
+- The start menu is a framed device, and it hides while Options or New game is open.
+- The death box is the HUD skin's panel, from the HUD work.
+- In Russian the help panel wraps its four key groups to two rows, so while it is open it covers the HUD's bottom row. Before, the fourth group sat off screen.
+- Fixed truck parts with overlapping hit boxes, such as the two wheels, report one more unreachable part on some inventory screens, since the drawing sits 2px higher.
 
 ### Deviations from plan
 
-- The sheet has no desktop and flat view switch. Window pieces bake only the desktop view, so the switch would change nothing.
-- The keycap 9-slice is shared through `--hud-keycap-slice`, not through one moved rule. Key states set `--key-art` and `--key-print`, so the exclusion list of the key rule is written once.
-- `.dialog button.close` became a plain key instead of the `close` piece, since window close keys carry the word Close.
-- `button:hover` in `base.css` stays. The cap's fill paints over its background.
-- The boot screen keeps its old look through `--boot-*` tokens. The crash screen sits outside `#ui`, so it never took the kit.
-- Review found lost state cues on read quest choices, the Skip intro toggle and the Start key, and an invisible gun share on the gauge. f43fe657f fixes the toggle and the gauge. A read quest choice takes the pressed cap, but in a straight-on view that cap looks almost like rest, so the seen cue is still too weak. The Start key's accent border is gone with no replacement.
+- The olive or leather housing pick, PH6, is dropped. Section 4.6 decides olive metal for windows and keeps leather for the HUD dash only.
+- The before set is dev at bd834d46e, the last dev commit merged into the HUD branch, not origin/main. The HUD branch is built on dev, and main lacks dev's game changes, such as the semi's deck cells.
+- Read quest and call choices are `.screen-line`s now, so `.seen` is faint screen ink instead of the pressed cap. UK3 is closed: selection on a screen is inverse print, not hue.
+- Keys have no hover look, no lit wash and no focus ring. They show only their baked art.
 
 ### Assumptions and unknowns
 
-- AS1 and AS2 held, as Verify says.
-- IV2 holds only for raw values and button sizes. The style guard does not check frames or colors.
-- UK1 is open. The user picks the olive or leather housing on the sheet, then PH6 runs.
-- UK2 is answered: no screen broke its grid. The follow-ups below are the faults the kit added.
-- UK3 is open. Body ink `--ink` sits close to the accent in hue and brightness. Keys show selection by the lit cap, but a selected tile relies on the accent edge.
+- UK1 is closed by section 4.6.
+- UK3 is closed by inverse selection.
+- Coal on olive measures 3.8 to 1, so print on metal is at least `--text-lead` and limited to short fixed words.
 
 ### Follow-ups
 
-- Town yard: the head row now fits on one line, so the truck drawing grows. That squeezes the shop truck card, whose delta column escapes by 6px. It also moves wheel hit cells on the trade screen.
-- Start Options panel overlaps the start keys in pseudo-long text at 1280 by 720.
-- In the engraved face the digit 1 reads like a capital I, as in "1. Machiners' yard".
-- The Start key lost its accent border, and nothing marks it as the main choice.
-- A read choice, `.seen`, needs a stronger mark than the pressed cap.
-- `.btn-danger` has no caller in a screen. The confirm dialog uses `hud-key danger`.
+- `slate` and `slateLeather` still exist in `tools/hud-bake/parts/pieces.js` and the baked files. Removing them needs a pieces re-bake.
+- `createSwitch` in `src/ui/switch.ts` has no caller left except its test, since the Options mute is now a lit key.
+- Fixed inventory items like the Wheel overlap and cannot be reached on many screens. The HUD branch had this before the kit.
+- The help notes line in Russian still reports a leak fault. The text is fully visible.
+- The inspect card header is built in `hud.ts` as engraved text, not tape.
 
 ## Code smells
 

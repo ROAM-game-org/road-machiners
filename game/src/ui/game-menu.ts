@@ -1,5 +1,5 @@
 
-import { closeLabel, touchMode } from "./input-mode";
+import { ESCAPE, keyTip, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -177,9 +177,9 @@ export class HelpPanel {
     const setup = this.setup();
     const notes = [buildNote(), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
-      el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
+      el("button", { class: "close btn-s", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close")),
       el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
-      el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
+      el("div", { class: "help-notes screen-block" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);

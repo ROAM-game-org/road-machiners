@@ -195,7 +195,8 @@ export class TruckConditionView {
   fitTo(box: HTMLElement): void {
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
-    this.setZoom(Math.min(MAX_FIT_ZOOM, (box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+    const room = contentBox(box);
+    this.setZoom(Math.min(MAX_FIT_ZOOM, (room.height - outline) / natural.height, (room.width - outline) / natural.width));
   }
 
   private setZoom(zoom: number): void {
@@ -372,4 +373,11 @@ export class TruckConditionView {
       layerImage("cond-pick", this.drawing, this.drawing.glow(part.id, part.tier), part.tier),
     );
   }
+}
+
+function contentBox(box: HTMLElement): { width: number; height: number } {
+  const style = getComputedStyle(box);
+  const across = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const down = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  return { width: box.clientWidth - across, height: box.clientHeight - down };
 }

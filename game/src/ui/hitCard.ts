@@ -108,27 +108,19 @@ export class HitCard {
   private root = el('div', { class: 'hitcard' });
 
   constructor(container: HTMLElement) {
-    this.root.style.display = 'none';
     container.append(this.root);
   }
 
   render(world: World, hoveredId: string | null, selected: readonly string[]): void {
     const card = hoveredId === null ? null : hitCardRows(world, hoveredId);
-    if (!card) {
-      this.root.replaceChildren();
-      return this.hide();
-    }
-    this.root.replaceChildren(well(t('hit.wellYou'), card.mine, false, selected), well(t('hit.wellThem'), card.theirs, true, []));
+    this.root.replaceChildren(...(card ? [well(t('hit.wellYou'), card.mine, false, selected), well(t('hit.wellThem'), card.theirs, true, [])] : []));
   }
 
   hide(): void {
-    if (this.root.childElementCount === 0) this.root.style.display = 'none';
-    else this.root.style.visibility = 'hidden';
+    this.root.style.visibility = 'hidden';
   }
 
   show(): void {
     this.root.style.visibility = '';
-    if (this.root.childElementCount === 0) return this.hide();
-    this.root.style.display = '';
   }
 }
