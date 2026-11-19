@@ -11,7 +11,7 @@ export const SLAB_SHARE = 0.85;
 const SELECTORS = {
   window: '.dialog, .ink-page, .confirm-dialog, #ui > .panel, .modal, .notice, .dialogue',
   screen: '.hud-screen, .screen-block, .well, input, textarea, select',
-  tape: '.tape, .tape-print, .kit-tape, .slot-tape',
+  tape: '.tape, .tape-print, .kit-tape, .slot-tape, .note',
 };
 
 function inPage({ surfaces, slabShare, sel }) {
