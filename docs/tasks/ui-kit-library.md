@@ -142,7 +142,18 @@ Approach: rebake `slate` as the window housing, retune the ink and surface token
 
 ## Conclusion
 
-The first kit was rejected. It stretched one big brown screen piece, `slate`, across every window, and amber text sat everywhere. The redo writes the hardware grammar into ui.md section 4.6 first. It says which surface each kind of content sits on, which inks and fonts each surface allows, and how each hard case is solved. Windows are now olive metal with one screen per block of content, engraved coal titles, tape for game names and keys on the metal. `scripts/ink-check.mjs` checks the grammar in every layout-check run: it reports text in an ink its surface does not allow, a window that is mostly screen, and a screen inside a screen. On branch `kit-grammar` it finds zero such faults in all 67 states, in English and in Russian. The goal waits on the user's sign-off on `ui.html` and on `game/tmp/kit/before-after.html` in the hud-dashboard worktree.
+The first kit was rejected. It stretched one big brown screen piece, `slate`, across every window, and amber text sat everywhere. The redo writes the hardware grammar into ui.md section 4.6 first. It says which surface each kind of content sits on, which inks and fonts each surface allows, and how each hard case is solved. Windows are now olive metal with one screen per block of content, engraved coal titles, tape for game names and keys on the metal.
+
+`scripts/ink-check.mjs` runs in every layout-check pass. It reports text in an ink its surface does not allow, a window that is mostly screen, and a screen inside a screen. It covers windows, the ink page, the confirm dialog, notices and the call dialog. It does not cover the HUD dash, tips or the inspect card, which belong to the HUD skin. On branch `kit-grammar` it finds no fault in any state, locale or viewport except the inspect card of the hauler at 1440x900, a HUD panel.
+
+The layout check at 1280x720, 1024x600, 844x390 and 640x360, in English, Russian and pseudo text, finds no new fault against the commit before the redo, once paths that only changed their class names are set aside. The before/after page compares every state with dev at bd834d46e, the last dev commit merged into the HUD branch. The goal waits on the user's sign-off on `ui.html` and on `game/tmp/kit/before-after.html` in the hud-dashboard worktree.
+
+### Layout changes that remain
+
+- The trade list shows about one row fewer at 1280x720, since the shop prose now sits on a screen.
+- The canteen people list sits right under the prose, not at the foot of the page.
+- The start menu is a framed device, and it hides while Options or New game is open.
+- The death box is the HUD skin's panel, from the HUD work.
 
 ### Deviations from plan
 
