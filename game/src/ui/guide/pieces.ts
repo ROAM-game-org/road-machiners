@@ -21,7 +21,7 @@ const chipSample = (): HTMLElement =>
 const sample = (cls: string, words: string): HTMLElement => el("div", { class: cls }, words);
 
 const confirmSample = (): HTMLElement =>
-  el("div", { class: "dialog confirm-dialog" }, el("p", {}, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
+  el("div", { class: "dialog confirm-dialog" }, el("p", { class: "screen-block" }, "End the run here? It cannot be undone."), el("div", { class: "confirm-buttons" }, text("button", "", "Cancel"), text("button", "btn-danger", "End run")));
 
 const wellRows = (): HTMLElement => statRow("mass", verbatim("Load"), statValueEl(verbatim("1,680 / 3,840 kg")));
 
