@@ -19,6 +19,7 @@ const GRAIN = { strength: 1.1, cut: 0.25, soft: 0.6, rim: 0.5, rimWidth: 0.14, l
 export const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
+export const LEFTOVER_COUNTER = 'fx.cards.leftover';
 
 type LumpLook = { min: number; spread: number; reachFrom: number; reachSpread: number; blurPx: number };
 
@@ -41,6 +42,10 @@ export function dustCardsOf(cards: FxCards): CardBatch {
 
 export function smokeCardsOf(cards: FxCards): CardBatch {
   return TUNING.fxInk.value >= INK_DUST_LAYER ? cards.smoke : cards.lit;
+}
+
+export function openCardFrame(cards: FxCards): void {
+  for (const key in cards) cards[key as keyof FxCards].open();
 }
 
 export function batchesOf(cards: FxCards, main: CardBatch): ParticleBatches {
@@ -155,6 +160,11 @@ export class CardBatch {
 
   push(card: Card): void {
     Object.assign(this.slot(), card);
+  }
+
+  open(): void {
+    if (this.cards.length > 0) count(LEFTOVER_COUNTER, this.cards.length);
+    this.cards.length = 0;
   }
 
   slot(): Card {

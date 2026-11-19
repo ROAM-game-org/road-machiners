@@ -44,6 +44,14 @@ describe("touch gestures", () => {
     expect(g.up(1)).toBeNull();
   });
 
+  it("keeps the last good spread when a finger reports a bad point", () => {
+    const g = new TouchGestures();
+    g.down(1, 100, 100, 0);
+    g.down(2, 200, 100, 10);
+    expect(g.move(2, Number.NaN, 100)).toBeNull();
+    expect(g.move(2, 300, 100)).toEqual({ kind: "zoom", factor: 2 });
+  });
+
   it("gives no pan from the finger left after a pinch", () => {
     const g = new TouchGestures();
     g.down(1, 100, 100, 0);

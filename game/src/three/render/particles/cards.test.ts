@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { batchesOf, CardBatch, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes, type FxCards } from './cards';
+import { batchesOf, CardBatch, LEFTOVER_COUNTER, openCardFrame, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes, type FxCards } from './cards';
 import { TUNING } from '../inkTuning';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
@@ -46,6 +46,47 @@ describe('card fill ceiling', () => {
     put(batch, card(0.5, 5));
     batch.flush(camera);
     expect(drawn(batch)).toBe(1);
+  });
+});
+
+describe('card frame', () => {
+  const small = () => new CardBatch(4, 'glow', new THREE.Texture(), 2);
+
+  it('drops the cards of a frame that never flushed', () => {
+    const batch = small();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    batch.open();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    batch.flush(camera);
+    expect(drawn(batch)).toBe(4);
+  });
+
+  it('counts the cards a failed frame left behind', () => {
+    const batch = small();
+    const before = perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0;
+    batch.open();
+    expect(perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0).toBe(before);
+    put(batch, card(0.5, 1));
+    put(batch, card(0.5, 1));
+    batch.open();
+    expect((perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0) - before).toBe(2);
+  });
+
+  it('still throws when one frame pushes more cards than the batch holds', () => {
+    const batch = small();
+    batch.open();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    expect(() => put(batch, card(0.5, 1))).toThrow('CardBatch over its 4 cards');
+  });
+
+  it('opens every batch of the effect cards', () => {
+    const cards: FxCards = { lit: small(), glow: small(), dust: small(), bank: small(), fire: small(), smoke: small() };
+    for (const batch of Object.values(cards)) put(batch, card(0.5, 1));
+    openCardFrame(cards);
+    for (const batch of Object.values(cards)) {
+      batch.flush(camera);
+      expect(drawn(batch)).toBe(0);
+    }
   });
 });
 
