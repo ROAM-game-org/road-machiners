@@ -150,7 +150,7 @@ The full layout check, at 1280x720, 1024x600, 844x390 and 640x360 in English, Ru
 
 ### Layout changes that remain
 
-- The full garage reports more overlaps between the truck drawing's parts and the cargo beside it. The drawing keeps about the same size, and the cause is not found.
+- The full garage at 1024x600 keeps the base's 4 overlaps in English and reports 37 in Russian and pseudo text. The truck draws with 8px cells in every language. In Russian it sits on a fractional pixel, so neighbouring part boxes touch by a fraction of a pixel and the check counts each touch. The picture matches the English one.
 - The canteen people list sits right under the prose, not at the foot of the page.
 - The start menu is a framed device, and it hides while Options or New game is open.
 - The death box is the HUD skin's panel, from the HUD work.
