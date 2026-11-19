@@ -264,11 +264,9 @@
   --hud-brass: #96703c;
   --hud-brass-ink: #1c0e06;
   --hud-drive-shift: -3px;
-  --hud-drive-sink-share: 0.05;
-  --hud-drive-sink: calc(var(--hud-drive-sink-share) * 100%);
-  --hud-drive-sink-px: calc(var(--hud-drive-sink-share) * var(--hud-drive-w) * var(--hud-zoom) * 713 / 1633);
+  --hud-drive-sink: calc(-1 * var(--hud-device-lift));
   --hud-drive-fit: calc(345.9 / var(--hud-drive-n));
-  --hud-drive-fit-drop: 3.44%;
+  --hud-drive-fit-drop: 0%;
   --hud-top-depth: 9px;
   --hud-bake-desktop-aspect: 1.6;
   --hud-frame-slice: 2.4% 1.6%;
