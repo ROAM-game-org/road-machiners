@@ -1,3 +1,4 @@
+import { packTerrain } from '../sim/terrain';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initPhysics } from './drive';
 import { driveSnapshotOf, SentObstacles, startTurnWorker, type TurnResponse } from './turn';
@@ -31,7 +32,7 @@ it('sends the work it did between answers with the next answer, apart from the t
   const { terrain, ...state } = world;
   const sent = new SentObstacles();
   const request = (id: number) => ({ kind: 'turn', id, questLanguage: 'en', tailSteps: 4, ...sent.split(state), drive: driveSnapshotOf(world), terrain: null });
-  await worker.onmessage({ data: { kind: 'terrain', terrain } });
+  await worker.onmessage({ data: { kind: 'terrain', terrain: packTerrain(terrain) } });
   await worker.onmessage({ data: request(1) });
   await idleWorkRuns();
   await worker.onmessage({ data: request(2) });

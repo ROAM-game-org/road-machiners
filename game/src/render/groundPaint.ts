@@ -4,7 +4,7 @@ import { TERRAIN, TERRAIN_TYPES, type Basin, type TerrainTypeId } from "../data/
 import { TERRITORIES } from "../data/territory";
 import { atlasOf, atlasSites } from "../sim/atlas";
 import { siteGap } from "../sim/sites";
-import { type Terrain } from "../sim/terrain";
+import { type PackedTerrain, type Terrain } from "../sim/terrain";
 import { basinUnder, isTerritory } from "../sim/territory";
 import { type Vec } from "../sim/vec";
 import { hash2 } from "./noise";
@@ -499,7 +499,7 @@ export function packedLook(look: readonly LookType[]): Uint8Array {
     return at;
   });
 }
-export type GroundBakeRequest = { terrain: Terrain; side: number };
+export type GroundBakeRequest = { terrain: PackedTerrain; side: number };
 
 export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSize: number): PaintCanvas {
   const from = -TERRAIN_MARGIN;

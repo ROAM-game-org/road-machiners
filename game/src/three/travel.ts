@@ -25,6 +25,7 @@ import { isOnRope, isTowed } from "../sim/tow";
 import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { stopsTravel } from "./travel-stops";
 import { WorkerLoad, workerFailure } from "./worker-load";
+import { packedBuffers, packTerrain } from "../sim/terrain";
 
 export type LiveVision = {
   visible: Set<number>;
@@ -660,7 +661,8 @@ export class TurnPreparation {
   sendTerrain(terrain: World["terrain"]): void {
     if (this.load.gaveUp || this.load.waiting) return;
     this.worker ??= this.createWorker();
-    this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+    const packed = packTerrain(terrain);
+    this.worker.postMessage({ kind: "terrain", terrain: packed } satisfies TerrainRequest, packedBuffers(packed));
     this.terrain = terrain;
   }
 
@@ -701,6 +703,7 @@ export class TurnPreparation {
     const id = ++this.serial;
     this.worker ??= this.createWorker();
     const snapshot = saved.snapshot.slice();
+    const packed = this.terrain === terrain ? null : packTerrain(terrain);
     const request = timed("send-turn-split", () => ({
       kind: "turn" as const,
       id,
@@ -708,9 +711,10 @@ export class TurnPreparation {
       tailSteps: this.tailSteps,
       ...this.obstacles.split(state),
       drive: { ...saved, snapshot },
-      terrain: this.terrain === terrain ? null : terrain,
+      terrain: packed,
     }));
-    timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, [snapshot.buffer]));
+    const transfer = [snapshot.buffer, ...(packed ? packedBuffers(packed) : [])];
+    timed(postLabel("send-turn-post", request), () => this.worker?.postMessage(request satisfies TurnRequest, transfer));
     this.terrain = terrain;
     this.running = id;
     return id;
