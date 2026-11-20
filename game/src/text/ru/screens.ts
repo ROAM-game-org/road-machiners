@@ -221,7 +221,6 @@ export const SCREENS: Translation<typeof EN> = {
   'action.lootTruck': 'Обобрать {truck, case, acc}',
   'action.refill': 'Пополнить припасы {site, case, at}',
   'action.survey': 'Разведать {place, case, acc}',
-  'action.noLoot': 'Добычи не осталось',
   'action.lootingIt': 'Его уже обирает {truck, case, nom}',
   'stock.search.pile': 'Обшарить кучу',
   'stock.search.wreck': 'Обшарить обломки',

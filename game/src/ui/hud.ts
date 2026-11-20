@@ -84,7 +84,6 @@ export type ContextTarget =
   | { kind: 'stock'; id: string }
   | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
-  | { kind: 'empty' }
   | { kind: 'outpost' };
 export type ContextAction = { label: Msg; ready: boolean; target: ContextTarget; hint?: Msg; combat?: number };
 

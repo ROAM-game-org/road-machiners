@@ -179,7 +179,6 @@ export const SCREENS = {
   'action.lootTruck': m('Loot {truck}', { truck: 'text' }),
   'action.refill': m('Refill supplies at {site}', { site: 'text' }),
   'action.survey': m('Survey the {place}', { place: 'text' }),
-  'action.noLoot': 'No loot left',
   'action.lootingIt': m('{truck} is looting it', { truck: 'text' }),
   'stock.search.pile': 'Search the pile',
   'stock.search.wreck': 'Search the wreck',
