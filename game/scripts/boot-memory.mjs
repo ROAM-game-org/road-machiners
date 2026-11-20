@@ -68,14 +68,23 @@ async function oneRun(engine) {
   let stage = 'new game';
   let peak = 0;
   const peaks = {};
+  const samples = [];
+  const marks = new Map();
   const timer = setInterval(() => {
     const rss = pagePeak(engine);
+    samples.push({ at: Date.now(), rss });
     peak = Math.max(peak, rss);
     peaks[stage] = Math.max(peaks[stage] ?? 0, Math.round(rss));
   }, SAMPLE_MS);
   const stageTimer = setInterval(async () => {
     try {
       stage = await page.evaluate(() => document.querySelector('#boot .boot-stage')?.textContent?.replace(/\d+ of \d+/, '').trim().slice(0, 24) || 'playing');
+      const mark = await page.evaluate(() => {
+        for (const key of Object.keys(window.sessionStorage)) if (key.endsWith('.boot-mark')) return window.sessionStorage.getItem(key);
+        return null;
+      });
+      const parsed = mark ? JSON.parse(mark) : null;
+      if (parsed && typeof parsed === 'object') marks.set(parsed.startedAt, parsed.step);
     } catch {}
   }, 300);
   try {
@@ -90,7 +99,19 @@ async function oneRun(engine) {
   clearInterval(timer);
   clearInterval(stageTimer);
   await browser.close();
-  return { menuMb: Math.round(menuMb), peakMb: Math.round(peak), peaks, loads, errors };
+  return { menuMb: Math.round(menuMb), peakMb: Math.round(peak), peaks, stepPeaks: stepPeaksOf(samples, marks), loads, errors };
+}
+
+function stepPeaksOf(samples, marks) {
+  const starts = [...marks.keys()].sort((a, b) => a - b);
+  const peaks = {};
+  for (const { at, rss } of samples) {
+    const started = starts.filter((start) => start <= at).pop();
+    if (started === undefined) continue;
+    const step = marks.get(started);
+    peaks[step] = Math.max(peaks[step] ?? 0, Math.round(rss));
+  }
+  return peaks;
 }
 
 async function gone(engine, before) {
