@@ -16,7 +16,8 @@ import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { MESH_STEPS, surfaceTriangles } from "../../sim/surface";
 import { deckHeight, deckSegments, groundAt, groundSurface, type DeckSegment, type Terrain } from "../../sim/terrain";
 import type { World } from "../../sim/types";
-import { drawGround, drawnGround, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
+import { runNow } from "./stepped";
+import { drawGround, drawnGroundPieces, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
 
@@ -139,8 +140,12 @@ export function cachedGround(w: World, writes: DrawnGround, cache: GroundCacheUn
   return { reader: litGround(reader), writer, writes };
 }
 
+export function drawnGroundSteps(w: World): Generator<string, DrawnGround> {
+  return drawnGroundPieces(() => mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), () => landformTexture(w));
+}
+
 export function drawnGroundOf(w: World): DrawnGround {
-  return drawnGround(mapCanvas(w, TEXTURE_SIDE), w.terrain, hollowSitesFor(w), landformTexture(w));
+  return runNow(drawnGroundSteps(w));
 }
 
 function litGround(material: THREE.MeshLambertMaterial): THREE.MeshLambertMaterial {
