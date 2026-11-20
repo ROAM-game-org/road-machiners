@@ -150,32 +150,27 @@ const coolKey = new THREE.Group();
   P.g.add(coolKey);
 }
 
-const font = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
-document.fonts.add(await font.load());
-
-const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
+const BRASS_DEEP = '#5e4220';
 const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
 
-const SW_RING = 0.85, SW_LEVER = 1.75, SW_LEVER_W = 1.25, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
-const SW_PRINT = [13.5, 19.5];
+const SW_RING = 1.275, SW_LEVER = 2.3, SW_LEVER_W = 1.9, SW_W = 28, SW_HALF_H = 19;
+const SW_CENTER_Y = 703;
+const LABEL_ROW = [661, 673], ON_ROW = [674, 685], OFF_ROW = [719.5, 729];
+const PRINT_HALF_W = 13, LAMP_R = 5, LAMP_GAP = 4;
 const SW_BASE = '#9a9a92', SW_HOLE = '#2a2017';
 const SW_Z = Z_PANEL + 0.004;
 const SW_TILT = 0.75;
 const EYE_UNITS = P.eye();
-const printMesh = (L, box, label, z) => {
-  const DENSITY = 20, cv = document.createElement('canvas');
-  cv.width = Math.round((box[2] - box[0]) * DENSITY); cv.height = Math.round((box[3] - box[1]) * DENSITY);
-  const c = cv.getContext('2d');
-  c.setTransform(DENSITY, 0, 0, DENSITY, -box[0] * DENSITY, -box[1] * DENSITY);
-  const mx = (box[0] + box[2]) / 2, my = (box[1] + box[3]) / 2;
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '400 6px "Routed Gothic Narrow"';
-  c.fillStyle = 'rgba(30,14,6,.6)'; c.fillText(label, mx, my + 0.6);
-  c.fillStyle = PRINT; c.fillText(label, mx, my);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const rect = L.rect(box);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(rect.w, rect.h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false }));
-  m.position.set(rect.cx, rect.cy, z);
-  return m;
+const lampDome = (cx, cy) => {
+  const L = P.at(SW_Z), px = L.ux(cx), py = L.uy(cy), r = L.len(LAMP_R);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(1.1), 10, 32), lit(SW_BASE));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit('#4a2c0a'));
+  dome.rotation.x = Math.PI / 2; dome.scale.set(1, 0.6, 1);
+  const g = new THREE.Group();
+  g.add(bezel, dome);
+  g.position.set(px, py, SW_Z);
+  for (const m of [bezel, dome]) { m.castShadow = true; m.receiveShadow = true; }
+  P.g.add(g);
 };
 const setRocker = (r, on) => {
   const rot = new THREE.Matrix4().makeRotationX(on ? Math.PI / 2 - SW_TILT : Math.PI / 2 + SW_TILT);
@@ -196,8 +191,7 @@ const flutedStem = (radius, length, flutes) => {
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
   const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_RING), ul = (v) => L.len(v * SW_LEVER), uw = (v) => L.len(v * SW_LEVER_W);
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
+  lampDome(cx - PRINT_HALF_W - LAMP_GAP - LAMP_R, (ON_ROW[0] + ON_ROW[1]) / 2);
   const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
   const profile = [[2.4, 0], [2.4, 0.5], [2.9, 1.3], [4.2, 1.4], [4.8, 0.9], [4.9, 0]].map(([x, y]) => new THREE.Vector2(u(x), u(y)));
   const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(SW_BASE, { side: THREE.DoubleSide }));
@@ -218,7 +212,7 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   pivot.add(neck, stem, capTop);
   for (const m of [ringMesh, stem, capTop, neck]) { m.castShadow = true; m.receiveShadow = true; }
   P.g.add(hole, ringMesh, pivot);
-  return { pivot, at, shear, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
+  return { pivot, at, shear, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => setRocker(r, false));
 
@@ -228,6 +222,7 @@ const zoneFor = (box, z = 0) => ({ quad: P.quad(view, box, z), size: P.size(box)
 const DIAL_ZONE = [DIAL.cx - 76, DIAL.cy - 76, DIAL.cx + 76, DIAL.cy + 76];
 const FUEL_ZONE = bounds(insetPoly(FUEL.pts, GLASS_INSET));
 const HEAT_ZONE = bounds(insetPoly(HEAT.pts, GLASS_INSET));
+const LABEL_HALF_W = 22;
 const LABEL_Z = Z_PANEL + 0.01;
 const zones = {
   dial: zoneFor(DIAL_ZONE, Z_PANEL + 0.012),
@@ -236,10 +231,15 @@ const zones = {
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),
-  manual: zoneFor([169.3, 665.1, 202, 680.4], LABEL_Z),
-  lights: zoneFor([219.3, 665.1, 247.8, 680.4], LABEL_Z),
-  overdrive: zoneFor([259.1, 665.1, 304.3, 680.4], LABEL_Z),
 };
+rockers.forEach((r, i) => {
+  const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];
+  zones[['manual', 'lights', 'overdrive'][i]] = zoneFor(rowBox(LABEL_ROW, LABEL_HALF_W), LABEL_Z);
+  zones[`on${i}`] = zoneFor(rowBox(ON_ROW, PRINT_HALF_W), LABEL_Z);
+  zones[`off${i}`] = zoneFor(rowBox(OFF_ROW, PRINT_HALF_W), LABEL_Z);
+  const lampX = r.cx - PRINT_HALF_W - LAMP_GAP - LAMP_R, lampY = (ON_ROW[0] + ON_ROW[1]) / 2;
+  zones[`lamp${i}`] = zoneFor([lampX - LAMP_R, lampY - LAMP_R, lampX + LAMP_R, lampY + LAMP_R], SW_Z + 0.004);
+});
 const sprites = { cool: { crop: view.cropAround(P.quad(view, COOL.box, Z_PANEL + 0.03), 8), frames: ['cool-up', 'cool-down'] } };
 rockers.forEach((r, i) => {
   zones[`rockerHit${i}`] = zoneFor(r.box, Z_PANEL + 0.05);

@@ -1316,6 +1316,11 @@
   letter-spacing: 0;
 }
 
+#ui .drive-plate .switch-lamp {
+  z-index: var(--z-hud-lit);
+  pointer-events: none;
+}
+
 :is(#ui, #overlay) .hud-frame {
   --ink: var(--hud-amber);
   --ink-bright: var(--hud-amber);

@@ -334,7 +334,7 @@ export class Hud {
 
   constructor(private actions: HudActions, private radio: RadioPanel, private deck: RadioDeck, renderer: THREE.WebGLRenderer, gpu: GpuContext) {
     this.drive = new DrivePanel({
-      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph") },
+      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph"), on: t("setting.on"), off: t("setting.off") },
       onManual: () => actions.toggleManual(),
       onLights: () => actions.toggleHeadlights(),
       onOverdrive: () => actions.toggleOverdrive(),
