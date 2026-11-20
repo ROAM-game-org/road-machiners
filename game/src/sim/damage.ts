@@ -69,8 +69,12 @@ export function playerTrucks(world: World): Vehicle[] {
   return world.chaosHighway ? [me, haulerOf(world)] : [me];
 }
 
+export function isPlayerTruckId(world: World, id: string): boolean {
+  return id === world.player.vehicleId || id === world.chaosHighway?.hauler.id;
+}
+
 export function isPlayerTruck(world: World, v: Vehicle): boolean {
-  return playerTrucks(world).some((truck) => truck.id === v.id);
+  return isPlayerTruckId(world, v.id);
 }
 
 export function truckFor(world: World, truckId?: string): Vehicle {

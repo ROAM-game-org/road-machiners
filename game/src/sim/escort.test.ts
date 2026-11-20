@@ -28,7 +28,7 @@ function createNpc(w: World, templateId: string, traits: TraitId[], chassis: str
   return npc;
 }
 
-const convoyAt = (w: World, pos: Vec) => createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], pos);
+const convoyAt = (w: World, pos: Vec) => createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], pos);
 const guardAt = (w: World, pos: Vec) => createNpc(w, 'convoyGuard', ['guard'], 'scout', ['mg', 'stockEngine'], pos);
 const find = (w: World, id: string) => w.vehicles.find((v) => v.id === id)!;
 const escortOf = (w: World, escort: Vehicle, leader: Vehicle) => stateOf(w, 'escort', escort.id, leader.id);
@@ -376,7 +376,7 @@ describe('hiring a merc', () => {
 
   function onTrip(money: number): { w: World; trader: Vehicle; merc: Vehicle } {
     const w = emptyWorld({ x: 200, y: 200 });
-    const trader = createNpc(w, 'trader', ['trader'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 60, y: 60 });
+    const trader = createNpc(w, 'trader', ['trader'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], { x: 60, y: 60 });
     trader.brain!.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'tripToSite' }];
     trader.resources!.money = money;
     const merc = createNpc(w, 'merc', ['merc'], 'scout', ['mg', 'stockEngine'], { x: 66, y: 60 });

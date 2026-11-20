@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MEMORY } from '../data/npcs';
 import { forgetOld, recall, remember, rememberSightings, sightingOf, subjectOf } from './memory';
 import { noteAttack } from './combat';
+import { addGoods } from './inventory';
 import { yieldTo } from './parley';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { MemoryFact, Vehicle, World } from './types';
@@ -157,7 +158,8 @@ describe('driver memory', () => {
     const loser = driver(w);
     const robber = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
     robber.brain = npcBrain('raider', robber.pos, ['raider']);
-    yieldTo(w, loser, robber, []);
+    addGoods(w, loser, 'scrap', 1);
+    yieldTo(w, loser, robber, loser.items.filter((item) => item.kind === 'good'));
     expect(recall(loser, 'wronged').map((m) => m.fact.by)).toEqual([robber.id]);
   });
 

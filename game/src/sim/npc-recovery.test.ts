@@ -5,13 +5,13 @@ import { REGION } from '../data/region';
 import { planNpcOrders } from './ai';
 import { assignAutoOrders, fireBlock, fireWeapons } from './combat';
 import { vehicleStats } from './stats';
-import { corePart, mountedParts } from './grid';
-import { addGoods } from './inventory';
+import { corePart, coreParts, mountedParts } from './grid';
+import { addGoods, stowPart } from './inventory';
 import { ledPoint, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn } from './tracks';
 import { fightOddsAgainst, judgeDanger, perceiveDanger, usefulContacts } from './npc-decisions';
 import { siteGates } from './sites';
-import { makeVehicle } from './factory';
+import { makePart, makeVehicle } from './factory';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { cloneWorld } from './world';
@@ -374,5 +374,18 @@ describe('NPC gameplay recovery', () => {
       const { npc, target } = stalled(1 + NPC_BEHAVIOR.fightWearShare);
       expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: target.id });
     });
+  });
+});
+
+describe('spare tire on an NPC', () => {
+  it('fits its carried tire to a broken wheel with no parts aboard', () => {
+    const { world, npc } = createScenario('trader');
+    expect(stowPart(world, npc, makePart(world, 'spareTire', 0))).toBe(true);
+    coreParts(npc, 'wheel')[0].hp = 1;
+    npc.brain!.goals.push({ kind: 'repair', targetId: null, destination: null, phase: 'act', reason: 'patchParts' });
+
+    resolveNpcActivities(world);
+
+    expect(npc.job).toMatchObject({ kind: 'fitSpare', wheelId: coreParts(npc, 'wheel')[0].id });
   });
 });

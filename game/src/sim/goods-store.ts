@@ -1,12 +1,12 @@
 import { GOODS } from '../data/goods';
-import { GOODS_STORE, shopDef } from '../data/market';
+import { GOODS_STORE } from '../data/market';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { requireGarage } from './garage';
 import { goodsCount, gridOf, placementError, type Spot } from './grid';
 import { afterRefit, requireIdleRefit } from './inventory';
 import { getLotTradePrice, requireVehicleShop, settleCargoSale } from './economy';
-import { owedCrates, requireShop, requireSpareGoods, shopAt } from './market';
+import { owedCrates, requireShop, requireSpareGoods, requireTraded, shopAt } from './market';
 import { payoutM } from './money';
 import type { GridItem, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
@@ -90,14 +90,10 @@ export function takeStoredGood(world: World, good: string, to: Spot, truckId?: s
   });
 }
 
-export function shopTrades(shopId: string, good: string): boolean {
-  return shopDef(shopId).goods.includes(good);
-}
-
 export function sellStoredGood(world: World, good: string, count: number): World {
   return playerCommand(world, (w) => {
     const shopId = requireShop(w);
-    if (!shopTrades(shopId, good)) throw new Error(`${shopId} does not trade ${good}`);
+    requireTraded(shopId, good);
     const me = playerVehicle(w);
     requireVehicleShop(w, me, shopId);
     takeStored(w, shopId, good, count);

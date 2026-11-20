@@ -1,17 +1,3 @@
-/* A modal takes the screen, so the log only grows while none is open. */
-#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) {
-  top: var(--hud-notice-top);
-  z-index: var(--z-log-open);
-}
-#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) > .right-dock {
-  display: none;
-}
-#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: var(--panel-l);
-  height: auto;
-}
 #ui .recenter {
   padding: 0;
   border: 0;
@@ -190,18 +176,17 @@
 #ui .help {
   position: fixed;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: var(--modal-top);
+  transform: translateX(-50%);
   z-index: var(--z-save);
   box-sizing: border-box;
   display: grid;
   grid-template-columns: auto auto;
   align-items: start;
-  gap: var(--space-7) var(--space-9);
-  max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
-  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
+  gap: var(--space-5) var(--space-9);
+  max-height: calc(var(--layer-h) - var(--modal-top) - var(--hud-inset));
+  width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
-  background: var(--surface-panel);
   font-size: var(--text-dense);
 }
 .help .close {
@@ -213,21 +198,31 @@
 .help-groups {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(4, max-content);
-  gap: var(--space-9);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-7);
 }
 .help-group {
   display: grid;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-content: start;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
+  gap: var(--space-1) var(--space-4);
 }
 .help-title {
   grid-column: 1 / -1;
   margin-bottom: var(--space-2);
-  color: var(--ink-title);
-  font-size: var(--text-body);
+  color: var(--hud-print-coal);
+  font: var(--text-lead) var(--font-engraved);
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+  text-transform: uppercase;
+}
+.help-group,
+.help-does {
+  color: var(--hud-print-coal);
+  font-family: var(--font-engraved);
+  font-size: var(--text-lead);
+  text-shadow: var(--hud-print-coal-edge);
 }
 .help-keys {
   display: flex;
@@ -235,15 +230,18 @@
   gap: var(--space-2);
 }
 .help-on {
-  color: var(--ink-muted);
+  color: var(--hud-print-coal);
+  text-shadow: var(--hud-print-coal-edge);
 }
 .help-notes {
-  color: var(--ink-faint);
-  font-size: var(--text-caption);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-4) var(--space-5);
+  color: var(--hud-amber-soft);
+  font-size: var(--text-dense);
 }
 .info {
   right: var(--space-7);
-  width: var(--dock-width);
   box-sizing: border-box;
   overflow: hidden;
   font-size: var(--text-dense);
@@ -252,45 +250,14 @@
 .info-content {
   display: flex;
   flex-direction: column;
+  gap: var(--space-6);
   height: 100%;
   min-height: 0;
 }
-.info-head {
+.info-facts {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-4);
-}
-.info-name {
-  flex-shrink: 0;
-  white-space: nowrap;
-  font-size: var(--text-lead);
-  color: var(--ink-title);
-}
-.info-head .tag {
-  margin-left: auto;
-}
-.info-actions {
-  flex: 0 0 auto;
-  margin-top: var(--space-2);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--space-3);
-}
-.info-quiet {
-  min-width: 0;
-  color: var(--ink-muted);
-}
-.info-head .info-quiet {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.info-state {
-  margin-top: var(--space-1);
-  color: var(--ink);
 }
 .info-wanted {
   float: right;
@@ -299,17 +266,12 @@
   gap: var(--space-2);
   margin-left: var(--space-4);
 }
-.info-state.info-quiet {
-  min-width: 0;
-  color: var(--ink-muted);
-}
 .info-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 .info-draw {
   flex: 1 1 0;
@@ -343,12 +305,10 @@
 .hc-well {
   flex: 0 0 auto;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-sunk);
-  border-left: var(--space-1) solid var(--line);
+  padding: var(--space-1) 0;
 }
-.hc-well.theirs {
-  border-left-color: var(--danger);
+.hc-well.theirs .hc-cap {
+  color: var(--hud-hot);
 }
 .hc-cap {
   font-size: var(--text-caption);
@@ -381,25 +341,20 @@
   font-size: var(--text-caption);
   line-height: 1.2;
 }
-.hc-row.selected {
-  margin-left: calc(-1 * var(--space-2));
-  padding-left: var(--space-2);
-  border-left: var(--space-1) solid var(--accent);
+.hc-row.selected .hc-gun {
+  color: var(--hud-amber);
+  text-decoration: underline var(--hud-amber);
+  text-underline-offset: var(--space-1);
 }
 .hc-key {
   margin-right: var(--space-2);
-  font: var(--text-caption) var(--font-mono);
+  font: var(--text-caption) var(--font-hud);
   color: var(--ink-muted);
 }
 .hc-pct {
-  font: var(--text-dense) var(--font-mono);
+  font: var(--text-dense) var(--font-hud);
+  font-variant-numeric: tabular-nums;
   text-align: right;
-}
-.hc-pct.mine,
-.hc-pct.theirs {
-  text-decoration: underline dotted var(--ink-faint);
-  text-underline-offset: var(--space-2);
-  cursor: help;
 }
 .hc-pct.mine {
   color: var(--ink);
@@ -408,10 +363,10 @@
   color: var(--ink-bright);
 }
 .hc-pct.theirs {
-  color: var(--danger-ink);
+  color: var(--hud-hot);
 }
 .hc-pct.theirs.high {
-  color: var(--danger-bright);
+  color: var(--hud-hot);
 }
 .hc-pct.zero {
   color: var(--ink-faint);
@@ -432,7 +387,14 @@
   grid-template-columns: 1fr auto;
   column-gap: var(--space-4);
   row-gap: var(--space-1);
-  font: var(--text-dense) var(--font-ui);
+  box-sizing: border-box;
+  isolation: isolate;
+  padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-3) + var(--hud-panel-gap));
+  border: 0;
+  background: none;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
+  color: var(--hud-amber);
+  font: 500 var(--hud-text-m) / 1.25 var(--font-hud);
   text-align: left;
   cursor: default;
 }
@@ -441,17 +403,17 @@
   display: grid;
 }
 .hc-tip .v {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 .hc-tip .base {
   color: var(--ink-muted);
 }
 .hc-tip .up {
-  color: var(--good);
+  color: var(--hud-lamp-green);
 }
 .hc-tip .down {
-  color: var(--danger-ink);
+  color: var(--hud-hot);
 }
 /* One row per part: icon, name, HP and a condition bar under the name. */
 .info-part {
@@ -478,53 +440,25 @@
   left: 50%;
   top: var(--hud-hover-top);
   transform: translateX(-50%);
-  color: var(--accent);
   z-index: var(--z-toast);
 }
 #ui .toast.bad {
-  color: var(--danger-ink);
+  color: var(--hud-hot);
 }
 #ui .action {
   left: 50%;
   top: var(--hud-inset);
   transform: translateX(-50%);
-  padding: 0;
-  border: 0;
 }
 #ui .action:has(.cycle) {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-3);
 }
 .action .count {
   font-size: var(--text-dense);
   white-space: nowrap;
 }
-#ui .rescue {
-  min-width: var(--panel-s);
-  max-width: var(--panel-m);
-  text-align: center;
-}
-#ui .rescue h3 {
-  margin-bottom: var(--space-2);
-}
-#ui .stranded {
-  text-align: center;
-}
-#ui .status-mark {
-  padding: var(--space-2) var(--space-5);
-}
-#ui .stranded h3 {
-  margin-bottom: var(--space-2);
-}
-.rescue .rescue-buttons,
-.stranded .rescue-buttons {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-}
-
 #ui .death {
   position: fixed;
   inset: 0;
@@ -538,10 +472,6 @@
   border: 0;
   box-shadow: none;
 }
-#ui .death h3 {
-  font-size: var(--text-hero);
-  color: var(--danger-ink);
-}
 .save-screen {
   text-align: center;
   max-width: none;
@@ -554,11 +484,22 @@
   right: var(--hud-inset);
   top: var(--hud-inset);
 }
-.death .death-caption {
-  font-size: var(--text-lead);
-  color: var(--ink-muted);
+#ui .death button.hud-key[aria-disabled] {
+  color: var(--hud-amber-faint);
 }
-.death .death-buttons {
-  display: flex;
-  gap: var(--space-5);
+.hc-tip::before {
+  content: "";
+  position: absolute;
+  inset: var(--hud-panel-gap);
+  z-index: var(--z-recess-backing);
+  background: none;
+  border-image: var(--hud-screen-art) var(--hud-screen-slice) / var(--hud-screen-edge) stretch;
+  background: var(--hud-screen-glass);
+  border-radius: var(--hud-screen-radius);
+  box-shadow: var(--hud-screen-shade);
+  pointer-events: none;
+}
+.help-does {
+  min-width: 0;
+  overflow-wrap: break-word;
 }

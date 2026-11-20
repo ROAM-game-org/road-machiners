@@ -14,12 +14,16 @@ import { plainFuelSpeed } from './far';
 import { isStalled, isStranded, plainMaxSpeed, vehicleStats } from './stats';
 import { stopDistance } from './steering';
 import { isShutDown } from './utility';
-import { inCombat } from './combat';
+import { inCombat, inCombatWith } from './combat';
 import { workOf } from './states';
 import { mountedParts } from './grid';
 import { maxHp } from './wear';
+import { NPC_UTILITY } from '../data/npc-behavior';
+import type { UseSituation } from './npc-utility';
+import { sunAt } from './sun';
 import type { MoveOrder, Vehicle, World } from './types';
-import { dist, segmentDist, type Vec } from './vec';
+import { dist, isAhead, segmentDist, type Vec } from './vec';
+import { canVehicleSee } from './vision';
 
 const HAULER = CHAOS_HIGHWAY.hauler;
 const LANES: readonly number[] = HIGHWAY.road.lanes;
@@ -290,6 +294,22 @@ export function planHaulerOrder(world: World): void {
   const hauler = haulerOf(world);
   hauler.order = recoveryOrder(world, hauler) ?? laneOrder(world, hauler);
   hauler.direct = false;
+}
+
+export function situationOfHauler(world: World, hauler: Vehicle): UseSituation {
+  const fighting = inCombat(world, hauler);
+  const attackers = fighting ? seenAttackersOf(world, hauler) : [];
+  return { fleeing: fighting, attackers, ramming: fighting, flareSpot: sunAt(world.turn) || !attackers.length ? null : { ...attackers[0].pos }, holdDrops: gunTruckBehind(world, hauler) };
+}
+
+function seenAttackersOf(world: World, hauler: Vehicle): Vehicle[] {
+  const seen = world.vehicles.filter((x) => x.id !== hauler.id && inCombatWith(world, hauler, x) && canVehicleSee(world, hauler, x.pos));
+  return seen.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos));
+}
+
+function gunTruckBehind(world: World, hauler: Vehicle): boolean {
+  const gunTruck = playerVehicle(world);
+  return dist(hauler.pos, gunTruck.pos) <= NPC_UTILITY.dropReach && !isAhead(hauler.pos, hauler.heading, gunTruck.pos);
 }
 
 function hurtsHauler(world: World, hauler: Vehicle): boolean {

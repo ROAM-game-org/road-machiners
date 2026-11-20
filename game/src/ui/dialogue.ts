@@ -1,7 +1,6 @@
 
 import type { LineId } from '../data/dialogue';
 import { HIRE } from '../data/npc-behavior';
-import { paintOf } from '../render/palette';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { isKnockedOut } from '../sim/defeat';
 import { callVehicle, chooseOption, currentOptions, hangUp, honk } from '../sim/dialogue';
@@ -9,7 +8,7 @@ import type { CallVar, CallVars, GameEvent, World } from '../sim/types';
 import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
-import { byId, list, t, type Msg } from '../text/msg';
+import { byId, list, num, t, type Msg } from '../text/msg';
 import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
@@ -163,7 +162,7 @@ class Horn {
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 export class DialoguePanel {
-  private readonly root = panel('dialogue notice', topCenter());
+  private readonly root = panel('dialogue notice hud-panel', topCenter());
   private readonly horn: Horn;
   private drawn = '';
 
@@ -186,15 +185,14 @@ export class DialoguePanel {
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
-    this.root.style.borderLeftColor = `#${paintOf(npc, w.player.paint).body.toString(16).padStart(6, '0')}`;
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) => {
       const short = o.short ? t('trade.needMore', { price: moneyMsg(o.short) }) : null;
-      return el('button', { class: o.seen ? 'dialogue-option seen' : 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
+      return el('button', { class: o.seen ? 'screen-line dialogue-option seen' : 'screen-line dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, el('span', { class: 'option-key' }, num(i + 1, 'int')), el('span', { class: 'option-line' }, lineText(o.line, call.vars)));
     });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
-    line.classList.add('dialogue-line');
-    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, vehicleTitle(w, npc)), line, el('div', { class: 'dialogue-options' }, ...options));
+    line.classList.add('dialogue-line', 'screen-block');
+    this.root.replaceChildren(el('div', { class: 'hud-panel-head' }, el('h3', { class: 'tape' }, vehicleTitle(w, npc))), line, el('div', { class: 'dialogue-options screen-block' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

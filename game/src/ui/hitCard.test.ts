@@ -249,7 +249,7 @@ describe("the rendered hover card", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  function render(world: World, id: string, selected: string | null): Node_ {
+  function render(world: World, id: string, selected: readonly string[]): Node_ {
     const host = new Node_("div");
     new HitCard(host as unknown as HTMLElement).render(world, id, selected);
     return host.children[0];
@@ -259,15 +259,15 @@ describe("the rendered hover card", () => {
     const world = emptyWorld();
     const bare = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 33, y: 30 }, Math.PI / 2);
     refreshVision(world);
-    const wells = render(world, bare.id, null).find("hc-well");
+    const wells = render(world, bare.id, []).find("hc-well");
     expect(wells[1].find("hc-none")[0]?.textContent).toBe("No weapons");
   });
 
-  it("keeps its box while hidden and drops it only when empty", () => {
+  it("keeps its box while hidden and while empty", () => {
     const { world, them } = createDuel();
     const host = new Node_("div");
     const card = new HitCard(host as unknown as HTMLElement);
-    card.render(world, them.id, null);
+    card.render(world, them.id, []);
     const root = host.children[0];
     card.show();
     card.hide();
@@ -275,21 +275,22 @@ describe("the rendered hover card", () => {
     expect(root.style.display).not.toBe("none");
     card.show();
     expect(root.style.visibility).toBe("");
-    card.render(world, null, null);
-    expect(root.style.display).toBe("none");
+    card.render(world, null, []);
+    expect(root.children).toHaveLength(0);
+    expect(root.style.display).not.toBe("none");
   });
 
   it("marks only the selected gun of mine", () => {
     const { world, them, mine } = createDuel();
-    expect(render(world, them.id, mine.part.id).find("selected")).toHaveLength(1);
-    expect(render(world, them.id, null).find("selected")).toHaveLength(0);
+    expect(render(world, them.id, [mine.part.id]).find("selected")).toHaveLength(1);
+    expect(render(world, them.id, []).find("selected")).toHaveLength(0);
   });
 
   it("prints a reason every blocked row shares once", () => {
     const { world, me, them } = createDuel();
     if (!mountPart(world, me, makePart(world, 'mg', 0))) throw new Error('No deck room for a second gun');
     me.shutDown = { from: world.turn, until: world.turn + 1 };
-    const wells = render(world, them.id, null).find("hc-well");
+    const wells = render(world, them.id, []).find("hc-well");
     const reasons = wells[0].find("hc-reason");
     expect(vehicleStats(world, me).weapons.length).toBeGreaterThan(1);
     expect(reasons.map((r) => r.textContent)).toEqual(["shut down"]);

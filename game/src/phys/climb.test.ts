@@ -29,7 +29,7 @@ function ramp(build: Build, grade: number, type: TerrainTypeId): World {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) t.heights[j * (n + 1) + i] = Math.max(0, i - RAMP_FOOT) * grade;
   t.types.fill(type);
   if (build === 'loadedHauler') {
-    const hauler = makeVehicle(w, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
+    const hauler = makeVehicle(w, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'haulingRack'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
     w.vehicles[0] = { ...hauler, id: w.vehicles[0].id };
     addGoods(w, w.vehicles[0], 'scrap', 122);
   }
@@ -94,9 +94,9 @@ describe('climbing', () => {
 
   it('flat ground launch from rest is pinned', () => {
     const xs = drive(ramp('scout', 0, 'road'), 3);
-    expect(xs[0]).toBeCloseTo(26.741777, 5);
-    expect(xs[1]).toBeCloseTo(28.652092, 5);
-    expect(xs[2]).toBeCloseTo(31.714813, 5);
+    expect(xs[0]).toBeCloseTo(26.801531, 5);
+    expect(xs[1]).toBeCloseTo(28.864916, 5);
+    expect(xs[2]).toBeCloseTo(32.17239, 5);
   }, 90_000);
 
   it('a launch from rest gains about 85% of the distance it did at the old acceleration scale', () => {

@@ -1,9 +1,9 @@
 import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
-import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, GUN_SPOT_PICKS, MIN_NPC_SPEED, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
-import { gunSpans, openArcShares, spanSides, type Side } from './armor';
+import { gunLayoutKey, gunSpans, openArcShares, spanSides, type Side } from './armor';
 import { gunsBySide } from './fight-odds';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
@@ -119,9 +119,11 @@ function validatePriorities(p: LoadoutPriorities): void {
   if (!(p.armor + p.firepower > 0)) throw new Error('Loadout priorities need firepower or armor above 0 for the driver to judge a fight');
 }
 
+const SPEED_BOUND_PARTS = new Set(['gunBattery']);
+
 function rollWear(world: World, rng: Rng, level: Level, v: Vehicle): void {
   for (const item of v.items) {
-    if (item.kind !== 'part' || ['core', 'engine'].includes(partDef(item.part.defId).kind)) continue;
+    if (item.kind !== 'part' || ['core', 'engine'].includes(partDef(item.part.defId).kind) || SPEED_BOUND_PARTS.has(item.part.defId)) continue;
     item.part = makePart(world, item.part.defId, wearOf(rng, level));
   }
 }
@@ -234,18 +236,18 @@ type RankedSpot = { spot: Spot; sides: Side[] };
 const GUN_SPOTS = new Map<string, RankedSpot[]>();
 
 function rankedGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
-  const key = `${v.chassisId}|${JSON.stringify(partDef(item.part.defId))}`;
+  const key = `${JSON.stringify(partDef(item.part.defId))}|${gunLayoutKey(v)}`;
   let spots = GUN_SPOTS.get(key);
   if (!spots) GUN_SPOTS.set(key, (spots = rankGunSpots(v, item)));
   return spots;
 }
 
 function rankGunSpots(v: Vehicle, item: PartItem): RankedSpot[] {
-  const core = { ...v, items: v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core') };
+  const core = { ...v, items: v.items.filter((it) => it.kind === 'part' && (partDef(it.part.defId).kind === 'core' || partDef(it.part.defId).tall)) };
   const rank = (spot: Spot) => {
     const gun = { ...item, ...spot };
     const bare = { ...core, items: [...core.items, gun] };
-    return { spot, sides: spanSides(gunSpans(bare, gun)), share: openArcShares(bare)[0] };
+    return { spot, sides: spanSides(gunSpans(bare, gun)), share: Math.min(...openArcShares(bare)) };
   };
   return alongSpots(mountSpots(gridOf(core), core.items, item, MOUNT_CELLS.weapon)).map(rank).sort((a, c) => c.share - a.share).map(({ spot, sides }) => ({ spot, sides }));
 }
@@ -518,7 +520,7 @@ function chooseCargo(world: World, rng: Rng, wearRng: Rng, table: NpcLoadoutTabl
     if (added > 0) carried[good] = (carried[good] ?? 0) + added;
   };
   const stockMassLeft = () => Math.max(0, massLeft() - CRATE_MASS);
-  addGood('parts', Math.min(NPC_UPKEEP.repairParts, Math.floor(stockMassLeft() / CRATE_MASS), cellsLeft()));
+  addGood('parts', Math.min(table.repairParts, Math.floor(stockMassLeft() / CRATE_MASS), cellsLeft()));
   const cargo = chooseGoods(rng, table, level, { cells: cellsLeft(), mass: massLeft() });
   if (cargo) addGood(cargo.good, cargo.count);
   return { spares: addSpareParts(world, wearRng, table, level, load, { mass: stockMassLeft, cells: cellsLeft }, rules), carried };

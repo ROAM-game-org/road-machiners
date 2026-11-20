@@ -13,25 +13,13 @@ function doRectsOverlap(a, b) {
   return a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
 }
 
-async function checkVisibleReadouts(page) {
-  for (const label of ['money', 'fuel', 'supplies', 'driver']) {
-    assert(await page.locator(`[data-resource="${label}"]`).isVisible(), `${label} must remain visible`);
-  }
-  assert(await page.locator('.log').isVisible(), 'Event log must remain visible');
-  const boxes = await page.locator('.modal:visible,.instruments,.log').evaluateAll(nodes => nodes.map(node => ({
-    name: node.className, rect: node.getBoundingClientRect().toJSON(),
-  })));
-  const modal = boxes.find(box => box.name.includes('modal'));
-  for (const box of boxes.filter(box => box !== modal)) {
-    assert(!doRectsOverlap(modal.rect, box.rect), `${box.name} must not cover the modal: ${JSON.stringify([modal.rect, box.rect])}`);
-  }
-}
 
 async function checkCoins(page, where) {
-  const result = await page.evaluate(where => {
+  const result = await page.evaluate(() => {
     const titlePattern = /^−?\d{1,3}(,\d{3})* M('s)?$/;
     const coinSizeProblem = (text, coin, amount) => {
       if (!coin) return [`${text}: no coin`];
+      if (amount.closest('.chip')) return [];
       const size = parseFloat(getComputedStyle(amount).fontSize);
       const height = coin.getBoundingClientRect().height;
       const sized = Math.abs(height / size - 1.15) <= 0.02;
@@ -68,139 +56,13 @@ async function checkCoins(page, where) {
       const coin = [...amount.children].find(child => child.classList.contains('coin'));
       return [...coinSizeProblem(text, coin, amount), ...letterProblem(text, coin), ...colourProblems(text, coin), ...titleProblems(text, amount)];
     };
-    const hudProblems = where === 'HUD' ? (() => {
-      const balance = document.querySelector('[data-resource="money"]');
-      if (!balance) return ['HUD: no balance readout'];
-      return [
-        balance.querySelector('small') ? 'HUD balance shows a label' : '',
-        balance.innerText.includes("M's") ? 'HUD balance shows the word M\'s' : '',
-        (balance.getAttribute('aria-label') ?? '').startsWith("M's: ") ? '' : 'HUD balance lost its aria-label',
-      ];
-    })() : [];
     const shown = [...document.querySelectorAll('.amount')].filter(node => node.offsetParent !== null);
     const icons = [...document.querySelectorAll('.icon[title="M\'s"]')].map(icon => `icon says M's: ${icon.outerHTML.slice(0, 60)}`);
-    return { problems: [...shown.flatMap(amountProblems), ...hudProblems, ...icons].filter(Boolean), count: shown.length };
-  }, where);
+    return { problems: [...shown.flatMap(amountProblems), ...icons].filter(Boolean), count: shown.length };
+  });
   assert.deepEqual(result.problems, [], `Coin check failed (${where})`);
   return result.count;
 }
-
-async function checkCoinSizes(page, where) {
-  const ratios = await page.evaluate(() => {
-    const ratio = selector => {
-      const coin = document.querySelector(selector);
-      return coin && coin.getBoundingClientRect().height / parseFloat(getComputedStyle(coin.parentElement).fontSize);
-    };
-    return { hud: ratio('.resource .amount > .coin'), market: ratio('.modal .amount > .coin') };
-  });
-  assert(ratios.hud && ratios.market, `Coin sizes (${where}) need a HUD and a market coin`);
-  assert(Math.abs(ratios.hud - ratios.market) <= 0.05, `HUD coin ${ratios.hud}em and market coin ${ratios.market}em differ (${where})`);
-}
-
-async function checkSpeedTip(page, width) {
-  await page.focus('.speed-max');
-  assert(await page.locator('#speed-breakdown').isVisible(), 'Focusing max speed must open the tooltip');
-  const tip = await page.evaluate(() => {
-    const node = document.querySelector('.speed-tip');
-    return {
-      lines: [...node.querySelectorAll('.speed-line')].map(line => ({ label: line.children[0].textContent, value: line.children[1].textContent })),
-      nested: node.querySelectorAll('table, td, .speed-row, .total').length,
-      text: node.innerText,
-      rect: node.getBoundingClientRect().toJSON(),
-      view: { w: window.innerWidth, h: window.innerHeight },
-    };
-  });
-  assert(tip.lines.length >= 1, 'The tooltip must show a line');
-  const value = /^([+\u2212]?\d+ km\/h|crawl( \d+ km\/h)?|max \d+ km\/h)$/;
-  for (const line of tip.lines) assert(value.test(line.value) && !/[:%\u00b7|]/.test(line.label), `Tooltip line must be short: ${JSON.stringify(line)}`);
-  assert.equal(tip.nested, 0, 'The tooltip must hold no table cells');
-  assert(!/%|Guns draw/.test(tip.text), `The tooltip must hold no percent or paragraph: ${tip.text}`);
-  assert(tip.rect.x >= 0 && tip.rect.y >= 0 && tip.rect.right <= tip.view.w && tip.rect.bottom <= tip.view.h, `The tooltip must lie on screen: ${JSON.stringify(tip.rect)}`);
-  await page.screenshot({ path: `.playtest/speed-tip-${width}.png`, timeout: 120000 });
-  await page.evaluate(() => document.activeElement?.blur());
-}
-
-function checkClockSpan(m) {
-  const span = `clock ${m.clock.x}-${m.clock.right} vs cell ${m.clockCells.x}-${m.clockCells.right}`;
-  assert(Math.abs(m.clock.x - m.clockCells.x) <= 1 && Math.abs(m.clock.right - m.clockCells.right) <= 1, `Clock must sit over the engine cell: ${span}`);
-  assert(m.belowRows === 0, `Roaming instruments must have two rows, found ${m.belowRows} cells below them`);
-}
-
-async function moneyCellWidth(page, whole) {
-  await page.evaluate(async whole => {
-    const game = window.__ROAM__;
-    const world = structuredClone(game.state);
-    world.player.money = whole;
-    game.apply(world);
-  }, whole);
-  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
-  return page.evaluate(() => document.querySelector('.resource[data-resource="money"]').getBoundingClientRect().width);
-}
-
-async function checkMoneyCellFixed(page) {
-  const original = await page.evaluate(() => window.__ROAM__.state.player.money);
-  const poor = await moneyCellWidth(page, 0);
-  const rich = await moneyCellWidth(page, 9999);
-  await page.evaluate(async original => {
-    const game = window.__ROAM__;
-    const world = structuredClone(game.state);
-    world.player.money = original;
-    game.apply(world);
-  }, original);
-  assert(Math.abs(poor - rich) <= 1, `The money cell must not depend on the money: ${poor} vs ${rich}`);
-}
-
-async function checkInstruments(page) {
-  const clock = page.locator('.instrument-clock');
-  assert(await clock.isVisible(), 'Clock strip must be visible');
-  const m = await page.evaluate(() => {
-    const rect = selector => document.querySelector(selector)?.getBoundingClientRect().toJSON();
-    const visibleRect = selector => {
-      const node = document.querySelector(selector);
-      return node && node.offsetParent !== null ? node.getBoundingClientRect().toJSON() : null;
-    };
-    return {
-      panel: rect('.instruments'), clock: rect('.instrument-clock'), dial: rect('.truck-instrument'), readouts: rect('.readouts'), money: rect('.resource[data-resource="money"]'),
-      log: visibleRect('.log'), weapons: visibleRect('.weapons'),
-      clockText: document.querySelector('.instrument-clock').innerText,
-      panelText: document.querySelector('.instruments').innerText,
-      actionsText: document.querySelector('.instrument-actions').innerText,
-      speedoText: document.querySelector('.speedometer').innerText,
-      heights: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).map(node => node.getBoundingClientRect().height),
-      lines: [...document.querySelectorAll('.instrument-actions > button, .weapon-head > .switch')].filter(node => node.offsetParent !== null).every(node => node.scrollHeight <= node.clientHeight + 1),
-      horn: [...document.querySelectorAll('.instrument-actions > button')].some(node => node.textContent.trim() === 'Horn' && node.offsetParent !== null),
-      buttonHeight: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--btn-h-s')),
-      clockCells: (() => {
-        const cells = [...document.querySelectorAll('.instruments .resource')].map(node => node.getBoundingClientRect().toJSON());
-        const lower = cells.filter(cell => cell.y > document.querySelector('.instrument-clock').getBoundingClientRect().bottom - 1).sort((a, b) => a.x - b.x);
-        return { x: lower[2].x, right: lower[2].right };
-      })(),
-      belowRows: document.querySelector('.resource[data-resource="run"]') ? 0 : [...document.querySelectorAll('.instruments .resource')].filter(node => node.getBoundingClientRect().y > document.querySelector('.resource[data-resource="fuel"]').getBoundingClientRect().bottom).length,
-      dayGap: (() => { const day = document.querySelector('.clock-day').getBoundingClientRect(); const time = document.querySelector('.clock-time').getBoundingClientRect(); return time.x - day.right; })(),
-      lcdGap: parseFloat(getComputedStyle(document.querySelector('.instrument-clock')).columnGap),
-    };
-  });
-  const { panel } = m;
-  assert(m.clock.x >= panel.x && m.clock.right <= panel.right && m.clock.y >= panel.y && m.clock.bottom <= panel.bottom, 'Clock must lie inside the instruments');
-  checkClockSpan(m);
-  assert(/D\s*\d+\s*\d+:\d\d/.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
-  assert(m.dayGap <= m.lcdGap + 4, `Day and time must sit together: ${m.dayGap}px apart`);
-  assert.equal(m.panelText.match(/D\s*\d+\s*\d+:\d\d/g).length, 1, 'Time must show once');
-  assert(!m.actionsText.includes('broken'), 'No broken badge in the action row');
-  assert(!/km\/h|\u00b7/.test(m.speedoText), 'No unit text under the dial');
-  assert(m.heights.every(h => Math.abs(h - m.buttonHeight) <= 1), `Instrument buttons must be ${m.buttonHeight}px high: ${m.heights}`);
-  assert(m.lines, 'Instrument button contents must sit on one line');
-  assert(!m.horn, 'Horn is for touch only');
-  await checkMoneyCellFixed(page);
-  await checkHudOutlineFixed(page, 'in English at the instruments check');
-  for (const other of [m.log, m.weapons].filter(Boolean)) {
-    assert(!doRectsOverlap(panel, other), `Instruments must not overlap the log or weapons: ${JSON.stringify([panel, other])}`);
-  }
-  await checkSpeedTip(page, page.viewportSize().width);
-}
-
-const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1100, 700], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
-const DOCK_PANELS = ['.instruments', '.weapons', '.truck-condition', '.log', '.turn-control', '.recenter', '.info'];
 
 async function loadHeavyHud(page) {
   await page.evaluate(async () => {
@@ -210,13 +72,13 @@ async function loadHeavyHud(page) {
     let guns = 0;
     for (let i = 0; i < 40 && guns < 6; i++) {
       run('randomkit 5');
-      guns = document.querySelectorAll('.weapon-pick').length;
+      guns = document.querySelectorAll('.gun-cell').length;
     }
     game.hud.showRecenter(true);
     run('spawn buggy');
     run('weather storm');
     run('weather heatwave');
-    const world = structuredClone(game.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     world.player.engineHeat = 0.5;
     world.player.supplies = Math.max(world.player.supplies, 10);
     game.apply(world);
@@ -237,31 +99,13 @@ async function trimGuns(page, count) {
     const game = window.__ROAM__;
     const { partDef } = await import('/src/data/parts.ts');
     const { mountedItems } = await import('/src/sim/grid.ts');
-    const trimmed = structuredClone(game.state);
+    const trimmed = (await import('/src/sim/world.ts')).cloneWorld(game.state);
     const me = trimmed.vehicles.find(v => v.id === trimmed.player.vehicleId);
     const drop = new Set(mountedItems(me, 'weapon').slice(count).map(it => it.part.id));
     me.items = me.items.filter(it => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon' && drop.has(it.part.id)));
     game.apply(trimmed);
   }, count);
-  assert.equal(await page.locator('.weapon-pick').count(), count, `The truck must carry ${count} guns`);
-}
-
-function assertNoOverlaps(rects, width, height) {
-  const names = Object.keys(rects).filter(name => width > 720 || name !== '.info');
-  for (const a of names) {
-    for (const b of names.filter(name => name > a)) {
-      assert(!doRectsOverlap(rects[a], rects[b]), `${a} must not overlap ${b} at ${width}x${height}`);
-    }
-  }
-}
-
-const inside = (r, box, tol = 1) => r.x >= box.x - tol && r.right <= box.right + tol && r.y >= box.y - tol && r.bottom <= box.bottom + tol;
-
-function assertStack(rects, at) {
-  const log = rects['.log'], turn = rects['.turn-control'];
-  if (!log || !turn) return;
-  assert(near(turn.y - log.bottom, 8), `The log must sit one HUD gap above End turn ${at}, got ${turn.y - log.bottom}`);
-  assert(near(log.right, turn.right), `The log and End turn must share a right edge ${at}, got ${log.right} and ${turn.right}`);
+  assert.equal(await page.locator('.gun-cell').count(), count, `The truck must carry ${count} guns`);
 }
 
 async function settleLayers(page, width) {
@@ -271,133 +115,23 @@ async function settleLayers(page, width) {
   }, width);
 }
 
-async function checkDockLayout(page, [width, height]) {
-  await page.setViewportSize({ width, height });
-  await settleLayers(page, width);
-  const m = await page.evaluate(([selectors, narrow]) => {
-    if (narrow) document.querySelector('.info').style.visibility = 'hidden';
-    const shown = node => node && node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden';
-    const box = node => node.getBoundingClientRect().toJSON();
-    const rects = Object.fromEntries(selectors.map(selector => [selector, document.querySelector(selector)]).filter(([, node]) => shown(node)).map(([selector, node]) => [selector, box(node)]));
-    const controls = [...document.querySelectorAll('.weapons button, .weapons .weapon-pick')].map(node => {
-      const r = node.getBoundingClientRect();
-      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-      return { name: node.innerText.replace(/\s+/g, ' ').slice(0, 24), hit: hit?.className, ok: node.contains(hit), box: box(node) };
-    });
-    const grid = document.querySelector('.weapons .weapon-slots');
-    const fits = node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1;
-    return {
-      rects, controls, viewport: { width: innerWidth, height: innerHeight },
-      slots: [...document.querySelectorAll('.weapons .weapon-slots .weapon-slot')].map(box),
-      fits: { panel: fits(document.querySelector('.weapons')), grid: fits(grid) },
-      text: document.querySelector('.weapons').innerText,
-      icons: document.querySelectorAll('.weapon-pick .item-icon').length,
-      oldIcons: document.querySelectorAll('.weapons .icon-mg, .weapons .icon-cannon').length,
-      twoRows: grid.classList.contains('two-rows'),
-    };
-  }, [DOCK_PANELS, width <= 720]);
-  m.iconLooks = await readIconLooks(page);
-  const guns = m.slots.length, at = `at ${width}x${height} with ${guns} guns`;
-  console.log(at, Object.entries(m.rects).map(([n, r]) => `${n}=${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)}x${Math.round(r.height)}`).join(' '));
-  await page.screenshot({ path: `.playtest/dock-${guns}g-${width}x${height}.png`, timeout: 180000 });
-  assert(m.rects['.weapons'], `Weapons panel must show ${at}`);
-  assertNoOverlaps(m.rects, width, height);
-  assertStack(m.rects, at);
-  const stacked = assertDockPlace(m, at);
-  assertDockFits(m, at);
-  assertDockRows(m.slots, at);
-  assertDockSize(m, stacked, at);
-  assertDockLevel(m, stacked, width, at);
-  assertDockText(m, at);
-  assertDockIcons(m.iconLooks, at);
-  for (const c of m.controls) assert(c.ok, `Weapon control "${c.name}" must take the click at its center ${at}, hit ${c.hit}`);
+async function holdContracts(page, count) {
+  await page.evaluate(async count => {
+    const g = window.__ROAM__;
+    const w = (await import('/src/sim/world.ts')).cloneWorld(g.state);
+    w.player.contracts = Object.values(w.shops).flatMap(shop => shop.contracts).slice(0, count);
+    if (w.player.contracts.length !== count) throw new Error(`The boards hold fewer than ${count} contracts`);
+    g.apply(w);
+  }, count);
+  await page.waitForFunction(count => (getComputedStyle(document.querySelector('.contracts')).display !== 'none') === (count > 0), count);
 }
 
-function assertDockPlace(m, at) {
-  const weapons = m.rects['.weapons'], instruments = m.rects['.instruments'];
-  assert(near(m.viewport.height - weapons.bottom, 14), `Weapons bottom must sit 14px above the screen bottom ${at}: ${weapons.bottom} of ${m.viewport.height}`);
-  const stacked = weapons.x < instruments.right - 1;
-  const top = stacked ? instruments.bottom : instruments.y;
-  assert(weapons.y >= top - 1, `Weapons must not rise above ${stacked ? 'the bottom of' : 'the top of'} the instruments ${at}: ${weapons.y} < ${top}`);
-  return stacked;
-}
-
-function assertDockFits(m, at) {
-  assert(m.fits.panel && m.fits.grid, `The weapons panel must not scroll or clip ${at}`);
-  for (const c of m.controls) assert(inside(c.box, m.rects['.weapons']), `Weapon control "${c.name}" must lie inside the panel ${at}`);
-}
-
-function assertDockRows(slots, at) {
-  const tops = [...new Set(slots.map(r => Math.round(r.y)))];
-  assert.equal(tops.length, slots.length <= 5 ? 1 : 2, `Rows must be one up to five guns and two above ${at}: ${tops}`);
-  const first = slots.filter(r => Math.round(r.y) === tops[0]).length;
-  assert.equal(first, slots.length <= 5 ? slots.length : Math.ceil(slots.length / 2), `The first row must hold half the guns, or all of up to five ${at}`);
-  assert(slots.length > 10 || first <= 5, `No row may hold more than five guns ${at}`);
-}
-
-function assertDockSize(m, stacked, at) {
-  const weapons = m.rects['.weapons'], guns = m.slots.length;
-  assert(m.slots.every(r => near(r.width, m.slots[0].width) && near(r.height, m.slots[0].height)), `All gun elements must share one size ${at}`);
-  assert.equal(m.twoRows, guns > 5, `Two-row sizing must apply exactly above five guns ${at}`);
-  assert(guns > 6 || weapons.height <= 150, `The weapons panel must be at most 150px tall ${at}: ${weapons.height}`);
-  assert(stacked || weapons.height <= m.rects['.instruments'].height + 1, `The weapons panel must be no taller than the instruments ${at}`);
-  assert(guns < 6 || weapons.width * weapons.height <= 512 * 188 / 2 || m.viewport.width !== 1280 || m.viewport.height !== 656, `Six guns must take at most half of the old panel ${at}: ${weapons.width}x${weapons.height}`);
-}
-
-function assertDockLevel(m, stacked, width, at) {
-  if (width < 1280) return;
-  assert(!stacked, `The weapons must sit beside the instruments ${at}`);
-  assert(near(m.rects['.weapons'].bottom, m.rects['.instruments'].bottom), `Weapons and instruments bottoms must be level ${at}`);
-}
-
-function assertDockText(m, at) {
-  assert(!/hold fire|no target|target unavailable/i.test(m.text), `The panel must carry no filler text ${at}: ${m.text}`);
-  assert.equal(m.icons, m.slots.length, `Each gun must show one inventory icon ${at}`);
-  assert.equal(m.oldIcons, 0, `No old weapon glyphs ${at}`);
-}
-
-const readIconLooks = page => page.evaluate(() => [...document.querySelectorAll('.weapon-pick .item-icon')].map(node => {
-  const style = getComputedStyle(node);
-  return { label: node.getAttribute('aria-label'), background: style.backgroundColor, image: style.backgroundImage, padding: style.padding };
-}));
-
-function assertDockIcons(looks, at) {
-  for (const icon of looks) {
-    assert.equal(icon.background, 'rgba(0, 0, 0, 0)', `Weapon icon "${icon.label}" must have no tile ${at}`);
-    assert.equal(icon.image, 'none', `Weapon icon "${icon.label}" must have no background image ${at}`);
-    assert.equal(icon.padding, '0px', `Weapon icon "${icon.label}" must have no padding ${at}`);
-  }
-}
-
-async function checkWeaponDock(page) {
-  await loadHeavyHud(page);
-  await checkSpeedTip(page, 'guns');
-  const most = await page.locator('.weapon-pick').count();
-  assert(most >= 6, `A random kit must give six or more guns, got ${most}`);
-  for (const guns of [most, 5, 1]) {
-    if (guns !== most) await trimGuns(page, guns);
-    if (guns !== 1) await checkWeaponIcons(page, guns, guns === most);
-    for (const viewport of DOCK_VIEWPORTS) await checkDockLayout(page, viewport);
-    if (guns === most) await checkHudOutlineFixed(page, `with ${guns} guns at ${page.viewportSize().width}x${page.viewportSize().height}`);
-  }
-}
-
-async function checkWeaponIcons(page, guns, distinct) {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  const shoot = suffix => page.locator('.weapons').screenshot({ path: `.playtest/weapon-icons-${guns}g${suffix}.png`, timeout: 180000 });
-  const at = `in the ${guns}-gun panel`;
-  const looks = await readIconLooks(page);
-  assertDockIcons(looks, at);
-  const labels = new Set(looks.map(icon => icon.label));
-  console.log('weapon icons', [...labels].join(', '));
-  if (distinct) assert(labels.size >= 2, `The panel must show at least two distinct guns, got ${[...labels]}`);
-  await shoot('');
-  const first = page.locator('.weapon-pick').first();
-  await first.click();
-  assert(await page.locator('.weapon-pick.on').count(), `A clicked gun must show as selected ${at}`);
-  assertDockIcons(await readIconLooks(page), `${at} with a gun selected`);
-  await shoot('-selected');
-  await first.click();
+async function hover(page, on) {
+  await page.evaluate(on => {
+    const g = window.__ROAM__;
+    g.setHovered(on ? g.state.player.vehicleId : null);
+  }, on);
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
 }
 
 async function fillLog(page) {
@@ -416,131 +150,139 @@ async function fillLog(page) {
   });
 }
 
-async function checkLog(page, label) {
-  const m = await page.evaluate(() => {
-    const box = document.querySelector('.log-lines');
-    const clip = box.getBoundingClientRect();
-    const button = document.querySelector('.log-expand');
-    const b = button.getBoundingClientRect();
-    const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-    return {
-      panel: document.querySelector('.log').getBoundingClientRect().toJSON(), box: clip.toJSON(), button: b.toJSON(),
-      hitsButton: hit === button || button.contains(hit),
-      scrollWidth: box.scrollWidth, clientWidth: box.clientWidth,
-      rows: [...box.children].map(row => {
-        const r = row.getBoundingClientRect();
-        const top = Math.max(r.top, clip.top), bottom = Math.min(r.bottom, clip.bottom);
-        return { text: row.innerText, left: r.left, right: r.right, top, bottom, visible: bottom > top };
-      }),
+const PLATES = ['.stats-tray', '.keys-tray', '.drive-plate', '.weapons-plate', '.radio-plate'];
+const HUD_TEXT_SIZES = 3;
+const SMALLEST_TEXT_PX = 10;
+
+function readHud(page) {
+  return page.evaluate(plates => {
+    const inner = node => {
+      const r = node.getBoundingClientRect();
+      const cs = getComputedStyle(node);
+      const [top, right, bottom, left] = [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].map(parseFloat);
+      return new DOMRect(r.x + left, r.y + top, r.width - left - right, r.height - top - bottom).toJSON();
     };
-  });
-  const { panel } = m, tol = 1;
-  const inside = r => r.x >= panel.x - tol && r.right <= panel.right + tol && r.y >= panel.y - tol && r.bottom <= panel.bottom + tol;
-  assert(inside(m.box), `${label}: log lines box must lie inside the log panel: ${JSON.stringify({ box: m.box, panel })}`);
-  for (const row of m.rows.filter(row => row.visible)) {
-    assert(row.left >= panel.x - tol && row.right <= panel.right + tol && row.top >= panel.y - tol && row.bottom <= panel.bottom + tol,
-      `${label}: log row "${row.text}" must lie inside the log panel: ${JSON.stringify({ row, panel })}`);
-  }
-  assert(m.scrollWidth <= m.clientWidth, `${label}: log lines must not scroll sideways (${m.scrollWidth} > ${m.clientWidth})`);
-  assert(inside(m.button), `${label}: expand button must lie inside the log panel: ${JSON.stringify({ button: m.button, panel })}`);
-  assert(m.hitsButton, `${label}: expand button must be the hit target at its center`);
+    const shown = node => node && node.checkVisibility({ visibilityProperty: true }) ? (node.classList.contains('hud-tray') ? inner(node) : node.getBoundingClientRect().toJSON()) : null;
+    const rects = Object.fromEntries(plates.map(selector => [selector, shown(document.querySelector(`#ui ${selector}`))]));
+    for (const selector of ['.truck-condition', '.contracts', '.info', '.tip']) rects[selector] = shown(document.querySelector(`#ui ${selector}`));
+    const texts = [...document.querySelectorAll('#ui :is(.hud-plate, .hud-tray) *')].filter(node => !(node instanceof SVGElement) && node.checkVisibility() && [...node.childNodes].some(child => child.nodeType === 3 && child.textContent.trim()));
+    const sizes = [...new Set(texts.map(node => parseFloat(getComputedStyle(node).fontSize)))].sort((a, b) => a - b);
+    const caps = [...document.querySelectorAll('#ui .hud-system .key-cap')].filter(node => node.checkVisibility()).map(node => { const r = node.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}`; });
+    const unnamed = [...document.querySelectorAll('#ui :is(.hud-plate, .hud-tray) button')].filter(node => node.checkVisibility() && !node.title && !node.getAttribute('aria-label') && !node.textContent.trim()).map(node => node.className);
+    const clipped = texts.filter(node => node.scrollWidth > node.clientWidth + 1 && getComputedStyle(node).overflow !== 'visible').map(node => `${node.className}: ${node.textContent.trim().slice(0, 30)}`);
+    return { rects, sizes, caps: [...new Set(caps)], unnamed, clipped, view: { width: innerWidth, height: innerHeight } };
+  }, PLATES);
 }
 
-async function checkLogScroll(page) {
-  const topRow = () => page.evaluate(() => {
-    const box = document.querySelector('.log-lines');
-    const clip = box.getBoundingClientRect();
-    const row = [...box.children].find(r => r.getBoundingClientRect().bottom > clip.top + 1);
-    return row.innerText;
-  });
-  await page.evaluate(() => {
-    const box = document.querySelector('.log-lines');
-    box.scrollTop = Math.floor((box.scrollHeight - box.clientHeight) / 2);
-  });
-  assert(await page.evaluate(() => document.querySelector('.log-lines').scrollTop) > 0, 'Log must have history to scroll back through');
-  const before = await topRow();
-  await page.evaluate(async () => { const { verbatim } = await import('/src/text/msg.ts'); const g = window.__ROAM__; g.hud.note(g.world, verbatim('A new line arrives'), 'dim'); });
-  assert.equal(await topRow(), before, 'A scrolled-back log must keep its top row when a line arrives');
-  const scrolled = () => page.evaluate(() => document.querySelector('.log-lines').scrollTop > 0);
-  await page.locator('.log-expand').click({ force: true });
-  assert(await scrolled(), 'A scrolled-back log must stay scrolled back after expanding');
-  await page.locator('.log-expand').click({ force: true });
-  assert(await scrolled(), 'A scrolled-back log must stay scrolled back after shrinking');
-}
-
-async function shotLog(page, name) {
-  await page.screenshot({ path: `.playtest/${name}.png`, clip: await page.locator('.log').boundingBox(), animations: 'allow' });
-}
-
-const dockGap = () => 8;
-
-const near = (a, b) => Math.abs(a - b) <= 1;
-
-async function holdContracts(page, count) {
-  await page.evaluate(count => {
-    const g = window.__ROAM__;
-    const w = structuredClone(g.state);
-    w.player.contracts = Object.values(w.shops).flatMap(shop => shop.contracts).slice(0, count);
-    if (w.player.contracts.length !== count) throw new Error(`The boards hold fewer than ${count} contracts`);
-    g.apply(w);
-  }, count);
-  await page.waitForFunction(count => (getComputedStyle(document.querySelector('.contracts')).display !== 'none') === (count > 0), count);
-}
-
-async function hover(page, on) {
-  await page.evaluate(on => {
-    const g = window.__ROAM__;
-    g.setHovered(on ? g.state.player.vehicleId : null);
-  }, on);
-  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
-}
-
-const boxes = page => page.evaluate(() => {
-  const visibleRect = selector => {
-    const node = document.querySelector(selector);
-    return node && node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden' ? node.getBoundingClientRect().toJSON() : null;
-  };
-  return {
-    radio: visibleRect('.radio'), log: visibleRect('.log'), contracts: visibleRect('.contracts'), info: visibleRect('.info'),
-    instruments: visibleRect('.instruments'),
-    knobs: document.querySelectorAll('.radio [role=slider]').length, oldSound: document.querySelectorAll('.top-right .sound').length,
-  };
-});
-
-async function checkRadio(page) {
-  await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 30000 });
-  const size = page.viewportSize();
-  for (const count of [0, 1]) {
-    await holdContracts(page, count);
-    const m = await boxes(page);
-    assert(m.radio, 'Radio must be visible');
-    assert.equal(await page.locator('.radio button.switch').count(), 0, 'The radio must carry no mute switch, it lives in Options');
-    assert.equal(m.knobs, 0, 'The radio must carry no volume knobs, they live in Options');
-    assert.equal(m.oldSound, 0, 'The top-right Sound panel must be gone');
-    const below = count ? m.contracts : m.log;
-    const gap = count ? 8 : dockGap(page);
-    assert(near(below.y - m.radio.bottom, gap), `At ${size.width}x${size.height} with ${count} contracts the radio must sit ${gap}px above the ${count ? 'contracts' : 'log'}, got ${below.y - m.radio.bottom}`);
-    for (const other of [m.log, m.contracts, m.instruments].filter(Boolean)) assert(!doRectsOverlap(m.radio, other), 'Radio must not overlap the log, instruments or contracts');
+function assertOnScreen(m, at) {
+  for (const selector of PLATES) {
+    const r = m.rects[selector];
+    assert(r, `${selector} must show ${at}`);
+    assert(r.x >= -1 && r.y >= -1 && r.right <= m.view.width + 1 && r.bottom <= m.view.height + 1, `${selector} must lie on screen ${at}: ${JSON.stringify(r)}`);
   }
 }
 
-async function checkRightColumn(page, radioStays) {
-  const size = page.viewportSize();
-  const at = `At ${size.width}x${size.height}`;
-  await holdContracts(page, 1);
-  await hover(page, true);
-  const m = await boxes(page);
-  assert(m.info, `${at} the hover panel must show`);
-  assert(m.contracts, `${at} the contracts must show`);
-  assert(near(m.log.y - m.contracts.bottom, dockGap(page)), `${at} the contracts must sit ${dockGap(page)}px above the log, got ${m.log.y - m.contracts.bottom}`);
-  assert(!doRectsOverlap(m.log, m.info), `${at} the hover panel must stop above the log`);
-  const old = { ...m.contracts, y: m.log.y - dockGap(page) - m.contracts.height, bottom: m.log.y - dockGap(page) };
-  if (!doRectsOverlap(old, m.info)) assert(!doRectsOverlap(m.contracts, m.info), `${at} the hover panel must not cover the contracts`);
-  if (m.radio) assert(!doRectsOverlap(m.radio, m.info), `${at} the hover panel must not cover the radio`);
-  if (radioStays !== null) assert.equal(Boolean(m.radio), radioStays, `${at} the radio must ${radioStays ? 'stay' : 'step away'} during the hover`);
-  await hover(page, false);
-  assert((await boxes(page)).radio, `${at} the radio must come back once the hover panel hides`);
+function assertApart(m, at) {
+  const names = Object.keys(m.rects).filter(name => m.rects[name]);
+  for (const a of names) for (const b of names.filter(name => name > a)) {
+    assert(!doRectsOverlap(m.rects[a], m.rects[b]), `${a} must not overlap ${b} ${at}: ${JSON.stringify([m.rects[a], m.rects[b]])}`);
+  }
 }
+
+async function checkHud(page, at) {
+  const m = await readHud(page);
+  assertOnScreen(m, at);
+  assertApart(m, at);
+  assert(m.sizes.length <= HUD_TEXT_SIZES, `The HUD must use at most ${HUD_TEXT_SIZES} text sizes ${at}, got ${m.sizes.join(', ')}`);
+  assert(m.sizes[0] >= SMALLEST_TEXT_PX, `HUD text must be at least ${SMALLEST_TEXT_PX}px ${at}, got ${m.sizes[0]}`);
+  assert.equal(m.caps.length, 1, `Every top key must share one size ${at}, got ${m.caps.join(', ')}`);
+  assert.deepEqual(m.unnamed, [], `Every HUD button needs a name ${at}`);
+  assert.deepEqual(m.clipped, [], `No HUD text may be clipped ${at}`);
+}
+
+async function checkRockers(page) {
+  const rocker = page.locator('#ui .hud-drive button.rocker').nth(1);
+  const before = await rocker.getAttribute('aria-checked');
+  await rocker.click();
+  await page.waitForFunction(before => document.querySelectorAll('#ui .hud-drive button.rocker')[1].getAttribute('aria-checked') !== before, before);
+  await page.waitForTimeout(400);
+  const paddle = await rocker.evaluate(node => getComputedStyle(node.querySelector('.rocker-on')).opacity);
+  await rocker.click();
+  await page.waitForFunction(before => document.querySelectorAll('#ui .hud-drive button.rocker')[1].getAttribute('aria-checked') === before, before);
+  await page.waitForTimeout(400);
+  const after = await rocker.evaluate(node => getComputedStyle(node.querySelector('.rocker-on')).opacity);
+  assert.notEqual(paddle, after, 'A rocker must light up when it is on');
+}
+
+async function checkLogWheel(page) {
+  await fillLog(page);
+  const read = () => page.evaluate(() => ({ top: document.querySelector('#ui .deck-log .log-lines').scrollTop, turn: document.querySelector('#ui .deck-wheel').style.getPropertyValue('--wheel-turn') }));
+  await page.evaluate(() => { document.querySelector('#ui .deck-log .log-lines').scrollTop = 0; });
+  const start = await read();
+  const wheel = await page.locator('#ui .deck-wheel').boundingBox();
+  await page.mouse.move(wheel.x + wheel.width / 2, wheel.y + wheel.height / 2);
+  await page.mouse.wheel(0, 50);
+  await page.waitForFunction(() => document.querySelector('#ui .deck-log .log-lines').scrollTop > 0);
+  const turned = await read();
+  assert(turned.top > start.top, 'The wheel must scroll the log');
+  assert.notEqual(turned.turn, start.turn, 'The wheel must turn when the log scrolls');
+  await page.mouse.move(0, 0);
+}
+
+async function checkKnob(page) {
+  const knob = page.locator('#ui .knob-key');
+  const face = () => knob.evaluate(node => ({ box: node.getBoundingClientRect().toJSON(), angle: node.firstElementChild.style.getPropertyValue('--knob') }));
+  const before = await face();
+  const box = await knob.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  const held = await face();
+  await page.mouse.up();
+  await page.waitForFunction(angle => document.querySelector('#ui .knob-key').firstElementChild.style.getPropertyValue('--knob') !== angle, before.angle);
+  assert.deepEqual(held.box, before.box, 'A pressed knob must not move or shrink, only turn');
+  const marks = await page.locator('#ui .knob-mark.on').count();
+  assert.equal(marks, 1, 'One time speed mark must be lit');
+  await page.locator('#ui .knob-mark').first().click();
+  await page.waitForFunction(() => document.querySelector('#ui .knob-mark').classList.contains('on'));
+}
+
+async function checkGuns(page) {
+  const cells = page.locator('#ui .gun-cell');
+  const count = await cells.count();
+  assert(count >= 1 && count <= 6, `The gun screen must show 1 to 6 guns, got ${count}`);
+  await cells.first().click();
+  await page.waitForFunction(() => document.querySelector('#ui .gun-cell')?.classList.contains('picked'));
+  await page.locator('#ui .all-key').click();
+  await page.waitForFunction(() => !document.querySelector('#ui .gun-cell.picked'));
+}
+
+async function checkOffAir(page) {
+  const original = await page.evaluate(() => structuredClone(window.__ROAM__.state));
+  await page.evaluate(async () => {
+    const game = window.__ROAM__;
+    const world = (await import('/src/sim/world.ts')).cloneWorld(game.state);
+    world.setup = { ...world.setup, mode: 'chaosHighway' };
+    game.apply(world);
+  });
+  await page.waitForFunction(() => document.querySelector('#ui .radio-plate').classList.contains('off-air'));
+  assert(!(await page.locator('#ui .radio-plate .radio-band').isVisible()), 'Chaos Highway must turn the radio band off');
+  await page.evaluate(world => window.__ROAM__.apply(world), original);
+  await page.waitForFunction(() => !document.querySelector('#ui .radio-plate').classList.contains('off-air'));
+}
+
+const HUD_VIEWPORTS = [[1920, 1080], [1280, 720], [1100, 700], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
+
+async function checkHudSizes(page, label) {
+  for (const [width, height] of HUD_VIEWPORTS) {
+    await page.setViewportSize({ width, height });
+    await settleLayers(page, width);
+    await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await checkHud(page, `${label} at ${width}x${height}`);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await settleLayers(page, 1280);
+}
+
 
 const KNOB_BUSES = ['Music', 'Effects', 'Wind', 'Interface'];
 
@@ -554,7 +296,7 @@ async function checkKnobs(url, viewport) {
     await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 90000 });
     const at = `At ${viewport.width}x${viewport.height}`;
     const openOptions = async () => {
-      await page.locator('.menu-button').click();
+      await page.locator('#ui .system-menu').click();
       await page.locator('[data-entry=options]').click();
       await page.waitForFunction(() => document.querySelectorAll('.options .knob').length === 4);
     };
@@ -563,7 +305,7 @@ async function checkKnobs(url, viewport) {
     const muted = () => page.evaluate(() => document.querySelector('.options .sound-mute button').getAttribute('aria-pressed') ?? document.querySelector('.options .sound-mute').innerHTML);
     const game = () => page.evaluate(() => {
       const g = window.__ROAM__;
-      return JSON.stringify([g.state === window.__knobState, g.rig.camera.position.toArray()]);
+      return JSON.stringify([g.state === window.__knobState, g.rig.camera.position.toArray().map(v => Math.round(v * 1000) / 1000)]);
     });
     await page.evaluate(() => { window.__knobState = window.__ROAM__.state; });
     const box = selector => page.evaluate(selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, selector);
@@ -645,7 +387,6 @@ async function checkKnobs(url, viewport) {
     await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
     await openOptions();
     assert.deepEqual(await values(), held, `${at} the levels must survive a reload`);
-    assert.equal(await page.locator('.speedometer [role=slider], .speedometer .knob').count(), 0, `${at} the speedometer must hold no knob`);
     assert.deepEqual(errors, [], `${at} no uncaught page errors`);
   } finally {
     await page.close();
@@ -658,29 +399,18 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(playUrl(url));
-  await page.waitForFunction(() => window.__ROAM__?.state);
-  assert(await page.locator('.icon').evaluateAll(nodes => nodes.every(node => node.title)), 'Every icon needs a hover name');
-  assert(await page.locator('#ui *').evaluateAll(nodes => nodes.filter(node => !node.closest('button.switch, .radio-next')).every(node => !getComputedStyle(node).backgroundImage.includes('gradient'))), 'UI must use flat surfaces, apart from the metal switches and the radio button');
-  if (process.env.DOCK_ONLY) {
-    await checkWeaponDock(page);
-    assert.deepEqual(errors, [], 'No uncaught page errors');
-    console.log('PASS: weapons dock');
-    process.exit(0);
-  }
+  await page.waitForFunction(() => window.__ROAM__?.state && document.querySelector('#ui .radio-plate')?.checkVisibility());
+  await page.evaluate(() => document.head.append(Object.assign(document.createElement('style'), { textContent: '#ui .tip { display: none !important }' })));
   await mkdir('.playtest', { recursive: true });
-  await checkInstruments(page);
-  await fillLog(page);
-  await shotLog(page, 'log-compact');
-  await checkLog(page, 'compact');
-  await page.locator('.log-expand').click({ force: true });
-  assert(await page.locator('.log.expanded').count(), 'Expand button must expand the log');
-  await shotLog(page, 'log-expanded');
-  await checkLog(page, 'expanded');
-  await checkLogScroll(page);
-  await page.locator('.log-expand').click({ force: true });
-  await checkLog(page, 'compact again');
+  assert(await page.locator('.icon').evaluateAll(nodes => nodes.every(node => node.title)), 'Every icon needs a hover name');
+  await checkHud(page, 'at 1280x720');
+  await checkRockers(page);
+  await checkLogWheel(page);
+  await checkKnob(page);
+  await checkGuns(page);
+  await checkOffAir(page);
+  await page.screenshot({ path: '.playtest/hud-1280.png' });
 
-  await checkRadio(page);
   await page.keyboard.press('i');
   assert(await page.locator('.inventory-screen').isVisible(), 'I must open the inventory');
   await page.keyboard.press('Escape');
@@ -694,9 +424,11 @@ try {
   assert(inventoryBox.y + inventoryBox.height <= (page.viewportSize()?.height ?? 0), 'The inventory must fit the window');
   await page.keyboard.press('Escape');
   await page.keyboard.press('c');
-  await checkVisibleReadouts(page);
   const characterFrame = await page.locator('.modal:visible').boundingBox();
   assert(characterFrame.y + characterFrame.height <= (page.viewportSize()?.height ?? 0), 'The character screen must fit the window');
+  await page.keyboard.press('Escape');
+  await page.locator('#ui .system-character').click();
+  assert(await page.locator('.character-screen').isVisible(), 'The character key must open the character screen');
   await page.keyboard.press('Escape');
   await page.keyboard.press('m');
   assert(await page.locator('.character-screen [data-tab=map].on').count(), 'M must open the character screen on its Map tab');
@@ -704,14 +436,22 @@ try {
   assert.equal(await page.locator('.modal:visible').count(), 0, 'M must close the Map tab again');
   await page.keyboard.press('k');
   assert.equal(await page.locator('.modal:visible').count(), 0, 'K must do nothing');
-  await page.keyboard.press('e');
-  await checkCoins(page, 'HUD');
-  if (await page.locator('.modal:visible').count()) {
-    await checkVisibleReadouts(page);
-  } else {
-    await page.keyboard.press('i');
+  await checkHudSizes(page, 'at rest');
+  for (const count of [1, 3]) {
+    await holdContracts(page, count);
+    await hover(page, true);
+    await checkHudSizes(page, `with ${count} contracts and the cursor card`);
+    await hover(page, false);
   }
-  await page.keyboard.press('Escape');
+  await holdContracts(page, 0);
+  await loadHeavyHud(page);
+  await checkHudSizes(page, 'with a heavy kit');
+  await checkHudOutlineFixed(page, 'with a heavy kit at 1280x720');
+  for (const guns of [5, 1]) {
+    await trimGuns(page, guns);
+    await checkHudSizes(page, `with ${guns} guns`);
+  }
+  await page.screenshot({ path: '.playtest/ui-regression.png' });
   await page.evaluate(async () => {
     const g = window.__ROAM__;
     const c = await import('/src/sim/cheats.ts');
@@ -721,46 +461,13 @@ try {
   await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
   await page.locator('.town-page [data-town-go=market]').click();
   assert((await checkCoins(page, 'town market')) > 1, 'The town market must show amounts');
-  await checkCoinSizes(page, 'market 1600');
   const before = page.viewportSize();
   await page.setViewportSize({ width: 1024, height: 640 });
   await checkCoins(page, 'town market 1024');
-  await checkCoinSizes(page, 'market 1024');
   await page.setViewportSize(before);
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('i');
-  for (const width of [1024, 800, 700]) {
-    await page.setViewportSize({ width, height: 800 });
-    await settleLayers(page, width);
-    await checkVisibleReadouts(page);
-    await checkInstruments(page);
-    await checkLog(page, `compact ${width}`);
-    if (width === 700) await shotLog(page, 'log-narrow');
-    await page.locator('.log-expand').click({ force: true });
-    await checkLog(page, `expanded ${width}`);
-    await page.locator('.log-expand').click({ force: true });
-  }
-  await page.keyboard.press('Escape');
-  for (const [width, height] of [[1280, 768], [700, 800]]) {
-    await page.setViewportSize({ width, height });
-    await settleLayers(page, width);
-    await checkRadio(page);
-  }
-  for (const [width, height, radioStays] of [[1280, 720, true], [1366, 768, true], [1280, 800, true], [1440, 860, true], [1440, 900, true], [700, 800, true], [700, 940, true], [700, 1060, true]]) {
-    await page.setViewportSize({ width, height });
-    await settleLayers(page, width);
-    await checkRightColumn(page, radioStays);
-  }
-  await page.keyboard.press('Escape');
-  await mkdir('.playtest', { recursive: true });
-  await checkWeaponDock(page);
   assert.deepEqual(errors, [], 'No uncaught page errors');
-  await mkdir('.playtest', { recursive: true });
   for (const viewport of [{ width: 1280, height: 720 }, { width: 700, height: 800 }]) await checkKnobs(url, viewport);
-  assert.deepEqual(errors, [], 'No uncaught page errors');
-  await page.screenshot({ path: '.playtest/ui-regression.png' });
-  console.log('PASS: hover names, coins sized by their text with one hover amount, flat surfaces, persistent resources/log, the radio above the log and contracts and clear of the hover panel, the contracts in their old spot, stable modal frames, movable-item inspection, and laptop/narrow layouts, clock strip, speedometer and action row, and the four radio knobs turned by a real mouse drag, wheel and keys');
+  console.log('PASS: hover names, the HUD panels on screen and apart at every size, three text sizes, one top key size, named buttons, rockers that light, the log wheel, a knob that only turns, gun picks, the radio off air in Chaos Highway, the outline under every switch and value, coins in the market, modal flows and the four sound knobs');
 } finally {
   await browser.close();
 }

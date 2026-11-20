@@ -64,7 +64,7 @@ describe('soundRange and dustRange', () => {
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
     const observer = w.vehicles[0];
     const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 2, y: 30 });
-    target.speed = 2;
+    target.speed = 4;
     observer.speed = 2;
     target.pos = { x: 2 + soundRange(w, target) - DETECT.sound.ownPenalty, y: 30 };
     expect(target.pos.x).toBeLessThan(w.size);
@@ -153,10 +153,10 @@ describe('dust clouds', () => {
   function dustyWorld() {
     const w = emptyWorld({ x: 10, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
-    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 52, y: 30 });
     v.speed = 4;
     v.heading = 0;
-    v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 36 + i, y: 30, heading: 0 }));
+    v.trail = [0, 1, 2, 3, 4].map((i) => ({ x: 48 + i, y: 30, heading: 0 }));
     editableTerrain(w).types.fill('sand');
     expect(dustRange(w, v)).toBeGreaterThan(40);
     return { w, v, observer: w.vehicles[0] };
@@ -213,7 +213,7 @@ describe('dust clouds', () => {
   it('a dust contact circle still holds the true position after the truck moves on', () => {
     const { w, v, observer } = dustyWorld();
     for (let t = 0; t <= DETECT.dust.riseTurns; t++) advanceDust(w);
-    v.pos = { x: 48, y: 36 };
+    v.pos = { x: 60, y: 36 };
     v.speed = 0;
     const c = contactsOf(w, observer, Infinity).find((x) => x.vehicleId === v.id)!;
     expect(c.sources).toEqual(['dust']);
@@ -302,7 +302,7 @@ describe('perception hearing and contact fix', () => {
 
   it('the player gets a tighter contact circle at rank 5', () => {
     const w = emptyWorld({ x: 20, y: 30 });
-    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 58, y: 30 });
     target.speed = 3;
     const radius = () => contactsOf(w, w.vehicles[0], Infinity).find((c) => c.vehicleId === target.id)!.radius;
     const base = radius();

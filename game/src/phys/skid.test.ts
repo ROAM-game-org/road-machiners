@@ -36,7 +36,7 @@ const BEFORE = { road: 6.6, hardpan: 6.6, mud: 3.3, glass: 15.2 };
 function withChassis(w: World, chassis: Chassis): void {
   if (chassis === 'scout') return;
   const id = chassis === 'buggy' ? 'buggy' : 'hauler';
-  const parts = chassis === 'buggy' ? ['mg', 'stockEngine'] : ['mg', 'stockEngine', 'plates', 'trailerBox'];
+  const parts = chassis === 'buggy' ? ['mg', 'stockEngine'] : ['mg', 'stockEngine', 'plates', 'haulingRack'];
   const v = makeVehicle(w, { faction: 'player', chassisId: id, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 20, y: 60 }, heading: 0, brain: null });
   w.vehicles[0] = { ...v, id: w.vehicles[0].id };
   if (chassis === 'loadedHauler') addGoods(w, w.vehicles[0], 'scrap', 999);

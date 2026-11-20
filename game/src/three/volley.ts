@@ -5,7 +5,6 @@ import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
 import { MIX, type CueId } from "../data/sounds";
 import { crashLevel } from "../audio/pick";
-import { PAL } from "../render/palette";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { carriedPartDef } from "../sim/salvage";
 import { isShield } from "../data/parts";
@@ -95,7 +94,7 @@ function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, row
   if (!label || !host.poses.end(vehicleId)) return;
   const row = rows.get(vehicleId) ?? 0;
   rows.set(vehicleId, row + 1);
-  host.fx.label(() => host.eventPoint(vehicleId), label, PAL.damageText, row, atMs, CONFIG.combatReadMs);
+  host.fx.label(() => host.eventPoint(vehicleId), label, row, atMs, CONFIG.combatReadMs);
 }
 
 export type CombatHost = VolleyHost & { views: Map<string, VehicleView>; lineHooked: (shooter: string, weapon: string) => void };

@@ -1,11 +1,11 @@
 
 import { oilSlickLength } from "../data/utilities";
 import { chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
-import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair, SACK_ARMOR } from "../data/parts";
 import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
-import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { bareGrid, cargoCellsOn, cellCount, holdCellsOf, mountedParts, type Cell } from "../sim/grid";
 import { isJunk, maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -23,23 +23,22 @@ import { roundDamage } from "../sim/combat";
 import { el, type Child } from "./dom";
 import { fuelLiters, hp, kph, meters, mps2 } from "./units";
 import { canvasReadable } from "../three/render/pixelReadback";
+import { PACK_ART } from "./icon-pack";
 
 export const ART = {
+  close: '<path d="M3 2L8 7l5-5 1 1-5 5 5 5-1 1-5-5-5 5-1-1 5-5-5-5z"/>',
+  water: '<path d="M8 1.5c-2.5 4-4.5 6.5-4.5 9a4.5 4.5 0 0 0 9 0c0-2.5-2-5-4.5-9z"/>',
+  prev: '<path d="M10.5 2.5v11L3.5 8z"/>',
+  next: '<path d="M5.5 2.5v11l7-5.5z"/>',
+  plus: '<path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/>',
+  minus: '<path d="M2 7h12v2H2z"/>',
+  expand: '<path d="M2 2h5v2H4v3H2zM9 2h5v5h-2V4H9zM2 9h2v3h3v2H2zM12 9h2v5H9v-2h3z"/>',
+  recenter: '<path d="M7 1h2v3H7zM7 12h2v3H7zM1 7h3v2H1zM12 7h3v2h-3zM8 5.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5z"/>',
   trade: '<path d="M1.5 3.5h8v-2l5 3.5-5 3.5v-2h-8zM14.5 9.5h-8v-2L1.5 11l5 3.5v-2h8z"/>',
-  fuel: '<path d="M2 2h8v13H2zM4 4h4v3.5H4z"/><path d="M10 4.5h2.5L15 7v5.5h-1.5V7.5L12 6h-2z"/>',
   supplies: '<path d="M5.5 1.5L8 3l2.5-1.5v2h-5zM7 3.5h2V5.5H7zM5 5.5h6l2.5 3.5c1 3.5 0 6-5.5 6S1.5 12.5 2.5 9z"/>',
   health: '<path d="M6 1.5h4v4.5h4.5v4H10v4.5H6V10H1.5V6H6z"/>',
-  engineHeat: '<path d="M6.5 1h3v5.5a3 3 0 1 1-3 0zM1.5 13l2.5-1.5L6.5 13l2.5-1.5 2.5 1.5 2.5-1.5v2L11.5 15 9 13.5 6.5 15 4 13.5 1.5 15z"/>',
-  driver: '<path d="M8 2a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM2 15c0-4.5 2.5-5.5 6-5.5s6 1 6 5.5z"/>',
-  truck:
-    '<path d="M1 2.5h9v2h2.5L15 7.5v1H1zM11 5.5h1.5l1.5 2H11z"/><path d="M4.5 10a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM11.5 10a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/>',
-  engine:
-    '<path d="M1.5 7h2V5.5H6V3.5H4.5v-1.5h5v1.5H8V5.5h3L12.5 7H15v4.5h-1.5L12 13H5.5L3.5 11V9.5h-2z"/>',
   armor: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM8 4L12 5.5V8C12 10 10 11.5 8 12.5 6 11.5 4 10 4 8V5.5z"/>',
   cargo: '<path d="M1.5 3h13v11h-13zM3.5 5h9v7h-9z"/><path d="M3.5 5H6l6.5 7H10z"/><path d="M12.5 5H10L3.5 12H6z"/>',
-  wheel:
-    '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3.5a4.5 4.5 0 1 1 0 9a4.5 4.5 0 1 1 0-9z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/><path d="M7 3.5h2v9H7z"/><path d="M3.5 7h9v2h-9z"/>',
-  transmission: '<path d="M2 3h1.5v4.5h9V3H14v10h-1.5V9h-9v4H2z"/><path d="M8 5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z"/>',
   cab: '<path d="M2 15V6.5L5 2.5h6.5L14 7v8zM5.5 5.5L4 7.5h8L10.5 5.5z"/>',
   salt: '<path d="M7 3h2v10H7zM4.5 13.5h7V15h-7zM1.5 3h13v1.5h-13zM3 4.5h2V8H3zM11 4.5h2V8h-2zM1 8h6c0 2.5-1.5 4-3 4S1 10.5 1 8zM9 8h6c0 2.5-1.5 4-3 4S9 10.5 9 8z"/>',
   star: '<path d="M8 1.5L10 6L14.5 6.5L11 9.5L12 14L8 11.5L4 14L5 9.5L1.5 6.5L6 6z"/>',
@@ -58,35 +57,40 @@ export const ART = {
   magazine: '<path d="M5 4V3L6 1.5 7 3v1zM9 4V3l1-1.5L11 3v1zM5 5.5h6c.5 3 1.5 6 2.5 9H7.5C7 11 6 8 5 5.5z"/>',
   spread: '<path d="M2 8L14 2.5V4.5zM2 7h12v2H2zM2 8L14 13.5V11.5z"/>',
   arc: '<path d="M8 14.5L2 5.5Q8 1 14 5.5z"/>',
-  speed: '<path d="M1.5 12a6.5 6.5 0 0 1 13 0h-1.5a5 5 0 0 0-10 0z"/><path d="M6.5 12.5L11 6l1.5 1.5-3 5.5z"/><path d="M8 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"/>',
-  accel: '<path d="M1.5 12a4 4 0 0 1 8 0H8a2.5 2.5 0 0 0-5 0z"/><path d="M4 12.5L7.5 8 9 9.5l-3 3.5z"/><path d="M12.5 1.5L15 5h-1.5v8H12V5h-1.5z"/>',
   noise: '<path d="M1.5 6H4l3.5-3v10L4 10H1.5zM9 5.5a2.5 2.5 0 0 1 0 5v-1.5a1 1 0 0 0 0-2zM9 2.5a5.5 5.5 0 0 1 0 11v-1.5a4 4 0 0 0 0-8z"/>',
   ram: '<path d="M1.5 3.5H7L11.5 8 7 12.5H1.5zM13 2h1.5v12H13z"/>',
-  rows: '<path d="M1.5 2H7v3H1.5zM8.5 2h6v3h-6zM1.5 6.5h8v3h-8zM11 6.5h3.5v3H11zM1.5 11H5v3H1.5zM6.5 11h8v3h-8z"/>',
   hp: '<path d="M8 14.5L2 8.5C1 7 1 3.5 4.5 2.5 6 2.5 7.5 3.5 8 5 8.5 3.5 10 2.5 11.5 2.5 15 3.5 15 7 14 8.5z"/>',
   mass: '<path d="M2.5 14.5L4 6.5H12L13.5 14.5zM8 1a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM8 2.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 1 1 0-3z"/>',
   turning: '<path d="M3 15V8Q3 3.5 7.5 3.5H10V1.5L14.5 5 10 8.5V6.5H7.5Q6 6.5 6 8V15z"/>',
   cells: '<path d="M1.5 1.5H7V7H1.5zM9 1.5h5.5V7H9zM1.5 9H7v5.5H1.5zM9 9h5.5v5.5H9z"/>',
   load: '<path d="M3.5 2h9v4.5h-9zM4 7.5h1.5v4H4zM10.5 7.5H12v4h-1.5zM1.5 12h13v2.5h-13z"/>',
-  power: '<path d="M9.5 1L3 9h4l-1 6 7-9H9z"/>',
   recoil: '<path d="M3 2.5h12V5h-6l-1 1.5V8H5.5V6.5L3 5zM14.5 11.5h-8v-2L1.5 12.5l5 3v-2h8z"/>',
   blast: '<path d="M8 1.5L14 3.5V8C14 11.5 11 13.5 8 14.5 5 13.5 2 11.5 2 8V3.5zM11 8L9.5 9L9.5 10.5L8 9.5L6.5 10.5L6.5 9L5 8L6.5 7.5L6.5 5.5L8 6.5L9.5 5.5L9.5 7z"/>',
   heat: '<path d="M3.5 3.5a1.5 1.5 0 0 1 3 0V9.5a3 3 0 1 1-3 0zM11 3.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM10 1h2v1.5h-2zM13.5 5h1.5v2h-1.5zM10 9.5h2V11h-2z"/>',
   patch: '<path d="M2 10L10 2L14 6L6 14zM6 8L8 6L10 8L8 10z"/>',
+  sight: '<path d="M8 3.5C4.5 3.5 2 6 1 8c1 2 3.5 4.5 7 4.5s6-2.5 7-4.5c-1-2-3.5-4.5-7-4.5zM8 5a3 3 0 1 1 0 6a3 3 0 1 1 0-6z"/><path d="M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"/>',
   tall: '<path d="M8 1.5L11.5 5H9v4h2.5L8 12.5 4.5 9H7V5H4.5zM1.5 13.5h13V15h-13z"/>',
   clock: '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M7 4.5h2v3.5h3v2H7z"/>',
   paint: '<path d="M4.5 6h6v9h-6zM5.5 9.5h4v2h-4z"/><path d="M5.5 3.5h4V6h-4zM6.5 2h2v1.5h-2zM11.5 1.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM14 3.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2zM11.5 5.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2z"/>',
   lock: '<path d="M3 7h10v8H3zM8 9a1.5 1.5 0 0 1 1 2.5V13H7v-1.5A1.5 1.5 0 0 1 8 9z"/><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2h-1.5V5a2 2 0 0 0-4 0v2z"/>',
-  journal: '<path d="M4.5 1.5h9v13h-9zM7 4h4.5v1.5H7zM7 7h4.5v1.5H7zM7 10h2.5v1.5H7z"/><path d="M1.5 3h3v1.5h-3zM1.5 6.5h3V8h-3zM1.5 10h3v1.5h-3z"/>',
+  hold: '<path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM8 3a5 5 0 1 1 0 10a5 5 0 1 1 0-10z"/><path d="M3 4l1-1 9 9-1 1z"/>',
   cut: '<path d="M4.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM4.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2zM11.5 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5zM11.5 11a1 1 0 1 1 0 2a1 1 0 1 1 0-2z"/><path d="M5 9l7.5-7.5L14 3 7 10zM11 9L3.5 1.5 2 3l7 7z"/>',
   gun: '<path d="M1.5 3h8v5.5h-8zM9.5 4.5H15v2H9.5zM13 3h2v1.5h-2zM4 9.5h2L4 15H2zM7 9.5h2l2 5.5H9z"/>',
   wrench: '<path d="M12.5 2L10.5 4.5L11.5 5.5L14 3.5A3.5 3.5 0 0 1 9.5 8.5L4 13.5L2.5 12L7.5 6.5A3.5 3.5 0 0 1 12.5 2z"/>',
   store: '<path d="M2 5L4.5 2.5H14V15H2zM4.5 5h4v2h-4z"/><path d="M10.5 1h2.5v1.5h-2.5z"/>',
+  options: '<path d="M2 3h12v1.5H2zM2 7h12v1.5H2zM2 11.5h12V13H2zM9.5 1.5h2v4h-2zM4 5.5h2v4H4zM10 9.5h2v4h-2z"/>',
+  bug: '<path d="M8 4a3 3 0 0 1 3 3v3.5a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3zM6 1.5L7 3.5M10 1.5L9 3.5M1.5 6h3v1.5h-3zM11.5 6h3v1.5h-3zM1.5 10h3v1.5h-3zM11.5 10h3v1.5h-3z"/>',
+  map: '<path d="M1.5 3.5L5.5 2v11L1.5 14.5zM6.5 2l3 1.5v11l-3-1.5zM10.5 3.5l4-1.5v11l-4 1.5z"/>',
+  box: '<path d="M8 1.5L14 4.5L8 7.5L2 4.5zM1.5 5.5L7.5 8.5V15L1.5 12zM8.5 8.5L14.5 5.5V12L8.5 15z"/>',
 } as const;
 
-export type IconName = keyof typeof ART;
+const ICON_ART = { ...ART, ...PACK_ART } as const;
 
-export const ICON_NAMES = Object.keys(ART) as IconName[];
+export type IconName = keyof typeof ICON_ART;
+
+export const ICON_NAMES = Object.keys(ICON_ART) as IconName[];
+
+const isPackIcon = (name: IconName): name is keyof typeof PACK_ART => name in PACK_ART;
 
 const iconName = (name: IconName): Msg => t(`icon.${name}`);
 
@@ -96,7 +100,7 @@ export function createIcon(name: IconName): HTMLElement {
     title: iconName(name),
     "aria-hidden": "true",
   });
-  icon.innerHTML = `<svg viewBox="0 0 16 16" fill-rule="evenodd" focusable="false">${ART[name]}</svg>`;
+  icon.innerHTML = `<svg viewBox="0 0 ${isPackIcon(name) ? 24 : 16} ${isPackIcon(name) ? 24 : 16}" fill-rule="evenodd" focusable="false">${ICON_ART[name]}</svg>`;
   return icon;
 }
 
@@ -408,32 +412,67 @@ export function footprint(w: number, h: number): HTMLElement {
   );
 }
 
-export function conditionMeter(part: PartInstance): HTMLElement {
-  const max = maxHp(part);
-  const broken = part.hp === 0;
-  return el(
-    "div",
-    { class: `meter${broken ? " broken" : ""}`, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) },
-    el("div", { style: `width:${(part.hp / max) * 100}%` }),
-  );
-}
-
 export type GaugeSpan = { left: number; width: number };
+export type GaugeTone = "warn" | "good";
+export type CellState = "off" | "on" | "rest" | "plan";
 
-function gaugeSpan(cls: string, span: GaugeSpan): HTMLElement {
-  const left = Math.min(1, Math.max(0, span.left));
-  const width = Math.min(1 - left, Math.max(0, span.width));
-  return el("i", { class: cls, style: `left:${left * 100}%;width:${width * 100}%` });
+export const GAUGE_CELLS = 10;
+export const TILE_CELLS = 5;
+
+export function litCells(share: number, cells: number): number {
+  if (!(share > 0)) return 0;
+  if (share >= 1) return cells;
+  return Math.min(cells - 1, Math.max(1, Math.round(share * cells)));
 }
 
-export function gaugeEl(fill: number, opts: { share?: GaugeSpan | null; after?: GaugeSpan | null; health?: boolean } = {}): HTMLElement {
-  return el(
-    "div",
-    { class: opts.health ? "gauge health" : "gauge" },
-    gaugeSpan("fill", { left: 0, width: fill }),
-    opts.share ? gaugeSpan("share", opts.share) : null,
-    opts.after ? gaugeSpan("after", opts.after) : null,
-  );
+type CellRun = { from: number; to: number };
+
+function partRun(share: GaugeSpan | null | undefined, lit: number, cells: number): CellRun | null {
+  if (!share || !(share.width > 0) || lit === 0) return null;
+  const from = Math.max(0, Math.min(lit - 1, Math.floor(share.left * cells)));
+  return { from, to: Math.min(lit, Math.max(from + 1, Math.round((share.left + share.width) * cells))) };
+}
+
+function plannedCells(fill: number, after: GaugeSpan | null | undefined, lit: number, cells: number): number {
+  if (!after || !(after.width > 0)) return lit;
+  return Math.min(cells, Math.max(lit + 1, litCells(fill + after.width, cells)));
+}
+
+function outsideRun(run: CellRun | null, i: number): boolean {
+  return run !== null && (i < run.from || i >= run.to);
+}
+
+function cellState(i: number, lit: number, planned: number, part: CellRun | null): CellState {
+  if (i >= planned) return "off";
+  if (i >= lit) return "plan";
+  return outsideRun(part, i) ? "rest" : "on";
+}
+
+export function cellStates(fill: number, cells: number, spans: { share?: GaugeSpan | null; after?: GaugeSpan | null } = {}): CellState[] {
+  const lit = litCells(fill, cells);
+  const planned = plannedCells(fill, spans.after, lit, cells);
+  const part = partRun(spans.share, lit, cells);
+  return Array.from({ length: cells }, (_, i) => cellState(i, lit, planned, part));
+}
+
+type CellAttrs = NonNullable<Parameters<typeof el>[1]>;
+
+export function cellsEl(states: readonly CellState[], tone?: GaugeTone, attrs: CellAttrs = {}): HTMLElement {
+  const look = ["segments", tone, attrs.class].filter(Boolean).join(" ");
+  return el("span", { role: "presentation", ...attrs, class: look }, ...states.map((s) => el("i", { class: s === "off" ? "" : s, "aria-hidden": "true" })));
+}
+
+export function segmentGauge(share: number, opts: { cells?: number; tone?: GaugeTone; title?: Msg } = {}): HTMLElement {
+  return cellsEl(cellStates(share, opts.cells ?? GAUGE_CELLS), opts.tone, { title: opts.title });
+}
+
+export function gaugeEl(fill: number, opts: { share?: GaugeSpan | null; after?: GaugeSpan | null; tone?: GaugeTone } = {}): HTMLElement {
+  return cellsEl(cellStates(fill, GAUGE_CELLS, opts), opts.tone ?? (fill > 1 ? "warn" : undefined));
+}
+
+export function conditionMeter(part: PartInstance, cells = TILE_CELLS): HTMLElement {
+  const max = maxHp(part);
+  return segmentGauge(part.hp / max, { cells, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) });
 }
 
 export function statRow(icon: IconName, label: Msg, value: Child, title?: Msg): HTMLElement {
@@ -452,7 +491,7 @@ export function partHealthRow(part: PartInstance): HTMLElement | null {
   if (!showsCondition(part)) return null;
   const status = conditionStatus(part);
   const value = status.tone === "dim" && !isJunk(part) ? t("cond.value", { hp: hp(part.hp), max: hp(maxHp(part)) }) : status.text;
-  return meterRow(statRow("wrench", t("inv.condition"), statValueEl(value, status.tone === "bad" ? "bad" : "")), gaugeEl(part.hp / maxHp(part), { health: true }));
+  return meterRow(statRow("wrench", t("inv.condition"), statValueEl(value, status.tone === "bad" ? "bad" : "")), gaugeEl(part.hp / maxHp(part)));
 }
 
 export function costItem(icon: IconName, value: Child, tone = ""): HTMLElement {
@@ -477,7 +516,7 @@ export function repairingPart(w: World, v: Vehicle): { partId: string; done: num
 }
 
 export function workMeterEl(done: number): HTMLElement {
-  return el("div", { class: "meter s progress" }, el("div", { style: `width:${done * 100}%` }));
+  return cellsEl(cellStates(done, TILE_CELLS), undefined, { class: "progress" });
 }
 
 export function wearLabel(part: PartInstance): Msg {
@@ -560,7 +599,7 @@ export function partCard(o: PartCardOptions): HTMLElement {
     ),
     conditionRow(o.part),
     ...(o.base ? [compareLine(o.base)] : []),
-    conditionMeter(o.part),
+    conditionMeter(o.part, GAUGE_CELLS),
     statGrid(diffs),
     el("div", { class: "card-foot" }, el("span"), o.action),
   );
@@ -577,15 +616,16 @@ export function partDetail(world: World, part: PartInstance, base: PartInstance 
   const hpText = hpReadout(part);
   return [
     ...(base ? [compareLine(base)] : []),
-    el("div", { class: "part-hp" }, conditionMeter(part), hpText ? el("span", { class: "num dim" }, hpText) : null),
+    el("div", { class: "part-hp" }, conditionMeter(part, GAUGE_CELLS), hpText),
     ...(rest.length ? [statGrid(rest)] : []),
     el("p", { class: "dim" }, partLore(part.defId)),
   ];
 }
 
-function hpReadout(part: PartInstance): Msg | null {
+export function hpReadout(part: PartInstance): HTMLElement | null {
+  if (conditionTier(part) === "junk") return null;
   const status = conditionStatus(part);
-  return status.tone === "dim" && conditionTier(part) !== "junk" ? status.text : null;
+  return el("span", { class: `num ${status.tone}` }, status.text);
 }
 
 export function compareBase(selected: PartInstance | null, part: PartInstance): PartInstance | null {
@@ -626,13 +666,13 @@ export type StatIcon =
   | "noise"
   | "armor"
   | "ram"
-  | "rows"
   | "hp"
   | "mass"
   | "turning"
   | "cells"
   | "load"
   | "scanner"
+  | "sight"
   | "recoil"
   | "power"
   | "blast"
@@ -685,19 +725,42 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   weapon: weaponStats,
   engine: (_, part) => engineStats(part),
   armor: (_, part) => armorStats(part),
-  accessory: (_, part) => armorStats(part),
+  accessory: accessoryStats,
   cargo: cargoStats,
   scanner: (_, part) => [stat("scanner", t("stat.detection"), meters(wornDef<ScannerDef>(part).range), "m", "more")],
   store: (_, part) => storeStats(part),
   core: () => [],
   utility: (_, part) => utilityStats(part),
+  spare: () => [],
+  relic: () => [],
 };
 
 function utilityStats(part: PartInstance): Stat[] {
   const d = wornDef<UtilityDef>(part);
   const reload = d.reload === null ? [] : [stat("reload", t("stat.recharge"), d.reload, "t", "less")];
   const lasts = "turns" in d.effect ? [stat("clock", t("stat.lasts"), d.effect.turns, "t", "more")] : [];
-  return [...reload, ...utilityReach(d), ...lasts];
+  return [...reload, ...utilityReach(d), ...lasts, ...passiveGains(d)];
+}
+
+function percentUp(share: number): Msg {
+  return t("chassis.row.percentUp", { n: Math.round(share * 100) });
+}
+
+function passiveGains(d: UtilityDef): Stat[] {
+  const e = d.effect;
+  if (e.type === "battery") {
+    const power = { ...stat("power", t("stat.gunPower"), e.power, null, "more"), text: signed(e.power, 0) };
+    return [power, { ...stat("fuel", t("stat.fuelUse"), e.fuel, null, "less"), text: percentUp(e.fuel) }];
+  }
+  if (e.type === "periscope") return [{ ...stat("sight", t("effect.sight"), e.sight, null, "more"), text: percentUp(e.sight - 1) }];
+  return [];
+}
+
+function accessoryStats(world: World, part: PartInstance): Stat[] {
+  const cells = holdCellsOf(playerVehicle(world).chassisId, part.defId);
+  if (cells === 0) return armorStats(part);
+  const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
+  return [...armorStats(part), stat("load", t("stat.loadedArmor"), SACK_ARMOR, null, "more"), gained];
 }
 
 function utilityReach(d: UtilityDef): Stat[] {
@@ -716,11 +779,9 @@ function storeStats(part: PartInstance): Stat[] {
 function cargoStats(world: World, part: PartInstance): Stat[] {
   const d = partDefOf<CargoDef>(part);
   const chassisId = playerVehicle(world).chassisId;
-  const cells = cargoCellsGained(chassisId, part.defId);
-  const extraRows = cargoRowsOn(chassisId, part.defId);
+  const cells = cargoCellsOn(chassisId, part.defId);
   const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
-  const rows = { ...stat("rows", t("stat.extraRows"), extraRows, null, "more"), text: signed(extraRows, 0), unit: t("stat.rowsUnit", { n: extraRows }) };
-  return [gained, rows, tallStat(d)];
+  return [gained, tallStat(d)];
 }
 
 function penStat(d: WeaponDef): Stat {

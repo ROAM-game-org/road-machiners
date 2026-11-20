@@ -1,7 +1,7 @@
 import { CHAOS_HIGHWAY } from '../../data/modes';
 import { isShield, partDef } from '../../data/parts';
 import { haulerOf, playerVehicle } from '../damage';
-import { outpostPartPrice, haulerTakes } from '../outposts';
+import { outpostPartPrice } from '../outposts';
 import { dist } from '../vec';
 import { isJunk } from '../wear';
 import { repairCost } from '../economy';
@@ -72,7 +72,7 @@ function choiceAt(world: World): OutpostChoice {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   const mine = gearPlans(me, stock.map((part) => ({ part, price: outpostPartPrice(world, part) })), { score: jobScorer(world, 'fighter'), skip: [], resale: () => 0 });
-  const theirs = gearPlans(hauler, stock.filter(haulerTakes).map((part) => ({ part, price: outpostPartPrice(world, part, hauler.id) })), { score: jobScorer(world, 'hauler'), skip: [], resale: () => 0 });
+  const theirs = gearPlans(hauler, stock.map((part) => ({ part, price: outpostPartPrice(world, part, hauler.id) })), { score: jobScorer(world, 'hauler'), skip: [], resale: () => 0 });
   const cheapest = new Map<string, number>();
   for (const plan of [...mine, ...theirs].filter((p) => p.jobGain > 0)) cheapest.set(plan.offer.part.id, Math.min(cheapest.get(plan.offer.part.id) ?? Infinity, plan.offer.price));
   const prices = [...cheapest.values()];

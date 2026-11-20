@@ -130,7 +130,7 @@ export const START_KITS: Record<string, StartKit> = {
   },
   midgame: {
     chassis: 'hauler',
-    parts: ['trailerBox', 'autocannon', 'mg', 'workhorseDiesel', 'plates', 'plates'],
+    parts: ['haulingRack', 'autocannon', 'mg', 'workhorseDiesel', 'plates', 'plates'],
     storage: [],
     wear: 0,
     money: 30,

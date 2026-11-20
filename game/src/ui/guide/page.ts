@@ -3,7 +3,9 @@ import "./guide.css";
 import { createIcon, ICON_NAMES, type IconName } from "../cards";
 import { devEl as el, uiRoot } from "../dom";
 import { TOKENS } from "../tokens";
-import { PIECES } from "./pieces";
+import { paintSkin } from "../dash/skin";
+import { PIECES, STATES, kitWindow } from "./pieces";
+import { loadLanguage } from "../../text/language";
 
 type Sample = (name: string) => HTMLElement;
 
@@ -57,19 +59,22 @@ const zSample: Sample = (name) => el("div", {}, `layer ${TOKENS.get(name)}`);
 const valueSample: Sample = (name) => el("div", {}, TOKENS.get(name) ?? "");
 
 const GROUPS: Group[] = [
-  { title: "Fonts", prefixes: ["--font-"], sample: fontSample },
+  { title: "Fonts", prefixes: ["--font-", "--engraved-"], sample: fontSample },
   { title: "Type", prefixes: ["--text-"], sample: typeSample },
   { title: "Surfaces", prefixes: ["--color-", "--surface-", "--scrim"], sample: swatch },
-  { title: "Lines", prefixes: ["--line"], sample: swatch },
+  { title: "Lines", prefixes: ["--line", "--scroll-"], sample: swatch },
   { title: "Text", prefixes: ["--ink"], sample: swatch },
   { title: "Accent", prefixes: ["--accent", "--select"], sample: swatch },
   { title: "Danger", prefixes: ["--danger", "--alarm", "--crash"], sample: swatch },
+  { title: "Boot screen", prefixes: ["--boot-"], sample: swatch },
   { title: "Good", prefixes: ["--good"], sample: swatch },
   { title: "Path preview", prefixes: ["--path-"], sample: swatch },
   { title: "Condition", prefixes: ["--cond-"], sample: swatch },
   { title: "Grid cells", prefixes: ["--cell-", "--map-"], sample: swatch },
   { title: "Marks", prefixes: ["--mark-"], sample: swatch },
   { title: "Hardware", prefixes: ["--steel-", "--lcd"], sample: swatch },
+  { title: "HUD skin colors", prefixes: ["--hud-housing", "--hud-glass", "--hud-amber", "--hud-print", "--hud-segment", "--hud-needle", "--hud-fuel", "--hud-heat", "--hud-hot", "--hud-lamp-off", "--hud-lamp-amber", "--hud-lamp-green", "--hud-lamp-red", "--hud-rocker-on", "--hud-rocker-core", "--hud-rocker-deep", "--hud-screen"], sample: swatch },
+  { title: "HUD skin sizes", prefixes: ["--hud-drive-", "--hud-weapons-", "--hud-radio-", "--hud-zoom", "--hud-tray-h", "--hud-tray-rim", "--hud-tray-gap", "--hud-text-", "--hud-icon", "--hud-key-", "--hud-rocker-w", "--hud-rocker-h", "--hud-lamp-size", "--hud-rim", "--hud-rim-s", "--hud-bracket"], sample: valueSample },
   { title: "Light and shade", prefixes: ["--bevel-", "--shade", "--shadow-", "--vignette", "--storm-"], sample: swatch },
   { title: "Spacing", prefixes: ["--space-"], sample: spaceSample },
   { title: "Corners", prefixes: ["--radius-"], sample: radiusSample },
@@ -78,20 +83,20 @@ const GROUPS: Group[] = [
   { title: "Panel sizes", prefixes: ["--panel-", "--dock-", "--modal-"], sample: boxSample },
   {
     title: "Screen sizes",
-    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-"],
+    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-", "--journal-", "--board-", "--char-"],
     sample: boxSample,
   },
-  { title: "Garage and plan colors", prefixes: ["--plan-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
+  { title: "Garage and plan colors", prefixes: ["--plan-", "--edge-", "--garage-mount-", "--garage-hidden-wash", "--garage-hidden-hover", "--garage-tint-", "--coin-"], sample: swatch },
   {
     title: "Filters and factors",
-    prefixes: ["--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
+    prefixes: ["--off-opacity", "--key-off-opacity", "--garage-body-filter", "--garage-no-filter", "--garage-part-lift", "--garage-edge-", "--garage-hidden-halo", "--ui-scale", "--quest-art-zoom"],
     sample: valueSample,
   },
   {
-    title: "Page and phone sizes",
+    title: "Page sizes",
     prefixes: [
-      "--compass-w", "--slider-", "--info-card-height", "--info-well-min", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
-      "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target", "--phone-",
+      "--compass-w", "--slider-", "--hud-info-h", "--info-well-min", "--minimap-size", "--world-map-size", "--talk-width", "--quest-page-", "--quest-text-", "--quest-side-",
+      "--quest-art-min", "--quest-frame-", "--page-", "--art-band-", "--survey-picture-w", "--layer-", "--safe-", "--touch-target",
     ],
     sample: boxSample,
   },
@@ -108,8 +113,17 @@ function section(group: Group): HTMLElement {
   return el("section", {}, el("h2", {}, group.title), el("div", { class: "guide-grid" }, ...names.map((n) => cell(n, group.sample))));
 }
 
+const ON_SCREEN = new Set([".row", ".tile", ".tag", ".spent", ".contract-clue", ".way-steps", ".amount .coin", ".meter", ".meter.progress", ".meter.notched", ".meter.broken", ".well-group", ".stat-row", ".meter-row", ".gauge", ".selected", ".tooltip-row", ".num"]);
+const ON_METAL = new Set([".ink-page", ".panel-title", ".action-rows", ".cost", ".cost-item"]);
+
+function mounted(name: string, piece: HTMLElement): HTMLElement {
+  if (ON_SCREEN.has(name)) return el("div", { class: "screen-block" }, piece);
+  if (ON_METAL.has(name)) return el("div", { class: "panel" }, piece);
+  return piece;
+}
+
 function pieces(): HTMLElement {
-  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, p.build(), el("span", {}, p.name), el("small", {}, p.note)));
+  const cells = PIECES.map((p) => el("div", { class: "guide-cell" }, mounted(p.name, p.build()), el("span", {}, p.name), el("small", {}, p.note)));
   return el("section", {}, el("h2", {}, "Shared pieces"), el("div", { class: "guide-grid" }, ...cells));
 }
 
@@ -144,12 +158,64 @@ function ungrouped(): string[] {
   return [...TOKENS.keys()].filter((n) => !prefixes.some((p) => n.startsWith(p)));
 }
 
+const CHOICES = {
+  lang: ["en", "ru", "pseudo"],
+  layer: ["full", "compact", "narrow"],
+} as const;
+
+type Choice = keyof typeof CHOICES;
+
+const params = new URLSearchParams(window.location.search);
+
+function picked(name: Choice): string {
+  const value = params.get(name) ?? CHOICES[name][0];
+  if (!(CHOICES[name] as readonly string[]).includes(value)) throw new Error(`ui.html has no ${name} called ${value}`);
+  return value;
+}
+
+function choiceLink(name: Choice, value: string): HTMLElement {
+  const next = new URLSearchParams(params);
+  next.set(name, value);
+  return el("a", { class: picked(name) === value ? "on" : "", href: `?${next}` }, value);
+}
+
+function controls(): HTMLElement {
+  const group = (name: Choice) => el("span", { class: "guide-choice" }, el("b", {}, name), ...CHOICES[name].map((v) => choiceLink(name, v)));
+  return el("nav", { class: "guide-controls" }, group("lang"), group("layer"));
+}
+
+function stateCell(state: (typeof STATES)[number]): HTMLElement {
+  return el("div", { class: "guide-cell kit-state" }, el("div", { class: "kit-sample" }, ...state.build()), el("span", {}, state.name), el("small", {}, state.note));
+}
+
+function kit(): HTMLElement {
+  const layer = picked("layer");
+  return el(
+    "section",
+    { class: `guide-kit layer-${layer}` },
+    el("h2", {}, "Kit"),
+    kitWindow(),
+    el("h2", {}, "States"),
+    el("div", { class: "guide-grid" }, ...STATES.map(stateCell)),
+  );
+}
+
+function applyChoices(root: HTMLElement): void {
+  const layer = picked("layer");
+  if (layer !== "full") root.classList.add(layer);
+  if (layer === "narrow") root.classList.add("compact");
+}
+
 function render(): void {
   const missed = ungrouped();
   if (missed.length > 0) throw new Error(`ui.html shows no group for: ${missed.join(", ")}`);
   const root = uiRoot();
   root.classList.add("guide");
-  root.append(el("h1", {}, "Road Machiners UI guide"), ...GROUPS.map(section), icons(), pieces());
+  applyChoices(root);
+  root.append(el("h1", {}, "Road Machiners UI guide"), controls(), kit(), pieces(), icons(), ...GROUPS.map(section));
+  root.querySelector<HTMLElement>(".kit-focus")?.focus();
 }
 
+loadLanguage(window.localStorage, `?lang=${picked("lang")}`, import.meta.env.DEV, document.documentElement);
+paintSkin();
 render();

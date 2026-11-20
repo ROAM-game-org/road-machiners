@@ -321,7 +321,7 @@ describe('grid and model correspondence', () => {
   });
 
   it('centres each wheel core of the third layout pass chassis within half a cell of its model wheel along the truck', () => {
-    for (const id of ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van']) {
+    for (const id of ['semi', 'lincoln', 'convertible', 'bus', 'carrier', 'jeep', 'hauler', 'wagon', 'van', 'niva']) {
       for (const c of CHASSIS[id].core.filter((core) => core.defId.includes('wheel') && !AXLE_UNDER_COUPLING.has(`${id} ${core.x},${core.y}`))) {
         const h = partDef(c.defId).h;
         const first = cellCenter(id, c.x, c.y);

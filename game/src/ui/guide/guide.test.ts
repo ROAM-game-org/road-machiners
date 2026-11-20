@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TOKENS } from "../tokens";
-import { PIECES } from "./pieces";
+import { PIECES, STATES } from "./pieces";
 
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
 const components = read("../styles/components.css");
 const guide = read("../../../docs/ui.md");
+
+const stateTable = guide.slice(guide.indexOf("| State | Meaning | Look |"));
+const sectionStates = [...stateTable.slice(0, stateTable.indexOf("\n\n")).matchAll(/^\| ([a-z]+) \|/gm)].map((m) => m[1]!);
 
 const componentClasses = [...new Set([...components.matchAll(/(?:^|\n)(?:#ui )?\.([a-z][a-z-]*)/g)].map((m) => m[1]!))];
 
@@ -17,6 +20,11 @@ describe("the UI guide", () => {
 
   it("names every shared piece in docs/ui.md", () => {
     for (const piece of PIECES) expect(guide, `${piece.name} is missing from docs/ui.md`).toContain(`\`${piece.name.split(".meter.")[0]!}`);
+  });
+
+  it("draws every interaction state of docs/ui.md on the kit sheet", () => {
+    expect(sectionStates.length).toBeGreaterThan(0);
+    expect(STATES.map((s) => s.name)).toEqual(sectionStates);
   });
 
   it("names the first token of each scale in docs/ui.md", () => {

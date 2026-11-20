@@ -1,6 +1,6 @@
-import { ECONOMY } from "../data/goods";
+import { ECONOMY, GOOD_IDS } from "../data/goods";
 import { SHOPS, SHORT_PRESSURE, siteRecipes, type Recipe, type ShopDef } from "../data/market";
-import { knowsMarket, goodStock, pressureOf, shopState, stockShort, type ShopState } from "../sim/market";
+import { knowsMarket, goodStock, pressureOf, shopState, shopTrades, stockShort, type ShopState } from "../sim/market";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
@@ -12,7 +12,7 @@ import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
 import { caseOwed, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
 import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, goodName, refusalText, siteName, vehicleTitle } from "../text/names";
-import { chassisMap, chassisPortrait, chassisStats, createIcon, createItemIcon, createItemTipIcon, diffStats, itemTip, statGrid } from "./cards";
+import { chassisMap, chassisPortrait, chassisStats, createIcon, createItemIcon, createItemTipIcon, diffStats, itemTip, segmentGauge, statGrid } from "./cards";
 import { el, type Child } from "./dom";
 import { caseVictimName, clock, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
 import { seesAll } from "./see-all";
@@ -27,15 +27,21 @@ export type ShopButtons = {
 };
 
 export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  const button = (verb: Msg, cost: number, cmd: ShopCommand, key: string) =>
-    cost === 0 ? buttons.button(verb, cmd, t("trade.nothingToRepair"), key) : buttons.priceButton(w, verb, cost, cmd, null, key);
+  const key = (verb: Msg, cost: number, cmd: ShopCommand, id: string) => buttons.priceButton(w, verb, cost, cmd, cost === 0 ? t("trade.nothingToRepair") : null, id);
   return el(
     "div",
     { class: "town-repair" },
     createIcon("tools"),
-    button(t("trade.repairBasicsVerb"), basicsRepairCost(w, truck), repair.basics, "repairBasics"),
-    button(t("trade.repairAllVerb"), repairCost(w, truck), repair.all, "repairAll"),
+    key(t("trade.repairBasicsVerb"), basicsRepairCost(w, truck), repair.basics, "repairBasics"),
+    key(t("trade.repairAllVerb"), repairCost(w, truck), repair.all, "repairAll"),
   );
+}
+
+function quoteStep(key: HTMLElement, step: Msg): HTMLElement {
+  const price = key.querySelector(".price");
+  if (!price) throw new Error("a priced key has no price element");
+  price.prepend(el("span", { class: "key-step" }, step, SPACE));
+  return key;
 }
 
 export type SupplyLimit = { room: number; tag: HTMLElement | null };
@@ -47,17 +53,25 @@ export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: Supply
 }
 
 export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
-  const room = limit.room;
+  return serviceSupplyRow(w, k, buttons, buy, truck, limit);
+}
+
+export function serviceSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
   const price = ECONOMY.supplyPrice[k];
-  const afford = Math.min(room, Math.floor(w.player.money / price));
+  const afford = Math.min(limit.room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
-  const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, [
-    buttons.priceButton(w, t("trade.plusAmount", { amount: amount(1) }), supplyCharge(k, 1), (x) => buy(x, k, 1), reason),
-    afford > 0
-      ? buttons.priceButton(w, t("trade.fillBare"), supplyCharge(k, afford), (x) => buy(x, k, afford), reason, "", t("trade.fill", { amount: amount(afford) }))
-      : buttons.button(t("trade.fillBare"), (x) => x, reason),
-  ], limit.tag);
+  const reason = limit.room < 1 ? t("trade.full") : shortBy(w.player.money, price);
+  const fillUnits = afford > 0 ? afford : Math.max(limit.room, 0);
+  const have = getResources(w, truck)[k];
+  const cap = supplyCap(w, k, truck);
+  return el(
+    "div",
+    { class: "service-row" },
+    createIcon(k),
+    el("div", { class: "service-meter cost readout" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) }), limit.tag), bar(have / cap)),
+    quoteStep(buttons.priceButton(w, t("goods.buy"), supplyCharge(k, 1), (x) => buy(x, k, 1), reason, `${k}:buy`, t("trade.plusAmount", { amount: amount(1) })), amount(1)),
+    buttons.priceButton(w, t("trade.fillBare"), supplyCharge(k, fillUnits), (x) => (afford > 0 ? buy(x, k, afford) : x), reason, `${k}:fill`, t("trade.fill", { amount: amount(fillUnits) })),
+  );
 }
 
 export type PriceHint = { tone: "good" | "bad" | ""; title: Msg };
@@ -74,7 +88,7 @@ export function supplyCap(w: World, k: Supply, truck: Vehicle = playerVehicle(w)
   return k === "fuel" ? fuelCap(truck) : suppliesCap(truck);
 }
 
-export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, buys: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
+export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, buys: HTMLElement[], tag: HTMLElement | null = null, onScreen = false): HTMLElement {
   const amount = (n: number) => supplyAmount(k, n);
   return el(
     "div",
@@ -83,7 +97,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       "div",
       { class: "good-name supply" },
       createIcon(k),
-      el("div", { class: "service-meter" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
+      el("div", { class: onScreen ? "service-meter" : "service-meter screen-block" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
       tag,
     ),
     theirs,
@@ -101,11 +115,21 @@ export function buyButton(money: number, verb: Msg, price: number, click: () => 
 }
 
 export function sellButton(verb: Msg, price: number, click: () => void, reason: Msg | null = null): HTMLElement {
-  return reasonButton([pricedEl(verb, priceTag(price, true))], click, reason);
+  return rowButton([pricedEl(verb, priceTag(price, true))], click, reason);
+}
+
+export function screenButton(button: HTMLElement): HTMLElement {
+  button.classList.remove("btn-s");
+  button.classList.add("screen-btn");
+  return button;
 }
 
 export function reasonButton(label: Child[], click: () => void, reason: Msg | null, key = "", title: Msg | null = null): HTMLElement {
   return el("button", { ...reasonAttrs(reason, title), "data-key": key || undefined, onclick: () => reason || click() }, ...label);
+}
+
+export function rowButton(label: Child[], click: () => void, reason: Msg | null, key = "", title: Msg | null = null): HTMLElement {
+  return screenButton(reasonButton(label, click, reason, key, title));
 }
 
 export function lotLabel(verb: Msg, price: number | null, payable = true, hint: PriceHint | null = null): Child {
@@ -132,7 +156,7 @@ export function keepFocus(root: HTMLElement, render: () => void): void {
 }
 
 export function bar(share: number): HTMLElement {
-  return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
+  return segmentGauge(share);
 }
 
 function paletteHex(id: PaletteId): string {
@@ -172,7 +196,7 @@ export function paintTab(choice: PaintChoice): HTMLElement {
     "div",
     { class: "paint-tab" },
     el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
-    el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
+    el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy ? screenButton(choice.buy) : null)),
   );
 }
 
@@ -182,7 +206,7 @@ function schemeRow(choice: PaintChoice): HTMLElement {
     return el(
       "button",
       {
-        class: `btn-s${!current && choice.plan && samePaint(scheme, choice.plan) ? " planned" : ""}`,
+        class: `screen-btn${!current && choice.plan && samePaint(scheme, choice.plan) ? " planned" : ""}`,
         "data-scheme": String(i),
         "aria-pressed": String(current),
         "aria-label": num(i + 1, "int"),
@@ -200,7 +224,7 @@ function paintSlot(choice: PaintChoice, slot: PaintSlot): HTMLElement {
     el(
       "button",
       {
-        class: `btn-s${planned === id && id !== choice.current[slot] ? " planned" : ""}`,
+        class: `screen-btn${planned === id && id !== choice.current[slot] ? " planned" : ""}`,
         "data-paint": id,
         "aria-pressed": String(choice.current[slot] === id),
         "aria-label": num(i + 1, "int"),
@@ -256,7 +280,7 @@ function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer):
   const cost = chassisPrice(w, id);
   const price = cost < 0 ? el("span", { class: "price good" }, PLUS, moneyEl(-cost)) : priceTag(cost, offer.reason === null);
   const title = offer.reason ? null : t("trade.includesTradeIn", { price: moneyMsg(chassisTradeIn(w)) });
-  return reasonButton([pricedEl(t("trade.swapVerb"), price)], offer.swap, offer.reason, "", title);
+  return rowButton([pricedEl(t("trade.swapVerb"), price)], offer.swap, offer.reason, "", title);
 }
 
 type DeskCommand = (cmd: (w: World) => World) => void;
@@ -274,9 +298,9 @@ export function deskBody(w: World, run: DeskCommand, slots: RowSlots): HTMLEleme
   return el(
     "div",
     { class: "desk-body" },
-    cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
-    settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
-    cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
+    cases.length > 0 ? el("div", { class: "desk-group screen-block" }, ...cases, payAll) : null,
+    settles.length > 0 ? el("div", { class: "desk-group screen-block" }, ...settles) : null,
+    cases.length === 0 && settles.length === 0 ? el("p", { class: "dim screen-block" }, t("desk.empty")) : null,
   );
 }
 
@@ -295,13 +319,13 @@ function caseRow(w: World, c: CrimeCase, run: DeskCommand): SlotRow {
 }
 
 function payButton(w: World, verb: Msg, price: number, shown: HTMLElement, click: () => void): HTMLElement {
-  return reasonButton([pricedEl(verb, shown)], click, shortBy(w.player.money, price));
+  return rowButton([pricedEl(verb, shown)], click, shortBy(w.player.money, price));
 }
 
 function settleRow(w: World, q: SettlementQuote, run: DeskCommand): SlotRow {
   const short = shortBy(w.player.money, q.price);
   const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
-  const settle = reasonButton([pricedEl(t("desk.settle"), priceTag(q.price, short === null))], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
+  const settle = rowButton([pricedEl(t("desk.settle"), priceTag(q.price, short === null))], () => run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) }));
   const row = el("div", { class: "row desk-settle" }, el("span", {}, factionName(q.faction)), el("span", { class: "tag bad" }, t("band.hostile")), settle);
   return { id: q.faction, row, action: settle, done: t("trade.done.settled") };
 }
@@ -474,4 +498,8 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
   );
+}
+
+export function untradedHeld(shopId: string, held: Record<string, number>): [string, number][] {
+  return GOOD_IDS.map((g): [string, number] => [g, held[g] ?? 0]).filter(([g, n]) => n > 0 && !shopTrades(shopId, g));
 }

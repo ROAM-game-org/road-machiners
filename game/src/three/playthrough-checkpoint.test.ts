@@ -6,7 +6,7 @@ import { checkpointOf, checkResume, resumeCheckpoint } from './playthrough-check
 import { saveOf } from './save';
 
 const SEED = 4;
-const HALF = 3;
+const HALF = 4;
 
 function play(start: World, turns: number): World {
   let last = start;

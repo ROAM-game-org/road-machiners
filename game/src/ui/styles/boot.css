@@ -5,7 +5,7 @@
   z-index: var(--z-boot);
   pointer-events: none;
   background: var(--color-void);
-  color: var(--ink);
+  color: var(--boot-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,12 +17,12 @@
   height: var(--btn-h-l);
   padding: 0 var(--space-8);
   font: var(--text-lead) var(--font-ui);
-  color: var(--ink);
-  background: var(--surface-raised);
-  border: 1px solid var(--line-strong);
+  color: var(--boot-ink);
+  background: var(--boot-surface);
+  border: 1px solid var(--boot-line);
   cursor: pointer;
 }
-#boot .boot-retry:hover { background: var(--surface-hover); border-color: var(--line-hover); }
+#boot .boot-retry:hover { background: var(--boot-surface-hover); border-color: var(--boot-line-hover); }
 #boot .boot-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #boot[hidden] { display: none; }
 #boot.leaving { opacity: 0; transition: opacity 250ms; }
@@ -32,27 +32,27 @@
   padding-bottom: var(--space-4);
   border-bottom: 2px solid var(--danger);
   font: 700 var(--text-heading) / 1.1 var(--font-ui);
-  color: var(--ink-title);
+  color: var(--boot-ink-title);
 }
-#boot .boot-sign { width: var(--icon-sign); height: var(--icon-sign); align-self: center; fill: var(--ink-title); }
+#boot .boot-sign { width: var(--icon-sign); height: var(--icon-sign); align-self: center; fill: var(--boot-ink-title); }
 #boot .boot-sign g { opacity: 0; transition: opacity var(--sign-fade) ease-out; }
 #boot .boot-sign g.shown { opacity: 1; }
 #boot .boot-bar { display: flex; gap: var(--space-1); height: var(--space-4); }
-#boot .boot-seg { flex: 1; background: var(--surface-raised); }
+#boot .boot-seg { flex: 1; background: var(--boot-surface); }
 #boot .boot-seg.done { background: var(--danger); }
 #boot .boot-seg.failed { background: var(--danger-bright); }
 #boot .boot-seg.running {
-  background: repeating-linear-gradient(45deg, var(--danger) 0 var(--space-3), var(--surface-raised) var(--space-3) var(--space-6));
+  background: repeating-linear-gradient(45deg, var(--danger) 0 var(--space-3), var(--boot-surface) var(--space-3) var(--space-6));
   background-size: 17px 17px;
   animation: boot-stripe 1.2s linear infinite;
 }
 @keyframes boot-stripe { to { background-position: 17px 0; } }
 #boot.failed .boot-seg.running { animation: none; }
-#boot .boot-stage { margin: 0; min-height: 1.4em; font: var(--text-lead) / 1.4 var(--font-ui); color: var(--ink); }
+#boot .boot-stage { margin: 0; min-height: 1.4em; font: var(--text-lead) / 1.4 var(--font-ui); color: var(--boot-ink); }
 #boot.failed .boot-stage { color: var(--danger-bright); }
-#boot .boot-steps { margin: 0; padding: 0; list-style: none; font: var(--text-dense) / 1.6 var(--font-mono); color: var(--ink-muted); }
+#boot .boot-steps { margin: 0; padding: 0; list-style: none; font: var(--text-dense) / 1.6 var(--font-mono); color: var(--boot-ink-muted); }
 #boot .boot-steps li { display: flex; justify-content: space-between; gap: var(--space-6); }
-#boot .boot-steps li.running { color: var(--ink); }
+#boot .boot-steps li.running { color: var(--boot-ink); }
 #boot .boot-steps li.failed { color: var(--danger-bright); }
 @media (prefers-reduced-motion: reduce) {
   #boot .boot-seg.running { animation: none; }

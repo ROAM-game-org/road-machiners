@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "/game/node_modules/three/build/three.module.js", "three/addons/": "/game/node_modules/three/examples/jsm/" } }</script>
+<style>html,body{margin:0;background:#777}canvas{display:block}</style>
+</head>
+<body>
+<script type="module">
+const query = new URLSearchParams(location.search);
+const part = query.get('p');
+if (!part) throw new Error('part.html needs ?p=<part name>');
+window.bakeView = query.get('view');
+await import(`./parts/${part}.js`);
+</script>
+</body>
+</html>

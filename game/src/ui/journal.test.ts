@@ -168,11 +168,21 @@ describe('journal screen', () => {
   const rowsOf = (root: FakeNode) => root.all((n) => n.has('job'));
   const tagsOf = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => `${x.className} ${x.text()}`);
 
-  it('shows an empty journal as its one line, with no tabs', () => {
+  it('shows an empty journal as one idle line on the body screen, under all four tabs', () => {
     const root = openJournal(emptyWorld());
 
-    expect(root.text()).toContain(resolve(t('journal.empty'), 'en'));
-    expect(tabButtons(root)).toBeUndefined();
+    expect(root.all((n) => n.has('journal-body')).map((n) => n.text())).toEqual([resolve(t('journal.empty'), 'en')]);
+    expect(tabButtons(root)!.map((b) => b.text())).toEqual(['Work', 'Wrecks', 'Notes', 'Past']);
+  });
+
+  it('shows the idle line for a tab with nothing in it', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul];
+    const { root } = journalOf(w);
+
+    tabButtons(root)!.find((b) => b.text() === 'Notes')!.click();
+
+    expect(root.all((n) => n.has('journal-body')).map((n) => n.text())).toEqual([resolve(t('journal.empty'), 'en')]);
   });
 
   it('draws the close button without a keycap and the title as a panel title', () => {
@@ -189,7 +199,7 @@ describe('journal screen', () => {
 
     const root = openJournal(w);
 
-    expect(tabButtons(root)).toBeUndefined();
+    expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([true, false, false, false]);
     expect(rowsOf(root)).toHaveLength(1);
   });
 
@@ -210,7 +220,7 @@ describe('journal screen', () => {
     clicked.click();
     screen.render();
 
-    expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([false, true]);
+    expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([false, false, true, false]);
     expect(clicked.blurred).toBe(true);
     expect(root.text()).toContain('A scavenger with an Army radio');
   });
@@ -236,11 +246,11 @@ describe('journal screen', () => {
     const { root } = journalOf(w);
     const places = root.all((n) => n.className === 'journal-place');
 
-    expect(tabButtons(root)).toBeUndefined();
+    expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([false, true, false, false]);
     expect(places.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
     ui.children = [];
     w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
-    expect(tabButtons(openJournal(w))).toBeUndefined();
+    expect(openJournal(w).all((n) => n.has('journal-place'))).toHaveLength(0);
   });
 
   it('opens the newest note and closes the others to a title and a day', () => {

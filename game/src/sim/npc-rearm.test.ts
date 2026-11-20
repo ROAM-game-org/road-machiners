@@ -11,9 +11,11 @@ import { advanceJobs } from './jobs';
 import { fitToHunt } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
-import { liesUp } from './npc-service';
+import { entersHome, liesUp, releaseRearmed } from './npc-service';
 import { getResources } from './resources';
-import { siteGates, sitePads } from './sites';
+import { addState, endState, stateOf } from './states';
+import { playerVehicle } from './damage';
+import { isSheltered, requireTruck, shelteredAt, siteGates, sitePads } from './sites';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
 import { npcHomeSite } from './tow';
 import type { PartInstance, Vehicle, World } from './types';
@@ -90,15 +92,26 @@ const RAIDER_LIE_UP = NPCS.buggy.cap * NPCS.buggy.interval;
 const itemIds = (v: Vehicle): string[] => v.items.map((it) => it.id).sort();
 const goalKinds = (v: Vehicle): string[] => v.brain!.goals.map((g) => g.kind);
 
+function arrive(w: World, v: Vehicle): void {
+  const top = topGoal(v);
+  if (top?.kind === 'rearm') {
+    const home = [...REGION.towns, ...REGION.locations].find((site) => site.id === top.targetId)!;
+    v.pos = entersHome(w, v, top) ? { ...sitePads(home)[0] } : { ...top.destination! };
+  }
+  if (top?.kind === 'retreat') v.pos = { ...sitePads(npcHomeSite(TEST_MAP, v)!)[0] };
+  v.speed = 0;
+}
+
 function npcTurn(w: World, v: Vehicle): void {
   w.events = [];
   w.turn++;
-  thinkNpc(w, v);
-  const top = topGoal(v);
-  if (top?.kind === 'rearm') v.pos = { ...top.destination! };
-  if (top?.kind === 'retreat') v.pos = { ...sitePads(npcHomeSite(TEST_MAP, v)!)[0] };
-  advanceJobs(w);
-  resolveNpcActivities(w);
+  if (!isSheltered(w, v.id)) {
+    thinkNpc(w, v);
+    arrive(w, v);
+    advanceJobs(w);
+    resolveNpcActivities(w);
+  }
+  releaseRearmed(w);
   watchStalls(w);
   expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
 }
@@ -107,9 +120,8 @@ function lieUpUntil(w: World, v: Vehicle, turn: number): void {
   const items = itemIds(v);
   while (w.turn < turn - 1) {
     npcTurn(w, v);
-    expect(liesUp(v)).toBe(true);
-    expect(goalKinds(v)).not.toContain('raid');
-    expect(goalKinds(v)).not.toContain('patrol');
+    expect(isSheltered(w, v.id)).toBe(true);
+    expect(goalKinds(v)).toEqual(['rearm']);
     expect(itemIds(v)).toEqual(items);
   }
 }
@@ -135,11 +147,28 @@ describe('the lie-up for fresh gear', () => {
     const until = topGoal(v)!.until!;
     const items = itemIds(v);
     lieUpUntil(w, v, until);
+    expect(shelteredAt(w, 'kiln')).toEqual([v]);
+    expect(w.vehicles).not.toContain(v);
     npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(false);
+    expect(w.vehicles).toContain(v);
+    expect(sitePads(kiln).some((pad) => dist(pad, v.pos) < RULES.arriveRadius * 2)).toBe(true);
     expect(itemIds(v)).not.toEqual(items);
     expect(fitToHunt(w, v)).toBe(true);
     expect(getResources(w, v).money).toBe(0);
     expect(goalKinds(v)).not.toContain('rearm');
+  });
+
+  it('goes in past its refill turn without being refitted at the gate', () => {
+    const { w, v } = raider();
+    crippleGear(v);
+    getResources(w, v).money = 0;
+    serveAtCamp(w, v);
+    const items = itemIds(v);
+    w.turn = topGoal(v)!.until! + 5;
+    resolveNpcActivities(w);
+    expect(itemIds(v)).toEqual(items);
+    expect(isSheltered(w, v.id)).toBe(true);
   });
 
   it('holds a raider with junk guns that camp service cannot rebuild', () => {
@@ -156,11 +185,13 @@ describe('the lie-up for fresh gear', () => {
     expect(goalKinds(v)).not.toContain('rearm');
   });
 
-  it('lies up at a random free spot beyond the camp edge and off its pad, apart from a truck already lying up', () => {
+  it('waits at a random free spot beyond the camp edge and off its pad, apart from a truck already waiting, while a feud keeps it outside, then goes in', () => {
     const { w, v } = raider();
     crippleGear(v);
     getResources(w, v).money = 0;
     serveAtCamp(w, v);
+    const foe = w.vehicles.find((x) => x.id === w.player.vehicleId)!;
+    const feud = addState(w, 'feud', v.id, foe.id, { kind: 'feud', robbery: false });
     const first = topGoal(v)!.destination!;
     v.pos = { ...first };
     const other = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
@@ -178,6 +209,31 @@ describe('the lie-up for fresh gear', () => {
     expect(dist(first, second)).toBeGreaterThanOrEqual(2 * RULES.arriveRadius + NPC_BEHAVIOR.lieUp.spacing);
     expect(liesUp(v)).toBe(true);
     expect(liesUp(other)).toBe(false);
+    for (let turn = 0; turn < 3; turn++) npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(false);
+    expect(sitePads(kiln).some((pad) => dist(pad, v.pos) < RULES.arriveRadius)).toBe(false);
+    endState(w, feud, 'expired');
+    for (let turn = 0; turn < 2; turn++) npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(true);
+  });
+
+  it('goes in holding a revenge grudge on the player, out of sight and reach, and comes out holding it', () => {
+    const { w, v } = raider();
+    crippleGear(v);
+    getResources(w, v).money = 0;
+    serveAtCamp(w, v);
+    const me = playerVehicle(w);
+    const grudge = addState(w, 'revenge', v.id, me.id, { kind: 'none' });
+    npcTurn(w, v);
+
+    expect(isSheltered(w, v.id)).toBe(true);
+    expect(w.vehicles).not.toContain(v);
+    expect(stateOf(w, 'revenge', v.id, me.id)).toBe(grudge);
+
+    lieUpUntil(w, v, topGoal(v)!.until!);
+    npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(false);
+    expect(stateOf(w, 'revenge', v.id, me.id)).toBe(grudge);
   });
 
   it('ends without fresh gear once the driver is fit again', () => {
@@ -189,6 +245,7 @@ describe('the lie-up for fresh gear', () => {
     const items = itemIds(v);
     npcTurn(w, v);
     expect(topGoal(v)?.kind).toBe('rearm');
+    expect(isSheltered(w, v.id)).toBe(true);
     getResources(w, v).health = RULES.maxHealth * 0.6;
     npcTurn(w, v);
     expect(goalKinds(v)).not.toContain('rearm');
@@ -196,18 +253,19 @@ describe('the lie-up for fresh gear', () => {
     expect(itemIds(v)).toEqual(items);
   });
 
-  it('survives a save and reload, refitting on the same turn with the same items', () => {
+  it('survives a save and reload while inside, refitting on the same turn with the same items', () => {
     const { w, v } = raider();
     crippleGear(v);
     getResources(w, v).money = 0;
     serveAtCamp(w, v);
     const until = topGoal(v)!.until!;
     expect(Number.isFinite(until)).toBe(true);
+    npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(true);
     w.turn = until - 3;
-    const saved = cloneWorld(w);
-    const reloaded: World = { ...saved, vehicles: saved.vehicles.map((x) => JSON.parse(JSON.stringify(x)) as Vehicle) };
+    const reloaded = cloneWorld(w);
     const runToRefit = (world: World): { turn: number; items: string[] } => {
-      const npc = world.vehicles.find((x) => x.id === v.id)!;
+      const npc = requireTruck(world, v.id);
       const before = itemIds(npc);
       while (itemIds(npc).join() === before.join() && world.turn < until) npcTurn(world, npc);
       expect(itemIds(npc)).not.toEqual(before);
@@ -216,6 +274,22 @@ describe('the lie-up for fresh gear', () => {
     const live = runToRefit(w);
     expect(live.turn).toBe(until);
     expect(runToRefit(reloaded)).toEqual(live);
+  });
+
+  it('takes a legacy open-air lie-up in through the gate and refits it once on the way out', () => {
+    const { w, v } = raider();
+    crippleGear(v);
+    getResources(w, v).money = 0;
+    v.pos = outside(6);
+    v.brain!.goals = [{ kind: 'rearm', targetId: 'kiln', destination: { ...v.pos }, phase: 'act', reason: 'lieUp', until: w.turn + 10 }];
+    const items = itemIds(v);
+    for (let turn = 0; turn < 3; turn++) npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(true);
+    expect(itemIds(v)).toEqual(items);
+    while (w.turn < 12) npcTurn(w, v);
+    expect(isSheltered(w, v.id)).toBe(false);
+    expect(itemIds(v)).not.toEqual(items);
+    expect(goalKinds(v)).not.toContain('rearm');
   });
 
   it('lies up a stranded-for-good trader at a town instead of refitting it at once', () => {
@@ -229,8 +303,11 @@ describe('the lie-up for fresh gear', () => {
     thinkNpc(w, trader);
     expect(topGoal(trader)).toMatchObject({ kind: 'rearm', targetId: REGION.towns[0].id, until: w.turn + NPCS.trader.cap * NPCS.trader.interval });
     expect(itemIds(trader)).toEqual(items);
+    npcTurn(w, trader);
+    expect(isSheltered(w, trader.id)).toBe(true);
     lieUpUntil(w, trader, topGoal(trader)!.until!);
     npcTurn(w, trader);
+    expect(isSheltered(w, trader.id)).toBe(false);
     expect(itemIds(trader)).not.toEqual(items);
     expect(goalKinds(trader)).not.toContain('rearm');
   });

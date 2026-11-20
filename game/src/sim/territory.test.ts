@@ -10,7 +10,7 @@ import { boxDistance, propBoxes, segmentCrossesBox, type PosedBox } from './mapg
 import { ROAD_INDEX } from './road-index';
 import { boxesOverlap } from '../test/boxes';
 import { siteGap } from './sites';
-import { hazardZones, isLootSpot, landingStrips, reactorPos, spotTable, territoryAt, territoryCaches, territoryEntries, territoryGrounds, territoryPieces, territoryRoads, type LandingStrip } from './territory';
+import { hazardZones, isLootSpot, landingStrips, reactorPos, spotTable, territoryAt, territoryCaches, territoryEntries, territoryGrounds, territoryPieces, territoryRoads, territoryTracks, trackLine, fullRoadEnds, JOIN_REACH, type LandingStrip } from './territory';
 import type { PropKind } from './terrain';
 import type { LandmarkLook, Obstacle } from './types';
 import { dist, lerp, polylineDist, type Vec } from './vec';
@@ -618,5 +618,37 @@ describe('Glass Flats off the road in the SE corner', () => {
     const entries = territoryEntries(flats);
     expect(entries).toHaveLength(1);
     expect(roadGap(entries[0])).toBeCloseTo(Math.min(...edge.map(roadGap)), 6);
+  });
+});
+
+describe('track joins to full roads', () => {
+  const joined = (t: typeof fallenSun) => territoryTracks(t as never).flatMap((line) => [...(line.joins.start ? [line.points[0]] : []), ...(line.joins.end ? [line.points.at(-1)!] : [])]);
+
+  it('marks one track end on each of the three region road ends inside the Fallen Sun', () => {
+    const ends = fullRoadEnds(fallenSun as never);
+    const joins = joined(fallenSun);
+    expect(ends).toHaveLength(3);
+    expect(joins).toHaveLength(3);
+    for (const end of ends) expect(joins.filter((p) => dist(p, end) <= JOIN_REACH), `${end.x},${end.y}`).toHaveLength(1);
+  });
+
+  it('marks no join at the Orchard, where the full road meets its old road, nor at Glass Flats', () => {
+    const flats = REGION.locations.find((l) => l.id === 'glass-flats')!;
+    expect(joined(orchard)).toEqual([]);
+    expect(joined(flats)).toEqual([]);
+  });
+
+  it("starts the Orchard's old road on its region road's end (IV11)", () => {
+    const ends = fullRoadEnds(orchard as never);
+    const old = TERRITORIES.orchard.farm!.roads.find((road) => road.surface === 'oldRoad')!;
+    const start = { x: orchard.pos.x + old.points[0].x, y: orchard.pos.y + old.points[0].y };
+    expect(Math.min(...ends.map((end) => dist(end, start)))).toBeLessThanOrEqual(JOIN_REACH);
+  });
+
+  it('throws on a spur that fades out on a full road end', () => {
+    const end = fullRoadEnds(fallenSun as never)[0];
+    const local = { x: end.x - fallenSun.pos.x, y: end.y - fallenSun.pos.y };
+    const spur: FarmRoad = { points: [{ x: local.x + 6, y: local.y }, local], width: 2.5, surface: 'track' };
+    expect(() => trackLine(fallenSun as never, spur, 3, [end])).toThrow('fades out on a full road');
   });
 });

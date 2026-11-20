@@ -1,5 +1,13 @@
 /* Overlays that scripts build over the 3D view or over a failed load: the crash screen, the perf readout,
    the world labels, the damage numbers and the weapon range icons. Scripts add these classes and set only runtime geometry. */
+#overlay {
+  pointer-events: none;
+}
+
+:where(#overlay) > * {
+  pointer-events: auto;
+}
+
 .crash-screen {
   position: fixed;
   inset: 0;
@@ -35,9 +43,7 @@
   top: 0;
   will-change: translate;
   transform: translate(-50%, -100%);
-  font: var(--text-lead) var(--font-mono);
-  color: var(--ink-overlay);
-  background: color-mix(in srgb, var(--surface-overlay-shade) 67%, transparent);
+  font: var(--hud-text-m) / 1.2 var(--font-hud);
   padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   pointer-events: none;
@@ -49,8 +55,9 @@
   top: 0;
   will-change: translate;
   transform: translate(-50%, -50%);
-  font: bold var(--text-lead) var(--font-mono);
-  text-shadow: 0 1px 2px var(--surface-overlay-shade);
+  font: bold var(--hud-text-l) var(--font-hud);
+  color: var(--hud-hot);
+  text-shadow: 0 1px 0 var(--hud-glass-edge);
   pointer-events: none;
   display: none;
 }
@@ -62,23 +69,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--select);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--surface-overlay-shade) 75%, transparent);
+  width: var(--hud-badge);
+  height: var(--hud-badge);
 }
-.arc-icon.spent { border-color: var(--path-spent); }
+#overlay .arc-icon.spent { color: var(--hud-amber-faint); }
 .arc-icon .item-icon {
   width: 80%;
   height: 80%;
+  filter: url(#hud-amber-tint);
 }
 .arc-icon-slot {
   position: absolute;
   right: calc(-1 * var(--space-3));
   bottom: calc(-1 * var(--space-3));
-  font: bold var(--text-dense) var(--font-ui);
-  color: var(--ink-bright);
-  background: color-mix(in srgb, var(--surface-overlay-shade) 90%, transparent);
-  border-radius: var(--radius-s);
+  font: bold var(--hud-text-s) / 1 var(--font-hud);
+  color: inherit;
   padding: 0 var(--space-1);
-  line-height: 14px;
 }

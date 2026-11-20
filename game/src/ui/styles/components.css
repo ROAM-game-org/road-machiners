@@ -3,11 +3,11 @@
 /* The framed box of a modal, the save panel and the New game screen, with the scrim over the game behind it. */
 :is(#ui, #report) .dialog {
   padding: var(--space-9);
-  background: var(--surface-panel);
-  border: 2px solid var(--line-bright);
-  box-shadow:
-    inset 0 0 0 var(--space-2) var(--line-faint),
-    0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
+  background: none;
+  border: 0;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
+  color: var(--hud-print-coal);
 }
 
 /* A panel of the right dock: the log, the contracts and the radio. */
@@ -33,31 +33,74 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.switch, .instrument-button, .truck-instrument, .end-turn, .radio-next, .inv-item, .part-sum, .mode-card, .skill-tab, .dialogue-option, .weapon-pick, .weapon-hold, .weapon-reload, .weapon-cut)) {
+:is(#ui, #report) button:where(:not(.screen-btn, .screen-line, .switch, .radio-next, .inv-item, .part-sum, .mode-card, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
+  --key-edge: var(--btn-key-edge-m);
+  --off-opacity: var(--key-off-opacity);
+  --hover-bg: none;
+  --hover-border: transparent;
+  --on-bg: none;
+  --on-border: transparent;
+  --focus-ring: none;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
   height: var(--btn-h-m);
-  padding: 0 var(--space-5);
+  padding: 0 calc(var(--space-5) - var(--key-edge));
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
+  border-radius: 0;
+  border-image: var(--key-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
+  background: none;
+  color: var(--key-print);
+  font-family: var(--font-engraved);
   font-size: var(--text-body);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  letter-spacing: 0.02em;
   line-height: 1;
+  text-transform: uppercase;
+  text-box: trim-both cap alphabetic;
   white-space: nowrap;
 }
-:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button, .weapon-head button, .log-expand, .tip-close) {
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button) {
+  --key-edge: var(--btn-key-edge-s);
   height: var(--btn-h-s);
-  padding: 0 var(--space-4);
+  padding: 0 calc(var(--space-4) - var(--key-edge));
   font-size: var(--text-dense);
 }
-:is(#ui, #report) :is(.btn-l, .death-buttons button) {
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button):lang(en) {
+  -webkit-text-stroke: 0;
+}
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button):lang(ru) {
+  -webkit-text-stroke-width: 0.012em;
+}
+:is(#ui, #report) .btn-l {
+  --key-edge: var(--btn-key-edge-l);
   height: var(--btn-h-l);
-  padding: 0 var(--space-8);
+  padding: 0 calc(var(--space-8) - var(--key-edge));
   font-size: var(--text-lead);
 }
+:is(#ui, #report) button {
+  --key-art: var(--hud-keycap-art);
+  --key-print: var(--hud-print);
+}
+:is(#ui, #report) button:is(.on, .selected, [aria-pressed="true"], [aria-checked="true"]) {
+  --key-art: var(--hud-keycap-lit-down-art);
+}
+:is(#ui, #report) button:is(:active, .seen) {
+  --key-art: var(--hud-keycap-down-art);
+}
 :is(#ui, #report) .btn-danger {
-  color: var(--danger-bright);
-  border-color: var(--danger-bright);
+  --key-art: var(--hud-keycap-red-art);
+}
+:is(#ui, #report) .btn-danger:active {
+  --key-art: var(--hud-keycap-red-down-art);
+}
+:is(#ui, #report) button:is([aria-disabled="true"], :disabled) {
+  --key-art: var(--hud-keycap-art);
+  --key-print: var(--hud-print-dim);
 }
 
 /* A line of a list or table that has no box of its own. */
@@ -156,9 +199,6 @@
 .meter.s {
   height: var(--meter-s);
 }
-.meter.l {
-  height: var(--meter-l);
-}
 .meter.broken {
   background: var(--danger-ink);
 }
@@ -168,38 +208,22 @@
 .meter.progress > * {
   background: var(--accent);
 }
-.meter.notched {
-  display: flex;
-  gap: var(--space-1);
-  height: var(--meter-l);
-  background: none;
-  overflow: visible;
-  min-width: calc(var(--cells) * var(--pip) + (var(--cells) - 1) * var(--space-1));
-}
-.meter.notched > i {
-  flex: 1;
-  height: 100%;
-  background: var(--line-soft);
-}
-.meter.notched > i.on {
-  background: var(--accent);
-}
 
 /* The one look of a chosen item: accent border and accent wash. A pressed toggle, a picked card and a picked tile all use it. */
 :is(#ui, #report) .selected,
 :is(#ui, #report) button.on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
+  border-color: var(--on-border, var(--accent));
+  background: var(--on-bg, var(--accent-wash));
 }
 
 /* A control that cannot be used now. It keeps hover and focus, and its tooltip says why. */
 :is(#ui, #report) [aria-disabled="true"] {
-  opacity: 0.45;
+  opacity: var(--off-opacity);
   cursor: default;
 }
 :is(#ui, #report) button[aria-disabled="true"]:not(.switch):hover {
-  background: var(--surface-raised);
-  border-color: var(--line-strong);
+  background: var(--hover-bg, var(--surface-raised));
+  border-color: var(--hover-border, var(--line-strong));
 }
 
 /* A note that opens over its anchor on hover and focus. Words in the UI face, numbers in .num. It also gives the reason
@@ -212,29 +236,6 @@
   font: var(--text-dense) var(--font-ui);
   text-align: left;
   white-space: normal;
-}
-
-/* The reason a control cannot be used, shown over it on hover and focus. */
-#ui [data-reason] {
-  position: relative;
-}
-#ui [data-reason]:is(:hover, :focus-visible)::after {
-  content: attr(data-reason);
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: var(--z-popup);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-raised);
-  border: 1px solid var(--line-bright);
-  color: var(--ink);
-  font: var(--text-dense) var(--font-ui);
-  white-space: nowrap;
-}
-
-#ui[data-pinned-tip] [data-reason]::after {
-  display: none;
 }
 
 /* A line of a tooltip breakdown: the label on the left in the UI face, the value on the right in mono. */
@@ -285,57 +286,23 @@
 
 /* A keyboard key or a mouse button, drawn as a keycap. */
 .key {
+  --key-edge: var(--btn-key-edge-s);
   display: inline-block;
-  padding: 0 var(--space-3);
-  background: var(--steel-3);
-  color: var(--ink-bright);
-  border: 1px solid var(--steel-5);
-  border-radius: var(--radius-s);
-  box-shadow: 0 2px 0 var(--steel-1);
-  font: var(--text-dense) var(--font-mono);
+  padding: 0 calc(var(--space-3) - var(--key-edge));
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1);
+  border-image: var(--hud-keycap-art) var(--hud-keycap-slice) fill / var(--key-edge) var(--key-edge) calc(var(--key-edge) * 2.1) stretch;
+  color: var(--hud-print);
+  font: var(--text-dense) var(--font-engraved);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 /* A number read at a glance, in the mono face. */
 .num {
   font: var(--text-dense) var(--font-mono);
-}
-
-/* The tab row of the phone layout: one word button per drawer. The open drawer's tab is .selected, and a tab whose drawer
-   has something that needs the player takes the danger edge with .marked, which stays while the state is true. */
-.drawer-tabs {
-  display: flex;
-  gap: var(--space-2);
-}
-#ui .drawer-tabs > button {
-  min-width: var(--btn-h-l);
-  padding: 0 var(--space-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-dense);
-  line-height: 1;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: normal;
-}
-#ui .drawer-tabs > button.marked {
-  border-color: var(--danger);
-}
-
-/* The newest log line on one row, on a phone above End turn. A tap opens the Log drawer. It never wraps. */
-.log-strip {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-.log-strip > div {
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .option-switch {
@@ -345,17 +312,12 @@
 .option-switch > button {
   flex: 1;
 }
-#ui .option-switch > button[aria-pressed="true"] {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent-dim);
-}
 
 .art-band {
   position: relative;
   height: var(--art-band-height);
   overflow: hidden;
-  border: 1px solid var(--surface-raised);
-  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+  background: var(--hud-glass);
 }
 .art-band img {
   width: 100%;
@@ -376,7 +338,9 @@
   gap: 0;
   overflow: hidden;
   padding: 0;
-  border: 2px solid var(--line-bright);
+  border: 2px solid transparent;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
+  color: var(--hud-print-coal);
 }
 .ink-page .ink-band {
   position: relative;
@@ -392,7 +356,6 @@
   right: 0;
   bottom: 0;
   padding: var(--space-8) var(--space-7) var(--space-4);
-  background: linear-gradient(to top, var(--scrim) 40%, transparent);
 }
 .ink-page .quest-frame.inset {
   position: absolute;
@@ -429,7 +392,7 @@
   grid-row: 2;
   min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .ink-page .ink-panel.wide {
   grid-column: 1 / -1;
@@ -453,7 +416,7 @@
   flex-direction: column;
   align-items: center;
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .ink-page .ink-scroll > :is(.ink-head, .ink-panel, .ink-choices) {
   flex: none;
@@ -472,7 +435,7 @@
 .ink-page .ink-body:has(.ink-panel.wide) > .ink-foot {
   grid-column: 1 / -1;
 }
-#ui:has(.town-page.ink-page:not([style*="display: none"])) > .right-column > .log {
+#ui:has(.town-page.ink-page:not([style*="display: none"])) > .right-column > .hud-radio {
   visibility: hidden;
 }
 #ui:not(.narrow) .ink-page .ink-scroll:has(> .ink-panel.wide) {
@@ -510,44 +473,25 @@
   min-height: 0;
   padding: 0 0 0 var(--space-7);
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
-#ui.phone .panel.modal.ink-page {
-  top: var(--modal-top);
-  width: auto;
-  height: var(--page-height);
-  overflow: auto;
+:where(#ui.narrow) .ink-page .ink-band > .art-band {
+  height: var(--art-band-narrow-height);
 }
-#ui.phone .ink-page .ink-body {
-  flex: 1 0 auto;
-  padding-bottom: 0;
-}
-#ui.phone .ink-page .ink-scroll {
-  overflow: visible;
-}
-#ui.phone .ink-page .ink-foot {
-  position: sticky;
-  bottom: 0;
-  padding-bottom: var(--space-5);
-  background: var(--surface-panel);
-}
-:where(#ui.phone, #ui.narrow) .ink-page .ink-band > .art-band {
-  height: var(--art-band-phone-height);
-}
-:where(#ui.phone, #ui.narrow) .ink-page .ink-chips {
+:where(#ui.narrow) .ink-page .ink-chips {
   position: static;
   padding: var(--space-3) var(--space-5);
   background: none;
 }
-:where(#ui.phone, #ui.narrow) .ink-page .ink-body {
+:where(#ui.narrow) .ink-page .ink-body {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   padding: var(--space-5) var(--space-6);
 }
-:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status, .ink-scroll, .ink-foot) {
+:where(#ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status, .ink-scroll, .ink-foot) {
   grid-column: 1;
 }
-:where(#ui.phone, #ui.narrow) .ink-page .ink-side {
+:where(#ui.narrow) .ink-page .ink-side {
   grid-column: 1;
   grid-row: 5;
   justify-self: stretch;
@@ -560,14 +504,6 @@
   margin-bottom: var(--space-5);
 }
 
-:is(#ui, #report) .dialogue-option.seen,
-:is(#ui, #report) .quest-choice.seen {
-  background: var(--surface-sunk);
-}
-:is(#ui, #report) .dialogue-option.seen:hover,
-:is(#ui, #report) .quest-choice.seen:hover {
-  background: var(--surface-hover);
-}
 
 /* A well: the sunk surface of a thin side column. The middle column of a working screen stays open. */
 .well {
@@ -577,7 +513,6 @@
   flex-direction: column;
   gap: var(--space-9);
   padding: var(--space-6);
-  background: var(--surface-sunk);
 }
 .well-group {
   flex: none;
@@ -597,7 +532,7 @@
   width: var(--icon-m);
   height: var(--icon-m);
 }
-.stat-row .icon svg {
+.stat-row .icon svg[viewBox="0 0 24 24"] {
   fill: none;
 }
 .stat-row .stat-name {
@@ -611,32 +546,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-/* A bar on a well: its track is lighter than the well, so the bar's full length shows. */
-.gauge {
-  position: relative;
-  height: var(--meter-m);
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-.gauge > i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-}
-.gauge > .fill {
-  background: var(--ink);
-}
-.gauge.health > .fill {
-  background: var(--good);
-}
-.gauge > .share {
-  background: var(--accent);
-}
-.gauge > .after {
-  background: var(--accent-wash);
-  outline: 1px dashed var(--accent);
-  outline-offset: -1px;
 }
 /* An action row: one verb button of a width shared by the list, then its cost or the reason it is off. */
 .action-rows {
@@ -672,6 +581,12 @@
   width: var(--icon-s);
   height: var(--icon-s);
 }
-.cost-item .icon svg {
+.cost-item .icon svg[viewBox="0 0 24 24"] {
   fill: none;
+}
+.ink-page .ink-foot > .tabs {
+  order: 1;
+  flex: none;
+  margin: 0;
+  padding: 0;
 }

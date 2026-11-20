@@ -4,7 +4,7 @@ import { isLineGun, PARTS, partDef, type EngineDef, type WeaponDef } from '../da
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
 import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
-import { vehicleMaxSpeed } from './stats';
+import { batteryFuel, vehicleMaxSpeed } from './stats';
 import type { Vehicle, World } from './types';
 import { wornDef } from './wear';
 
@@ -87,5 +87,5 @@ function shieldedCells(world: World, v: Vehicle): Map<number, { side: SideLetter
 
 function engineFuelUse(v: Vehicle): number {
   const engine = mountedItems(v, 'engine')[0];
-  return engine ? wornDef<EngineDef>(engine.part).fuelMult : 1;
+  return (engine ? wornDef<EngineDef>(engine.part).fuelMult : 1) * (1 + batteryFuel(v));
 }

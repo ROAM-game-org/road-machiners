@@ -83,7 +83,7 @@ export function spanOf(tiles: number): Span {
   return tiles < DIRECTIONS.spans.fair ? 'fair' : 'far';
 }
 
-export type CueSpot = { pos: Vec; legStart: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number };
+export type CueSpot = { pos: Vec; legStart: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number; target?: string };
 
 export function landmarkAt(world: World, spot: CueSpot): LandmarkCue | null {
   return siteCue(world, spot) ?? deckCue(world, spot) ?? propCue(world, spot);
@@ -100,7 +100,7 @@ function seenFromEarlier(spot: CueSpot, gapAt: (p: Vec) => number): boolean {
 function siteCue(world: World, spot: CueSpot): LandmarkCue | null {
   const sites = atlasSites(atlasOf(world.terrain))
     .map((site) => ({ site, gap: siteGap(site, spot.pos) }))
-    .filter((s) => s.gap <= DIRECTIONS.cueReach)
+    .filter((s) => s.gap <= DIRECTIONS.cueReach && s.site.id !== spot.target)
     .sort((a, b) => a.gap - b.gap || (a.site.id < b.site.id ? -1 : 1));
   const pick = sites.find((s) => !seenFromEarlier(spot, (p) => siteGap(s.site as Site, p)));
   return pick ? { kind: 'site', id: pick.site.id } : null;

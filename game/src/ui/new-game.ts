@@ -4,6 +4,7 @@ import { defaultSetup, parseSetup } from "../sim/settings";
 import type { GameModeId, WorldSettings, WorldSetup } from "../sim/types";
 import type { BootRequest, NewRequest } from "../three/save-slots";
 import { bindAttr, setText } from "../text/language";
+import { knobControl } from "./sound";
 import { t, type Msg } from "../text/msg";
 import { modeDescription, modeName, settingDescription, settingName } from "../text/names";
 import { askConfirm, isConfirmOpen } from "./confirm-dialog";
@@ -41,7 +42,7 @@ class NewGameScreen {
   private readonly opener = document.activeElement as HTMLElement | null;
   private readonly block = panel("new-game-block");
   private readonly root = panel("new-game dialog");
-  private readonly modes = el("div", { class: "mode-list", role: "radiogroup", "aria-label": t("newGame.mode") });
+  private readonly modes = el("div", { class: "mode-list screen-block", role: "radiogroup", "aria-label": t("newGame.mode") });
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, t("newGame.settings"));
   private readonly settings = el("div", { class: "world-settings", hidden: true });
   private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, t("newGame.skipIntro"));
@@ -76,7 +77,7 @@ class NewGameScreen {
   private render(): void {
     this.modes.replaceChildren(...MODE_IDS.map((id) => this.modeCard(id)));
     this.settings.replaceChildren(
-      ...SETTING_IDS.filter((id) => WORLD_SETTINGS[id].modes.includes(this.draft.mode)).map((id) => this.settingRow(id)),
+      el("div", { class: "settings-knobs" }, ...SETTING_IDS.filter((id) => WORLD_SETTINGS[id].modes.includes(this.draft.mode)).map((id) => this.settingRow(id))),
       el("button", { class: "reset", onclick: () => this.reset() }, t("newGame.reset")),
     );
   }
@@ -85,7 +86,7 @@ class NewGameScreen {
     const selected = this.draft.mode === id;
     return el(
       "button",
-      { class: `mode-card${selected ? " selected" : ""}`, role: "radio", "aria-checked": String(selected), "data-mode": id, onclick: () => this.pickMode(id) },
+      { class: `screen-line mode-card${selected ? " selected" : ""}`, role: "radio", "aria-checked": String(selected), "data-mode": id, onclick: () => this.pickMode(id) },
       el("b", {}, modeName(id)),
       el("span", {}, modeDescription(id)),
     );
@@ -93,30 +94,28 @@ class NewGameScreen {
 
   private settingRow(id: SettingId): HTMLElement {
     const def = WORLD_SETTINGS[id];
-    const value = this.draft.settings[id];
-    const label = el("span", { class: "setting-value" }, share(value));
-    const input = el("input", {
-      type: "range", id: `setting-${id}`, min: def.min, max: def.max, step: def.step, value,
-      "aria-valuetext": share(value),
-      oninput: (e) => {
-        const next = Number((e.target as HTMLInputElement).value);
-        this.draft.settings[id] = next;
-        setText(label, share(next));
-        bindAttr(input, "aria-valuetext", share(next));
+    const count = Math.round((def.max - def.min) / def.step);
+    const toShare = (v: number) => (v - def.min) / (def.max - def.min);
+    const value = el("span", { class: "setting-value cost readout" }, share(this.draft.settings[id]));
+    const knob = knobControl({
+      label: settingName(id),
+      aria: settingName(id),
+      count,
+      mark: toShare(def.default),
+      value: () => toShare(this.draft.settings[id]),
+      text: () => share(this.draft.settings[id]),
+      set: (next) => {
+        this.draft.settings[id] = def.min + Math.round(next * count) * def.step;
+        setText(value, share(this.draft.settings[id]));
+        knob.draw();
       },
     });
-    const defaultAt = (def.default - def.min) / (def.max - def.min);
-    return el(
-      "div",
-      { class: "setting-row", "data-setting": id },
-      el("label", { for: `setting-${id}`, title: settingDescription(id) }, settingName(id)),
-      el("div", { class: "setting-slider" }, input, el("span", { class: "default-tick", style: `--default-at: ${defaultAt}` })),
-      label,
-    );
+    bindAttr(knob.root, "title", settingDescription(id));
+    return el("div", { class: "setting-knob", "data-setting": id }, knob.root, value);
   }
 
   private wrapFocus(e: KeyboardEvent): void {
-    const controls = [...this.root.querySelectorAll<HTMLElement>("button, input")].filter((c) => c.offsetParent !== null);
+    const controls = [...this.root.querySelectorAll<HTMLElement>("button, input, [tabindex]")].filter((c) => c.offsetParent !== null);
     const edge = e.shiftKey ? controls[0] : controls[controls.length - 1];
     if (document.activeElement !== edge) return;
     e.preventDefault();

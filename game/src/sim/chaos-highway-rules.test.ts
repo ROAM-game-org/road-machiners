@@ -4,7 +4,7 @@ import { MIN_NPC_SPEED, NPCS, RAIDER_CHASE_SPEED } from '../data/npcs';
 import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
 import { type Vec, DEG, bearing, dist } from './vec';
-import { refreshVision } from './vision';
+import { refreshVision, sightRadius } from './vision';
 import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceChaosHighway, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './chaos-highway';
@@ -198,6 +198,23 @@ describe('Chaos Highway rolling start', () => {
       expect(truck.speed).toBe(0);
       expect(truck.heading).toBeCloseTo(roadHeading(w.seed, alongOf(w.seed, toRoad(w.seed, w.chaosHighway!.window, truck.pos))));
       expect(dist(truck.pos, haulerOf(w).pos)).toBeGreaterThan(TERRAIN.vision.radius);
+    }
+  });
+
+  it('spawns group trucks beyond the lit sight of the hauler plus the margin', () => {
+    for (const seed of [1, 2, 3]) {
+      const w = startWorld(seed);
+      for (const from of ['ahead', 'left', 'right'] as const) {
+        const run = w.chaosHighway!;
+        const group = { ...run.groups[0], stretch: 1, from, templates: ['buggy', 'courier'], level: waveOf(1).level, money: CHAOS_HIGHWAY.cards.buggy.floor, elites: 0 };
+        run.groups = [group];
+        spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
+        const hauler = haulerOf(w);
+        for (const id of group.vehicles) {
+          const truck = w.vehicles.find((v) => v.id === id)!;
+          expect(dist(truck.pos, hauler.pos), `${from} seed ${seed}`).toBeGreaterThan(sightRadius(w, hauler, true) + CHAOS_HIGHWAY.sightMargin);
+        }
+      }
     }
   });
 });

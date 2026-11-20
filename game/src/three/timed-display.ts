@@ -2,6 +2,8 @@ import type { TimedRecord } from '../sim/timed-combat';
 import { restFrame, type VehicleFrame, type V3 } from '../phys/frames';
 import type { GridItem, World } from '../sim/types';
 import { combatState } from '../sim/timed-combat';
+import { PHYSICS } from "../data/physics";
+import { kph } from "../ui/units";
 
 export function timedDisplay(before: World, after: World, elapsedMs: number): World {
   const state = combatState(after);
@@ -71,4 +73,21 @@ function displayItem(item: GridItem, damage: Map<string, number>, spent: Set<str
 
 export function combatFrameMs(playback: { elapsed: number } | null, frameMs: number, durationMs: number): number {
   return playback === null ? 0 : Math.min(frameMs, Math.max(0, durationMs - playback.elapsed));
+}
+
+const SPEED_WINDOW_STEPS = 3;
+
+export function playbackKph(frames: readonly VehicleFrame[], at: number): number {
+  const last = frames.length - 1;
+  if (last < 1) return 0;
+  const step = Math.min(Math.max(Math.floor(at), 0), last);
+  const from = Math.max(0, step - SPEED_WINDOW_STEPS);
+  const to = Math.min(last, step + SPEED_WINDOW_STEPS);
+  const meters = Math.hypot(frames[to].pos.x - frames[from].pos.x, frames[to].pos.z - frames[from].pos.z);
+  const metersPerSecond = (meters * PHYSICS.stepsPerSecond) / (to - from);
+  return kph((metersPerSecond * PHYSICS.turnSeconds) / PHYSICS.metersPerTile);
+}
+
+export function playedKph(frames: readonly VehicleFrame[] | undefined, at: number | null): number | null {
+  return at === null || !frames ? null : playbackKph(frames, at);
 }

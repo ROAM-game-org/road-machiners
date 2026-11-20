@@ -38,7 +38,13 @@ describe('bankKitLoader', () => {
   it('reports a file missing from a served build with its class and status', async () => {
     host(200);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { kit, report } = await loadClash();
+    vi.useFakeTimers();
+    const loading = loadClash();
+    let settled = false;
+    void loading.finally(() => (settled = true));
+    while (!settled) await vi.advanceTimersByTimeAsync(1000);
+    const { kit, report } = await loading;
+    vi.useRealTimers();
     expect(kit).toBeNull();
     expect(report).toHaveBeenCalledTimes(1);
     const failure = report.mock.calls[0][0] as Error;

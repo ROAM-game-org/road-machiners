@@ -9,7 +9,7 @@ import { loadModels, model } from './models';
 import { baseModel, partModel, weaponLook } from '../../render/partLooks';
 import * as THREE from 'three';
 import { plateLegs, plateOf, postColumn } from './gunStand';
-import { armorPlacement } from './armorCut';
+import { armorPlacement, poseArmor } from './armorCut';
 import { footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
 
@@ -117,9 +117,7 @@ describe('spare armor', () => {
       try {
         const obj = model(partModel(def.id));
         placement = armorPlacement({ chassisId: id, items: [] }, item, new THREE.Box3().setFromObject(obj), baseUnder(id, item));
-        obj.position.copy(placement.pos);
-        obj.rotation.set(0, placement.yaw, 0);
-        obj.scale.copy(placement.scale);
+        poseArmor(obj, placement);
         obj.updateMatrixWorld(true);
         const drawn = new THREE.Box3().setFromObject(obj);
         const rect = restOn(id, cellRect(id, itemCells(item))).rect;

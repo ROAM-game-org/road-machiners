@@ -3,7 +3,7 @@ import { REGION } from "../data/region";
 import { partDef } from "../data/parts";
 import { makePart } from "../sim/factory";
 import { gridOf, isMounted, itemCells, mountedParts, placementError } from "../sim/grid";
-import { addGoods, fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
+import { addGoods, fieldMoveIsInstant, moveItem, mountPart, plannedRefitTurns, plannedVehicle, removeAllGoods, removeGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
@@ -313,6 +313,7 @@ describe("instant field moves", () => {
   it("keeps the plan valid after an instant crate move", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
+    removeGoods(me, "parts", 2);
     const mg = partOf(w, "mg");
     const away = stowSpot(me, mg)!;
     const plan = planAfterMove(me, {}, mg.id, away);
@@ -338,6 +339,7 @@ describe("pickups with a plan pending", () => {
   it("refuses cells taken in the drawn layout or still held in the real one", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
+    removeGoods(me, "parts", 2);
     const mg = partOf(w, "mg");
     const away = stowSpot(me, mg)!;
     const plan = planAfterMove(me, {}, mg.id, away);

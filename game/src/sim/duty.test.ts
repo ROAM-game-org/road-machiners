@@ -145,7 +145,7 @@ describe('duty pay', () => {
   it('has a convoy pay each guard when it sells, never more than it holds', () => {
     const w = legWorld();
     const pad = { ...sitePads(NOSE)[0] };
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], pad, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'haulingRack'], pad, 'hauler');
     const guard = createNpc(w, 'convoyGuard', ['guard', 'brave'], ['mg', 'stockEngine'], { ...sitePads(NOSE)[1] });
     startEscort(w, guard, convoy, null, 0);
     addGoods(w, convoy, 'scrap', 1);
@@ -167,7 +167,7 @@ describe('duty pay', () => {
   it('pays a convoy its own leg when it sells, before it pays its guards', () => {
     const w = legWorld();
     const pad = { ...sitePads(NOSE)[0] };
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], pad, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'haulingRack'], pad, 'hauler');
     addGoods(w, convoy, 'scrap', 1);
     const goal = onLeg(w, convoy, { kind: 'sell', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'sellCargo' });
 
@@ -181,7 +181,7 @@ describe('duty pay', () => {
     const w = legWorld();
     w.salvage = [];
     w.shops.granary.goods.grain = 0;
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(NOSE)[0] }, 'hauler');
     getResources(w, convoy).money = 0;
     const run = Array.from({ length: 40 }, () => idleGoal(w, convoy)).find((goal) => goal.reason === 'loadCargo');
     if (!run?.purchase || !run.targetId) throw new Error('A broke convoy planned no supply run');
@@ -201,7 +201,7 @@ describe('duty pay', () => {
 
   it('gives a convoy that holds enough for its load no supply money', () => {
     const w = legWorld();
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(NOSE)[0] }, 'hauler');
     getResources(w, convoy).money = tradeSpend(w, convoy, 'faction') + getUpkeepReserve(convoy) + 1;
 
     fundSupplyRun(w, convoy, tradeSpend(w, convoy, 'faction'));
@@ -212,8 +212,8 @@ describe('duty pay', () => {
   it('leaves supply runs to faction convoys, so a trader only trades', () => {
     const w = legWorld();
     w.shops.granary.goods.grain = 0;
-    const trader = createNpc(w, 'trader', ['trader'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[0] }, 'hauler');
-    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(NOSE)[1] }, 'hauler');
+    const trader = createNpc(w, 'trader', ['trader'], ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(NOSE)[0] }, 'hauler');
+    const convoy = createNpc(w, 'convoy', ['supplier'], ['mg', 'workhorseDiesel', 'haulingRack'], { ...sitePads(NOSE)[1] }, 'hauler');
 
     expect(optionWeights(w, trader, 'idle', null, null)).not.toHaveProperty('haul');
     expect(optionWeights(w, trader, 'idle', null, null)).toHaveProperty('trade');

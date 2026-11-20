@@ -1,6 +1,7 @@
 import { bindAttr } from "../text/language";
 import { t, type Msg } from "../text/msg";
-import { el, isBrowserChord, panel } from "./dom";
+import { isBrowserChord, panel } from "./dom";
+import { controls, metalLine, textKey } from "./dash/skin";
 
 export type ConfirmAsk = { question: Msg; yes: Msg };
 
@@ -18,9 +19,9 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
   return new Promise((resolve) => {
     const opener = document.activeElement as HTMLElement | null;
     const block = panel("confirm-block");
-    const dialog = panel("confirm-dialog dialog");
-    const cancel = el("button", { onclick: () => finish(false) }, t("confirm.cancel"));
-    const yes = el("button", { class: "btn-danger", onclick: () => finish(true) }, ask.yes);
+    const dialog = panel("confirm-dialog hud-frame hud-panel");
+    const cancel = textKey(t("confirm.cancel"), { onclick: () => finish(false) });
+    const yes = textKey(ask.yes, { onclick: () => finish(true) }, true);
 
     const onKey = (e: Event) => {
       const key = e as KeyboardEvent;
@@ -50,7 +51,7 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-describedby", QUESTION_ID);
     bindAttr(dialog, "aria-label", ask.question);
-    dialog.append(el("p", { id: QUESTION_ID }, ask.question), el("div", { class: "confirm-buttons" }, cancel, yes));
+    dialog.append(metalLine(ask.question, QUESTION_ID), controls(cancel, yes));
     window.addEventListener("keydown", onKey, true);
     cancel.focus();
   });

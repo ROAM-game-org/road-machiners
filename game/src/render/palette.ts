@@ -4,10 +4,6 @@ import { isPaletteId, PAINT_SLOTS, PALETTE, type Paint, type TruckPaint } from '
 import type { ItemTone } from './partLooks';
 import { tokenColor } from '../ui/tokens';
 
-function tokenColorCss(name: string): string {
-  return `#${tokenColor(name).toString(16).padStart(6, '0')}`;
-}
-
 export const PAL = {
   bg: 0x1a1410,
   sand: [0xc9a878, 0xc2a070, 0xbb9868, 0xd0b080],
@@ -78,7 +74,6 @@ export const PAL = {
   dirtRoad: 0x8e7d69,
   shipGlow: 0x6fe4ff,
   textDim: '#b8a888',
-  damageText: tokenColorCss('--path-damage'),
 };
 
 export const GANG_PAINT: Record<'scrapjaw' | 'kiln', Paint> = {

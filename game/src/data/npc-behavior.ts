@@ -2,7 +2,6 @@
 import { ENCOUNTERS } from './encounters';
 import { MAP_SPREAD } from './region';
 import { RULES } from './rules';
-import { TERRAIN } from './terrain';
 import { TIME } from './time';
 import type { DeedId, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, WrongDeed } from '../sim/types';
 
@@ -11,6 +10,8 @@ export const NPC_UTILITY = {
   sproutCab: 0.5,
 };
 const LAW_GATE_REACH = 12;
+
+const GROUND_SIGHT = 25;
 
 export const NPC_BEHAVIOR = {
   stallTurns: 100,
@@ -23,7 +24,7 @@ export const NPC_BEHAVIOR = {
   pairWaitLimit: 150,
   followReaimShare: 0.25,
   lawGateReach: LAW_GATE_REACH,
-  patrolRadius: LAW_GATE_REACH + TERRAIN.vision.radius * 4,
+  patrolRadius: LAW_GATE_REACH + 100,
   patrolSpacing: 4,
   followGap: RULES.yieldDistance + 1,
   fleeCondition: 0.3,
@@ -57,7 +58,7 @@ export const NPC_BEHAVIOR = {
   crippledInvestigate: 0.01,
   lootedResume: 0.01,
   ram: {
-    partWeight: { cab: 4, wheel: 2, transmission: 2, tank: 1, engine: 3, weapon: 3, armor: 0.25, accessory: 0.25, scanner: 1, store: 1, cargo: 1, utility: 1 },
+    partWeight: { cab: 4, wheel: 2, transmission: 2, tank: 1, engine: 3, weapon: 3, armor: 0.25, accessory: 0.25, scanner: 1, store: 1, cargo: 1, utility: 1, spare: 1, relic: 1 },
     gunWeight: 1,
     valueScale: 0.3,
     riskyRam: 0.001,
@@ -85,7 +86,7 @@ export const NPC_BEHAVIOR = {
 
 export const LOOK_OVER = {
   turns: 1,
-  reach: TERRAIN.vision.radius / 2,
+  reach: 12.5,
   guessShare: 0.4,
   holdShare: 0.7,
 };
@@ -101,6 +102,8 @@ export const NPC_UPKEEP = {
   tradeReserve: 0.5,
 };
 
+export const ROAD_KIT_PARTS = 6;
+
 export const AID = {
   fillShare: 0.25,
   giftShare: 0.25,
@@ -111,11 +114,13 @@ export const AID = {
 
 export const HUNT = {
   siteDistance: 40,
-  lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
+  lawReach: NPC_BEHAVIOR.patrolRadius + GROUND_SIGHT,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
-  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * TERRAIN.vision.radius),
+  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * GROUND_SIGHT),
   roadSample: 4,
+  groundSpacing: 50,
+  groundSight: GROUND_SIGHT,
   postBearings: 12,
   patrolPostSpacing: 20,
   watchTurns: 40,

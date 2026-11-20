@@ -1,7 +1,7 @@
 import * as THREE from "three";
+import { frameTarget } from "./frameTarget";
 import { TUNING } from "./inkTuning";
 
-const CRT_SAMPLES = 4;
 const CRT_LINE_PX = 3;
 const CRT_SCAN_DEPTH = 0.32;
 const CRT_MASK = 0.14;
@@ -59,7 +59,7 @@ void main() {
 }`;
 
 export class CrtPass {
-  private readonly target = new THREE.WebGLRenderTarget(1, 1, { samples: CRT_SAMPLES, type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace, stencilBuffer: true, depthBuffer: true, resolveDepthBuffer: false, resolveStencilBuffer: false });
+  private readonly target = frameTarget({ depthRead: false });
   private readonly material = new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: FRAGMENT, uniforms: { crtScene: { value: this.target.texture }, crtSize: { value: new THREE.Vector2(1, 1) }, crtScale: { value: 1 }, crtStrength: TUNING.crt }, depthTest: false, depthWrite: false });
   private readonly quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);

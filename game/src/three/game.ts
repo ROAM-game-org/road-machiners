@@ -1,4 +1,4 @@
-import { combatFrameMs, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
+import { combatFrameMs, playedKph, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG, PLAY_EASE } from "../config";
@@ -48,7 +48,7 @@ import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
 import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
-import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
+import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, mountedSelection, weaponsForClick } from "../ui/weapons";
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
@@ -64,7 +64,9 @@ import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
 import { buildWorldViews, sightAround, type WorldViewHost } from "./world-views";
-import { type WebGLSurface } from "./webgl";
+import { drawingRenderer, type WebGLSurface } from "./webgl";
+import { FramePace } from "./frame-pace";
+import type { GraphicsFacts } from "./error-report";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
 import { TruckViews } from "./truck-views";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
@@ -96,10 +98,10 @@ import type { CombatMusic } from "./combat-music";
 import type { MusicTracks } from "../audio/music-shelf";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
-import { cameraSetting, followRenderScale } from "../ui/camera-setting";
+import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
-import { installTouchTips } from "../ui/touch-tip";
+import { installTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
 import { swallowNextClick } from "./ghost-click";
@@ -197,12 +199,14 @@ export class Game {
   private readonly hoverHold = new HoverHold((id) => this.setHovered(id), 400);
   private readonly pin = new InspectPin(() => this.onInspectChange(), (v) => this.isVehicleVisible(v));
   private readonly pickRing = new PickRing();
-  private selected: string | null = null;
+  private selected: readonly string[] = [];
   private readonly sightLimit: SightLimit;
   readonly follow: TruckFollow;
   private planFor: World | null = null;
   private readonly plans = new PlanPreparation();
   private last = performance.now();
+  private framesSeen = 0;
+  readonly pace = new FramePace();
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
@@ -216,7 +220,7 @@ export class Game {
   private readonly saves: GameSaves;
 
   warmPlans(): void {
-    this.plans.warm(this.world.terrain);
+    this.plans.warm(this.world);
   }
 
   constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
@@ -227,7 +231,7 @@ export class Game {
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = driveSnapshotOf(this.world);
     subscribeInputMode(() => this.refreshUi());
-    installTouchTips(uiRoot(), touchMode, [overlay]);
+    installTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
     refreshShadows(this.renderer, this.scene, this.gpu);
     view.appendChild(this.renderer.domElement);
@@ -271,6 +275,7 @@ export class Game {
     this.weapons = new WeaponPanel(host);
     this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
     this.hud = new Hud({
+      openMenu: () => this.menu.toggle(),
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
@@ -298,15 +303,12 @@ export class Game {
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
-    }, radio, this.renderer, this.gpu);
+    }, radio, this.weapons.deck, this.renderer, this.gpu);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
-      report: () => this.hud.openFeedback(),
-      reportOpen: () => this.hud.feedbackOpen(),
-    }, this.soundSettings);
+    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -328,12 +330,12 @@ export class Game {
         const sting = stingOf(next.events, playerVehicle(next).id);
         if (sting) this.sound.ui(sting);
       },
-      selectedWeapon: () => this.selected,
-      selectWeapon: (id) => { if (this.anim || this.modalOpen()) return; this.selected = id; this.refreshUi(); },
+      selectedWeapons: () => this.selected,
+      selectWeapons: (ids) => { if (this.anim || this.modalOpen()) return; this.selected = ids; this.refreshUi(); },
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
-      releaseTurn: () => this.travel.release(performance.now()),
+      releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
@@ -360,6 +362,12 @@ export class Game {
 
   get state(): World { return this.world; }
   logTexts(): string[] { return this.hud.logTexts(); }
+  graphicsFacts(): GraphicsFacts {
+    const renderer = drawingRenderer();
+    if (renderer === null) throw new Error('The game has no drawing renderer to report');
+    const drawn = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary() };
+  }
 
   get busy(): boolean { return this.anim !== null; }
 
@@ -425,7 +433,7 @@ export class Game {
     this.uiStale = false;
     this.menu.refresh();
     const me = playerVehicle(this.world);
-    if (this.selected && !vehicleStats(this.world, me).weapons.some((mw) => mw.part.id === this.selected)) this.selected = null;
+    this.selected = mountedSelection(vehicleStats(this.world, me).weapons, this.selected);
     if (!this.anim) {
       timed("fog", () => this.fog.update(this.world, playerSeenPropTiles(this.world)));
       this.shade.update(this.world);
@@ -435,7 +443,6 @@ export class Game {
     if (!this.anim || this.anim.impacts) this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld(), this.world);
-    this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld(), this.callShown());
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
@@ -498,7 +505,7 @@ export class Game {
     canvas.addEventListener("pointerleave", () => this.picker.moveTo(null));
     canvas.addEventListener("wheel", (e) => this.rig.zoomBy(e.deltaY), { passive: true });
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") this.travel.release(performance.now());
+      if (e.code === "Space") this.releaseTurn();
     });
     window.addEventListener("blur", () => this.travel.pause());
     document.addEventListener("visibilitychange", () => {
@@ -513,6 +520,10 @@ export class Game {
       if (e.code === "Escape" && e.repeat) return;
       this.runKey(e.code);
     });
+  }
+
+  private releaseTurn(): void {
+    this.travel.release(performance.now());
   }
 
   private pressTurn(): void {
@@ -538,9 +549,8 @@ export class Game {
     KeyF: { run: () => this.follow.recenter() },
     KeyV: { run: () => cameraSetting().toggle() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
-    KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
-    Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
+    Digit0: { run: () => this.weapons.toggleAll(), noModal: true },
     ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
     KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true },
     ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
@@ -704,10 +714,10 @@ export class Game {
   }
 
   private aimVehicle(id: string): void {
-    if (this.selected === null || !this.canClick()) return;
+    if (this.selected.length === 0 || !this.canClick()) return;
     const target = vehicleById(this.world, id);
     if (isPlayerTruck(this.world, target)) return;
-    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), target));
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), target));
   }
 
   private applyRefusable(next: () => World): void {
@@ -1094,9 +1104,15 @@ export class Game {
     if (import.meta.env.DEV) requestAnimationFrame((t) => this.tick(t));
   }
 
+  private showPlayedSpeed(at: number | null): void {
+    this.hud.showSpeed(playedKph(this.anim?.result.frames[playerVehicle(this.world).id], at));
+  }
+
   private frame(now: number): void {
+    this.fx.beginFrame();
     const dt = now - this.last;
     this.last = now;
+    if (this.framesSeen++ > 0) this.pace.note(dt);
     this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
@@ -1113,6 +1129,7 @@ export class Game {
       playCrashes(this.combatHost(), this.crashCues, step);
       this.playRoadHorns(step);
     }
+    this.showPlayedSpeed(at);
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);
@@ -1262,7 +1279,7 @@ export class Game {
     if (hide) return;
     const me = playerVehicle(this.world);
     const s = vehicleStats(this.world, me);
-    const sel = s.weapons.filter((m) => m.part.id === this.selected);
+    const sel = s.weapons.filter((m) => this.selected.includes(m.part.id));
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     this.zones.update(this.world.terrain, me.pos, me.heading, zoneSpeedOf(me), zoneHalfAngle(s, me.speed));
     const hover = this.hoverGround;

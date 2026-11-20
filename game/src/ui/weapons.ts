@@ -1,6 +1,5 @@
-import { keyLabel, touchMode } from "./input-mode";
 import { partDef } from "../data/parts";
-import { fireBlock, gunOf, hitOdds, roundDamage, type FireBlock } from "../sim/combat";
+import { fireBlock, gunOf, hitOdds, type FireBlock } from "../sim/combat";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
 import { findPart, playerVehicle, vehicleById } from "../sim/damage";
 import { vehicleStats, type MountedWeapon } from "../sim/stats";
@@ -10,16 +9,18 @@ import { workOf, type WorkLeft } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, el, panel, replaceChanged, rightColumn } from "./dom";
-import { meters } from "./units";
+import { bottomLeft, TURN_PLAYING } from "./dom";
 import type { UiHost } from "./host";
-import { createIcon, createItemIcon } from './cards';
-import { createSwitch } from "./switch";
-import { TravelSpeed } from "./travel-speed";
+import { FASTER_KEY, heldPick, SLOWER_KEY } from "./travel-speed";
+import { clockOf } from "../sim/sun";
+import { clock } from "./format";
+import { modeRules } from "../sim/settings";
+import { WeaponsPanel, type AmmoCell, type GunCellView, type GunStatus, type KeyView, type UtilitySlotView, type WeaponsView } from "./dash/weapon-blocks";
+import { RadioDeck, type DeckView, type TurnKeyView } from "./dash/panels";
 import { canCall } from "./dialogue";
 import { workLabel } from "./format";
-import { num, t, type Msg, type PlainKey } from "../text/msg";
-import { partName, vehicleTitle } from "../text/names";
+import { concat, LINE_BREAK, t, verbatim, type Msg, type PlainKey } from "../text/msg";
+import { partName } from "../text/names";
 
 export const blockWords = (block: FireBlock): Msg => t(`block.${block}`);
 
@@ -40,12 +41,7 @@ export const BLOCK_SHORT: Record<FireBlock, PlainKey | null> = {
   lineOut: "blockShort.lineOut",
 };
 
-export const WEAPONS_PER_ROW = 5;
 
-export function weaponGrid(count: number): { cols: number; small: boolean } {
-  if (count <= WEAPONS_PER_ROW) return { cols: count, small: false };
-  return { cols: Math.ceil(count / 2), small: true };
-}
 
 export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
 export type JobMark = { label: Msg; work: WorkLeft };
@@ -101,20 +97,21 @@ export function aimsBody(w: World, weapons: readonly MountedWeapon[], targetId: 
   return weapons.length > 0 && weapons.every((mw) => orders[mw.part.id]?.targetId === targetId && orders[mw.part.id].aim === "body");
 }
 
-export function gunsLabel(w: World, selected: string | null): Msg {
-  if (!selected) return t("weapon.allGuns");
-  const i = vehicleStats(w, playerVehicle(w)).weapons.findIndex((mw) => mw.part.id === selected);
-  return i < 0 ? t("weapon.allGuns") : t("weapon.gunN", { n: i + 1 });
+export function gunsLabel(w: World, selected: readonly string[]): Msg {
+  if (selected.length === 0) return t("weapon.noGunSelected");
+  if (selected.length > 1) return t("weapon.allGuns");
+  const i = vehicleStats(w, playerVehicle(w)).weapons.findIndex((mw) => mw.part.id === selected[0]);
+  return i < 0 ? t("weapon.noGunSelected") : t("weapon.gunN", { n: i + 1 });
 }
 
 export type AimState = { guns: Msg; body: number[]; bodyAimed: boolean; locked: boolean; hasGuns: boolean };
 
-export function aimStateOf(w: World, selected: string | null, locked: boolean, targetId: string): AimState {
+export function aimStateOf(w: World, selected: readonly string[], locked: boolean, targetId: string): AimState {
   const weapons = weaponsForClick(w, selected);
   return { guns: gunsLabel(w, selected), body: bodyMarks(w, targetId), bodyAimed: aimsBody(w, weapons, targetId), locked, hasGuns: weapons.length > 0 };
 }
 
-type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (next: () => World) => void };
+type AimHost = { world: () => World; selected: () => readonly string[]; canAim: () => boolean; apply: (next: () => World) => void };
 
 export function aimActions(h: AimHost) {
   const guns = () => weaponsForClick(h.world(), h.selected());
@@ -178,22 +175,80 @@ export function ammoText(mw: MountedWeapon): Msg {
   return t("weapon.ammo", { n: gunOf(mw.part).ammo, of: mw.def.magazine });
 }
 
-export type AmmoCell = "loaded" | "spent" | "reloading";
+
+
+
+
+export function lineOut(w: World, mw: MountedWeapon): boolean {
+  const me = playerVehicle(w);
+  return w.lines.some((line) => line.from === me.id && line.fromPart === mw.part.id);
+}
 
 export function ammoCells(magazine: number, ammo: number, reloadWork: number, reload: number): AmmoCell[] {
   const spent = magazine - ammo;
-  const filled = reloadWork > 0 ? Math.min(spent, Math.ceil((reloadWork / reload) * magazine)) : 0;
-  return Array.from({ length: magazine }, (_, i) =>
-    i < ammo ? "loaded" : i < ammo + filled ? "reloading" : "spent");
+  const filled = reloadWork > 0 ? Math.min(spent, Math.ceil((reloadWork / reload) * spent)) : 0;
+  return Array.from({ length: magazine }, (_, i) => (i < ammo ? "loaded" : i < ammo + filled ? "refill" : "spent"));
 }
 
-export function ammoLabel(mw: MountedWeapon): Msg {
+const ERROR_BLOCKS: readonly FireBlock[] = ["disabled", "shutDown"];
+
+function broken(mw: MountedWeapon, block: FireBlock | null): boolean {
+  return mw.part.hp <= 0 || (block !== null && ERROR_BLOCKS.includes(block));
+}
+
+function gunAimStatus(w: World, mw: MountedWeapon, readout: ReturnType<typeof getWeaponReadout>): GunStatus {
+  const order = playerVehicle(w).weaponOrders[mw.part.id];
+  if (readout.chance === null || readout.target === null || !order) return { kind: "noTarget" };
+  return { kind: "aiming", part: aimName(readout.target, order.aim), chance: t("hit.chance", { pct: Math.round(readout.chance * 100) }) };
+}
+
+export function gunStatus(w: World, mw: MountedWeapon): GunStatus {
+  const readout = getWeaponReadout(w, mw);
+  if (broken(mw, readout.block)) return { kind: "error" };
+  if (mw.def.line && lineOut(w, mw)) return { kind: "gotEm" };
+  if (gunOf(mw.part).reloadWork > 0 || readout.block === "empty") return { kind: "reloading" };
+  return gunAimStatus(w, mw, readout);
+}
+
+function magazineBlock(mw: MountedWeapon): Msg | null {
   const gun = gunOf(mw.part);
-  if (gun.reloadWork > 0) return t("weapon.reloadingLeft", { n: mw.def.reload - gun.reloadWork });
-  return t("weapon.rounds", { n: gun.ammo, of: mw.def.magazine });
+  if (gun.ammo === 0 || gun.reloadWork > 0) return t("weapon.reloadBusy");
+  return gun.ammo < mw.def.magazine ? null : t("weapon.reloadFull");
 }
 
-export const TURN_PLAYING: Msg = t("weapon.turnPlaying");
+export function reloadBlock(w: World, mw: MountedWeapon): Msg | null {
+  if (mw.part.hp <= 0) return t("weapon.reloadBroken");
+  if (mw.def.line) return lineOut(w, mw) ? null : t("weapon.noLineOut");
+  return magazineBlock(mw);
+}
+
+export const NO_GUN_SELECTED: Msg = t("weapon.noGunSelected");
+
+function firstReason(guns: readonly MountedWeapon[], blockOf: (mw: MountedWeapon) => Msg | null): Msg | null {
+  if (guns.length === 0) return NO_GUN_SELECTED;
+  const reasons = guns.map(blockOf);
+  return reasons.some((r) => r === null) ? null : reasons[0];
+}
+
+export function reloadReason(w: World, guns: readonly MountedWeapon[]): Msg | null {
+  return firstReason(guns, (mw) => reloadBlock(w, mw));
+}
+
+export function holdReason(w: World, guns: readonly MountedWeapon[]): Msg | null {
+  const orders = playerVehicle(w).weaponOrders;
+  return firstReason(guns, (mw) => (orders[mw.part.id] ? null : t("weapon.noHoldTarget")));
+}
+
+export function reloadGuns(w: World, guns: readonly MountedWeapon[]): World {
+  for (const mw of guns.filter((g) => reloadBlock(w, g) === null)) w = mw.def.line ? cutPlayerLine(w, mw.part.id) : reloadWeapon(w, mw.part.id);
+  return w;
+}
+
+export function holdGuns(w: World, guns: readonly MountedWeapon[]): World {
+  let next = setAutoFire(w, false);
+  for (const mw of guns) next = setWeaponOrder(next, mw.part.id, null);
+  return next;
+}
 
 export function orderLock(w: World, playing: boolean): Msg | null {
   if (actBlock(w) === "knockedOut") return t("actBlock.knockedOut");
@@ -205,26 +260,10 @@ export function lockReason(w: World, phase: ReturnType<UiHost["getTurnPhase"]>):
   return orderLock(w, phase !== null) ?? (block === null ? null : t(`actBlock.${block}`));
 }
 
-export function reloadBlock(mw: MountedWeapon): Msg | null {
-  const ammo = gunOf(mw.part).ammo;
-  if (mw.part.hp <= 0) return t("weapon.reloadBroken");
-  if (ammo === 0) return t("weapon.reloadBusy");
-  return ammo < mw.def.magazine ? null : t("weapon.reloadFull");
-}
 
-export function canForceReload(mw: MountedWeapon): boolean {
-  return reloadBlock(mw) === null;
-}
 
-export const NOTHING_TO_HOLD: Msg = t("weapon.noHoldTarget");
 
-function keyedReason(reason: Msg | null, key: number | null): Msg | null {
-  return reason !== null && key !== null ? keyLabel(reason, String(key)) : reason;
-}
 
-function disabledAttrs(reason: Msg | null, title: Msg): Record<string, Msg | string> {
-  return reason === null ? { title } : { title: reason, "aria-disabled": "true" };
-}
 
 
 export function getWeaponReadout(w: World, mw: MountedWeapon) {
@@ -314,50 +353,8 @@ export function utilityBlockText(part: PartInstance, block: FireBlock): Msg {
   return block === "disabled" ? t("blockShort.disabled") : blockWords(block);
 }
 
-const BADGE: Partial<Record<UtilityState, string>> = { aiming: "crosshair", set: "check", armed: "fuse" };
-
-function rechargeBar(reload: { left: number; total: number }): HTMLElement {
-  const share = Math.max(0, (reload.total - reload.left) / reload.total);
-  return el("span", { class: "meter s progress recharge-bar", "aria-hidden": "true" }, el("span", { style: `width:${Math.round(share * 100)}%` }));
-}
-
 export class UtilityRow {
   constructor(private host: UiHost) {}
-
-  render(w: World, locked: Msg | null): HTMLElement | null {
-    const parts = utilitySlots(w);
-    if (parts.length === 0) return null;
-    const row = el("div", { class: "weapon-slots utility-slots" }, ...parts.map((part, i) => this.renderSlot(w, part, i, locked)));
-    row.style.setProperty("--weapon-cols", String(parts.length));
-    return row;
-  }
-
-  private renderSlot(w: World, part: PartInstance, i: number, locked: Msg | null): HTMLElement {
-    const selected = this.host.selectedUtility() === part.id;
-    const status = utilityStatus(w, part, selected);
-    const name = partName(part.defId);
-    const key = utilityKey(w, i);
-    return el(
-      "div",
-      { class: "weapon-slot utility-slot", "data-utility": part.id, "data-state": status.state },
-      el(
-        "button",
-        {
-          class: `weapon-pick ${selected ? "on" : ""}`,
-          "aria-pressed": String(selected),
-          "aria-label": t("utility.slotLabel", { name, status: status.text }),
-          ...disabledAttrs(keyedReason(locked, key), key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
-          onclick: () => locked === null && (key === null ? this.selectUtility(i) : this.host.runKey(`Digit${key}`)),
-        },
-        el("span", { class: "weapon-number" }, key === null ? null : num(key, "int")),
-        el("span", { class: "weapon-name" }, name),
-        createIcon("utility"),
-        BADGE[status.state] ? el("span", { class: "slot-badge", "data-badge": BADGE[status.state], "aria-hidden": "true" }) : null,
-        el("span", { "data-status": "", title: status.text }, status.text),
-        status.reload ? rechargeBar(status.reload) : null,
-      ),
-    );
-  }
 
   selectUtility(i: number): void {
     const w = this.host.world();
@@ -390,221 +387,102 @@ export class UtilityRow {
   }
 }
 
-function statusCause(w: World, mw: MountedWeapon, readout: ReturnType<typeof getWeaponReadout>): Msg {
-  if (readout.chance !== null && readout.target) return t("weapon.hitChanceOn", { target: vehicleTitle(w, readout.target) });
-  return readout.block === null ? t("weapon.statusReady") : blockText(mw, readout.block);
+
+
+function speedTitle(index: number, playing: number | null): Msg {
+  const pick = heldPick(index, playing);
+  const lines = [concat([verbatim(`${SLOWER_KEY} `), t("turn.speed.slower")]), concat([verbatim(`${FASTER_KEY} `), t("turn.speed.faster")])];
+  if (pick !== null) lines.push(t("turn.speed.held", { pick }));
+  return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [LINE_BREAK, line])));
 }
 
-function canHold(w: World, mw: MountedWeapon): boolean {
-  return w.player.autoFire || playerVehicle(w).weaponOrders[mw.part.id] !== undefined;
+function gunCell(w: World, mw: MountedWeapon, i: number, selected: readonly string[]): GunCellView {
+  const gun = gunOf(mw.part);
+  const status = gunStatus(w, mw);
+  return {
+    defId: mw.part.defId,
+    name: partName(mw.def.id),
+    cells: mw.def.line || status.kind === "error" ? null : ammoCells(mw.def.magazine, gun.ammo, gun.reloadWork, mw.def.reload),
+    status,
+    picked: selected.includes(mw.part.id),
+    title: partName(mw.def.id),
+    key: i < SLOT_KEYS ? String(i + 1) : null,
+  };
 }
 
-export class WeaponPanel {
-  private root = panel("weapons", bottomLeft());
-  private turn = panel('turn-control', rightColumn());
-  private expanded = true;
+function keyView(title: Msg, locked: Msg | null, reason: Msg | null): KeyView {
+  return { title, reason: locked ?? reason };
+}
+
+function utilitySlotView(host: UiHost, w: World, part: PartInstance, i: number): UtilitySlotView {
+  const selected = host.selectedUtility() === part.id;
+  const status = utilityStatus(w, part, selected);
+  const key = utilityKey(w, i);
+  return {
+    defId: part.defId,
+    label: t(`utility.short.${part.defId}` as Extract<PlainKey, `utility.short.${string}`>),
+    state: status.state,
+    picked: selected,
+    title: t("utility.slotLabel", { name: partName(part.defId), status: status.text }),
+    key: key === null ? null : String(key),
+  };
+}
+
+export function weaponsViewOf(host: UiHost): WeaponsView {
+  const w = host.world();
+  const locked = lockReason(w, host.getTurnPhase());
+  const selected = host.selectedWeapons();
+  const guns = vehicleStats(w, playerVehicle(w)).weapons;
+  return {
+    guns: guns.map((mw, i) => gunCell(w, mw, i, selected)),
+    all: { on: guns.length > 0 && selected.length === guns.length, title: t("weapon.allSwitchTitle"), reason: locked },
+    auto: { on: w.player.autoFire, title: t("weapon.autoSwitchTitle"), reason: locked },
+    reload: keyView(t("weapon.reload"), locked, reloadReason(w, weaponsForClick(w, selected))),
+    hold: keyView(t("weapon.hold"), locked, holdReason(w, weaponsForClick(w, selected))),
+    utilities: utilitySlots(w).map((part, i) => utilitySlotView(host, w, part, i)),
+    pageTitle: (page, pages) => t("hud.gunPageTitle", { page, pages }),
+  };
+}
+
+function turnView(host: UiHost): TurnKeyView {
+  const phase = host.getTurnPhase();
+  if (host.autoTravel()) return { title: t("turn.autoTitle"), label: t("turn.stopAuto"), disabled: false, auto: true };
+  return { title: t("turn.endTitle"), label: phase ? t("turn.inProgress", { phase: t(`phase.${phase}`) }) : t("turn.end"), disabled: phase !== null, auto: false };
+}
+
+export function deckViewOf(host: UiHost): DeckView {
+  const w = host.world();
+  const { day, hour } = clockOf(w.turn);
+  const playing = host.travelPlaySpeed();
+  const index = host.travelSpeedIndex();
+  return {
+    clock: { day, hour: Math.floor(hour), minute: Math.floor((hour % 1) * 60), title: t("hud.clockLabel", { when: clock(w.turn).full }) },
+    speed: { index, title: speedTitle(index, playing), reason: null, running: playing !== null },
+    turn: turnView(host),
+    offAir: !modeRules(w).radio,
+  };
+}
+
+export class WeaponOrders {
   readonly utilities: UtilityRow;
-  private readonly travelSpeed: TravelSpeed;
 
-  constructor(private host: UiHost) {
-    this.travelSpeed = new TravelSpeed({ index: () => host.travelSpeedIndex(), playing: () => host.travelPlaySpeed(), step: (delta) => host.stepTravelSpeed(delta) });
+  constructor(protected host: UiHost) {
     this.utilities = new UtilityRow(host);
-    this.root.setAttribute('data-drawer-frame', 'guns');
   }
 
-  render(): void {
-    const w = this.host.world();
-    const phase = this.host.getTurnPhase();
-    const locked = lockReason(w, phase);
-    const head = el(
-      "div",
-      { class: "weapon-head" },
-      this.expanded ? this.renderAutoSwitch(w, locked) : null,
-      this.expanded ? this.renderAllSwitch(locked) : null,
-      createSwitch({ on: t("weapon.switchShow"), off: t("weapon.switchHide"), checked: this.expanded, key: "X", title: t("weapon.toggleTitle"), onclick: () => this.host.runKey("KeyX") }),
-    );
-    replaceChanged(this.root, head, ...(this.expanded ? [this.renderControls(w, locked)] : []));
-    this.travelSpeed.sync();
-    replaceChanged(this.turn, this.travelSpeed.root, this.renderTurnButton(phase));
-  }
-
-  stepTravelSpeed(delta: 1 | -1): void {
-    this.travelSpeed.step(delta);
-  }
-
-  private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {
-    if (this.host.autoTravel())
-      return el('button', {
-        class: 'end-turn auto', 'data-hold': '', title: t('turn.autoTitle'),
-        'aria-label': t('turn.stopAuto'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
-      }, createIcon('turn'), el('span', {}, t('turn.auto')));
-    return el('button', {
-      class: 'end-turn', 'data-hold': '', disabled: phase !== null, title: t('turn.endTitle'),
-      'aria-label': phase ? t('turn.inProgress', { phase: t(`phase.${phase}`) }) : t('turn.end'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
-    }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : touchMode() ? t('turn.end') : t('turn.space')));
-  }
-
-  private pressTurn(e: PointerEvent): void {
-    if (e.button !== 0) return;
-    this.host.pressTurn();
-    const release = (): void => {
-      window.removeEventListener('pointerup', release);
-      window.removeEventListener('pointercancel', release);
-      this.host.releaseTurn();
-    };
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
-  }
-
-  private renderAutoSwitch(w: World, locked: Msg | null): HTMLElement {
-    return createSwitch({
-      on: t("weapon.autoFire"),
-      off: t("weapon.autoOff"),
-      checked: w.player.autoFire,
-      key: "Q",
-      reason: locked,
-      title: t("weapon.autoSwitchTitle"),
-      onclick: () => this.host.runKey("KeyQ"),
-    });
-  }
-
-  private renderAllSwitch(locked: Msg | null): HTMLElement {
-    return createSwitch({
-      on: t("weapon.allOn"),
-      off: t("weapon.allOff"),
-      checked: this.host.selectedWeapon() === null,
-      key: "0",
-      reason: locked,
-      title: t("weapon.allSwitchTitle"),
-      onclick: () => this.host.runKey("Digit0"),
-    });
-  }
-
-  private renderControls(w: World, locked: Msg | null): HTMLElement {
-    const weapons = vehicleStats(w, playerVehicle(w)).weapons;
-    const { cols, small } = weaponGrid(weapons.length);
-    const slots = el(
-      "div",
-      { class: small ? "weapon-slots two-rows" : "weapon-slots" },
-      ...weapons.map((mw, i) => this.renderSlot(w, mw, i, locked)),
-    );
-    slots.style.setProperty("--weapon-cols", String(cols));
-    return el(
-      "div",
-      { class: "weapon-controls" },
-      slots,
-      weapons.length === 0 ? el("div", { class: "dim" }, t("weapon.none")) : null,
-      this.utilities.render(w, locked),
-    );
-  }
-
-  private renderSlot(w: World, mw: MountedWeapon, i: number, locked: Msg | null): HTMLElement {
-    const readout = getWeaponReadout(w, mw);
-    const selected = this.host.selectedWeapon() === mw.part.id;
-    const order = playerVehicle(w).weaponOrders[mw.part.id];
-    const target = readout.target ? vehicleTitle(w, readout.target) : order ? t("weapon.targetGone") : t("weapon.noTarget");
-    const name = partName(mw.def.id);
-    const status = { name, status: readout.status, target };
-    return el(
-      "div",
-      { class: mw.part.hp <= 0 ? "weapon-slot broken" : "weapon-slot", "data-weapon": mw.part.id },
-      el(
-        "button",
-        {
-          class: `weapon-pick ${selected ? "on" : ""}`,
-          "aria-pressed": String(selected),
-          'aria-label': t("weapon.slotLabel", status),
-          ...disabledAttrs(keyedReason(locked, i + 1), keyLabel(t("weapon.slotTitle", { ...status, rounds: mw.def.rounds, damage: roundDamage(w, mw.def), pen: mw.def.round.pen, range: meters(mw.def.range), cooldown: mw.def.cooldown, magazine: mw.def.magazine, reload: mw.def.reload }), String(i + 1))),
-          onclick: () => locked === null && this.selectWeapon(selected ? null : mw.part.id),
-        },
-        el('span', { class: 'weapon-number' }, num(i + 1, 'int')),
-        el("span", { class: readout.canFire ? "good" : "dim", "data-status": "", title: statusCause(w, mw, readout) }, shortStatus(mw, readout)),
-        createItemIcon(mw.part.defId),
-        this.renderAmmo(mw),
-      ),
-      this.renderActions(w, mw, locked, canHold(w, mw)),
-    );
-  }
-
-  private renderAmmo(mw: MountedWeapon): HTMLElement {
-    const gun = gunOf(mw.part);
-    const label = ammoLabel(mw);
-    return el(
-      "span",
-      { class: "weapon-ammo", title: label },
-      el("span", { class: "sr-only" }, label),
-      ...ammoCells(mw.def.magazine, gun.ammo, gun.reloadWork, mw.def.reload).map((state) =>
-        el("span", { class: `ammo-cell ${state}`, "aria-hidden": "true" })),
-    );
-  }
-
-  private renderActions(w: World, mw: MountedWeapon, locked: Msg | null, canHold: boolean): HTMLElement {
-    const holdReason = locked ?? (canHold ? null : NOTHING_TO_HOLD);
-    const reloadReason = locked ?? reloadBlock(mw);
-    return el(
-      "div",
-      { class: "weapon-actions" },
-      el(
-        "button",
-        {
-          class: "weapon-hold",
-          ...disabledAttrs(holdReason, t("weapon.holdHint")),
-          onclick: () => holdReason === null && this.holdWeapon(mw.part.id),
-        },
-        t("weapon.hold"),
-      ),
-      mw.def.line ? this.renderCut(w, mw, locked) : el(
-        "button",
-        {
-          class: "weapon-reload",
-          ...disabledAttrs(reloadReason, t("weapon.reloadHint", { n: mw.def.reload })),
-          "aria-label": t("weapon.reloadLabel", { name: partName(mw.def.id) }),
-          onclick: () => reloadReason === null && this.forceReload(mw.part.id),
-        },
-        createIcon("reload"),
-      ),
-    );
-  }
-
-  private renderCut(w: World, mw: MountedWeapon, locked: Msg | null): HTMLElement {
-    const out = w.lines.some((l) => l.from === w.player.vehicleId && l.fromPart === mw.part.id);
-    const reason = locked ?? (out ? null : t("weapon.noLine"));
-    return el(
-      "button",
-      {
-        class: "weapon-cut",
-        ...disabledAttrs(reason, t("weapon.cutHint")),
-        "aria-label": t("weapon.cutLabel", { name: partName(mw.def.id) }),
-        onclick: () => reason === null && this.cut(mw.part.id),
-      },
-      createIcon("cut"),
-    );
-  }
-
-  private ordersLocked(): boolean {
+  protected ordersLocked(): boolean {
     return orderLock(this.host.world(), this.host.getTurnPhase() !== null) !== null;
   }
 
-  private cut(weaponId: string): void {
+  selectWeapons(ids: readonly string[]): void {
     if (this.ordersLocked()) return;
-    this.host.apply(cutPlayerLine(this.host.world(), weaponId));
+    this.host.selectWeapons(ids);
   }
 
-  private forceReload(weaponId: string): void {
-    if (this.ordersLocked()) return;
-    this.host.apply(reloadWeapon(this.host.world(), weaponId));
-  }
-
-  private holdWeapon(weaponId: string): void {
-    if (this.ordersLocked()) return;
-    this.host.apply(
-      setWeaponOrder(setAutoFire(this.host.world(), false), weaponId, null),
-    );
-  }
-
-  selectWeapon(id: string | null): void {
-    if (this.ordersLocked()) return;
-    this.host.selectWeapon(id);
+  toggleAll(): void {
+    const w = this.host.world();
+    const all = vehicleStats(w, playerVehicle(w)).weapons.map((mw) => mw.part.id);
+    this.selectWeapons(all.length > 0 && this.host.selectedWeapons().length === all.length ? [] : all);
   }
 
   pressKey(n: number): void {
@@ -619,12 +497,20 @@ export class WeaponPanel {
     const all = vehicleStats(w, playerVehicle(w)).weapons;
     if (i < 0 || i >= all.length) return;
     const id = all[i].part.id;
-    this.selectWeapon(this.host.selectedWeapon() === id ? null : id);
+    const picked = this.host.selectedWeapons();
+    this.selectWeapons(picked.length === 1 && picked[0] === id ? [] : [id]);
   }
 
-  toggleVisible(): void {
-    this.expanded = !this.expanded;
-    this.render();
+  reloadSelected(): void {
+    if (this.ordersLocked()) return;
+    const w = this.host.world();
+    this.host.apply(reloadGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+  }
+
+  holdSelected(): void {
+    if (this.ordersLocked()) return;
+    const w = this.host.world();
+    this.host.apply(holdGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
   }
 
   toggleAuto(): void {
@@ -632,14 +518,65 @@ export class WeaponPanel {
     const w = this.host.world();
     this.host.apply(setAutoFire(w, !w.player.autoFire));
   }
+
+  goToSpeed(index: number): void {
+    const from = this.host.travelSpeedIndex();
+    const delta = index > from ? 1 : -1;
+    for (let i = 0; i < Math.abs(index - from); i++) this.host.stepTravelSpeed(delta);
+  }
+}
+
+export class WeaponPanel extends WeaponOrders {
+  readonly panel: WeaponsPanel;
+  readonly deck: RadioDeck;
+
+  constructor(host: UiHost) {
+    super(host);
+    this.panel = new WeaponsPanel({
+      labels: { all: t("weapon.all"), autoFire: t("weapon.autoFire") },
+      onPickGun: (i) => this.pressKey(i + 1),
+      onAll: () => this.toggleAll(),
+      onAuto: () => this.toggleAuto(),
+      onReload: () => this.reloadSelected(),
+      onHold: () => this.holdSelected(),
+      onUtility: (i) => this.utilities.selectUtility(i),
+    });
+    this.deck = new RadioDeck({
+      dayWord: t("clock.dayWord"),
+      turnLabel: t("turn.end"),
+      speedLabel: (speed) => t("turn.speed.value", { n: speed }),
+      onSpeed: (index) => {
+        this.goToSpeed(index);
+        this.render();
+      },
+      onTurnPress: () => host.pressTurn(),
+      onTurnRelease: () => host.releaseTurn(),
+    });
+    this.panel.root.classList.add("weapons");
+    bottomLeft().append(this.panel.root);
+  }
+
+  render(): void {
+    this.panel.update(weaponsViewOf(this.host));
+    this.deck.update(deckViewOf(this.host));
+  }
+
+  stepTravelSpeed(delta: 1 | -1): void {
+    this.host.stepTravelSpeed(delta);
+    this.render();
+  }
+}
+
+export function mountedSelection(mounted: readonly MountedWeapon[], selected: readonly string[]): readonly string[] {
+  const kept = selected.filter((id) => mounted.some((mw) => mw.part.id === id));
+  return kept.length === selected.length ? selected : kept;
 }
 
 export function weaponsForClick(
   world: World,
-  selected: string | null,
+  selected: readonly string[],
 ): readonly MountedWeapon[] {
-  const all = vehicleStats(world, playerVehicle(world)).weapons;
-  return selected ? all.filter((m) => m.part.id === selected) : all;
+  return vehicleStats(world, playerVehicle(world)).weapons.filter((m) => selected.includes(m.part.id));
 }
 
 export class HoverHold {

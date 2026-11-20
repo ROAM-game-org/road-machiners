@@ -11,34 +11,34 @@
 #ui .top-left > .panel {
   position: static;
 }
-/* The weapons keep the bottom line, and the instruments go above them only when the two do not fit side by side. */
+/* The instruments, the weapons and the radio always share the bottom line. The HUD zoom and the row gap shrink so they fit. */
 .bottom-left {
   position: absolute;
-  left: var(--safe-left);
-  bottom: var(--safe-bottom);
+  left: 0;
+  bottom: 0;
   display: flex;
   flex-direction: row-reverse;
-  flex-wrap: wrap-reverse;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  align-items: stretch;
-  gap: var(--hud-gap);
-  max-width: calc(var(--layer-w) - var(--space-8) - var(--right-column));
+  align-items: flex-end;
+  gap: var(--hud-row-gap);
 }
 #ui .bottom-left > .panel {
   position: static;
 }
-#ui .bottom-left > .instruments {
+#ui .bottom-left > .hud-drive {
   order: 1;
+  clip-path: inset(calc(-1 * var(--hud-clip-far)) calc(-1 * var(--hud-clip-far)) 0 calc(-1 * var(--hud-clip-far)));
 }
 #ui .bottom-left > .weapons {
   order: 0;
   flex: 0 0 auto;
-  align-self: flex-start;
+  translate: 0 calc(-1 * var(--hud-device-lift));
 }
 #ui .bottom-left > .truck-stack {
   position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--space-4));
+  left: var(--safe-left);
+  bottom: calc(100% + var(--hud-device-lift) + var(--space-4));
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -75,8 +75,9 @@
   right: var(--safe-right);
   top: var(--safe-top);
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  align-items: flex-start;
+  align-items: flex-end;
 }
 #ui .top-right > .panel {
   position: static;
@@ -101,8 +102,6 @@
   flex-direction: column;
   gap: var(--space-1);
   box-sizing: border-box;
-  min-width: calc(var(--space-10) * 5);
-  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   padding: var(--space-2);
   background: var(--surface-panel);
   border: 1px solid var(--line-strong);
@@ -127,4 +126,8 @@
 }
 #ui .hauler-gauge .meter {
   flex: 1;
+}
+
+#ui :is(.top-left, .bottom-left, .truck-stack, .top-center, .top-right) > .hud-panel {
+  position: relative;
 }

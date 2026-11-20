@@ -6,7 +6,8 @@ import { npcBrain, emptyWorld } from '../sim/testkit';
 import { fallbackFaction } from '../sim/spawn';
 import type { Vehicle } from '../sim/types';
 import { PAINT } from '../data/chassis';
-import { gunContacts, gunOverlaps, headCount, loneHeadY, headY, mountedGuns } from './gun-clearance-kit';
+import { gunSpans } from '../sim/armor';
+import { aloneOf, gunContacts, gunOverlaps, headCount, loneHeadY, headY, mountedGuns } from './gun-clearance-kit';
 import { VehicleView } from '../three/render/vehicle';
 
 function rolled(templateId: string, seed: number): Vehicle {
@@ -61,13 +62,15 @@ export function checkGunsOnTemplates(templateIds: string[]): void {
       expect(problems).toEqual([]);
     });
 
-    it('stand at the height each has alone', () => {
+    it('stand at the height each has alone, lower only when other guns shadow its arc', () => {
       const problems: string[] = [];
       for (const { label, v } of sampleOf(templateId)) {
         for (const g of mountedGuns(v)) {
           const full = headY(v, g.id, 'world');
           const alone = loneHeadY(v, g.id, 'world');
-          if (Math.abs(full - alone) > 0.001) problems.push(`${label} ${g.part.defId}@${g.x},${g.y}: ${full.toFixed(3)} vs ${alone.toFixed(3)}`);
+          const shadowed = JSON.stringify(gunSpans(v, g)) !== JSON.stringify(gunSpans(aloneOf(v, g.id), g));
+          const off = shadowed ? full - alone > 0.001 : Math.abs(full - alone) > 0.001;
+          if (off) problems.push(`${label} ${g.part.defId}@${g.x},${g.y}: ${full.toFixed(3)} vs ${alone.toFixed(3)}`);
         }
       }
       expect(problems).toEqual([]);

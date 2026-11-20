@@ -1,0 +1,33 @@
+import { chromium } from 'playwright';
+import { startServer } from './server.mjs';
+import { sheetUrl } from './args.mjs';
+const server = await startServer();
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1700, height: 900 } });
+const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/status of 404/.test(m.text())) errors.push(m.text()); });
+await page.goto(sheetUrl(server));
+await page.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 20000 });
+const full = page.locator('#full');
+const srcs = () => full.evaluate((f) => [...f.querySelectorAll('img.layer')].map((i) => i.src.split('?')[0].split('/baked/')[1]));
+const changed = (a, b) => a.filter((s, i) => s !== b[i]);
+const results = [];
+const hits = await full.evaluate((f) => [...f.querySelectorAll('button')].map((b, i) => { b.dataset.smoke = i; const p = b.closest('.part'); return { i, part: p.className.replace('part part-', ''), text: b.textContent.trim().slice(0, 12), cls: b.className }; }));
+for (const h of hits) {
+  const before = await srcs();
+  const b = full.locator(`button[data-smoke="${h.i}"]`);
+  await b.dispatchEvent('pointerdown'); await page.waitForTimeout(60);
+  const down = await srcs();
+  await b.dispatchEvent('pointerup'); await b.dispatchEvent('click'); await page.waitForTimeout(60);
+  const after = await srcs();
+  results.push(`${h.part} ${h.cls} "${h.text}": down ${changed(down, before).join(',') || '-'} | after ${changed(after, before).join(',') || '-'}`);
+}
+const w0 = await srcs();
+await full.locator('.part-radio button.hit').last().scrollIntoViewIfNeeded();
+const wheelBox = await full.locator('.part-radio button.hit').last().boundingBox();
+await page.mouse.move(wheelBox.x + wheelBox.width / 2, wheelBox.y + wheelBox.height / 2);
+await page.mouse.wheel(0, 12);
+await page.waitForTimeout(60);
+results.push(`radio wheel roll: ${changed(await srcs(), w0).join(',') || 'NO CHANGE'}`);
+console.log(results.join('\n'));
+console.log(errors.length ? 'errors: ' + errors.join(' | ') : 'no errors');
+await browser.close(); server.close();

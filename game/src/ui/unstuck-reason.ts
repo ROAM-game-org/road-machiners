@@ -2,6 +2,7 @@ import { t, type Msg } from '../text/msg';
 import { unstuckBlock, type UnstuckBlock } from '../sim/unstuck';
 import type { World } from '../sim/types';
 import { actBlock } from '../sim/world';
+import { TURN_PLAYING } from './dom';
 
 const REASONS: Record<UnstuckBlock, Msg> = {
   knockedOut: t('actBlock.knockedOut'),
@@ -30,5 +31,5 @@ export function lookOverReason(w: World, lookingOver: boolean): Msg | null {
 }
 
 export function lookOrTurnReason(w: World, playing: boolean, lookingOver: boolean): Msg | null {
-  return lookOverReason(w, lookingOver) ?? (playing ? t('weapon.turnPlaying') : null);
+  return lookOverReason(w, lookingOver) ?? (playing ? TURN_PLAYING : null);
 }

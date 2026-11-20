@@ -32,6 +32,10 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | transmissionHeavy | transmission |
 | part | wheel | wheel |
 | part | wheelMid | wheel |
+| part | spareTire | spare_tire |
+| part | relicStatue | relic_statue |
+| part | relicShipModule | relic_ship_module |
+| part | relicComputer | relic_old_computer |
 | part | wheelHeavy | wheel |
 | part | tank | fuel_tank |
 | part | tankLong | fuel_tank |
@@ -62,12 +66,9 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | spikeCluster | arm_spike_cluster |
 | part | spikeStrip | arm_spike_strip |
 | part | rack | cargo_rack |
-| part | trailerBox | cargo_trailer_box |
+| part | haulingRack | cargo_hauling_rack |
 | part | panniers | cargo_panniers |
-| part | flatbed | cargo_flatbed |
-| part | lightFrame | cargo_light_frame |
-| part | enclosedFrame | cargo_enclosed_frame |
-| part | heavyFrame | cargo_heavy_frame |
+| part | sacks | cargo_sacks |
 | part | scanner | scanner |
 | part | jerrycans | store_jerrycans |
 | part | supplyLocker | store_locker |
@@ -79,6 +80,8 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | flareCannon | util_flare |
 | part | scrapersKnife | util_scraper |
 | part | emitter | util_emitter |
+| part | gunBattery | util_battery |
+| part | periscope | util_periscope |
 | good | scrap | good_scrap |
 | good | salt | good_salt |
 | good | meds | good_meds |

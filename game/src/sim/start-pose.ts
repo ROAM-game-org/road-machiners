@@ -1,6 +1,5 @@
 import { CHASSIS } from '../data/chassis';
 import { REGION } from '../data/region';
-import { TERRAIN } from '../data/terrain';
 import { START_KITS, type Opening } from '../data/start';
 import { dist, type Vec } from './vec';
 
@@ -8,8 +7,7 @@ export const OPENING_WRECK_RADIUS = 0.7;
 const WIDEST_CHASSIS_RADIUS = Math.max(...Object.values(CHASSIS).map((c) => c.radius));
 
 export function startPose(): { pos: Vec; heading: number } {
-  const { road, distance, sightMargin } = REGION.playerStart;
-  const offset = TERRAIN.vision.radius * 2 + sightMargin;
+  const { road, distance, roadOffset: offset } = REGION.playerStart;
   const points = REGION.roads[road];
   let left = distance;
   for (let i = 1; i < points.length; i++) {

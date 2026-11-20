@@ -123,7 +123,7 @@ export function isSunwardMember(v: Vehicle): boolean {
   return v.faction === 'sunward' && v.brain !== null && MEMBER_TEMPLATES.includes(v.brain.templateId);
 }
 
-const UNSEEN_GAP = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+const UNSEEN_GAP = TERRAIN.vision.grayRadius;
 
 const INHABITED_BERTHS: readonly Berth[] = [...REGION.towns, ...REGION.locations.filter((site) => site.kind === 'camp')].map((site) => ({ x: site.pos.x, y: site.pos.y, r: site.radius + UNSEEN_GAP }));
 

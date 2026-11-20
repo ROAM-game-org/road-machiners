@@ -40,7 +40,8 @@ import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
 import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
-import { spillDeadRows } from './spill';
+import { placeRelics, renewRelics } from './relics';
+import { spillDeadCells } from './spill';
 import { fadeCraters } from './craters';
 import { timed } from '../perf';
 import { noteHurt, resolveNpcActivities } from './npc-activities';
@@ -83,9 +84,11 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
+import { releaseRearmed } from "./npc-service";
 import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
 import { hollowObstaclesFor } from "./hollow-layout";
 import { payoutM } from './money';
+import { shareExplored } from './explored';
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -237,6 +240,7 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
   if (populate && rules.traffic) assignMoments(world);
   if (rules.traffic) initializeShops(world);
   stockOldSpots(world, map);
+  placeRelics(world);
 }
 
 export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
@@ -259,6 +263,17 @@ export function cloneWorld(world: World): World {
   return { ...structuredClone(state), obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
 }
 
+function cloneForTurn(world: World): World {
+  const { terrain, obstacles, player, ...state } = world;
+  const { explored, ...playerState } = player;
+  return {
+    ...structuredClone(state),
+    player: { ...structuredClone(playerState), explored: shareExplored(explored) },
+    obstacles: frozenObstacles(obstacles),
+    terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain),
+  } as World;
+}
+
 function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
   if (Object.isFrozen(obstacles)) return obstacles;
   for (const o of obstacles) {
@@ -270,7 +285,7 @@ function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
 }
 
 export function update(world: World, fn: (draft: World) => void): World {
-  const draft = cloneWorld(world);
+  const draft = cloneForTurn(world);
   settleDraft(draft, fn);
   return draft;
 }
@@ -385,7 +400,7 @@ export function endTurn(
   world: World,
   move: (w: World) => void,
 ): World {
-  const draft = cloneWorld(world);
+  const draft = cloneForTurn(world);
   endTurnInPlace(draft, move);
   return draft;
 }
@@ -421,12 +436,13 @@ export function endTurnInPlace(
     followTower(w);
     caltropHits(w);
     applyWear(w);
-    spillDeadRows(w);
+    spillDeadCells(w);
     advanceEngineHeat(w);
     advanceDust(w);
     advanceLines(w);
     clearPiles(w);
     renewSalvage(w);
+    renewRelics(w);
     fadeCraters(w);
     advanceJobs(w);
     startAutoRepair(w);
@@ -440,7 +456,7 @@ export function endTurnInPlace(
     cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
-    spillDeadRows(w);
+    spillDeadCells(w);
     scrapPatch(w);
     healPlayer(w);
     leakFuel(w);
@@ -476,6 +492,7 @@ export function endTurnInPlace(
     spawnNpcs(w);
     passMoments(w);
     advanceSunward(w);
+    releaseRearmed(w);
     advanceIntro(w);
     greetAtWell(w);
     advanceShops(w);

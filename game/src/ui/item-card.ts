@@ -4,14 +4,14 @@ import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
 import { atGarage } from "../sim/garage";
 import type { Spot } from "../sim/grid";
 import { dumpItem, fieldMoveIsInstant, plannedRefitTurns, plannedTruck, planItemMove, plannedRefit, refitTurnsLeft, startRefit, type RefitLayout } from "../sim/inventory";
-import { cancelRefit, startRepair, startStrip, startWeld, stripTurns, stripYield } from "../sim/jobs";
+import { cancelRefit, fitSpareTurns, startFitSpare, startRepair, startStrip, startWeld, isStrippable, stripTurns, stripYield } from "../sim/jobs";
 import { itemMass } from "../sim/mass";
 import { outpostRepairPart } from "../sim/outposts";
 import { vehicleHasPerk } from "../sim/progress";
 import { repairPlan } from "../sim/repair";
 import { shopAt } from "../sim/market";
 import { workOf } from "../sim/states";
-import { isJunk, maxHp } from "../sim/wear";
+import { carriedSpare, damagedWheels, isJunk, maxHp } from "../sim/wear";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { PERK_NUMBERS } from "../data/skills";
 import { num, t, type Msg } from "../text/msg";
@@ -19,12 +19,12 @@ import { partName } from "../text/names";
 import { actionRow, baselinePart, conditionTag, costItem, diffStats, jobDone, massStat, offActionRow, partHealthRow, partStats, statGrid, workMeterEl } from "./cards";
 import { disabledWith, el } from "./dom";
 import { commandFailure, jobLabel, workLabel, workProgress } from "./format";
-import { keyLabel, phoneMode } from "./input-mode";
-import { canFieldPatch, patchBlocker, planAfterMove, stripBlocker, stripRoomText, turnsToTry, weldBlocker } from "./inventory-moves";
+import { keyTip } from "./input-mode";
+import { canFieldPatch, patchBlocker, planAfterMove, spareBlocker, stripBlocker, stripRoomText, turnsToTry, weldBlocker } from "./inventory-moves";
 import { runCommand } from "./run-command";
 import { moneyMsg, pricedEl, priceTag } from "./units";
 
-export const ROTATE_KEYCAP = "R";
+const ROTATE_KEYCAP = "R";
 
 export type CardHost = {
   world: World;
@@ -125,7 +125,7 @@ export function rotateButton(rotate: () => void, reason: Msg | null): HTMLElemen
   const key = (e: Event) => {
     if ((e as MouseEvent).detail === 0 && !reason) rotate();
   };
-  return el("button", { class: "btn-s", "data-action": "rotate", title: reason ? undefined : keyLabel(t("inv.rotate"), ROTATE_KEYCAP), onpointerdown: press, ...(reason ? disabledWith(reason, () => {}) : { onclick: key }) }, t("inv.rotate"));
+  return el("button", { class: "btn-s", "data-action": "rotate", title: reason ? undefined : keyTip(t("inv.rotate"), ROTATE_KEYCAP), onpointerdown: press, ...(reason ? disabledWith(reason, () => {}) : { onclick: key }) }, t("inv.rotate"));
 }
 
 function rotateCostRow(button: HTMLElement, turns: number): HTMLElement[] {
@@ -138,7 +138,7 @@ function rotateReason(h: CardHost, itemId: string, to: Spot, turns: number): Msg
 }
 
 function rotateOffered(h: CardHost): boolean {
-  return !phoneMode() && (h.me.job === null || h.me.job.kind === "refit");
+  return (h.me.job === null || h.me.job.kind === "refit");
 }
 
 function rotateRow(h: CardHost, item: GridItem): HTMLElement[] {
@@ -157,7 +157,7 @@ function dumpReason(h: CardHost, item: GridItem): Msg | null {
 }
 
 function dumpRow(h: CardHost, item: GridItem, mounted: boolean): HTMLElement[] {
-  if (!h.dumpZone || phoneMode() || mounted || h.me.job) return [];
+  if (!h.dumpZone || mounted || h.me.job) return [];
   const reason = dumpReason(h, item);
   const button = el("button", { class: "btn-s", "data-drop": "dump", onpointerdown: stopPress, ...disabledWith(reason, () => h.run((world) => dumpItem(world, item.id, h.truckId))) }, t("inv.dumpShort"));
   return reason ? offActionRow(button, reason) : actionRow(button, []);
@@ -171,6 +171,19 @@ function weldRow(h: CardHost): HTMLElement[] {
   return actionRow(button, [costItem("clock", num(turns, "int")), el("span", { class: "cost-item" }, partName(part))], t("inv.weldSpends", { scrap }));
 }
 
+function fitRow(h: CardHost, verb: Msg, wheelId?: string): HTMLElement[] {
+  const reason = h.look ?? spareBlocker(h.world, h.me);
+  const button = verbButton(verb, reason, () => h.run((world) => startFitSpare(world, wheelId)));
+  if (reason) return offActionRow(button, reason);
+  return actionRow(button, [costItem("clock", num(fitSpareTurns(h.world, h.me), "int"))]);
+}
+
+function spareRows(h: CardHost, part: PartInstance, mounted: boolean): HTMLElement[] {
+  if (partDef(part.defId).kind === "spare") return fitRow(h, t("inv.verb.fit"));
+  const fitsHere = mounted && carriedSpare(h.me) && damagedWheels(h.me).some((wheel) => wheel.id === part.id);
+  return fitsHere ? fitRow(h, t("inv.verb.fitSpare"), part.id) : [];
+}
+
 function cargoRows(h: CardHost, item: GridItem): HTMLElement[] {
   const welds = item.kind === "good" && item.good === "scrap" && vehicleHasPerk(h.world, h.me, "welder");
   return [...(welds ? weldRow(h) : []), ...dumpRow(h, item, false)];
@@ -178,8 +191,9 @@ function cargoRows(h: CardHost, item: GridItem): HTMLElement[] {
 
 function partRows(h: CardHost, item: Extract<GridItem, { kind: "part" }>, mounted: boolean): HTMLElement[] {
   const part = item.part;
-  const strips = partDef(part.defId).kind !== "core" && h.me.id === h.world.player.vehicleId;
+  const strips = isStrippable(part) && h.me.id === h.world.player.vehicleId;
   return [
+    ...spareRows(h, part, mounted),
     ...(canFieldPatch(h.me, mounted, part.id) ? patchRow(h, part) : []),
     ...(shopAt(h.world) || atOutpost(h, h.world) ? repairRow(h, part) : []),
     ...rotateRow(h, item),

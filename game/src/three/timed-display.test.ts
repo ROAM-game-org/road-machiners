@@ -1,8 +1,11 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
+import { PHYSICS } from "../data/physics";
+import type { VehicleFrame } from "../phys/frames";
+import { kph } from "../ui/units";
 import { emptyWorld } from '../sim/testkit';
 import { cloneWorld } from '../sim/world';
 import { mountedParts } from '../sim/grid';
-import { playbackWorld, timedDisplay } from './timed-display';
+import { playbackKph, playbackWorld, timedDisplay } from './timed-display';
 import { newTimedCombat } from '../sim/timed-combat';
 
 it('changes inspected health at the recorded impact without changing simulation state', () => {
@@ -35,4 +38,44 @@ it('keeps projectile playback inside the simulated turn while trucks coast', asy
   expect(combatFrameMs({ elapsed: 990 }, 20, 1000)).toBe(10);
   expect(combatFrameMs({ elapsed: 1000 }, 16, 1000)).toBe(0);
   expect(combatFrameMs(null, 16, 1000)).toBe(0);
+});
+
+function frame(x: number, z = 0): VehicleFrame {
+  return { pos: { x, y: 0, z }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: [] };
+}
+
+function steady(metersPerStep: number, count: number): VehicleFrame[] {
+  return Array.from({ length: count }, (_, i) => frame(i * metersPerStep));
+}
+
+describe("playbackKph", () => {
+  it("matches the kph of the same speed in tiles per turn", () => {
+    const tilesPerTurn = 3;
+    const metersPerStep = (tilesPerTurn * PHYSICS.metersPerTile) / (PHYSICS.turnSeconds * PHYSICS.stepsPerSecond);
+    expect(playbackKph(steady(metersPerStep, 40), 20)).toBe(kph(tilesPerTurn));
+  });
+
+  it("reads zero for a parked truck", () => {
+    expect(playbackKph(steady(0, 20), 10)).toBe(0);
+  });
+
+  it("follows a speed that rises along the frames", () => {
+    const frames = Array.from({ length: 60 }, (_, i) => frame(i * i * 0.01));
+    expect(playbackKph(frames, 50)).toBeGreaterThan(playbackKph(frames, 10));
+  });
+
+  it("clamps the step to the frame range", () => {
+    const frames = steady(0.1, 10);
+    expect(playbackKph(frames, -1)).toBe(playbackKph(frames, 0));
+    expect(playbackKph(frames, 30)).toBe(playbackKph(frames, 9));
+  });
+
+  it("reads zero for a single frame", () => {
+    expect(playbackKph([frame(0)], 0)).toBe(0);
+  });
+
+  it("measures along the ground in both axes", () => {
+    const frames = Array.from({ length: 20 }, (_, i) => frame(i * 0.1, i * 0.1));
+    expect(playbackKph(frames, 10)).toBe(playbackKph(steady(Math.SQRT2 * 0.1, 20), 10));
+  });
 });

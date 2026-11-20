@@ -202,7 +202,7 @@ describe('supply convoys', () => {
   it('buy drums from the Pump Station stock and sell them into the buyer stock, with no free goods', () => {
     const pump = siteById('pump-station');
     const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(pump)[0]);
+    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], sitePads(pump)[0]);
     npc.resources!.money = NPCS.convoy.money;
     const money = npc.resources!.money;
     const pumpStock = w.shops['pump-station'].goods.fuelDrums;
@@ -225,7 +225,7 @@ describe('supply convoys', () => {
 
   it('pick supply runs only along graph edges to a buyer short of the good', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
+    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = NPCS.convoy.money;
     w.shops.granary.goods.grain = 0;
     forceOption('idle', 'haul');
@@ -239,7 +239,7 @@ describe('supply convoys', () => {
 
   it('trade about one idle roll in three and haul the rest while a buyer is short', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
+    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = NPCS.convoy.money;
     w.shops.granary.goods.grain = 0;
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
@@ -250,7 +250,7 @@ describe('supply convoys', () => {
 
   it('still haul with no money, on faction money, but trade for profit only with their own', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
+    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'haulingRack'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = 0;
     w.shops.granary.goods.grain = 0;
     const weights = optionWeights(w, npc, 'idle', null, null);

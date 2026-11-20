@@ -4,7 +4,7 @@ import { fightsAgainst, huntsForLoot, inCombat, inCombatWith, isHostile } from '
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { freeCells, hasLoot, isLoot, isMounted, itemCells, mountedItems } from './grid';
-import { cargoValue } from './market';
+import { ransomValue } from './haul';
 import { chaseStalled, startChase } from './chase';
 import { createActivity, fightGoal, fightTargetLost, finishGoal, fleeFrom, interrupt, popGoal, react, topGoal } from './npc-activities';
 import { huntsOffRoad } from './hunt-style';
@@ -124,8 +124,8 @@ function visibleHold(v: Vehicle): number {
 }
 
 export function perceivedLoad(world: World, robber: Vehicle, target: Vehicle): number {
-  if (knowsCargo(world, robber, target)) return cargoValue(target);
-  return visibleHold(target) * MEAN_CRATE_VALUE * LOOK_OVER.guessShare;
+  if (knowsCargo(world, robber, target)) return ransomValue(world, robber, target);
+  return Math.min(visibleHold(target), freeCells(robber)) * MEAN_CRATE_VALUE * LOOK_OVER.guessShare;
 }
 
 export function hasPerceivedLoot(world: World, robber: Vehicle, target: Vehicle): boolean {

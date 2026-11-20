@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PALETTE } from '../../data/chassis';
 import { WEAR_LOOK_STEPS } from '../../render/partLooks';
-import { bodyPaint, CHAR, CHAR_SHARE, charShare, OFF_ROLE_TONES, PAINT_MATERIAL, partTone, wornTone } from './truckMesh';
+import { loadModels } from './models';
+import { bodyPaint, CHAR, CHAR_SHARE, charShare, mergeParts, OFF_ROLE_TONES, PAINT_MATERIAL, partTone, wornTone } from './truckMesh';
 
+const MODEL_FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 const TAN = 0x9c7a3e;
 const RAW = 0xe03020;
 const LEAST_ROLE_CHROMA = 0.08;
@@ -59,5 +61,25 @@ describe('wornTone', () => {
     for (const material of [PAINT_MATERIAL, 'trim', 'under', 'armor', 'ram', 'metal']) {
       expect(wornTone(material, RAW, WEAR_LOOK_STEPS, true)).toBe(charMix(RAW, charShare(WEAR_LOOK_STEPS)));
     }
+  });
+});
+
+describe('mergeParts', () => {
+  it('merges a unit that holds only armor, with its outline marked as armor', async () => {
+    await loadModels(async (name) => {
+      const url = MODEL_FILES[`/public/models/${name}.glb`];
+      if (!url) throw new Error(`Missing model file for ${name}`);
+      return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
+    });
+    const group = new THREE.Group();
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.45), new THREE.MeshLambertMaterial({ name: 'armor' }));
+    plate.userData.partId = 'plate';
+    group.add(plate);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const merged = mergeParts(group, new Set(['plate']), 'armor');
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+    expect(merged.children.length).toBeGreaterThan(0);
+    expect(merged.children.every((child) => child.userData.armor)).toBe(true);
   });
 });

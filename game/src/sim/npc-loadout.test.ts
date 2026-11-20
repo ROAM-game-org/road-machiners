@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { CHASSIS } from '../data/chassis';
-import { GEAR_LEVELS, GEAR_SCORE, NPC_RESOURCES, NPCS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_LEVELS, GEAR_SCORE, NPC_RESOURCES, NPC_UPKEEP, NPCS, ROAD_KIT_PARTS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
 import { partDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { openArcShares } from './armor';
 import { makeVehicle } from './factory';
@@ -59,6 +59,36 @@ describe('NPC equipment generation', () => {
     }
   });
 
+  it.each(['trader', 'scavenger', 'roamer'])('packs a road kit of repair crates for a %s on a roomy truck', (id) => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const loadout = loadoutOf({ ...fixture, rngState: seed }, NPCS[id], 'hauler');
+      expect(loadout.cargo.parts, `seed ${seed} ${loadout.level}`).toBe(ROAD_KIT_PARTS);
+    }
+  });
+
+  const rollsNoCrates = (template: NpcTemplate) => !template.loadout.goods.some((roll) => roll.value?.good === 'parts');
+
+  it.each(Object.values(NPCS).filter(rollsNoCrates))('packs $id no more repair crates than its reserve', (template) => {
+    for (let seed = 1; seed <= 4; seed++) expect(loadoutOf({ ...fixture, rngState: seed }, template).cargo.parts ?? 0).toBeLessThanOrEqual(template.loadout.repairParts);
+  });
+
+  it('keeps a raider buggy to the small reserve', () => {
+    expect(NPCS.buggy.loadout.repairParts).toBe(NPC_UPKEEP.repairParts);
+  });
+
+  it('caps the repair crates by the room the truck has left', () => {
+    const greedy = structuredClone(NPCS.trader);
+    greedy.loadout.repairParts = 1000;
+    for (let seed = 1; seed <= 8; seed++) {
+      const world = { ...fixture, rngState: seed };
+      const loadout = loadoutOf(world, greedy, 'van');
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(greedy), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      expect(loadout.cargo.parts).toBeGreaterThan(0);
+      expect(loadout.cargo.parts).toBeLessThan(1000);
+      expect(vehicleMass(v)).toBeLessThanOrEqual(CHASSIS[v.chassisId].ratedMass);
+    }
+  });
+
   it.each(Object.values(NPCS))('gives $id only guns that keep half their arc', (template) => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
@@ -77,7 +107,7 @@ describe('NPC equipment generation', () => {
     ['invalid optional weight', (t: NpcTemplate) => { t.loadout.cargoPart = [{ value: null, weight: 0 }]; }],
     ['an unknown gear level', (t: NpcTemplate) => { t.loadout.levels = [{ value: 'shiny' as GearLevel, weight: 1 }]; }],
     ['no firepower or armor priority', (t: NpcTemplate) => { t.loadout.priorities = { ...t.loadout.priorities, firepower: 0, armor: 0 }; }],
-    ['impossible optional part', (t: NpcTemplate) => { t.loadout.chassis = [{ value: 'tiny', weight: 1 }]; t.loadout.cargoPart = [{ value: 'heavyFrame', weight: 1 }]; }],
+    ['impossible optional part', (t: NpcTemplate) => { t.loadout.chassis = [{ value: 'tiny', weight: 1 }]; t.loadout.cargoPart = [{ value: 'haulingRack', weight: 1 }]; }],
     ['impossible cargo', (t: NpcTemplate) => { t.loadout.goods = [{ value: { good: 'scrap', count: 1000 }, weight: 1 }]; }],
     ['a core part in the spare pool', (t: NpcTemplate) => { t.loadout.spares = { pool: [{ value: 'cab', weight: 1 }], count: [{ value: 1, weight: 1 }] }; }],
     ['a negative spare count', (t: NpcTemplate) => { t.loadout.spares = { pool: [{ value: null, weight: 1 }], count: [{ value: -1, weight: 1 }] }; }],

@@ -279,7 +279,7 @@ describe("playVolley breaks", () => {
   it("shows each round's damage label as that round lands, on the truck it hit", () => {
     const { host } = play();
     const labels: { at: () => V3 | null; ms: number }[] = [];
-    (host.fx as unknown as { label: unknown }).label = (at: () => V3 | null, _t: unknown, _c: unknown, _r: unknown, ms: number) => labels.push({ at, ms });
+    (host.fx as unknown as { label: unknown }).label = (at: () => V3 | null, _t: unknown, _r: unknown, ms: number) => labels.push({ at, ms });
     const plans = plansOf(event.rounds).map((p, k) => ({ ...p, delayMs: k * 300, flightMs: 50 }));
     playVolley(host, plans, MUZZLE, event, new BreakCues([event]), "mg", new Map(), false, null);
     expect(labels.map((l) => l.ms)).toEqual([350, 650]);

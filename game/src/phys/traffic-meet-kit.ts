@@ -161,7 +161,7 @@ export function overtake(haulers: number): Overtake {
   for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const [bowl, nose] = REGION.towns;
   const ids = Array.from({ length: haulers }, () => {
-    const hauler = addVehicle(w0, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
+    const hauler = addVehicle(w0, 'independent', 'van', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     hauler.brain = npcBrain('trader', hauler.pos, ['trader']);
     addGoods(w0, hauler, 'scrap', HAULER_LOAD);
     hauler.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];

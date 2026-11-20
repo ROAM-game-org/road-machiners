@@ -9,6 +9,7 @@ export class FakeNode {
   parent: FakeNode | null = null;
   hidden = false;
   focused = 0;
+  style = { props: {} as Record<string, string>, setProperty(k: string, v: string) { this.props[k] = v; } };
   constructor(readonly tag: string) {}
   get childNodes(): (FakeNode | string)[] { return this.children; }
   isEqualNode(other: FakeNode): boolean {
@@ -19,6 +20,7 @@ export class FakeNode {
   set textContent(text: string) { this.children = [text]; }
   append(...c: (FakeNode | string)[]) { for (const n of c) if (typeof n !== "string") n.parent = this; this.children.push(...c); }
   replaceChildren(...c: (FakeNode | string)[]) { this.children = []; this.append(...c); }
+  prepend(...c: (FakeNode | string)[]) { for (const n of c) if (typeof n !== "string") n.parent = this; this.children.unshift(...c); }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
   setAttribute(k: string, v: string) { this.attrs[k] = v; if (k === "hidden") this.hidden = true; }
   addEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]); }

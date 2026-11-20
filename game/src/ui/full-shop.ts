@@ -1,6 +1,7 @@
 
 import { PARTS, type PartDef } from "../data/parts";
 import { say } from "../text/language";
+import { ESCAPE, keyTip } from "./input-mode";
 import { t } from "../text/msg";
 import { CheatError, give } from "../sim/cheats";
 import { chargeFor, gunFor } from "../sim/factory";
@@ -10,7 +11,8 @@ import { maxHp } from "../sim/wear";
 import { compareBase, partCard } from "./cards";
 import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
-import { InventoryView, truckChips } from "./inventory";
+import { InventoryView } from "./inventory";
+import { truckChips } from "./chip";
 import { filterIcon, kindFilter, STOCK_FILTERS, type StockFilter } from "./garage-tabs";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");
@@ -18,7 +20,7 @@ const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> =>
 function shopParts(): PartDef[] {
   const rank = (d: PartDef) => KIND_ORDER.indexOf(kindFilter(d.kind));
   return Object.values(PARTS)
-    .filter((d) => d.kind !== "core")
+    .filter((d) => d.kind !== "core" && d.kind !== "relic")
     .sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.id.localeCompare(b.id));
 }
 
@@ -61,18 +63,18 @@ export class FullShopScreen {
     if (!this.isOpen()) return;
     const w = this.host.world();
     const truckBody = el("div", { class: "truck-body" }, this.inventory.render());
-    const truck = el("div", { class: "town-truck" }, truckBody);
+    const truck = el("div", { class: "town-truck" }, el("div", { class: "town-band" }, this.inventory.keysEl), truckBody);
     const shop = el(
       "div",
       { class: "town-shop" },
-      el("div", { class: "tabs sub" }, ...this.filterButtons()),
-      this.error ? el("div", { class: "bad" }, this.error) : null,
-      el("div", { class: "shop-body" }, el("div", { class: "cards" }, ...this.cards(w))),
+      el("div", { class: "town-band" }, el("div", { class: "tabs sub" }, ...this.filterButtons())),
+      el("div", { class: "shop-body screen-block" }, el("div", { class: "cards" }, ...this.cards(w))),
     );
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
-      el("h3", {}, "Full shop", truckChips(w)),
-      el("div", { class: "town-split" }, truck, shop),
+      el("button", { class: "close", title: say(keyTip(t("trade.leave"), ESCAPE.key)), onclick: () => this.close() }, say(t("trade.leave"))),
+      el("h3", {}, say(t("fullShop.title")), truckChips(w)),
+      el("div", { class: "town-split banded" }, truck, shop),
+      el("div", { class: "outpost-foot" }, el("div", { class: "bad" }, this.error)),
     );
     this.inventory.fitTo(truckBody);
   }
@@ -85,7 +87,7 @@ export class FullShopScreen {
         world: w,
         part,
         base: compareBase(this.inventory.selectedPart(), part),
-        action: el("button", { onclick: () => this.take(w, d.id) }, "Take"),
+        action: el("button", { class: "screen-btn", onclick: () => this.take(w, d.id) }, say(t("fullShop.take"))),
         onHover: this.hintMounts(d.id),
       });
     });
@@ -118,8 +120,7 @@ export class FullShopScreen {
             this.render();
           },
         },
-        f === "all" ? "All" : filterIcon(f),
-        el("span", { class: "count" }, `${this.parts.filter((d) => f === "all" || kindFilter(d.kind) === f).length}`),
+        f === "all" ? say(t("trade.filter.all")) : filterIcon(f),
       ),
     );
   }

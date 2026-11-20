@@ -22,6 +22,8 @@ import { claimClue, claimWrecks } from "../sim/claims";
 import { START_KITS } from "../data/start";
 import { defaultSetup } from "../sim/settings";
 import { newWorld } from "../sim/world";
+import { haulerOf, isPlayerTruckId } from "../sim/damage";
+import { parkedAtOutpost } from "../sim/testkit";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -140,7 +142,7 @@ describe("contract text", () => {
   const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 9, reward: 1, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
-    expect(en(contractDue({ ...order, deadline: turnsFor((5 * 60 + 19.5) * 60) }))).toBe("by Day 1 12:19");
+    expect(en(contractDue({ ...order, deadline: turnsFor((5 * 60 + 19.5) * 60) }))).toBe("by Day 1, 12:19");
   });
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {
@@ -533,6 +535,66 @@ describe("cargo spill log", () => {
   });
 });
 
+describe("hauler losses in the log", () => {
+  const firstPart = (v: { items: { kind: string }[] }) => (v.items as { kind: string; part?: PartInstance }[]).find((it) => it.kind === "part")!.part!;
+  const playerPos = (w: World) => ({ x: w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos.x + 2, y: w.vehicles.find((v) => v.id === w.player.vehicleId)!.pos.y });
+  const frameOf = (w: World) => firstPart(haulerOf(w));
+  const partLabel = (w: World) => en(partName(frameOf(w).defId));
+
+  it("tells a Chaos Highway hauler spill as the player's own loss", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const e: GameEvent = { t: "cargoSpilled", vehicle: hauler.id, part: frameOf(w).id, pile: null, units: 1 };
+    const line = logEn(w, e);
+    expect(line).toEqual({ text: `${en(vehicleName(w, hauler.id))}: ${partLabel(w)} broke. 1 item lost.`, cls: "bad" });
+  });
+
+  it("tells a Chaos Highway gun truck spill as lost, not fallen out", () => {
+    const w = parkedAtOutpost();
+    const me = w.player.vehicleId;
+    const part = firstPart(w.vehicles.find((v) => v.id === me)!);
+    const line = logEn(w, { t: "cargoSpilled", vehicle: me, part: part.id, pile: null, units: 3 });
+    expect(line?.text).toMatch(/3 items lost\.$/);
+    expect(line?.cls).toBe("bad");
+  });
+
+  it("colors a hauler part knocked out as bad and an NPC's as good", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { ...playerPos(w) });
+    expect(logEn(w, { t: "partDisabled", vehicle: hauler.id, part: frameOf(w).id })?.cls).toBe("bad");
+    expect(logEn(w, { t: "partDisabled", vehicle: npc.id, part: firstPart(npc).id })?.cls).toBe("good");
+  });
+
+  it("logs a hauler breakdown by name and leaves an NPC's unlogged", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { ...playerPos(w) });
+    const line = logEn(w, { t: "breakdown", vehicle: hauler.id, part: frameOf(w).id });
+    expect(line).toEqual({ text: `${en(vehicleName(w, hauler.id))}: ${partLabel(w)} broke down`, cls: "bad" });
+    expect(logEn(w, { t: "breakdown", vehicle: npc.id, part: firstPart(npc).id })).toBeNull();
+  });
+
+  it("still logs a hauler spill out of sight but not an NPC's", () => {
+    const w = parkedAtOutpost();
+    const hauler = haulerOf(w);
+    const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 900, y: 900 });
+    hauler.pos = { x: 5000, y: 5000 };
+    expect(logEn(w, { t: "cargoSpilled", vehicle: hauler.id, part: frameOf(w).id, pile: null, units: 1 })).not.toBeNull();
+    expect(logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: firstPart(npc).id, pile: null, units: 1 })).toBeNull();
+  });
+
+  it("knows the player's trucks by id only inside a run", () => {
+    const run = parkedAtOutpost();
+    expect(isPlayerTruckId(run, run.player.vehicleId)).toBe(true);
+    expect(isPlayerTruckId(run, haulerOf(run).id)).toBe(true);
+    expect(isPlayerTruckId(run, "v-nobody")).toBe(false);
+    const roaming = emptyWorld();
+    expect(isPlayerTruckId(roaming, roaming.player.vehicleId)).toBe(true);
+    expect(isPlayerTruckId(roaming, "v-nobody")).toBe(false);
+  });
+});
+
 describe("patch log", () => {
   it("says a broken patch is off, naming the driver", () => {
     const w = emptyWorld();
@@ -819,6 +881,26 @@ describe("player wake-up", () => {
     expect(en(eventText(emptyWorld(), { t: "knockout", crash: true })?.text)).toBe("The crash knocks you out.");
     expect(resolve(eventText(emptyWorld(), { t: "knockout", crash: true })!.text, "ru")).toBe("От удара вы теряете сознание.");
     expect(en(eventText(emptyWorld(), { t: "knockout", crash: false })?.text)).toBe("You are knocked out.");
+  });
+});
+
+describe("standing band change", () => {
+  const causes = [
+    { cause: { kind: "deed", deed: "robbed" }, band: "unfriendly" },
+    { cause: { kind: "drift", toward: "up" }, band: "neutral" },
+    { cause: { kind: "settled" }, band: "unfriendly" },
+  ] as const;
+
+  it.each(causes)("raises no toast for a $cause.kind change", ({ cause, band }) => {
+    expect(isNotable({ t: "standing", faction: "bowl", band, cause })).toBe(false);
+  });
+
+  it("still writes the log line with its cause, in danger ink for a fall and good ink for a rise", () => {
+    const fall = eventText(emptyWorld(), { t: "standing", faction: "bowl", band: "unfriendly", cause: { kind: "deed", deed: "robbed" } });
+    expect(en(fall?.text)).toBe("Bowl now treats you as wary. You robbed one of their drivers.");
+    expect(fall?.cls).toBe("bad");
+    const rise = eventText(emptyWorld(), { t: "standing", faction: "bowl", band: "friendly", cause: { kind: "drift", toward: "up" } });
+    expect(rise?.cls).toBe("good");
   });
 });
 
@@ -1171,7 +1253,7 @@ describe("say lines", () => {
 });
 
 const shownMinutes = (turn: number): number => {
-  const [, day, hh, mm] = en(clock(turn).full).match(/^Day (\d+) (\d+):(\d\d)$/)!.map(Number);
+  const [, day, hh, mm] = en(clock(turn).full).match(/^Day (\d+), (\d+):(\d\d)$/)!.map(Number);
   return (day - 1) * 1440 + hh * 60 + mm;
 };
 

@@ -30,7 +30,7 @@ function colorOf(tier: string): string {
   return v ? css.match(new RegExp(`${v[1]}:\\s*(#[0-9a-fA-F]{6})`))![1]! : m[1]!;
 }
 
-const ink = css.match(/--ink:\s*(#[0-9a-fA-F]{6})/)![1]!;
+const ink = css.match(/--hud-amber:\s*(#[0-9a-fA-F]{6})/)![1]!;
 const tiers = Array.from({ length: CONDITION.maxWear + 2 }, (_, wear) =>
   conditionTier({ id: "p", defId: "mg", hp: 1, wear } as PartInstance),
 );

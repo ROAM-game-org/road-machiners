@@ -660,7 +660,7 @@ describe('overdrive switch', () => {
     const w = wornTo(0);
     w.player.overdrive = true;
     const s = overdriveSwitch(w);
-    const reason = `Engine too worn for overdrive: repair it above ${RULES.overdriveMinEngineShare * 100}% [O]`;
+    const reason = `Engine too worn for overdrive: repair it above ${RULES.overdriveMinEngineShare * 100}%`;
     expect({ checked: s.checked, reason: s.reason && en(s.reason), title: en(s.title) }).toEqual({ checked: false, reason, title: reason });
   });
 

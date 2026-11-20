@@ -5,7 +5,7 @@ import type { GridItem, Rot, World } from "../sim/types";
 import { chassisDef } from "../data/chassis";
 import { knockOutNpc } from "../sim/defeat";
 import { bareGrid, baseGrid, cellsTurned, corePart, facingOf, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
-import { plannedTruck } from "../sim/inventory";
+import { mountPart, plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
@@ -31,6 +31,7 @@ describe("the marks of a refit queue", () => {
   function queuedStrip() {
     const w = emptyWorld();
     w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind !== "good");
+    if (!mountPart(w, w.vehicles[0], makePart(w, "haulingRack", 0))) throw new Error("No room for the hauling rack");
     const gap = chassisDef("scout").radius + chassisDef("buggy").radius + 0.2;
     const raider = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine", "scrapSheet"], { x: 30 + gap, y: 30 });
     raider.brain = npcBrain("buggy", raider.pos, ["raider"]);

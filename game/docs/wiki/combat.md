@@ -22,6 +22,8 @@ A round enters a lane of the struck side and walks through the part grid. Every 
 
 A weapon with a splash radius hurts the lanes near a miss with its splash damage and splash penetration. Splash always counts as blast.
 
+Hits push trucks. A struck truck gets `round.damage` times `RULES.hitPush.kinetic` in newton-seconds along the flight, or times `RULES.hitPush.blast` with an upward share of `RULES.hitPush.lift` for a round that digs craters. Trucks in the burst get the blast push scaled by their reach, away from the burst. `src/sim/hit-push.ts` owns the rule.
+
 ## Crashes
 
 A crash gives each truck `RULES.ramDamage` times the impact squared, scaled by the other body's share of both masses, spread over the lanes of the struck side. Bumps slower than `RULES.collisionMinImpact` deal nothing. A crash into an obstacle faster than `RULES.hardCrashSpeed` hits harder by the square of the speed ratio. Crash damage has penetration `RULES.crashPen` per lane. Falls and landings use `RULES.groundCrash` and `RULES.landingDamage`. Rams multiply the damage a truck deals from their side.
@@ -52,6 +54,9 @@ Patrols of the Bowl Farmers and the Nose Army are hostile to raiders. `reportInc
 | `RULES.critDamage` | 2 |
 | `RULES.critPen` | 2 |
 | `RULES.cellPen` | 0.5 |
+| `RULES.hitPush.kinetic` | 90 |
+| `RULES.hitPush.blast` | 150 |
+| `RULES.hitPush.lift` | 0.25 |
 | `RULES.ramDamage` | 2.5 |
 | `RULES.collisionMinImpact` | 1.5 |
 | `RULES.hardCrashSpeed` | 4 |

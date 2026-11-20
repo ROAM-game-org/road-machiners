@@ -1,4 +1,4 @@
-import { chassisDef, type ChassisAbility } from "../data/chassis";
+import { chassisDef, HOLD_BASE_CELLS, type ChassisAbility } from "../data/chassis";
 import { partDef } from "../data/parts";
 import { chassisAbility } from "../sim/chassis-features";
 import { isMounted } from "../sim/grid";
@@ -94,7 +94,7 @@ const plain = (n = 0): Msg => t("chassis.row.plus", { n });
 const row = (icon: IconName, label: Msg, value: Msg): AbilityRow => ({ icon, label, value });
 
 const ABILITY_ROWS: Record<ChassisAbility["id"], (a: ChassisAbility) => AbilityRow[]> = {
-  bed: (a) => [row("rows", t("chassis.row.bedRows"), num(a.bedRows ?? 0, "int"))],
+  bed: (a) => [row("cells", t("chassis.row.bedCells"), num(HOLD_BASE_CELLS + (a.bedCells ?? 0), "int")), row("mass", t("chassis.row.goodsMass"), t("chassis.row.percent", { n: Math.round((a.goodsMass ?? 1) * 100) }))],
   nimble: (a) => [row("accel", t("stat.accel"), percentUp(a.accel)), row("spread", t("chassis.row.scatterOnIt"), t("chassis.row.degUp", { n: Number((((a.nimble ?? 0) * 180) / Math.PI).toFixed(1)) }))],
   racing: (a) => [row("speed", t("inv.topSpeed"), percentUp(a.topSpeed))],
   offRoad: (a) => [row("wheel", t("chassis.row.offRoadLoss"), t("chassis.row.none")), row("parts", t("chassis.row.roughWear"), t("chassis.row.percentDown", { n: 100 - Math.round((a.offRoadWear ?? 1) * 100) }))],
@@ -107,7 +107,7 @@ const ABILITY_ROWS: Record<ChassisAbility["id"], (a: ChassisAbility) => AbilityR
   trailer: (a) => [
     row("arc", t("chassis.row.gunArc"), t("chassis.row.degUp", { n: a.arc ?? 0 })),
     row("reload", t("chassis.row.gunReload"), t("chassis.row.turnsDown", { n: a.reloadCut ?? 0 })),
-    row("rows", t("chassis.row.cargoRows"), percentUp(a.cargoRows)),
+    row("cells", t("chassis.row.cargoCells"), percentUp(a.cargoCells)),
     row("armor", t("chassis.row.deckArmor"), plain(a.deckArmor)),
   ],
 };

@@ -119,7 +119,7 @@ try {
     assert(!r.repair.includes('Nothing broken'), `${spot}: no idle Nothing broken label`);
     await page.evaluate(async () => {
       const g = window.__ROAM__;
-      const w = structuredClone(g.state);
+      const w = (await import('/src/sim/world.ts')).cloneWorld(g.state);
       const me = w.vehicles.find(v => v.id === w.player.vehicleId) ?? w.vehicles[0];
       const part = me.items.find(i => i.kind === 'part' && i.part.hp > 0 && i.part.defId !== undefined);
       part.part.hp = 0;

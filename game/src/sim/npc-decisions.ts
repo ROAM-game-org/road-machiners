@@ -1,5 +1,6 @@
 
 import { LINGER } from '../data/linger';
+import { npcRepairReserve } from './repair';
 import { lingersForMoment } from './moments';
 import { lingerReasonNow } from './linger';
 import { canPayBounty } from './crime';
@@ -13,7 +14,7 @@ import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
-  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, ICARUS_OPTIONS, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, ICARUS_OPTIONS, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
@@ -381,12 +382,12 @@ function fitsAfterSale(world: World, vehicle: Vehicle, targetId: string): boolea
 }
 
 export function hasSaleCargo(vehicle: Vehicle, profile: NpcProfile = npcProfile(vehicle)): boolean {
-  return afterSale(vehicle).items.length < vehicle.items.length && profile.markets.some((id) => sellsAnythingAt(vehicle, id, NPC_UPKEEP.repairParts));
+  return afterSale(vehicle).items.length < vehicle.items.length && profile.markets.some((id) => sellsAnythingAt(vehicle, id, npcRepairReserve(vehicle)));
 }
 
 function afterSale(vehicle: Vehicle): Vehicle {
   const mounted = new Set(mountedParts(vehicle).map((part) => part.id));
-  let reserve = NPC_UPKEEP.repairParts;
+  let reserve = npcRepairReserve(vehicle);
   const kept = vehicle.items.filter((it) => (it.kind === 'part' ? mounted.has(it.part.id) : it.kind === 'good' && it.good === 'parts' && reserve-- > 0));
   return { ...vehicle, items: kept };
 }
@@ -965,8 +966,7 @@ function towFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject
   const client = subjectOf(world, decision, subject);
   const at = strandedAt(world, vehicle, client);
   if (!at) throw new Error(`${vehicle.id} weighs a tow with no stranded ${client.id} perceived`);
-  const player = client.id === world.player.vehicleId;
-  const sites = player ? REGION.towns : [towSite(world, vehicle, client)];
+  const sites = [towSite(world, vehicle, client)];
   const { factor, crawl, far } = NPC_BEHAVIOR.towNearTown;
   const gate = Math.min(...sites.flatMap((site) => siteGates(site).map((g) => dist(at, g))));
   return factor + (1 - factor) * clamp((gate - crawl) / (far - crawl), 0, 1);

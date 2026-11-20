@@ -95,12 +95,13 @@ function offerCard(w: World, atMs: number): HTMLElement {
   return el('div', { class: 'talk-offer qt-unit', style: `animation-delay: ${atMs}ms` }, t('quest.offer', { summary: contractSummary(offer), pay: moneyMsg(offer.reward), window: contractWindow(offer) }));
 }
 
-export function choiceButtons(w: World, view: QuestView, pick: (index: number) => void): HTMLElement[] {
+export function choiceButtons(w: World, view: QuestView, pick: (index: number) => void, onScreen = false): HTMLElement[] {
+  const base = onScreen ? 'quest-choice screen-line' : 'quest-choice';
   return view.choices.map((text, i) => {
     const locked = view.locked[i];
     const held = locked ? el('span', { class: 'quest-held' }, moneyMsg(w.player.money)) : null;
     const check = view.checks[i];
     const tested = check ? el('span', { class: 'quest-check' }, t('quest.check', { skill: skillName(check.skill), level: check.level, have: skillLevel(w, check.skill) })) : null;
-    return el('button', { class: view.seen[i] ? 'quest-choice seen' : 'quest-choice', 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, tested, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
+    return el('button', { class: view.seen[i] ? `${base} seen` : base, 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, tested, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
   });
 }

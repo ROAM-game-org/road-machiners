@@ -7,15 +7,16 @@ import { CONDITION, REPAIR } from '../data/wear';
 import { damagePart, maxHp, partValue } from './wear';
 import { makePart } from './factory';
 import { addVehicle, emptyWorld, practiceOf , startCombat } from './testkit';
-import { bedRows } from './chassis-features';
-import { corePart, goodsCount, gridOf, mountedParts } from './grid';
+import { corePart, coreParts, fixedHoldCells, goodsCount, gridOf, holdCell, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { addGoods, moveItem, mountPart, removeGoods, stowPart } from './inventory';
 import type { Job } from './types';
-import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
+import { advanceJobs, cancelRefit, repairBlocker, stoppedByCombat, startAutoRepair, startFitSpare, startJob, startRepair, startStrip, startWeld, stripTurns, stripYield } from './jobs';
 import { PERK_NUMBERS } from '../data/skills';
 import { repairPlan } from './repair';
 import { addState } from './states';
+import { REGION } from '../data/region';
+import { sitePads } from './sites';
 
 function armorPart(v: ReturnType<typeof emptyWorld>['vehicles'][0]) {
   const part = mountedParts(v).find((p) => partDef(p.defId).kind === 'armor')!;
@@ -470,14 +471,14 @@ describe('strip job', () => {
     expect(next.events.some((e) => e.t === 'job' && e.outcome === 'done')).toBe(true);
   });
 
-  it('refuses to strip a mounted rack that holds a part in its rows', () => {
+  it('refuses to strip a mounted rack that holds a part on its cells', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'player', 'hauler', ['rack'], { x: 60, y: 60 });
     w.player.vehicleId = npc.id;
     const rack = mountedParts(npc, 'cargo').find((p) => p.defId === 'rack')!;
-    const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
-    const row = gridOf(npc).chassisH + bedRows('hauler') + rackRows - 1;
-    npc.items.push({ id: 'i-crate', x: 0, y: row, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
+    const spot = holdCell(gridOf(npc), fixedHoldCells('hauler'));
+    npc.items = npc.items.filter((it) => !(it.x === spot.x && it.y === spot.y));
+    npc.items.push({ id: 'i-crate', ...spot, rot: 1, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(() => startStrip(w, rack.id)).toThrow('Refused: emptyRackFirst');
   });
 
@@ -530,7 +531,7 @@ describe('field job practice', () => {
   it('pays nothing for a refit that only moves parts the truck has', () => {
     const w = emptyWorld();
     const mg = w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
-    const next = moveItem(w, mg.id, { x: 3, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
+    const next = moveItem(w, mg.id, { x: 1, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
     while (next.vehicles[0].job) advanceJobs(next);
     expect(practiceOf(next, 'fieldJob')).toEqual([]);
   });
@@ -736,7 +737,7 @@ describe('cancelling a refit', () => {
     const w = emptyWorld();
     const mg = w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     const before = structuredClone(w.vehicles[0].items);
-    const started = moveItem(w, mg.id, { x: 3, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
+    const started = moveItem(w, mg.id, { x: 1, y: gridOf(w.vehicles[0]).h - 1, rot: 1 });
     advanceJobs(started);
     expect(started.vehicles[0].job).toMatchObject({ kind: 'refit' });
 
@@ -757,5 +758,67 @@ describe('cancelling a refit', () => {
     addGoods(w, w.vehicles[0], 'parts', 20);
     const repairing = startRepair(w, armorPart(w.vehicles[0]).id);
     expect(() => cancelRefit(repairing)).toThrow(/No refit/);
+  });
+});
+
+describe('spare tire', () => {
+  function carrySpare(w: ReturnType<typeof emptyWorld>): void {
+    expect(stowPart(w, w.vehicles[0], makePart(w, 'spareTire', 0))).toBe(true);
+  }
+
+  function spares(v: ReturnType<typeof emptyWorld>['vehicles'][0]): number {
+    return v.items.filter((it) => it.kind === 'part' && it.part.defId === 'spareTire').length;
+  }
+
+  it('takes five field turns at skill 0, then restores the wheel to full HP and uses up the tire', () => {
+    const w = emptyWorld();
+    carrySpare(w);
+    const wheel = coreParts(w.vehicles[0], 'wheel')[0];
+    wheel.hp = 1;
+
+    const next = startFitSpare(w, wheel.id);
+    expect(next.vehicles[0].job).toMatchObject({ kind: 'fitSpare', wheelId: wheel.id, turnsLeft: 5, total: 5 });
+    for (let i = 0; i < 4; i++) advanceJobs(next);
+    expect(spares(next.vehicles[0])).toBe(1);
+    advanceJobs(next);
+
+    const fitted = coreParts(next.vehicles[0], 'wheel')[0];
+    expect(next.vehicles[0].job).toBeNull();
+    expect(fitted.hp).toBe(maxHp(fitted));
+    expect(spares(next.vehicles[0])).toBe(0);
+  });
+
+  it('fits at once at a garage', () => {
+    const w = emptyWorld(sitePads(REGION.towns.find((t) => t.id === 'bowl')!)[0]);
+    carrySpare(w);
+    const wheel = coreParts(w.vehicles[0], 'wheel')[0];
+    wheel.hp = 1;
+
+    const next = startFitSpare(w);
+
+    expect(next.vehicles[0].job).toBeNull();
+    expect(coreParts(next.vehicles[0], 'wheel')[0].hp).toBe(maxHp(wheel));
+    expect(spares(next.vehicles[0])).toBe(0);
+  });
+
+  it('refuses when no wheel is damaged', () => {
+    const w = emptyWorld();
+    carrySpare(w);
+    expect(() => startFitSpare(w)).toThrow(/noDamagedWheel/);
+  });
+
+  it('stops without spending the tire when the wheel is fixed another way first', () => {
+    const w = emptyWorld();
+    carrySpare(w);
+    const wheel = coreParts(w.vehicles[0], 'wheel')[0];
+    wheel.hp = 1;
+    const next = startFitSpare(w, wheel.id);
+    const running = coreParts(next.vehicles[0], 'wheel')[0];
+    running.hp = maxHp(running);
+
+    advanceJobs(next);
+
+    expect(next.vehicles[0].job).toBeNull();
+    expect(spares(next.vehicles[0])).toBe(1);
   });
 });
