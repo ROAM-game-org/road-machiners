@@ -102,7 +102,7 @@ it("warms with the terrain and the full obstacle list, so the first preview send
   const worker = TestWorker.latest;
   const posted = worker.requests as unknown as { kind: string; terrain?: unknown; obstacles?: { kind: string; list?: unknown } }[];
   expect(posted.map((request) => request.kind)).toEqual(["terrain", "warm"]);
-  expect(posted[0].terrain).toBe(world.terrain);
+  expectPackedFrom(posted[0].terrain as PackedTerrain, world.terrain);
   expect(posted[1].obstacles).toEqual({ kind: "full", list: world.obstacles });
   plans.request(world, drive, world.player.vehicleId);
   expect(worker.requests[2].terrain).toBeNull();
