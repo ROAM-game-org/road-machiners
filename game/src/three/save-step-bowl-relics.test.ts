@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_124 from './save-fixtures/format-2-124.json';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const withBowlRelics = TINY_STEPS.find((s) => s.name === 'withBowlRelics')!;
 
