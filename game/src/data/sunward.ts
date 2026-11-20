@@ -20,7 +20,7 @@ export const SUNWARD = {
   huntReach: 70,
   huntBreaks: 2,
   huntRoadStep: 6,
-  huntGroundGap: 2 * TERRAIN.vision.radius,
+  huntGroundGap: 50,
   huntSalt: 0x68756e74,
   rideLeadTurns: 800,
   driveTurns: 839,

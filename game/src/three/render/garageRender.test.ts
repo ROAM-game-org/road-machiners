@@ -68,7 +68,7 @@ describe('garage mount spots', () => {
 describe('garage render plan', () => {
   it('plans the bare truck and every spot of every part, never the same part twice in one build', () => {
     const { truck, part } = scout();
-    const need = needFor(truck, [part(firstOf('weapon', 2)), part(firstOf('cargo', 1))]);
+    const need = needFor(truck, [part(firstOf('weapon', 2)), part(firstOf('cargo', 2))]);
 
     const jobs = planJobs(need, () => false);
 
@@ -83,7 +83,7 @@ describe('garage render plan', () => {
 
   it('never puts two parts on one cell of the same layer in one build', () => {
     const { truck, part } = scout();
-    const need = needFor(truck, [part(firstOf('weapon', 2)), part(firstOf('cargo', 1)), part(firstOf('cargo', 1))]);
+    const need = needFor(truck, [part(firstOf('weapon', 2)), part(firstOf('cargo', 2)), part(firstOf('cargo', 2))]);
     const g = baseGrid('scout');
 
     const batches = planJobs(need, () => false).flatMap((j) => (j.kind === 'batch' ? [j] : []));
@@ -145,7 +145,7 @@ describe('garage render queue', () => {
     const renders = new GarageRenders(RENDERER, liveGpu(), HONEST_READBACK, fake.build);
     const { truck, part } = scout();
     const gun = part(firstOf('weapon', 2));
-    const background = needFor(truck, [gun, part(firstOf('cargo', 1))]);
+    const background = needFor(truck, [gun, part(firstOf('cargo', 2))]);
     renders.want([background]);
     renders.step(0);
 

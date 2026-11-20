@@ -6,8 +6,8 @@ export type UiHost = {
   world(): World;
   apply(next: World): void;
   announce(next: World): void;
-  selectedWeapon(): string | null;
-  selectWeapon(id: string | null): void;
+  selectedWeapons(): readonly string[];
+  selectWeapons(ids: readonly string[]): void;
   selectedUtility(): string | null;
   selectUtility(id: string | null): void;
   pressTurn(): void;

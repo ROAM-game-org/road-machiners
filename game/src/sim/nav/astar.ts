@@ -3,7 +3,7 @@ import { REGION } from '../../data/region';
 import { count } from '../../perf';
 import type { Blocker } from './buckets';
 import { cellOfBlock, cellOfFine, costsWithin, endRegion, ensureCell, ensureFine, regionAt, stepCost, triIndex } from './cells';
-import { CELL, COARSE, componentOf, slowAt, stampBlockers, tasted, tastedCoarse, type NavLayer, type Taste } from './layer';
+import { CELL, COARSE, componentOf, slowAt, stampBlockers, tastedAlong, tastedCoarse, type NavLayer, type Taste } from './layer';
 
 export type Overlay = { stamp: Uint32Array; gen: number };
 
@@ -40,7 +40,7 @@ function begin(size: number): number {
   return ++gen;
 }
 
-type FreeCellAnswer = { cell: number | null; stamped: number[] };
+type FreeCellAnswer = { cell: number | null; stamped: number[]; ring: number };
 
 const answersByComponents = new WeakMap<Int32Array, Map<string, FreeCellAnswer>>();
 const ANSWERS_MAX = 512;
@@ -48,12 +48,16 @@ const acceptsAll = () => true;
 
 export function nearestFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null = null, maxRing = Infinity, accepts: (cell: number) => boolean = acceptsAll): number | null {
   const comp = layer.grid.pieces.comp;
-  const key = `${layer.id}:${c}:${component}:${maxRing}`;
+  const key = `${layer.id}:${c}:${component}`;
   const known = accepts === acceptsAll ? answersByComponents.get(comp)?.get(key) : undefined;
-  if (known && answerHolds(ov, known)) return known.cell;
+  if (known && answerCovers(known, maxRing) && answerHolds(ov, known)) return known.cell;
   const answer = searchFreeCell(layer, ov, c, component, maxRing, accepts);
   if (accepts === acceptsAll && layer.grid.pieces.comp === comp) rememberAnswer(comp, key, answer);
   return answer.cell;
+}
+
+function answerCovers(answer: FreeCellAnswer, maxRing: number): boolean {
+  return answer.cell === null ? maxRing <= answer.ring : answer.ring <= maxRing;
 }
 
 function answerHolds(ov: Overlay, answer: FreeCellAnswer): boolean {
@@ -82,11 +86,11 @@ function searchFreeCell(layer: NavLayer, ov: Overlay, c: number, component: numb
     const cur = queue[i];
     if (freeIn(layer, cur, component, holds)) {
       if (ov.stamp[cur] === ov.gen) stamped.push(cur);
-      else if (accepts(cur)) return { cell: cur, stamped };
+      else if (accepts(cur)) return { cell: cur, stamped, ring: Math.max(Math.abs((cur % n) - cx), Math.abs((cur - (cur % n)) / n - cy)) };
     }
     tail = ringOut(n, cur, cx, cy, g, maxRing, tail);
   }
-  return { cell: null, stamped };
+  return { cell: null, stamped, ring: maxRing };
 }
 
 function freeIn(layer: NavLayer, c: number, component: number | null, holds: Uint8Array | null): boolean {
@@ -339,7 +343,7 @@ type RegionSearch = { layer: NavLayer; taste: Taste | null; avoid: Overlay | nul
 function relaxRegion(s: RegionSearch, cur: number, next: number): void {
   const R = s.layer.grid.regions;
   const step = stepCost(R, cur, next) * coveredCost(s.layer, s.avoid, next);
-  const c = coarseCost[cur] + tastedCoarse(s.taste, step, ((R.x[cur] + R.x[next]) / 2) * CELL, ((R.y[cur] + R.y[next]) / 2) * CELL, R.block[cur], R.block[next]);
+  const c = coarseCost[cur] + tastedCoarse(s.taste, step, ((R.x[cur] + R.x[next]) / 2) * CELL, ((R.y[cur] + R.y[next]) / 2) * CELL, R.block[cur], R.block[next], R.x[next] - R.x[cur], R.y[next] - R.y[cur]);
   if (coarseSeen[next] === s.g && c >= coarseCost[next]) return;
   coarseSeen[next] = s.g;
   coarseCost[next] = c;
@@ -426,7 +430,7 @@ function crossingCells(layer: NavLayer, from: number, to: number, avoid: Overlay
   const goal = T.a.length;
   crossingRoom(goal + 1);
   const goalCost = costsWithin(grid, to);
-  const s: CrossingSearch = { layer, avoid, taste, g: ++pieceGen, goal, to, b, rate: cheapestSlow(layer), toGoal: new Map(P.ends[b].map((t) => [t, goalCost(endRegion(grid, t, b))])) };
+  const s: CrossingSearch = { layer, avoid, taste, startX: R.x[from], startY: R.y[from], g: ++pieceGen, goal, to, b, rate: cheapestSlow(layer), toGoal: new Map(P.ends[b].map((t) => [t, goalCost(endRegion(grid, t, b))])) };
   heapSize = 0;
   const fromStart = costsWithin(grid, from);
   for (const t of P.ends[a]) relaxCrossing(s, t, fromStart(endRegion(grid, t, a)), -1);
@@ -440,7 +444,7 @@ function crossingCells(layer: NavLayer, from: number, to: number, avoid: Overlay
   return null;
 }
 
-type CrossingSearch = { layer: NavLayer; avoid: Overlay | null; taste: Taste | null; g: number; goal: number; to: number; b: number; rate: number; toGoal: Map<number, number> };
+type CrossingSearch = { layer: NavLayer; avoid: Overlay | null; taste: Taste | null; startX: number; startY: number; g: number; goal: number; to: number; b: number; rate: number; toGoal: Map<number, number> };
 
 function crossingRoom(size: number): void {
   if (pieceSeen.length >= size && pieceGen !== 0xffffffff) return;
@@ -464,7 +468,7 @@ function expandCrossing(s: CrossingSearch, cur: number): void {
 }
 
 function relaxCrossing(s: CrossingSearch, t: number, step: number, prev: number): void {
-  const c = (prev === -1 ? 0 : pieceCost[prev]) + weighCrossing(s, t, step);
+  const c = (prev === -1 ? 0 : pieceCost[prev]) + weighCrossing(s, t, step, prev);
   if (pieceClosed[t] === s.g || (pieceSeen[t] === s.g && c >= pieceCost[t])) return;
   pieceSeen[t] = s.g;
   pieceCost[t] = c;
@@ -478,11 +482,13 @@ function crossingAhead(s: CrossingSearch, t: number): number {
   return Math.hypot(T.x[t] - R.x[s.to], T.y[t] - R.y[s.to]) * s.rate;
 }
 
-function weighCrossing(s: CrossingSearch, t: number, step: number): number {
+function weighCrossing(s: CrossingSearch, t: number, step: number, prev: number): number {
   if (t === s.goal) return step;
   const T = s.layer.grid.portals;
+  const fromX = prev === -1 ? s.startX : T.x[prev];
+  const fromY = prev === -1 ? s.startY : T.y[prev];
   const covered = s.avoid !== null && s.avoid.stamp[Math.round(T.y[t]) * s.layer.n + Math.round(T.x[t])] === s.avoid.gen;
-  return tasted(s.taste, covered ? step * (1 + COVERED_COST) : step, (T.x[t] + 0.5) * CELL, (T.y[t] + 0.5) * CELL);
+  return tastedAlong(s.taste, covered ? step * (1 + COVERED_COST) : step, (T.x[t] + 0.5) * CELL, (T.y[t] + 0.5) * CELL, T.x[t] - fromX, T.y[t] - fromY);
 }
 
 function chainCells(grid: NavLayer['grid'], last: number, a: number, b: number): number[] {
@@ -580,12 +586,14 @@ function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, c
       nearestLeft = left;
     }
     const count = neighbours(n, cur);
+    const cx = cur % n;
+    const cy = (cur - cx) / n;
     for (let k = 0; k < count; k++) {
       const next = around[k];
       if (!canEnter(layer, ov, next, g, corridor, box)) continue;
       const nx = next % n;
-      const ny = Math.floor(next / n);
-      const c = cost[cur] + tasted(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL);
+      const ny = (next - nx) / n;
+      const c = cost[cur] + tastedAlong(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
       if (seen[next] === g && c >= cost[next]) continue;
       seen[next] = g;
       cost[next] = c;

@@ -16,10 +16,12 @@ import { estimateTurns } from './market';
 import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
-import { fuelForWay, knowsPump } from './npc-service';
+import { fuelForWay, knowsPump, SERVICE_STALLS, serviceStops } from './npc-service';
+import { needsTownEngine } from './economy';
 import { skillEffect } from './progress';
 import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
+import { fuelTopSpeed } from './far';
 import { isStranded, vehicleStats } from './stats';
 import { modeRules } from './settings';
 import { getResources } from './resources';
@@ -226,8 +228,20 @@ export function claimClient(world: World, tower: Vehicle, client: Vehicle): void
 
 function towDestination(world: World, tower: Vehicle, client: Vehicle): Site | null {
   if (!isPlayer(world, client) && !client.brain) return null;
-  const site = isPlayer(world, client) ? nearestSite(npcProfile(tower).towns, client.pos) : npcHomeSite(world, client);
+  const site = nearestSite(towStops(world, tower, client), client.pos);
   return site && !canUseSite(client.pos, site) ? site : null;
+}
+
+function towStops(world: World, tower: Vehicle, client: Vehicle): readonly string[] {
+  if (isPlayer(world, client)) return playerTowStops(world, tower, client);
+  if (atlasOf(world.terrain).towns.length === 0) return [];
+  const profile = npcProfile(client);
+  return knowsPump(profile) ? serviceStops(world, client, profile) : [];
+}
+
+function playerTowStops(world: World, tower: Vehicle, client: Vehicle): readonly string[] {
+  const towns = npcProfile(tower).towns;
+  return towns.length > 0 && !needsTownEngine(world, client) ? [...towns, ...SERVICE_STALLS] : towns;
 }
 
 export function npcHomeSite(world: Pick<World, 'terrain'>, v: Vehicle): Site | null {
@@ -320,6 +334,15 @@ export function strandedAt(world: World, vehicle: Vehicle, client: Vehicle): Vec
 
 export function refusesTows(world: World, tower: Vehicle, client: Vehicle): boolean {
   return world.states.some((s) => s.kind === 'turnedDown' && s.other === client.id) && !hearsBeacon(world, tower, client);
+}
+
+export function canCatch(world: World, tower: Vehicle, client: Vehicle): boolean {
+  return topSpeed(world, tower) > topSpeed(world, client);
+}
+
+function topSpeed(world: World, v: Vehicle): number {
+  const stats = vehicleStats(world, v);
+  return fuelTopSpeed(world, v, stats, stats.fuelPerTile > 0);
 }
 
 export function steerToStranded(world: World, vehicle: Vehicle, goal: NpcActivity): void {

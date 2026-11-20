@@ -1,8 +1,5 @@
 #ui .right-dock > .wanted {
   order: 2;
-  background: var(--surface-sunk);
-  border-left: var(--space-1) solid var(--danger);
-  cursor: help;
 }
 .wanted-head {
   display: flex;
@@ -11,16 +8,10 @@
   gap: var(--space-4);
 }
 .wanted-owed {
-  color: var(--danger-ink);
+  color: var(--hud-hot);
 }
 .wanted-cases {
-  display: none;
   padding-bottom: var(--space-2);
-}
-.wanted:hover > .wanted-cases,
-.wanted:focus > .wanted-cases,
-.wanted:focus-visible > .wanted-cases {
-  display: block;
 }
 .desk-body {
   display: flex;

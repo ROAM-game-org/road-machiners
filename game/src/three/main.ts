@@ -24,9 +24,9 @@ import { BootScreen } from '../ui/boot-screen';
 import { fontsReady } from '../ui/fonts';
 import { preloadPictures } from '../ui/picture-store';
 import { questArtPath, townArtKeys } from '../data/quest-art';
-import { uiRoot } from '../ui/dom';
+import { el, uiRoot } from '../ui/dom';
 import { mountReportDesk } from '../ui/feedback-form';
-import { watchInputMode } from '../ui/input-mode';
+import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
 import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
@@ -58,6 +58,7 @@ import { startGroundBaker } from './ground-off-thread';
 import { drawnGroundOf, groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
+import { paintSkin } from '../ui/dash/skin';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -237,12 +238,14 @@ function endMark(): void {
 }
 onBootStopped(endMark);
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
-const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
+paintSkin();
+const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
 watchInputMode([uiRoot(), element('report')], sizeOfUi);
+document.body.append(el('div', { class: 'rotate-prompt', role: 'alert' }, t('ui.rotatePhone')));
 mountReportDesk(element('report'), gameContext, FEEDBACK_URL);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
@@ -362,6 +365,7 @@ onEveryError(() => game.holdSaves());
 stepBoot('running');
 await uiFonts;
 boot.showText();
+gameContext.watchGraphics(() => game.graphicsFacts());
 gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);

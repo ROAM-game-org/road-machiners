@@ -13,7 +13,7 @@ import { shopMoney } from './economy';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { findSpot, freeCells, goodsCount, gridOf } from './grid';
-import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
+import { addGoods, removeGoods, spareParts, tradedSpares, stowParcel, type ParcelItem } from './inventory';
 import { cancelJob } from './jobs';
 import { type ClaimContract } from './salvage';
 import { hasBasic, practice } from './progress';
@@ -26,7 +26,7 @@ import { playerCommand, Refused } from './world';
 import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
 import { heldCrates } from './goods-store';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
-import { partValue } from './wear';
+import { isRelic, partValue } from './wear';
 import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyPoint, type SurveySite } from './survey';
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
@@ -247,6 +247,14 @@ function lotStock(shopId: string, state: ShopState, good: string, direction: 'bu
   return stock;
 }
 
+export function shopTrades(shopId: string, good: string): boolean {
+  return shopDef(shopId).goods.includes(good);
+}
+
+export function requireTraded(shopId: string, good: string): void {
+  if (!shopTrades(shopId, good)) throw new Refused({ id: 'notTraded' });
+}
+
 export function recordTrade(shopId: string, state: ShopState, good: string, units: number, direction: 'buy' | 'sell'): void {
   if (!shopDef(shopId).goods.includes(good)) throw new Error(`${shopId} does not trade ${good}`);
   if (!Number.isInteger(units) || units < 0) throw new Error(`Bad trade unit count ${units}`);
@@ -320,7 +328,7 @@ export function vehicleValue(v: Vehicle): number {
 
 export function cargoValue(v: Vehicle): number {
   const goods = Object.entries(goodsCount(v)).reduce((a, [good, n]) => a + n * goodValue(good), 0);
-  return goods + spareParts(v).reduce((a, p) => a + partValue(p), 0);
+  return goods + tradedSpares(v).reduce((a, p) => a + partValue(p), 0);
 }
 
 export function partPristineBuyPrice(defId: string): number {
@@ -679,7 +687,7 @@ export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void 
   const item = v.items.find((it) => it.kind === 'part' && it.part.id === c.partId);
   if (item?.kind !== 'part') throw new Error(`${v.id} does not carry the claimed ${c.partId}`);
   v.items = v.items.filter((it) => it !== item);
-  addStockPart(shopState(world, c.shop), item.part);
+  shelveClaimed(world, c.shop, item.part);
   shopMoney(world, v, c.reward, 'claimReward');
   finishContract(world, c, 'lapsed', 'rival');
 }
@@ -816,11 +824,15 @@ function handInClaim(world: World, c: ClaimContract): void {
   const spare = spareParts(v).find((p) => fitsClaim(c, p));
   if (spare) {
     v.items = v.items.filter((it) => it.kind !== 'part' || it.part.id !== spare.id);
-    return addStockPart(shopState(world, c.shop), spare);
+    return shelveClaimed(world, c.shop, spare);
   }
   const stored = world.player.storage.findIndex((p) => fitsClaim(c, p));
   if (stored < 0) throw new Error(`Needs the claimed ${c.defId}, off the truck`);
-  addStockPart(shopState(world, c.shop), world.player.storage.splice(stored, 1)[0]);
+  shelveClaimed(world, c.shop, world.player.storage.splice(stored, 1)[0]);
+}
+
+function shelveClaimed(world: World, shopId: string, part: PartInstance): void {
+  if (!isRelic(part)) addStockPart(shopState(world, shopId), part);
 }
 
 export function contractXp(c: Contract): number {

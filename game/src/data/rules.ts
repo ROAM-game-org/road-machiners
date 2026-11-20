@@ -92,6 +92,7 @@ export const RULES = {
     hazard: 0.75,
     playerHealth: 75,
   },
+  hitPush: { kinetic: 90, blast: 150, lift: 0.25 },
   retreatTeleportTurns: 50,
   holdUp: {
     cutShare: 0.5,

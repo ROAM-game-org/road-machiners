@@ -32,7 +32,7 @@ function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks:
   return { xp, ranks };
 }
 
-export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
+export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = { flatbed: 66.66, trailerBox: 180.01, lightFrame: 190, enclosedFrame: 200, heavyFrame: 360 };
 
 const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
 const RENAMED_PERKS_RESCUE: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };

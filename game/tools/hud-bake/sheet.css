@@ -1,0 +1,26 @@
+@font-face { font-family: "TC Calculator Digits"; src: url("/game/src/ui/fonts/tc-calculator-digits.woff2") format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 500; src: url("/game/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 600; src: url("/game/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 700; src: url("/game/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2") format("woff2"); }
+:root { --amber: #ffb547; --amber-soft: #d9a35a; --print: #c9bfa6; --glow: 0 0 10px #ff8c1a66; }
+body { margin: 0; padding: 12px 12px 40px; background: #1d1b1c; color: #e9dfc4; font: 15px/1.45 system-ui, sans-serif; }
+h1 { font-size: 22px; margin: 0 0 6px; }
+h2 { font-size: 17px; margin: 18px 0 6px; }
+h3 { font-size: 15px; margin: 12px 0 4px; color: #cfc5ad; }
+p { margin: 0 0 12px; max-width: 900px; color: #cfc5ad; }
+img.full { width: 1280px; height: 720px; display: block; }
+.scene { position: relative; width: 1280px; height: 720px; overflow: hidden; background: url("clean.png") 0 0 / 1280px 720px; }
+.pair { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.pair figure { margin: 0; }
+.pair figcaption { font-size: 13px; color: #a69c86; margin-top: 4px; }
+.window { position: relative; overflow: hidden; background: #000; }
+.window > * { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+.part { position: absolute; }
+.part .radio-root { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.part img.layer { position: absolute; left: 0; top: 0; display: block; pointer-events: none; }
+.part .zone { position: absolute; left: 0; top: 0; transform-origin: 0 0; box-sizing: border-box; overflow: hidden; }
+.part button.hit { background: none; border: 0; cursor: pointer; padding: 0; }
+.scene > .part { z-index: 2; }
+.scene > .part-rail { z-index: 0; }
+.scene > svg.cast { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; z-index: 1; pointer-events: none; }

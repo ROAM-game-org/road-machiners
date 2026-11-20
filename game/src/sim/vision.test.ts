@@ -7,7 +7,7 @@ import { WEATHER } from '../data/weather';
 import { addVehicle, emptyWorld, PLAIN_KIT, practiceOf, settleStorms } from './testkit';
 import { playerVehicle } from './damage';
 import { propsAround } from './prop-index';
-import { litFlares } from './hazards';
+import { nightLights } from './hazards';
 import { tileSteepness } from '../mapgen/bake';
 import { REGION } from '../data/region';
 import { dist } from './vec';
@@ -15,6 +15,9 @@ import { heightAt } from './terrain';
 import type { Obstacle } from './types';
 import { contactsOf, soundRange } from './detect';
 import { TIME } from '../data/time';
+import { PARTS, type UtilityDef } from '../data/parts';
+import { mountedParts } from './grid';
+import { gunReach } from './stats';
 import { sunAt } from './sun';
 import { canVehicleSee, clearOverTerrain, grayRadius, grayReach, hasLineOfFire, hasLineOfSight, playerSees, playerVisible, practiceContacts, refreshVision, seenPropTiles, sightLine, sightRadius, visibleTiles } from './vision';
 import { TEST_MAP } from '../test/map';
@@ -173,7 +176,7 @@ describe('terrain line of sight', () => {
   it('reaches gray vision a fixed number of sight radii out', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
-    expect(grayRadius(w)).toBe(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+    expect(grayRadius(w)).toBe(TERRAIN.vision.grayRadius);
   });
 
   it('keeps the gray reach of a clear day at night and in a storm, and widens it with a tourer chassis', () => {
@@ -192,8 +195,8 @@ describe('terrain line of sight', () => {
   it('shrinks gray vision at night with sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    expect(grayRadius(w)).toBe(sightRadius(w, w.vehicles[0]) * TERRAIN.vision.grayFactor);
-    expect(grayRadius(w)).toBeLessThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+    expect(grayRadius(w)).toBe(sightRadius(w, w.vehicles[0]) * TERRAIN.vision.grayRadius / TERRAIN.vision.radius);
+    expect(grayRadius(w)).toBeLessThan(TERRAIN.vision.grayRadius);
   });
 });
 
@@ -201,7 +204,7 @@ describe('contact practice', () => {
   function heardBuggy() {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 52, y: 30 });
     buggy.speed = 6;
     return { w, buggy };
   }
@@ -211,7 +214,7 @@ describe('contact practice', () => {
     practiceContacts(w, refreshVision(w));
     const [event] = practiceOf(w, 'contact');
     expect(event.amount).toBe(1);
-    expect(event.difficulty).toBeCloseTo(15 / soundRange(w, buggy));
+    expect(event.difficulty).toBeCloseTo(22 / soundRange(w, buggy));
     practiceContacts(w, refreshVision(w));
     expect(practiceOf(w, 'contact')).toHaveLength(1);
   });
@@ -232,7 +235,7 @@ describe('contact practice', () => {
 
   it('pays nothing when an NPC hears a truck', () => {
     const { w, buggy } = heardBuggy();
-    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 60, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 34, y: 30 });
     expect(contactsOf(w, trader, Infinity).map((c) => c.vehicleId)).toContain(buggy.id);
     expect(practiceOf(w, 'contact')).toEqual([]);
   });
@@ -421,7 +424,7 @@ describe('the viewshed against the line to every tile', () => {
     const out = new Set<number>();
     lineTilesIn(w, from, r, { pos: from, r }, out);
     const lit = sightRadius(w, viewer, true);
-    if (lit > r) for (const f of litFlares(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
+    if (lit > r) for (const f of nightLights(w)) if (dist(from, f.pos) - f.r < lit) lineTilesIn(w, from, lit, f, out);
     return out;
   }
 
@@ -598,5 +601,54 @@ describe('playerSees index', () => {
     world.player.visible.push(6);
 
     expect(() => playerSees(world, { x: 0.5, y: 0.5 })).toThrow('changed in place');
+  });
+
+  it('lets the player and an NPC see a truck 30 tiles away by day', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => sunAt(t))!;
+    const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 60, y: 30 } };
+    w.vehicles.push(npc);
+    refreshVision(w);
+    expect(playerSees(w, npc.pos)).toBe(true);
+    expect(canVehicleSee(w, npc, w.vehicles[0].pos)).toBe(true);
+  });
+
+  it('cuts night sight to 16.25 tiles', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
+    const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 45, y: 30 } };
+    w.vehicles.push(npc);
+    refreshVision(w);
+    expect(playerSees(w, npc.pos)).toBe(true);
+    npc.pos = { x: 47, y: 30 };
+    expect(playerSees(w, npc.pos)).toBe(false);
+  });
+
+  it('keeps the gray reach of a base truck at 100 tiles', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    expect(grayReach(w, w.vehicles[0])).toBe(100);
+  });
+});
+
+describe('the periscope', () => {
+  const sight = (PARTS.periscope as UtilityDef).effect as { sight: number };
+
+  it('widens sight and the gray reach, and two count once', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const plain = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 30, y: 30 });
+    const one = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'periscope'], { x: 30, y: 40 });
+    const two = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'periscope', 'periscope'], { x: 30, y: 50 });
+    expect(sightRadius(w, one)).toBeCloseTo(sightRadius(w, plain) * sight.sight);
+    expect(grayReach(w, one)).toBeCloseTo(grayReach(w, plain) * sight.sight);
+    expect(sightRadius(w, two)).toBeCloseTo(sightRadius(w, one));
+  });
+
+  it('leaves gun reach alone and stops working when broken', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const plain = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'mg'], { x: 30, y: 30 });
+    const scoped = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'mg', 'periscope'], { x: 30, y: 40 });
+    expect(gunReach(w, scoped)).toBe(gunReach(w, plain));
+    mountedParts(scoped, 'utility').find((p) => p.defId === 'periscope')!.hp = 0;
+    expect(sightRadius(w, scoped)).toBeCloseTo(sightRadius(w, plain));
   });
 });

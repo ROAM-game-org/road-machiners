@@ -34,7 +34,7 @@ export type RoadStyle = 'escort' | 'sprinter';
 
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
-const HOP = TERRAIN.vision.radius;
+const HOP = 25;
 const RECLICK_SHARE = 0.5;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 

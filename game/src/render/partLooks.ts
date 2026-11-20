@@ -18,9 +18,10 @@ export const PLAN_PAD = 0.5;
 
 export const TRUCK_LOOK = {
   wheelPush: 0.12,
-  armorDepth: 0.24,
+  armorDepth: 0.12,
+  armorDeepScale: 0.5,
   armorRise: 0.1,
-  armorInset: 0.1,
+  armorInset: 0,
   cutScale: 1.2,
   lampEndShare: 0.5,
   lampReach: 0.6,
@@ -91,6 +92,8 @@ const KIND_TONES: Record<PartKind, ItemTone> = {
   scanner: 'other',
   store: 'other',
   utility: 'other',
+  spare: 'other',
+  relic: 'other',
 };
 
 export function itemTone(id: string): ItemTone {
@@ -106,6 +109,10 @@ export const PART_MODELS: Record<string, ModelName> = {
   transmissionHeavy: 'transmission',
   wheel: 'wheel',
   wheelMid: 'wheel',
+  spareTire: 'spare_tire',
+  relicStatue: 'relic_statue',
+  relicShipModule: 'relic_ship_module',
+  relicComputer: 'relic_old_computer',
   wheelHeavy: 'wheel',
   tank: 'fuel_tank',
   tankLong: 'fuel_tank',
@@ -139,12 +146,9 @@ export const PART_MODELS: Record<string, ModelName> = {
   spikeStrip: 'arm_spike_strip',
 
   rack: 'cargo_rack',
-  trailerBox: 'cargo_trailer_box',
+  haulingRack: 'cargo_hauling_rack',
   panniers: 'cargo_panniers',
-  flatbed: 'cargo_flatbed',
-  lightFrame: 'cargo_light_frame',
-  enclosedFrame: 'cargo_enclosed_frame',
-  heavyFrame: 'cargo_heavy_frame',
+  sacks: 'cargo_sacks',
 
   scanner: 'scanner',
 
@@ -159,6 +163,8 @@ export const PART_MODELS: Record<string, ModelName> = {
   flareCannon: 'util_flare',
   scrapersKnife: 'util_scraper',
   emitter: 'util_emitter',
+  gunBattery: 'util_battery',
+  periscope: 'util_periscope',
 
   scrap: 'good_scrap',
   salt: 'good_salt',
@@ -312,6 +318,17 @@ export type WeaponLook = { mount: ModelName; receiver: ModelName; barrel: ModelN
 export function itemLookId(item: GridItem): string {
   if (item.kind === 'part') return item.part.defId;
   return item.kind === 'good' ? item.good : PARCEL.id;
+}
+
+export const LOADED_MODELS: Record<string, ModelName> = {
+  panniers: 'cargo_panniers_loaded',
+  rack: 'cargo_rack_loaded',
+  haulingRack: 'cargo_hauling_rack_loaded',
+  sacks: 'cargo_sacks_loaded',
+};
+
+export function loadedLook(defId: string, loaded: boolean): ModelName {
+  return (loaded && LOADED_MODELS[defId]) || partModel(defId);
 }
 
 export function partModel(defId: string): ModelName {
@@ -550,6 +567,8 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   store: 'store',
   scanner: 'store',
   utility: 'store',
+  spare: 'store',
+  relic: 'store',
   core: 'core',
 };
 

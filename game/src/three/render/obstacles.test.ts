@@ -11,7 +11,7 @@ import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
 import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
-import { loadModels, model } from './models';
+import { loadModels, model, type ModelName } from './models';
 import { RenderScope, SightLimit } from './scope';
 import { buildCells, buildingOnSync } from '../../test/cells';
 
@@ -53,7 +53,7 @@ describe('paintShipGlow', () => {
   it('makes ship_glow materials emissive in the ship glow and leaves others alone (IV7)', () => {
     const g = groupOf('metal', 'ship_glow');
 
-    paintShipGlow(g);
+    paintShipGlow(g, 'escape_pod');
 
     const [metal, glow] = materialsOf(g);
     expect(glow.emissive.getHex()).toBe(PAL.shipGlow);
@@ -62,10 +62,25 @@ describe('paintShipGlow', () => {
     expect(metal.emissiveIntensity).toBe(1);
   });
 
+  it('paints scenery ship debris faintly and a hull bay at full strength (IV1, IV2, IV3)', () => {
+    const faintNames: ModelName[] = ['escape_pod', 'habitat_cylinder', 'power_cell'];
+    for (const name of faintNames) {
+      const g = groupOf('ship_glow');
+      paintShipGlow(g, name);
+      const [m] = materialsOf(g);
+      expect(m.emissive.getHex()).toBe(PAL.shipGlow);
+      expect(m.emissiveIntensity).toBe(0.12);
+    }
+    const bay = groupOf('ship_glow');
+    paintShipGlow(bay, 'hull_bay');
+    expect(materialsOf(bay)[0].emissive.getHex()).toBe(PAL.shipGlow);
+    expect(materialsOf(bay)[0].emissiveIntensity).toBe(1);
+  });
+
   it('adds no light', () => {
     const g = groupOf('ship_glow');
 
-    paintShipGlow(g);
+    paintShipGlow(g, 'power_cell');
 
     let lights = 0;
     g.traverse((o) => {
@@ -237,6 +252,20 @@ describe('loot colors on props', () => {
     views.sync(obstacles, world(false, false, false), []);
     expect(colorsAt(root, 10)).toEqual(colorsAt(twin.root, 10));
     expect(colorsAt(root, 10).length).toBe(plainA.length);
+  });
+
+  it('batches power cells and escape pods faintly (IV1)', () => {
+    const { root, views } = setup();
+    const landmark = (id: string, look: 'powerCell' | 'escapePod', x: number): Obstacle => ({ id, pos: { x, y: 12 }, r: 1, kind: 'landmark', look, yaw: 0 });
+
+    views.sync([landmark('cell', 'powerCell', 12), landmark('pod', 'escapePod', 14)], [], []);
+
+    const glows = instanceMeshes(root)
+      .map((m) => m.material as THREE.MeshLambertMaterial)
+      .filter((m) => m.name === 'ship_glow')
+      .map((m) => m.emissiveIntensity);
+    expect(glows.length).toBeGreaterThanOrEqual(2);
+    expect(glows.every((g) => g === 0.12)).toBe(true);
   });
 
   it('keeps a house landmark on its own view so its roof color by id holds', () => {

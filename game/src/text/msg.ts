@@ -54,6 +54,7 @@ export function verbatim(name: string): Msg {
 }
 
 export const SPACE: Msg = verbatim(' ');
+export const LINE_BREAK: Msg = verbatim('\n');
 export const PLUS: Msg = verbatim('+');
 export const MINUS_SIGN: Msg = verbatim('\u2212');
 export const DASH: Msg = verbatim('–');

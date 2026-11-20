@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { CHASSIS } from '../../data/chassis';
-import { boxFaultsOnEveryDeckCell } from '../../test/truck-support-faults';
+import { boxCases, boxFaultsOnEveryDeckCell } from '../../test/truck-support-faults';
 import { SURFACE_ATLAS } from './models';
 import type * as TruckMesh from './truckMesh';
 
@@ -22,7 +22,7 @@ SURFACE_ATLAS.value = new THREE.Texture();
 const CHASSIS_IDS = Object.keys(CHASSIS).filter((_, i) => i % 2 === 1);
 
 describe('small parts on every deck cell', () => {
-  it.each(CHASSIS_IDS)('a caltrops box on any deck cell of the %s stands on the truck', (chassisId) => {
-    expect(boxFaultsOnEveryDeckCell(chassisId)).toEqual([]);
+  it.each(boxCases(CHASSIS_IDS))('a caltrops box on any deck cell of the $name stands on the truck', (box) => {
+    expect(boxFaultsOnEveryDeckCell(box)).toEqual([]);
   });
 });

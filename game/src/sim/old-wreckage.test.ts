@@ -64,7 +64,7 @@ describe('a fallen cargo pod in the outer debris field', () => {
     OLD_PLACES.npcShare = 1;
     onTestFinished(() => void (OLD_PLACES.npcShare = saved));
     const w = emptyWorld({ x: 50, y: 50 });
-    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 80, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 90, y: 50 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     forceOption('idle', 'scavenge');
     forceOption('salvageSeen', 'keep');

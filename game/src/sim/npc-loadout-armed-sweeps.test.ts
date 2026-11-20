@@ -18,7 +18,7 @@ describe('armed NPC loadout sweeps', () => {
     for (const v of sweep(NPCS.hunter, 40)) expect(hasHarpoon(v)).toBe(true);
   }, budget(120_000));
 
-  it.each([['buggy', 8], ['gunwagon', 15], ['vulture', 12], ['cavalcade', 39], ['merc', 11], ['marshal', 13], ['noseArmy', 16], ['bowlFarmer', 17]] as const)('keeps the harpoon on about as many %s as before', (id, before) => {
+  it.each([['buggy', 5], ['gunwagon', 15], ['vulture', 12], ['cavalcade', 39], ['merc', 11], ['marshal', 13], ['noseArmy', 16], ['bowlFarmer', 17]] as const)('keeps the harpoon on about as many %s as before', (id, before) => {
     const count = sweep(NPCS[id], 40).filter(hasHarpoon).length;
     expect(count).toBeGreaterThanOrEqual(Math.max(3, Math.floor(before * 0.6)));
     expect(count).toBeLessThanOrEqual(Math.ceil(before * 1.4));

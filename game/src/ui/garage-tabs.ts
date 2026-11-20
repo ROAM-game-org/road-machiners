@@ -2,26 +2,29 @@ import type { TruckPaint } from "../data/chassis";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { mountCellsOf } from "../sim/grid";
-import { spareParts } from "../sim/inventory";
+import { tradedSpares } from "../sim/inventory";
+import { isRelic } from "../sim/wear";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { num, t, type Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { compareBase, createIcon, type IconName } from "./cards";
 import { el } from "./dom";
 import { GOODS_COLUMNS } from "./format";
 import type { InventoryView } from "./inventory";
 import type { PartRow, PartRows } from "./part-rows";
 import type { RowSlots } from "./row-slots";
-import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, reasonButton, sellButton } from "./shop-rows";
+import { caption, lotLabel, livePaintPlan, paintTab, planWithSlot, rowButton, sellButton } from "./shop-rows";
 
 export type GarageTab = "buyParts" | "sellParts" | "trucks" | "paint";
 
 export const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks", "paint"];
 
-export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
+export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory" | "spare" | "relic">;
+
+const FILTER_OF: Partial<Record<PartKind, Exclude<StockFilter, "all">>> = { accessory: "armor", spare: "utility", relic: "utility" };
 
 export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
   if (kind === "core") throw new Error("Built-in parts are never in stock");
-  return kind === "accessory" ? "armor" : kind;
+  return FILTER_OF[kind] ?? (kind as Exclude<StockFilter, "all">);
 }
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
@@ -47,11 +50,11 @@ export function filteredStock(stock: PartInstance[], f: StockFilter): PartInstan
 }
 
 export function stockFilterChips(stock: PartInstance[], current: StockFilter, pick: (f: StockFilter) => void): HTMLElement {
-  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f), current === f, pick)));
+  return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f) === 0, current === f, pick)));
 }
 
-function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
-  const empty = count === 0 && f !== "all";
+function stockFilterChip(f: StockFilter, none: boolean, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
+  const empty = none && f !== "all";
   return el(
     "button",
     {
@@ -63,7 +66,6 @@ function stockFilterChip(f: StockFilter, count: number, on: boolean, pick: (f: S
       },
     },
     f === "all" ? t("trade.filter.all") : filterIcon(f),
-    el("span", { class: "count" }, num(count, "int")),
   );
 }
 
@@ -85,7 +87,7 @@ export function garagePartRow(w: World, list: GarageList, p: PartInstance, actio
 }
 
 export function sellableParts(w: World, truck: Vehicle): PartInstance[] {
-  return [...w.player.storage, ...spareParts(truck)];
+  return [...w.player.storage.filter((p) => !isRelic(p)), ...tradedSpares(truck)];
 }
 
 export type SellPartsBody = {
@@ -137,7 +139,7 @@ export function goodSellCell(sell: GoodSell): HTMLElement {
     "div",
     { class: "trade sell" },
     caption(GOODS_COLUMNS.sell),
-    reasonButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
-    reasonButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
+    rowButton([lotLabel(t("trade.minus", { n: 1 }), sell.one)], sell.sellOne, sell.reason, `${sell.good}:sell1`),
+    rowButton([lotLabel(t("trade.all"), sell.all)], sell.sellAll, sell.reason, `${sell.good}:sellAll`),
   );
 }

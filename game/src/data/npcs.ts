@@ -1,6 +1,6 @@
 
 import type { NpcFactionId, StateKindId } from '../sim/types';
-import { CREW, HIRE } from './npc-behavior';
+import { CREW, HIRE, NPC_UPKEEP, ROAD_KIT_PARTS } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
@@ -54,6 +54,7 @@ export type NpcLoadoutTable = {
   spares: SpareTable | null;
   haul: Load;
   minSpeed: number;
+  repairParts: number;
 };
 
 export type LoadoutPriorities = { speed: number; firepower: number; armor: number; cargo: number };
@@ -88,6 +89,7 @@ const TRADER_SPARES: SpareTable = {
     { value: "scrapPanels", weight: 2 },
     { value: "flatFour", weight: 1 },
     { value: "rack", weight: 1 },
+    { value: "spareTire", weight: 2 },
   ],
   count: [
     { value: 0, weight: 2 },
@@ -151,6 +153,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 200, cells: 3 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   gunwagon: {
@@ -165,8 +168,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 0.1, firepower: 3, armor: 3, cargo: 0 },
     cargoPart: [
       { value: null, weight: 6 },
-      { value: "rack", weight: 2 },
-      { value: "flatbed", weight: 1 },
+      { value: "rack", weight: 3 },
     ],
     goods: [
       { value: null, weight: 3 },
@@ -177,6 +179,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 400, cells: 5 },
     minSpeed: RAIDER_CHASE_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   trader: {
@@ -195,15 +198,13 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "trailerBox", weight: 6 },
-      { value: "flatbed", weight: 4 },
-      { value: "lightFrame", weight: 2 },
-      { value: "enclosedFrame", weight: 2 },
-      { value: "heavyFrame", weight: 1 },
+      { value: "haulingRack", weight: 11 },
+      { value: "rack", weight: 4 },
     ],
     goods: NO_GOODS,
     haul: { kg: CRATE_MASS, cells: 1 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: TRADER_SPARES,
   },
   scavenger: {
@@ -220,10 +221,9 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "rack", weight: 5 },
+      { value: "rack", weight: 8 },
       { value: "panniers", weight: 4 },
-      { value: "flatbed", weight: 3 },
-      { value: "lightFrame", weight: 1 },
+      { value: "haulingRack", weight: 1 },
     ],
     goods: [
       { value: null, weight: 2 },
@@ -234,6 +234,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: null,
   },
   bowlPatrol: {
@@ -249,6 +250,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   nosePatrol: {
@@ -263,6 +265,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   marshal: {
@@ -277,6 +280,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   courier: {
@@ -301,6 +305,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   roamer: {
@@ -317,9 +322,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 2, firepower: 1, armor: 3, cargo: 2 },
     cargoPart: [
       { value: null, weight: 1 },
-      { value: "rack", weight: 4 },
+      { value: "rack", weight: 6 },
       { value: "panniers", weight: 3 },
-      { value: "flatbed", weight: 2 },
     ],
     goods: [
       { value: null, weight: 3 },
@@ -329,6 +333,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: ROAD_KIT_PARTS,
     spares: null,
   },
   vulture: {
@@ -344,10 +349,8 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
       { value: "panniers", weight: 5 },
-      { value: "rack", weight: 3 },
-      { value: "flatbed", weight: 2 },
-      { value: "lightFrame", weight: 1 },
-      { value: "trailerBox", weight: 1 },
+      { value: "rack", weight: 5 },
+      { value: "haulingRack", weight: 2 },
     ],
     goods: [
       { value: null, weight: 2 },
@@ -358,6 +361,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   convoy: {
@@ -371,14 +375,13 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
-      { value: "trailerBox", weight: 5 },
-      { value: "flatbed", weight: 3 },
-      { value: "enclosedFrame", weight: 2 },
-      { value: "heavyFrame", weight: 1 },
+      { value: "haulingRack", weight: 8 },
+      { value: "rack", weight: 3 },
     ],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   convoyGuard: {
@@ -395,6 +398,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   cavalcade: {
@@ -410,6 +414,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   hunter: {
@@ -424,6 +429,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
   merc: {
@@ -440,6 +446,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     minSpeed: MIN_NPC_SPEED,
+    repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
 };
@@ -806,7 +813,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
 
 export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

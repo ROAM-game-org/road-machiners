@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
-import { chassisAbility, accelFactor, bedRows, rangeFactor, sightFactor, topSpeedFactor } from '../sim/chassis-features';
+import { chassisAbility, accelFactor, bedCells, goodsMassShare, rangeFactor, sightFactor, topSpeedFactor } from '../sim/chassis-features';
 import { CHASSIS, CHASSIS_FEATURES, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
 import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { CHAOS_HIGHWAY } from './modes';
@@ -62,9 +62,7 @@ const VALUES = {
   sorokonoga: 1765.67,
 };
 
-const NO_DECK_BLOCK: Record<string, string> = {
-  semi: 'The hauler grid has cargo bay cells and no deck cells, so no gun can mount on it.',
-};
+const NO_DECK_BLOCK: Record<string, string> = {};
 
 const RATED_MASS_BEFORE_RING = {
   scout: 3840, hauler: 7590, buggy: 3280, wagon: 6990, courier: 3750, van: 4790, longbed: 8930, carrier: 7620, tractor: 8460,
@@ -331,6 +329,28 @@ describe('deck blocks for the bigger guns', () => {
   });
 });
 
+describe('niva gun mounting on its short hood grid', () => {
+  const NIVA_HOOD_ROWS = 4;
+  const gun = (defId: string, n: number): GridItem => ({ id: `g-${n}`, x: 0, y: 0, rot: 0, kind: 'part', part: { id: `gp-${n}`, defId, hp: 1, wear: 0 } });
+  const cores = (): GridItem[] => CHASSIS.niva.core.map((c, i) => ({ id: `c-${i}`, x: c.x, y: c.y, rot: c.rot ?? 0, kind: 'part', part: { id: `cp-${i}`, defId: c.defId, hp: 1, wear: 0 } }));
+  const rowsOf = (defId: string, spot: { x: number; y: number; rot: GridItem['rot'] }) => {
+    const def = partDef(defId);
+    const along = spot.rot % 2 === 1 ? def.w : def.h;
+    return { first: spot.y, last: spot.y + along - 1 };
+  };
+  const spotsFor = (defId: string) => mountSpots(baseGrid('niva'), cores(), gun(defId, 0), ['D']).map((s) => rowsOf(defId, s));
+
+  it('mounts a tier 1 gun beside the engine bay on the hood and on the cabin roof', () => {
+    const rows = spotsFor('mg');
+    expect(rows.some((r) => r.last <= NIVA_HOOD_ROWS)).toBe(true);
+    expect(rows.some((r) => r.first > NIVA_HOOD_ROWS)).toBe(true);
+  });
+
+  it('mounts a tier 3 gun on the cabin roof', () => {
+    expect(spotsFor('gatling').some((r) => r.first > NIVA_HOOD_ROWS)).toBe(true);
+  });
+});
+
 describe('shown cores', () => {
   it('shows the transmission and the tank on the junk-built trucks and hides them on the others', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
@@ -347,7 +367,7 @@ describe('chassis tradeoffs', () => {
   const count = (c: ChassisDef, letter: string): number => c.layout.reduce((n, row) => n + [...row].filter((ch) => ch === letter).length, 0);
   const armorCells = (c: ChassisDef): number => [...ARMOR].reduce((n, letter) => n + count(c, letter), 0);
   const coreHp = (c: ChassisDef): number => c.core.reduce((n, core) => n + partDef(core.defId).hp, 0);
-  const axes = (c: ChassisDef): number[] => [c.maxSpeed * topSpeedFactor(c.id), c.accel * accelFactor(c.id), bedRows(c.id) * Math.max(...c.layout.map((r) => r.length)), c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
+  const axes = (c: ChassisDef): number[] => [c.maxSpeed * topSpeedFactor(c.id), c.accel * accelFactor(c.id), bedCells(c.id), c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
 
   function chassisDominates(a: ChassisDef, b: ChassisDef): boolean {
     const x = axes(a);
@@ -394,7 +414,8 @@ describe('chassis abilities', () => {
 
   it('pins the numbers the committee fixed', () => {
     const a = (id: string) => CHASSIS_FEATURES[id];
-    expect([a('scout').bedRows, a('hauler').bedRows, a('longbed').bedRows]).toEqual([1, 2, 3]);
+    expect([a('scout').bedCells, a('hauler').bedCells, a('longbed').bedCells]).toEqual([2, 4, 6]);
+    expect([a('scout').goodsMass, a('hauler').goodsMass, a('longbed').goodsMass]).toEqual([0.5, 0.5, 0.5]);
     expect(a('buggy').accel).toBe(1.25);
     expect(a('courier').topSpeed).toBe(1.25);
     expect([a('jeep').offRoadCut, a('niva').offRoadCut]).toEqual([1, 1]);
@@ -403,24 +424,24 @@ describe('chassis abilities', () => {
     expect(a('sorokonoga').deckArmor).toBe(1);
   });
 
-  it('puts bed rows on the scout, hauler and longbed only', () => {
-    for (const id of PLAYER_CHASSIS) expect(bedRows(id) > 0, id).toBe(['scout', 'hauler', 'longbed'].includes(id));
+  it('puts bed cells and lighter goods on the scout, hauler and longbed only', () => {
+    for (const id of PLAYER_CHASSIS) expect([bedCells(id) > 0, goodsMassShare(id) < 1], id).toEqual(Array(2).fill(['scout', 'hauler', 'longbed'].includes(id)));
   });
 
   it('keeps every gun inside its driver sight, every arc at most 360 and every factor above 0', () => {
     for (const [id, ability] of Object.entries(CHASSIS_FEATURES)) {
       expect(rangeFactor(id), id).toBeLessThanOrEqual(sightFactor(id));
       expect(ability.arc ?? 0).toBeLessThanOrEqual(360);
-      for (const f of [ability.accel, ability.topSpeed, ability.gunPower, ability.mountedMass, ability.sight, ability.range, ability.cargoRows]) expect(f ?? 1).toBeGreaterThan(0);
+      for (const f of [ability.accel, ability.topSpeed, ability.gunPower, ability.mountedMass, ability.sight, ability.range, ability.cargoCells, ability.goodsMass]) expect(f ?? 1).toBeGreaterThan(0);
     }
   });
 });
 
 describe('the semi', () => {
-  it('has cargo bay cells and no deck cells, so a gun, scanner, utility or store part never mounts', () => {
-    const cells = CHASSIS.semi.layout.join('');
-    expect(cells).not.toContain('D');
-    expect(cells).toContain('C');
+  it('has deck cells on the tractor and the trailer, so any part mounts on it', () => {
+    const rows = CHASSIS.semi.layout;
+    expect(rows.slice(0, 13).some((row) => row.includes('D'))).toBe(true);
+    expect(rows.slice(19).some((row) => row.includes('D'))).toBe(true);
   });
 
   it('is in no outpost offer and no NPC template', () => {

@@ -204,7 +204,13 @@ function legLines(graph: RoadGraph, leg: readonly number[], nodes: readonly numb
   });
 }
 
-function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spoken[]; legs: number[]; tail: CueSpot } {
+function cueTargetOf(world: World, target: DirectionTarget): string | undefined {
+  if (target.kind !== 'site') return undefined;
+  const site = atlasSites(atlasOf(world.terrain)).find((s) => s.id === target.id);
+  return site && !isTerritory(site) ? site.id : undefined;
+}
+
+function walkPath(world: World, graph: RoadGraph, path: RoadPath, target?: string): { spoken: Spoken[]; legs: number[]; tail: CueSpot } {
   const spoken: Spoken[] = [];
   const legs: number[] = [];
   let first = 0;
@@ -219,7 +225,7 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
     const side = decision(graph, node, path.edges[i - 1], path.edges[i]);
     if (side) {
       const leg = legLines(graph, path.edges.slice(first, i), path.nodes, first);
-      const cue = cueAt(world, { pos: graph.nodes[node].pos, legStart, leg, earlier, forks });
+      const cue = cueAt(world, { pos: graph.nodes[node].pos, legStart, leg, earlier, forks, target });
       spoken.push({ at: i, side, cue, out: path.edges[i] });
       legs.push(lengthOf(graph, path.edges.slice(first, i)));
       first = i;
@@ -231,7 +237,7 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
   legs.push(lengthOf(graph, path.edges.slice(first)));
   const pos = graph.nodes[path.nodes[last]].pos;
   const leg = legLines(graph, path.edges.slice(first), path.nodes, first);
-  return { spoken, legs, tail: { pos, legStart, leg, earlier, forks } };
+  return { spoken, legs, tail: { pos, legStart, leg, earlier, forks, target } };
 }
 
 function firstLegOf(path: RoadPath, spoken: readonly Spoken[]): number[] {
@@ -243,7 +249,7 @@ function lengthOf(graph: RoadGraph, edges: readonly number[]): number {
 }
 
 function speakPath(world: World, graph: RoadGraph, path: RoadPath, target: DirectionTarget, spot: Vec | null, square: GridSquare | null): DirectionStep[] {
-  const { spoken, legs, tail } = walkPath(world, graph, path);
+  const { spoken, legs, tail } = walkPath(world, graph, path, cueTargetOf(world, target));
   const steps: DirectionStep[] = [];
   if (path.edges.length > 0) {
     const heading = headingAlong(legLines(graph, firstLegOf(path, spoken), path.nodes, 0), DIRECTIONS.headingReach);

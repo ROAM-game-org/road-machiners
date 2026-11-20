@@ -8,6 +8,7 @@ import { t, type Msg } from "../text/msg";
 import { modeName, siteName } from "../text/names";
 import { outpostId } from "../sim/highway";
 import { askConfirm } from "./confirm-dialog";
+import { controls, metalLine, panelHead, textKey } from "./dash/skin";
 import { disabledWith, el, panel } from "./dom";
 import { CONFIRM_NEW_GAME, openNewGame, type NewGameActions } from "./new-game";
 import { SavePanel, type SavePanelActions } from "./save-panel";
@@ -50,14 +51,16 @@ export class DeathScreen {
     this.root.setAttribute("role", "alertdialog");
     bindAttr(this.root, "aria-label", title);
     this.root.append(
-      el("h3", {}, title),
-      runCaption(world) ?? el("div", { class: "dim" }, t("death.epitaph")),
       el(
         "div",
-        { class: "death-buttons" },
-        el("button", disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), t("menu.loadSave")),
-        world.chaosHighway ? el("button", { onclick: () => void this.restart(world) }, t("death.restartRun")) : null,
-        el("button", { onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
+        { class: "death-box hud-frame hud-panel" },
+        panelHead(title),
+        runCaption(world) ?? metalLine(t("death.epitaph")),
+        controls(
+          textKey(t("menu.loadSave"), disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad())),
+          world.chaosHighway ? textKey(t("death.restartRun"), { onclick: () => void this.restart(world) }) : null,
+          textKey(t("menu.newGame"), { onclick: () => openNewGame(this.actions.newGame, () => {}) }),
+        ),
       ),
     );
   }
@@ -87,5 +90,5 @@ function runCaption(world: World): HTMLElement | null {
   if (!world.chaosHighway) return null;
   const { reached, north } = runEarnings(world);
   const caption = reached > 0 ? t("death.runReached", { mode: modeName("chaosHighway"), site: siteName(outpostId(reached)), north: distanceText(north) }) : t("death.runStart", { mode: modeName("chaosHighway"), north: distanceText(north) });
-  return el("div", { class: "death-caption" }, caption);
+  return metalLine(caption);
 }

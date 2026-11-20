@@ -12,7 +12,6 @@ import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
 import { corePart, itemSize } from "../sim/grid";
 import { conditionItems, type Tier } from "../three/render/portraitPixels";
-import { keyLabel } from "./input-mode";
 import { vehicleStats, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
 import { basicSkill } from "../sim/progress";
 import { fuelLimit, fuelTopSpeed, lowFuelSpeed } from "../sim/far";
@@ -53,7 +52,7 @@ export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; 
 function overdriveReason(w: World, block: OverdriveBlock): Msg {
   if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
   if (block === "noEngine") return t("hud.overdriveNoEngine");
-  return keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
+  return t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) });
 }
 
 function shopNear(world: World): string | null {

@@ -17,19 +17,21 @@ body {
 #ui {
   --inspection-width: var(--panel-m);
   --inspection-height: var(--panel-m-height);
-  --right-column: calc(var(--dock-width) + var(--space-7));
+  --right-column: calc(var(--hud-radio-w) * var(--hud-zoom) + var(--hud-gap));
   --weapon-card: var(--icon-hero);
   --weapon-gap: var(--space-2);
   --weapon-icon-w: var(--icon-2xl);
   --weapon-icon-h: var(--icon-l);
   position: absolute;
   inset: 0;
+  overflow: clip;
   pointer-events: none;
   color: var(--ink);
   font: var(--text-body) / 1.4 var(--font-ui);
   touch-action: manipulation;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
-:is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
+:is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, label, summary) {
   -webkit-touch-callout: none;
   user-select: none;
 }
@@ -44,10 +46,11 @@ body {
 :is(#ui, #report) .panel {
   position: absolute;
   pointer-events: auto;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-strong);
+  background: none;
+  border: 1px solid transparent;
+  border-image: var(--hud-frame-art) var(--hud-frame-slice) fill / var(--hud-frame-bevel) / 1px round;
   padding: var(--space-4) var(--space-5);
-  box-shadow: var(--shadow-panel);
+  color: var(--hud-print-coal);
 }
 :is(#ui, #report) h3 {
   margin: 0 0 var(--space-4);
@@ -64,11 +67,11 @@ body {
   cursor: pointer;
 }
 :is(#ui, #report) button:hover {
-  background: var(--surface-hover);
-  border-color: var(--line-hover);
+  background: var(--hover-bg, var(--surface-hover));
+  border-color: var(--hover-border, var(--line-hover));
 }
 :is(#ui, #report) button:disabled {
-  opacity: 0.45;
+  opacity: var(--off-opacity);
   cursor: default;
 }
 :is(#ui, #report) button:focus-visible,
@@ -76,16 +79,21 @@ body {
 :is(#ui, #report) [tabindex]:focus-visible,
 :is(#ui, #report) summary:focus-visible,
 :is(#ui, #report) a:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: var(--focus-ring, 2px solid var(--accent));
   outline-offset: 2px;
 }
 :is(#ui, #report) select {
   font: inherit;
-  color: var(--ink);
-  background: var(--surface-well);
-  border: 1px solid var(--line-strong);
+  border: 1px solid;
   padding: var(--space-2);
   max-width: 100%;
+}
+:is(#ui, #report) :is(select, textarea, input:is([type="text"], [type="search"], :not([type]))) {
+  color: var(--ink);
+  background: none;
+  border-style: solid;
+  border-color: transparent;
+  border-image: var(--hud-input-art) var(--hud-input-slice) fill / var(--hud-input-edge) stretch;
 }
 :is(#ui, #report) .dim {
   color: var(--ink-muted);
@@ -124,19 +132,14 @@ body {
 #ui.touch .no-touch {
   display: none;
 }
-#ui.touch :is(.btn-s, .tip-close) {
+#ui.touch :is(.btn-s, .hud-close) {
   min-width: var(--touch-target);
 }
-#ui.touch :is(.weapon-hold, .weapon-reload, .weapon-cut, .radio-next) {
+#ui.touch .radio-next {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
 }
 #ui.touch button.switch {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
-}
-#ui.touch .instrument-actions button.instrument-button {
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
-  align-items: center;
 }

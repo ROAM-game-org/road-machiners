@@ -146,7 +146,7 @@ function withExtra(url, extra) {
 }
 
 async function withDecoder(work) {
-  const browser = await chromium.launch({ executablePath: process.env.ROAM_CHROME });
+  const { browser } = await launchChromium(chromium, { executablePath: process.env.ROAM_CHROME });
   try {
     const page = await browser.newPage();
     return await work(page);

@@ -1,6 +1,10 @@
 /* Journal: tabs over one page. Beside the world it is a side column under the right dock; over a scene or on a narrow window it is a modal. */
 #ui .modal.journal-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   max-width: var(--talk-width);
+  overflow: hidden;
 }
 #ui .journal-side {
   position: absolute;
@@ -25,22 +29,21 @@
   flex-direction: column;
   gap: var(--space-5);
 }
-.journal-side .journal-body {
-  flex: 1 1 auto;
+.journal-screen .journal-body {
+  flex: 1 1 0;
   min-height: 0;
+  margin-right: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
-.journal-side .tabs {
+.journal-screen .journal-idle {
+  color: var(--hud-amber-faint);
+}
+.journal-screen .tabs {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--line);
-}
-.journal-screen .tabs.sub .count {
-  margin-left: var(--space-3);
-  color: var(--ink-muted);
 }
 .journal-screen .jobs {
   grid-template-columns: var(--icon-xl) minmax(0, 1fr) auto;
@@ -75,41 +78,24 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line-faint);
 }
-.journal-screen .jobs > .job:has(+ .journal-detail) {
-  border-bottom: 0;
-}
-#ui .journal-screen button.journal-head {
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-#ui .journal-screen button.journal-head:disabled {
-  cursor: default;
-}
-#ui .journal-head {
-  display: flex;
+#ui .journal-screen .journal-head {
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-6);
-  width: 100%;
-  text-align: left;
+}
+#ui .journal-screen .journal-head:disabled {
+  cursor: default;
+}
+#ui .journal-screen .journal-head[aria-expanded="true"] {
+  font-weight: 700;
 }
 .journal-note,
 .journal-place {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-6);
-  background: var(--surface-raised);
-  border-left: 4px solid var(--line);
   line-height: 1.4;
-}
-.journal-note.open,
-.journal-place.open {
-  border-left-color: var(--accent);
 }
 .journal-place.survey .place-body {
   display: grid;
@@ -120,8 +106,7 @@
 .survey-picture {
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border: 1px solid var(--surface-raised);
-  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+  background: var(--hud-screen);
 }
 .survey-picture img {
   width: 100%;
@@ -132,6 +117,17 @@
 .journal-screen .way-steps {
   margin: 0;
 }
-#ui:has(.journal-side:not([style*="display: none"])) > .top-center > .panel {
+#ui:has(.journal-side:not([style*="display: none"])) > .top-center > .panel:not(.dialogue) {
   max-width: calc((var(--layer-w) / 2 - var(--journal-side-width) - var(--space-7) - var(--space-5)) * 2);
+}
+#ui .journal-screen .journal-top > h3.panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--hud-print-coal);
+  font: var(--text-heading) / 1 var(--font-engraved);
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+  text-transform: uppercase;
 }

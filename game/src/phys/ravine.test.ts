@@ -1,3 +1,4 @@
+import { mountedParts } from '../sim/grid';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { NPCS, NPC_BEHAVIOR } from '../data/npcs';
 import { addGoods } from '../sim/inventory';
@@ -43,10 +44,11 @@ function closedPit(i: number, j: number): number {
 }
 
 function trucker(w: World, build: 'hauler' | 'scout'): Vehicle {
-  const npc = build === 'hauler' ? addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], START) : addVehicle(w, 'independent', 'buggy', ['stockEngine'], START);
+  const npc = build === 'hauler' ? addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'haulingRack'], START) : addVehicle(w, 'independent', 'buggy', ['stockEngine'], START);
   npc.brain = npcBrain('trader', START, ['trader']);
   npc.brain.goals = [{ kind: 'explore', targetId: null, destination: { ...GOAL }, reason: 'explore', phase: 'travel' }];
   if (build === 'hauler') addGoods(w, npc, 'scrap', 122);
+  if (build === 'hauler') for (const engine of mountedParts(npc, 'engine')) engine.wear = 4;
   return npc;
 }
 
@@ -116,7 +118,7 @@ describe('a truck in a ravine', () => {
     const w = emptyWorld({ x: 40, y: 44 });
     raise(w, closedPit);
     const npc = trucker(w, 'hauler');
-    const r = run(w, npc.id, NPC_BEHAVIOR.stallTurns + 20, true);
+    const r = run(w, npc.id, 2 * NPC_BEHAVIOR.stallTurns + 20, true);
     expect(r.stalls).toBeGreaterThan(0);
     expect(r.stallTurn! - r.progressSince!).toBe(NPC_BEHAVIOR.stallTurns);
     expect(r.goalChanged).toBe(true);

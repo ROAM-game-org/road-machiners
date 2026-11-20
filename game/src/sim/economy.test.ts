@@ -163,9 +163,10 @@ describe("trade", () => {
       for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
   });
 
-  it("Bowl trades no ship relics and Nose pays more for them than the Yard", () => {
+  it("the Granary trades no ship relics and Nose pays more for them than the Yard", () => {
     expect(GOOD_IDS).toContain("relics");
-    expect(() => goodBasePrice("bowl", "relics")).toThrow();
+    expect(() => goodBasePrice("granary", "relics")).toThrow();
+    expect(goodBasePrice("bowl", "relics")).toBeGreaterThan(0);
     expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
   });
 

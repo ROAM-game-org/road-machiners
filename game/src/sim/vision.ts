@@ -14,9 +14,10 @@ import { weatherOn } from './weather';
 import { dist, segmentDist, type Vec } from './vec';
 import { playerVehicle } from './damage';
 import { cloudsSeenBy, contactDifficulty, contactsOf } from './detect';
-import { litAt, litFlares } from './hazards';
+import { litAt, nightLights } from './hazards';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { sightFactor } from './chassis-features';
+import { periscopeSight } from './utility';
 import { PERK_NUMBERS } from '../data/skills';
 
 function propsNear(world: World, a: Vec, b: Vec): Obstacle[] {
@@ -26,18 +27,22 @@ function propsNear(world: World, a: Vec, b: Vec): Obstacle[] {
 type Screen = { pos: Vec; r: number };
 
 export function sightRadius(world: World, viewer: Vehicle, lit = false): number {
-  const night = nightFactor(world, viewer, lit);
-  const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
-  return clearDaySight(world, viewer) * weather * night;
+  return TERRAIN.vision.radius * sightScale(world, viewer) * conditionFactor(world, viewer, lit);
 }
 
-function clearDaySight(world: World, viewer: Vehicle): number {
+function conditionFactor(world: World, viewer: Vehicle, lit: boolean): number {
+  const night = nightFactor(world, viewer, lit);
+  const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
+  return weather * night;
+}
+
+function sightScale(world: World, viewer: Vehicle): number {
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return TERRAIN.vision.radius * skill * sightFactor(viewer.chassisId);
+  return skill * sightFactor(viewer.chassisId) * periscopeSight(viewer);
 }
 
 export function grayReach(world: World, viewer: Vehicle): number {
-  return clearDaySight(world, viewer) * TERRAIN.vision.grayFactor;
+  return TERRAIN.vision.grayRadius * sightScale(world, viewer);
 }
 
 export function farSightRadius(world: World, viewer: Vehicle): number {
@@ -49,7 +54,8 @@ function nightFactor(world: World, viewer: Vehicle, lit: boolean): number {
 }
 
 export function grayRadius(world: World): number {
-  return sightRadius(world, playerVehicle(world)) * TERRAIN.vision.grayFactor;
+  const viewer = playerVehicle(world);
+  return grayReach(world, viewer) * conditionFactor(world, viewer, false);
 }
 
 export function visibleTiles(world: World, from: Vec): Set<number> {
@@ -67,8 +73,8 @@ function sightDisks(world: World, from: Vec): SightDisk[] {
   const me = playerVehicle(world);
   const r = sightRadius(world, me);
   const lit = sightRadius(world, me, true);
-  const flares = lit > r ? litFlares(world).filter((f) => dist(from, f.pos) - f.r < lit) : [];
-  return [{ pos: from, r, reach: r }, ...flares.map((f) => ({ pos: f.pos, r: f.r, reach: lit }))];
+  const lights = lit > r ? nightLights(world).filter((l) => dist(from, l.pos) - l.r < lit) : [];
+  return [{ pos: from, r, reach: r }, ...lights.map((l) => ({ pos: l.pos, r: l.r, reach: lit }))];
 }
 
 export function playerSeenPropTiles(world: World): number[] {
@@ -231,7 +237,7 @@ export function canVehicleSee(world: World, observer: Vehicle, position: Vec): b
   if (observer.id === world.player.vehicleId) return playerSees(world, position);
   const target = position;
   const apart = dist(observer.pos, target);
-  if (apart > clearDaySight(world, observer)) return false;
+  if (apart > TERRAIN.vision.radius * sightScale(world, observer)) return false;
   if (apart > sightRadius(world, observer, litAt(world, target))) return false;
   return isCheapMeeting(world, observer.pos, target) || inPlainView(world, observer.pos, target, propsNear(world, observer.pos, target), dustScreens(world));
 }

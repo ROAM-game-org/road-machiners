@@ -94,20 +94,21 @@ const findDeadCorners = () => {
     });
   };
   const panels = [...document.querySelectorAll('#ui .panel')].filter((p) => isShown(p, p.getBoundingClientRect()));
-  const single = panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c));
-  const turn = document.querySelector('#ui .turn-control .end-turn');
-  const turnFailures = turn ? cornerFailures(turn, turn) : ['no turn button'];
+  const keys = [...document.querySelectorAll('#ui :is(.key-cap, .baked-key)')].filter((k) => isShown(k, k.getBoundingClientRect())).map((k) => [k, [k]]);
+  const single = [...panels.map((p) => [p, [...p.querySelectorAll('button, summary, a[href], input, select')].filter((c) => c.checkVisibility())]).filter(([p, c]) => isOneControl(p, c)), ...keys];
+  const turn = document.querySelector('#ui .hud-radio .play-key');
+  const turnFailures = turn ? [] : ['no turn button'];
   return { failures: [...single.flatMap(([p, c]) => cornerFailures(p, c[0])), ...turnFailures], found: single.length };
 };
 const hit = await page.evaluate(findDeadCorners);
 hitProblems.push(...hit.failures);
 if (hit.found < 2) hitProblems.push(`found ${hit.found} one-control panels, expected at least 2`);
-const menuBox = await page.locator('#ui .game-menu').boundingBox();
+const menuBox = await page.locator('#ui .system-menu').boundingBox();
 await page.mouse.click(menuBox.x + 2, menuBox.y + 2);
 if (!(await page.locator('.game-menu [role=menu]').isVisible())) hitProblems.push('menu did not open from a click in its corner');
 await page.keyboard.press('Escape');
 if (await page.locator('.game-menu [role=menu]').isVisible()) hitProblems.push('menu did not close on Escape');
-await page.locator('.game-menu .menu-button').click();
+await page.locator('#ui .system-menu').click();
 await page.locator('.game-menu [data-entry=help]').click();
 if (!(await page.locator('#ui .help').isVisible())) hitProblems.push('help did not open from the menu');
 await page.keyboard.press('Escape');
@@ -124,12 +125,12 @@ const checkNoStrayControl = async (when) => {
 };
 const languageReadout = () => page.evaluate(() => ({
   lang: document.documentElement.lang,
-  menu: document.querySelector('#ui .game-menu .menu-button')?.textContent ?? '',
+  menu: document.querySelector('#ui .system-menu')?.getAttribute('aria-label') ?? '',
   hud: [...document.querySelectorAll('#ui [data-resource]')].map((item) =>
     item.querySelector('small')?.textContent || item.getAttribute('aria-label') || item.getAttribute('title') || ''),
 }));
 const openOptionsByMouse = async () => {
-  if (!(await page.locator('.game-menu [role=menu]').isVisible())) await page.locator('.game-menu .menu-button').click();
+  if (!(await page.locator('.game-menu [role=menu]').isVisible())) await page.locator('#ui .system-menu').click();
   const item = page.locator('.game-menu [data-entry=options]');
   if (!(await item.count())) {
     languageProblems.push('Options not reachable: the menu has no Options item');
@@ -143,7 +144,7 @@ const openOptionsByMouse = async () => {
   return true;
 };
 const pickLanguageByKeyboard = async (lang) => {
-  await page.locator('.game-menu .menu-button').focus();
+  await page.locator('#ui .system-menu').focus();
   await page.keyboard.press('Enter');
   for (let i = 0; i < 6; i++) {
     if (await page.evaluate(() => document.activeElement?.dataset.entry === 'options')) break;
@@ -165,7 +166,7 @@ const pickLanguageByKeyboard = async (lang) => {
   if ((await page.evaluate(() => window.__ROAM__.state.turn)) !== turnBefore) languageProblems.push('a game key ended the turn behind Options');
   await page.keyboard.press('Escape');
   if (await page.locator('#ui .options').count()) languageProblems.push('Options did not close on Escape');
-  if (!(await page.evaluate(() => document.activeElement?.classList.contains('menu-button')))) languageProblems.push('focus did not return to the Menu button after Options');
+  if (!(await page.evaluate(() => document.activeElement?.classList.contains('system-menu')))) languageProblems.push('focus did not return to the Menu button after Options');
 };
 const pickLanguageByMouse = async (lang) => {
   if (!(await openOptionsByMouse())) return;
@@ -207,7 +208,7 @@ await page.screenshot({ path: '.playtest/end.png' });
 const logLeaks = await page.evaluate(() => {
   const g = window.__ROAM__;
   const names = [...g.state.vehicles, ...g.state.removed].flatMap((v) => (v.brain ? v.brain.driver.split(' ') : []));
-  return [...document.querySelectorAll('#ui .log-lines > div')].map((row) => row.textContent ?? '')
+  return [...document.querySelectorAll('#ui .deck-log .log-lines > div')].map((row) => row.textContent ?? '')
     .filter((text) => names.reduce((left, name) => left.split(name).join(' '), text).match(/[A-Za-z]{2,}/));
 });
 languageProblems.push(...logLeaks.map((line) => `English in the Russian log: ${line}`));
@@ -243,7 +244,7 @@ const reload = () => afterCrashRetry(async () => {
   await collectGarbage(page);
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
-  await page.waitForSelector('.game-menu .menu-button', { timeout: BOOT_LIMIT_MS });
+  await page.waitForSelector('#ui .system-menu', { timeout: BOOT_LIMIT_MS });
   return languageReadout();
 });
 if ((await reload()).lang !== 'ru' || (await afterCrashRetry(pressedLanguage)) !== 'ru') languageProblems.push('Russian did not survive a reload');

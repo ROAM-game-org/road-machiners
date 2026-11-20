@@ -2,7 +2,7 @@ import { CONFIG } from "../config";
 import { bindAttr, textNode } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { el, markDisabled } from "./dom";
-import { keyLabel } from "./input-mode";
+import { keyTip } from "./input-mode";
 
 export const SLOWER_KEY = "[";
 export const FASTER_KEY = "]";
@@ -52,8 +52,8 @@ export class TravelSpeed {
     bindAttr(this.lcd, "title", t("turn.speed"));
     bindAttr(this.slower, "aria-label", t("turn.speed.slower"));
     bindAttr(this.faster, "aria-label", t("turn.speed.faster"));
-    bindAttr(this.slower, "title", keyLabel(t("turn.speed.slower"), SLOWER_KEY));
-    bindAttr(this.faster, "title", keyLabel(t("turn.speed.faster"), FASTER_KEY));
+    bindAttr(this.slower, "title", keyTip(t("turn.speed.slower"), SLOWER_KEY));
+    bindAttr(this.faster, "title", keyTip(t("turn.speed.faster"), FASTER_KEY));
   }
 
   step(delta: 1 | -1): void {

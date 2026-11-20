@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { SHOPS } from '../data/market';
-import { NPC_UPKEEP } from '../data/npcs';
 import { sellsAnythingAt, sellVehicleCargo } from './economy';
 import { goodsCount } from './grid';
 import { addGoods, stowPart } from './inventory';
 import { makePart } from './factory';
 import { hasSaleCargo, type NpcProfile } from './npc-decisions';
 import { saleGoal } from './npc-activities';
-import { addVehicle, emptyWorld } from './testkit';
+import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { npcRepairReserve } from './repair';
 import { sitePads } from './sites';
 
 const shops = Object.keys(SHOPS);
@@ -19,6 +19,7 @@ const camp = REGION.locations.find((l) => l.kind === 'camp')!.id;
 function truckHolding(good: string | null) {
   const w = emptyWorld();
   const npc = addVehicle(w, 'independent', 'hauler', [], sitePads(REGION.towns[0])[0]);
+  npc.brain = npcBrain('trader', npc.pos, ['trader']);
   if (good) addGoods(w, npc, good, 1);
   return { w, npc };
 }
@@ -51,7 +52,7 @@ describe('sale cargo needs a buyer who takes it', () => {
 
   it('keeps retained repair parts', () => {
     const { w, npc } = truckHolding(null);
-    addGoods(w, npc, 'parts', NPC_UPKEEP.repairParts);
+    addGoods(w, npc, 'parts', npcRepairReserve(npc));
     expect(hasSaleCargo(npc, marketsOf([withGrain[0]]))).toBe(false);
   });
 
@@ -59,13 +60,13 @@ describe('sale cargo needs a buyer who takes it', () => {
     for (const shop of shops) {
       for (const good of ['grain', 'salt', 'scrap', 'parts', 'water']) {
         const { w, npc } = truckHolding(null);
-        addGoods(w, npc, good, NPC_UPKEEP.repairParts + 1);
-        const predicted = sellsAnythingAt(npc, shop, NPC_UPKEEP.repairParts);
+        addGoods(w, npc, good, npcRepairReserve(npc) + 1);
+        const predicted = sellsAnythingAt(npc, shop, npcRepairReserve(npc));
         const before = structuredClone(goodsCount(npc));
         const town = REGION.towns.find((t) => t.id === shop);
         if (!town) continue;
         npc.pos = { ...sitePads(town)[0] };
-        sellVehicleCargo(w, npc, shop, NPC_UPKEEP.repairParts);
+        sellVehicleCargo(w, npc, shop, npcRepairReserve(npc));
         expect(predicted).toBe(JSON.stringify(goodsCount(npc)) !== JSON.stringify(before));
       }
     }

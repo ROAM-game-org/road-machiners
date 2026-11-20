@@ -166,6 +166,8 @@ export class TruckConditionView {
   private parts: ConditionPart[] = [];
   private aim: ConditionAim | undefined;
   private scale = 1;
+  private lengthZoom = 1;
+  private heightCap = Number.POSITIVE_INFINITY;
   private hoverId: string | null = null;
   private pointerType = "mouse";
   private pressedId: string | null = null;
@@ -193,12 +195,28 @@ export class TruckConditionView {
   fitTo(box: HTMLElement): void {
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
-    this.setZoom(Math.min(MAX_FIT_ZOOM, (box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+    const room = contentBox(box);
+    this.setZoom(Math.min(MAX_FIT_ZOOM, (room.height - outline) / natural.height, (room.width - outline) / natural.width));
   }
 
   private setZoom(zoom: number): void {
     this.root.style.zoom = String(zoom);
     this.root.style.setProperty("--cond-unzoom", String(1 / zoom));
+  }
+
+  capHeight(height: number): void {
+    this.heightCap = height;
+    if (this.size && this.maxLength !== null) this.setZoom(this.cappedZoom());
+  }
+
+  private fitLength(length: number): void {
+    if (this.maxLength === null) return;
+    this.lengthZoom = Math.min(1, this.maxLength / length);
+    this.setZoom(this.cappedZoom());
+  }
+
+  private cappedZoom(): number {
+    return Math.max(0, Math.min(this.lengthZoom, this.heightCap / this.naturalSize().height));
   }
 
   boxFor(cell: number): { width: number; height: number } {
@@ -217,8 +235,8 @@ export class TruckConditionView {
     const drawn = drawing ? this.parts.filter((part) => drawing.has(part.id)) : [];
     const length = 2 * spanOf(vehicle.chassisId).half.x;
     this.scale = CELL / (PX_PER_METER * METERS_PER_CELL);
-    if (this.maxLength !== null) this.setZoom(Math.min(1, this.maxLength / length));
     this.size = drawing ?? chassisSize(vehicle.chassisId);
+    this.fitLength(length);
     this.stage.style.width = `${this.size.width * this.scale}px`;
     this.stage.style.height = `${this.size.height * this.scale}px`;
     this.root.classList.toggle("aimable", aim !== undefined);
@@ -355,4 +373,11 @@ export class TruckConditionView {
       layerImage("cond-pick", this.drawing, this.drawing.glow(part.id, part.tier), part.tier),
     );
   }
+}
+
+function contentBox(box: HTMLElement): { width: number; height: number } {
+  const style = getComputedStyle(box);
+  const across = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const down = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  return { width: box.clientWidth - across, height: box.clientHeight - down };
 }

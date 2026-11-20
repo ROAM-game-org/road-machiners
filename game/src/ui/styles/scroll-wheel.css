@@ -1,0 +1,29 @@
+#ui {
+  --scroll-wheel-w: var(--space-6);
+  --scroll-wheel-gap: var(--space-1);
+}
+#ui .scroll-wheel {
+  --scroll-wheel-h: min(var(--scroll-wheel-room), calc(var(--scroll-wheel-w) / var(--scroll-wheel-aspect)));
+  position: absolute;
+  box-sizing: border-box;
+  height: var(--scroll-wheel-h);
+  width: calc(var(--scroll-wheel-h) * var(--scroll-wheel-aspect));
+  margin-left: var(--scroll-wheel-gap);
+  transform: translateY(-50%);
+  overflow: hidden;
+  cursor: ns-resize;
+  touch-action: none;
+}
+#ui .scroll-wheel[hidden],
+#ui .scroll-wheel-frame[hidden] {
+  display: none;
+}
+#ui .scroll-wheel-frame {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+#ui .scroll-wheeled.scroll-wheeled:not(.shop-body, .truck-body, .rank-ladder, .ink-panel) {
+  margin-right: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
+}

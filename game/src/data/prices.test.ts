@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bedRows } from '../sim/chassis-features';
+import { bedCells } from '../sim/chassis-features';
 import { CHASSIS, chassisModifier } from './chassis';
 import { PARTS, partModifier, type PartDef, type Unpriced } from './parts';
 import { TIME } from './time';
@@ -39,11 +39,13 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
   engine: ['speedBonus', 'accelBonus'],
   armor: ['armor', 'blastArmor'],
   accessory: ['armor', 'blastArmor'],
-  cargo: ['extraRows'],
+  cargo: ['cells'],
   store: ['amount'],
   scanner: ['range'],
   utility: ['turns', 'reach'],
   core: ['hp'],
+  spare: [],
+  relic: [],
 };
 
 describe('item prices', () => {
@@ -77,11 +79,11 @@ describe('item prices', () => {
   const FINER_GRID = ['buggy', 'courier', 'jeep', 'wagon'];
   const KEPT_PRICE = ['carrier'];
 
-  it('never prices a chassis with more deck cells below one of the same tier and bed rows with fewer', () => {
+  it('never prices a chassis with more deck cells below one of the same tier and bed cells with fewer', () => {
     const deck = (id: string) => CHASSIS[id].oldGrid.deck;
     for (const a of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
       for (const b of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
-        if (a.tier === b.tier && bedRows(a.id) === bedRows(b.id) && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
+        if (a.tier === b.tier && bedCells(a.id) === bedCells(b.id) && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
       }
     }
   });
@@ -127,14 +129,14 @@ describe('money in whole M', () => {
 describe('XP per M', () => {
   const PER_M = 3;
 
-  const PROFIT_MARGIN_RATIO_OLD_TO_NEW = 1.75;
+  const PROFIT_MARGIN_RATIO_OLD_TO_NEW = Math.round(((1.75 * 151) / 192) * 100) / 100;
   const HAUL_PAY_RATIO_OLD_TO_NEW = 9.9;
 
   it('pays free tow and aid XP at 0.8 of the base rate, since tows and aid values did not move', () => {
     for (const source of ['freeTow', 'aid'] as const) expect(XP_SOURCES[source].weight, source).toBeCloseTo(0.8 * PER_M, 10);
   });
 
-  it('pays profit XP at 0.8 of the base rate times the old to new margin of the trade calibration load', () => {
+  it('pays profit XP at 0.8 of the base rate times the old to new margin of the trade calibration load, rescaled from 0.00093 to the 0.0011 premium (issue 1619)', () => {
     expect(XP_SOURCES.profit.weight).toBeCloseTo(0.8 * PER_M * PROFIT_MARGIN_RATIO_OLD_TO_NEW, 10);
   });
 

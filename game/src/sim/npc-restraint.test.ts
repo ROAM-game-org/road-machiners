@@ -11,6 +11,7 @@ import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
+import { npcRepairReserve } from './repair';
 import { fallbackFaction, spawnInitial, spawnQueueNow } from './spawn';
 import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
@@ -353,13 +354,14 @@ describe('NPC field repairs', () => {
 
   it('does not sell its repair reserve or treat it as trade cargo', () => {
     const { world, npc } = createNpc();
-    addGoods(world, npc, 'parts', 2);
+    const reserve = npcRepairReserve(npc);
+    addGoods(world, npc, 'parts', reserve);
     expect(thinkNpc(world, npc).kind).not.toBe('sell');
     addGoods(world, npc, 'scrap', 1);
     npc.pos = { ...sitePads(REGION.towns[0])[0] };
     npc.brain!.goals = [{ kind: 'sell', targetId: REGION.towns[0].id, destination: REGION.towns[0].pos, phase: 'act', reason: 'sellCargo' }];
     finishBusiness(world, npc);
     expect(goodsCount(npc).scrap ?? 0).toBe(0);
-    expect(goodsCount(npc).parts).toBe(2);
+    expect(goodsCount(npc).parts).toBe(reserve);
   });
 });

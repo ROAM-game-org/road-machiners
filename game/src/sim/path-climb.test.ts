@@ -1,3 +1,4 @@
+import { mountedParts } from './grid';
 import { describe, expect, it } from 'vitest';
 import { route } from './path';
 import type { Vehicle, World } from './types';
@@ -21,8 +22,9 @@ describe('climb limit', () => {
     return w;
   }
   function loadedHauler(w: World): Vehicle {
-    const v = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'haulingRack', 'haulingRack'], { x: 40, y: 40 });
     v.brain = npcBrain('trader', v.pos, ['trader']);
+    for (const engine of mountedParts(v, 'engine')) engine.wear = 4;
     addGoods(w, v, 'scrap', 122);
     return v;
   }
@@ -53,8 +55,16 @@ describe('climb limit', () => {
     const w = emptyWorld({ ...from });
     const me = w.vehicles[0];
     addGoods(w, me, 'scrap', 400);
-    ravine(Math.min(0.59, climbGrade(w, me) + 0.06), 0.15, w);
+    ravine(Math.min(0.59, climbGrade(w, me) + 0.15), 0.15, w);
     expect(reachedY(route(w, from, to, 0.6, [], me))).toBeGreaterThan(60);
+  });
+
+  it('crosses a wall only a little over its limit on a slant, since a slant climbs less than the wall is steep', () => {
+    const w = emptyWorld({ ...from });
+    const me = w.vehicles[0];
+    addGoods(w, me, 'scrap', 400);
+    ravine(Math.min(0.59, climbGrade(w, me) + 0.06), 0.15, w);
+    expect(reachedY(route(w, from, to, 0.6, [], me))).toBeLessThan(60);
   });
 
   it('ends at the same cell with or without the limit in a closed pit', () => {
@@ -70,5 +80,21 @@ describe('climb limit', () => {
     const heavy = loadedHauler(w);
     const pts = route(w, { x: 40, y: 40 }, { x: 160, y: 40 }, 0.6, [], heavy);
     expect(reachedY(pts)).toBeGreaterThan(60);
+  });
+
+  const sidewaysY = (pts: Vec[]) => Math.max(...pts.map((p) => Math.abs(p.y - 40)));
+
+  it('sends a loaded hauler straight down the wall it cannot climb', () => {
+    const w = ravine(0.5, 0.15);
+    const heavy = loadedHauler(w);
+    const pts = route(w, { x: 80, y: 40 }, { x: 40, y: 40 }, 0.6, [], heavy);
+    expect(sidewaysY(pts)).toBeLessThan(8);
+  });
+
+  it('keeps a long downhill route straight too', () => {
+    const w = ravine(0.5, 0.15);
+    const heavy = loadedHauler(w);
+    const pts = route(w, { x: 160, y: 40 }, { x: 40, y: 40 }, 0.6, [], heavy);
+    expect(sidewaysY(pts)).toBeLessThan(8);
   });
 });

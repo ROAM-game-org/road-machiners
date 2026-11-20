@@ -162,8 +162,29 @@ describe('a sale from the crate store', () => {
     const shopId = shopIds.find((id) => !shopDef(id).goods.includes('salt'))!;
     const w = parkedAt(shopId);
     w.player.storedGoods = { [shopId]: { salt: 2 } };
-    expect(() => sellStoredGood(w, 'salt', 1)).toThrow(`${shopId} does not trade salt`);
+    expect(refusalOf(() => sellStoredGood(w, 'salt', 1))).toEqual({ id: 'notTraded' });
     expect(w.player.storedGoods).toEqual({ [shopId]: { salt: 2 } });
+  });
+
+  it('refuses Ship Metal at the Granary and changes nothing', () => {
+    const w = loaded('granary', 'relics', 2);
+    const money = w.player.money;
+    expect(refusalOf(() => sellGood(w, 'relics', 1))).toEqual({ id: 'notTraded' });
+    expect(refusalOf(() => buyGood(w, 'relics', 1))).toEqual({ id: 'notTraded' });
+    expect(goodsCount(playerVehicle(w)).relics).toBe(2);
+    expect(w.player.money).toBe(money);
+  });
+
+  it.each(['bowl', 'nose'])('sells Ship Metal carried and stored at %s', (shopId) => {
+    const w = loaded(shopId, 'relics', 2);
+    w.player.storedGoods = { [shopId]: { relics: 1 } };
+    const stored = sellStoredGood(w, 'relics', 1);
+    expect(stored.player.money).toBeGreaterThan(w.player.money);
+    expect(stored.player.storedGoods[shopId]?.relics ?? 0).toBe(0);
+    const money = w.player.money;
+    const sold = sellGood(w, 'relics', 1);
+    expect(goodsCount(playerVehicle(sold)).relics).toBe(1);
+    expect(sold.player.money).toBeGreaterThan(money);
   });
 
   it('needs a shop', () => {

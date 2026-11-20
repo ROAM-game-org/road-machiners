@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HANG_UP_LINE, LINE_IDS, TOLL, TOPICS, TRAIT_TALK, type LineId, type PrepareId } from '../data/dialogue';
+import { HANG_UP_LINE, LINE_IDS, STRANGER_TOLL, TOLL, TOPICS, TRAIT_TALK, type LineId, type PrepareId } from '../data/dialogue';
 import { TIME } from '../data/time';
 import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
@@ -108,7 +108,7 @@ describe('every radio line', () => {
     for (const topic of Object.values(TOPICS)) {
       const yields = new Set(topic.prepare ? PREPARE_VARS[topic.prepare] : []);
       for (const [id, node] of Object.entries(topic.nodes)) {
-        const known = id === TOLL ? new Set([...yields, 'price']) : yields;
+        const known = id === TOLL || id === STRANGER_TOLL ? new Set([...yields, 'price']) : yields;
         for (const name of named(node.line)) expect(known.has(name), `${topic.id} ${node.line} {${name}}`).toBe(true);
         for (const option of node.options) expect(named(option.say), `${topic.id} ${option.say}`).toEqual([]);
       }

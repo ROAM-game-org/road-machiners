@@ -965,6 +965,14 @@ export function withoutXpToday(world: SavedJson): SavedJson {
   return { ...world, player };
 }
 
+export function withBowlRelics(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson> | undefined;
+  const bowl = shops?.bowl;
+  if (!bowl) return world;
+  const goods = bowl.goods as Record<string, number>;
+  return { ...world, shops: { ...shops, bowl: { ...bowl, goods: { relics: 0, ...goods } } } };
+}
+
 const UNSEEN_LEAVE_KINDS = ['none', 'fork'];
 
 function askAgainFromLeave(steps: SavedJson[]): SavedJson[] {
@@ -999,5 +1007,11 @@ function withoutRival(offer: SavedJson): SavedJson {
 export function withoutPostedClaimRivals(world: SavedJson): SavedJson {
   const shops = world.shops as Record<string, SavedJson>;
   const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutRival) }]));
+  return { ...world, shops: next };
+}
+
+export function withoutPartClaimsOnBoards(world: SavedJson): SavedJson {
+  const shops = world.shops as Record<string, SavedJson>;
+  const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).filter((c) => c.kind !== 'claim') }]));
   return { ...world, shops: next };
 }

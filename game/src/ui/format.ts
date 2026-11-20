@@ -11,7 +11,7 @@ import { escortStatus, turnsLeft } from '../sim/escort-job';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { gameHours } from '../data/time';
-import { playerVehicle, vehicleById } from '../sim/damage';
+import { isPlayerTruckId, playerVehicle, vehicleById } from '../sim/damage';
 import { namedTruck, requireTruck } from '../sim/sites';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
@@ -43,7 +43,6 @@ export { gridColumnLetter, gridRowNumber, gridSquareText } from './grid-text';
 import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
-import { keyLabel } from './input-mode';
 import { driverName, factionName, standingCauseText, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
@@ -60,6 +59,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'weld') return t('job.weld');
   if (job.kind === 'firstAid') return t('job.firstAid');
   if (job.kind === 'oddJobs') return t('job.oddJobs');
+  if (job.kind === 'fitSpare') return t('job.fitSpare');
   if (job.kind === 'survey') return t('job.survey', { place: t(`contract.place.${surveyPlaceType(job.site)}`) });
   return partJobLabel(v, job);
 }
@@ -315,7 +315,7 @@ function partDamage(hits: PartHit[]): Map<string, number> {
 }
 
 const PART_SHORT = {
-  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util',
+  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util', spare: 'whl', relic: 'cargo',
   cab: 'cab', transmission: 'trans', wheel: 'whl', tank: 'tank',
 } as const;
 
@@ -540,8 +540,9 @@ function escortRefusedText(world: World, e: Extract<GameEvent, { t: 'escortRefus
 }
 
 function cargoSpilledText(world: World, e: Extract<GameEvent, { t: 'cargoSpilled' }>): LogLine {
-  if (e.vehicle !== world.player.vehicleId) return line(t('log.cargoSpilledOther', { who: vehicleName(world, e.vehicle) }), 'good');
-  return line(t('log.cargoSpilledYours', { part: partName(world, e.vehicle, e.part), n: e.units }), 'bad');
+  if (!isPlayerTruckId(world, e.vehicle)) return line(t('log.cargoSpilledOther', { who: vehicleName(world, e.vehicle) }), 'good');
+  const part = partName(world, e.vehicle, e.part);
+  return line(e.pile === null ? t('log.cargoLost', { who: vehicleName(world, e.vehicle), part, n: e.units }) : t('log.cargoSpilledYours', { part, n: e.units }), 'bad');
 }
 
 function pleaText(world: World, e: Extract<GameEvent, { t: 'plea' }>): LogLine | null {
@@ -565,7 +566,7 @@ function playerTowDroppedText(by: Msg, reason: Extract<GameEvent, { t: 'towDropp
 function playerNotices(world: World, ...ids: string[]): boolean {
   if (world.player.fullLog) return true;
   return ids.some((id) => {
-    if (id === world.player.vehicleId) return true;
+    if (isPlayerTruckId(world, id)) return true;
     const v = namedTruck(world, id);
     return v !== undefined && playerSees(world, v.pos);
   });
@@ -617,7 +618,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'wake']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'claimRival', 'guardEnded', 'wake']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -882,7 +883,7 @@ export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full:
   const { day, hour } = clockOf(turn);
   const hh = Math.floor(hour);
   const mm = Math.floor((hour - hh) * 60);
-  const time = verbatim(`${hh}:${String(mm).padStart(2, '0')}`);
+  const time = verbatim(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
   return { dayLabel: t('clock.day'), day: verbatim(String(day)), time, full: t('clock.full', { day, time }) };
 }
 
@@ -953,12 +954,14 @@ function discoverText(e: Extract<GameEvent, { t: 'discover' }>): LogLine | null 
 }
 
 function partDisabledText(world: World, e: Extract<GameEvent, { t: 'partDisabled' }>): LogLine {
-  const cls = e.vehicle === world.player.vehicleId ? 'bad' : 'good';
+  const cls = isPlayerTruckId(world, e.vehicle) ? 'bad' : 'good';
   return line(t('log.partDisabled', { who: vehicleName(world, e.vehicle), part: partName(world, e.vehicle, e.part) }), cls);
 }
 
 function breakdownText(world: World, e: Extract<GameEvent, { t: 'breakdown' }>): LogLine | null {
-  return e.vehicle === world.player.vehicleId ? line(t('log.breakdown', { part: partName(world, e.vehicle, e.part) }), 'bad') : null;
+  const part = partName(world, e.vehicle, e.part);
+  if (!isPlayerTruckId(world, e.vehicle)) return null;
+  return line(e.vehicle === world.player.vehicleId ? t('log.breakdown', { part }) : t('log.breakdownOf', { who: vehicleName(world, e.vehicle), part }), 'bad');
 }
 
 function foundText(e: Extract<GameEvent, { t: 'found' }>): LogLine {

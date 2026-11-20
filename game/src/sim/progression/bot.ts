@@ -23,7 +23,7 @@ import { type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { cellKey, corePart, engineCells, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
-import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart, tradedSpares } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
@@ -164,7 +164,9 @@ function answerCall(o: Orders, replies: Partial<Record<TopicId, LineId>> = DEFEN
     const at = `${call.with}:${call.topic}:${call.node}`;
     if (seen.has(at)) throw new Error(`Bot call loops back to ${at}`);
     seen.add(at);
-    const pick = replyPick(currentOptions(o.world).map((option) => option.line), replyTo(o.world, call, replies));
+    const options = currentOptions(o.world);
+    const wanted = replyTo(o.world, call, replies);
+    const pick = wanted ? replyPick(options.map((option) => option.line), wanted) : Math.max(0, options.findIndex((option) => !option.short));
     o.run(call.topic ? (w) => chooseOption(w, pick) : hangUp);
   }
 }
@@ -278,7 +280,11 @@ function repairFits(world: World, siteId: string, budget: number): boolean {
   const broken = !hasWorkingEngine(me) || !isWorking(corePart(me, 'transmission'));
   if (!broken) return budget >= ECONOMY.supplyPrice.fuel;
   const fix = hasWorkingEngine(me) ? basicsRepairCost(world) : repairCost(world);
-  return shopDef(siteId).kind === 'garage' && fix <= budget;
+  return (shopDef(siteId).kind === 'garage' || !needsRebuild(me)) && fix <= budget;
+}
+
+function needsRebuild(me: Vehicle): boolean {
+  return [...mountedParts(me, 'engine'), corePart(me, 'transmission')].some(isJunk);
 }
 
 function serviceStop(o: Orders): Site | null {
@@ -959,8 +965,8 @@ function cargoForSale(world: World, v: Vehicle): Record<string, number> {
   return Object.fromEntries(Object.entries(forSale).filter(([, n]) => n > 0));
 }
 
-function spareItems(v: Vehicle): { itemId: string; partId: string }[] {
-  return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [{ itemId: it.id, partId: it.part.id }] : []));
+function spareItems(v: Vehicle): { partId: string }[] {
+  return tradedSpares(v).map((part) => ({ partId: part.id }));
 }
 
 function hasCargo(world: World, v: Vehicle): boolean {

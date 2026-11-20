@@ -1,6 +1,7 @@
 export const UI_SIZES = [0.8, 0.9, 1, 1.15, 1.3] as const;
 export const UI_SIZE_KEY = "roam.uiSize";
 export const LAYER_MIN = { long: 640, short: 360 };
+export const TOUCH_LAYER_MIN = { long: 1024, short: 600 };
 
 export interface Extent {
   width: number;
@@ -51,7 +52,13 @@ export function fitsLayer(size: number, window: Extent, min: typeof LAYER_MIN): 
 export function appliedSize(pick: number, window: Extent, min: typeof LAYER_MIN): number {
   const chosen = stepOf(pick);
   const fitting = UI_SIZES.filter((s) => s <= chosen && fitsLayer(s, window, min));
-  return fitting.length > 0 ? Math.max(...fitting) : UI_SIZES[0];
+  return fitting.length > 0 ? Math.max(...fitting) : fullFit(window, min);
+}
+
+function fullFit(window: Extent, min: typeof LAYER_MIN): number {
+  const long = Math.max(window.width, window.height);
+  const short = Math.min(window.width, window.height);
+  return Math.min(long / min.long, short / min.short);
 }
 
 function usable(window: Extent): boolean {
@@ -163,10 +170,10 @@ export function windowExtent(): Extent {
 
 let active = new UiSize(null, [], null, typeof window === "undefined" ? { width: LAYER_MIN.long, height: LAYER_MIN.short } : windowExtent());
 
-export function loadUiSize(storage: SizeStore, search: string, dev: boolean, layers: LayerBox[], root: ScaleRoot, viewport: Extent): UiSize {
+export function loadUiSize(storage: SizeStore, search: string, dev: boolean, layers: LayerBox[], root: ScaleRoot, viewport: Extent, touch: boolean): UiSize {
   const asked = dev ? askedPick(search) : null;
   const pick = asked ?? storedPick(storage.getItem(UI_SIZE_KEY));
-  active = new UiSize(storage, layers, root, viewport, pick);
+  active = new UiSize(storage, layers, root, viewport, pick, touch ? TOUCH_LAYER_MIN : LAYER_MIN);
   return active;
 }
 

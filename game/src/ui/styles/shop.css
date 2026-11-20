@@ -1,15 +1,6 @@
 #ui .dialogue {
   min-width: var(--panel-m);
   max-width: var(--panel-l);
-  background: var(--surface-raised);
-  border-left: 4px solid var(--line-strong);
-}
-.dialogue .dialogue-speaker {
-  color: var(--ink-muted);
-  margin-bottom: var(--space-2);
-}
-.dialogue .dialogue-line {
-  margin-bottom: var(--space-5);
 }
 .dialogue .dialogue-options {
   display: flex;
@@ -62,13 +53,16 @@
   align-items: center;
   gap: var(--space-4);
 }
+#ui .ink-page .talk-head .dim {
+  color: inherit;
+}
 #ui .quest-screen .talk-head .close {
   position: static;
   margin-left: auto;
 }
 .quest-screen .quest-talk {
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 .quest-screen :is(.quest-talk, .quest-text) {
   overflow-anchor: none;
@@ -102,11 +96,11 @@
   flex-direction: column;
   gap: var(--space-2);
 }
-#ui :is(.quest-screen, .ink-page) .quest-choice {
+#ui :is(.quest-screen, .ink-page) .quest-choice:not(.screen-line) {
   display: block;
   height: auto;
   min-height: var(--btn-h-m);
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
   text-align: left;
   font-size: var(--text-lead);
   line-height: 1.35;
@@ -116,8 +110,6 @@
   display: none;
 }
 #ui :is(.quest-screen, .ink-page) .quest-choice:is(:disabled, [aria-disabled="true"]) {
-  color: var(--ink-muted);
-  opacity: 0.6;
   cursor: default;
 }
 :is(.quest-screen, .ink-page) .quest-held {
@@ -153,24 +145,26 @@
 
 /* Page view: art, one page of text with its choices, and the quest's numbers and facts. */
 #ui .modal.quest-screen.quest-page {
+  --quest-pad: calc(var(--hud-frame-bevel) + var(--space-6));
+  --quest-foot-h: var(--btn-h-m);
+  --quest-screens-h: calc(var(--page-height) - var(--quest-pad) * 2 - var(--quest-foot-h) - var(--space-9));
   top: var(--modal-top);
   width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
   height: var(--page-height);
   max-height: none;
+  --quest-art-col: min(calc(var(--quest-screens-h) * 3 / 4), calc(100% - var(--quest-side-width) - var(--panel-l) - var(--space-9) * 2));
   display: grid;
-  grid-template-columns:
-    min(calc(var(--page-height) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
-    minmax(0, 1fr)
-    var(--quest-side-width);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 0;
-  padding: 0;
-  border-left: 2px solid var(--line);
+  grid-template-columns: var(--quest-art-col) minmax(0, 1fr) var(--quest-side-width);
+  grid-template-rows: minmax(0, 1fr) var(--quest-foot-h);
+  gap: var(--space-9);
+  padding: var(--quest-pad);
   box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 .quest-page .quest-art {
-  padding: var(--space-7);
-  border-right: 1px solid var(--surface-raised);
+  min-height: 0;
+}
+.quest-page .quest-frame {
+  box-sizing: border-box;
 }
 :is(.quest-page, .ink-page) .quest-frame {
   width: 100%;
@@ -192,16 +186,50 @@
   from { transform: scale(1); }
   to { transform: scale(var(--quest-art-zoom)); }
 }
-.quest-page .quest-text {
-  width: 100%;
-  max-width: var(--quest-text-width);
-  justify-self: center;
-  box-sizing: border-box;
-  padding: var(--space-9) var(--space-10) var(--space-8);
+.quest-page .quest-mid {
+  position: relative;
+  min-height: 0;
   display: flex;
-  flex-direction: column;
+}
+.quest-page .quest-mid > .quest-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  overflow-anchor: none;
+  scrollbar-width: none;
+  padding: calc(var(--space-5) + var(--space-6)) var(--space-6) var(--space-6);
+  font-size: var(--text-lead);
+  line-height: 1.55;
+}
+.quest-page .quest-mid > .quest-place.tape {
+  position: absolute;
+  top: 0;
+  left: var(--space-5);
+  z-index: var(--z-screen-tape);
+  max-width: calc(100% - var(--space-5) * 2);
+  margin: 0;
+  transform: translateY(-50%);
+}
+.quest-page .quest-foot {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(min-content, var(--quest-art-col)) minmax(0, 1fr) var(--quest-side-width);
+  column-gap: var(--space-9);
+  align-items: center;
+}
+.quest-page .quest-look {
+  display: flex;
+  gap: var(--space-3);
+}
+.quest-page .quest-way {
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.quest-page .quest-way > .error {
+  color: var(--hud-print-coal);
 }
 :is(.quest-page, .ink-page) .quest-place {
   margin: 0 0 var(--space-6);
@@ -215,22 +243,27 @@
   margin-top: auto;
   padding-top: var(--space-6);
 }
-#ui :is(.quest-page, .ink-page) .quest-choice {
-  padding: var(--space-3) var(--space-6);
+#ui :is(.quest-page, .ink-page) .quest-choice:not(.screen-line) {
+  padding: var(--space-1) calc(var(--space-6) - var(--key-edge)) 0;
+}
+#ui .ink-page .quest-next {
+  margin-top: auto;
 }
 #ui :is(.quest-page, .ink-page) .quest-next {
-  margin-top: auto;
   align-self: flex-start;
-  padding: var(--space-3) var(--space-9);
+  padding: var(--space-1) calc(var(--space-9) - var(--key-edge)) 0;
 }
 .quest-page .quest-side {
-  padding: var(--space-8) var(--space-7);
-  border-left: 1px solid var(--surface-raised);
+  min-height: 0;
+  padding: calc(var(--space-5) + var(--space-6)) var(--space-6) var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-7);
   overflow: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+#ui .quest-page :is(.quest-body, .quest-side).scroll-wheeled.scroll-wheeled {
+  margin-right: 0;
 }
 #ui .quest-page .quest-side .close {
   position: static;
@@ -366,7 +399,6 @@
 }
 .tabs.sub .count {
   font: var(--text-dense) var(--font-mono);
-  color: var(--ink-muted);
 }
 
 /* Cards: one part or truck with its icon stats. The box comes from .tile. */
@@ -591,7 +623,8 @@
 .footprint i {
   width: var(--pip);
   height: var(--pip);
-  background: var(--steel-7);
+  background: var(--hud-amber-soft);
+  box-shadow: 0 0 var(--space-1) var(--hud-crt-pip-glow);
 }
 
 /* Stat cells: icon, value and the change against the player's own. */
@@ -637,8 +670,12 @@
 }
 
 /* Market: one row per good, buy and sell each beside their price. The line under each row comes from .row. */
+#ui {
+  --btn-trade-w: 104px;
+}
 .goods {
   --col-profit: 108px;
+  --col-trade: calc(2 * var(--btn-trade-w) + var(--space-2));
   display: flex;
   flex-direction: column;
 }
@@ -714,8 +751,6 @@
 .road-news {
   margin-top: var(--space-6);
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-sunk);
-  border-left: 2px solid var(--danger);
 }
 .news-head {
   font-size: var(--text-dense);
@@ -746,9 +781,6 @@
   justify-content: flex-end;
   width: var(--icon-3xl);
 }
-.good-row:hover {
-  background: var(--surface-highlight);
-}
 .good-name {
   display: flex;
   align-items: center;
@@ -776,12 +808,17 @@
 .priced > .price {
   min-width: 0;
 }
+#ui button:not(.screen-btn) .priced .amount {
+  justify-content: flex-end;
+  min-width: calc(var(--icon-s) + 4ch);
+  font-variant-numeric: tabular-nums;
+}
 .supply-buy > button {
   min-width: 13ch;
 }
 .good-row .trade:not(.supply-buy) > button {
-  flex: 1 1 0;
-  min-width: max-content;
+  flex: none;
+  width: var(--btn-trade-w);
 }
 .good-name.supply {
   min-width: 0;
@@ -829,7 +866,7 @@
     display: none;
   }
   .good-row {
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: minmax(0, 1fr) var(--goods-count-w) var(--goods-count-w);
     grid-template-areas:
       "name held profit"
       "buy buy sell";
@@ -839,7 +876,7 @@
   .goods.stocked .good-row,
   .goods.truck.no-profit .good-row,
   .goods.stocked.no-profit .good-row {
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: minmax(0, 1fr) var(--goods-count-w) var(--goods-count-w) var(--goods-count-w);
     grid-template-areas:
       "name theirs held profit"
       "buy buy sell sell";
@@ -872,13 +909,44 @@
 }
 
 /* Garage repair bar and the meter of a fuel or supplies row. */
-.town-repair {
+.town-repair,
+.service-row {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: 0 0 var(--space-5);
   position: relative;
   z-index: var(--z-hud);
+}
+.town-repair {
+  padding: 0 0 var(--space-5);
+}
+.cost.readout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  min-width: calc(var(--icon-s) + 6ch);
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-4);
+  font: var(--text-body) var(--font-mono);
+}
+.cost.readout .price {
+  min-width: 0;
+}
+.chip.fixed {
+  box-sizing: border-box;
+  min-width: calc(var(--chip-ch) * 1.25ch + var(--icon-s) + var(--space-3) + 2 * var(--space-5));
+}
+.service-row > .service-meter.cost {
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--space-2);
+  width: calc(var(--space-10) * 3.5);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-2) var(--space-5);
 }
 .service-meter {
   display: flex;
@@ -894,13 +962,13 @@
 /* Paint: the chassis in the planned paint on the left, one palette row per surface on the right, Buy under the rows. */
 .paint-tab {
   display: grid;
-  grid-template-columns: calc(var(--portrait-w) * 1.5) 1fr;
+  grid-template-columns: calc(var(--portrait-w) * 1.1) minmax(0, 1fr);
   gap: var(--space-7);
   align-items: start;
 }
 .paint-preview .chassis-portrait {
-  width: calc(var(--portrait-w) * 1.5);
-  height: calc(var(--portrait-h) * 1.5);
+  width: calc(var(--portrait-w) * 1.1);
+  height: calc(var(--portrait-h) * 1.1);
 }
 .paint-slots {
   display: flex;
@@ -917,19 +985,20 @@
   gap: var(--space-2);
 }
 .paint-slot-name {
-  font-size: var(--text-caption);
-  color: var(--ink-label);
+  color: var(--hud-amber-soft);
+  font: var(--text-dense) var(--font-hud);
+  text-transform: uppercase;
 }
 .paint-switch > button {
-  flex: 1;
+  flex: none;
+  width: calc(var(--icon-3xl) * 0.75);
 }
-#ui .paint-switch > button.planned {
-  outline: 1px dashed var(--accent);
-  outline-offset: 1px;
+.paint-switch > .screen-btn.planned {
+  border-style: dashed;
 }
 .paint-swatch {
   display: block;
-  width: var(--icon-m);
+  width: var(--icon-s);
   height: var(--icon-xs);
   margin: 0 auto;
   border: 1px solid var(--line-soft);
@@ -939,7 +1008,7 @@
   display: grid;
   grid-template-columns: 1fr var(--icon-xs);
   grid-template-rows: var(--space-1) 1fr var(--space-2);
-  width: var(--icon-2xl);
+  width: var(--icon-l);
   height: var(--icon-s);
   margin: 0 auto;
 }
@@ -978,17 +1047,13 @@
 .truck-card .card-foot {
   flex-wrap: wrap;
 }
-.tile.on,
-.truck-card.own {
+.tile.on {
   border-color: var(--accent);
   border-left-color: var(--tone, var(--accent));
   background: var(--accent-wash);
 }
 .tile.on:hover {
   border-color: var(--accent);
-}
-.modal .tabs button.on {
-  background: var(--accent-wash);
 }
 .truck-head {
   display: flex;
@@ -1030,7 +1095,6 @@
   align-self: flex-start;
   width: max-content;
   padding: var(--map-pad);
-  background: var(--surface-sunk);
 }
 .chassis-map i {
   width: var(--map-cell);
@@ -1044,9 +1108,6 @@
 }
 .chassis-map .c-D {
   background: var(--map-deck);
-}
-.chassis-map .c-C {
-  background: var(--map-bay);
 }
 .chassis-map .c-E {
   background: var(--map-engine);
@@ -1166,7 +1227,7 @@
   align-items: flex-end;
   gap: var(--space-1);
 }
-:where(#ui.phone, #ui.narrow) .board {
+:where(#ui.narrow) .board {
   grid-template-columns: minmax(0, 1fr);
 }
 .job-what {
@@ -1186,7 +1247,6 @@
   opacity: 0.35;
 }
 .inv-grid[data-hint~="D"] .c-D,
-.inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
 .inv-grid[data-hint~="E"] .bay,
 .inv-grid[data-hint~="F"] .c-F,
@@ -1210,8 +1270,101 @@
   gap: var(--space-2);
 }
 
-/* The outpost's truck switch: the player's truck and the hauler, each with its portrait. */
-.truck-switch .chassis-portrait {
-  --portrait-w: calc(var(--icon-l) * 1.6);
-  --portrait-h: var(--icon-l);
+
+:is(#ui, #report) button:not(.screen-btn, .screen-line, .part-sum) :is(.price, .amount, .count, .stat-val, .num, .cap, .tag) {
+  color: inherit;
+}
+#ui .part-sum {
+  --hover-bg: var(--hud-amber-dim);
+  --hover-border: transparent;
+}
+#ui .part-sum[aria-expanded="true"] {
+  --hover-bg: transparent;
+}
+.shop-body.screen-block {
+  padding: var(--space-2) var(--space-4);
+}
+.screen-block .tile {
+  background: none;
+  border: 0;
+}
+.screen-block .tile:hover {
+  border: 0;
+}
+.town-shop > .bad,
+.ink-foot .ink-status.bad {
+  color: var(--hud-print-coal);
+}
+.supply-rows .cap,
+.ink-panel.supplies .cap {
+  display: none;
+}
+.truck-head .card-name b {
+  white-space: normal;
+}
+.truck-head > .screen-btn {
+  flex: none;
+  width: calc(var(--btn-trade-w) * 1.4);
+}
+.supply-rows .row,
+.supply-rows .good-row {
+  border: 0;
+}
+.supply-rows .good-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+.supply-rows .good-name.supply {
+  flex: none;
+}
+.supply-rows .service-meter {
+  flex: none;
+  width: calc(var(--space-10) * 4);
+}
+.service-meter.screen-block {
+  padding: var(--space-2) var(--space-3);
+}
+.screen-block .quest-stat {
+  border: 0;
+}
+.screen-block .quest-fact {
+  padding-left: 0;
+  border: 0;
+}
+#ui .screen-line:disabled {
+  color: var(--hud-amber-faint);
+  cursor: default;
+}
+#ui .screen-line:disabled:hover {
+  background: none;
+}
+.town-truck > .truck-switch {
+  padding-top: 0;
+}
+@container (max-width: 440px) {
+  .paint-tab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+#ui.compact :is(.town-services, .outpost-services) {
+  column-gap: var(--space-6);
+}
+#ui.compact :is(.town-repair, .service-row) {
+  gap: var(--space-3);
+}
+#ui.compact .town-page .town-split {
+  flex: none;
+  min-height: var(--town-split-min);
+}
+#ui.tight .town-split.banded .inv-wrap {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(var(--town-split-min), 1fr) auto;
+  row-gap: var(--space-9);
+}
+#ui.tight .town-split.banded .inv-wrap > .inv-side {
+  grid-area: 2 / 1;
+  width: auto;
 }

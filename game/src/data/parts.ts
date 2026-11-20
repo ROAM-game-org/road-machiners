@@ -13,7 +13,9 @@ export type PartKind =
   | "core"
   | "scanner"
   | "store"
-  | "utility";
+  | "utility"
+  | "spare"
+  | "relic";
 
 type PartBulk = { w: number; h: number };
 
@@ -99,8 +101,9 @@ export type AccessoryDef = PartBase & {
   blastArmor: number;
   fieldRepair: FieldRepair;
   ramMult: number;
-  look: "ram" | "spikes";
+  look: "ram" | "spikes" | "sacks";
   mounts: EdgeLetter[];
+  cells?: number;
   claymore?: ClaymoreDef;
 };
 
@@ -116,13 +119,22 @@ export function isLineGun(def: PartDef): boolean {
 
 export type CargoDef = PartBase & {
   kind: "cargo";
-  extraRows: number;
+  cells: number;
   look: "rack" | "box";
 };
 
 export type CoreDef = PartBase & {
   kind: "core";
   role: "cab" | "transmission" | "wheel" | "tank";
+};
+
+export type SpareDef = PartBase & {
+  kind: "spare";
+  fits: "wheel";
+};
+
+export type RelicDef = PartBase & {
+  kind: "relic";
 };
 
 export type ScannerDef = PartBase & {
@@ -144,7 +156,9 @@ export type UtilityEffect =
   | { type: 'emitter'; radius: number; turns: number }
   | { type: 'flare'; radius: number; turns: number; minRange: number; maxRange: number }
   | { type: 'crane' }
-  | { type: 'scraper' };
+  | { type: 'scraper' }
+  | { type: 'battery'; power: number; fuel: number }
+  | { type: 'periscope'; sight: number };
 export type UtilityEffectType = UtilityEffect['type'];
 
 export type UtilityDef = PartBase & {
@@ -162,7 +176,9 @@ export type PartDef =
   | CoreDef
   | ScannerDef
   | StoreDef
-  | UtilityDef;
+  | UtilityDef
+  | SpareDef
+  | RelicDef;
 
 export type Unpriced<T> = T extends unknown ? Omit<T, 'value'> : never;
 type Unbulked<T> = T extends unknown ? Omit<T, 'value' | 'bulk'> : never;
@@ -171,7 +187,7 @@ export const PART_PRICE_MODIFIERS = {
   weapon: { perDamagePerTurn: 0.6667, perRange: 0.6667 },
   engine: { perSpeedBonus: 20, perAccelBonus: 13.3333 },
   armor: { perArmorCell: 0.6667 },
-  cargo: { perExtraRow: 16.6667 },
+  cargo: { perCell: 5.5556 },
   store: { perAmount: 1.6667 },
   scanner: { perRange: 0.3333 },
   core: { perHp: 0.3333 },
@@ -188,6 +204,8 @@ type UnpricedByKind = {
   scanner: Omit<ScannerDef, 'value'>;
   core: Omit<CoreDef, 'value'>;
   utility: Omit<UtilityDef, 'value'>;
+  spare: Omit<SpareDef, 'value'>;
+  relic: Omit<RelicDef, 'value'>;
 };
 const m = PART_PRICE_MODIFIERS;
 const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
@@ -195,11 +213,13 @@ const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
   engine: (d) => m.engine.perSpeedBonus * d.speedBonus + m.engine.perAccelBonus * d.accelBonus,
   armor: shieldModifier,
   accessory: shieldModifier,
-  cargo: (d) => m.cargo.perExtraRow * d.extraRows,
+  cargo: (d) => m.cargo.perCell * d.cells,
   store: (d) => m.store.perAmount * d.amount,
   scanner: (d) => m.scanner.perRange * d.range,
   core: (d) => m.core.perHp * d.hp,
   utility: (d) => m.utility.perEffectTurn * effectTurns(d.effect) + m.utility.perReachTile * utilityReach(d),
+  spare: () => 0,
+  relic: () => 0,
 };
 
 function shieldModifier(d: Unpriced<ShieldDef>): number {
@@ -265,6 +285,8 @@ const PART_BULK: Record<string, PartBulk> = {
   flareCannon: { w: 1, h: 1 },
   scrapersKnife: { w: 1, h: 2 },
   emitter: { w: 2, h: 2 },
+  gunBattery: { w: 1, h: 1 },
+  periscope: { w: 1, h: 1 },
   stockEngine: { w: 2, h: 2 },
   tunedEngine: { w: 2, h: 2 },
   flatFour: { w: 2, h: 2 },
@@ -289,13 +311,10 @@ const PART_BULK: Record<string, PartBulk> = {
   reinforcedSection: { w: 1, h: 1 },
   spikeCluster: { w: 1, h: 1 },
   spikeStrip: { w: 1, h: 2 },
-  rack: { w: 2, h: 1 },
-  trailerBox: { w: 2, h: 2 },
-  panniers: { w: 1, h: 1 },
-  flatbed: { w: 2, h: 1 },
-  lightFrame: { w: 2, h: 2 },
-  enclosedFrame: { w: 2, h: 2 },
-  heavyFrame: { w: 2, h: 2 },
+  sacks: { w: 1, h: 1 },
+  panniers: { w: 1, h: 2 },
+  rack: { w: 1, h: 2 },
+  haulingRack: { w: 2, h: 2 },
   jerrycans: { w: 1, h: 1 },
   supplyLocker: { w: 1, h: 1 },
   cab: { w: 1, h: 2 },
@@ -313,6 +332,10 @@ const PART_BULK: Record<string, PartBulk> = {
   tankMid: { w: 1, h: 2 },
   tankHeavy: { w: 1, h: 2 },
   scanner: { w: 1, h: 1 },
+  spareTire: { w: 1, h: 2 },
+  relicStatue: { w: 2, h: 1 },
+  relicShipModule: { w: 2, h: 2 },
+  relicComputer: { w: 1, h: 1 },
 };
 
 const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
@@ -722,33 +745,23 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
     look: "spikes",
     mounts: ["F", "B", "L", "R"],
   },
-  rack: {
-    id: "rack",
-    kind: "cargo",
-    hp: 30,
-    base: 33.33,
+  sacks: {
+    id: "sacks",
+    kind: "accessory",
+    hp: 20,
+    base: 30,
     tier: 1,
-    w: 2,
+    w: 1,
     h: 1,
-    mass: 60,
+    mass: 10,
     armor: 1,
     tall: false,
-    extraRows: 2,
-    look: "rack",
-  },
-  trailerBox: {
-    id: "trailerBox",
-    kind: "cargo",
-    hp: 60,
-    base: 36.67,
-    tier: 2,
-    w: 2,
-    h: 3,
-    mass: 135,
-    armor: 1,
-    tall: true,
-    extraRows: 5,
-    look: "box",
+    blastArmor: 1,
+    fieldRepair: "full",
+    ramMult: 1,
+    look: "sacks",
+    mounts: ["F", "B", "L", "R"],
+    cells: 1,
   },
   panniers: {
     id: "panniers",
@@ -757,68 +770,40 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
     base: 16.67,
     tier: 1,
     w: 1,
-    h: 1,
+    h: 2,
+    mass: 45,
+    armor: 1,
+    tall: false,
+    cells: 3,
+    look: "box",
+  },
+  rack: {
+    id: "rack",
+    kind: "cargo",
+    hp: 30,
+    base: 16.67,
+    tier: 1,
+    w: 1,
+    h: 2,
     mass: 60,
     armor: 1,
-    tall: false,
-    extraRows: 1,
-    look: "box",
+    tall: true,
+    cells: 4,
+    look: "rack",
   },
-  flatbed: {
-    id: "flatbed",
+  haulingRack: {
+    id: "haulingRack",
     kind: "cargo",
-    hp: 50,
+    hp: 60,
     base: 33.33,
-    tier: 1,
+    tier: 2,
     w: 2,
-    h: 1,
+    h: 2,
     mass: 120,
-    armor: 1,
-    tall: false,
-    extraRows: 2,
-    look: "rack",
-  },
-  lightFrame: {
-    id: "lightFrame",
-    kind: "cargo",
-    hp: 24,
-    base: 43.33,
-    tier: 2,
-    w: 2,
-    h: 3,
-    mass: 90,
-    armor: 1,
-    tall: false,
-    extraRows: 5,
-    look: "rack",
-  },
-  enclosedFrame: {
-    id: "enclosedFrame",
-    kind: "cargo",
-    hp: 110,
-    base: 50,
-    tier: 2,
-    w: 2,
-    h: 3,
-    mass: 165,
-    armor: 8,
+    armor: 2,
     tall: true,
-    extraRows: 5,
-    look: "box",
-  },
-  heavyFrame: {
-    id: "heavyFrame",
-    kind: "cargo",
-    hp: 90,
-    base: 60,
-    tier: 3,
-    w: 2,
-    h: 3,
-    mass: 150,
-    armor: 3,
-    tall: true,
-    extraRows: 6,
-    look: "box",
+    cells: 8,
+    look: "rack",
   },
   jerrycans: {
     id: "jerrycans",
@@ -872,6 +857,18 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   wheel: {
     id: "wheel", kind: "core", hp: 30, base: 3.33, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, role: "wheel",
   },
+  spareTire: {
+    id: "spareTire", kind: "spare", hp: 30, base: 35, tier: 1, w: 1, h: 2, mass: 25, armor: 2, tall: false, fits: "wheel",
+  },
+  relicStatue: {
+    id: "relicStatue", kind: "relic", hp: 40, base: 60, tier: 1, w: 2, h: 1, mass: 100, armor: 2, tall: false,
+  },
+  relicShipModule: {
+    id: "relicShipModule", kind: "relic", hp: 60, base: 90, tier: 1, w: 2, h: 2, mass: 200, armor: 3, tall: false,
+  },
+  relicComputer: {
+    id: "relicComputer", kind: "relic", hp: 20, base: 40, tier: 1, w: 1, h: 1, mass: 50, armor: 1, tall: false,
+  },
   wheelMid: {
     id: "wheelMid", kind: "core", hp: 50, base: 3.33, tier: 1, w: 1, h: 3, mass: 25, armor: 3, tall: false, role: "wheel",
   },
@@ -905,13 +902,31 @@ const UNPRICED_PARTS: Record<string, Unbulked<PartDef>> = {
   },
 };
 
+export const SACK_ARMOR = 6;
+export const SPARE_FIT_WORK = 2.5;
+
 export const TALL_RISE: Readonly<Record<string, number>> = {
-  trailerBox: 1.05,
-  enclosedFrame: 1.05,
-  heavyFrame: 1.05,
-  cannon: 0.85,
-  sniperCannon: 0.6,
+  rack: 0.7,
+  haulingRack: 1.63,
+  mg: 0.5,
+  shotgun: 0.73,
+  longRifle: 0.62,
+  flamer: 0.68,
+  pneumobolter: 0.78,
+  slugCannon: 0.81,
+  heavyMg: 0.74,
+  cannon: 0.93,
+  amRifle: 0.58,
+  autocannon: 0.71,
+  recoilless: 0.65,
+  battleRifle: 0.65,
+  gatling: 0.58,
+  rocketRack: 0.78,
+  sniperCannon: 0.59,
+  grenadeLauncher: 0.53,
   tankGun: 0.9,
+  flechette: 0.56,
+  harpoon: 0.79,
 };
 
 export const PARTS: Record<string, PartDef> = Object.fromEntries(

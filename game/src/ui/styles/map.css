@@ -34,14 +34,16 @@
 }
 .map-tab {
   position: relative;
+  padding: 0;
   margin-top: var(--space-4);
   flex: 1 1 auto;
   min-height: 0;
 }
 .map-tab .map-view {
   position: absolute;
-  inset: 0;
-  height: 100%;
+  inset: var(--hud-screen-edge);
+  width: auto;
+  height: auto;
   aspect-ratio: auto;
   cursor: grab;
   touch-action: none;

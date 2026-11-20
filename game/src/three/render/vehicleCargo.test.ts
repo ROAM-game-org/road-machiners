@@ -20,16 +20,21 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
+const TRAILER_FROM_ROW = 19;
+
+function onTrailer(v: Vehicle, item: GridItem): GridItem {
+  const spot = mountSpots(baseGrid('semi'), v.items.filter((it) => it !== item), item, ['D']).find((at) => at.y >= TRAILER_FROM_ROW);
+  if (!spot) throw new Error(`The semi trailer has no free deck spot for ${item.id}`);
+  return Object.assign(item, spot);
+}
+
 function semiWithCargo(): { v: Vehicle; rack: PartItem; crate: GridItem } {
   const w = emptyWorld();
   const v = addVehicle(w, 'player', 'semi', ['workhorseDiesel', 'rack', 'plates'], { x: 30, y: 30 });
   const rack = v.items.find((it): it is PartItem => it.kind === 'part' && it.part.defId === 'rack')!;
-  Object.assign(rack, mountSpots(baseGrid('semi'), v.items, rack, ['C'])[0]);
+  onTrailer(v, rack);
   const crate: GridItem = { id: 'crate', x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' };
-  const bay = mountSpots(baseGrid('semi'), v.items, crate, ['C'])[0];
-  if (!bay) throw new Error('The semi has no free bay cell for a crate beside the rack');
-  Object.assign(crate, bay);
-  v.items.push(crate);
+  v.items.push(onTrailer(v, crate));
   return { v, rack, crate };
 }
 
@@ -37,17 +42,17 @@ function partOf(v: Vehicle, defId: string): PartItem {
   return v.items.find((it): it is PartItem => it.kind === 'part' && it.part.defId === defId)!;
 }
 
-describe('cargo inside the hauler trailer', () => {
-  it('draws no part or good that lies on the trailer bay cells', () => {
+describe('cargo on the hauler trailer', () => {
+  it('draws a part and a good that lie on the trailer deck like on any truck', () => {
     const { v, rack, crate } = semiWithCargo();
     const grid = baseGrid('semi');
     for (const item of [rack, crate]) {
-      expect(itemCells(item).every((c) => grid.cells[c.y][c.x] === 'C')).toBe(true);
-      expect(hidesInside(v, item)).toBe(true);
+      expect(itemCells(item).every((c) => grid.cells[c.y][c.x] === 'D' && c.y >= TRAILER_FROM_ROW)).toBe(true);
+      expect(hidesInside(v, item)).toBe(false);
     }
   });
 
-  it('keeps an anchor for a hidden cargo part, so hits on it still land on the truck', () => {
+  it('keeps an anchor for a trailer cargo part, so hits on it land on the truck', () => {
     const { v, rack } = semiWithCargo();
     const view = new VehicleView(v, true, PAINT.standard, 'world');
     expect(view.hasPart(rack.part.id)).toBe(true);

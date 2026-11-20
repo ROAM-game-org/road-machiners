@@ -44,3 +44,93 @@
 #ui .save-panel .close {
   align-self: flex-end;
 }
+#ui .save-panel .save-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+#ui .save-panel h3 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-heading);
+  line-height: 1;
+}
+#ui .panel.dialogue {
+  --talk-wheel: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
+  width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+}
+#ui .dialogue .hud-panel-head {
+  height: calc(var(--text-body) * 1.15 + 2 * var(--space-2));
+}
+#ui .dialogue .hud-panel-head > .tape {
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+#ui .dialogue :is(.dialogue-line, .dialogue-options) {
+  box-sizing: border-box;
+  margin: 0 var(--talk-wheel) 0 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#ui .dialogue .dialogue-line {
+  height: calc(3 * var(--text-body) * 1.35 + 2 * var(--space-3));
+  padding: var(--space-3) var(--space-5);
+  font: var(--text-body) / 1.35 var(--font-ui);
+}
+#ui .dialogue .dialogue-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: calc(6 * var(--btn-h-s) + 5 * var(--space-1) + 2 * var(--space-3));
+  padding: var(--space-3);
+}
+#ui .dialogue .dialogue-option {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--hud-amber);
+  font: var(--text-body) / 1.2 var(--font-ui);
+  text-align: left;
+}
+#ui .dialogue .dialogue-option.seen {
+  color: var(--hud-amber-soft);
+}
+#ui .dialogue .dialogue-option[aria-disabled="true"] {
+  color: var(--hud-amber-faint);
+}
+#ui .dialogue .dialogue-options .screen-line:hover {
+  background: var(--hud-amber-dim);
+}
+#ui .dialogue .dialogue-options .option-key {
+  flex: none;
+  width: 1.5em;
+  color: inherit;
+  font: var(--text-dense) var(--font-mono);
+}
+:is(#ui, #overlay) .hud-panel > .metal-line {
+  margin: 0;
+  color: var(--hud-print-coal);
+  font: var(--text-lead) / 1.35 var(--font-engraved);
+  -webkit-text-stroke: var(--engraved-stroke) currentColor;
+  letter-spacing: 0.04em;
+  text-shadow: var(--hud-print-coal-edge);
+}
+:is(#ui, #overlay) :is(.confirm-dialog, .death-box) .hud-controls {
+  flex-wrap: wrap;
+}
+:is(#ui, #overlay) :is(.confirm-dialog, .death-box) button.hud-key > .key-label {
+  width: max-content;
+  white-space: nowrap;
+}
+:is(#ui, #overlay) .death-box {
+  --hud-panel-w: var(--hud-panel-xl);
+}

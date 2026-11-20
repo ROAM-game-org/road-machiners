@@ -1,0 +1,214 @@
+#ui.dash-atlas {
+  position: static;
+  pointer-events: auto;
+  overflow: auto;
+  min-height: 100vh;
+  padding: var(--space-9);
+  background: var(--color-void);
+  color: var(--ink);
+  font: var(--text-body) var(--font-ui);
+}
+
+#ui.dash-atlas h1 {
+  font: 700 var(--text-heading) var(--font-ui);
+  margin: 0 0 var(--space-8);
+}
+
+#ui.dash-atlas h2 {
+  font: 700 var(--text-lead) var(--font-ui);
+  margin: var(--space-10) 0 var(--space-6);
+  color: var(--ink-title);
+}
+
+#ui.dash-atlas .atlas-card {
+  margin: 0 0 var(--space-8);
+  padding: var(--space-6);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-m);
+}
+
+#ui.dash-atlas .atlas-card h3 {
+  margin: 0;
+  font: 700 var(--text-body) var(--font-mono);
+}
+
+#ui.dash-atlas .atlas-card h4 {
+  margin: var(--space-6) 0 var(--space-3);
+  font: 700 var(--text-dense) var(--font-ui);
+  color: var(--ink-muted);
+}
+
+#ui.dash-atlas .atlas-card p {
+  margin: var(--space-2) 0 var(--space-6);
+  color: var(--ink-muted);
+}
+
+#ui.dash-atlas .atlas-subject > * {
+  zoom: 2;
+}
+
+#ui.dash-atlas .atlas-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  align-items: flex-end;
+}
+
+#ui.dash-atlas .atlas-state {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+#ui.dash-atlas .atlas-state figcaption {
+  font: var(--text-caption) var(--font-ui);
+  color: var(--ink-muted);
+}
+
+#ui.dash-atlas .atlas-subject {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--dash-frame);
+  border-radius: var(--radius-m);
+}
+
+#ui.dash-atlas .atlas-live {
+  display: flex;
+  gap: var(--space-9);
+  align-items: center;
+}
+
+#ui.dash-atlas .atlas-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+#ui.dash-atlas .atlas-control {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  font: var(--text-dense) var(--font-ui);
+}
+
+#ui.dash-atlas .assembled-view {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: var(--space-3);
+  min-height: 100vh;
+  margin: calc(-1 * var(--space-9)) calc(-1 * var(--space-9)) var(--space-9);
+}
+
+#ui.dash-atlas .assembled-hint {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+#ui.dash-atlas .assembled-stage {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  background: url("/tmp/field-1280x720@2x.png") 0 0 / 1280px 720px no-repeat, var(--surface-sunk);
+}
+
+#ui.dash-atlas .assembled-slot {
+  position: absolute;
+  display: flex;
+}
+
+#ui.dash-atlas .slot-stats {
+  left: 4px;
+  top: 4px;
+}
+
+#ui.dash-atlas .slot-buttons {
+  right: 4px;
+  top: 4px;
+}
+
+#ui.dash-atlas .slot-diagram {
+  left: 4px;
+  bottom: 116px;
+}
+
+#ui.dash-atlas .slot-drive {
+  left: 0;
+  bottom: 0;
+}
+
+#ui.dash-atlas .slot-weapons {
+  left: 276px;
+  bottom: 0;
+}
+
+#ui.dash-atlas .slot-radio {
+  right: 0;
+  bottom: 0;
+}
+
+#ui.dash-atlas .assembled-ghost {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--line-bright);
+  color: var(--ink);
+  font: var(--text-body) var(--font-ui);
+  pointer-events: none;
+}
+
+#ui.dash-atlas .ghost-card {
+  top: 64px;
+  right: 8px;
+  width: 274px;
+  height: 300px;
+}
+
+#ui.dash-atlas .ghost-toast {
+  top: 56px;
+  left: 506px;
+  width: 247px;
+  height: 35px;
+}
+
+#ui.dash-atlas .atlas-panel-controls {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: var(--space-4) var(--space-8);
+  margin: 0 0 var(--space-9);
+}
+
+#ui.dash-atlas .atlas-control {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  font: var(--text-dense) var(--font-ui);
+}
+
+#ui.dash-atlas .art-sheet-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-end;
+}
+
+#ui.dash-atlas .art-sheet figure {
+  margin: 0;
+  padding: var(--space-3);
+  background: repeating-conic-gradient(var(--surface-sunk) 0 25%, var(--surface-panel) 0 50%) 0 0 / 16px 16px;
+}
+
+#ui.dash-atlas .art-sheet img {
+  display: block;
+  max-width: 420px;
+}
+
+#ui.dash-atlas .art-sheet figcaption {
+  font: var(--text-caption) var(--font-ui);
+  color: var(--ink-muted);
+}

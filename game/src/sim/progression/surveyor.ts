@@ -28,7 +28,7 @@ const LOOKS: Record<OldPlaceType, readonly LandmarkLook[]> = {
 const SWEEP_RADIUS = 40;
 const SWEEP_STOPS = 8;
 const ARRIVED = 8;
-const GRAY_RANGE = TERRAIN.vision.radius * TERRAIN.vision.grayFactor;
+const GRAY_RANGE = TERRAIN.vision.grayRadius;
 
 function held(o: Orders): SurveyContract | null {
   return o.world.player.contracts.find((c): c is SurveyContract => c.kind === 'survey') ?? null;

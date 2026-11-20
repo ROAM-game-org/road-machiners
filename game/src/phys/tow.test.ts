@@ -178,6 +178,8 @@ describe('emergency beacon', () => {
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 130, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     forceOption('contactHeard', 'investigate');
+    forceOption('hostileSeen', 'fight');
+    forceOption('sizedUp', 'rob');
     const r = runUntil(setBeacon(w, true), 60, (x) => dist(find(x, raider.id).pos, playerVehicle(x).pos) < 15);
     expect(dist(find(r.w, raider.id).pos, playerVehicle(r.w).pos)).toBeLessThan(15);
     expect(activitiesOf(r.events, raider.id)[0]).toMatchObject({ activity: 'investigate' });

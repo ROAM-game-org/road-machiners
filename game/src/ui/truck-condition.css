@@ -3,6 +3,7 @@
   left: 0;
   bottom: calc(100% + var(--space-4));
   padding: var(--cond-pad);
+  border-image: var(--hud-truck-frame-art) var(--hud-truck-frame-slice) fill / var(--hud-truck-frame-width) / var(--hud-truck-frame-outset) stretch;
   background: var(--cond-panel);
   -webkit-backdrop-filter: blur(var(--cond-blur));
   backdrop-filter: blur(var(--cond-blur));

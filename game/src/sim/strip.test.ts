@@ -11,15 +11,15 @@ import { CONDITIONS } from './dialogue-rules';
 import { hasCargo } from './salvage';
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
-import { advanceNpcKnockouts, gaveUp, isKnockedOut } from './defeat';
+import { advanceKnockout, advanceNpcKnockouts, gaveUp, isKnockedOut } from './defeat';
 import { downedHere } from './locations';
 import { takeFromTruck } from './salvage';
 import { findSpot, goodsCount, gridOf, isMounted, MOUNT_CELLS } from './grid';
-import { aimAt, offeredSurrenderBy, plead } from './parley';
+import { aimAt, offeredSurrenderBy, plead, standDownTo } from './parley';
 import { addState, stateOf } from './states';
 import { topGoal } from './npc-activities';
 import { chooseOn } from './tracks';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, sizedUp, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, raiseCliff, sizedUp, testDrive } from './testkit';
 import type { GridItem, Vehicle, World } from './types';
 import { endTurn } from './world';
 import { lineKey } from '../text/names';
@@ -428,5 +428,93 @@ describe('a beggar offers to stand down and be stripped', () => {
     const { w: start, npc } = begging();
     const w = pick(start, CARGO);
     expect(offeredSurrenderBy(w, npcOf(w, npc), playerVehicle(w))).toBe(false);
+  });
+});
+
+const stopLooting = (v: Vehicle): void => {
+  v.brain!.goals = v.brain!.goals.filter((g) => g.kind !== 'loot');
+};
+
+describe('a driver who gave up stays down while the robber comes', () => {
+  function gaveUpPlayer(): { w: World; raider: Vehicle } {
+    const { w, raider } = strandedAmbush();
+    standDownTo(w, playerVehicle(w), raider);
+    const r = w.vehicles.find((v) => v.id === raider.id)!;
+    r.pos = { x: 300, y: 300 };
+    return { w, raider: r };
+  }
+
+  it('keeps the player down while the robber out of sight still has the loot goal', () => {
+    const { w, raider } = gaveUpPlayer();
+    expect(topGoal(raider)?.kind).toBe('loot');
+    expect(advanceKnockout(w)).toBeNull();
+    expect(w.player.state).toBe('knockedOut');
+  });
+
+  it('wakes the player once the robber drops the goal', () => {
+    const { w, raider } = gaveUpPlayer();
+    stopLooting(raider);
+    expect(advanceKnockout(w)).not.toBeNull();
+    expect(w.player.state).toBe('active');
+    expect(w.events).toContainEqual({ t: 'wake', gaveUp: true });
+  });
+
+  it('wakes the player at the turn limit even while the goal stands', () => {
+    const { w } = gaveUpPlayer();
+    w.player.knockoutTurns = RULES.knockoutMaxTurns - 1;
+    expect(advanceKnockout(w)).not.toBeNull();
+    expect(w.player.state).toBe('active');
+  });
+
+  it('wakes a regular knockout at once when the robber is out of sight', () => {
+    const { w, raider } = gaveUpPlayer();
+    playerVehicle(w).defeat!.gaveUp = false;
+    expect(topGoal(raider)?.kind).toBe('loot');
+    expect(advanceKnockout(w)).not.toBeNull();
+    expect(w.player.state).toBe('active');
+  });
+
+  it('keeps an NPC that gave up down while the robber out of sight has the goal, and frees it after', () => {
+    const { w: start, raider, trader } = npcAmbush('accept');
+    const w = endTurn(start, testDrive);
+    const r = w.vehicles.find((v) => v.id === raider.id)!;
+    const t = w.vehicles.find((v) => v.id === trader.id)!;
+    r.pos = { x: 400, y: 400 };
+    t.pos = { x: 60, y: 60 };
+    expect(topGoal(r)?.kind).toBe('loot');
+    advanceNpcKnockouts(w);
+    expect(t.defeat?.phase).toBe('out');
+    stopLooting(r);
+    advanceNpcKnockouts(w);
+    expect(t.defeat?.phase).toBe('retreat');
+  });
+});
+
+describe('a ridge between the robber and the player who gave up', () => {
+  it('the robber strips the player, who is still down on its arrival', () => {
+    const w0 = emptyWorld({ x: 200, y: 200 });
+    for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    addGoods(w0, playerVehicle(w0), 'scrap', 2);
+    w0.player.money = 0;
+    w0.player.fuel = 0;
+    const raider = addVehicle(w0, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 222, y: 200 }, Math.PI);
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    sizedUp(w0, raider, playerVehicle(w0));
+    forceOption('hostileSeen', 'fight');
+    let w = w0;
+    for (let i = 0; i < 6 && w.player.call?.topic !== 'surrender'; i++) w = endTurn(w, testDrive);
+    expect(w.player.call?.topic).toBe('surrender');
+    w = pick(w, 'Fine. Take it.');
+    for (const y of [190, 195, 200, 205, 210]) for (const x of [210, 211]) raiseCliff(w, x, y);
+    const itemsLeft = (): number => playerVehicle(w).items.length;
+    const before = itemsLeft();
+    let sawRidgeWake = false;
+    for (let i = 0; i < 20 && itemsLeft() === before; i++) {
+      w = endTurn(w, testDrive);
+      sawRidgeWake ||= w.player.state === 'active';
+    }
+    expect(sawRidgeWake).toBe(false);
+    expect(itemsLeft()).toBeLessThan(before);
+    expect(w.player.state).toBe('knockedOut');
   });
 });

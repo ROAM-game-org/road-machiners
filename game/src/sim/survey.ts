@@ -1,4 +1,4 @@
-import { CONTRACTS, EFFORT, type Threat } from '../data/market';
+import { CONTRACTS, DANGER_PAY, EFFORT, type Threat } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { RULES } from '../data/rules';
 import { DRAFT, REGION } from '../data/region';
@@ -137,9 +137,13 @@ export function surveyPlaceThreat(world: World, siteId: string): Threat {
   return threatAt(world, surveySite(world, siteId).pos);
 }
 
+function worstThreat(world: World, siteIds: string[]): Threat {
+  if (siteIds.length === 0) throw new Error('A survey has no places');
+  return Math.max(...siteIds.map((id) => surveyPlaceThreat(world, id))) as Threat;
+}
+
 export function surveyThreat(world: World, c: SurveyContract): Threat {
-  if (c.points.length === 0) throw new Error(`Survey ${c.id} has no places`);
-  return Math.max(...c.points.map((p) => surveyPlaceThreat(world, p.site))) as Threat;
+  return worstThreat(world, c.points.map((p) => p.site));
 }
 
 export function isSurveyMet(c: SurveyContract): boolean {
@@ -169,13 +173,15 @@ export function surveyLoopTurns(shopPos: Vec, sites: Vec[]): number {
   return turns + estimateTurns(at, shopPos);
 }
 
-export function surveyReward(turns: number): number {
-  return fairM(turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor);
+export function surveyReward(turns: number, threat: Threat): number {
+  if (!Number.isFinite(turns) || turns < 0) throw new Error(`Survey turns ${turns} must be a non-negative number`);
+  if (!(threat in DANGER_PAY)) throw new Error(`No danger pay for threat ${threat}`);
+  return fairM((turns * EFFORT.wage[1] * CONTRACTS.survey.rewardFactor * DANGER_PAY[threat]) / DANGER_PAY[1]);
 }
 
 export function surveyPay(world: World, shopId: string, points: SurveyPoint[]): number {
   const turns = surveyLoopTurns(siteOf(shopId).pos, points.map((p) => surveySite(world, p.site).pos));
-  return surveyReward(turns);
+  return surveyReward(turns, worstThreat(world, points.map((p) => p.site)));
 }
 
 function pickSites(world: World, free: SurveySite[]): SurveySite[] {

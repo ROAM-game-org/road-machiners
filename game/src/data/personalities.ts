@@ -174,6 +174,10 @@ export const URGENT_TOPICS: readonly UrgentTopic[] = [
   { topic: 'buyTruce', when: [] },
   { topic: 'yieldDemand', when: [] },
   { topic: 'payBounty', when: [] },
+  { topic: 'lastSeen', when: [] },
+  { topic: 'parcel', when: [] },
+  { topic: 'claimWreck', when: [] },
+  { topic: 'armyWagon', when: [] },
   { topic: 'directions', when: ['farFromTown'] },
 ];
 

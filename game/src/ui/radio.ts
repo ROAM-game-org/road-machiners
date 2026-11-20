@@ -15,7 +15,7 @@ import { compassOctant } from '../text/compass';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
 import { fullName, goodLower, partName, siteName } from '../text/names';
-import { el, panel, rightDock } from './dom';
+import { el } from './dom';
 import { nextTrackKey } from './sound';
 import { isRaider } from '../sim/relations';
 
@@ -258,7 +258,7 @@ export function revealed(text: string, elapsedMs: number, charsPerSecond: number
 }
 
 export class RadioPanel {
-  readonly root = panel('radio dock-panel', rightDock());
+  readonly root = el('div', { class: 'radio-talk' });
   private readonly keys = el('div', { class: 'radio-keys' });
   private text = el('div', { class: 'radio-text', 'aria-live': 'polite', 'aria-busy': 'false' });
   private lcd: HTMLElement;

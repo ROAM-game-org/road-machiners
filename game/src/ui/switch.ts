@@ -1,7 +1,7 @@
-import { t, type Msg } from "../text/msg";
+import type { Msg } from "../text/msg";
 import { createIcon } from "./cards";
-import { el } from "./dom";
-import { keyLabel } from "./input-mode";
+import { el, spokenReason } from "./dom";
+import { keyTip } from "./input-mode";
 
 export interface SwitchOptions {
   on: Msg;
@@ -14,12 +14,9 @@ export interface SwitchOptions {
   onclick: () => void;
 }
 
-export function keyCorner(key: string): HTMLElement {
-  return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
-}
-
-function switchTitle(o: SwitchOptions, reason: Msg | null): Msg {
-  return o.key ? keyLabel(reason ?? o.title, o.key) : (reason ?? o.title);
+function switchTitle(o: SwitchOptions, locked: Msg | null): Msg {
+  const reason = spokenReason(locked);
+  return o.key ? keyTip(reason ?? o.title, o.key) : (reason ?? o.title);
 }
 
 export function createSwitch(o: SwitchOptions): HTMLElement {
@@ -36,7 +33,6 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
     },
     stackedLabel([o.on, o.off], o.checked ? 0 : 1, "switch-option"),
     switchHandle(o),
-    o.key ? keyCorner(o.key) : null,
   );
 }
 
@@ -56,6 +52,6 @@ function switchHandle(o: SwitchOptions): HTMLElement {
   return el("span", { class: "switch-handle" }, o.locked ? createIcon("lock") : switchLever(o.checked ? "up" : "down"));
 }
 
-function switchLever(position: "up" | "down"): HTMLElement {
+export function switchLever(position: "up" | "down"): HTMLElement {
   return el("span", { class: `switch-lever ${position}` }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
 }

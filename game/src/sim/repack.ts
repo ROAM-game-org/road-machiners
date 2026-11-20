@@ -11,7 +11,7 @@ export type RepackMemo = Map<string, Set<string> | false>;
 export const REPACK_MEMO: RepackMemo = new Map();
 const MEMO_LIMIT = 4000;
 
-const DECK: readonly Cell[] = ['D', 'C'];
+const DECK: readonly Cell[] = ['D'];
 const REPACK_STEPS = 20000;
 const REPACK_LEAVES = 32;
 export function isMovable(v: Vehicle, item: GridItem): item is PartItem {

@@ -78,6 +78,18 @@ describe('error reports', () => {
     expect(sent[0].report.error).toEqual({ name: 'NonError', message: 'map fetch failed', stack: '' });
   });
 
+  it('carries the graphics facts once the game registers them, and null before', async () => {
+    const facts = { renderer: 'ANGLE (NVIDIA, GeForce RTX 3080)', drawn: { width: 2560, height: 1440 }, renderScale: 0.75, frames: { count: 600, medianMs: 17, p95Ms: 48, over50: 3 } };
+    const { sent, ...r } = reporter();
+
+    await r.reporter.report('early failure');
+    r.context.watchGraphics(() => facts);
+    await r.reporter.report('later failure');
+
+    expect(sent[0].report.graphics).toBeNull();
+    expect(sent[1].report.graphics).toEqual(facts);
+  });
+
   it('holds the autosave once the slots are watched, before any world exists', async () => {
     const slots = makeSlots();
     writeSave(slots, 'auto', { ...emptyWorld(), turn: 12 }, 'run-1', 1);

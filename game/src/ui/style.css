@@ -2,6 +2,8 @@
    docs/ui.md is the guide. The order is the cascade: shared pieces first, then each screen area. */
 @import "@fontsource/barlow-semi-condensed/400.css";
 @import "@fontsource/barlow-semi-condensed/700.css";
+@import "@fontsource/chakra-petch/500.css";
+@import "@fontsource/chakra-petch/700.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/700.css";
 @import "@fontsource/fira-sans-condensed/cyrillic-400.css";
@@ -14,8 +16,8 @@
 @import "./styles/report-desk.css";
 @import "./styles/marshals.css";
 @import "./styles/map.css";
-@import "./styles/hud.css";
 @import "./styles/dock.css";
+@import "./styles/dash.css";
 @import "./styles/drawings.css";
 @import "./styles/panels.css";
 @import "./styles/modal.css";
@@ -37,4 +39,5 @@
 @import "./styles/start-menu.css";
 @import "./styles/overlays.css";
 @import "./styles/overlays-dom.css";
-@import "./styles/phone.css";
+@import "./styles/windows.css";
+@import "./styles/scroll-wheel.css";

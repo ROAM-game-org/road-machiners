@@ -5,7 +5,7 @@ import { crossesRail, onWalledDeck } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, coarseCells, coarseWaypoint, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, NO_CLIMB, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, berthTaste, blockerKey, climbNeedOnRoads, climbTaste, componentOf, cutTaste, dynamicBlockers, navLayer, NO_CLIMB, nearCliff, nightTaste, offRoadTaste, staticSet, tastedAlong, tasteKey, tasteOf, terrainNav, tileIndex, type Berth, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { routeStyle, type RouteStyle } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
@@ -405,7 +405,7 @@ function groundCost(nav: TerrainNav, a: Vec, b: Vec, reach: number | null, maxCo
     const tile = tileIndex(nav.size, x, y);
     if (capCost[tile] > maxCost) return Infinity;
     const cost = nav.tileCost[tile];
-    sum += tasted(taste, cost, x, y);
+    sum += tastedAlong(taste, cost, x, y, b.x - a.x, b.y - a.y);
   }
   return (length * sum) / (n + 1);
 }

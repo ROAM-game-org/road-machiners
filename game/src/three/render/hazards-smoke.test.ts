@@ -17,11 +17,12 @@ function stubCanvas(): void {
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) });
 }
 
-function recorder(): { cards: FxCards; lit: Card[]; bank: Card[] } {
+function recorder(): { cards: FxCards; lit: Card[]; bank: Card[]; smoke: Card[] } {
   const lit: Card[] = [];
+  const smoke: Card[] = [];
   const bank: Card[] = [];
-  const cards = { lit: { push: (c: Card) => lit.push({ ...c }) }, bank: { push: (c: Card) => bank.push({ ...c }) }, glow: { push: () => {} } };
-  return { cards: cards as unknown as FxCards, lit, bank };
+  const cards = { lit: { push: (c: Card) => lit.push({ ...c }) }, bank: { push: (c: Card) => bank.push({ ...c }) }, glow: { push: () => {} }, smoke: { push: (c: Card) => smoke.push({ ...c }) } };
+  return { cards: cards as unknown as FxCards, lit, bank, smoke };
 }
 
 function truckAt(x: number, z: number): VehicleView {
@@ -109,7 +110,7 @@ describe('smoke clouds as cards', () => {
     expect(lit.length).toBeLessThanOrEqual(800);
   });
 
-  it('flies a shell as a mesh head with a trail of lit cards that fades out after landing', () => {
+  it('flies a shell as a mesh head with a trail of smoke cards that fades out after landing', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
     const before = cloneWorld(world);
@@ -120,10 +121,10 @@ describe('smoke clouds as cards', () => {
     const camera = new THREE.PerspectiveCamera();
     const clock = { before, progress: 1, moved: true, hookedLines: new Set<string>() };
     const fly = (nowMs: number) => {
-      const { cards, lit } = recorder();
+      const { cards, smoke } = recorder();
       views.update(world, world.terrain, new Map(), nowMs, clock, camera);
       views.draw(cards);
-      return lit;
+      return smoke;
     };
 
     fly(1000);

@@ -139,7 +139,7 @@ export function sameScene(drawn: QuestLive | null, live: QuestLive | null): bool
 }
 
 export class QuestScreen {
-  private root = panel('modal');
+  private root = panel('modal dialog');
   private shown: QuestLive | null = null;
   private asked: string | null = null;
   private lastAsk: string | null = null;
@@ -276,13 +276,12 @@ export class QuestScreen {
     for (const cls of ['dialog', 'ink-page', 'in-town']) this.root.classList.toggle(cls, town !== null);
     this.restack();
     const endMs = town ? this.drawInTown(w, view, town) : this.drawAlone(w, view);
-    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
     this.placeScroll(scroll, before);
   }
 
   private scrollBox(): HTMLElement | null {
-    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text');
+    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text, .quest-body');
   }
 
   private placeScroll(kind: ScrollKind, before: number): void {
@@ -308,11 +307,12 @@ export class QuestScreen {
         'div',
         { class: 'ink-body' },
         el('div', { class: 'ink-head' }, parts.head),
-        el('div', { class: `ink-panel ${parts.text}` }, parts.ask, ...drawn.nodes),
-        el('div', { class: 'ink-choices' }, this.pageEnd(w, view, drawn.endMs)),
+        el('div', { class: `ink-panel screen-block ${parts.text}` }, parts.ask, ...drawn.nodes),
+        this.choicesBox(el('div', { class: 'ink-choices' }), this.pageEnd(w, view, drawn.endMs, true)),
         el('div', { class: 'ink-status' }, this.errorLine()),
         parts.side,
       ),
+      this.look,
     );
     return drawn.endMs;
   }
@@ -355,7 +355,7 @@ export class QuestScreen {
   }
 
   private lookRow(): HTMLElement {
-    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
     return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 
@@ -363,7 +363,7 @@ export class QuestScreen {
     this.artStage.clear();
     const drawn = this.drawParagraphs(w, this.pageAt(view), true);
     const text = el('div', { class: 'quest-talk' }, this.askLine(), ...drawn.nodes);
-    this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
+    this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine(), this.look);
     return drawn.endMs;
   }
 
@@ -381,8 +381,12 @@ export class QuestScreen {
     const shown = this.shownLines(view);
     const drawn = this.drawParagraphs(w, this.pageAt(view), false);
     const place = this.placeOf(shown, view);
-    const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), text, this.side(w, view));
+    const end = this.pageEnd(w, view, drawn.endMs, true);
+    const keyEnd = end.tagName === 'BUTTON';
+    const body = el('div', { class: 'quest-body screen-block' }, ...drawn.nodes, keyEnd ? null : end);
+    const middle = el('div', { class: 'quest-mid' }, place ? el('h2', { class: 'quest-place tape' }, verbatim(place)) : null, body);
+    const foot = el('div', { class: 'quest-foot' }, this.look, el('div', { class: 'quest-way' }, keyEnd ? end : null, this.errorLine()));
+    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), middle, this.side(w, view), foot);
     return drawn.endMs;
   }
 
@@ -396,7 +400,11 @@ export class QuestScreen {
     const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore === null || this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
-    return el('div', { class: 'quest-side ink-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
+    return el('div', { class: 'quest-side ink-side' }, this.sideBlock('quest-stats', stats), this.sideBlock('quest-facts', facts));
+  }
+
+  private sideBlock(name: string, rows: HTMLElement[]): HTMLElement {
+    return el('div', { class: rows.length > 0 ? `${name} screen-block` : name }, ...rows);
   }
 
   private head(quest: string): HTMLElement {
@@ -408,8 +416,14 @@ export class QuestScreen {
     return el('div', { class: 'error' }, this.error);
   }
 
-  private pageEnd(w: World, view: QuestView, atMs: number): HTMLElement {
-    if (this.onLastPage(view) && this.onLastParagraph(view)) return this.choices(w, view, atMs);
+  private choicesBox(box: HTMLElement, end: HTMLElement): HTMLElement {
+    if (end.tagName !== 'BUTTON') box.classList.add('screen-block');
+    box.append(end);
+    return box;
+  }
+
+  private pageEnd(w: World, view: QuestView, atMs: number, onScreen = false): HTMLElement {
+    if (this.onLastPage(view) && this.onLastParagraph(view)) return this.choices(w, view, atMs, onScreen);
     return el('button', { class: 'quest-next qt-unit', style: `animation-delay: ${atMs}ms`, onclick: () => this.advance() }, t('quest.next'));
   }
 
@@ -426,8 +440,8 @@ export class QuestScreen {
     if (!this.onLastPage(view)) this.nextPage();
   }
 
-  private choices(w: World, view: QuestView, atMs: number): HTMLElement {
-    const buttons = view.ended ? [el('button', { class: 'quest-choice', onclick: () => this.leave() }, view.quest === GAME_OPENED_QUESTS.firstFall ? t('quest.wakeUp') : t('quest.leave'))] : choiceButtons(w, view, (i) => this.choose(i));
+  private choices(w: World, view: QuestView, atMs: number, onScreen: boolean): HTMLElement {
+    const buttons = view.ended ? [el('button', { class: onScreen ? 'quest-choice screen-line' : 'quest-choice', onclick: () => this.leave() }, view.quest === GAME_OPENED_QUESTS.firstFall ? t('quest.wakeUp') : t('quest.leave'))] : choiceButtons(w, view, (i) => this.choose(i), onScreen);
     return el('div', { class: 'quest-choices qt-unit', style: `animation-delay: ${atMs}ms` }, ...buttons);
   }
 

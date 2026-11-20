@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { CardBatch, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes } from './cards';
+import { batchesOf, CardBatch, LEFTOVER_COUNTER, openCardFrame, OVERFILL_COUNTER, type Card, CLUMP_FIRST, createCardShapes, type FxCards } from './cards';
+import { TUNING } from '../inkTuning';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
 camera.updateProjectionMatrix();
@@ -45,6 +46,47 @@ describe('card fill ceiling', () => {
     put(batch, card(0.5, 5));
     batch.flush(camera);
     expect(drawn(batch)).toBe(1);
+  });
+});
+
+describe('card frame', () => {
+  const small = () => new CardBatch(4, 'glow', new THREE.Texture(), 2);
+
+  it('drops the cards of a frame that never flushed', () => {
+    const batch = small();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    batch.open();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    batch.flush(camera);
+    expect(drawn(batch)).toBe(4);
+  });
+
+  it('counts the cards a failed frame left behind', () => {
+    const batch = small();
+    const before = perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0;
+    batch.open();
+    expect(perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0).toBe(before);
+    put(batch, card(0.5, 1));
+    put(batch, card(0.5, 1));
+    batch.open();
+    expect((perfSnapshot()[LEFTOVER_COUNTER]?.calls ?? 0) - before).toBe(2);
+  });
+
+  it('still throws when one frame pushes more cards than the batch holds', () => {
+    const batch = small();
+    batch.open();
+    for (let i = 0; i < 4; i++) put(batch, card(0.5, 1));
+    expect(() => put(batch, card(0.5, 1))).toThrow('CardBatch over its 4 cards');
+  });
+
+  it('opens every batch of the effect cards', () => {
+    const cards: FxCards = { lit: small(), glow: small(), dust: small(), bank: small(), fire: small(), smoke: small() };
+    for (const batch of Object.values(cards)) put(batch, card(0.5, 1));
+    openCardFrame(cards);
+    for (const batch of Object.values(cards)) {
+      batch.flush(camera);
+      expect(drawn(batch)).toBe(0);
+    }
   });
 });
 
@@ -131,5 +173,28 @@ describe('card shape atlas', () => {
     expect(at(CELL / 2, CELL / 2)).toBe(255);
     const rim = Array.from({ length: 64 }, (_, i) => at(Math.round(CELL / 2 + Math.cos(i / 10) * CELL * 0.42), Math.round(CELL / 2 + Math.sin(i / 10) * CELL * 0.42)));
     expect(new Set(rim).size).toBeGreaterThan(8);
+  });
+});
+
+describe('smoke batch choice', () => {
+  const lit = new CardBatch(4, 'lit', new THREE.Texture(), 2);
+  const other = new CardBatch(4, 'glow', new THREE.Texture(), 2);
+  const smoke = new CardBatch(4, 'glow', new THREE.Texture(), 2);
+  const cards: FxCards = { lit, glow: other, dust: other, bank: other, fire: other, smoke };
+
+  function smokeBatchAt(ink: number): CardBatch {
+    const was = TUNING.fxInk.value;
+    TUNING.fxInk.value = ink;
+    const chosen = batchesOf(cards, lit).smoke;
+    TUNING.fxInk.value = was;
+    return chosen;
+  }
+
+  it('sends smoke to the ink smoke batch at full ink', () => {
+    expect(smokeBatchAt(1)).toBe(smoke);
+  });
+
+  it('keeps smoke in the lit batch with ink off', () => {
+    expect(smokeBatchAt(0)).toBe(lit);
   });
 });
