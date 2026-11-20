@@ -331,7 +331,7 @@ export function storedGoodItem(good: string): GridItem {
 
 export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null, picked: { item: GridItem } | null): HTMLElement {
   const size = gridSize(m);
-  const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
+  const grid = el("div", { class: look ? "inv-grid crt-picture drawn" : "inv-grid crt-picture", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
   grid.append(look ? truckBackdrop(look.body, m) : truckOutline(chassisId, m));
   for (let y = 0; y < g.h; y++)
