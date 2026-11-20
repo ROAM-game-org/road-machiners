@@ -1,14 +1,14 @@
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
+import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundLooks, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
 import { CENTER_GAP, HALF as WEAR_HALF, LINE_HALF, WEAR_NEUTRAL } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
 import { DRAWN_ROAD_HALF, TRACK_FIELD_REACH } from "../../render/roadPaint";
 import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
-import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFields, TILE_LAYER } from "./groundFields";
+import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFieldPieces, TILE_LAYER } from "./groundFields";
 import { CREST_GLSL, GroundCrest, type CrestUniforms } from "./groundCrest";
 import { holdGroundDetail } from "./groundDetail";
 import { GroundLandform, LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
@@ -180,12 +180,18 @@ export type GroundCacheUniforms = {
   groundCacheReach: THREE.IUniform<number>;
 };
 
-export function drawnGround(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null): DrawnGround {
-  const fields = groundFields(mask, t, shelters, landforms);
+export function* drawnGroundPieces(newMask: () => PaintCanvas, t: Terrain, shelters: readonly Site[], newLandforms: () => THREE.Texture | null): Generator<string, DrawnGround> {
+  yield "reading the ground looks";
+  groundLooks(t);
+  const fields = yield* groundFieldPieces(newMask, t, shelters);
+  yield "painting the landforms";
+  const landforms = newLandforms();
+  yield "shaping the land";
+  const land = landOf(t);
   const worn = fields.highwayWear !== undefined;
   return {
-    uniforms: { ...fields, ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN } },
-    land: landOf(t),
+    uniforms: { ...fields, ...(landforms ? { groundLandforms: { value: landforms } } : {}), ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN } },
+    land,
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
   };

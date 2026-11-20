@@ -28,7 +28,7 @@ describe('the turn worker start', () => {
     const calls: string[] = [];
     const bake = deferred();
 
-    const started = startTurnWorker(host(calls), bake.promise, Promise.resolve(), terrain, () => ({ world, drive }));
+    const started = startTurnWorker(host(calls), bake.promise, Promise.resolve(), Promise.resolve(), terrain, () => ({ world, drive }));
     await new Promise((resolve) => setTimeout(resolve));
 
     expect(calls).toEqual([]);
@@ -41,11 +41,24 @@ describe('the turn worker start', () => {
     const calls: string[] = [];
     const physics = deferred();
 
-    const started = startTurnWorker(host(calls), Promise.resolve(), physics.promise, terrain, () => ({ world, drive }));
+    const started = startTurnWorker(host(calls), Promise.resolve(), Promise.resolve(), physics.promise, terrain, () => ({ world, drive }));
     await new Promise((resolve) => setTimeout(resolve));
 
     expect(calls).toEqual(['terrain']);
     physics.done();
+    await started;
+    expect(calls).toEqual(['terrain', 'warm']);
+  });
+
+  it('sends nothing before the first frame, then the terrain, then the warm', async () => {
+    const calls: string[] = [];
+    const frame = deferred();
+
+    const started = startTurnWorker(host(calls), Promise.resolve(), frame.promise, Promise.resolve(), terrain, () => ({ world, drive }));
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(calls).toEqual([]);
+    frame.done();
     await started;
     expect(calls).toEqual(['terrain', 'warm']);
   });

@@ -55,7 +55,8 @@ import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { startGroundBaker } from './ground-off-thread';
-import { drawnGroundOf, groundTexture } from './render/terrain';
+import { runStepped } from './render/stepped';
+import { drawnGroundSteps, groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
 import { paintSkin } from '../ui/dash/skin';
@@ -329,14 +330,18 @@ stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-startTurnWorker(travel, groundBaked, initPhysics(), map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
+const physicsReady = initPhysics();
+let frameShown!: () => void;
+const firstFrame = new Promise<void>((resolve) => (frameShown = resolve));
+startTurnWorker(travel, groundBaked, firstFrame, physicsReady, map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
 stepBoot('building the ground');
 const drawn = await boot.track('ground', async () => {
   await groundBaked;
   groundTexture(world);
-  stepBoot('painting the ground fields');
-  await boot.painted();
-  return drawnGroundOf(world);
+  return runStepped(drawnGroundSteps(world), async (piece) => {
+    stepBoot(piece);
+    await boot.painted();
+  });
 });
 stepBoot('waiting for physics and models');
 await loading;
@@ -370,7 +375,10 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish().then(() => game.warmPlans(), reportError);
+void boot.finish().then(() => {
+  frameShown();
+  return game.warmPlans();
+}, reportError);
 endMark();
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
