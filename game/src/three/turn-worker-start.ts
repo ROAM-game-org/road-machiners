@@ -16,7 +16,10 @@ export async function startTurnWorker(host: TurnWorkerHost, bootFinished: Promis
 
 export async function afterBoot(finish: Promise<void>, startTurns: () => Promise<void>, warmPlans: () => void, keep: () => void): Promise<void> {
   await finish;
-  await startTurns();
-  warmPlans();
-  keep();
+  try {
+    await startTurns();
+    warmPlans();
+  } finally {
+    keep();
+  }
 }

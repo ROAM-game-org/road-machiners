@@ -75,4 +75,18 @@ describe('the boot order', () => {
     await ordered;
     expect(calls).toEqual(['turns', 'plans', 'keep']);
   });
+
+  it('still keeps the bake when the turn worker fails to start, and warms no plans', async () => {
+    const calls: string[] = [];
+
+    const ordered = afterBoot(
+      Promise.resolve(),
+      () => Promise.reject(new Error('no worker')),
+      () => void calls.push('plans'),
+      () => void calls.push('keep'),
+    );
+
+    await expect(ordered).rejects.toThrow('no worker');
+    expect(calls).toEqual(['keep']);
+  });
 });
