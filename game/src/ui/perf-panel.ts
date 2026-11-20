@@ -1,14 +1,13 @@
 
 import { perfSnapshot, type PerfStat } from "../perf";
-import { el } from "./dom";
+import { el, panel } from "./dom";
 
 const REFRESH_MS = 500;
 const WINDOW_FRAMES = 120;
 
 export function mountPerfPanel(host: HTMLElement, routeMs: () => number | null): { toggle(): boolean } {
-  const box = el("div", { class: "perf-panel" });
+  const box = panel("perf-panel", host);
   box.hidden = true;
-  host.append(box);
 
   const frames: number[] = [];
   let prev = performance.now();
@@ -21,7 +20,7 @@ export function mountPerfPanel(host: HTMLElement, routeMs: () => number | null):
   requestAnimationFrame(sample);
 
   window.setInterval(() => {
-    if (!box.hidden) box.textContent = readout(frames, routeMs()).join("\n");
+    if (!box.hidden) box.replaceChildren(...readout(frames, routeMs()).map(row));
   }, REFRESH_MS);
 
   return {
@@ -30,6 +29,15 @@ export function mountPerfPanel(host: HTMLElement, routeMs: () => number | null):
       return !box.hidden;
     },
   };
+}
+
+function row(text: string): HTMLElement {
+  const cut = text.search(/\s{2,}|\s(?=-$)/);
+  const name = cut < 0 ? text : text.slice(0, cut);
+  const value = cut < 0 ? "" : text.slice(cut).trim();
+  const head = name === "fps" || name === "p95 ms";
+  const cell = (cls: string, text: string) => Object.assign(el("span", { class: cls }), { textContent: text });
+  return el("div", { class: head ? "perf-row perf-head" : "perf-row" }, cell("perf-name", name), cell("perf-value", value));
 }
 
 const ms = (x: number) => x.toFixed(1).padStart(6);
