@@ -87,6 +87,11 @@ export type ContextTarget =
   | { kind: 'outpost' };
 export type ContextAction = { label: Msg; ready: boolean; target: ContextTarget; hint?: Msg; combat?: number };
 
+export function actionSlot(action: ContextAction | null, shown: unknown, status: Msg | null): "action" | "status" | "none" {
+  if (action) return shown ? "none" : "action";
+  return status && !shown ? "status" : "none";
+}
+
 export function contextKey(target: ContextTarget): string {
   return 'id' in target ? `${target.kind}:${target.id}` : target.kind;
 }
@@ -212,6 +217,7 @@ export class Hud {
   private infoBody = el("div", { class: "info-content" });
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
+  private siteStatus = panel("status-mark site-status hud-panel");
   private toastBox = panel("toast hud-panel");
 
   private toastScreen = this.toastBox.appendChild(el("p", { class: "metal-line" }));
@@ -381,6 +387,7 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
+    this.siteStatus.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("div", { class: "tooltip hover-tip recenter-tip", role: "button", onclick: () => actions.recenter() }, keyTip(t("hud.recenter"), RECENTER_KEY)));
@@ -442,11 +449,15 @@ export class Hud {
     world: World,
     onUse: () => void,
     onCycle: (step: 1 | -1) => void,
+    status: Msg | null,
   ): void {
     const me = playerVehicle(world);
     const shown = shownWork(action, workOf(world, me));
-    this.action.style.display = action && !shown ? "" : "none";
-    if (action && !shown) this.renderActionButton(action, count, index, onUse, onCycle);
+    const slot = actionSlot(action, shown, status);
+    this.action.style.display = slot === "action" ? "" : "none";
+    this.siteStatus.style.display = slot === "status" ? "" : "none";
+    if (slot === "action" && action) this.renderActionButton(action, count, index, onUse, onCycle);
+    if (slot === "status" && status) replaceChanged(this.siteStatus, screen(screenLine("dim", status)));
   }
 
   private renderActionButton(action: ContextAction, count: number, index: number, onUse: () => void, onCycle: (step: 1 | -1) => void): void {
