@@ -169,7 +169,15 @@ export class BakedPart<K extends string = never> {
     node.classList.add("plate-part", "baked-zone");
     this.placed.push({ node, zone });
     this.root.append(node);
+    this.layout();
     return node;
+  }
+
+  unzone(node: HTMLElement): void {
+    const at = this.placed.findIndex((p) => p.node === node);
+    if (at >= 0) this.placed.splice(at, 1);
+    node.remove();
+    this.layout();
   }
 
   place<T extends Element>(node: T, box: K | Box): T {

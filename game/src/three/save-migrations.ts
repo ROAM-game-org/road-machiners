@@ -853,6 +853,8 @@ export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'withoutPartClaimsOnBoards', step: withoutPartClaimsOnBoards },
 ];
 
+const foldedSlice = (from: number, to: number) => FOLDED_AND_TINY_STEPS.slice(from - FIRST_TINY, to - FIRST_TINY);
+
 export const RELEASE_STEPS: readonly ReleaseStep[] = [
   { from: 1, to: 6, step: release_1_6, names: null },
   { from: 6, to: 25, step: release_6_25, names: null },
@@ -861,9 +863,11 @@ export const RELEASE_STEPS: readonly ReleaseStep[] = [
   { from: 62, to: 63, step: (world) => world, names: null },
   { from: FIRST_TINY, to: 136, step: chained(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(0, 136 - FIRST_TINY)) },
   { from: 136, to: 138, step: chained(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)) },
+  { from: 138, to: 144, step: chained(foldedSlice(138, 144)), names: namesOf(foldedSlice(138, 144)) },
+  { from: 144, to: 149, step: chained(foldedSlice(144, 149)), names: namesOf(foldedSlice(144, 149)) },
 ];
 
-export const TINY_FROM = 138;
+export const TINY_FROM = 149;
 
 export const TINY_STEPS: readonly NamedStep[] = FOLDED_AND_TINY_STEPS.slice(TINY_FROM - FIRST_TINY);
 

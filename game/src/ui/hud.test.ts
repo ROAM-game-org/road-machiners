@@ -263,3 +263,48 @@ describe('order controls while knocked out', () => {
     expect(orderReasons(w, false).slice(0, 2)).toEqual([null, null]);
   });
 });
+
+describe('panel placement', () => {
+  const sideNode = (display: string): HTMLElement => ({ style: { display }, classList: { contains: (name: string) => name === 'journal-side' } }) as unknown as HTMLElement;
+
+  function placing(extra: object = {}) {
+    const placed: (HTMLElement | null | undefined)[] = [];
+    const observed: HTMLElement[] = [];
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      side: null,
+      sideWasShown: false,
+      infoPlacedFor: null,
+      placeWatch: { observe: (node: HTMLElement) => observed.push(node) },
+      wantPortraits: () => {},
+      info: { style: { display: '' } },
+      ...extra,
+    }) as Hud;
+    hud.placeSide = (node?: HTMLElement | null) => {
+      placed.push(node);
+      Object.assign(hud, { side: node ?? (hud as unknown as { side: HTMLElement | null }).side, sideWasShown: true });
+    };
+    return { hud, placed, observed };
+  }
+
+  it('places and watches a journal side node the first time it moves, then only when it shows or hides', () => {
+    const { hud, placed, observed } = placing();
+    const node = sideNode('');
+    hud.sideMoved(node);
+    expect(placed).toEqual([node]);
+    expect(observed).toEqual([node]);
+    hud.sideMoved(node);
+    hud.sideMoved(node);
+    expect(placed).toEqual([node]);
+    node.style.display = 'none';
+    hud.sideMoved(node);
+    expect(placed).toEqual([node, undefined]);
+  });
+
+  it('places once when the card closes and not on later refreshes with no card', () => {
+    const { hud, placed } = placing({ infoPlacedFor: 'truck-1' });
+    hud.showInfo(emptyWorld(), null, false);
+    hud.showInfo(emptyWorld(), null, false);
+    hud.showInfo(emptyWorld(), null, false);
+    expect(placed).toHaveLength(1);
+  });
+});
