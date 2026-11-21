@@ -37,16 +37,18 @@ export class FramePace {
   }
 
   timeline(nowMs: number): PaceSlice[] {
-    const now = Math.floor(nowMs / PACE_SLICE_MS);
     if (this.current < 0) return [];
+    const now = Math.floor(nowMs / PACE_SLICE_MS);
     const slices: PaceSlice[] = [];
     for (let back = PACE_SLICES - 1; back >= 0; back--) {
       const index = this.current - back;
       if (index < 0) continue;
       const at = index % PACE_SLICES;
       if (this.frames[at] === 0 && this.waits[at] === 0 && this.built[at] === 0) continue;
+      const ageS = Math.round(((now - index) * PACE_SLICE_MS) / 1000);
+      if (ageS >= (PACE_SLICES * PACE_SLICE_MS) / 1000) continue;
       slices.push({
-        ageS: Math.round(((now - index) * PACE_SLICE_MS) / 1000),
+        ageS,
         frames: this.frames[at],
         slowestMs: Math.round(this.slowest[at]),
         over50: this.slow[at],
@@ -54,7 +56,7 @@ export class FramePace {
         turnWaitMs: Math.round(this.waits[at]),
       });
     }
-    return slices.filter((slice) => slice.ageS < (PACE_SLICES * PACE_SLICE_MS) / 1000);
+    return slices;
   }
 
   summary(): FramePaceSummary {
