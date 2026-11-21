@@ -1,4 +1,5 @@
-import { Plate, extrude, lit, litMap, loft, cap, glassMesh, insetPoly, grain, wear, rollGeometry, makeStage, frame, THREE, K } from './dashlib.js';
+import { Plate, extrude, lit, oliveLit, oliveMap, hexBolt, loft, cap, glassMesh, insetPoly, makeStage, frame, THREE, K } from './dashlib.js';
+import { OLIVE, mottle } from './olive.js';
 import { installBake } from '../core.js';
 import { buildToggle } from './toggle.js';
 
@@ -6,8 +7,6 @@ const FACE = [-3, 581.9, 339.9, 729];
 const EYE_Z_DRIVE = 20.6;
 const Z_PANEL = -0.2;
 const FRAME_DEPTH = 0.25;
-const PANEL = '#5a2a13';
-const FRAME_FACE = '#52280f';
 const BRASS = '#a87a3c';
 const DIAL_BRASS = '#c48b40';
 const GLASS = '#1d1609';
@@ -30,9 +29,8 @@ const PANEL_BOX = [-40, 600, 340, 775];
 const panelCv = LP.canvas(PANEL_BOX);
 {
   const c = panelCv.c;
-  c.fillStyle = PANEL; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
-  grain(c, PANEL_BOX, 21, 4);
-  wear(c, PANEL_BOX, 33, { stains: 8, creases: 26, rubs: 4 });
+  c.fillStyle = OLIVE.housing; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
+  mottle(c, PANEL_BOX[0], PANEL_BOX[1], PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1], 21);
   c.save();
   c.beginPath();
   c.moveTo(-40, 775); c.lineTo(333, 775); c.lineTo(333, 605.3 + 22); c.arc(333 - 22, 605.3 + 22, 22, 0, Math.PI / 2 * 3, true);
@@ -46,22 +44,21 @@ const COOL_SINK = 0.025, COOL_GAP = 1.1;
   const panelShape = LP.shape(PANEL_BOX, [0, 24, 0, 0]);
   const [x0, y0, x1, y1] = [276.4, 622.5, 318.2, 659.2], g = COOL_GAP;
   panelShape.holes.push(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [5 + g, 5 + g, 5 + g, 5 + g]));
-  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: litMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: lit('#24100a'), seg: 3 }));
-  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), lit('#2a1309'));
+  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: oliveMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: oliveLit(OLIVE.shade), seg: 3 }));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), oliveLit(OLIVE.floor));
   floor.position.z = Z_PANEL - 0.06; floor.receiveShadow = true; P.g.add(floor);
 }
 
 const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
-const ROLL_Y = 601.2, ROLL_X = 343.4, ROLL_R = 2.5, ROLL_COLOR = '#793f22';
+const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
 const FRAME_BOX = [-40, 596, 350, 775];
 const frameCv = L0.canvas(FRAME_BOX);
 {
   const c = frameCv.c;
-  c.fillStyle = FRAME_FACE; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
-  grain(c, FRAME_BOX, 5, 4);
-  wear(c, FRAME_BOX, 34, { stains: 3, creases: 12, rubs: 2 });
+  c.fillStyle = OLIVE.housing; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
+  mottle(c, FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1], 5);
 }
-const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
+const outer = L0.shape([-40, FRAME_TOP, FRAME_RIGHT, 775], [0, TR, 0, 0]);
 {
   const u = (x, y) => [L0.ux(x), L0.uy(y)];
   const hole = new THREE.Path();
@@ -74,37 +71,10 @@ const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
   hole.closePath();
   outer.holes.push(hole);
 }
-P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: litMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: lit('#632f16') }));
-{
-  const path = [[-40, ROLL_Y]];
-  const rc = TR - ROLL_R;
-  for (let x = -40 + 20; x < ROLL_X - rc; x += 20) path.push([x, ROLL_Y]);
-  path.push([ROLL_X - rc, ROLL_Y]);
-  for (let i = 1; i < 16; i++) { const a = -Math.PI / 2 + i / 16 * Math.PI / 2; path.push([ROLL_X - rc + Math.cos(a) * rc, ROLL_Y + rc + Math.sin(a) * rc]); }
-  for (let y = ROLL_Y + rc; y < 775; y += 20) path.push([ROLL_X, y]);
-  path.push([ROLL_X, 775]);
-  const { geo, lens, total } = rollGeometry(L0, path, ROLL_R);
-  const H = 64, cv = document.createElement('canvas');
-  cv.width = Math.round(total * K); cv.height = H;
-  const c = cv.getContext('2d');
-  c.fillStyle = ROLL_COLOR; c.fillRect(0, 0, cv.width, H);
-  const rowAt = (deg) => (1 - deg / 360) * H, row = rowAt(80), at = (len) => len * K;
-  for (const [deg, w, a] of [[52, 3.2 * K / 2, 0.22], [52, 1.4 * K / 2, 0.3]]) { c.globalAlpha = a; c.strokeStyle = '#d98a52'; c.lineWidth = w; c.beginPath(); c.moveTo(0, rowAt(deg)); c.lineTo(cv.width, rowAt(deg)); c.stroke(); }
-  const topEnd = lens[path.findIndex((p) => p[0] >= ROLL_X - rc)], arcEnd = lens[path.findIndex((p, i) => i > 0 && p[1] > ROLL_Y + rc - 0.01 && p[0] === ROLL_X)];
-  const run = (from, to, dash, gap, alpha) => {
-    c.save(); c.setLineDash([dash * K, gap * K]); c.lineCap = 'butt';
-    for (const [dy, a, col] of [[1.2, alpha * 0.5, '#1c0a03'], [0, alpha, '#ecd5ac']]) { c.globalAlpha = a; c.strokeStyle = col; c.lineWidth = K * 0.85; c.beginPath(); c.moveTo(at(from), row + dy); c.lineTo(at(to), row + dy); c.stroke(); }
-    c.restore();
-  };
-  run(0, topEnd, 6, 3.2, 0.6); run(topEnd, arcEnd, 4, 2.2, 0.7); run(arcEnd, total, 2.6, 1.5, 0.8);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapT = THREE.RepeatWrapping;
-  const mat = litMap(tex);
-  mat.side = THREE.DoubleSide;
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = false; mesh.receiveShadow = false;
-  P.g.add(mesh);
-}
+P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: oliveMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: oliveLit(OLIVE.shade) }));
+
+const BOLT_Z = 0.014;
+for (const [x, y] of [[14, 612], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
 
 const dialGlassPaint = (c, b) => {
   const cx = DIAL.cx, cy = DIAL.cy, R = DIAL.rGlass;
@@ -151,38 +121,32 @@ const coolKey = new THREE.Group();
   P.g.add(coolKey);
 }
 
-const font = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
-document.fonts.add(await font.load());
-
-const PRINT = '#e4d1a5';
-
-const SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
-const SW_PRINT = [13.5, 19.5];
+const SW_W = 28, SW_HALF_H = 19;
+const SW_CENTER_Y = 703;
+const LABEL_ROW = [661, 673], ON_ROW = [674, 685], OFF_ROW = [719.5, 729];
+const PRINT_HALF_W = 13, ON_HALF_W = 8, LAMP_R = 5, LAMP_GAP = 2;
+const SW_BASE = '#9a9a92';
+const SW_SCALE = 1.5, SW_LEVER_SCALE = 2.3 / 1.75;
 const SW_Z = Z_PANEL + 0.004;
 const EYE_UNITS = P.eye();
-const printMesh = (L, box, label, z) => {
-  const DENSITY = 20, cv = document.createElement('canvas');
-  cv.width = Math.round((box[2] - box[0]) * DENSITY); cv.height = Math.round((box[3] - box[1]) * DENSITY);
-  const c = cv.getContext('2d');
-  c.setTransform(DENSITY, 0, 0, DENSITY, -box[0] * DENSITY, -box[1] * DENSITY);
-  const mx = (box[0] + box[2]) / 2, my = (box[1] + box[3]) / 2;
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '400 6px "Routed Gothic Narrow"';
-  c.fillStyle = 'rgba(30,14,6,.6)'; c.fillText(label, mx, my + 0.6);
-  c.fillStyle = PRINT; c.fillText(label, mx, my);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const rect = L.rect(box);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(rect.w, rect.h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false }));
-  m.position.set(rect.cx, rect.cy, z);
-  return m;
+const lampDome = (cx, cy) => {
+  const L = P.at(SW_Z), px = L.ux(cx), py = L.uy(cy), r = L.len(LAMP_R);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(1.1), 10, 32), lit(SW_BASE));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit('#4a2c0a'));
+  dome.rotation.x = Math.PI / 2; dome.scale.set(1, 0.6, 1);
+  const g = new THREE.Group();
+  g.add(bezel, dome);
+  g.position.set(px, py, SW_Z);
+  for (const m of [bezel, dome]) { m.castShadow = true; m.receiveShadow = true; }
+  P.g.add(g);
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
   const cx = (x0 + x1) / 2, L = P.at(SW_Z);
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
+  lampDome(cx - ON_HALF_W - LAMP_GAP - LAMP_R, (ON_ROW[0] + ON_ROW[1]) / 2);
   const at = new THREE.Vector3(L.ux(cx), L.uy(SW_CENTER_Y), SW_Z);
-  const toggle = buildToggle({ len: L.len.bind(L), at, eye: EYE_UNITS });
+  const toggle = buildToggle({ len: L.len.bind(L), at, eye: EYE_UNITS, scale: SW_SCALE, leverScale: SW_LEVER_SCALE });
   P.g.add(...toggle.parts);
-  return { set: toggle.set, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
+  return { set: toggle.set, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => r.set(false));
 
@@ -192,6 +156,7 @@ const zoneFor = (box, z = 0) => ({ quad: P.quad(view, box, z), size: P.size(box)
 const DIAL_ZONE = [DIAL.cx - 76, DIAL.cy - 76, DIAL.cx + 76, DIAL.cy + 76];
 const FUEL_ZONE = bounds(insetPoly(FUEL.pts, GLASS_INSET));
 const HEAT_ZONE = bounds(insetPoly(HEAT.pts, GLASS_INSET));
+const LABEL_HALF_W = 22;
 const LABEL_Z = Z_PANEL + 0.01;
 const zones = {
   dial: zoneFor(DIAL_ZONE, Z_PANEL + 0.012),
@@ -200,10 +165,15 @@ const zones = {
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),
-  manual: zoneFor([169.3, 665.1, 202, 680.4], LABEL_Z),
-  lights: zoneFor([219.3, 665.1, 247.8, 680.4], LABEL_Z),
-  overdrive: zoneFor([259.1, 665.1, 304.3, 680.4], LABEL_Z),
 };
+rockers.forEach((r, i) => {
+  const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];
+  zones[['manual', 'lights', 'overdrive'][i]] = zoneFor(rowBox(LABEL_ROW, LABEL_HALF_W), LABEL_Z);
+  zones[`on${i}`] = zoneFor(rowBox(ON_ROW, ON_HALF_W), LABEL_Z);
+  zones[`off${i}`] = zoneFor(rowBox(OFF_ROW, PRINT_HALF_W), LABEL_Z);
+  const lampX = r.cx - ON_HALF_W - LAMP_GAP - LAMP_R, lampY = (ON_ROW[0] + ON_ROW[1]) / 2;
+  zones[`lamp${i}`] = zoneFor([lampX - LAMP_R, lampY - LAMP_R, lampX + LAMP_R, lampY + LAMP_R], SW_Z + 0.004);
+});
 const sprites = { cool: { crop: view.cropAround(P.quad(view, COOL.box, Z_PANEL + 0.03), 8), frames: ['cool-up', 'cool-down'] } };
 rockers.forEach((r, i) => {
   zones[`rockerHit${i}`] = zoneFor(r.box, Z_PANEL + 0.05);

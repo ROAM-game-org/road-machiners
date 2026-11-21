@@ -7,6 +7,8 @@ import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
 import { cameraSetting, RENDER_SCALES, renderScaleSetting, type CameraMode, type RenderScale } from "./camera-setting";
 import { minimapSetting } from "./minimap-setting";
+import { logViewSetting } from "./log-setting";
+import type { LogView } from "./log";
 import { soundSection, type SoundSettings, type SoundView } from "./sound";
 import { UI_SIZES, uiSize } from "./ui-size";
 
@@ -21,6 +23,7 @@ export class OptionsPanel {
   private languageSwitch: LanguageSwitch | null = null;
   private sizeSwitch: OptionSwitch<number> | null = null;
   private minimapSwitch: OptionSwitch<boolean> | null = null;
+  private logSwitch: OptionSwitch<LogView> | null = null;
   private cameraSwitch: OptionSwitch<CameraMode> | null = null;
   private renderScaleSwitch: OptionSwitch<RenderScale> | null = null;
   private soundView: SoundView | null = null;
@@ -49,6 +52,8 @@ export class OptionsPanel {
     this.sizeSwitch = this.sizes(sizeSection);
     const minimapSection = el("section", { class: "options-minimap" }, el("h4", {}, t("options.minimap")));
     this.minimapSwitch = this.minimap(minimapSection);
+    const logSection = el("section", { class: "options-log" }, el("h4", {}, t("options.log")));
+    this.logSwitch = this.logView(logSection);
     const cameraSection = el("section", { class: "options-camera" }, el("h4", {}, t("options.camera")));
     this.cameraSwitch = this.camera(cameraSection);
     const renderScaleSection = el("section", { class: "options-render-scale" }, el("h4", {}, t("options.renderScale")));
@@ -56,7 +61,7 @@ export class OptionsPanel {
     this.soundView = soundSection(this.sound);
     const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
     this.closeKey = el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close"));
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, renderScaleSection, soundBlock, this.closeKey);
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, logSection, cameraSection, renderScaleSection, soundBlock, this.closeKey);
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
@@ -86,6 +91,19 @@ export class OptionsPanel {
       off: () => null,
       subscribe: (fn) => setting.subscribe(fn),
       rootClass: "minimap-switch",
+    });
+  }
+
+  private logView(parent: HTMLElement): OptionSwitch<LogView> {
+    const setting = logViewSetting();
+    return new OptionSwitch(parent, {
+      label: t("options.log"),
+      choices: [{ value: "brief", label: t("options.logBrief") }, { value: "verbose", label: t("options.logVerbose") }],
+      current: () => setting.view(),
+      pick: (view) => setting.set(view),
+      off: () => null,
+      subscribe: (fn) => setting.subscribe(fn),
+      rootClass: "log-view-switch",
     });
   }
 
@@ -133,6 +151,8 @@ export class OptionsPanel {
   private disposeViewSwitches(): void {
     this.minimapSwitch?.dispose();
     this.minimapSwitch = null;
+    this.logSwitch?.dispose();
+    this.logSwitch = null;
     this.cameraSwitch?.dispose();
     this.cameraSwitch = null;
     this.renderScaleSwitch?.dispose();

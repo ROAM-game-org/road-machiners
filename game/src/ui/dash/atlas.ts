@@ -144,6 +144,8 @@ const drive = new DrivePanel({
     overdrive: t("hud.overdrive"),
     cool: t("hud.coolKey"),
     speedUnit: t("hud.kph"),
+    on: t("setting.on"),
+    off: t("setting.off"),
   },
   onManual: () => flip("manual"),
   onLights: () => flip("lights"),
