@@ -269,7 +269,7 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
-    this.loops = new SoundLoops(player, music, tracks);
+    this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
