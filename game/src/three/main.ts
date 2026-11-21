@@ -8,7 +8,7 @@ import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, PLAY_EASE, SFX_BY
 import { driveSnapshotOf } from '../phys/turn';
 import { easedStopSteps } from './play-clock';
 import { Travel } from './travel';
-import { startTurnWorker } from './turn-worker-start';
+import { afterBoot, startTurnWorker } from './turn-worker-start';
 import { BANK, BOOT_SOUNDS, MIX, MUSIC_SOUNDS, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -318,7 +318,7 @@ const loading = Promise.all([
 stepBoot('loading the map');
 const bakeGround = startGroundBaker();
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
-const groundBaked = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
+const baking = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 gameContext.watchSaves(slots);
@@ -333,13 +333,9 @@ stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-const physicsReady = initPhysics();
-let frameShown!: () => void;
-const firstFrame = new Promise<void>((resolve) => (frameShown = resolve));
-startTurnWorker(travel, groundBaked, firstFrame, physicsReady, map.terrain, () => ({ world, drive: driveSnapshotOf(world) })).catch(reportError);
 stepBoot('building the ground');
 const drawn = await boot.track('ground', async () => {
-  await groundBaked;
+  await baking.baked;
   groundTexture(world);
   return runStepped(drawnGroundSteps(world), async (piece) => {
     stepBoot(piece);
@@ -379,10 +375,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-void boot.finish().then(() => {
-  frameShown();
-  return game.warmPlans();
-}, reportError);
+afterBoot(boot.finish(), () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })), () => game.warmPlans(), baking.keep).catch(reportError);
 endMark();
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
