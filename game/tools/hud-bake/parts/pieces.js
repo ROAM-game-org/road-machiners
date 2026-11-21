@@ -3,6 +3,7 @@ import { PPU, plateSpace, makeStage, frame, installBake } from '../core.js';
 import { OLIVE, KEYCAP, mottle, mottleTile, slab, faceMaterial, keycap, litToon, brassLip, crossMark } from './olive.js';
 import { grain, wear, stitch, roundPath } from './dashlib.js';
 import { box, cyl } from '../kit.js';
+import { buildToggle } from './toggle.js';
 
 const K = 3.2;
 const CSS = K / PPU;
@@ -19,13 +20,14 @@ const BOXES = {
   close: [160, 110, 183.5, 133.5],
   lamp: [290, 115, 297, 122],
   tape: [310, 110, 343, 125],
-  rocker: [354, 100, 382, 142],
+  rocker: [360, 105, 376, 137],
   knob: [200, 108, 232, 140],
   knobPointer: [240, 108, 272, 140],
 };
 const KEYCAPS = { keycap: KEYCAP, keycapLit: { skirt: '#7a4a20', shoulder: '#b27a3a', top: '#94602a' }, keycapRed: { skirt: '#6a1a10', shoulder: '#a8321e', top: '#862414' } };
 const KEY_UP = -0.006, KEY_DOWN = -0.022, KEYCAP_H = 3.5 * CSS;
-const TOGGLE = { scale: 1.4, ring: 0.7, lever: 1.3, base: '#9a9a92', hole: '#2a2017' };
+const KIT_TOGGLE_SCALE = 1;
+const TOGGLE_EYE = { x: 0, y: 0, z: 24 };
 const HOUSING = { band: 9, lip: 1.5, depth: 0.06, sink: 0.012, floor: '#342013', leather: '#643015', leatherSide: '#7d4423' };
 const KNOB = { r: 0.13, top: 0.118, depth: 0.07, body: '#4a4a4c', pointer: '#f1ead6', socket: 0.16, socketDepth: 0.012, socketColor: '#232323' };
 const INPUT = { band: 2, depth: 0.02, face: '#342013', floor: '#24160b' };
@@ -178,24 +180,14 @@ function tapeStrip() {
   });
 }
 
+let kitToggle;
 function toggle() {
-  const g = new THREE.Group(), brass = litToon(OLIVE.brass);
-  const base = new THREE.Mesh(new THREE.TorusGeometry(3.6 * CSS, 1 * CSS, 10, 32), litToon(TOGGLE.base));
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(2.6 * CSS, 24), new THREE.MeshBasicMaterial({ color: TOGGLE.hole }));
-  hole.position.z = 0.001;
-  const lever = new THREE.Group();
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(1 * CSS, 1.3 * CSS, 9 * CSS, 16), brass);
-  stem.position.y = 4.5 * CSS;
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(1.5 * CSS, 16, 10), brass);
-  tip.position.y = 9 * CSS;
-  lever.add(stem, tip);
-  for (const m of [base, stem, tip]) m.castShadow = true;
-  base.scale.setScalar(TOGGLE.ring);
-  hole.scale.setScalar(TOGGLE.ring);
-  lever.scale.set(1, TOGGLE.lever, 1);
-  g.add(base, hole, lever);
-  g.scale.setScalar(TOGGLE.scale);
-  groups.lever = lever;
+  const g = new THREE.Group();
+  const [x, y] = local(BOXES.rocker);
+  const at = new THREE.Vector3(0, 0, 0);
+  const eye = { x: TOGGLE_EYE.x - x, y: TOGGLE_EYE.y - y, z: TOGGLE_EYE.z };
+  kitToggle = buildToggle({ len: (v) => v * CSS, at, eye, scale: KIT_TOGGLE_SCALE });
+  g.add(...kitToggle.parts);
   return place('rocker', g);
 }
 
@@ -225,7 +217,7 @@ lampHousing();
 tapeStrip();
 toggle();
 
-const view = frame({ scene, root, facePanel: { g: root, w: CANVAS[0] * CSS, z: 0 }, eye: { x: 0, y: 0, z: 24 }, faceWidthPx: S.width });
+const view = frame({ scene, root, facePanel: { g: root, w: CANVAS[0] * CSS, z: 0 }, eye: TOGGLE_EYE, faceWidthPx: S.width });
 const quadOf = (box, z = 0) => { const [x, y, w, h] = local(box); return view.quad({ g: root, z: 0 }, x, y, w, h, z); };
 const tight = (box, grow = 0) => view.cropAround(quadOf(box), grow);
 const SHADOW = 3;
@@ -246,12 +238,23 @@ const sprites = {
 const zones = Object.fromEntries(Object.entries(BOXES).map(([name, box]) => [name, { quad: quadOf(box), size: [(box[2] - box[0]) * K, (box[3] - box[1]) * K] }]));
 const meta = { width: view.IW, height: view.IH, face: quadOf([0, 0, CANVAS[0], CANVAS[1]]), zones, sprites, kScale: K };
 
-const LEVER = { off: -0.5, on: 0.5 };
+const MIN_MARGIN = 0.5;
+function fitsCrop(file, scale) {
+  const cv = view.cropCanvas(scale, sprites.rocker.crop), { width, height } = cv;
+  const px = cv.getContext('2d').getImageData(0, 0, width, height).data;
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (px[(y * width + x) * 4 + 3] < 8) continue;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  const room = MIN_MARGIN * scale;
+  if (x0 < room || y0 < room || width - 1 - x1 < room || height - 1 - y1 < room) throw new Error(`${file} at ${scale}x touches its crop: alpha box ${x0},${y0} to ${x1},${y1} in ${width}x${height}. Lower KIT_TOGGLE_SCALE.`);
+}
 const keyZ = (name, z) => { groups[name].position.z = z; };
 
 function pose(down) {
   for (const name of KEYS) keyZ(name, down ? KEY_DOWN : KEY_UP);
-  groups.lever.rotation.x = down ? LEVER.on : LEVER.off;
+  kitToggle.set(down);
 }
 
 installBake((scale) => {
@@ -261,11 +264,11 @@ installBake((scale) => {
   view.render(scale);
   files.housing = view.shot();
   for (const name of ['frame', 'screen', 'slate', 'slateLeather', 'input', 'lamp', 'tape', 'knob', 'knobPointer']) shoot(name, name);
-  shoot('rocker', 'rocker-off');
+  shoot('rocker', 'rocker-off'); fitsCrop('rocker-off', scale);
   for (const name of KEYS) shoot(name, `${name}-up`);
   pose(true);
   view.render(scale);
-  shoot('rocker', 'rocker-on');
+  shoot('rocker', 'rocker-on'); fitsCrop('rocker-on', scale);
   for (const name of KEYS) shoot(name, `${name}-down`);
   pose(false);
   return { files, meta };
