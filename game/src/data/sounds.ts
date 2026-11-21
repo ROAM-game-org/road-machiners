@@ -42,8 +42,8 @@ const DEFS = {
   "ui-error": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Dull thud of a jammed metal lever that will not move."], seconds: 0.5 },
 
   "key-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
-  "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["A heavy brass toggle lever on a truck dashboard flicked up into place: one firm bright metallic snap."], seconds: 0.5 },
-  "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["A heavy brass toggle lever on a truck dashboard flicked down: one firm lower metallic snap with a dull knock."], seconds: 0.5 },
+  "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped up hard over its spring: one loud crisp metallic clack."], seconds: 0.5 },
+  "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud crisp metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
   "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
   "latch-out": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A locked push button on an old truck dashboard released: a soft click as its spring pops it back up."], seconds: 0.5 },
   "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.3, loop: false, prompts: ["A single soft dry relay tick from behind an old instrument panel, very light and short."], seconds: 0.5 },
