@@ -7,9 +7,9 @@ import { listSaves } from './save-slots';
 import { noteError } from './crash';
 import { TurnFailure } from './travel';
 import { uiSize } from '../ui/ui-size';
-import type { FramePaceSummary } from './frame-pace';
+import type { FramePaceSummary, PaceSlice } from './frame-pace';
 
-export type GraphicsFacts = { renderer: string; drawn: { width: number; height: number }; renderScale: number; frames: FramePaceSummary };
+export type GraphicsFacts = { renderer: string; drawn: { width: number; height: number }; renderScale: number; frames: FramePaceSummary; timeline: PaceSlice[] };
 
 export type ReportContext = {
   build: string;
