@@ -98,7 +98,7 @@ import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import type { MusicTracks } from "../audio/music-shelf";
-import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf, PanelSounds } from "./sound";
+import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf, PanelSounds, TurnCues } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
@@ -178,6 +178,7 @@ export class Game {
   private readonly controls: TruckControls;
   readonly sound: SoundDirector;
   private panels = new PanelSounds();
+  private turnCues = new TurnCues();
   readonly loops: SoundLoops;
   private readonly hostileSighting = new HostileSighting();
   private sightingToSound = false;
@@ -1031,8 +1032,7 @@ export class Game {
       const p = untimedDestroyed(this.world, e) && this.eventPoint(e.vehicle);
       if (p) this.sound.at("explosion", p, 0);
     }
-    const sting = stingOf(this.world.events, playerVehicle(this.world).id);
-    if (sting) this.sound.ui(sting);
+    for (const cue of this.turnCues.after(this.world)) this.sound.ui(cue);
   }
 
   private playDriveSound(result: Pick<TurnResult, "frames">): void {

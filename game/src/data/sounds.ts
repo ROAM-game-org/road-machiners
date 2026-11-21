@@ -44,6 +44,8 @@ const DEFS = {
   "engine-douse": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.6, loop: false, prompts: ["Water thrown over a hot truck engine under the hood: one quick whoosh of hissing steam that fades out."], seconds: 1.5 },
   "key-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
   "turn-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.15, loop: false, prompts: ["One soft round rubber-capped push key on an old truck radio pressed gently: a quiet dull short tick."], seconds: 0.5 },
+  "utility-armed": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["An old electrical device powering up: one short rising electric whine with a faint buzz, armed and ready to fire."], seconds: 1 },
+  "utility-ready": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["Two low soft beeps from an old analog instrument panel: beep beep, short and calm."], seconds: 0.8 },
   "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud crisp metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
   "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud heavy metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
   "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
@@ -53,7 +55,7 @@ const DEFS = {
   "wheel-step": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.25, loop: false, prompts: ["One ratchet tick of a ribbed thumb wheel on old dashboard equipment, very short and dry."], seconds: 0.5, minGapMs: 45 },
 
   "money": { bus: "ui", setup: "cab", volume: 0.8, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["A few smooth heavy metal discs clink together and drop into a tin box."], seconds: 1 },
-  "level-up": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Heavy steel lever slams and locks into place with a deep satisfying clunk, then a short bright ring of struck metal."], seconds: 2 },
+  "level-up": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["A short electric guitar stinger: a few clean picked intro notes, then two rapid heavy distorted power chords, then the sound fades out."], seconds: 3 },
   "discover": { bus: "ui", setup: "cab", volume: 0.9, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Short low mysterious metallic swell with distant wind, a place revealed."], seconds: 2 },
   "heatwave-warning": { bus: "ui", setup: "cab", volume: 0.84, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Soft low slow swell with a faint rising bowed-metal tone and a little dry wind, a heatwave arriving, gentle and not an alarm."], seconds: 2.5 },
   "air-brake": { bus: "sfx", setup: "field", volume: 0.5, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["Heavy truck air brakes hiss as it stops on gravel."], seconds: 1.5 },
@@ -108,14 +110,13 @@ const DEFS = {
 
 export type CueId = keyof typeof DEFS;
 
-export const CONTROL_CUES = ["key-press", "turn-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step"] as const satisfies readonly CueId[];
+export const CONTROL_CUES = ["key-press", "turn-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step", "utility-armed", "utility-ready"] as const satisfies readonly CueId[];
 export type ControlCue = (typeof CONTROL_CUES)[number];
 
 export type ControlType = "key" | "turn" | "screen" | "switch" | "latch" | "knob" | "wheel" | "utility";
-export type ControlState = { cue: ControlCue; standIn: boolean };
+export type ControlState = { cue: ControlCue };
 
-const own = (cue: ControlCue): ControlState => ({ cue, standIn: false });
-const standIn = (cue: ControlCue): ControlState => ({ cue, standIn: true });
+const own = (cue: ControlCue): ControlState => ({ cue });
 
 export const CONTROL_STATES = {
   key: { press: own("key-press") },
@@ -125,7 +126,7 @@ export const CONTROL_STATES = {
   latch: { in: own("latch-in"), out: own("latch-out") },
   knob: { step: own("knob-step") },
   wheel: { step: own("wheel-step") },
-  utility: { on: own("switch-on"), off: own("switch-off"), armed: standIn("switch-on"), ready: standIn("switch-on") },
+  utility: { on: own("switch-on"), off: own("switch-off"), armed: own("utility-armed"), ready: own("utility-ready") },
 } as const satisfies Record<ControlType, Record<string, ControlState>>;
 export const HAND_MS = 250;
 

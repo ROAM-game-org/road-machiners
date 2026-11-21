@@ -6,7 +6,7 @@ import type { SoundPlayer } from "../audio/player";
 import type { MusicTracks } from "../audio/music-shelf";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides, panelCue, PanelSounds } from "./sound";
+import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides, panelCue, PanelSounds, utilityCue } from "./sound";
 import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
@@ -847,5 +847,25 @@ describe("panelCue", () => {
     expect(panels.change(true, true)).toBe("radio");
     expect(panels.change(true, true)).toBeNull();
     expect(panels.change(false, false)).toBe("radio-end");
+  });
+});
+
+describe("utilityCue", () => {
+  const idle = { armed: false, recharging: false };
+  const recharging = { armed: false, recharging: true };
+  const armed = { armed: true, recharging: false };
+
+  it("sounds armed when a utility arms", () => {
+    expect(utilityCue(idle, armed)).toBe("utility-armed");
+  });
+
+  it("sounds ready when a recharge ends", () => {
+    expect(utilityCue(recharging, idle)).toBe("utility-ready");
+  });
+
+  it("stays quiet when nothing changed or the part is new", () => {
+    expect(utilityCue(idle, idle)).toBeNull();
+    expect(utilityCue(armed, armed)).toBeNull();
+    expect(utilityCue(undefined, armed)).toBeNull();
   });
 });

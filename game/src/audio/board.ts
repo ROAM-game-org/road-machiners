@@ -84,7 +84,7 @@ for (const bus of BUSES) {
 
 function stateRow(state: string, entry: ControlState): HTMLElement {
   const takes = sounds[entry.cue].files.map((f) => el("button", { onclick: () => play(entry.cue, f) }, f.replace(".ogg", "")));
-  return el("div", { class: "row" }, el("span", { class: "state" }, state), ...takes, entry.standIn ? el("span", { class: "missing" }, `stand-in from ${entry.cue}, needs its own take`) : null);
+  return el("div", { class: "row" }, el("span", { class: "state" }, state), ...takes);
 }
 
 const controls = el("div", {}, el("h2", {}, "Controls by type and state"));
