@@ -354,7 +354,6 @@ export function getHudReadout(w: World) {
   const capacity = fuelCap(me);
   const p = w.player;
   const maxHealth = maxHealthOf(w);
-  const heat = heatAt(w, me.pos);
   const steps = maxSpeedSteps(w, me);
   const notes = speedNotes(w, me, steps);
   const fuelTip = notes.length > 0 ? t("speed.line", { label: notes[0].label, effect: notes[0].value }) : t("readout.fuel");
@@ -366,7 +365,7 @@ export function getHudReadout(w: World) {
     ...runResources(w),
   ];
   const survival: Readout[] = [
-    { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" },
+    airHeatReadout(w),
     { id: "engine", label: t("readout.engine"), value: t("readout.celsius", { n: engineCelsius(p.engineHeat) }), warning: p.engineHeat >= ENGINE_HEAT.warnAt, progress: p.engineHeat, icon: "engineHeat" },
   ];
   return {
@@ -380,6 +379,11 @@ export function getHudReadout(w: World) {
     resources,
     survival,
   };
+}
+
+export function airHeatReadout(w: World): Readout {
+  const heat = heatAt(w, playerVehicle(w).pos);
+  return { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" };
 }
 
 function coreBurning(w: World, me: Vehicle): boolean {
