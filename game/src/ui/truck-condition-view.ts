@@ -366,12 +366,25 @@ export class TruckConditionView {
     const spot = tipPlacement(
       { x: bounds.x * this.scale, y: bounds.y * this.scale, width: bounds.width * this.scale, height: bounds.height * this.scale },
       { width: body.width * inStage, height: body.height * inStage },
-      { width: this.stage.offsetWidth, height: this.stage.offsetHeight },
+      this.visibleArea(inStage),
       TIP_GAP,
     );
     this.tip.dataset.side = spot.side;
     this.tip.style.left = `${spot.left}px`;
     this.tip.style.top = `${spot.top}px`;
+  }
+
+  private visibleArea(inStage: number): { x: number; y: number; width: number; height: number } {
+    const stage = this.stage.getBoundingClientRect();
+    let clip: Element | null = this.stage.parentElement;
+    while (clip && getComputedStyle(clip).overflow === "visible") clip = clip.parentElement;
+    const view = clip ? clip.getBoundingClientRect() : stage;
+    return {
+      x: (view.left - stage.left) * inStage,
+      y: (view.top - stage.top) * inStage,
+      width: view.width * inStage,
+      height: view.height * inStage,
+    };
   }
 
   private showOutline(): void {
