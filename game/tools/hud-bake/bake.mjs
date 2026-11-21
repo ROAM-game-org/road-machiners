@@ -38,7 +38,8 @@ function checkMeta(part, meta) {
 
 async function bakePart(page, url, part, view) {
   const errors = [];
-  const onConsole = (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('GL Driver Message')) errors.push(m.text()); };
+  const driverNote = (t) => t.includes('GL Driver Message') && t.includes('Performance');
+  const onConsole = (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !driverNote(m.text())) errors.push(m.text()); };
   const onError = (e) => errors.push(String(e));
   page.on('console', onConsole); page.on('pageerror', onError);
   await page.goto(`${url}/game/tools/hud-bake/part.html?p=${part}&view=${view}`);
