@@ -42,7 +42,7 @@ describe('bounded cell warm', () => {
     const widest = ids.map((id) => CHASSIS[id as keyof typeof CHASSIS].radius);
     expect(warmRadii(w)).toEqual([CHASSIS[player.chassisId].radius]);
     const otherId = ids.find((id) => CHASSIS[id as keyof typeof CHASSIS].radius !== CHASSIS[player.chassisId].radius)!;
-    const far = addVehicle(w, 'trader', otherId, [], { x: 100 + REGION.navigation.farWindow + 50, y: 100 });
+    const far = addVehicle(w, 'scrapjaw', otherId, [], { x: 100 + REGION.navigation.farWindow + 50, y: 100 });
     expect(warmRadii(w)).toEqual([CHASSIS[player.chassisId].radius]);
     far.pos = { x: 140, y: 100 };
     expect(warmRadii(w)).toHaveLength(2);

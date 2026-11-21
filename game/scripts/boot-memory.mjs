@@ -9,6 +9,7 @@ const width = Number(process.argv[4] ?? 390);
 const height = Number(process.argv[5] ?? 669);
 const WEBKIT_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? 2000);
 const TURNS = 3;
+const IDLE_S = Number(process.env.BOOT_MEMORY_IDLE_S ?? 60);
 const SAMPLE_MS = 200;
 const BOOT_TIMEOUT_MS = 400000;
 const TURN_TIMEOUT_MS = 120000;
@@ -42,14 +43,17 @@ async function launch(engine) {
   return launchChromium(chromium, {});
 }
 
+const TURN_KEY = '#ui .hud-radio .play-key';
+
 async function playTurns(page) {
+  const key = page.locator(TURN_KEY);
+  await key.waitFor({ state: 'attached', timeout: TURN_TIMEOUT_MS });
+  const ready = await key.getAttribute('aria-label');
   for (let turn = 0; turn < TURNS; turn++) {
-    const end = page.locator('#ui .turn-control .end-turn:not(.auto)');
-    await end.waitFor({ state: 'attached', timeout: TURN_TIMEOUT_MS });
-    await page.waitForFunction(() => !document.querySelector('#ui .turn-control .end-turn:not(.auto)')?.disabled, null, { timeout: TURN_TIMEOUT_MS });
-    await end.dispatchEvent('click');
-    await page.waitForFunction(() => document.querySelector('#ui .turn-control .end-turn:not(.auto)')?.disabled === true, null, { timeout: TURN_TIMEOUT_MS }).catch(() => {});
-    await page.waitForFunction(() => !document.querySelector('#ui .turn-control .end-turn:not(.auto)')?.disabled, null, { timeout: TURN_TIMEOUT_MS });
+    await page.waitForFunction((args) => document.querySelector(args.selector)?.getAttribute('aria-label') === args.label, { selector: TURN_KEY, label: ready }, { timeout: TURN_TIMEOUT_MS });
+    await page.keyboard.press('Space');
+    await page.waitForFunction((args) => document.querySelector(args.selector)?.getAttribute('aria-label') !== args.label, { selector: TURN_KEY, label: ready }, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction((args) => document.querySelector(args.selector)?.getAttribute('aria-label') === args.label, { selector: TURN_KEY, label: ready }, { timeout: TURN_TIMEOUT_MS });
   }
 }
 
@@ -78,7 +82,8 @@ async function oneRun(engine) {
   }, SAMPLE_MS);
   const stageTimer = setInterval(async () => {
     try {
-      stage = await page.evaluate(() => document.querySelector('#boot .boot-stage')?.textContent?.replace(/\d+ of \d+/, '').trim().slice(0, 24) || 'playing');
+      const shown = await page.evaluate(() => document.querySelector('#boot .boot-stage')?.textContent?.replace(/\d+ of \d+/, '').trim().slice(0, 24) || 'playing');
+      if (stage !== 'idle') stage = shown;
       const mark = await page.evaluate(() => {
         for (const key of Object.keys(window.sessionStorage)) if (key.endsWith('.boot-mark')) return window.sessionStorage.getItem(key);
         return null;
@@ -93,6 +98,8 @@ async function oneRun(engine) {
     await page.waitForFunction(() => document.getElementById('boot') === null, null, { timeout: BOOT_TIMEOUT_MS });
     stage = 'playing';
     await playTurns(page);
+    stage = 'idle';
+    await new Promise((resolve) => setTimeout(resolve, IDLE_S * 1000));
   } catch (error) {
     errors.push(error.message.slice(0, 200));
   }
@@ -141,9 +148,9 @@ for (const engine of ['webkit', 'chromium']) {
     if (left.length > 0) problems.push(`${engine} left ${left.length} processes running after run ${run + 1}`);
   }
   const peak = median(results.map((r) => r.peakMb));
-  const bootPeak = median(results.map((r) => Math.max(0, ...Object.entries(r.peaks).filter(([step]) => step !== 'playing').map(([, mb]) => mb))));
+  const bootPeak = median(results.map((r) => Math.max(0, ...Object.entries(r.peaks).filter(([step]) => step !== 'playing' && step !== 'idle').map(([, mb]) => mb))));
   console.log(`${engine} median peak before the first turn (boot steps only): ${bootPeak} MB`);
-  console.log(`${engine} median peak from New game to ${TURNS} turns: ${peak} MB (menu ${median(results.map((r) => r.menuMb))} MB)`);
+  console.log(`${engine} median peak from New game to ${TURNS} turns and ${IDLE_S} s idle: ${peak} MB (menu ${median(results.map((r) => r.menuMb))} MB)`);
   for (const result of results) {
     if (result.errors.length > 0) problems.push(`${engine}: ${result.errors.join(' | ')}`);
     if (result.loads !== 1) problems.push(`${engine}: the page loaded ${result.loads} times, so New game reloaded it`);
