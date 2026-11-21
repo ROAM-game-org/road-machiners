@@ -287,7 +287,6 @@ export class Game {
       openJournal: () => this.runKey("KeyJ"),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
-      toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),
       toggleHeadlights: () => this.runKey("KeyL"),
       headlightsOn: () => this.world.player.headlights,

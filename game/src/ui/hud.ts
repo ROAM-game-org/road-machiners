@@ -169,7 +169,6 @@ type HudActions = {
   openJournal: () => void;
   openMap: () => void;
   toggleManual: () => void;
-  toggleAutoRepair: () => void;
   toggleOverdrive: () => void;
   toggleHeadlights: () => void;
   headlightsOn: () => boolean;
