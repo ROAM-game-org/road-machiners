@@ -104,16 +104,16 @@ export function groundMaterialIndex(type: LookType): number {
   return GROUND_MATERIAL_IDS.indexOf(type);
 }
 
-const lookCache = new WeakMap<Terrain, readonly LookType[]>();
+const lookCache = new WeakMap<Terrain, Uint8Array>();
 const yardCache = new WeakMap<Terrain, YardLook>();
 
 type YardLook = { fade: Float32Array; natural: readonly LookType[] };
 
 export function lookTypes(t: Terrain): readonly LookType[] {
   const cached = lookCache.get(t);
-  if (cached) return cached;
+  if (cached) return Array.from(cached, (at) => LOOK_NAMES[at]);
   const result = floodLook(t, () => false);
-  lookCache.set(t, result);
+  lookCache.set(t, packedLook(result));
   return result;
 }
 
@@ -536,7 +536,7 @@ export function groundBakeFits(t: Terrain, side: number, bake: GroundBake): bool
 }
 
 export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
-  lookCache.set(t, Array.from(bake.look, (at) => LOOK_NAMES[at]));
+  lookCache.set(t, bake.look);
   glassBakes.set(t, bake.glass);
   pixelBakes.set(t, bake.pixels);
 }
