@@ -11,6 +11,7 @@ import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
 import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
 import { perfSnapshot, resetPerf } from "../perf";
+import type { PackedTerrain, Terrain } from "../sim/terrain";
 import type { World } from "../sim/types";
 import { noteError, reportError } from "./crash";
 import { MOVE_MS, TurnPreparation } from "./travel";
@@ -39,6 +40,14 @@ class TestWorker {
     if (!this.onmessage) throw new Error("Missing worker response handler");
     this.onmessage({ data: response } as MessageEvent<TurnResponse>);
   }
+}
+
+function expectPackedFrom(packed: PackedTerrain | null, terrain: Terrain): void {
+  expect(packed?.size).toBe(terrain.size);
+  expect(packed?.heights).toBeInstanceOf(Float64Array);
+  expect(packed?.heights.length).toBe(terrain.heights.length);
+  expect(packed?.types).toBeInstanceOf(Uint8Array);
+  expect(packed?.types.length).toBe(terrain.types.length);
 }
 
 let world: World;
@@ -113,7 +122,7 @@ it("discards a stale result after replanning and sends stable terrain only once"
   const worker = TestWorker.latest;
   worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(worker.requests).toHaveLength(2);
-  expect(worker.requests[0].terrain).toBe(world.terrain);
+  expectPackedFrom(worker.requests[0].terrain, world.terrain);
   expect(worker.requests[1].terrain).toBeNull();
   expect(turns.take(changed)).toBeNull();
   worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
@@ -276,7 +285,7 @@ it("restarts a worker whose script did not load and sends the pending turn again
   const second = TestWorker.latest;
   expect(second).not.toBe(first);
   expect(second.requests).toHaveLength(1);
-  expect(second.requests[0].terrain).toBe(world.terrain);
+  expectPackedFrom(second.requests[0].terrain, world.terrain);
   expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
   second.respond({ id: second.requests[0].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
   expect(turns.take(world)).toEqual(reply);

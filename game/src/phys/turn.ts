@@ -1,5 +1,6 @@
 
 import { PHYSICS } from '../data/physics';
+import { unpackTerrain, type PackedTerrain } from '../sim/terrain';
 import { hasTimedFire } from '../sim/timed-combat';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
@@ -71,7 +72,7 @@ function exploreSight(w: World, sight: LiveSight): void {
   for (const tiles of sight.tiles) for (const idx of tiles) if (w.player.explored[idx] === 0) ownExplored(w.player)[idx] = 1;
 }
 export type PreviewTask = LanguageTask & { meId: string };
-type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync; terrain: World['terrain'] | null };
+type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync; terrain: PackedTerrain | null };
 export type TurnRequest = Posted<TurnTask> & { kind: 'turn'; id: number };
 export type PreviewRequest = Posted<PreviewTask> & { kind: 'preview'; id: number };
 
@@ -131,7 +132,7 @@ export class SentObstacles {
     this.last = null;
   }
 }
-export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
+export type TerrainRequest = { kind: 'terrain'; terrain: PackedTerrain };
 export type WarmRequest = { kind: 'warm'; world: Omit<TurnState, 'obstacles'>; obstacles: ObstacleSync };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest | WarmRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -249,8 +250,9 @@ export function startTurnWorker(): void {
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
     if (request.kind === 'terrain') {
-      terrain = request.terrain;
-      timed('route-terrain', () => prepareRouteTerrain(request.terrain));
+      const unpacked = unpackTerrain(request.terrain);
+      terrain = unpacked;
+      timed('route-terrain', () => prepareRouteTerrain(unpacked));
       return;
     }
     if (request.kind === 'warm') {
@@ -263,7 +265,7 @@ export function startTurnWorker(): void {
       obstacles = applyObstacles(obstacles, request.obstacles);
       await ready;
       const idle = takePerf();
-      terrain = request.terrain ?? terrain;
+      terrain = request.terrain ? unpackTerrain(request.terrain) : terrain;
       const task = taskOf(request, obstacles, terrain);
       answer(task, task.terrain, idle);
       buildWhileIdle(task.terrain, task.world);

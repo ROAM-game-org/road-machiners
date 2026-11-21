@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { chaosHighwayStart } from '../sim/testkit';
 import { driveSnapshotOf, startTurnWorker, type WorkerRequest } from './turn';
 import { initPhysics } from './drive';
+import { packTerrain } from '../sim/terrain';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -20,7 +21,7 @@ it('keeps the highway worker alive through preview, idle preparation and the fir
   const world = chaosHighwayStart(1);
   const drive = driveSnapshotOf(world);
   const { terrain, obstacles, ...state } = world;
-  const task = { world: state, drive, terrain, obstacles: { kind: 'full' as const, list: obstacles }, questLanguage: 'en' as const };
+  const task = { world: state, drive, terrain: packTerrain(terrain), obstacles: { kind: 'full' as const, list: obstacles }, questLanguage: 'en' as const };
 
   await worker.onmessage!({ data: { ...task, kind: 'preview', id: 1, meId: world.player.vehicleId } });
   expect(postMessage.mock.calls[0][0].error).toBeUndefined();
