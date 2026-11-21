@@ -1279,7 +1279,7 @@
 
 #ui .condition-tip-body.tooltip {
   white-space: nowrap;
-  padding: var(--space-1) var(--space-3);
+  padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-5) + var(--hud-panel-gap));
 }
 
 #ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row {

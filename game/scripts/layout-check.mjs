@@ -42,8 +42,14 @@ function fillLog(page) {
   });
 }
 
-async function openInventory(page) {
+async function pressInventory(page) {
   await key(page, 'KeyI');
+  await page.evaluate(() => window.__ROAM__.hud.tips.setOn(false));
+  await page.waitForTimeout(3700);
+}
+
+async function openInventory(page) {
+  await pressInventory(page);
   await page.evaluate(() => document.querySelector('.inv-item:not(.fixed)').click());
 }
 
@@ -1098,7 +1104,7 @@ async function inventoryBenchFaults(page) {
 const ONE_WINDOW = [VIEWPORTS[0]];
 
 async function openInventoryGun(page) {
-  await key(page, 'KeyI');
+  await pressInventory(page);
   await page.evaluate(() => document.querySelector('.inv-item.mounted.drawn').click());
 }
 
@@ -1292,7 +1298,7 @@ const STATES = {
   'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'hud-armed': { setup: armTruck, teardown: (page) => page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)), check: async (page) => faultsOf('bottom-left')(await bottomLeftFaults(page)), viewports: [...VIEWPORTS, TALL, COMPACT, REPORT] },
-  'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
+  'inventory-empty': { setup: pressInventory, teardown: escape, viewports: ONE_WINDOW },
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },

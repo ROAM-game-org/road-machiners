@@ -43,6 +43,7 @@ import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
 import { budgetGroup, truckGroups } from "./truck-panel";
+import { autoPatchKey } from "./auto-patch-key";
 import { itemActions, itemFacts, jobBlock, rotateButton, type CardHost } from "./item-card";
 import {
   blockerIds,
@@ -94,7 +95,7 @@ import type { Refusal } from "../sim/types";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
-import { Refused } from "../sim/world";
+import { Refused, setAutoRepair } from "../sim/world";
 import { commandFailure, downedStateText, parcelTitle } from "./format";
 
 type Drag = {
@@ -307,13 +308,13 @@ export class InventoryView {
       el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w)), this.targetEl(w)),
       middle,
       el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error, this.costs)),
-      this.footEl(),
+      this.footEl(w),
     );
   }
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error, this.costs), this.targetEl(w)), this.footEl());
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error, this.costs), this.targetEl(w)), this.footEl(w));
   }
 
   private targetEl(w: World): HTMLElement | null {
@@ -326,8 +327,18 @@ export class InventoryView {
     this.costs.replaceChildren(...costs);
   }
 
-  private footEl(): HTMLElement {
-    return el("div", { class: "inv-foot" }, this.lootKeys, this.keys);
+  private footEl(w: World): HTMLElement {
+    return el("div", { class: "inv-foot" }, this.loot || this.truck ? this.lootKeys : this.settingKeys(w), this.keys);
+  }
+
+  private settingKeys(w: World): HTMLElement {
+    const own = this.mine(w).id === w.player.vehicleId;
+    return el("div", { class: "inv-keys settings" }, own ? autoPatchKey({ on: w.player.autoRepair, reason: this.look(), flip: () => this.flipAutoPatch() }) : null);
+  }
+
+  private flipAutoPatch(): void {
+    const w = this.host.world();
+    this.host.apply(setAutoRepair(w, !w.player.autoRepair));
   }
 
   private sourceList(w: World): HTMLElement[] | null {

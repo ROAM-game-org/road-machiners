@@ -33,7 +33,7 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-:is(#ui, #report) button:where(:not(.screen-btn, .screen-line, .switch, .radio-next, .inv-item, .part-sum, .mode-card, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
+:is(#ui, #report) button:where(:not(.screen-btn, .screen-line, .radio-next, .inv-item, .part-sum, .mode-card, .dialogue-option, .plate-key, .gun-card, .utility-slot-key, .knob-mark, .gun-page, .knob-key, .key-cap, .rocker, .hud-close, .hud-key, .menu-key)) {
   --key-edge: var(--btn-key-edge-m);
   --off-opacity: var(--key-off-opacity);
   --hover-bg: none;
@@ -251,7 +251,7 @@
   opacity: var(--off-opacity);
   cursor: default;
 }
-:is(#ui, #report) button[aria-disabled="true"]:not(.switch):hover {
+:is(#ui, #report) button[aria-disabled="true"]:hover {
   background: var(--hover-bg, var(--surface-raised));
   border-color: var(--hover-border, var(--line-strong));
 }
