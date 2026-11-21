@@ -31,40 +31,40 @@ export function mountPerfPanel(host: HTMLElement, routeMs: () => number | null):
   };
 }
 
-function row(text: string): HTMLElement {
-  const cut = text.search(/\s{2,}|\s(?=-$)/);
-  const name = cut < 0 ? text : text.slice(0, cut);
-  const value = cut < 0 ? "" : text.slice(cut).trim();
+function row([name, value]: Row): HTMLElement {
   const head = name === "fps" || name === "p95 ms";
   const cell = (cls: string, text: string) => Object.assign(el("span", { class: cls }), { textContent: text });
   return el("div", { class: head ? "perf-row perf-head" : "perf-row" }, cell("perf-name", name), cell("perf-value", value));
 }
 
-const ms = (x: number) => x.toFixed(1).padStart(6);
+type Row = [name: string, value: string];
 
-function readout(frames: number[], routeMs: number | null): string[] {
-  const lines: string[] = [];
+function readout(frames: number[], routeMs: number | null): Row[] {
+  const rows: Row[] = [];
   if (frames.length > 0) {
     const sorted = [...frames].sort((a, b) => a - b);
     const mean = frames.reduce((a, b) => a + b, 0) / frames.length;
     const p95 = sorted[Math.floor(sorted.length * 0.95)];
-    lines.push(`fps     ${(1000 / mean).toFixed(0).padStart(6)}`);
-    lines.push(`p95 ms  ${ms(p95)}`);
+    rows.push(["fps", (1000 / mean).toFixed(0)], ["p95 ms", p95.toFixed(1)]);
   }
-  return [...lines, ...timerLines(perfSnapshot(), routeMs)];
+  return [...rows, ...timerRows(perfSnapshot(), routeMs)];
 }
 
-const line = (name: string, value: number | undefined) => `${name.padEnd(8)}${value === undefined ? "     -" : ms(value)}`;
+const msValue = (x: number | undefined) => (x === undefined ? "-" : x.toFixed(1));
+
+function timerRows(snap: Record<string, PerfStat>, routeMs: number | null): Row[] {
+  return [
+    ["wait", msValue(snap["turn-wait"]?.last)],
+    ["turn", msValue(snap.turn?.last)],
+    ["preview", msValue(snap.preview?.last)],
+    ["route", msValue(routeMs ?? undefined)],
+    ["fog", msValue(snap.fog?.last)],
+    ["stream-build", msValue(snap["stream-build"]?.last)],
+    ["routes", String(snap.route?.calls ?? 0)],
+    ["waited", String(snap["stream-block"]?.calls ?? 0)],
+  ];
+}
 
 export function timerLines(snap: Record<string, PerfStat>, routeMs: number | null): string[] {
-  return [
-    line("wait", snap["turn-wait"]?.last),
-    line("turn", snap.turn?.last),
-    line("preview", snap.preview?.last),
-    line("route", routeMs ?? undefined),
-    line("fog", snap.fog?.last),
-    line("stream-build", snap["stream-build"]?.last),
-    `routes  ${String(snap.route?.calls ?? 0).padStart(6)}`,
-    `waited  ${String(snap["stream-block"]?.calls ?? 0).padStart(6)}`,
-  ];
+  return timerRows(snap, routeMs).map(([name, value]) => `${name.padEnd(8)}${value.padStart(6)}`);
 }

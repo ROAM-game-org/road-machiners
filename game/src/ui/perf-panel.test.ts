@@ -16,7 +16,7 @@ it("shows a dash for a wait or route time not measured yet", () => {
   expect(lines).toContain("route        -");
 });
 
-it("keeps the readout order with the frame rate first", () => {
+it("keeps the timer readout order", () => {
   const names = timerLines({}, null).map((l) => l.split(/\s+/)[0]);
   expect(names).toEqual(["wait", "turn", "preview", "route", "fog", "stream-build", "routes", "waited"]);
 });
