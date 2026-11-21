@@ -4,6 +4,8 @@ import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
 import { claimLeads, journalEntries, journalTabs, JournalScreen } from './journal';
 import { surveyClue, surveySites } from '../sim/survey';
+import { gridSquareText } from './format';
+import { distanceText } from './units';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
 import type { SalvageStock, World } from '../sim/types';
@@ -13,6 +15,13 @@ import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: vi.fn(async () => new ArrayBuffer(1)) }));
+
+const noWay = vi.hoisted(() => ({ on: false }));
+
+vi.mock('../sim/survey', async (orig) => {
+  const real = await orig<typeof import('../sim/survey')>();
+  return { ...real, surveyWay: (...args: Parameters<typeof real.surveyWay>) => (noWay.on ? null : real.surveyWay(...args)) };
+});
 
 const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id, pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: 5000, window: 600, rush: false, tier: 2 };
@@ -160,6 +169,7 @@ describe('journal tabs', () => {
 
 describe('journal screen', () => {
   afterEach(() => {
+    noWay.on = false;
     ui.children = [];
     vi.unstubAllGlobals();
   });
@@ -343,12 +353,27 @@ describe('journal screen', () => {
 
     expect(places).toHaveLength(3);
     expect(places.map((p) => p.has('open'))).toEqual([false, true, false]);
-    expect(places.map(tagsOf)).toEqual([['tag good surveyed'], ['tag found'], []]);
+    expect(places.map(tagsOf)).toEqual([['tag surveyed'], ['tag found'], []]);
     expect(places.map((p) => picturesOf(p).length)).toEqual([0, 1, 0]);
     expect(places.map((p) => p.all((n) => n.has('way-steps')).length)).toEqual([0, 1, 0]);
   });
 
-  it('gives the open place its square and lay, what the shop wants to learn, the shop once and numbered steps', () => {
+  it('shows a surveyed place as a plain row, not a button', () => {
+    const w = emptyWorld();
+    const [a, b] = surveySites(TEST_MAP).slice(-2);
+    w.player.contracts = [surveyOf([a.id, b.id], [{ found: true, done: true }, { found: false, done: false }])];
+
+    const [done, other] = placesOf(openJournal(w));
+    const head = done.children[0] as FakeNode;
+
+    expect(head.tag).toBe('div');
+    expect(head.has('place-head')).toBe(true);
+    expect(head.has('done')).toBe(true);
+    expect(head.attrs.has('aria-expanded')).toBe(false);
+    expect((other.children[0] as FakeNode).tag).toBe('button');
+  });
+
+  it('gives the open place its lay without the square again, what the shop wants to learn, the shop once and numbered steps', () => {
     const w = emptyWorld();
     const [site] = surveySites(TEST_MAP).slice(-1);
     const survey = surveyOf([site.id]);
@@ -359,8 +384,38 @@ describe('journal screen', () => {
 
     expect(place.text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
     expect(place.text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
+    expect(place.text()).toContain(`Lies ${resolve(t(`contract.lay.${clue.lay}`), 'en')}.`);
+    expect(place.text().split(resolve(gridSquareText(clue.square), 'en'))).toHaveLength(2);
     expect(place.text()).toContain('From Bowl');
     expect(place.text().match(/From Bowl/g)).toHaveLength(1);
+  });
+
+  it('says how the place lies from a landmark when the way is unknown, without the square or the lay', () => {
+    const w = emptyWorld();
+    const sites = surveySites(TEST_MAP);
+    const survey = surveyOf([sites[sites.length - 1].id]);
+    noWay.on = true;
+    w.player.contracts = [survey];
+    const clue = surveyClue(survey, survey.points[0]);
+
+    const place = placesOf(openJournal(w))[0];
+
+    expect(place.all((n) => n.has('way-steps'))).toHaveLength(0);
+    expect(place.text()).toContain(' of ');
+    expect(place.text()).toContain(resolve(distanceText(clue.tiles), 'en'));
+    expect(place.text().split(resolve(gridSquareText(clue.square), 'en'))).toHaveLength(2);
+  });
+
+  it('puts the from caption first in the way group, above the numbered steps', () => {
+    const w = emptyWorld();
+    const [site] = surveySites(TEST_MAP).slice(-1);
+    w.player.contracts = [surveyOf([site.id])];
+
+    const place = placesOf(openJournal(w))[0];
+    const [group] = place.all((n) => n.has('place-way'));
+
+    expect((group.children[0] as FakeNode).has('place-from')).toBe(true);
+    expect(group.text()).toContain('From Bowl');
   });
 
   it('opens another place on click and closes the one that was open', () => {

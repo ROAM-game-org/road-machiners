@@ -91,7 +91,6 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/console.ts', text: '*', reason: DEBUG_CONSOLE },
   { file: 'src/sim/cheats.ts', text: '*', reason: 'Cheats answer the debug console, a dev tool. Their words stay English.' },
   { file: 'src/three/shot.ts', text: '*', reason: 'npm run shot labels the views of a model sheet for developers. It stays English.' },
-  { file: 'src/ui/perf-panel.ts', text: '.textContent =', reason: 'The perf panel is a dev readout of frame timings. It stays English.' },
   { file: 'src/ui/guide/page.ts', text: '*', reason: 'The UI guide is a dev page that shows the design system. It stays English.' },
   { file: 'src/ui/dash/atlas.ts', text: '*', reason: DASH_ATLAS },
   { file: 'src/ui/dash/panels.ts', text: 'E', reason: GAUGE_MARKS },

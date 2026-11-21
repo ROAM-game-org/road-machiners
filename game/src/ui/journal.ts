@@ -8,8 +8,8 @@ import type { World } from '../sim/types';
 import { toldWrecks } from '../sim/rumors';
 import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
-import { surveyClue, surveyWay, type SurveyContract, type SurveyPoint } from '../sim/survey';
-import { gridSquareText, postedSummary, surveyClueText } from './format';
+import { surveyClue, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
+import { gridSquareText, postedSummary } from './format';
 import { directionsSteps } from './directions-text';
 import { createIcon } from './cards';
 import { surveyPictureEl } from './picture-store';
@@ -153,23 +153,23 @@ export class JournalScreen {
   }
 
   private workDetail(w: World, c: Contract, openId: string | null): HTMLElement | null {
-    if (c.kind === 'survey') return el('div', { class: 'journal-detail' }, ...c.points.map((p) => this.surveyPlace(w, c, p, placeId(c, p) === openId)));
+    if (c.kind === 'survey') return el('div', { class: 'journal-detail survey' }, ...c.points.map((p) => this.surveyPlace(w, c, p, placeId(c, p) === openId)));
     if (c.kind === 'claim' && c.leads.length > 0) return el('div', { class: 'journal-detail' }, ...claimLeads(c).map(leadEntry));
     return null;
   }
 
   private surveyPlace(w: World, c: SurveyContract, point: SurveyPoint, open: boolean): HTMLElement {
     const clue = surveyClue(c, point);
-    const head = el('button', { class: 'screen-line journal-head place-head', 'aria-expanded': open ? 'true' : 'false', disabled: point.done, onclick: (e: Event) => { this.open('work', placeId(c, point)); (e.currentTarget as HTMLElement | null)?.blur(); } }, el('span', {}, t(`contract.look.${clue.type}`)), el('span', { class: 'dim' }, gridSquareText(clue.square)), placeTag(point));
-    if (point.done || !open) return el('div', { class: 'journal-place survey' }, head);
-    const way = surveyWay(w, c, point);
+    const cells = [el('span', { class: 'place-kind' }, t(`contract.look.${clue.type}`)), el('span', { class: 'place-square' }, gridSquareText(clue.square)), placeTag(point)];
+    if (point.done) return el('div', { class: 'journal-place survey' }, el('div', { class: 'place-head done' }, ...cells));
+    const head = el('button', { class: 'screen-line journal-head place-head', 'aria-expanded': open ? 'true' : 'false', onclick: (e: Event) => { this.open('work', placeId(c, point)); (e.currentTarget as HTMLElement | null)?.blur(); } }, ...cells);
+    if (!open) return el('div', { class: 'journal-place survey' }, head);
     return el(
       'div',
       { class: 'journal-place survey open' },
       head,
-      el('div', { class: 'place-body' }, surveyPictureEl(point.site), el('div', { class: 'place-text' }, el('div', {}, t('journal.squareLay', { square: gridSquareText(clue.square), lay: t(`contract.lay.${clue.lay}`) })), el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)))),
-      el('div', { class: 'dim' }, t('journal.from', { site: siteName(c.shop) })),
-      way ? el('ol', { class: 'way-steps' }, ...directionsSteps(way).map((step) => el('li', {}, step))) : el('div', {}, surveyClueText(clue)),
+      el('div', { class: 'place-body' }, surveyPictureEl(point.site), el('div', { class: 'place-text' }, el('div', {}, t('journal.placeLay', { lay: t(`contract.lay.${clue.lay}`) })), el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)))),
+      placeWay(w, c, point, clue),
     );
   }
 
@@ -189,9 +189,16 @@ function placeId(c: SurveyContract, point: SurveyPoint): string {
   return `${c.id}:${point.site}`;
 }
 
-function placeTag(point: SurveyPoint): HTMLElement | null {
-  if (point.done) return el('span', { class: 'tag good' }, t('journal.survey.done'));
-  return point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null;
+function placeTag(point: SurveyPoint): HTMLElement {
+  if (point.done) return el('span', { class: 'tag' }, t('journal.survey.done'));
+  return point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : el('span', {});
+}
+
+function placeWay(w: World, c: SurveyContract, point: SurveyPoint, clue: SurveyClue): HTMLElement {
+  const way = surveyWay(w, c, point);
+  const caption = el('div', { class: 'place-from dim' }, t('journal.from', { site: siteName(c.shop) }));
+  if (!way) return el('div', { class: 'place-way' }, caption, el('div', {}, t('journal.placeBearing', { distance: distanceText(clue.tiles), dir: compassText(clue.rad), site: siteName(clue.landmark) })));
+  return el('div', { class: 'place-way' }, caption, el('ol', { class: 'way-steps' }, ...directionsSteps(way).map((step) => el('li', {}, step))));
 }
 
 function leadEntry(lead: ClaimLeadNote): HTMLElement {
