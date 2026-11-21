@@ -6,11 +6,20 @@ export interface TurnWorkerHost {
   warm(world: World, drive: DriveSnapshot): Promise<void>;
 }
 
-export async function startTurnWorker(host: TurnWorkerHost, groundBaked: Promise<void>, firstFrame: Promise<void>, physicsReady: Promise<unknown>, terrain: World['terrain'], opening: () => { world: World; drive: DriveSnapshot }): Promise<void> {
-  await groundBaked;
-  await firstFrame;
+export async function startTurnWorker(host: TurnWorkerHost, bootFinished: Promise<void>, physicsReady: Promise<unknown>, terrain: World['terrain'], opening: () => { world: World; drive: DriveSnapshot }): Promise<void> {
+  await bootFinished;
   host.sendTerrain(terrain);
   await physicsReady;
   const { world, drive } = opening();
   await host.warm(world, drive);
+}
+
+export async function afterBoot(finish: Promise<void>, startTurns: () => Promise<void>, warmPlans: () => void, keep: () => void): Promise<void> {
+  await finish;
+  try {
+    await startTurns();
+    warmPlans();
+  } finally {
+    keep();
+  }
 }
