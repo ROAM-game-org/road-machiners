@@ -57,9 +57,11 @@ const HARDPAN_CODE = LOOK_NAMES.indexOf("hardpan");
 const GLASS_CODE = LOOK_NAMES.indexOf("glass");
 export const LOOK_DESERT = Float32Array.from(LOOK_NAMES, (name) => DESERT_WEIGHT[name]);
 
+const LOOK_CODES: Readonly<Record<string, number>> = Object.fromEntries(LOOK_NAMES.map((name, code) => [name, code]));
+
 export function lookCode(name: LookType, tile: number): number {
-  const code = LOOK_NAMES.indexOf(name);
-  if (code < 0) throw new Error(`Look type ${name} at tile ${tile} has no look code`);
+  const code = LOOK_CODES[name];
+  if (code === undefined) throw new Error(`Look type ${name} at tile ${tile} has no look code`);
   return code;
 }
 
