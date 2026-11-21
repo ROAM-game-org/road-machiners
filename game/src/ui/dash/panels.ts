@@ -286,6 +286,22 @@ export class DrivePanel {
     this.root = el("div", { class: "hud-drive" }, this.plate.root);
   }
 
+  manualSwitch(): HTMLElement {
+    return this.manual.root;
+  }
+
+  lightsSwitch(): HTMLElement {
+    return this.lights.root;
+  }
+
+  overdriveSwitch(): HTMLElement {
+    return this.overdrive.root;
+  }
+
+  coolKey(): HTMLElement {
+    return this.cool;
+  }
+
   private speedTip(): HTMLElement {
     const view = this.speedView!;
     const line = (cls: string, ...parts: Msg[]) => el("div", { class: cls }, ...parts.map((part) => textNode(part)));
@@ -580,6 +596,14 @@ export class RadioDeck {
     this.turn.addEventListener("pointercancel", () => this.release());
     this.root = el("div", { class: "hud-radio" }, deviceCast(), this.plate.root);
     new ResizeObserver(([entry]) => shareRadioScale(entry.contentRect.width)).observe(this.plate.root);
+  }
+
+  playKey(): HTMLElement {
+    return this.turn;
+  }
+
+  speedKnob(): HTMLElement {
+    return this.knob;
   }
 
   bindLog(scroller: HTMLElement): void {

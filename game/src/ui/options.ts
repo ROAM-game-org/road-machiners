@@ -1,6 +1,7 @@
 
 import { bindAttr, language } from "../text/language";
 import { t } from "../text/msg";
+import { keyPress } from "./control-sound";
 import { el, panel } from "./dom";
 import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
@@ -14,6 +15,7 @@ export class OptionsPanel {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
     e.stopPropagation();
+    keyPress(this.closeKey);
     this.dismiss();
   };
   private languageSwitch: LanguageSwitch | null = null;
@@ -22,11 +24,17 @@ export class OptionsPanel {
   private cameraSwitch: OptionSwitch<CameraMode> | null = null;
   private renderScaleSwitch: OptionSwitch<RenderScale> | null = null;
   private soundView: SoundView | null = null;
+  private closeKey: HTMLElement | null = null;
 
   constructor(private readonly sound: SoundSettings, private readonly onClose?: () => void) {}
 
   isOpen(): boolean {
     return this.root !== null;
+  }
+
+  cameraKey(): HTMLElement | null {
+    const other: CameraMode = cameraSetting().mode() === "auto" ? "centered" : "auto";
+    return this.cameraSwitch?.buttonFor(other) ?? null;
   }
 
   open(): void {
@@ -47,7 +55,8 @@ export class OptionsPanel {
     this.renderScaleSwitch = this.renderScale(renderScaleSection);
     this.soundView = soundSection(this.sound);
     const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, renderScaleSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
+    this.closeKey = el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close"));
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, renderScaleSection, soundBlock, this.closeKey);
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();

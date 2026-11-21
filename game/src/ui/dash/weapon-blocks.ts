@@ -243,6 +243,22 @@ export class WeaponsPanel {
     showControl(this.auto, { title: view.auto.title, reason: view.auto.reason, key: "Q" });
   }
 
+  allKey(): HTMLElement {
+    return this.all.button;
+  }
+
+  autoKey(): HTMLElement {
+    return this.auto;
+  }
+
+  gunControl(i: number): HTMLElement | null {
+    return this.cards[i]?.root ?? null;
+  }
+
+  utilityControl(i: number): HTMLElement | null {
+    return this.slots[i]?.root ?? null;
+  }
+
   private flip(): void {
     const pages = Math.ceil(this.cards.length / GUNS_PER_PAGE);
     this.page = (this.page + 1) % Math.max(1, pages);
