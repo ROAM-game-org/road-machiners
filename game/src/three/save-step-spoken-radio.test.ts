@@ -8,7 +8,7 @@ import { TEST_MAP } from '../test/map';
 import type { World } from '../sim/types';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS } from './save-migrations';
+import { FIRST_TINY, FOLDED_AND_TINY_STEPS, RELEASE_STEPS } from './save-migrations';
 
 function callOnHelpTrade(): World {
   const road = REGION.roads[0];
@@ -25,9 +25,10 @@ function callOnHelpTrade(): World {
 }
 
 function reloadBefore(w: World, stepName: string): World {
-  const minor = TINY_FROM + TINY_STEPS.findIndex((s) => s.name === stepName);
+  const stepAt = FIRST_TINY + FOLDED_AND_TINY_STEPS.findIndex((s) => s.name === stepName);
+  const minor = Math.max(...RELEASE_STEPS.map((release) => release.from).filter((from) => from <= stepAt));
   const envelope = JSON.parse(JSON.stringify(saveOf(w)));
-  const older = { ...envelope, format: { ...envelope.format, minor }, steps: { ...envelope.steps, names: envelope.steps.names.slice(0, minor - TINY_FROM) } };
+  const older = { ...envelope, format: { ...envelope.format, minor }, steps: { from: minor, names: [] } };
   const slots = new SaveSlots(memoryBackend(), new Map());
   slots.put('auto', { ...older, savedAt: 1000, runId: 'run-1' });
   return loadWorld(slots, 'auto', TEST_MAP)!;

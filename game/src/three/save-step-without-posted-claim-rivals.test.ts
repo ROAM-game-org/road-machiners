@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_138 from './save-fixtures/format-2-138.json';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
 
-const step = TINY_STEPS.find((s) => s.name === 'withoutPostedClaimRivals')!;
+const step = FOLDED_AND_TINY_STEPS.find((s) => s.name === 'withoutPostedClaimRivals')!;
 
 const claim = (id: string, rival: string | null) => ({ id, kind: 'claim', shop: 'bowl', rival, rivalAt: 50 });
 

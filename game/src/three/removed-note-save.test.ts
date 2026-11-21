@@ -9,7 +9,7 @@ import { flatChoices } from '../test/quest-testkit';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS } from './save-migrations';
+import { FIRST_TINY, FOLDED_AND_TINY_STEPS } from './save-migrations';
 
 const REMOVED_NOTES = [
   'roadhouseRaiders', 'roadhouseBook', 'roadhouseBuyOff', 'talkGranaryGate', 'talkSeepPipe', 'talkCraneBook', 'talkPierceGuns', 'talkGlassLean',
@@ -26,7 +26,7 @@ function atSalvageYard(): World {
 
 function reload(w: World, minor?: number): World {
   const envelope = JSON.parse(JSON.stringify(saveOf(w)));
-  const stepped = minor === undefined ? envelope : { ...envelope, format: { ...envelope.format, minor }, steps: { ...envelope.steps, names: envelope.steps.names.slice(0, minor - TINY_FROM) } };
+  const stepped = minor === undefined ? envelope : { ...envelope, format: { ...envelope.format, minor }, steps: { from: FIRST_TINY, names: FOLDED_AND_TINY_STEPS.slice(0, minor - FIRST_TINY).map((named) => named.name) } };
   const slots = new SaveSlots(memoryBackend(), new Map());
   slots.put('auto', { ...stepped, savedAt: 1000, runId: 'run-1' });
   return loadWorld(slots, 'auto', TEST_MAP)!;
@@ -49,7 +49,7 @@ describe('journal notes the game no longer gives', () => {
     const w = atSalvageYard();
     w.player.notes = [note('burntConvoy', 5)];
     w.player.quests.local.nose_ibo = { heard_convoy: true };
-    const stepAt = TINY_FROM + TINY_STEPS.findIndex((s) => s.name === 'withConvoyRumor');
+    const stepAt = FIRST_TINY + FOLDED_AND_TINY_STEPS.findIndex((s) => s.name === 'withConvoyRumor');
 
     const loaded = reload(w, stepAt);
 
