@@ -62,7 +62,6 @@ export class Orders {
 
 export type UpgradeStyle = { skip: readonly PartKind[]; chassis: 'value' | 'speed' | 'keep'; npc: string; keepsTradeCapital?: boolean; gunFirst?: boolean; lootRoom?: number };
 
-export const BIGGEST_PART_CELLS = Math.max(...Object.values(PARTS).map((p) => p.w * p.h));
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type Option = { gain: number; cost: number; take: (o: Orders) => void };

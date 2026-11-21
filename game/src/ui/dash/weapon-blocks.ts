@@ -282,8 +282,7 @@ export class WeaponsPanel {
       this.slots.push(slot);
       this.plate.zone(slot.root, `slot${index}`);
     }
-    while (this.slots.length > utilities.length) this.slots.pop()!.root.remove();
-    this.plate.layout();
+    while (this.slots.length > utilities.length) this.plate.unzone(this.slots.pop()!.root);
     utilities.forEach((utility, i) => this.slots[i].update(utility));
     this.plates.forEach((frames, i) => (i < utilities.length ? frames.show(`slot${i}`) : frames.hide()));
   }
