@@ -113,6 +113,13 @@ describe('NPC activities', () => {
     expect(pointInPolygon(stop, fortressOutline(town))).toBe(false);
   });
 
+  it('heads for the last lead when the pursued truck has left the world', () => {
+    const { w, npc } = createScavenger();
+    const lead = { x: 40, y: 50 };
+    const stop = getActivityDestination(w, npc, { kind: 'pursue', targetId: 'v-gone', destination: lead, phase: 'travel', reason: 'bountyHunt' });
+    expect(stop).toEqual(lead);
+  });
+
   it('gives drivers bound for one town their own usable spots on its pad', () => {
     const { w, npc } = createScavenger();
     const town = REGION.towns[0];

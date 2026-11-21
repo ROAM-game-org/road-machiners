@@ -14,8 +14,7 @@ const REASONS: Record<UnstuckBlock, Msg> = {
   harpoon: t('unstuck.harpoon'),
 };
 
-export function unstuckReason(world: World, busy: boolean, inScene: boolean): Msg | null {
-  if (busy) return t('menu.waitForTurn');
+export function unstuckReason(world: World, inScene: boolean): Msg | null {
   if (inScene) return t('look.inScene');
   const block = unstuckBlock(world);
   return block === null ? null : REASONS[block];

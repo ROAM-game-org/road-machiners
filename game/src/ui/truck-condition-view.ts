@@ -1,6 +1,9 @@
 import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { conditionItems, PX_PER_METER } from "../three/render/portraitPixels";
+import { CardGesture } from "./card-gesture";
+import { CardZoom, densityCap, fitZoom, type Point } from "./card-zoom";
+import { wheelZoomFactor } from "./map-geometry";
 import { spanOf } from "../sim/body";
 import type { Vehicle } from "../sim/types";
 import { chassisSize, type Glow, type Portrait, type TruckPortraits } from "../three/render/truckPortrait";
@@ -20,11 +23,13 @@ const METERS_PER_CELL = 0.65;
 const FLASH_MS = 300;
 const FLASH_TURNS = 2;
 const FLASH_HOLD = 0.65;
-const MAX_FIT_ZOOM = 1.5;
+const WHEEL_MODES = 3;
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 type Drawing = Portrait | ConditionPlan;
+export type ZoomState = { canZoomIn: boolean; canZoomOut: boolean };
+export type ConditionOptions = { magnify?: (state: ZoomState) => void };
 
 const TIP_GAP = 2;
 
@@ -157,10 +162,10 @@ function placeAt(node: HTMLElement, center: { x: number; y: number }, scale: num
 export class TruckConditionView {
   readonly root = el("div", { class: "truck-condition", "aria-label": t("condition.panel") });
   private readonly stage = el("div", { class: "condition-stage" });
-  private readonly layers = el("div", { class: "condition-layers" });
-  private readonly outline = el("div", { class: "condition-hover" });
+  private readonly layers = el("div", { class: "condition-layers crt-picture" });
+  private readonly outline = el("div", { class: "condition-hover crt-picture" });
   private readonly marks = el("div", { class: "condition-marks" });
-  private readonly flashes = el("div", { class: "condition-flashes" });
+  private readonly flashes = el("div", { class: "condition-flashes crt-picture" });
   private readonly hit = el("div", { class: "condition-hit" });
   private readonly tipBody = el("div", { class: "condition-tip-body tooltip" });
   private readonly tip = el("div", { class: "condition-tip" }, this.tipBody);
@@ -179,8 +184,16 @@ export class TruckConditionView {
   private hoverId: string | null = null;
   private pointerType = "mouse";
   private pressedId: string | null = null;
+  private readonly zoom: CardZoom | null;
+  private readonly gesture: CardGesture | null;
+  private box: HTMLElement | null = null;
+  private fitted = false;
+  private swallowClick = false;
+  private zoomState: ZoomState | null = null;
 
-  constructor(private readonly portraits: TruckPortraits, private readonly maxLength: number | null) {
+  constructor(private readonly portraits: TruckPortraits, private readonly maxLength: number | null, private readonly options: ConditionOptions = {}) {
+    this.zoom = options.magnify ? new CardZoom() : null;
+    this.gesture = this.zoom ? new CardGesture({ pan: (dx, dy) => this.panBy(dx, dy), zoom: (factor, at) => this.zoomAt(factor, at) }) : null;
     this.stage.append(this.layers, this.outline, this.marks, this.flashes, this.hit, this.tip);
     this.root.append(this.stage);
     this.hit.addEventListener("pointerdown", (e) => this.pressed(e));
@@ -201,10 +214,106 @@ export class TruckConditionView {
   }
 
   fitTo(box: HTMLElement): void {
+    if (this.zoom && this.box !== box) this.listenForZoom(box);
+    this.box = box;
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
     const room = contentBox(box);
-    this.setZoom(Math.min(MAX_FIT_ZOOM, (room.height - outline) / natural.height, (room.width - outline) / natural.width));
+    const inner = { width: room.width - outline, height: room.height - outline };
+    if (inner.width <= 0 || inner.height <= 0) return;
+    const fit = fitZoom(inner, natural, densityCap(this.scale, window.devicePixelRatio));
+    if (!this.zoom) return this.setZoom(fit);
+    this.zoom.refit(fit, room, natural, PX_PER_METER * this.scale);
+    this.fitted = true;
+    this.apply();
+  }
+
+  zoomStep(direction: 1 | -1): void {
+    if (!this.zoom || !this.fitted) return;
+    this.zoom.step(direction);
+    this.apply();
+  }
+
+  resetZoom(): void {
+    if (!this.zoom) return;
+    this.zoom.reset();
+    if (this.fitted) this.apply();
+  }
+
+  private apply(): void {
+    if (!this.zoom) return;
+    const total = this.zoom.total();
+    const pan = this.zoom.pan();
+    const magnified = this.zoom.magnified();
+    this.setZoom(total);
+    this.stage.style.translate = `${pan.x / total}px ${pan.y / total}px`;
+    if (this.box) this.box.style.touchAction = magnified ? "none" : "pan-y";
+    this.root.classList.toggle("magnified", magnified);
+    this.tellZoomState();
+  }
+
+  private tellZoomState(): void {
+    if (!this.zoom || !this.options.magnify) return;
+    const state = { canZoomIn: this.zoom.canZoomIn(), canZoomOut: this.zoom.canZoomOut() };
+    if (this.zoomState?.canZoomIn === state.canZoomIn && this.zoomState.canZoomOut === state.canZoomOut) return;
+    this.zoomState = state;
+    this.options.magnify(state);
+  }
+
+  private pixelRatio(): number {
+    if (!this.box || this.box.offsetWidth === 0) return 1;
+    return this.box.getBoundingClientRect().width / this.box.offsetWidth;
+  }
+
+  private fromCenter(clientX: number, clientY: number): Point {
+    if (!this.box) throw new Error("The condition view has no screen to zoom in");
+    const rect = this.box.getBoundingClientRect();
+    const k = this.pixelRatio();
+    return { x: (clientX - (rect.left + rect.width / 2)) / k, y: (clientY - (rect.top + rect.height / 2)) / k };
+  }
+
+  private panBy(dx: number, dy: number): void {
+    if (!this.zoom || !this.fitted) return;
+    const k = this.pixelRatio();
+    this.zoom.panBy(dx / k, dy / k);
+    this.apply();
+  }
+
+  private zoomAt(factor: number, at: Point): void {
+    if (!this.zoom || !this.fitted) return;
+    this.zoom.zoomAt(factor, this.fromCenter(at.x, at.y));
+    this.apply();
+  }
+
+  private listenForZoom(box: HTMLElement): void {
+    box.style.touchAction = "pan-y";
+    box.style.userSelect = "none";
+    box.addEventListener("dragstart", (e) => e.preventDefault());
+    box.addEventListener("wheel", (e) => this.wheeled(e), { passive: false });
+    box.addEventListener("pointerdown", (e) => this.gesture?.down(e.pointerId, e.clientX, e.clientY));
+    box.addEventListener("pointermove", (e) => this.dragged(e, box));
+    box.addEventListener("pointerup", (e) => this.released(e));
+    box.addEventListener("pointercancel", (e) => this.released(e));
+  }
+
+  private dragged(e: PointerEvent, box: HTMLElement): void {
+    if (!this.gesture?.move(e.pointerId, e.clientX, e.clientY)) return;
+    box.setPointerCapture(e.pointerId);
+    this.focus(null);
+  }
+
+  private wheeled(e: WheelEvent): void {
+    if (!this.zoom || !this.fitted) return;
+    if (!Number.isFinite(e.deltaY) || e.deltaY === 0 || e.deltaMode < 0 || e.deltaMode >= WHEEL_MODES) return;
+    const factor = wheelZoomFactor(e.deltaY, e.deltaMode);
+    if (factor < 1 && !this.zoom.canZoomOut()) return;
+    e.preventDefault();
+    this.zoomAt(factor, { x: e.clientX, y: e.clientY });
+    this.focus(this.partUnder(e));
+  }
+
+  private released(e: PointerEvent): void {
+    this.swallowClick = this.gesture?.up(e.pointerId) ?? false;
   }
 
   private setZoom(zoom: number): void {
@@ -227,13 +336,6 @@ export class TruckConditionView {
     return Math.max(0, Math.min(this.lengthZoom, this.heightCap / this.naturalSize().height));
   }
 
-  boxFor(cell: number): { width: number; height: number } {
-    const outline = parseFloat(token("--space-4"));
-    const natural = this.naturalSize();
-    const k = cell / CELL;
-    return { width: natural.width * k + outline, height: natural.height * k + outline };
-  }
-
   render(vehicle: Vehicle, playerPaint: TruckPaint, aim?: ConditionAim, working?: PartWork | null): void {
     const drawing = this.portraits.refused() ? this.planOf(vehicle) : this.portraits.shown(vehicle, playerPaint);
     this.drawing = drawing;
@@ -244,13 +346,14 @@ export class TruckConditionView {
     const length = 2 * spanOf(vehicle.chassisId).half.x;
     this.scale = CELL / (PX_PER_METER * METERS_PER_CELL);
     this.size = drawing ?? chassisSize(vehicle.chassisId);
-    this.fitLength(length);
+    if (!this.zoom) this.fitLength(length);
     this.stage.style.width = `${this.size.width * this.scale}px`;
     this.stage.style.height = `${this.size.height * this.scale}px`;
     this.root.classList.toggle("aimable", aim !== undefined);
     this.paintLayers(drawing, drawn);
     this.paintMarks(drawing, drawn, aim, working);
     if (drawing) for (const part of drawn.filter((p) => p.hit)) this.flash(drawing, part);
+    if (this.zoom && this.box) this.fitTo(this.box);
     this.focus(this.parts.some((p) => p.id === this.hoverId) ? this.hoverId : null);
   }
 
@@ -307,20 +410,27 @@ export class TruckConditionView {
 
   private pressed(e: PointerEvent): void {
     this.pointerType = e.pointerType;
+    this.swallowClick = false;
     this.pressedId = this.partUnder(e);
     this.hit.toggleAttribute("data-hold", this.pressedId === null);
   }
 
   private moved(e: PointerEvent): void {
+    if (this.gesture?.active) return;
     if (e.pointerType === "touch") return;
     this.focus(this.partUnder(e));
   }
 
   private left(e: PointerEvent): void {
-    if (e.pointerType !== "touch") this.focus(null);
+    if (e.pointerType === "touch") return;
+    this.focus(null);
   }
 
   private clicked(e: MouseEvent): void {
+    if (this.swallowClick) {
+      this.swallowClick = false;
+      return;
+    }
     const id = this.partUnder(e);
     if (this.pointerType === "touch") return this.tapped(id);
     if (id && this.aim) this.aim.pick(id);

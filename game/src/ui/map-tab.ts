@@ -6,6 +6,9 @@ import type { World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { playerCanAct, setMoveOrder, waypointOf } from '../sim/world';
 import { t, type Msg } from '../text/msg';
+import { airHeatReadout } from './hud-readout';
+import { createCompassDial } from './cards';
+import { chipEl } from './chip';
 import { el, markDisabled } from './dom';
 import type { UiHost } from './host';
 import { mapScene, MapView, observeBox, poseOf } from './map-view';
@@ -17,6 +20,7 @@ type Drag = { pointer: number; x: number; y: number; startX: number; startY: num
 export class MapTab {
   readonly controls: HTMLElement;
   readonly body: HTMLElement;
+  readonly side: HTMLElement = el('div', { class: 'map-side' });
   private view: MapView;
   private zoomOut: HTMLElement;
   private zoomIn: HTMLElement;
@@ -43,6 +47,7 @@ export class MapTab {
     this.waypoint = waypointOf(world);
     this.truckAt = playerVehicle(world).pos;
     this.view.update(mapScene(world), poseOf(world));
+    this.side.replaceChildren(createCompassDial(playerVehicle(world).heading), heatChip(world));
     this.mark();
   }
 
@@ -104,12 +109,21 @@ export class MapTab {
   }
 
   private click(e: PointerEvent): void {
-    const world = this.host.world();
-    if (this.host.getTurnPhase() !== null || !playerCanAct(world)) return;
     const dest = this.view.pick(e.clientX, e.clientY);
     if (!dest) return;
-    this.host.apply(setMoveOrder(world, clickOrder(world.terrain, dest, e.shiftKey, playerVehicle(world))));
+    const shift = e.shiftKey;
+    this.host.whenTurnEnds(() => {
+      const world = this.host.world();
+      if (!playerCanAct(world)) return;
+      this.host.apply(setMoveOrder(world, clickOrder(world.terrain, dest, shift, playerVehicle(world))));
+    });
   }
+}
+
+function heatChip(world: World): HTMLElement {
+  const heat = airHeatReadout(world);
+  const chip = chipEl(heat.value, { icon: 'heat', readout: true, bad: heat.warning, title: heat.label });
+  return el('span', { class: 'chips' }, el('span', { class: 'chip-screen' }, chip));
 }
 
 function pastSlop(drag: Drag, e: PointerEvent): boolean {

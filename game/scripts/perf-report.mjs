@@ -52,7 +52,7 @@ function sceneLines(scene, budget) {
   return lines;
 }
 
-const TURN_SCENES = ['fight', 'drive'];
+const TURN_SCENES = ['fight', 'drive', 'drive-night'];
 const ran = (report, id) => report.scenes.some((scene) => scene.id === id);
 
 function turnLines(report, budget) {
@@ -76,7 +76,7 @@ function loadProblems(run) {
   return problems;
 }
 
-const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'fight-night']);
+const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'drive-night', 'fight-night']);
 
 function spreadProblems(scenes) {
   return scenes

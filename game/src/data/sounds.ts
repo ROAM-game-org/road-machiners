@@ -13,6 +13,7 @@ export type CueDef = {
   seconds?: number;
   perFight?: true;
   perUse?: true;
+  minGapMs?: number;
 };
 
 export type Cue = CueDef & { files: string[] };
@@ -39,6 +40,15 @@ const DEFS = {
   "ui-confirm": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Heavy steel ratchet clicking tight, a deal sealed."], seconds: 0.6 },
   "radio": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Old CB radio in a truck cab: the handset key clicks, then a short burst of analog static squelch crackles from the dashboard speaker."], seconds: 1.2 },
   "ui-error": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Dull thud of a jammed metal lever that will not move."], seconds: 0.5 },
+
+  "key-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
+  "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["A heavy brass toggle lever on a truck dashboard flicked up into place: one firm bright metallic snap."], seconds: 0.5 },
+  "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["A heavy brass toggle lever on a truck dashboard flicked down: one firm lower metallic snap with a dull knock."], seconds: 0.5 },
+  "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
+  "latch-out": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A locked push button on an old truck dashboard released: a soft click as its spring pops it back up."], seconds: 0.5 },
+  "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.3, loop: false, prompts: ["A single soft dry relay tick from behind an old instrument panel, very light and short."], seconds: 0.5 },
+  "knob-step": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.3, loop: false, prompts: ["One detent click of a small ribbed knob on an old car radio, short and light."], seconds: 0.5, minGapMs: 45 },
+  "wheel-step": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.25, loop: false, prompts: ["One ratchet tick of a ribbed thumb wheel on old dashboard equipment, very short and dry."], seconds: 0.5, minGapMs: 45 },
 
   "money": { bus: "ui", setup: "cab", volume: 0.8, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["A few smooth heavy metal discs clink together and drop into a tin box."], seconds: 1 },
   "level-up": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Heavy steel lever slams and locks into place with a deep satisfying clunk, then a short bright ring of struck metal."], seconds: 2 },
@@ -96,6 +106,10 @@ const DEFS = {
 
 export type CueId = keyof typeof DEFS;
 
+export const CONTROL_CUES = ["key-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step"] as const satisfies readonly CueId[];
+export type ControlCue = (typeof CONTROL_CUES)[number];
+export const HAND_MS = 250;
+
 const ON_DISK = Object.keys(import.meta.glob("/public/sfx/*.ogg")).map((p) => p.split("/").pop()!);
 
 export function filesOf(id: string, onDisk: string[]): string[] {
@@ -108,7 +122,11 @@ function variantNumber(file: string): number {
 
 function withFiles(): Record<CueId, Cue> {
   const out = {} as Record<CueId, Cue>;
-  for (const id of Object.keys(DEFS) as CueId[]) out[id] = { ...DEFS[id], files: filesOf(id, ON_DISK) };
+  for (const id of Object.keys(DEFS) as CueId[]) {
+    const gap = (DEFS[id] as CueDef).minGapMs;
+    if (gap !== undefined && !(Number.isFinite(gap) && gap > 0)) throw new Error(`Cue ${id} has minGapMs ${gap}, which must be a finite number above 0`);
+    out[id] = { ...DEFS[id], files: filesOf(id, ON_DISK) };
+  }
   return out;
 }
 
@@ -241,7 +259,7 @@ export const MIX = {
     { at: 1.5, rate: 0.9, gain: 0 },
   ],
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
-  music: { fadeSeconds: 3, musicReachTiles: 12 },
+  music: { fadeSeconds: 3, musicReachTiles: 12, spellSeconds: 180, restSeconds: 75, restJitterSeconds: 15 },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, presence: -7, spread: 10 },
 } as const;

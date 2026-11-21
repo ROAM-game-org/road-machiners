@@ -93,12 +93,13 @@ export function frame(opts) {
   document.body.append(renderer.domElement);
   const render = (scale) => { renderer.setPixelRatio(scale); renderer.setSize(IW, IH, false); renderer.render(scene, camera); };
   const shot = () => renderer.domElement.toDataURL('image/webp', WEBP_QUALITY);
-  const crop = (scale, [a, b, c, d]) => {
+  const cropCanvas = (scale, [a, b, c, d]) => {
     const cv = document.createElement('canvas'); cv.width = (c - a) * scale; cv.height = (d - b) * scale;
     cv.getContext('2d').drawImage(renderer.domElement, a * scale, b * scale, cv.width, cv.height, 0, 0, cv.width, cv.height);
-    return cv.toDataURL('image/webp', WEBP_QUALITY);
+    return cv;
   };
-  return { camera, IW, IH, img, quad, cropAround, render, shot, crop };
+  const crop = (scale, box) => cropCanvas(scale, box).toDataURL('image/webp', WEBP_QUALITY);
+  return { camera, IW, IH, img, quad, cropAround, render, shot, crop, cropCanvas };
 }
 
 export function finishPanels(panels) {

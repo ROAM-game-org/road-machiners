@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { toon, inkAt } from '../kit.js';
 
-export const OLIVE = { housing: '#8d7b5b', edge: '#918466', brass: '#a38052', hole: '#24180d', floor: '#1c130b', print: '#e4d1a5' };
+export const OLIVE = { housing: '#8d7b5b', edge: '#918466', brass: '#a38052', hole: '#24180d', floor: '#1c130b', print: '#e4d1a5', bolt: '#b9b3a3', shade: '#6f6048' };
 export const KEYCAP = { skirt: '#684328', shoulder: '#8e5c36', top: '#6b4023' };
 const GAIN = 1.12;
 export const litToon = (c, o) => { const m = toon(c, o); m.color.multiplyScalar(GAIN); return m; };

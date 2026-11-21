@@ -9,23 +9,22 @@ const say = (reason: ReturnType<typeof unstuckReason>) => (reason === null ? nul
 
 describe('the reason Get unstuck is off', () => {
   it('is none for a free player', () => {
-    expect(unstuckReason(emptyWorld(), false, false)).toBeNull();
+    expect(unstuckReason(emptyWorld(), false)).toBeNull();
   });
 
-  it('names a playing turn first, then a scene', () => {
+  it('names a scene first, then a knockout', () => {
     const w = emptyWorld();
     w.player.state = 'knockedOut';
-    expect(say(unstuckReason(w, true, true))).toBe('Wait for the turn');
-    expect(say(unstuckReason(w, false, true))).toBe('Not during a scene');
-    expect(say(unstuckReason(w, false, false))).toBe('Knocked out');
+    expect(say(unstuckReason(w, true))).toBe('Not during a scene');
+    expect(say(unstuckReason(w, false))).toBe('Knocked out');
   });
 
   it('names a fight', () => {
     const w = emptyWorld();
     const raider = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 30 });
     addState(w, 'combat', raider.id, playerVehicle(w).id, { kind: 'none' });
-    expect(say(unstuckReason(w, false, false))).toBe('In a fight and not stuck');
-    expect(resolve(unstuckReason(w, false, false)!, 'ru')).toBe('Вы в бою и не застряли');
+    expect(say(unstuckReason(w, false))).toBe('In a fight and not stuck');
+    expect(resolve(unstuckReason(w, false)!, 'ru')).toBe('Вы в бою и не застряли');
   });
 
   it('is none for a held truck in a fight', () => {
@@ -33,13 +32,13 @@ describe('the reason Get unstuck is off', () => {
     const raider = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 30 });
     addState(w, 'combat', raider.id, playerVehicle(w).id, { kind: 'none' });
     playerVehicle(w).strandedTurns = 1;
-    expect(unstuckReason(w, false, false)).toBeNull();
+    expect(unstuckReason(w, false)).toBeNull();
   });
 
   it('names a harpoon line', () => {
     const w = emptyWorld();
     const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
     w.lines.push({ id: 'l1', from: playerVehicle(w).id, fromPart: 'p', to: other.id, toPart: 'q', length: 10, turnsLeft: 3 });
-    expect(say(unstuckReason(w, false, false))).toBe('On a harpoon line');
+    expect(say(unstuckReason(w, false))).toBe('On a harpoon line');
   });
 });

@@ -121,6 +121,8 @@ export type DialogueHost = {
   talk(next: World): void;
   inspected(): string | null;
   busy(): boolean;
+  sceneBusy(): boolean;
+  whenTurnEnds(action: () => void, key?: string): void;
   menuOpen(): boolean;
   commit(next: World): void;
   log(next: World): void;
@@ -213,6 +215,10 @@ export class DialoguePanel {
 
   private onBusyKey(e: KeyboardEvent): void {
     if (e.code === 'KeyH' && this.honk()) e.stopImmediatePropagation();
+    if (e.code === 'KeyT' && !this.host.sceneBusy()) {
+      this.host.whenTurnEnds(() => this.callInspected());
+      e.stopImmediatePropagation();
+    }
   }
 
   honk(): boolean {

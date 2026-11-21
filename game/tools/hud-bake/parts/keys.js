@@ -1,11 +1,11 @@
-import { Plate, THREE, extrude, lit, litMap, loft, cap, grain, wear, stitch, makeStage, frame } from './dashlib.js';
+import { Plate, THREE, extrude, lit, oliveLit, oliveMap, hexBolt, loft, cap, makeStage, frame } from './dashlib.js';
+import { OLIVE, mottle } from './olive.js';
 import { installBake } from '../core.js';
 
 const FACE = [1072, -3, 1283, 57.5];
 const SLAB = [1088, -14, 1310, 49.6];
 const CORNER = 15;
 const HEM = 2.2;
-const LEATHER = '#612e15';
 const KEY_X0 = 1100.2;
 const PITCH = 36;
 const KEY_W = 31;
@@ -20,28 +20,22 @@ const P = new Plate(FACE[0], FACE[1], FACE[2] - FACE[0], FACE[3] - FACE[1]);
 const { scene, root } = makeStage();
 root.add(P.g);
 
-const leather = P.canvas(SLAB);
+const face = P.canvas(SLAB);
 {
-  const c = leather.c;
-  c.fillStyle = LEATHER; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
+  const c = face.c;
+  c.fillStyle = OLIVE.housing; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
   const g = c.createLinearGradient(0, SLAB[1], 0, SLAB[3]);
   g.addColorStop(0, 'rgba(255,200,150,0.05)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.1)');
   c.fillStyle = g; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
-  grain(c, SLAB, 11, 4);
-  wear(c, SLAB, 32, { stains: 3, creases: 7, rubs: 2 });
-  const sx = 1094.4, sy = 46.2, r = 11;
-  const vertical = { alpha: 0.62, width: 1.0, dash: 3.5, gap: 2.0 }, flat = { alpha: 0.42, width: 1.0, dash: 8.5, gap: 4.0 };
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(sx, -14); cc.lineTo(sx, sy - r); }, vertical);
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(sx, sy - r); cc.arcTo(sx, sy, sx + r, sy, r); }, { ...flat, alpha: 0.5, dash: 5, gap: 3 });
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(sx + r, sy); cc.lineTo(1310, sy); }, flat);
+  mottle(c, SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1], 11);
 }
-const tex = P.textureOf(leather.cv, SLAB);
+const tex = P.textureOf(face.cv, SLAB);
 const GAP = 0.25;
 const slabShape = P.shape(SLAB, [0, 0, 0, CORNER]);
 {
   const g = GAP + HEM, bed = [KEY_X0 - g, KEY_Y[0] - g, KEY_X0 + 4 * PITCH + KEY_W + g, KEY_Y[1] + g];
   slabShape.holes.push(P.shape(bed, [4 + g, 4 + g, 4 + g, 4 + g]));
-  const floor = new THREE.Mesh(new THREE.ShapeGeometry(P.shape(bed, [6, 6, 6, 6])), lit('#2a1309'));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(P.shape(bed, [6, 6, 6, 6])), oliveLit(OLIVE.floor));
   floor.position.z = -0.05; floor.receiveShadow = true; P.g.add(floor);
 }
 {
@@ -52,9 +46,10 @@ const slabShape = P.shape(SLAB, [0, 0, 0, CORNER]);
     const x0 = KEY_X0 + i * PITCH;
     fill.holes.push(P.shape([x0 - margin, KEY_Y[0] - margin, x0 + KEY_W + margin, KEY_Y[1] + margin], [4 + margin, 4 + margin, 4 + margin, 4 + margin]));
   }
-  P.g.add(extrude(fill, { front: 0, depth: 0.03, bevel: P.len(lipW), bt: P.len(lipW), caps: litMap(tex), sides: lit('#24100a'), seg: 3 }));
+  P.g.add(extrude(fill, { front: 0, depth: 0.03, bevel: P.len(lipW), bt: P.len(lipW), caps: oliveMap(tex), sides: oliveLit(OLIVE.edge), seg: 3 }));
 }
-P.g.add(extrude(slabShape, { front: 0, depth: 0.12, bevel: P.len(HEM), bt: P.len(HEM) * 0.8, caps: litMap(tex), sides: lit('#2c1509') }));
+P.g.add(extrude(slabShape, { front: 0, depth: 0.12, bevel: P.len(HEM), bt: P.len(HEM) * 0.8, caps: oliveMap(tex), sides: oliveLit(OLIVE.edge) }));
+for (const x of [1100, 1277]) P.g.add(hexBolt(P.at(P.len(HEM * 0.8)), x, 45.3, 1.7));
 
 const keys = [];
 for (let i = 0; i < 5; i++) {

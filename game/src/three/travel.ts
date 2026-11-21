@@ -161,6 +161,10 @@ export type Playback = {
   hookedLines: Set<string>;
 };
 
+export function committedWorld(world: World, playback: Playback | null): World {
+  return playback ? playback.before : world;
+}
+
 function entersTheLight(event: GameEvent): boolean {
   return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
 }
@@ -236,6 +240,7 @@ export class Travel {
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
   private waitingSince: number | null = null;
+  onTurnWait: ((ms: number, now: number) => void) | null = null;
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
@@ -381,7 +386,9 @@ export class Travel {
       return null;
     }
     this.requested = false;
-    record("turn-wait", now - (this.waitingSince ?? now));
+    const waited = now - (this.waitingSince ?? now);
+    record("turn-wait", waited);
+    this.onTurnWait?.(waited, now);
     this.waitingSince = null;
     return prepared;
   }
@@ -517,7 +524,9 @@ export class Travel {
   }
 
   finishClock(elapsed: number, finishAt: number): void {
-    this.remainder = elapsed - finishAt;
+    const remainder = elapsed - finishAt;
+    if (remainder >= MOVE_MS) throw new Error(`A turn ended ${remainder} ms late, a full turn of ${MOVE_MS} ms or more`);
+    this.remainder = remainder;
   }
   getRemainder(wasPlaying: boolean): number {
     return wasPlaying ? this.remainder : 0;
