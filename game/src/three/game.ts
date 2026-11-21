@@ -209,7 +209,7 @@ export class Game {
   private last = performance.now();
   private framesSeen = 0;
   readonly pace = new FramePace();
-  private readonly turnWait = new TurnWait();
+  private readonly turnWait = new TurnWait(() => this.travel.isPlaying(this.anim));
   private pressedDuringTurn = false;
 
   readonly hud: Hud;

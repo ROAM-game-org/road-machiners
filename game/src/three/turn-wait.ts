@@ -7,6 +7,8 @@ export class TurnWait {
   private queue: Waiting[] = [];
   private releasing = false;
 
+  constructor(private readonly turnPlays: () => boolean) {}
+
   get size(): number {
     return this.queue.length;
   }
@@ -23,7 +25,13 @@ export class TurnWait {
     this.queue = [];
     this.releasing = true;
     try {
-      for (const waiting of taken) waiting.action();
+      for (const [i, waiting] of taken.entries()) {
+        waiting.action();
+        if (this.turnPlays()) {
+          this.queue = [...taken.slice(i + 1), ...this.queue];
+          return;
+        }
+      }
     } finally {
       this.releasing = false;
     }
