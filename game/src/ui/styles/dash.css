@@ -1708,6 +1708,10 @@
   --hud-panel-w: var(--hud-panel-xs);
 }
 
+#ui .site-status {
+  --hud-panel-w: var(--hud-panel-s);
+}
+
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-l);
 }
