@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { LookType } from "../../render/groundPaint";
+import { LOOK_NAMES } from "../../render/groundPaint";
 import { FIELD_TURN_REACH, fieldTurns } from "./groundFieldTurns";
 
 const SIDE = 20;
 
-function map(fieldAt: (x: number, y: number) => boolean): LookType[] {
-  return Array.from({ length: SIDE * SIDE }, (_, i) => (fieldAt(i % SIDE, Math.floor(i / SIDE)) ? "field" : "sand"));
+function map(fieldAt: (x: number, y: number) => boolean): Uint8Array {
+  const field = LOOK_NAMES.indexOf("field");
+  const sand = LOOK_NAMES.indexOf("sand");
+  return Uint8Array.from({ length: SIDE * SIDE }, (_, i) => (fieldAt(i % SIDE, Math.floor(i / SIDE)) ? field : sand));
 }
 
 describe("field furrow turns", () => {
