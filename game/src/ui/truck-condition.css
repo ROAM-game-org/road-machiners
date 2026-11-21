@@ -183,3 +183,6 @@
   background: var(--cond-cells);
   box-shadow: inset 0 0 0 var(--space-1) var(--ink-bright);
 }
+.truck-condition.magnified .condition-stage {
+  will-change: transform;
+}
