@@ -103,6 +103,7 @@ const findDeadCorners = () => {
 const hit = await page.evaluate(findDeadCorners);
 hitProblems.push(...hit.failures);
 if (hit.found < 2) hitProblems.push(`found ${hit.found} one-control panels, expected at least 2`);
+await page.locator('#ui .system-menu').waitFor({ state: 'visible', timeout: BOOT_LIMIT_MS });
 const menuBox = await page.locator('#ui .system-menu').boundingBox();
 await page.mouse.click(menuBox.x + 2, menuBox.y + 2);
 if (!(await page.locator('.game-menu [role=menu]').isVisible())) hitProblems.push('menu did not open from a click in its corner');

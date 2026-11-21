@@ -97,11 +97,6 @@ export function dragHeldBy(world: World, draggerId: string): NpcState | null {
   return world.states.find((s) => s.kind === 'drag' && s.holder === draggerId) ?? null;
 }
 
-export function dragData(s: NpcState): Extract<StateData, { kind: 'drag' }> {
-  if (s.data.kind !== 'drag') throw new Error(`State ${s.id} holds no drag`);
-  return s.data;
-}
-
 function downed(world: World, v: Vehicle): boolean {
   return isPlayer(world, v) ? world.player.state === 'knockedOut' : isKnockedOut(v);
 }

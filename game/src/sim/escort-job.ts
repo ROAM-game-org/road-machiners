@@ -161,11 +161,6 @@ export function releaseHold(c: EscortContract): void {
   c.holdUntil = null;
 }
 
-export function escortHolds(world: World, leader: Vehicle): boolean {
-  const c = heldEscort(world);
-  return c !== null && c.client === leader.id && holdActive(world, c);
-}
-
 function remaining(leader: Vehicle, siteId: string): number {
   return dist(leader.pos, getKnownSite(siteId).pos);
 }
