@@ -58,6 +58,26 @@ describe("VoiceLimiter", () => {
     expect(v.admit("cannon", 2, 0.5, 1.5)).toBe(true);
     expect(v.admit("mg", 2, 1, 2)).toBe(true);
   });
+
+  it("refuses a play inside the cue's minimum gap and admits one at the gap", () => {
+    const v = new VoiceLimiter();
+    expect(v.admit("tick", 1, 0, 0.01, 0.045)).toBe(true);
+    expect(v.admit("tick", 1, 0.03, 0.04, 0.045)).toBe(false);
+    expect(v.admit("tick", 1, 0.045, 0.05, 0.045)).toBe(true);
+  });
+
+  it("does not count a refused play toward the next gap", () => {
+    const v = new VoiceLimiter();
+    expect(v.admit("tick", 1, 0, 0.01, 0.1)).toBe(true);
+    expect(v.admit("tick", 1, 0.09, 0.1, 0.1)).toBe(false);
+    expect(v.admit("tick", 1, 0.1, 0.11, 0.1)).toBe(true);
+  });
+
+  it("keeps today's behavior with no gap", () => {
+    const v = new VoiceLimiter();
+    expect(v.admit("tick", 3, 0, 1)).toBe(true);
+    expect(v.admit("tick", 3, 0, 1)).toBe(true);
+  });
 });
 
 describe("crashLevel", () => {

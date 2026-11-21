@@ -35,11 +35,17 @@ export function crashLevel(impact: number, curve: CrashCurve): number {
 
 export class VoiceLimiter {
   private ends = new Map<string, number[]>();
+  private lastStart = new Map<string, number>();
 
-  admit(cue: string, maxVoices: number, now: number, endsAt: number): boolean {
+  admit(cue: string, maxVoices: number, now: number, endsAt: number, minGapSec = 0): boolean {
     const live = (this.ends.get(cue) ?? []).filter((t) => t > now);
-    const free = live.length < maxVoices;
-    if (free) live.push(endsAt);
+    const last = this.lastStart.get(cue);
+    const spaced = last === undefined || now - last >= minGapSec;
+    const free = spaced && live.length < maxVoices;
+    if (free) {
+      live.push(endsAt);
+      this.lastStart.set(cue, now);
+    }
     this.ends.set(cue, live);
     return free;
   }
