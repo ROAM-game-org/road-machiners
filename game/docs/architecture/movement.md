@@ -267,7 +267,7 @@ Trucks ease to a stop when travel pauses. That motion is real physics.
 - The game's one `PlayClock` in `src/three/play-clock.ts` plays the tail on the world clock. It runs everything in the world: trucks, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera follow.
 - Information for the player runs on real time. That covers the HUD, damage number fades, music and camera panning.
 - After a move the clock slows over `turnStopMs` on an exponential curve, fast at first and slow at the end. `stopWithin()` makes it reach rest exactly at the tail end.
-- Panels, the menu, a focused text control and a hidden tab hold the clock at zero, also mid-turn. A frame adds at most `playbackFrameMs`.
+- Panels, the menu, a focused text control and a hidden tab hold the clock at zero, also mid-turn. A frame adds its full real time up to `playbackHitchMs`, a freeze counts as that, and it never adds more than one turn of world time, so a slow frame keeps the pace and only a freeze is cut. Effects queued in a frame start counting on the next one, and a shot record before a turn's start offset plays at once.
 - A radio call is no hold, and neither is a scene the turn opens. The turn plays to its end and the world eases to rest.
 
 ## Camera

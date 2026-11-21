@@ -1,6 +1,6 @@
 import { el } from "../dom";
 import { createBareItemIcon, createIcon } from "../cards";
-import { setData, setText, setAttrText, setFlag, showControl, plateKey, pressIfOn, isOff, type Lamp, kitPiece, lamp, rockerFace, WEAPONS_PLATE, amberTint } from "./skin";
+import { setData, setText, setAttrText, setFlag, showControl, plateKey, pressIfOn, isOff, type Lamp, lamp, rockerFace, WEAPONS_PLATE, amberTint } from "./skin";
 import { BakedPart, type SpriteFrames } from "./baked";
 import { BAKED } from "./baked";
 import { deviceCast } from "./skin";
@@ -132,7 +132,7 @@ function ghostCard(index: number): HTMLElement {
 class UtilitySlot {
   readonly root: HTMLButtonElement;
   private readonly label = el("span", { class: "tape-print" });
-  private readonly tape = kitPiece("tape", "slot-tape");
+  private readonly tape = el("span", { class: "slot-tape" });
   private readonly lamp = lamp("slot-lamp");
   private readonly rocker = el("span", { class: "rocker-socket slot-rocker" }, rockerFace());
 
