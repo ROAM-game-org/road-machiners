@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
-import { axlesOf, cellCenter, couplingOf, frontBody, spanOf, unitOfCells, unitOfRow, unitsOf } from './body';
+import { axlesOf, cellCenter, couplingOf, frontBody, spanOf, unitsOf } from './body';
 import type { Hulk, Pose, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -147,14 +147,6 @@ export function cellWorld(v: Posed, x: number, y: number): { unit: number; point
   const at = cellCenter(v.chassisId, x, y);
   const pose = unitPose(v, at.unit);
   return { unit: at.unit, point: poseToWorld(pose, at), heading: pose.heading };
-}
-
-export function headingOfRow(v: Posed, y: number): number {
-  return unitPose(v, unitOfRow(v.chassisId, y).index).heading;
-}
-
-export function headingOfCells(v: Posed, cells: readonly { y: number }[]): number {
-  return unitPose(v, unitOfCells(v.chassisId, cells).index).heading;
 }
 
 export function nearestUnit(v: Posed, from: Vec): UnitPose {
