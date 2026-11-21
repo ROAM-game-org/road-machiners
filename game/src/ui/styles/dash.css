@@ -31,7 +31,7 @@
   --hud-icon: calc(100cqw * 20 / var(--plate-n));
   --hud-lcd-size: calc(100cqw * 24 / var(--plate-n));
   --hud-rocker-w: calc(100cqw * 16 / var(--plate-n));
-  --hud-rocker-h: calc(100cqw * 30 / var(--plate-n));
+  --hud-rocker-h: calc(100cqw * 32 / var(--plate-n));
   --hud-lamp-size: calc(100cqw * 10 / var(--plate-n));
   --hud-bracket: calc(100cqw * 6 / var(--plate-n));
 }
@@ -1107,11 +1107,8 @@
   min-width: calc(var(--hud-text-s) * 3.4);
   height: calc(var(--hud-text-s) * 1.9);
   padding: 0 var(--space-2);
-}
-
-#ui .slot-tape > .plate-art {
-  position: absolute;
-  inset: 0;
+  border: 0;
+  border-image: var(--hud-tape-art) 8% 6% fill / 2px 6px round;
 }
 
 #ui .slot-tape > .tape-print {
