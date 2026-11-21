@@ -41,6 +41,23 @@ const STINGS: {
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },
 ];
 
+export function panelCue(open: boolean, call: boolean): CueId {
+  if (call) return open ? "radio" : "radio-end";
+  return open ? "ui-open" : "ui-close";
+}
+
+export class PanelSounds {
+  private open = false;
+  private call = false;
+
+  change(open: boolean, call: boolean): CueId | null {
+    const cue = open === this.open ? null : panelCue(open, open ? call : this.call);
+    this.open = open;
+    this.call = call;
+    return cue;
+  }
+}
+
 export function stingOf(events: GameEvent[], playerId: string): CueId | null {
   return (
     STINGS.find((s) => events.some((e) => s.match(e, playerId)))?.cue ?? null

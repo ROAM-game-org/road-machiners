@@ -131,13 +131,13 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 <!-- wiki:sounds -->
 | cue | bus | loop | volume | max voices | variants |
 | --- | --- | --- | --- | --- | --- |
-| ui-open | ui | false | 0.7 | 1 | 3 |
-| ui-close | ui | false | 0.7 | 1 | 3 |
-| ui-confirm | ui | false | 0.8 | 1 | 3 |
-| radio | ui | false | 0.8 | 1 | 3 |
+| ui-open | ui | false | 0.7 | 1 | 1 |
+| ui-close | ui | false | 0.7 | 1 | 1 |
+| radio | ui | false | 0.8 | 1 | 1 |
+| radio-end | ui | false | 0.8 | 1 | 1 |
 | ui-error | ui | false | 0.8 | 1 | 2 |
 | engine-douse | ui | false | 0.6 | 1 | 6 |
-| key-press | ui | false | 0.45 | 1 | 8 |
+| key-press | ui | false | 0.45 | 1 | 1 |
 | turn-press | ui | false | 0.15 | 1 | 1 |
 | switch-on | ui | false | 0.5 | 1 | 1 |
 | switch-off | ui | false | 0.5 | 1 | 1 |
@@ -146,7 +146,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | screen-press | ui | false | 0.3 | 1 | 3 |
 | knob-step | ui | false | 0.3 | 1 | 2 |
 | wheel-step | ui | false | 0.25 | 1 | 1 |
-| money | ui | false | 0.8 | 1 | 3 |
+| money | ui | false | 0.8 | 1 | 1 |
 | level-up | ui | false | 1 | 1 | 1 |
 | discover | ui | false | 0.9 | 1 | 1 |
 | heatwave-warning | ui | false | 0.84 | 1 | 1 |

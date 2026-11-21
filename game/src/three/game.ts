@@ -98,7 +98,7 @@ import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import type { MusicTracks } from "../audio/music-shelf";
-import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
+import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf, PanelSounds } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
@@ -177,7 +177,7 @@ export class Game {
   private readonly truckFx: TruckFx;
   private readonly controls: TruckControls;
   readonly sound: SoundDirector;
-  private panelOpen = false;
+  private panels = new PanelSounds();
   readonly loops: SoundLoops;
   private readonly hostileSighting = new HostileSighting();
   private sightingToSound = false;
@@ -1056,9 +1056,9 @@ export class Game {
   }
 
   private playPanelSounds(): void {
-    const open = this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.callShown() || this.menu.isOpen();
-    if (open !== this.panelOpen) this.sound.ui(open ? (this.callShown() ? "radio" : "ui-open") : "ui-close");
-    this.panelOpen = open;
+    const call = this.callShown();
+    const cue = this.panels.change(this.screens.inventory.isOpen() || this.screens.blockingOpen() || call || this.menu.isOpen(), call);
+    if (cue) this.sound.ui(cue);
   }
 
   private combatFogWorld(): World {
