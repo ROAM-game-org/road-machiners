@@ -70,10 +70,11 @@ export function saveRow(slot: SlotId, info: SlotInfo | null, onclick: () => void
 
 export class SaveList {
   private root: HTMLElement | null = null;
+  private closeButton: HTMLElement | null = null;
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
-    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
+    keyPress(this.closeButton);
     this.close();
   };
 
@@ -99,7 +100,9 @@ export class SaveList {
     this.root = panel("save-panel dialog");
     this.root.setAttribute("role", "dialog");
     bindAttr(this.root, "aria-label", title);
-    this.root.append(el("h3", {}, title), el("div", { class: "screen-block save-slots" }, ...rows), ...foot, el("button", { class: "close", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close")));
+    const closeButton = el("button", { class: "close", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close"));
+    this.closeButton = closeButton;
+    this.root.append(el("h3", {}, title), el("div", { class: "screen-block save-slots" }, ...rows), ...foot, closeButton);
     window.addEventListener("keydown", this.onKey, true);
   }
 

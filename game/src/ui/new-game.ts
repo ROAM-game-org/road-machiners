@@ -47,11 +47,12 @@ class NewGameScreen {
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, t("newGame.settings"));
   private readonly settings = el("div", { class: "world-settings", hidden: true });
   private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, t("newGame.skipIntro"));
+  private readonly backButton = el("button", { class: "back btn-l", onclick: () => this.close() }, t("newGame.back"));
   private readonly startButton = el("button", { class: "start btn-l", onclick: () => this.start() }, t("newGame.start"));
   private readonly onKey = (e: Event) => {
     if ((e as KeyboardEvent).code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
-    keyPress(this.root.querySelector<HTMLElement>(".back"));
+    keyPress(this.backButton);
     this.close();
   };
 
@@ -69,7 +70,7 @@ class NewGameScreen {
       this.introButton,
       this.settingsButton,
       this.settings,
-      el("div", { class: "new-game-buttons" }, el("button", { class: "back btn-l", onclick: () => this.close() }, t("newGame.back")), this.startButton),
+      el("div", { class: "new-game-buttons" }, this.backButton, this.startButton),
     );
     this.render();
     window.addEventListener("keydown", this.onKey, true);
