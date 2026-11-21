@@ -4,7 +4,7 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
-import { bindWheel } from "../scroll-wheel";
+import { bindWheel, WHEEL_RIB_PX } from "../scroll-wheel";
 import { deviceCast } from "./skin";
 import { BakedPart } from "./baked";
 import { BAKED } from "./baked";
@@ -457,7 +457,6 @@ export function knobAngle(index: number, count: number): number {
   return count === 1 ? 0 : -KNOB_SWEEP / 2 + (KNOB_SWEEP * index) / (count - 1);
 }
 
-export const WHEEL_RIB_PX = 6;
 const DAY_CELLS = 2;
 
 export function wheelTurn(scrollTop: number): number {

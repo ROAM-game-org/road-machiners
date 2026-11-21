@@ -304,7 +304,6 @@ export const LOG = {
   'contract.survey': m('Survey {places}', { places: 'text' }),
   'contract.surveyMet': m('Survey done, report at {site}', { site: 'text' }),
   'contract.surveyed': m('{done} of {n} surveyed', { done: 'int', n: 'int' }),
-  'contract.surveyClue': m('Lies in square {square}, {dir} of {site}, about {distance} out, {lay}', { square: 'text', dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
   'contract.placeClue': m('{place}: square {square}, {dir} of {site}, about {distance} out, {lay}.', { place: 'text', square: 'text', dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
   'contract.placeWay': m('{place} in square {square}, from {site}: {way} {look} {lay}.', { place: 'text', square: 'text', site: 'text', way: 'text', look: 'text', lay: 'text' }),
   'contract.placesLeft': m('{n, plural, one {# place left} other {# places left}}: {places}', { n: 'count', places: 'text' }),

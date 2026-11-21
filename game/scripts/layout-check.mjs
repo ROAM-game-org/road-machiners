@@ -240,10 +240,10 @@ async function probe(page, locale) {
   if (!found) throw new Error(`The layout checker did not report the planted overflowing button (${locale})`);
 }
 
-async function boot() {
+async function boot(deviceScaleFactor = 1) {
   const { browser, software } = await launchChromium(chromium);
   const bootLimitMs = process.env.TEST_TIMEOUTS === 'off' ? 0 : software ? 240000 : 30000;
-  const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] } });
+  const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] }, deviceScaleFactor });
   const page = await context.newPage();
   page.setDefaultTimeout(bootLimitMs);
   const errors = [];
@@ -711,16 +711,19 @@ async function cardSizeFaults(page) {
   });
 }
 
-async function openPartTip(page) {
+async function openPartTip(page, downs = [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], acrosses = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9, 0.04, 0.96]) {
   const box = await page.evaluate(() => {
     const hit = document.querySelector('#ui .info .condition-hit');
     if (!hit) return null;
     const b = hit.getBoundingClientRect();
-    return { left: b.left, top: b.top, width: b.width, height: b.height };
+    const screen = hit.closest('.info-draw')?.getBoundingClientRect() ?? b;
+    const left = Math.max(b.left, screen.left);
+    const top = Math.max(b.top, screen.top);
+    return { left, top, width: Math.min(b.right, screen.right) - left, height: Math.min(b.bottom, screen.bottom) - top };
   });
   if (!box) return false;
-  for (const down of [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
-    for (const across of [0.5, 0.35, 0.65]) {
+  for (const down of downs) {
+    for (const across of acrosses) {
       const x = box.left + box.width * across;
       const y = box.top + box.height * down;
       await page.mouse.move(x - 2, y);
@@ -745,11 +748,86 @@ async function tipFaults(page) {
   });
 }
 
+async function dragDrawing(page, dx, dy) {
+  const box = await page.evaluate(() => {
+    const b = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2, h: b.height, w: b.width };
+  });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + dx * box.w, box.y + dy * box.h, { steps: 4 });
+  await page.mouse.up();
+}
+
+async function openPartTipAfterPanning(page) {
+  if (await openPartTip(page)) return true;
+  for (let i = 0; i < 24; i++) await dragDrawing(page, 0, 0.45);
+  for (let i = 0; i < 60; i++) {
+    await dragDrawing(page, 0, -0.8);
+    if (await openPartTip(page, [0.9, 0.7, 0.5, 0.3, 0.1], [0.5, 0.2, 0.8])) return true;
+  }
+  return false;
+}
+
+const ZOOM_KEYS = '#ui .info .info-zoom button';
+
+const cardBoxes = (page) =>
+  page.evaluate(() => {
+    const rect = (sel) => {
+      const b = document.querySelector(sel)?.getBoundingClientRect();
+      return b ? [b.left, b.top, b.width, b.height].map(Math.round) : null;
+    };
+    return { card: rect('#ui .info'), draw: rect('#ui .info .info-draw') };
+  });
+
+const pressZoom = (page, index, times) =>
+  page.evaluate(([sel, index, times]) => {
+    const key = document.querySelectorAll(sel)[index];
+    for (let i = 0; i < times && key.getAttribute('aria-disabled') !== 'true'; i++) key.click();
+  }, [ZOOM_KEYS, index, times]);
+
+async function cardZoomFaults(page) {
+  const keyCount = await page.evaluate((sel) => document.querySelectorAll(sel).length, ZOOM_KEYS);
+  if (keyCount !== 2) return ['the card has no zoom keys'];
+  const before = await cardBoxes(page);
+  await pressZoom(page, 1, 8);
+  const faults = [];
+  const after = await cardBoxes(page);
+  if (JSON.stringify(after) !== JSON.stringify(before)) faults.push('the card or its picture screen changed size when the drawing zoomed');
+  faults.push(
+    ...(await page.evaluate((sel) => {
+      const out = [];
+      const reachable = (node, name) => {
+        const b = node.getBoundingClientRect();
+        const at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        if (b.right > innerWidth + 1 || b.bottom > innerHeight + 1 || b.left < -1 || b.top < -1) out.push(`${name} is off the window at the closest view`);
+        else if (!at || !node.contains(at)) out.push(`${name} is covered at the closest view`);
+      };
+      for (const node of document.querySelectorAll('#ui .info .info-actions button')) reachable(node, `the ${node.textContent.trim() || 'card'} key`);
+      for (const node of document.querySelectorAll(sel)) reachable(node, 'a zoom key');
+      return out;
+    }, ZOOM_KEYS)),
+  );
+  if (!(await openPartTipAfterPanning(page))) faults.push('the part tip never opens over the magnified drawing');
+  else {
+    const outside = await page.evaluate(() => {
+      const tip = document.querySelector('#ui .info .condition-tip-body').getBoundingClientRect();
+      const draw = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+      return tip.left < draw.left - 1 || tip.right > draw.right + 1 || tip.top < draw.top - 1 || tip.bottom > draw.bottom + 1;
+    });
+    if (outside) faults.push('the part tip leaves the picture screen at the closest view');
+  }
+  await pressZoom(page, 0, 8);
+  await page.keyboard.press('Shift');
+  return faults;
+}
+
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
   const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), cardSizeFaults(page), tipFaults(page)];
-  return faultsOf('enemy-card')((await Promise.all(checks)).flat());
+  const found = (await Promise.all(checks)).flat();
+  return faultsOf('enemy-card')([...found, ...(await cardZoomFaults(page))]);
 }
 
 const NAV_STEPS = [
@@ -945,10 +1023,17 @@ async function hostedColumnFaults(page) {
     if (innerWidth < 1000) return [];
     const name = (n) => `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]}`;
     const faults = [];
+    const costs = document.querySelector('.truck-body .inv-side > .inv-costs');
+    const keys = document.querySelector('.town-band > .inv-keys .action-rows');
+    if (costs && costs.children.length > 0 && keys) {
+      const c = costs.getBoundingClientRect();
+      const k = keys.getBoundingClientRect();
+      if (c.top - k.bottom > 40 || c.top < k.bottom - 1 || c.left < k.left - 1 || c.left > k.right) faults.push('action costs are not right under the keys');
+    }
     for (const box of document.querySelectorAll('.truck-body .inv-side > *')) {
       if (box.scrollHeight > box.clientHeight + 1) faults.push(`${name(box)} is shorter than its content`);
       const bottom = box.getBoundingClientRect().bottom;
-      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
+      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .inv-costs, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
     }
     return faults;
   });
@@ -964,6 +1049,9 @@ const BENCH_AUDIT = () => {
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
   const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
+  const costs = frame.querySelector('.inv-costs');
+  const keys = frame.querySelector('.inv-foot .inv-keys:not(.loot) .action-rows');
+  const apart = (c, k) => c.top > k.bottom || k.top - c.bottom > 40 || c.left < k.left - 1 || c.left > k.right;
   const title = frame.querySelector('.inv-title');
   const close = frame.querySelector('.close');
   return [
@@ -971,6 +1059,7 @@ const BENCH_AUDIT = () => {
     all('.inv-side-column, .inv-middle, .well, .inv-details > .stat-grid').concat(frame).filter(scrolls).map((n) => `scroll in ${n.className}`),
     all('.well > *, .inv-grid').filter((n) => n.getBoundingClientRect().bottom > m.bottom + 1).map((n) => `cut off ${n.className}`),
     Math.abs(middle(title) - middle(close)) > 2 ? ['Close is off the title row'] : [],
+    costs && keys && costs.children.length > 0 && apart(costs.getBoundingClientRect(), keys.getBoundingClientRect()) ? ['action costs are not right over the keys'] : [],
     Math.max(...tops) - Math.min(...tops) > 1 ? [`column tops ${tops}`] : [],
     all('.inv-inspection .action-rows').filter((rows) => widths(rows) > 1).map(() => 'action buttons differ in width'),
     all('button, b, .stat-val, .stat-name').filter((n) => n.scrollWidth > n.clientWidth + 1 && n.clientWidth > 0).map((n) => `clipped ${n.textContent.slice(0, 24)}`),
@@ -1196,8 +1285,29 @@ const isGalleryFiller = (name) => GALLERY && ONLY && !ONLY.includes(name);
 const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`);
 const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
 
+const CANVAS_SPILL = () => {
+  const boxes = '.map-tab, .minimap-body';
+  return [...document.querySelectorAll('#ui canvas')].flatMap((canvas) => {
+    const r = canvas.getBoundingClientRect();
+    const parent = canvas.parentElement;
+    if (r.width === 0 || r.height === 0 || !parent) return [];
+    const p = parent.getBoundingClientRect();
+    const spill = r.left < p.left - 1 || r.top < p.top - 1 || r.right > p.right + 1 || r.bottom > p.bottom + 1;
+    const style = getComputedStyle(parent);
+    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const edge = parent.matches(boxes) && (Math.abs(r.width - (parent.clientWidth - padX)) > 1 || Math.abs(r.height - (parent.clientHeight - padY)) > 1);
+    return spill || edge ? [`${Math.round(r.width)}x${Math.round(r.height)} in ${Math.round(p.width)}x${Math.round(p.height)} ${parent.className}`] : [];
+  });
+};
+
+async function canvasSpillFaults(page) {
+  const found = await page.evaluate(CANVAS_SPILL);
+  return found.map((text) => ({ kind: 'canvas-spill', path: '', text, sizes: '' }));
+}
+
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {
@@ -1229,7 +1339,8 @@ async function checkLocale(page, locale) {
   }
 }
 
-const SIZE_STATES = ['menu', 'inventory', 'shop', 'options'];
+const SIZE_STATES = ['menu', 'inventory', 'shop', 'options', 'world-map', 'minimap'];
+const RATIO_STATES = ['world-map', 'minimap'];
 const SIZE_PASSES = [[[1280, 720], 1.3], [[1280, 720], 0.8], [[640, 360], 1]];
 
 const setUiSize = (page, size) => page.evaluate(async (s) => (await import('/src/ui/ui-size.ts')).uiSize().set(s), size);
@@ -1246,6 +1357,17 @@ async function checkUiSizes(page) {
   await setUiSize(page, 1);
 }
 
+async function checkDeviceRatio() {
+  const { browser, page, errors } = await boot(2);
+  try {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    for (const entry of Object.entries(STATES).filter(([name]) => RATIO_STATES.includes(name))) await capture(page, 'en', [1280, 720], [`${entry[0]}-ratio2`, entry[1]]);
+  } finally {
+    await browser.close();
+  }
+  for (const e of errors) report.push({ state: '-', locale: '-', viewport: '1280x720-ratio2', kind: 'page-error', path: '', text: e, sizes: '' });
+}
+
 await mkdir(OUT, { recursive: true });
 const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
@@ -1255,6 +1377,7 @@ try {
 } finally {
   await browser.close();
 }
+if (!ONLY && !GALLERY) await checkDeviceRatio();
 for (const e of errors) report.push({ state: '-', locale: '-', viewport: '-', kind: 'page-error', path: '', text: e, sizes: '' });
 if (!GALLERY) await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
 for (const f of report) console.log(`${f.state} ${f.locale} ${f.viewport} ${f.kind} ${f.path}: ${JSON.stringify(f.text)} ${f.sizes}`);

@@ -713,10 +713,6 @@ export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
 }
 
-export function surveyClueText(clue: SurveyClue): Msg {
-  return t('contract.surveyClue', { square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
-}
-
 function surveyPlaceText(clue: SurveyClue): Msg {
   return t('contract.placeClue', { place: t(`contract.placeName.${clue.type}`), square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
