@@ -279,6 +279,8 @@ export class TruckConditionView {
 
   private listenForZoom(box: HTMLElement): void {
     box.style.touchAction = "pan-y";
+    box.style.userSelect = "none";
+    box.addEventListener("dragstart", (e) => e.preventDefault());
     box.addEventListener("wheel", (e) => this.wheeled(e), { passive: false });
     box.addEventListener("pointerdown", (e) => this.gesture?.down(e.pointerId, e.clientX, e.clientY));
     box.addEventListener("pointermove", (e) => this.dragged(e, box));
