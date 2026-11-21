@@ -30,6 +30,7 @@ export const UI = {
   'help.does.why': 'See why it is off',
   'inv.rotate': 'Rotate',
   'card.unpin': 'Close the truck card',
+  'card.zoomedOut': 'Whole truck shown',
   'card.call': 'Radio',
   'card.mark': 'Mark',
   'card.lookOver': 'Look over',

@@ -331,7 +331,7 @@ export function storedGoodItem(good: string): GridItem {
 
 export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null, picked: { item: GridItem } | null): HTMLElement {
   const size = gridSize(m);
-  const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
+  const grid = el("div", { class: look ? "inv-grid crt-picture drawn" : "inv-grid crt-picture", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
   grid.append(look ? truckBackdrop(look.body, m) : truckOutline(chassisId, m));
   for (let y = 0; y < g.h; y++)
@@ -580,10 +580,17 @@ export function idleActions(reason: Msg): HTMLElement {
 
 export function splitActions(actions: HTMLElement[]): { keys: HTMLElement[]; costs: HTMLElement[] } {
   const isCost = (node: HTMLElement) => node.className.split(" ").includes("cost");
-  return { keys: actions.filter((node) => !isCost(node)), costs: actions.flatMap((node, i) => (isCost(node) ? [actionCost(actions[i - 1], node)] : [])) };
+  const carriesFact = (node: HTMLElement) => node.children.length > 0 || node.className.split(" ").includes("off");
+  const costs = actions.flatMap((node, i) => (isCost(node) && carriesFact(node) ? [actionCost(actions[i - 1], node)] : []));
+  return { keys: actions.filter((node) => !isCost(node)), costs };
+}
+
+function keyVerb(key: HTMLElement): string {
+  const priced = key.querySelector(".priced");
+  return (priced ? priced.firstChild?.textContent : key.textContent) ?? "";
 }
 
 function actionCost(key: HTMLElement | undefined, cost: HTMLElement): HTMLElement {
   if (!key) throw new Error("An action cost has no key before it");
-  return el("div", { class: "inv-cost" }, el("span", { class: "inv-cost-verb" }, verbatim(key.textContent ?? "")), cost);
+  return el("div", { class: "inv-cost" }, el("span", { class: "inv-cost-verb" }, verbatim(keyVerb(key))), cost);
 }

@@ -1,11 +1,15 @@
 import { publicUrl } from "../public-url";
 import { BAKED } from "./dash/baked";
+import { HAND_MS } from "../data/sounds";
+import { controlStep } from "./control-sound";
 import { el } from "./dom";
 
 const DRAG_GAIN = 2;
 const CLICK_SLOP_PX = 3;
 const PAGE_SHARE = 0.9;
 const SCROLL_SLACK_PX = 1;
+export const WHEEL_RIB_PX = 6;
+const HAND_EVENTS = ["wheel", "pointerdown", "touchmove", "keydown"] as const;
 
 export const SCROLL_SCREENS = [
   ".journal-body",
@@ -103,8 +107,38 @@ function dragWheel(wheel: HTMLElement, scroller: HTMLElement, down: PointerEvent
   wheel.addEventListener("pointercancel", () => stop.abort(), { signal: stop.signal });
 }
 
+export function ribOf(scrollTop: number): number {
+  return Math.floor(Math.max(0, scrollTop) / WHEEL_RIB_PX);
+}
+
+export function handOn(lastHandMs: number, nowMs: number): boolean {
+  return nowMs - lastHandMs <= HAND_MS;
+}
+
+function tickUnderHand(wheel: HTMLElement, scroller: HTMLElement, signal?: AbortSignal): (scrollTop: number) => void {
+  let lastHand = -Infinity;
+  let rib = ribOf(scroller.scrollTop);
+  const touch = () => {
+    lastHand = performance.now();
+  };
+  for (const target of [wheel, scroller]) {
+    for (const type of HAND_EVENTS) target.addEventListener(type, touch, { passive: true, capture: true, signal });
+    target.addEventListener("pointermove", (e) => e.buttons && touch(), { passive: true, capture: true, signal });
+  }
+  return (scrollTop) => {
+    const now = ribOf(scrollTop);
+    if (now === rib) return;
+    rib = now;
+    if (handOn(lastHand, performance.now())) controlStep("wheel-step");
+  };
+}
+
 export function bindWheel(wheel: HTMLElement, scroller: HTMLElement, show: (scrollTop: number) => void, signal?: AbortSignal): void {
-  scroller.addEventListener("scroll", () => show(scroller.scrollTop), { signal });
+  const tick = tickUnderHand(wheel, scroller, signal);
+  scroller.addEventListener("scroll", () => {
+    tick(scroller.scrollTop);
+    show(scroller.scrollTop);
+  }, { signal });
   wheel.addEventListener("wheel", (e) => {
     e.preventDefault();
     scroller.scrollTop += e.deltaY;

@@ -10,7 +10,7 @@ import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { Hud, cardActions, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
+import { Hud, actionSlot, cardActions, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
 import type { CrimeCase, World } from '../sim/types';
@@ -306,5 +306,24 @@ describe('panel placement', () => {
     hud.showInfo(emptyWorld(), null, false);
     hud.showInfo(emptyWorld(), null, false);
     expect(placed).toHaveLength(1);
+  });
+});
+
+describe('the picked clean status', () => {
+  const status = { id: 'stock.empty.wreck' } as unknown as Msg;
+  const action = { label: status, ready: true, target: { kind: 'shop' } } as const;
+
+  it('takes the action bar slot when no action shows', () => {
+    expect(actionSlot(null, null, status)).toBe('status');
+  });
+
+  it('gives way to a real action', () => {
+    expect(actionSlot(action, null, status)).toBe('action');
+  });
+
+  it('hides while work shows and when there is no status', () => {
+    expect(actionSlot(null, {}, status)).toBe('none');
+    expect(actionSlot(action, {}, status)).toBe('none');
+    expect(actionSlot(null, null, null)).toBe('none');
   });
 });
