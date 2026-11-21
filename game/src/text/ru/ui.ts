@@ -191,7 +191,6 @@ export const UI: Translation<typeof EN> = {
   'cell.deadCells': 'Сломанные ячейки груза. Почините грузовую деталь, чтобы пользоваться ими.',
   'kind.utility': 'оборудование',
   'menu.showTips': 'Показывать советы',
-  'menu.waitForTurn': 'Дождитесь конца хода',
   'help.group.drive': 'Езда',
   'help.group.places': 'Места и разговоры',
   'help.group.fight': 'Бой',

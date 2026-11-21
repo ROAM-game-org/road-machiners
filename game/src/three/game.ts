@@ -89,6 +89,7 @@ import { reportError } from "./crash";
 import type { GpuContext } from "./gpu-context";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
+import { TurnWait } from "./turn-wait";
 import { unstuckReason } from "../ui/unstuck-reason";
 import { getUnstuck } from "../sim/unstuck";
 import { abandonRun, canAbandonRun } from "../sim/chaos-highway";
@@ -109,7 +110,7 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision } from "./travel";
+import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision, committedWorld } from "./travel";
 import { heldPlayMs, PlayClock } from "./play-clock";
 
 
@@ -207,7 +208,7 @@ export class Game {
   private last = performance.now();
   private framesSeen = 0;
   readonly pace = new FramePace();
-  private pending: ((w: World) => World | null) | null = null;
+  private readonly turnWait = new TurnWait();
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
@@ -307,8 +308,8 @@ export class Game {
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
-    const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
+    const saves = this.saves.menuActions(() => committedWorld(this.world, this.anim));
+    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.screens.quest.isOpen()), run: () => this.whenTurnEnds(() => this.getUnstuck()) } }, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -907,10 +908,8 @@ export class Game {
     this.breakCues = new BreakCues([]);
     this.phase = null;
     this.saves.afterTurn(this.world);
-    const pending = this.pending;
-    this.pending = null;
-    if (pending) this.runRescue(pending);
     this.hud.flushHorn();
+    this.turnWait.release();
     this.shade.update(this.world);
     this.uiStale = true;
   }
@@ -930,11 +929,12 @@ export class Game {
 
   private rescueCommand(fn: (w: World) => World | null): void {
     if (this.modalOpen()) return;
-    if (this.anim) {
-      this.pending = fn;
-      return;
-    }
-    this.runRescue(fn);
+    this.whenTurnEnds(() => this.runRescue(fn));
+  }
+
+  whenTurnEnds(action: () => void, key?: string): void {
+    if (this.travel.isPlaying(this.anim)) this.turnWait.defer(action, key);
+    else action();
   }
 
   private runRescue(fn: (w: World) => World | null): void {
@@ -1079,6 +1079,7 @@ export class Game {
       this.updateTravel();
     }
     this.settleLateStop(now);
+    if (!this.travel.isPlaying(this.anim)) this.turnWait.release();
     if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
     timed("flush-ui", () => this.flushUi(began, phase));
     return { at, ...clock };
