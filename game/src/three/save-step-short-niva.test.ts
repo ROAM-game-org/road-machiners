@@ -6,7 +6,7 @@ import { gridOf, placementError } from '../sim/grid';
 import { repairContent } from '../sim/save-repair';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle, World } from '../sim/types';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
 const step = TINY_STEPS.find((s) => s.name === 'withShortNivaHood')!;
 

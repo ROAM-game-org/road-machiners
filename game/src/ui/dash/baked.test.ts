@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sourceHash } from "../../../tools/hud-bake/source-hash.mjs";
-import { artSet, bakeView, homography, mapPoint, warpTransform, type BakedMeta, type Quad } from "./baked";
+import { BakedPart, artSet, bakeView, homography, mapPoint, warpTransform, type BakedMeta, type Quad } from "./baked";
 
 const BOXES = new URL("./baked/", import.meta.url);
 const PICTURES = new URL("../../../public/hud/baked/", import.meta.url);
@@ -64,5 +64,38 @@ describe("baked art in CSS variables", () => {
   it("resolves each picture against the page, since a stylesheet in assets/ would resolve a relative one against itself", () => {
     vi.stubGlobal("document", { baseURI: "https://play.test/dev/index.html" });
     expect(artSet([1, 2], (s) => `hud/baked/pieces/desktop/slate@${s}x.webp`, { hashes: {}, base: "./", dev: true })).toBe('image-set(url("https://play.test/dev/hud/baked/pieces/desktop/slate@1x.webp") 1x, url("https://play.test/dev/hud/baked/pieces/desktop/slate@2x.webp") 2x)');
+  });
+});
+
+describe("baked part zones", () => {
+  const fakeNode = () => ({ classList: { add: () => {} }, remove: vi.fn() }) as unknown as HTMLElement;
+
+  function part() {
+    const root = { append: vi.fn() };
+    const laid: number[] = [];
+    const placed: { node: HTMLElement; zone: string }[] = [];
+    const baked = Object.assign(Object.create(BakedPart.prototype), { root, placed, zoneOf: () => ({}), layout: () => laid.push(placed.length) }) as BakedPart;
+    return { baked, laid, placed };
+  }
+
+  it("lays out when a zone is added and when it is removed", () => {
+    const { baked, laid } = part();
+    const node = fakeNode();
+    baked.zone(node, "slot0");
+    baked.unzone(node);
+    expect(laid).toEqual([1, 0]);
+  });
+
+  it("keeps exactly the live zone nodes in its placed list", () => {
+    const { baked, placed } = part();
+    const [a, b] = [fakeNode(), fakeNode()];
+    baked.zone(a, "slot0");
+    baked.zone(b, "slot1");
+    baked.unzone(a);
+    expect(placed.map((p) => p.node)).toEqual([b]);
+    expect(a.remove).toHaveBeenCalledOnce();
+    const c = fakeNode();
+    baked.zone(c, "slot0");
+    expect(placed.map((p) => p.node)).toEqual([b, c]);
   });
 });
