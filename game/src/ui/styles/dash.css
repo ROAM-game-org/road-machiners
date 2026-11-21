@@ -1571,13 +1571,13 @@
   text-shadow: var(--hud-text-glow);
 }
 
-#ui .stat-icon .coin circle {
+#ui .stats-plate .stat-icon .coin circle {
   fill: none;
-  stroke: var(--hud-print);
+  stroke: var(--hud-print-coal);
 }
 
-#ui .stat-icon .coin path {
-  stroke: var(--hud-print);
+#ui .stats-plate .stat-icon .coin path {
+  stroke: var(--hud-print-coal);
 }
 
 #ui .contracts .contract-line + .contract-line {
@@ -1676,7 +1676,7 @@
   position: relative;
 }
 
-:is(#ui, #overlay) .hud-plate:not(.weapons-plate) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
+:is(#ui, #overlay) .hud-plate:not(.weapons-plate, .drive-plate, .stats-plate, .keys-plate) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
   color: var(--hud-print);
 }
 
@@ -1832,7 +1832,7 @@
   pointer-events: none;
 }
 
-:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .weapons-plate) :is(.plate-label, .hud-panel-title, .menu-label, .hud-engraved):not(:is(.hud-screen, .tray-window) *) {
+:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .weapons-plate, .drive-plate, .stats-plate, .keys-plate) :is(.plate-label, .hud-panel-title, .menu-label, .hud-engraved, .stat-icon, .stat-unit):not(:is(.hud-screen, .tray-window) *) {
   color: var(--hud-print-coal);
   text-shadow: var(--hud-print-coal-edge);
 }

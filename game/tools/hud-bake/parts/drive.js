@@ -1,12 +1,13 @@
-import { Plate, extrude, lit, litMap, loft, cap, glassMesh, insetPoly, grain, wear, rollGeometry, makeStage, frame, THREE, K } from './dashlib.js';
+import { Plate, extrude, lit, oliveLit, oliveMap, hexBolt, loft, cap, glassMesh, insetPoly, makeStage, frame, THREE, K } from './dashlib.js';
+import { OLIVE, mottle } from './olive.js';
+import { inkAt } from '../kit.js';
 import { installBake } from '../core.js';
 
 const FACE = [-3, 581.9, 339.9, 729];
 const EYE_Z_DRIVE = 20.6;
 const Z_PANEL = -0.2;
 const FRAME_DEPTH = 0.25;
-const PANEL = '#5a2a13';
-const FRAME_FACE = '#52280f';
+const VISOR = '#231c15';
 const BRASS = '#a87a3c';
 const DIAL_BRASS = '#c48b40';
 const GLASS = '#1d1609';
@@ -29,9 +30,8 @@ const PANEL_BOX = [-40, 600, 340, 775];
 const panelCv = LP.canvas(PANEL_BOX);
 {
   const c = panelCv.c;
-  c.fillStyle = PANEL; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
-  grain(c, PANEL_BOX, 21, 4);
-  wear(c, PANEL_BOX, 33, { stains: 8, creases: 26, rubs: 4 });
+  c.fillStyle = OLIVE.housing; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
+  mottle(c, PANEL_BOX[0], PANEL_BOX[1], PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1], 21);
   c.save();
   c.beginPath();
   c.moveTo(-40, 775); c.lineTo(333, 775); c.lineTo(333, 605.3 + 22); c.arc(333 - 22, 605.3 + 22, 22, 0, Math.PI / 2 * 3, true);
@@ -45,22 +45,21 @@ const COOL_SINK = 0.025, COOL_GAP = 1.1;
   const panelShape = LP.shape(PANEL_BOX, [0, 24, 0, 0]);
   const [x0, y0, x1, y1] = [276.4, 622.5, 318.2, 659.2], g = COOL_GAP;
   panelShape.holes.push(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [5 + g, 5 + g, 5 + g, 5 + g]));
-  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: litMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: lit('#24100a'), seg: 3 }));
-  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), lit('#2a1309'));
+  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: oliveMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: oliveLit(OLIVE.shade), seg: 3 }));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), oliveLit(OLIVE.floor));
   floor.position.z = Z_PANEL - 0.06; floor.receiveShadow = true; P.g.add(floor);
 }
 
 const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
-const ROLL_Y = 601.2, ROLL_X = 343.4, ROLL_R = 2.5, ROLL_COLOR = '#793f22';
+const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
 const FRAME_BOX = [-40, 596, 350, 775];
 const frameCv = L0.canvas(FRAME_BOX);
 {
   const c = frameCv.c;
-  c.fillStyle = FRAME_FACE; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
-  grain(c, FRAME_BOX, 5, 4);
-  wear(c, FRAME_BOX, 34, { stains: 3, creases: 12, rubs: 2 });
+  c.fillStyle = OLIVE.housing; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
+  mottle(c, FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1], 5);
 }
-const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
+const outer = L0.shape([-40, FRAME_TOP, FRAME_RIGHT, 775], [0, TR, 0, 0]);
 {
   const u = (x, y) => [L0.ux(x), L0.uy(y)];
   const hole = new THREE.Path();
@@ -73,37 +72,21 @@ const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
   hole.closePath();
   outer.holes.push(hole);
 }
-P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: litMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: lit('#632f16') }));
+P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: oliveMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: oliveLit(OLIVE.shade) }));
+
+const VISOR_FRONT = 0.12, VISOR_DEPTH = 0.06, VISOR_BEVEL = 0.01;
+const VISOR_TOP = [[-40, 593], [317, 593]], VISOR_BOTTOM = [[-40, 606.5], [309, 606.5]];
 {
-  const path = [[-40, ROLL_Y]];
-  const rc = TR - ROLL_R;
-  for (let x = -40 + 20; x < ROLL_X - rc; x += 20) path.push([x, ROLL_Y]);
-  path.push([ROLL_X - rc, ROLL_Y]);
-  for (let i = 1; i < 16; i++) { const a = -Math.PI / 2 + i / 16 * Math.PI / 2; path.push([ROLL_X - rc + Math.cos(a) * rc, ROLL_Y + rc + Math.sin(a) * rc]); }
-  for (let y = ROLL_Y + rc; y < 775; y += 20) path.push([ROLL_X, y]);
-  path.push([ROLL_X, 775]);
-  const { geo, lens, total } = rollGeometry(L0, path, ROLL_R);
-  const H = 64, cv = document.createElement('canvas');
-  cv.width = Math.round(total * K); cv.height = H;
-  const c = cv.getContext('2d');
-  c.fillStyle = ROLL_COLOR; c.fillRect(0, 0, cv.width, H);
-  const rowAt = (deg) => (1 - deg / 360) * H, row = rowAt(80), at = (len) => len * K;
-  for (const [deg, w, a] of [[52, 3.2 * K / 2, 0.22], [52, 1.4 * K / 2, 0.3]]) { c.globalAlpha = a; c.strokeStyle = '#d98a52'; c.lineWidth = w; c.beginPath(); c.moveTo(0, rowAt(deg)); c.lineTo(cv.width, rowAt(deg)); c.stroke(); }
-  const topEnd = lens[path.findIndex((p) => p[0] >= ROLL_X - rc)], arcEnd = lens[path.findIndex((p, i) => i > 0 && p[1] > ROLL_Y + rc - 0.01 && p[0] === ROLL_X)];
-  const run = (from, to, dash, gap, alpha) => {
-    c.save(); c.setLineDash([dash * K, gap * K]); c.lineCap = 'butt';
-    for (const [dy, a, col] of [[1.2, alpha * 0.5, '#1c0a03'], [0, alpha, '#ecd5ac']]) { c.globalAlpha = a; c.strokeStyle = col; c.lineWidth = K * 0.85; c.beginPath(); c.moveTo(at(from), row + dy); c.lineTo(at(to), row + dy); c.stroke(); }
-    c.restore();
-  };
-  run(0, topEnd, 6, 3.2, 0.6); run(topEnd, arcEnd, 4, 2.2, 0.7); run(arcEnd, total, 2.6, 1.5, 0.8);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapT = THREE.RepeatWrapping;
-  const mat = litMap(tex);
-  mat.side = THREE.DoubleSide;
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = false; mesh.receiveShadow = false;
+  const V = P.at(VISOR_FRONT);
+  const outline = [...VISOR_TOP, ...VISOR_BOTTOM.slice().reverse()];
+  const shape = new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(V.ux(x), V.uy(y))));
+  const mesh = extrude(shape, { front: VISOR_FRONT, depth: VISOR_DEPTH, bevel: VISOR_BEVEL, bt: VISOR_BEVEL, caps: oliveLit(VISOR), sides: oliveLit(VISOR), seg: 2 });
+  inkAt(mesh, 0.006);
   P.g.add(mesh);
 }
+const BOLT_Z = 0.014, VISOR_BOLT_Z = VISOR_FRONT + VISOR_BEVEL;
+for (const [x, y] of [[14, 612], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
+for (const x of [12, 300]) P.g.add(hexBolt(P.at(VISOR_BOLT_Z), x, 599.8, 2));
 
 const dialGlassPaint = (c, b) => {
   const cx = DIAL.cx, cy = DIAL.cy, R = DIAL.rGlass;
@@ -153,7 +136,7 @@ const coolKey = new THREE.Group();
 const font = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
 document.fonts.add(await font.load());
 
-const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
+const BRASS_DEEP = '#5e4220', PRINT = '#241c14';
 const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
 
 const SW_RING = 0.85, SW_LEVER = 1.75, SW_LEVER_W = 1.25, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
@@ -169,7 +152,7 @@ const printMesh = (L, box, label, z) => {
   c.setTransform(DENSITY, 0, 0, DENSITY, -box[0] * DENSITY, -box[1] * DENSITY);
   const mx = (box[0] + box[2]) / 2, my = (box[1] + box[3]) / 2;
   c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '400 6px "Routed Gothic Narrow"';
-  c.fillStyle = 'rgba(30,14,6,.6)'; c.fillText(label, mx, my + 0.6);
+  c.fillStyle = 'rgba(255,240,205,0.22)'; c.fillText(label, mx, my + 0.6);
   c.fillStyle = PRINT; c.fillText(label, mx, my);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const rect = L.rect(box);
