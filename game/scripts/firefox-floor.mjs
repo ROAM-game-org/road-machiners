@@ -54,6 +54,8 @@ async function playHardened(page, url, bootLimitMs, errors) {
   await page.waitForTimeout(NIGHT_SETTLE_MS);
   problems.push(...(await judge(page, 'Roaming at night', seen)));
   await startNewGame(page, 'chaosHighway', bootLimitMs);
+  seen.linked = 0;
+  seen.failed = 0;
   await lightUpNight(page);
   await page.waitForTimeout(NIGHT_SETTLE_MS);
   problems.push(...(await judge(page, 'Chaos Highway at night', seen)));
