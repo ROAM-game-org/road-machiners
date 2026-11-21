@@ -68,17 +68,23 @@ export function clearPlates(at: Placement, box: THREE.Box3, plates: THREE.Object
 type Row = { index: number; y: number; reach: number };
 type Span = { bottom: number; top: number };
 
-export type Settle = { profile: FaceProfile; axis: 'x' | 'z'; toBodyTop: boolean; upright: () => void; fail: () => never };
+export type Settle = { profile: FaceProfile; axis: 'x' | 'z'; toBodyTop: boolean; skinX: number; upright: () => void; fail: () => never };
 
-export function settleOnBody(at: Placement, box: THREE.Box3, { profile, axis, toBodyTop, upright, fail }: Settle): void {
+export function settleOnBody(at: Placement, box: THREE.Box3, { profile, axis, toBodyTop, skinX, upright, fail }: Settle): void {
   const placed = placedBounds(at, box);
   const found = FACE_FILLS.map((fill) => faceIn(profile, placed, toBodyTop ? bodyTop(profile, fill) : placed.max.y, fill)).find((f) => f !== null);
   if (!found) return upright();
   coverFace(at, box, found.face, found.span, fail);
-  touchFace(at, box, found.face, axis, profile.outward);
+  touchFace(at, skinBox(box, skinX), found.face, axis, profile.outward);
 }
 
 const FACE_FILLS = [0.5, 0];
+
+export function skinBox(box: THREE.Box3, skinX: number): THREE.Box3 {
+  const skin = box.clone();
+  skin.min.x = skinX;
+  return skin;
+}
 
 function faceIn(profile: FaceProfile, placed: THREE.Box3, top: number | null, fill: number): { face: Row[]; span: Span } | null {
   const face = top === null ? null : tallestFace(profileRows(profile, placed.min.y, top, fill));
