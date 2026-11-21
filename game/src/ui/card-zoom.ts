@@ -11,19 +11,19 @@ function positive(value: number, what: string): number {
 }
 
 function sized(size: Size, what: string): Size {
-  positive(size.width, `${what} width`);
-  positive(size.height, `${what} height`);
+  positive(size.width, `${what}.width`);
+  positive(size.height, `${what}.height`);
   return size;
 }
 
 export function densityCap(scale: number, devicePixelRatio: number): number {
-  return Math.max(CARD_ZOOM.minFitCap, SUPERSAMPLE / (positive(scale, "the view scale") * positive(devicePixelRatio, "the device pixel ratio")));
+  return Math.max(CARD_ZOOM.minFitCap, SUPERSAMPLE / (positive(scale, "scale") * positive(devicePixelRatio, "pixelRatio")));
 }
 
 export function fitZoom(screen: Size, natural: Size, cap: number): number {
-  sized(screen, "the screen");
-  sized(natural, "the drawing");
-  return Math.min(positive(cap, "the fit cap"), screen.height / natural.height, screen.width / natural.width);
+  sized(screen, "screen");
+  sized(natural, "drawing");
+  return Math.min(positive(cap, "cap"), screen.height / natural.height, screen.width / natural.width);
 }
 
 function limit(drawn: number, screen: number): number {
@@ -43,10 +43,10 @@ export class CardZoom {
   private offset: Point = { x: 0, y: 0 };
 
   refit(fit: number, screen: Size, drawing: Size, pxPerMeterAtOne: number): void {
-    this.fit = positive(fit, "the fit");
-    this.screen = { ...sized(screen, "the screen") };
-    this.drawing = { ...sized(drawing, "the drawing") };
-    this.pxPerMeterAtOne = positive(pxPerMeterAtOne, "the drawing density");
+    this.fit = positive(fit, "fit");
+    this.screen = { ...sized(screen, "screen") };
+    this.drawing = { ...sized(drawing, "drawing") };
+    this.pxPerMeterAtOne = positive(pxPerMeterAtOne, "density");
     this.magnify = Math.min(this.magnify, this.maxMagnify());
     this.offset = this.clamped(this.offset);
   }
@@ -69,7 +69,7 @@ export class CardZoom {
 
   zoomAt(factor: number, point: Point): void {
     this.ready();
-    positive(factor, "the zoom factor");
+    positive(factor, "factor");
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new Error("Card zoom: the zoom point is not finite");
     const next = Math.min(this.maxMagnify(), Math.max(1, this.magnify * factor));
     const ratio = next / this.magnify;

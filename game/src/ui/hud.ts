@@ -662,7 +662,7 @@ export class Hud {
   }
 
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
-    if (v?.id !== this.inspectedId || this.info.style.display === "none") this.inspected.resetZoom();
+    if (v && (v.id !== this.inspectedId || this.info.style.display === "none")) this.inspected.resetZoom();
     this.inspectedId = v?.id ?? null;
     this.wantPortraits(w, v);
     if (!v) {
