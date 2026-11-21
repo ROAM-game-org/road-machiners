@@ -5,7 +5,7 @@ import { TRUCK_LOOK } from '../../render/partLooks';
 import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
-import { armorModel } from './armorLook';
+import { armorModel, armorSkinX } from './armorLook';
 import { clearPlates, fitRamToBumper, placedBounds, poseArmor, settleOnBody, SIDE_FACE, type Placement } from './armorFit';
 import { TOP_MARGIN, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
@@ -308,7 +308,7 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   pos.y += shift;
   const upright = (): void => void (pos[axis] += outward * Math.min(0, outward * (touchAt(shift) as number) - snug));
   if (def.look === 'ram') upright();
-  else settleOnBody(at, box, { profile, axis, toBodyTop: !across, upright, fail });
+  else settleOnBody(at, box, { profile, axis, toBodyTop: !across, skinX: armorSkinX(def.id), upright, fail });
   if (def.kind === 'accessory') clearPlates(at, box, platesBehind(v, item, body), side);
   return at;
 }
