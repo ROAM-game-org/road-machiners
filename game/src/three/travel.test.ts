@@ -31,6 +31,13 @@ function makeSafeWorld() {
 }
 
 describe("turn advancement", () => {
+  it("fails loudly when a turn ends a full turn late", () => {
+    const travel = new Travel(250, TAIL);
+    expect(() => travel.finishClock(MOVE_MS * 2, MOVE_MS)).toThrow(/full turn/);
+    travel.finishClock(MOVE_MS * 1.5, MOVE_MS);
+    expect(travel.getRemainder(true)).toBeCloseTo(MOVE_MS * 0.5, 6);
+  });
+
   it("keeps planning paused until Space starts waypoint travel", () => {
     const travel = new Travel(250, TAIL);
     travel.update(true, true);

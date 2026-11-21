@@ -111,7 +111,7 @@ import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
 import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision } from "./travel";
-import { heldPlayMs, PlayClock } from "./play-clock";
+import { heldPlayMs, PlayClock, playbackFrameCapMs } from "./play-clock";
 
 
 const PICK_PX = 30;
@@ -272,7 +272,7 @@ export class Game {
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     installControlSounds(document, (cue) => this.sound.ui(cue));
-    this.loops = new SoundLoops(player, music, tracks);
+    this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
@@ -1066,7 +1066,7 @@ export class Game {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
-    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
+    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), playbackFrameCapMs(speed, CONFIG.playbackHitchMs, MOVE_MS)), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();

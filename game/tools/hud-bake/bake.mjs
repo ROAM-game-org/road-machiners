@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { launchChromium } from '../../scripts/gpu.mjs';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './server.mjs';
@@ -37,7 +38,7 @@ function checkMeta(part, meta) {
 
 async function bakePart(page, url, part, view) {
   const errors = [];
-  const onConsole = (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); };
+  const onConsole = (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('GL Driver Message')) errors.push(m.text()); };
   const onError = (e) => errors.push(String(e));
   page.on('console', onConsole); page.on('pageerror', onError);
   await page.goto(`${url}/game/tools/hud-bake/part.html?p=${part}&view=${view}`);
@@ -63,7 +64,7 @@ const unknown = asked.filter((p) => !BAKES.includes(p));
 if (unknown.length) throw new Error(`unknown parts: ${unknown.join(', ')}. Parts: ${BAKES.join(', ')}`);
 mkdirSync(BOXES, { recursive: true });
 const server = await startServer();
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu'] });
+const { browser } = await launchChromium(chromium);
 try {
   const page = await browser.newPage();
   for (const view of Object.keys(VIEW_SCALES)) for (const part of asked.length ? asked : BAKES) await bakePart(page, server.url, part, view);

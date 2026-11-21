@@ -1,4 +1,5 @@
 import { setText } from '../../text/language';
+import { LaterJobs } from "./later-jobs";
 import type { Msg } from '../../text/msg';
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -42,7 +43,6 @@ const FLASH = {
 
 type FloatText = { el: HTMLDivElement; pos: V3; anchor: (() => V3 | null) | null; rowPx: number; age: number; life: number; used: boolean };
 type Flash = { mesh: THREE.Mesh; size: number; age: number };
-type Pending = { left: number; run: () => void };
 
 function flashGeometry(): THREE.BufferGeometry {
   const pts: number[] = [];
@@ -180,7 +180,7 @@ export class Fx3D {
   private readonly cardLight = { sunDir: new THREE.Vector3(), sun: new THREE.Color(), sky: new THREE.Color(), ground: new THREE.Color() };
   private texts: FloatText[] = [];
   private projectiles: Projectiles;
-  private pending: Pending[] = [];
+  private readonly pending = new LaterJobs();
   private flashes: MuzzleFlashes;
   private casings: Casings;
   readonly ruts: Ruts;
@@ -262,8 +262,7 @@ export class Fx3D {
   }
 
   later(delayMs: number, run: () => void): void {
-    if (!(delayMs >= 0)) throw new Error(`A world effect waits a non-negative time, got ${delayMs} ms`);
-    this.pending.push({ left: delayMs / 1000, run });
+    this.pending.add(delayMs, run);
   }
 
   label(anchor: () => V3 | null, text: Msg, row: number, delayMs: number, readMs: number): void {
@@ -399,13 +398,7 @@ export class Fx3D {
     this.flashes.tick(dt);
     this.casings.tick(dt, world.terrain, world.turn);
     this.ruts.tick(world.turn);
-    for (let i = this.pending.length - 1; i >= 0; i--) {
-      const job = this.pending[i];
-      job.left -= dt;
-      if (job.left > 0) continue;
-      this.pending.splice(i, 1);
-      job.run();
-    }
+    this.pending.tick(dt);
     this.projectiles.tick(combatMs / 1000);
     this.floatTexts(realMs / 1000);
   }
