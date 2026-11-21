@@ -242,6 +242,8 @@ export const LOG: Translation<typeof EN> = {
   'log.partDisabled': 'У {who, case, gen} {part, case, nom} {part, gender, m {выведен} f {выведена} n {выведено} pl {выведены}} из строя',
   'log.breakdownOf': 'У {who, case, gen} {part, case, nom} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
   'log.breakdown': '{part} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
+  'log.hurtYours': 'У вас {parts, gender, m {поврежден} f {повреждена} n {повреждено} pl {повреждены}} {parts, case, nom}',
+  'log.hurtOf': 'У {truck, case, gen} {parts, gender, m {поврежден} f {повреждена} n {повреждено} pl {повреждены}} {parts, case, nom}',
   'log.townPatch': 'Вы латаете грузовик ломом.',
   'log.siteEvent.surge': '{site, case, at} сегодня производят больше {good, case, gen}.',
   'log.siteEvent.breakdown': 'Производство {site, case, at} встало. Пока не починят, {good, case, gen} почти не будет.',

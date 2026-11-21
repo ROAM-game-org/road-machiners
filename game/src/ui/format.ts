@@ -308,7 +308,7 @@ function stateEndedText(world: World, e: Extract<GameEvent, { t: 'stateEnded' }>
   return words ? words(vehicleName(world, e.state.holder)) : null;
 }
 
-function partDamage(hits: PartHit[]): Map<string, number> {
+export function partDamage(hits: PartHit[]): Map<string, number> {
   const dealt = new Map<string, number>();
   for (const h of hits) if (h.damage > 0) dealt.set(h.part, (dealt.get(h.part) ?? 0) + h.damage);
   return dealt;

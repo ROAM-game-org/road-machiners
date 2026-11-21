@@ -224,6 +224,8 @@ export const LOG = {
   'log.partDisabled': m('{who}: {part} disabled', { who: 'text', part: 'text' }),
   'log.breakdownOf': m('{who}: {part} broke down', { who: 'text', part: 'text' }),
   'log.breakdown': m('{part} broke down', { part: 'text' }),
+  'log.hurtYours': m('You take hits: {parts}', { parts: 'text' }),
+  'log.hurtOf': m('{truck} takes hits: {parts}', { truck: 'text', parts: 'text' }),
   'log.townPatch': 'You patch your truck with scrap.',
   'log.bountyPaid': m('You paid the Marshalls {price}. Their case against you is closed.', { price: 'text' }),
   'log.bountyHunted': m('You collect the bounty on {who}: {price}', { who: 'text', price: 'text' }),
