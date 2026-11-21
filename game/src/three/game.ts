@@ -449,8 +449,8 @@ export class Game {
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
-    const { action, count, index } = this.context.shown();
-    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
+    const { action, count, index, status } = this.context.shown();
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"), status);
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
