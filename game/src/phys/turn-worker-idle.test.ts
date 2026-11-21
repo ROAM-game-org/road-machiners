@@ -1,3 +1,4 @@
+import { packTerrain, unpackTerrain } from '../sim/terrain';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { initPhysics } from './drive';
 import { driveSnapshotOf, SentObstacles, startTurnWorker, type IdleFailure, type TurnResponse } from './turn';
@@ -13,6 +14,11 @@ vi.mock('../sim/nav/layer', async (actual) => {
 vi.mock('../sim/camp-warm', async (actual) => {
   const warm = await actual<typeof import('../sim/camp-warm')>();
   return { ...warm, campWarmSteps: vi.fn(warm.campWarmSteps) };
+});
+
+vi.mock('../sim/terrain', async (actual) => {
+  const terrain = await actual<typeof import('../sim/terrain')>();
+  return { ...terrain, unpackTerrain: vi.fn(terrain.unpackTerrain) };
 });
 
 type Answer = Extract<TurnResponse, { turn: unknown }>;
@@ -36,10 +42,11 @@ function turnWorker() {
   const worker = self as unknown as { onmessage: (event: { data: unknown }) => Promise<void> };
   const world = emptyWorld();
   const { terrain, ...state } = world;
+  vi.mocked(unpackTerrain).mockReturnValue(terrain);
   const sent = new SentObstacles();
   const request = (id: number) => ({ kind: 'turn', id, questLanguage: 'en', tailSteps: 4, ...sent.split(state), drive: driveSnapshotOf(world), terrain: null });
   return {
-    start: () => worker.onmessage({ data: { kind: 'terrain', terrain } }),
+    start: () => worker.onmessage({ data: { kind: 'terrain', terrain: packTerrain(terrain) } }),
     ask: (id: number) => worker.onmessage({ data: request(id) }),
     warm: () => worker.onmessage({ data: { kind: 'warm', ...sent.split(state) } }),
   };
