@@ -41,14 +41,16 @@ const DEFS = {
   "radio": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Old CB radio in a truck cab: the handset key clicks, then a short burst of analog static squelch crackles from the dashboard speaker."], seconds: 1.2 },
   "ui-error": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Dull thud of a jammed metal lever that will not move."], seconds: 0.5 },
 
-  "key-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
-  "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped up hard over its spring: one loud crisp metallic clack."], seconds: 0.5 },
-  "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud crisp metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
-  "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
-  "latch-out": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A locked push button on an old truck dashboard released: a soft click as its spring pops it back up."], seconds: 0.5 },
-  "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.3, loop: false, prompts: ["A single soft dry relay tick from behind an old instrument panel, very light and short."], seconds: 0.5 },
-  "knob-step": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.3, loop: false, prompts: ["One detent click of a small ribbed knob on an old car radio, short and light."], seconds: 0.5, minGapMs: 45 },
-  "wheel-step": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.25, loop: false, prompts: ["One ratchet tick of a ribbed thumb wheel on old dashboard equipment, very short and dry."], seconds: 0.5, minGapMs: 45 },
+  "engine-douse": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.6, loop: false, prompts: ["Water thrown over a hot truck engine under the hood: one quick whoosh of hissing steam that fades out."], seconds: 1.5 },
+  "key-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
+  "turn-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.15, loop: false, prompts: ["One soft round rubber-capped push key on an old truck radio pressed gently: a quiet dull short tick."], seconds: 0.5 },
+  "switch-on": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud crisp metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
+  "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud heavy metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
+  "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
+  "latch-out": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A locked push button on an old truck dashboard released: a soft click as its spring pops it back up."], seconds: 0.5 },
+  "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.3, loop: false, prompts: ["A single soft dry relay tick from behind an old instrument panel, very light and short."], seconds: 0.5 },
+  "knob-step": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.3, loop: false, prompts: ["One detent click of a small ribbed knob on an old car radio, short and light."], seconds: 0.5, minGapMs: 45 },
+  "wheel-step": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.25, loop: false, prompts: ["One ratchet tick of a ribbed thumb wheel on old dashboard equipment, very short and dry."], seconds: 0.5, minGapMs: 45 },
 
   "money": { bus: "ui", setup: "cab", volume: 0.8, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["A few smooth heavy metal discs clink together and drop into a tin box."], seconds: 1 },
   "level-up": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Heavy steel lever slams and locks into place with a deep satisfying clunk, then a short bright ring of struck metal."], seconds: 2 },
@@ -106,8 +108,25 @@ const DEFS = {
 
 export type CueId = keyof typeof DEFS;
 
-export const CONTROL_CUES = ["key-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step"] as const satisfies readonly CueId[];
+export const CONTROL_CUES = ["key-press", "turn-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step"] as const satisfies readonly CueId[];
 export type ControlCue = (typeof CONTROL_CUES)[number];
+
+export type ControlType = "key" | "turn" | "screen" | "switch" | "latch" | "knob" | "wheel" | "utility";
+export type ControlState = { cue: ControlCue; standIn: boolean };
+
+const own = (cue: ControlCue): ControlState => ({ cue, standIn: false });
+const standIn = (cue: ControlCue): ControlState => ({ cue, standIn: true });
+
+export const CONTROL_STATES = {
+  key: { press: own("key-press") },
+  turn: { press: own("turn-press") },
+  screen: { press: own("screen-press") },
+  switch: { on: own("switch-on"), off: own("switch-off") },
+  latch: { in: own("latch-in"), out: own("latch-out") },
+  knob: { step: own("knob-step") },
+  wheel: { step: own("wheel-step") },
+  utility: { on: own("switch-on"), off: own("switch-off"), armed: standIn("switch-on"), ready: standIn("switch-on") },
+} as const satisfies Record<ControlType, Record<string, ControlState>>;
 export const HAND_MS = 250;
 
 const ON_DISK = Object.keys(import.meta.glob("/public/sfx/*.ogg")).map((p) => p.split("/").pop()!);

@@ -1,31 +1,27 @@
-import { HAND_MS, type ControlCue } from "../data/sounds";
+import { CONTROL_STATES, HAND_MS, type ControlCue } from "../data/sounds";
 
-export type PressSound = "key" | "screen" | "switch" | "latch" | "latch-lit" | "knob" | "none";
+export type PressSound = "key" | "turn" | "screen" | "switch" | "latch" | "latch-lit" | "knob" | "none";
 
-const PRESS_SOUNDS: readonly PressSound[] = ["key", "screen", "switch", "latch", "latch-lit", "knob", "none"];
-const ON_POINTER_DOWN: readonly PressSound[] = ["key", "screen"];
+const PRESS_SOUNDS: readonly PressSound[] = ["key", "turn", "screen", "switch", "latch", "latch-lit", "knob", "none"];
+const ON_POINTER_DOWN: readonly PressSound[] = ["key", "turn", "screen"];
 const CONTROL_ROOTS = "#ui, #report";
 
 let sink: ((cue: ControlCue) => void) | null = null;
 let lastKey: { control: HTMLElement; at: number } | null = null;
 
+const PRESS_CUES: Record<Exclude<PressSound, "switch" | "none">, ControlCue> = {
+  key: CONTROL_STATES.key.press.cue,
+  turn: CONTROL_STATES.turn.press.cue,
+  screen: CONTROL_STATES.screen.press.cue,
+  latch: CONTROL_STATES.latch.in.cue,
+  "latch-lit": CONTROL_STATES.latch.out.cue,
+  knob: CONTROL_STATES.knob.step.cue,
+};
+
 export function pressCue(sound: PressSound, checked: boolean): ControlCue | null {
-  switch (sound) {
-    case "key":
-      return "key-press";
-    case "screen":
-      return "screen-press";
-    case "switch":
-      return checked ? "switch-off" : "switch-on";
-    case "latch":
-      return "latch-in";
-    case "latch-lit":
-      return "latch-out";
-    case "knob":
-      return "knob-step";
-    case "none":
-      return null;
-  }
+  if (sound === "none") return null;
+  if (sound === "switch") return (checked ? CONTROL_STATES.switch.off : CONTROL_STATES.switch.on).cue;
+  return PRESS_CUES[sound];
 }
 
 export function pressSoundOf(value: string, where: string): PressSound {

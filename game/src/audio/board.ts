@@ -1,5 +1,5 @@
 
-import { MIX, SOUNDS, type Bus, type Cue } from "../data/sounds";
+import { CONTROL_STATES, MIX, SOUNDS, type Bus, type Cue, type ControlState } from "../data/sounds";
 import { devEl as el } from "../ui/dom";
 import { SFX_BYTES } from "../config";
 import { formatSupport, loadBank, recoverBank, type Bank, type DecodeFailure } from "./bank";
@@ -81,3 +81,14 @@ for (const bus of BUSES) {
   root.append(el("h2", {}, `${bus}  bus volume ${MIX.busVolume[bus]}  target ${MIX.level[bus]} dB RMS`));
   for (const id of ids) root.append(cueRow(id, anchors[bus]));
 }
+
+function stateRow(state: string, entry: ControlState): HTMLElement {
+  const takes = sounds[entry.cue].files.map((f) => el("button", { onclick: () => play(entry.cue, f) }, f.replace(".ogg", "")));
+  return el("div", { class: "row" }, el("span", { class: "state" }, state), ...takes, entry.standIn ? el("span", { class: "missing" }, `stand-in from ${entry.cue}, needs its own take`) : null);
+}
+
+const controls = el("div", {}, el("h2", {}, "Controls by type and state"));
+for (const [type, states] of Object.entries(CONTROL_STATES)) {
+  controls.append(el("div", { class: "cue" }, el("b", {}, type), ...Object.entries(states).map(([state, entry]) => stateRow(state, entry))));
+}
+root.insertBefore(controls, root.children[1] ?? null);
