@@ -1,4 +1,5 @@
 
+import { keyPress } from './control-sound';
 import type { LineId } from '../data/dialogue';
 import { HIRE } from '../data/npc-behavior';
 import { playerVehicle, vehicleById } from '../sim/damage';
@@ -168,7 +169,7 @@ export class DialoguePanel {
   private readonly horn: Horn;
   private drawn = '';
 
-  constructor(private readonly host: DialogueHost) {
+  constructor(private readonly host: DialogueHost, private readonly callKey: () => HTMLElement | null = () => null) {
     this.horn = new Horn(host);
     this.root.style.display = 'none';
     this.root.addEventListener('click', () => this.root.classList.add('qt-done'));
@@ -205,7 +206,7 @@ export class DialoguePanel {
   }
 
   private onFreeKey(code: string): boolean {
-    if (code === 'KeyT') return this.callInspected();
+    if (code === 'KeyT') return this.callInspected(true);
     return code === 'KeyH' && this.honk();
   }
 
@@ -216,7 +217,7 @@ export class DialoguePanel {
   private onBusyKey(e: KeyboardEvent): void {
     if (e.code === 'KeyH' && this.honk()) e.stopImmediatePropagation();
     if (e.code === 'KeyT' && !this.host.sceneBusy()) {
-      this.host.whenTurnEnds(() => this.callInspected());
+      this.host.whenTurnEnds(() => this.callInspected(true));
       e.stopImmediatePropagation();
     }
   }
@@ -234,17 +235,23 @@ export class DialoguePanel {
     }
     const index = KEY_DIGITS.indexOf(code);
     const offered = currentOptions(this.host.world());
-    if (index >= 0 && index < offered.length && !offered[index].short) this.choose(index);
+    if (index >= 0 && index < offered.length && !offered[index].short) this.chooseByKey(index);
     return index >= 0;
+  }
+
+  private chooseByKey(index: number): void {
+    keyPress(this.root.querySelectorAll<HTMLElement>('.dialogue-option')[index] ?? null);
+    this.choose(index);
   }
 
   private choose(index: number): void {
     this.host.talk(chooseOption(this.host.world(), index));
   }
 
-  callInspected(): boolean {
+  callInspected(byKey = false): boolean {
     const id = this.host.inspected();
     if (!id || !canCall(this.host.world(), id)) return false;
+    if (byKey) keyPress(this.callKey());
     this.host.talk(callVehicle(this.host.world(), id));
     return true;
   }

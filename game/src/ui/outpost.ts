@@ -37,7 +37,7 @@ export function outpostControls(w: World): { leave: boolean; driveOn: boolean } 
 }
 
 export class OutpostScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private error: Msg | null = null;
   private tab: OutpostTab = "market";
   private shown: "truck" | "hauler" = "truck";

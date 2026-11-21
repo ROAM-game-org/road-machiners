@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { stubPage } from "../test/fake-dom";
 import { t } from "../text/msg";
 import { askConfirm, isConfirmOpen } from "./confirm-dialog";
+import { installControlSounds } from "./control-sound";
 
 const ASK = { question: t("save.confirmLoad"), yes: t("menu.loadSave") };
 
@@ -50,6 +51,17 @@ describe("the confirm dialog", () => {
     await asked;
     expect(answers).toEqual([false]);
     expect(isConfirmOpen()).toBe(false);
+  });
+
+  it("sounds the Cancel key once when Escape cancels", async () => {
+    const heard: string[] = [];
+    vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: () => "key" }));
+    installControlSounds({ addEventListener: () => {} } as unknown as Document, (cue) => heard.push(cue));
+    const { dialog, key, asked } = ask();
+    Object.assign(dialog.button("Cancel"), { isConnected: true, checkVisibility: () => true, getAttribute: () => null });
+    key("Escape");
+    await asked;
+    expect(heard).toEqual(["key-press"]);
   });
 
   it("answers false on Escape, and Escape reaches nothing else", async () => {

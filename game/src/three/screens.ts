@@ -43,6 +43,11 @@ export class ModalScreens {
     return this.quest.isOpen() || this.all().some((s) => s.isOpen());
   }
 
+  closeKey(): HTMLElement | null {
+    const open = this.all().find((s) => s.isOpen());
+    return open ? open.root.querySelector<HTMLElement>(".close") : null;
+  }
+
   blockingOpen(): boolean {
     return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen() && !(s === this.journal && this.journal.sideForm()));
   }

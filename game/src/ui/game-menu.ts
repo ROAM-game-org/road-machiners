@@ -14,6 +14,7 @@ import { versionLabel } from "./hud-readout";
 import { desktopHost } from "../three/save-db";
 import { drawingRenderer } from "../three/webgl";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
+import { keyPress } from "./control-sound";
 import { OptionsPanel } from "./options";
 import type { SoundSettings } from "./sound";
 import { SavePanel, type SavePanelActions } from "./save-panel";
@@ -160,6 +161,7 @@ export class HelpPanel {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
     e.stopPropagation();
+    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
     this.close();
   };
 
@@ -207,7 +209,10 @@ export class GameMenu {
     if (isConfirmOpen()) return;
     if (e.code === "Escape") {
       e.stopPropagation();
-      if (!e.repeat) this.closeList(true);
+      if (!e.repeat) {
+        if (!this.list.hidden) keyPress(this.button);
+        this.closeList(true);
+      }
       return;
     }
     if (isBrowserChord(e)) return;
@@ -252,6 +257,10 @@ export class GameMenu {
     document.addEventListener("fullscreenchange", () => this.refresh());
     this.root.append(this.list);
     this.refresh();
+  }
+
+  cameraKey(): HTMLElement | null {
+    return this.options.cameraKey();
   }
 
   isOpen(): boolean {

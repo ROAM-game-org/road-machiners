@@ -73,7 +73,7 @@ import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponR
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
-import { installControlSounds } from "../ui/control-sound";
+import { installControlSounds, keyPress } from "../ui/control-sound";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
@@ -122,6 +122,17 @@ type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 const stepMs = (step: number) => (step / PHYSICS.stepsPerSecond) * 1000;
 
 const GUN_HEIGHT = 1.6;
+
+type KeySource = "key" | "button";
+
+type GameKey = {
+  run: () => void;
+  control: (() => HTMLElement | null) | "none";
+  noModal?: true;
+  idle?: true;
+  inventoryOk?: true;
+  screen?: true;
+};
 
 export class Game {
   private world: World;
@@ -282,17 +293,17 @@ export class Game {
     this.screens = new ModalScreens(host, () => this.hud.sideMoved(this.screens.journal.root));
     this.hud = new Hud({
       openMenu: () => this.menu.toggle(),
-      openInventory: () => this.runKey("KeyI"),
-      openCharacter: () => this.runKey("KeyC"),
-      openJournal: () => this.runKey("KeyJ"),
-      openMap: () => this.runKey("KeyM"),
-      toggleManual: () => this.runKey("KeyR"),
-      toggleAutoRepair: () => this.runKey("KeyP"),
-      toggleOverdrive: () => this.runKey("KeyO"),
-      toggleHeadlights: () => this.runKey("KeyL"),
+      openInventory: () => this.runKey("KeyI", "button"),
+      openCharacter: () => this.runKey("KeyC", "button"),
+      openJournal: () => this.runKey("KeyJ", "button"),
+      openMap: () => this.runKey("KeyM", "button"),
+      toggleManual: () => this.runKey("KeyR", "button"),
+      toggleAutoRepair: () => this.runKey("KeyP", "button"),
+      toggleOverdrive: () => this.runKey("KeyO", "button"),
+      toggleHeadlights: () => this.runKey("KeyL", "button"),
       headlightsOn: () => this.world.player.headlights,
-      douseEngine: () => this.runKey("KeyG"),
-      firstAid: () => this.runKey("KeyU"),
+      douseEngine: () => this.runKey("KeyG", "button"),
+      firstAid: () => this.runKey("KeyU", "button"),
       unhitch: () => this.rescueCommand((w) => (w.player.state === "active" && isTowed(w) ? unhitch(w) : null)),
       setBeacon: (on) =>
         this.rescueCommand((w) =>
@@ -303,7 +314,7 @@ export class Game {
       endRun: () => this.endRun(),
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.sceneBusy(), sceneBusy: () => this.sceneBusy(), whenTurnEnds: (action, key) => this.whenTurnEnds(action, key), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
-      recenter: () => this.runKey("KeyF"),
+      recenter: () => this.runKey("KeyF", "button"),
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => playerCanAct(this.world), apply: (next) => this.whenTurnEnds(() => this.applyRefusable(next)) }),
@@ -338,9 +349,9 @@ export class Game {
       selectWeapons: (ids) => this.whenTurnEnds(() => { if (this.modalOpen()) return; this.selected = ids; this.refreshUi(); }),
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
-      pressTurn: () => this.pressTurn(),
+      pressTurn: () => this.pressTurn("button"),
       releaseTurn: () => this.releaseTurn(),
-      runKey: (code) => this.runKey(code),
+      runKey: (code) => this.runKey(code, "button"),
       whenTurnEnds: (action, key) => this.whenTurnEnds(action, key),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
@@ -453,7 +464,7 @@ export class Game {
     this.weapons.render();
     this.screens.render();
     const { action, count, index, status } = this.context.shown();
-    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"), status);
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE", "button"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft", "button"), status);
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
@@ -520,10 +531,10 @@ export class Game {
       if (this.ignoresKey(e) || this.death.isShown()) return;
       if (e.code === "Space" && !this.turnRefused()) {
         e.preventDefault();
-        if (!e.repeat) this.pressTurn();
+        if (!e.repeat) this.pressTurn("key");
       }
       if (e.code === "Escape" && e.repeat) return;
-      this.runKey(e.code);
+      this.runKey(e.code, "key");
     });
   }
 
@@ -536,12 +547,13 @@ export class Game {
   }
 
   private tapTurnKey(): void {
-    this.pressTurn();
+    this.pressTurn("button");
     this.releaseTurn();
   }
 
-  private pressTurn(): void {
+  private pressTurn(from: KeySource): void {
     if (this.death.isShown() || this.turnRefused()) return;
+    if (from === "key") keyPress(this.weapons.playKey());
     this.screens.inventoryTime.press();
     const playing = this.travel.isPlaying(this.anim);
     const stopsAuto = this.travel.isAuto(this.world);
@@ -555,38 +567,46 @@ export class Game {
     this.context.searchStock(stockId, action.combat);
   }
 
-  private runKey(code: string): void {
+  private runKey(code: string, from: KeySource): void {
     const key = this.keys[code];
     if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen()))) return;
-    if (key.idle && this.travel.isPlaying(this.anim)) return this.turnWait.defer(() => this.runKey(code));
+    if (key.idle && this.travel.isPlaying(this.anim)) return this.turnWait.defer(() => this.runKey(code, from));
     if (key.inventoryOk && this.screens.inventory.isOpen()) this.screens.inventory.close();
+    if (from === "key" && key.control !== "none") keyPress(key.control());
     key.run();
   }
 
-  private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true; screen?: true }> = {
-    KeyF: { run: () => this.follow.recenter() },
-    KeyV: { run: () => cameraSetting().toggle() },
-    KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
-    ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
-    Digit0: { run: () => this.weapons.toggleAll(), noModal: true },
-    ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
-    KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true, idle: true },
-    ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
-    ArrowRight: { run: () => this.cycleContext(1), noModal: true, idle: true },
-    KeyR: { run: () => this.controls.toggleManual(), noModal: true, idle: true },
-    KeyP: { run: () => this.controls.toggleAutoRepair(), noModal: true, idle: true },
-    KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
-    KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
-    KeyU: { run: () => this.controls.firstAid(), noModal: true, idle: true },
-    KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
-    KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
-    KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
-    KeyC: { run: () => this.screens.toggleCharacter("skills"), idle: true, screen: true },
-    KeyM: { run: () => hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
-    KeyJ: { run: () => (this.screens.journal.sideForm() ? this.screens.toggle(this.screens.journal) : this.whenTurnEnds(() => this.screens.toggle(this.screens.journal))), screen: true },
-    KeyI: { run: () => (this.screens.inventory.isOpen() ? this.screens.toggle(this.screens.inventory) : this.whenTurnEnds(() => this.screens.toggle(this.screens.inventory))), screen: true },
-    Escape: { run: () => this.escape() },
+  private readonly keys: Record<string, GameKey> = {
+    KeyF: { run: () => this.follow.recenter(), control: () => this.hud.recenterKey() },
+    KeyV: { run: () => cameraSetting().toggle(), control: () => this.menu.cameraKey() },
+    KeyQ: { run: () => this.weapons.toggleAuto(), control: () => this.weapons.autoKey(), noModal: true },
+    ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), control: () => this.weapons.speedKnob(), noModal: true as const }])),
+    Digit0: { run: () => this.weapons.toggleAll(), control: () => this.weapons.allKey(), noModal: true },
+    ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), control: () => this.weapons.slotControl(i + 1), noModal: true as const, idle: true as const }])),
+    KeyE: { run: () => this.context.use(), control: () => this.hud.actionKey(), noModal: true, inventoryOk: true, idle: true },
+    ArrowLeft: { run: () => this.cycleContext(-1), control: () => this.hud.cycleKey(-1), noModal: true, idle: true },
+    ArrowRight: { run: () => this.cycleContext(1), control: () => this.hud.cycleKey(1), noModal: true, idle: true },
+    KeyR: { run: () => this.controls.toggleManual(), control: () => this.hud.manualSwitch(), noModal: true, idle: true },
+    KeyP: { run: () => this.controls.toggleAutoRepair(), control: "none", noModal: true, idle: true },
+    KeyO: { run: () => this.controls.toggleOverdrive(), control: () => this.hud.overdriveSwitch(), noModal: true, idle: true },
+    KeyG: { run: () => this.controls.douseEngine(), control: () => this.hud.coolKey(), noModal: true, idle: true },
+    KeyU: { run: () => this.controls.firstAid(), control: "none", noModal: true, idle: true },
+    KeyL: { run: () => this.controls.toggleHeadlights(), control: () => this.hud.lightsSwitch(), noModal: true },
+    KeyN: { run: () => this.context.onCard('mark', this.inspected()), control: () => this.hud.cardKey("N"), noModal: true, idle: true },
+    KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), control: () => this.hud.cardKey("B"), noModal: true, idle: true },
+    KeyC: { run: () => this.screens.toggleCharacter("skills"), control: () => this.hud.systemKey("character"), idle: true, screen: true },
+    KeyM: { run: () => hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), control: () => this.hud.systemKey("map"), idle: true, screen: true },
+    KeyJ: { run: () => (this.screens.journal.sideForm() ? this.screens.toggle(this.screens.journal) : this.whenTurnEnds(() => this.screens.toggle(this.screens.journal))), control: () => this.hud.systemKey("journal"), screen: true },
+    KeyI: { run: () => (this.screens.inventory.isOpen() ? this.screens.toggle(this.screens.inventory) : this.whenTurnEnds(() => this.screens.toggle(this.screens.inventory))), control: () => this.hud.systemKey("car"), screen: true },
+    Escape: { run: () => this.escape(), control: () => this.escapeControl() },
   };
+
+  private escapeControl(): HTMLElement | null {
+    if (this.screens.town.isOpen()) return this.screens.town.backKey();
+    if (this.modalOpen() || this.screens.journal.isOpen()) return this.screens.closeKey();
+    if (this.pin.id !== null || this.utilityAim.selectedId !== null) return null;
+    return this.hud.systemKey("menu");
+  }
 
   private escape(): void {
     if (this.screens.town.isOpen()) this.screens.town.back();

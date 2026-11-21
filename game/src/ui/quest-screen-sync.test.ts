@@ -23,6 +23,7 @@ class FakeNode {
   setAttribute() {}
   addEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]); }
   querySelector() { return null; }
+  querySelectorAll() { return []; }
 }
 
 const keyHandlers: ((e: unknown) => void)[] = [];

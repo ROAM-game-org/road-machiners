@@ -575,6 +575,28 @@ export class WeaponPanel extends WeaponOrders {
     this.host.stepTravelSpeed(delta);
     this.render();
   }
+
+  slotControl(n: number): HTMLElement | null {
+    const w = this.host.world();
+    const guns = vehicleStats(w, playerVehicle(w)).weapons.length;
+    return n <= guns ? this.panel.gunControl(n - 1) : this.panel.utilityControl(n - guns - 1);
+  }
+
+  playKey(): HTMLElement {
+    return this.deck.playKey();
+  }
+
+  speedKnob(): HTMLElement {
+    return this.deck.speedKnob();
+  }
+
+  allKey(): HTMLElement {
+    return this.panel.allKey();
+  }
+
+  autoKey(): HTMLElement {
+    return this.panel.autoKey();
+  }
 }
 
 export function mountedSelection(mounted: readonly MountedWeapon[], selected: readonly string[]): readonly string[] {
