@@ -125,6 +125,23 @@ describe('RadioStation', () => {
     expect(drain(s, w2)).toBeNull();
   });
 
+  it('airs at most one contract report per board refresh period', () => {
+    const w = world(10, ['bowl', 'nose']);
+    const s = tuned(w);
+    const first = later(w, RADIO.minGapTurns);
+    first.shops.bowl.contracts = [haul('c1', 'bowl', 'nose', 100)];
+    s.hear(first);
+    expect(s.next()).not.toBeNull();
+    const second = later(first, 20);
+    second.shops.bowl.contracts = [...first.shops.bowl.contracts, haul('c2', 'bowl', 'nose', 500)];
+    s.hear(second);
+    expect(drain(s, second)).toBeNull();
+    const third = later(second, RADIO.contractGapTurns);
+    third.shops.bowl.contracts = [...second.shops.bowl.contracts, haul('c3', 'bowl', 'nose', 700)];
+    s.hear(third);
+    expect(s.next()).not.toBeNull();
+  });
+
   it('announces a new search by the name of the person wanted', () => {
     const w = world(10, ['bowl']);
     const s = tuned(w);
