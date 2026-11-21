@@ -280,15 +280,37 @@ export function benchRooms(frame: HTMLElement, root: HTMLElement, grid: HTMLElem
   ];
 }
 
-export function targetRoom(root: HTMLElement, share: number): FitRoom | null {
-  const shell = root.querySelector(".inv-target");
-  const well = shell?.parentElement;
-  if (!shell || !well) return null;
-  const style = getComputedStyle(well);
-  const above = uiSize().toLayer(shell.getBoundingClientRect().top - well.getBoundingClientRect().top);
-  const head = shell.querySelector("h3");
-  const headHeight = head ? uiSize().toLayer(head.getBoundingClientRect().height) + pxOf(getComputedStyle(head).marginBottom) : 0;
-  return { columns: 1, width: well.clientWidth - sidePadding(well), height: (well.clientHeight - pxOf(style.paddingBottom) - above - headHeight) * share };
+export type Reach = { top: number; right: number; bottom: number; left: number };
+
+export const NO_REACH: Reach = { top: 0, right: 0, bottom: 0, left: 0 };
+
+export function drawnReach(grid: HTMLElement): Reach {
+  const base = grid.getBoundingClientRect();
+  if (base.width === 0 || base.height === 0) return NO_REACH;
+  const parts = [...grid.querySelectorAll("*")].map((node) => node.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+  const past = (edge: number) => Math.max(0, edge);
+  return {
+    top: past(base.top - Math.min(base.top, ...parts.map((r) => r.top))) / base.height,
+    bottom: past(Math.max(base.bottom, ...parts.map((r) => r.bottom)) - base.bottom) / base.height,
+    left: past(base.left - Math.min(base.left, ...parts.map((r) => r.left))) / base.width,
+    right: past(Math.max(base.right, ...parts.map((r) => r.right)) - base.right) / base.width,
+  };
+}
+
+export function reachPadding(reach: Reach, m: GridMetrics): string {
+  const size = gridSize(m);
+  return [reach.top * size.height, reach.right * size.width, reach.bottom * size.height, reach.left * size.width].map((px) => `${Math.ceil(px)}px`).join(" ");
+}
+
+export function targetRoom(root: HTMLElement, reach: Reach): FitRoom | null {
+  const screen = root.querySelector(".inv-target");
+  const shell = screen?.querySelector(".truck-shell");
+  if (!screen || !shell) return null;
+  const style = getComputedStyle(screen);
+  const above = uiSize().toLayer(shell.getBoundingClientRect().top - screen.getBoundingClientRect().top);
+  const width = screen.clientWidth - sidePadding(screen);
+  const height = screen.clientHeight - pxOf(style.paddingBottom) - above;
+  return { columns: 1, width: width / (1 + reach.left + reach.right), height: height / (1 + reach.top + reach.bottom) };
 }
 
 export function trimFrame(frame: HTMLElement, spare: number): void {

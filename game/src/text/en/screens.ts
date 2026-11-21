@@ -539,8 +539,6 @@ export const SCREENS = {
   'inv.takeAll': 'Take all that fits',
   'inv.dragToGrid': 'Drag items onto the grid.',
   'inv.truckGone': 'The truck got away',
-  'inv.truckGaveUp': m('{truck}, gave up', { truck: 'text' }),
-  'inv.truckOut': m('{truck}, knocked out', { truck: 'text' }),
   'inv.dragToYours': 'Drag items onto your grid.',
   'inv.close': 'Close',
   'inv.title': 'Inventory',

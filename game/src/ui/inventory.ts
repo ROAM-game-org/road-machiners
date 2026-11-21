@@ -25,7 +25,7 @@ import { shopAt, shopTrades } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
 import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits } from "../sim/salvage";
-import { gaveUp, isKnockedOut } from "../sim/defeat";
+import { isKnockedOut } from "../sim/defeat";
 import { knowsCargo } from "../sim/look-over";
 import { REGION } from "../data/region";
 import type {
@@ -80,6 +80,10 @@ import {
   GridScale,
   pxStyle,
   rectOf,
+  drawnReach,
+  reachPadding,
+  NO_REACH,
+  type Reach,
   type PixelRect,
 } from "./inventory-draw";
 import { fillGhost, garageLooks, pivotPx, type GarageLooks } from "./garage-draw";
@@ -91,7 +95,7 @@ import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
-import { commandFailure, parcelTitle } from "./format";
+import { commandFailure, downedStateText, parcelTitle } from "./format";
 
 type Drag = {
   source: ItemSource;
@@ -110,6 +114,13 @@ type Press = { timer: number; source: ItemSource; id: string; item: GridItem; gr
 const SHORT_LAYER = 600;
 
 export type BenchHead = { title: HTMLElement; close: HTMLElement };
+
+const REACH_PASSES = 2;
+const REACH_TOLERANCE = 0.01;
+
+function sameReach(a: Reach, b: Reach): boolean {
+  return (["top", "right", "bottom", "left"] as const).every((side) => Math.abs(a[side] - b[side]) < REACH_TOLERANCE);
+}
 
 export class InventoryView {
   private drag: Drag | null = null;
@@ -131,6 +142,7 @@ export class InventoryView {
   private loot: string | null = null;
   private truck: string | null = null;
   private looking = false;
+  private reach: Reach = NO_REACH;
   private gridTruck: string | null = null;
   private scale = new GridScale();
   private looks: GarageLooks = { own: null, other: null };
@@ -175,6 +187,7 @@ export class InventoryView {
     }
     if (this.head) box.style.removeProperty("height");
     this.scale.reset();
+    this.reach = NO_REACH;
     this.render();
     if (this.root.querySelector(".inv-truck") === null) throw new Error("Inventory view is not rendered");
     if (this.head) this.fitBench(box, key);
@@ -206,13 +219,26 @@ export class InventoryView {
     const layout = chooseLayout(rooms, truckMeters(me.chassisId, gridOf(me)));
     this.scale.apply(key, layout, this.targetLayout(w, layout));
     this.render();
+    this.refitTarget(w, layout, key);
     trimFrame(frame, rooms[0].height - gridSize(this.scale.mine).height);
     uiRoot().style.setProperty("--inv-frame-w", `${frame.offsetWidth}px`);
   }
 
+  private refitTarget(w: World, layout: GridLayout, key: string): void {
+    for (let pass = 0; pass < REACH_PASSES; pass++) {
+      const grid = this.root.querySelector<HTMLElement>(".inv-target .inv-grid");
+      if (!grid) return;
+      const measured = drawnReach(grid);
+      if (sameReach(measured, this.reach)) return;
+      this.reach = measured;
+      this.scale.apply(key, layout, this.targetLayout(w, layout));
+      this.render();
+    }
+  }
+
   private targetLayout(w: World, layout: GridLayout): GridLayout | null {
     const target = w.vehicles.find((v) => v.id === this.truck);
-    const room = target ? targetRoom(this.root, layout.columns === 2 ? 0.5 : 1) : null;
+    const room = target ? targetRoom(this.root, this.reach) : null;
     return target && room ? chooseLayout([room], truckMeters(target.chassisId, gridOf(target))) : null;
   }
 
@@ -250,13 +276,12 @@ export class InventoryView {
   }
 
   private hostedEl(w: World, grid: HTMLElement, error: HTMLElement): HTMLElement {
-    const target = this.truck ? [this.truckEl(w, this.truck)] : [];
     const stores = this.sideList(w);
     return el(
       "div",
       { class: "inv-wrap" },
       el("div", { class: "inv-truck" }, el("div", { class: "truck-shell" }, grid)),
-      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, ...this.jobBlock(w), this.inspection, error, ...stores, ...target),
+      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, ...this.jobBlock(w), this.inspection, error, ...stores),
     );
   }
 
@@ -268,7 +293,7 @@ export class InventoryView {
     const me = this.mine(w);
     const budget = budgetGroup(w, me, this.selection(w)?.item ?? null);
     const two = this.scale.columns === 2;
-    const name = el("h3", { class: "inv-truck-name tape" }, chassisName(chassisDef(me.chassisId).id));
+    const name = el("h3", { class: "inv-truck-name tape screen-tape" }, chassisName(chassisDef(me.chassisId).id));
     const middle = el("div", { class: "inv-middle" }, el("div", { class: "inv-band" }, two ? head.title : null), name, el("div", { class: "inv-truck" }, grid));
     const close = el("div", { class: "inv-band close-band" }, head.close);
     return two ? this.twoColumns(w, me, middle, close, budget, error) : this.threeColumns(w, me, head, middle, close, budget, error);
@@ -278,7 +303,7 @@ export class InventoryView {
     return el(
       "div",
       { class: "inv-bench" },
-      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
+      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w)), this.targetEl(w)),
       middle,
       el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
       this.footEl(),
@@ -287,7 +312,11 @@ export class InventoryView {
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)), this.footEl());
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error), this.targetEl(w)), this.footEl());
+  }
+
+  private targetEl(w: World): HTMLElement | null {
+    return this.truck ? this.targetScreen(w, this.truck) : null;
   }
 
   private footEl(): HTMLElement {
@@ -296,7 +325,7 @@ export class InventoryView {
 
   private sourceList(w: World): HTMLElement[] | null {
     if (!this.loot && !this.truck) return null;
-    return [...this.sideList(w), ...(this.truck ? [this.truckEl(w, this.truck)] : [])];
+    return this.sideList(w);
   }
 
   private itemEl(w: World, it: GridItem): HTMLElement {
@@ -686,26 +715,27 @@ export class InventoryView {
     return el("button", { class: "inv-search", ...disabledWith(this.look() ?? reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
   }
 
-  private truckEl(w: World, truckId: string): HTMLElement {
+  private targetScreen(w: World, truckId: string): HTMLElement {
     const target = w.vehicles.find((v) => v.id === truckId);
-    if (!target || !(this.looking ? knowsCargo(w, playerVehicle(w), target) : isKnockedOut(target)))
-      return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
-    if (this.looking) return this.lookedTruckEl(w, target);
+    if (!target || !(this.looking ? knowsCargo(w, playerVehicle(w), target) : isKnockedOut(target))) return el("div", { class: "well inv-target" }, el("div", { class: "dim" }, t("inv.truckGone")));
     const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
-    const removing = removalMarks(w, target);
-    grid.append(...deepestFirst(target.chassisId, target.items).map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
+    const removing = this.looking ? null : removalMarks(w, target);
+    grid.append(...deepestFirst(target.chassisId, target.items).map((it) => this.targetItem(w, target, it, grid, removing)));
+    const state = downedStateText(target);
+    const shell = el("div", { class: "truck-shell" }, grid);
+    shell.style.padding = reachPadding(this.reach, this.scale.measure(target, false));
     return el(
       "div",
-      { class: "inv-truck inv-target" },
-      el("h3", {}, gaveUp(target) ? t("inv.truckGaveUp", { truck: vehicleTitle(w, target) }) : t("inv.truckOut", { truck: vehicleTitle(w, target) })),
-      el("div", { class: "truck-shell" }, grid),
+      { class: "well inv-target" },
+      el("h3", { class: "tape screen-tape" }, vehicleTitle(w, target)),
+      ...(state ? [el("div", { class: "inv-target-state" }, state)] : []),
+      shell,
     );
   }
 
-  private lookedTruckEl(w: World, target: Vehicle): HTMLElement {
-    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
-    grid.append(...deepestFirst(target.chassisId, target.items).map((it) => this.truckItemEl(target, it, grid)));
-    return el("div", { class: "inv-truck inv-target" }, el("h3", {}, vehicleTitle(w, target)), el("div", { class: "truck-shell" }, grid));
+  private targetItem(w: World, target: Vehicle, it: GridItem, grid: HTMLElement, removing: ReturnType<typeof removalMarks> | null): HTMLElement {
+    const node = this.truckItemEl(target, it, grid);
+    return removing ? markTaken(w, node, removing.get(it.id)) : node;
   }
 
   private truckItemEl(target: Vehicle, it: GridItem, grid: HTMLElement): HTMLElement {

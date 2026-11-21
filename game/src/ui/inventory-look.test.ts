@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { addState } from "../sim/states";
 import { addVehicle, emptyWorld, spotWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
+import { vehicleTitle } from "../text/names";
 import { InventoryScreen } from "./inventory";
+import { say as textOf } from "../text/language";
 
 class FakeNode {
   className = "";
@@ -261,8 +263,37 @@ describe("the inventory looking another truck over", () => {
     screen.openLookedOver(w, npc.id);
     w.states = [];
     screen.render();
-    const heads = targetOf().all((n) => n.tag === "h3");
-    expect(JSON.stringify(heads)).toContain("got away");
+    expect(JSON.stringify(targetOf())).toContain("got away");
+    expect(targetOf().all((n) => n.className.split(" ").includes("tape"))).toEqual([]);
+  });
+
+  it("names the truck on tape across the top of a screen of its own, outside the budget well", () => {
+    const { w, npc } = lookScene();
+    const { screen } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    const tapes = targetOf().all((n) => n.className.split(" ").includes("screen-tape"));
+    expect(tapes).toHaveLength(1);
+    expect(targetOf().children).toContain(tapes[0]);
+    expect(JSON.stringify(tapes[0])).toContain(textOf(vehicleTitle(w, npc)));
+    const budgetWells = rootOf().all((n) => n.className.split(" ").includes("well") && !n.className.includes("inv-target"));
+    for (const well of budgetWells) expect(JSON.stringify(well)).not.toContain(textOf(vehicleTitle(w, npc)));
+    expect(targetOf().all((n) => n.className.includes("inv-target-state"))).toEqual([]);
+  });
+
+  it.each([
+    [true, "Gave up"],
+    [false, "Knocked out"],
+  ])("prints the downed state with the hover card's words when gave up is %s", (gaveUp, id) => {
+    const { w, npc } = lookScene();
+    npc.defeat = { phase: "out", turns: 0, unseen: 0, foes: [], gaveUp };
+    const { screen } = screenOver(w);
+    const view = (screen as unknown as { view: { setTruck(id: string, mode: string): void } }).view;
+    view.setTruck(npc.id, "downed");
+    screen.root.style.display = "";
+    screen.render();
+    const state = targetOf().all((n) => n.className.includes("inv-target-state"));
+    expect(state).toHaveLength(1);
+    expect(JSON.stringify(state[0])).toContain(id);
   });
 
   it("puts the scene reason first", () => {
