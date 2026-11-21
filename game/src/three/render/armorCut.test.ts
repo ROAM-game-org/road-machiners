@@ -215,7 +215,7 @@ describe('settleOnBody', () => {
   const settled = (body: THREE.Object3D): { at: Placement; placed: THREE.Box3 } => {
     const at = sideAt();
     const placed = placedBounds(at, plateBox);
-    settleOnBody(at, plateBox, { profile: faceProfile(body, 'z', 1, [placed.min.x, placed.max.x]), axis: 'z', toBodyTop: true, upright: fail, fail });
+    settleOnBody(at, plateBox, { profile: faceProfile(body, 'z', 1, [placed.min.x, placed.max.x]), axis: 'z', toBodyTop: true, skinX: plateBox.min.x, upright: fail, fail });
     return { at, placed: placedBounds(at, plateBox) };
   };
 
