@@ -341,6 +341,10 @@ describe('a Fallen Sun flap', () => {
   const on = (along: number): Vec => ({ x: flap.from.x + flap.axis.x * along, y: flap.from.y + flap.axis.y * along });
   const alongOf = (p: Vec) => (p.x - flap.from.x) * flap.axis.x + (p.y - flap.from.y) * flap.axis.y;
 
+  beforeAll(() => {
+    standardWorld(1337);
+  });
+
   type JumpTurn = { landing: Landing | null; upright: boolean; air: number };
 
   function jump(turns: number): { w: World; hp: Map<string, number>; after: JumpTurn[]; hits: string[]; lipSpeed: number } {
@@ -349,7 +353,8 @@ describe('a Fallen Sun flap', () => {
     const onRun = (p: Vec, margin: number) => segmentDist(p, start, end) < flap.width / 2 + margin;
     const level = groundAt(w.terrain, flap.from.x, flap.from.y);
     const row = w.terrain.size + 1;
-    w.terrain = { ...w.terrain, heights: w.terrain.heights.map((h, k) => (onRun({ x: k % row, y: Math.floor(k / row) }, 6) ? level : h)) };
+    const heights = w.terrain.heights.map((h, k) => (onRun({ x: k % row, y: Math.floor(k / row) }, 6) ? level : h));
+    w.terrain = Object.freeze({ ...w.terrain, heights: Object.freeze(heights) as number[] });
     w.obstacles = w.obstacles.filter((o) => o.kind === 'site' || !onRun(o.pos, 10));
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     me(w).pos = on(-5);

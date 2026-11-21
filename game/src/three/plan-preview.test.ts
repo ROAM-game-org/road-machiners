@@ -1,3 +1,5 @@
+import type { PackedTerrain, Terrain } from "../sim/terrain";
+import { packedBuffers } from "../sim/terrain";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { initPhysics, type DriveSnapshot } from "../phys/drive";
 import { driveSnapshotOf } from "../phys/turn";
@@ -37,6 +39,14 @@ class TestWorker {
   answer(index: number, preview: PlanFrames): void {
     this.respond({ id: this.requests[index].id, preview, perf: {} });
   }
+}
+
+function expectPackedFrom(packed: PackedTerrain | null, terrain: Terrain): void {
+  expect(packed?.size).toBe(terrain.size);
+  expect(packed?.heights).toBeInstanceOf(Float64Array);
+  expect(packed?.heights.length).toBe(terrain.heights.length);
+  expect(packed?.types).toBeInstanceOf(Uint8Array);
+  expect(packed?.types.length).toBe(terrain.types.length);
 }
 
 const plan = (waypoint: boolean): PlanFrames => ({ turns: [[]], course: null, waypoint });
@@ -80,7 +90,8 @@ it("sends the terrain only with the first request", () => {
   const worker = TestWorker.latest;
   worker.answer(0, plan(true));
   plans.request(moved(), drive, world.player.vehicleId);
-  expect(worker.requests[0].terrain).toBe(world.terrain);
+  expectPackedFrom(worker.requests[0].terrain, world.terrain);
+  expect(worker.transfers[0]).toHaveLength(1 + packedBuffers(worker.requests[0].terrain!).length);
   expect(worker.requests[1].terrain).toBeNull();
   expect("terrain" in worker.requests[0].world).toBe(false);
 });
@@ -91,7 +102,7 @@ it("warms with the terrain and the full obstacle list, so the first preview send
   const worker = TestWorker.latest;
   const posted = worker.requests as unknown as { kind: string; terrain?: unknown; obstacles?: { kind: string; list?: unknown } }[];
   expect(posted.map((request) => request.kind)).toEqual(["terrain", "warm"]);
-  expect(posted[0].terrain).toBe(world.terrain);
+  expectPackedFrom(posted[0].terrain as PackedTerrain, world.terrain);
   expect(posted[1].obstacles).toEqual({ kind: "full", list: world.obstacles });
   plans.request(world, drive, world.player.vehicleId);
   expect(worker.requests[2].terrain).toBeNull();
@@ -188,7 +199,7 @@ it("transfers a copy of the drive snapshot and leaves the main snapshot in place
   const before = drive.snapshot.slice();
   plans.request(world, drive, world.player.vehicleId);
   const worker = TestWorker.latest;
-  expect(worker.transfers[0]).toEqual([worker.requests[0].drive.snapshot.buffer]);
+  expect(worker.transfers[0][0]).toBe(worker.requests[0].drive.snapshot.buffer);
   expect(worker.requests[0].drive.snapshot.buffer).not.toBe(drive.snapshot.buffer);
   expect(drive.snapshot).toEqual(before);
 });
@@ -205,7 +216,7 @@ it("restarts a preview worker whose script did not load and posts the lost reque
   const second = TestWorker.latest;
   expect(second).not.toBe(first);
   expect(second.requests).toHaveLength(1);
-  expect(second.requests[0].terrain).toBe(world.terrain);
+  expectPackedFrom(second.requests[0].terrain, world.terrain);
   expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
   second.answer(0, plan(true));
   expect(plans.take(world)?.waypoint).toBe(true);
@@ -255,7 +266,8 @@ it("starts no worker until the first plan or the warm, and a plan asked before t
 
   expect(TestWorker.created).toBe(1);
   expect(worker.requests.filter((request) => (request.kind as string) === "terrain")).toEqual([]);
-  expect(worker.requests[0]).toMatchObject({ kind: "preview", terrain: world.terrain });
+  expect(worker.requests[0]).toMatchObject({ kind: "preview" });
+  expectPackedFrom(worker.requests[0].terrain, world.terrain);
   expect(plans.take(world)).toBe(answer);
 });
 
