@@ -220,7 +220,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - A key's print and face never change with the game. Counts, levels, XP, progress and pictures of the player's things are game state, and they go on a screen beside the key.
 - One exception: a price on a key is allowed, as in Fill and a coin with 29. A key may also print the step it buys, as in Buy 5 L and a coin with 1. The price part sits in the `.price` element of the key, and `scripts/hardware-check.mjs` ignores it. Any other digit on a key is a fault.
 - The only change a key shows is its cap: lit while it is on, pressed while held, dim print while it cannot be used, and red when it destroys.
-- A key prints only its action. Its keyboard shortcut shows in its tooltip, as in Esc and Back, and never on the cap.
+- A key prints only its action. Its keyboard shortcut shows in its tooltip, as in Esc and Back, and never on the cap. A control with a shortcut is named to `keyPress()` where its handler runs, so the key sounds like the click.
 
 #### Gauges
 
