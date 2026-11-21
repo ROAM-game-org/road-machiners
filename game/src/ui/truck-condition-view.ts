@@ -479,7 +479,6 @@ export class TruckConditionView {
       this.visibleArea(inStage),
       TIP_GAP,
     );
-    this.tip.dataset.side = spot.side;
     this.tip.style.left = `${spot.left}px`;
     this.tip.style.top = `${spot.top}px`;
   }
