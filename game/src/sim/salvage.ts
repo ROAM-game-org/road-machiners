@@ -217,11 +217,11 @@ export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContr
 }
 
 export function lockedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): Set<string> {
+  const relics = [...stock.parts, ...stock.hidden.parts].filter(isRelic);
+  if (relics.length === 0) return new Set();
   const claim = claimOn(world, stock);
   const allowed = claim && mayTakeClaimed(world, vehicle, claim) ? claim.partId : null;
-  const locked = new Set<string>();
-  for (const part of [...stock.parts, ...stock.hidden.parts]) if (isRelic(part) && part.id !== allowed) locked.add(part.id);
-  return locked;
+  return new Set(relics.filter((part) => part.id !== allowed).map((part) => part.id));
 }
 
 export function visibleParts(world: World, vehicle: Vehicle, stock: SalvageStock): PartInstance[] {
