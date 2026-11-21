@@ -50,6 +50,7 @@ export class RadioStation {
   private lastSent: number | null = null;
   private nextAir = 0;
   private lastAir = 0;
+  private lastContractReport: number | null = null;
   private placeHeard = new Map<string, number>();
   private lastVariant = new Map<RadioTopic, number>();
 
@@ -109,6 +110,7 @@ export class RadioStation {
     this.board = boardIds(world);
     this.queue = [];
     this.lastSent = null;
+    this.lastContractReport = null;
     this.nextAir = world.turn;
     this.placeHeard.clear();
     this.push('ident', {}, 'time');
@@ -150,10 +152,13 @@ export class RadioStation {
       }
     }
     if (fresh.length === 0) return;
+    if (this.lastContractReport !== null && world.turn - this.lastContractReport < RADIO.contractGapTurns) return;
     const found = (id: string) => world.player.discovered.includes(id);
     const known = fresh.filter((c): c is BoardContract => c.kind !== 'escort' && found(c.shop) && (c.kind !== 'haul' || found(c.to)));
     const best = known.sort((a, b) => b.reward - a.reward)[0];
-    if (best) this.push(best.kind, contractVars(world, best), 'news');
+    if (!best) return;
+    this.lastContractReport = world.turn;
+    this.push(best.kind, contractVars(world, best), 'news');
   }
 
   private timeCall(prevTurn: number, turn: number): void {
