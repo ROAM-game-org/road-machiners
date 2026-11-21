@@ -51,6 +51,24 @@ export function desertWeight(type: LookType): number {
   return DESERT_WEIGHT[type];
 }
 
+export const LOOK_NAMES = Object.keys(DESERT_WEIGHT) as LookType[];
+const UNSET_LOOK = 255;
+const HARDPAN_CODE = LOOK_NAMES.indexOf("hardpan");
+const GLASS_CODE = LOOK_NAMES.indexOf("glass");
+export const LOOK_DESERT = Float32Array.from(LOOK_NAMES, (name) => DESERT_WEIGHT[name]);
+
+export function lookCode(name: LookType, tile: number): number {
+  const code = LOOK_NAMES.indexOf(name);
+  if (code < 0) throw new Error(`Look type ${name} at tile ${tile} has no look code`);
+  return code;
+}
+
+export function lookName(code: number, tile = -1): LookType {
+  const name = LOOK_NAMES[code];
+  if (name === undefined) throw new Error(`Look code ${code} at tile ${tile} is outside the look table`);
+  return name;
+}
+
 export const MARK_KINDS = ["none", "cracks", "saltCracks", "puddles", "waves", "pebbles", "tufts", "ashSmudge", "seams", "windRipples", "furrows", "ruts"] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
@@ -104,12 +122,12 @@ export function groundMaterialIndex(type: LookType): number {
   return GROUND_MATERIAL_IDS.indexOf(type);
 }
 
-const lookCache = new WeakMap<Terrain, readonly LookType[]>();
+const lookCache = new WeakMap<Terrain, Uint8Array>();
 const yardCache = new WeakMap<Terrain, YardLook>();
 
-type YardLook = { fade: Float32Array; natural: readonly LookType[] };
+type YardLook = { fade: Float32Array; natural: Uint8Array };
 
-export function lookTypes(t: Terrain): readonly LookType[] {
+export function lookTypes(t: Terrain): Uint8Array {
   const cached = lookCache.get(t);
   if (cached) return cached;
   const result = floodLook(t, () => false);
@@ -117,9 +135,9 @@ export function lookTypes(t: Terrain): readonly LookType[] {
   return result;
 }
 
-const groundLookCache = new WeakMap<Terrain, readonly LookType[]>();
+const groundLookCache = new WeakMap<Terrain, Uint8Array>();
 
-export function groundLooks(t: Terrain): readonly LookType[] {
+export function groundLooks(t: Terrain): Uint8Array {
   const cached = groundLookCache.get(t);
   if (cached) return cached;
   const lines = drawnTrackLines(atlasOf(t));
@@ -129,11 +147,12 @@ export function groundLooks(t: Terrain): readonly LookType[] {
   return result;
 }
 
-function floodLook(t: Terrain, skipped: (tile: number) => boolean): readonly LookType[] {
-  const look = new Array<LookType | undefined>(t.size * t.size);
+function floodLook(t: Terrain, skipped: (tile: number) => boolean): Uint8Array {
+  const look = new Uint8Array(t.size * t.size).fill(UNSET_LOOK);
   const queue = new Int32Array(look.length);
   flood(look, queue, seedOffRoad(t, look, queue, skipped), t.size);
-  return Array.from(look, (type) => type ?? "hardpan");
+  for (let i = 0; i < look.length; i++) if (look[i] === UNSET_LOOK) look[i] = HARDPAN_CODE;
+  return look;
 }
 
 export function yardLook(t: Terrain): YardLook {
@@ -163,18 +182,18 @@ function yardFade(t: Terrain): Float32Array {
   return fade;
 }
 
-function seedOffRoad(t: Terrain, look: (LookType | undefined)[], queue: Int32Array, skipped: (tile: number) => boolean): number {
+function seedOffRoad(t: Terrain, look: Uint8Array, queue: Int32Array, skipped: (tile: number) => boolean): number {
   let tail = 0;
   for (let i = 0; i < look.length; i++) {
     const type = t.types[i];
     if (type === "road" || skipped(i)) continue;
-    look[i] = type;
+    look[i] = lookCode(type, i);
     queue[tail++] = i;
   }
   return tail;
 }
 
-function flood(look: (LookType | undefined)[], queue: Int32Array, tail: number, size: number): void {
+function flood(look: Uint8Array, queue: Int32Array, tail: number, size: number): void {
   for (let head = 0; head < tail; head++) {
     const i = queue[head];
     const x = i % size;
@@ -185,8 +204,8 @@ function flood(look: (LookType | undefined)[], queue: Int32Array, tail: number, 
   }
 }
 
-function spread(look: (LookType | undefined)[], queue: Int32Array, tail: number, i: number, n: number): number {
-  if (look[n] !== undefined) return tail;
+function spread(look: Uint8Array, queue: Int32Array, tail: number, i: number, n: number): number {
+  if (look[n] !== UNSET_LOOK) return tail;
   look[n] = look[i];
   queue[tail] = n;
   return tail + 1;
@@ -291,17 +310,18 @@ function tileLook(t: Terrain): TileLook {
   const plain = lookTypes(t);
   const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
-    const natural = yard.natural[i] === "glass" ? "hardpan" : yard.natural[i];
-    const own = look[i] === plain[i] ? t.types[i] : look[i];
-    color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(own), yard.fade[i]) : paintColor(own);
+    const natural = yard.natural[i] === GLASS_CODE ? HARDPAN_CODE : yard.natural[i];
+    const own = look[i] === plain[i] ? t.types[i] : lookName(look[i], i);
+    color[i] = yard.fade[i] > 0 ? mix(paintColor(lookName(natural, i)), paintColor(own), yard.fade[i]) : paintColor(own);
     desert[i] = desertAround(look[i], natural, yard.fade[i]);
   }
   return { t, color, desert, broad: new CellNoise(), fine: new CellNoise(), patch: new CellNoise(), cell: { a: 0, b: 0, c: 0, d: 0, fx: 0, fy: 0 } };
 }
 
-function desertAround(own: LookType, natural: LookType, fade: number): number {
-  const ownWeight = desertWeight(own === "glass" ? "hardpan" : own);
-  return fade === 0 ? ownWeight : desertWeight(natural) + (ownWeight - desertWeight(natural)) * fade;
+function desertAround(own: number, natural: number, fade: number): number {
+  const ownWeight = LOOK_DESERT[own === GLASS_CODE ? HARDPAN_CODE : own];
+  const naturalWeight = LOOK_DESERT[natural];
+  return fade === 0 ? ownWeight : naturalWeight + (ownWeight - naturalWeight) * fade;
 }
 
 class CellNoise {
@@ -408,7 +428,7 @@ function sandChannel(color: number, sand: number, patch: number, warm: number, k
   return (warmed + ((patch & 0xff) - warmed) * k + 0.5) | 0;
 }
 
-export function shownLooks(t: Terrain): LookType[] {
+export function shownLooks(t: Terrain): Uint8Array {
   const looks = groundLooks(t);
   const yard = yardLook(t);
   return looks.map((look, tile) => (yard.fade[tile] >= 0.5 ? look : yard.natural[tile]));
@@ -504,16 +524,6 @@ const GLASS_REACH = Math.ceil(GLASS_BLUR * 3);
 
 export type GroundBake = { pixels: Uint8ClampedArray; glass: Uint8Array; look: Uint8Array };
 
-const LOOK_NAMES = Object.keys(DESERT_WEIGHT) as LookType[];
-
-export function packedLook(look: readonly LookType[]): Uint8Array {
-  const index = new Map(LOOK_NAMES.map((name, i) => [name, i]));
-  return Uint8Array.from(look, (name) => {
-    const at = index.get(name);
-    if (at === undefined) throw new Error(`Look type ${name} has no pack index`);
-    return at;
-  });
-}
 export type GroundBakeRequest = { terrain: PackedTerrain; side: number };
 
 export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSize: number): PaintCanvas {
@@ -524,7 +534,7 @@ export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSi
 
 export function bakeGround(t: Terrain, ctx: CanvasRenderingContext2D, side: number): GroundBake {
   paintGroundCanvas(paintCanvasOn(ctx, side, t.size), t);
-  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: packedLook(lookTypes(t)) };
+  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: lookTypes(t) };
 }
 
 const glassBakes = new WeakMap<Terrain, Uint8Array>();
@@ -536,7 +546,7 @@ export function groundBakeFits(t: Terrain, side: number, bake: GroundBake): bool
 }
 
 export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
-  lookCache.set(t, Array.from(bake.look, (at) => LOOK_NAMES[at]));
+  lookCache.set(t, bake.look);
   glassBakes.set(t, bake.glass);
   pixelBakes.set(t, bake.pixels);
 }
