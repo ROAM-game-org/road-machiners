@@ -82,7 +82,7 @@ export const CONTRACTS = {
 
   board: {
     refreshTurns: Math.round(TIME.workDayTurns / 4),
-    shelfTurns: TIME.workDayTurns,
+    shelfTurns: Math.round(TIME.workDayTurns / 2),
   },
 
 
