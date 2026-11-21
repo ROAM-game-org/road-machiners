@@ -1,5 +1,5 @@
 
-import { keyTip, RECENTER_KEY, touchMode } from "./input-mode";
+import { ESCAPE, keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -14,7 +14,7 @@ import { gaveUp } from "../sim/defeat";
 import { bottomLeft, dashRail, disabledWith, el, markDisabled, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
 import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
-import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
+import { closeKey, controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
@@ -600,7 +600,6 @@ export class Hud {
     return cardActions(w, v, {
       call: () => this.dialogue.callInspected(),
       act: (action) => this.actions.cardAction(action),
-      unpin: () => this.actions.unpin(),
     });
   }
 
@@ -660,9 +659,13 @@ export class Hud {
     return this.portraits.settled(vehicleId);
   }
 
-  private infoHead(w: World, v: Vehicle): HTMLElement {
+  private infoHead(w: World, v: Vehicle, pinned: boolean): HTMLElement {
     const head = panelHead(v.brain ? driverName(v) : vehicleTitle(w, v));
     head.append(this.zoomKeys);
+    if (!pinned) return head;
+    const key = closeKey({ label: t("card.unpin"), onClose: () => this.actions.unpin() });
+    setAttrText(key, "title", keyTip(t("card.unpin"), ESCAPE.key));
+    head.append(key);
     return head;
   }
 
@@ -671,7 +674,7 @@ export class Hud {
     markDisabled(this.zoomOutKey, state.canZoomOut ? null : t("card.zoomedOut"));
   }
 
-  showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
+  showInfo(w: World, v: Vehicle | null, hostile: boolean, pinned = false): void {
     if (v && (v.id !== this.inspectedId || this.info.style.display === "none")) this.inspected.resetZoom();
     this.inspectedId = v?.id ?? null;
     this.wantPortraits(w, v);
@@ -685,7 +688,7 @@ export class Hud {
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      this.infoHead(w, v),
+      this.infoHead(w, v, pinned),
       screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
       this.cardButtons(w, v) ?? controls(),
@@ -717,7 +720,6 @@ function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {
 export interface CardHandlers {
   call: () => void;
   act: (action: "mark" | "lookOver") => void;
-  unpin: () => void;
 }
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
@@ -726,7 +728,6 @@ function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () 
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
   const buttons: HTMLElement[] = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
-  if (touchMode()) buttons.push(el("button", { class: "hud-key icon-key", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, createIcon("close")));
   return buttons.length === 0 ? null : el("div", { class: "info-actions hud-controls", "data-count": buttons.filter((b) => b.tagName === "BUTTON").length }, ...buttons);
 }
 

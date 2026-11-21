@@ -464,7 +464,7 @@ export class Game {
   private refreshInfo(): void {
     const w = this.displayWorld();
     const v = w.vehicles.find((x) => x.id === this.inspected() && playerSees(w, x.pos)) ?? null;
-    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false);
+    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false, v !== null && this.pin.id === v.id);
     this.hitCard.render(w, v ? v.id : null, this.selected);
   }
 
