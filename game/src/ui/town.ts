@@ -47,7 +47,7 @@ import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { filteredStock, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
+import { filteredStock, garageHead, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, serviceSupplyRow, reasonButton, rowButton, screenButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl, truckChips } from "./chip";
@@ -116,7 +116,6 @@ export class TownScreen {
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
-  private footKeys: HTMLElement[] = [];
   private paintPlan: TruckPaint | null = null;
   private slots = new RowSlots();
   private rows = new PartRows(() => this.render(), this.slots);
@@ -318,13 +317,11 @@ export class TownScreen {
     const buttons = this.choices.map((c, i) => choiceButton(c, i));
     const exit = buttons.pop();
     const status = el("div", { class: "ink-status bad", ...(this.error ? { title: this.error } : {}) }, this.error);
-    const keys = this.footKeys;
-    this.footKeys = [];
     return el(
       "div",
       { class: "ink-body" },
       el("div", { class: "ink-scroll" }, head, panel, el("div", { class: buttons.length > 0 ? "ink-choices quest-choices screen-block" : "ink-choices quest-choices" }, ...buttons)),
-      el("div", { class: "ink-foot" }, exit ?? null, ...keys, status),
+      el("div", { class: "ink-foot" }, exit ?? null, status),
     );
   }
 
@@ -419,8 +416,7 @@ export class TownScreen {
       trucks: () => ({ head: [], body: this.trucks(w, shopId), screen: true }),
       paint: () => ({ head: [], body: this.paint(w), screen: true }),
     }[this.garageTab]();
-    this.footKeys = column.head;
-    return { head: [el("div", { class: "tabs sub" }, ...buttons)], body: column.body, screen: column.screen };
+    return { head: garageHead(buttons, column.head[0]), body: column.body, screen: column.screen };
   }
 
   private parkedDrivers(w: World, shopId: string): HTMLElement {
