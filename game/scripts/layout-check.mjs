@@ -38,7 +38,7 @@ function fillLog(page) {
       t('log.scrapPatchFuel', { liters: 40 }),
       t('log.rankBoughtPerk', { skill: n.skillName('perception'), rank: 2 }),
     ];
-    for (let i = 0; i < 5; i++) for (const line of lines) g.hud.note(g.state, line, 'dim');
+    for (let i = 0; i < 5; i++) for (const line of lines) g.hud.note(g.state, line, 'dim', 'notable');
   });
 }
 
