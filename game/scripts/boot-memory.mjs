@@ -141,6 +141,8 @@ for (const engine of ['webkit', 'chromium']) {
     if (left.length > 0) problems.push(`${engine} left ${left.length} processes running after run ${run + 1}`);
   }
   const peak = median(results.map((r) => r.peakMb));
+  const bootPeak = median(results.map((r) => Math.max(0, ...Object.entries(r.peaks).filter(([step]) => step !== 'playing').map(([, mb]) => mb))));
+  console.log(`${engine} median peak before the first turn (boot steps only): ${bootPeak} MB`);
   console.log(`${engine} median peak from New game to ${TURNS} turns: ${peak} MB (menu ${median(results.map((r) => r.menuMb))} MB)`);
   for (const result of results) {
     if (result.errors.length > 0) problems.push(`${engine}: ${result.errors.join(' | ')}`);
