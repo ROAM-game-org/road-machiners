@@ -1,4 +1,4 @@
-import type { ControlCue } from "../data/sounds";
+import { HAND_MS, type ControlCue } from "../data/sounds";
 
 export type PressSound = "key" | "screen" | "switch" | "latch" | "latch-lit" | "knob" | "none";
 
@@ -7,6 +7,7 @@ const ON_POINTER_DOWN: readonly PressSound[] = ["key", "screen"];
 const CONTROL_ROOTS = "#ui, #report";
 
 let sink: ((cue: ControlCue) => void) | null = null;
+let lastKey: { control: HTMLElement; at: number } | null = null;
 
 export function pressCue(sound: PressSound, checked: boolean): ControlCue | null {
   switch (sound) {
@@ -45,15 +46,29 @@ function pressedButton(event: Event): HTMLButtonElement | null {
   return button && button.closest(CONTROL_ROOTS) ? button : null;
 }
 
-function soundOf(button: HTMLButtonElement): PressSound {
+function soundOf(button: HTMLElement): PressSound {
   return pressSoundOf(getComputedStyle(button).getPropertyValue("--press-sound"), button.className || button.tagName);
 }
 
-function playPress(button: HTMLButtonElement, allowed: (sound: PressSound) => boolean): void {
+function playPress(button: HTMLElement, allowed: (sound: PressSound) => boolean): void {
   const sound = soundOf(button);
   if (!allowed(sound)) return;
   const cue = pressCue(sound, button.getAttribute("aria-checked") === "true");
   if (cue) controlStep(cue);
+}
+
+function canMove(control: HTMLElement | null): control is HTMLElement {
+  return control !== null && control.isConnected && control.checkVisibility();
+}
+
+export function keyPress(control: HTMLElement | null): void {
+  if (!canMove(control)) return;
+  playPress(control, () => true);
+  lastKey = { control, at: performance.now() };
+}
+
+function echoesKey(button: HTMLElement): boolean {
+  return lastKey !== null && lastKey.control === button && performance.now() - lastKey.at <= HAND_MS;
 }
 
 export function installControlSounds(doc: Document, play: (cue: ControlCue) => void): void {
@@ -74,6 +89,7 @@ export function installControlSounds(doc: Document, play: (cue: ControlCue) => v
       const button = pressedButton(event);
       if (!button) return;
       const fromKeyboard = (event as MouseEvent).detail === 0;
+      if (fromKeyboard && echoesKey(button)) return;
       playPress(button, (s) => !ON_POINTER_DOWN.includes(s) || fromKeyboard);
     },
     true,
