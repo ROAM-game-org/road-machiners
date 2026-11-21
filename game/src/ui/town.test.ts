@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import { t, type Msg } from "../text/msg";
+import { garageHead, stockFilterChips } from "./garage-tabs";
 import { choiceButton, GARAGE_ONLY, heldSlots, townPageOnOpen, type TownChoice } from "./town";
 import { supplyCharge } from "../sim/economy";
 import { limitedSupplyRow, goodRoutesTitle, marketHints, newsWell, priceHint, stockHint, showsRelief, tradeEstimate } from "./shop-rows";
@@ -403,5 +404,31 @@ describe("the held contracts on the board", () => {
 
   it("keeps every row, a delivered one included, when more rows than slots are placed", () => {
     expect(slots(CONTRACTS.maxActive + 1)).toHaveLength(CONTRACTS.maxActive + 1);
+  });
+});
+
+describe("the head of the garage band", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const tabs = [new FakeNode("button")] as unknown as HTMLElement[];
+
+  it("puts the part filters in a second row under the tabs", () => {
+    const filters = stockFilterChips([], "all", () => {});
+    const [first, second] = garageHead(tabs, filters) as unknown as FakeNode[];
+    expect(first?.has("tabs")).toBe(true);
+    expect(first?.has("sub")).toBe(false);
+    expect(second).toBe(filters as unknown as FakeNode);
+  });
+
+  it("holds an empty second row on a tab with no filters", () => {
+    const [, second] = garageHead(tabs, undefined) as unknown as FakeNode[];
+    expect(second?.has("sub")).toBe(true);
+    expect(second?.children).toEqual([]);
   });
 });

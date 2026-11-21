@@ -31,7 +31,7 @@
   --hud-icon: calc(100cqw * 20 / var(--plate-n));
   --hud-lcd-size: calc(100cqw * 24 / var(--plate-n));
   --hud-rocker-w: calc(100cqw * 16 / var(--plate-n));
-  --hud-rocker-h: calc(100cqw * 30 / var(--plate-n));
+  --hud-rocker-h: calc(100cqw * 32 / var(--plate-n));
   --hud-lamp-size: calc(100cqw * 10 / var(--plate-n));
   --hud-bracket: calc(100cqw * 6 / var(--plate-n));
 }
@@ -976,6 +976,7 @@
   top: 2%;
   right: 2%;
   width: 26%;
+  height: auto;
   aspect-ratio: 1;
   visibility: hidden;
 }
@@ -1107,11 +1108,8 @@
   min-width: calc(var(--hud-text-s) * 3.4);
   height: calc(var(--hud-text-s) * 1.9);
   padding: 0 var(--space-2);
-}
-
-#ui .slot-tape > .plate-art {
-  position: absolute;
-  inset: 0;
+  border: 0;
+  border-image: var(--hud-tape-art) 8% 6% fill / 2px 6px round;
 }
 
 #ui .slot-tape > .tape-print {
@@ -1534,8 +1532,17 @@
   padding: 0;
   border: 0;
   background: none;
+  box-shadow: none;
   color: var(--hud-amber-soft);
   text-transform: uppercase;
+}
+
+#ui .info .hud-screen .tag {
+  box-shadow: none;
+}
+
+#ui .info .tag.bad {
+  color: var(--hud-hot);
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
@@ -1708,6 +1715,10 @@
   --hud-panel-w: var(--hud-panel-xs);
 }
 
+#ui .site-status {
+  --hud-panel-w: var(--hud-panel-s);
+}
+
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
   --hud-panel-w: var(--hud-panel-l);
 }
@@ -1754,6 +1765,18 @@
 
 #ui .info .info-column {
   flex: none;
+}
+
+#ui .info .info-zoom {
+  --hud-key-h: var(--btn-h-s);
+  --hud-icon: var(--icon-s);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#ui .info .info-zoom > button.hud-key {
+  padding: 0;
 }
 
 #ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {

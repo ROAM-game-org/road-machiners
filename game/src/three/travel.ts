@@ -161,6 +161,10 @@ export type Playback = {
   hookedLines: Set<string>;
 };
 
+export function committedWorld(world: World, playback: Playback | null): World {
+  return playback ? playback.before : world;
+}
+
 function entersTheLight(event: GameEvent): boolean {
   return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
 }
@@ -517,7 +521,9 @@ export class Travel {
   }
 
   finishClock(elapsed: number, finishAt: number): void {
-    this.remainder = elapsed - finishAt;
+    const remainder = elapsed - finishAt;
+    if (remainder >= MOVE_MS) throw new Error(`A turn ended ${remainder} ms late, a full turn of ${MOVE_MS} ms or more`);
+    this.remainder = remainder;
   }
   getRemainder(wasPlaying: boolean): number {
     return wasPlaying ? this.remainder : 0;

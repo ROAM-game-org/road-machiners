@@ -52,19 +52,19 @@ describe("loopLevels", () => {
   it("plays quest music over every other music while a quest is open", () => {
     for (const place of [null, "town", "outpost", "abandoned"] as const)
       for (const inCombat of [true, false]) {
-        const l = loopLevels({ ...calm, place, inCombat, inQuest: true }, MIX);
+        const l = loopLevels({ ...calm, place, inCombat, inQuest: true }, MIX, false);
         expect([l.questGain, ...gains(l)]).toEqual([1, 0, 0, 0, 0, 0]);
       }
-    expect(loopLevels(calm, MIX).questGain).toBe(0);
+    expect(loopLevels(calm, MIX, false).questGain).toBe(0);
   });
   it("raises the wind with the player's storm share", () => {
-    expect(loopLevels(calm, MIX).windGain).toBe(MIX.wind.baseGain);
-    expect(loopLevels({ ...calm, stormShare: 0.5 }, MIX).windGain).toBeCloseTo((MIX.wind.baseGain + MIX.wind.stormGain) / 2);
-    expect(loopLevels({ ...calm, stormShare: 1 }, MIX).windGain).toBe(MIX.wind.stormGain);
+    expect(loopLevels(calm, MIX, false).windGain).toBe(MIX.wind.baseGain);
+    expect(loopLevels({ ...calm, stormShare: 0.5 }, MIX, false).windGain).toBeCloseTo((MIX.wind.baseGain + MIX.wind.stormGain) / 2);
+    expect(loopLevels({ ...calm, stormShare: 1 }, MIX, false).windGain).toBe(MIX.wind.stormGain);
   });
   it("switches music to combat while in combat", () => {
-    expect(gains(loopLevels({ ...calm, inCombat: true }, MIX))).toEqual([0, 0, 0, 0, 1]);
-    expect(gains(loopLevels(calm, MIX))).toEqual([1, 0, 0, 0, 0]);
+    expect(gains(loopLevels({ ...calm, inCombat: true }, MIX, false))).toEqual([0, 0, 0, 0, 1]);
+    expect(gains(loopLevels(calm, MIX, false))).toEqual([1, 0, 0, 0, 0]);
   });
   it("finds the music place of a town, an outpost, a territory and the open road", () => {
     const territory = (id: string) => REGION.locations.find((l) => l.id === id)!.pos;
@@ -75,16 +75,16 @@ describe("loopLevels", () => {
     expect(musicPlaceAt(TEST_MAP.terrain, { x: 0, y: 0 })).toBeNull();
   });
   it("plays each place's own music, and combat music over it", () => {
-    expect(gains(loopLevels({ ...calm, place: "town" }, MIX))).toEqual([0, 1, 0, 0, 0]);
-    expect(gains(loopLevels({ ...calm, place: "outpost" }, MIX))).toEqual([0, 0, 1, 0, 0]);
-    expect(gains(loopLevels({ ...calm, place: "abandoned" }, MIX))).toEqual([0, 0, 0, 1, 0]);
+    expect(gains(loopLevels({ ...calm, place: "town" }, MIX, false))).toEqual([0, 1, 0, 0, 0]);
+    expect(gains(loopLevels({ ...calm, place: "outpost" }, MIX, false))).toEqual([0, 0, 1, 0, 0]);
+    expect(gains(loopLevels({ ...calm, place: "abandoned" }, MIX, false))).toEqual([0, 0, 0, 1, 0]);
     for (const place of ["town", "outpost", "abandoned"] as const)
-      expect(gains(loopLevels({ ...calm, place, inCombat: true }, MIX))).toEqual([0, 0, 0, 0, 1]);
+      expect(gains(loopLevels({ ...calm, place, inCombat: true }, MIX, false))).toEqual([0, 0, 0, 0, 1]);
   });
   it("keeps the music choice near storms", () => {
     for (const inCombat of [true, false]) {
-      const base = loopLevels({ ...calm, inCombat }, MIX);
-      const other = loopLevels({ ...calm, inCombat, stormShare: 1 }, MIX);
+      const base = loopLevels({ ...calm, inCombat }, MIX, false);
+      const other = loopLevels({ ...calm, inCombat, stormShare: 1 }, MIX, false);
       expect([other.calmGain, other.combatGain]).toEqual([base.calmGain, base.combatGain]);
     }
   });
@@ -159,7 +159,7 @@ describe("engine sound assignment", () => {
         };
       },
     } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks, Math.random);
     const glide = { ...engineGlide(0, 10, 1, MIX, false)!, starts: false };
     const drive = (chassis: string, strain: { from: number; to: number }) => {
       loops.drive(glide, chassis, strain);
@@ -186,7 +186,7 @@ describe("engine sound assignment", () => {
   it("carries pitch and level from one turn into the next while the truck keeps accelerating, so no turn restarts the rev", () => {
     const sets: { rate: number; gain: number }[] = [];
     const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks, Math.random);
     const last = () => sets[sets.length - 2];
     const calm = { from: 0, to: 0 };
 
@@ -204,7 +204,7 @@ describe("engine sound assignment", () => {
   it("moves the engine by the turn's world time, holds it while the world rests, and fades it only for a real stop or a parked turn", () => {
     const sets: { rate: number; gain: number }[] = [];
     const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks);
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} }, instantTracks, Math.random);
     const cruise = engineGlide(10, 12, 1, MIX, false)!;
     const last = () => sets[sets.length - 2];
 
@@ -352,11 +352,13 @@ type Opened = { file?: string; gains: number[]; stops: number[] };
 describe("music on demand", () => {
   const road = { stormShare: 1, inCombat: false, inQuest: false, place: null } as const;
 
-  const fake = (lands: (file: string) => Promise<boolean> = () => Promise.resolve(true)) => {
+  const fake = (lands: (file: string) => Promise<boolean> = () => Promise.resolve(true), random: () => number = () => 0.5) => {
     const opened: Record<string, Opened[]> = {};
+    const clock = { now: 0 };
     const wanted: string[] = [];
     const released: string[] = [];
     const player = {
+      now: () => clock.now,
       loop: (id: string, _at: unknown, file?: string) => {
         const handle: Opened = { file, gains: [], stops: [] };
         (opened[id] ??= []).push(handle);
@@ -371,8 +373,9 @@ describe("music on demand", () => {
       release: (file) => void released.push(file),
     };
     const songs: string[] = [];
-    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }, tracks);
-    return { opened, wanted, released, songs, loops, calm: () => opened["music-calm"] ?? [], quest: () => opened["music-quest"] ?? [], abandoned: () => opened["music-abandoned"] ?? [] };
+    const combat: boolean[] = [];
+    const loops = new SoundLoops(player, { setCombat: (on) => void combat.push(on), nextSong: () => songs.push("next") }, tracks, random);
+    return { clock, combat, opened, wanted, released, songs, loops, calm: () => opened["music-calm"] ?? [], quest: () => opened["music-quest"] ?? [], abandoned: () => opened["music-abandoned"] ?? [] };
   };
 
   it("loads nothing until a track is about to play", async () => {
@@ -544,6 +547,165 @@ describe("music on demand", () => {
     expect(abandoned()).toHaveLength(ruins + 1);
     expect(abandoned().at(-1)!.gains).toEqual([1]);
     expect(songs).toEqual([]);
+  });
+  describe("rests", () => {
+    const spell = MIX.music.spellSeconds;
+    const restEnd = spell + MIX.music.restSeconds;
+
+    it("fades the calm music out at the end of a spell and releases it after the fade", async () => {
+      const { clock, calm, released, loops } = fake();
+      loops.update(road);
+      await landed();
+      vi.useFakeTimers();
+      try {
+        clock.now = spell - 1;
+        loops.update(road);
+        expect(calm()[0].gains).toEqual([1]);
+        clock.now = spell;
+        loops.update(road);
+        expect(calm()[0].gains).toEqual([1, 0]);
+        await vi.advanceTimersByTimeAsync(MIX.music.fadeSeconds * 1000 + 600);
+        expect(released).toContain(calm()[0].file);
+        expect(calm()[0].stops).toEqual([0]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("opens the next shuffled calm track when the rest ends", async () => {
+      const { clock, calm, loops } = fake();
+      loops.update(road);
+      await landed();
+      clock.now = spell;
+      loops.update(road);
+      clock.now = restEnd;
+      loops.update(road);
+      await landed();
+      expect(calm()).toHaveLength(2);
+      expect(calm()[1].file).not.toBe(calm()[0].file);
+      expect(calm()[1].gains).toEqual([1]);
+    });
+
+    it("opens the same town track again after a rest", async () => {
+      const { clock, opened, loops } = fake();
+      const town = { ...road, place: "town" } as const;
+      loops.update(town);
+      await landed();
+      vi.useFakeTimers();
+      try {
+        clock.now = spell;
+        loops.update(town);
+        await vi.advanceTimersByTimeAsync(MIX.music.fadeSeconds * 1000 + 600);
+        clock.now = restEnd;
+        loops.update(town);
+        await vi.advanceTimersByTimeAsync(10);
+      } finally {
+        vi.useRealTimers();
+      }
+      const town1 = opened["music-town"];
+      expect(town1).toHaveLength(2);
+      expect(town1[1].file).toBe(town1[0].file);
+      expect(town1[1].gains).toEqual([1]);
+    });
+
+    it("starts the combat song at once during a rest and the next calm track after the fight", async () => {
+      const { clock, combat, calm, loops } = fake();
+      loops.update(road);
+      await landed();
+      clock.now = spell;
+      loops.update(road);
+      clock.now = spell + 5;
+      loops.update({ ...road, inCombat: true });
+      expect(combat).toEqual([false, true]);
+      clock.now = spell + 10;
+      loops.update(road);
+      await landed();
+      expect(combat).toEqual([false, true, false]);
+      expect(calm()).toHaveLength(2);
+      expect(calm()[1].gains).toEqual([1]);
+    });
+
+    it("plays town music and quest music at once during a calm rest", async () => {
+      const { clock, opened, loops } = fake();
+      loops.update(road);
+      await landed();
+      clock.now = spell;
+      loops.update(road);
+      loops.update({ ...road, place: "town" });
+      await landed();
+      expect(opened["music-town"][0].gains).toEqual([1]);
+      loops.update(road);
+      clock.now = spell + 100;
+      loops.update(road);
+      clock.now = spell + 100 + spell;
+      loops.update(road);
+      loops.update({ ...road, inQuest: true });
+      await landed();
+      expect(opened["music-quest"][0].gains).toEqual([1]);
+    });
+
+    it("ends a rest with the next key by opening one track and starting a new spell", async () => {
+      const { clock, calm, loops } = fake();
+      loops.update(road);
+      await landed();
+      clock.now = spell;
+      loops.update(road);
+      clock.now = spell + 10;
+      loops.nextTrack();
+      await landed();
+      expect(calm()).toHaveLength(2);
+      expect(calm()[1].gains).toEqual([1]);
+      clock.now = spell + 10 + spell - 1;
+      loops.update(road);
+      expect(calm()[1].gains).toEqual([1]);
+      clock.now = spell + 10 + spell;
+      loops.update(road);
+      expect(calm()[1].gains).toEqual([1, 0]);
+    });
+
+    it("restarts the spell when the next key changes the track in a spell", async () => {
+      const { clock, calm, loops } = fake();
+      loops.update(road);
+      await landed();
+      clock.now = spell - 5;
+      loops.nextTrack();
+      await landed();
+      clock.now = spell + 5;
+      loops.update(road);
+      expect(calm()[1].gains).toEqual([1]);
+    });
+
+    it("still moves only the combat song with the next key in a fight", async () => {
+      const { clock, calm, songs, loops } = fake();
+      loops.update({ ...road, inCombat: true });
+      clock.now = spell * 3;
+      loops.update({ ...road, inCombat: true });
+      loops.nextTrack();
+      await landed();
+      expect(songs).toEqual(["next"]);
+      expect(calm()).toEqual([]);
+    });
+
+    it("plays music for 65 to 75 percent of two hours on the road", async () => {
+      let seed = 12345;
+      const random = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+      const { clock, calm, loops } = fake(() => Promise.resolve(true), random);
+      const playing = () => {
+        const handles = calm();
+        return handles.length > 0 && handles.some((h) => h.gains.at(-1) === 1);
+      };
+      let audible = 0;
+      const total = 7200;
+      for (let t = 0; t < total; t++) {
+        clock.now = t;
+        loops.update(road);
+        await Promise.resolve();
+        await Promise.resolve();
+        if (playing()) audible++;
+      }
+      expect(audible / total).toBeGreaterThan(0.65);
+      expect(audible / total).toBeLessThan(0.75);
+    });
   });
 });
 

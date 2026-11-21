@@ -191,7 +191,7 @@ function bindText(node: HTMLElement, k: string, msg: Msg): void {
   bindAttr(node, attr, msg);
 }
 
-export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak" | "sideways-overflow" | "covered-control" | "small-target" | "key-cap";
+export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak" | "sideways-overflow" | "covered-control" | "small-target" | "key-cap" | "stretched-piece";
 export type LayoutFault = { kind: LayoutFaultKind; path: string; text: string; sizes: string };
 export type LayoutOptions = { locale: DevLocale; allow: readonly string[]; glyphs: { font: string; letter: string } };
 
@@ -216,6 +216,15 @@ export function coveredControl(hit: Element | null, control: Element): boolean {
 export function smallTarget(box: Box, min: number): boolean {
   if (box.right <= box.left || box.bottom <= box.top) return false;
   return box.right - box.left < min - SLACK_PX || box.bottom - box.top < min - SLACK_PX;
+}
+
+const PIECE_ASPECT_SLACK = 0.03;
+
+type Size = { width: number; height: number };
+
+export function stretched(box: Size, natural: Size): boolean {
+  if (box.width <= 0 || box.height <= 0 || natural.width <= 0 || natural.height <= 0) return false;
+  return Math.abs(box.width / box.height / (natural.width / natural.height) - 1) > PIECE_ASPECT_SLACK;
 }
 
 export function outsideViewport(box: Box, viewport: { width: number }): boolean {
@@ -384,6 +393,17 @@ function leakFaults(root: Element, allow: readonly string[]): LayoutFault[] {
   });
 }
 
+function stretchedPieceFaults(root: Element): LayoutFault[] {
+  return [...root.querySelectorAll<HTMLImageElement>(".kit-piece > img.plate-art")].flatMap((img) => {
+    if (!img.complete || img.getClientRects().length === 0) return [];
+    const box = img.getBoundingClientRect();
+    const shown = { width: box.width, height: box.height };
+    const natural = { width: img.naturalWidth, height: img.naturalHeight };
+    if (!stretched(shown, natural)) return [];
+    return [{ kind: "stretched-piece" as const, path: cssPath(img), text: "", sizes: `box ${Math.round(shown.width)}x${Math.round(shown.height)}, art ${natural.width}x${natural.height}` }];
+  });
+}
+
 export function findLayoutFaults(root: Element, opts: LayoutOptions): LayoutFault[] {
   return [
     ...pageFaults(opts),
@@ -391,6 +411,7 @@ export function findLayoutFaults(root: Element, opts: LayoutOptions): LayoutFaul
     ...escapeFaults(root),
     ...overlapFaults(root),
     ...reachFaults(root),
+    ...stretchedPieceFaults(root),
     ...(opts.locale === "ru" ? leakFaults(root, opts.allow) : []),
   ];
 }

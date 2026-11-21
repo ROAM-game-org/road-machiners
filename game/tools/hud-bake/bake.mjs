@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { launchChromium } from '../../scripts/gpu.mjs';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './server.mjs';
@@ -64,7 +65,7 @@ const unknown = asked.filter((p) => !BAKES.includes(p));
 if (unknown.length) throw new Error(`unknown parts: ${unknown.join(', ')}. Parts: ${BAKES.join(', ')}`);
 mkdirSync(BOXES, { recursive: true });
 const server = await startServer();
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu'] });
+const { browser } = await launchChromium(chromium);
 try {
   const page = await browser.newPage();
   for (const view of Object.keys(VIEW_SCALES)) for (const part of asked.length ? asked : BAKES) await bakePart(page, server.url, part, view);
