@@ -31,6 +31,7 @@ export const UI: Translation<typeof EN> = {
   'help.does.why': 'Узнать, почему выключено',
   'inv.rotate': 'Повернуть',
   'card.unpin': 'Закрыть карточку грузовика',
+  'card.zoomedOut': 'Виден весь грузовик',
   'card.call': 'Рация',
   'card.mark': 'Пометить',
   'card.lookOver': 'Осмотреть',
