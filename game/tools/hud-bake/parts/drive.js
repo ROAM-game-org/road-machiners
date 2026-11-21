@@ -156,7 +156,7 @@ const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
 const SW_RING = 1.275, SW_LEVER = 2.3, SW_LEVER_W = 1.9, SW_W = 28, SW_HALF_H = 19;
 const SW_CENTER_Y = 703;
 const LABEL_ROW = [661, 673], ON_ROW = [674, 685], OFF_ROW = [719.5, 729];
-const PRINT_HALF_W = 13, LAMP_R = 5, LAMP_GAP = 4;
+const PRINT_HALF_W = 13, ON_HALF_W = 8, LAMP_R = 5, LAMP_GAP = 2;
 const SW_BASE = '#9a9a92', SW_HOLE = '#2a2017';
 const SW_Z = Z_PANEL + 0.004;
 const SW_TILT = 0.75;
@@ -191,7 +191,7 @@ const flutedStem = (radius, length, flutes) => {
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
   const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_RING), ul = (v) => L.len(v * SW_LEVER), uw = (v) => L.len(v * SW_LEVER_W);
-  lampDome(cx - PRINT_HALF_W - LAMP_GAP - LAMP_R, (ON_ROW[0] + ON_ROW[1]) / 2);
+  lampDome(cx - ON_HALF_W - LAMP_GAP - LAMP_R, (ON_ROW[0] + ON_ROW[1]) / 2);
   const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
   const profile = [[2.4, 0], [2.4, 0.5], [2.9, 1.3], [4.2, 1.4], [4.8, 0.9], [4.9, 0]].map(([x, y]) => new THREE.Vector2(u(x), u(y)));
   const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(SW_BASE, { side: THREE.DoubleSide }));
@@ -235,9 +235,9 @@ const zones = {
 rockers.forEach((r, i) => {
   const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];
   zones[['manual', 'lights', 'overdrive'][i]] = zoneFor(rowBox(LABEL_ROW, LABEL_HALF_W), LABEL_Z);
-  zones[`on${i}`] = zoneFor(rowBox(ON_ROW, PRINT_HALF_W), LABEL_Z);
+  zones[`on${i}`] = zoneFor(rowBox(ON_ROW, ON_HALF_W), LABEL_Z);
   zones[`off${i}`] = zoneFor(rowBox(OFF_ROW, PRINT_HALF_W), LABEL_Z);
-  const lampX = r.cx - PRINT_HALF_W - LAMP_GAP - LAMP_R, lampY = (ON_ROW[0] + ON_ROW[1]) / 2;
+  const lampX = r.cx - ON_HALF_W - LAMP_GAP - LAMP_R, lampY = (ON_ROW[0] + ON_ROW[1]) / 2;
   zones[`lamp${i}`] = zoneFor([lampX - LAMP_R, lampY - LAMP_R, lampX + LAMP_R, lampY + LAMP_R], SW_Z + 0.004);
 });
 const sprites = { cool: { crop: view.cropAround(P.quad(view, COOL.box, Z_PANEL + 0.03), 8), frames: ['cool-up', 'cool-down'] } };
