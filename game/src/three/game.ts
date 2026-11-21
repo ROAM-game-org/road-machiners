@@ -73,6 +73,7 @@ import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponR
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import { installControlSounds } from "../ui/control-sound";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
@@ -269,6 +270,7 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
+    installControlSounds(document, (cue) => this.sound.ui(cue));
     this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
     const host = this.uiHost();
