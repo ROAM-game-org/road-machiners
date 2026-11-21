@@ -797,8 +797,7 @@
   padding: 0.3cqw 0;
 }
 
-#ui .log-brief .log-reach-verbose,
-#ui .log-verbose .log-reach-brief {
+#ui .log-brief .log-reach-verbose {
   display: none;
 }
 
