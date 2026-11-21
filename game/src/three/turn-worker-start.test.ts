@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DriveSnapshot } from '../phys/drive';
 import type { World } from '../sim/types';
-import { startTurnWorker, type TurnWorkerHost } from './turn-worker-start';
+import { afterBoot, startTurnWorker, type TurnWorkerHost } from './turn-worker-start';
 
 const terrain = { size: 4 } as unknown as World['terrain'];
 const world = { terrain } as unknown as World;
@@ -24,15 +24,15 @@ function deferred(): { promise: Promise<void>; done: () => void } {
 }
 
 describe('the turn worker start', () => {
-  it('sends no terrain and warms nothing while the ground bake runs, even with physics ready', async () => {
+  it('sends no terrain and warms nothing while the boot runs, even with physics ready', async () => {
     const calls: string[] = [];
-    const bake = deferred();
+    const boot = deferred();
 
-    const started = startTurnWorker(host(calls), bake.promise, Promise.resolve(), terrain, () => ({ world, drive }));
+    const started = startTurnWorker(host(calls), boot.promise, Promise.resolve(), terrain, () => ({ world, drive }));
     await new Promise((resolve) => setTimeout(resolve));
 
     expect(calls).toEqual([]);
-    bake.done();
+    boot.done();
     await started;
     expect(calls).toEqual(['terrain', 'warm']);
   });
@@ -48,5 +48,45 @@ describe('the turn worker start', () => {
     physics.done();
     await started;
     expect(calls).toEqual(['terrain', 'warm']);
+  });
+});
+
+describe('the boot order', () => {
+  it('starts the turn worker, then the plan preview, then the cache write, each after the one before', async () => {
+    const calls: string[] = [];
+    const boot = deferred();
+    const turns = deferred();
+
+    const ordered = afterBoot(
+      boot.promise,
+      () => {
+        calls.push('turns');
+        return turns.promise;
+      },
+      () => void calls.push('plans'),
+      () => void calls.push('keep'),
+    );
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(calls).toEqual([]);
+    boot.done();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(calls).toEqual(['turns']);
+    turns.done();
+    await ordered;
+    expect(calls).toEqual(['turns', 'plans', 'keep']);
+  });
+
+  it('still keeps the bake when the turn worker fails to start, and warms no plans', async () => {
+    const calls: string[] = [];
+
+    const ordered = afterBoot(
+      Promise.resolve(),
+      () => Promise.reject(new Error('no worker')),
+      () => void calls.push('plans'),
+      () => void calls.push('keep'),
+    );
+
+    await expect(ordered).rejects.toThrow('no worker');
+    expect(calls).toEqual(['keep']);
   });
 });
