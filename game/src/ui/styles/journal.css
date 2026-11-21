@@ -84,7 +84,10 @@
   align-items: baseline;
   gap: var(--space-6);
 }
-#ui .journal-screen .journal-head[aria-expanded="true"] {
+#ui .journal-screen .note-head[aria-expanded="true"] {
+  font-weight: 700;
+}
+#ui .journal-screen .place-head[aria-expanded="true"] {
   background: var(--hud-amber);
   box-shadow: var(--hud-fill-glow);
   color: var(--hud-screen);
