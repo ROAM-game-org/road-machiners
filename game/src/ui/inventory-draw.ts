@@ -303,7 +303,7 @@ export function reachPadding(reach: Reach, m: GridMetrics): string {
 }
 
 export function targetRoom(root: HTMLElement, reach: Reach): FitRoom | null {
-  const screen = root.querySelector(".inv-target");
+  const screen = root.querySelector(".inv-target-screen");
   const shell = screen?.querySelector(".truck-shell");
   if (!screen || !shell) return null;
   const style = getComputedStyle(screen);

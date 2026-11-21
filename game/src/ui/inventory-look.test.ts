@@ -219,7 +219,7 @@ describe("the inventory looking another truck over", () => {
   }
 
   const rootOf = () => ui.children[ui.children.length - 1] as FakeNode;
-  const targetOf = () => rootOf().all((n) => n.className.includes("inv-target"))[0];
+  const targetOf = () => rootOf().all((n) => n.className.split(" ").includes("inv-target"))[0];
 
   it("draws the truck's items and locks every control with the look-over reason", () => {
     const { w, npc } = lookScene();

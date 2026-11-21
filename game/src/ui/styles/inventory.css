@@ -791,16 +791,23 @@
   white-space: nowrap;
 }
 #ui .modal .inv-target > .screen-tape {
-  position: relative;
-  left: calc(var(--space-5) - var(--space-6));
-  align-self: flex-start;
+  position: absolute;
+  top: 0;
   max-width: calc(100% - 2 * var(--space-5));
   white-space: normal;
 }
 .inv-target {
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.inv-target > .inv-target-screen {
+  flex: 1 1 auto;
   gap: var(--space-3);
   overflow: visible;
+}
+.inv-target-screen > :first-child {
+  margin-top: calc(var(--btn-h-m) / 2);
 }
 .inv-target-state {
   flex: none;
@@ -839,20 +846,20 @@
 .inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
   flex: 1 1 auto;
 }
-.inv-bench .inv-side-column > .well.inv-target {
+.inv-bench .inv-side-column > .inv-target {
   flex: 1 1 0;
-  overflow: visible;
+  min-height: 0;
 }
-.inv-bench:not(.two) .inv-side-column > .well:has(+ .inv-target) {
+.inv-bench:not(.two) .inv-side-column > .well:has(~ .inv-target) {
   flex: 0 1 auto;
 }
-.inv-bench.two .inv-side-column > .well:has(+ .inv-target) {
+.inv-bench.two .inv-side-column > .well:has(~ .inv-target) {
   flex: 1 1 0;
 }
 .inv-bench .truck-shell {
   padding: 0;
 }
-.inv-bench .inv-target .truck-shell {
+.inv-bench .inv-target-screen .truck-shell {
   flex: none;
 }
 .inv-bench .well .inv-storage {

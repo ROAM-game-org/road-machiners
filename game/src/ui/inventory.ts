@@ -717,7 +717,7 @@ export class InventoryView {
 
   private targetScreen(w: World, truckId: string): HTMLElement {
     const target = w.vehicles.find((v) => v.id === truckId);
-    if (!target || !(this.looking ? knowsCargo(w, playerVehicle(w), target) : isKnockedOut(target))) return el("div", { class: "well inv-target" }, el("div", { class: "dim" }, t("inv.truckGone")));
+    if (!target || !(this.looking ? knowsCargo(w, playerVehicle(w), target) : isKnockedOut(target))) return el("div", { class: "inv-target" }, el("div", { class: "well inv-target-screen" }, el("div", { class: "dim" }, t("inv.truckGone"))));
     const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other, null);
     const removing = this.looking ? null : removalMarks(w, target);
     grid.append(...deepestFirst(target.chassisId, target.items).map((it) => this.targetItem(w, target, it, grid, removing)));
@@ -726,10 +726,9 @@ export class InventoryView {
     shell.style.padding = reachPadding(this.reach, this.scale.measure(target, false));
     return el(
       "div",
-      { class: "well inv-target" },
+      { class: "inv-target" },
       el("h3", { class: "tape screen-tape" }, vehicleTitle(w, target)),
-      ...(state ? [el("div", { class: "inv-target-state" }, state)] : []),
-      shell,
+      el("div", { class: "well inv-target-screen" }, ...(state ? [el("div", { class: "inv-target-state" }, state)] : []), shell),
     );
   }
 
