@@ -124,6 +124,18 @@ export function hasRevealed(stock: SalvageStock): boolean {
   return stock.parts.length > 0 || Object.values(stock.goods).some((count) => count > 0) || hasStores(stock);
 }
 
+export function hasOpenSalvage(stock: SalvageStock): boolean {
+  return stock.parts.some((p) => !isRelic(p)) || Object.values(stock.goods).some((count) => count > 0) || hasStores(stock) || openHiddenUnits(stock) > 0;
+}
+
+function openHiddenUnits(stock: SalvageStock): number {
+  return hiddenUnits(stock) - stock.hidden.parts.filter(isRelic).length;
+}
+
+export function openUnits(stock: SalvageStock): number {
+  return stock.parts.filter((p) => !isRelic(p)).length + Object.values(stock.goods).reduce((sum, count) => sum + count, 0);
+}
+
 export function hiddenUnits(stock: SalvageStock): number {
   const { goods, parts, fuel, supplies } = stock.hidden;
   return parts.length + Object.values(goods).reduce((sum, count) => sum + count, 0) + Number(fuel > 0) + Number(supplies > 0);
@@ -136,16 +148,16 @@ export function stockProp(stock: SalvageStock): string {
 
 export function lootableProps(salvage: readonly SalvageStock[]): Set<string> {
   const props = new Set<string>();
-  for (const stock of salvage) if (!stock.pile && hasSalvage(stock)) props.add(stockProp(stock));
+  for (const stock of salvage) if (!stock.pile && hasOpenSalvage(stock)) props.add(stockProp(stock));
   return props;
 }
 
 export type Found = { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number };
 
-export function revealTurn(world: World, stock: SalvageStock, p: number): Found {
+export function revealTurn(world: World, stock: SalvageStock, p: number, locked: ReadonlySet<string>): Found {
   const found: Found = { goods: revealGoods(world, stock, p), parts: [], fuel: 0, supplies: 0 };
   stock.hidden.parts = stock.hidden.parts.filter((part) => {
-    if (!chance(world.searchRng, p)) return true;
+    if (!chance(world.searchRng, p) || locked.has(part.id)) return true;
     stock.parts.push(part);
     found.parts.push(part.defId);
     return false;
@@ -191,51 +203,48 @@ export function claimedPartIn(world: World, stock: SalvageStock): string | null 
   return [...stock.parts, ...stock.hidden.parts].some((part) => part.id === partId) ? partId : null;
 }
 
-export function revealClaimed(world: World, stock: SalvageStock): void {
+export function revealClaimed(world: World, vehicle: Vehicle, stock: SalvageStock): void {
   const partId = claimedPartIn(world, stock);
   const hidden = stock.hidden.parts.find((p) => p.id === partId);
-  if (!hidden) return;
+  if (!hidden || lockedFrom(world, vehicle, stock).has(hidden.id)) return;
   stock.hidden.parts = stock.hidden.parts.filter((p) => p !== hidden);
   stock.parts.push(hidden);
 }
 
 export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContract): boolean {
-  return vehicle.id === world.player.vehicleId || vehicle.id === claim.rival;
+  if (vehicle.id === claim.rival) return true;
+  return vehicle.id === world.player.vehicleId && world.player.contracts.some((c) => c.id === claim.id);
 }
 
-function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
+export function lockedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): Set<string> {
   const claim = claimOn(world, stock);
-  return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
-}
-
-function takesRelics(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  return vehicle.id === world.player.vehicleId || claimOn(world, stock)?.rival === vehicle.id;
-}
-
-function lockedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): Set<string> {
-  const reserved = reservedFrom(world, vehicle, stock);
-  const locked = new Set<string>(reserved === null ? [] : [reserved]);
-  if (takesRelics(world, vehicle, stock)) return locked;
-  for (const part of [...stock.parts, ...stock.hidden.parts]) if (isRelic(part)) locked.add(part.id);
+  const allowed = claim && mayTakeClaimed(world, vehicle, claim) ? claim.partId : null;
+  const locked = new Set<string>();
+  for (const part of [...stock.parts, ...stock.hidden.parts]) if (isRelic(part) && part.id !== allowed) locked.add(part.id);
   return locked;
 }
 
-export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+export function visibleParts(world: World, vehicle: Vehicle, stock: SalvageStock): PartInstance[] {
   const locked = lockedFrom(world, vehicle, stock);
-  if (locked.size === 0 || !hasSalvage(stock)) return false;
-  return hasOnly(stock, locked);
+  return stock.parts.filter((p) => !locked.has(p.id));
 }
 
-function hasOnly(stock: SalvageStock, locked: Set<string>): boolean {
-  const others = stock.parts.some((p) => !locked.has(p.id)) || stock.hidden.parts.some((p) => !locked.has(p.id));
-  const plain = Object.values(stock.goods).some((n) => n > 0) || Object.values(stock.hidden.goods).some((n) => n > 0);
-  return !others && !plain && !hasStores(stock) && stock.hidden.fuel <= 0 && stock.hidden.supplies <= 0;
+export function hiddenUnitsFor(world: World, vehicle: Vehicle, stock: SalvageStock): number {
+  const locked = lockedFrom(world, vehicle, stock);
+  return hiddenUnits(stock) - stock.hidden.parts.filter((p) => locked.has(p.id)).length;
+}
+
+export function hasSalvageFor(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const revealed = visibleParts(world, vehicle, stock).length > 0 || Object.values(stock.goods).some((count) => count > 0) || hasStores(stock);
+  return revealed || hiddenUnitsFor(world, vehicle, stock) > 0;
+}
+
+export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  return hasSalvage(stock) && !hasSalvageFor(world, vehicle, stock);
 }
 
 export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  const locked = lockedFrom(world, vehicle, stock);
-  const hidden = hiddenUnits(stock) - stock.hidden.parts.filter((p) => locked.has(p.id)).length;
-  return hidden > 0 || canTakeRevealed(world, vehicle, stock, stock.parts.filter((p) => !locked.has(p.id)));
+  return hiddenUnitsFor(world, vehicle, stock) > 0 || canTakeRevealed(world, vehicle, stock, visibleParts(world, vehicle, stock));
 }
 
 function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, parts: PartInstance[]): boolean {
@@ -285,7 +294,8 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
   const locked = lockedFrom(world, vehicle, stock);
-  const mine = reservedFrom(world, vehicle, stock) === null ? claimedPartIn(world, stock) : null;
+  const claim = claimOn(world, stock);
+  const mine = claim && mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
   let moved = 0;
   stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
     if (locked.has(part.id) || moved >= units || !stowPart(world, vehicle, part)) return true;
@@ -504,7 +514,7 @@ export function backedOff(stock: SalvageStock, vehicleId: string): boolean {
 
 export function clearPiles(world: World): void {
   for (const stock of world.salvage) if (stock.pile?.claim && !claimantOf(world, stock)) delete stock.pile.claim;
-  removeStocks(world, new Set(world.salvage.filter((stock) => stock.pile && (world.turn >= stock.pile.until || !hasSalvage(stock))).map((stock) => stock.id)));
+  removeStocks(world, new Set(world.salvage.filter((stock) => stock.pile && (world.turn >= stock.pile.until || !hasOpenSalvage(stock))).map((stock) => stock.id)));
 }
 
 export function removeStocks(world: World, gone: Set<string>): void {
@@ -545,7 +555,7 @@ function restockSite(world: World, stock: SalvageStock, table: LootTable): void 
 }
 
 function restockSpare(world: World, stock: SalvageStock, table: LootTable): void {
-  if (stock.parts.length + stock.hidden.parts.length > 0 || !chance(world, table.sparePartChance * SALVAGE.restockShare)) return;
+  if ([...stock.parts, ...stock.hidden.parts].some((part) => !isRelic(part)) || !chance(world, table.sparePartChance * SALVAGE.restockShare)) return;
   stock.hidden.parts.push(fieldSpare(world, table));
 }
 

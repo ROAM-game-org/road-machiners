@@ -24,7 +24,7 @@ import {
 import { shopAt, shopTrades } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
-import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits } from "../sim/salvage";
+import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnitsFor, visibleParts } from "../sim/salvage";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
 import { knowsCargo } from "../sim/look-over";
 import { REGION } from "../data/region";
@@ -401,7 +401,7 @@ export class InventoryView {
     return [
       ...w.player.storage.map((p) => ({ source: "storage" as const, item: storageItem(p) })),
       ...Object.keys(this.storeShop(w) ? storedHere(w) : {}).map((good) => ({ source: "storage" as const, item: storedGoodItem(good) })),
-      ...(stock ? [...stock.parts.map(lootPartItem), ...Object.keys(stock.goods).map(lootGoodItem)] : []).map((item) => ({ source: "loot" as const, item })),
+      ...(stock ? [...visibleParts(w, playerVehicle(w), stock).map(lootPartItem), ...Object.keys(stock.goods).map(lootGoodItem)] : []).map((item) => ({ source: "loot" as const, item })),
       ...(target ? target.items : []).map((item) => ({ source: "truck" as const, item })),
     ];
   }
@@ -604,8 +604,9 @@ export class InventoryView {
     const chips: HTMLElement[] = [];
     const claim = claimOn(w, stock);
     const claimed = claimedPartIn(w, stock);
-    const taken = takenMarks(w, stock.parts);
-    for (const p of stock.parts) {
+    const parts = visibleParts(w, playerVehicle(w), stock);
+    const taken = takenMarks(w, parts);
+    for (const p of parts) {
       const d = partDef(p.defId);
       const chip = el(
         "div",
@@ -675,7 +676,7 @@ export class InventoryView {
       "div",
       { class: "inv-storage inv-loot" },
       el("h3", {}, site ? t("inv.salvageAt", { site: siteName(site.id) }) : t("inv.salvage")),
-      ...(present ? loose : [el("div", { class: "dim" }, hiddenUnits(stock) > 0 ? t("inv.nothingFound") : t("inv.nothingLeft"))]),
+      ...(present ? loose : [el("div", { class: "dim" }, hiddenUnitsFor(w, playerVehicle(w), stock) > 0 ? t("inv.nothingFound") : t("inv.nothingLeft"))]),
     );
   }
 
