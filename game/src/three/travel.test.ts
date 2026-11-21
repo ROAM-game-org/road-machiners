@@ -142,6 +142,19 @@ describe("the felt turn wait", () => {
     expect(waits()).toMatchObject({ last: 400, calls: 1 });
   });
 
+  it("tells the listener how long the turn took to begin", () => {
+    const world = emptyWorld();
+    let answer: PreparedTurn | null = null;
+    const travel = withTurns(() => answer);
+    const heard: number[][] = [];
+    travel.onTurnWait = (ms, now) => heard.push([ms, now]);
+    travel.request(world, NO_DRIVE);
+    travel.takeReady(world, NO_DRIVE, 1000);
+    answer = ready;
+    travel.takeReady(world, NO_DRIVE, 1400);
+    expect(heard).toEqual([[400, 1400]]);
+  });
+
   it("starts the wait again after a pause", () => {
     resetPerf();
     const world = emptyWorld();
