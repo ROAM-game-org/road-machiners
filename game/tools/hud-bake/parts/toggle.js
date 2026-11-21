@@ -18,8 +18,8 @@ function flutedStem(radius, length, flutes) {
   return g;
 }
 
-export function buildToggle({ len, at, eye, scale = 1 }) {
-  const u = (v) => len(v * RING * scale), ul = (v) => len(v * LEVER * scale), uw = (v) => len(v * LEVER_W * scale);
+export function buildToggle({ len, at, eye, scale = 1, leverScale = scale }) {
+  const u = (v) => len(v * RING * scale), ul = (v) => len(v * LEVER * leverScale), uw = (v) => len(v * LEVER_W * scale);
   const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
   const profile = RING_PROFILE.map(([x, y]) => new THREE.Vector2(u(x), u(y)));
   const ring = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(BASE, { side: THREE.DoubleSide }));
