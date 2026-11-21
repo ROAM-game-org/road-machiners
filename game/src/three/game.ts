@@ -309,7 +309,7 @@ export class Game {
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => committedWorld(this.world, this.anim));
-    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.screens.quest.isOpen()), run: () => this.whenTurnEnds(() => this.getUnstuck()) } }, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
+    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.screens.quest.isOpen()), run: () => this.whenTurnEnds(() => this.getUnstuckIfAllowed()) } }, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -567,7 +567,7 @@ export class Game {
     ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
     Digit0: { run: () => this.weapons.toggleAll(), noModal: true },
     ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
-    KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true },
+    KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true, idle: true },
     ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
     ArrowRight: { run: () => this.cycleContext(1), noModal: true, idle: true },
     KeyR: { run: () => this.controls.toggleManual(), noModal: true, idle: true },
@@ -939,6 +939,11 @@ export class Game {
     this.uiStale = true;
   }
 
+  private getUnstuckIfAllowed(): void {
+    if (unstuckReason(this.world, this.screens.quest.isOpen())) return;
+    this.getUnstuck();
+  }
+
   private getUnstuck(): void {
     this.screens.closeAll(null);
     this.runRescue(getUnstuck);
@@ -954,7 +959,10 @@ export class Game {
 
   private rescueCommand(fn: (w: World) => World | null): void {
     if (this.modalOpen()) return;
-    this.whenTurnEnds(() => this.runRescue(fn));
+    this.whenTurnEnds(() => {
+      if (this.modalOpen()) return;
+      this.runRescue(fn);
+    });
   }
 
   private sceneBusy(): boolean {
