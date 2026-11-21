@@ -8,6 +8,7 @@ import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { currentQuestLanguage } from "../sim/quests";
 import { reportError } from "./crash";
+import { packedBuffers, packTerrain } from "../sim/terrain";
 import { isIdleFailure, noteIdleFailure, workerError } from "./travel";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
@@ -46,7 +47,8 @@ export class PlanPreparation {
     const { terrain, ...state } = world;
     this.worker ??= this.createWorker();
     if (this.terrain !== terrain) {
-      this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+      const packed = packTerrain(terrain);
+      this.worker.postMessage({ kind: "terrain", terrain: packed } satisfies TerrainRequest, packedBuffers(packed));
       this.terrain = terrain;
     }
     this.worker.postMessage({ kind: "warm", ...this.obstacles.split(state) } satisfies WarmRequest);
@@ -68,6 +70,7 @@ export class PlanPreparation {
     const snapshot = wanted.drive.snapshot.slice();
     const id = ++this.serial;
     this.worker ??= this.createWorker();
+    const packed = this.terrain === terrain ? null : packTerrain(terrain);
     const request = timed("send-preview-split", () => ({
       kind: "preview" as const,
       id,
@@ -75,9 +78,10 @@ export class PlanPreparation {
       drive: { ...wanted.drive, snapshot },
       meId: wanted.meId,
       questLanguage: currentQuestLanguage(),
-      terrain: this.terrain === terrain ? null : terrain,
+      terrain: packed,
     }));
-    timed(postLabel("send-preview-post", request), () => this.worker?.postMessage(request satisfies PreviewRequest, [snapshot.buffer]));
+    const transfer = [snapshot.buffer, ...(packed ? packedBuffers(packed) : [])];
+    timed(postLabel("send-preview-post", request), () => this.worker?.postMessage(request satisfies PreviewRequest, transfer));
     this.terrain = terrain;
     this.running = id;
     if (this.latest?.world === wanted.world) this.latest.id = id;

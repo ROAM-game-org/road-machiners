@@ -16,6 +16,9 @@ import {
   tileAt,
   tileGrade,
   tileSlope,
+  packTerrain,
+  packedBuffers,
+  unpackTerrain,
   type Terrain,
 } from "./terrain";
 import { emptyWorld } from "./testkit";
@@ -425,3 +428,42 @@ describe("deck heights", () => {
   });
 });
 
+
+describe("a terrain packed for a worker", () => {
+  const kinds = Object.keys(TERRAIN_TYPES) as TerrainTypeId[];
+  const small = (routes?: Uint8Array): Terrain => ({
+    size: 3,
+    heights: Array.from({ length: 16 }, (_, k) => k / 7 + 0.001),
+    types: Array.from({ length: 9 }, (_, k) => kinds[k % kinds.length]),
+    atlas: { kind: "highway", seed: 5, window: 2 },
+    ...(routes ? { routes } : {}),
+  });
+
+  it("unpacks to the same frozen terrain, with heights off the map file's grid", () => {
+    const back = unpackTerrain(packTerrain(small(new Uint8Array([1, 2, 3]))));
+
+    expect(back).toEqual(small(new Uint8Array([1, 2, 3])));
+    expect(Object.isFrozen(back)).toBe(true);
+    expect(Object.isFrozen(back.heights)).toBe(true);
+    expect(Object.isFrozen(back.types)).toBe(true);
+  });
+
+  it("leaves the route bytes out when the terrain has none, and copies them when it has", () => {
+    const routes = new Uint8Array([4, 5]);
+    const packed = packTerrain(small(routes));
+
+    expect(unpackTerrain(packTerrain(small())).routes).toBeUndefined();
+    expect(packed.routes?.buffer).not.toBe(routes.buffer);
+    expect(packedBuffers(packed)).toHaveLength(3);
+    expect(packedBuffers(packTerrain(small()))).toHaveLength(2);
+  });
+
+  it("refuses a ground type with no code and arrays of the wrong length", () => {
+    const bad = { ...small(), types: small().types.map((t, k) => (k === 0 ? ("lava" as TerrainTypeId) : t)) };
+    const packed = packTerrain(small());
+
+    expect(() => packTerrain(bad)).toThrow(/no code/);
+    expect(() => unpackTerrain({ ...packed, heights: packed.heights.slice(1) })).toThrow(/heights/);
+    expect(() => unpackTerrain({ ...packed, types: packed.types.slice(1) })).toThrow(/types/);
+  });
+});

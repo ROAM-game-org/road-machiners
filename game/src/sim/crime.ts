@@ -364,10 +364,6 @@ export function targetNeed(world: World, targetId: string): PosseNeed | null {
   return open.some((c) => c.posse !== 'lone') ? 'pair' : 'lone';
 }
 
-export function huntedBy(world: World, targetId: string): string | null {
-  return openCasesOn(world, targetId).find((c) => c.hunter !== null)?.hunter ?? null;
-}
-
 export function advanceCrimes(world: World): void {
   if (world.crimes.length === 0) return;
   const open = world.crimes.filter((x) => x.status === 'open');
