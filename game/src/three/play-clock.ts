@@ -103,6 +103,10 @@ export function heldPlayMs(realMs: number, held: boolean, maxFrameMs: number): n
   return held ? 0 : Math.min(Math.max(0, realMs), maxFrameMs);
 }
 
+export function playbackFrameCapMs(speed: number, hitchMs: number, turnMs: number): number {
+  return Math.min(hitchMs, turnMs / Math.max(1, speed));
+}
+
 export function easedStopMs(ease: Pick<Ease, "stopMs" | "stopFolds">): number {
   return ease.stopMs * new StopCurve(ease.stopFolds).playedTo(1);
 }

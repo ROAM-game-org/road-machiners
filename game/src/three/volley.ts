@@ -521,7 +521,7 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
 function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>, pellets: Map<TimedFlight, number>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);
-  if (record.at < state.turnStart + host.startMs) return;
+  if (record.kind === 'launch' && record.at < state.turnStart + host.startMs) return;
   if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight, pellets.get(record.flight)!);
   if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
 }
@@ -596,9 +596,9 @@ function timedImpactPlan(world: World, f: TimedFlight, hit: boolean): RoundPlan 
 }
 
 function resumeTimedFlights(host: CombatHost, state: TimedCombatState): void {
-  const old = state.records.flatMap(record => record.flight && record.flight.launchedMs < state.turnStart ? [record.flight] : []);
-  const pending = state.flights.filter(flight => flight.launchedMs < state.turnStart);
-  for (const flight of [...old, ...pending]) resumeTimedFlight(host, state, flight);
+  const startedBy = state.turnStart + host.startMs;
+  const flights = new Set([...state.records.flatMap(record => record.flight ? [record.flight] : []), ...state.flights]);
+  for (const flight of flights) if (flight.launchedMs < startedBy) resumeTimedFlight(host, state, flight);
 }
 
 function resumeTimedFlight(host: CombatHost, state: TimedCombatState, flight: TimedFlight): void {
