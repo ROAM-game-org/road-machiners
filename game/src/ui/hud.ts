@@ -1,4 +1,5 @@
 
+import { keyPress } from './control-sound';
 import { ESCAPE, keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
@@ -370,7 +371,7 @@ export class Hud {
     this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
-    this.dialogue = new DialoguePanel(actions.dialogue);
+    this.dialogue = new DialoguePanel(actions.dialogue, () => this.cardKey("T"));
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";

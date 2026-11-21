@@ -1,4 +1,5 @@
 import { ERROR_REPORT_BUILD } from "../config";
+import { keyPress } from "./control-sound";
 import { setText, bindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
 import { gzip, type GameContext, type ReportContext } from "../three/error-report";
@@ -63,6 +64,7 @@ export class FeedbackForm {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
     e.stopPropagation();
+    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
     this.close();
   };
 

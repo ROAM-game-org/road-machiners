@@ -161,6 +161,7 @@ export class HelpPanel {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
     e.stopPropagation();
+    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
     this.close();
   };
 

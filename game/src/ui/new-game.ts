@@ -1,4 +1,5 @@
 
+import { keyPress } from "./control-sound";
 import { GAME_MODES, WORLD_SETTINGS } from "../data/modes";
 import { defaultSetup, parseSetup } from "../sim/settings";
 import type { GameModeId, WorldSettings, WorldSetup } from "../sim/types";
@@ -50,6 +51,7 @@ class NewGameScreen {
   private readonly onKey = (e: Event) => {
     if ((e as KeyboardEvent).code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
+    keyPress(this.root.querySelector<HTMLElement>(".back"));
     this.close();
   };
 

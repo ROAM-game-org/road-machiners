@@ -1,4 +1,5 @@
 
+import { keyPress } from "./control-sound";
 import { ESCAPE, keyTip } from "./input-mode";
 import type { GameModeId } from "../sim/types";
 import type { SlotId, SlotInfo } from "../three/save-slots";
@@ -72,6 +73,7 @@ export class SaveList {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape" || isConfirmOpen()) return;
     e.stopPropagation();
+    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
     this.close();
   };
 

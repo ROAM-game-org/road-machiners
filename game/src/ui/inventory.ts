@@ -1,4 +1,5 @@
 
+import { keyPress } from "./control-sound";
 import { runCommand } from "./run-command";
 import { chassisDef } from "../data/chassis";
 import { partDef } from "../data/parts";
@@ -167,7 +168,7 @@ export class InventoryView {
     window.addEventListener("keydown", (e) => {
       if (!isRotateKey(e) || this.host.menuOpen()) return;
       if (this.drag) this.rotate();
-      else this.rotateSelected();
+      else this.rotateSelected(true);
     });
     window.addEventListener("contextmenu", (e) => {
       if (!this.drag) return;
@@ -947,10 +948,11 @@ export class InventoryView {
     if (this.lastPointer) this.onMove(this.lastPointer);
   }
 
-  private rotateSelected(): void {
+  private rotateSelected(byKey = false): void {
     if (this.look() || !this.gridEl?.isConnected || this.selectedItem === null) return;
     const item = this.shown(this.host.world()).items.find((it) => it.id === this.selectedItem);
     if (!item || item.kind !== "part") return;
+    if (byKey) keyPress(this.root.querySelector<HTMLElement>('[data-action="rotate"]'));
     const id = item.id;
     let turned = item;
     const turns = turnsToTry(item);
