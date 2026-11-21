@@ -149,10 +149,10 @@ function placeAt(node: HTMLElement, center: { x: number; y: number }, scale: num
 export class TruckConditionView {
   readonly root = el("div", { class: "truck-condition", "aria-label": t("condition.panel") });
   private readonly stage = el("div", { class: "condition-stage" });
-  private readonly layers = el("div", { class: "condition-layers" });
-  private readonly outline = el("div", { class: "condition-hover" });
+  private readonly layers = el("div", { class: "condition-layers crt-picture" });
+  private readonly outline = el("div", { class: "condition-hover crt-picture" });
   private readonly marks = el("div", { class: "condition-marks" });
-  private readonly flashes = el("div", { class: "condition-flashes" });
+  private readonly flashes = el("div", { class: "condition-flashes crt-picture" });
   private readonly hit = el("div", { class: "condition-hit" });
   private readonly tipBody = el("div", { class: "condition-tip-body tooltip" });
   private readonly tip = el("div", { class: "condition-tip" }, this.tipBody);
