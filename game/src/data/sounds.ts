@@ -39,7 +39,6 @@ const DEFS = {
   "ui-close": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.7, loop: false, prompts: ["Heavy metal lid shutting with a dull latch clack."], seconds: 0.6 },
   "radio": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Old CB radio in a truck cab: the handset key clicks, then a short burst of analog static squelch crackles from the dashboard speaker."], seconds: 1.2 },
   "radio-end": { bus: "ui", setup: "cab", pitchJitter: 0.03, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Old CB radio in a truck cab: a short burst of analog static squelch from the dashboard speaker, then the handset key clicks off."], seconds: 1.2 },
-  "ui-error": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.8, loop: false, prompts: ["Dull thud of a jammed metal lever that will not move."], seconds: 0.5 },
 
   "engine-douse": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.6, loop: false, prompts: ["Water thrown over a hot truck engine under the hood: one quick whoosh of hissing steam that fades out."], seconds: 3 },
   "key-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["One stiff plastic push key on an old truck dashboard pressed down hard: a single short mechanical clack."], seconds: 0.5 },
