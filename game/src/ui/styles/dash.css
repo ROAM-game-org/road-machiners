@@ -797,6 +797,11 @@
   padding: 0.3cqw 0;
 }
 
+#ui .log-brief .log-reach-verbose,
+#ui .log-verbose .log-reach-brief {
+  display: none;
+}
+
 #ui .deck-log .log-time {
   margin-right: 1cqw;
   color: var(--hud-print-dim);
