@@ -189,6 +189,7 @@ export type BakedMap = { hash: string; seed: number; terrain: Terrain; props: Ba
 export type MapGrid = { size: number; heights: Float32Array; types: Uint8Array; props: BakedProp[] };
 
 export const TYPE_IDS = Object.keys(TERRAIN_TYPES) as TerrainTypeId[];
+const TYPE_CODES = new Map<string, number>(TYPE_IDS.map((id, code) => [id, code]));
 
 export function routesFile(mapFile: string): string {
   return mapFile.replace(/\.bin$/, '.routes.bin');
@@ -278,6 +279,44 @@ export function decodeMap(bytes: Uint8Array): BakedMap {
   Object.freeze(types);
   Object.freeze(terrain);
   return { hash: fnv1a(bytes), seed, terrain, props };
+}
+
+export type PackedTerrain = {
+  size: number;
+  atlas: AtlasKey;
+  heights: Float64Array;
+  types: Uint8Array;
+  routes: Uint8Array | null;
+};
+
+export function packTerrain(t: Terrain): PackedTerrain {
+  const types = new Uint8Array(t.types.length);
+  for (let k = 0; k < types.length; k++) types[k] = typeCode(t.types[k], k);
+  return { size: t.size, atlas: t.atlas, heights: Float64Array.from(t.heights), types, routes: t.routes ? t.routes.slice() : null };
+}
+
+export function packedBuffers(p: PackedTerrain): ArrayBuffer[] {
+  const buffers = [p.heights.buffer, p.types.buffer];
+  if (p.routes) buffers.push(p.routes.buffer);
+  return buffers as ArrayBuffer[];
+}
+
+export function unpackTerrain(p: PackedTerrain): Terrain {
+  if (p.heights.length !== (p.size + 1) ** 2) throw new Error(`Packed terrain has ${p.heights.length} heights for size ${p.size}`);
+  if (p.types.length !== p.size * p.size) throw new Error(`Packed terrain has ${p.types.length} types for size ${p.size}`);
+  const heights = Array.from(p.heights);
+  const types = Array.from(p.types, readType);
+  const terrain: Terrain = p.routes ? { size: p.size, heights, types, atlas: p.atlas, routes: p.routes } : { size: p.size, heights, types, atlas: p.atlas };
+  Object.freeze(heights);
+  Object.freeze(types);
+  Object.freeze(terrain);
+  return terrain;
+}
+
+function typeCode(id: TerrainTypeId, tile: number): number {
+  const code = TYPE_CODES.get(id);
+  if (code === undefined) throw new Error(`Terrain tile ${tile} has ground type ${id} with no code`);
+  return code;
 }
 
 function readProp(view: DataView, at: number, k: number): BakedProp {
