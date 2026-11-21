@@ -22,7 +22,8 @@ class FakeNode {
   tag = '';
   attrs: Record<string, string> = {};
   setAttribute(name: string, value: string) { this.attrs[name] = value; }
-  addEventListener() {}
+  listeners: Record<string, () => void> = {};
+  addEventListener(type: string, fn: () => void) { this.listeners[type] = fn; }
   text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
   withTag(tag: string): FakeNode[] { return [...(this.tag === tag ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.withTag(tag))]; }
   all(cls: string): FakeNode[] { return [...(this.className.split(' ').includes(cls) ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.all(cls))]; }
@@ -134,7 +135,7 @@ describe('first aid reasons', () => {
 describe('truck card actions', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  const handlers = { call: () => {}, act: () => {}, unpin: () => {} };
+  const handlers = { call: () => {}, act: () => {} };
 
   function card(gap: number, perks: boolean) {
     vi.stubGlobal('document', {
@@ -306,5 +307,36 @@ describe('panel placement', () => {
     hud.showInfo(emptyWorld(), null, false);
     hud.showInfo(emptyWorld(), null, false);
     expect(placed).toHaveLength(1);
+  });
+});
+
+describe('truck card head', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function head(pinned: boolean, unpin: () => void) {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => Object.assign(new FakeNode(), { tag }),
+      createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
+    });
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 35, y: 30 });
+    const hud = Object.assign(Object.create(Hud.prototype), { actions: { unpin } }) as unknown as {
+      infoHead(v: typeof npc, w: World, pinned: boolean): unknown;
+    };
+    return hud.infoHead(npc, w, pinned) as FakeNode;
+  }
+
+  it('gives a pinned card one close key that unpins and names Esc', () => {
+    const unpin = vi.fn();
+    const keys = head(true, unpin).withTag('button');
+    expect(keys).toHaveLength(1);
+    expect(keys[0].className).toContain('hud-close');
+    expect(keys[0].attrs.title).toContain('Esc');
+    keys[0].listeners.click();
+    expect(unpin).toHaveBeenCalledOnce();
+  });
+
+  it('gives a hover card no close key', () => {
+    expect(head(false, vi.fn()).withTag('button')).toHaveLength(0);
   });
 });
