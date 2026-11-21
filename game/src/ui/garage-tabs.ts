@@ -53,6 +53,10 @@ export function stockFilterChips(stock: PartInstance[], current: StockFilter, pi
   return el("div", { class: "tabs sub" }, ...STOCK_FILTERS.map((f) => stockFilterChip(f, stockCount(stock, f) === 0, current === f, pick)));
 }
 
+export function garageHead(tabs: HTMLElement[], filters: HTMLElement | undefined): HTMLElement[] {
+  return [el("div", { class: "tabs" }, ...tabs), filters ?? el("div", { class: "tabs sub" })];
+}
+
 function stockFilterChip(f: StockFilter, none: boolean, on: boolean, pick: (f: StockFilter) => void): HTMLElement {
   const empty = none && f !== "all";
   return el(

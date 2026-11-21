@@ -3,6 +3,7 @@ import { MIX, type Bus } from "../data/sounds";
 import type { Mixer } from "../audio/mixer";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
+import { controlStep } from "./control-sound";
 import { el } from "./dom";
 
 const KEY = "roam-sound";
@@ -127,7 +128,11 @@ export function knobControl(spec: KnobSpec): { root: HTMLElement; draw: () => vo
   const knob = el("div", { class: "knob", role: "slider", tabindex: 0, "aria-label": spec.aria, "aria-valuemin": 0, "aria-valuemax": 100 }, mark, dial);
   const readout = el("span", { class: "knob-readout" });
   const cell = el("div", { class: "knob-cell" }, knob, el("span", { class: "knob-labels" }, el("span", { class: "knob-label" }, spec.label), readout));
+  let drawn: number | null = null;
   const draw = () => {
+    const step = Math.round(spec.value() * count);
+    if (drawn !== null && step !== drawn) controlStep("knob-step");
+    drawn = step;
     knob.setAttribute("aria-valuenow", String(Math.round(spec.value() * 100)));
     bindAttr(knob, "aria-valuetext", spec.text());
     setText(readout, spec.text());
