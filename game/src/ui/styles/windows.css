@@ -1,4 +1,4 @@
-:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .inv-keys .cost, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
+:is(#ui, #report) :is(.well, .screen-block, .board-offers, .chips .chip-screen, .cost.readout, .quest-page .quest-side, .minimap .minimap-body, .map-tab) {
   --good: var(--hud-lamp-green);
   --good-bright: var(--hud-lamp-green);
   --danger: var(--hud-hot);
@@ -100,21 +100,6 @@
 }
 .inv-keys:empty {
   display: none;
-}
-:is(#ui, #report) .inv-keys .cost {
-  align-self: stretch;
-  justify-self: stretch;
-  box-sizing: border-box;
-  min-height: var(--btn-h-s);
-  padding: 0 var(--space-4);
-  color: var(--hud-amber);
-  font-size: var(--text-body);
-}
-:is(#ui, #report) .inv-keys .cost.off {
-  color: var(--hud-amber-faint);
-}
-:is(#ui, #report) .inv-keys .cost .icon {
-  color: var(--hud-amber);
 }
 :is(#ui, #report) .screen-line {
   display: flex;
@@ -227,11 +212,6 @@
 }
 #ui :is(.minimap .minimap-body, .map-tab) {
   padding: var(--hud-screen-edge);
-}
-:is(#ui, #report) .inv-keys .cost.off .icon {
-  color: var(--hud-amber-faint);
-  width: var(--icon-s);
-  height: var(--icon-s);
 }
 .chips .chip-screen {
   display: inline-flex;

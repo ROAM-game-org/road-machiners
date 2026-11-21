@@ -126,6 +126,7 @@ export class InventoryView {
   private root: HTMLElement = el("div", { class: "inv-view" });
   private inspection = el("div", { class: "inv-inspection" });
   private keys = el("div", { class: "inv-keys" });
+  private costs = el("div", { class: "inv-costs" });
   private lootKeys = el("div", { class: "inv-keys loot" });
   private selectedItem: string | null = null;
   private loot: string | null = null;
@@ -256,7 +257,7 @@ export class InventoryView {
       "div",
       { class: "inv-wrap" },
       el("div", { class: "inv-truck" }, el("div", { class: "truck-shell" }, grid)),
-      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, ...this.jobBlock(w), this.inspection, error, ...stores, ...target),
+      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, this.costs, ...this.jobBlock(w), this.inspection, error, ...stores, ...target),
     );
   }
 
@@ -280,14 +281,20 @@ export class InventoryView {
       { class: "inv-bench" },
       el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
       middle,
-      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
+      el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error, this.costs)),
       this.footEl(),
     );
   }
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
     const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)), this.footEl());
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error, this.costs)), this.footEl());
+  }
+
+  private fillActions(actions: HTMLElement[], idle: Msg): void {
+    const { keys, costs } = splitActions(actions);
+    this.keys.replaceChildren(keys.length > 0 ? el("div", { class: "action-rows" }, ...keys) : idleActions(idle));
+    this.costs.replaceChildren(...costs);
   }
 
   private footEl(): HTMLElement {
@@ -411,7 +418,7 @@ export class InventoryView {
     if (!selection) {
       this.selectedItem = null;
       this.inspection.replaceChildren(el("p", { class: "dim idle" }, t("inv.selectHint")));
-      this.keys.replaceChildren(idleActions(t("inv.selectHint")));
+      this.fillActions([], t("inv.selectHint"));
     } else if (selection.own) this.showItem(w, selection.item, selection.mounted);
     else this.showTruckItem(w, selection.item);
   }
@@ -508,9 +515,8 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    const { keys, costs } = splitActions(actions);
-    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted), costs.length > 0 ? el("div", { class: "inv-costs" }, ...costs) : null));
-    this.keys.replaceChildren(keys.length > 0 ? el("div", { class: "action-rows" }, ...keys) : idleActions(t("inv.dragToGrid")));
+    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted)));
+    this.fillActions(actions, t("inv.dragToGrid"));
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {

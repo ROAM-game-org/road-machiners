@@ -31,7 +31,7 @@ export class SoundPlayer {
     if (!buf) return;
     const rate = selection ? this.checkedRate(id, selection.rate) : 1 + (Math.random() * 2 - 1) * cue.pitchJitter;
     const start = ctx.currentTime + delayMs / 1000;
-    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate)) return;
+    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate, (cue.minGapMs ?? 0) / 1000)) return;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;

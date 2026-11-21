@@ -51,7 +51,6 @@ const WEAR_DARK = 0.82;
 const WEAR_LIGHT = 1.34;
 const WEAR_PATCH_EDGE = 0.5 * (WEAR_NEUTRAL - 1) / 255;
 const WEAR_EDGE_AA = 0.75;
-const PAD_WEAR = { gapCells: 1.8, gapFrom: 0.7, chipCells: 5.5, chipFrom: 0.7, fillCells: 6, fillFrom: 0.8, soft: 0.05 };
 const WEAR_GRAIN = 2;
 const WEAR_DUST = 0.05;
 const DRAWN_FAR_TILES = 8;
@@ -450,9 +449,6 @@ float valueNoise(vec2 p) {
 }
 float markHash(vec2 p) {
   return fract(sin(dot(mod(p, 289.0), vec2(127.1, 311.7))) * 43758.5453);
-}
-float padPaintLeft(vec2 p, float cells, float from) {
-  return 1.0 - smoothstep(from, from + ${PAD_WEAR.soft.toFixed(2)}, valueNoise(p * cells));
 }
 `;
 
@@ -1085,12 +1081,12 @@ const PADS_BODY = `
     float padDepth = min(padIn.x, padIn.y);
     if (padDepth <= 0.0) continue;
     float padSoft = fwidth(padDepth);
-    vec2 padSpot = padLocal / ${S.toFixed(4)} + float(i) * 7.31;
-    float padLineLeft = padPaintLeft(padSpot, ${PAD_WEAR.gapCells.toFixed(2)}, ${PAD_WEAR.gapFrom.toFixed(2)}) * padPaintLeft(padSpot + 19.0, ${PAD_WEAR.chipCells.toFixed(2)}, ${PAD_WEAR.chipFrom.toFixed(2)});
-    float padFillLeft = padPaintLeft(padSpot + 41.0, ${PAD_WEAR.fillCells.toFixed(2)}, ${PAD_WEAR.fillFrom.toFixed(2)});
-    float padLine = (1.0 - smoothstep(padBorder - padSoft, padBorder + padSoft, padDepth)) * padLineLeft;
+    float padLine = 1.0 - smoothstep(padBorder - padSoft, padBorder + padSoft, padDepth);
+    float padCover = smoothstep(0.0, padSoft, padDepth);
     vec3 padLook = mix(mix(roadColor, padDust * groundShade, 0.35), padMark * groundShade, padLine);
-    diffuseColor.rgb = mix(diffuseColor.rgb, padLook, smoothstep(0.0, padSoft, padDepth) * max(padLine, padFillLeft));
+    diffuseColor.rgb = mix(diffuseColor.rgb, padLook, padCover);
+    drawnEdgeNear *= 1.0 - padCover;
+    inkSurface.edge *= 1.0 - padCover;
   }
 #endif
 `;
