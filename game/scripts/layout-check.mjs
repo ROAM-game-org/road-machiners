@@ -945,10 +945,17 @@ async function hostedColumnFaults(page) {
     if (innerWidth < 1000) return [];
     const name = (n) => `${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]}`;
     const faults = [];
+    const costs = document.querySelector('.truck-body .inv-side > .inv-costs');
+    const keys = document.querySelector('.town-band > .inv-keys .action-rows');
+    if (costs && costs.children.length > 0 && keys) {
+      const c = costs.getBoundingClientRect();
+      const k = keys.getBoundingClientRect();
+      if (c.top - k.bottom > 40 || c.top < k.bottom - 1 || c.left < k.left - 1 || c.left > k.right) faults.push('action costs are not right under the keys');
+    }
     for (const box of document.querySelectorAll('.truck-body .inv-side > *')) {
       if (box.scrollHeight > box.clientHeight + 1) faults.push(`${name(box)} is shorter than its content`);
       const bottom = box.getBoundingClientRect().bottom;
-      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
+      for (const row of box.querySelectorAll('.inv-chip, .inv-details, .inv-costs, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
     }
     return faults;
   });
@@ -964,6 +971,9 @@ const BENCH_AUDIT = () => {
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
   const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
+  const costs = frame.querySelector('.inv-costs');
+  const keys = frame.querySelector('.inv-foot .inv-keys:not(.loot) .action-rows');
+  const apart = (c, k) => c.top > k.bottom || k.top - c.bottom > 40 || c.left < k.left - 1 || c.left > k.right;
   const title = frame.querySelector('.inv-title');
   const close = frame.querySelector('.close');
   return [
@@ -971,6 +981,7 @@ const BENCH_AUDIT = () => {
     all('.inv-side-column, .inv-middle, .well, .inv-details > .stat-grid').concat(frame).filter(scrolls).map((n) => `scroll in ${n.className}`),
     all('.well > *, .inv-grid').filter((n) => n.getBoundingClientRect().bottom > m.bottom + 1).map((n) => `cut off ${n.className}`),
     Math.abs(middle(title) - middle(close)) > 2 ? ['Close is off the title row'] : [],
+    costs && keys && costs.children.length > 0 && apart(costs.getBoundingClientRect(), keys.getBoundingClientRect()) ? ['action costs are not right over the keys'] : [],
     Math.max(...tops) - Math.min(...tops) > 1 ? [`column tops ${tops}`] : [],
     all('.inv-inspection .action-rows').filter((rows) => widths(rows) > 1).map(() => 'action buttons differ in width'),
     all('button, b, .stat-val, .stat-name').filter((n) => n.scrollWidth > n.clientWidth + 1 && n.clientWidth > 0).map((n) => `clipped ${n.textContent.slice(0, 24)}`),
