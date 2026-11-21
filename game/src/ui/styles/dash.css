@@ -1534,8 +1534,17 @@
   padding: 0;
   border: 0;
   background: none;
+  box-shadow: none;
   color: var(--hud-amber-soft);
   text-transform: uppercase;
+}
+
+#ui .info .hud-screen .tag {
+  box-shadow: none;
+}
+
+#ui .info .tag.bad {
+  color: var(--hud-hot);
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
