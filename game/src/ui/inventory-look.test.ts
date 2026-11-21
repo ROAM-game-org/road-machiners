@@ -37,7 +37,8 @@ class FakeNode {
   setAttribute(k: string, v: string) { this.attrs.set(k, v); }
   getAttribute(k: string) { return this.attrs.get(k) ?? null; }
   removeAttribute(k: string) { this.attrs.delete(k); }
-  addEventListener() {}
+  listeners = new Map<string, () => void>();
+  addEventListener(type: string, fn: () => void) { this.listeners.set(type, fn); }
   closest() { return null; }
   contains() { return false; }
   querySelectorAll(sel: string) { return sel.startsWith(".") ? this.all((n) => n !== this && n.className.split(" ").includes(sel.slice(1))) : []; }
@@ -298,5 +299,59 @@ describe("the inventory looking another truck over", () => {
     expect(view.drag).toBeNull();
     expect(view.beginGridTap({ pointerType: "touch", target: null })).toBe(false);
     expect(applied).toEqual([]);
+  });
+});
+
+describe("the auto patch switch in the inventory", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  function switchOf(world: World): { node: FakeNode | undefined; applied: World[] } {
+    const { screen, applied } = screenOver(world);
+    screen.toggle();
+    const root = ui.children[ui.children.length - 1] as FakeNode;
+    return { node: root.all((n) => n.attrs.get("role") === "switch")[0], applied };
+  }
+
+  function playerWorld(): World {
+    const world = emptyWorld();
+    const truck = addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
+    world.player.vehicleId = truck.id;
+    return world;
+  }
+
+  it("shows the real setting and flips it through the host on a click", () => {
+    const world = playerWorld();
+    world.player.autoRepair = false;
+    const { node, applied } = switchOf(world);
+    expect(node?.attrs.get("aria-checked")).toBe("false");
+    node?.listeners.get("click")?.();
+    expect(applied).toHaveLength(1);
+    expect(applied[0].player.autoRepair).toBe(true);
+  });
+
+  it("reads on when the setting is on", () => {
+    const world = playerWorld();
+    world.player.autoRepair = true;
+    expect(switchOf(world).node?.attrs.get("aria-checked")).toBe("true");
+  });
+
+  it("is off with the reason while knocked out and flips nothing", () => {
+    const world = playerWorld();
+    world.player.state = "knockedOut";
+    const { node, applied } = switchOf(world);
+    expect(node?.attrs.get("aria-disabled")).toBe("true");
+    node?.listeners.get("click")?.();
+    expect(applied).toEqual([]);
+  });
+
+  it("is absent on a loot screen", () => {
+    const { w, stock } = spotWorld();
+    const { screen } = screenOver(w);
+    screen.openLoot(stock.id);
+    const root = ui.children[ui.children.length - 1] as FakeNode;
+    expect(root.all((n) => n.attrs.get("role") === "switch")).toHaveLength(0);
   });
 });
