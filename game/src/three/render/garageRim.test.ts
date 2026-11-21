@@ -1,12 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { PAINT } from '../../data/chassis';
-import { playerVehicle } from '../../sim/damage';
-import { PLAIN_KIT } from '../../sim/testkit';
-import { defaultSetup } from '../../sim/settings';
+import { PAINT, PLAYER_CHASSIS } from '../../data/chassis';
+import { bareVehicle } from '../../sim/factory';
 import type { Vehicle } from '../../sim/types';
-import { newWorld } from '../../sim/world';
-import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
 import { VehicleView, type ViewScene } from './vehicle';
 import { BODY_PARTS } from '../../render/partLooks';
@@ -17,8 +13,8 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
-function wornTruck(hpShare: number): Vehicle {
-  const v = playerVehicle(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+function wornTruck(chassisId: string, hpShare: number): Vehicle {
+  const v = bareVehicle({ nextId: 1 }, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const cab = v.items.find((it) => it.kind === 'part' && BODY_PARTS.has(it.part.defId));
   if (cab && cab.kind === 'part') cab.part.hp = Math.max(0, Math.floor(cab.part.hp * hpShare));
   return v;
@@ -43,9 +39,10 @@ function hullSpan(v: Vehicle, scene: ViewScene): THREE.Box3 {
 }
 
 describe('garage body outline', () => {
-  it.each(['portrait', 'xray'] as const)('keeps the hull rim of a worn truck where the plates stand in the %s view', (scene) => {
-    const fresh = hullSpan(wornTruck(1), scene);
-    const worn = hullSpan(wornTruck(0.1), scene);
+  const cases = PLAYER_CHASSIS.flatMap((id) => (['portrait', 'xray'] as const).map((scene) => [id, scene] as const));
+  it.each(cases)('keeps the hull rim of a worn %s where the plates stand in the %s view', (id, scene) => {
+    const fresh = hullSpan(wornTruck(id, 1), scene);
+    const worn = hullSpan(wornTruck(id, 0.1), scene);
     expect(worn.min.x).toBeCloseTo(fresh.min.x, 2);
     expect(worn.max.x).toBeCloseTo(fresh.max.x, 2);
     expect(worn.min.z).toBeCloseTo(fresh.min.z, 2);

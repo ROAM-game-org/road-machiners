@@ -1075,14 +1075,15 @@ function modelPoints(obj: THREE.Object3D, toModel: THREE.Matrix4): THREE.Vector3
 }
 
 const RIM_REACH = 1;
+const RIM_DEPTH = 0.03;
 
 function hullRim(half: { x: number; y: number; z: number }): PartBox[] {
   const box = (x0: number, x1: number, z0: number, z1: number): PartBox => ({ min: { x: x0, y: -half.y, z: z0 }, max: { x: x1, y: half.y, z: z1 } });
   return [
-    box(-half.x, half.x, half.z, half.z + RIM_REACH),
-    box(-half.x, half.x, -half.z - RIM_REACH, -half.z),
-    box(half.x, half.x + RIM_REACH, -half.z, half.z),
-    box(-half.x - RIM_REACH, -half.x, -half.z, half.z),
+    box(-half.x, half.x, half.z - RIM_DEPTH, half.z + RIM_REACH),
+    box(-half.x, half.x, -half.z - RIM_REACH, -half.z + RIM_DEPTH),
+    box(half.x - RIM_DEPTH, half.x + RIM_REACH, -half.z, half.z),
+    box(-half.x - RIM_REACH, -half.x + RIM_DEPTH, -half.z, half.z),
   ];
 }
 
