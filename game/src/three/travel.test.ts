@@ -9,7 +9,7 @@ import { dist } from "../sim/vec";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { endTurn, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback } from "./travel";
+import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback, committedWorld } from "./travel";
 import { headingQuat, restFrames, restWheels, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
 import { standardWorld } from "../test/world-cache";
@@ -31,6 +31,13 @@ function makeSafeWorld() {
 }
 
 describe("turn advancement", () => {
+  it("fails loudly when a turn ends a full turn late", () => {
+    const travel = new Travel(250, TAIL);
+    expect(() => travel.finishClock(MOVE_MS * 2, MOVE_MS)).toThrow(/full turn/);
+    travel.finishClock(MOVE_MS * 1.5, MOVE_MS);
+    expect(travel.getRemainder(true)).toBeCloseTo(MOVE_MS * 0.5, 6);
+  });
+
   it("keeps planning paused until Space starts waypoint travel", () => {
     const travel = new Travel(250, TAIL);
     travel.update(true, true);
@@ -133,6 +140,19 @@ describe("the felt turn wait", () => {
     answer = ready;
     expect(travel.takeReady(world, NO_DRIVE, 1400)).toBe(ready);
     expect(waits()).toMatchObject({ last: 400, calls: 1 });
+  });
+
+  it("tells the listener how long the turn took to begin", () => {
+    const world = emptyWorld();
+    let answer: PreparedTurn | null = null;
+    const travel = withTurns(() => answer);
+    const heard: number[][] = [];
+    travel.onTurnWait = (ms, now) => heard.push([ms, now]);
+    travel.request(world, NO_DRIVE);
+    travel.takeReady(world, NO_DRIVE, 1000);
+    answer = ready;
+    travel.takeReady(world, NO_DRIVE, 1400);
+    expect(heard).toEqual([[400, 1400]]);
   });
 
   it("starts the wait again after a pause", () => {
@@ -1441,5 +1461,14 @@ describe("a world that waits on the player", () => {
     const world = leaveQuest(underScene(GAME_OPENED_QUESTS.roadStretch1));
     const { travel } = travelWithTurns();
     expect(() => travel.beginPlayback(world, preparedFrom(world), 0, {})).not.toThrow();
+  });
+});
+
+describe("the world a save writes", () => {
+  it("is the turn's start while a turn plays and the world outside one", () => {
+    const before = emptyWorld();
+    const after = { ...before, turn: before.turn + 1 };
+    expect(committedWorld(after, { before } as Playback)).toBe(before);
+    expect(committedWorld(after, null)).toBe(after);
   });
 });

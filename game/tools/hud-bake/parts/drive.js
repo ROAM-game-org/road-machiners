@@ -1,5 +1,6 @@
 import { Plate, extrude, lit, litMap, loft, cap, glassMesh, insetPoly, grain, wear, rollGeometry, makeStage, frame, THREE, K } from './dashlib.js';
 import { installBake } from '../core.js';
+import { buildToggle } from './toggle.js';
 
 const FACE = [-3, 581.9, 339.9, 729];
 const EYE_Z_DRIVE = 20.6;
@@ -153,14 +154,11 @@ const coolKey = new THREE.Group();
 const font = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
 document.fonts.add(await font.load());
 
-const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
-const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
+const PRINT = '#e4d1a5';
 
-const SW_RING = 0.85, SW_LEVER = 1.75, SW_LEVER_W = 1.25, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
+const SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
 const SW_PRINT = [13.5, 19.5];
-const SW_BASE = '#9a9a92', SW_HOLE = '#2a2017';
 const SW_Z = Z_PANEL + 0.004;
-const SW_TILT = 0.75;
 const EYE_UNITS = P.eye();
 const printMesh = (L, box, label, z) => {
   const DENSITY = 20, cv = document.createElement('canvas');
@@ -177,50 +175,16 @@ const printMesh = (L, box, label, z) => {
   m.position.set(rect.cx, rect.cy, z);
   return m;
 };
-const setRocker = (r, on) => {
-  const rot = new THREE.Matrix4().makeRotationX(on ? Math.PI / 2 - SW_TILT : Math.PI / 2 + SW_TILT);
-  const m = new THREE.Matrix4().makeTranslation(r.at.x, r.at.y, r.at.z).multiply(r.shear).multiply(rot);
-  r.pivot.matrix.copy(m);
-};
-const flutedStem = (radius, length, flutes) => {
-  const g = new THREE.CylinderGeometry(radius, radius * 0.92, length, flutes * 4, 1);
-  const pos = g.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i);
-    if (Math.hypot(x, z) < 1e-5) continue;
-    const k = 0.88 + 0.12 * Math.abs(Math.cos(Math.atan2(z, x) * flutes / 2));
-    pos.setX(i, x * k); pos.setZ(i, z * k);
-  }
-  g.computeVertexNormals();
-  return g;
-};
 const rockers = ROCKERS.map(([x0, , x1]) => {
-  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_RING), ul = (v) => L.len(v * SW_LEVER), uw = (v) => L.len(v * SW_LEVER_W);
+  const cx = (x0 + x1) / 2, L = P.at(SW_Z);
   P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
   P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
-  const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
-  const profile = [[2.4, 0], [2.4, 0.5], [2.9, 1.3], [4.2, 1.4], [4.8, 0.9], [4.9, 0]].map(([x, y]) => new THREE.Vector2(u(x), u(y)));
-  const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(SW_BASE, { side: THREE.DoubleSide }));
-  ringMesh.rotation.x = Math.PI / 2; ringMesh.position.set(px, py, SW_Z);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(u(2.4), 32), new THREE.MeshBasicMaterial({ color: SW_HOLE }));
-  hole.position.set(px, py, SW_Z + 0.0015);
-  const pivot = new THREE.Group();
-  pivot.matrixAutoUpdate = false;
-  const at = new THREE.Vector3(px, py, SW_Z + 0.002);
-  const shear = new THREE.Matrix4().set(1, 0, -(px - EYE_UNITS.x) / EYE_UNITS.z, 0, 0, 1, -(py - EYE_UNITS.y) / EYE_UNITS.z, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-  const len = ul(8);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.2), uw(1.2), ul(2), 16), brassDeep);
-  neck.position.y = ul(0.5);
-  const stem = new THREE.Mesh(flutedStem(uw(1.7), len, 16), brass);
-  stem.position.y = len / 2 + ul(1);
-  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.35), uw(1.65), uw(1.1), 28), brass);
-  capTop.position.y = len + ul(1) + uw(0.55);
-  pivot.add(neck, stem, capTop);
-  for (const m of [ringMesh, stem, capTop, neck]) { m.castShadow = true; m.receiveShadow = true; }
-  P.g.add(hole, ringMesh, pivot);
-  return { pivot, at, shear, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
+  const at = new THREE.Vector3(L.ux(cx), L.uy(SW_CENTER_Y), SW_Z);
+  const toggle = buildToggle({ len: L.len.bind(L), at, eye: EYE_UNITS });
+  P.g.add(...toggle.parts);
+  return { set: toggle.set, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
-rockers.forEach((r) => setRocker(r, false));
+rockers.forEach((r) => r.set(false));
 
 const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[0]), z: 0 }, eye: P.eye(), faceWidthPx: (FACE[2] - FACE[0] + 3) * K });
 
@@ -250,7 +214,7 @@ const meta = { width: view.IW, height: view.IH, face: P.quad(view, FACE, 0), zon
 installBake((scale) => {
   const files = {};
   coolKey.position.z = -COOL_SINK;
-  rockers.forEach((r) => setRocker(r, false));
+  rockers.forEach((r) => r.set(false));
   view.render(scale);
   files.housing = view.shot();
   files['cool-up'] = view.crop(scale, sprites.cool.crop);
@@ -259,9 +223,9 @@ installBake((scale) => {
   files['cool-down'] = view.crop(scale, sprites.cool.crop);
   coolKey.position.z = -COOL_SINK;
   rockers.forEach((r, i) => {
-    setRocker(r, true); view.render(scale);
+    r.set(true); view.render(scale);
     files[`rocker${i}-on`] = view.crop(scale, sprites[`rocker${i}`].crop);
-    setRocker(r, false);
+    r.set(false);
   });
   return { files, meta };
 });

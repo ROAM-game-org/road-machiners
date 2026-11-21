@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { easedStopMs, easedStopSteps, PlayClock } from './play-clock';
+import { easedStopMs, easedStopSteps, heldPlayMs, PlayClock, playbackFrameCapMs } from './play-clock';
 
 const EASE = 100;
 const CLOCK = { stopMs: EASE, startMs: EASE, stopFolds: 3 };
@@ -141,5 +141,30 @@ describe('PlayClock', () => {
         }
       }
     }
+  });
+});
+
+describe('playback frame cap', () => {
+  const HITCH = 250;
+  const TURN = 1000;
+
+  it('gives a slow frame its full time and cuts a freeze', () => {
+    expect(heldPlayMs(120, false, playbackFrameCapMs(1, HITCH, TURN))).toBe(120);
+    expect(heldPlayMs(400, false, playbackFrameCapMs(1, HITCH, TURN))).toBe(250);
+    expect(heldPlayMs(120, true, playbackFrameCapMs(1, HITCH, TURN))).toBe(0);
+  });
+
+  it('never lets one frame add more than a turn of world time', () => {
+    expect(playbackFrameCapMs(8, HITCH, TURN)).toBe(125);
+    const clock = running();
+    const added = frame(clock, (c) => c.coast(heldPlayMs(200, false, playbackFrameCapMs(8, HITCH, TURN)), true, 8));
+    expect(added).toBeLessThanOrEqual(TURN);
+  });
+
+  it('keeps the pace over uneven night frames', () => {
+    const clock = running();
+    const frames = [16, 120, 60, 170, 33];
+    const played = frames.reduce((sum, ms) => sum + frame(clock, (c) => c.coast(heldPlayMs(ms, false, playbackFrameCapMs(2, HITCH, TURN)), true, 2)), 0);
+    expect(played).toBeCloseTo(2 * frames.reduce((a, b) => a + b, 0), 5);
   });
 });

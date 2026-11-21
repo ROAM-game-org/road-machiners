@@ -16,7 +16,7 @@ import { t, verbatim, type Msg } from "../text/msg";
 import { chassisName, driverName, professionName, siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import type { Vehicle } from "../sim/types";
-import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, getSearchAction, overdriveSwitch, versionLabel } from "./hud-readout";
+import { ContextPicker, getContext, getContextActions, airHeatReadout, getHudReadout, getRescueReadout, getSearchAction, overdriveSwitch, versionLabel } from "./hud-readout";
 import type { ContextAction } from "./hud";
 import { GAME_VERSION } from "../config";
 import { REGION } from '../data/region';
@@ -39,6 +39,11 @@ const en = (msg: Msg): string => resolve(msg, "en");
 const siteEn = (id: string): string => en(siteName(id));
 const npcName = (v: Vehicle): string =>
   en(v.brain ? t("vehicle.npc", { profession: professionName(v.brain.templateId), driver: driverName(v) }) : chassisName(v.chassisId));
+
+function status(w: World, playing = false) {
+  const said = getContext(w, playing).status;
+  return said ? en(said) : null;
+}
 
 function actions(w: World) {
   return getContextActions(w, false).map((a) => ({ ...a, label: en(a.label), ...(a.hint ? { hint: en(a.hint) } : {}) }));
@@ -83,7 +88,9 @@ describe('salvage interaction', () => {
     w.salvage = [{ id: site.id, pos: { ...site.pos }, radius: site.radius, goods: { scrap: 1 }, parts: [], hidden: emptyHidden() }];
     expect(actions(w)[0]).toMatchObject({ label: 'Search', ready: true, combat: undefined });
     w.salvage[0].goods.scrap = 0;
-    expect(actions(w)[0]).toMatchObject({ label: 'Picked clean', ready: false, hint: 'No loot left' });
+    expect(actions(w)).toEqual([]);
+    expect(status(w)).toBe('Picked clean');
+    expect(status(w, true)).toBeNull();
   });
 
   it('offers a search while units stay hidden and the revealed loot once searched, both at once', () => {
@@ -99,7 +106,8 @@ describe('salvage interaction', () => {
     w.salvage[0].hidden = emptyHidden();
     expect(actions(w).map((a) => a.label)).toEqual(['Loot']);
     w.salvage[0].goods.scrap = 0;
-    expect(actions(w)[0]).toMatchObject({ label: 'Picked clean' });
+    expect(actions(w)).toEqual([]);
+    expect(status(w)).toBe('Picked clean');
   });
 
   it('keeps offering a search beside revealed supplies the full tank cannot take', () => {
@@ -179,7 +187,8 @@ describe('loot spot wording', () => {
     stock.parts = [];
     stock.fuel = 0;
     stock.supplies = 0;
-    expect(actions(w).map((a) => a.label)).toEqual(['Picked clean']);
+    expect(actions(w)).toEqual([]);
+    expect(status(w)).toBe('Picked clean');
   }, 30_000);
 
   it.each([
@@ -391,6 +400,12 @@ describe("critical vehicle readout", () => {
     ];
     const hud = getHudReadout(w);
     expect(hud.survival.map((r) => r.id)).toEqual(["heat", "engine"]);
+  });
+  it("reads the air heat at the truck's spot for the HUD and the map", () => {
+    const w = emptyWorld();
+    const heat = airHeatReadout(w);
+    expect(heat).toMatchObject({ id: "heat", icon: "heat" });
+    expect(getHudReadout(w).survival[0]).toEqual(heat);
   });
   it("marks low fuel on the fuel readout with its cause", () => {
     const w = emptyWorld();

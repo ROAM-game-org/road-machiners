@@ -362,7 +362,7 @@ const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game
 const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (loadedFrom) game.hud.restoreLog(savedLogOf(storedSave(slots, loadedFrom)));
 if (fresh && opening) for (const line of opening.log) game.hud.note(world, t(`opening.${line}`), "", "notable");
-const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay, () => travel.routeMsOfLastTurn()), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
+const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(uiRoot(), () => travel.routeMsOfLastTurn()), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;
 musicFaults.forEach(reportError);
