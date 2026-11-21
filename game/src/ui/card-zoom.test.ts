@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CARD_ZOOM } from "../data/card-zoom";
 import { WORLD_MAP } from "../data/minimap";
-import { CardZoom, densityCap, fitZoom } from "./card-zoom";
+import { CardZoom, densityCap, fitClearOf, fitZoom } from "./card-zoom";
 
 const SCREEN = { width: 240, height: 125 };
 const DRAWING = { width: 200, height: 100 };
@@ -117,5 +117,44 @@ describe("card zoom pan", () => {
     zoom.reset();
     expect(zoom.total()).toBe(1);
     expect(zoom.pan()).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("fit clear of a corner", () => {
+  const CORNER = { width: 60, height: 30 };
+  const CAP = 10;
+
+  it("keeps the plain fit when the drawing misses the corner", () => {
+    const tall = { width: 50, height: 100 };
+    const screen = { width: 240, height: 125 };
+    expect(fitClearOf(screen, tall, CAP, CORNER)).toBe(fitZoom(screen, tall, CAP));
+  });
+
+  it("shrinks a wide drawing that fills a tall screen", () => {
+    const wide = { width: 100, height: 40 };
+    const screen = { width: 200, height: 100 };
+    const fit = fitClearOf(screen, wide, CAP, CORNER);
+    expect(fit).toBeLessThan(fitZoom(screen, wide, CAP));
+    expect(wide.width * fit).toBeLessThanOrEqual(screen.width - 2 * CORNER.width + 1e-9);
+  });
+
+  it("takes the larger of the narrowed and the lowered fit", () => {
+    const wide = { width: 100, height: 40 };
+    const screen = { width: 200, height: 100 };
+    const narrowed = fitZoom({ width: 80, height: 100 }, wide, CAP);
+    const lowered = fitZoom({ width: 200, height: 40 }, wide, CAP);
+    expect(fitClearOf(screen, wide, CAP, CORNER)).toBe(Math.max(narrowed, lowered));
+  });
+
+  it("returns the plain fit for an empty corner", () => {
+    const wide = { width: 100, height: 40 };
+    const screen = { width: 200, height: 100 };
+    expect(fitClearOf(screen, wide, CAP, { width: 0, height: 0 })).toBe(fitZoom(screen, wide, CAP));
+  });
+
+  it("throws when the corner takes the whole screen", () => {
+    const wide = { width: 100, height: 40 };
+    expect(() => fitClearOf({ width: 100, height: 100 }, wide, CAP, { width: 50, height: 50 })).toThrow();
+    expect(() => fitClearOf({ width: 100, height: 100 }, wide, CAP, { width: -1, height: 0 })).toThrow();
   });
 });
