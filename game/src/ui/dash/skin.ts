@@ -152,12 +152,6 @@ export const DRIVE_PLATE = {
   boxes: {
     face: [36, 138, 782, 681],
     coolKey: [1338, 200, 1538, 385],
-    rockerA: [857, 509, 950, 632],
-    rockerB: [1087, 509, 1179, 632],
-    rockerC: [1317, 509, 1410, 632],
-    labelA: [813, 413, 994, 473],
-    labelB: [1043, 413, 1223, 473],
-    labelC: [1273, 413, 1454, 473],
     dialHub: [407, 513, 407, 513],
     dialGlass: [69, 175, 745, 851],
   },
@@ -165,7 +159,7 @@ export const DRIVE_PLATE = {
 
 export const WEAPONS_PLATE = { width: 1969, height: 734 } as const;
 
-const PIECES = { tape: "tape", lamp: "lamp", rockerOff: "rocker-off", rockerOn: "rocker-on" } as const;
+const PIECES = { lamp: "lamp", rockerOff: "rocker-off", rockerOn: "rocker-on" } as const;
 
 
 function pct(part: number, whole: number): string {

@@ -13,7 +13,7 @@ import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
-import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
+import { hasOpenSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
 import { threatAt } from './raider-threat';
 import { randInt } from './rng';
 import { playerCommand } from './world';
@@ -301,5 +301,5 @@ export function surveyTurn(world: World, job: SurveyJob): boolean {
 function rumorAround(world: World, site: SurveySite): void {
   const { scavenged, rumored } = world.player;
   for (const stock of world.salvage)
-    if (dist(stock.pos, site.pos) <= CONTRACTS.survey.knowledgeRange && hasSalvage(stock) && !scavenged.includes(stock.id) && !rumored.includes(stock.id)) rumored.push(stock.id);
+    if (dist(stock.pos, site.pos) <= CONTRACTS.survey.knowledgeRange && hasOpenSalvage(stock) && !scavenged.includes(stock.id) && !rumored.includes(stock.id)) rumored.push(stock.id);
 }

@@ -34,8 +34,8 @@ import { contractPay } from './contract-pay';
 import type { Contract } from './market';
 import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
-import { stockTarget } from './market';
-import { PRODUCTION } from '../data/market';
+import { boardPhase, stockTarget } from './market';
+import { CONTRACTS, PRODUCTION } from '../data/market';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
@@ -349,4 +349,9 @@ export function comparableWorld(world: World) {
 export function priced<C extends Contract>(world: World, contract: C): C {
   const pay = contractPay(world, contract);
   return pay ? { ...contract, ...pay } : contract;
+}
+
+export function nextRefresh(w: World, shopId: string): number {
+  const gap = CONTRACTS.board.refreshTurns;
+  return w.turn + ((gap - ((w.turn + boardPhase(shopId)) % gap)) % gap);
 }

@@ -9,7 +9,7 @@ import { workOf, type WorkLeft } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, TURN_PLAYING } from "./dom";
+import { bottomLeft } from "./dom";
 import type { UiHost } from "./host";
 import { FASTER_KEY, heldPick, SLOWER_KEY } from "./travel-speed";
 import { clockOf } from "../sim/sun";
@@ -250,14 +250,13 @@ export function holdGuns(w: World, guns: readonly MountedWeapon[]): World {
   return next;
 }
 
-export function orderLock(w: World, playing: boolean): Msg | null {
-  if (actBlock(w) === "knockedOut") return t("actBlock.knockedOut");
-  return playing ? TURN_PLAYING : null;
+export function orderLock(w: World): Msg | null {
+  return actBlock(w) === "knockedOut" ? t("actBlock.knockedOut") : null;
 }
 
-export function lockReason(w: World, phase: ReturnType<UiHost["getTurnPhase"]>): Msg | null {
+export function lockReason(w: World): Msg | null {
   const block = actBlock(w);
-  return orderLock(w, phase !== null) ?? (block === null ? null : t(`actBlock.${block}`));
+  return orderLock(w) ?? (block === null ? null : t(`actBlock.${block}`));
 }
 
 
@@ -357,8 +356,12 @@ export class UtilityRow {
   constructor(private host: UiHost) {}
 
   selectUtility(i: number): void {
+    this.host.whenTurnEnds(() => this.selectNow(i));
+  }
+
+  private selectNow(i: number): void {
     const w = this.host.world();
-    if (orderLock(w, this.host.getTurnPhase() !== null) !== null) return;
+    if (orderLock(w) !== null) return;
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
@@ -430,7 +433,7 @@ function utilitySlotView(host: UiHost, w: World, part: PartInstance, i: number):
 
 export function weaponsViewOf(host: UiHost): WeaponsView {
   const w = host.world();
-  const locked = lockReason(w, host.getTurnPhase());
+  const locked = lockReason(w);
   const selected = host.selectedWeapons();
   const guns = vehicleStats(w, playerVehicle(w)).weapons;
   return {
@@ -447,7 +450,7 @@ export function weaponsViewOf(host: UiHost): WeaponsView {
 function turnView(host: UiHost): TurnKeyView {
   const phase = host.getTurnPhase();
   if (host.autoTravel()) return { title: t("turn.autoTitle"), label: t("turn.stopAuto"), disabled: false, auto: true };
-  return { title: t("turn.endTitle"), label: phase ? t("turn.inProgress", { phase: t(`phase.${phase}`) }) : t("turn.end"), disabled: phase !== null, auto: false };
+  return { title: t("turn.endTitle"), label: phase ? t("turn.inProgress", { phase: t(`phase.${phase}`) }) : t("turn.end"), disabled: false, auto: false };
 }
 
 export function deckViewOf(host: UiHost): DeckView {
@@ -471,12 +474,13 @@ export class WeaponOrders {
   }
 
   protected ordersLocked(): boolean {
-    return orderLock(this.host.world(), this.host.getTurnPhase() !== null) !== null;
+    return orderLock(this.host.world()) !== null;
   }
 
   selectWeapons(ids: readonly string[]): void {
-    if (this.ordersLocked()) return;
-    this.host.selectWeapons(ids);
+    this.host.whenTurnEnds(() => {
+      if (!this.ordersLocked()) this.host.selectWeapons(ids);
+    });
   }
 
   toggleAll(): void {
@@ -502,21 +506,27 @@ export class WeaponOrders {
   }
 
   reloadSelected(): void {
-    if (this.ordersLocked()) return;
-    const w = this.host.world();
-    this.host.apply(reloadGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+    this.host.whenTurnEnds(() => {
+      if (this.ordersLocked()) return;
+      const w = this.host.world();
+      this.host.apply(reloadGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+    });
   }
 
   holdSelected(): void {
-    if (this.ordersLocked()) return;
-    const w = this.host.world();
-    this.host.apply(holdGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+    this.host.whenTurnEnds(() => {
+      if (this.ordersLocked()) return;
+      const w = this.host.world();
+      this.host.apply(holdGuns(w, weaponsForClick(w, this.host.selectedWeapons())));
+    });
   }
 
   toggleAuto(): void {
-    if (this.ordersLocked()) return;
-    const w = this.host.world();
-    this.host.apply(setAutoFire(w, !w.player.autoFire));
+    this.host.whenTurnEnds(() => {
+      if (this.ordersLocked()) return;
+      const w = this.host.world();
+      this.host.apply(setAutoFire(w, !w.player.autoFire));
+    });
   }
 
   goToSpeed(index: number): void {

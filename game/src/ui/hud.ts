@@ -1,5 +1,5 @@
 
-import { keyTip, RECENTER_KEY, touchMode } from "./input-mode";
+import { ESCAPE, keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -11,14 +11,16 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, dashRail, disabledWith, el, markDisabled, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
 import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
-import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
+import { closeKey, controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
-import { LogPanel } from "./log";
+import { LogPanel, readSavedLog, type SavedLog } from "./log";
+import { logViewSetting } from "./log-setting";
+import { eventEntry, leveled, type LogEntry, type LogLevel } from "./log-levels";
 import {
   claimRivalMark,
   escortStatusText,
@@ -30,14 +32,12 @@ import {
   surveyProgress,
   isNotable,
   surveyClueLines,
-  eventText,
   formatNpcPass,
   formatNpcCargo,
   formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
   formatCardState,
-  type LogLine,
   clock,
   stanceTag,
   caseVictimName,
@@ -84,9 +84,13 @@ export type ContextTarget =
   | { kind: 'stock'; id: string }
   | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
-  | { kind: 'empty' }
   | { kind: 'outpost' };
 export type ContextAction = { label: Msg; ready: boolean; target: ContextTarget; hint?: Msg; combat?: number };
+
+export function actionSlot(action: ContextAction | null, shown: unknown, status: Msg | null): "action" | "status" | "none" {
+  if (action) return shown ? "none" : "action";
+  return status && !shown ? "status" : "none";
+}
 
 export function contextKey(target: ContextTarget): string {
   return 'id' in target ? `${target.kind}:${target.id}` : target.kind;
@@ -116,8 +120,8 @@ function rocker(lock: Msg | null, checked: boolean, title: Msg, reason: Msg | nu
   return { checked, title, reason: lock ?? reason, locked };
 }
 
-export function driveControlsOf(w: World, busy: boolean, manual: boolean, headlights: boolean): DriveControls {
-  const lock = orderLock(w, busy);
+export function driveControlsOf(w: World, manual: boolean, headlights: boolean): DriveControls {
+  const lock = orderLock(w);
   const od = overdriveSwitch(w);
   const block = douseBlock(w);
   return {
@@ -128,15 +132,14 @@ export function driveControlsOf(w: World, busy: boolean, manual: boolean, headli
   };
 }
 
-export function systemViewsOf(w: World, busy: boolean, journalBeside: boolean): Record<SystemKey, SystemKeyView> {
+export function systemViewsOf(w: World): Record<SystemKey, SystemKeyView> {
   const marked = characterMarked(w);
-  const playing = busy ? TURN_PLAYING : null;
   return {
     menu: { title: t("menu.menu"), reason: null, marked: false, key: "Esc" },
-    car: { title: t("hud.inventoryTitle"), reason: playing, marked: false, key: "I" },
-    character: { title: marked ? t("hud.driverPerk") : t("hud.driver"), reason: playing, marked, key: "C" },
-    map: { title: t("map.full"), reason: playing ?? mapBlock(w), marked: false, key: "M", hidden: !hasExplorationMap(w) },
-    journal: { title: t("hud.journal"), reason: journalBeside ? null : playing, marked: false, key: "J" },
+    car: { title: t("hud.inventoryTitle"), reason: null, marked: false, key: "I" },
+    character: { title: marked ? t("hud.driverPerk") : t("hud.driver"), reason: null, marked, key: "C" },
+    map: { title: t("map.full"), reason: mapBlock(w), marked: false, key: "M", hidden: !hasExplorationMap(w) },
+    journal: { title: t("hud.journal"), reason: null, marked: false, key: "J" },
   };
 }
 
@@ -164,7 +167,6 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
-  journalBeside: () => boolean;
   openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
@@ -176,7 +178,6 @@ type HudActions = {
   unhitch: () => void;
   setBeacon: (on: boolean) => void;
   endRun: () => void;
-  isBusy: () => boolean;
   autoTravel: () => boolean;
   dialogue: DialogueHost;
   recenter: () => void;
@@ -205,6 +206,9 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedId: string | null = null;
+  private readonly zoomOutKey = el("button", { class: "hud-key icon-key", title: t("map.zoomOut"), "aria-label": t("map.zoomOut"), onclick: () => this.inspected.zoomStep(-1) }, createIcon("minus"));
+  private readonly zoomInKey = el("button", { class: "hud-key icon-key", title: t("map.zoomIn"), "aria-label": t("map.zoomIn"), onclick: () => this.inspected.zoomStep(1) }, createIcon("plus"));
+  private readonly zoomKeys = el("div", { class: "hud-keybed info-zoom" }, this.zoomOutKey, this.zoomInKey);
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel hud-panel", rightDock());
   private wanted = panel("wanted dock-panel hud-panel", rightDock());
@@ -213,6 +217,7 @@ export class Hud {
   private infoBody = el("div", { class: "info-content" });
   private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
   private action = panel("action");
+  private siteStatus = panel("status-mark site-status hud-panel");
   private toastBox = panel("toast hud-panel");
 
   private toastScreen = this.toastBox.appendChild(el("p", { class: "metal-line" }));
@@ -333,8 +338,9 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel, private deck: RadioDeck, renderer: THREE.WebGLRenderer, gpu: GpuContext) {
+    this.followLogView();
     this.drive = new DrivePanel({
-      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph") },
+      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph"), on: t("setting.on"), off: t("setting.off") },
       onManual: () => actions.toggleManual(),
       onLights: () => actions.toggleHeadlights(),
       onOverdrive: () => actions.toggleOverdrive(),
@@ -358,7 +364,7 @@ export class Hud {
     this.portraits = new TruckPortraits(renderer, gpu, readback);
     this.garage = new GarageRenders(renderer, gpu, readback);
     this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
-    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
+    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M, { magnify: (state) => this.markZoomKeys(state) });
     this.portraits.onReady((vehicleId) => {
       if (vehicleId === this.inspectedId) this.placeInfo();
     });
@@ -382,6 +388,7 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
+    this.siteStatus.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("div", { class: "tooltip hover-tip recenter-tip", role: "button", onclick: () => actions.recenter() }, keyTip(t("hud.recenter"), RECENTER_KEY)));
@@ -443,11 +450,15 @@ export class Hud {
     world: World,
     onUse: () => void,
     onCycle: (step: 1 | -1) => void,
+    status: Msg | null,
   ): void {
     const me = playerVehicle(world);
     const shown = shownWork(action, workOf(world, me));
-    this.action.style.display = action && !shown ? "" : "none";
-    if (action && !shown) this.renderActionButton(action, count, index, onUse, onCycle);
+    const slot = actionSlot(action, shown, status);
+    this.action.style.display = slot === "action" ? "" : "none";
+    this.siteStatus.style.display = slot === "status" ? "" : "none";
+    if (slot === "action" && action) this.renderActionButton(action, count, index, onUse, onCycle);
+    if (slot === "status" && status) replaceChanged(this.siteStatus, screen(screenLine("dim", status)));
   }
 
   private renderActionButton(action: ContextAction, count: number, index: number, onUse: () => void, onCycle: (step: 1 | -1) => void): void {
@@ -530,7 +541,6 @@ export class Hud {
 
   renderTop(w: World, live: World): void {
     const readout = getHudReadout(w);
-    const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
@@ -540,12 +550,12 @@ export class Hud {
     const me = playerVehicle(live);
     const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
     const mark = me.direct ? me.setSpeed : pace;
-    this.renderDrive(w, readout, busy, mark === undefined ? null : kph(mark));
+    this.renderDrive(w, readout, mark === undefined ? null : kph(mark));
     this.renderStats(w, readout);
-    this.system.update(systemViewsOf(w, busy, this.actions.journalBeside()));
+    this.system.update(systemViewsOf(w));
   }
 
-  private renderDrive(w: World, readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
+  private renderDrive(w: World, readout: ReturnType<typeof getHudReadout>, pace: number | null): void {
     const fuel = readout.resources.find((r) => r.id === "fuel")!;
     const engine = readout.survival.find((r) => r.id === "engine")!;
     const p = w.player;
@@ -563,7 +573,7 @@ export class Hud {
       heat: p.engineHeat,
       heatTitle: t("hud.readout", { label: t("readout.engineHeat"), value: engine.value }),
       heatWarn: engine.warning,
-      ...driveControlsOf(w, busy, readout.manual, this.actions.headlightsOn()),
+      ...driveControlsOf(w, readout.manual, this.actions.headlightsOn()),
     });
   }
 
@@ -587,7 +597,6 @@ export class Hud {
     return cardActions(w, v, {
       call: () => this.dialogue.callInspected(),
       act: (action) => this.actions.cardAction(action),
-      unpin: () => this.actions.unpin(),
     });
   }
 
@@ -602,14 +611,28 @@ export class Hud {
   }
 
   logHeld(w: World, events: readonly GameEvent[]): void {
-    const lines: LogLine[] = [];
+    const lines: LogEntry[] = [];
     for (const e of events) {
-      const line = eventText(w, e);
+      const line = eventEntry(w, e);
       if (!line) continue;
       lines.push(line);
       if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
+  }
+
+  savedLog(): SavedLog {
+    return this.log.saved();
+  }
+
+  restoreLog(saved: unknown): void {
+    this.log.restore(readSavedLog(saved));
+  }
+
+  private followLogView(): void {
+    const setting = logViewSetting();
+    this.log.view(setting.view());
+    setting.subscribe(() => this.log.view(setting.view()));
   }
 
   logTexts(): string[] {
@@ -620,8 +643,8 @@ export class Hud {
     this.toast(text, true);
   }
 
-  note(w: World, text: Msg, cls: string): void {
-    this.log.add(w.turn, [{ text, cls }]);
+  note(w: World, text: Msg, cls: string, level: LogLevel): void {
+    this.log.add(w.turn, [leveled({ text, cls }, level)]);
   }
 
   private aimOf(w: World, v: Vehicle): ConditionAim | undefined {
@@ -647,7 +670,23 @@ export class Hud {
     return this.portraits.settled(vehicleId);
   }
 
-  showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
+  private infoHead(w: World, v: Vehicle, pinned: boolean): HTMLElement {
+    const head = panelHead(v.brain ? driverName(v) : vehicleTitle(w, v));
+    head.append(this.zoomKeys);
+    if (!pinned) return head;
+    const key = closeKey({ label: t("card.unpin"), onClose: () => this.actions.unpin() });
+    setAttrText(key, "title", keyTip(t("card.unpin"), ESCAPE.key));
+    head.append(key);
+    return head;
+  }
+
+  private markZoomKeys(state: { canZoomIn: boolean; canZoomOut: boolean }): void {
+    markDisabled(this.zoomInKey, state.canZoomIn ? null : t("map.zoomedIn"));
+    markDisabled(this.zoomOutKey, state.canZoomOut ? null : t("card.zoomedOut"));
+  }
+
+  showInfo(w: World, v: Vehicle | null, hostile: boolean, pinned = false): void {
+    if (v && (v.id !== this.inspectedId || this.info.style.display === "none")) this.inspected.resetZoom();
     this.inspectedId = v?.id ?? null;
     this.wantPortraits(w, v);
     if (!v) {
@@ -660,7 +699,7 @@ export class Hud {
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      panelHead(v.brain ? driverName(v) : vehicleTitle(w, v)),
+      this.infoHead(w, v, pinned),
       screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
       this.cardButtons(w, v) ?? controls(),
@@ -692,7 +731,6 @@ function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {
 export interface CardHandlers {
   call: () => void;
   act: (action: "mark" | "lookOver") => void;
-  unpin: () => void;
 }
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
@@ -701,7 +739,6 @@ function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () 
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
   const buttons: HTMLElement[] = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
-  if (touchMode()) buttons.push(el("button", { class: "hud-key icon-key", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, createIcon("close")));
   return buttons.length === 0 ? null : el("div", { class: "info-actions hud-controls", "data-count": buttons.filter((b) => b.tagName === "BUTTON").length }, ...buttons);
 }
 

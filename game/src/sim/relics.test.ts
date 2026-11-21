@@ -4,12 +4,14 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { claimReward, claimSpots, claimTargets } from './claims';
 import { sellVehicleCargo, takeSellablePart } from './economy';
-import { isStrippable, startStrip } from './jobs';
+import { advanceJobs, isStrippable, startStrip } from './jobs';
 import { partWithId } from './factory';
 import { spareParts, stowPart, tradedSpares } from './inventory';
 import { cargoValue, shopState, siteOf } from './market';
 import { placeRelics, relicDefFor, relicIdOf } from './relics';
-import { canTakeAny, claimOnly, collectSalvage } from './salvage';
+import { canTakeAny, claimOnly, clearPiles, collectSalvage, hasSalvageFor, lockedFrom, lootableProps, revealTurn, visibleParts, type ClaimContract } from './salvage';
+import { takeLoot, needsSearch } from './locations';
+import { beginSearch } from './search';
 import { defaultSetup } from './settings';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld } from './testkit';
@@ -84,6 +86,10 @@ describe('relics in claim wrecks', () => {
   });
 });
 
+function claimOn(stock: SalvageStock, relic: PartInstance): ClaimContract {
+  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: relic.id, defId: relic.defId, reward: 9, deadline: 900, window: 900, tier: 1, rivalAt: 900, rival: null, leads: [] };
+}
+
 function relicWreck(): { w: World; stock: SalvageStock; relic: PartInstance } {
   const stock = structuredClone(claimSpots(real)[0]);
   const w = emptyWorld(sitePads(siteOf('bowl'))[0]);
@@ -103,13 +109,97 @@ describe('who takes a relic', () => {
     expect(stock.parts).toEqual([relic]);
   });
 
-  it('lets the player pick the relic up', () => {
+  it('keeps the relic from a player with no claim', () => {
     const { w, stock, relic } = relicWreck();
     const me = playerVehicle(w);
     me.pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    expect(canTakeAny(w, me, stock)).toBe(false);
+    expect(hasSalvageFor(w, me, stock)).toBe(false);
+    expect(visibleParts(w, me, stock)).toEqual([]);
+    expect(collectSalvage(w, me, stock.id, Infinity)).toBe(0);
+    expect(stock.parts).toEqual([relic]);
+  });
+
+  it('keeps the relic from a player whose claim is only on a shop board', () => {
+    const { w, stock, relic } = relicWreck();
+    const me = playerVehicle(w);
+    me.pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    w.shops.bowl.contracts.push(claimOn(stock, relic));
+    expect(visibleParts(w, me, stock)).toEqual([]);
+    expect(collectSalvage(w, me, stock.id, Infinity)).toBe(0);
+  });
+
+  it('lets the player pick the relic up once the claim is held', () => {
+    const { w, stock, relic } = relicWreck();
+    const me = playerVehicle(w);
+    me.pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    w.player.contracts.push(claimOn(stock, relic));
+    expect(visibleParts(w, me, stock)).toEqual([relic]);
     expect(canTakeAny(w, me, stock)).toBe(true);
     expect(collectSalvage(w, me, stock.id, Infinity)).toBe(1);
     expect(spareParts(me)).toContainEqual(relic);
+  });
+
+  it('refuses a locked relic when the player asks for it by name', () => {
+    const { w, stock, relic } = relicWreck();
+    const me = playerVehicle(w);
+    me.pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    expect(() => takeLoot(w, stock.id, { kind: 'part', partId: relic.id }, { x: 0, y: 0, rot: 0 })).toThrow();
+  });
+});
+
+describe('searching a wreck with a relic', () => {
+  function hiddenRelicWreck(): { w: World; stock: SalvageStock; relic: PartInstance } {
+    const { w, stock, relic } = relicWreck();
+    stock.parts = [];
+    stock.hidden.parts = [relic];
+    playerVehicle(w).pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    return { w, stock, relic };
+  }
+
+  function search(w: World, stock: SalvageStock): void {
+    const me = playerVehicle(w);
+    beginSearch(w, me, stock.id);
+    for (let i = 0; i < 60 && me.job; i++) advanceJobs(w);
+  }
+
+  it('never turns the relic up for a player with no claim', () => {
+    const { w, stock, relic } = hiddenRelicWreck();
+    search(w, stock);
+    expect(stock.hidden.parts).toEqual([relic]);
+    expect(stock.parts).toEqual([]);
+    expect(needsSearch(w, stock)).toBe(false);
+    expect(hasSalvageFor(w, playerVehicle(w), stock)).toBe(false);
+  });
+
+  it('turns the relic up on the claim holder full search', () => {
+    const { w, stock, relic } = hiddenRelicWreck();
+    w.player.contracts.push(claimOn(stock, relic));
+    search(w, stock);
+    expect(stock.parts).toEqual([relic]);
+  });
+
+  it('draws the same search stream with the relic buried and with it claimed', () => {
+    const buried = hiddenRelicWreck();
+    const held = hiddenRelicWreck();
+    held.w.player.contracts.push(claimOn(held.stock, held.relic));
+    revealTurn(buried.w, buried.stock, 0.5, lockedFrom(buried.w, playerVehicle(buried.w), buried.stock));
+    revealTurn(held.w, held.stock, 0.5, lockedFrom(held.w, playerVehicle(held.w), held.stock));
+    expect(buried.w.searchRng.rngState).toBe(held.w.searchRng.rngState);
+  });
+});
+
+describe('relic piles and regrowth', () => {
+  it('clears a pile holding only a relic', () => {
+    const { w, stock } = relicWreck();
+    stock.pile = { until: w.turn + 1000, fromPlayer: true, basis: {} } as SalvageStock['pile'];
+    clearPiles(w);
+    expect(w.salvage).toEqual([]);
+  });
+
+  it('leaves a wreck holding only its relic out of the loot paint', () => {
+    const { stock } = relicWreck();
+    expect(lootableProps([stock]).size).toBe(0);
   });
 });
 

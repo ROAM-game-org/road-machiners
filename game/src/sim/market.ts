@@ -505,11 +505,12 @@ const ROLLS = { haul: rollHaul, rescue: rollRescueOffer, search: rollSearch, sur
 
 const NO_OFFERS: BoardOffers = { legs: [], claims: [], clients: [], sought: [], surveys: [], procure: [] };
 
-export function rollContract(world: World, shop: { id: string; pos: Vec }, offers: Partial<BoardOffers>): Contract | null {
+export function rollContract(world: World, shop: { id: string; pos: Vec }, offers: Partial<BoardOffers>, shown: readonly BoardKind[] = []): Contract | null {
   const input: RollInput = { ...NO_OFFERS, ...offers, shop };
   const kinds = possibleKinds(input);
   if (kinds.length === 0) return null;
-  const kind = pick(world, kinds);
+  const unshown = kinds.filter((k) => !shown.includes(k));
+  const kind = pick(world, unshown.length > 0 ? unshown : kinds);
   return ROLLS[kind](world, input, newId(world, 'ct'));
 }
 
@@ -627,14 +628,41 @@ export function standingPressures(world: World, shopId: string): Record<string, 
   return Object.fromEntries(shopDef(shopId).goods.map((good) => [good, pressureOf(shopId, good, goodStock(state, good))]));
 }
 
+export function boardPhase(shopId: string): number {
+  const ids = Object.keys(SHOPS);
+  const index = ids.indexOf(shopId);
+  if (index < 0) throw new Error(`Unknown shop ${shopId}`);
+  return Math.round((CONTRACTS.board.refreshTurns * index) / ids.length);
+}
+
+export function boardRefreshDue(world: World, shopId: string): boolean {
+  return (world.turn + boardPhase(shopId)) % CONTRACTS.board.refreshTurns === 0;
+}
+
+export function postedTurn(world: World, c: Contract): number {
+  if (c.kind === 'escort') throw new Error(`Escort offer ${c.id} has no posting turn`);
+  const posted = c.deadline - c.window;
+  if (posted > world.turn) throw new Error(`Offer ${c.id} was posted on turn ${posted}, after turn ${world.turn}`);
+  return posted;
+}
+
+function shelfExpired(world: World, c: Contract): boolean {
+  return c.kind !== 'escort' && world.turn - postedTurn(world, c) >= CONTRACTS.board.shelfTurns;
+}
+
+function ownOffers(state: ShopState): Contract[] {
+  return state.contracts.filter((c) => c.kind !== 'escort');
+}
+
 function fillBoard(world: World, shopId: string, state: ShopState): void {
   const def = shopDef(shopId);
   const clients = modeRules(world).rescue ? rescueClients(world, { id: shopId, pos: shopPos(shopId) }) : [];
-  while (state.contracts.length < def.contractSlots) {
+  while (ownOffers(state).length < def.contractSlots) {
     const legs = haulLegs(world, shopId).filter((leg) => !state.contracts.some((c) => c.kind === 'haul' && c.good === leg.good && c.to === leg.to.id));
     const surveys = freeSurveySites(world, shopPos(shopId));
     const offers = { legs, claims: claimTargets(world, shopId), clients, sought: searchCandidates(world, shopId, state), surveys, procure: procureCandidates(world, shopId, state) };
-    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, offers);
+    const shown = ownOffers(state).map((c) => c.kind as BoardKind);
+    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, offers, shown);
     if (!contract) return;
     requireFreeSites(world, contract);
     if (contract.kind === 'rescue') clients.splice(clients.findIndex((v) => v.id === contract.client), 1);
@@ -670,11 +698,10 @@ export function addShop(world: World, shopId: string): void {
 export function advanceShops(world: World): void {
   pruneEscortOffers(world);
   for (const [shopId, state] of Object.entries(world.shops)) {
-    const restockAt = state.restockAt;
     advanceShop(world, shopId, state);
     state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c) && (c.kind !== 'rescue' || rescueOfferValid(world, c)) && !(c.kind === 'search' && searchCold(world, c)));
-    if (state.restockAt === restockAt) continue;
-    state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
+    if (!boardRefreshDue(world, shopId)) continue;
+    state.contracts = state.contracts.filter((c) => offerStillValid(world, c) && !shelfExpired(world, c));
     fillBoard(world, shopId, state);
   }
   for (const c of world.player.contracts) if (c.kind === 'claim' && rivalDue(world, c)) sendRival(world, c);

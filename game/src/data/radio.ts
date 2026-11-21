@@ -1,3 +1,5 @@
+import { CONTRACTS } from './market';
+
 
 export type RadioTopic =
   | 'ident'
@@ -26,6 +28,7 @@ export const RADIO = {
   clockChance: 0.25,
   queueCap: 3,
   staleTurns: 65,
+  contractGapTurns: CONTRACTS.board.refreshTurns,
   placeCooldownTurns: 150,
   idleTurns: 240,
   charsPerSecond: 24,

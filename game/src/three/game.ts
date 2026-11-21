@@ -73,6 +73,7 @@ import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponR
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import { installControlSounds } from "../ui/control-sound";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
@@ -89,6 +90,7 @@ import { reportError } from "./crash";
 import type { GpuContext } from "./gpu-context";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
+import { TurnWait } from "./turn-wait";
 import { unstuckReason } from "../ui/unstuck-reason";
 import { getUnstuck } from "../sim/unstuck";
 import { abandonRun, canAbandonRun } from "../sim/chaos-highway";
@@ -109,8 +111,8 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision } from "./travel";
-import { heldPlayMs, PlayClock } from "./play-clock";
+import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision, committedWorld } from "./travel";
+import { heldPlayMs, PlayClock, playbackFrameCapMs } from "./play-clock";
 
 
 const PICK_PX = 30;
@@ -207,7 +209,8 @@ export class Game {
   private last = performance.now();
   private framesSeen = 0;
   readonly pace = new FramePace();
-  private pending: ((w: World) => World | null) | null = null;
+  private readonly turnWait = new TurnWait(() => this.travel.isPlaying(this.anim));
+  private pressedDuringTurn = false;
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
@@ -224,11 +227,12 @@ export class Game {
   }
 
   constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
+    this.travel.onTurnWait = (ms, at) => this.pace.noteTurnWait(ms, at);
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
-    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
+    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "notable"));
     this.drive = driveSnapshotOf(this.world);
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
@@ -258,6 +262,7 @@ export class Game {
     this.context = new TruckContext({
       world: () => this.world,
       playing: () => this.anim !== null,
+      whenTurnEnds: (action, key) => this.whenTurnEnds(action, key),
       apply: (next) => this.apply(next),
       pushEvents: () => this.hud.pushEvents(this.world),
       note: (text) => this.hud.refuse(text),
@@ -269,7 +274,8 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
-    this.loops = new SoundLoops(player, music, tracks);
+    installControlSounds(document, (cue) => this.sound.ui(cue));
+    this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
@@ -279,7 +285,6 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
-      journalBeside: () => this.screens.journal.sideForm(),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
@@ -296,19 +301,18 @@ export class Game {
             : null,
         ),
       endRun: () => this.endRun(),
-      isBusy: () => this.anim !== null,
       autoTravel: () => this.travel.isAuto(this.world),
-      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown()), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
+      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.sceneBusy(), sceneBusy: () => this.sceneBusy(), whenTurnEnds: (action, key) => this.whenTurnEnds(action, key), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
-      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
+      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => playerCanAct(this.world), apply: (next) => this.whenTurnEnds(() => this.applyRefusable(next)) }),
     }, radio, this.weapons.deck, this.renderer, this.gpu);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
-    const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
+    const saves = this.saves.menuActions(() => committedWorld(this.world, this.anim));
+    this.menu = new GameMenu(this.hud.systemKey("menu"), { ...saves, unstuck: { reason: () => unstuckReason(this.world, this.screens.quest.isOpen()), run: () => this.whenTurnEnds(() => this.getUnstuckIfAllowed()) } }, () => this.world.setup, this.hud.tipSwitch(), this.hud.feedbackLinks(), this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -331,12 +335,13 @@ export class Game {
         if (sting) this.sound.ui(sting);
       },
       selectedWeapons: () => this.selected,
-      selectWeapons: (ids) => { if (this.anim || this.modalOpen()) return; this.selected = ids; this.refreshUi(); },
+      selectWeapons: (ids) => this.whenTurnEnds(() => { if (this.modalOpen()) return; this.selected = ids; this.refreshUi(); }),
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
       releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
+      whenTurnEnds: (action, key) => this.whenTurnEnds(action, key),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
       getTurnPhase: () => this.phase,
@@ -366,7 +371,7 @@ export class Game {
     const renderer = drawingRenderer();
     if (renderer === null) throw new Error('The game has no drawing renderer to report');
     const drawn = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary() };
+    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary(), timeline: this.pace.timeline(performance.now()) };
   }
 
   get busy(): boolean { return this.anim !== null; }
@@ -447,8 +452,8 @@ export class Game {
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
-    const { action, count, index } = this.context.shown();
-    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
+    const { action, count, index, status } = this.context.shown();
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"), status);
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
@@ -461,7 +466,7 @@ export class Game {
   private refreshInfo(): void {
     const w = this.displayWorld();
     const v = w.vehicles.find((x) => x.id === this.inspected() && playerSees(w, x.pos)) ?? null;
-    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false);
+    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false, v !== null && this.pin.id === v.id);
     this.hitCard.render(w, v ? v.id : null, this.selected);
   }
 
@@ -523,13 +528,25 @@ export class Game {
   }
 
   private releaseTurn(): void {
-    this.travel.release(performance.now());
+    const now = performance.now();
+    const tapped = this.pressedDuringTurn && !this.travel.isFast(now);
+    this.pressedDuringTurn = false;
+    this.travel.release(now);
+    if (tapped) this.whenTurnEnds(() => this.tapTurnKey(), "turn");
+  }
+
+  private tapTurnKey(): void {
+    this.pressTurn();
+    this.releaseTurn();
   }
 
   private pressTurn(): void {
     if (this.death.isShown() || this.turnRefused()) return;
     this.screens.inventoryTime.press();
-    if (this.travel.pressTurn(this.travel.isPlaying(this.anim), this.world)) this.endTurn();
+    const playing = this.travel.isPlaying(this.anim);
+    const stopsAuto = this.travel.isAuto(this.world);
+    if (this.travel.pressTurn(playing, this.world)) this.endTurn();
+    this.pressedDuringTurn = playing && !stopsAuto;
   }
 
   private searchFromLoot(stockId: string): void {
@@ -540,7 +557,8 @@ export class Game {
 
   private runKey(code: string): void {
     const key = this.keys[code];
-    if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen())) || (key.idle && this.travel.isPlaying(this.anim))) return;
+    if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen()))) return;
+    if (key.idle && this.travel.isPlaying(this.anim)) return this.turnWait.defer(() => this.runKey(code));
     if (key.inventoryOk && this.screens.inventory.isOpen()) this.screens.inventory.close();
     key.run();
   }
@@ -552,7 +570,7 @@ export class Game {
     ...Object.fromEntries(Object.entries(TRAVEL_SPEED_CODES).map(([code, delta]) => [code, { run: () => this.weapons.stepTravelSpeed(delta), noModal: true as const }])),
     Digit0: { run: () => this.weapons.toggleAll(), noModal: true },
     ...Object.fromEntries(Array.from({ length: SLOT_KEYS }, (_, i) => [`Digit${i + 1}`, { run: () => this.weapons.pressKey(i + 1), noModal: true as const, idle: true as const }])),
-    KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true },
+    KeyE: { run: () => this.context.use(), noModal: true, inventoryOk: true, idle: true },
     ArrowLeft: { run: () => this.cycleContext(-1), noModal: true, idle: true },
     ArrowRight: { run: () => this.cycleContext(1), noModal: true, idle: true },
     KeyR: { run: () => this.controls.toggleManual(), noModal: true, idle: true },
@@ -563,10 +581,10 @@ export class Game {
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
-    KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
-    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
-    KeyJ: { run: () => (!this.anim || this.screens.journal.sideForm()) && this.screens.toggle(this.screens.journal), screen: true },
-    KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
+    KeyC: { run: () => this.screens.toggleCharacter("skills"), idle: true, screen: true },
+    KeyM: { run: () => hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
+    KeyJ: { run: () => (this.screens.journal.sideForm() ? this.screens.toggle(this.screens.journal) : this.whenTurnEnds(() => this.screens.toggle(this.screens.journal))), screen: true },
+    KeyI: { run: () => (this.screens.inventory.isOpen() ? this.screens.toggle(this.screens.inventory) : this.whenTurnEnds(() => this.screens.toggle(this.screens.inventory))), screen: true },
     Escape: { run: () => this.escape() },
   };
 
@@ -583,9 +601,11 @@ export class Game {
   }
 
   private selectUtility(id: string | null): void {
-    if (this.anim || (id !== null && this.modalOpen())) return;
-    this.utilityAim.select(id);
-    this.refreshUi();
+    this.whenTurnEnds(() => {
+      if (id !== null && this.modalOpen()) return;
+      this.utilityAim.select(id);
+      this.refreshUi();
+    });
   }
 
   private updateStopCue(): void {
@@ -637,7 +657,7 @@ export class Game {
 
   private touchHold(x: number, y: number): void {
     const action = this.picker.action(x, y);
-    const point = this.canClick() && this.utilityAim.pointPending();
+    const point = this.canOrder() && this.utilityAim.pointPending();
     if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
     const p = this.rig.groundUnder(x, y, this.ground);
     if (this.canOrder() && p) this.controls.order(p, true);
@@ -653,7 +673,7 @@ export class Game {
       tapScreen: { x, y },
       hit: this.picker.action(x, y),
       ground,
-      utilityPoint: this.canClick() && this.utilityAim.pointPending(),
+      utilityPoint: this.canOrder() && this.utilityAim.pointPending(),
       pickRadius: PICK_PX,
     });
     if (tap.kind !== "preview") this.touchPreview = null;
@@ -669,7 +689,7 @@ export class Game {
         return;
       case "place":
         this.hoverGround = null;
-        this.utilityAim.click(tap.at);
+        this.whenTurnEnds(() => this.utilityAim.click(tap.at));
         return;
       case "click":
         return this.onLeftClick(x, y, false);
@@ -704,8 +724,12 @@ export class Game {
   }
 
   private clickUtility(e: MouseEvent): boolean {
-    if (this.anim || this.modalOpen() || !playerCanAct(this.world)) return false;
-    return this.utilityAim.click(this.rig.groundUnder(e.clientX, e.clientY, this.ground));
+    if (this.modalOpen() || !playerCanAct(this.world)) return false;
+    const at = this.rig.groundUnder(e.clientX, e.clientY, this.ground);
+    if (!this.travel.isPlaying(this.anim)) return this.utilityAim.click(at);
+    if (!this.utilityAim.pointPending()) return false;
+    this.turnWait.defer(() => this.utilityAim.click(at));
+    return true;
   }
 
   private clickVehicle(id: string): void {
@@ -714,7 +738,12 @@ export class Game {
   }
 
   private aimVehicle(id: string): void {
-    if (this.selected.length === 0 || !this.canClick()) return;
+    if (this.selected.length === 0 || !this.canOrder()) return;
+    this.whenTurnEnds(() => this.aimVehicleNow(id));
+  }
+
+  private aimVehicleNow(id: string): void {
+    if (this.selected.length === 0 || !this.canOrder()) return;
     const target = vehicleById(this.world, id);
     if (isPlayerTruck(this.world, target)) return;
     this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), target));
@@ -801,7 +830,7 @@ export class Game {
   private failTurn(err: unknown): void {
     this.travel.abandon(this.world);
     this.saves.noteError();
-    this.hud.note(this.world, TURN_FAILED_NOTE, "bad");
+    this.hud.note(this.world, TURN_FAILED_NOTE, "bad", "attention");
     reportError(err);
     this.refreshUi();
   }
@@ -907,12 +936,15 @@ export class Game {
     this.breakCues = new BreakCues([]);
     this.phase = null;
     this.saves.afterTurn(this.world);
-    const pending = this.pending;
-    this.pending = null;
-    if (pending) this.runRescue(pending);
     this.hud.flushHorn();
+    this.turnWait.release();
     this.shade.update(this.world);
     this.uiStale = true;
+  }
+
+  private getUnstuckIfAllowed(): void {
+    if (unstuckReason(this.world, this.screens.quest.isOpen())) return;
+    this.getUnstuck();
   }
 
   private getUnstuck(): void {
@@ -930,11 +962,19 @@ export class Game {
 
   private rescueCommand(fn: (w: World) => World | null): void {
     if (this.modalOpen()) return;
-    if (this.anim) {
-      this.pending = fn;
-      return;
-    }
-    this.runRescue(fn);
+    this.whenTurnEnds(() => {
+      if (this.modalOpen()) return;
+      this.runRescue(fn);
+    });
+  }
+
+  private sceneBusy(): boolean {
+    return this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown());
+  }
+
+  whenTurnEnds(action: () => void, key?: string): void {
+    if (this.travel.isPlaying(this.anim)) this.turnWait.defer(action, key);
+    else action();
   }
 
   private runRescue(fn: (w: World) => World | null): void {
@@ -1063,7 +1103,7 @@ export class Game {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
-    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
+    const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), playbackFrameCapMs(speed, CONFIG.playbackHitchMs, MOVE_MS)), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();
@@ -1079,6 +1119,7 @@ export class Game {
       this.updateTravel();
     }
     this.settleLateStop(now);
+    if (!this.travel.isPlaying(this.anim)) this.turnWait.release();
     if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
     timed("flush-ui", () => this.flushUi(began, phase));
     return { at, ...clock };
@@ -1112,7 +1153,7 @@ export class Game {
     this.fx.beginFrame();
     const dt = now - this.last;
     this.last = now;
-    if (this.framesSeen++ > 0) this.pace.note(dt);
+    if (this.framesSeen++ > 0) this.pace.note(dt, now, this.renderer.info.programs?.length ?? 0);
     this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());
@@ -1130,11 +1171,11 @@ export class Game {
       this.playRoadHorns(step);
     }
     this.showPlayedSpeed(at);
-    this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);
     this.rig.leash(truck, sightRadius);
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
+    this.drawOverlays();
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
     lightScene(this.sun, this.sky, this.rig.focus(), daylight, this.rig.groundReach(), daylightAt(this.world.turn));    this.scene.background = this.sightLimit.fadeTo(backdropAt(daylight));
@@ -1168,8 +1209,7 @@ export class Game {
   }
 
   private openMap(): void {
-    if (this.anim) return;
-    this.screens.openCharacter("map");
+    this.whenTurnEnds(() => this.screens.openCharacter("map"));
   }
 
   private updateLiveVision(step: number | null): void {

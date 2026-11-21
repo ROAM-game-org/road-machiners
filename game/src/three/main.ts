@@ -29,6 +29,8 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
+import { loadLogViewSetting } from '../ui/log-setting';
+import type { SavedLog } from '../ui/log';
 import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
@@ -46,7 +48,7 @@ import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished, watch
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { AUTOSAVE_SLOTS, carriesOnLoad, clearGame, hasSave, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, storedSave, writeSave } from './save';
+import { AUTOSAVE_SLOTS, carriesOnLoad, clearGame, hasSave, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, saveImporter, savedLogOf, storedSave, writeSave } from './save';
 import { desktopHost, memoryBackend, openSaves, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type NewRequest, type QuestJump, type SlotId } from './save-slots';
@@ -242,6 +244,7 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 paintSkin();
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
+loadLogViewSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
@@ -347,7 +350,7 @@ radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
   stepBoot('building the renderer');
-  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
+  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
@@ -357,8 +360,9 @@ relocalizeGame = () => {
 };
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
 const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
-if (fresh && opening) for (const line of opening.log) game.hud.note(world, t(`opening.${line}`), "");
-const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay, () => travel.routeMsOfLastTurn()), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
+if (loadedFrom) game.hud.restoreLog(savedLogOf(storedSave(slots, loadedFrom)));
+if (fresh && opening) for (const line of opening.log) game.hud.note(world, t(`opening.${line}`), "", "notable");
+const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(uiRoot(), () => travel.routeMsOfLastTurn()), mountLookMenu(uiRoot()), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 reportMusicFault = reportError;
 musicFaults.forEach(reportError);
