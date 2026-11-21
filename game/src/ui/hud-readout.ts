@@ -78,10 +78,17 @@ export class ContextPicker {
   }
 }
 
-export function getContextActions(world: World, playing: boolean): ContextAction[] {
-  if (playing || !playerCanAct(world)) return [];
+export type ContextReadout = { actions: ContextAction[]; status: Msg | null };
+
+export function getContext(world: World, playing: boolean): ContextReadout {
+  if (playing || !playerCanAct(world)) return { actions: [], status: null };
   const deals = [getAidAction(world), getHandoverAction(world), ...getTradeActions(world)].filter((d) => d !== null);
-  return [...deals.filter((d) => d.ready), ...getPlaceActions(world), ...deals.filter((d) => !d.ready)];
+  const place = getPlaceContext(world);
+  return { actions: [...deals.filter((d) => d.ready), ...place.actions, ...deals.filter((d) => !d.ready)], status: place.status };
+}
+
+export function getContextActions(world: World, playing: boolean): ContextAction[] {
+  return getContext(world, playing).actions;
 }
 
 function awaitsStart(s: NpcState): boolean {
@@ -109,7 +116,7 @@ function getTradeActions(world: World): ContextAction[] {
     .map((s) => ({ label: t("action.trade", { truck: vehicleTitle(world, vehicleById(world, s.holder)) }), ready: isMeeting(world, s), target: { kind: 'trade', id: s.holder } }));
 }
 
-function getPlaceActions(world: World): ContextAction[] {
+function getPlaceContext(world: World): ContextReadout {
   const actions: ContextAction[] = [];
   const shop = shopNear(world);
   if (shop) actions.push({ label: t("action.enter", { site: siteName(shop) }), ready: shopAt(world) === shop, target: { kind: 'shop' } });
@@ -120,20 +127,16 @@ function getPlaceActions(world: World): ContextAction[] {
   for (const downed of downedListNear(world)) {
     actions.push({ label: t("action.lootTruck", { truck: vehicleTitle(world, downed) }), ready: canLootTruck(world, playerVehicle(world), downed), target: { kind: 'downed', id: downed.id } });
   }
-  if (!isBusy(playerVehicle(world))) actions.push(...getSiteActions(world));
-  return actions;
+  if (isBusy(playerVehicle(world))) return { actions, status: null };
+  const site = getSiteContext(world);
+  return { actions: [...actions, ...site.actions], status: site.status };
 }
 
-function getSiteActions(world: World): ContextAction[] {
-  const actions: ContextAction[] = [];
+function getSiteContext(world: World): ContextReadout {
   const stocks = salvageListNear(world);
-  actions.push(...stocks.flatMap((stock) => getStockActions(world, stock)));
-  actions.push(...surveyActions(world).map((a) => surveyAction(world, a)));
-  if (stocks.length === 0) {
-    const empty = emptySalvageNear(world);
-    if (empty) actions.push({ label: stockLabel('empty', empty), ready: false, hint: t("action.noLoot"), target: { kind: 'empty' } });
-  }
-  return actions;
+  const actions = [...stocks.flatMap((stock) => getStockActions(world, stock)), ...surveyActions(world).map((a) => surveyAction(world, a))];
+  const empty = stocks.length === 0 ? emptySalvageNear(world) : null;
+  return { actions, status: empty ? stockLabel('empty', empty) : null };
 }
 
 function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
