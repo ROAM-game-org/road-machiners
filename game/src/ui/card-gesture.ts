@@ -15,6 +15,10 @@ export class CardGesture {
 
   constructor(private readonly sink: GestureSink) {}
 
+  get active(): boolean {
+    return this.dragging;
+  }
+
   down(id: number, x: number, y: number): void {
     this.fingers.set(id, { x, y, startX: x, startY: y });
   }

@@ -192,7 +192,6 @@ export class TruckConditionView {
     this.hit.addEventListener("pointermove", (e) => this.moved(e));
     this.hit.addEventListener("pointerleave", (e) => this.left(e));
     this.hit.addEventListener("click", (e) => this.clicked(e));
-    if (this.zoom) this.listenForZoom();
     registerTipSource(this.hit, () => el("div", { class: "tooltip-row" }, ...this.tipRowsOfPress()));
     this.tip.style.display = "none";
     portraits.onReady((vehicleId) => {
@@ -207,6 +206,7 @@ export class TruckConditionView {
   }
 
   fitTo(box: HTMLElement): void {
+    if (this.zoom && this.box !== box) this.listenForZoom(box);
     this.box = box;
     const outline = parseFloat(token("--space-4"));
     const natural = this.naturalSize();
@@ -239,7 +239,7 @@ export class TruckConditionView {
     const magnified = this.zoom.magnified();
     this.setZoom(total);
     this.stage.style.translate = `${pan.x / total}px ${pan.y / total}px`;
-    this.hit.style.touchAction = magnified ? "none" : "pan-y";
+    if (this.box) this.box.style.touchAction = magnified ? "none" : "pan-y";
     this.root.classList.toggle("magnified", magnified);
     this.tellZoomState();
   }
@@ -277,11 +277,19 @@ export class TruckConditionView {
     this.apply();
   }
 
-  private listenForZoom(): void {
-    this.hit.style.touchAction = "pan-y";
-    this.hit.addEventListener("wheel", (e) => this.wheeled(e), { passive: false });
-    this.hit.addEventListener("pointerup", (e) => this.released(e));
-    this.hit.addEventListener("pointercancel", (e) => this.released(e));
+  private listenForZoom(box: HTMLElement): void {
+    box.style.touchAction = "pan-y";
+    box.addEventListener("wheel", (e) => this.wheeled(e), { passive: false });
+    box.addEventListener("pointerdown", (e) => this.gesture?.down(e.pointerId, e.clientX, e.clientY));
+    box.addEventListener("pointermove", (e) => this.dragged(e, box));
+    box.addEventListener("pointerup", (e) => this.released(e));
+    box.addEventListener("pointercancel", (e) => this.released(e));
+  }
+
+  private dragged(e: PointerEvent, box: HTMLElement): void {
+    if (!this.gesture?.move(e.pointerId, e.clientX, e.clientY)) return;
+    box.setPointerCapture(e.pointerId);
+    this.focus(null);
   }
 
   private wheeled(e: WheelEvent): void {
@@ -393,24 +401,18 @@ export class TruckConditionView {
   private pressed(e: PointerEvent): void {
     this.pointerType = e.pointerType;
     this.swallowClick = false;
-    this.gesture?.down(e.pointerId, e.clientX, e.clientY);
     this.pressedId = this.partUnder(e);
     this.hit.toggleAttribute("data-hold", this.pressedId === null);
   }
 
   private moved(e: PointerEvent): void {
-    if (this.gesture?.move(e.pointerId, e.clientX, e.clientY)) {
-      this.hit.setPointerCapture(e.pointerId);
-      return;
-    }
+    if (this.gesture?.active) return;
     if (e.pointerType === "touch") return;
     this.focus(this.partUnder(e));
   }
 
   private left(e: PointerEvent): void {
     if (e.pointerType === "touch") return;
-    this.gesture?.up(e.pointerId);
-    this.swallowClick = false;
     this.focus(null);
   }
 

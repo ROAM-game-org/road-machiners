@@ -711,16 +711,19 @@ async function cardSizeFaults(page) {
   });
 }
 
-async function openPartTip(page) {
+async function openPartTip(page, downs = [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], acrosses = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9, 0.04, 0.96]) {
   const box = await page.evaluate(() => {
     const hit = document.querySelector('#ui .info .condition-hit');
     if (!hit) return null;
     const b = hit.getBoundingClientRect();
-    return { left: b.left, top: b.top, width: b.width, height: b.height };
+    const screen = hit.closest('.info-draw')?.getBoundingClientRect() ?? b;
+    const left = Math.max(b.left, screen.left);
+    const top = Math.max(b.top, screen.top);
+    return { left, top, width: Math.min(b.right, screen.right) - left, height: Math.min(b.bottom, screen.bottom) - top };
   });
   if (!box) return false;
-  for (const down of [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
-    for (const across of [0.5, 0.35, 0.65]) {
+  for (const down of downs) {
+    for (const across of acrosses) {
       const x = box.left + box.width * across;
       const y = box.top + box.height * down;
       await page.mouse.move(x - 2, y);
@@ -745,11 +748,86 @@ async function tipFaults(page) {
   });
 }
 
+async function dragDrawing(page, dx, dy) {
+  const box = await page.evaluate(() => {
+    const b = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2, h: b.height, w: b.width };
+  });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + dx * box.w, box.y + dy * box.h, { steps: 4 });
+  await page.mouse.up();
+}
+
+async function openPartTipAfterPanning(page) {
+  if (await openPartTip(page)) return true;
+  for (let i = 0; i < 24; i++) await dragDrawing(page, 0, 0.45);
+  for (let i = 0; i < 60; i++) {
+    await dragDrawing(page, 0, -0.8);
+    if (await openPartTip(page, [0.9, 0.7, 0.5, 0.3, 0.1], [0.5, 0.2, 0.8])) return true;
+  }
+  return false;
+}
+
+const ZOOM_KEYS = '#ui .info .info-zoom button';
+
+const cardBoxes = (page) =>
+  page.evaluate(() => {
+    const rect = (sel) => {
+      const b = document.querySelector(sel)?.getBoundingClientRect();
+      return b ? [b.left, b.top, b.width, b.height].map(Math.round) : null;
+    };
+    return { card: rect('#ui .info'), draw: rect('#ui .info .info-draw') };
+  });
+
+const pressZoom = (page, index, times) =>
+  page.evaluate(([sel, index, times]) => {
+    const key = document.querySelectorAll(sel)[index];
+    for (let i = 0; i < times && key.getAttribute('aria-disabled') !== 'true'; i++) key.click();
+  }, [ZOOM_KEYS, index, times]);
+
+async function cardZoomFaults(page) {
+  const keyCount = await page.evaluate((sel) => document.querySelectorAll(sel).length, ZOOM_KEYS);
+  if (keyCount !== 2) return ['the card has no zoom keys'];
+  const before = await cardBoxes(page);
+  await pressZoom(page, 1, 8);
+  const faults = [];
+  const after = await cardBoxes(page);
+  if (JSON.stringify(after) !== JSON.stringify(before)) faults.push('the card or its picture screen changed size when the drawing zoomed');
+  faults.push(
+    ...(await page.evaluate((sel) => {
+      const out = [];
+      const reachable = (node, name) => {
+        const b = node.getBoundingClientRect();
+        const at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        if (b.right > innerWidth + 1 || b.bottom > innerHeight + 1 || b.left < -1 || b.top < -1) out.push(`${name} is off the window at the closest view`);
+        else if (!at || !node.contains(at)) out.push(`${name} is covered at the closest view`);
+      };
+      for (const node of document.querySelectorAll('#ui .info .info-actions button')) reachable(node, `the ${node.textContent.trim() || 'card'} key`);
+      for (const node of document.querySelectorAll(sel)) reachable(node, 'a zoom key');
+      return out;
+    }, ZOOM_KEYS)),
+  );
+  if (!(await openPartTipAfterPanning(page))) faults.push('the part tip never opens over the magnified drawing');
+  else {
+    const outside = await page.evaluate(() => {
+      const tip = document.querySelector('#ui .info .condition-tip-body').getBoundingClientRect();
+      const draw = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+      return tip.left < draw.left - 1 || tip.right > draw.right + 1 || tip.top < draw.top - 1 || tip.bottom > draw.bottom + 1;
+    });
+    if (outside) faults.push('the part tip leaves the picture screen at the closest view');
+  }
+  await pressZoom(page, 0, 8);
+  await page.keyboard.press('Shift');
+  return faults;
+}
+
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
   const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), cardSizeFaults(page), tipFaults(page)];
-  return faultsOf('enemy-card')((await Promise.all(checks)).flat());
+  const found = (await Promise.all(checks)).flat();
+  return faultsOf('enemy-card')([...found, ...(await cardZoomFaults(page))]);
 }
 
 const NAV_STEPS = [
