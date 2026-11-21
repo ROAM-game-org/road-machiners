@@ -1176,7 +1176,7 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker, .screen-btn) {
   border: 0;
   background: none;
   box-shadow: none;
@@ -1199,7 +1199,7 @@
   flood-color: var(--hud-amber);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:not(.screen-btn):hover {
   border-color: transparent;
   background: none;
   filter: none;
