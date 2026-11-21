@@ -34,7 +34,7 @@ import { isPartWorn } from '../npc-repair';
 import { getsAway, isManageable, tradeOutlook, tradeRig, npcProfile, getUpkeepReserve, perceiveDanger, getKnownSite, optionWeights } from '../npc-decisions';
 import { warnedOffTarget } from '../loot-warning';
 import { claimCandidates, claimClue, claimPartHeld } from '../claims';
-import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeFromTruck } from '../salvage';
+import { canLootTruck, canReachSalvage, hasSalvageFor, salvageInRange, lootBlocker, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, townNear, nearestPad, reachedSite, nearestTown, siteGates, townAt, type Site } from '../sites';
@@ -798,7 +798,7 @@ const CAMP_GATES: readonly Vec[] = REGION.locations.filter((l) => l.kind === 'ca
 
 function knownStocks(world: World): SalvageStock[] {
   return world.salvage.filter((stock) => {
-    if (!hasSalvage(stock) || !needsSearch(world, stock) || keepsOff(world, stock.id)) return false;
+    if (!hasSalvageFor(world, playerVehicle(world), stock) || !needsSearch(world, stock) || keepsOff(world, stock.id)) return false;
     if (CAMP_GATES.some((gate) => dist(gate, stock.pos) <= CAMP_WATCH)) return false;
     const site = REGION.locations.find((l) => l.id === stock.id);
     return site ? world.player.discovered.includes(site.id) : playerExplored(world, stock.pos);

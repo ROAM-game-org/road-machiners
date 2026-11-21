@@ -132,9 +132,6 @@
 .inv-truck {
   flex: none;
 }
-.inv-target h3 {
-  margin: 0 0 var(--space-6);
-}
 /* Room for the truck outline, which reaches past the grid. */
 .truck-shell {
   padding: var(--space-9) 0;
@@ -782,14 +779,40 @@
   line-height: 1;
   white-space: nowrap;
 }
-#ui .modal .inv-truck-name {
-  position: absolute;
-  top: calc(var(--btn-h-m) + var(--space-9));
+#ui .modal .screen-tape {
   left: var(--space-5);
   z-index: var(--z-screen-tape);
   margin: 0;
   transform: translateY(-50%);
+}
+#ui .modal .inv-truck-name {
+  position: absolute;
+  top: calc(var(--btn-h-m) + var(--space-9));
   white-space: nowrap;
+}
+#ui .modal .inv-target > .screen-tape {
+  position: absolute;
+  top: 0;
+  max-width: calc(100% - 2 * var(--space-5));
+  white-space: normal;
+}
+.inv-target {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.inv-target > .inv-target-screen {
+  flex: 1 1 auto;
+  gap: var(--space-3);
+  overflow: visible;
+}
+.inv-target-screen > :first-child {
+  margin-top: calc(var(--btn-h-m) / 2);
+}
+.inv-target-state {
+  flex: none;
+  color: var(--hud-amber-soft);
+  font: var(--text-body) var(--font-ui);
 }
 .inv-middle {
   position: relative;
@@ -823,12 +846,21 @@
 .inv-bench .inv-side-column > .well:not(:has(> :not(:empty))) {
   flex: 1 1 auto;
 }
-.inv-bench .inv-target {
+.inv-bench .inv-side-column > .inv-target {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.inv-bench:not(.two) .inv-side-column > .well:has(~ .inv-target) {
   flex: 0 1 auto;
 }
-.inv-bench .truck-shell,
-.inv-bench .inv-target .truck-shell {
+.inv-bench.two .inv-side-column > .well:has(~ .inv-target) {
+  flex: 1 1 0;
+}
+.inv-bench .truck-shell {
   padding: 0;
+}
+.inv-bench .inv-target-screen .truck-shell {
+  flex: none;
 }
 .inv-bench .well .inv-storage {
   flex: 0 1 auto;
@@ -937,13 +969,8 @@
   grid-row: 2;
   align-items: start;
 }
-.inv-bench.two > .inv-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
 .inv-foot > .inv-keys {
-  grid-column: 2 / -1;
+  grid-column: -2 / -1;
 }
 .inv-foot > .inv-keys.loot,
 .inv-foot > .inv-keys.settings {
@@ -960,11 +987,6 @@
 .inv-keys .action-rows > button {
   width: auto;
   min-width: max-content;
-}
-.inv-keys .cost {
-  overflow: hidden;
-  flex-wrap: nowrap;
-  white-space: nowrap;
 }
 
 .town-split.banded {
@@ -1000,6 +1022,21 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+.town-truck > .town-band:has(> .inv-keys) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--inv-side-width);
+  column-gap: var(--space-9);
+  justify-content: start;
+  align-items: start;
+}
+.town-band > .inv-keys {
+  grid-column: 2;
+  grid-row: 1;
+}
+.town-band > :not(.inv-keys) {
+  grid-column: 1;
+  grid-row: 1;
 }
 .town-band:empty {
   display: none;
@@ -1047,6 +1084,15 @@
 }
 .inv-side {
   gap: var(--space-7);
+}
+.inv-costs:empty {
+  display: none;
+}
+.inv-bench .well > .inv-costs {
+  margin-top: auto;
+}
+.inv-side > .inv-costs {
+  margin-top: 0;
 }
 .inv-costs {
   display: grid;

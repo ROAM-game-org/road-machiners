@@ -9,7 +9,7 @@ import { unitsOf } from '../../sim/body';
 import { LOOT_LOOK, lootColor } from '../../render/lootLook';
 import { baseModel, grayed, HULK_TILT, HULK_TONE, WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { heightAt, type Terrain } from '../../sim/terrain';
-import { hasSalvage, lootableProps, salvageUnits } from '../../sim/salvage';
+import { hasOpenSalvage, lootableProps, openUnits } from '../../sim/salvage';
 import type { BrokenProp, Obstacle, SalvageStock, World } from '../../sim/types';
 import { dist } from '../../sim/vec';
 import type { V3, VehicleFrame } from '../../phys/frames';
@@ -229,7 +229,7 @@ export class ObstacleViews {
   }
 
   private syncPiles(salvage: SalvageStock[]): void {
-    const shown = salvage.filter((stock) => stock.pile && hasSalvage(stock));
+    const shown = salvage.filter((stock) => stock.pile && hasOpenSalvage(stock));
     const ids = new Set(shown.map((stock) => stock.id));
     for (const [id, pile] of this.piles) {
       if (ids.has(id)) continue;
@@ -239,7 +239,7 @@ export class ObstacleViews {
     }
     for (const stock of shown) {
       const pile = this.piles.get(stock.id) ?? this.addPile(stock);
-      const units = salvageUnits(stock);
+      const units = openUnits(stock);
       if (pile.units === units) continue;
       pile.units = units;
       pile.obj.scale.setScalar(Math.max(PILE_MIN_SIZE, Math.min(1, Math.sqrt(units / PILE_FULL_UNITS))));

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { toon } from '../kit.js';
+import { toon, inkAt } from '../kit.js';
+import { OLIVE, litToon } from './olive.js';
 import { PPU, plateSpace, makeStage, frame, vanishFor } from '../core.js';
 
 export const K = 4;
@@ -102,6 +103,26 @@ export function litMap(tex) {
   return m;
 }
 
+export function oliveLit(color, o = {}) { return litToon(color, o); }
+
+export function oliveMap(tex) {
+  const m = toon('#ffffff', { map: tex });
+  m.color.setScalar(1.12);
+  return m;
+}
+
+export function hexBolt(layer, cx, cy, rCss, depthCss = 0.9) {
+  const r = layer.len(rCss), h = layer.len(depthCss);
+  const geo = new THREE.CylinderGeometry(r, r * 1.08, h, 6);
+  geo.rotateX(Math.PI / 2);
+  const m = new THREE.Mesh(geo, oliveLit(OLIVE.bolt));
+  m.position.set(layer.ux(cx), layer.uy(cy), layer.z + h / 2);
+  m.rotation.z = 0.3;
+  m.castShadow = true; m.receiveShadow = true;
+  inkAt(m, 0.006);
+  return m;
+}
+
 const EXTRUDE = { front: 0, depth: 0.1, bevel: 0, seg: 4 };
 
 export function extrude(shape, opts) {
@@ -189,47 +210,6 @@ export function stitch(c, drawPath, opts) {
   c.translate(0, 0.45); c.strokeStyle = shadow; c.globalAlpha = alpha * 0.5; c.lineWidth = width; drawPath(c); c.stroke();
   c.translate(0, -0.45); c.strokeStyle = color; c.globalAlpha = alpha; drawPath(c); c.stroke();
   c.restore();
-}
-
-function arcLengths(cssPts) {
-  const lens = [0];
-  for (let i = 1; i < cssPts.length; i++) lens.push(lens[i - 1] + Math.hypot(cssPts[i][0] - cssPts[i - 1][0], cssPts[i][1] - cssPts[i - 1][1]));
-  return lens;
-}
-
-function rollRing(out, pts, i, R, segs, u) {
-  const n = pts.length;
-  const t = pts[Math.min(n - 1, i + 1)].clone().sub(pts[Math.max(0, i - 1)]).normalize();
-  const nd = new THREE.Vector2(-t.y, t.x);
-  for (let j = 0; j <= segs; j++) {
-    const a = j / segs * Math.PI * 2, cx = Math.cos(a), sz = Math.sin(a);
-    out.pos.push(pts[i].x + R * cx * nd.x, pts[i].y + R * cx * nd.y, R * sz);
-    out.nor.push(cx * nd.x, cx * nd.y, sz);
-    out.uv.push(u, j / segs);
-  }
-}
-
-function rollIndex(n, segs) {
-  const idx = [];
-  for (let i = 0; i < n - 1; i++) for (let j = 0; j < segs; j++) {
-    const a = i * (segs + 1) + j, b = a + 1, c = a + segs + 1, d = c + 1;
-    idx.push(a, c, b, b, c, d);
-  }
-  return idx;
-}
-
-export function rollGeometry(plate, cssPts, radiusCss, opts) {
-  const segs = opts?.segs ?? 10;
-  const pts = cssPts.map(([x, y]) => new THREE.Vector2(plate.ux(x), plate.uy(y)));
-  const lens = arcLengths(cssPts), total = lens[lens.length - 1], R = plate.len(radiusCss);
-  const out = { pos: [], nor: [], uv: [] };
-  for (let i = 0; i < pts.length; i++) rollRing(out, pts, i, R, segs, lens[i] / total);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(out.pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(out.nor, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(out.uv, 2));
-  geo.setIndex(rollIndex(pts.length, segs));
-  return { geo, lens, total };
 }
 
 export function rrPoints(plate, [x0, y0, x1, y1], [tl, tr, br, bl], seg) {

@@ -12,7 +12,7 @@ import { isRescueCandidate, namedClients, rescueClients, rescueNeed, rollRescue,
 import { defaultSetup } from './settings';
 import { addState, declareFeud, towData } from './states';
 import { fuelCap } from './stats';
-import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
+import { addVehicle, emptyWorld, nextRefresh, npcBrain, practiceOf } from './testkit';
 import { hitchNpc, playerTowing, releaseNpc } from './tow';
 import type { GameEvent, Vehicle, World } from './types';
 import { sitePads } from './sites';
@@ -141,12 +141,12 @@ describe('posting a rescue', () => {
     expect(rescueClients(w, SHOP)).toEqual([]);
   });
 
-  it('is posted by a restock when a stranded driver is near', () => {
+  it('is posted at a board refresh when a stranded driver is near', () => {
     let rescues = 0;
     for (let seed = 1; seed <= 12; seed++) {
       const { w, npc } = scene('fuel');
       w.marketRng.rngState = seed;
-      w.shops.bowl.restockAt = w.turn;
+      w.turn = nextRefresh(w, 'bowl');
       advanceShops(w);
       for (const c of w.shops.bowl.contracts) if (c.kind === 'rescue') {
         rescues++;
@@ -161,7 +161,7 @@ describe('posting a rescue', () => {
       const { w } = scene('fuel');
       w.setup = defaultSetup('chaosHighway');
       w.marketRng.rngState = seed;
-      w.shops.bowl.restockAt = w.turn;
+      w.turn = nextRefresh(w, 'bowl');
       advanceShops(w);
       expect(w.shops.bowl.contracts.some((c: Contract) => c.kind === 'rescue')).toBe(false);
     }

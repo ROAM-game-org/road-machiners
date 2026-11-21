@@ -35,15 +35,33 @@
 .map-tab {
   position: relative;
   padding: 0;
-  margin-top: var(--space-4);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.map-page {
+  display: flex;
+  gap: var(--space-9);
   flex: 1 1 auto;
   min-height: 0;
+  margin-top: var(--space-4);
+}
+.map-side {
+  flex: none;
+  width: var(--map-side-w);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-9);
+}
+.map-side .chip-screen {
+  white-space: nowrap;
 }
 .map-tab .map-view {
   position: absolute;
   inset: var(--hud-screen-edge);
-  width: auto;
-  height: auto;
+  width: calc(100% - 2 * var(--hud-screen-edge));
+  height: calc(100% - 2 * var(--hud-screen-edge));
   aspect-ratio: auto;
   cursor: grab;
   touch-action: none;

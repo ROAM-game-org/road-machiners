@@ -1018,6 +1018,7 @@ export function getActivityDestination(world: World, vehicle: Vehicle, activity:
   if (vehicle.job?.kind === 'search' && searchBelongs(vehicle.job, activity)) return null;
   if (activity.kind === 'rearm' && entersHome(world, vehicle, activity)) return siteStop(world, vehicle, activity, activity.destination);
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
+  if (activity.kind === 'pursue' && !world.vehicles.some((v) => v.id === activity.targetId)) return activity.destination;
   if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster', 'sizeUp'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);
 }

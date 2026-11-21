@@ -103,6 +103,36 @@
   --key-print: var(--hud-print-dim);
 }
 
+/* --press-sound names the sound a press of the button makes, beside the look it draws. src/ui/control-sound.ts reads it.
+   Later rules win: key, latch, lit latch, content that is not a control, glass button, rows that cannot move, knob, switch, and last a refused control. */
+:is(#ui, #report) :where(button) {
+  --press-sound: key;
+}
+:is(#ui, #report) :where(button[aria-pressed], .tabs > button, .option-switch > button) {
+  --press-sound: latch;
+}
+:is(#ui, #report) :where(button[aria-pressed="true"]) {
+  --press-sound: latch-lit;
+}
+:is(#ui, #report) :where(.screen-line, .inv-item, .part-sum, .mode-card, .dialogue-option, .gun-card, .gun-page) {
+  --press-sound: none;
+}
+:is(#ui, #report) :where(.screen-btn) {
+  --press-sound: screen;
+}
+:is(#ui, #report) :where(.tabs > button:is(.on, .selected), .option-switch > button[aria-pressed="true"], .knob-mark.on) {
+  --press-sound: none;
+}
+:is(#ui, #report) :where(.knob-key, .knob-mark:not(.on)) {
+  --press-sound: knob;
+}
+:is(#ui, #report) :where([role="switch"]) {
+  --press-sound: switch;
+}
+:is(#ui, #report) :where(button:is([aria-disabled="true"], :disabled, .locked)) {
+  --press-sound: none;
+}
+
 /* A line of a list or table that has no box of its own. */
 .row {
   padding: var(--space-2) var(--space-3);
@@ -589,4 +619,10 @@
   flex: none;
   margin: 0;
   padding: 0;
+}
+
+.crt-picture {
+  --crt-row: calc(var(--hud-crt-row) * var(--crt-unzoom, 1));
+  -webkit-mask-image: repeating-linear-gradient(to bottom, var(--hud-crt-over-lit) 0 var(--crt-row), var(--hud-crt-over-scan) var(--crt-row) calc(2 * var(--crt-row)));
+  mask-image: repeating-linear-gradient(to bottom, var(--hud-crt-over-lit) 0 var(--crt-row), var(--hud-crt-over-scan) var(--crt-row) calc(2 * var(--crt-row)));
 }

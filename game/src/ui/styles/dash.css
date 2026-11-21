@@ -31,7 +31,7 @@
   --hud-icon: calc(100cqw * 20 / var(--plate-n));
   --hud-lcd-size: calc(100cqw * 24 / var(--plate-n));
   --hud-rocker-w: calc(100cqw * 16 / var(--plate-n));
-  --hud-rocker-h: calc(100cqw * 30 / var(--plate-n));
+  --hud-rocker-h: calc(100cqw * 32 / var(--plate-n));
   --hud-lamp-size: calc(100cqw * 10 / var(--plate-n));
   --hud-bracket: calc(100cqw * 6 / var(--plate-n));
 }
@@ -976,6 +976,7 @@
   top: 2%;
   right: 2%;
   width: 26%;
+  height: auto;
   aspect-ratio: 1;
   visibility: hidden;
 }
@@ -1107,11 +1108,8 @@
   min-width: calc(var(--hud-text-s) * 3.4);
   height: calc(var(--hud-text-s) * 1.9);
   padding: 0 var(--space-2);
-}
-
-#ui .slot-tape > .plate-art {
-  position: absolute;
-  inset: 0;
+  border: 0;
+  border-image: var(--hud-tape-art) 8% 6% fill / 2px 6px round;
 }
 
 #ui .slot-tape > .tape-print {
@@ -1314,6 +1312,11 @@
 
 #ui .drive-plate .plate-label {
   letter-spacing: 0;
+}
+
+#ui .drive-plate .switch-lamp {
+  z-index: var(--z-hud-lit);
+  pointer-events: none;
 }
 
 :is(#ui, #overlay) .hud-frame {
@@ -1534,8 +1537,17 @@
   padding: 0;
   border: 0;
   background: none;
+  box-shadow: none;
   color: var(--hud-amber-soft);
   text-transform: uppercase;
+}
+
+#ui .info .hud-screen .tag {
+  box-shadow: none;
+}
+
+#ui .info .tag.bad {
+  color: var(--hud-hot);
 }
 
 :is(#ui, #overlay) :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .minimap, .dialogue, .game-menu [role=menu], .confirm-dialog, .death) :is(button, [tabindex]):is(:hover, :focus, :focus-visible, :active) {
@@ -1571,13 +1583,13 @@
   text-shadow: var(--hud-text-glow);
 }
 
-#ui .stat-icon .coin circle {
+#ui .stats-plate .stat-icon .coin circle {
   fill: none;
-  stroke: var(--hud-print);
+  stroke: var(--hud-print-coal);
 }
 
-#ui .stat-icon .coin path {
-  stroke: var(--hud-print);
+#ui .stats-plate .stat-icon .coin path {
+  stroke: var(--hud-print-coal);
 }
 
 #ui .contracts .contract-line + .contract-line {
@@ -1676,7 +1688,7 @@
   position: relative;
 }
 
-:is(#ui, #overlay) .hud-plate:not(.weapons-plate) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
+:is(#ui, #overlay) .hud-plate:not(.weapons-plate, .drive-plate, .stats-plate, .keys-plate) :is(.plate-label, button.knob-mark:not(.on), .hud-panel-title, .stat-icon, .stat-unit, .menu-label, .hud-engraved) {
   color: var(--hud-print);
 }
 
@@ -1706,6 +1718,10 @@
 
 #ui .status-mark {
   --hud-panel-w: var(--hud-panel-xs);
+}
+
+#ui .site-status {
+  --hud-panel-w: var(--hud-panel-s);
 }
 
 :is(#ui, #overlay) :is(.confirm-dialog, .death-box) {
@@ -1754,6 +1770,18 @@
 
 #ui .info .info-column {
   flex: none;
+}
+
+#ui .info .info-zoom {
+  --hud-key-h: var(--btn-h-s);
+  --hud-icon: var(--icon-s);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#ui .info .info-zoom > button.hud-key {
+  padding: 0;
 }
 
 #ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
@@ -1832,7 +1860,7 @@
   pointer-events: none;
 }
 
-:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .weapons-plate) :is(.plate-label, .hud-panel-title, .menu-label, .hud-engraved):not(:is(.hud-screen, .tray-window) *) {
+:is(#ui, #overlay) :is(.hud-tray, .hud-panel, .hud-frame, .game-menu [role=menu], .action, .weapons-plate, .drive-plate, .stats-plate, .keys-plate) :is(.plate-label, .hud-panel-title, .menu-label, .hud-engraved, .stat-icon, .stat-unit):not(:is(.hud-screen, .tray-window) *) {
   color: var(--hud-print-coal);
   text-shadow: var(--hud-print-coal-edge);
 }
