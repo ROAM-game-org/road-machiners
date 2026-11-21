@@ -170,11 +170,6 @@ export function isNearOutpost(atlas: Atlas, pos: Vec, reach: number): boolean {
   return OUTPOSTS.filter((site) => atlas.locations.includes(site)).some((site) => siteGates(site).some((gate) => dist(gate, pos) <= reach));
 }
 
-export function locationAt(world: World): LocationDef | null {
-  const pos = playerVehicle(world).pos;
-  return atlasOf(world.terrain).locations.find((l) => canUseSite(pos, l)) ?? null;
-}
-
 export function requireTown(world: World): TownDef {
   const town = townAt(world);
   if (!town) throw new Error('Not at a town gate');

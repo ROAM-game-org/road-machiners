@@ -227,6 +227,9 @@ export class Hud {
   private readonly dialogue: DialoguePanel;
 
   private side: HTMLElement | null = null;
+  private sideWasShown = false;
+  private infoPlacedFor: string | null = null;
+  private placeWatch: ResizeObserver | null = null;
 
   private sideShown(): boolean {
     return this.side !== null && this.side.style.display !== "none" && this.side.classList.contains("journal-side");
@@ -245,6 +248,7 @@ export class Hud {
 
   placeSide = (node: HTMLElement | null = this.side): void => {
     this.side = node;
+    this.sideWasShown = this.sideShown();
     if (this.side) this.side.style.visibility = "";
     if (!this.sideShown()) {
       this.side?.style.removeProperty("top");
@@ -258,6 +262,13 @@ export class Hud {
     side.style.height = `${Math.max(this.sideFloor(side) - top, 0)}px`;
     if (!this.infoShown()) this.coverUnder(uiSize().layerRect(side).bottom);
   };
+
+  sideMoved(node: HTMLElement): void {
+    if (node !== this.side) {
+      this.placeWatch?.observe(node);
+      this.placeSide(node);
+    } else if (this.sideShown() !== this.sideWasShown) this.placeSide();
+  }
 
   private clearOfDock(floor: number, card: HTMLElement): number {
     const deck = uiSize().layerRect(this.deck.root);
@@ -358,10 +369,10 @@ export class Hud {
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
-    const placeSoon = new ResizeObserver(() => this.placeSoon());
-    placeSoon.observe(rightDock());
-    placeSoon.observe(this.inspectedDraw);
-    placeSoon.observe(bottomLeft());
+    const placeWatch = new ResizeObserver(() => this.placeSoon());
+    this.placeWatch = placeWatch;
+    const watched = [rightDock(), this.inspectedDraw, bottomLeft(), topRight(), topLeft(), this.deck.root, this.info, this.truckStack, this.condition.root, this.contracts, this.wanted];
+    watched.forEach((node) => placeWatch.observe(node));
     this.fitDash();
     window.addEventListener("resize", this.fitDash);
     uiSize().subscribe(this.fitDash);
@@ -521,7 +532,6 @@ export class Hud {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
-    this.placeSoon();
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.renderWanted(w);
@@ -642,7 +652,8 @@ export class Hud {
     this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
-      this.placeSide();
+      if (this.infoPlacedFor !== null) this.placeSide();
+      this.infoPlacedFor = null;
       return;
     }
     const aim = this.aimOf(w, v);
@@ -654,7 +665,8 @@ export class Hud {
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
       this.cardButtons(w, v) ?? controls(),
     );
-    this.placeInfo();
+    if (v.id !== this.infoPlacedFor) this.placeInfo();
+    this.infoPlacedFor = v.id;
   }
 }
 

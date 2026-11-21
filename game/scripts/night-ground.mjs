@@ -162,7 +162,7 @@ export async function startNewGame(page, mode, bootLimitMs) {
     const { requestBoot } = await import('/src/three/save-slots.ts');
     requestBoot(sessionStorage, SAVE_KEY, { new: { mode, settings }, intro: false });
   }, [mode, NEW_GAME_SETTINGS]);
-  await page.reload();
+  await page.reload({ waitUntil: 'commit' });
   await waitForGame(page, bootLimitMs);
 }
 

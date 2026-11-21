@@ -122,7 +122,6 @@ export const G3_MIN_LOSING = 0.3;
 export const G4_P90_RATIO = 2;
 export const G6_FLOOR = 0.7;
 export const G7_RATIO = 1.5;
-export const PICK_TARGET = 1.25;
 
 const T80: Record<number, number> = { 1: 3.078, 2: 1.886, 3: 1.638, 4: 1.533, 5: 1.476, 6: 1.44, 7: 1.415, 8: 1.397, 9: 1.383, 10: 1.372, 11: 1.363 };
 
@@ -150,27 +149,6 @@ function runOf(runs: readonly IncomeRun[], seed: number): IncomeRun {
 function sameBuild(gate: string, runs: readonly IncomeRun[]): void {
   const builds = [...new Set(runs.map((r) => `${r.candidate} at ${r.commit}`))];
   if (builds.length > 1) throw new Error(`${gate} mixes builds: ${builds.join(', ')}`);
-}
-
-export type WorldFigures = { V: number; T: number; H: number };
-
-export function worldFigures(runs: readonly IncomeRun[]): WorldFigures {
-  const samples = runs.flatMap((r) => r.samples);
-  if (samples.length === 0) throw new Error('No world samples');
-  const qualifying = samples.map((s) => s.targets.filter((t) => t.qualifies));
-  const values = qualifying.flat().map((t) => t.cargoValue);
-  return { V: values.length > 0 ? mean(values) : 0, T: mean(qualifying.map((q) => q.length)), H: mean(samples.map((s) => s.haulIndex)) };
-}
-
-export type Prediction = WorldFigures & { predictedRatio: number };
-
-export function predictCandidate(runsA: readonly IncomeRun[], runsC: readonly IncomeRun[]): Prediction {
-  const a = worldFigures(runsA.filter((r) => r.policy === 'trader'));
-  const c = worldFigures(runsC.filter((r) => r.policy === 'trader'));
-  if (a.V === 0 || a.T === 0) throw new Error('Candidate A has no target the robber would take');
-  const robber = mean(runsA.filter((r) => r.policy === 'robber').map(netPerHour)) * (c.V / a.V) * (c.T / a.T);
-  const hauler = mean(runsA.filter((r) => r.policy === 'trader').map(netPerHour)) * (c.H / a.H);
-  return { ...c, predictedRatio: robber / hauler };
 }
 
 type Gate = { id: string; title: string; pass: boolean | null; lines: string[] };
