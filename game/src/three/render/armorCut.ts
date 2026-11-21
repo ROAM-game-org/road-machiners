@@ -6,7 +6,7 @@ import { CLIP_TOLERANCE, cellRect, cellSteps, restOn, unitBody, type Body, type 
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { armorModel, armorSkinX } from './armorLook';
-import { clearPlates, fitRamToBumper, placedBounds, poseArmor, settleOnBody, SIDE_FACE, type Placement } from './armorFit';
+import { clearPlates, fitRamToBumper, placedBounds, poseArmor, settleOnBody, SIDE_FACE, skinBox, type Placement } from './armorFit';
 import { TOP_MARGIN, type TopCut } from './armorTop';
 import { bodyFace, FACE_COLUMN, faceProfile, lowestFace, profileFace, profileGlassLine, profileGlassSetback, profileNoseTop, type FaceProfile } from './gunStand';
 
@@ -309,8 +309,29 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: Pa
   const upright = (): void => void (pos[axis] += outward * Math.min(0, outward * (touchAt(shift) as number) - snug));
   if (def.look === 'ram') upright();
   else settleOnBody(at, box, { profile, axis, toBodyTop: !across, skinX: armorSkinX(def.id), upright, fail });
+  if (def.look !== 'ram') bedIntoNarrowRows(at, box, armorSkinX(def.id), body, side);
   if (def.kind === 'accessory') clearPlates(at, box, platesBehind(v, item, body), side);
   return at;
+}
+
+const BED_SLICES = 6;
+const BED_MARGIN = 0.01;
+
+function bedIntoNarrowRows(at: Placement, box: THREE.Box3, skinX: number, body: THREE.Object3D, side: SideLetter): void {
+  const { axis, outward } = SIDE_FACE[side];
+  const across = axis === 'x' ? 'z' : 'x';
+  const placed = placedBounds(at, box);
+  const skin = placedBounds(at, skinBox(box, skinX));
+  const inner = outward > 0 ? skin.min[axis] : skin.max[axis];
+  const from = placed.min[across];
+  const width = (placed.max[across] - from) / BED_SLICES;
+  const airs = Array.from({ length: BED_SLICES }, (_, i) => {
+    const face = bodyFace(body, axis, outward, [from + i * width, from + (i + 1) * width], [placed.min.y, placed.max.y]);
+    return face === null ? 0 : outward * (inner - face);
+  });
+  const room = CLIP_TOLERANCE + Math.min(0, ...airs) - BED_MARGIN;
+  const sink = Math.max(0, Math.min(Math.max(0, ...airs), room));
+  at.pos[axis] -= outward * sink;
 }
 
 function depthScaleOf(def: ShieldDef, box: THREE.Box3, across: boolean): number {
