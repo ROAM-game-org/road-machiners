@@ -271,7 +271,7 @@ export class Game {
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     installControlSounds(document, (cue) => this.sound.ui(cue));
-    this.loops = new SoundLoops(player, music, tracks);
+    this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);

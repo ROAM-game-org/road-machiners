@@ -259,7 +259,7 @@ export const MIX = {
     { at: 1.5, rate: 0.9, gain: 0 },
   ],
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
-  music: { fadeSeconds: 3, musicReachTiles: 12 },
+  music: { fadeSeconds: 3, musicReachTiles: 12, spellSeconds: 180, restSeconds: 75, restJitterSeconds: 15 },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, presence: -7, spread: 10 },
 } as const;
