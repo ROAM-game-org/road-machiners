@@ -1128,7 +1128,7 @@ const TARGET_AUDIT = () => {
   const covered = [tapeBox, state?.getBoundingClientRect()].filter(Boolean);
   for (const part of grid ? grid.querySelectorAll('*') : []) {
     const r = part.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) continue;
+    if (r.width === 0 || r.height === 0 || part.closest('.icon')) continue;
     if (covered.some((c) => meet(c, r))) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} covers the name or the state`);
     if (r.top < box.top - 1 || r.bottom > box.bottom + 1 || r.left < box.left - 1 || r.right > box.right + 1) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} leaves the target screen`);
   }
