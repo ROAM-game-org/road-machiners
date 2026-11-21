@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canScroll, dragTarget, pageTarget, SCROLL_SCREENS, wheelPlacement, WheelGate, type ScrollTarget } from "./scroll-wheel";
+import { HAND_MS } from "../data/sounds";
+import { canScroll, dragTarget, handOn, pageTarget, ribOf, WHEEL_RIB_PX, SCROLL_SCREENS, wheelPlacement, WheelGate, type ScrollTarget } from "./scroll-wheel";
 
 const screen = (scrollTop: number, scrollHeight: number, clientHeight: number): ScrollTarget => ({ scrollTop, scrollHeight, clientHeight });
 
@@ -75,5 +76,26 @@ describe("SCROLL_SCREENS", () => {
   it("lists each screen once", () => {
     const parts = SCROLL_SCREENS.split(", ");
     expect(new Set(parts).size).toBe(parts.length);
+  });
+});
+
+describe("ribOf", () => {
+  it("counts whole ribs turned and never goes below the first", () => {
+    expect(ribOf(0)).toBe(0);
+    expect(ribOf(WHEEL_RIB_PX - 1)).toBe(0);
+    expect(ribOf(WHEEL_RIB_PX)).toBe(1);
+    expect(ribOf(WHEEL_RIB_PX * 10 + 2)).toBe(10);
+    expect(ribOf(-40)).toBe(0);
+  });
+});
+
+describe("handOn", () => {
+  it("is true inside the hand window and false after it", () => {
+    expect(handOn(1000, 1000 + HAND_MS)).toBe(true);
+    expect(handOn(1000, 1001 + HAND_MS)).toBe(false);
+  });
+
+  it("is false when no hand event came yet", () => {
+    expect(handOn(-Infinity, 5)).toBe(false);
   });
 });
