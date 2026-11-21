@@ -114,7 +114,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 | Zone | Job | Lives there |
 | --- | --- | --- |
 | Top left | Stats, then the minimap | Money, supplies and health in one tray, then the minimap |
-| Top center | Transient and waiting | Action bar at the edge, toast below it, then notices and tips |
+| Top center | Transient and waiting | Action bar at the edge, or the place's status when no action is offered, toast below it, then notices and tips |
 | Top right | System keys, then the cursor card | Map, Journal, Car, Driver and Menu in one tray, the hover card below it |
 | Right side | Ambient and waiting on | Contracts and wanted, above the radio |
 | Bottom right | Events and commit | The radio deck: the radio talk screen, the event log, the clock, the speed knob and the End turn key, one piece |
@@ -249,6 +249,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 
 #### Hard cases
 
+- A place's status with no action, such as a picked clean wreck. The knocked-out mark's piece in the action bar's slot, never a disabled key.
 - Window title. Engraved on metal, top left. The close key is at the right of the title row.
 - A shop or town heading like Machiners' yard. Tape, since the name comes from the game. A fixed screen name like Inventory is engraved.
 - The truck name over the inventory drawing. Tape stuck across the top lip of the drawing's screen, so the three column screens start level.
