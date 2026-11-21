@@ -8,6 +8,7 @@ import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { workMeterEl } from "./cards";
 import { el } from "./dom";
+import { tipPlacement } from "./tip-placement";
 import { ConditionPlan } from "./condition-plan";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
 import { token } from "./tokens";
@@ -24,6 +25,13 @@ const MAX_FIT_ZOOM = 1.5;
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 type Drawing = Portrait | ConditionPlan;
+
+const TIP_GAP = 2;
+
+function boundsOf(drawing: Drawing, partId: string): { x: number; y: number; width: number; height: number } {
+  if (drawing instanceof ConditionPlan) return drawing.boundsOf(partId);
+  return drawing.footprint(partId);
+}
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
 function encoded(canvas: HTMLCanvasElement): Promise<string> {
@@ -350,18 +358,33 @@ export class TruckConditionView {
     const part = this.hovered();
     this.tip.style.display = part && this.drawing ? "" : "none";
     if (!part || !this.drawing) return;
-    const center = this.drawing.centerOf(part.id);
     this.tipBody.replaceChildren(...tipRows(part));
-    this.tip.dataset.side = center.y < this.drawing.height / 2 ? "below" : "above";
-    placeAt(this.tip, { x: this.tipX(center.x), y: center.y }, this.scale);
+    const onScreen = this.stage.getBoundingClientRect().width;
+    const inStage = onScreen > 0 ? this.stage.offsetWidth / onScreen : 1;
+    const body = this.tipBody.getBoundingClientRect();
+    const bounds = boundsOf(this.drawing, part.id);
+    const spot = tipPlacement(
+      { x: bounds.x * this.scale, y: bounds.y * this.scale, width: bounds.width * this.scale, height: bounds.height * this.scale },
+      { width: body.width * inStage, height: body.height * inStage },
+      this.visibleArea(inStage),
+      TIP_GAP,
+    );
+    this.tip.dataset.side = spot.side;
+    this.tip.style.left = `${spot.left}px`;
+    this.tip.style.top = `${spot.top}px`;
   }
 
-  private tipX(x: number): number {
-    if (!this.drawing) throw new Error("The condition view has no truck drawn yet");
-    const onScreen = this.stage.getBoundingClientRect().width;
-    const inDrawing = onScreen > 0 ? this.stage.offsetWidth / onScreen : 1;
-    const half = (this.tipBody.getBoundingClientRect().width * inDrawing) / 2 / this.scale;
-    return Math.min(Math.max(x, half), Math.max(half, this.drawing.width - half));
+  private visibleArea(inStage: number): { x: number; y: number; width: number; height: number } {
+    const stage = this.stage.getBoundingClientRect();
+    let clip: Element | null = this.stage.parentElement;
+    while (clip && getComputedStyle(clip).overflow === "visible") clip = clip.parentElement;
+    const view = clip ? clip.getBoundingClientRect() : stage;
+    return {
+      x: (view.left - stage.left) * inStage,
+      y: (view.top - stage.top) * inStage,
+      width: view.width * inStage,
+      height: view.height * inStage,
+    };
   }
 
   private showOutline(): void {
