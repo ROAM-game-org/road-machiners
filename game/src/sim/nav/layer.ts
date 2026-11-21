@@ -616,19 +616,19 @@ export function buildEveryCell(layer: NavLayer): void {
   ensureAll(layer.cells);
 }
 
-export function buildCellsAround(terrain: Terrain, center: Vec, until: number): boolean {
+export function buildCellsAround(terrain: Terrain, center: Vec, until: number, ring: number, radii: readonly number[]): boolean {
   const layers = terrains.get(terrain)?.layers;
   if (!layers) return false;
-  for (const layer of layers.values()) if (!buildNearest(layer, center, until)) return true;
+  for (const layer of layers.values()) if (radii.includes(layer.radius) && !buildNearest(layer, center, until, ring)) return true;
   return false;
 }
 
-function buildNearest(layer: NavLayer, center: Vec, until: number): boolean {
+function buildNearest(layer: NavLayer, center: Vec, until: number, limit: number): boolean {
   const g = layer.grid;
   const span = SIDE * CELL;
   const cx = Math.min(g.m - 1, Math.max(0, Math.floor(center.x / span)));
   const cy = Math.min(g.m - 1, Math.max(0, Math.floor(center.y / span)));
-  for (let ring = 0; ring < g.m; ring++)
+  for (let ring = 0; ring <= Math.min(limit, g.m - 1); ring++)
     for (const cell of ringCells(g.m, cx, cy, ring)) {
       if (g.built[cell] === 1) continue;
       if (performance.now() >= until) return false;
