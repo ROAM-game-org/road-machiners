@@ -5,7 +5,7 @@ import { resolve } from './resolve';
 
 describe('message data', () => {
   it('gives back the same message after a trip through JSON', () => {
-    const msg = t('log.hurtOf', { truck: verbatim('Rustbucket'), parts: list([t('part.cab'), num(3, 'int')]) });
+    const msg = t('npc.cargoAndSpares', { goods: verbatim('Rustbucket'), spares: list([t('part.cab'), num(3, 'int')]) });
     const back = msgOfData(JSON.parse(JSON.stringify(msgData(msg))));
     expect(back && sameMsg(back, msg)).toBe(true);
     expect(resolve(back!, 'en')).toBe(resolve(msg, 'en'));

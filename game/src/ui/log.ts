@@ -17,11 +17,11 @@ export type SavedLog = SavedLogLine[];
 export type PlacedEntry = { turn: number; entry: LogEntry };
 
 const LEVELS: readonly string[] = ["info", "notable", "attention", "critical"];
-const REACHES: readonly string[] = ["both", "verbose", "brief"];
+const REACHES: readonly string[] = ["both", "verbose"];
 
 const SHOWN_IN: Record<LogView, (reach: LogReach) => boolean> = {
   brief: (reach) => reach !== "verbose",
-  verbose: (reach) => reach !== "brief",
+  verbose: () => true,
 };
 
 export class LogBook {

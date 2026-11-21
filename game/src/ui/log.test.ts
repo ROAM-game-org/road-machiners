@@ -10,7 +10,6 @@ import { volleyLine, type Volley } from "./volley";
 const en = (msg: Msg): string => resolve(msg, "en");
 const ru = (msg: Msg): string => resolve(msg, "ru");
 const entry = (text: string, level: LogLevel = "notable"): LogEntry => leveled({ text: verbatim(text), cls: "" }, level);
-const brief = (text: string): LogEntry => ({ ...entry(text), reach: "brief" });
 
 describe("LogBook", () => {
   it("leads a plain line with the HUD clock stamp", () => {
@@ -91,7 +90,7 @@ describe("LogBook views", () => {
 
   it("caps each view at its own newest lines", () => {
     const book = new LogBook();
-    for (let i = 0; i < LOG_HISTORY * 2; i++) book.add(i, i % 2 ? brief(`brief ${i}`) : entry(`roll ${i}`, "info"));
+    for (let i = 0; i < LOG_HISTORY * 2; i++) book.add(i, entry(i % 2 ? `note ${i}` : `roll ${i}`, i % 2 ? "notable" : "info"));
     for (let i = 0; i < LOG_HISTORY + 10; i++) book.add(1000 + i, entry(`both ${i}`));
     expect(shown(book, "brief")).toHaveLength(LOG_HISTORY);
     expect(shown(book, "verbose")).toHaveLength(LOG_HISTORY);
@@ -101,9 +100,8 @@ describe("LogBook views", () => {
   it("reports the trimmed rows by their place, oldest last", () => {
     const book = new LogBook();
     for (let i = 0; i < LOG_HISTORY; i++) book.place(i, entry(`roll ${i}`, "info"));
-    book.place(LOG_HISTORY, brief("hurt"));
-    book.place(LOG_HISTORY + 1, entry("one more roll", "info"));
-    expect(book.trim()).toEqual([LOG_HISTORY + 1]);
+    book.place(LOG_HISTORY, entry("one more roll", "info"));
+    expect(book.trim()).toEqual([LOG_HISTORY]);
     expect(book.trim()).toEqual([]);
   });
 

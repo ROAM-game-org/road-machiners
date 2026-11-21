@@ -10,7 +10,7 @@ import { resolve } from '../text/resolve';
 import { TEST_MAP } from '../test/map';
 import { reusedWorld } from '../test/world-cache';
 import { LOG_HISTORY, LogBook, readSavedLog } from '../ui/log';
-import { eventEntry, hurtSummary, leveled } from '../ui/log-levels';
+import { eventEntry, leveled } from '../ui/log-levels';
 import { loadWorld, savedLogOf, storedSave, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 
@@ -28,7 +28,7 @@ function fightLog(w: World, turns: number): LogBook {
       t: 'shot', shooter: raider.id, weapon: mountedParts(raider, 'weapon')[0].id, target: me.id, aim: 'body', chance: 0.5, damageChance: 0.5, side: 'front',
       rounds: [{ hit: true, crit: false, offset: 0, struck: me.id, hits: [{ part: cab.id, damage: 3 }], blast: [], burst: null }],
     };
-    for (const entry of [eventEntry(w, shot), ...hurtSummary(w, [shot])]) if (entry) book.add(turn, entry);
+    for (const entry of [eventEntry(w, shot)]) if (entry) book.add(turn, entry);
   }
   return book;
 }
@@ -52,7 +52,7 @@ describe('the saved log', () => {
     const restored = LogBook.restored(readSavedLog(savedLogOf(storedSave(slots, 'auto'))));
 
     expect(texts(restored)).toEqual(texts(book));
-    expect(restored.lines.some((l) => l.reach === 'brief')).toBe(true);
+    expect(restored.lines.length).toBe(book.lines.length);
     expect(loaded.player.money).toBe(money);
     expect(loaded.player.xp).toEqual(xp);
     expect(loaded.events).toEqual(w.events);
@@ -61,8 +61,17 @@ describe('the saved log', () => {
   it('stays small with a full book of fight lines', () => {
     const w = startWorld();
     const book = fightLog(w, LOG_HISTORY * 2);
-    expect(book.lines.length).toBe(LOG_HISTORY * 2);
+    expect(book.lines.length).toBe(LOG_HISTORY);
     expect(JSON.stringify(book.saved()).length).toBeLessThan(300_000);
+  });
+
+  it('drops the old Brief damage lines from a saved log and keeps the rest', () => {
+    const w = startWorld();
+    const saved = fightLog(w, 3).saved();
+    const old = { turn: 3, level: 'attention', reach: 'brief', cls: 'bad', text: { key: 'log.hurtYours', params: {} } };
+    const read = readSavedLog([old, ...saved]);
+    expect(read).toHaveLength(saved.length);
+    expect(read.every((p) => p.entry.reach !== ('brief' as string))).toBe(true);
   });
 
   it('reads a save with no log, or a broken one, as an empty log', () => {

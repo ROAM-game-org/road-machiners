@@ -20,7 +20,7 @@ import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
 import { LogPanel, readSavedLog, type SavedLog } from "./log";
 import { logViewSetting } from "./log-setting";
-import { eventEntry, hurtSummary, leveled, type LogEntry, type LogLevel } from "./log-levels";
+import { eventEntry, leveled, type LogEntry, type LogLevel } from "./log-levels";
 import {
   claimRivalMark,
   escortStatusText,
@@ -618,7 +618,7 @@ export class Hud {
       lines.push(line);
       if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
-    this.log.add(w.turn, [...lines, ...hurtSummary(w, events)]);
+    this.log.add(w.turn, lines);
   }
 
   savedLog(): SavedLog {

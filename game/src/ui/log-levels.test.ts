@@ -6,7 +6,7 @@ import { mountPart } from "../sim/inventory";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import type { GameEvent, PartInstance, Vehicle, World } from "../sim/types";
 import { resolve } from "../text/resolve";
-import { eventEntry, eventLevel, hurtSummary } from "./log-levels";
+import { eventEntry, eventLevel } from "./log-levels";
 
 function fight() {
   const w = emptyWorld();
@@ -51,38 +51,5 @@ describe("log levels", () => {
     expect(eventLevel(w, { t: "supply", what: "supplies", note: { id: "outOfSupplies" } } as GameEvent)).toBe("attention");
     expect(eventLevel(w, { t: "supply", what: "supplies", note: { id: "filledSupplies" } } as GameEvent)).toBe("info");
     expect(eventLevel(w, { t: "info", note: { id: "fuelLow" } } as GameEvent)).toBe("attention");
-  });
-});
-
-describe("Brief damage summary", () => {
-  it("names each hurt part of the player's truck once, with no numbers", () => {
-    const { w, me, raider, cab, engine } = fight();
-    const events = [shotAt(w, raider, me, [{ part: cab.id, damage: 5 }]), shotAt(w, raider, me, [{ part: cab.id, damage: 3 }, { part: engine.id, damage: 2 }])];
-    const summary = hurtSummary(w, events);
-    expect(summary).toHaveLength(1);
-    expect(summary[0]).toMatchObject({ cls: "bad", level: "attention", reach: "brief" });
-    const [text] = en(summary);
-    expect(text.startsWith("You take hits: ")).toBe(true);
-    expect(text).not.toMatch(/\d/);
-    expect(text.split(",")).toHaveLength(2);
-    expect(resolve(summary[0].text, "ru")).not.toMatch(/\d/);
-  });
-
-  it("stays quiet when only armor took the hits", () => {
-    const { w, me, raider, plate } = fight();
-    expect(hurtSummary(w, [shotAt(w, raider, me, [{ part: plate.id, damage: 6 }])])).toEqual([]);
-  });
-
-  it("ignores hits the player deals to other trucks", () => {
-    const { w, me, raider } = fight();
-    expect(hurtSummary(w, [shotAt(w, me, raider, [{ part: coreOf(raider, "cab").id, damage: 6 }])])).toEqual([]);
-  });
-
-  it("counts caltrops and mines on the player's truck", () => {
-    const { w, me, raider, engine } = fight();
-    const caltrops = { t: "caltrops", vehicle: me.id, field: "f1", source: raider.id, hits: [{ part: engine.id, damage: 2 }] } as GameEvent;
-    expect(en(hurtSummary(w, [caltrops]))).toHaveLength(1);
-    const mine = { t: "claymore", vehicle: raider.id, part: "x", other: me.id, pos: { x: 40, y: 40 }, hits: [{ part: engine.id, damage: 4 }], selfHits: [] } as GameEvent;
-    expect(en(hurtSummary(w, [mine]))).toHaveLength(1);
   });
 });
