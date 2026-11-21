@@ -135,7 +135,9 @@ describe("fit clear of a corner", () => {
     const screen = { width: 200, height: 100 };
     const fit = fitClearOf(screen, wide, CAP, CORNER);
     expect(fit).toBeLessThan(fitZoom(screen, wide, CAP));
-    expect(wide.width * fit).toBeLessThanOrEqual(screen.width - 2 * CORNER.width + 1e-9);
+    const half = { x: (wide.width * fit) / 2, y: (wide.height * fit) / 2 };
+    const missesCorner = half.x <= screen.width / 2 - CORNER.width + 1e-9 || half.y <= screen.height / 2 - CORNER.height + 1e-9;
+    expect(missesCorner).toBe(true);
   });
 
   it("takes the larger of the narrowed and the lowered fit", () => {
