@@ -1,5 +1,5 @@
 
-import { keyTip, RECENTER_KEY, touchMode } from "./input-mode";
+import { ESCAPE, keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
@@ -587,7 +587,7 @@ export class Hud {
     const title = v.brain ? driverName(v) : vehicleTitle(w, v);
     if (!pinned) return panelHead(title);
     const key = closeKey({ label: t("card.unpin"), onClose: () => this.actions.unpin() });
-    setAttrText(key, "title", keyTip(t("card.unpin"), "Esc"));
+    setAttrText(key, "title", keyTip(t("card.unpin"), ESCAPE.key));
     const head = panelHead(title);
     head.append(key);
     return head;
