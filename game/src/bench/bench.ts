@@ -47,6 +47,7 @@ const FAR_ZOOM = 0.35;
 const NEAR_PAN_TILES = 6;
 const FAR_PAN_TILES = 24;
 const FIGHT_TEMPLATES = ['buggy', 'gunwagon', 'buggy'];
+const NIGHT_CONVOY_TEMPLATES = ['trader', 'convoy', 'trader', 'convoy'];
 const FIGHT_TURNS = 4;
 const OUTSIDE_TILES = 25;
 const DRIVE_TILES = 150;
@@ -357,6 +358,10 @@ function fightStart(base: World, town: Town, hour = DAY_HOUR): World {
   return FIGHT_TEMPLATES.reduce((world, template) => spawnNear(world, template, true), moved);
 }
 
+function nightConvoy(world: World): World {
+  return NIGHT_CONVOY_TEMPLATES.reduce((spawned, template) => spawnNear(spawned, template, false), world);
+}
+
 function driveSide(pass: number): number {
   return pass % 2 === 0 ? 1 : -1;
 }
@@ -627,6 +632,11 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
   const fightNight: TurnScene = { id: 'fight-night', warm: false, night: true, start: () => nightFightWorld, run: () => playFightTurns(ctx, log, 'fight-night'), check: fightCheck(log) };
   const driveWorld = (pass: number) => driveStart(outsideBase(base, town, driveSide(pass)), driveSide(pass));
   const drive: TurnScene = { id: 'drive', warm: false, start: driveWorld, run: () => playDrive(ctx, log), check: driveCheck };
+  const driveNight: TurnScene = {
+    id: 'drive-night', warm: false, night: true,
+    start: (pass) => nightConvoy(driveStart(outsideBase(base, town, driveSide(pass), NIGHT_HOUR), driveSide(pass))),
+    run: () => playDrive(ctx, log), check: driveCheck,
+  };
   return [
     turnSpec(ctx, fightNight),
     townSpec(ctx, base, town, 'town-day', DAY_HOUR, near),
@@ -635,6 +645,7 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
     townSpec(ctx, base, town, 'town-night-far', NIGHT_HOUR, stillFar),
     turnSpec(ctx, fight),
     turnSpec(ctx, drive),
+    turnSpec(ctx, driveNight),
   ];
 }
 
