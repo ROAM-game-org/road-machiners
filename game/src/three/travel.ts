@@ -161,6 +161,10 @@ export type Playback = {
   hookedLines: Set<string>;
 };
 
+export function committedWorld(world: World, playback: Playback | null): World {
+  return playback ? playback.before : world;
+}
+
 function entersTheLight(event: GameEvent): boolean {
   return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
 }

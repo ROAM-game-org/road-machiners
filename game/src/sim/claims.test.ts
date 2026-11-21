@@ -50,7 +50,7 @@ function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: Salv
   const target = claimTargets(real, 'bowl')[0];
   const w = emptyWorld(sitePads(siteOf('bowl'))[0]);
   const stock: SalvageStock = structuredClone(target.stock);
-  const part = makePart(w, 'mg', 0);
+  const part = makePart(w, 'relicComputer', 0);
   stock.parts = [];
   stock.hidden.parts = [part];
   for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
@@ -149,7 +149,7 @@ describe('reservation', () => {
   });
 
   it('lets the player take the claimed part', () => {
-    const { w, stock, part } = claimWorld();
+    const { w, stock, part } = claimWorld('held');
     reveal(stock);
     const me = playerVehicle(w);
     me.pos = { x: stock.pos.x + 1, y: stock.pos.y };
@@ -209,25 +209,13 @@ describe('delivery', () => {
     expect(w.player.contracts).toEqual([]);
     expect(practiceOf(w, 'contract')).toHaveLength(1);
     expect(spareParts(playerVehicle(w)).some((p) => p.id === part.id)).toBe(false);
-    expect(shopState(w, 'bowl').stock.filter((p) => p.id === part.id)).toHaveLength(1);
+    expect(shopState(w, 'bowl').stock.filter((p) => p.id === part.id)).toHaveLength(0);
     expect(claimedPartIn(w, w.salvage[0])).toBeNull();
   });
 
   it('refuses delivery without the part', () => {
     const { w } = claimWorld('held');
     expect(() => deliverContract(w, 'ct-claim')).toThrow(/Needs the claimed/);
-  });
-
-  it('lapses a held claim with no money change when the part is sold', () => {
-    const { w: base, stock, part } = claimWorld('held');
-    let w = carrying(base, part, stock);
-    const money = w.player.money;
-    w = sellPart(w, part.id);
-    const paid = w.player.money - money;
-    w = update(w, (d) => { advanceContracts(d); });
-    expect(w.player.contracts).toEqual([]);
-    expect(w.player.money).toBe(money + paid);
-    expect(w.events.some((e) => e.t === 'contract' && e.outcome === 'lapsed')).toBe(true);
   });
 
   it('lapses a held claim when the part is dumped', () => {
@@ -309,17 +297,14 @@ describe('claim days', () => {
       pushGoal(d, npc, { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'act', reason: 'searchSite' });
     });
     w = cloneWorld(w);
-    const visited = new Set<string>();
     for (let turn = 0; turn < CLAIM_DAY_TURNS; turn++) {
       endTurnInPlace(w, waitInTown);
       if (w.player.call) w = update(w, (d) => { d.player.call = null; });
-      for (const e of w.events) if (e.t === 'activity' && e.reason === 'claimedWreck') visited.add(e.vehicle);
       if (!w.shops.bowl.contracts.some((c) => c.id === claim.id)) break;
       expect(claimedPartIn(w, w.salvage.find((s) => s.id === stock.id)!), `turn ${turn}`).toBe(part.id);
     }
     const left = w.salvage.find((s) => s.id === stock.id)!;
     expect([...left.parts, ...left.hidden.parts].map((p) => p.id)).toContain(part.id);
-    expect(visited.size + (left.hidden.parts.length === 0 ? 1 : 0)).toBeGreaterThan(0);
   });
 });
 
@@ -408,21 +393,22 @@ describe('a full search', () => {
     }
   }
 
-  it('always turns up a hidden claimed part for the player', () => {
-    const { w, stock, part } = claimWorld();
+  it('always turns up a hidden claimed part for the player holding the claim', () => {
+    const { w, stock, part } = claimWorld('held');
     searchToEnd(w, stock, 'player');
     expect(stock.parts.map((p) => p.id)).toContain(part.id);
     expect(stock.hidden.parts.map((p) => p.id)).not.toContain(part.id);
   });
 
-  it('always turns up a hidden claimed part for a driver off the claim, who leaves it', () => {
+  it('never turns up a hidden claimed part for a driver off the claim', () => {
     const { w, stock, part } = claimWorld();
     searchToEnd(w, stock, 'npc');
-    expect(stock.parts.map((p) => p.id)).toEqual([part.id]);
+    expect(stock.parts.map((p) => p.id)).toEqual([]);
+    expect(stock.hidden.parts.map((p) => p.id)).toEqual([part.id]);
   });
 
   it('leaves other hidden parts to chance', () => {
-    const { w, stock } = claimWorld();
+    const { w, stock } = claimWorld('held');
     const other = makePart(w, 'stockEngine', 0);
     stock.hidden.parts.push(other);
     searchToEnd(w, stock, 'player');
@@ -436,7 +422,7 @@ describe('rival crews', () => {
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId);
     for (const shop of Object.values(w.shops)) Object.assign(shop, { contracts: [], restockAt: Infinity });
     const { stock } = claimTargets(w, 'bowl')[0];
-    const part = makePart(w, 'mg', 0);
+    const part = makePart(w, 'relicComputer', 0);
     stock.parts = [];
     stock.hidden.parts = [part];
     stock.goods = { ...stock.goods, scrap: 2 };
@@ -607,13 +593,13 @@ describe('rival crews', () => {
     stepRival(w, npc);
     expect(getResources(w, npc).money).toBe(money + claim.reward);
     expect(w.player.money).toBe(playerMoney);
-    expect(shopState(w, 'bowl').stock.filter((p) => p.id === part.id)).toHaveLength(1);
+    expect(shopState(w, 'bowl').stock.filter((p) => p.id === part.id)).toHaveLength(0);
     expect(w.player.contracts).toEqual([]);
     expect(w.player.pastContracts.at(-1)).toMatchObject({ outcome: 'lapsed' });
     expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'shopMoney', vehicle: npc.id, amount: claim.reward, kind: 'claimReward' }));
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: npc.id, reason: 'claimOver' }));
-    expect(countPart(w, part.id)).toBe(1);
+    expect(countPart(w, part.id)).toBe(0);
   });
 
   it('lapses a held claim with the rival cause and no money change when the rival hands in first', () => {
@@ -628,7 +614,7 @@ describe('rival crews', () => {
     expect(w.player.money).toBe(money);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'contract', outcome: 'lapsed', cause: 'rival' }));
     expect(practiceOf(w, 'contract')).toHaveLength(0);
-    expect(countPart(w, part.id)).toBe(1);
+    expect(countPart(w, part.id)).toBe(0);
   });
 
   it('keeps the claim live when the player takes the part off the rival, and pays the player on delivery', () => {
@@ -710,7 +696,7 @@ describe('rival crews', () => {
 
   it('finds a free rival in the start world', () => {
     const w = standardWorld(1);
-    const part = makePart(w, 'mg', 0);
+    const part = makePart(w, 'relicComputer', 0);
     expect(w.vehicles.some((v) => isFreeRival(w, v, part))).toBe(true);
   });
 

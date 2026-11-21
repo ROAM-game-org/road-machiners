@@ -191,7 +191,6 @@ export const UI = {
   'cell.deadCells': 'Broken cargo cells. Repair the cargo part to use them.',
   'kind.utility': 'utility',
   'menu.showTips': 'Show tips',
-  'menu.waitForTurn': 'Wait for the turn',
   'help.group.drive': 'Drive',
   'help.group.places': 'Places and talk',
   'help.group.fight': 'Fight',

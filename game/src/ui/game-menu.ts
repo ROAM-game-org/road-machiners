@@ -138,15 +138,12 @@ function controlGroup(group: ControlGroup): HTMLElement {
   );
 }
 
-export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (["fullscreen", "help", "tips", "options", "report"].includes(entry)) return true;
-  if (entry === "load") return !busy && hasSave;
-  return !busy;
+export function entryEnabled(entry: MenuEntry, hasSave: boolean): boolean {
+  return entry !== "load" || hasSave;
 }
 
-export function entryReason(entry: MenuEntry, busy: boolean, hasSave: boolean): Msg | null {
-  if (entryEnabled(entry, busy, hasSave)) return null;
-  return busy ? t("menu.waitForTurn") : t("save.none");
+export function entryReason(entry: MenuEntry, hasSave: boolean): Msg | null {
+  return entryEnabled(entry, hasSave) ? null : t("save.none");
 }
 
 export function buildNote(): Msg {
@@ -236,7 +233,7 @@ export class GameMenu {
   private readonly tipsLamp = lamp("key-mark");
   private readonly labels = {} as Record<MenuEntry, HTMLElement>;
 
-  constructor(private button: HTMLElement, private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private feedback: FeedbackLinks, sound: SoundSettings) {
+  constructor(private button: HTMLElement, private actions: GameMenuActions, setup: () => WorldSetup, private tips: TipSwitch, private feedback: FeedbackLinks, sound: SoundSettings) {
     button.setAttribute("aria-haspopup", "menu");
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-controls", "game-menu-list");
@@ -262,9 +259,8 @@ export class GameMenu {
   }
 
   refresh(): void {
-    const busy = this.isBusy();
     const saved = this.actions.hasSave();
-    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
+    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, saved));
     this.items.fullscreen.hidden = !document.fullscreenEnabled;
     setText(this.labels.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
     const on = this.tips.isOn();

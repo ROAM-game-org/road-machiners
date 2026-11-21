@@ -9,7 +9,7 @@ import { dist } from "../sim/vec";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { endTurn, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback } from "./travel";
+import { addRopeFrames, canTravel, Creep, MOVE_MS, nextSightSample, overshoots, threatsIn, Travel, TurnPreparation, type Playback, committedWorld } from "./travel";
 import { headingQuat, restFrames, restWheels, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
 import { standardWorld } from "../test/world-cache";
@@ -1461,5 +1461,14 @@ describe("a world that waits on the player", () => {
     const world = leaveQuest(underScene(GAME_OPENED_QUESTS.roadStretch1));
     const { travel } = travelWithTurns();
     expect(() => travel.beginPlayback(world, preparedFrom(world), 0, {})).not.toThrow();
+  });
+});
+
+describe("the world a save writes", () => {
+  it("is the turn's start while a turn plays and the world outside one", () => {
+    const before = emptyWorld();
+    const after = { ...before, turn: before.turn + 1 };
+    expect(committedWorld(after, { before } as Playback)).toBe(before);
+    expect(committedWorld(after, null)).toBe(after);
   });
 });
