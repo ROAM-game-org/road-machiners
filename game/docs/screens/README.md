@@ -9,6 +9,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 ## Field
 
 - `menu.jpg`: the field with the HUD and an opening tip.
+- `overheat.jpg`: the field with the engine overheating, its red lamp lit above the heat gauge.
 - `log.jpg`: the field with a full log.
 - `minimap.jpg`: the field with the minimap on.
 - `inspect.jpg`: the card of an armed enemy under the cursor.
