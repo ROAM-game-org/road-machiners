@@ -976,6 +976,7 @@
   top: 2%;
   right: 2%;
   width: 26%;
+  height: auto;
   aspect-ratio: 1;
   visibility: hidden;
 }

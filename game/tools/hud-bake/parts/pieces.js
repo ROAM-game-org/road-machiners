@@ -221,6 +221,13 @@ const view = frame({ scene, root, facePanel: { g: root, w: CANVAS[0] * CSS, z: 0
 const quadOf = (box, z = 0) => { const [x, y, w, h] = local(box); return view.quad({ g: root, z: 0 }, x, y, w, h, z); };
 const tight = (box, grow = 0) => view.cropAround(quadOf(box), grow);
 const SHADOW = 3;
+const ROCKER_CROP_PX = [52, 104];
+const LAMP_CROP_PX = [26, 26];
+const centered = (box, [w, h]) => {
+  const pts = quadOf(box), cx = pts.reduce((a, p) => a + p[0], 0) / 4, cy = pts.reduce((a, p) => a + p[1], 0) / 4;
+  const x0 = Math.round(cx - w / 2), y0 = Math.round(cy - h / 2);
+  return [x0, y0, x0 + w, y0 + h];
+};
 const KEYS = ['keycap', 'keycapLit', 'keycapRed', 'close'];
 const sprites = {
   frame: { crop: tight(BOXES.frame), frames: ['frame'] },
@@ -228,9 +235,9 @@ const sprites = {
   slate: { crop: tight(BOXES.slate, SHADOW), frames: ['slate'] },
   slateLeather: { crop: tight(BOXES.slateLeather, SHADOW), frames: ['slateLeather'] },
   input: { crop: tight(BOXES.input), frames: ['input'] },
-  lamp: { crop: tight(BOXES.lamp, 1), frames: ['lamp'] },
+  lamp: { crop: centered(BOXES.lamp, LAMP_CROP_PX), frames: ['lamp'] },
   tape: { crop: tight(BOXES.tape), frames: ['tape'] },
-  rocker: { crop: tight(BOXES.rocker, 1), frames: ['rocker-off', 'rocker-on'] },
+  rocker: { crop: centered(BOXES.rocker, ROCKER_CROP_PX), frames: ['rocker-off', 'rocker-on'] },
   knob: { crop: tight(BOXES.knob), frames: ['knob'] },
   knobPointer: { crop: tight(BOXES.knobPointer), frames: ['knobPointer'] },
   ...Object.fromEntries(KEYS.map((name) => [name, { crop: tight(BOXES[name]), frames: [`${name}-up`, `${name}-down`] }])),
