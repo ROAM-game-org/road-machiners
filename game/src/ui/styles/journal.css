@@ -84,11 +84,65 @@
   align-items: baseline;
   gap: var(--space-6);
 }
-#ui .journal-screen .journal-head:disabled {
-  cursor: default;
-}
-#ui .journal-screen .journal-head[aria-expanded="true"] {
+#ui .journal-screen .note-head[aria-expanded="true"] {
   font-weight: 700;
+}
+#ui .journal-screen .place-head[aria-expanded="true"] {
+  background: var(--hud-amber);
+  box-shadow: var(--hud-fill-glow);
+  color: var(--hud-screen);
+  text-shadow: none;
+}
+.journal-screen .job.held .job-what {
+  font: 700 var(--text-body) / 1.35 var(--font-ui);
+}
+.journal-detail.survey {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  column-gap: var(--space-6);
+  row-gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+.journal-detail.survey > .journal-place {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  row-gap: var(--space-2);
+}
+.journal-detail.survey > .journal-place > * {
+  grid-column: 1 / -1;
+}
+#ui .journal-screen .place-head {
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  column-gap: var(--space-6);
+  row-gap: 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--btn-h-s);
+  padding: var(--space-1) var(--space-4);
+  font: inherit;
+  font-weight: 400;
+}
+#ui .journal-screen .place-head.done {
+  color: var(--hud-amber-faint);
+}
+.place-head .place-square {
+  color: inherit;
+}
+.journal-detail.survey > .journal-place.open {
+  margin-block: var(--space-6);
+  row-gap: var(--space-6);
+}
+.journal-place.survey .place-text,
+.journal-place.survey .place-way {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.journal-place.survey .place-from {
+  font-size: var(--text-caption);
 }
 .journal-note,
 .journal-place {

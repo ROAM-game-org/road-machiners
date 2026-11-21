@@ -40,7 +40,10 @@ class FakeElement {
   children: unknown[] = [];
   classList = { add: () => {}, remove: () => {} };
   append(...c: unknown[]) { this.children.push(...c); }
+  replaceChildren(...c: unknown[]) { this.children = c; }
+  innerHTML = "";
   setAttribute() {}
+  removeAttribute() {}
   addEventListener() {}
 }
 
@@ -111,5 +114,25 @@ describe("map tab waypoint click", () => {
     fire("pointercancel", 10, 10);
     fire("pointerup", 10, 10);
     expect(applied).toHaveLength(0);
+  });
+});
+
+describe("map tab instruments", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", { createElement: () => new FakeElement(), createTextNode: (text: string) => ({ text }) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("rebuilds the compass from the truck's heading on each render", () => {
+    const world = emptyWorld();
+    const host = { world: () => world, apply: () => {}, getTurnPhase: () => null } as unknown as UiHost;
+    const map = new MapTab(host);
+    map.render(world);
+    const parts = (): FakeElement[] => (map.side as unknown as FakeElement).children as FakeElement[];
+    expect(parts()).toHaveLength(2);
+    const before = parts()[0].innerHTML;
+    playerVehicle(world).heading += 1;
+    map.render(world);
+    expect(parts()[0].innerHTML).not.toBe(before);
   });
 });
