@@ -136,6 +136,14 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | ui-confirm | ui | false | 0.8 | 1 | 3 |
 | radio | ui | false | 0.8 | 1 | 3 |
 | ui-error | ui | false | 0.8 | 1 | 2 |
+| key-press | ui | false | 0.45 | 1 | 3 |
+| switch-on | ui | false | 0.5 | 1 | 2 |
+| switch-off | ui | false | 0.5 | 1 | 2 |
+| latch-in | ui | false | 0.45 | 1 | 2 |
+| latch-out | ui | false | 0.45 | 1 | 2 |
+| screen-press | ui | false | 0.3 | 1 | 3 |
+| knob-step | ui | false | 0.3 | 1 | 2 |
+| wheel-step | ui | false | 0.25 | 1 | 2 |
 | money | ui | false | 0.8 | 1 | 3 |
 | level-up | ui | false | 1 | 1 | 1 |
 | discover | ui | false | 0.9 | 1 | 1 |
