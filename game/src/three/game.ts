@@ -209,6 +209,7 @@ export class Game {
   private framesSeen = 0;
   readonly pace = new FramePace();
   private readonly turnWait = new TurnWait();
+  private pressedDuringTurn = false;
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
@@ -259,6 +260,7 @@ export class Game {
     this.context = new TruckContext({
       world: () => this.world,
       playing: () => this.anim !== null,
+      whenTurnEnds: (action, key) => this.whenTurnEnds(action, key),
       apply: (next) => this.apply(next),
       pushEvents: () => this.hud.pushEvents(this.world),
       note: (text) => this.hud.refuse(text),
@@ -280,7 +282,6 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
-      journalBeside: () => this.screens.journal.sideForm(),
       openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
@@ -297,13 +298,12 @@ export class Game {
             : null,
         ),
       endRun: () => this.endRun(),
-      isBusy: () => this.anim !== null,
       autoTravel: () => this.travel.isAuto(this.world),
-      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown()), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
+      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.sceneBusy(), sceneBusy: () => this.sceneBusy(), whenTurnEnds: (action, key) => this.whenTurnEnds(action, key), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
-      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
+      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => playerCanAct(this.world), apply: (next) => this.whenTurnEnds(() => this.applyRefusable(next)) }),
     }, radio, this.weapons.deck, this.renderer, this.gpu);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
@@ -332,12 +332,13 @@ export class Game {
         if (sting) this.sound.ui(sting);
       },
       selectedWeapons: () => this.selected,
-      selectWeapons: (ids) => { if (this.anim || this.modalOpen()) return; this.selected = ids; this.refreshUi(); },
+      selectWeapons: (ids) => this.whenTurnEnds(() => { if (this.modalOpen()) return; this.selected = ids; this.refreshUi(); }),
       selectedUtility: () => this.utilityAim.selectedId,
       selectUtility: (id) => this.selectUtility(id),
       pressTurn: () => this.pressTurn(),
       releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
+      whenTurnEnds: (action, key) => this.whenTurnEnds(action, key),
       searchStock: (id) => this.searchFromLoot(id),
       autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), travelPlaySpeed: () => (this.travel.isAuto(this.world) || this.anim !== null ? this.travel.getSpeed() : null), stepTravelSpeed: (delta) => this.travel.stepSpeed(delta),
       getTurnPhase: () => this.phase,
@@ -524,13 +525,25 @@ export class Game {
   }
 
   private releaseTurn(): void {
-    this.travel.release(performance.now());
+    const now = performance.now();
+    const tapped = this.pressedDuringTurn && !this.travel.isFast(now);
+    this.pressedDuringTurn = false;
+    this.travel.release(now);
+    if (tapped) this.whenTurnEnds(() => this.tapTurnKey(), "turn");
+  }
+
+  private tapTurnKey(): void {
+    this.pressTurn();
+    this.releaseTurn();
   }
 
   private pressTurn(): void {
     if (this.death.isShown() || this.turnRefused()) return;
     this.screens.inventoryTime.press();
-    if (this.travel.pressTurn(this.travel.isPlaying(this.anim), this.world)) this.endTurn();
+    const playing = this.travel.isPlaying(this.anim);
+    const stopsAuto = this.travel.isAuto(this.world);
+    if (this.travel.pressTurn(playing, this.world)) this.endTurn();
+    this.pressedDuringTurn = playing && !stopsAuto;
   }
 
   private searchFromLoot(stockId: string): void {
@@ -541,7 +554,8 @@ export class Game {
 
   private runKey(code: string): void {
     const key = this.keys[code];
-    if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen())) || (key.idle && this.travel.isPlaying(this.anim))) return;
+    if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen()))) return;
+    if (key.idle && this.travel.isPlaying(this.anim)) return this.turnWait.defer(() => this.runKey(code));
     if (key.inventoryOk && this.screens.inventory.isOpen()) this.screens.inventory.close();
     key.run();
   }
@@ -564,10 +578,10 @@ export class Game {
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
-    KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
-    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
-    KeyJ: { run: () => (!this.anim || this.screens.journal.sideForm()) && this.screens.toggle(this.screens.journal), screen: true },
-    KeyI: { run: () => (this.screens.inventory.isOpen() || !this.travel.isPlaying(this.anim)) && this.screens.toggle(this.screens.inventory), screen: true },
+    KeyC: { run: () => this.screens.toggleCharacter("skills"), idle: true, screen: true },
+    KeyM: { run: () => hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
+    KeyJ: { run: () => (this.screens.journal.sideForm() ? this.screens.toggle(this.screens.journal) : this.whenTurnEnds(() => this.screens.toggle(this.screens.journal))), screen: true },
+    KeyI: { run: () => (this.screens.inventory.isOpen() ? this.screens.toggle(this.screens.inventory) : this.whenTurnEnds(() => this.screens.toggle(this.screens.inventory))), screen: true },
     Escape: { run: () => this.escape() },
   };
 
@@ -584,9 +598,11 @@ export class Game {
   }
 
   private selectUtility(id: string | null): void {
-    if (this.anim || (id !== null && this.modalOpen())) return;
-    this.utilityAim.select(id);
-    this.refreshUi();
+    this.whenTurnEnds(() => {
+      if (id !== null && this.modalOpen()) return;
+      this.utilityAim.select(id);
+      this.refreshUi();
+    });
   }
 
   private updateStopCue(): void {
@@ -638,7 +654,7 @@ export class Game {
 
   private touchHold(x: number, y: number): void {
     const action = this.picker.action(x, y);
-    const point = this.canClick() && this.utilityAim.pointPending();
+    const point = this.canOrder() && this.utilityAim.pointPending();
     if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
     const p = this.rig.groundUnder(x, y, this.ground);
     if (this.canOrder() && p) this.controls.order(p, true);
@@ -654,7 +670,7 @@ export class Game {
       tapScreen: { x, y },
       hit: this.picker.action(x, y),
       ground,
-      utilityPoint: this.canClick() && this.utilityAim.pointPending(),
+      utilityPoint: this.canOrder() && this.utilityAim.pointPending(),
       pickRadius: PICK_PX,
     });
     if (tap.kind !== "preview") this.touchPreview = null;
@@ -670,7 +686,7 @@ export class Game {
         return;
       case "place":
         this.hoverGround = null;
-        this.utilityAim.click(tap.at);
+        this.whenTurnEnds(() => this.utilityAim.click(tap.at));
         return;
       case "click":
         return this.onLeftClick(x, y, false);
@@ -705,8 +721,12 @@ export class Game {
   }
 
   private clickUtility(e: MouseEvent): boolean {
-    if (this.anim || this.modalOpen() || !playerCanAct(this.world)) return false;
-    return this.utilityAim.click(this.rig.groundUnder(e.clientX, e.clientY, this.ground));
+    if (this.modalOpen() || !playerCanAct(this.world)) return false;
+    const at = this.rig.groundUnder(e.clientX, e.clientY, this.ground);
+    if (!this.travel.isPlaying(this.anim)) return this.utilityAim.click(at);
+    if (!this.utilityAim.pointPending()) return false;
+    this.turnWait.defer(() => this.utilityAim.click(at));
+    return true;
   }
 
   private clickVehicle(id: string): void {
@@ -715,7 +735,12 @@ export class Game {
   }
 
   private aimVehicle(id: string): void {
-    if (this.selected.length === 0 || !this.canClick()) return;
+    if (this.selected.length === 0 || !this.canOrder()) return;
+    this.whenTurnEnds(() => this.aimVehicleNow(id));
+  }
+
+  private aimVehicleNow(id: string): void {
+    if (this.selected.length === 0 || !this.canOrder()) return;
     const target = vehicleById(this.world, id);
     if (isPlayerTruck(this.world, target)) return;
     this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), target));
@@ -930,6 +955,10 @@ export class Game {
   private rescueCommand(fn: (w: World) => World | null): void {
     if (this.modalOpen()) return;
     this.whenTurnEnds(() => this.runRescue(fn));
+  }
+
+  private sceneBusy(): boolean {
+    return this.screens.quest.isOpen() || (this.world.player.call !== null && !this.callShown());
   }
 
   whenTurnEnds(action: () => void, key?: string): void {
@@ -1169,8 +1198,7 @@ export class Game {
   }
 
   private openMap(): void {
-    if (this.anim) return;
-    this.screens.openCharacter("map");
+    this.whenTurnEnds(() => this.screens.openCharacter("map"));
   }
 
   private updateLiveVision(step: number | null): void {

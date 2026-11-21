@@ -36,6 +36,7 @@ function host(w: World) {
     openDowned: () => undefined,
     openLoot: (id: string) => { calls.loots.push(id); },
     openLookedOver: (id: string) => { calls.looks.push(id); },
+    whenTurnEnds: (action: () => void) => { action(); },
   } satisfies ContextHost;
   return { h, calls };
 }
@@ -302,12 +303,14 @@ describe('the Look over button', () => {
     expect(JSON.stringify(w)).toBe(before);
   });
 
-  it('opens nothing while a turn plays', () => {
+  it('waits for the turn to end, then opens', () => {
     const { w, npc } = lookScene();
     addState(w, 'sizedUp', w.player.vehicleId, npc.id, { kind: 'none' });
     const { h, calls } = host(w);
-    new TruckContext({ ...h, playing: () => true }).onCard('lookOver', npc.id);
+    const waiting: (() => void)[] = [];
+    new TruckContext({ ...h, playing: () => true, whenTurnEnds: (action) => { waiting.push(action); } }).onCard('lookOver', npc.id);
     expect(calls.looks).toEqual([]);
-    expect(calls.notes).toHaveLength(1);
+    waiting.forEach((action) => action());
+    expect(calls.looks).toEqual([npc.id]);
   });
 });

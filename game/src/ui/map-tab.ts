@@ -104,11 +104,14 @@ export class MapTab {
   }
 
   private click(e: PointerEvent): void {
-    const world = this.host.world();
-    if (this.host.getTurnPhase() !== null || !playerCanAct(world)) return;
     const dest = this.view.pick(e.clientX, e.clientY);
     if (!dest) return;
-    this.host.apply(setMoveOrder(world, clickOrder(world.terrain, dest, e.shiftKey, playerVehicle(world))));
+    const shift = e.shiftKey;
+    this.host.whenTurnEnds(() => {
+      const world = this.host.world();
+      if (!playerCanAct(world)) return;
+      this.host.apply(setMoveOrder(world, clickOrder(world.terrain, dest, shift, playerVehicle(world))));
+    });
   }
 }
 

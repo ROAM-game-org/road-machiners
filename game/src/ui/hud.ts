@@ -11,7 +11,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, dashRail, disabledWith, el, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
 import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
@@ -116,8 +116,8 @@ function rocker(lock: Msg | null, checked: boolean, title: Msg, reason: Msg | nu
   return { checked, title, reason: lock ?? reason, locked };
 }
 
-export function driveControlsOf(w: World, busy: boolean, manual: boolean, headlights: boolean): DriveControls {
-  const lock = orderLock(w, busy);
+export function driveControlsOf(w: World, manual: boolean, headlights: boolean): DriveControls {
+  const lock = orderLock(w);
   const od = overdriveSwitch(w);
   const block = douseBlock(w);
   return {
@@ -128,15 +128,14 @@ export function driveControlsOf(w: World, busy: boolean, manual: boolean, headli
   };
 }
 
-export function systemViewsOf(w: World, busy: boolean, journalBeside: boolean): Record<SystemKey, SystemKeyView> {
+export function systemViewsOf(w: World): Record<SystemKey, SystemKeyView> {
   const marked = characterMarked(w);
-  const playing = busy ? TURN_PLAYING : null;
   return {
     menu: { title: t("menu.menu"), reason: null, marked: false, key: "Esc" },
-    car: { title: t("hud.inventoryTitle"), reason: playing, marked: false, key: "I" },
-    character: { title: marked ? t("hud.driverPerk") : t("hud.driver"), reason: playing, marked, key: "C" },
-    map: { title: t("map.full"), reason: playing ?? mapBlock(w), marked: false, key: "M", hidden: !hasExplorationMap(w) },
-    journal: { title: t("hud.journal"), reason: journalBeside ? null : playing, marked: false, key: "J" },
+    car: { title: t("hud.inventoryTitle"), reason: null, marked: false, key: "I" },
+    character: { title: marked ? t("hud.driverPerk") : t("hud.driver"), reason: null, marked, key: "C" },
+    map: { title: t("map.full"), reason: mapBlock(w), marked: false, key: "M", hidden: !hasExplorationMap(w) },
+    journal: { title: t("hud.journal"), reason: null, marked: false, key: "J" },
   };
 }
 
@@ -164,7 +163,6 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
-  journalBeside: () => boolean;
   openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
@@ -176,7 +174,6 @@ type HudActions = {
   unhitch: () => void;
   setBeacon: (on: boolean) => void;
   endRun: () => void;
-  isBusy: () => boolean;
   autoTravel: () => boolean;
   dialogue: DialogueHost;
   recenter: () => void;
@@ -530,7 +527,6 @@ export class Hud {
 
   renderTop(w: World, live: World): void {
     const readout = getHudReadout(w);
-    const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
@@ -540,12 +536,12 @@ export class Hud {
     const me = playerVehicle(live);
     const pace = me.order && me.order.kind !== "brake" ? me.order.pace : undefined;
     const mark = me.direct ? me.setSpeed : pace;
-    this.renderDrive(w, readout, busy, mark === undefined ? null : kph(mark));
+    this.renderDrive(w, readout, mark === undefined ? null : kph(mark));
     this.renderStats(w, readout);
-    this.system.update(systemViewsOf(w, busy, this.actions.journalBeside()));
+    this.system.update(systemViewsOf(w));
   }
 
-  private renderDrive(w: World, readout: ReturnType<typeof getHudReadout>, busy: boolean, pace: number | null): void {
+  private renderDrive(w: World, readout: ReturnType<typeof getHudReadout>, pace: number | null): void {
     const fuel = readout.resources.find((r) => r.id === "fuel")!;
     const engine = readout.survival.find((r) => r.id === "engine")!;
     const p = w.player;
@@ -563,7 +559,7 @@ export class Hud {
       heat: p.engineHeat,
       heatTitle: t("hud.readout", { label: t("readout.engineHeat"), value: engine.value }),
       heatWarn: engine.warning,
-      ...driveControlsOf(w, busy, readout.manual, this.actions.headlightsOn()),
+      ...driveControlsOf(w, readout.manual, this.actions.headlightsOn()),
     });
   }
 

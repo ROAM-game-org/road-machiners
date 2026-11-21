@@ -49,11 +49,12 @@ function fire(type: string, x: number, y: number, extra: object = {}): void {
   handler({ pointerId: 1, clientX: x, clientY: y, shiftKey: false, ...extra });
 }
 
-function tab(world: World, phase: UiHost["getTurnPhase"] extends () => infer P ? P : never = null) {
+function tab(world: World, playing = false) {
   const applied: World[] = [];
-  const host = { world: () => world, apply: (next: World) => applied.push(next), getTurnPhase: () => phase } as unknown as UiHost;
+  const waiting: (() => void)[] = [];
+  const host = { world: () => world, apply: (next: World) => applied.push(next), whenTurnEnds: (action: () => void) => (playing ? waiting.push(action) : action()) } as unknown as UiHost;
   new MapTab(host);
-  return applied;
+  return Object.assign(applied, { endTurn: () => waiting.splice(0).forEach((action) => action()) });
 }
 
 describe("map tab waypoint click", () => {
@@ -98,11 +99,13 @@ describe("map tab waypoint click", () => {
     expect(applied).toHaveLength(0);
   });
 
-  it("does nothing while a turn plays", () => {
-    const applied = tab(emptyWorld(), "moving");
+  it("sets the order when the turn ends, not while it plays", () => {
+    const applied = tab(emptyWorld(), true);
     fire("pointerdown", 10, 10);
     fire("pointerup", 10, 10);
     expect(applied).toHaveLength(0);
+    applied.endTurn();
+    expect(applied).toHaveLength(1);
   });
 
   it("does nothing when the pointer is cancelled", () => {
