@@ -126,18 +126,6 @@
   white-space: nowrap;
   zoom: var(--cond-unzoom, 1);
 }
-#ui .condition-tip[data-side="above"] {
-  transform: translate(-50%, -100%);
-}
-#ui .condition-tip[data-side="above"] > .condition-tip-body {
-  margin-bottom: var(--space-4);
-}
-#ui .condition-tip[data-side="below"] {
-  transform: translate(-50%, 0);
-}
-#ui .condition-tip[data-side="below"] > .condition-tip-body {
-  margin-top: var(--space-4);
-}
 .cond-plan,
 .cond-plan-turned {
   position: absolute;
