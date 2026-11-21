@@ -302,56 +302,89 @@ describe("the inventory looking another truck over", () => {
   });
 });
 
-describe("the auto patch switch in the inventory", () => {
+describe("the auto patch key in the inventory foot", () => {
   afterEach(() => {
     ui.children = [];
     vi.unstubAllGlobals();
   });
 
-  function switchOf(world: World): { node: FakeNode | undefined; applied: World[] } {
-    const { screen, applied } = screenOver(world);
-    screen.toggle();
-    const root = ui.children[ui.children.length - 1] as FakeNode;
-    return { node: root.all((n) => n.attrs.get("role") === "switch")[0], applied };
-  }
+  const rootOf = () => ui.children[ui.children.length - 1] as FakeNode;
+  const switchesOf = (root: FakeNode) => root.all((n) => n.attrs.get("role") === "switch");
 
-  function playerWorld(): World {
+  function playerWorld(autoRepair: boolean): World {
     const world = emptyWorld();
     const truck = addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
     world.player.vehicleId = truck.id;
+    world.player.autoRepair = autoRepair;
     return world;
   }
 
-  it("shows the real setting and flips it through the host on a click", () => {
-    const world = playerWorld();
-    world.player.autoRepair = false;
-    const { node, applied } = switchOf(world);
-    expect(node?.attrs.get("aria-checked")).toBe("false");
-    node?.listeners.get("click")?.();
-    expect(applied).toHaveLength(1);
-    expect(applied[0].player.autoRepair).toBe(true);
+  function liveScreen(start: World): { screen: InventoryScreen; now: () => World } {
+    stubDom();
+    let world = start;
+    const screen = new InventoryScreen({ world: () => world, apply: (next: World) => (world = next), announce: () => {}, searchStock: () => {}, getTurnPhase: () => null } as never);
+    screen.toggle();
+    return { screen, now: () => world };
+  }
+
+  function footKey(): FakeNode {
+    const foot = rootOf().all((n) => n.className === "inv-foot")[0];
+    const keys = switchesOf(foot);
+    expect(keys).toHaveLength(1);
+    return keys[0];
+  }
+
+  it("sits on the foot as a plain key that shows the setting, with P in its tooltip", () => {
+    liveScreen(playerWorld(false));
+    const key = footKey();
+    expect(key.tag).toBe("button");
+    expect(key.className).toBe("");
+    expect(key.attrs.get("aria-checked")).toBe("false");
+    expect(key.attrs.get("title")).toContain("[P]");
+    expect(switchesOf(rootOf())).toHaveLength(1);
   });
 
-  it("reads on when the setting is on", () => {
-    const world = playerWorld();
-    world.player.autoRepair = true;
-    expect(switchOf(world).node?.attrs.get("aria-checked")).toBe("true");
+  it("flips the setting through the sim on a click, and the redrawn key follows", () => {
+    const { screen, now } = liveScreen(playerWorld(false));
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(true);
+    screen.render();
+    expect(footKey().attrs.get("aria-checked")).toBe("true");
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(false);
   });
 
-  it("is off with the reason while knocked out and flips nothing", () => {
-    const world = playerWorld();
+  it("is off with Knocked out while the driver is down, and flips nothing", () => {
+    const world = playerWorld(true);
     world.player.state = "knockedOut";
-    const { node, applied } = switchOf(world);
-    expect(node?.attrs.get("aria-disabled")).toBe("true");
-    node?.listeners.get("click")?.();
-    expect(applied).toEqual([]);
+    const { now } = liveScreen(world);
+    const key = footKey();
+    expect(key.attrs.get("aria-disabled")).toBe("true");
+    expect(key.attrs.get("data-reason")).toBe("Knocked out");
+    key.listeners.get("click")?.();
+    expect(now()).toBe(world);
+  });
+
+  it("is off with the scene reason over a scene", () => {
+    const world = playerWorld(true);
+    world.player.quests.live = { ...SCENE };
+    liveScreen(world);
+    expect(footKey().attrs.get("data-reason")).toBe("Not during a scene");
   });
 
   it("is absent on a loot screen", () => {
     const { w, stock } = spotWorld();
     const { screen } = screenOver(w);
     screen.openLoot(stock.id);
-    const root = ui.children[ui.children.length - 1] as FakeNode;
-    expect(root.all((n) => n.attrs.get("role") === "switch")).toHaveLength(0);
+    expect(switchesOf(rootOf())).toHaveLength(0);
+  });
+
+  it("is absent while another truck is looked over", () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, "independent", "buggy", ["mg", "stockEngine"], { x: 34, y: 30 });
+    addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
+    const { screen } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    expect(switchesOf(rootOf())).toHaveLength(0);
   });
 });

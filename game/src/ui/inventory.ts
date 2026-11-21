@@ -42,7 +42,8 @@ import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
-import { budgetGroup, truckGroups, type AutoPatchControl } from "./truck-panel";
+import { budgetGroup, truckGroups } from "./truck-panel";
+import { autoPatchKey } from "./auto-patch-key";
 import { itemActions, itemFacts, jobBlock, rotateButton, type CardHost } from "./item-card";
 import {
   blockerIds,
@@ -278,20 +279,30 @@ export class InventoryView {
     return el(
       "div",
       { class: "inv-bench" },
-      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me, this.autoPatch(w))), ...this.jobBlock(w))),
+      el("div", { class: "inv-side-column" }, el("div", { class: "inv-band" }, head.title), el("div", { class: "well" }, budget, ...(this.sourceList(w) ?? truckGroups(w, me)), ...this.jobBlock(w))),
       middle,
       el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, this.inspection, error)),
-      this.footEl(),
+      this.footEl(w),
     );
   }
 
   private twoColumns(w: World, me: Vehicle, middle: HTMLElement, close: HTMLElement, budget: HTMLElement, error: HTMLElement): HTMLElement {
-    const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me, this.autoPatch(w)));
-    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)), this.footEl());
+    const facts = this.sourceList(w) ?? (this.selection(w) ? [] : truckGroups(w, me));
+    return el("div", { class: "inv-bench two" }, middle, el("div", { class: "inv-side-column" }, close, el("div", { class: "well" }, budget, ...facts, this.inspection, ...this.jobBlock(w), error)), this.footEl(w));
   }
 
-  private footEl(): HTMLElement {
-    return el("div", { class: "inv-foot" }, this.lootKeys, this.keys);
+  private footEl(w: World): HTMLElement {
+    return el("div", { class: "inv-foot" }, this.loot || this.truck ? this.lootKeys : this.settingKeys(w), this.keys);
+  }
+
+  private settingKeys(w: World): HTMLElement {
+    const own = this.mine(w).id === w.player.vehicleId;
+    return el("div", { class: "inv-keys settings" }, own ? autoPatchKey({ on: w.player.autoRepair, reason: this.look(), flip: () => this.flipAutoPatch() }) : null);
+  }
+
+  private flipAutoPatch(): void {
+    const w = this.host.world();
+    this.host.apply(setAutoRepair(w, !w.player.autoRepair));
   }
 
   private sourceList(w: World): HTMLElement[] | null {
@@ -1088,10 +1099,6 @@ export class InventoryView {
     const next = planAfterMove(plannedTruck(w, this.mine(w)), this.plan, itemId, to);
     if (Object.keys(next).length > 0) startRefit(w, next, this.gridTruck ?? undefined);
     this.plan = next;
-  }
-
-  private autoPatch(w: World): AutoPatchControl {
-    return { reason: this.look(), flip: () => this.host.apply(setAutoRepair(this.host.world(), !this.host.world().player.autoRepair)) };
   }
 
   private look(): Msg | null {
