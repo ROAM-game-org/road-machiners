@@ -2,7 +2,7 @@ import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { conditionItems, PX_PER_METER } from "../three/render/portraitPixels";
 import { CardGesture } from "./card-gesture";
-import { CardZoom, densityCap, fitZoom, type Point } from "./card-zoom";
+import { CardZoom, densityCap, fitClearOf, fitZoom, type Point, type Size } from "./card-zoom";
 import { wheelZoomFactor } from "./map-geometry";
 import { spanOf } from "../sim/body";
 import type { Vehicle } from "../sim/types";
@@ -29,7 +29,7 @@ type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 type Drawing = Portrait | ConditionPlan;
 export type ZoomState = { canZoomIn: boolean; canZoomOut: boolean };
-export type ConditionOptions = { magnify?: (state: ZoomState) => void };
+export type ConditionOptions = { magnify?: (state: ZoomState) => void; clearCorner?: HTMLElement };
 
 const TIP_GAP = 2;
 
@@ -221,7 +221,8 @@ export class TruckConditionView {
     const room = contentBox(box);
     const inner = { width: room.width - outline, height: room.height - outline };
     if (inner.width <= 0 || inner.height <= 0) return;
-    const fit = fitZoom(inner, natural, densityCap(this.scale, window.devicePixelRatio));
+    const cap = densityCap(this.scale, window.devicePixelRatio);
+    const fit = this.options.clearCorner ? fitClearOf(inner, natural, cap, cornerTaken(box, this.options.clearCorner)) : fitZoom(inner, natural, cap);
     if (!this.zoom) return this.setZoom(fit);
     this.zoom.refit(fit, room, natural, PX_PER_METER * this.scale);
     this.fitted = true;
@@ -505,6 +506,16 @@ export class TruckConditionView {
       layerImage("cond-pick", this.drawing, this.drawing.glow(part.id, part.tier), part.tier),
     );
   }
+}
+
+function cornerTaken(box: HTMLElement, corner: HTMLElement): Size {
+  const at = corner.getBoundingClientRect();
+  if (at.width === 0 || at.height === 0) return { width: 0, height: 0 };
+  const edge = box.getBoundingClientRect();
+  const style = getComputedStyle(box);
+  const right = edge.left + box.clientLeft + box.clientWidth - parseFloat(style.paddingRight);
+  const bottom = edge.top + box.clientTop + box.clientHeight - parseFloat(style.paddingBottom);
+  return { width: Math.max(0, right - at.left), height: Math.max(0, bottom - at.top) };
 }
 
 function contentBox(box: HTMLElement): { width: number; height: number } {
