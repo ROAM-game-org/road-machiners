@@ -24,7 +24,8 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `inventory.jpg`: the inventory with the first part picked.
 - `inventory-gun.jpg`: the inventory with a mounted gun picked.
 - `loot.jpg`: the inventory with a salvage source.
-- `look-over.jpg`: the inventory looking another truck over.
+- `look-over.jpg`: the inventory looking another truck over, its driver's name on tape over its own screen.
+- `downed.jpg`: the inventory on a truck that gave up or was knocked out, with the state as the first line of its screen.
 - `character.jpg`: the character screen, skills.
 - `world-map.jpg`: the character screen, map.
 - `journal-survey.jpg`: the journal with a survey contract.

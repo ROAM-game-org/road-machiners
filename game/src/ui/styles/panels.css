@@ -445,7 +445,7 @@
 #ui .toast.bad {
   color: var(--hud-hot);
 }
-#ui .action {
+#ui :is(.action, .site-status) {
   left: 50%;
   top: var(--hud-inset);
   transform: translateX(-50%);

@@ -1,4 +1,5 @@
-import { actionRow, costItem, createIcon, gaugeEl, statRow, statValueEl } from "../cards";
+import { PAINT } from "../../data/chassis";
+import { actionRow, chassisPortrait, costItem, createIcon, gaugeEl, statRow, statValueEl } from "../cards";
 import { chipEl } from "../chip";
 import { devEl as el, el as msgEl } from "../dom";
 import { speedKey } from "../travel-speed";
@@ -39,6 +40,7 @@ export const PIECES: Piece[] = [
   { name: ".screen-block", note: "A screen set into a window, one per block of changing content.", build: () => sample("screen-block", "Changing content") },
   { name: ".screen-line", note: "One choice the game wrote, on a screen, with its number first.", build: () => el("div", { class: "screen-block" }, text("button", "screen-line", "1. Ask about the road"), text("button", "screen-line selected", "2. Picked line"), text("button", "screen-line seen", "3. Read before")) },
   { name: ".screen-btn", note: "The action of one line of a list, drawn on its screen.", build: () => el("div", { class: "screen-block" }, text("button", "screen-btn", "Accept"), " ", text("button", "screen-btn selected", "Picked")) },
+  { name: ".crt-picture", note: "A truck picture on a screen, with the glass's scan rows across it.", build: () => el("div", { class: "screen-block" }, chassisPortrait("scout", PAINT.standard)) },
   { name: ".tape", note: "A name from the game used as a heading on metal.", build: () => text("span", "tape", "Scout pickup") },
   { name: ".panel-title", note: "The heading of a small HUD panel.", build: () => text("h3", "panel-title", "Title") },
   { name: "button", note: "The default button.", build: () => text("button", "", "Button") },

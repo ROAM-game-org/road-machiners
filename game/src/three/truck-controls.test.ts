@@ -116,6 +116,28 @@ describe('the E key on a place that is not ready', () => {
   });
 });
 
+describe('the E key at a picked clean place', () => {
+  function emptyWreck() {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.salvage.push({ id: 'wreck902', pos: { x: 30.5, y: 30 }, radius: 1, goods: {}, parts: [], hidden: emptyHidden() });
+    return w;
+  }
+
+  it('shows the status with no action and no count', () => {
+    const { h } = host(emptyWreck());
+    const shown = new TruckContext(h).shown();
+    expect(shown).toMatchObject({ action: null, count: 0 });
+    expect(shown.status && resolve(shown.status, 'en')).toBe('The wreck is picked clean');
+  });
+
+  it('raises no toast and changes nothing', () => {
+    const { h, calls } = host(emptyWreck());
+    new TruckContext(h).use();
+    expect(calls.notes).toEqual([]);
+    expect(calls.applied).toEqual([]);
+  });
+});
+
 function controlsOf(world: World) {
   const host = { world, revs: 0, applied: 0, notes: [] as unknown[] };
   const c = new TruckControls({

@@ -711,16 +711,19 @@ async function cardSizeFaults(page) {
   });
 }
 
-async function openPartTip(page) {
+async function openPartTip(page, downs = [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], acrosses = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9, 0.04, 0.96]) {
   const box = await page.evaluate(() => {
     const hit = document.querySelector('#ui .info .condition-hit');
     if (!hit) return null;
     const b = hit.getBoundingClientRect();
-    return { left: b.left, top: b.top, width: b.width, height: b.height };
+    const screen = hit.closest('.info-draw')?.getBoundingClientRect() ?? b;
+    const left = Math.max(b.left, screen.left);
+    const top = Math.max(b.top, screen.top);
+    return { left, top, width: Math.min(b.right, screen.right) - left, height: Math.min(b.bottom, screen.bottom) - top };
   });
   if (!box) return false;
-  for (const down of [0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]) {
-    for (const across of [0.5, 0.35, 0.65]) {
+  for (const down of downs) {
+    for (const across of acrosses) {
       const x = box.left + box.width * across;
       const y = box.top + box.height * down;
       await page.mouse.move(x - 2, y);
@@ -745,11 +748,86 @@ async function tipFaults(page) {
   });
 }
 
+async function dragDrawing(page, dx, dy) {
+  const box = await page.evaluate(() => {
+    const b = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2, h: b.height, w: b.width };
+  });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + dx * box.w, box.y + dy * box.h, { steps: 4 });
+  await page.mouse.up();
+}
+
+async function openPartTipAfterPanning(page) {
+  if (await openPartTip(page)) return true;
+  for (let i = 0; i < 24; i++) await dragDrawing(page, 0, 0.45);
+  for (let i = 0; i < 60; i++) {
+    await dragDrawing(page, 0, -0.8);
+    if (await openPartTip(page, [0.9, 0.7, 0.5, 0.3, 0.1], [0.5, 0.2, 0.8])) return true;
+  }
+  return false;
+}
+
+const ZOOM_KEYS = '#ui .info .info-zoom button';
+
+const cardBoxes = (page) =>
+  page.evaluate(() => {
+    const rect = (sel) => {
+      const b = document.querySelector(sel)?.getBoundingClientRect();
+      return b ? [b.left, b.top, b.width, b.height].map(Math.round) : null;
+    };
+    return { card: rect('#ui .info'), draw: rect('#ui .info .info-draw') };
+  });
+
+const pressZoom = (page, index, times) =>
+  page.evaluate(([sel, index, times]) => {
+    const key = document.querySelectorAll(sel)[index];
+    for (let i = 0; i < times && key.getAttribute('aria-disabled') !== 'true'; i++) key.click();
+  }, [ZOOM_KEYS, index, times]);
+
+async function cardZoomFaults(page) {
+  const keyCount = await page.evaluate((sel) => document.querySelectorAll(sel).length, ZOOM_KEYS);
+  if (keyCount !== 2) return ['the card has no zoom keys'];
+  const before = await cardBoxes(page);
+  await pressZoom(page, 1, 8);
+  const faults = [];
+  const after = await cardBoxes(page);
+  if (JSON.stringify(after) !== JSON.stringify(before)) faults.push('the card or its picture screen changed size when the drawing zoomed');
+  faults.push(
+    ...(await page.evaluate((sel) => {
+      const out = [];
+      const reachable = (node, name) => {
+        const b = node.getBoundingClientRect();
+        const at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        if (b.right > innerWidth + 1 || b.bottom > innerHeight + 1 || b.left < -1 || b.top < -1) out.push(`${name} is off the window at the closest view`);
+        else if (!at || !node.contains(at)) out.push(`${name} is covered at the closest view`);
+      };
+      for (const node of document.querySelectorAll('#ui .info .info-actions button')) reachable(node, `the ${node.textContent.trim() || 'card'} key`);
+      for (const node of document.querySelectorAll(sel)) reachable(node, 'a zoom key');
+      return out;
+    }, ZOOM_KEYS)),
+  );
+  if (!(await openPartTipAfterPanning(page))) faults.push('the part tip never opens over the magnified drawing');
+  else {
+    const outside = await page.evaluate(() => {
+      const tip = document.querySelector('#ui .info .condition-tip-body').getBoundingClientRect();
+      const draw = document.querySelector('#ui .info .info-draw').getBoundingClientRect();
+      return tip.left < draw.left - 1 || tip.right > draw.right + 1 || tip.top < draw.top - 1 || tip.bottom > draw.bottom + 1;
+    });
+    if (outside) faults.push('the part tip leaves the picture screen at the closest view');
+  }
+  await pressZoom(page, 0, 8);
+  await page.keyboard.press('Shift');
+  return faults;
+}
+
 async function cardFaults(page) {
   const shown = await page.evaluate((sel) => document.querySelector(sel)?.style.display !== 'none' && document.querySelector(sel) !== null, CARD);
   if (!shown) return faultsOf('enemy-card')(['the enemy card is not shown']);
   const checks = [cardPlaceFaults(page), cardCutFaults(page), cardShapeFaults(page), keycapFaults(page, CARD, 'card'), cardSizeFaults(page), tipFaults(page)];
-  return faultsOf('enemy-card')((await Promise.all(checks)).flat());
+  const found = (await Promise.all(checks)).flat();
+  return faultsOf('enemy-card')([...found, ...(await cardZoomFaults(page))]);
 }
 
 const NAV_STEPS = [
@@ -970,7 +1048,7 @@ const BENCH_AUDIT = () => {
   const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
-  const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
+  const tops = [...all('.well:not(.inv-target-screen)').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
   const costs = frame.querySelector('.inv-costs');
   const keys = frame.querySelector('.inv-foot .inv-keys:not(.loot) .action-rows');
   const apart = (c, k) => c.top > k.bottom || k.top - c.bottom > 40 || c.left < k.left - 1 || c.left > k.right;
@@ -1101,8 +1179,52 @@ async function openLookedOver(page) {
     world.states.push({ id: 'layout-sized-up', kind: 'sizedUp', holder: world.player.vehicleId, other: npc.id, turnsLeft: 99, born: world.turn, data: { kind: 'none' } });
     g.apply(world);
     g.screens.inventory.openLookedOver(g.state, npc.id);
+    g.hud.tips.setOn(false);
   });
 }
+
+async function openDowned(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    window.__layoutWorld = (await import('/src/sim/world.ts')).cloneWorld(g.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    npc.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: true };
+    g.apply(world);
+    g.screens.inventory.view.setTruck(npc.id, 'downed');
+    g.screens.inventory.root.style.display = '';
+    g.screens.inventory.render();
+    g.hud.tips.setOn(false);
+  });
+}
+
+const TARGET_AUDIT = () => {
+  const wrapper = document.querySelector('.inventory-screen .inv-target');
+  const screen = wrapper?.querySelector(':scope > .inv-target-screen');
+  if (!screen) return ['no target screen'];
+  const box = screen.getBoundingClientRect();
+  const tape = wrapper.querySelector(':scope > .tape');
+  const state = screen.querySelector(':scope > .inv-target-state');
+  const grid = screen.querySelector('.inv-grid');
+  if (!tape) return ['target has no tape'];
+  const found = [];
+  const tapeBox = tape.getBoundingClientRect();
+  if (tapeBox.top > box.top || tapeBox.bottom < box.top) found.push('tape is not on the screen lip');
+  if (tape.scrollWidth > tape.clientWidth + 1) found.push('tape is clipped');
+  if (screen.closest('.well:not(.inv-target-screen)')) found.push('target sits in another well');
+  const meet = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const covered = [tapeBox, state?.getBoundingClientRect()].filter(Boolean);
+  for (const part of grid ? grid.querySelectorAll('*') : []) {
+    const r = part.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0 || part.closest('.icon')) continue;
+    if (covered.some((c) => meet(c, r))) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} covers the name or the state`);
+    if (r.top < box.top - 1 || r.bottom > box.bottom + 1 || r.left < box.left - 1 || r.right > box.right + 1) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} leaves the target screen`);
+  }
+  return [...new Set(found)];
+};
+
+const targetFaults = async (page) => (await page.evaluate(TARGET_AUDIT)).map((text) => ({ kind: 'inventory-target', path: '', text, sizes: '' }));
 
 async function openNewGameScreen(page) {
   await openStartMenu(page);
@@ -1175,7 +1297,8 @@ const STATES = {
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
   'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
-  'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
+  'look-over': { setup: openLookedOver, teardown: escape, viewports: [...VIEWPORTS, COMPACT, TALL], check: targetFaults },
+  downed: { setup: openDowned, teardown: async (page) => { await escape(page); await page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)); }, viewports: [...VIEWPORTS, COMPACT, TALL], check: targetFaults },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
   ...OUTPOST_STATES,
 };

@@ -449,8 +449,8 @@ export class Game {
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
-    const { action, count, index } = this.context.shown();
-    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
+    const { action, count, index, status } = this.context.shown();
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"), status);
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
@@ -463,7 +463,7 @@ export class Game {
   private refreshInfo(): void {
     const w = this.displayWorld();
     const v = w.vehicles.find((x) => x.id === this.inspected() && playerSees(w, x.pos)) ?? null;
-    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false);
+    this.hud.showInfo(w, v, v ? hostileToPlayer(w, v) : false, v !== null && this.pin.id === v.id);
     this.hitCard.render(w, v ? v.id : null, this.selected);
   }
 

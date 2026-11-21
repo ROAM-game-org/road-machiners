@@ -20,7 +20,7 @@ import { markError, markVehicle } from "../sim/detect";
 import { knowsCargo, lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
 import { actionBlockReason, contextKey, type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
-import { ContextPicker, getContextActions } from "../ui/hud-readout";
+import { ContextPicker, getContext, getContextActions } from "../ui/hud-readout";
 import { TURN_PLAYING } from "../ui/dom";
 
 export type ControlsHost = {
@@ -111,10 +111,10 @@ export class TruckContext {
 
   constructor(private host: ContextHost) {}
 
-  shown(): { action: ContextAction | null; count: number; index: number } {
-    const actions = getContextActions(this.host.world(), this.host.playing());
+  shown(): { action: ContextAction | null; count: number; index: number; status: Msg | null } {
+    const { actions, status } = getContext(this.host.world(), this.host.playing());
     const action = this.picker.pick(actions);
-    return { action, count: actions.length, index: Math.max(0, actions.findIndex((a) => a === action)) };
+    return { action, count: actions.length, index: Math.max(0, actions.findIndex((a) => a === action)), status };
   }
 
   cycle(step: 1 | -1): void {
@@ -168,7 +168,6 @@ export class TruckContext {
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
       survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
-      empty: () => undefined,
     };
     handlers[target.kind]();
   }

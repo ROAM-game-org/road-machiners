@@ -272,7 +272,7 @@
   --hud-frame-slice: 2.74% 1.83%;
   --hud-frame-bevel: 8px;
   --hud-screen-slice: 13.6% 6.8%;
-  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 2px, var(--hud-crt-scan) 2px 4px), radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%), var(--hud-crt-fill);
+  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 var(--hud-crt-row), var(--hud-crt-scan) var(--hud-crt-row) calc(2 * var(--hud-crt-row))), radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%), var(--hud-crt-fill);
   --hud-screen-shade: inset 0 0 var(--space-4) var(--hud-crt-edge), inset 0 var(--space-1) var(--space-2) var(--hud-crt-edge);
   --goods-count-w: 9ch;
   --town-split-min: 260px;
@@ -289,7 +289,10 @@
   --scroll-track: #1d1208;
   --hud-crt-fill: radial-gradient(ellipse 75% 85% at 50% 48%, #321f0e, #26170a 75%);
   --hud-crt-blur: 0.4;
+  --hud-crt-row: 2px;
   --hud-crt-scan: #00000026;
+  --hud-crt-over-lit: #000000;
+  --hud-crt-over-scan: #000000e6;
   --hud-crt-vignette: #00000033;
   --hud-crt-sheen: #fff3d60d;
   --hud-crt-sheen-fade: #fff3d605;
