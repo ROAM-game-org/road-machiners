@@ -1756,6 +1756,18 @@
   flex: none;
 }
 
+#ui .info .info-zoom {
+  --hud-key-h: var(--btn-h-s);
+  --hud-icon: var(--icon-s);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#ui .info .info-zoom > button.hud-key {
+  padding: 0;
+}
+
 #ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
   box-sizing: border-box;
 }

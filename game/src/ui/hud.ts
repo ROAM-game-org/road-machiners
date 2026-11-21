@@ -11,7 +11,7 @@ import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch, type FirstAidBlock } from "../sim/jobs";
 import { gaveUp } from "../sim/defeat";
-import { bottomLeft, dashRail, disabledWith, el, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, dashRail, disabledWith, el, markDisabled, TURN_PLAYING, panel, replaceChanged, rightColumn, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { DrivePanel, type CoolView, StatsStrip, SystemKeys, type SystemKey, type SystemKeyView, dialEnd, dashFit, wheelFrame } from "./dash/panels";
 import { mountScrollWheels, SCROLL_SCREENS } from "./scroll-wheel";
 import { controls, panelHead, rockerButton, screen, screenLine, setAttrText, textKey, type RockerView } from "./dash/skin";
@@ -205,6 +205,9 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedId: string | null = null;
+  private readonly zoomOutKey = el("button", { class: "hud-key icon-key", title: t("map.zoomOut"), "aria-label": t("map.zoomOut"), onclick: () => this.inspected.zoomStep(-1) }, createIcon("minus"));
+  private readonly zoomInKey = el("button", { class: "hud-key icon-key", title: t("map.zoomIn"), "aria-label": t("map.zoomIn"), onclick: () => this.inspected.zoomStep(1) }, createIcon("plus"));
+  private readonly zoomKeys = el("div", { class: "hud-keybed info-zoom" }, this.zoomOutKey, this.zoomInKey);
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel hud-panel", rightDock());
   private wanted = panel("wanted dock-panel hud-panel", rightDock());
@@ -358,7 +361,7 @@ export class Hud {
     this.portraits = new TruckPortraits(renderer, gpu, readback);
     this.garage = new GarageRenders(renderer, gpu, readback);
     this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
-    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
+    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M, { magnify: (state) => this.markZoomKeys(state) });
     this.portraits.onReady((vehicleId) => {
       if (vehicleId === this.inspectedId) this.placeInfo();
     });
@@ -647,7 +650,19 @@ export class Hud {
     return this.portraits.settled(vehicleId);
   }
 
+  private infoHead(w: World, v: Vehicle): HTMLElement {
+    const head = panelHead(v.brain ? driverName(v) : vehicleTitle(w, v));
+    head.append(this.zoomKeys);
+    return head;
+  }
+
+  private markZoomKeys(state: { canZoomIn: boolean; canZoomOut: boolean }): void {
+    markDisabled(this.zoomInKey, state.canZoomIn ? null : t("map.zoomedIn"));
+    markDisabled(this.zoomOutKey, state.canZoomOut ? null : t("card.zoomedOut"));
+  }
+
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
+    if (v?.id !== this.inspectedId || this.info.style.display === "none") this.inspected.resetZoom();
     this.inspectedId = v?.id ?? null;
     this.wantPortraits(w, v);
     if (!v) {
@@ -660,7 +675,7 @@ export class Hud {
     this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      panelHead(v.brain ? driverName(v) : vehicleTitle(w, v)),
+      this.infoHead(w, v),
       screen(infoFacts(w, v, hostile), el("div", { class: "info-state" }, wantedMark(w, v), formatCardState(w, v)), ...quietLines(w, v).map((line) => screenLine("dim", line))),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
       this.cardButtons(w, v) ?? controls(),
