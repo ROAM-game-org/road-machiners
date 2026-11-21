@@ -14,7 +14,7 @@ import { resolveNpcActivities } from './npc-activities';
 import { refreshVision } from './vision';
 import { findSpot, gridOf } from './grid';
 import { endTurn, setMoveOrder } from './world';
-import { advanceJobs, isBusy, startAutoRepair } from './jobs';
+import { advanceJobs, cancelJob, isBusy, startAutoRepair } from './jobs';
 import { addGoods } from './inventory';
 import { canTakeAny, collectSalvage, createWreckSalvage, dumpOnPile, emptyHidden, hiddenUnits, isRoadWreck, renewSalvage, revealTurn, wreckStockId } from './salvage';
 import { SEARCH, WORK } from '../data/utilities';
@@ -415,13 +415,54 @@ describe('finite hidden salvage', () => {
     expect(searchJob(scavenge(w, 'rich').vehicles[0]).total).toBe(10);
   });
 
-  it('logs what each search turn finds for the player', () => {
+  it('keeps what a search finds out of the log until the search ends', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const stock = hiddenStock('rich', { x: 30, y: 30 }, { goods: { scrap: SALVAGE.unitsPerTurn * 4 } });
+    w.salvage.push(stock);
+    let now = scavenge(w, 'rich');
+    const carried = goodsCount(now.vehicles[0]).scrap ?? 0;
+    const total = searchJob(now.vehicles[0]).total;
+    const found: Extract<World['events'][number], { t: 'found' }>[] = [];
+    for (let turn = 1; turn < total; turn++) {
+      now = endTurn(now, testDrive);
+      expect(now.events.some((e) => e.t === 'found' || e.t === 'searched')).toBe(false);
+      expect(goodsCount(now.vehicles[0]).scrap ?? 0).toBe(carried);
+    }
+    now = endTurn(now, testDrive);
+    for (const e of now.events) if (e.t === 'found') found.push(e);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ vehicle: now.player.vehicleId, stock: 'rich' });
+    const types = now.events.map((e) => e.t);
+    expect(types.indexOf('found')).toBeLessThan(types.indexOf('searched'));
+    expect(now.salvage.find((s) => s.id === 'rich')!.goods.scrap).toBe(found[0].goods.scrap);
+  });
+
+  it('tells the finds so far once when a search is cancelled', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.salvage.push(hiddenStock('rich', { x: 30, y: 30 }, { goods: { scrap: 400 } }));
-    const next = endTurn(scavenge(w, 'rich'), testDrive);
-    const found = next.events.find((e) => e.t === 'found');
-    expect(found).toMatchObject({ t: 'found', vehicle: next.player.vehicleId, stock: 'rich' });
-    expect(next.salvage.find((s) => s.id === 'rich')!.goods.scrap).toBe(found?.t === 'found' ? found.goods.scrap : -1);
+    const now = endTurn(scavenge(w, 'rich'), testDrive);
+    expect(now.events.some((e) => e.t === 'found')).toBe(false);
+    const job = searchJob(now.vehicles[0]);
+    expect(job.found?.goods.scrap).toBeGreaterThan(0);
+    const held = job.found!.goods.scrap;
+    const draft = cloneWorld(now);
+    draft.events = [];
+    cancelJob(draft, draft.vehicles[0]);
+    const told = draft.events.filter((e) => e.t === 'found');
+    expect(told).toHaveLength(1);
+    expect(told[0]).toMatchObject({ goods: { scrap: held } });
+    cancelJob(draft, draft.vehicles[0]);
+    expect(draft.events.filter((e) => e.t === 'found')).toHaveLength(1);
+  });
+
+  it('never tells an NPC search in the log', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.salvage.push(hiddenStock('rich', { x: 50, y: 50 }, { goods: { scrap: 400 } }));
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: 50, y: 51 });
+    npc.brain = npcBrain('trader', npc.pos, ['raider']);
+    beginSearch(w, npc, 'rich');
+    for (let turn = 0; turn < 40 && npc.job; turn++) advanceJobs(w);
+    expect(w.events.some((e) => e.t === 'found')).toBe(false);
   });
 
   it('lets the player search again while hidden units remain, and loot only revealed loot', () => {
