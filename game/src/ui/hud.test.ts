@@ -243,25 +243,25 @@ describe('the Wanted well', () => {
 });
 
 describe('order controls while knocked out', () => {
-  const orderReasons = (w: World, busy: boolean) => Object.values(driveControlsOf(w, busy, false, false)).map((control) => control.reason);
+  const orderReasons = (w: World) => Object.values(driveControlsOf(w, false, false)).map((control) => control.reason);
 
-  it('dims every order control with Knocked out, whether or not a turn plays', () => {
+  it('dims every order control with Knocked out, at any time', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.state = 'knockedOut';
-    for (const busy of [false, true]) for (const reason of orderReasons(w, busy)) expect(reason && resolve(reason, 'en')).toBe('Knocked out');
+    for (const reason of orderReasons(w)) expect(reason && resolve(reason, 'en')).toBe('Knocked out');
   });
 
   it('keeps Driver and Journal usable while knocked out and idle', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.state = 'knockedOut';
-    const keys = systemViewsOf(w, false, false);
+    const keys = systemViewsOf(w);
     expect(keys.character.reason).toBeNull();
     expect(keys.journal.reason).toBeNull();
   });
 
   it('shows no Knocked out reason on an active player', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    expect(orderReasons(w, false).slice(0, 2)).toEqual([null, null]);
+    expect(orderReasons(w).slice(0, 2)).toEqual([null, null]);
   });
 });
 
