@@ -11,6 +11,7 @@ style.textContent = `
 .part-drive .d-label, .part-drive .d-cool { position: absolute; display: grid; place-items: center; white-space: nowrap; text-transform: uppercase; font-family: "Routed Gothic Narrow", sans-serif; -webkit-text-stroke: 0.03em currentColor; overflow: visible; }
 .part-drive .d-cool { white-space: normal; text-align: center; line-height: 1.05; letter-spacing: 0.02em; }
 .part-drive .d-lamp { position: absolute; border-radius: 50%; }
+.part-drive .d-lamp.red.lit { background: radial-gradient(circle at 40% 35%, #ffd0c8, #ef4f3a 45%, transparent 72%); box-shadow: 0 0 6px #ef4f3a; }
 .part-drive .d-lamp.lit { background: radial-gradient(circle at 40% 35%, #e4d1a5, #e8a43a 45%, transparent 72%); box-shadow: 0 0 6px #e8a43a; }
 .part-drive button.hit { background: none; border: 0; padding: 0; cursor: pointer; }
 `;
@@ -72,7 +73,7 @@ function speedDial(api, live) {
   needle(svg, cx, cy, 148 * SCALE, 23 * SCALE, NEEDLE, angle);
 }
 
-const GLASS = { fuel: [154.85, 619.25, 210.45, 658.35], heat: [216.35, 619.25, 271.65, 658.35] };
+const GLASS = { fuel: [154.85, 621.25, 210.45, 660.35], heat: [216.35, 621.25, 271.65, 660.35] };
 const ARC = { reach: 0.43, rise: 0.16, stroke: 0.143, needle: 1.14, hub: 0.116, gap: 0.3 };
 
 function arcGauge(api, name, tone, lowItem, highItem, share) {
@@ -123,6 +124,7 @@ export default function driveOverlay(api) {
     z.textContent = it.text;
     Object.assign(z.style, { font: it.font.replace(/[\d.]+px/, css(10)), color: 'rgb(228, 209, 165)', letterSpacing: 'normal', lineHeight: css(15.3) });
   }
+  api.zone('heatLamp', 'd-lamp red').classList.add('lit');
   [0, 1, 2].forEach((i) => {
     const rocker = api.sprite(`rocker${i}`);
     const rhit = api.zone(`rockerHit${i}`, 'hit', 'button');

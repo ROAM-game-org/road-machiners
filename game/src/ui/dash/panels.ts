@@ -246,6 +246,7 @@ export interface DriveView extends SpeedView {
   heat: number;
   heatTitle: Msg;
   heatWarn: boolean;
+  heatAlarm: boolean;
   manual: RockerView;
   lights: RockerView;
   overdrive: RockerView;
@@ -269,6 +270,7 @@ export class DrivePanel {
   private readonly lights: Rocker;
   private readonly overdrive: Rocker;
   private readonly lamps: HTMLElement[] = [];
+  private readonly heatLamp = this.plate.zone(el("span", { class: "lamp-glow heat-lamp", "aria-hidden": "true" }), "heatLamp");
 
   constructor(setup: DriveSetup) {
     const labels = setup.labels;
@@ -321,6 +323,7 @@ export class DrivePanel {
     this.speed.update(view);
     this.fuel.update(view.fuel, view.fuelWarn, view.fuelTitle);
     this.heat.update(view.heat, view.heatWarn, view.heatTitle);
+    setFlag(this.heatLamp, "lit", view.heatAlarm);
     this.speedView = view;
     setAttrText(this.speedSpot, "aria-label", view.speedTitle);
     [view.manual, view.lights, view.overdrive].forEach((rocker, i) => {

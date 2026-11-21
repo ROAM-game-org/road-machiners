@@ -203,6 +203,24 @@
   box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
 }
 
+#ui .drive-plate .heat-lamp.lit {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-red) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
+  animation: heat-lamp-blink var(--hud-lamp-blink) steps(1, end) infinite;
+}
+
+@keyframes heat-lamp-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .drive-plate .heat-lamp.lit {
+    animation: none;
+  }
+}
+
 #ui .hud-drive {
   position: relative;
   width: var(--hud-drive-w);
@@ -1318,7 +1336,8 @@
   letter-spacing: 0;
 }
 
-#ui .drive-plate .switch-lamp {
+#ui .drive-plate .switch-lamp,
+#ui .drive-plate .heat-lamp {
   z-index: var(--z-hud-lit);
   pointer-events: none;
 }

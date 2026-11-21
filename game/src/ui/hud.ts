@@ -58,7 +58,7 @@ import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import { knowsCargo, lookOverError } from "../sim/look-over";
-import { douseBlock, type DouseBlock } from "../sim/engine-heat";
+import { douseBlock, engineOverheating, type DouseBlock } from "../sim/engine-heat";
 import { firstAidTurnSupplies } from "../sim/health";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -572,6 +572,7 @@ export class Hud {
       heat: p.engineHeat,
       heatTitle: t("hud.readout", { label: t("readout.engineHeat"), value: engine.value }),
       heatWarn: engine.warning,
+      heatAlarm: engineOverheating(w),
       ...driveControlsOf(w, readout.manual, this.actions.headlightsOn()),
     });
   }
