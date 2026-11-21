@@ -579,8 +579,6 @@ export const SCREENS: Translation<typeof EN> = {
   'inv.takeAll': 'Взять всё, что влезет',
   'inv.dragToGrid': 'Перетащите предметы на сетку.',
   'inv.truckGone': 'Грузовик ушел',
-  'inv.truckGaveUp': '{truck} {truck, gender, m {сдался} f {сдалась} n {сдалось} pl {сдались}}',
-  'inv.truckOut': '{truck} без сознания',
   'inv.dragToYours': 'Перетащите предметы на свою сетку.',
   'inv.close': 'Закрыть',
   'inv.title': 'Инвентарь',

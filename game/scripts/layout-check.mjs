@@ -1048,7 +1048,7 @@ const BENCH_AUDIT = () => {
   const middle = (node) => { const r = node.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
   const scrolls = (n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1;
   const widths = (rows) => new Set([...rows.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().width))).size;
-  const tops = [...all('.well').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
+  const tops = [...all('.well:not(.inv-target-screen)').map((n) => n.getBoundingClientRect().top), ...all('.inv-middle > .inv-truck').map((n) => n.getBoundingClientRect().top + parseFloat(getComputedStyle(n, '::before').top))].map(Math.round);
   const costs = frame.querySelector('.inv-costs');
   const keys = frame.querySelector('.inv-foot .inv-keys:not(.loot) .action-rows');
   const apart = (c, k) => c.top > k.bottom || k.top - c.bottom > 40 || c.left < k.left - 1 || c.left > k.right;
@@ -1179,8 +1179,52 @@ async function openLookedOver(page) {
     world.states.push({ id: 'layout-sized-up', kind: 'sizedUp', holder: world.player.vehicleId, other: npc.id, turnsLeft: 99, born: world.turn, data: { kind: 'none' } });
     g.apply(world);
     g.screens.inventory.openLookedOver(g.state, npc.id);
+    g.hud.tips.setOn(false);
   });
 }
+
+async function openDowned(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    window.__layoutWorld = (await import('/src/sim/world.ts')).cloneWorld(g.state);
+    const world = (await import('/src/sim/world.ts')).cloneWorld(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    npc.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: true };
+    g.apply(world);
+    g.screens.inventory.view.setTruck(npc.id, 'downed');
+    g.screens.inventory.root.style.display = '';
+    g.screens.inventory.render();
+    g.hud.tips.setOn(false);
+  });
+}
+
+const TARGET_AUDIT = () => {
+  const wrapper = document.querySelector('.inventory-screen .inv-target');
+  const screen = wrapper?.querySelector(':scope > .inv-target-screen');
+  if (!screen) return ['no target screen'];
+  const box = screen.getBoundingClientRect();
+  const tape = wrapper.querySelector(':scope > .tape');
+  const state = screen.querySelector(':scope > .inv-target-state');
+  const grid = screen.querySelector('.inv-grid');
+  if (!tape) return ['target has no tape'];
+  const found = [];
+  const tapeBox = tape.getBoundingClientRect();
+  if (tapeBox.top > box.top || tapeBox.bottom < box.top) found.push('tape is not on the screen lip');
+  if (tape.scrollWidth > tape.clientWidth + 1) found.push('tape is clipped');
+  if (screen.closest('.well:not(.inv-target-screen)')) found.push('target sits in another well');
+  const meet = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const covered = [tapeBox, state?.getBoundingClientRect()].filter(Boolean);
+  for (const part of grid ? grid.querySelectorAll('*') : []) {
+    const r = part.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0 || part.closest('.icon')) continue;
+    if (covered.some((c) => meet(c, r))) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} covers the name or the state`);
+    if (r.top < box.top - 1 || r.bottom > box.bottom + 1 || r.left < box.left - 1 || r.right > box.right + 1) found.push(`drawn ${`${part.tagName.toLowerCase()}.${(part.getAttribute('class') ?? '').split(' ')[0]}`} leaves the target screen`);
+  }
+  return [...new Set(found)];
+};
+
+const targetFaults = async (page) => (await page.evaluate(TARGET_AUDIT)).map((text) => ({ kind: 'inventory-target', path: '', text, sizes: '' }));
 
 async function openNewGameScreen(page) {
   await openStartMenu(page);
@@ -1253,7 +1297,8 @@ const STATES = {
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
   'board-taken': { setup: openBoardTaken, teardown: closeThenRestoreWorld(closeTown), viewports: ONE_WINDOW },
-  'look-over': { setup: openLookedOver, teardown: escape, viewports: ONE_WINDOW },
+  'look-over': { setup: openLookedOver, teardown: escape, viewports: [...VIEWPORTS, COMPACT, TALL], check: targetFaults },
+  downed: { setup: openDowned, teardown: async (page) => { await escape(page); await page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)); }, viewports: [...VIEWPORTS, COMPACT, TALL], check: targetFaults },
   loot: { setup: openLoot, teardown: escape, viewports: ONE_WINDOW },
   ...OUTPOST_STATES,
 };
