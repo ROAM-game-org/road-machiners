@@ -620,3 +620,9 @@
   margin: 0;
   padding: 0;
 }
+
+.crt-picture {
+  --crt-row: calc(var(--hud-crt-row) * var(--crt-unzoom, 1));
+  -webkit-mask-image: repeating-linear-gradient(to bottom, var(--hud-crt-over-lit) 0 var(--crt-row), var(--hud-crt-over-scan) var(--crt-row) calc(2 * var(--crt-row)));
+  mask-image: repeating-linear-gradient(to bottom, var(--hud-crt-over-lit) 0 var(--crt-row), var(--hud-crt-over-scan) var(--crt-row) calc(2 * var(--crt-row)));
+}
