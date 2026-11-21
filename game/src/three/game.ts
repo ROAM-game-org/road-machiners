@@ -224,6 +224,7 @@ export class Game {
   }
 
   constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
+    this.travel.onTurnWait = (ms, at) => this.pace.noteTurnWait(ms, at);
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
@@ -366,7 +367,7 @@ export class Game {
     const renderer = drawingRenderer();
     if (renderer === null) throw new Error('The game has no drawing renderer to report');
     const drawn = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary() };
+    return { renderer, drawn: { width: drawn.x, height: drawn.y }, renderScale: renderScaleSetting().scale(), frames: this.pace.summary(), timeline: this.pace.timeline(performance.now()) };
   }
 
   get busy(): boolean { return this.anim !== null; }
@@ -1112,7 +1113,7 @@ export class Game {
     this.fx.beginFrame();
     const dt = now - this.last;
     this.last = now;
-    if (this.framesSeen++ > 0) this.pace.note(dt);
+    if (this.framesSeen++ > 0) this.pace.note(dt, now, this.renderer.info.programs?.length ?? 0);
     this.rig.readPlace();
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame(this.timeHeld());

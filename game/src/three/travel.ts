@@ -236,6 +236,7 @@ export class Travel {
   private creep: Creep | null = null;
   private open: OpenStop | null = null;
   private waitingSince: number | null = null;
+  onTurnWait: ((ms: number, now: number) => void) | null = null;
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
@@ -381,7 +382,9 @@ export class Travel {
       return null;
     }
     this.requested = false;
-    record("turn-wait", now - (this.waitingSince ?? now));
+    const waited = now - (this.waitingSince ?? now);
+    record("turn-wait", waited);
+    this.onTurnWait?.(waited, now);
     this.waitingSince = null;
     return prepared;
   }
