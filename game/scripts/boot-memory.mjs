@@ -3,10 +3,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { launchChromium } from './gpu.mjs';
 
 const url = process.argv[2];
-if (!url) throw new Error('Usage: node scripts/boot-memory.mjs <url> [runs] [width] [height]');
+if (!url) throw new Error('Usage: node scripts/boot-memory.mjs <url> [runs] [width] [height] [menuWaitMs]');
 const runs = Number(process.argv[3] ?? 3);
 const width = Number(process.argv[4] ?? 390);
 const height = Number(process.argv[5] ?? 669);
+const MENU_WAIT_MS = Number(process.argv[6] ?? process.env.BOOT_MEMORY_MENU_WAIT_MS ?? 20000);
 const WEBKIT_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? 2000);
 const TURNS = 3;
 const SAMPLE_MS = 200;
@@ -64,6 +65,7 @@ async function oneRun(engine) {
   page.on('crash', () => errors.push('PAGE CRASHED'));
   await page.goto(url);
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_TIMEOUT_MS });
+  await page.waitForTimeout(MENU_WAIT_MS);
   const menuMb = pagePeak(engine);
   let stage = 'new game';
   let peak = 0;

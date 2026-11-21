@@ -29,7 +29,9 @@ export function startGroundBaker(parts: GroundBakerParts = REAL_PARTS): (terrain
     const writeFresh = (): void => {
       if (!fresh || kept) return;
       kept = true;
-      void parts.writeCache(key, fresh);
+      const bake = fresh;
+      fresh = null;
+      void parts.writeCache(key, bake);
     };
     const adopt = (bake: GroundBake | null): void => {
       if (bake && groundBakeFits(terrain, side, bake)) adoptGroundBake(terrain, bake);
