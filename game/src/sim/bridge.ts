@@ -119,7 +119,6 @@ function railBox(deck: Deck): RailBox {
 }
 
 export const ICARUS_DECKS: DeckSet = deckSet(DECKS);
-export const NO_DECKS: DeckSet = deckSet([]);
 
 const DECKS_BY_KEY = new WeakMap<AtlasKey, DeckSet>();
 const HIGHWAY_DECKS = new Map<string, DeckSet>();

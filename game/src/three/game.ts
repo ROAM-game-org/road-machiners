@@ -273,7 +273,7 @@ export class Game {
     bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host, () => this.hud.placeSide(this.screens.journal.root));
+    this.screens = new ModalScreens(host, () => this.hud.sideMoved(this.screens.journal.root));
     this.hud = new Hud({
       openMenu: () => this.menu.toggle(),
       openInventory: () => this.runKey("KeyI"),

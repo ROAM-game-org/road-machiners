@@ -120,10 +120,6 @@ export function salvageListNear(world: World): SalvageStock[] {
   return world.salvage.filter((stock) => hasSalvage(stock) && salvageInRange(me, stock));
 }
 
-export function downedNear(world: World): Vehicle | null {
-  return downedListNear(world)[0] ?? null;
-}
-
 export function downedListNear(world: World): Vehicle[] {
   if (!modeRules(world).looting) return [];
   const me = playerVehicle(world);
