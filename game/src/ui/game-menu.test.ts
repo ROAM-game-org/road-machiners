@@ -6,15 +6,13 @@ import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
   const states = [
-    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
-    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, fullscreen: true, tips: true, help: true, report: true } },
-    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
-    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
+    { hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, fullscreen: true, tips: true, help: true, report: true } },
+    { hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, fullscreen: true, tips: true, help: true, report: true } },
   ];
-  for (const { busy, hasSave, expected } of states) {
-    it(`busy ${busy}, saved ${hasSave}`, () => {
+  for (const { hasSave, expected } of states) {
+    it(`saved ${hasSave}: nothing is locked by a playing turn`, () => {
       for (const entry of Object.keys(expected) as MenuEntry[]) {
-        expect(entryEnabled(entry, busy, hasSave)).toBe(expected[entry]);
+        expect(entryEnabled(entry, hasSave)).toBe(expected[entry]);
       }
     });
   }
@@ -33,12 +31,12 @@ describe("map key", () => {
 
 describe("entryReason", () => {
   it("names why Load is off", () => {
-    expect(resolve(entryReason("load", false, false)!, "en")).toBe("No saves yet");
-    expect(entryReason("load", false, true)).toBeNull();
+    expect(resolve(entryReason("load", false)!, "en")).toBe("No saves yet");
+    expect(entryReason("load", true)).toBeNull();
   });
-  it("names the turn when it blocks an entry", () => {
-    expect(resolve(entryReason("save", true, true)!, "en")).toBe("Wait for the turn");
-    expect(entryReason("help", true, false)).toBeNull();
+  it("gives Save no reason, so a turn that plays never greys it", () => {
+    expect(entryReason("save", true)).toBeNull();
+    expect(entryReason("help", false)).toBeNull();
   });
 });
 

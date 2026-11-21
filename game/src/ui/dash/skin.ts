@@ -159,7 +159,7 @@ export const DRIVE_PLATE = {
 
 export const WEAPONS_PLATE = { width: 1969, height: 734 } as const;
 
-const PIECES = { tape: "tape", lamp: "lamp", rockerOff: "rocker-off", rockerOn: "rocker-on" } as const;
+const PIECES = { lamp: "lamp", rockerOff: "rocker-off", rockerOn: "rocker-on" } as const;
 
 
 function pct(part: number, whole: number): string {

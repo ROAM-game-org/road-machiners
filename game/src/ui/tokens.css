@@ -326,7 +326,7 @@
   --hud-key-h: 34px;
   --hud-key-edge: calc(var(--hud-key-h) * 40 / 394);
   --hud-rocker-w: 16px;
-  --hud-rocker-h: 30px;
+  --hud-rocker-h: 32px;
   --hud-lamp-size: 10px;
   --hud-rim: 3px;
   --hud-rim-s: 2px;

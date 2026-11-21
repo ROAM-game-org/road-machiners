@@ -427,26 +427,20 @@ describe("InspectPin", () => {
 });
 
 describe("orderLock", () => {
-  const reason = (w: World, playing: boolean) => en(orderLock(w, playing));
+  const reason = (w: World) => en(orderLock(w));
 
-  it("says Knocked out whether or not a turn plays", () => {
+  it("says Knocked out and nothing else, whether or not a turn plays", () => {
     const { world } = createDuel();
+    expect(reason(world)).toBeNull();
     world.player.state = "knockedOut";
-    expect(reason(world, false)).toBe("Knocked out");
-    expect(reason(world, true)).toBe("Knocked out");
-  });
-
-  it("says Turn playing only while a turn plays for an active player", () => {
-    const { world } = createDuel();
-    expect(reason(world, false)).toBeNull();
-    expect(reason(world, true)).toBe("Turn playing");
+    expect(reason(world)).toBe("Knocked out");
   });
 
   it("leaves towed and on the radio to lockReason", () => {
     const { world } = createDuel();
     world.player.call = { with: "x" } as never;
-    expect(reason(world, false)).toBeNull();
-    expect(en(lockReason(world, null))).not.toBeNull();
+    expect(reason(world)).toBeNull();
+    expect(en(lockReason(world))).not.toBeNull();
   });
 
 });
@@ -476,6 +470,7 @@ describe("the utility row", () => {
       stepTravelSpeed: vi.fn(),
       getTurnPhase: vi.fn<() => "moving" | null>(() => null),
       menuOpen: () => false,
+      whenTurnEnds: (action: () => void) => { action(); },
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };
   }
@@ -573,13 +568,17 @@ describe("the utility row", () => {
     expect(() => utilityStatus(world.w, crane, false)).toThrow(/passive/);
   });
 
-  it("ignores presses while a turn plays and on an empty slot", () => {
+  it("ignores presses on an empty slot, and holds a press while a turn plays until it ends", () => {
     const { host, row } = build();
     row.selectUtility(3);
-    host.getTurnPhase.mockReturnValue("moving");
+    expect(host.apply).not.toHaveBeenCalled();
+    const waiting: (() => void)[] = [];
+    host.whenTurnEnds = (action: () => void) => { waiting.push(action); };
     row.selectUtility(0);
     expect(host.apply).not.toHaveBeenCalled();
     expect(host.selectUtility).not.toHaveBeenCalled();
+    waiting.forEach((action) => action());
+    expect(host.apply.mock.calls.length + host.selectUtility.mock.calls.length).toBe(1);
   });
 });
 
@@ -652,16 +651,16 @@ function hostOf(world: World, edit: Partial<UiHost> = {}): UiHost {
   return {
     world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapons: () => [], selectWeapons: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
     searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, travelPlaySpeed: () => null,
-    stepTravelSpeed: vi.fn(), getTurnPhase: () => null, menuOpen: () => false, ...edit,
+    stepTravelSpeed: vi.fn(), getTurnPhase: () => null, menuOpen: () => false, whenTurnEnds: (action) => action(), ...edit,
   };
 }
 
 describe("the weapons panel view", () => {
-  it("names the turn while it plays on All and Auto fire", () => {
+  it("keeps All and Auto fire on while a turn plays", () => {
     const { world } = createDuel();
     const view = weaponsViewOf(hostOf(world, { getTurnPhase: () => "moving" }));
-    expect(en(view.all.reason)).toBe("Turn playing");
-    expect(en(view.auto.reason)).toBe("Turn playing");
+    expect(view.all.reason).toBeNull();
+    expect(view.auto.reason).toBeNull();
   });
 
   it("names a knocked out driver, also while a turn plays", () => {
@@ -711,7 +710,7 @@ describe("the radio deck view", () => {
     const { world } = createDuel();
     expect(deckViewOf(hostOf(world)).turn).toMatchObject({ disabled: false, auto: false });
     const playing = deckViewOf(hostOf(world, { getTurnPhase: () => "moving" })).turn;
-    expect(playing.disabled).toBe(true);
+    expect(playing.disabled).toBe(false);
     expect(en(playing.label)).toMatch(/in progress/);
   });
 

@@ -4,7 +4,7 @@ import { SEARCH } from '../data/utilities';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { practice, skillEffect } from './progress';
-import { canReachSalvage, collectSalvage, hiddenUnits, requireLootFree, revealClaimed, revealTurn, salvageUnits, type Found } from './salvage';
+import { canReachSalvage, collectSalvage, hiddenUnits, hiddenUnitsFor, lockedFrom, requireLootFree, revealClaimed, revealTurn, salvageUnits, visibleParts, type Found } from './salvage';
 import { breakLootWarning } from './loot-warning';
 import { openWreckScene } from './quests';
 import type { Rng } from './rng';
@@ -19,11 +19,20 @@ export function searchStream(seed: number): Rng {
 }
 
 function estimateTurns(world: World, v: Vehicle, stock: SalvageStock): number {
-  return stockSearchTurns(stock, 1 - skillEffect(world, v, 'machining', 'search'));
+  const cut = 1 - skillEffect(world, v, 'machining', 'search');
+  const units = hiddenUnitsFor(world, v, stock) || visibleUnits(world, v, stock);
+  return searchTurnsFor(units, cut);
+}
+
+function visibleUnits(world: World, v: Vehicle, stock: SalvageStock): number {
+  return visibleParts(world, v, stock).length + salvageUnits({ ...stock, parts: [] });
 }
 
 export function stockSearchTurns(stock: SalvageStock, cut: number): number {
-  const units = hiddenUnits(stock) || salvageUnits(stock);
+  return searchTurnsFor(hiddenUnits(stock) || salvageUnits(stock), cut);
+}
+
+function searchTurnsFor(units: number, cut: number): number {
   return Math.max(SALVAGE.minSearchTurns, Math.ceil((units / SALVAGE.unitsPerTurn) * cut));
 }
 
@@ -59,7 +68,7 @@ export function searchTurn(world: World, v: Vehicle, job: Extract<Job, { kind: '
 }
 
 function revealFor(world: World, v: Vehicle, stock: SalvageStock): void {
-  const found = revealTurn(world, stock, hasWorkingUtility(v, 'scraper') ? SEARCH.scraperReveal : SEARCH.reveal);
+  const found = revealTurn(world, stock, hasWorkingUtility(v, 'scraper') ? SEARCH.scraperReveal : SEARCH.reveal, lockedFrom(world, v, stock));
   if (foundAny(found) && v.id === world.player.vehicleId) world.events.push({ t: 'found', vehicle: v.id, stock: stock.id, ...found });
 }
 
@@ -70,7 +79,7 @@ function foundAny(found: Found): boolean {
 function finishSearch(world: World, v: Vehicle, stockId: string): void {
   const stock = world.salvage.find((entry) => entry.id === stockId);
   if (!stock) throw new Error(`Unknown salvage ${stockId}`);
-  revealClaimed(world, stock);
+  revealClaimed(world, v, stock);
   if (v.id !== world.player.vehicleId) {
     collectSalvage(world, v, stockId, Infinity);
     return;

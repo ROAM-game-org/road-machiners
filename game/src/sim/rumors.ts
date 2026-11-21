@@ -3,7 +3,7 @@ import { REGION } from '../data/region';
 import { TRADE_TIP } from '../data/npcs';
 import { goodValue, standingPrice } from './market';
 import { recall } from './memory';
-import { hasSalvage, isStoryWreck } from './salvage';
+import { hasOpenSalvage, isStoryWreck } from './salvage';
 import type { SalvageStock, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -20,7 +20,7 @@ function isUnsearched(world: World, stock: SalvageStock): boolean {
 }
 
 function isRumorWreck(world: World, stock: SalvageStock): boolean {
-  return isUnsearched(world, stock) && hasSalvage(stock);
+  return isUnsearched(world, stock) && hasOpenSalvage(stock);
 }
 
 function nearest(npc: Vehicle, rumors: Rumor[]): Rumor | null {
@@ -51,7 +51,7 @@ export function heardRumor(world: World, npc: Vehicle): Rumor | null {
 
 export function emptiedWreck(world: World, npc: Vehicle): Rumor | null {
   const stocks = recall(npc, 'stripped').map((m) => world.salvage.find((s) => s.id === m.fact.stock));
-  const lie = stocks.find((s): s is SalvageStock => s !== undefined && isUnsearched(world, s) && !hasSalvage(s));
+  const lie = stocks.find((s): s is SalvageStock => s !== undefined && isUnsearched(world, s) && !hasOpenSalvage(s));
   return lie ? { id: lie.id, pos: lie.pos, site: null } : null;
 }
 
