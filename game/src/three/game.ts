@@ -73,6 +73,7 @@ import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponR
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import { installControlSounds } from "../ui/control-sound";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
@@ -270,6 +271,7 @@ export class Game {
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
+    installControlSounds(document, (cue) => this.sound.ui(cue));
     this.loops = new SoundLoops(player, music, tracks);
     bootStep("building the HUD");
     const host = this.uiHost();
@@ -448,8 +450,8 @@ export class Game {
     if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
-    const { action, count, index } = this.context.shown();
-    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
+    const { action, count, index, status } = this.context.shown();
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"), status);
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
