@@ -240,10 +240,10 @@ async function probe(page, locale) {
   if (!found) throw new Error(`The layout checker did not report the planted overflowing button (${locale})`);
 }
 
-async function boot() {
+async function boot(deviceScaleFactor = 1) {
   const { browser, software } = await launchChromium(chromium);
   const bootLimitMs = process.env.TEST_TIMEOUTS === 'off' ? 0 : software ? 240000 : 30000;
-  const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] } });
+  const context = await browser.newContext({ viewport: { width: VIEWPORTS[0][0], height: VIEWPORTS[0][1] }, deviceScaleFactor });
   const page = await context.newPage();
   page.setDefaultTimeout(bootLimitMs);
   const errors = [];
@@ -1207,8 +1207,29 @@ const isGalleryFiller = (name) => GALLERY && ONLY && !ONLY.includes(name);
 const windowLabel = (width, height, size) => (size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`);
 const stateFaults = async (page, state) => (state.check ? state.check(page) : []);
 
+const CANVAS_SPILL = () => {
+  const boxes = '.map-tab, .minimap-body';
+  return [...document.querySelectorAll('#ui canvas')].flatMap((canvas) => {
+    const r = canvas.getBoundingClientRect();
+    const parent = canvas.parentElement;
+    if (r.width === 0 || r.height === 0 || !parent) return [];
+    const p = parent.getBoundingClientRect();
+    const spill = r.left < p.left - 1 || r.top < p.top - 1 || r.right > p.right + 1 || r.bottom > p.bottom + 1;
+    const style = getComputedStyle(parent);
+    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const edge = parent.matches(boxes) && (Math.abs(r.width - (parent.clientWidth - padX)) > 1 || Math.abs(r.height - (parent.clientHeight - padY)) > 1);
+    return spill || edge ? [`${Math.round(r.width)}x${Math.round(r.height)} in ${Math.round(p.width)}x${Math.round(p.height)} ${parent.className}`] : [];
+  });
+};
+
+async function canvasSpillFaults(page) {
+  const found = await page.evaluate(CANVAS_SPILL);
+  return found.map((text) => ({ kind: 'canvas-spill', path: '', text, sizes: '' }));
+}
+
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {
@@ -1240,7 +1261,8 @@ async function checkLocale(page, locale) {
   }
 }
 
-const SIZE_STATES = ['menu', 'inventory', 'shop', 'options'];
+const SIZE_STATES = ['menu', 'inventory', 'shop', 'options', 'world-map', 'minimap'];
+const RATIO_STATES = ['world-map', 'minimap'];
 const SIZE_PASSES = [[[1280, 720], 1.3], [[1280, 720], 0.8], [[640, 360], 1]];
 
 const setUiSize = (page, size) => page.evaluate(async (s) => (await import('/src/ui/ui-size.ts')).uiSize().set(s), size);
@@ -1257,6 +1279,17 @@ async function checkUiSizes(page) {
   await setUiSize(page, 1);
 }
 
+async function checkDeviceRatio() {
+  const { browser, page, errors } = await boot(2);
+  try {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    for (const entry of Object.entries(STATES).filter(([name]) => RATIO_STATES.includes(name))) await capture(page, 'en', [1280, 720], [`${entry[0]}-ratio2`, entry[1]]);
+  } finally {
+    await browser.close();
+  }
+  for (const e of errors) report.push({ state: '-', locale: '-', viewport: '1280x720-ratio2', kind: 'page-error', path: '', text: e, sizes: '' });
+}
+
 await mkdir(OUT, { recursive: true });
 const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
@@ -1266,6 +1299,7 @@ try {
 } finally {
   await browser.close();
 }
+if (!ONLY && !GALLERY) await checkDeviceRatio();
 for (const e of errors) report.push({ state: '-', locale: '-', viewport: '-', kind: 'page-error', path: '', text: e, sizes: '' });
 if (!GALLERY) await writeFile(`${OUT}/faults.json`, JSON.stringify(report, null, 1));
 for (const f of report) console.log(`${f.state} ${f.locale} ${f.viewport} ${f.kind} ${f.path}: ${JSON.stringify(f.text)} ${f.sizes}`);
