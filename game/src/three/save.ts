@@ -28,6 +28,7 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
+import type { SavedLog } from '../ui/log';
 import { checkSavedWorld, dropUnknownKeys, type SavedWorld } from './save-fit';
 import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 
@@ -115,7 +116,11 @@ export function carriesOnLoad(error: SaveError): boolean {
   return error.code === 'outOfReach' || error.code === 'mapChanged' || error.code === 'unknownStep';
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: SavedWorld };
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: SavedWorld; log?: SavedLog };
+
+export function savedLogOf(envelope: unknown): unknown {
+  return (envelope as { log?: unknown } | null)?.log;
+}
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -401,24 +406,24 @@ export function isDayStart(turn: number): boolean {
   return clockOf(turn).day !== clockOf(turn - 1).day;
 }
 
-export function saveWorld(slots: SaveSlots, world: World, runId: string, interval: number, savedAt: number): void {
+export function saveWorld(slots: SaveSlots, world: World, runId: string, interval: number, savedAt: number, log?: SavedLog): void {
   if (!Number.isInteger(interval) || interval <= 0) throw new Error('Invalid save interval');
   if (world.player.state === 'dead') return;
-  if ((world.turn - 1) % interval === 0) writeSave(slots, 'auto', world, runId, savedAt);
-  if (isDayStart(world.turn)) writeSave(slots, 'day', world, runId, savedAt);
+  if ((world.turn - 1) % interval === 0) writeSave(slots, 'auto', world, runId, savedAt, log);
+  if (isDayStart(world.turn)) writeSave(slots, 'day', world, runId, savedAt, log);
 }
 
-export function saveInTown(slots: SaveSlots, world: World, runId: string, savedAt: number): void {
-  if (world.player.state === 'active' && (townAt(world) || reachedOutpostAt(world))) writeSave(slots, 'auto', world, runId, savedAt);
+export function saveInTown(slots: SaveSlots, world: World, runId: string, savedAt: number, log?: SavedLog): void {
+  if (world.player.state === 'active' && (townAt(world) || reachedOutpostAt(world))) writeSave(slots, 'auto', world, runId, savedAt, log);
 }
 
-export function saveOnArrival(slots: SaveSlots, world: World, runId: string, savedAt: number): void {
-  if (world.player.state === 'active' && world.events.some((e) => e.t === 'outpostReached')) writeSave(slots, 'auto', world, runId, savedAt);
+export function saveOnArrival(slots: SaveSlots, world: World, runId: string, savedAt: number, log?: SavedLog): void {
+  if (world.player.state === 'active' && world.events.some((e) => e.t === 'outpostReached')) writeSave(slots, 'auto', world, runId, savedAt, log);
 }
 
-export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): boolean {
+export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number, log?: SavedLog): boolean {
   if (world.player.state === 'dead') throw new Error('Cannot save a world whose player is dead');
-  const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId };
+  const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId, ...(log ? { log } : {}) };
   const misfit = savedMisfit(envelope.world);
   if (misfit) {
     slots.onError(misfit);
@@ -463,13 +468,13 @@ export function unpackExplored(packed: unknown, tiles: number): Uint8Array {
   return explored;
 }
 
-export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world: () => World, runId: string, slotCount: number) {
+export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world: () => World, runId: string, slotCount: number, savedLog?: () => SavedLog) {
   return {
     list: () => listSaves(slots, slotCount),
     manualSlots: () => manualSlots(slotCount),
     hasSave: () => hasSave(slots, allSlots(slotCount)),
     mode: () => world().setup.mode,
-    save: (slot: SlotId) => writeSave(slots, slot, world(), runId, Date.now()),
+    save: (slot: SlotId) => writeSave(slots, slot, world(), runId, Date.now(), savedLog?.()),
     reboot: (request: BootRequest) => {
       requestBoot(session, SAVE_KEY, request);
       Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError);
@@ -511,13 +516,13 @@ export const SAVE_HELD_NOTE = t('save.held');
 export const SAVE_FAILED_NOTE = t('save.failed');
 export const TURN_FAILED_NOTE = t('save.turnFailed');
 
-export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string; importSave: (text: string) => Promise<ImportResult> };
+export type Run = { slots: SaveSlots; runId: string; log: RunLog; mapHash: string; importSave: (text: string) => Promise<ImportResult>; savedLog?: () => SavedLog };
 
 export function changeMapIfMoved(run: Run, world: World, session: Storage, reload: () => void): boolean {
   if (world.mapHash === run.mapHash) return false;
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
   run.log.note(world);
-  if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
+  if (!writeSave(run.slots, 'auto', world, run.runId, Date.now(), run.savedLog?.())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });
   Promise.all([run.slots.flush(), run.log.flush()]).then(reload, reportError);
@@ -533,7 +538,7 @@ export class GameSaves {
   }
 
   menuActions(world: () => World) {
-    const saves = saveStore(this.run.slots, this.run.log, window.sessionStorage, world, this.run.runId, CONFIG.saveSlots);
+    const saves = saveStore(this.run.slots, this.run.log, window.sessionStorage, world, this.run.runId, CONFIG.saveSlots, this.run.savedLog);
     return {
       ...saves,
       save: (slot: SlotId) => this.saveManual(slot, saves.save),
@@ -553,7 +558,7 @@ export class GameSaves {
   }
 
   private exportSave(world: World): void {
-    const envelope: SaveEnvelope = { ...saveOf(world), savedAt: Date.now(), runId: this.run.runId };
+    const envelope: SaveEnvelope = { ...saveOf(world), savedAt: Date.now(), runId: this.run.runId, log: this.run.savedLog?.() ?? [] };
     download(`roam-save-turn-${world.turn}.json`, JSON.stringify(envelope), 'application/json');
   }
 
@@ -573,8 +578,8 @@ export class GameSaves {
   afterTurn(world: World): void {
     this.hold.finishTurn();
     if (this.hold.held) return;
-    saveWorld(this.run.slots, world, this.run.runId, CONFIG.saveTurns, Date.now());
-    saveOnArrival(this.run.slots, world, this.run.runId, Date.now());
+    saveWorld(this.run.slots, world, this.run.runId, CONFIG.saveTurns, Date.now(), this.run.savedLog?.());
+    saveOnArrival(this.run.slots, world, this.run.runId, Date.now(), this.run.savedLog?.());
   }
 
   changeMapIfMoved(world: World): boolean {
@@ -583,7 +588,7 @@ export class GameSaves {
   }
 
   afterCommand(world: World): void {
-    if (!this.hold.held) saveInTown(this.run.slots, world, this.run.runId, Date.now());
+    if (!this.hold.held) saveInTown(this.run.slots, world, this.run.runId, Date.now(), this.run.savedLog?.());
   }
 
   private failed(err: unknown): void {

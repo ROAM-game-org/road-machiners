@@ -18,7 +18,9 @@ import { closeKey, controls, panelHead, rockerButton, screen, screenLine, setAtt
 import type { FeedbackLinks } from "./game-menu";
 import type { RadioDeck } from "./dash/panels";
 import { fuelCap } from "../sim/stats";
-import { LogPanel } from "./log";
+import { LogPanel, readSavedLog, type SavedLog } from "./log";
+import { logViewSetting } from "./log-setting";
+import { eventEntry, leveled, type LogEntry, type LogLevel } from "./log-levels";
 import {
   claimRivalMark,
   escortStatusText,
@@ -30,14 +32,12 @@ import {
   surveyProgress,
   isNotable,
   surveyClueLines,
-  eventText,
   formatNpcPass,
   formatNpcCargo,
   formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
   formatCardState,
-  type LogLine,
   clock,
   stanceTag,
   caseVictimName,
@@ -338,8 +338,9 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel, private deck: RadioDeck, renderer: THREE.WebGLRenderer, gpu: GpuContext) {
+    this.followLogView();
     this.drive = new DrivePanel({
-      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph") },
+      labels: { manual: t("hud.manual"), lights: t("hud.lightsOn"), overdrive: t("hud.overdrive"), cool: t("hud.coolKey"), speedUnit: t("hud.kph"), on: t("setting.on"), off: t("setting.off") },
       onManual: () => actions.toggleManual(),
       onLights: () => actions.toggleHeadlights(),
       onOverdrive: () => actions.toggleOverdrive(),
@@ -610,14 +611,28 @@ export class Hud {
   }
 
   logHeld(w: World, events: readonly GameEvent[]): void {
-    const lines: LogLine[] = [];
+    const lines: LogEntry[] = [];
     for (const e of events) {
-      const line = eventText(w, e);
+      const line = eventEntry(w, e);
       if (!line) continue;
       lines.push(line);
       if (isNotable(e) && !w.player.quests.live) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
+  }
+
+  savedLog(): SavedLog {
+    return this.log.saved();
+  }
+
+  restoreLog(saved: unknown): void {
+    this.log.restore(readSavedLog(saved));
+  }
+
+  private followLogView(): void {
+    const setting = logViewSetting();
+    this.log.view(setting.view());
+    setting.subscribe(() => this.log.view(setting.view()));
   }
 
   logTexts(): string[] {
@@ -628,8 +643,8 @@ export class Hud {
     this.toast(text, true);
   }
 
-  note(w: World, text: Msg, cls: string): void {
-    this.log.add(w.turn, [{ text, cls }]);
+  note(w: World, text: Msg, cls: string, level: LogLevel): void {
+    this.log.add(w.turn, [leveled({ text, cls }, level)]);
   }
 
   private aimOf(w: World, v: Vehicle): ConditionAim | undefined {
