@@ -9,6 +9,7 @@ import { num, t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName } from "../text/names";
 import { gaugeEl, meterRow, statRow, statValueEl, type IconName } from "./cards";
 import { el } from "./dom";
+import { createSwitch } from "./switch";
 import { getHudReadout, powerChip, type TipLine } from "./hud-readout";
 import { fuelLiters, kph, mps2 } from "./units";
 
@@ -128,6 +129,20 @@ function abilityGroup(chassisId: string): HTMLElement | null {
   );
 }
 
-export function truckGroups(w: World, me: Vehicle): (HTMLElement | null)[] {
-  return [driveGroup(w, me), storesGroup(w, me), abilityGroup(me.chassisId)];
+export interface AutoPatchControl {
+  reason: Msg | null;
+  flip: () => void;
+}
+
+function autoPatchGroup(w: World, me: Vehicle, control: AutoPatchControl | undefined): HTMLElement | null {
+  if (!control || me.id !== w.player.vehicleId) return null;
+  return el(
+    "div",
+    { class: "well-group" },
+    createSwitch({ on: t("hud.autoPatch"), off: t("hud.autoPatch"), checked: w.player.autoRepair, key: "P", title: t("hud.autoPatchTitle"), reason: control.reason, onclick: control.flip }),
+  );
+}
+
+export function truckGroups(w: World, me: Vehicle, autoPatch?: AutoPatchControl): (HTMLElement | null)[] {
+  return [driveGroup(w, me), storesGroup(w, me), autoPatchGroup(w, me, autoPatch), abilityGroup(me.chassisId)];
 }
