@@ -1,15 +1,14 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { MIX, SOUNDS } from '../src/data/sounds.ts';
-import { cueOf, importFile, isField, SFX_DIR, syncTwins } from './sfx-lib.mjs';
+import { SOUNDS } from '../src/data/sounds.ts';
+import { cueOf, importFile, importTags, isField, SFX_DIR, syncTwins } from './sfx-lib.mjs';
 
 const MANIFEST = 'tmp/sfx-sources.json';
 
 const sourceOf = (file) => {
-  const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', `${SFX_DIR}/${file}`], { encoding: 'utf8' }).trim();
-  if (!tag) throw new Error(`${file} has no source tag; import it again by hand`);
-  if (!existsSync(tag)) throw new Error(`${file} comes from ${tag}, which is missing`);
-  return tag;
+  const tags = importTags(file);
+  if (!tags.source) throw new Error(`${file} has no source tag; import it again by hand`);
+  if (!existsSync(tags.source)) throw new Error(`${file} comes from ${tags.source}, which is missing`);
+  return tags;
 };
 
 const args = process.argv.slice(2).filter((a) => a !== '--');
@@ -28,7 +27,7 @@ const sources = JSON.parse(readFileSync(MANIFEST, 'utf8'));
 for (const [id, srcs] of Object.entries(sources)) {
   const cue = SOUNDS[id];
   cue.files.forEach((f) => unlinkSync(`${SFX_DIR}/${f}`));
-  for (const src of srcs) importFile(src, id, cue, MIX.level[cue.bus]);
+  for (const { source, plain, level } of srcs) importFile(source, id, cue, { plain, level });
 }
 unlinkSync(MANIFEST);
 await syncTwins();

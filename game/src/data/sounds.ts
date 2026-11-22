@@ -49,7 +49,7 @@ const DEFS = {
   "switch-off": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.5, loop: false, prompts: ["One long brass toggle lever on a steel truck dashboard snapped down hard over its spring: one loud heavy metallic clack, a little lower in pitch than when thrown up."], seconds: 0.5 },
   "latch-in": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A push button on an old truck dashboard pressed until it locks down: a click, then a small metal catch."], seconds: 0.5 },
   "latch-out": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.45, loop: false, prompts: ["A locked push button on an old truck dashboard released: a soft click as its spring pops it back up."], seconds: 0.5 },
-  "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.3, loop: false, prompts: ["A single soft dry relay tick from behind an old instrument panel, very light and short."], seconds: 0.5 },
+  "screen-press": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.3, loop: false, prompts: ["Soft, low-frequency digital beep of sci-fi military terminal"], seconds: 0.5 },
   "knob-step": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.3, loop: false, prompts: ["One detent click of a small ribbed knob on an old car radio, short and light."], seconds: 0.5, minGapMs: 45 },
   "wheel-step": { bus: "ui", setup: "cab", pitchJitter: 0, maxVoices: 1, volume: 0.25, loop: false, prompts: ["One ratchet tick of a ribbed thumb wheel on old dashboard equipment, very short and dry."], seconds: 0.5, minGapMs: 45 },
 
@@ -61,6 +61,13 @@ const DEFS = {
   "defeat": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Low ominous boom fading into a dying engine and silence."], seconds: 3 },
 
   "mg-fire": { bus: "sfx", setup: "field", volume: 0.6, pitchJitter: 0.06, maxVoices: 6, loop: false, prompts: ["Single heavy machine gun shot outdoors, sharp crack with a short echo."], seconds: 0.6 },
+  "heavy-mg-fire": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.04, maxVoices: 6, loop: false, prompts: ["Heavy thudding machine gun shot outdoors: a deep slow pounding thud with a sharp crack and a short echo."], seconds: 1.5 },
+  "gatling-fire": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.03, maxVoices: 3, loop: false, prompts: ["Gatling machine gun firing a fast burst outdoors: a rapid mechanical roar of shots with a short echo."], seconds: 1.5 },
+  "rocket-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.03, maxVoices: 3, loop: false, prompts: ["Three rockets launch one after another from a truck rack: staggered hissing whooshes with a sharp ignition crack each, outdoors."], seconds: 2 },
+  "long-gun-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.04, maxVoices: 3, loop: false, prompts: ["One heavy long gun shot outdoors: a sharp loud crack, a deep boom and a short echo."], seconds: 1 },
+  "tank-gun-fire": { bus: "sfx", setup: "field", volume: 0.9, pitchJitter: 0.04, maxVoices: 2, loop: false, prompts: ["Deep rumbling boom of a tank cannon fired outdoors: a huge low blast with a rolling echo."], seconds: 2 },
+  "shotgun-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.04, maxVoices: 2, loop: false, prompts: ["One deep rumbling shotgun blast outdoors: a heavy boom with a wide spread crack and a short echo."], seconds: 1.5 },
+  "flamer-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.03, maxVoices: 2, loop: false, prompts: ["Flamethrower ignition and a short burst: a pop of ignition, then a roaring whoosh of flame that dies out."], seconds: 2 },
   "cannon-fire": { bus: "sfx", setup: "field", volume: 0.9, pitchJitter: 0.04, maxVoices: 3, loop: false, prompts: ["One loud 30mm autocannon shot fired close by, sharp supersonic crack, powerful punchy boom, metallic breech clank, short echo off rocks."], seconds: 1.5 },
   "gun-empty": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.05, maxVoices: 3, loop: false, prompts: ["A mounted heavy machine gun runs dry: two dry metallic clicks of the bolt, then a steel ammo box latch snaps open and the empty box drops onto a truck deck with a hollow clunk."], seconds: 1.2 },
   "hit-metal": { bus: "sfx", setup: "field", volume: 0.55, pitchJitter: 0.08, maxVoices: 6, loop: false, prompts: ["Bullet slams into a thick steel truck plate, hard metallic clang."], seconds: 0.6 },
@@ -70,6 +77,7 @@ const DEFS = {
   "explosion": { bus: "sfx", setup: "field", volume: 1, pitchJitter: 0.04, maxVoices: 2, loop: false, prompts: ["Truck fuel tank explodes, big fiery blast with falling metal debris."], seconds: 3 },
   "horn": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0, maxVoices: 4, loop: false, prompts: ["Mad Max war rig horn: a huge rusted diesel truck blasts its twin air horns once, a deep booming low chord, brassy, gritty and overdriven, heavy as a freight train. Vehicle horn only, no music."], seconds: 1.5 },
   "crash": { bus: "sfx", setup: "field", volume: 0.9, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["Two heavy steel trucks ram each other at speed: one hard, deep crunch of thick metal, a short scrape, then debris settling. Single impact."], seconds: 1.5 },
+  "car-hit": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A car bumps into a wall at low speed: one dull thud of metal and plastic, a short rattle, then quiet. Single light impact."], seconds: 1 },
 
   "harpoon-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A heavy spring-loaded harpoon gun on a truck fires: a deep mechanical thunk and clank of steel, then a thick rope whipping out fast."], seconds: 1.2 },
   "harpoon-hook": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A heavy barbed steel harpoon bolt slams into a truck's steel plate: a hard punching clank and a short metallic scrape."], seconds: 0.8 },
@@ -77,7 +85,6 @@ const DEFS = {
 
   "mortar-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A small smoke mortar fires from a truck deck: one deep hollow tube thoomp and a short metallic ring."], seconds: 1.2 },
   "smoke-burst": { bus: "sfx", setup: "field", volume: 0.6, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A smoke grenade canister bursts open: a short pop, then a loud rushing hiss of thick smoke pouring out."], seconds: 2 },
-  "flare-fire": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A flare cannon fires a signal flare: a sharp hollow pop, then a fizzing hiss rising quickly into the sky."], seconds: 1.5 },
   "flare-burst": { bus: "sfx", setup: "field", volume: 0.6, pitchJitter: 0.04, maxVoices: 2, loop: false, prompts: ["A magnesium illumination flare ignites high in the air: a dull crack, then a steady crackling, sizzling burn."], seconds: 2 },
   "caltrops-drop": { bus: "sfx", setup: "field", volume: 0.6, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A handful of heavy steel spikes dumped from a truck clatter and bounce onto hard gravel."], seconds: 1.2 },
   "caltrops-hit": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.06, maxVoices: 3, loop: false, prompts: ["A truck tire runs over steel spikes and bursts: a loud pop and a fast rushing hiss of escaping air."], seconds: 1.2 },

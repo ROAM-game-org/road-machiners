@@ -84,7 +84,7 @@ The heat lines, weights, wanted sections and clean-jump lines are in `SCORE_BLOC
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
 2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file. A free music loop keeps its loud span with a 2 s crossfade. Every other free loop, like the engines, must just repeat with no audible change of state. Import evens out its slow level swings, keeps its steadiest stretch of at least 1.5 s in level and brightness, so no rev-up or quiet hole is left in it, moves the end by up to 60 ms to where it matches the start in phase, and joins the ends with a 0.1 s crossfade. A source whose name has `.seamless.` in it is kept whole. Every free sfx loop file, a `.seamless.` one too, must pass the loop check: no 200 ms stretch more than `LOOP_CHECK.holeDb` under the loop's median level, and no 250 ms stretch whose firing rhythm drops more than `LOOP_CHECK.pulseDrop` under the loop's median, and no jump where the end wraps to the start larger than `LOOP_CHECK.seamStepRatio` times the loop's usual sample step, its `LOOP_CHECK.usualStepShare` quantile. Import runs every loop's filters and limiter over two copies of the loop and keeps the second, so each filter starts the loop already carrying the loop's own end. A filter that starts on a lone loop from silence leaves a click at the seam. A file that fails stops the tool and the message names the file, the fault, where it sits and by how much. Generated free loops get that name, since the sound API makes them in its loop mode, and so does a loop cut by hand.
 3. Play it from `src/three/sound.ts`. A world sound goes through `SoundDirector.at()` with its position.
-4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer, beside a reference cue for buses that have one in `MIX.anchors`.
+4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer. It has a search box, a button per bus, and `/` to search and Escape to stop.
 
 A cue with several prompts is a family of different sounds, one prompt per variant, and skips tone matching.
 
@@ -94,6 +94,12 @@ World one-shots, the `sfx` cues with the `field` setup that do not loop, get two
 
 - A gentle cut above 8 kHz puts every take at the 10 m the prompt asks for. Generated takes come out close and bright.
 - Bass and treble move back to within `MIX.tone.spread` of the anchor's tone in `MIX.tone`. A cut may go up to 12 dB and a boost up to 6 dB, since a boost also raises noise.
+
+A plain import keeps a one-shot as it sounded in the sound tool. Run `npm run sfx:import -- --plain <cue> <file...>`. It trims the silent edges, adds the short edge fades and sets the loudness. It keeps the source channels and skips the mono mix, the EQ, the distance cut and every tone step. Plain refuses loops.
+
+`--level <LUFS>` sets the loudness instead of the bus level, in plain or shaped imports. Loudness is the loudest 400 ms of the file. A steady sound like a hiss sits at that level all through, so it sounds louder than a shot at the same number. Give steady sounds a lower level by ear.
+
+Import writes plain mode and a set level as tags in the file, next to its source. Reimport reads them and rebuilds the file the same way.
 
 `npm run sfx:report` lists every world one-shot and every `sfx` loop, like the engine loops, with its loudness and tone beside the anchor. Tone is three bands against the 250 Hz to 4 kHz mids: low below 250 Hz, presence from 1 to 4 kHz and high above 4 kHz, each held to `MIX.tone` within its spread. Presence is what shows a dull loop, since a buried bark leaves low and high in range. The report flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
 

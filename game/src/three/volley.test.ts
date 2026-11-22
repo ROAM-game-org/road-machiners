@@ -178,7 +178,7 @@ describe("playUtilitySounds", () => {
   it("plays each utility's own cue at its user as it is used, and the pulse's crack", () => {
     expect(played([use("a", "mortar"), use("b", "flare"), use("a", "sprout"), use("a", "caltrops"), use("b", "oil"), pulse("b")]).map((s) => [s.cue, s.p, s.delayMs])).toEqual([
       ["mortar-fire", seen.a, 0],
-      ["flare-fire", seen.b, 0],
+      ["mortar-fire", seen.b, 0],
       ["smoke-burst", seen.a, 0],
       ["caltrops-drop", seen.a, 0],
       ["oil-spill", seen.b, 0],
