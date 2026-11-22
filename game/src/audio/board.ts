@@ -1,5 +1,5 @@
 
-import { CONTROL_STATES, MIX, SOUND_EVENTS, SOUNDS, type Bus, type Cue, type ControlState, type CueId, type SoundEventId } from "../data/sounds";
+import { CONTROL_STATES, MIX, SOUND_EVENTS, SOUNDS, type Bus, type Cue, type ControlState, type SoundEventId } from "../data/sounds";
 import { layersToPlay } from "./pick";
 import { devEl as el } from "../ui/dom";
 import { SFX_BYTES } from "../config";
@@ -51,10 +51,6 @@ function playEvent(id: SoundEventId): void {
   for (const layer of layersToPlay(SOUND_EVENTS[id], Math.random)) start(layer.cue, randomTake(layer.cue), layer.gain, layer.delayMs);
 }
 
-function playSingle(id: CueId): void {
-  stopAll();
-  start(id, randomTake(id), 1, 0);
-}
 
 function stats(buf: AudioBuffer): string {
   const d = buf.getChannelData(0);
@@ -154,17 +150,15 @@ root.append(el("div", { class: "toolbar" }, el("button", { onclick: stopAll }, "
 for (const failure of unreachable) root.append(el("div", { class: "missing" }, `${failure.file} could not be fetched`));
 for (const failure of failures) root.append(el("div", { class: "missing" }, failureLine(failure)));
 
-const CRASH_AB: [string, CueId, SoundEventId][] = [["light crash", "car-hit", "crash-light"], ["hard crash", "crash", "crash-hard"]];
-
-function abRow(label: string, single: CueId, event: SoundEventId): HTMLElement {
-  const layers = SOUND_EVENTS[event].map((l) => l.cue).join(" ");
-  const node = el("div", { class: "cue" }, el("span", { class: "state" }, label), el("button", { onclick: () => playSingle(single) }, `old ${single}`), el("button", { onclick: () => playEvent(event) }, `layered ${event}`), el("span", { class: "kind" }, layers));
-  entries.push({ node, text: `${label} ${single} ${event} ${layers}`.toLowerCase(), bus: null });
+function eventRow(id: SoundEventId): HTMLElement {
+  const layers = SOUND_EVENTS[id].map((l) => `${l.cue} ${l.delayMs}ms x${l.gain}${l.chance < 1 ? ` ${Math.round(l.chance * 100)}%` : ""}`).join(", ");
+  const node = el("div", { class: "cue" }, el("b", {}, id), el("button", { onclick: () => playEvent(id) }, "play"), el("span", { class: "kind" }, layers));
+  entries.push({ node, text: `${id} ${layers}`.toLowerCase(), bus: null });
   return node;
 }
 
-root.append(el("h2", {}, "Crash before and after"));
-for (const [label, single, event] of CRASH_AB) root.append(abRow(label, single, event));
+root.append(el("h2", {}, "Sound events"));
+for (const id of Object.keys(SOUND_EVENTS) as SoundEventId[]) root.append(eventRow(id));
 
 root.append(el("h2", {}, "Controls by type and state"));
 for (const [type, states] of Object.entries(CONTROL_STATES)) {

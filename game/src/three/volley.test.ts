@@ -112,14 +112,14 @@ describe("playCrashes with claymore blasts", () => {
 });
 
 describe("playCrashes levels", () => {
-  function played(impacts: number[], layeredCrash: boolean): [string, number][] {
+  function played(impacts: number[]): [string, number][] {
     const out: [string, number][] = [];
     const record = (id: string, _p: V3, _delay: number, level: number) => out.push([id, level]);
     const host = {
       world: emptyWorld(),
       views: new Map(),
       fx: { crash: () => {} },
-      sound: { layeredCrash, atLevel: record, event: record },
+      sound: { event: record },
       eventPoint: () => ({ x: 0, y: 0, z: 0 }),
     } as unknown as CombatHost;
     const events: GameEvent[] = impacts.map((impact) => ({ ...(hit("a", "b") as object), impact }) as GameEvent);
@@ -130,12 +130,11 @@ describe("playCrashes levels", () => {
   const impacts = [RULES.collisionMinImpact, RULES.hardCrashSpeed, RULES.hardCrashSpeed * 2];
 
   it("hands a soft bump a quiet level and a hard ram the full level", () => {
-    for (const layered of [true, false]) expect(played(impacts, layered).map(([, level]) => level)).toEqual([MIX.crash.quietGain, 1, 1]);
+    expect(played(impacts).map(([, level]) => level)).toEqual([MIX.crash.quietGain, 1, 1]);
   });
 
-  it("plays the layered stacks when layered crashes are on, the single takes when off", () => {
-    expect(played(impacts, true).map(([id]) => id)).toEqual(["crash-light", "crash-hard", "crash-hard"]);
-    expect(played(impacts, false).map(([id]) => id)).toEqual(["car-hit", "crash", "crash"]);
+  it("plays the light stack under the hard crash speed and the hard stack from it", () => {
+    expect(played(impacts).map(([id]) => id)).toEqual(["crash-light", "crash-hard", "crash-hard"]);
   });
 });
 

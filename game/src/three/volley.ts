@@ -131,9 +131,7 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  const level = crashLevel(e.impact, MIX.crash);
-  if (host.sound.layeredCrash) host.sound.event(crashEventOf(e.impact, RULES.hardCrashSpeed), p, 0, level);
-  else host.sound.atLevel(e.impact < RULES.hardCrashSpeed ? "car-hit" : "crash", p, 0, level);
+  host.sound.event(crashEventOf(e.impact, RULES.hardCrashSpeed), p, 0, crashLevel(e.impact, MIX.crash));
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {

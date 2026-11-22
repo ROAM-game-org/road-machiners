@@ -126,7 +126,6 @@ function plainEvent(struck: boolean, mine: boolean): BlockEvent | null {
 
 export class SoundDirector {
   readonly log: string[] = [];
-  layeredCrash = true;
 
   constructor(
     private player: Pick<SoundPlayer, "play">,
