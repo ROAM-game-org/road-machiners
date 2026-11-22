@@ -9,6 +9,7 @@ import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
 import { SURFACE_MODELS, WEAPON_POOLS } from '../../render/partLooks';
 import { edgeDistances, NEUTRAL_SLOT, packMasks, slotUv, WEAR_EDGE, type AtlasLayout } from './truckSurface';
+import { PERF } from '../../data/perf';
 
 export const NAMES = [
   'base_scout',
@@ -322,6 +323,14 @@ function standIn(name: ModelName, shape: Shape): THREE.Object3D {
   return toLambert(root);
 }
 
+export async function inQueue<T>(items: readonly T[], width: number, work: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const lane = async (): Promise<void> => {
+    while (next < items.length) await work(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, lane));
+}
+
 export async function loadModels(
   read: (name: ModelName) => Promise<ArrayBuffer> = fetchModel,
   progress?: (done: number, total: number) => void,
@@ -334,23 +343,21 @@ export async function loadModels(
   SURFACE_ATLAS.value?.dispose();
   SURFACE_ATLAS.value = null;
   progress?.(0, NAMES.length);
-  await Promise.all(
-    NAMES.map(async (name) => {
-      try {
-        const gltf = await loader.parseAsync(await read(name), '');
-        sockets.set(name, takeSockets(name, gltf.scene));
-        takeMask(name, gltf);
-        loaded.set(name, toLambert(gltf.scene));
-      } catch (error) {
-        const shape = standInShape(name);
-        if (!shape) throw error;
-        sockets.set(name, new Map());
-        loaded.set(name, standIn(name, shape));
-        failures.push({ name, error });
-      }
-      progress?.(++done, NAMES.length);
-    }),
-  );
+  await inQueue(NAMES, PERF.boot.modelsAtOnce, async (name) => {
+    try {
+      const gltf = await loader.parseAsync(await read(name), '');
+      sockets.set(name, takeSockets(name, gltf.scene));
+      takeMask(name, gltf);
+      loaded.set(name, toLambert(gltf.scene));
+    } catch (error) {
+      const shape = standInShape(name);
+      if (!shape) throw error;
+      sockets.set(name, new Map());
+      loaded.set(name, standIn(name, shape));
+      failures.push({ name, error });
+    }
+    progress?.(++done, NAMES.length);
+  });
   checkWeaponSockets();
   prepareSurfaces(new Set(failures.map((f) => f.name)));
   return failures;

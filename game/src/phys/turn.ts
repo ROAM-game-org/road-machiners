@@ -6,6 +6,7 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { PERF } from '../data/perf';
+import { REGION } from '../data/region';
 import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
 import { campWarmSteps } from '../sim/camp-warm';
@@ -279,15 +280,23 @@ export function startTurnWorker(): void {
 
 let idleRun = 0;
 
-const ROUTE_RADII = [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))];
+export function warmRadii(world: Pick<TurnState, 'vehicles' | 'player'>): number[] {
+  const player = world.vehicles.find((v) => v.id === world.player.vehicleId);
+  if (!player) return [];
+  const own = CHASSIS[player.chassisId].radius;
+  const near = world.vehicles.filter((v) => v !== player && dist(v.pos, player.pos) <= REGION.navigation.farWindow).map((v) => CHASSIS[v.chassisId].radius);
+  return [...new Set([own, ...near])];
+}
+
+export const WARM_RING = Math.ceil(REGION.navigation.farWindow / REGION.navigation.cellTiles);
 
 function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const run = ++idleRun;
   const player = world.vehicles.find((v) => v.id === world.player.vehicleId);
   if (!player) return;
   const center = player.pos;
-  const own = CHASSIS[player.chassisId].radius;
-  const radii = [own, ...ROUTE_RADII.filter((radius) => radius !== own)];
+  const radii = warmRadii(world);
+  const cellRadii = [...radii];
   const step = () => {
     if (run !== idleRun) return;
     const radius = radii.shift();
@@ -295,7 +304,7 @@ function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
       if (idleStep(run, () => warmRoutes({ ...world, terrain }, [radius]))) setTimeout(step, 0);
       return;
     }
-    const built = idleStep(run, () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs));
+    const built = idleStep(run, () => buildCellsAround(terrain, center, performance.now() + PERF.routes.idleSliceMs, WARM_RING, cellRadii));
     if (!built) return;
     if (built.value) return void setTimeout(step, 0);
     const camps = idleStep(run, () => campWarmSteps({ ...world, terrain }));

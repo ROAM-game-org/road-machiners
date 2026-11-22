@@ -5,5 +5,6 @@ export const PERF = {
   farFireReachInRanges: 2,
   lone: { every: LONE_THINK_EVERY, playerReach: 300 },
   stream: { budgetMs: 4, leadTiles: 32 },
+  boot: { modelsAtOnce: 6 },
   routes: { idleSliceMs: 8 },
 };
