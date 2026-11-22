@@ -418,7 +418,7 @@ describe('game save', () => {
   it('keeps held rescues and a rescue offer through a reload and awards nothing on load', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const rescue = (id: string, fulfilled: boolean): Contract => priced(world, { id, shop: 'bowl', kind: 'rescue', client: 'v77', driver: 'Jed Cobb', need: 'fuel', area: { x: 40.5, y: 52.25 }, reward: 220, deadline: 900, window: 400, tier: 1, fulfilled } as Contract);
+    const rescue = (id: string, fulfilled: boolean): Contract => priced(world, { id, shop: 'bowl', kind: 'rescue', client: 'v77', driver: 'Jed Cobb', need: 'fuel', area: { x: 40.5, y: 52.25 }, reward: 220, deadline: 900, window: 400, tier: 1, fulfilled, lead: null } as Contract);
     world.player.contracts = [rescue('ct-r1', false), rescue('ct-r2', true)];
     world.shops.bowl.contracts = [rescue('ct-r3', false)];
     writeSave(slots, 'auto', world, RUN, 1000);
