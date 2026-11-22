@@ -25,6 +25,23 @@ root.add(P.g);
 const L0 = P.at(0), LP = P.at(Z_PANEL);
 const expand = ([x0, y0, x1, y1], d) => [x0 - d, y0 - d, x1 + d, y1 + d];
 
+const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
+const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
+const HOLE_CURVE = [[96, HOLE_TOP], [50, HOLE_TOP], [0, 614], [-40, 630]];
+const bezierAt = (t, axis) => {
+  const [a, b, c, d] = HOLE_CURVE.map((p) => p[axis]), m = 1 - t;
+  return m * m * m * a + 3 * m * m * t * b + 3 * m * t * t * c + t * t * t * d;
+};
+const lipYAt = (x) => {
+  if (x < HOLE_CURVE[3][0] || x > HOLE_CURVE[0][0]) throw new Error(`lipYAt: x ${x} is outside the cut-out curve`);
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezierAt(mid, 0) > x) lo = mid; else hi = mid;
+  }
+  return bezierAt((lo + hi) / 2, 1);
+};
+
 const PANEL_BOX = [-40, 600, 340, 775];
 const panelCv = LP.canvas(PANEL_BOX);
 {
@@ -34,7 +51,7 @@ const panelCv = LP.canvas(PANEL_BOX);
   c.save();
   c.beginPath();
   c.moveTo(-40, 775); c.lineTo(333, 775); c.lineTo(333, 605.3 + 22); c.arc(333 - 22, 605.3 + 22, 22, 0, Math.PI / 2 * 3, true);
-  c.lineTo(96, 605.3); c.bezierCurveTo(50, 605.3, 0, 614, -40, 630); c.closePath();
+  c.lineTo(...HOLE_CURVE[0]); c.bezierCurveTo(...HOLE_CURVE[1], ...HOLE_CURVE[2], ...HOLE_CURVE[3]); c.closePath();
   c.clip();
   c.filter = 'blur(3.5px)'; c.strokeStyle = 'rgba(8,3,0,0.6)'; c.lineWidth = 16; c.stroke();
   c.restore();
@@ -49,8 +66,6 @@ const COOL_SINK = 0.025, COOL_GAP = 1.1;
   floor.position.z = Z_PANEL - 0.06; floor.receiveShadow = true; P.g.add(floor);
 }
 
-const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
-const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
 const FRAME_BOX = [-40, 596, 350, 775];
 const frameCv = L0.canvas(FRAME_BOX);
 {
@@ -66,15 +81,16 @@ const outer = L0.shape([-40, FRAME_TOP, FRAME_RIGHT, 775], [0, TR, 0, 0]);
   hole.lineTo(...u(HOLE_RIGHT, 775));
   hole.lineTo(...u(HOLE_RIGHT, HOLE_TOP + HOLE_R));
   hole.absarc(L0.ux(HOLE_RIGHT - HOLE_R), L0.uy(HOLE_TOP + HOLE_R), L0.len(HOLE_R), 0, Math.PI / 2, false);
-  hole.lineTo(...u(96, HOLE_TOP));
-  hole.bezierCurveTo(...u(50, HOLE_TOP), ...u(0, 614), ...u(-40, 630));
+  hole.lineTo(...u(...HOLE_CURVE[0]));
+  hole.bezierCurveTo(...u(...HOLE_CURVE[1]), ...u(...HOLE_CURVE[2]), ...u(...HOLE_CURVE[3]));
   hole.closePath();
   outer.holes.push(hole);
 }
 P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: oliveMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: oliveLit(OLIVE.shade) }));
 
 const BOLT_Z = 0.014;
-for (const [x, y] of [[14, 612], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
+const TOP_BOLT_X = 14;
+for (const [x, y] of [[TOP_BOLT_X, (FRAME_TOP + lipYAt(TOP_BOLT_X)) / 2], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
 
 const dialGlassPaint = (c, b) => {
   const cx = DIAL.cx, cy = DIAL.cy, R = DIAL.rGlass;
