@@ -167,7 +167,7 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   return { set: toggle.set, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => r.set(false));
-const HEAT_LAMP = { x: HEAT.pts[2][0] - 14, y: (HEAT.pts[0][1] + 605.3) / 2 - 0.3 };
+const HEAT_LAMP = { x: HEAT.pts[2][0] - 9, y: HEAT.pts[0][1] - 6.4 };
 lampDome(HEAT_LAMP.x, HEAT_LAMP.y, RED_LENS);
 
 const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[0]), z: 0 }, eye: P.eye(), faceWidthPx: (FACE[2] - FACE[0] + 3) * K });
