@@ -89,7 +89,7 @@ describe("playCrashes with claymore blasts", () => {
       world,
       views,
       fx: { claymoreBlast: (p: V3) => out.push(p), crash: () => out.push("crash") },
-      sound: { at: (cue: string) => out.push(cue), atLevel: (cue: string) => out.push(cue) },
+      sound: { event: (id: string) => out.push(id) },
       eventPoint: (id: string) => (seen.includes(id) ? { x: 0, y: 0, z: 0 } : null),
     } as unknown as CombatHost;
     playCrashes(host, new CollisionCues([{ event: e as never, step: null }]), null);
@@ -168,14 +168,14 @@ describe("playUtilitySounds", () => {
       waited = ms;
       run();
     };
-    playUtilitySounds({ world: { events, terrain }, eventPoint: (id) => seen[id] ?? null, fx: { later }, sound: { at: (cue, p, delayMs) => out.push({ cue, p, delayMs: waited + delayMs }) } }, at);
+    playUtilitySounds({ world: { events, terrain }, eventPoint: (id) => seen[id] ?? null, fx: { later }, sound: { event: (cue, p, delayMs) => out.push({ cue, p, delayMs: waited + delayMs }) } }, at);
     return out;
   }
 
   it("plays each utility's own cue at its user as it is used, and the pulse's crack", () => {
     expect(played([use("a", "mortar"), use("b", "flare"), use("a", "sprout"), use("a", "caltrops"), use("b", "oil"), pulse("b")]).map((s) => [s.cue, s.p, s.delayMs])).toEqual([
-      ["mortar-fire", seen.a, 0],
-      ["mortar-fire", seen.b, 0],
+      ["mortar-launch", seen.a, 0],
+      ["mortar-launch", seen.b, 0],
       ["smoke-burst", seen.a, 0],
       ["caltrops-drop", seen.a, 0],
       ["oil-spill", seen.b, 0],
@@ -187,7 +187,7 @@ describe("playUtilitySounds", () => {
     const point = { x: 40, y: 30 };
     const ground = groundPoint(terrain, point);
     expect(played([use("a", "mortar", point), use("a", "flare", point)]).filter((s) => s.delayMs > 0)).toEqual([
-      { cue: "cannon-fire", p: ground, delayMs: SHELL.flightMs },
+      { cue: "mortar-burst", p: ground, delayMs: SHELL.flightMs },
       { cue: "flare-burst", p: ground, delayMs: FLARE_LOOK.flightMs },
     ]);
   });
@@ -224,27 +224,46 @@ function plansOf(rounds: ShotRound[], shown: (id: string) => boolean = () => tru
 }
 
 describe("playVolley sounds", () => {
-  function cuesOf(weapon: string, struck: boolean): string[] {
+  function cuesOf(weapon: string, struck: boolean, count = 1): string[] {
     const cues: string[] = [];
     const p = { x: 0, y: 0, z: 0 };
     const round: ShotRound = { hit: struck, crit: false, offset: 0, struck: struck ? "t" : null, hits: [], blast: [], burst: null };
-    const event = { t: "shot", shooter: "s", weapon: "w", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round] } as ShotLike;
+    const rounds = Array.from({ length: count }, () => round);
+    const event = { t: "shot", shooter: "s", weapon: "w", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds } as ShotLike;
     const fly = (_s: unknown, _m: unknown, _p: unknown, _r: unknown, c: { fired: (m: never) => void; landed: () => void }) => {
       c.fired({ pos: p } as never);
       c.landed();
     };
-    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
-    playVolley(host, plansOf([round]), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false, null);
+    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { event: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
+    playVolley(host, plansOf(rounds), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false, null);
     return cues;
   }
 
   it("fires and hooks with the harpoon's own cues", () => {
-    expect(cuesOf("harpoon", true)).toEqual(["harpoon-fire", "harpoon-hook"]);
+    expect(cuesOf("harpoon", true)).toEqual(["shot-harpoon", "harpoon-hook"]);
   });
 
   it("lets a harpoon miss like any round, and keeps every other gun on its look's cues", () => {
-    expect(cuesOf("harpoon", false)).toEqual(["harpoon-fire", "miss"]);
-    expect(cuesOf("mg", true)).toEqual(["mg-fire", "hit-metal"]);
+    expect(cuesOf("harpoon", false)).toEqual(["shot-harpoon", "miss"]);
+    expect(cuesOf("mg", true)).toEqual(["shot-mg", "echo-mg", "hit-plate"]);
+  });
+
+  it("plays one echo per volley, right after the last round's shot", () => {
+    const cues = cuesOf("heavyMg", false, 6);
+    expect(cues.filter((c) => c === "shot-heavy-mg")).toHaveLength(6);
+    expect(cues.filter((c) => c === "echo-heavy-mg")).toHaveLength(1);
+    expect(cues.indexOf("echo-heavy-mg")).toBe(cues.lastIndexOf("shot-heavy-mg") + 1);
+  });
+
+  it("plays a burst gun's one take and one echo for the whole volley", () => {
+    const cues = cuesOf("gatling", false, 12);
+    expect(cues.filter((c) => c === "shot-gatling")).toHaveLength(1);
+    expect(cues.filter((c) => c === "echo-gatling")).toHaveLength(1);
+  });
+
+  it("plays no echo for a gun whose take holds its own tail", () => {
+    expect(cuesOf("shotgun", false, 10)).not.toContain("echo-mg");
+    expect(cuesOf("shotgun", false, 10).filter((c) => c.startsWith("echo-"))).toEqual([]);
   });
 });
 
@@ -264,7 +283,7 @@ describe("playVolley breaks", () => {
     const host = {
       world,
       fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, _p: unknown, _r: unknown, cues: { landed: () => void }) => landed.push(cues.landed), label: () => {}, later: () => {}, projectileImpact: () => {} },
-      sound: { at: (cue: string) => sounds.push(cue) },
+      sound: { event: (cue: string) => sounds.push(cue) },
       eventPoint,
       breakPart: (b: PartBreak) => broken.push(b),
       poses: POSES,
@@ -307,11 +326,11 @@ describe("playVolley breaks", () => {
 
   it("sounds a ground miss as a miss and a hit as metal", () => {
     expect(volley([plain(null)])).toEqual(["miss"]);
-    expect(volley([plain("t")])).toEqual(["hit-metal"]);
+    expect(volley([plain("t")])).toEqual(["hit-plate"]);
   });
 
   it("sounds a ground miss whose blast damaged a truck as metal", () => {
-    expect(volley([plain(null, [{ vehicle: "o", hits: [] }])])).toEqual(["hit-metal"]);
+    expect(volley([plain(null, [{ vehicle: "o", hits: [] }])])).toEqual(["hit-plate"]);
   });
 
   const sheet = (parts: string[]) => {
@@ -340,11 +359,11 @@ describe("playVolley breaks", () => {
     const plates = idOf("plates");
     const ram = idOf("ram");
 
-    it("plays hit-part for a damaged engine and hit-metal for plates, a ram or no damage", () => {
+    it("plays hit-part for a damaged engine and hit-plate for plates, a ram or no damage", () => {
       expect(volleyOn(world, [dealt(engine, 2)])).toEqual(["hit-part"]);
-      expect(volleyOn(world, [dealt(plates, 2)])).toEqual(["hit-metal"]);
-      expect(volleyOn(world, [dealt(ram, 2)])).toEqual(["hit-metal"]);
-      expect(volleyOn(world, [dealt(engine, 0)])).toEqual(["hit-metal"]);
+      expect(volleyOn(world, [dealt(plates, 2)])).toEqual(["hit-plate"]);
+      expect(volleyOn(world, [dealt(ram, 2)])).toEqual(["hit-plate"]);
+      expect(volleyOn(world, [dealt(engine, 0)])).toEqual(["hit-plate"]);
     });
 
     it("plays hit-part when a round cracks a plate and then reaches the engine", () => {
@@ -380,7 +399,7 @@ describe("playVolley breaks", () => {
       expect(weapons.length).toBeGreaterThan(0);
       for (const w of weapons) {
         expect(volleyOn(world, [dealt(engine, 2)], w.id)).toEqual(["hit-part"]);
-        expect(volleyOn(world, [dealt(plates, 2)], w.id)).toEqual(["hit-metal"]);
+        expect(volleyOn(world, [dealt(plates, 2)], w.id)).toEqual(["hit-plate"]);
       }
     });
   });
@@ -566,7 +585,7 @@ describe("playShotFx before a shooter's view exists", () => {
       world,
       views: new Map(),
       fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: { delayMs: number; flightMs: number }) => launched.push(plan), label: () => {}, later: () => {}, projectileImpact: () => {} },
-      sound: { at: () => {}, queueScoreEvent: () => {} },
+      sound: { event: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -594,7 +613,7 @@ describe("playShotFx before a shooter's view exists", () => {
       world,
       views: new Map(),
       fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle) => muzzles.push(muzzle), label: () => {}, later: () => {}, projectileImpact: () => {} },
-      sound: { at: () => {}, queueScoreEvent: () => {} },
+      sound: { event: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -625,7 +644,7 @@ describe("playShotFx with a late start", () => {
       world,
       views: new Map(),
       fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: { delayMs: number; elapsedMs?: number }) => flights.push(plan), label: () => {}, later: (ms: number, run: () => void) => { delays.push(ms); run(); }, projectileImpact: () => impacts++ },
-      sound: { at: () => {}, queueScoreEvent: () => {} },
+      sound: { event: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -675,7 +694,7 @@ describe("playShotFx after the shooter's view is gone", () => {
       world,
       views,
       fx: { clearShots: () => {}, shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { fired: (m: Muzzle) => void }) => kept.push({ muzzle, fired: cues.fired }), label: () => {}, later: () => {}, projectileImpact: () => {} },
-      sound: { at: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {}, queueScoreEvent: () => {} },
+      sound: { event: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -738,7 +757,7 @@ describe("playShotFx through the move", () => {
       world,
       views: new Map([[shooter.id, { covers: () => true, turretUnit: () => 0 }]]),
       fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {}, later: (_at: number, run: () => void) => run(), projectileImpact: () => {} },
-      sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
+      sound: { event: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},

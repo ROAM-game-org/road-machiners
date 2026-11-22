@@ -291,7 +291,7 @@ describe("strainGlides", () => {
   });
 });
 
-describe("atLevel", () => {
+describe("SoundDirector events", () => {
   const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 50, y: 50 }) };
   const withWindow = (run: () => void) => {
     const width = globalThis.window?.innerWidth;
@@ -303,16 +303,6 @@ describe("atLevel", () => {
       else Object.defineProperty(globalThis, "window", { value: { innerWidth: width }, configurable: true });
     }
   };
-
-  it("scales the placement gain by the level and logs it", () => {
-    const calls: unknown[][] = [];
-    withWindow(() => {
-      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0, () => 0);
-      director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, 0.4);
-      expect(calls).toEqual([["crash", { pan: 0, gain: 0.4 }, 0]]);
-      expect(director.log).toEqual(["crash 0.40"]);
-    });
-  });
 
   it("plays each layer of an event at its own delay and gain, scaled by the level", () => {
     const calls: unknown[][] = [];
@@ -345,7 +335,7 @@ describe("atLevel", () => {
   it("throws on a level outside (0, 1]", () => {
     withWindow(() => {
       const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0, () => 0);
-      for (const level of [0, -0.1, 1.01, NaN]) expect(() => director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, level)).toThrow();
+      for (const level of [0, -0.1, 1.01, NaN]) expect(() => director.event("crash-hard", { x: 0, y: 0, z: 0 }, 0, level)).toThrow();
       expect(director.log).toEqual([]);
     });
   });

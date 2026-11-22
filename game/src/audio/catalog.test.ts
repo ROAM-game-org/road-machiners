@@ -8,6 +8,11 @@ describe("sound catalog", () => {
     const claimed = Object.values(SOUNDS).flatMap((c) => c.files);
     expect([...claimed].sort()).toEqual([...onDisk].sort());
   });
+  it("plays every world one-shot cue through some sound event, all but the per-chassis horn", () => {
+    const layered = new Set<string>(Object.values(SOUND_EVENTS).flatMap((layers) => layers.map((l) => l.cue)));
+    const oneShots = Object.entries(SOUNDS).filter(([id, c]) => c.bus === "sfx" && !c.loop && id !== "horn").map(([id]) => id);
+    expect(oneShots.filter((id) => !layered.has(id))).toEqual([]);
+  });
   it("gives every sound event layer a one-shot cue with files", () => {
     for (const [id, layers] of Object.entries(SOUND_EVENTS)) {
       for (const layer of layers) {

@@ -169,18 +169,6 @@ export class SoundDirector {
     this.due = [];
   }
 
-  at(cue: CueId, p: V3, delayMs: number): void {
-    this.record(cue);
-    this.player.play(cue, this.place(p), delayMs);
-  }
-
-  atLevel(cue: CueId, p: V3, delayMs: number, level: number): void {
-    checkLevel(level);
-    this.record(`${cue} ${level.toFixed(2)}`);
-    const placed = this.place(p);
-    this.player.play(cue, { pan: placed.pan, gain: placed.gain * level }, delayMs);
-  }
-
   event(id: SoundEventId, p: V3, delayMs: number, level: number): void {
     checkLevel(level);
     const placed = this.place(p);

@@ -1030,7 +1030,7 @@ export class Game {
   private playImpactSounds(): void {
     for (const e of this.world.events) {
       const p = untimedDestroyed(this.world, e) && this.eventPoint(e.vehicle);
-      if (p) this.sound.at("explosion", p, 0);
+      if (p) this.sound.event("explosion", p, 0, 1);
     }
     for (const cue of this.turnCues.after(this.world)) this.sound.ui(cue);
   }
@@ -1043,7 +1043,7 @@ export class Game {
     const running = g && !isStranded(this.world, me) ? g : null;
     this.loops.drive(running, me.chassisId, strain);
     if (running) this.sound.engineStrain(strain);
-    if (g?.brake) this.sound.at("air-brake", frames[0].pos, 0);
+    if (g?.brake) this.sound.event("air-brake", frames[0].pos, 0, 1);
   }
 
   private updateLoops(): void {
@@ -1087,7 +1087,7 @@ export class Game {
     if (this.eventPoint(b.vehicle) === null) return;
     if (!this.turnStart) throw new Error(`Part ${b.part} of ${b.vehicle} broke before any turn played`);
     const p = playBreak(this.world, this.turnStart, this.obstacles.parts, this.fx, this.trucks.views.get(b.vehicle), b);
-    if (p) this.sound.at("part-broken", p, 0);
+    if (p) this.sound.event("part-broken", p, 0, 1);
     playCookOff(this.combatHost(), b);
   }
 
