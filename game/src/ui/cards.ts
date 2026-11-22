@@ -322,7 +322,7 @@ export function gridItemIcon(item: GridItem): HTMLElement {
 
 export function chassisPortrait(chassisId: string, paint: TruckPaint): HTMLElement {
   const cell = chassisPortraitCell(chassisId, paint);
-  const portrait = sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
+  const portrait = sheetIcon(cell, "chassis-portrait crt-picture", cell.box, cell.label);
   if (!samePaint(paint, PAINT.standard) && canvasReadable()) void showPainted(portrait, paint);
   return portrait;
 }

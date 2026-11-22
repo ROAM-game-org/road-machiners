@@ -80,6 +80,11 @@ export const CONTRACTS = {
 
   pastKept: 30,
 
+  board: {
+    refreshTurns: Math.round(TIME.workDayTurns / 4),
+    shelfTurns: Math.round(TIME.workDayTurns / 2),
+  },
+
 
   warnTurns: Math.round(TIME.workDayTurns / 12),
 

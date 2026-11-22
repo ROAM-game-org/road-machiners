@@ -6,7 +6,7 @@ export type DrawCount = { draws: number; triangles: number };
 export type SceneState = { lights: Record<string, number>; shadowMaps: number[]; programs: number; textures: number; geometries: number; objects: number; canvas: string; pixelRatio: number; domNodes: number; blurred: string[]; changedBuffers?: Record<string, number>; renderCalls?: number[]; mixedMaterials?: string[]; steps?: Record<string, number> };
 export type SlowFrames = { count: number; renderMs: number; tickRestMs: number; timers: Record<string, number>; uploadBytes: number; chunkBuilds: number; over100WithChunkBuild: number; newPrograms: number; over100WithNewPrograms: number };
 export type SceneReport = {
-  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'fight-night' | 'drive';
+  id: 'town-day' | 'town-day-far' | 'town-night' | 'town-night-far' | 'fight' | 'fight-night' | 'drive' | 'drive-night';
   passes: PassStats[];
   frame: PassStats;
   spread: number;
@@ -86,7 +86,7 @@ export function driveTurnGaps(firstTurn: number): (turn: number, busy: boolean, 
 }
 
 export function turnStats(sceneIds: readonly string[], log: TurnSamples): BenchReport['turns'] {
-  const turned = sceneIds.includes('fight') || sceneIds.includes('drive');
+  const turned = sceneIds.includes('fight') || sceneIds.includes('drive') || sceneIds.includes('drive-night');
   const statsIf = (wanted: boolean, samples: number[]) => (wanted ? frameStats(samples) : null);
   return { waitMs: statsIf(turned, log.waits), workerTurnMs: statsIf(turned, log.workers), previewMs: statsIf(sceneIds.includes('drive'), log.previews), starts: log.starts, steps: log.steps };
 }

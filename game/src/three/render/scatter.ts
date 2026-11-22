@@ -5,7 +5,7 @@ import { TERRAIN_TYPES } from '../../data/terrain';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
 import { SCATTER, type ScatterShare } from '../../data/view';
-import { desertWeight, lookTypes, type LookType } from '../../render/groundPaint';
+import { desertWeight, lookName, lookTypes, type LookType } from '../../render/groundPaint';
 import { hash2, valueNoise } from '../../render/noise';
 import { atlasOf, roadEdgeGap, type Atlas } from '../../sim/atlas';
 import { groundAt, type Terrain } from '../../sim/terrain';
@@ -46,7 +46,7 @@ const CASTS_SHADOW: ReadonlySet<ScatterModel> = new Set(['desert_scrub', 'cactus
 type Placed = { matrix: THREE.Matrix4; tint: number };
 export type ScatterChunk = { center: Vec } & Record<ScatterModel, Placed[]>;
 
-type ScatterTiles = { look: readonly LookType[]; blocked: Uint8Array; rocky: Uint8Array };
+type ScatterTiles = { look: Uint8Array; blocked: Uint8Array; rocky: Uint8Array };
 
 export function addScatter(t: Terrain, obstacles: Obstacle[], scope: RenderScope): void {
   const reach = (TERRAIN_CHUNK / 2) * Math.SQRT2 + 1;
@@ -92,7 +92,7 @@ function chunkScatter(t: Terrain, { look, blocked, rocky }: ScatterTiles, cx: nu
   const chunk: ScatterChunk = { center: { x: cx + Math.min(TERRAIN_CHUNK, t.size - cx) / 2, y: cy + Math.min(TERRAIN_CHUNK, t.size - cy) / 2 }, pebbles: [], scrub: [], desert_stones: [], desert_scrub: [], cactus: [] };
   for (let y = cy; y < Math.min(cy + TERRAIN_CHUNK, t.size); y++) for (let x = cx; x < Math.min(cx + TERRAIN_CHUNK, t.size); x++) {
     const i = y * t.size + x;
-    const model = blocked[i] ? null : tileModel(atlas, highway, blocks[blockOf(x - cx, y - cy)], look[i], x, y, rocky[i] === 1);
+    const model = blocked[i] ? null : tileModel(atlas, highway, blocks[blockOf(x - cx, y - cy)], lookName(look[i], i), x, y, rocky[i] === 1);
     if (model === null || onLoweredGround(t, x, y)) continue;
     chunk[model].push(placed(t, x, y, model));
   }

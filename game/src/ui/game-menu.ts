@@ -14,6 +14,7 @@ import { versionLabel } from "./hud-readout";
 import { desktopHost } from "../three/save-db";
 import { drawingRenderer } from "../three/webgl";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
+import { keyPress } from "./control-sound";
 import { OptionsPanel } from "./options";
 import type { SoundSettings } from "./sound";
 import { SavePanel, type SavePanelActions } from "./save-panel";
@@ -138,15 +139,12 @@ function controlGroup(group: ControlGroup): HTMLElement {
   );
 }
 
-export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (["fullscreen", "help", "tips", "options", "report"].includes(entry)) return true;
-  if (entry === "load") return !busy && hasSave;
-  return !busy;
+export function entryEnabled(entry: MenuEntry, hasSave: boolean): boolean {
+  return entry !== "load" || hasSave;
 }
 
-export function entryReason(entry: MenuEntry, busy: boolean, hasSave: boolean): Msg | null {
-  if (entryEnabled(entry, busy, hasSave)) return null;
-  return busy ? t("menu.waitForTurn") : t("save.none");
+export function entryReason(entry: MenuEntry, hasSave: boolean): Msg | null {
+  return entryEnabled(entry, hasSave) ? null : t("save.none");
 }
 
 export function buildNote(): Msg {
@@ -163,6 +161,7 @@ export class HelpPanel {
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code !== "Escape") return;
     e.stopPropagation();
+    keyPress(this.root?.querySelector<HTMLElement>(".close") ?? null);
     this.close();
   };
 
@@ -210,7 +209,10 @@ export class GameMenu {
     if (isConfirmOpen()) return;
     if (e.code === "Escape") {
       e.stopPropagation();
-      if (!e.repeat) this.closeList(true);
+      if (!e.repeat) {
+        if (!this.list.hidden) keyPress(this.button);
+        this.closeList(true);
+      }
       return;
     }
     if (isBrowserChord(e)) return;
@@ -236,7 +238,7 @@ export class GameMenu {
   private readonly tipsLamp = lamp("key-mark");
   private readonly labels = {} as Record<MenuEntry, HTMLElement>;
 
-  constructor(private button: HTMLElement, private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private feedback: FeedbackLinks, sound: SoundSettings) {
+  constructor(private button: HTMLElement, private actions: GameMenuActions, setup: () => WorldSetup, private tips: TipSwitch, private feedback: FeedbackLinks, sound: SoundSettings) {
     button.setAttribute("aria-haspopup", "menu");
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-controls", "game-menu-list");
@@ -257,14 +259,17 @@ export class GameMenu {
     this.refresh();
   }
 
+  cameraKey(): HTMLElement | null {
+    return this.options.cameraKey();
+  }
+
   isOpen(): boolean {
     return !this.list.hidden || this.savePanel.isOpen() || this.options.isOpen() || this.help.isOpen() || this.feedback.reportOpen() || isNewGameOpen() || isConfirmOpen();
   }
 
   refresh(): void {
-    const busy = this.isBusy();
     const saved = this.actions.hasSave();
-    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
+    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, saved));
     this.items.fullscreen.hidden = !document.fullscreenEnabled;
     setText(this.labels.fullscreen, t(document.fullscreenElement ? "menu.exitFullscreen" : "menu.fullscreen"));
     const on = this.tips.isOn();

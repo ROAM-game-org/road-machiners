@@ -479,7 +479,7 @@ export type CallVar =
   | { kind: "aid"; fuel: number; supplies: number }
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
-  | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
+  | { kind: "sightings"; told: { contract: string; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }[] }
   | { kind: "bearing"; rad: number }
   | { kind: "distance"; tiles: number }
   | { kind: "square"; column: number; row: number }

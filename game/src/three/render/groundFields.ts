@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
-import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, shownLooks, type LookType, type PaintCanvas } from "../../render/groundPaint";
+import { glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, LOOK_DESERT, LOOK_NAMES, shownLooks, type PaintCanvas } from "../../render/groundPaint";
 import { paintHighwayWear } from "../../render/highwayWear";
 import { paintRoadDetail, joinedRoadEnds, paintRoadMask, paintRoadTone, regionRoadRuns, SQUARE_END_STEEPNESS, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
@@ -66,9 +66,11 @@ export function* groundFieldPieces(newMask: () => PaintCanvas, t: Terrain, shelt
   };
 }
 
+const MATERIAL_OF_LOOK = Uint8Array.from(LOOK_NAMES, groundMaterialIndex);
+
 function tilesOf(t: Terrain): { tiles: ReturnType<typeof tileTexture>; materials: Uint8Array } {
   const shown = shownLooks(t);
-  const materials = Uint8Array.from(shown, groundMaterialIndex);
+  const materials = Uint8Array.from(shown, (code) => MATERIAL_OF_LOOK[code]);
   return { tiles: tileTexture(t, shown, materials), materials };
 }
 
@@ -79,7 +81,7 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function tileTexture(t: Terrain, shown: readonly LookType[], materials: Uint8Array): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
+function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
   const look = groundLooks(t);
@@ -87,7 +89,7 @@ function tileTexture(t: Terrain, shown: readonly LookType[], materials: Uint8Arr
   const turns = fieldTurns(shown, t.size);
   for (let tile = 0; tile < shown.length; tile++) {
     data[tile * 4 + TILE_MATERIAL] = materials[tile];
-    data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
+    data[tile * 4 + TILE_DESERT] = Math.round(LOOK_DESERT[look[tile]] * 255);
     data[tile * 4 + TILE_GLASS] = glass[tile];
     data[tile * 4 + TILE_FIELD_TURN] = turns[tile];
   }

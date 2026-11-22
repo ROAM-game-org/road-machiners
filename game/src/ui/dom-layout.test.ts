@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipped, coveredControl, escapes, intersect, latinLeft, outsideViewport, pairOverlaps, sidewaysOverflow, smallTarget } from "./dom";
+import { clipped, coveredControl, escapes, intersect, latinLeft, outsideViewport, pairOverlaps, sidewaysOverflow, smallTarget, stretched } from "./dom";
 
 const box = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom });
 
@@ -110,5 +110,23 @@ describe("smallTarget", () => {
   it("passes a control at the minimum and ignores an empty box", () => {
     expect(smallTarget(box(0, 0, 32, 32), 32)).toBe(false);
     expect(smallTarget(box(0, 0, 0, 0), 32)).toBe(false);
+  });
+});
+
+describe("stretched", () => {
+  const art = { width: 110, height: 210 };
+
+  it("passes a picture drawn at its own aspect, with a little drift", () => {
+    expect(stretched({ width: 16, height: 30.5 }, art)).toBe(false);
+    expect(stretched({ width: 16.3, height: 30.5 }, art)).toBe(false);
+  });
+
+  it("reports a picture squashed into another aspect", () => {
+    expect(stretched({ width: 16, height: 30 }, { width: 28, height: 42 })).toBe(true);
+  });
+
+  it("skips a picture with no size yet", () => {
+    expect(stretched({ width: 16, height: 30 }, { width: 0, height: 0 })).toBe(false);
+    expect(stretched({ width: 0, height: 0 }, art)).toBe(false);
   });
 });

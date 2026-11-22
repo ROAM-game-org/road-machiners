@@ -9,6 +9,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 ## Field
 
 - `menu.jpg`: the field with the HUD and an opening tip.
+- `overheat.jpg`: the field with the engine overheating, its red lamp lit above the heat gauge.
 - `log.jpg`: the field with a full log.
 - `minimap.jpg`: the field with the minimap on.
 - `inspect.jpg`: the card of an armed enemy under the cursor.
@@ -24,7 +25,8 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `inventory.jpg`: the inventory with the first part picked.
 - `inventory-gun.jpg`: the inventory with a mounted gun picked.
 - `loot.jpg`: the inventory with a salvage source.
-- `look-over.jpg`: the inventory looking another truck over.
+- `look-over.jpg`: the inventory looking another truck over, its driver's name on tape over its own screen.
+- `downed.jpg`: the inventory on a truck that gave up or was knocked out, with the state as the first line of its screen.
 - `character.jpg`: the character screen, skills.
 - `world-map.jpg`: the character screen, map.
 - `journal-survey.jpg`: the journal with a survey contract.

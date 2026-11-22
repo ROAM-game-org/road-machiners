@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyPlacesLeft, surveyProgress, surveyWayLine } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -195,7 +195,7 @@ describe("contract text", () => {
   });
 
   describe("a rescue", () => {
-    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 1, deadline: 100, window: 100, tier: 1, fulfilled: false };
+    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, lead: null, reward: 1, deadline: 100, window: 100, tier: 1, fulfilled: false };
 
     it("names the driver, and reads as ready to claim once met", () => {
       expect(en(contractSummary(rescue))).toBe("Rescue Jed Cobb");
@@ -1070,13 +1070,6 @@ describe("survey contract text", () => {
     }
   });
 
-  it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
-    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies in square C4, north-east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south of Pump Station, about 100 m out, on flat ground");
-  });
-
   it("names a map grid square by its column letter and row number, with the Russian letters in Russian", () => {
     expect(en(gridSquareText({ column: 2, row: 3 }))).toBe("C4");
     expect(resolve(gridSquareText({ column: 2, row: 3 }), "ru")).toBe("В4");
@@ -1125,12 +1118,11 @@ describe("survey contract text", () => {
   it("tells the same clue wherever the truck is", () => {
     const c = survey([false, false]);
     const w = emptyWorld();
-    const told = en(surveyClueText(surveyClue(c, c.points[0])));
+    const told = surveyClue(c, c.points[0]);
     for (const pos of [first.pos, second.pos, { x: 30, y: 30 }]) {
       w.vehicles[0].pos = { ...pos };
-      expect(en(surveyClueText(surveyClue(c, c.points[0])))).toBe(told);
+      expect(surveyClue(c, c.points[0])).toEqual(told);
     }
-    expect(told).not.toMatch(/^(east|west|north|south)/);
   });
 
   it("raises a found place and a met survey to a toast, and keeps a surveyed site to the log", () => {

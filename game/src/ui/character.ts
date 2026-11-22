@@ -102,7 +102,7 @@ export class CharacterScreen {
   private mapBody(world: World): HTMLElement[] {
     const map = this.mapTab();
     map.render(world);
-    return [map.body];
+    return [el('div', { class: 'map-page' }, map.body, map.side)];
   }
 
   private skillTabs(world: World, shown: SkillId): HTMLElement {

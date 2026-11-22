@@ -1,3 +1,4 @@
+import { noteLead } from './leads';
 import { describe, expect, it } from 'vitest';
 import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { chassisDef } from '../data/chassis';
@@ -10,7 +11,7 @@ import { makePart } from './factory';
 import { goodsCount } from './grid';
 import { addGoods, removeGoods, stowParcel, stowPart } from './inventory';
 import { sitePads } from './sites';
-import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
+import { addVehicle, emptyWorld, nextRefresh, npcBrain, practiceOf } from './testkit';
 import type { Vehicle, World } from './types';
 import { remember } from './memory';
 import { townWork } from './dialogue-rules';
@@ -19,13 +20,15 @@ import {
   acceptContract,
   advanceContracts,
   advanceShops,
+  boardPhase,
+  boardRefreshDue,
+  postedTurn,
   haulBlocked,
   deliverContract,
   goodValue,
   contractReward,
   estimateTurns,
   contractXp,
-  noteSearchLead,
   searchReward,
   haulWindow,
   initializeShops,
@@ -303,6 +306,78 @@ describe('contract boards and delivery', () => {
     return w;
   }
 
+  describe('board refresh clock', () => {
+    const gap = CONTRACTS.board.refreshTurns;
+
+    it('refreshes a board on its own phase turn and not on the parts restock turn', () => {
+      const w = emptyWorld();
+      w.shops.bowl.contracts = [];
+      w.turn = nextRefresh(w, 'bowl') + 1;
+      w.shops.bowl.restockAt = w.turn;
+      advanceShops(w);
+      expect(w.shops.bowl.contracts).toHaveLength(0);
+      w.turn = nextRefresh(w, 'bowl');
+      expect(boardRefreshDue(w, 'bowl')).toBe(true);
+      advanceShops(w);
+      expect(w.shops.bowl.contracts.length).toBeGreaterThan(0);
+    });
+
+    it('gives every shop its own phase', () => {
+      const phases = Object.keys(SHOPS).map(boardPhase);
+      expect(new Set(phases).size).toBe(phases.length);
+      expect(() => boardPhase('nowhere')).toThrow();
+    });
+
+    it('drops an untaken offer older than the shelf life at a refresh and keeps a fresh one', () => {
+      const w = emptyWorld();
+      w.turn = nextRefresh(w, 'bowl') + gap * 10;
+      const stale = { ...haul('nose', 3), id: 'ct-stale', deadline: w.turn - CONTRACTS.board.shelfTurns + 900, window: 900 };
+      const fresh = { ...haul('nose', 3), id: 'ct-fresh', deadline: w.turn + 400, window: 450 };
+      w.shops.bowl.contracts = [stale, fresh];
+      w.turn = nextRefresh(w, 'bowl');
+      advanceShops(w);
+      const ids = w.shops.bowl.contracts.map((c) => c.id);
+      expect(ids).not.toContain('ct-stale');
+      expect(ids).toContain('ct-fresh');
+    });
+
+    it('leaves a held contract alone', () => {
+      let w = atBowlWithOffer(haul('nose', 3));
+      w = acceptContract(w, 'ct-haul');
+      w = update(w, (d) => { d.turn = nextRefresh(d, 'bowl') + gap; advanceShops(d); });
+      expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-haul']);
+    });
+
+    it('refuses a posting turn for an escort offer or one in the future', () => {
+      const w = emptyWorld();
+      const escort = { id: 'e', shop: 'bowl', kind: 'escort', deadline: 9, window: 9 } as unknown as Contract;
+      expect(() => postedTurn(w, escort)).toThrow();
+      expect(() => postedTurn(w, { ...haul('nose', 3), deadline: 900, window: 100 })).toThrow();
+      expect(postedTurn(w, { ...haul('nose', 3), deadline: 500, window: 500 })).toBe(0);
+    });
+
+    it('does not count an escort offer against the slots', () => {
+      const w = emptyWorld();
+      const slots = SHOPS.bowl.contractSlots;
+      const escort = { id: 'e', shop: 'bowl', kind: 'escort', deadline: w.turn + 9999, window: 9999 } as unknown as Contract;
+      w.shops.bowl.contracts = [escort];
+      w.turn = nextRefresh(w, 'bowl');
+      advanceShops(w);
+      const own = w.shops.bowl.contracts.filter((c) => c.kind !== 'escort');
+      expect(own.length).toBeGreaterThan(0);
+      expect(own.length).toBeLessThanOrEqual(slots);
+    });
+
+    it('posts a kind the board does not show before one it does', () => {
+      const w = emptyWorld();
+      const offers = { legs: [{ good: 'salt', units: 5, to: { id: 'nose', pos: { x: 9, y: 9 } } } as never], procure: ['salt'] };
+      for (let i = 0; i < 40; i++) {
+        const c = rollContract(w, { id: 'bowl', pos: { x: 1, y: 1 } }, offers, ['procure']);
+        expect(c?.kind).toBe('haul');
+      }
+    });
+  });
+
   it('posts contracts on every shop board at world creation', () => {
     const w = emptyWorld();
     for (const id of Object.keys(SHOPS)) expect(w.shops[id].contracts.length).toBeGreaterThan(0);
@@ -353,11 +428,11 @@ describe('contract boards and delivery', () => {
       const w = emptyWorld();
       w.marketRng.rngState = seed;
       for (const state of Object.values(w.shops)) for (const good of Object.keys(state.goods)) state.goods[good] = Math.floor(state.goods[good] / 2);
-      for (const state of Object.values(w.shops)) {
-        state.contracts = [];
-        state.restockAt = w.turn;
+      for (const state of Object.values(w.shops)) state.contracts = [];
+      for (const shopId of Object.keys(w.shops)) {
+        w.turn = nextRefresh(w, shopId);
+        advanceShops(w);
       }
-      advanceShops(w);
       const hauls = Object.values(w.shops).flatMap((s) => s.contracts).filter((c): c is Extract<Contract, { kind: 'haul' }> => c.kind === 'haul');
       expect(hauls.length).toBeGreaterThan(0);
       for (const c of hauls) {
@@ -424,9 +499,8 @@ describe('contract boards and delivery', () => {
     expect(warned(deadline - CONTRACTS.warnTurns + 1)).toHaveLength(0);
   });
 
-  it('drops an expired offer from the board every turn, before any restock', () => {
+  it('drops an expired offer from the board every turn', () => {
     let w = atBowlWithOffer(haul('nose', 3));
-    w.shops.bowl.restockAt = 10000;
     w = update(w, (d) => { d.turn = 501; advanceShops(d); });
     expect(w.shops.bowl.contracts.find((c) => c.id === 'ct-haul')).toBeUndefined();
   });
@@ -501,7 +575,7 @@ describe('search contracts', () => {
     expect(searchReward()).toBe(Math.round(CONTRACTS.search.rewardTurns * EFFORT.wage[1]));
   });
 
-  it('posts a search at restock only for a fresh visitor who is not a raider', () => {
+  it('posts a search at a board refresh only for a fresh visitor who is not a raider', () => {
     const targets = new Set<string>();
     for (let seed = 1; seed <= 30; seed++) {
       const { w, target } = worldWithTarget();
@@ -573,12 +647,13 @@ describe('search contracts', () => {
     expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(false);
   });
 
-  it('refills the board at restock with a lead from a fresh visit', () => {
+  it('refills the board at a board refresh with a lead from a fresh visit', () => {
     const leads: number[] = [];
     for (let seed = 1; seed <= 30; seed++) {
       const { w, target } = worldWithTarget();
       w.shops.bowl.contracts = [posted(target.id)];
-      w.turn = w.shops.bowl.restockAt;
+      w.turn = CONTRACTS.search.freshTurns * 2;
+      w.turn = nextRefresh(w, 'bowl');
       visit(w, target, 'bowl', w.turn - 5);
       w.marketRng.rngState = seed;
       advanceShops(w);
@@ -601,11 +676,11 @@ describe('search contracts', () => {
     expect(after.player.contracts.map((c) => c.id)).toEqual(['ct-search']);
   });
 
-  it('drops a board offer whose target is gone at restock', () => {
+  it('drops a board offer whose target is gone at a board refresh', () => {
     const { w, target } = worldWithTarget();
     w.shops.bowl.contracts = [posted(target.id)];
     w.vehicles = w.vehicles.filter((v) => v.id !== target.id);
-    w.turn = w.shops.bowl.restockAt;
+    w.turn = nextRefresh(w, 'bowl');
     advanceShops(w);
     expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(false);
   });
@@ -706,9 +781,9 @@ describe('search contracts', () => {
     const { w, target } = worldWithTarget();
     w.shops.bowl.contracts = [posted(target.id)];
     const held = acceptContract(w, 'ct-search');
-    const newer = update(held, (d) => noteSearchLead(d, { x: 10, y: 20 }, 50));
+    const newer = update(held, (d) => noteLead(d, 'ct-search', { x: 10, y: 20 }, 50));
     expect(newer.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
-    const older = update(newer, (d) => noteSearchLead(d, { x: 99, y: 99 }, 20));
+    const older = update(newer, (d) => noteLead(d, 'ct-search', { x: 99, y: 99 }, 20));
     expect(older.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
   });
 

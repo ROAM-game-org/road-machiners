@@ -153,9 +153,15 @@ function partName(world: World, vehicleId: string, partId: string): Msg {
   return p ? partNameOf(p.defId) : t('job.somePart');
 }
 
+export function downedStateText(vehicle: Vehicle): Msg | null {
+  if (!isKnockedOut(vehicle)) return null;
+  return gaveUp(vehicle) ? t('npc.gaveUp') : t('npc.knockedOut');
+}
+
 export function formatNpcActivity(world: World, vehicle: Vehicle): Msg | null {
   if (!vehicle.brain || !playerSees(world, vehicle.pos)) return null;
-  if (isKnockedOut(vehicle)) return gaveUp(vehicle) ? t('npc.gaveUp') : t('npc.knockedOut');
+  const downed = downedStateText(vehicle);
+  if (downed) return downed;
   const activity = topGoal(vehicle);
   return activity ? goalLine(activity) : null;
 }
@@ -308,7 +314,7 @@ function stateEndedText(world: World, e: Extract<GameEvent, { t: 'stateEnded' }>
   return words ? words(vehicleName(world, e.state.holder)) : null;
 }
 
-function partDamage(hits: PartHit[]): Map<string, number> {
+export function partDamage(hits: PartHit[]): Map<string, number> {
   const dealt = new Map<string, number>();
   for (const h of hits) if (h.damage > 0) dealt.set(h.part, (dealt.get(h.part) ?? 0) + h.damage);
   return dealt;
@@ -711,10 +717,6 @@ function surveyPlaces(c: SurveyContract): Msg {
 
 export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
-}
-
-export function surveyClueText(clue: SurveyClue): Msg {
-  return t('contract.surveyClue', { square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
 
 function surveyPlaceText(clue: SurveyClue): Msg {

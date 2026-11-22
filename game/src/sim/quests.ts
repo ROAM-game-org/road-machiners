@@ -52,7 +52,8 @@ import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './chaos-highway';
 import { payOf } from './chaos-highway-director';
-import { heldSearch, noteSearchLead, requireShop, shortHere, siteOf } from './market';
+import { noteLead } from './leads';
+import { heldSearch, requireShop, shortHere, siteOf } from './market';
 import { marshalLead } from './marshals';
 import { worksDown } from './production';
 import { hashRandom } from './rng';
@@ -158,7 +159,7 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
   take_marshal_lead: (world) => {
     const lead = marshalLead(world);
     if (!lead) throw new Error('take_marshal_lead ran with no Marshall sighting newer than the lead');
-    noteSearchLead(world, lead.at, lead.turn);
+    noteLead(world, heldSearch(world)!.id, lead.at, lead.turn);
   },
   note: (world, args) => learnNote(world, noteArg('note', args)),
   take_work: (world) => takeTownWork(world),

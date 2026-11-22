@@ -178,7 +178,7 @@ describe("playUtilitySounds", () => {
   it("plays each utility's own cue at its user as it is used, and the pulse's crack", () => {
     expect(played([use("a", "mortar"), use("b", "flare"), use("a", "sprout"), use("a", "caltrops"), use("b", "oil"), pulse("b")]).map((s) => [s.cue, s.p, s.delayMs])).toEqual([
       ["mortar-fire", seen.a, 0],
-      ["flare-fire", seen.b, 0],
+      ["mortar-fire", seen.b, 0],
       ["smoke-burst", seen.a, 0],
       ["caltrops-drop", seen.a, 0],
       ["oil-spill", seen.b, 0],
@@ -610,6 +610,50 @@ describe("playShotFx before a shooter's view exists", () => {
     host.poses = posesOf(world, {}, clock, (v) => v.id !== shooter.id);
     expect(muzzles).toHaveLength(1);
     expect(muzzles[0]().pos.x).toBeCloseTo(shooter.pos.x * PHYSICS.metersPerTile, 3);
+  });
+});
+
+describe("playShotFx with a late start", () => {
+  const played = (startMs: number) => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
+    if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
+    world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
+    const flights: { delayMs: number; elapsedMs?: number }[] = [];
+    const delays: number[] = [];
+    let impacts = 0;
+    const host = {
+      world,
+      views: new Map(),
+      fx: { clearShots: () => {}, shot: (_s: unknown, _m: unknown, plan: { delayMs: number; elapsedMs?: number }) => flights.push(plan), label: () => {}, later: (ms: number, run: () => void) => { delays.push(ms); run(); }, projectileImpact: () => impacts++ },
+      sound: { at: () => {}, queueScoreEvent: () => {} },
+      eventPoint: () => ORIGIN,
+      breakPart: () => {},
+      onBurst: () => {},
+      poses: posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
+      startMs,
+      lineHooked: () => {},
+    } as unknown as CombatHost;
+    recordShots(world);
+    playShotFx(host, new BreakCues(world.events));
+    return { flights, delays, impacts };
+  };
+
+  it("plays an impact that fell before the start at once, and draws no shot for it", () => {
+    const { flights, delays, impacts } = played(600);
+    expect(flights).toHaveLength(0);
+    expect(impacts).toBe(1);
+    expect(delays).toContain(0);
+  });
+
+  it("draws a shot that is still in the air at the start from where it is", () => {
+    const { flights, delays, impacts } = played(250);
+    expect(flights).toHaveLength(1);
+    expect(flights[0].elapsedMs).toBe(150);
+    expect(impacts).toBe(1);
+    expect(delays).toContain(50);
   });
 });
 

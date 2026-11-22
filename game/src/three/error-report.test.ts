@@ -79,7 +79,7 @@ describe('error reports', () => {
   });
 
   it('carries the graphics facts once the game registers them, and null before', async () => {
-    const facts = { renderer: 'ANGLE (NVIDIA, GeForce RTX 3080)', drawn: { width: 2560, height: 1440 }, renderScale: 0.75, frames: { count: 600, medianMs: 17, p95Ms: 48, over50: 3 } };
+    const facts = { renderer: 'ANGLE (NVIDIA, GeForce RTX 3080)', drawn: { width: 2560, height: 1440 }, renderScale: 0.75, frames: { count: 600, medianMs: 17, p95Ms: 48, over50: 3 }, timeline: [] };
     const { sent, ...r } = reporter();
 
     await r.reporter.report('early failure');

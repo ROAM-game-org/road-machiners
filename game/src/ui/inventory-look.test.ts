@@ -1,70 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { FakeNode, stubDom, ui } from "./inventory-fake-dom";
 import { addState } from "../sim/states";
 import { addVehicle, emptyWorld, spotWorld } from "../sim/testkit";
 import type { QuestLive, World } from "../sim/types";
+import { vehicleTitle } from "../text/names";
 import { InventoryScreen } from "./inventory";
-
-class FakeNode {
-  className = "";
-  innerHTML = "";
-  style: Record<string, unknown> = { setProperty: () => {}, removeProperty: () => {} };
-  dataset: Record<string, string> = {};
-  children: (FakeNode | string)[] = [];
-  attrs = new Map<string, string>();
-  isConnected = true;
-  clientWidth = 400;
-  offsetWidth = 400;
-  offsetHeight = 300;
-  clientHeight = 300;
-  scrollTop = 0;
-  parentElement: FakeNode | null = null;
-  classList = {
-    add: (c: string) => void (this.className = `${this.className} ${c}`.trim()),
-    remove: (c: string) => void (this.className = this.className.split(" ").filter((x) => x !== c).join(" ")),
-    toggle: (c: string, on?: boolean) => {
-      const has = this.className.split(" ").includes(c);
-      const want = on ?? !has;
-      if (want && !has) this.classList.add(c);
-      if (!want && has) this.classList.remove(c);
-      return want;
-    },
-    contains: (c: string) => this.className.split(" ").includes(c),
-  };
-  constructor(readonly tag: string) {}
-  append(...c: (FakeNode | string)[]) { this.children.push(...c); }
-  prepend(...c: (FakeNode | string)[]) { this.children.unshift(...c); }
-  replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
-  setAttribute(k: string, v: string) { this.attrs.set(k, v); }
-  getAttribute(k: string) { return this.attrs.get(k) ?? null; }
-  removeAttribute(k: string) { this.attrs.delete(k); }
-  addEventListener() {}
-  closest() { return null; }
-  contains() { return false; }
-  querySelectorAll(sel: string) { return sel.startsWith(".") ? this.all((n) => n !== this && n.className.split(" ").includes(sel.slice(1))) : []; }
-  querySelector(sel: string) { return this.querySelectorAll(sel)[0] ?? null; }
-  remove() {}
-  scrollIntoView() {}
-  getBoundingClientRect() { return { left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100, x: 0, y: 0, toJSON: () => ({}) }; }
-  all(pred: (n: FakeNode) => boolean): FakeNode[] {
-    const here = pred(this) ? [this] : [];
-    return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
-  }
-}
-
-const ui = new FakeNode("div");
-
-function stubDom(): void {
-  vi.stubGlobal("document", {
-    createElement: (t: string) => new FakeNode(t),
-    createElementNS: (_ns: string, t: string) => new FakeNode(t),
-    createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
-    getElementById: () => ui,
-    body: { insertAdjacentHTML: () => {} },
-    querySelector: () => null,
-  });
-  vi.stubGlobal("getComputedStyle", () => ({ overflowY: "visible", paddingBottom: "0px", getPropertyValue: () => "" }));
-  vi.stubGlobal("window", { addEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1280, innerHeight: 720 });
-}
+import { say as textOf } from "../text/language";
 
 const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 
@@ -217,7 +158,7 @@ describe("the inventory looking another truck over", () => {
   }
 
   const rootOf = () => ui.children[ui.children.length - 1] as FakeNode;
-  const targetOf = () => rootOf().all((n) => n.className.includes("inv-target"))[0];
+  const targetOf = () => rootOf().all((n) => n.className.split(" ").includes("inv-target"))[0];
 
   it("draws the truck's items and locks every control with the look-over reason", () => {
     const { w, npc } = lookScene();
@@ -261,8 +202,37 @@ describe("the inventory looking another truck over", () => {
     screen.openLookedOver(w, npc.id);
     w.states = [];
     screen.render();
-    const heads = targetOf().all((n) => n.tag === "h3");
-    expect(JSON.stringify(heads)).toContain("got away");
+    expect(JSON.stringify(targetOf())).toContain("got away");
+    expect(targetOf().all((n) => n.className.split(" ").includes("tape"))).toEqual([]);
+  });
+
+  it("names the truck on tape across the top of a screen of its own, outside the budget well", () => {
+    const { w, npc } = lookScene();
+    const { screen } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    const tapes = targetOf().all((n) => n.className.split(" ").includes("screen-tape"));
+    expect(tapes).toHaveLength(1);
+    expect(targetOf().children).toContain(tapes[0]);
+    expect(JSON.stringify(tapes[0])).toContain(textOf(vehicleTitle(w, npc)));
+    const budgetWells = rootOf().all((n) => n.className.split(" ").includes("well") && !n.className.includes("inv-target"));
+    for (const well of budgetWells) expect(JSON.stringify(well)).not.toContain(textOf(vehicleTitle(w, npc)));
+    expect(targetOf().all((n) => n.className.includes("inv-target-state"))).toEqual([]);
+  });
+
+  it.each([
+    [true, "Gave up"],
+    [false, "Knocked out"],
+  ])("prints the downed state with the hover card's words when gave up is %s", (gaveUp, id) => {
+    const { w, npc } = lookScene();
+    npc.defeat = { phase: "out", turns: 0, unseen: 0, foes: [], gaveUp };
+    const { screen } = screenOver(w);
+    const view = (screen as unknown as { view: { setTruck(id: string, mode: string): void } }).view;
+    view.setTruck(npc.id, "downed");
+    screen.root.style.display = "";
+    screen.render();
+    const state = targetOf().all((n) => n.className.includes("inv-target-state"));
+    expect(state).toHaveLength(1);
+    expect(JSON.stringify(state[0])).toContain(id);
   });
 
   it("puts the scene reason first", () => {
@@ -298,5 +268,92 @@ describe("the inventory looking another truck over", () => {
     expect(view.drag).toBeNull();
     expect(view.beginGridTap({ pointerType: "touch", target: null })).toBe(false);
     expect(applied).toEqual([]);
+  });
+});
+
+describe("the auto patch key in the inventory foot", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  const rootOf = () => ui.children[ui.children.length - 1] as FakeNode;
+  const switchesOf = (root: FakeNode) => root.all((n) => n.attrs.get("role") === "switch");
+
+  function playerWorld(autoRepair: boolean): World {
+    const world = emptyWorld();
+    const truck = addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
+    world.player.vehicleId = truck.id;
+    world.player.autoRepair = autoRepair;
+    return world;
+  }
+
+  function liveScreen(start: World): { screen: InventoryScreen; now: () => World } {
+    stubDom();
+    let world = start;
+    const screen = new InventoryScreen({ world: () => world, apply: (next: World) => (world = next), announce: () => {}, searchStock: () => {}, getTurnPhase: () => null } as never);
+    screen.toggle();
+    return { screen, now: () => world };
+  }
+
+  function footKey(): FakeNode {
+    const foot = rootOf().all((n) => n.className === "inv-foot")[0];
+    const keys = switchesOf(foot);
+    expect(keys).toHaveLength(1);
+    return keys[0];
+  }
+
+  it("sits on the foot as a plain key that shows the setting, with P in its tooltip", () => {
+    liveScreen(playerWorld(false));
+    const key = footKey();
+    expect(key.tag).toBe("button");
+    expect(key.className).toBe("");
+    expect(key.attrs.get("aria-checked")).toBe("false");
+    expect(key.attrs.get("title")).toContain("[P]");
+    expect(switchesOf(rootOf())).toHaveLength(1);
+  });
+
+  it("flips the setting through the sim on a click, and the redrawn key follows", () => {
+    const { screen, now } = liveScreen(playerWorld(false));
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(true);
+    screen.render();
+    expect(footKey().attrs.get("aria-checked")).toBe("true");
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(false);
+  });
+
+  it("is off with Knocked out while the driver is down, and flips nothing", () => {
+    const world = playerWorld(true);
+    world.player.state = "knockedOut";
+    const { now } = liveScreen(world);
+    const key = footKey();
+    expect(key.attrs.get("aria-disabled")).toBe("true");
+    expect(key.attrs.get("data-reason")).toBe("Knocked out");
+    key.listeners.get("click")?.();
+    expect(now()).toBe(world);
+  });
+
+  it("is off with the scene reason over a scene", () => {
+    const world = playerWorld(true);
+    world.player.quests.live = { ...SCENE };
+    liveScreen(world);
+    expect(footKey().attrs.get("data-reason")).toBe("Not during a scene");
+  });
+
+  it("is absent on a loot screen", () => {
+    const { w, stock } = spotWorld();
+    const { screen } = screenOver(w);
+    screen.openLoot(stock.id);
+    expect(switchesOf(rootOf())).toHaveLength(0);
+  });
+
+  it("is absent while another truck is looked over", () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, "independent", "buggy", ["mg", "stockEngine"], { x: 34, y: 30 });
+    addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
+    const { screen } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    expect(switchesOf(rootOf())).toHaveLength(0);
   });
 });

@@ -664,3 +664,19 @@ describe('followed truck stays in frame', () => {
     expect(follow.isFollowing()).toBe(false);
   });
 });
+
+describe('camera projection after a step', () => {
+  it('places points with the pose the step just set', () => {
+    const rig = rigAt();
+    const point = { x: 5, y: 0, z: 3 };
+    rig.follow({ x: 0, y: 0, z: 0 });
+    rig.tick(16);
+    rig.follow({ x: 40, y: 0, z: 25 });
+    rig.tick(400);
+    const placed = rig.screenOf(point);
+    rig.camera.updateMatrixWorld(true);
+    const v = new THREE.Vector3(point.x, point.y, point.z).project(rig.camera);
+    expect(placed.x).toBeCloseTo((v.x * 0.5 + 0.5) * 1280, 6);
+    expect(placed.y).toBeCloseTo((1 - (v.y * 0.5 + 0.5)) * 720, 6);
+  });
+});

@@ -125,6 +125,23 @@ describe('RadioStation', () => {
     expect(drain(s, w2)).toBeNull();
   });
 
+  it('airs at most one contract report per board refresh period', () => {
+    const w = world(10, ['bowl', 'nose']);
+    const s = tuned(w);
+    const first = later(w, RADIO.minGapTurns);
+    first.shops.bowl.contracts = [haul('c1', 'bowl', 'nose', 100)];
+    s.hear(first);
+    expect(s.next()).not.toBeNull();
+    const second = later(first, 20);
+    second.shops.bowl.contracts = [...first.shops.bowl.contracts, haul('c2', 'bowl', 'nose', 500)];
+    s.hear(second);
+    expect(drain(s, second)).toBeNull();
+    const third = later(second, RADIO.contractGapTurns);
+    third.shops.bowl.contracts = [...second.shops.bowl.contracts, haul('c3', 'bowl', 'nose', 700)];
+    s.hear(third);
+    expect(s.next()).not.toBeNull();
+  });
+
   it('announces a new search by the name of the person wanted', () => {
     const w = world(10, ['bowl']);
     const s = tuned(w);
@@ -144,7 +161,7 @@ describe('RadioStation', () => {
     const s = tuned(w);
     const w2 = later(w, RADIO.minGapTurns);
     const centre = w2.size / 2;
-    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
+    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, lead: null, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('rescue');

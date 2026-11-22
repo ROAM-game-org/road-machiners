@@ -4,7 +4,7 @@ import { registerRichTip } from "../touch-tip";
 import { createIcon, type IconName } from "../cards";
 import { el } from "../dom";
 import { coinEl } from "../units";
-import { bindWheel } from "../scroll-wheel";
+import { bindWheel, WHEEL_RIB_PX } from "../scroll-wheel";
 import { deviceCast } from "./skin";
 import { BakedPart } from "./baked";
 import { BAKED } from "./baked";
@@ -213,6 +213,8 @@ export interface DriveLabels {
   overdrive: Msg;
   cool: Msg;
   speedUnit: Msg;
+  on: Msg;
+  off: Msg;
 }
 
 export interface DriveSetup {
@@ -244,11 +246,14 @@ export interface DriveView extends SpeedView {
   heat: number;
   heatTitle: Msg;
   heatWarn: boolean;
+  heatAlarm: boolean;
   manual: RockerView;
   lights: RockerView;
   overdrive: RockerView;
   cool: CoolView;
 }
+
+const SWITCH_LABEL_ZONES = ["manual", "lights", "overdrive"] as const;
 
 export class DrivePanel {
   readonly root: HTMLElement;
@@ -264,6 +269,8 @@ export class DrivePanel {
   private readonly manual: Rocker;
   private readonly lights: Rocker;
   private readonly overdrive: Rocker;
+  private readonly lamps: HTMLElement[] = [];
+  private readonly heatLamp = this.plate.zone(el("span", { class: "lamp-glow heat-lamp", "aria-hidden": "true" }), "heatLamp");
 
   constructor(setup: DriveSetup) {
     const labels = setup.labels;
@@ -280,10 +287,26 @@ export class DrivePanel {
     const sink = this.plate.follow(el("span", { class: "key-print cool-print", "aria-hidden": "true" }, labels.cool), "coolText", "coolTextDown");
     this.cool.addEventListener("pointerdown", () => this.pressCool(true, sink));
     for (const end of ["pointerup", "pointercancel", "pointerleave"]) this.cool.addEventListener(end, () => this.pressCool(false, sink));
-    this.manual = this.rocker(labels.manual, "R", setup.onManual, 0);
-    this.lights = this.rocker(labels.lights, "L", setup.onLights, 1);
-    this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, 2);
+    this.manual = this.rocker(labels.manual, "R", setup.onManual, 0, labels);
+    this.lights = this.rocker(labels.lights, "L", setup.onLights, 1, labels);
+    this.overdrive = this.rocker(labels.overdrive, "O", setup.onOverdrive, 2, labels);
     this.root = el("div", { class: "hud-drive" }, this.plate.root);
+  }
+
+  manualSwitch(): HTMLElement {
+    return this.manual.root;
+  }
+
+  lightsSwitch(): HTMLElement {
+    return this.lights.root;
+  }
+
+  overdriveSwitch(): HTMLElement {
+    return this.overdrive.root;
+  }
+
+  coolKey(): HTMLElement {
+    return this.cool;
   }
 
   private speedTip(): HTMLElement {
@@ -298,10 +321,13 @@ export class DrivePanel {
     sink(pressed);
   }
 
-  private rocker(label: Msg, key: string, onFlip: () => void, slot: 0 | 1 | 2): Rocker {
+  private rocker(label: Msg, key: string, onFlip: () => void, slot: 0 | 1 | 2, words: DriveLabels): Rocker {
     const rocker = new Rocker(label, key, onFlip, false);
     this.plate.zone(rocker.root, `rockerHit${slot}`);
-    this.plate.pin(rocker.label, `label${"ABC"[slot]}` as "labelA");
+    this.plate.zone(rocker.label, SWITCH_LABEL_ZONES[slot]);
+    this.plate.zone(el("span", { class: "plate-label switch-print", "aria-hidden": "true" }, words.on), `on${slot}`);
+    this.plate.zone(el("span", { class: "plate-label switch-print", "aria-hidden": "true" }, words.off), `off${slot}`);
+    this.lamps[slot] = this.plate.zone(el("span", { class: "lamp-glow switch-lamp", "aria-hidden": "true" }), `lamp${slot}`);
     return rocker;
   }
 
@@ -313,9 +339,13 @@ export class DrivePanel {
     this.speed.update(view);
     this.fuel.update(view.fuel, view.fuelWarn, view.fuelTitle);
     this.heat.update(view.heat, view.heatWarn, view.heatTitle);
+    setFlag(this.heatLamp, "lit", view.heatAlarm);
     this.speedView = view;
     setAttrText(this.speedSpot, "aria-label", view.speedTitle);
-    [view.manual, view.lights, view.overdrive].forEach((rocker, i) => this.rockerFrames[i].show(`rocker${i}-${rocker.checked ? "on" : "off"}`));
+    [view.manual, view.lights, view.overdrive].forEach((rocker, i) => {
+      this.rockerFrames[i].show(`rocker${i}-${rocker.checked ? "on" : "off"}`);
+      setFlag(this.lamps[i], "lit", rocker.checked);
+    });
     this.manual.update(view.manual);
     this.lights.update(view.lights);
     this.overdrive.update(view.overdrive);
@@ -457,7 +487,6 @@ export function knobAngle(index: number, count: number): number {
   return count === 1 ? 0 : -KNOB_SWEEP / 2 + (KNOB_SWEEP * index) / (count - 1);
 }
 
-export const WHEEL_RIB_PX = 6;
 const DAY_CELLS = 2;
 
 export function wheelTurn(scrollTop: number): number {
@@ -581,6 +610,14 @@ export class RadioDeck {
     this.turn.addEventListener("pointercancel", () => this.release());
     this.root = el("div", { class: "hud-radio" }, deviceCast(), this.plate.root);
     new ResizeObserver(([entry]) => shareRadioScale(entry.contentRect.width)).observe(this.plate.root);
+  }
+
+  playKey(): HTMLElement {
+    return this.turn;
+  }
+
+  speedKnob(): HTMLElement {
+    return this.knob;
   }
 
   bindLog(scroller: HTMLElement): void {
