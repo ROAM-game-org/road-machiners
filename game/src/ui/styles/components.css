@@ -104,7 +104,7 @@
 }
 
 /* --press-sound names the sound a press of the button makes, beside the look it draws. src/ui/control-sound.ts reads it.
-   Later rules win: key, latch, lit latch, content that is not a control, glass button, rows that cannot move, turn key, knob, switch, and last a refused control. */
+   Later rules win: key, latch, lit latch, glass button and screen content, rows that cannot move, turn key, knob, switch, and last a refused control. */
 :is(#ui, #report) :where(button) {
   --press-sound: key;
 }
@@ -114,10 +114,7 @@
 :is(#ui, #report) :where(button[aria-pressed="true"]) {
   --press-sound: latch-lit;
 }
-:is(#ui, #report) :where(.screen-line, .inv-item, .part-sum, .mode-card, .dialogue-option, .gun-card, .gun-page) {
-  --press-sound: none;
-}
-:is(#ui, #report) :where(.screen-btn) {
+:is(#ui, #report) :where(.screen-btn, .screen-line, .inv-item, .part-sum, .mode-card, .dialogue-option, .gun-card, .gun-page) {
   --press-sound: screen;
 }
 :is(#ui, #report) :where(.tabs > button:is(.on, .selected), .option-switch > button[aria-pressed="true"], .knob-mark.on) {

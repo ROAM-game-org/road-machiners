@@ -8,6 +8,7 @@ const CONTROL_ROOTS = "#ui, #report";
 
 let sink: ((cue: ControlCue) => void) | null = null;
 let lastKey: { control: HTMLElement; at: number } | null = null;
+const listening = new WeakSet<Document>();
 
 const PRESS_CUES: Record<Exclude<PressSound, "switch" | "none">, ControlCue> = {
   key: CONTROL_STATES.key.press.cue,
@@ -69,6 +70,8 @@ function echoesKey(button: HTMLElement): boolean {
 
 export function installControlSounds(doc: Document, play: (cue: ControlCue) => void): void {
   sink = play;
+  if (listening.has(doc)) return;
+  listening.add(doc);
   doc.addEventListener(
     "pointerdown",
     (event) => {

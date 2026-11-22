@@ -135,7 +135,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | ui-close | ui | false | 0.7 | 1 | 1 |
 | radio | ui | false | 0.8 | 1 | 1 |
 | radio-end | ui | false | 0.8 | 1 | 1 |
-| engine-douse | ui | false | 0.6 | 1 | 1 |
+| engine-douse | ui | false | 0.6 | 1 | 4 |
 | key-press | ui | false | 0.45 | 1 | 1 |
 | turn-press | ui | false | 0.15 | 1 | 1 |
 | utility-armed | ui | false | 0.45 | 1 | 1 |
@@ -144,8 +144,8 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | switch-off | ui | false | 0.5 | 1 | 1 |
 | latch-in | ui | false | 0.45 | 1 | 1 |
 | latch-out | ui | false | 0.45 | 1 | 1 |
-| screen-press | ui | false | 0.3 | 1 | 6 |
-| knob-step | ui | false | 0.3 | 1 | 2 |
+| screen-press | ui | false | 0.3 | 1 | 8 |
+| knob-step | ui | false | 0.3 | 1 | 1 |
 | wheel-step | ui | false | 0.25 | 1 | 1 |
 | money | ui | false | 0.8 | 1 | 1 |
 | level-up | ui | false | 1 | 1 | 6 |
@@ -154,7 +154,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | air-brake | sfx | false | 0.5 | 1 | 3 |
 | defeat | ui | false | 1 | 1 | 1 |
 | mg-fire | sfx | false | 0.6 | 6 | 3 |
-| cannon-fire | sfx | false | 0.9 | 3 | 1 |
+| cannon-fire | sfx | false | 0.9 | 3 | 3 |
 | gun-empty | sfx | false | 0.8 | 3 | 1 |
 | hit-metal | sfx | false | 0.55 | 6 | 3 |
 | hit-part | sfx | false | 0.55 | 6 | 3 |

@@ -9,7 +9,8 @@ import { driveSnapshotOf } from '../phys/turn';
 import { easedStopSteps } from './play-clock';
 import { Travel } from './travel';
 import { afterBoot, startTurnWorker } from './turn-worker-start';
-import { BANK, BOOT_SOUNDS, MIX, MUSIC_SOUNDS, SOUNDS } from '../data/sounds';
+import { BANK, BOOT_SOUNDS, CONTROL_CUES, MIX, MUSIC_SOUNDS, SOUNDS } from '../data/sounds';
+import { installControlSounds } from '../ui/control-sound';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
 import { PHYSICS } from '../data/physics';
@@ -306,6 +307,9 @@ const musicFaults: unknown[] = [];
 let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const sounds = new SoundBank(filesOf(BOOT_SOUNDS));
 sounds.lend(filesOf(MUSIC_SOUNDS));
+const soundPlayer = new SoundPlayer(mixer, sounds, SOUNDS);
+installControlSounds(document, (cue) => soundPlayer.play(cue, { pan: 0, gain: 1 }, 0));
+startBank(mixer.ctx, Object.fromEntries(CONTROL_CUES.map((id) => [id, SOUNDS[id]])), soundOptions, sounds).loaded.catch(reportError);
 const musicShelf = new MusicShelf(sounds, bankTrackLoader(mixer.ctx, soundOptions, (err) => reportMusicFault(err)), (err) => reportMusicFault(err));
 let bankSettled!: () => void;
 const afterBank = new Promise<void>((resolve) => (bankSettled = resolve));
@@ -350,7 +354,7 @@ radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
   stepBoot('building the renderer');
-  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, new SoundPlayer(mixer, sounds, SOUNDS), music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
+  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
