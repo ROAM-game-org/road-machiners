@@ -14,7 +14,7 @@ import type { SightLimit } from './scope';
 import { setText } from '../../text/language';
 import { num, t } from '../../text/msg';
 import { fullName } from '../../text/names';
-import { heldSearch } from '../../sim/market';
+import { soughtDrivers } from '../../sim/leads';
 import { agoText } from '../../ui/units';
 import { layerPointOf } from '../../ui/ui-size';
 import { workMeterBar } from '../../ui/work-meter';
@@ -40,7 +40,7 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
 }
 
 export class Labels {
-  private lead: HTMLDivElement | null = null;
+  private readonly leads = new Map<string, HTMLDivElement>();
   private escort: HTMLDivElement | null = null;
 
   constructor(private readonly container: HTMLElement) {}
@@ -51,15 +51,21 @@ export class Labels {
   }
 
   private updateLead(world: World, rig: CameraRig, limit: SightLimit): void {
-    const search = heldSearch(world);
-    if (!search || search.delivered) {
-      this.lead?.remove();
-      this.lead = null;
-      return;
+    const led = soughtDrivers(world).flatMap((s) => (s.lead ? [{ ...s, lead: s.lead }] : []));
+    for (const [id, el] of this.leads) {
+      if (led.some((s) => s.contract === id)) continue;
+      el.remove();
+      this.leads.delete(id);
     }
-    this.lead ??= labelEl(this.container);
-    setText(this.lead, t('map.lead', { driver: fullName(search.driver), ago: agoText(world.turn - search.lead.turn) }));
-    place(this.lead, world, search.lead.at, rig, limit, true, LEAD_EXTRA_LIFT_PX);
+    for (const s of led) {
+      let el = this.leads.get(s.contract);
+      if (!el) {
+        el = labelEl(this.container);
+        this.leads.set(s.contract, el);
+      }
+      setText(el, t('map.lead', { driver: fullName(s.driver), ago: agoText(world.turn - s.lead.turn) }));
+      place(el, world, s.lead.at, rig, limit, true, LEAD_EXTRA_LIFT_PX);
+    }
   }
 
   private updateEscort(world: World, rig: CameraRig, limit: SightLimit): void {

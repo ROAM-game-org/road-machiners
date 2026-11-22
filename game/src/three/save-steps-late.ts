@@ -1015,3 +1015,29 @@ export function withoutPartClaimsOnBoards(world: SavedJson): SavedJson {
   const next = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).filter((c) => c.kind !== 'claim') }]));
   return { ...world, shops: next };
 }
+
+function withLeadOnRescue(contract: SavedJson): SavedJson {
+  return contract.kind === 'rescue' && contract.lead === undefined ? { ...contract, lead: null } : contract;
+}
+
+function withSightingList(vars: SavedJson, search: SavedJson | undefined): SavedJson {
+  const out: SavedJson = {};
+  for (const [name, v] of Object.entries(vars)) {
+    const var1 = v as SavedJson;
+    out[name] = var1.kind === 'sighting' ? { kind: 'sightings', told: [{ contract: search?.id ?? '', driver: var1.driver, seen: var1.seen }] } : v;
+  }
+  return out;
+}
+
+export function withRescueLeads(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const contracts = player.contracts as SavedJson[];
+  const search = contracts.find((c) => c.kind === 'search');
+  const shops = world.shops as Record<string, SavedJson>;
+  const boards = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withLeadOnRescue) }]));
+  const past = (player.pastContracts as SavedJson[]).map((p) => ({ ...p, contract: withLeadOnRescue(p.contract as SavedJson) }));
+  const call = player.call as SavedJson | null;
+  const line = call?.line as SavedJson | undefined;
+  const nextCall = call && line && { ...call, vars: withSightingList(call.vars as SavedJson, search), line: { ...line, vars: withSightingList(line.vars as SavedJson, search) } };
+  return { ...world, shops: boards, player: { ...player, contracts: contracts.map(withLeadOnRescue), pastContracts: past, call: nextCall ?? null } };
+}

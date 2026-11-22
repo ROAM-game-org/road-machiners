@@ -637,7 +637,7 @@ const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>
   aid: () => true,
   prices: (v) => v.goods.every((g) => trades(v.town, g.good)),
   tip: (v) => v.tip === null || trades(v.tip.shop, v.tip.good),
-  sighting: (v) => isName(v.driver),
+  sightings: (v) => v.told.every((t) => isName(t.driver)),
   bearing: () => true,
   distance: () => true,
   square: (v) => isGridIndex(v.column) && isGridIndex(v.row),

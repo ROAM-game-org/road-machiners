@@ -161,7 +161,7 @@ describe('RadioStation', () => {
     const s = tuned(w);
     const w2 = later(w, RADIO.minGapTurns);
     const centre = w2.size / 2;
-    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
+    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, lead: null, reward: 2, deadline: 900, window: 400, tier: 1, fulfilled: false }];
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('rescue');

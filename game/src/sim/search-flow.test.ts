@@ -56,9 +56,11 @@ describe('a search contract from the board to the pay', () => {
     state.vehicles.find((v) => v.id === target.id)!.pos = { x: pad.x + 60, y: pad.y + 60 };
     const told = ask(state, witness.id, TOPICS.lastSeen.ask!.say);
     const sighting = told.player.call!.vars.sighting;
-    expect(sighting).toMatchObject({ kind: 'sighting', driver: 'Mack Holt' });
-    if (sighting.kind !== 'sighting' || !sighting.seen) throw new Error('The witness saw nothing');
-    expect(sighting.seen.tiles).toBeLessThan(dist(pad, { x: pad.x + 60, y: pad.y + 60 }));
+    if (sighting.kind !== 'sightings') throw new Error('sightings expected');
+    expect(sighting.told).toMatchObject([{ driver: 'Mack Holt' }]);
+    const seen = sighting.told[0].seen;
+    if (!seen) throw new Error('The witness saw nothing');
+    expect(seen.tiles).toBeLessThan(dist(pad, { x: pad.x + 60, y: pad.y + 60 }));
     const noted = hangUp(chooseText(told, 'Thanks. Something else.'));
     const lead = noted.player.contracts[0];
     if (lead.kind !== 'search') throw new Error('search expected');

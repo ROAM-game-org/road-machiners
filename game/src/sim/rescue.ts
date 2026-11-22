@@ -78,7 +78,7 @@ export function rollRescue(world: World, shop: { id: string; pos: Vec }, clients
   const window = haulWindow(turns, false);
   const driver = client.brain!.driver;
   const area = areaAround(world, client.pos);
-  return { id, shop: shop.id, kind: 'rescue', client: client.id, driver, need: rescueNeed(world, client), area, reward: rescueReward(shop.id, area), deadline: world.turn + window, window, tier: 1, fulfilled: false };
+  return { id, shop: shop.id, kind: 'rescue', client: client.id, driver, need: rescueNeed(world, client), area, lead: null, reward: rescueReward(shop.id, area), deadline: world.turn + window, window, tier: 1, fulfilled: false };
 }
 
 export function rescueOfferValid(world: World, c: Rescue): boolean {
