@@ -78,3 +78,32 @@ describe("drive part source", () => {
     expect(source).not.toMatch(/fillText|printMesh/);
   });
 });
+
+describe.each(VIEWS)("drive heat lamp, %s view", (view) => {
+  const meta = read(view);
+  const lamp = rectOf(meta.zones.heatLamp.quad);
+  const heat = rectOf(meta.zones.heat.quad);
+  const fuel = rectOf(meta.zones.fuel.quad);
+  const scale = meta.zones.heatLamp.size[0] / (lamp.x1 - lamp.x0);
+
+  it("sits inside the heat glass, clear of every other zone", () => {
+    expect(lamp.x0).toBeGreaterThanOrEqual(heat.x0);
+    expect(lamp.x1).toBeLessThanOrEqual(heat.x1);
+    expect(lamp.y0).toBeGreaterThanOrEqual(heat.y0);
+    expect(lamp.y1).toBeLessThanOrEqual(heat.y1);
+    for (const [name, zone] of Object.entries(meta.zones)) {
+      if (name === "heatLamp" || name === "dial" || name === "heat") continue;
+      expect(overlap(lamp, rectOf(zone.quad)), name).toBe(false);
+    }
+  });
+
+  it("sits in the lower right of the glass, below the H end", () => {
+    expect(centerX(lamp)).toBeGreaterThan(heat.x0 + 0.7 * (heat.x1 - heat.x0));
+    expect(centerY(lamp)).toBeGreaterThan(heat.y0 + 0.7 * (heat.y1 - heat.y0));
+  });
+
+  it("leaves the two gauge glasses with equal tops and heights", () => {
+    expect(Math.abs(fuel.y0 - heat.y0)).toBeLessThan(0.01);
+    expect(Math.abs(fuel.y1 - heat.y1)).toBeLessThan(0.01);
+  });
+});

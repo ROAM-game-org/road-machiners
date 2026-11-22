@@ -235,6 +235,7 @@
   --hud-lamp-amber: #ffae2b;
   --hud-lamp-green: #7fd14a;
   --hud-lamp-red: #ff4a2b;
+  --hud-lamp-blink: 1s;
   --hud-rocker-on: #ff3b2a;
   --hud-rocker-core: #ffc2a8;
   --hud-rocker-deep: #7a1408;

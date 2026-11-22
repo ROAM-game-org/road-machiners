@@ -29,6 +29,7 @@ const state = {
   top: 160,
   fuel: 0.62,
   heat: 0.35,
+  heatAlarm: false,
   manual: false,
   lights: true,
   overdrive: false,
@@ -63,6 +64,7 @@ function driveView(): DriveView {
     heat: state.heat,
     heatTitle: say(`Engine heat ${Math.round(state.heat * 100)}%`),
     heatWarn: state.heat > 0.75,
+    heatAlarm: state.heatAlarm,
     manual: rocker(state.manual, "Manual driving"),
     lights: rocker(state.lights, "Headlights"),
     overdrive: rocker(state.overdrive, "Overdrive"),
@@ -269,6 +271,7 @@ function controls(): HTMLElement {
     range("Dial end", 60, 300, 20, state.top, (v) => (state.top = v)),
     range("Fuel", 0, 1, 0.01, state.fuel, (v) => (state.fuel = v)),
     range("Engine heat", 0, 1, 0.01, state.heat, (v) => (state.heat = v)),
+    range("Heat alarm", 0, 1, 1, Number(state.heatAlarm), (v) => (state.heatAlarm = v === 1)),
     range("Guns", 0, 9, 1, state.guns, (v) => {
       state.guns = v;
       state.picked = null;
