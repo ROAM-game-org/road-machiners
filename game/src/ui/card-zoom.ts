@@ -26,6 +26,23 @@ export function fitZoom(screen: Size, natural: Size, cap: number): number {
   return Math.min(positive(cap, "cap"), screen.height / natural.height, screen.width / natural.width);
 }
 
+function reaches(screen: Size, natural: Size, fit: number, corner: Size): boolean {
+  return (natural.width * fit) / 2 > screen.width / 2 - corner.width && (natural.height * fit) / 2 > screen.height / 2 - corner.height;
+}
+
+export function fitClearOf(screen: Size, natural: Size, cap: number, corner: Size): number {
+  const plain = fitZoom(screen, natural, cap);
+  for (const side of [corner.width, corner.height]) {
+    if (!Number.isFinite(side) || side < 0) throw new Error(`Card zoom: the corner is ${side}, not a non-negative number`);
+  }
+  if (corner.width === 0 || corner.height === 0 || !reaches(screen, natural, plain, corner)) return plain;
+  const narrower = { width: screen.width - 2 * corner.width, height: screen.height };
+  const lower = { width: screen.width, height: screen.height - 2 * corner.height };
+  const fits = [narrower, lower].filter((room) => room.width > 0 && room.height > 0).map((room) => fitZoom(room, natural, cap));
+  if (fits.length === 0) throw new Error("Card zoom: the corner leaves no room for the drawing");
+  return Math.max(...fits);
+}
+
 function limit(drawn: number, screen: number): number {
   return Math.max(0, (drawn - screen) / 2);
 }

@@ -205,9 +205,9 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedId: string | null = null;
-  private readonly zoomOutKey = el("button", { class: "hud-key icon-key", title: t("map.zoomOut"), "aria-label": t("map.zoomOut"), onclick: () => this.inspected.zoomStep(-1) }, createIcon("minus"));
-  private readonly zoomInKey = el("button", { class: "hud-key icon-key", title: t("map.zoomIn"), "aria-label": t("map.zoomIn"), onclick: () => this.inspected.zoomStep(1) }, createIcon("plus"));
-  private readonly zoomKeys = el("div", { class: "hud-keybed info-zoom" }, this.zoomOutKey, this.zoomInKey);
+  private readonly zoomOutKey = el("button", { class: "screen-btn icon-btn", title: t("map.zoomOut"), "aria-label": t("map.zoomOut"), onclick: () => this.inspected.zoomStep(-1) }, createIcon("minus"));
+  private readonly zoomInKey = el("button", { class: "screen-btn icon-btn", title: t("map.zoomIn"), "aria-label": t("map.zoomIn"), onclick: () => this.inspected.zoomStep(1) }, createIcon("plus"));
+  private readonly zoomKeys = el("div", { class: "info-zoom", onpointerdown: (e: Event) => e.stopPropagation() }, this.zoomOutKey, this.zoomInKey);
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel hud-panel", rightDock());
   private wanted = panel("wanted dock-panel hud-panel", rightDock());
@@ -363,11 +363,11 @@ export class Hud {
     this.portraits = new TruckPortraits(renderer, gpu, readback);
     this.garage = new GarageRenders(renderer, gpu, readback);
     this.condition = new TruckConditionView(this.portraits, CONDITION_LENGTH_M);
-    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M, { magnify: (state) => this.markZoomKeys(state) });
+    this.inspected = new TruckConditionView(this.portraits, CONDITION_LENGTH_M, { magnify: (state) => this.markZoomKeys(state), clearCorner: this.zoomKeys });
     this.portraits.onReady((vehicleId) => {
       if (vehicleId === this.inspectedId) this.placeInfo();
     });
-    this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
+    this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root, this.zoomKeys);
     this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
     this.dialogue = new DialoguePanel(actions.dialogue);
@@ -671,7 +671,6 @@ export class Hud {
 
   private infoHead(w: World, v: Vehicle, pinned: boolean): HTMLElement {
     const head = panelHead(v.brain ? driverName(v) : vehicleTitle(w, v));
-    head.append(this.zoomKeys);
     if (!pinned) return head;
     const key = closeKey({ label: t("card.unpin"), onClose: () => this.actions.unpin() });
     setAttrText(key, "title", keyTip(t("card.unpin"), ESCAPE.key));
