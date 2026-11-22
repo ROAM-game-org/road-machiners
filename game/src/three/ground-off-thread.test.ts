@@ -27,6 +27,7 @@ class FakeWorker {
 function parts(cached: GroundBake | null, useCache = true) {
   const workers: FakeWorker[] = [];
   const writes: string[] = [];
+  const handed: unknown[] = [];
   const fake: GroundBakerParts = {
     openWorker: () => {
       const worker = new FakeWorker();
@@ -34,13 +35,14 @@ function parts(cached: GroundBake | null, useCache = true) {
       return worker as unknown as Worker;
     },
     readCache: () => Promise.resolve(cached),
-    writeCache: (key) => {
+    writeCache: (key, written) => {
       writes.push(key);
+      handed.push(written);
       return Promise.resolve();
     },
     useCache,
   };
-  return { fake, workers, writes };
+  return { fake, workers, writes, written: handed };
 }
 
 describe("the ground baker", () => {
@@ -56,7 +58,7 @@ describe("the ground baker", () => {
   });
 
   it("bakes in one worker on a cache miss and writes the cache once, only when told to keep", async () => {
-    const { fake, workers, writes } = parts(null);
+    const { fake, workers, writes, written } = parts(null);
 
     const baking = startGroundBaker(fake)(TEST_MAP.terrain, "k");
     await baking.baked;
@@ -68,6 +70,7 @@ describe("the ground baker", () => {
     expect(workers[0].posted).toHaveLength(1);
     expect(workers[0].terminated).toBe(true);
     expect(writes).toEqual(["k"]);
+    expect(written).toEqual([bake]);
   });
 
   it("keeps nothing when the worker could not bake", async () => {
