@@ -6,7 +6,6 @@ const BOXES = new URL("./baked/", import.meta.url);
 const DRIVE_SOURCE = new URL("../../../tools/hud-bake/parts/drive.js", import.meta.url);
 const VIEWS = ["desktop", "flat"] as const;
 const SWITCHES = [0, 1, 2] as const;
-const FACE_PX_PER_UNIT = 4;
 const LABELS = ["manual", "lights", "overdrive"] as const;
 
 const read = (view: string): BakedMeta => JSON.parse(readFileSync(new URL(`drive.${view}.json`, BOXES), "utf8")) as BakedMeta;
@@ -82,27 +81,25 @@ describe("drive part source", () => {
 
 describe.each(VIEWS)("drive heat lamp, %s view", (view) => {
   const meta = read(view);
-  const face = rectOf(meta.face);
   const lamp = rectOf(meta.zones.heatLamp.quad);
   const heat = rectOf(meta.zones.heat.quad);
   const fuel = rectOf(meta.zones.fuel.quad);
   const scale = meta.zones.heatLamp.size[0] / (lamp.x1 - lamp.x0);
 
-  it("sits on the plate face and overlaps no other zone", () => {
-    expect(lamp.x0).toBeGreaterThanOrEqual(face.x0);
-    expect(lamp.x1).toBeLessThanOrEqual(face.x1);
-    expect(lamp.y0).toBeGreaterThanOrEqual(face.y0);
+  it("sits inside the heat glass, clear of every other zone", () => {
+    expect(lamp.x0).toBeGreaterThanOrEqual(heat.x0);
+    expect(lamp.x1).toBeLessThanOrEqual(heat.x1);
+    expect(lamp.y0).toBeGreaterThanOrEqual(heat.y0);
+    expect(lamp.y1).toBeLessThanOrEqual(heat.y1);
     for (const [name, zone] of Object.entries(meta.zones)) {
-      if (name === "heatLamp" || name === "dial") continue;
+      if (name === "heatLamp" || name === "dial" || name === "heat") continue;
       expect(overlap(lamp, rectOf(zone.quad)), name).toBe(false);
     }
   });
 
-  it("sits right above the heat glass over its H end", () => {
-    expect(lamp.y1).toBeLessThanOrEqual(heat.y0);
-    expect((heat.y0 - lamp.y1) * scale).toBeLessThanOrEqual(4 * FACE_PX_PER_UNIT);
-    expect(centerX(lamp)).toBeGreaterThan(centerX(heat));
-    expect(centerX(lamp)).toBeLessThan(heat.x1);
+  it("sits in the lower right of the glass, below the H end", () => {
+    expect(centerX(lamp)).toBeGreaterThan(heat.x0 + 0.7 * (heat.x1 - heat.x0));
+    expect(centerY(lamp)).toBeGreaterThan(heat.y0 + 0.7 * (heat.y1 - heat.y0));
   });
 
   it("leaves the two gauge glasses with equal tops and heights", () => {

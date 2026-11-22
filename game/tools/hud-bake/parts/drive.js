@@ -147,14 +147,14 @@ const SW_SCALE = 1.5, SW_LEVER_SCALE = 2.3 / 1.75;
 const SW_Z = Z_PANEL + 0.004;
 const EYE_UNITS = P.eye();
 const RED_LENS = '#4a0f0a';
-const lampDome = (cx, cy, lens = '#4a2c0a') => {
-  const L = P.at(SW_Z), px = L.ux(cx), py = L.uy(cy), r = L.len(LAMP_R);
-  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(1.1), 10, 32), lit(SW_BASE));
+const lampDome = (cx, cy, lens = '#4a2c0a', radius = LAMP_R, z = SW_Z) => {
+  const L = P.at(z), px = L.ux(cx), py = L.uy(cy), r = L.len(radius);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(radius * 0.22), 10, 32), lit(SW_BASE));
   const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit(lens));
   dome.rotation.x = Math.PI / 2; dome.scale.set(1, 0.6, 1);
   const g = new THREE.Group();
   g.add(bezel, dome);
-  g.position.set(px, py, SW_Z);
+  g.position.set(px, py, z);
   for (const m of [bezel, dome]) { m.castShadow = true; m.receiveShadow = true; }
   P.g.add(g);
 };
@@ -167,8 +167,9 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   return { set: toggle.set, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => r.set(false));
-const HEAT_LAMP = { x: HEAT.pts[2][0] - 9, y: HEAT.pts[0][1] - 6.4 };
-lampDome(HEAT_LAMP.x, HEAT_LAMP.y, RED_LENS);
+const HEAT_LAMP_R = 3.2;
+const HEAT_LAMP = { x: HEAT.pts[0][0] + GLASS_INSET + (HEAT.pts[2][0] - HEAT.pts[0][0] - 2 * GLASS_INSET) * 0.83, y: HEAT.pts[2][1] - GLASS_INSET - 5.4 };
+lampDome(HEAT_LAMP.x, HEAT_LAMP.y, RED_LENS, HEAT_LAMP_R, GLASS_Z + 0.004);
 
 const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[0]), z: 0 }, eye: P.eye(), faceWidthPx: (FACE[2] - FACE[0] + 3) * K });
 
@@ -185,7 +186,7 @@ const zones = {
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),
-  heatLamp: zoneFor([HEAT_LAMP.x - LAMP_R, HEAT_LAMP.y - LAMP_R, HEAT_LAMP.x + LAMP_R, HEAT_LAMP.y + LAMP_R], SW_Z + 0.004),
+  heatLamp: zoneFor([HEAT_LAMP.x - HEAT_LAMP_R, HEAT_LAMP.y - HEAT_LAMP_R, HEAT_LAMP.x + HEAT_LAMP_R, HEAT_LAMP.y + HEAT_LAMP_R], GLASS_Z + 0.008),
 };
 rockers.forEach((r, i) => {
   const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];
