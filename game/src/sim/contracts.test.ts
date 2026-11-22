@@ -1,3 +1,4 @@
+import { noteLead } from './leads';
 import { describe, expect, it } from 'vitest';
 import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { chassisDef } from '../data/chassis';
@@ -28,7 +29,6 @@ import {
   contractReward,
   estimateTurns,
   contractXp,
-  noteSearchLead,
   searchReward,
   haulWindow,
   initializeShops,
@@ -781,9 +781,9 @@ describe('search contracts', () => {
     const { w, target } = worldWithTarget();
     w.shops.bowl.contracts = [posted(target.id)];
     const held = acceptContract(w, 'ct-search');
-    const newer = update(held, (d) => noteSearchLead(d, { x: 10, y: 20 }, 50));
+    const newer = update(held, (d) => noteLead(d, 'ct-search', { x: 10, y: 20 }, 50));
     expect(newer.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
-    const older = update(newer, (d) => noteSearchLead(d, { x: 99, y: 99 }, 20));
+    const older = update(newer, (d) => noteLead(d, 'ct-search', { x: 99, y: 99 }, 20));
     expect(older.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
   });
 

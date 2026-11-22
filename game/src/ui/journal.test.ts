@@ -36,7 +36,7 @@ function everyKind(): Contract[] {
     order,
     claim(),
     { id: 'ct-s', shop: 'nose', kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 90, deadline: 900, window: 600, tier: 1, delivered: false },
-    { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, reward: 30, deadline: 900, window: 600, tier: 1, fulfilled: false },
+    { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, lead: null, reward: 30, deadline: 900, window: 600, tier: 1, fulfilled: false },
     escort,
     { id: 'ct-v', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 30, deadline: 900, window: 600, tier: 1 },
   ];
