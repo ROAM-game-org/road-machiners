@@ -301,7 +301,6 @@ export class Game {
       toggleManual: () => this.runKey("KeyR", "button"),
       toggleOverdrive: () => this.runKey("KeyO", "button"),
       toggleHeadlights: () => this.runKey("KeyL", "button"),
-
       headlightsOn: () => this.world.player.headlights,
       douseEngine: () => this.runKey("KeyG", "button"),
       firstAid: () => this.runKey("KeyU", "button"),
