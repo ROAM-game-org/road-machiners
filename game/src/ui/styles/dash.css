@@ -1176,7 +1176,7 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker, .screen-btn) {
   border: 0;
   background: none;
   box-shadow: none;
@@ -1199,7 +1199,7 @@
   flood-color: var(--hud-amber);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:not(.screen-btn):hover {
   border-color: transparent;
   background: none;
   filter: none;
@@ -1777,15 +1777,24 @@
 }
 
 #ui .info .info-zoom {
-  --hud-key-h: var(--btn-h-s);
-  --hud-icon: var(--icon-s);
-  margin: 0;
-  padding: 0;
-  border: 0;
+  position: absolute;
+  right: var(--hud-screen-pad-x);
+  bottom: var(--hud-screen-pad-y);
+  z-index: var(--z-hud);
+  display: flex;
+  gap: var(--space-2);
 }
 
-#ui .info .info-zoom > button.hud-key {
+#ui .info .info-zoom > .screen-btn {
+  width: var(--btn-h-s);
   padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+#ui .info .info-zoom .icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
 }
 
 #ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
@@ -1821,6 +1830,7 @@
 }
 
 #ui .info .info-draw {
+  position: relative;
   flex: 1 1 0;
   width: auto;
   padding: var(--hud-screen-pad);
