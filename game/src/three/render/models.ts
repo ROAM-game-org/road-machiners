@@ -344,19 +344,19 @@ export async function loadModels(
   SURFACE_ATLAS.value = null;
   progress?.(0, NAMES.length);
   await inQueue(NAMES, PERF.boot.modelsAtOnce, async (name) => {
-      try {
-        const gltf = await loader.parseAsync(await read(name), '');
-        sockets.set(name, takeSockets(name, gltf.scene));
-        takeMask(name, gltf);
-        loaded.set(name, toLambert(gltf.scene));
-      } catch (error) {
-        const shape = standInShape(name);
-        if (!shape) throw error;
-        sockets.set(name, new Map());
-        loaded.set(name, standIn(name, shape));
-        failures.push({ name, error });
-      }
-      progress?.(++done, NAMES.length);
+    try {
+      const gltf = await loader.parseAsync(await read(name), '');
+      sockets.set(name, takeSockets(name, gltf.scene));
+      takeMask(name, gltf);
+      loaded.set(name, toLambert(gltf.scene));
+    } catch (error) {
+      const shape = standInShape(name);
+      if (!shape) throw error;
+      sockets.set(name, new Map());
+      loaded.set(name, standIn(name, shape));
+      failures.push({ name, error });
+    }
+    progress?.(++done, NAMES.length);
   });
   checkWeaponSockets();
   prepareSurfaces(new Set(failures.map((f) => f.name)));
