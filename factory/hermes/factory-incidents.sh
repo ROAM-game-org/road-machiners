@@ -76,7 +76,13 @@ from_source audit drift
 # A shipped release waits for Hermes's draft of its public post. The line goes once the draft is in the committee chat.
 jq -r '.releasePost // empty | select(.postId == null) | "release post due: release \(.day)"' /factory/home/state/state.json
 # A finished waste review waits for Hermes until Hermes deletes the file.
-if [ -f /factory/home/review-pending ]; then echo "factory review ready: $(cat /factory/home/review-pending)"; fi
+if [ -f /factory/home/review-pending ]; then
+  echo "factory review ready: $(cat /factory/home/review-pending)"
+  # The factory issue digest goes at most weekly. digest-sent holds the time of the last one, and Hermes rewrites it after posting. A missing or unreadable file means due.
+  sent=0
+  if [ -s /factory/home/digest-sent ]; then sent=$(date -d "$(head -n1 /factory/home/digest-sent)" +%s 2>/dev/null || echo 0); fi
+  if [ $(( $(date +%s) - sent )) -ge $(( 7 * 86400 )) ]; then echo "factory digest due"; fi
+fi
 # The error service writes one line per cap it hits, with the day, and Hermes deletes the file once handled.
 if [ -f /factory/home/error-reports/alert ]; then cat /factory/home/error-reports/alert; fi
 # The Hermes plugin writes one line per day when it cannot hand a player vote or comment to the public inbox, and Hermes deletes the file once handled.

@@ -11,9 +11,11 @@ from pathlib import Path
 SCRIPT = Path(__file__).parent / "factory-incidents.sh"
 
 
-def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None, boot_failed: str | None = None) -> list[str]:
+def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None, boot_failed: str | None = None, digest_sent: str | None = None) -> list[str]:
     home = tmp_path / "home"
     (home / "state").mkdir(parents=True)
+    if digest_sent is not None:
+        (home / "digest-sent").write_text(digest_sent + "\n")
     if boot_failed is not None:
         (home / "boot-failed").write_text(boot_failed)
     (home / "state" / "state.json").write_text(json.dumps({"failures": [], "lastTickError": None, "devFailed": None, **(dev or {}), **(state or {})}))
@@ -183,8 +185,31 @@ def test_one_failed_audit_is_retried_and_opens_no_incident(tmp_path):
 
 
 def test_a_pending_review_wakes_hermes_until_the_file_goes(tmp_path):
-    assert run(tmp_path / "ready", health(), review="#301 https://github.com/o/r/issues/301\n") == ["factory review ready: #301 https://github.com/o/r/issues/301"]
+    recent = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert run(tmp_path / "ready", health(), review="#301 https://github.com/o/r/issues/301\n", digest_sent=recent) == ["factory review ready: #301 https://github.com/o/r/issues/301"]
     assert run(tmp_path / "handled", health()) == []
+
+
+def test_the_digest_is_due_with_a_review_when_none_was_ever_sent(tmp_path):
+    assert run(tmp_path, health(), review="#301 x\n") == ["factory review ready: #301 x", "factory digest due"]
+
+
+def test_the_digest_is_not_due_within_a_week_of_the_last_one(tmp_path):
+    sent = (datetime.now(timezone.utc) - timedelta(days=6, hours=23)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert run(tmp_path, health(), review="#301 x\n", digest_sent=sent) == ["factory review ready: #301 x"]
+
+
+def test_the_digest_is_due_again_after_a_week(tmp_path):
+    sent = (datetime.now(timezone.utc) - timedelta(days=7, minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert run(tmp_path, health(), review="#301 x\n", digest_sent=sent) == ["factory review ready: #301 x", "factory digest due"]
+
+
+def test_an_unreadable_digest_time_counts_as_due(tmp_path):
+    assert run(tmp_path, health(), review="#301 x\n", digest_sent="garbage") == ["factory review ready: #301 x", "factory digest due"]
+
+
+def test_the_digest_is_never_due_without_a_review(tmp_path):
+    assert run(tmp_path, health()) == []
 
 
 def test_an_error_service_cap_wakes_hermes_until_the_file_goes(tmp_path):
