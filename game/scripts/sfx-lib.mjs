@@ -44,23 +44,66 @@ export function nextName(id) {
   }
 }
 
-export function importFile(source, id, cue, level) {
+export function importFile(source, id, cue, pins = {}) {
+  assertPinsFit(id, cue, pins);
   const name = nextName(id);
-  const out = `${SFX_DIR}/${name}`;
-  if (existsSync(out)) throw new Error(`${out} exists`);
+  const out = freshOutput(name);
   const src = paletteFinish(playable(source, name, cue), name, cue);
-  const shaped = toneChain(src, source, id, cue);
-  const rawPeak = measure(src, 'anull').peak;
-  if (rawPeak < SILENT_PEAK_DB) throw new Error(`${src} peaks at ${rawPeak} dB; it is near silence. Skip it.`);
+  const shaped = shapedChain(src, source, id, cue, pins);
+  assertAudible(src);
+  const level = targetLevel(cue, pins);
   const { loudness, peak } = measure(src, shaped);
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
-  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  const filters = `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`;
-  const graph = isFreeLoop(cue) ? ['-filter_complex', wrapped(src, filters)] : ['-af', filters];
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, ...graph, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
-  const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
-  console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
+  encodeOneShot(src, out, { filters: shaped, gain, cue, tags: importTagArgs(source, pins) });
+  console.log(`${source} -> ${out}  ${importNote(pins, loudness, gain, level)}`);
   return name;
+}
+
+function freshOutput(name) {
+  const out = `${SFX_DIR}/${name}`;
+  if (existsSync(out)) throw new Error(`${out} exists`);
+  return out;
+}
+
+function shapedChain(src, source, id, cue, pins) {
+  return pins.plain ? shapeFilters(src, cue).join(',') : toneChain(src, source, id, cue);
+}
+
+function targetLevel(cue, pins) {
+  return pins.level ?? MIX.level[cue.bus];
+}
+
+function assertPinsFit(id, cue, pins) {
+  if (pins.plain && cue.loop) throw new Error(`Plain import is for one-shots; "${id}" loops.`);
+}
+
+function assertAudible(src) {
+  const rawPeak = measure(src, 'anull').peak;
+  if (rawPeak < SILENT_PEAK_DB) throw new Error(`${src} peaks at ${rawPeak} dB; it is near silence. Skip it.`);
+}
+
+function encodeOneShot(src, out, { filters, gain, cue, tags }) {
+  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
+  const chain = `${filters},volume=${gain.toFixed(2)}dB,${limiter}`;
+  const graph = isFreeLoop(cue) ? ['-filter_complex', wrapped(src, chain)] : ['-af', chain];
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, ...graph, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...tags, out]);
+}
+
+function importNote(pins, loudness, gain, level) {
+  const under = level - loudness - gain;
+  const short = under > 0.05 ? `, ${under.toFixed(1)} dB under target` : '';
+  return `${pins.plain ? 'plain, ' : ''}${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB toward ${level}${short}`;
+}
+
+function importTagArgs(source, { plain, level }) {
+  const tags = { comment: source, ...(plain ? { import: 'plain' } : {}), ...(level === undefined ? {} : { level: String(level) }) };
+  return Object.entries(tags).flatMap(([key, value]) => ['-metadata', `${key}=${value}`]);
+}
+
+export function importTags(file) {
+  const raw = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment,import,level', '-of', 'json', `${SFX_DIR}/${file}`], { encoding: 'utf8' });
+  const tags = Object.fromEntries(Object.entries(JSON.parse(raw).streams[0]?.tags ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  return { source: tags.comment, plain: tags.import === 'plain', level: tags.level === undefined ? undefined : Number(tags.level) };
 }
 
 function toneChain(src, source, id, cue) {
@@ -89,9 +132,9 @@ function playable(source, name, cue) {
   return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
 }
 
-function encodeLoop(looped, out, gain, tag) {
+function encodeLoop(looped, out, gain, tags) {
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-filter_complex', wrapped(looped, `volume=${gain.toFixed(2)}dB,${limiter}`), '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), out]);
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-filter_complex', wrapped(looped, `volume=${gain.toFixed(2)}dB,${limiter}`), '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...tags, out]);
 }
 
 function wrapped(loop, filters) {
@@ -108,15 +151,16 @@ function wholeLoop(src, out) {
 
 export function reloopShipped(file, cue) {
   const path = `${SFX_DIR}/${file}`;
-  const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', path], { encoding: 'utf8' }).trim();
+  const shipped = importTags(file);
+  const tags = shipped.source ? importTagArgs(shipped.source, shipped) : [];
   mkdirSync('tmp/sfx-raw', { recursive: true });
   const out = `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`;
   const looped = isFreeSfxLoop(cue) ? steadyLoop(path, out) : wholeLoop(path, out);
   const want = integratedLoudness(path);
   const trial = `${path}.new.ogg`;
   const first = want - integratedLoudness(looped);
-  encodeLoop(looped, trial, first, tag);
-  encodeLoop(looped, trial, first + want - integratedLoudness(trial), tag);
+  encodeLoop(looped, trial, first, tags);
+  encodeLoop(looped, trial, first + want - integratedLoudness(trial), tags);
   renameSync(trial, path);
 }
 

@@ -17,7 +17,9 @@ export function glideAt(g: Glide, share: number): { rate: number; gain: number }
 }
 import type { V3, VehicleFrame } from "../phys/frames";
 import { PHYSICS } from "../data/physics";
-import type { GameEvent, ShotRound } from "../sim/types";
+import type { GameEvent, ShotRound, Vehicle, World } from "../sim/types";
+import { chargedParts, chargeOf, orderKindOf } from "../sim/utility";
+import { playerVehicle } from "../sim/damage";
 import { isInTerritory, isNearOutpost, isNearTown } from "../sim/sites";
 import type { Vec } from "../sim/vec";
 import { atlasOf } from "../sim/atlas";
@@ -40,6 +42,52 @@ const STINGS: {
   { cue: "discover", match: (e) => e.t === "discover" },
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },
 ];
+
+export function panelCue(open: boolean, call: boolean): CueId {
+  if (call) return open ? "radio" : "radio-end";
+  return open ? "ui-open" : "ui-close";
+}
+
+export type ChargeSeen = { armed: boolean; recharging: boolean };
+
+function chargesOf(v: Vehicle): Map<string, ChargeSeen> {
+  const slots = chargedParts(v).filter((p) => orderKindOf(p) !== null);
+  return new Map(slots.map((p) => [p.id, { armed: chargeOf(p).armed === true, recharging: chargeOf(p).reload > 0 }]));
+}
+
+const justArmed = (was: ChargeSeen, now: ChargeSeen): boolean => now.armed && !was.armed;
+const justRecharged = (was: ChargeSeen, now: ChargeSeen): boolean => was.recharging && !now.recharging && !now.armed;
+
+export function utilityCue(was: ChargeSeen | undefined, now: ChargeSeen): CueId | null {
+  if (!was) return null;
+  if (justArmed(was, now)) return "utility-armed";
+  return justRecharged(was, now) ? "utility-ready" : null;
+}
+
+export class TurnCues {
+  private charges: Map<string, ChargeSeen> | null = null;
+
+  after(world: World): CueId[] {
+    const me = playerVehicle(world);
+    const now = chargesOf(me);
+    const was = this.charges ?? now;
+    this.charges = now;
+    const utility = [...now].map(([id, seen]) => utilityCue(was.get(id), seen));
+    return [stingOf(world.events, me.id), ...utility].filter((cue): cue is CueId => cue !== null);
+  }
+}
+
+export class PanelSounds {
+  private open = false;
+  private call = false;
+
+  change(open: boolean, call: boolean): CueId | null {
+    const cue = open === this.open ? null : panelCue(open, open ? call : this.call);
+    this.open = open;
+    this.call = call;
+    return cue;
+  }
+}
 
 export function stingOf(events: GameEvent[], playerId: string): CueId | null {
   return (

@@ -6,7 +6,7 @@ import type { SoundPlayer } from "../audio/player";
 import type { MusicTracks } from "../audio/music-shelf";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides, panelCue, PanelSounds, utilityCue } from "./sound";
 import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
@@ -830,3 +830,42 @@ describe("SoundDirector score timing", () => {
   });
 });
 
+
+describe("panelCue", () => {
+  it("opens and closes a radio call with its own cues", () => {
+    expect(panelCue(true, true)).toBe("radio");
+    expect(panelCue(false, true)).toBe("radio-end");
+  });
+
+  it("opens and closes other panels with the panel cues", () => {
+    expect(panelCue(true, false)).toBe("ui-open");
+    expect(panelCue(false, false)).toBe("ui-close");
+  });
+
+  it("plays the radio end when a call closes, and nothing while the open state holds", () => {
+    const panels = new PanelSounds();
+    expect(panels.change(true, true)).toBe("radio");
+    expect(panels.change(true, true)).toBeNull();
+    expect(panels.change(false, false)).toBe("radio-end");
+  });
+});
+
+describe("utilityCue", () => {
+  const idle = { armed: false, recharging: false };
+  const recharging = { armed: false, recharging: true };
+  const armed = { armed: true, recharging: false };
+
+  it("sounds armed when a utility arms", () => {
+    expect(utilityCue(idle, armed)).toBe("utility-armed");
+  });
+
+  it("sounds ready when a recharge ends", () => {
+    expect(utilityCue(recharging, idle)).toBe("utility-ready");
+  });
+
+  it("stays quiet when nothing changed or the part is new", () => {
+    expect(utilityCue(idle, idle)).toBeNull();
+    expect(utilityCue(armed, armed)).toBeNull();
+    expect(utilityCue(undefined, armed)).toBeNull();
+  });
+});

@@ -1,6 +1,6 @@
 import { publicUrl } from "../public-url";
 import { BAKED } from "./dash/baked";
-import { HAND_MS } from "../data/sounds";
+import { CONTROL_STATES, HAND_MS } from "../data/sounds";
 import { controlStep } from "./control-sound";
 import { el } from "./dom";
 
@@ -129,7 +129,7 @@ function tickUnderHand(wheel: HTMLElement, scroller: HTMLElement, signal?: Abort
     const now = ribOf(scrollTop);
     if (now === rib) return;
     rib = now;
-    if (handOn(lastHand, performance.now())) controlStep("wheel-step");
+    if (handOn(lastHand, performance.now())) controlStep(CONTROL_STATES.wheel.step.cue);
   };
 }
 

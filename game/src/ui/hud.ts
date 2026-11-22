@@ -1,4 +1,5 @@
 
+import { keyPress } from './control-sound';
 import { ESCAPE, keyTip, RECENTER_KEY, touchMode } from "./input-mode";
 import { LOOK_OVER } from "../data/npcs";
 import { uiSize } from "./ui-size";
@@ -370,7 +371,7 @@ export class Hud {
     this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root, this.zoomKeys);
     this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
-    this.dialogue = new DialoguePanel(actions.dialogue);
+    this.dialogue = new DialoguePanel(actions.dialogue, () => this.cardKey("T"));
     this.info.style.display = "none";
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
@@ -593,6 +594,39 @@ export class Hud {
     });
   }
 
+  manualSwitch(): HTMLElement {
+    return this.drive.manualSwitch();
+  }
+
+  lightsSwitch(): HTMLElement {
+    return this.drive.lightsSwitch();
+  }
+
+  overdriveSwitch(): HTMLElement {
+    return this.drive.overdriveSwitch();
+  }
+
+  coolKey(): HTMLElement {
+    return this.drive.coolKey();
+  }
+
+  recenterKey(): HTMLElement | null {
+    return this.recenter.firstElementChild as HTMLElement | null;
+  }
+
+  actionKey(): HTMLElement | null {
+    return this.action.querySelector<HTMLElement>("button.hud-key:not(.icon-key)");
+  }
+
+  cycleKey(step: 1 | -1): HTMLElement | null {
+    const keys = this.action.querySelectorAll<HTMLElement>("button.icon-key.cycle");
+    return (step === 1 ? keys[1] : keys[0]) ?? null;
+  }
+
+  cardKey(shortcut: string): HTMLElement | null {
+    return this.info.querySelector<HTMLElement>(`[data-shortcut="${shortcut}"]`);
+  }
+
   private cardButtons(w: World, v: Vehicle): HTMLElement | null {
     return cardActions(w, v, {
       call: () => this.dialogue.callInspected(),
@@ -733,7 +767,7 @@ export interface CardHandlers {
 }
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
-  return [el("button", { class: "hud-key", ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
+  return [el("button", { class: "hud-key", "data-shortcut": key, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {

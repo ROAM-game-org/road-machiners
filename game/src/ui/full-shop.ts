@@ -30,7 +30,7 @@ function sample(defId: string): PartInstance {
 }
 
 export class FullShopScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private filter: StockFilter = "all";
   private error = "";
   private readonly inventory: InventoryView;

@@ -1,4 +1,5 @@
 import { runCommand } from './run-command';
+import { keyPress } from './control-sound';
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
@@ -512,15 +513,26 @@ export class QuestScreen {
   private pickKey(index: number): void {
     const view = questView(this.host.world(), QUESTS);
     if (!this.onLastPage(view) || !this.onLastParagraph(view)) return;
-    if (view.ended) return this.leave();
-    if (index < view.choices.length) this.choose(index);
+    if (view.ended) return this.pressChoice(0, () => this.leave());
+    if (index < view.choices.length) this.pressChoice(index, () => this.choose(index));
   }
 
   private skip(e: KeyboardEvent): void {
     e.preventDefault();
     if (this.revealing()) return this.root.classList.add('qt-done');
     const view = questView(this.host.world(), QUESTS);
-    if (!this.onLastPage(view) || !this.onLastParagraph(view)) return this.advance();
-    if (!view.ended && view.choices.length === 1) this.choose(0);
+    if (!this.onLastPage(view) || !this.onLastParagraph(view)) return this.pressNext();
+    if (!view.ended && view.choices.length === 1) this.pressChoice(0, () => this.choose(0));
+  }
+
+  private pressNext(): void {
+    const keys = this.root.querySelectorAll<HTMLElement>('.quest-next');
+    keyPress(keys[keys.length - 1] ?? null);
+    this.advance();
+  }
+
+  private pressChoice(index: number, run: () => void): void {
+    keyPress(this.root.querySelectorAll<HTMLElement>('.quest-choice')[index] ?? null);
+    run();
   }
 }

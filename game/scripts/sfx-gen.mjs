@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { beatLoopSeconds, MIX, SOUND_STYLE, SOUNDS } from '../src/data/sounds.ts';
+import { beatLoopSeconds, SOUND_STYLE, SOUNDS } from '../src/data/sounds.ts';
 import { cueOf, importFile, syncTwins } from './sfx-lib.mjs';
 
 const API = 'https://api.elevenlabs.io/v1';
@@ -36,7 +36,7 @@ for (let i = 0; i < count; i++) {
   const audio = await generate(text);
   const raw = `${RAW_DIR}/${id}-${Date.now()}${!music && cue.loop ? '.seamless' : ''}.mp3`;
   writeFileSync(raw, audio);
-  importFile(raw, id, cue, MIX.level[cue.bus]);
+  importFile(raw, id, cue);
 }
 await syncTwins();
 

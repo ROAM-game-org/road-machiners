@@ -35,6 +35,10 @@ export class OptionSwitch<T> {
     this.dispose = spec.subscribe(() => this.mark());
   }
 
+  buttonFor(value: T): HTMLElement | null {
+    return this.buttons.get(value) ?? null;
+  }
+
   mark(): void {
     const current = this.spec.current();
     for (const [value, button] of this.buttons) {

@@ -1,5 +1,5 @@
 
-import { MIX, type Bus } from "../data/sounds";
+import { CONTROL_STATES, MIX, type Bus } from "../data/sounds";
 import type { Mixer } from "../audio/mixer";
 import { bindAttr, setText } from "../text/language";
 import { t, type Msg } from "../text/msg";
@@ -131,7 +131,7 @@ export function knobControl(spec: KnobSpec): { root: HTMLElement; draw: () => vo
   let drawn: number | null = null;
   const draw = () => {
     const step = Math.round(spec.value() * count);
-    if (drawn !== null && step !== drawn) controlStep("knob-step");
+    if (drawn !== null && step !== drawn) controlStep(CONTROL_STATES.knob.step.cue);
     drawn = step;
     knob.setAttribute("aria-valuenow", String(Math.round(spec.value() * 100)));
     bindAttr(knob, "aria-valuetext", spec.text());

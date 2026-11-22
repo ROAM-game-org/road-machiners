@@ -1,4 +1,5 @@
 
+import { keyPress } from "./control-sound";
 import { runCommand } from "./run-command";
 import { GOOD_IDS } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
@@ -109,7 +110,7 @@ export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId
 }
 
 export class TownScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private page: TownPage = null;
   private closedAt: ClosedAt | null = null;
   private garageTab: GarageTab = "buyParts";
@@ -189,6 +190,14 @@ export class TownScreen {
     this.root.replaceChildren();
   }
 
+  backKey(): HTMLElement | null {
+    return this.root.querySelector<HTMLElement>('[data-town-go="back"], [data-town-go="leave"]');
+  }
+
+  private choiceKey(index: number): HTMLElement | null {
+    return this.root.querySelectorAll<HTMLElement>("[data-town-go]")[index] ?? null;
+  }
+
   back(): void {
     if (!this.isOpen()) return;
     const from = this.page;
@@ -234,6 +243,7 @@ export class TownScreen {
   private pickChoice(index: number): void {
     const choice = this.choices[index];
     if (!choice) return;
+    keyPress(this.choiceKey(index));
     if (!choice.reason) return choice.go();
     this.error = choice.reason;
     this.render();
@@ -795,7 +805,7 @@ const TRADE_TAB_ICON: Record<TradeTab, IconName> = { goods: "salt", parts: "part
 const SUPPLY_STEP = 10;
 
 export class TruckTradeScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private tab: TradeTab = "goods";
   private npcId: string | null = null;
   private error: Msg | null = null;
