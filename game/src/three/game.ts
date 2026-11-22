@@ -285,7 +285,7 @@ export class Game {
       openLoot: (id) => this.screens.inventory.openLoot(id),
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
-    this.sound = new SoundDirector(player, this.rig, music, () => player.now());
+    this.sound = new SoundDirector(player, this.rig, music, () => player.now(), Math.random);
     installControlSounds(document, (cue) => this.sound.ui(cue));
     this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");

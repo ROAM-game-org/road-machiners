@@ -1,6 +1,6 @@
 
-import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS, type CueId } from "../data/sounds";
-import { shuffled, spatial } from "../audio/pick";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUND_EVENTS, SOUNDS, type CueId, type SoundEventId } from "../data/sounds";
+import { layersToPlay, shuffled, spatial } from "../audio/pick";
 import type {
   LoopHandle,
   Placement,
@@ -126,12 +126,14 @@ function plainEvent(struck: boolean, mine: boolean): BlockEvent | null {
 
 export class SoundDirector {
   readonly log: string[] = [];
+  layeredCrash = true;
 
   constructor(
     private player: Pick<SoundPlayer, "play">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
     private music: Pick<CombatMusic, "fire">,
     private now: () => number,
+    private random: () => number,
   ) {}
 
   private due: { kind: BlockEvent; atMs: number }[] = [];
@@ -174,10 +176,18 @@ export class SoundDirector {
   }
 
   atLevel(cue: CueId, p: V3, delayMs: number, level: number): void {
-    if (!(level > 0 && level <= 1)) throw new Error(`Sound level ${level} is outside (0, 1]`);
+    checkLevel(level);
     this.record(`${cue} ${level.toFixed(2)}`);
     const placed = this.place(p);
     this.player.play(cue, { pan: placed.pan, gain: placed.gain * level }, delayMs);
+  }
+
+  event(id: SoundEventId, p: V3, delayMs: number, level: number): void {
+    checkLevel(level);
+    const placed = this.place(p);
+    const layers = layersToPlay(SOUND_EVENTS[id], this.random);
+    this.record(`${id} ${level.toFixed(2)} ${layers.map((l) => l.cue).join(" ")}`);
+    for (const l of layers) this.player.play(l.cue, { pan: placed.pan, gain: placed.gain * level * l.gain }, delayMs + l.delayMs);
   }
 
   honk(p: V3, delayMs: number, chassisId: string, label = ""): void {
@@ -210,6 +220,10 @@ export class SoundDirector {
       MIX.panWidth,
     );
   }
+}
+
+function checkLevel(level: number): void {
+  if (!(level > 0 && level <= 1)) throw new Error(`Sound level ${level} is outside (0, 1]`);
 }
 
 export type MusicPlace = "town" | "outpost" | "abandoned" | null;

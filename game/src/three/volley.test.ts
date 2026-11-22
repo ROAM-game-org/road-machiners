@@ -112,13 +112,14 @@ describe("playCrashes with claymore blasts", () => {
 });
 
 describe("playCrashes levels", () => {
-  function levels(impacts: number[]): number[] {
-    const out: number[] = [];
+  function played(impacts: number[], layeredCrash: boolean): [string, number][] {
+    const out: [string, number][] = [];
+    const record = (id: string, _p: V3, _delay: number, level: number) => out.push([id, level]);
     const host = {
       world: emptyWorld(),
       views: new Map(),
       fx: { crash: () => {} },
-      sound: { atLevel: (_cue: string, _p: V3, _delay: number, level: number) => out.push(level) },
+      sound: { layeredCrash, atLevel: record, event: record },
       eventPoint: () => ({ x: 0, y: 0, z: 0 }),
     } as unknown as CombatHost;
     const events: GameEvent[] = impacts.map((impact) => ({ ...(hit("a", "b") as object), impact }) as GameEvent);
@@ -126,18 +127,15 @@ describe("playCrashes levels", () => {
     playCrashes(host, new CollisionCues(timed), null);
     return out;
   }
+  const impacts = [RULES.collisionMinImpact, RULES.hardCrashSpeed, RULES.hardCrashSpeed * 2];
 
   it("hands a soft bump a quiet level and a hard ram the full level", () => {
-    const [soft, hard, over] = levels([RULES.collisionMinImpact, RULES.hardCrashSpeed, RULES.hardCrashSpeed * 2]);
-    expect(soft).toBe(MIX.crash.quietGain);
-    expect(hard).toBe(1);
-    expect(over).toBe(1);
+    for (const layered of [true, false]) expect(played(impacts, layered).map(([, level]) => level)).toEqual([MIX.crash.quietGain, 1, 1]);
   });
 
-  it("plays a middle hit between the quiet and the full level", () => {
-    const [middle] = levels([(RULES.collisionMinImpact + RULES.hardCrashSpeed) / 2]);
-    expect(middle).toBeGreaterThan(MIX.crash.quietGain);
-    expect(middle).toBeLessThan(1);
+  it("plays the layered stacks when layered crashes are on, the single takes when off", () => {
+    expect(played(impacts, true).map(([id]) => id)).toEqual(["crash-light", "crash-hard", "crash-hard"]);
+    expect(played(impacts, false).map(([id]) => id)).toEqual(["car-hit", "crash", "crash"]);
   });
 });
 

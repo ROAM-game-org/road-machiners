@@ -1,3 +1,4 @@
+import type { Layer, SoundEventId } from "../data/sounds";
 
 export function pickVariant(n: number, last: number | null, roll: number): number {
   if (n < 1) throw new Error(`Cue has no variants`);
@@ -49,4 +50,14 @@ export class VoiceLimiter {
     this.ends.set(cue, live);
     return free;
   }
+}
+
+export function layersToPlay(layers: readonly Layer[], roll: () => number): Layer[] {
+  for (const l of layers) if (!(l.chance > 0 && l.chance <= 1)) throw new Error(`Layer ${l.cue} has chance ${l.chance}, outside (0, 1]`);
+  return layers.filter((l) => roll() < l.chance);
+}
+
+export function crashEventOf(impact: number, hardSpeed: number): SoundEventId {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
+  return impact >= hardSpeed ? "crash-hard" : "crash-light";
 }

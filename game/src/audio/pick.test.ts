@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crashLevel, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
+import { crashEventOf, crashLevel, layersToPlay, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
 
 describe("shuffled", () => {
   it("reorders a copy by its rolls and keeps every item", () => {
@@ -105,5 +105,38 @@ describe("crashLevel", () => {
     expect(() => crashLevel(2, { ...curve, fullImpact: 1.5 })).toThrow();
     expect(() => crashLevel(2, { ...curve, quietGain: 0 })).toThrow();
     expect(() => crashLevel(2, { ...curve, quietGain: 1.2 })).toThrow();
+  });
+});
+
+describe("layersToPlay", () => {
+  const layers = [
+    { cue: "crash-thump", delayMs: 0, gain: 1, chance: 1 },
+    { cue: "crash-debris", delayMs: 100, gain: 0.5, chance: 0.3 },
+  ] as const;
+
+  it("keeps a layer when its own roll falls under its chance", () => {
+    const rolls = [0.99, 0.29];
+    expect(layersToPlay(layers, () => rolls.shift()!).map((l) => l.cue)).toEqual(["crash-thump", "crash-debris"]);
+  });
+
+  it("drops a layer when its roll reaches its chance", () => {
+    const rolls = [0, 0.3];
+    expect(layersToPlay(layers, () => rolls.shift()!).map((l) => l.cue)).toEqual(["crash-thump"]);
+  });
+
+  it("throws on a chance outside (0, 1]", () => {
+    for (const chance of [0, -1, 1.5, NaN]) expect(() => layersToPlay([{ ...layers[0], chance }], () => 0)).toThrow();
+  });
+});
+
+describe("crashEventOf", () => {
+  it("plays the light stack under the hard speed and the hard stack from it", () => {
+    expect(crashEventOf(3.9, 4)).toBe("crash-light");
+    expect(crashEventOf(4, 4)).toBe("crash-hard");
+    expect(crashEventOf(40, 4)).toBe("crash-hard");
+  });
+
+  it("throws on a bad impact", () => {
+    for (const impact of [-1, NaN, Infinity]) expect(() => crashEventOf(impact, 4)).toThrow();
   });
 });

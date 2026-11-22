@@ -78,6 +78,10 @@ const DEFS = {
   "horn": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0, maxVoices: 4, loop: false, prompts: ["Mad Max war rig horn: a huge rusted diesel truck blasts its twin air horns once, a deep booming low chord, brassy, gritty and overdriven, heavy as a freight train. Vehicle horn only, no music."], seconds: 1.5 },
   "crash": { bus: "sfx", setup: "field", volume: 0.9, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["Two heavy steel trucks ram each other at speed: one hard, deep crunch of thick metal, a short scrape, then debris settling. Single impact."], seconds: 1.5 },
   "car-hit": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A car bumps into a wall at low speed: one dull thud of metal and plastic, a short rattle, then quiet. Single light impact."], seconds: 1 },
+  "crash-thump": { bus: "sfx", volume: 0.9, pitchJitter: 0.06, maxVoices: 2, loop: false },
+  "crash-crunch": { bus: "sfx", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false },
+  "crash-bump": { bus: "sfx", volume: 0.7, pitchJitter: 0.06, maxVoices: 2, loop: false },
+  "crash-debris": { bus: "sfx", volume: 0.5, pitchJitter: 0.08, maxVoices: 2, loop: false },
 
   "harpoon-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A heavy spring-loaded harpoon gun on a truck fires: a deep mechanical thunk and clank of steel, then a thick rope whipping out fast."], seconds: 1.2 },
   "harpoon-hook": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A heavy barbed steel harpoon bolt slams into a truck's steel plate: a hard punching clank and a short metallic scrape."], seconds: 0.8 },
@@ -115,6 +119,24 @@ const DEFS = {
 } as const satisfies Record<string, CueDef>;
 
 export type CueId = keyof typeof DEFS;
+
+export type Layer = { cue: CueId; delayMs: number; gain: number; chance: number };
+
+export const SOUND_EVENTS = {
+  "crash-light": [
+    { cue: "crash-thump", delayMs: 0, gain: 0.8, chance: 1 },
+    { cue: "crash-bump", delayMs: 0, gain: 1, chance: 1 },
+    { cue: "crash-debris", delayMs: 90, gain: 0.5, chance: 0.3 },
+  ],
+  "crash-hard": [
+    { cue: "crash-thump", delayMs: 0, gain: 1, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 1, chance: 1 },
+    { cue: "crash-bump", delayMs: 60, gain: 0.6, chance: 0.5 },
+    { cue: "crash-debris", delayMs: 120, gain: 0.8, chance: 1 },
+  ],
+} as const satisfies Record<string, readonly Layer[]>;
+
+export type SoundEventId = keyof typeof SOUND_EVENTS;
 
 export const CONTROL_CUES = ["key-press", "turn-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step", "utility-armed", "utility-ready"] as const satisfies readonly CueId[];
 export type ControlCue = (typeof CONTROL_CUES)[number];

@@ -5,7 +5,7 @@ import { RULES } from "../data/rules";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
 import { MIX, type CueId } from "../data/sounds";
-import { crashLevel } from "../audio/pick";
+import { crashEventOf, crashLevel } from "../audio/pick";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { carriedPartDef } from "../sim/salvage";
 import { isShield } from "../data/parts";
@@ -131,7 +131,9 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  host.sound.atLevel(e.impact < RULES.hardCrashSpeed ? "car-hit" : "crash", p, 0, crashLevel(e.impact, MIX.crash));
+  const level = crashLevel(e.impact, MIX.crash);
+  if (host.sound.layeredCrash) host.sound.event(crashEventOf(e.impact, RULES.hardCrashSpeed), p, 0, level);
+  else host.sound.atLevel(e.impact < RULES.hardCrashSpeed ? "car-hit" : "crash", p, 0, level);
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {

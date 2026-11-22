@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
-import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS } from "../data/sounds";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUND_EVENTS, SOUNDS } from "../data/sounds";
 import type { SoundPlayer } from "../audio/player";
 import type { MusicTracks } from "../audio/music-shelf";
 import { REGION } from "../data/region";
@@ -307,16 +307,35 @@ describe("atLevel", () => {
   it("scales the placement gain by the level and logs it", () => {
     const calls: unknown[][] = [];
     withWindow(() => {
-      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0);
+      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0, () => 0);
       director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, 0.4);
       expect(calls).toEqual([["crash", { pan: 0, gain: 0.4 }, 0]]);
       expect(director.log).toEqual(["crash 0.40"]);
     });
   });
 
+  it("plays each layer of an event at its own delay and gain, scaled by the level", () => {
+    const calls: unknown[][] = [];
+    withWindow(() => {
+      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0, () => 0);
+      director.event("crash-hard", { x: 0, y: 0, z: 0 }, 50, 0.5);
+      expect(calls).toEqual(SOUND_EVENTS["crash-hard"].map((l) => [l.cue, { pan: 0, gain: 0.5 * l.gain }, 50 + l.delayMs]));
+      expect(director.log).toEqual([`crash-hard 0.50 ${SOUND_EVENTS["crash-hard"].map((l) => l.cue).join(" ")}`]);
+    });
+  });
+
+  it("skips the chance layers whose roll misses", () => {
+    const calls: unknown[][] = [];
+    withWindow(() => {
+      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0, () => 0.999);
+      director.event("crash-hard", { x: 0, y: 0, z: 0 }, 0, 1);
+      expect(calls.map((c) => c[0])).toEqual(SOUND_EVENTS["crash-hard"].filter((l) => l.chance === 1).map((l) => l.cue));
+    });
+  });
+
   it("logs a road horn with its cause and truck, and a reply horn bare", () => {
     withWindow(() => {
-      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
+      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0, () => 0);
       director.honk({ x: 0, y: 0, z: 0 }, 0, "scout", "brake npc-1");
       director.honk({ x: 0, y: 0, z: 0 }, 0, "scout");
       expect(director.log).toEqual(["horn brake npc-1", "horn"]);
@@ -325,7 +344,7 @@ describe("atLevel", () => {
 
   it("throws on a level outside (0, 1]", () => {
     withWindow(() => {
-      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
+      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0, () => 0);
       for (const level of [0, -0.1, 1.01, NaN]) expect(() => director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, level)).toThrow();
       expect(director.log).toEqual([]);
     });
@@ -335,7 +354,7 @@ describe("atLevel", () => {
 describe("engine strain log", () => {
   it("logs strain only on turns that have some", () => {
     const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
-    const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
+    const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0, () => 0);
     director.engineStrain({ from: 0, to: 0 });
     director.engineStrain({ from: 1, to: 0.5 });
     director.engineStrain({ from: 0.5, to: 0 });
@@ -727,7 +746,7 @@ describe("horn sound assignment", () => {
     const width = globalThis.window?.innerWidth;
     Object.defineProperty(globalThis, "window", { value: { innerWidth: 100 }, configurable: true });
     try {
-      const director = new SoundDirector(player, rig, { fire: () => { throw new Error("no score event here"); } }, () => 0);
+      const director = new SoundDirector(player, rig, { fire: () => { throw new Error("no score event here"); } }, () => 0, () => 0);
       director.honk({ x: 0, y: 0, z: 0 }, 500, "scout");
       expect(calls).toEqual([["horn", { pan: 0, gain: 1 }, 500, hornSoundFor("scout")]]);
     } finally {
@@ -773,7 +792,7 @@ describe("SoundDirector score timing", () => {
   const setup = () => {
     const calls: [string, number][] = [];
     const music = { fire: (kind: BlockEvent, at: number) => (calls.push([kind, Math.round((at - NOW) * 1000)]), { kind, at, heat: 1, surprise: 1, lanes: true }) };
-    const director = new SoundDirector({ play: () => {} }, rig, music, () => NOW);
+    const director = new SoundDirector({ play: () => {} }, rig, music, () => NOW, () => 0);
     return { calls, director };
   };
   const lead = SCORE_BLOCKS.eventLeadSeconds * 1000;

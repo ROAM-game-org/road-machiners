@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONTROL_CUES, filesOf, SOUNDS } from "../data/sounds";
+import { CONTROL_CUES, filesOf, SOUND_EVENTS, SOUNDS } from "../data/sounds";
 
 const onDisk = Object.keys(import.meta.glob("/public/sfx/*")).map((p) => p.split("/").pop()!);
 
@@ -7,6 +7,14 @@ describe("sound catalog", () => {
   it("claims every file in public/sfx", () => {
     const claimed = Object.values(SOUNDS).flatMap((c) => c.files);
     expect([...claimed].sort()).toEqual([...onDisk].sort());
+  });
+  it("gives every sound event layer a one-shot cue with files", () => {
+    for (const [id, layers] of Object.entries(SOUND_EVENTS)) {
+      for (const layer of layers) {
+        expect(SOUNDS[layer.cue].files.length, `${id} ${layer.cue}`).toBeGreaterThan(0);
+        expect(SOUNDS[layer.cue].loop, `${id} ${layer.cue}`).toBe(false);
+      }
+    }
   });
   it("matches variants by exact cue name, in number order", () => {
     const files = ["mg-fire-10.ogg", "mg-fire-2.ogg", "mg-fire-x.ogg", "big-mg-fire-1.ogg", "mg-fire-1.wav"];
