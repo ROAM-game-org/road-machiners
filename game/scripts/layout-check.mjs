@@ -796,8 +796,29 @@ async function cardZoomFaults(page) {
   const keyCount = await page.evaluate((sel) => document.querySelectorAll(sel).length, ZOOM_KEYS);
   if (keyCount !== 2) return ['the card has no zoom keys'];
   const before = await cardBoxes(page);
+  const faults = await page.evaluate(() => {
+    const out = [];
+    const group = document.querySelector('#ui .info .info-zoom').getBoundingClientRect();
+    const draw = document.querySelector('#ui .info .info-draw');
+    const screen = draw.getBoundingClientRect();
+    const style = getComputedStyle(draw);
+    const rightEdge = screen.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+    const bottomEdge = screen.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom);
+    if (document.querySelector('#ui .info .hud-panel-head .info-zoom')) out.push('a zoom key sits in the card head row');
+    if (group.left < screen.left || group.top < screen.top || group.right > screen.right || group.bottom > screen.bottom || Math.abs(group.right - rightEdge) > 1 || Math.abs(group.bottom - bottomEdge) > 1) out.push("the zoom keys leave the picture screen's bottom right corner");
+    const truck = document.querySelector('#ui .info .condition-stage').getBoundingClientRect();
+    if (group.left < truck.right && group.right > truck.left && group.top < truck.bottom && group.bottom > truck.top) out.push('the zoom keys cover the truck at the fit');
+    return out;
+  });
   await pressZoom(page, 1, 8);
-  const faults = [];
+  const stage = () => page.evaluate(() => document.querySelector('#ui .info .condition-stage').style.translate);
+  const held = await stage();
+  const key = await page.evaluate((sel) => { const b = document.querySelectorAll(sel)[1].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, ZOOM_KEYS);
+  await page.mouse.move(key[0], key[1]);
+  await page.mouse.down();
+  await page.mouse.move(key[0] - 30, key[1] - 30, { steps: 4 });
+  await page.mouse.up();
+  if ((await stage()) !== held) faults.push('a press and drag on a zoom key panned the drawing');
   const after = await cardBoxes(page);
   if (JSON.stringify(after) !== JSON.stringify(before)) faults.push('the card or its picture screen changed size when the drawing zoomed');
   faults.push(
