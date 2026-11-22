@@ -109,7 +109,6 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/main.ts', text: 'loading the map', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'loading the save', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'building the ground', reason: CRASH_REPORT },
-  { file: 'src/three/main.ts', text: 'waiting for physics and models', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'starting the game', reason: CRASH_REPORT },
   { file: 'src/three/boot-marker.ts', text: 'The last start of   did not finish. It died in the step:  , started from:  ', reason: CRASH_REPORT },
   { file: 'src/three/boot-marker.ts', text: 'The page was closed or reloaded   s into the step.', reason: CRASH_REPORT },

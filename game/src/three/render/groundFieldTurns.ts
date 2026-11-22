@@ -1,17 +1,19 @@
-import type { LookType } from "../../render/groundPaint";
+import { LOOK_NAMES } from "../../render/groundPaint";
+
+const FIELD_CODE = LOOK_NAMES.indexOf("field");
 
 export const FIELD_TURN_REACH = 3;
 const UNSET = -1;
 
-export function fieldTurns(shown: readonly LookType[], side: number): Uint8Array {
+export function fieldTurns(shown: Uint8Array, side: number): Uint8Array {
   const turns = new Int16Array(shown.length).fill(UNSET);
   const queue = new Int32Array(shown.length);
-  for (let tile = 0; tile < shown.length; tile++) if (shown[tile] === "field" && turns[tile] === UNSET) fillField(shown, side, tile, turns, queue);
+  for (let tile = 0; tile < shown.length; tile++) if (shown[tile] === FIELD_CODE && turns[tile] === UNSET) fillField(shown, side, tile, turns, queue);
   spreadPastEdges(turns, side, queue);
   return Uint8Array.from(turns, (turn) => Math.max(turn, 0));
 }
 
-function fillField(shown: readonly LookType[], side: number, start: number, turns: Int16Array, queue: Int32Array): void {
+function fillField(shown: Uint8Array, side: number, start: number, turns: Int16Array, queue: Int32Array): void {
   const turn = turnOf(start);
   let head = 0;
   let tail = 0;
@@ -20,7 +22,7 @@ function fillField(shown: readonly LookType[], side: number, start: number, turn
   while (head < tail) {
     const tile = queue[head++];
     for (const next of neighbours(tile, side)) {
-      if (shown[next] !== "field" || turns[next] !== UNSET) continue;
+      if (shown[next] !== FIELD_CODE || turns[next] !== UNSET) continue;
       turns[next] = turn;
       queue[tail++] = next;
     }

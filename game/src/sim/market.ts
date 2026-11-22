@@ -279,7 +279,7 @@ export type Contract =
   | { id: string; shop: string; kind: 'claim'; stockId: string; at: Vec; partId: string; defId: string; reward: number; deadline: number; window: number; tier: Tier; rivalAt: number; rival: string | null; leads: ClaimLead[] }
   | { id: string; shop: string; kind: 'procure'; good: string; units: number; cratePay: number; reward: number; deadline: number; window: number; tier: Tier }
   | { id: string; shop: string; kind: 'escort'; client: string; to: string; reward: number; deadline: number; window: number; tier: Tier; threat: Threat; span: number; together: number; seen: { x: number; y: number; turn: number } | null; apart: number; stuck: number; holdUntil: number | null }
-  | { id: string; shop: string; kind: 'rescue'; client: string; driver: string; need: RescueNeed; area: Vec; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean }
+  | { id: string; shop: string; kind: 'rescue'; client: string; driver: string; need: RescueNeed; area: Vec; lead: { at: Vec; turn: number } | null; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean }
   | { id: string; shop: string; kind: 'search'; target: string; driver: string; template: string; lead: { at: Vec; turn: number }; reward: number; deadline: number; window: number; tier: Tier; delivered: boolean }
   | { id: string; shop: string; kind: 'survey'; points: SurveyPoint[]; reward: number; deadline: number; window: number; tier: Tier };
 
@@ -553,12 +553,6 @@ export function searchRefusal(world: World, c: Contract): SearchRefusal | null {
   if (c.kind !== 'search') return null;
   if (heldSearch(world) !== null) return 'oneSearch';
   return parcelSpot(playerVehicle(world), c.id) ? null : 'noCargoRoom';
-}
-
-export function noteSearchLead(world: World, at: Vec, turn: number): void {
-  const c = heldSearch(world);
-  if (!c || c.delivered) throw new Error('No search is open to take a lead for');
-  if (turn > c.lead.turn) c.lead = { at: { ...at }, turn };
 }
 
 function requireSearchTakeable(world: World, c: Contract): void {

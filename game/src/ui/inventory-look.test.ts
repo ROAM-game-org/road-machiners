@@ -270,3 +270,90 @@ describe("the inventory looking another truck over", () => {
     expect(applied).toEqual([]);
   });
 });
+
+describe("the auto patch key in the inventory foot", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  const rootOf = () => ui.children[ui.children.length - 1] as FakeNode;
+  const switchesOf = (root: FakeNode) => root.all((n) => n.attrs.get("role") === "switch");
+
+  function playerWorld(autoRepair: boolean): World {
+    const world = emptyWorld();
+    const truck = addVehicle(world, "independent", "buggy", ["mg", "stockEngine"], { x: 5, y: 5 });
+    world.player.vehicleId = truck.id;
+    world.player.autoRepair = autoRepair;
+    return world;
+  }
+
+  function liveScreen(start: World): { screen: InventoryScreen; now: () => World } {
+    stubDom();
+    let world = start;
+    const screen = new InventoryScreen({ world: () => world, apply: (next: World) => (world = next), announce: () => {}, searchStock: () => {}, getTurnPhase: () => null } as never);
+    screen.toggle();
+    return { screen, now: () => world };
+  }
+
+  function footKey(): FakeNode {
+    const foot = rootOf().all((n) => n.className === "inv-foot")[0];
+    const keys = switchesOf(foot);
+    expect(keys).toHaveLength(1);
+    return keys[0];
+  }
+
+  it("sits on the foot as a plain key that shows the setting, with P in its tooltip", () => {
+    liveScreen(playerWorld(false));
+    const key = footKey();
+    expect(key.tag).toBe("button");
+    expect(key.className).toBe("");
+    expect(key.attrs.get("aria-checked")).toBe("false");
+    expect(key.attrs.get("title")).toContain("[P]");
+    expect(switchesOf(rootOf())).toHaveLength(1);
+  });
+
+  it("flips the setting through the sim on a click, and the redrawn key follows", () => {
+    const { screen, now } = liveScreen(playerWorld(false));
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(true);
+    screen.render();
+    expect(footKey().attrs.get("aria-checked")).toBe("true");
+    footKey().listeners.get("click")?.();
+    expect(now().player.autoRepair).toBe(false);
+  });
+
+  it("is off with Knocked out while the driver is down, and flips nothing", () => {
+    const world = playerWorld(true);
+    world.player.state = "knockedOut";
+    const { now } = liveScreen(world);
+    const key = footKey();
+    expect(key.attrs.get("aria-disabled")).toBe("true");
+    expect(key.attrs.get("data-reason")).toBe("Knocked out");
+    key.listeners.get("click")?.();
+    expect(now()).toBe(world);
+  });
+
+  it("is off with the scene reason over a scene", () => {
+    const world = playerWorld(true);
+    world.player.quests.live = { ...SCENE };
+    liveScreen(world);
+    expect(footKey().attrs.get("data-reason")).toBe("Not during a scene");
+  });
+
+  it("is absent on a loot screen", () => {
+    const { w, stock } = spotWorld();
+    const { screen } = screenOver(w);
+    screen.openLoot(stock.id);
+    expect(switchesOf(rootOf())).toHaveLength(0);
+  });
+
+  it("is absent while another truck is looked over", () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, "independent", "buggy", ["mg", "stockEngine"], { x: 34, y: 30 });
+    addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
+    const { screen } = screenOver(w);
+    screen.openLookedOver(w, npc.id);
+    expect(switchesOf(rootOf())).toHaveLength(0);
+  });
+});

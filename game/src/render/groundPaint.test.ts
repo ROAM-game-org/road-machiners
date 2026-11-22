@@ -9,7 +9,7 @@ import type { Terrain } from '../sim/terrain';
 import { pointInPolygon, polylineDist, type Vec } from '../sim/vec';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { adoptGroundBake, desertWeight, EDGE_LOOKS, glassField, glassOf, GROUND_MATERIAL_IDS, groundBakeFits, groundMaterial, groundLooks, groundMaterialIndex, lookTypes, MARK_KINDS, packedLook, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
+import { adoptGroundBake, desertWeight, EDGE_LOOKS, glassField, glassOf, GROUND_MATERIAL_IDS, groundBakeFits, groundMaterial, groundLooks, groundMaterialIndex, lookCode, lookName, lookTypes, MARK_KINDS, paintCanvasOn, paintGroundCanvas, takeBakedPixels, TERRAIN_MARGIN, yardLook, type LookType, type PaintCanvas } from './groundPaint';
 import { atlasOf, ICARUS_KEY } from '../sim/atlas';
 import { drawnTrackLines, trackEdgeAt } from './roadPaint';
 
@@ -34,17 +34,17 @@ describe('lookTypes', () => {
   it('gives each half of a road the look of the ground on its side', () => {
     const t = bandMap();
     const look = lookTypes(t);
-    expect(look).not.toContain('road');
+    expect([...look].map((c) => lookName(c))).not.toContain('road');
     for (let y = 0; y < t.size; y++) for (let x = 0; x < t.size; x++) {
       const i = y * t.size + x;
       const want = x < 6 ? 'hardpan' : 'saltCrust';
-      expect(look[i], `${x},${y}`).toBe(t.types[i] === 'road' ? want : t.types[i]);
+      expect(lookName(look[i]), `${x},${y}`).toBe(t.types[i] === 'road' ? want : t.types[i]);
     }
   });
 
   it('gives a map that is all road the hardpan look road tiles paint as', () => {
     const t: Terrain = { ...bandMap(), types: new Array<TerrainTypeId>(144).fill('road') };
-    expect(new Set(lookTypes(t))).toEqual(new Set(['hardpan']));
+    expect(new Set([...lookTypes(t)].map((c) => lookName(c)))).toEqual(new Set(['hardpan']));
   });
 
   it('gives the same look on every call', () => {
@@ -60,9 +60,9 @@ describe('lookTypes', () => {
       const i = y * t.size + x;
       if (t.types[i] !== 'road') continue;
       const off = [i - 1, i + 1, i - t.size, i + t.size].filter((n) => t.types[n] !== 'road');
-      if (off.length === 0 || off.some((n) => desertWeight(look[n]) > 0)) continue;
+      if (off.length === 0 || off.some((n) => desertWeight(lookName(look[n])) > 0)) continue;
       checked++;
-      expect(desertWeight(look[i]), `${x},${y}`).toBe(0);
+      expect(desertWeight(lookName(look[i])), `${x},${y}`).toBe(0);
     }
     expect(checked).toBeGreaterThan(50);
   });
@@ -319,7 +319,7 @@ describe('yardLook', () => {
     const inside = tileAt(east, -6);
     expect(t.types[inside]).toBe('hardpan');
     expect(fade[inside]).toBeGreaterThan(0);
-    expect(natural[inside]).not.toBe('hardpan');
+    expect(lookName(natural[inside])).not.toBe('hardpan');
     expect(natural[inside]).toBe(natural[tileAt(east, 5)]);
   });
 
@@ -339,12 +339,12 @@ describe('groundLooks', () => {
   it('gives the tiles under a drawn track the look of the ground beside them', () => {
     const tiles = t.types.map((_, i) => i).filter(under);
     expect(tiles.length).toBeGreaterThan(20);
-    for (const i of tiles) expect(groundLooks(t)[i], `tile ${i}`).not.toBe('track');
+    for (const i of tiles) expect(lookName(groundLooks(t)[i]), `tile ${i}`).not.toBe('track');
   });
 
   it('keeps those same tiles as track for scatter, which reads lookTypes', () => {
     const tiles = t.types.map((_, i) => i).filter(under);
-    for (const i of tiles) expect(lookTypes(t)[i]).toBe('track');
+    for (const i of tiles) expect(lookName(lookTypes(t)[i])).toBe('track');
   });
 
   it('leaves every tile away from a drawn track as it was', () => {
@@ -413,9 +413,11 @@ describe("ground bake", () => {
   it("serves the baked glass and look in place of working them out", () => {
     const t = terrain();
     const glass = new Uint8Array([9, 9, 9, 9]);
-    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look: packedLook(["mud", "mud", "mud", "mud"]) });
+    const look = new Uint8Array(4).fill(lookCode("mud", 0));
+    adoptGroundBake(t, { pixels: new Uint8ClampedArray(4), glass, look });
     expect(glassOf(t)).toBe(glass);
-    expect(lookTypes(t)).toEqual(["mud", "mud", "mud", "mud"]);
+    expect(lookTypes(t)).toBe(look);
+    expect(lookName(lookTypes(t)[0])).toBe("mud");
   });
 
   it("hands the baked pixels over once, since the canvas then owns them", () => {
@@ -447,5 +449,16 @@ describe("ground bake", () => {
     expect(groundBakeFits(t, 4, { ...good, glass: new Uint8Array(9) })).toBe(false);
     expect(groundBakeFits(t, 4, { ...good, look: Uint8Array.of(0, 0, 0, 250) })).toBe(false);
     expect(groundBakeFits(t, 4, {} as typeof good)).toBe(false);
+  });
+});
+
+describe("look codes", () => {
+  it("round-trips every look name", () => {
+    for (const name of GROUND_MATERIAL_IDS) expect(lookName(lookCode(name, 0))).toBe(name);
+  });
+
+  it("throws naming the tile on an unknown code or name", () => {
+    expect(() => lookName(200, 7)).toThrow(/tile 7/);
+    expect(() => lookCode("road" as LookType, 9)).toThrow(/tile 9/);
   });
 });

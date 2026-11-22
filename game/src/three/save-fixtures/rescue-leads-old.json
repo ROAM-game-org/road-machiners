@@ -1,0 +1,22 @@
+{
+  "shops": {
+    "bowl": { "contracts": [
+      { "id": "b1", "shop": "bowl", "kind": "rescue", "client": "v1", "driver": "Ada Cobb", "need": "fuel", "area": { "x": 5, "y": 5 }, "reward": 10, "deadline": 90, "window": 60, "tier": 1, "fulfilled": false },
+      { "id": "b2", "shop": "bowl", "kind": "haul", "good": "salt", "units": 1, "to": "nose", "reward": 10, "deadline": 90, "window": 60, "rush": false, "tier": 1 }
+    ] }
+  },
+  "player": {
+    "contracts": [
+      { "id": "s1", "shop": "bowl", "kind": "search", "target": "v2", "driver": "Mack Holt", "template": "trader", "lead": { "at": { "x": 1, "y": 1 }, "turn": 5 }, "reward": 10, "deadline": 90, "window": 60, "tier": 1, "delivered": false },
+      { "id": "r1", "shop": "bowl", "kind": "rescue", "client": "v3", "driver": "Jed Cobb", "need": "fuel", "area": { "x": 9, "y": 9 }, "reward": 10, "deadline": 90, "window": 60, "tier": 1, "fulfilled": false }
+    ],
+    "pastContracts": [
+      { "outcome": "done", "turn": 40, "amount": 10, "contract": { "id": "r0", "shop": "bowl", "kind": "rescue", "client": "v4", "driver": "Old Cobb", "need": "tow", "area": { "x": 3, "y": 3 }, "reward": 10, "deadline": 90, "window": 60, "tier": 1, "fulfilled": true } }
+    ],
+    "call": {
+      "with": "v7", "topic": "lastSeen", "node": "tell",
+      "vars": { "sighting": { "kind": "sighting", "driver": "Mack Holt", "seen": { "bearing": 1, "tiles": 20, "turns": 4, "heading": 2 } } },
+      "line": { "line": "sightingTold", "vars": { "sighting": { "kind": "sighting", "driver": "Mack Holt", "seen": null } } }
+    }
+  }
+}

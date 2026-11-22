@@ -139,7 +139,3 @@ body {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
 }
-#ui.touch button.switch {
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
-}

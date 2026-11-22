@@ -195,7 +195,7 @@ describe("contract text", () => {
   });
 
   describe("a rescue", () => {
-    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 1, deadline: 100, window: 100, tier: 1, fulfilled: false };
+    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, lead: null, reward: 1, deadline: 100, window: 100, tier: 1, fulfilled: false };
 
     it("names the driver, and reads as ready to claim once met", () => {
       expect(en(contractSummary(rescue))).toBe("Rescue Jed Cobb");

@@ -2,7 +2,7 @@ import type { TruckPaint } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { conditionItems, PX_PER_METER } from "../three/render/portraitPixels";
 import { CardGesture } from "./card-gesture";
-import { CardZoom, densityCap, fitZoom, type Point } from "./card-zoom";
+import { CardZoom, densityCap, fitClearOf, fitZoom, type Point, type Size } from "./card-zoom";
 import { wheelZoomFactor } from "./map-geometry";
 import { spanOf } from "../sim/body";
 import type { Vehicle } from "../sim/types";
@@ -11,6 +11,7 @@ import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { workMeterEl } from "./cards";
 import { el } from "./dom";
+import { tipPlacement } from "./tip-placement";
 import { ConditionPlan } from "./condition-plan";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
 import { token } from "./tokens";
@@ -28,7 +29,14 @@ type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 type Drawing = Portrait | ConditionPlan;
 export type ZoomState = { canZoomIn: boolean; canZoomOut: boolean };
-export type ConditionOptions = { magnify?: (state: ZoomState) => void };
+export type ConditionOptions = { magnify?: (state: ZoomState) => void; clearCorner?: HTMLElement };
+
+const TIP_GAP = 2;
+
+function boundsOf(drawing: Drawing, partId: string): { x: number; y: number; width: number; height: number } {
+  if (drawing instanceof ConditionPlan) return drawing.boundsOf(partId);
+  return drawing.footprint(partId);
+}
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
 function encoded(canvas: HTMLCanvasElement): Promise<string> {
@@ -213,7 +221,8 @@ export class TruckConditionView {
     const room = contentBox(box);
     const inner = { width: room.width - outline, height: room.height - outline };
     if (inner.width <= 0 || inner.height <= 0) return;
-    const fit = fitZoom(inner, natural, densityCap(this.scale, window.devicePixelRatio));
+    const cap = densityCap(this.scale, window.devicePixelRatio);
+    const fit = this.options.clearCorner ? fitClearOf(inner, natural, cap, cornerTaken(box, this.options.clearCorner)) : fitZoom(inner, natural, cap);
     if (!this.zoom) return this.setZoom(fit);
     this.zoom.refit(fit, room, natural, PX_PER_METER * this.scale);
     this.fitted = true;
@@ -460,37 +469,32 @@ export class TruckConditionView {
     const part = this.hovered();
     this.tip.style.display = part && this.drawing ? "" : "none";
     if (!part || !this.drawing) return;
-    const center = this.drawing.centerOf(part.id);
-    const visible = this.visibleWindow();
     this.tipBody.replaceChildren(...tipRows(part));
-    const y = Math.min(Math.max(center.y, visible.top), visible.bottom);
-    this.tip.dataset.side = y < (visible.top + visible.bottom) / 2 ? "below" : "above";
-    placeAt(this.tip, { x: this.tipX(center.x, visible), y }, this.scale);
-  }
-
-  private visibleWindow(): { left: number; right: number; top: number; bottom: number } {
-    if (!this.drawing) throw new Error("The condition view has no truck drawn yet");
-    const { width, height } = this.drawing;
-    const whole = { left: 0, right: width, top: 0, bottom: height };
-    if (!this.zoom || !this.box) return whole;
-    const stage = this.stage.getBoundingClientRect();
-    const screen = this.box.getBoundingClientRect();
-    if (stage.width === 0 || stage.height === 0) return whole;
-    const across = (client: number, from: number, size: number): number => ((client - from) / size);
-    return {
-      left: Math.max(0, across(screen.left, stage.left, stage.width) * width),
-      right: Math.min(width, across(screen.right, stage.left, stage.width) * width),
-      top: Math.max(0, across(screen.top, stage.top, stage.height) * height),
-      bottom: Math.min(height, across(screen.bottom, stage.top, stage.height) * height),
-    };
-  }
-
-  private tipX(x: number, visible: { left: number; right: number }): number {
     const onScreen = this.stage.getBoundingClientRect().width;
-    const inDrawing = onScreen > 0 ? this.stage.offsetWidth / onScreen : 1;
-    const half = (this.tipBody.getBoundingClientRect().width * inDrawing) / 2 / this.scale;
-    const lowest = visible.left + half;
-    return Math.min(Math.max(x, lowest), Math.max(lowest, visible.right - half));
+    const inStage = onScreen > 0 ? this.stage.offsetWidth / onScreen : 1;
+    const body = this.tipBody.getBoundingClientRect();
+    const bounds = boundsOf(this.drawing, part.id);
+    const spot = tipPlacement(
+      { x: bounds.x * this.scale, y: bounds.y * this.scale, width: bounds.width * this.scale, height: bounds.height * this.scale },
+      { width: body.width * inStage, height: body.height * inStage },
+      this.visibleArea(inStage),
+      TIP_GAP,
+    );
+    this.tip.style.left = `${spot.left}px`;
+    this.tip.style.top = `${spot.top}px`;
+  }
+
+  private visibleArea(inStage: number): { x: number; y: number; width: number; height: number } {
+    const stage = this.stage.getBoundingClientRect();
+    let clip: Element | null = this.stage.parentElement;
+    while (clip && getComputedStyle(clip).overflow === "visible") clip = clip.parentElement;
+    const view = clip ? clip.getBoundingClientRect() : stage;
+    return {
+      x: (view.left - stage.left) * inStage,
+      y: (view.top - stage.top) * inStage,
+      width: view.width * inStage,
+      height: view.height * inStage,
+    };
   }
 
   private showOutline(): void {
@@ -502,6 +506,16 @@ export class TruckConditionView {
       layerImage("cond-pick", this.drawing, this.drawing.glow(part.id, part.tier), part.tier),
     );
   }
+}
+
+function cornerTaken(box: HTMLElement, corner: HTMLElement): Size {
+  const at = corner.getBoundingClientRect();
+  if (at.width === 0 || at.height === 0) return { width: 0, height: 0 };
+  const edge = box.getBoundingClientRect();
+  const style = getComputedStyle(box);
+  const right = edge.left + box.clientLeft + box.clientWidth - parseFloat(style.paddingRight);
+  const bottom = edge.top + box.clientTop + box.clientHeight - parseFloat(style.paddingBottom);
+  return { width: Math.max(0, right - at.left), height: Math.max(0, bottom - at.top) };
 }
 
 function contentBox(box: HTMLElement): { width: number; height: number } {

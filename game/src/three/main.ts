@@ -319,10 +319,9 @@ const loading = Promise.all([
   boot.track('physics', initPhysics()),
   boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
 ]);
+await loading;
 stepBoot('loading the map');
-const bakeGround = startGroundBaker();
 const [map, slots] = await Promise.all([boot.track('map', fetchMap()), openRunSaves()]);
-const baking = bakeGround(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const importer = saveImporter(slots, map, CONFIG.saveSlots);
 const travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
 gameContext.watchSaves(slots);
@@ -338,6 +337,7 @@ const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 stepBoot('building the ground');
+const baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`);
 const drawn = await boot.track('ground', async () => {
   await baking.baked;
   groundTexture(world);
@@ -346,8 +346,6 @@ const drawn = await boot.track('ground', async () => {
     await boot.painted();
   });
 });
-stepBoot('waiting for physics and models');
-await loading;
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);

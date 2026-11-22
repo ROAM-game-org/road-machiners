@@ -13,7 +13,8 @@ const GLASS = '#1d1609';
 
 const DIAL = { cx: 82, cy: 687.1, rGlass: 71.5, rBrass: 73.0 };
 const GAUGE_SHIFT = -2.5;
-const shifted = (pts) => pts.map(([x, y]) => [x + GAUGE_SHIFT, y]);
+const GAUGE_DROP = 2;
+const shifted = (pts) => pts.map(([x, y]) => [x + GAUGE_SHIFT, y + GAUGE_DROP]);
 const FUEL = { pts: shifted([[156.4, 618.3], [213.9, 618.3], [213.9, 659.3], [156.4, 659.3]]), r: 9 };
 const HEAT = { pts: shifted([[217.9, 618.3], [275.1, 618.3], [275.1, 659.3], [217.9, 659.3]]), r: 9 };
 const COOL = { box: [276.4, 622.5, 318.2, 659.2], skirt: 5.5 };
@@ -25,6 +26,23 @@ root.add(P.g);
 const L0 = P.at(0), LP = P.at(Z_PANEL);
 const expand = ([x0, y0, x1, y1], d) => [x0 - d, y0 - d, x1 + d, y1 + d];
 
+const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
+const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
+const HOLE_CURVE = [[96, HOLE_TOP], [50, HOLE_TOP], [0, 614], [-40, 630]];
+const bezierAt = (t, axis) => {
+  const [a, b, c, d] = HOLE_CURVE.map((p) => p[axis]), m = 1 - t;
+  return m * m * m * a + 3 * m * m * t * b + 3 * m * t * t * c + t * t * t * d;
+};
+const lipYAt = (x) => {
+  if (x < HOLE_CURVE[3][0] || x > HOLE_CURVE[0][0]) throw new Error(`lipYAt: x ${x} is outside the cut-out curve`);
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezierAt(mid, 0) > x) lo = mid; else hi = mid;
+  }
+  return bezierAt((lo + hi) / 2, 1);
+};
+
 const PANEL_BOX = [-40, 600, 340, 775];
 const panelCv = LP.canvas(PANEL_BOX);
 {
@@ -34,7 +52,7 @@ const panelCv = LP.canvas(PANEL_BOX);
   c.save();
   c.beginPath();
   c.moveTo(-40, 775); c.lineTo(333, 775); c.lineTo(333, 605.3 + 22); c.arc(333 - 22, 605.3 + 22, 22, 0, Math.PI / 2 * 3, true);
-  c.lineTo(96, 605.3); c.bezierCurveTo(50, 605.3, 0, 614, -40, 630); c.closePath();
+  c.lineTo(...HOLE_CURVE[0]); c.bezierCurveTo(...HOLE_CURVE[1], ...HOLE_CURVE[2], ...HOLE_CURVE[3]); c.closePath();
   c.clip();
   c.filter = 'blur(3.5px)'; c.strokeStyle = 'rgba(8,3,0,0.6)'; c.lineWidth = 16; c.stroke();
   c.restore();
@@ -49,8 +67,6 @@ const COOL_SINK = 0.025, COOL_GAP = 1.1;
   floor.position.z = Z_PANEL - 0.06; floor.receiveShadow = true; P.g.add(floor);
 }
 
-const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
-const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
 const FRAME_BOX = [-40, 596, 350, 775];
 const frameCv = L0.canvas(FRAME_BOX);
 {
@@ -66,15 +82,16 @@ const outer = L0.shape([-40, FRAME_TOP, FRAME_RIGHT, 775], [0, TR, 0, 0]);
   hole.lineTo(...u(HOLE_RIGHT, 775));
   hole.lineTo(...u(HOLE_RIGHT, HOLE_TOP + HOLE_R));
   hole.absarc(L0.ux(HOLE_RIGHT - HOLE_R), L0.uy(HOLE_TOP + HOLE_R), L0.len(HOLE_R), 0, Math.PI / 2, false);
-  hole.lineTo(...u(96, HOLE_TOP));
-  hole.bezierCurveTo(...u(50, HOLE_TOP), ...u(0, 614), ...u(-40, 630));
+  hole.lineTo(...u(...HOLE_CURVE[0]));
+  hole.bezierCurveTo(...u(...HOLE_CURVE[1]), ...u(...HOLE_CURVE[2]), ...u(...HOLE_CURVE[3]));
   hole.closePath();
   outer.holes.push(hole);
 }
 P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: oliveMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: oliveLit(OLIVE.shade) }));
 
 const BOLT_Z = 0.014;
-for (const [x, y] of [[14, 612], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
+const TOP_BOLT_X = 14;
+for (const [x, y] of [[TOP_BOLT_X, (FRAME_TOP + lipYAt(TOP_BOLT_X)) / 2], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
 
 const dialGlassPaint = (c, b) => {
   const cx = DIAL.cx, cy = DIAL.cy, R = DIAL.rGlass;
@@ -129,14 +146,15 @@ const SW_BASE = '#9a9a92';
 const SW_SCALE = 1.5, SW_LEVER_SCALE = 2.3 / 1.75;
 const SW_Z = Z_PANEL + 0.004;
 const EYE_UNITS = P.eye();
-const lampDome = (cx, cy) => {
-  const L = P.at(SW_Z), px = L.ux(cx), py = L.uy(cy), r = L.len(LAMP_R);
-  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(1.1), 10, 32), lit(SW_BASE));
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit('#4a2c0a'));
+const RED_LENS = '#4a0f0a';
+const lampDome = (cx, cy, lens = '#4a2c0a', radius = LAMP_R, z = SW_Z) => {
+  const L = P.at(z), px = L.ux(cx), py = L.uy(cy), r = L.len(radius);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(radius * 0.22), 10, 32), lit(SW_BASE));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit(lens));
   dome.rotation.x = Math.PI / 2; dome.scale.set(1, 0.6, 1);
   const g = new THREE.Group();
   g.add(bezel, dome);
-  g.position.set(px, py, SW_Z);
+  g.position.set(px, py, z);
   for (const m of [bezel, dome]) { m.castShadow = true; m.receiveShadow = true; }
   P.g.add(g);
 };
@@ -149,6 +167,9 @@ const rockers = ROCKERS.map(([x0, , x1]) => {
   return { set: toggle.set, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
 rockers.forEach((r) => r.set(false));
+const HEAT_LAMP_R = 3.2;
+const HEAT_LAMP = { x: HEAT.pts[0][0] + GLASS_INSET + (HEAT.pts[2][0] - HEAT.pts[0][0] - 2 * GLASS_INSET) * 0.83, y: HEAT.pts[2][1] - GLASS_INSET - 5.4 };
+lampDome(HEAT_LAMP.x, HEAT_LAMP.y, RED_LENS, HEAT_LAMP_R, GLASS_Z + 0.004);
 
 const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[0]), z: 0 }, eye: P.eye(), faceWidthPx: (FACE[2] - FACE[0] + 3) * K });
 
@@ -165,6 +186,7 @@ const zones = {
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),
+  heatLamp: zoneFor([HEAT_LAMP.x - HEAT_LAMP_R, HEAT_LAMP.y - HEAT_LAMP_R, HEAT_LAMP.x + HEAT_LAMP_R, HEAT_LAMP.y + HEAT_LAMP_R], GLASS_Z + 0.008),
 };
 rockers.forEach((r, i) => {
   const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];

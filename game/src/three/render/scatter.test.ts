@@ -7,7 +7,7 @@ import { START_KITS } from '../../data/start';
 import { ZONES, type ZoneKind } from '../../data/terrain';
 import { SCATTER } from '../../data/view';
 import { ZONE_KINDS, zoneWeight } from '../../sim/zones';
-import { desertWeight, lookTypes } from '../../render/groundPaint';
+import { desertWeight, lookName, lookTypes } from '../../render/groundPaint';
 import { ROAD_INDEX } from '../../sim/road-index';
 import type { Vec } from '../../sim/vec';
 import { newWorld } from '../../sim/world';
@@ -27,7 +27,7 @@ const ROAD_GAP = REGION.roadWidth / 2 + ROAD_MARGIN;
 const roadDist = (x: number, y: number) => ROAD_INDEX.nearestWithin(x, y, ROAD_GAP + SHOULDER_TILES);
 const typeAt = (at: Vec) => t.types[Math.floor(at.y) * t.size + Math.floor(at.x)];
 const look = lookTypes(t);
-const lookAt = (at: Vec) => look[Math.floor(at.y) * t.size + Math.floor(at.x)];
+const lookAt = (at: Vec) => lookName(look[Math.floor(at.y) * t.size + Math.floor(at.x)]);
 const onShoulder = (at: Vec) => roadDist(at.x, at.y) < ROAD_GAP + SHOULDER_TILES;
 const tileKey = (at: Vec) => Math.floor(at.y) * t.size + Math.floor(at.x);
 const nearRock = new Set<number>();
@@ -91,7 +91,7 @@ describe('scatterPlacements', () => {
     let rockTiles = 0;
     let openTiles = 0;
     for (let y = 0; y < t.size; y++) for (let x = 0; x < t.size; x++) {
-      if (desertWeight(look[y * t.size + x]) === 0) continue;
+      if (desertWeight(lookName(look[y * t.size + x])) === 0) continue;
       if (nearRock.has(y * t.size + x)) rockTiles++;
       else openTiles++;
     }
