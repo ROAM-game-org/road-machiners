@@ -16,6 +16,8 @@ export type Terrain = {
   routes?: Uint8Array;
 };
 
+export type GroundTiles = Pick<Terrain, 'size' | 'types' | 'atlas'>;
+
 const T = TERRAIN;
 
 export function heightFromElevation(e: number): number {
@@ -290,9 +292,18 @@ export type PackedTerrain = {
 };
 
 export function packTerrain(t: Terrain): PackedTerrain {
-  const types = new Uint8Array(t.types.length);
-  for (let k = 0; k < types.length; k++) types[k] = typeCode(t.types[k], k);
-  return { size: t.size, atlas: t.atlas, heights: Float64Array.from(t.heights), types, routes: t.routes ? t.routes.slice() : null };
+  return { size: t.size, atlas: t.atlas, heights: Float64Array.from(t.heights), types: packTypes(t.types), routes: t.routes ? t.routes.slice() : null };
+}
+
+export function packTypes(types: readonly TerrainTypeId[]): Uint8Array {
+  const codes = new Uint8Array(types.length);
+  for (let k = 0; k < codes.length; k++) codes[k] = typeCode(types[k], k);
+  return codes;
+}
+
+export function unpackTypes(codes: Uint8Array, size: number): TerrainTypeId[] {
+  if (codes.length !== size * size) throw new Error(`Packed terrain has ${codes.length} types for size ${size}`);
+  return Object.freeze(Array.from(codes, readType)) as TerrainTypeId[];
 }
 
 export function packedBuffers(p: PackedTerrain): ArrayBuffer[] {
@@ -303,9 +314,8 @@ export function packedBuffers(p: PackedTerrain): ArrayBuffer[] {
 
 export function unpackTerrain(p: PackedTerrain): Terrain {
   if (p.heights.length !== (p.size + 1) ** 2) throw new Error(`Packed terrain has ${p.heights.length} heights for size ${p.size}`);
-  if (p.types.length !== p.size * p.size) throw new Error(`Packed terrain has ${p.types.length} types for size ${p.size}`);
   const heights = Array.from(p.heights);
-  const types = Array.from(p.types, readType);
+  const types = unpackTypes(p.types, p.size);
   const terrain: Terrain = p.routes ? { size: p.size, heights, types, atlas: p.atlas, routes: p.routes } : { size: p.size, heights, types, atlas: p.atlas };
   Object.freeze(heights);
   Object.freeze(types);

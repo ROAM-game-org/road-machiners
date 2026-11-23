@@ -40,9 +40,9 @@ function mapCanvas(w: World, side: number): PaintCanvas {
   return paintCanvasOn(ctx, side, w.size);
 }
 
-const groundTextures = new WeakMap<Terrain, THREE.CanvasTexture>();
+const groundTextures = new WeakMap<Terrain, THREE.Texture>();
 
-export function groundTexture(w: World): THREE.CanvasTexture {
+export function groundTexture(w: World): THREE.Texture {
   let texture = groundTextures.get(w.terrain);
   if (!texture) {
     texture = paintTexture(w);
@@ -51,15 +51,28 @@ export function groundTexture(w: World): THREE.CanvasTexture {
   return texture;
 }
 
-function paintTexture(w: World): THREE.CanvasTexture {
-  const c = mapCanvas(w, groundSide(w.size));
+function paintTexture(w: World): THREE.Texture {
+  const side = groundSide(w.size);
   const baked = takeBakedPixels(w.terrain);
-  if (baked) c.ctx.putImageData(new ImageData(baked as Uint8ClampedArray<ArrayBuffer>, c.size, c.size), 0, 0);
-  else paintGroundCanvas(c, w.terrain);
-  const texture = new THREE.CanvasTexture(c.ctx.canvas);
+  const texture = baked ? bakedTexture(baked, side) : new THREE.CanvasTexture(paintedGroundCanvas(w, side));
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.magFilter = THREE.NearestFilter;
+  return texture;
+}
+
+function paintedGroundCanvas(w: World, side: number): HTMLCanvasElement {
+  const c = mapCanvas(w, side);
+  paintGroundCanvas(c, w.terrain);
+  return c.ctx.canvas as HTMLCanvasElement;
+}
+
+function bakedTexture(pixels: Uint8ClampedArray, side: number): THREE.DataTexture {
+  const bytes = new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+  const texture = new THREE.DataTexture(bytes, side, side, THREE.RGBAFormat, THREE.UnsignedByteType);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
   return texture;
 }
 
