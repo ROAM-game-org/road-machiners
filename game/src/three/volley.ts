@@ -1,6 +1,7 @@
 import type { TimedFlight, TimedRecord, TimedCombatState } from '../sim/timed-combat';
 import { combatState } from '../sim/timed-combat';
 import { CONFIG } from "../config";
+import { damageNumbersSetting } from "../ui/damage-numbers-setting";
 import { RULES } from "../data/rules";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
@@ -133,7 +134,7 @@ function showDamage(host: VolleyHost, r: ShotRound, atMs: number, rows: Map<stri
 }
 
 function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, rows: Map<string, number>, atMs: number): void {
-  if (!label || !host.poses.end(vehicleId)) return;
+  if (!label || !damageNumbersSetting().on() || !host.poses.end(vehicleId)) return;
   const row = rows.get(vehicleId) ?? 0;
   rows.set(vehicleId, row + 1);
   host.fx.label(() => host.eventPoint(vehicleId), label, row, atMs, CONFIG.combatReadMs);
