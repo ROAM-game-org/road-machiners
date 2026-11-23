@@ -6,7 +6,10 @@ import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
 import { BLOCK_COUNT_SHIFT, blockWriter } from './groundFields';
-import { chunkGeometry, deckFloorCap, groundSide, TERRAIN_CHUNK } from './terrain';
+import { chunkGeometry, deckFloorCap, groundSide, groundTexture, TERRAIN_CHUNK } from './terrain';
+import { adoptGroundBake } from '../../render/groundPaint';
+import type { World } from '../../sim/types';
+import * as THREE from 'three';
 import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
 import { ICARUS_DECKS } from '../../sim/bridge';
@@ -173,5 +176,25 @@ describe('ground tile blocks', () => {
 
   it('repeats the edge tiles past the map edge', () => {
     expect(blockAt(field((x) => (x === 0 ? 6 : 7)), 0, 0)).toEqual({ count: 2, ids: [6, 7, 6], masks: [0x3333, 0xcccc] });
+  });
+});
+
+describe('groundTexture', () => {
+  it('draws a baked ground from the bake bytes with the filters the canvas had, with no copy', () => {
+    const terrain = { ...t };
+    const side = groundSide(terrain.size);
+    const pixels = new Uint8ClampedArray(side * side * 4);
+    const tiles = terrain.size * terrain.size;
+    adoptGroundBake(terrain, { pixels, glass: new Uint8Array(tiles), look: new Uint8Array(tiles) });
+
+    const texture = groundTexture({ terrain, size: terrain.size } as unknown as World);
+
+    expect(texture).toBeInstanceOf(THREE.DataTexture);
+    expect((texture.image as { data: Uint8Array }).data.buffer).toBe(pixels.buffer);
+    expect(texture.flipY).toBe(false);
+    expect(texture.colorSpace).toBe(THREE.SRGBColorSpace);
+    expect(texture.magFilter).toBe(THREE.NearestFilter);
+    expect(texture.minFilter).toBe(THREE.LinearMipmapLinearFilter);
+    expect(texture.generateMipmaps).toBe(true);
   });
 });

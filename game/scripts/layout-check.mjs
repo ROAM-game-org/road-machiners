@@ -213,7 +213,7 @@ const setMinimap = async (page, on) => {
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'Day', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
@@ -229,6 +229,43 @@ function frameFaults(page) {
     if (questFrameFits(width, height, stacked)) return [];
     return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
   });
+}
+
+function overlayFrameFaults(page) {
+  return page.evaluate(() => {
+    const slack = 1;
+    const out = [];
+    const shown = (node) => node.getClientRects().length > 0;
+    const leaves = (frame) => {
+      const found = [...frame.querySelectorAll('.item-icon')].map((node) => ({ box: node.getBoundingClientRect(), text: 'icon' }));
+      const walker = document.createTreeWalker(frame, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        found.push({ box: range.getBoundingClientRect(), text: node.textContent.trim() });
+      }
+      return found;
+    };
+    for (const frame of document.querySelectorAll('#overlay .hud-frame')) {
+      if (!shown(frame)) continue;
+      const f = frame.getBoundingClientRect();
+      for (const { box, text } of leaves(frame)) {
+        const outside = box.left < f.left - slack || box.right > f.right + slack || box.top < f.top - slack || box.bottom > f.bottom + slack;
+        if (outside) out.push({ kind: 'off-frame', path: `#overlay .${[...frame.classList].find((c) => c !== 'hud-frame' && c !== 'hud-tip-screen') ?? 'hud-frame'}`, text, sizes: `${Math.round(f.width)}x${Math.round(f.height)}` });
+      }
+    }
+    return out;
+  });
+}
+
+async function arcIconFaults(page) {
+  const shown = await page.evaluate(() => [...document.querySelectorAll('#overlay .arc-icon')].filter((n) => n.getClientRects().length > 0).length);
+  return shown > 0 ? [] : [{ kind: 'arc-icon-missing', path: '#overlay .arc-icon', text: '', sizes: '' }];
+}
+
+async function inspectFaults(page) {
+  return [...await cardFaults(page), ...await arcIconFaults(page)];
 }
 
 async function probe(page, locale) {
@@ -1338,7 +1375,7 @@ const STATES = {
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
-  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: inspectFaults },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
@@ -1403,7 +1440,7 @@ async function canvasSpillFaults(page) {
 }
 
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await overlayFrameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {

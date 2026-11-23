@@ -852,6 +852,7 @@ export const FOLDED_AND_TINY_STEPS: readonly NamedStep[] = [
   { name: 'withSpareTireJob', step: (world) => world },
   { name: 'withoutPartClaimsOnBoards', step: withoutPartClaimsOnBoards },
   { name: 'withRescueLeads', step: withRescueLeads },
+  { name: 'withSearchFinds', step: (world) => world },
 ];
 
 const foldedSlice = (from: number, to: number) => FOLDED_AND_TINY_STEPS.slice(from - FIRST_TINY, to - FIRST_TINY);

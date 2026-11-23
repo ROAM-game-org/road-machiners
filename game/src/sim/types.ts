@@ -140,7 +140,7 @@ export type Job =
       total: number;
       auto?: true;
     }
-  | { kind: "search"; stockId: string; turnsLeft: number; total: number }
+  | { kind: "search"; stockId: string; turnsLeft: number; total: number; found?: { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number } }
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
   | { kind: "firstAid"; turnsLeft: number; total: number }

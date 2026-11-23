@@ -18,7 +18,7 @@ import { carriedSpare, fitSpare, isJunk, isRelic, maxHp, spareTarget } from "./w
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup, takeError } from "./salvage";
-import { isSearchStalled, searchTurn } from "./search";
+import { announceFound, isSearchStalled, searchTurn } from "./search";
 import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
 import { oddJobsTurn, payOddJobs } from "./odd-jobs";
@@ -414,6 +414,7 @@ function endJob(
 ): void {
   v.job = null;
   if (job.kind === "oddJobs") payOddJobs(world, v, job);
+  if (job.kind === "search" && outcome === "cancelled") announceFound(world, v, job);
   world.events.push({ t: "job", vehicle: v.id, job: { ...job }, outcome });
   if (outcome === "done") practiceFieldJob(world, v, job);
 }

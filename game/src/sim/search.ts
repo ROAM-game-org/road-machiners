@@ -12,6 +12,8 @@ import type { Job, SalvageStock, Vehicle, World } from './types';
 import { hasWorkingUtility } from './utility';
 import { playerCommand } from './world';
 
+type SearchJob = Extract<Job, { kind: 'search' }>;
+
 const SEARCH_SALT = 0x73656172;
 
 export function searchStream(seed: number): Rng {
@@ -52,31 +54,49 @@ export function startSearch(world: World, stockId: string): World {
   });
 }
 
-export function isSearchStalled(world: World, v: Vehicle, job: Extract<Job, { kind: 'search' }>): boolean {
+export function isSearchStalled(world: World, v: Vehicle, job: SearchJob): boolean {
   const stock = world.salvage.find((entry) => entry.id === job.stockId);
   return !!stock && !canReachSalvage(v, stock);
 }
 
-export function searchTurn(world: World, v: Vehicle, job: Extract<Job, { kind: 'search' }>): boolean {
+export function searchTurn(world: World, v: Vehicle, job: SearchJob): boolean {
   const stock = world.salvage.find((entry) => entry.id === job.stockId);
   if (!stock) throw new Error(`Unknown salvage ${job.stockId}`);
-  revealFor(world, v, stock);
+  revealFor(world, v, stock, job);
   job.turnsLeft = Math.max(0, job.turnsLeft - 1);
   if (job.turnsLeft > 0) return false;
-  finishSearch(world, v, job.stockId);
+  finishSearch(world, v, job);
   return true;
 }
 
-function revealFor(world: World, v: Vehicle, stock: SalvageStock): void {
+function revealFor(world: World, v: Vehicle, stock: SalvageStock, job: SearchJob): void {
   const found = revealTurn(world, stock, hasWorkingUtility(v, 'scraper') ? SEARCH.scraperReveal : SEARCH.reveal, lockedFrom(world, v, stock));
-  if (foundAny(found) && v.id === world.player.vehicleId) world.events.push({ t: 'found', vehicle: v.id, stock: stock.id, ...found });
+  if (foundAny(found) && v.id === world.player.vehicleId) job.found = mergeFound(job.found, found);
+}
+
+function mergeGoods(held: Record<string, number> = {}, more: Record<string, number>): Record<string, number> {
+  const goods = { ...held };
+  for (const [id, count] of Object.entries(more)) goods[id] = (goods[id] ?? 0) + count;
+  return goods;
+}
+
+function mergeFound(held: Found | undefined, more: Found): Found {
+  if (!held) return more;
+  return { goods: mergeGoods(held.goods, more.goods), parts: [...held.parts, ...more.parts], fuel: held.fuel + more.fuel, supplies: held.supplies + more.supplies };
+}
+
+export function announceFound(world: World, v: Vehicle, job: SearchJob): void {
+  const found = job.found;
+  job.found = undefined;
+  if (found && foundAny(found)) world.events.push({ t: 'found', vehicle: v.id, stock: job.stockId, ...found });
 }
 
 function foundAny(found: Found): boolean {
   return found.parts.length > 0 || Object.keys(found.goods).length > 0 || found.fuel > 0 || found.supplies > 0;
 }
 
-function finishSearch(world: World, v: Vehicle, stockId: string): void {
+function finishSearch(world: World, v: Vehicle, job: SearchJob): void {
+  const stockId = job.stockId;
   const stock = world.salvage.find((entry) => entry.id === stockId);
   if (!stock) throw new Error(`Unknown salvage ${stockId}`);
   revealClaimed(world, v, stock);
@@ -88,6 +108,7 @@ function finishSearch(world: World, v: Vehicle, stockId: string): void {
     world.player.scavenged.push(stockId);
     practice(world, 'search', 1, null, stockId);
   }
+  announceFound(world, v, job);
   world.events.push({ t: 'searched', stock: stockId });
   openWreckScene(world, stockId);
 }
