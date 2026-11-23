@@ -4,7 +4,7 @@ import { TERRAIN, TERRAIN_TYPES, type Basin, type TerrainTypeId } from "../data/
 import { TERRITORIES } from "../data/territory";
 import { atlasOf, atlasSites } from "../sim/atlas";
 import { siteGap } from "../sim/sites";
-import { type PackedTerrain, type Terrain } from "../sim/terrain";
+import { type AtlasKey, type GroundTiles } from "../sim/terrain";
 import { basinUnder, isTerritory } from "../sim/territory";
 import { type Vec } from "../sim/vec";
 import { hash2 } from "./noise";
@@ -124,12 +124,12 @@ export function groundMaterialIndex(type: LookType): number {
   return GROUND_MATERIAL_IDS.indexOf(type);
 }
 
-const lookCache = new WeakMap<Terrain, Uint8Array>();
-const yardCache = new WeakMap<Terrain, YardLook>();
+const lookCache = new WeakMap<GroundTiles, Uint8Array>();
+const yardCache = new WeakMap<GroundTiles, YardLook>();
 
 type YardLook = { fade: Float32Array; natural: Uint8Array };
 
-export function lookTypes(t: Terrain): Uint8Array {
+export function lookTypes(t: GroundTiles): Uint8Array {
   const cached = lookCache.get(t);
   if (cached) return cached;
   const result = floodLook(t, () => false);
@@ -137,9 +137,9 @@ export function lookTypes(t: Terrain): Uint8Array {
   return result;
 }
 
-const groundLookCache = new WeakMap<Terrain, Uint8Array>();
+const groundLookCache = new WeakMap<GroundTiles, Uint8Array>();
 
-export function groundLooks(t: Terrain): Uint8Array {
+export function groundLooks(t: GroundTiles): Uint8Array {
   const cached = groundLookCache.get(t);
   if (cached) return cached;
   const lines = drawnTrackLines(atlasOf(t));
@@ -149,7 +149,7 @@ export function groundLooks(t: Terrain): Uint8Array {
   return result;
 }
 
-function floodLook(t: Terrain, skipped: (tile: number) => boolean): Uint8Array {
+function floodLook(t: GroundTiles, skipped: (tile: number) => boolean): Uint8Array {
   const look = new Uint8Array(t.size * t.size).fill(UNSET_LOOK);
   const queue = new Int32Array(look.length);
   flood(look, queue, seedOffRoad(t, look, queue, skipped), t.size);
@@ -157,7 +157,7 @@ function floodLook(t: Terrain, skipped: (tile: number) => boolean): Uint8Array {
   return look;
 }
 
-export function yardLook(t: Terrain): YardLook {
+export function yardLook(t: GroundTiles): YardLook {
   const cached = yardCache.get(t);
   if (cached) return cached;
   const fade = yardFade(t);
@@ -166,7 +166,7 @@ export function yardLook(t: Terrain): YardLook {
   return look;
 }
 
-function yardFade(t: Terrain): Float32Array {
+function yardFade(t: GroundTiles): Float32Array {
   const fade = new Float32Array(t.size * t.size);
   const margin = TERRAIN.types.siteMargin;
   const reach = margin + YARD_FADE_TILES;
@@ -184,7 +184,7 @@ function yardFade(t: Terrain): Float32Array {
   return fade;
 }
 
-function seedOffRoad(t: Terrain, look: Uint8Array, queue: Int32Array, skipped: (tile: number) => boolean): number {
+function seedOffRoad(t: GroundTiles, look: Uint8Array, queue: Int32Array, skipped: (tile: number) => boolean): number {
   let tail = 0;
   for (let i = 0; i < look.length; i++) {
     const type = t.types[i];
@@ -221,12 +221,12 @@ export type PaintCanvas = {
   toPx: (tiles: number) => number;
 };
 
-export function paintGroundCanvas(c: PaintCanvas, t: Terrain): void {
+export function paintGroundCanvas(c: PaintCanvas, t: GroundTiles): void {
   paintGround(c, t);
   paintLandformCanvas(c, t);
 }
 
-export function paintLandformCanvas(c: PaintCanvas, t: Terrain): void {
+export function paintLandformCanvas(c: PaintCanvas, t: GroundTiles): void {
   if (atlasOf(t).landforms) paintLandforms(c);
 }
 
@@ -295,7 +295,7 @@ function outward(poly: readonly Vec[], k: number): Vec {
 }
 
 type TileLook = {
-  t: Terrain;
+  t: GroundTiles;
   color: Int32Array;
   desert: Float32Array;
   broad: CellNoise;
@@ -304,7 +304,7 @@ type TileLook = {
   cell: Cell;
 };
 
-function tileLook(t: Terrain): TileLook {
+function tileLook(t: GroundTiles): TileLook {
   const count = t.size * t.size;
   const color = new Int32Array(count);
   const desert = new Float32Array(count);
@@ -430,7 +430,7 @@ function sandChannel(color: number, sand: number, patch: number, warm: number, k
   return (warmed + ((patch & 0xff) - warmed) * k + 0.5) | 0;
 }
 
-export function shownLooks(t: Terrain): Uint8Array {
+export function shownLooks(t: GroundTiles): Uint8Array {
   const looks = groundLooks(t);
   const yard = yardLook(t);
   return looks.map((look, tile) => (yard.fade[tile] >= 0.5 ? look : yard.natural[tile]));
@@ -463,7 +463,7 @@ function scratchImage(c: PaintCanvas): ImageData {
   return scratch;
 }
 
-function paintGround(c: PaintCanvas, t: Terrain): void {
+function paintGround(c: PaintCanvas, t: GroundTiles): void {
   const look = tileLook(t);
   const img = scratchImage(c);
   const data = img.data;
@@ -526,7 +526,7 @@ const GLASS_REACH = Math.ceil(GLASS_BLUR * 3);
 
 export type GroundBake = { pixels: Uint8ClampedArray; glass: Uint8Array; look: Uint8Array };
 
-export type GroundBakeRequest = { terrain: PackedTerrain; side: number };
+export type GroundBakeRequest = { size: number; atlas: AtlasKey; types: Uint8Array; side: number };
 
 export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSize: number): PaintCanvas {
   const from = -TERRAIN_MARGIN;
@@ -534,36 +534,36 @@ export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSi
   return { ctx, size: side, res, from, toPx: (tile) => (tile - from) * res };
 }
 
-export function bakeGround(t: Terrain, ctx: CanvasRenderingContext2D, side: number): GroundBake {
+export function bakeGround(t: GroundTiles, ctx: CanvasRenderingContext2D, side: number): GroundBake {
   paintGroundCanvas(paintCanvasOn(ctx, side, t.size), t);
   return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: lookTypes(t) };
 }
 
-const glassBakes = new WeakMap<Terrain, Uint8Array>();
-const pixelBakes = new WeakMap<Terrain, Uint8ClampedArray>();
+const glassBakes = new WeakMap<GroundTiles, Uint8Array>();
+const pixelBakes = new WeakMap<GroundTiles, Uint8ClampedArray>();
 
-export function groundBakeFits(t: Terrain, side: number, bake: GroundBake): boolean {
+export function groundBakeFits(t: GroundTiles, side: number, bake: GroundBake): boolean {
   const tiles = t.size * t.size;
   return bake.pixels?.length === side * side * 4 && bake.glass?.length === tiles && bake.look?.length === tiles && bake.look.every((at) => at < LOOK_NAMES.length);
 }
 
-export function adoptGroundBake(t: Terrain, bake: GroundBake): void {
+export function adoptGroundBake(t: GroundTiles, bake: GroundBake): void {
   lookCache.set(t, bake.look);
   glassBakes.set(t, bake.glass);
   pixelBakes.set(t, bake.pixels);
 }
 
-export function takeBakedPixels(t: Terrain): Uint8ClampedArray | null {
+export function takeBakedPixels(t: GroundTiles): Uint8ClampedArray | null {
   const pixels = pixelBakes.get(t) ?? null;
   pixelBakes.delete(t);
   return pixels;
 }
 
-export function glassOf(t: Terrain): Uint8Array {
+export function glassOf(t: GroundTiles): Uint8Array {
   return glassBakes.get(t) ?? glassField(t);
 }
 
-export function glassField(t: Terrain): Uint8Array {
+export function glassField(t: GroundTiles): Uint8Array {
   const size = t.size;
   const kernel = gaussian();
   const member = new Float32Array(size * size);

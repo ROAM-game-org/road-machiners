@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GroundBake } from "../render/groundPaint";
+import { packTypes } from "../sim/terrain";
 import { TEST_MAP } from "../test/map";
 import { startGroundBaker, type GroundBakerParts } from "./ground-off-thread";
 
@@ -46,6 +47,17 @@ function parts(cached: GroundBake | null, useCache = true) {
 }
 
 describe("the ground baker", () => {
+  it("sends the worker the tile types, size and atlas and no heights", async () => {
+    const { fake, workers } = parts(null);
+
+    await startGroundBaker(fake)(TEST_MAP.terrain, "k").baked;
+
+    const request = workers[0].posted[0] as Record<string, unknown>;
+    expect(Object.keys(request).sort()).toEqual(["atlas", "side", "size", "types"]);
+    expect(request.size).toBe(TEST_MAP.terrain.size);
+    expect(Array.from(request.types as Uint8Array)).toEqual(Array.from(packTypes(TEST_MAP.terrain.types)));
+  });
+
   it("makes no worker for a bake the cache holds and writes nothing back", async () => {
     const { fake, workers, writes } = parts(bake);
 

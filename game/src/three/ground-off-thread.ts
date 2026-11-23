@@ -1,5 +1,5 @@
 import { adoptGroundBake, groundBakeFits, type GroundBake, type GroundBakeRequest } from "../render/groundPaint";
-import { packedBuffers, packTerrain, type Terrain } from "../sim/terrain";
+import { packTypes, type Terrain } from "../sim/terrain";
 import { reportError } from "./crash";
 import { readGroundCache, writeGroundCache } from "./ground-cache";
 import { groundSide } from "./render/terrain";
@@ -60,8 +60,8 @@ export function startGroundBaker(parts: GroundBakerParts = REAL_PARTS): (terrain
           reportError(new Error("Could not read the ground worker response"));
           finish(null);
         };
-        const packed = packTerrain({ ...terrain, routes: undefined });
-        worker.postMessage({ terrain: packed, side } satisfies GroundBakeRequest, packedBuffers(packed));
+        const types = packTypes(terrain.types);
+        worker.postMessage({ size: terrain.size, atlas: terrain.atlas, types, side } satisfies GroundBakeRequest, [types.buffer as ArrayBuffer]);
       });
     const cached = parts.useCache ? parts.readCache(key).catch(() => null) : Promise.resolve(null);
     const baked = cached.then((hit) => {
