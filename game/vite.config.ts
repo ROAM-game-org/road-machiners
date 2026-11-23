@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { readdirSync, statSync } from 'node:fs'
 import { gameVersion } from './src/version'
 import { publicHashes } from './src/public-files'
@@ -9,13 +9,28 @@ function sfxBytes(dirs: string[]): Record<string, number> {
   return Object.fromEntries(sizes)
 }
 
+const ITCH_HTML5_FILE_LIMIT = 1000
+
+function itchFileLimit(): Plugin {
+  let outDir = ''
+  return {
+    name: 'itch-file-limit',
+    apply: 'build',
+    configResolved(config) { outDir = config.build.outDir },
+    closeBundle() {
+      const files = readdirSync(outDir, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).length
+      if (files > ITCH_HTML5_FILE_LIMIT) throw new Error(`The build has ${files} files, and itch.io rejects an HTML5 upload over ${ITCH_HTML5_FILE_LIMIT}.`)
+    },
+  }
+}
+
 function envText(name: string): string {
   return JSON.stringify(process.env[name] ?? '')
 }
 
 export default defineConfig(({ command }) => ({
   base: './',
-  plugins: [typedMatrices()],
+  plugins: [typedMatrices(), itchFileLimit()],
   optimizeDeps: { esbuildOptions: { plugins: [typedMatricesWhilePrebundling()] } },
   server: { hmr: false, ...(process.env.ROAM_NO_WATCH ? { watch: null } : {}) },
   define: {
