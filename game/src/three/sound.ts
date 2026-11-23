@@ -124,11 +124,20 @@ function plainEvent(struck: boolean, mine: boolean): BlockEvent | null {
   return struck ? "struck" : null;
 }
 
+export type Side = "mine" | "theirs" | "world";
+export type Emphasis = { side: Side; accent: boolean };
+export const PLAIN: Emphasis = { side: "world", accent: false };
+export const ACCENT: Emphasis = { side: "world", accent: true };
+
+export function sideGain(side: Side): number {
+  return side === "world" ? 1 : MIX.focus[side];
+}
+
 export class SoundDirector {
   readonly log: string[] = [];
 
   constructor(
-    private player: Pick<SoundPlayer, "play">,
+    private player: Pick<SoundPlayer, "play" | "duck">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
     private music: Pick<CombatMusic, "fire">,
     private now: () => number,
@@ -169,12 +178,15 @@ export class SoundDirector {
     this.due = [];
   }
 
-  event(id: SoundEventId, p: V3, delayMs: number, level: number): void {
+  event(id: SoundEventId, p: V3, delayMs: number, level: number, emphasis: Emphasis): void {
     checkLevel(level);
     const placed = this.place(p);
     const layers = layersToPlay(SOUND_EVENTS[id], this.random);
-    this.record(`${id} ${level.toFixed(2)} ${layers.map((l) => l.cue).join(" ")}`);
-    for (const l of layers) this.player.play(l.cue, { pan: placed.pan, gain: placed.gain * level * l.gain }, delayMs + l.delayMs);
+    const gain = placed.gain * level * sideGain(emphasis.side);
+    this.record(`${id} ${level.toFixed(2)} ${emphasis.side}${emphasis.accent ? " accent" : ""} ${layers.map((l) => l.cue).join(" ")}`);
+    if (emphasis.accent) this.player.duck(delayMs);
+    const route = emphasis.accent ? { accent: true as const } : {};
+    for (const l of layers) this.player.play(l.cue, { pan: placed.pan, gain: gain * l.gain, ...route }, delayMs + l.delayMs);
   }
 
   honk(p: V3, delayMs: number, chassisId: string, label = ""): void {

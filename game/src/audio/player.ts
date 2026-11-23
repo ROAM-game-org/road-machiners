@@ -3,7 +3,7 @@ import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
 import { pickVariant, VoiceBudget } from "./pick";
 
-export type Placement = { pan: number; gain: number };
+export type Placement = { pan: number; gain: number; accent?: true };
 export type SoundSelection = { file: string; rate: number };
 
 export type LoopHandle = {
@@ -65,6 +65,10 @@ export class SoundPlayer {
 
   now(): number {
     return this.mixer.ctx.currentTime;
+  }
+
+  duck(delayMs: number): void {
+    this.mixer.duck(this.mixer.ctx.currentTime + delayMs / 1000);
   }
 
   loop(id: string, at: Placement, file?: string): LoopHandle {
@@ -167,6 +171,12 @@ export class SoundPlayer {
     return this.bank.get(cue.files[this.nextIndex(id, cue)]);
   }
 
+  private route(cue: Cue, at: Placement): AudioNode {
+    if (!at.accent) return this.mixer.input(cue.bus);
+    if (cue.bus !== "sfx") throw new Error(`Only sfx sounds can play as an accent, not the ${cue.bus} bus`);
+    return this.mixer.accentInput();
+  }
+
   private chain(src: AudioNode | null, cue: Cue, at: Placement): GainNode {
     const ctx = this.mixer.ctx;
     const gain = ctx.createGain();
@@ -174,7 +184,7 @@ export class SoundPlayer {
     const pan = ctx.createStereoPanner();
     pan.pan.value = at.pan;
     src?.connect(gain);
-    gain.connect(pan).connect(this.mixer.input(cue.bus));
+    gain.connect(pan).connect(this.route(cue, at));
     return gain;
   }
 }

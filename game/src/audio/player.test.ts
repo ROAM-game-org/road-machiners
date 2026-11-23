@@ -9,6 +9,8 @@ const SOUNDS = {
   wind: { files: ['wind.ogg'], bus: 'sfx', volume: 0.5, pitchJitter: 0, maxVoices: 1, loop: true },
 } as unknown as Record<string, Cue>;
 const buffer = { duration: 1 } as unknown as AudioBuffer;
+const SFX_IN = { name: 'sfx' };
+const ACCENT_IN = { name: 'accent' };
 
 function param() {
   return { value: 0, setTargetAtTime: vi.fn(), setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() };
@@ -18,6 +20,7 @@ function setup() {
   const sources: { buffer: AudioBuffer | null; loop: boolean; playbackRate: ReturnType<typeof param>; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn> }[] = [];
   const gains: { gain: ReturnType<typeof param>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }[] = [];
   const node = () => ({ connect: vi.fn((to) => to), disconnect: vi.fn() });
+  const panners: { connect: ReturnType<typeof vi.fn> }[] = [];
   const ctx = {
     currentTime: 0,
     createBufferSource: () => {
@@ -30,11 +33,15 @@ function setup() {
       gains.push(gain);
       return gain;
     },
-    createStereoPanner: () => ({ ...node(), pan: { value: 0 } }),
+    createStereoPanner: () => {
+      const pan = { ...node(), pan: { value: 0 } };
+      panners.push(pan);
+      return pan;
+    },
   };
-  const mixer = { ctx, input: () => ({}) } as unknown as Mixer;
+  const mixer = { ctx, input: () => SFX_IN, accentInput: () => ACCENT_IN, duck: vi.fn() } as unknown as Mixer;
   const bank = new SoundBank(['hit.ogg', 'wind.ogg']);
-  return { sources, gains, bank, player: new SoundPlayer(mixer, bank, SOUNDS) };
+  return { sources, gains, panners, mixer, bank, player: new SoundPlayer(mixer, bank, SOUNDS) };
 }
 
 const at = { pan: 0, gain: 1 };
@@ -109,5 +116,22 @@ describe('SoundPlayer voices', () => {
     for (const s of sources) (s as unknown as { onended: () => void }).onended();
     player.play('hit', at, 0);
     expect(sources.every((s) => s.stop.mock.calls.length === 0)).toBe(true);
+  });
+});
+
+describe('SoundPlayer accents', () => {
+  it('routes an accent past the duck and a plain play into its bus', () => {
+    const { panners, bank, player } = setup();
+    bank.set('hit.ogg', buffer);
+    player.play('hit', { pan: 0, gain: 1, accent: true }, 0);
+    player.play('hit', at, 0);
+    expect(panners[0].connect).toHaveBeenCalledWith(ACCENT_IN);
+    expect(panners[1].connect).toHaveBeenCalledWith(SFX_IN);
+  });
+
+  it('asks the mixer to duck at the delay from now', () => {
+    const { mixer, player } = setup();
+    player.duck(250);
+    expect(mixer.duck).toHaveBeenCalledWith(0.25);
   });
 });

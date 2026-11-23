@@ -12,7 +12,7 @@ import { projectileOf, type Muzzle } from "./render/projectiles";
 import { PHYSICS } from "../data/physics";
 import type { TimedFlight } from "../sim/timed-combat";
 import { bodyOf } from "../sim/body";
-import { CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { breakEmphasis, CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, impact: 3, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
@@ -136,6 +136,29 @@ describe("playCrashes levels", () => {
   it("plays the light stack under the hard crash speed and the hard stack from it", () => {
     expect(played(impacts).map(([id]) => id)).toEqual(["crash-light", "crash-hard", "crash-hard"]);
   });
+
+  it("accents a part break on the player's truck or from the player's shot, and keeps others plain", () => {
+    const world = emptyWorld();
+    const me = world.player.vehicleId;
+    expect(breakEmphasis(world, me, "npc")).toEqual({ side: "mine", accent: true });
+    expect(breakEmphasis(world, "npc", me)).toEqual({ side: "mine", accent: true });
+    expect(breakEmphasis(world, "npc", null)).toEqual({ side: "world", accent: false });
+  });
+
+  it("accents a crash the player is in, on the player's side, and keeps an NPC crash plain on theirs", () => {
+    const world = emptyWorld();
+    const me = world.player.vehicleId;
+    const emphasisOf = (a: string, b: string): unknown => {
+      let got: unknown = null;
+      const host = { world, views: new Map(), fx: { crash: () => {} }, sound: { event: (_i: string, _p: V3, _d: number, _l: number, e: unknown) => { got = e; } }, eventPoint: () => ({ x: 0, y: 0, z: 0 }) } as unknown as CombatHost;
+      const e = { ...(hit(a, b) as object), impact: RULES.hardCrashSpeed } as GameEvent;
+      playCrashes(host, new CollisionCues(collisionSteps([e], { ...none, crashes: [] })), null);
+      return got;
+    };
+    expect(emphasisOf(me, "b")).toEqual({ side: "mine", accent: true });
+    expect(emphasisOf("a", me)).toEqual({ side: "mine", accent: true });
+    expect(emphasisOf("a", "b")).toEqual({ side: "theirs", accent: false });
+  });
 });
 
 describe("CollisionCues", () => {
@@ -224,20 +247,29 @@ function plansOf(rounds: ShotRound[], shown: (id: string) => boolean = () => tru
 }
 
 describe("playVolley sounds", () => {
-  function cuesOf(weapon: string, struck: boolean, count = 1): string[] {
+  function cuesOf(weapon: string, struck: boolean, count = 1, shooter = "s", sides: string[] = []): string[] {
     const cues: string[] = [];
     const p = { x: 0, y: 0, z: 0 };
     const round: ShotRound = { hit: struck, crit: false, offset: 0, struck: struck ? "t" : null, hits: [], blast: [], burst: null };
     const rounds = Array.from({ length: count }, () => round);
-    const event = { t: "shot", shooter: "s", weapon: "w", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds } as ShotLike;
+    const event = { t: "shot", shooter, weapon: "w", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds } as ShotLike;
     const fly = (_s: unknown, _m: unknown, _p: unknown, _r: unknown, c: { fired: (m: never) => void; landed: () => void }) => {
       c.fired({ pos: p } as never);
       c.landed();
     };
-    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { event: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
+    const host = { world: emptyWorld(), fx: { clearShots: () => {}, shot: fly, label: () => {} }, sound: { event: (cue: string, _p: V3, _d: number, _l: number, e: { side: string; accent: boolean }) => { cues.push(cue); sides.push(`${e.side}${e.accent ? " accent" : ""}`); } }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
     playVolley(host, plansOf(rounds), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false, null);
     return cues;
   }
+
+  it("plays a volley and its hits on the shooter's side, never as an accent", () => {
+    const mine: string[] = [];
+    const theirs: string[] = [];
+    cuesOf("mg", true, 3, emptyWorld().player.vehicleId, mine);
+    cuesOf("mg", true, 3, "s", theirs);
+    expect(new Set(mine)).toEqual(new Set(["mine"]));
+    expect(new Set(theirs)).toEqual(new Set(["theirs"]));
+  });
 
   it("fires and hooks with the harpoon's own cues", () => {
     expect(cuesOf("harpoon", true)).toEqual(["shot-harpoon", "harpoon-hook"]);

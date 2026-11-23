@@ -18,7 +18,7 @@ import type { Fx3D } from "./render/fx";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import type { VehicleView } from "./render/vehicle";
-import { scoreEventOf, type SoundDirector } from "./sound";
+import { ACCENT, PLAIN, scoreEventOf, type Emphasis, type Side, type SoundDirector } from "./sound";
 import { PHYSICS } from "../data/physics";
 
 export type VolleyHost = {
@@ -27,7 +27,7 @@ export type VolleyHost = {
   sound: SoundDirector;
   eventPoint: (vehicleId: string) => V3 | null;
   onBurst: (point: Vec) => void;
-  breakPart: (brk: PartBreak) => void;
+  breakPart: (brk: PartBreak, shooter: string) => void;
   poses: TurnPoses;
   startMs: number;
 };
@@ -82,6 +82,7 @@ export function playVolley(
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
   const sounds = gunSounds(weapon);
   const lastShot = lastFired(plans);
+  const by = shotBy(host.world, event.shooter);
   const landsAt = plans.map((plan) => plan.delayMs + plan.flightMs);
   const lastLand = landsAt.indexOf(Math.max(...landsAt));
   plans.forEach((plan, k) => {
@@ -90,13 +91,13 @@ export function playVolley(
     const burst = rounds[k].burst;
     const struck = reachedPart(host.world, rounds[k]) ? sounds.struck.part : sounds.struck.plate;
     const cues = {
-      fired: (m: Muzzle) => playShot(host, sounds, k, k === lastShot, m.pos),
+      fired: (m: Muzzle) => playShot(host, sounds, k, k === lastShot, m.pos, by),
       landed: () => {
-        landSound(host, plan, rounds[k], struck);
-        if (empties) host.sound.event("gun-empty", muzzle().pos, 0, 1);
+        landSound(host, plan, rounds[k], struck, by);
+        if (empties) host.sound.event("gun-empty", muzzle().pos, 0, 1, by);
         if (burst) host.onBurst(burst);
         if (hooked && plan.impact === "truck") hooked();
-        for (const brk of breaks.ofRound(event, k)) host.breakPart(brk);
+        for (const brk of breaks.ofRound(event, k)) host.breakPart(brk, event.shooter);
       },
     };
     host.fx.shot(roundSpec(spec, k), muzzle, shown, blastRadiusOf(weapon), cues, ground, host.world.turn);
@@ -110,8 +111,16 @@ export function reachedPart(world: World, r: ShotRound): boolean {
   return [...struck, ...r.blast].some((dealt) => dealt.hits.some((h) => h.damage > 0 && !isShield(carriedPartDef(world, dealt.vehicle, h.part))));
 }
 
-function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: SoundEventId): void {
-  if (plan.impact !== "none") host.sound.event(r.struck !== null || r.blast.length > 0 ? struck : "miss", plan.land, 0, 1);
+function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: SoundEventId, by: Emphasis): void {
+  if (plan.impact !== "none") host.sound.event(r.struck !== null || r.blast.length > 0 ? struck : "miss", plan.land, 0, 1, by);
+}
+
+export function sideOf(world: Pick<World, "player">, vehicleId: string): Side {
+  return vehicleId === world.player.vehicleId ? "mine" : "theirs";
+}
+
+function shotBy(world: Pick<World, "player">, shooter: string): Emphasis {
+  return { side: sideOf(world, shooter), accent: false };
 }
 
 export function lastFired(plans: readonly { delayMs: number }[]): number {
@@ -119,9 +128,9 @@ export function lastFired(plans: readonly { delayMs: number }[]): number {
   return delays.lastIndexOf(Math.max(...delays));
 }
 
-function playShot(host: Pick<VolleyHost, "sound">, sounds: GunSounds, round: number, last: boolean, at: V3): void {
-  if (firesSound(sounds, round)) host.sound.event(sounds.shot, at, 0, 1);
-  if (last && sounds.echo) host.sound.event(sounds.echo, at, 0, 1);
+function playShot(host: Pick<VolleyHost, "sound">, sounds: GunSounds, round: number, last: boolean, at: V3, by: Emphasis): void {
+  if (firesSound(sounds, round)) host.sound.event(sounds.shot, at, 0, 1, by);
+  if (last && sounds.echo) host.sound.event(sounds.echo, at, 0, 1, by);
 }
 
 function showDamage(host: VolleyHost, r: ShotRound, atMs: number, rows: Map<string, number>): void {
@@ -149,14 +158,24 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  host.sound.event(crashEventOf(e.impact, RULES.hardCrashSpeed), p, 0, crashLevel(e.impact, MIX.crash));
+  host.sound.event(crashEventOf(e.impact, RULES.hardCrashSpeed), p, 0, crashLevel(e.impact, MIX.crash), crashEmphasis(host.world, e));
+}
+
+export function breakEmphasis(world: Pick<World, "player">, vehicle: string, shooter: string | null): Emphasis {
+  const mine = sideOf(world, vehicle) === "mine" || (shooter !== null && sideOf(world, shooter) === "mine");
+  return mine ? { side: "mine", accent: true } : PLAIN;
+}
+
+function crashEmphasis(world: Pick<World, "player">, e: CollisionEvent): Emphasis {
+  const mine = sideOf(world, e.a) === "mine" || sideOf(world, e.b) === "mine";
+  return mine ? { side: "mine", accent: true } : { side: "theirs", accent: false };
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {
   if (!host.eventPoint(e.vehicle) && !host.eventPoint(e.other)) return;
   const p = ramShown(host, e.vehicle, e.part, e.pos);
   host.fx.claymoreBlast(p);
-  host.sound.event("explosion", p, 0, 1);
+  host.sound.event("explosion", p, 0, 1, ACCENT);
 }
 
 function ramShown(host: CombatHost, vehicle: string, part: string, pos: Vec): V3 {
@@ -173,7 +192,7 @@ export function playCookOff(host: CombatHost, brk: PartBreak): void {
   if (!e || e.t !== "claymoreCookOff") return;
   const p = ramShown(host, e.vehicle, e.part, e.pos);
   host.fx.claymoreBlast(p);
-  host.sound.event("explosion", p, 0, 1);
+  host.sound.event("explosion", p, 0, 1, ACCENT);
 }
 
 export function gunfireSeen(events: readonly GameEvent[], seen: (vehicleId: string) => boolean): boolean {
@@ -208,7 +227,7 @@ export function playUtilitySounds(host: UtilitySoundHost, at: "start" | "end"): 
     const seen = host.eventPoint(s.seenBy);
     if (!seen) continue;
     const at = s.at ? groundPoint(host.world.terrain, s.at) : seen;
-    host.fx.later(s.delayMs, () => host.sound.event(s.event, at, 0, 1));
+    host.fx.later(s.delayMs, () => host.sound.event(s.event, at, 0, 1, PLAIN));
   }
 }
 
@@ -551,7 +570,7 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   for (const [id, destroyed] of Object.entries(state.destroyedAt)) {
     host.fx.later(Math.max(0, destroyed - state.turnStart - host.startMs), () => {
       const point = host.eventPoint(id);
-      if (point) { host.fx.explode(point); host.sound.event('explosion', point, 0, 1); }
+      if (point) { host.fx.explode(point); host.sound.event('explosion', point, 0, 1, ACCENT); }
     });
   }
   return host.poses.moveMs;
@@ -575,12 +594,13 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
   const muzzle = shooterMuzzle(host, f.shooterId, f.weaponId);
   const sounds = gunSounds(f.weaponDefId);
   const dry = last && host.world.events.some(e => e.t === 'empty' && e.vehicle === f.shooterId && e.weapon === f.weaponId);
+  const by = shotBy(host.world, f.shooterId);
   host.fx.shot(roundSpec(spec, pellet), muzzle, {
     ...plan, delayMs: at, flightMs: f.landsAt - f.launchedMs, impactRecorded: true,
   }, blastRadiusOf(f.weaponDefId), {
     fired: m => {
-      playShot(host, sounds, pellet, last, m.pos);
-      if (dry) host.sound.event('gun-empty', m.pos, 0, 1);
+      playShot(host, sounds, pellet, last, m.pos, by);
+      if (dry) host.sound.event('gun-empty', m.pos, 0, 1, by);
     },
     landed: () => {},
   }, ground, host.world.turn);
@@ -605,10 +625,10 @@ function landTimedFx(host: CombatHost, f: TimedFlight, event: Extract<GameEvent,
   const spec = projectileOf(f.weaponDefId);
   host.fx.projectileImpact(plan, blastRadiusOf(f.weaponDefId), spec.look === 'shell');
   const sounds = gunSounds(f.weaponDefId);
-  landSound(host, plan, round, reachedPart(host.world, round) ? sounds.struck.part : sounds.struck.plate);
+  landSound(host, plan, round, reachedPart(host.world, round) ? sounds.struck.part : sounds.struck.plate, shotBy(host.world, f.shooterId));
   if (round.burst) host.onBurst(round.burst);
   if (spec.rope && round.struck !== null) host.lineHooked(f.shooterId, f.weaponId);
-  for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk);
+  for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk, f.shooterId);
 }
 
 function queueTimedScores(host: CombatHost, state: TimedCombatState): void {
