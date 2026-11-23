@@ -1,19 +1,20 @@
-// Builds the last commit and uploads it to itch.io with butler.
-// The build runs in a clean worktree, so uncommitted edits never ship.
-// Usage: npm run itch
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
+import { isPacked, packLayout, packsIn } from './public-packs.mjs';
 
 process.loadEnvFile('.env');
 const target = process.env.ITCH_TARGET;
 if (!target) throw new Error('ITCH_TARGET is missing from .env, like "user/roam"');
 
-const missingPublicFiles = (source, built) =>
+const looseFiles = (source) =>
   readdirSync(resolve(source, 'public'), { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => relative(resolve(source, 'public'), resolve(entry.parentPath, entry.name)))
-    .filter((file) => !existsSync(resolve(built, 'dist', file)));
+    .filter((file) => !isPacked(file));
+
+const missingPublicFiles = (source, built) =>
+  [...looseFiles(source), ...packsIn(packLayout(resolve(source, 'public')))].filter((file) => !existsSync(resolve(built, 'dist', file)));
 
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { stdio: 'inherit', cwd });
 const read = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8' }).trim();

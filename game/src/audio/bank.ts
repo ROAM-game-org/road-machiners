@@ -1,6 +1,6 @@
-import { AssetStatusError, AssetUnreachable, fetchAssetBody } from "../fetch-asset";
+import { AssetStatusError, AssetUnreachable } from "../fetch-asset";
 import { withinMs } from "../stall";
-import { publicUrl } from "../public-url";
+import { publicBytes } from "../public-url";
 import { BANK, beatLoopSeconds, type Cue, type SoundFormat } from "../data/sounds";
 
 export class SoundBank {
@@ -292,9 +292,9 @@ function statusOf(e: unknown): number | null {
   return last instanceof AssetStatusError ? last.status : null;
 }
 
-async function fetchSound(url: string, attempt: number, probe: Probe): Promise<{ response: Response; bytes: Uint8Array }> {
+async function fetchSound(file: string, attempt: number, probe: Probe): Promise<{ response: Response; bytes: Uint8Array }> {
   try {
-    const { response, bytes } = await fetchAssetBody("Sound", url, attempt > 0 ? { cache: "reload" } : undefined);
+    const { response, bytes } = await publicBytes("Sound", file, attempt > 0 ? { cache: "reload" } : undefined);
     return { response, bytes: new Uint8Array(bytes) };
   } catch (e) {
     throw new SoundFileFault("fetch", probe(null, null, statusOf(e)), e);
@@ -306,7 +306,7 @@ async function decodeFile(job: Job, file: string, format: SoundFormat, cue: Cue,
   const expected = job.options.expectedBytes[name];
   if (expected === undefined) throw new Error(`Sound ${name} has no expected size`);
   const probe = probeOf(format, job, expected);
-  const { response, bytes } = await fetchSound(publicUrl(`${format.dir}${name}`), attempt, probe);
+  const { response, bytes } = await fetchSound(`${format.dir}${name}`, attempt, probe);
   const facts = probe(response, bytes);
   if (bytes.length !== expected || !facts.signature) {
     throw new SoundFileFault("bytes", facts, new Error(`Sound ${name} arrived as ${bytes.length} of ${expected} bytes`));
