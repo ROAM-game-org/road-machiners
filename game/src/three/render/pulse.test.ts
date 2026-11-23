@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PHYSICS } from '../../data/physics';
+import { UNPRICED_UTILITIES } from '../../data/utilities';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { World } from '../../sim/types';
 import { TUNING } from './inkTuning';
@@ -133,6 +135,57 @@ describe('Emitter pulse view', () => {
       return new THREE.Vector3().fromArray(at.array as Float32Array, 0).distanceTo(new THREE.Vector3().fromArray(at.array as Float32Array, 27));
     };
     expect(width(1000 + PULSE_MS * 0.9)).toBeLessThan(width(1000 + 1));
+  });
+});
+
+describe('Emitter pulse wave', () => {
+  const reach = UNPRICED_UTILITIES.emitter.effect.type === 'emitter' ? UNPRICED_UTILITIES.emitter.effect.radius * PHYSICS.metersPerTile : 0;
+  const at = (ms: number) => {
+    const { world, views } = pulsingWorld();
+    const view = new PulseView();
+    view.update(world, world.terrain, views, 1000, null, camera(1));
+    view.update(world, world.terrain, views, 1000 + ms, null, camera(1));
+    return view;
+  };
+
+  it('has no wave before a pulse', () => {
+    const world = emptyWorld();
+    const view = new PulseView();
+    view.update(world, world.terrain, new Map(), 1000, null, camera(1));
+    expect(view.waves()).toEqual([]);
+  });
+
+  it('starts at the user, grows to the reach and falls to nothing over the pulse', () => {
+    const steps = [0, 150, 300, 599].map((ms) => at(ms).waves());
+    for (const waves of steps) expect(waves).toHaveLength(1);
+    expect(steps[0][0].at).toMatchObject({ x: 0, z: 0 });
+    expect(steps[0][0].radiusM).toBe(0);
+    expect(steps[0][0].strength).toBe(1);
+    const radii = steps.map((w) => w[0].radiusM);
+    const strengths = steps.map((w) => w[0].strength);
+    expect(radii).toEqual([...radii].sort((a, b) => a - b));
+    expect(strengths).toEqual([...strengths].sort((a, b) => b - a));
+    expect(radii[3]).toBeGreaterThan(reach * 0.95);
+    expect(radii[3]).toBeLessThanOrEqual(reach);
+    expect(strengths[3]).toBeLessThan(0.01);
+    expect(at(300).waves()[0].radiusM).toBeCloseTo(reach * 0.7, 5);
+  });
+
+  it('is gone at the end of the pulse', () => {
+    expect(at(PULSE_MS).waves()).toEqual([]);
+  });
+
+  it('draws no wave with ink effects turned down', () => {
+    TUNING.fxInk.value = 0;
+    expect(at(100).waves()).toEqual([]);
+  });
+
+  it('gives the same waves for two updates at the same time', () => {
+    const view = at(200);
+    const first = JSON.parse(JSON.stringify(view.waves()));
+    const { world, views } = pulsingWorld();
+    view.update(world, world.terrain, views, 1200, null, camera(1));
+    expect(JSON.parse(JSON.stringify(view.waves()))).toEqual(first);
   });
 });
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
+import { UNPRICED_UTILITIES } from '../../data/utilities';
 import { groundPoint, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import type { GameEvent, World } from '../../sim/types';
@@ -37,6 +38,7 @@ const PULSE_LOOK = {
   maxArcs: 4,
   maxShut: 6,
 };
+export const PULSE_WAVE = { ease: 0.7, frontM: 3, pushM: 0.6, lobeM: 1, lobeShare: 0.4, trailShare: 0.25, trailFronts: 4 };
 const ARC_INK = { widthM: 0.5, columns: [-1, -0.75, -0.75, -0.4, -0.4, 0.4, 0.4, 0.75, 0.75, 1] };
 const ARC_COLORS = [PAL.pulse.rim, PAL.pulse.rim, PAL.pulse.body, PAL.pulse.body, PAL.pulse.core, PAL.pulse.core, PAL.pulse.body, PAL.pulse.body, PAL.pulse.rim, PAL.pulse.rim];
 
@@ -49,8 +51,20 @@ const TANGENT = new THREE.Vector3();
 const FROM = new THREE.Vector3();
 const TO = new THREE.Vector3();
 type Flash = { at: THREE.Vector3; size: number; alpha: number };
-type Zap = { e: PulseEvent; flash: Flash; arcs: { to: string; strands: Strand[] }[]; startMs: number; nextJagMs: number };
+export type PulseWave = { at: V3; radiusM: number; strength: number; clockS: number };
+type Zap = { e: PulseEvent; ground: V3; t: number; flash: Flash; arcs: { to: string; strands: Strand[] }[]; startMs: number; nextJagMs: number };
 type Crackle = { spots: { at: THREE.Vector3; streak: THREE.Vector3 }[]; strands: Strand[]; ends: { from: V3; to: V3 }[]; nextMs: number };
+
+function emitterReachM(): number {
+  const effect = UNPRICED_UTILITIES.emitter?.effect;
+  if (effect?.type !== 'emitter') throw new Error('The Emitter has no pulse radius to draw the wave from');
+  return effect.radius * S;
+}
+
+function frontRadius(t: number, ease: number): number {
+  const bend = Math.log(1 - ease) / Math.log(0.5);
+  return 1 - Math.pow(1 - t, bend);
+}
 
 const inked = () => TUNING.fxInk.value >= INK_DUST_LAYER;
 
@@ -59,6 +73,7 @@ export class PulseView {
   private readonly zaps: Zap[] = [];
   private played = new Set<string>();
   private turn = -1;
+  private nowMs = 0;
   private readonly sparks = new Map<string, Crackle>();
   private readonly color = new THREE.Color();
 
@@ -91,10 +106,22 @@ export class PulseView {
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, camera: THREE.Camera): void {
+    this.nowMs = nowMs;
     if (clock === null || clock.moved) this.startZaps(world, nowMs);
     const view = camera.getWorldDirection(new THREE.Vector3());
     for (const zap of [...this.zaps]) this.play(zap, terrain, views, nowMs, view);
     this.crackle(world, views, nowMs, view);
+  }
+
+  waves(): readonly PulseWave[] {
+    if (!inked()) return [];
+    const reach = emitterReachM();
+    return this.zaps.map((zap) => ({
+      at: zap.ground,
+      radiusM: reach * frontRadius(zap.t, PULSE_WAVE.ease),
+      strength: (1 - zap.t) * (1 - zap.t),
+      clockS: this.nowMs / 1000,
+    }));
   }
 
   private startZaps(world: World, nowMs: number): void {
@@ -113,13 +140,15 @@ export class PulseView {
     const flash = { at: new THREE.Vector3(), size: 0, alpha: 0 };
     const arcs = e.hit.map((to) => ({ to, strands: Array.from({ length: PULSE_LOOK.strands }, () => makeStrand()) }));
     this.root.add(...arcs.flatMap((a) => a.strands.flatMap((s) => [s.line, s.ribbon])));
-    return { e, flash, arcs, startMs: nowMs, nextJagMs: -Infinity };
+    return { e, ground: { x: 0, y: 0, z: 0 }, t: 0, flash, arcs, startMs: nowMs, nextJagMs: -Infinity };
   }
 
   private play(zap: Zap, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, view: THREE.Vector3): void {
     const t = (nowMs - zap.startMs) / PULSE_LOOK.ms;
     if (t >= 1) return this.end(zap);
-    const from = zapPoint(userPoint(zap.e, terrain, views));
+    zap.ground = userPoint(zap.e, terrain, views);
+    zap.t = t;
+    const from = zapPoint(zap.ground);
     zap.flash.at.set(from.x, from.y, from.z);
     zap.flash.size = PULSE_LOOK.flash * S * (0.6 + 0.6 * t);
     zap.flash.alpha = 1 - t;

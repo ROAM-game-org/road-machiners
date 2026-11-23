@@ -11,7 +11,7 @@ import type { Flare, GameEvent, GroundField, SmokeCloud, Vehicle, World } from '
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
 import { HarpoonLinesView } from './lines';
-import { PulseView } from './pulse';
+import { PulseView, type PulseWave } from './pulse';
 import { bankCardsOf, batchesOf, CARD_SHAPES, fireCardsOf, INK_DUST_LAYER, ROUND_SHAPE, smokeCardsOf, type Card, type CardBatch, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { newWake, stepWake, WakeTracker, type WakeMover, type WakeState } from './particles/wake';
@@ -43,6 +43,10 @@ export class HazardViews {
     const fresh = clock === null ? NO_IDS : new Set(world.lines.filter((l) => madeThisTurn(clock, 'lines', l.id) && !clock.hookedLines.has(l.id)).map((l) => l.id));
     this.lines.update(world, views, nowMs, { fresh, playing: turnClock !== null });
     this.pulses.update(world, terrain, views, nowMs, clock, camera);
+  }
+
+  pulseWaves(): readonly PulseWave[] {
+    return this.pulses.waves();
   }
 
   draw(cards: FxCards): void {
