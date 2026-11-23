@@ -104,31 +104,6 @@ export function createIcon(name: IconName): HTMLElement {
   return icon;
 }
 
-export function dialShare(speed: number, maxSpeed: number): number {
-  if (maxSpeed <= 0) return speed === 0 ? 0 : 1;
-  return Math.min(Math.abs(speed) / maxSpeed, 1);
-}
-
-const DIAL_STEP = 20;
-const DIAL_X = 60;
-const DIAL_Y = 50;
-const DIAL_R = 40;
-
-function dialPoint(share: number, r: number): string {
-  const a = share * Math.PI;
-  return `${(DIAL_X - r * Math.cos(a)).toFixed(2)} ${(DIAL_Y - r * Math.sin(a)).toFixed(2)}`;
-}
-
-function dialScale(top: number): string {
-  const ticks: string[] = [];
-  for (let v = 0; v <= top; v += DIAL_STEP / 2) {
-    const share = v / top;
-    const major = v % DIAL_STEP === 0;
-    ticks.push(`<path class="${major ? "dial-major" : "dial-minor"}" d="M${dialPoint(share, DIAL_R)}L${dialPoint(share, DIAL_R - (major ? 6 : 3))}"/>`);
-  }
-  return ticks.join("");
-}
-
 const COMPASS = { rim: 31, face: 27, tick: 25, letters: 17, needle: 14 };
 const COMPASS_POINTS = [
   { key: "map.north", rad: -Math.PI / 2, north: true },
@@ -175,27 +150,6 @@ export function createCompassDial(heading: number): HTMLElement {
   const dial = el("span", { class: "compass-dial", "aria-hidden": "true" });
   dial.innerHTML = compassSvg(heading);
   return dial;
-}
-
-export function dialPaceTick(pace: number | null, top: number): string {
-  if (pace === null) return "";
-  const share = dialShare(pace, top);
-  return `<path class="dial-pace" d="M${dialPoint(share, DIAL_R + 1)}L${dialPoint(share, DIAL_R - 10)}"/>`;
-}
-
-export function createSpeedDial(speed: number, maxSpeed: number, top: number, pace: number | null = null): HTMLElement {
-  const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
-  dial.innerHTML = speedDialSvg(speed, maxSpeed, top, pace);
-  return dial;
-}
-
-export function speedDialSvg(speed: number, maxSpeed: number, top: number, pace: number | null): string {
-  const angle = dialShare(speed, top) * 180;
-  const limit = dialShare(maxSpeed, top);
-  const redline = limit < 1 ? `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>` : "";
-  const held = dialPaceTick(pace, top);
-  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
-  return `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${dialScale(top)}${held}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
 }
 
 type Sheet = "items" | "chassis";
