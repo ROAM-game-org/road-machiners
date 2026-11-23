@@ -184,11 +184,9 @@ function angerCourier(world: World, npc: Vehicle): void {
   addState(world, 'revenge', npc.id, world.player.vehicleId, { kind: 'none' });
 }
 
-function payOnRadio(world: World, npc: Vehicle, amount: number, reason: MoneyReason): void {
-  const me = playerVehicle(world);
-  if (amount > 0) transfer(world, me, npc, amount);
-  else transfer(world, npc, me, -amount);
-  world.events.push({ t: 'money', amount: -amount, reason });
+function payOnRadio(world: World, from: Vehicle, to: Vehicle, amount: number, reason: MoneyReason): void {
+  transfer(world, from, to, amount);
+  world.events.push({ t: 'money', amount: to.id === world.player.vehicleId ? amount : -amount, reason });
 }
 
 function backOff(world: World, npc: Vehicle): void {
@@ -460,7 +458,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
   payBountyHail: (world, npc) => payHailedBounty(world, npc, playerVehicle(world)),
   acceptOffering: (world, npc) => { giveWord(world, playerVehicle(world), npc); },
   refuseVigil: (world, npc) => refuseVigil(world, npc),
-  payTalk: (world, npc, call) => payOnRadio(world, npc, namedPrice(call), { kind: 'talkFee', vehicle: npc.id }),
+  payTalk: (world, npc, call) => payOnRadio(world, playerVehicle(world), npc, namedPrice(call), { kind: 'talkFee', vehicle: npc.id }),
   revealTown: (world, _npc, call) => {
     const v = call.vars.town;
     if (v?.kind !== 'town') throw new Error('revealTown needs a town value');
@@ -647,7 +645,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     requirePending(world, npc, 'tip');
     const target = tipTarget(world, npc);
     if (!target) throw new Error(`${npc.id} has no wreck to sell`);
-    payOnRadio(world, npc, namedPrice(call), { kind: 'tip', vehicle: npc.id });
+    payOnRadio(world, playerVehicle(world), npc, namedPrice(call), { kind: 'tip', vehicle: npc.id });
     world.player.rumored.push(target.id);
     settle(world, npc, call, 'done');
   },
@@ -714,7 +712,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
   },
   courierPayFavor: (world, npc, call) => {
     const amount = favorAmount(world, npc);
-    if (amount > 0) payOnRadio(world, npc, -amount, { kind: 'favor', vehicle: npc.id });
+    if (amount > 0) payOnRadio(world, npc, playerVehicle(world), amount, { kind: 'favor', vehicle: npc.id });
     moveStory(world, npc, ['owed'], 'ended');
     settle(world, npc, call, 'done');
   },
