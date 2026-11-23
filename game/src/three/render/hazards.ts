@@ -42,7 +42,7 @@ export class HazardViews {
     this.flares.update(world, terrain, views, nowMs, clock);
     const fresh = clock === null ? NO_IDS : new Set(world.lines.filter((l) => madeThisTurn(clock, 'lines', l.id) && !clock.hookedLines.has(l.id)).map((l) => l.id));
     this.lines.update(world, views, nowMs, { fresh, playing: turnClock !== null });
-    this.pulses.update(world, terrain, views, nowMs, clock);
+    this.pulses.update(world, terrain, views, nowMs, clock, camera);
   }
 
   draw(cards: FxCards): void {

@@ -3,9 +3,9 @@ import { count } from '../../../perf';
 import type { ParticleBatches } from './particles';
 import { uploadFirst } from '../uploads';
 import { TUNING } from '../inkTuning';
-import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
+import { ATLAS_CELLS, CARD_SHAPES, COOL_INK, GLOW_IN_LIT, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
-export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
+export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, COOL_INK, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
 
 export type CardKind = 'lit' | 'glow' | 'density';
 
@@ -57,6 +57,11 @@ export function fireCardsOf(cards: FxCards, main: CardBatch): CardBatch {
 }
 
 export const INK_DUST_LAYER = 0.5;
+
+export function coolInkShape(base: number): number {
+  if (base >= GLOW_IN_LIT) throw new Error(`Shape ${base} already carries a card flag`);
+  return base + COOL_INK;
+}
 
 export type Card = {
   x: number;

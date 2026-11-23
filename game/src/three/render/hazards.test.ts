@@ -240,7 +240,7 @@ describe('HazardViews', () => {
     views.update(world, world.terrain, new Map(), 1000, null, new THREE.PerspectiveCamera());
     const cards = recordedCards();
     views.draw(cards.batches);
-    expect(cards.glow.length).toBeGreaterThan(0);
+    expect(cards.lit.length).toBeGreaterThan(0);
 
     const meshes: THREE.Object3D[] = [];
     views.root.traverse((o) => {
