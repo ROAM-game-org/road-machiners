@@ -38,7 +38,7 @@ type GunSounds = { shot: SoundEventId; echo: SoundEventId | null; struck: Struck
 
 const STRUCK: StruckEvents = { plate: "hit-plate", part: "hit-part" };
 const MG: GunSounds = { shot: "shot-mg", echo: "echo-mg", struck: STRUCK };
-const HEAVY_MG: GunSounds = { shot: "shot-heavy-mg", echo: null, struck: STRUCK };
+const HEAVY_MG: GunSounds = { shot: "shot-heavy-mg", echo: "echo-mg", struck: STRUCK };
 const LONG_GUN: GunSounds = { shot: "shot-long-gun", echo: "echo-long-gun", struck: STRUCK };
 const TANK_GUN: GunSounds = { shot: "shot-tank-gun", echo: "echo-tank-gun", struck: STRUCK };
 const CANNON: GunSounds = { shot: "shot-cannon", echo: "echo-cannon", struck: STRUCK };
