@@ -10,7 +10,7 @@ export function isPacked(file) {
 }
 
 function membersOf(publicDir, folder) {
-  const entries = readdirSync(join(publicDir, folder), { withFileTypes: true }).filter((entry) => entry.name !== '.DS_Store');
+  const entries = readdirSync(join(publicDir, folder), { withFileTypes: true }).filter((entry) => !entry.name.startsWith('.'));
   const nested = entries.find((entry) => entry.isDirectory());
   if (nested) throw new Error(`Packed folder ${folder}/${nested.name} is nested, and packs hold only flat folders`);
   return entries.map((entry) => `${folder}/${entry.name}`).sort();
