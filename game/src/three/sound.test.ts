@@ -341,6 +341,17 @@ describe("SoundDirector events", () => {
     });
   });
 
+  it("spreads a miss's level by its roll and leaves other events at their level", () => {
+    const gains: number[] = [];
+    withWindow(() => {
+      const director = new SoundDirector({ play: (_c, at) => { gains.push(at.gain); }, duck: () => {} }, rig, { fire: () => null }, () => 0, () => 0.999);
+      director.event("miss", { x: 0, y: 0, z: 0 }, 0, 1, PLAIN);
+      director.event("shot-mg", { x: 0, y: 0, z: 0 }, 0, 1, PLAIN);
+      expect(gains[0]).toBeCloseTo(SOUND_EVENTS["miss"][0].gain * (1 - MIX.spread.miss! * 0.999));
+      expect(gains[1]).toBe(SOUND_EVENTS["shot-mg"][0].gain);
+    });
+  });
+
   it("skips the chance layers whose roll misses", () => {
     const calls: unknown[][] = [];
     withWindow(() => {

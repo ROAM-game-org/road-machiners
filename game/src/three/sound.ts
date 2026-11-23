@@ -182,7 +182,8 @@ export class SoundDirector {
     checkLevel(level);
     const placed = this.place(p);
     const layers = layersToPlay(SOUND_EVENTS[id], this.random);
-    const gain = placed.gain * level * sideGain(emphasis.side);
+    const spread = MIX.spread[id] ?? 0;
+    const gain = placed.gain * level * (1 - spread * this.random()) * sideGain(emphasis.side);
     this.record(`${id} ${level.toFixed(2)} ${emphasis.side}${emphasis.accent ? " accent" : ""} ${layers.map((l) => l.cue).join(" ")}`);
     if (emphasis.accent) this.player.duck(delayMs);
     const route = emphasis.accent ? { accent: true as const } : {};

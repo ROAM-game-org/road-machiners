@@ -283,27 +283,17 @@ describe("playVolley sounds", () => {
 
   it("lets a harpoon miss like any round, and keeps every other gun on its look's cues", () => {
     expect(cuesOf("harpoon", false)).toEqual(["shot-harpoon", "miss"]);
-    expect(cuesOf("mg", true)).toEqual(["shot-mg", "echo-mg", "hit-plate"]);
+    expect(cuesOf("mg", true)).toEqual(["shot-mg", "hit-plate"]);
   });
 
-  it("plays one echo per volley, right after the last round's shot", () => {
-    const cues = cuesOf("mg", false, 6);
-    expect(cues.filter((c) => c === "shot-mg")).toHaveLength(6);
-    expect(cues.filter((c) => c === "echo-mg")).toHaveLength(1);
-    expect(cues.indexOf("echo-mg")).toBe(cues.lastIndexOf("shot-mg") + 1);
-    expect(cuesOf("heavyMg", false, 6).filter((c) => c === "echo-mg")).toHaveLength(1);
+  it("plays every round's shot, since each full take carries its own tail", () => {
+    expect(cuesOf("mg", false, 6).filter((c) => c === "shot-mg")).toHaveLength(6);
   });
 
-  it("plays a burst gun's one take and one MG echo for the whole volley", () => {
-    for (const [weapon, shot] of [["gatling", "shot-gatling"], ["shotgun", "shot-shotgun"]]) {
-      const cues = cuesOf(weapon, false, 12);
-      expect(cues.filter((c) => c === shot)).toHaveLength(1);
-      expect(cues.filter((c) => c === "echo-mg")).toHaveLength(1);
+  it("plays a burst gun's one take for the whole volley", () => {
+    for (const [weapon, shot] of [["gatling", "shot-gatling"], ["shotgun", "shot-shotgun"], ["flamer", "shot-flamer"]]) {
+      expect(cuesOf(weapon, false, 12).filter((c) => c === shot)).toHaveLength(1);
     }
-  });
-
-  it("plays no echo for a gun whose take holds its own tail", () => {
-    expect(cuesOf("flamer", false, 10).filter((c) => c.startsWith("echo-"))).toEqual([]);
   });
 });
 

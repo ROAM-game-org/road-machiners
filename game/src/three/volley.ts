@@ -34,28 +34,28 @@ export type VolleyHost = {
 
 type StruckEvents = { plate: SoundEventId; part: SoundEventId };
 
-type GunSounds = { shot: SoundEventId; echo: SoundEventId | null; struck: StruckEvents; once?: true };
+type GunSounds = { shot: SoundEventId; struck: StruckEvents; once?: true };
 
 const STRUCK: StruckEvents = { plate: "hit-plate", part: "hit-part" };
-const MG: GunSounds = { shot: "shot-mg", echo: "echo-mg", struck: STRUCK };
-const HEAVY_MG: GunSounds = { shot: "shot-heavy-mg", echo: "echo-mg", struck: STRUCK };
-const LONG_GUN: GunSounds = { shot: "shot-long-gun", echo: "echo-long-gun", struck: STRUCK };
-const TANK_GUN: GunSounds = { shot: "shot-tank-gun", echo: "echo-tank-gun", struck: STRUCK };
-const CANNON: GunSounds = { shot: "shot-cannon", echo: "echo-cannon", struck: STRUCK };
-const ROCKET: GunSounds = { shot: "shot-rocket", echo: null, struck: STRUCK };
+const MG: GunSounds = { shot: "shot-mg", struck: STRUCK };
+const HEAVY_MG: GunSounds = { shot: "shot-heavy-mg", struck: STRUCK };
+const LONG_GUN: GunSounds = { shot: "shot-long-gun", struck: STRUCK };
+const TANK_GUN: GunSounds = { shot: "shot-tank-gun", struck: STRUCK };
+const CANNON: GunSounds = { shot: "shot-cannon", struck: STRUCK };
+const ROCKET: GunSounds = { shot: "shot-rocket", struck: STRUCK };
 
 const GUN_SOUNDS: Record<string, GunSounds> = {
-  harpoon: { shot: "shot-harpoon", echo: null, struck: { plate: "harpoon-hook", part: "harpoon-hook" } },
+  harpoon: { shot: "shot-harpoon", struck: { plate: "harpoon-hook", part: "harpoon-hook" } },
   heavyMg: HEAVY_MG,
-  gatling: { shot: "shot-gatling", echo: "echo-mg", struck: STRUCK, once: true },
+  gatling: { shot: "shot-gatling", struck: STRUCK, once: true },
   rocketRack: ROCKET,
-  shotgun: { shot: "shot-shotgun", echo: "echo-mg", struck: STRUCK, once: true },
-  flamer: { shot: "shot-flamer", echo: null, struck: STRUCK, once: true },
+  shotgun: { shot: "shot-shotgun", struck: STRUCK, once: true },
+  flamer: { shot: "shot-flamer", struck: STRUCK, once: true },
   autocannon: HEAVY_MG,
   cannon: TANK_GUN,
   slugCannon: LONG_GUN,
   pneumobolter: ROCKET,
-  grenadeLauncher: { shot: "shot-mortar", echo: "echo-mortar", struck: STRUCK },
+  grenadeLauncher: { shot: "shot-mortar", struck: STRUCK },
   recoilless: LONG_GUN,
   longRifle: LONG_GUN,
   amRifle: LONG_GUN,
@@ -81,7 +81,6 @@ export function playVolley(
   const spec = projectileOf(weapon);
   const ground = (p: V3) => groundPoint(host.world.terrain, toMap(p)).y;
   const sounds = gunSounds(weapon);
-  const lastShot = lastFired(plans);
   const by = shotBy(host.world, event.shooter);
   const landsAt = plans.map((plan) => plan.delayMs + plan.flightMs);
   const lastLand = landsAt.indexOf(Math.max(...landsAt));
@@ -92,7 +91,7 @@ export function playVolley(
     const burst = rounds[k].burst;
     const struck = reachedPart(host.world, rounds[k]) ? sounds.struck.part : sounds.struck.plate;
     const cues = {
-      fired: (m: Muzzle) => playShot(host, sounds, k, k === lastShot, m.pos, by),
+      fired: (m: Muzzle) => playShot(host, sounds, k, m.pos, by),
       landed: () => {
         landSound(host, plan, rounds[k], struck, by, landingLevel(ranks[k], MIX.landings));
         if (empties) host.sound.event("gun-empty", muzzle().pos, 0, 1, by);
@@ -124,14 +123,8 @@ function shotBy(world: Pick<World, "player">, shooter: string): Emphasis {
   return { side: sideOf(world, shooter), accent: false };
 }
 
-export function lastFired(plans: readonly { delayMs: number }[]): number {
-  const delays = plans.map((plan) => plan.delayMs);
-  return delays.lastIndexOf(Math.max(...delays));
-}
-
-function playShot(host: Pick<VolleyHost, "sound">, sounds: GunSounds, round: number, last: boolean, at: V3, by: Emphasis): void {
+function playShot(host: Pick<VolleyHost, "sound">, sounds: GunSounds, round: number, at: V3, by: Emphasis): void {
   if (firesSound(sounds, round)) host.sound.event(sounds.shot, at, 0, 1, by);
-  if (last && sounds.echo) host.sound.event(sounds.echo, at, 0, 1, by);
 }
 
 function showDamage(host: VolleyHost, r: ShotRound, atMs: number, rows: Map<string, number>): void {
@@ -600,7 +593,7 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
     ...plan, delayMs: at, flightMs: f.landsAt - f.launchedMs, impactRecorded: true,
   }, blastRadiusOf(f.weaponDefId), {
     fired: m => {
-      playShot(host, sounds, pellet, last, m.pos, by);
+      playShot(host, sounds, pellet, m.pos, by);
       if (dry) host.sound.event('gun-empty', m.pos, 0, 1, by);
     },
     landed: () => {},
