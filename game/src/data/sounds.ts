@@ -125,19 +125,19 @@ export type Layer = { cue: CueId; delayMs: number; gain: number; chance: number 
 
 export const SOUND_EVENTS = {
   "crash-light": [
-    { cue: "crash-thump", delayMs: 0, gain: 0.45, chance: 1 },
-    { cue: "crash-bump", delayMs: 0, gain: 0.6, chance: 1 },
+    { cue: "crash-thump", delayMs: 0, gain: 0.75, chance: 1 },
+    { cue: "crash-bump", delayMs: 0, gain: 1, chance: 1 },
     { cue: "crash-debris", delayMs: 90, gain: 0.3, chance: 0.3 },
   ],
   "crash-hard": [
-    { cue: "crash-thump", delayMs: 0, gain: 0.55, chance: 1 },
-    { cue: "crash-crunch", delayMs: 0, gain: 0.75, chance: 1 },
+    { cue: "crash-thump", delayMs: 0, gain: 0.8, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 1, chance: 1 },
     { cue: "crash-bump", delayMs: 140, gain: 0.3, chance: 0.5 },
     { cue: "crash-debris", delayMs: 120, gain: 0.6, chance: 1 },
   ],
-  "shot-mg": [{ cue: "mg-fire", delayMs: 0, gain: 0.68, chance: 1 }],
-  "shot-heavy-mg": [{ cue: "heavy-mg-fire", delayMs: 0, gain: 1, chance: 1 }],
-  "shot-gatling": [{ cue: "gatling-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-mg": [{ cue: "mg-fire", delayMs: 0, gain: 0.5, chance: 1 }],
+  "shot-heavy-mg": [{ cue: "heavy-mg-fire", delayMs: 0, gain: 0.6, chance: 1 }],
+  "shot-gatling": [{ cue: "gatling-fire", delayMs: 0, gain: 0.7, chance: 1 }],
   "shot-rocket": [{ cue: "rocket-fire", delayMs: 0, gain: 1, chance: 1 }],
   "shot-shotgun": [{ cue: "shotgun-fire", delayMs: 0, gain: 1, chance: 1 }],
   "shot-flamer": [{ cue: "flamer-fire", delayMs: 0, gain: 1, chance: 1 }],
