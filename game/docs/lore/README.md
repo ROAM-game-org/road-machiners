@@ -85,18 +85,24 @@ Create a square, straight-down concept painting of Icarus for a post-apocalyptic
 
 ## Item lore
 
-Every part, good and the parcel has a lore entry in `src/text/en/lore.ts` and `src/text/ru/lore.ts`. It shows under the name in the item's hover tip and as the last paragraph of the inspection card and the shop row's open detail. It is in-world common knowledge, like a term tip: one or two plain, dry sentences on what the thing is in the basin, who makes or uses it, why drivers pick it and what is odd about it.
+Every part, good and the parcel has a lore entry in `src/text/en/lore.ts` and `src/text/ru/lore.ts`. It shows under the name in the item's hover tip and as the last paragraph of the inspection card and the shop row's open detail. It is in-world common knowledge, like a term tip, told by a dry, slightly irreverent narrator who knows the Old World and the road, like a gear catalog written by a cynical mechanic. A line is one short verdict or one or two sentences. It may set the item against what it was in the Old World, turn a road saying around, or name the kind of driver who owns it. It may say plainly what the item is good or bad at, in road words like bare sides, armor plate, far-off engines or a truck that follows, when a real rule backs it. The humor comes from plain facts put side by side, never from rhetoric or a punchline that needs explaining.
 
 Writing rules:
 
-- No game rule, stat, tier or number, and no digits. Never restate what the card shows: mass, range, arc, damage, footprint or condition. A claim about how an item behaves is road wisdom that matches a real rule in the [mechanics pages](wiki/mechanics/).
+- No game rule, stat, tier or number, and no digits. Never restate what the card shows: mass, range, arc, damage, footprint or condition. A claim about how an item behaves is road wisdom that matches a real rule in the [mechanics pages](wiki/mechanics/). It names the effect a driver sees, like wrecking bare sides, never a hidden word like damager or penetration.
 - Every fact matches this lore. It is evidence, never a conclusion: no hidden truth from [Timeline](lore/timeline.md), no ship name, no use for the M's, no crash date and no old name of the basin. No faction is right.
 - Name only Bowl, Nose and groups any driver hears of on day one: the Old Army, the Nose Army, the Bowl Farmers, raiders and Pierce. Name no other site and no person.
 - Each entry has its own image of New World use of Old World leftovers where it fits. No two entries share a template sentence.
 - Read the entry against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction.
 - At most 200 characters in English and 270 in Russian. `src/text/catalog.test.ts` checks digits, length, the out-of-character words and repeats.
 
-Bad: "A machine gun turret with a wide arc that fires six rounds." It states stats. Good: "The workshop line at Nose turns these out by the crate. Nobody calls it a good gun, but it fires when it is dirty, and every welder in the basin can fix it."
+Bad: "A machine gun turret with a wide arc that fires six rounds." It states stats.
+
+Good, from the committee:
+
+- A one-line verdict, the MG turret: "Versatile and handy bullet spewer."
+- Old World background, then a plain hint of what the gun is good at, the shotgun: "Shotguns were ubiquitous in the Old World among everyone from policemen to rock musicians. This is an enlarged vehicle-mounted version that is surprisingly good at wrecking unprotected car sides."
+- A saying turned on its head, the claymore ram: "It's said in a collision of a large vehicle with a smaller one, the first one wins. With this deranged mixture of a ram and a bunch of explosives, everyone will loose."
 
 ## M's
 
