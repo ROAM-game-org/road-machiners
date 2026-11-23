@@ -1,11 +1,11 @@
-import { Plate, extrude, lit, litMap, ring, glassMesh, roundPath, grain, wear, stitch, makeStage, frame } from './dashlib.js';
+import { Plate, extrude, oliveLit, oliveMap, hexBolt, ring, glassMesh, roundPath, makeStage, frame } from './dashlib.js';
+import { OLIVE, mottle } from './olive.js';
 import { installBake } from '../core.js';
 
 const FACE = [-3, -3, 301.9, 57.5];
 const SLAB = [-14, -14, 290, 49.6];
 const CORNER = 15;
 const HEM = 3.6;
-const LEATHER = '#643015';
 const INK = '#241407';
 const BRASS = '#997134';
 const WINDOWS = { money: [28, 8, 109, 38], supplies: [139.5, 8, 184.3, 38], health: [233, 8, 278, 38] };
@@ -23,26 +23,20 @@ root.add(P.g);
 
 const expand = ([x0, y0, x1, y1], d) => [x0 - d, y0 - d, x1 + d, y1 + d];
 
-const leather = P.canvas(SLAB);
+const face = P.canvas(SLAB);
 {
-  const c = leather.c;
-  c.fillStyle = LEATHER; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
+  const c = face.c;
+  c.fillStyle = OLIVE.housing; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
   const g = c.createLinearGradient(0, SLAB[1], 0, SLAB[3]);
   g.addColorStop(0, 'rgba(255,200,150,0.05)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.1)');
   c.fillStyle = g; c.fillRect(SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1]);
-  grain(c, SLAB, 7, 4);
-  wear(c, SLAB, 31, { stains: 3, creases: 7, rubs: 2 });
+  mottle(c, SLAB[0], SLAB[1], SLAB[2] - SLAB[0], SLAB[3] - SLAB[1], 7);
   for (const w of Object.values(WINDOWS)) { const e = expand(w, 0); roundPath(c, e[0], e[1], e[2], e[3], [6, 6, 6, 6]); c.fillStyle = INK; c.fill(); }
-  const stitchX = 286, stitchY = 46.2, r = 11;
-  const vertical = { alpha: 0.62, width: 1.0, dash: 3.5, gap: 2.0 }, flat = { alpha: 0.42, width: 1.0, dash: 8.5, gap: 4.0 };
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(stitchX, -14); cc.lineTo(stitchX, stitchY - r); }, vertical);
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(stitchX, stitchY - r); cc.arcTo(stitchX, stitchY, stitchX - r, stitchY, r); }, { ...flat, alpha: 0.5, dash: 5, gap: 3 });
-  stitch(c, (cc) => { cc.beginPath(); cc.moveTo(stitchX - r, stitchY); cc.lineTo(-14, stitchY); }, flat);
 }
-const tex = P.textureOf(leather.cv, SLAB);
-const slab = extrude(P.shape(SLAB, [0, 0, CORNER, 0]), { front: 0, depth: 0.12, bevel: P.len(HEM), bt: P.len(HEM) * 0.8, caps: litMap(tex), sides: lit('#7d4423') });
+const tex = P.textureOf(face.cv, SLAB);
+const slab = extrude(P.shape(SLAB, [0, 0, CORNER, 0]), { front: 0, depth: 0.12, bevel: P.len(HEM), bt: P.len(HEM) * 0.8, caps: oliveMap(tex), sides: oliveLit(OLIVE.edge) });
 P.g.add(slab);
-
+for (const x of [7, 280]) P.g.add(hexBolt(P.at(P.len(HEM * 0.8)), x, 43, 1.8));
 
 for (const w of Object.values(WINDOWS)) {
   const outer = expand(w, -INK_W), inner = expand(w, -INK_W - RIM);

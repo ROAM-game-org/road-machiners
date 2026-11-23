@@ -438,7 +438,7 @@ describe('repairContent', () => {
     const vars: CallVars[] = [
       { haul: { kind: 'haul', goods: { ghostGood: 2 }, parts: [] } },
       { at: { kind: 'site', id: 'ghost-camp' } },
-      { who: { kind: 'sighting', driver: 'Retired Name', seen: null } },
+      { who: { kind: 'sightings', told: [{ contract: 'c1', driver: 'Retired Name', seen: null }] } },
       { way: { kind: 'directions', steps: [{ do: 'turn', side: 'left', at: { kind: 'site', id: 'ghost-camp' }, road: { kind: 'heading', octant: 'north' }, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', lean: null, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'search', clue: { kind: 'site', id: 'ghost-camp' }, rough: false }] } },

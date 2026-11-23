@@ -11,7 +11,7 @@ import { disarm } from './claymore';
 import { workTimeMult } from './utility';
 import { cancelJob, startJob } from './jobs';
 import { RULES } from '../data/rules';
-import { canReachSalvage, dumpOnPile, pickupWork, truckPickupItem } from './salvage';
+import { canReachSalvage, dumpOnPile, lockedFrom, pickupWork, truckPickupItem } from './salvage';
 import { modeRules } from './settings';
 import { fitStores } from './resources';
 import { itemMass } from './mass';
@@ -522,7 +522,7 @@ function stockPickupItem(world: World, v: Vehicle, pickup: Extract<RefitPickup, 
   if (!stock || !world.player.scavenged.includes(stockId) || !canReachSalvage(v, stock)) return { id: 'salvageOutOfReach' };
   if (taken.has(partId)) return { id: 'partQueued' };
   const part = stock.parts.find((entry) => entry.id === partId);
-  if (!part) return { id: 'salvagePartGone' };
+  if (!part || lockedFrom(world, v, stock).has(partId)) return { id: 'salvagePartGone' };
   return { kind: 'part', id: itemId, part, ...to };
 }
 

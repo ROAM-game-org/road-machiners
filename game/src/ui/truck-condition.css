@@ -1,4 +1,5 @@
 #ui .truck-condition {
+  --crt-unzoom: var(--cond-unzoom, 1);
   position: absolute;
   left: 0;
   bottom: calc(100% + var(--space-4));
@@ -121,22 +122,9 @@
 #ui .condition-tip-body {
   display: flex;
   gap: var(--space-4);
-  padding: var(--space-1) var(--space-3);
   font-family: var(--font-ui);
   white-space: nowrap;
   zoom: var(--cond-unzoom, 1);
-}
-#ui .condition-tip[data-side="above"] {
-  transform: translate(-50%, -100%);
-}
-#ui .condition-tip[data-side="above"] > .condition-tip-body {
-  margin-bottom: var(--space-4);
-}
-#ui .condition-tip[data-side="below"] {
-  transform: translate(-50%, 0);
-}
-#ui .condition-tip[data-side="below"] > .condition-tip-body {
-  margin-top: var(--space-4);
 }
 .cond-plan,
 .cond-plan-turned {
@@ -182,4 +170,7 @@
 .cond-plan-pick {
   background: var(--cond-cells);
   box-shadow: inset 0 0 0 var(--space-1) var(--ink-bright);
+}
+.truck-condition.magnified .condition-stage {
+  will-change: transform;
 }

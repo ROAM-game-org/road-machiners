@@ -6,9 +6,9 @@ import { findSpot, gridOf, placementError } from '../sim/grid';
 import { repairContent } from '../sim/save-repair';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle } from '../sim/types';
-import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
-const step = FOLDED_AND_TINY_STEPS.find((s) => s.name === 'withCargoCells')!;
+const step = TINY_STEPS.find((s) => s.name === 'withCargoCells')!;
 
 type SavedItem = { id: string; kind: string; x: number; y: number; rot: number; part?: { id: string; defId: string } };
 type SavedTruck = { id: string; chassisId: string; items: SavedItem[]; job?: SavedJson | null };

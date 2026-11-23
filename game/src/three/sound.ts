@@ -17,7 +17,9 @@ export function glideAt(g: Glide, share: number): { rate: number; gain: number }
 }
 import type { V3, VehicleFrame } from "../phys/frames";
 import { PHYSICS } from "../data/physics";
-import type { GameEvent, ShotRound } from "../sim/types";
+import type { GameEvent, ShotRound, Vehicle, World } from "../sim/types";
+import { chargedParts, chargeOf, orderKindOf } from "../sim/utility";
+import { playerVehicle } from "../sim/damage";
 import { isInTerritory, isNearOutpost, isNearTown } from "../sim/sites";
 import type { Vec } from "../sim/vec";
 import { atlasOf } from "../sim/atlas";
@@ -26,6 +28,7 @@ import type { CameraRig } from "./render/camera";
 import type { BlockEvent } from "./block-session";
 import type { CombatMusic } from "./combat-music";
 import type { MusicTracks } from "../audio/music-shelf";
+import { MusicPace, type PacedMusic } from "../audio/music-pace";
 
 const CENTER: Placement = { pan: 0, gain: 1 };
 const LOG_SIZE = 100;
@@ -39,6 +42,52 @@ const STINGS: {
   { cue: "discover", match: (e) => e.t === "discover" },
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },
 ];
+
+export function panelCue(open: boolean, call: boolean): CueId {
+  if (call) return open ? "radio" : "radio-end";
+  return open ? "ui-open" : "ui-close";
+}
+
+export type ChargeSeen = { armed: boolean; recharging: boolean };
+
+function chargesOf(v: Vehicle): Map<string, ChargeSeen> {
+  const slots = chargedParts(v).filter((p) => orderKindOf(p) !== null);
+  return new Map(slots.map((p) => [p.id, { armed: chargeOf(p).armed === true, recharging: chargeOf(p).reload > 0 }]));
+}
+
+const justArmed = (was: ChargeSeen, now: ChargeSeen): boolean => now.armed && !was.armed;
+const justRecharged = (was: ChargeSeen, now: ChargeSeen): boolean => was.recharging && !now.recharging && !now.armed;
+
+export function utilityCue(was: ChargeSeen | undefined, now: ChargeSeen): CueId | null {
+  if (!was) return null;
+  if (justArmed(was, now)) return "utility-armed";
+  return justRecharged(was, now) ? "utility-ready" : null;
+}
+
+export class TurnCues {
+  private charges: Map<string, ChargeSeen> | null = null;
+
+  after(world: World): CueId[] {
+    const me = playerVehicle(world);
+    const now = chargesOf(me);
+    const was = this.charges ?? now;
+    this.charges = now;
+    const utility = [...now].map(([id, seen]) => utilityCue(was.get(id), seen));
+    return [stingOf(world.events, me.id), ...utility].filter((cue): cue is CueId => cue !== null);
+  }
+}
+
+export class PanelSounds {
+  private open = false;
+  private call = false;
+
+  change(open: boolean, call: boolean): CueId | null {
+    const cue = open === this.open ? null : panelCue(open, open ? call : this.call);
+    this.open = open;
+    this.call = call;
+    return cue;
+  }
+}
 
 export function stingOf(events: GameEvent[], playerId: string): CueId | null {
   return (
@@ -190,18 +239,25 @@ function musicOf(s: LoopState): "calm" | "quest" | "combat" | NonNullable<MusicP
   return s.place ?? "calm";
 }
 
-export function loopLevels(s: LoopState, mix: typeof MIX): LoopLevels {
+function pacedOf(s: LoopState): PacedMusic | null {
+  const music = musicOf(s);
+  return music === "combat" ? null : music;
+}
+
+export function loopLevels(s: LoopState, mix: typeof MIX, resting: boolean): LoopLevels {
   const w = mix.wind;
   const near = s.stormShare;
   const music = musicOf(s);
+  const plays = (cue: typeof music) => Number(music === cue && !(resting && cue !== "combat"));
   return {
     windGain: w.baseGain + (w.stormGain - w.baseGain) * near,
-    calmGain: Number(music === "calm"),
-    questGain: Number(music === "quest"),
-    townGain: Number(music === "town"),
-    outpostGain: Number(music === "outpost"),
-    abandonedGain: Number(music === "abandoned"),
-    combatGain: Number(music === "combat"),  };
+    calmGain: plays("calm"),
+    questGain: plays("quest"),
+    townGain: plays("town"),
+    outpostGain: plays("outpost"),
+    abandonedGain: plays("abandoned"),
+    combatGain: plays("combat"),
+  };
 }
 
 export function computeEngineGlide(
@@ -353,7 +409,9 @@ export class SoundLoops {
   private engineChassis: string | null = null;
   private engineGlides: { healthy: Glide; strained: Glide } | null = null;
   private engineLevel: { rate: number; healthy: number; strained: number } | null = null;
-  private player: Pick<SoundPlayer, "loop">;
+  private player: Pick<SoundPlayer, "loop" | "now">;
+  private pace: MusicPace;
+  private state: LoopState | null = null;
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
@@ -361,8 +419,9 @@ export class SoundLoops {
   private places: [Playlist, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: Pick<SoundPlayer, "loop">, private music: Pick<CombatMusic, "setCombat" | "nextSong">, tracks: MusicTracks) {
+  constructor(player: Pick<SoundPlayer, "loop" | "now">, private music: Pick<CombatMusic, "setCombat" | "nextSong">, tracks: MusicTracks, random: () => number) {
     this.player = player;
+    this.pace = new MusicPace(MIX.music, random);
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
     this.calm = new Playlist(player, tracks, "music-calm", true);
@@ -416,7 +475,9 @@ export class SoundLoops {
   }
 
   update(s: LoopState): void {
-    const l = loopLevels(s, MIX);
+    this.state = s;
+    this.pace.advance(pacedOf(s), this.player.now());
+    const l = loopLevels(s, MIX, this.pace.resting);
     const was = this.last;
     this.last = l;
     if (was?.windGain !== l.windGain)
@@ -446,10 +507,15 @@ export class SoundLoops {
   nextTrack(): void {
     const l = this.last;
     if (l?.combatGain && !l.questGain) return this.music.nextSong();
+    if (this.pace.resting && this.state) {
+      this.pace.wake(this.player.now());
+      return this.update(this.state);
+    }
     const fade = MIX.music.fadeSeconds;
     const [playlist, key] = this.playingList(l);
     playlist.next();
     playlist.setGain(l?.[key] ?? 0, fade);
+    if (l?.[key]) this.pace.wake(this.player.now());
   }
 
   private playingList(l: LoopLevels | null): [Playlist, "calmGain" | "questGain" | "abandonedGain"] {

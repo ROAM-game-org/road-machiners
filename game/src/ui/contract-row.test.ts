@@ -130,7 +130,7 @@ describe("one row form for every kind", () => {
     { ...base, id: "p", kind: "procure", good: "salt", units: 2, cratePay: 3 },
     { ...base, id: "c", kind: "claim", stockId: "tank-3", at: { x: 300, y: 40 }, partId: "p1", defId: "mg", rivalAt: 100, rival: null, leads: [] },
     { ...base, id: "e", kind: "escort", client, to: "nose", threat: 2, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null },
-    { ...base, id: "u", kind: "rescue", client, driver: "Jed Cobb", need: "fuel", area: { x: 50, y: 40 }, fulfilled: false },
+    { ...base, id: "u", kind: "rescue", client, driver: "Jed Cobb", need: "fuel", area: { x: 50, y: 40 }, lead: null, fulfilled: false },
     { ...base, id: "s", kind: "search", target: client, driver: "Jed Cobb", template: "trader", lead: { at: { x: 50, y: 40 }, turn: 0 }, delivered: false },
     { ...base, id: "v", kind: "survey", points: [{ site: SURVEY_SITES_FILE.sites[0]!.id, found: false, done: false }] },
   ];

@@ -353,7 +353,7 @@ describe('finite hidden salvage', () => {
     const s = hiddenStock('rich', { x: 30, y: 30 }, { goods: { scrap: 20 }, fuel: 5, supplies: 2 });
     s.goods.water = 3;
     const total = stockTotal(s);
-    const found = revealTurn(w, s, 0.5);
+    const found = revealTurn(w, s, 0.5, new Set());
     expect(stockTotal(s)).toBe(total);
     expect(s.goods.water).toBe(3);
     expect(s.goods.scrap ?? 0).toBe(found.goods.scrap ?? 0);
@@ -366,9 +366,9 @@ describe('finite hidden salvage', () => {
     const w = emptyWorld();
     const s = hiddenStock('rich', { x: 30, y: 30 }, { goods: { scrap: 3 }, supplies: 2 });
     const worldRoll = w.rngState;
-    revealTurn(w, s, 0);
+    revealTurn(w, s, 0, new Set());
     expect(hiddenUnits(s)).toBe(4);
-    revealTurn(w, s, 1);
+    revealTurn(w, s, 1, new Set());
     expect(hiddenUnits(s)).toBe(0);
     expect(s.goods.scrap).toBe(3);
     expect(s.supplies).toBe(2);
@@ -379,7 +379,7 @@ describe('finite hidden salvage', () => {
     const w = emptyWorld();
     const finds = (units: number) => {
       let found = 0;
-      for (let trial = 0; trial < 200; trial++) found += revealTurn(w, hiddenStock('s', { x: 0, y: 0 }, { goods: { scrap: units } }), SEARCH.reveal).goods.scrap ?? 0;
+      for (let trial = 0; trial < 200; trial++) found += revealTurn(w, hiddenStock('s', { x: 0, y: 0 }, { goods: { scrap: units } }), SEARCH.reveal, new Set()).goods.scrap ?? 0;
       return found / 200;
     };
     const few = finds(10);

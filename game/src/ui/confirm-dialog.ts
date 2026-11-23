@@ -1,4 +1,5 @@
 import { bindAttr } from "../text/language";
+import { keyPress } from "./control-sound";
 import { t, type Msg } from "../text/msg";
 import { isBrowserChord, panel } from "./dom";
 import { controls, metalLine, textKey } from "./dash/skin";
@@ -27,6 +28,7 @@ export function askConfirm(ask: ConfirmAsk): Promise<boolean> {
       const key = e as KeyboardEvent;
       if (key.code === "Escape") {
         key.stopPropagation();
+        keyPress(cancel);
         finish(false);
         return;
       }

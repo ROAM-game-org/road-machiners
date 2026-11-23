@@ -20,8 +20,7 @@ import { markError, markVehicle } from "../sim/detect";
 import { knowsCargo, lookOver } from "../sim/look-over";
 import { hasBasic } from "../sim/progress";
 import { actionBlockReason, contextKey, type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
-import { ContextPicker, getContextActions } from "../ui/hud-readout";
-import { TURN_PLAYING } from "../ui/dom";
+import { ContextPicker, getContext, getContextActions } from "../ui/hud-readout";
 
 export type ControlsHost = {
   world: () => World;
@@ -95,6 +94,7 @@ export class TruckControls {
 export type ContextHost = {
   world: () => World;
   playing: () => boolean;
+  whenTurnEnds: (action: () => void, key?: string) => void;
   apply: (next: World) => void;
   pushEvents: () => void;
   note: (text: Msg) => void;
@@ -111,10 +111,10 @@ export class TruckContext {
 
   constructor(private host: ContextHost) {}
 
-  shown(): { action: ContextAction | null; count: number; index: number } {
-    const actions = getContextActions(this.host.world(), this.host.playing());
+  shown(): { action: ContextAction | null; count: number; index: number; status: Msg | null } {
+    const { actions, status } = getContext(this.host.world(), this.host.playing());
     const action = this.picker.pick(actions);
-    return { action, count: actions.length, index: Math.max(0, actions.findIndex((a) => a === action)) };
+    return { action, count: actions.length, index: Math.max(0, actions.findIndex((a) => a === action)), status };
   }
 
   cycle(step: 1 | -1): void {
@@ -131,8 +131,7 @@ export class TruckContext {
   private lookOverOrReopen(w: World, id: string): void {
     const target = w.vehicles.find((v) => v.id === id);
     if (!target || !knowsCargo(w, playerVehicle(w), target)) return this.refusable(() => lookOver(w, id));
-    if (this.host.playing()) return this.host.note(TURN_PLAYING);
-    this.host.openLookedOver(id);
+    this.host.whenTurnEnds(() => this.host.openLookedOver(id));
   }
 
   private refusable(next: () => World): void {
@@ -145,8 +144,12 @@ export class TruckContext {
   }
 
   use(): void {
+    this.host.whenTurnEnds(() => this.useNow());
+  }
+
+  private useNow(): void {
     const w = this.host.world();
-    if (this.host.playing() || !playerCanAct(w)) return;
+    if (!playerCanAct(w)) return;
     const action = this.picker.pick(getContextActions(w, false));
     if (!action) return;
     if (action.ready) return this.run(action);
@@ -168,7 +171,6 @@ export class TruckContext {
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
       survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id),
       loot: () => 'id' in target && this.lootStock(target.id),
-      empty: () => undefined,
     };
     handlers[target.kind]();
   }

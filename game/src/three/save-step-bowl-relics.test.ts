@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import FORMAT_2_124 from './save-fixtures/format-2-124.json';
-import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
-const withBowlRelics = FOLDED_AND_TINY_STEPS.find((s) => s.name === 'withBowlRelics')!;
+const withBowlRelics = TINY_STEPS.find((s) => s.name === 'withBowlRelics')!;
 
 function oldSave(): SavedJson {
   const saved = structuredClone(FORMAT_2_124) as unknown as SavedJson;

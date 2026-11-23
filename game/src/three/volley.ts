@@ -1,6 +1,7 @@
 import type { TimedFlight, TimedRecord, TimedCombatState } from '../sim/timed-combat';
 import { combatState } from '../sim/timed-combat';
 import { CONFIG } from "../config";
+import { RULES } from "../data/rules";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
 import { MIX, type CueId } from "../data/sounds";
@@ -33,7 +34,27 @@ export type VolleyHost = {
 
 type StruckCues = { plate: CueId; part: CueId };
 
-const GUN_SOUNDS: Record<string, { fire: CueId; struck: StruckCues }> = { harpoon: { fire: "harpoon-fire", struck: { plate: "harpoon-hook", part: "harpoon-hook" } } };
+type GunSounds = { fire: CueId; struck: StruckCues; once?: true };
+
+const GUN_SOUNDS: Record<string, GunSounds> = {
+  harpoon: { fire: "harpoon-fire", struck: { plate: "harpoon-hook", part: "harpoon-hook" } },
+  heavyMg: { fire: "heavy-mg-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  gatling: { fire: "gatling-fire", struck: { plate: "hit-metal", part: "hit-part" }, once: true },
+  rocketRack: { fire: "rocket-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  shotgun: { fire: "shotgun-fire", struck: { plate: "hit-metal", part: "hit-part" }, once: true },
+  flamer: { fire: "flamer-fire", struck: { plate: "hit-metal", part: "hit-part" }, once: true },
+  autocannon: { fire: "heavy-mg-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  cannon: { fire: "tank-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  slugCannon: { fire: "long-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  pneumobolter: { fire: "rocket-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  grenadeLauncher: { fire: "mortar-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  recoilless: { fire: "long-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  longRifle: { fire: "long-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  amRifle: { fire: "long-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  battleRifle: { fire: "long-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  tankGun: { fire: "tank-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+  sniperCannon: { fire: "tank-gun-fire", struck: { plate: "hit-metal", part: "hit-part" } },
+};
 const DEFAULT_STRUCK: StruckCues = { plate: "hit-metal", part: "hit-part" };
 
 export type VolleyLands = { landsMs: number[]; lastMs: number };
@@ -61,7 +82,7 @@ export function playVolley(
     const burst = rounds[k].burst;
     const struckCue = reachedPart(host.world, rounds[k]) ? sounds.struck.part : sounds.struck.plate;
     const cues = {
-      fired: (m: Muzzle) => host.sound.at(sounds.fire, m.pos, 0),
+      fired: (m: Muzzle) => firesSound(sounds, k) && host.sound.at(sounds.fire, m.pos, 0),
       landed: () => {
         landSound(host, plan, rounds[k], struckCue);
         if (empties) host.sound.at("gun-empty", muzzle().pos, 0);
@@ -110,7 +131,7 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  host.sound.atLevel("crash", p, 0, crashLevel(e.impact, MIX.crash));
+  host.sound.atLevel(e.impact < RULES.hardCrashSpeed ? "car-hit" : "crash", p, 0, crashLevel(e.impact, MIX.crash));
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {
@@ -153,7 +174,7 @@ const gunKey = (vehicle: string, weapon: string) => `${vehicle}|${weapon}`;
 
 const USE_CUES: Partial<Record<UtilityEffectType | "claymore", CueId>> = {
   mortar: "mortar-fire",
-  flare: "flare-fire",
+  flare: "mortar-fire",
   sprout: "smoke-burst",
   caltrops: "caltrops-drop",
   oil: "oil-spill",
@@ -521,7 +542,7 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
 function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>, pellets: Map<TimedFlight, number>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);
-  if (record.at < state.turnStart + host.startMs) return;
+  if (record.kind === 'launch' && record.at < state.turnStart + host.startMs) return;
   if (record.kind === 'launch') playTimedLaunch(host, record.flight, at, last.get(record.flight.weaponId) === record.flight, pellets.get(record.flight)!);
   if (record.kind === 'impact' && record.event) playTimedImpact(host, record.flight, record.event, at, rows, breaks);
 }
@@ -540,14 +561,18 @@ function playTimedLaunch(host: CombatHost, f: TimedFlight, at: number, last: boo
     ...plan, delayMs: at, flightMs: f.landsAt - f.launchedMs, impactRecorded: true,
   }, blastRadiusOf(f.weaponDefId), {
     fired: m => {
-      host.sound.at(sounds.fire, m.pos, 0);
+      if (firesSound(sounds, pellet)) host.sound.at(sounds.fire, m.pos, 0);
       if (dry) host.sound.at('gun-empty', m.pos, 0);
     },
     landed: () => {},
   }, ground, host.world.turn);
 }
 
-function gunSounds(weapon: string): { fire: CueId; struck: StruckCues } {
+function firesSound(sounds: GunSounds, round: number): boolean {
+  return !sounds.once || round === 0;
+}
+
+function gunSounds(weapon: string): GunSounds {
   return GUN_SOUNDS[weapon] ?? { fire: projectileOf(weapon).look === 'tracer' ? 'mg-fire' : 'cannon-fire', struck: DEFAULT_STRUCK };
 }
 
@@ -596,9 +621,9 @@ function timedImpactPlan(world: World, f: TimedFlight, hit: boolean): RoundPlan 
 }
 
 function resumeTimedFlights(host: CombatHost, state: TimedCombatState): void {
-  const old = state.records.flatMap(record => record.flight && record.flight.launchedMs < state.turnStart ? [record.flight] : []);
-  const pending = state.flights.filter(flight => flight.launchedMs < state.turnStart);
-  for (const flight of [...old, ...pending]) resumeTimedFlight(host, state, flight);
+  const startedBy = state.turnStart + host.startMs;
+  const flights = new Set([...state.records.flatMap(record => record.flight ? [record.flight] : []), ...state.flights]);
+  for (const flight of flights) if (flight.launchedMs < startedBy) resumeTimedFlight(host, state, flight);
 }
 
 function resumeTimedFlight(host: CombatHost, state: TimedCombatState, flight: TimedFlight): void {

@@ -290,7 +290,7 @@ const CONTRACT_SHIFT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K
   survey: (c) => c,
   claim: (c, ctx) => ({ ...c, at: at(ctx, c.at), leads: c.leads.map((lead) => ({ ...lead, from: at(ctx, lead.from) })) }),
   escort: (c, ctx) => ({ ...c, seen: c.seen && { ...at(ctx, c.seen), turn: c.seen.turn } }),
-  rescue: (c, ctx) => ({ ...c, area: at(ctx, c.area) }),
+  rescue: (c, ctx) => ({ ...c, area: at(ctx, c.area), lead: c.lead && { ...c.lead, at: at(ctx, c.lead.at) } }),
   search: (c, ctx) => ({ ...c, lead: { ...c.lead, at: at(ctx, c.lead.at) } }),
 };
 

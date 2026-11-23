@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GROUND_MATERIAL_IDS, groundMaterial, groundMaterialIndex, shownLooks } from "../../render/groundPaint";
+import { GROUND_MATERIAL_IDS, groundMaterial } from "../../render/groundPaint";
 import type { Terrain } from "../../sim/terrain";
 
 export const SURROUND_CELL_TILES = 2;
@@ -45,10 +45,9 @@ function blurLine(from: Float32Array, to: Float32Array, start: number, stride: n
   }
 }
 
-export function surroundTexture(t: Terrain): THREE.DataTexture {
-  const materials = Uint8Array.from(shownLooks(t), groundMaterialIndex);
+export function surroundTexture(materials: Uint8Array, side: number): THREE.DataTexture {
   const palette = GROUND_MATERIAL_IDS.map((id) => new THREE.Color(groundMaterial(id).color));
-  const { cells, data } = surroundColors(materials, t.size, palette);
+  const { cells, data } = surroundColors(materials, side, palette);
   const half = Uint16Array.from(data, (v) => THREE.DataUtils.toHalfFloat(v));
   const texture = new THREE.DataTexture(half, cells, cells, THREE.RGBAFormat, THREE.HalfFloatType);
   texture.magFilter = THREE.LinearFilter;

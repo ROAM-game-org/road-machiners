@@ -1,4 +1,5 @@
 
+import { keyPress } from './control-sound';
 import type { LineId } from '../data/dialogue';
 import { HIRE } from '../data/npc-behavior';
 import { playerVehicle, vehicleById } from '../sim/damage';
@@ -8,7 +9,7 @@ import type { CallVar, CallVars, GameEvent, World } from '../sim/types';
 import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
-import { byId, list, num, t, type Msg } from '../text/msg';
+import { byId, concat, list, num, SPACE, t, type Msg } from '../text/msg';
 import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
@@ -45,11 +46,17 @@ export function tipText(v: Extract<CallVar, { kind: 'tip' }>): Msg {
   return v.tip.dear ? t('tip.dear', words) : t('tip.cheap', words);
 }
 
-export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
+type Told = Extract<CallVar, { kind: 'sightings' }>['told'][number];
+
+function toldText(v: Told): Msg {
   const driver = fullName(v.driver);
   if (!v.seen) return t('sighting.none', { driver });
   const { bearing, tiles, turns, heading } = v.seen;
   return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compassText(bearing), heading: compassText(heading) });
+}
+
+export function sightingsText(v: Extract<CallVar, { kind: 'sightings' }>): Msg {
+  return concat(v.told.flatMap((x, i) => (i === 0 ? [toldText(x)] : [SPACE, toldText(x)])));
 }
 
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
@@ -76,7 +83,7 @@ const VAR_TEXT: VarText = {
   aid: (v) => aidWords(v.fuel, v.supplies),
   haul: haulText,
   tip: tipText,
-  sighting: sightingText,
+  sightings: sightingsText,
   line: (v) => lineText(v.line, {}),
   directions: (v) => directionsText(v.steps),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
@@ -121,6 +128,8 @@ export type DialogueHost = {
   talk(next: World): void;
   inspected(): string | null;
   busy(): boolean;
+  sceneBusy(): boolean;
+  whenTurnEnds(action: () => void, key?: string): void;
   menuOpen(): boolean;
   commit(next: World): void;
   log(next: World): void;
@@ -166,7 +175,7 @@ export class DialoguePanel {
   private readonly horn: Horn;
   private drawn = '';
 
-  constructor(private readonly host: DialogueHost) {
+  constructor(private readonly host: DialogueHost, private readonly callKey: () => HTMLElement | null = () => null) {
     this.horn = new Horn(host);
     this.root.style.display = 'none';
     this.root.addEventListener('click', () => this.root.classList.add('qt-done'));
@@ -203,7 +212,7 @@ export class DialoguePanel {
   }
 
   private onFreeKey(code: string): boolean {
-    if (code === 'KeyT') return this.callInspected();
+    if (code === 'KeyT') return this.callInspected(true);
     return code === 'KeyH' && this.honk();
   }
 
@@ -213,6 +222,10 @@ export class DialoguePanel {
 
   private onBusyKey(e: KeyboardEvent): void {
     if (e.code === 'KeyH' && this.honk()) e.stopImmediatePropagation();
+    if (e.code === 'KeyT' && !this.host.sceneBusy()) {
+      this.host.whenTurnEnds(() => this.callInspected(true));
+      e.stopImmediatePropagation();
+    }
   }
 
   honk(): boolean {
@@ -228,17 +241,23 @@ export class DialoguePanel {
     }
     const index = KEY_DIGITS.indexOf(code);
     const offered = currentOptions(this.host.world());
-    if (index >= 0 && index < offered.length && !offered[index].short) this.choose(index);
+    if (index >= 0 && index < offered.length && !offered[index].short) this.chooseByKey(index);
     return index >= 0;
+  }
+
+  private chooseByKey(index: number): void {
+    keyPress(this.root.querySelectorAll<HTMLElement>('.dialogue-option')[index] ?? null);
+    this.choose(index);
   }
 
   private choose(index: number): void {
     this.host.talk(chooseOption(this.host.world(), index));
   }
 
-  callInspected(): boolean {
+  callInspected(byKey = false): boolean {
     const id = this.host.inspected();
     if (!id || !canCall(this.host.world(), id)) return false;
+    if (byKey) keyPress(this.callKey());
     this.host.talk(callVehicle(this.host.world(), id));
     return true;
   }

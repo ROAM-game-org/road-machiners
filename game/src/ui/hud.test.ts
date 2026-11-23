@@ -10,7 +10,7 @@ import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { Hud, cardActions, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
+import { Hud, actionSlot, cardActions, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
 import type { CrimeCase, World } from '../sim/types';
@@ -22,7 +22,8 @@ class FakeNode {
   tag = '';
   attrs: Record<string, string> = {};
   setAttribute(name: string, value: string) { this.attrs[name] = value; }
-  addEventListener() {}
+  listeners: Record<string, () => void> = {};
+  addEventListener(type: string, fn: () => void) { this.listeners[type] = fn; }
   text(): string { return this.children.map((child) => typeof child === 'string' ? child : child.text()).join(''); }
   withTag(tag: string): FakeNode[] { return [...(this.tag === tag ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.withTag(tag))]; }
   all(cls: string): FakeNode[] { return [...(this.className.split(' ').includes(cls) ? [this] : []), ...this.children.flatMap((child) => typeof child === 'string' ? [] : child.all(cls))]; }
@@ -134,7 +135,7 @@ describe('first aid reasons', () => {
 describe('truck card actions', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  const handlers = { call: () => {}, act: () => {}, unpin: () => {} };
+  const handlers = { call: () => {}, act: () => {} };
 
   function card(gap: number, perks: boolean) {
     vi.stubGlobal('document', {
@@ -242,24 +243,119 @@ describe('the Wanted well', () => {
 });
 
 describe('order controls while knocked out', () => {
-  const orderReasons = (w: World, busy: boolean) => Object.values(driveControlsOf(w, busy, false, false)).map((control) => control.reason);
+  const orderReasons = (w: World) => Object.values(driveControlsOf(w, false, false)).map((control) => control.reason);
 
-  it('dims every order control with Knocked out, whether or not a turn plays', () => {
+  it('dims every order control with Knocked out, at any time', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.state = 'knockedOut';
-    for (const busy of [false, true]) for (const reason of orderReasons(w, busy)) expect(reason && resolve(reason, 'en')).toBe('Knocked out');
+    for (const reason of orderReasons(w)) expect(reason && resolve(reason, 'en')).toBe('Knocked out');
   });
 
   it('keeps Driver and Journal usable while knocked out and idle', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.state = 'knockedOut';
-    const keys = systemViewsOf(w, false, false);
+    const keys = systemViewsOf(w);
     expect(keys.character.reason).toBeNull();
     expect(keys.journal.reason).toBeNull();
   });
 
   it('shows no Knocked out reason on an active player', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    expect(orderReasons(w, false).slice(0, 2)).toEqual([null, null]);
+    expect(orderReasons(w).slice(0, 2)).toEqual([null, null]);
+  });
+});
+
+describe('panel placement', () => {
+  const sideNode = (display: string): HTMLElement => ({ style: { display }, classList: { contains: (name: string) => name === 'journal-side' } }) as unknown as HTMLElement;
+
+  function placing(extra: object = {}) {
+    const placed: (HTMLElement | null | undefined)[] = [];
+    const observed: HTMLElement[] = [];
+    const hud = Object.assign(Object.create(Hud.prototype), {
+      side: null,
+      sideWasShown: false,
+      infoPlacedFor: null,
+      placeWatch: { observe: (node: HTMLElement) => observed.push(node) },
+      wantPortraits: () => {},
+      info: { style: { display: '' } },
+      ...extra,
+    }) as Hud;
+    hud.placeSide = (node?: HTMLElement | null) => {
+      placed.push(node);
+      Object.assign(hud, { side: node ?? (hud as unknown as { side: HTMLElement | null }).side, sideWasShown: true });
+    };
+    return { hud, placed, observed };
+  }
+
+  it('places and watches a journal side node the first time it moves, then only when it shows or hides', () => {
+    const { hud, placed, observed } = placing();
+    const node = sideNode('');
+    hud.sideMoved(node);
+    expect(placed).toEqual([node]);
+    expect(observed).toEqual([node]);
+    hud.sideMoved(node);
+    hud.sideMoved(node);
+    expect(placed).toEqual([node]);
+    node.style.display = 'none';
+    hud.sideMoved(node);
+    expect(placed).toEqual([node, undefined]);
+  });
+
+  it('places once when the card closes and not on later refreshes with no card', () => {
+    const { hud, placed } = placing({ infoPlacedFor: 'truck-1' });
+    hud.showInfo(emptyWorld(), null, false);
+    hud.showInfo(emptyWorld(), null, false);
+    hud.showInfo(emptyWorld(), null, false);
+    expect(placed).toHaveLength(1);
+  });
+});
+
+describe('the picked clean status', () => {
+  const status = { id: 'stock.empty.wreck' } as unknown as Msg;
+  const action = { label: status, ready: true, target: { kind: 'shop' } } as const;
+
+  it('takes the action bar slot when no action shows', () => {
+    expect(actionSlot(null, null, status)).toBe('status');
+  });
+
+  it('gives way to a real action', () => {
+    expect(actionSlot(action, null, status)).toBe('action');
+  });
+
+  it('hides while work shows and when there is no status', () => {
+    expect(actionSlot(null, {}, status)).toBe('none');
+    expect(actionSlot(action, {}, status)).toBe('none');
+    expect(actionSlot(null, null, null)).toBe('none');
+  });
+});
+
+describe('truck card head', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function head(pinned: boolean, unpin: () => void) {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => Object.assign(new FakeNode(), { tag }),
+      createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
+    });
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 35, y: 30 });
+    const hud = Object.assign(Object.create(Hud.prototype), { actions: { unpin } }) as unknown as {
+      infoHead(w: World, v: typeof npc, pinned: boolean): unknown;
+    };
+    return hud.infoHead(w, npc, pinned) as FakeNode;
+  }
+
+  it('gives a pinned card one close key that unpins and names Esc', () => {
+    const unpin = vi.fn();
+    const keys = head(true, unpin).withTag('button');
+    expect(keys).toHaveLength(1);
+    expect(keys[0].className).toContain('hud-close');
+    expect(keys[0].attrs.title).toContain('Esc');
+    keys[0].listeners.click();
+    expect(unpin).toHaveBeenCalledOnce();
+  });
+
+  it('gives a hover card no close key', () => {
+    expect(head(false, vi.fn()).withTag('button')).toHaveLength(0);
   });
 });

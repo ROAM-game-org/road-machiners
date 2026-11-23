@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import OLD_LEAVES from './save-fixtures/leave-cue-old.json';
-import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 import { directionsText } from '../ui/directions-text';
 import { resolve } from '../text/resolve';
 import type { DirectionStep, World } from '../sim/types';
@@ -13,7 +13,7 @@ import { newWorld } from '../sim/world';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 
-const withSeenLeaveCues = FOLDED_AND_TINY_STEPS.find((s) => s.name === 'withSeenLeaveCues')!;
+const withSeenLeaveCues = TINY_STEPS.find((s) => s.name === 'withSeenLeaveCues')!;
 
 type Steps = { steps: SavedJson[] };
 type Saved = { player: { call: { vars: { way: Steps }; line: { vars: { way: Steps } } } | null } };

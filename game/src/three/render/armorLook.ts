@@ -68,6 +68,29 @@ export function armorModel(defId: string, loaded = false): THREE.Object3D {
   return obj;
 }
 
+const SKIN_BAND = 0.1;
+const SKINS = new Map<string, number>();
+
+export function armorSkinX(defId: string): number {
+  const known = SKINS.get(defId);
+  if (known !== undefined) return known;
+  const obj = model(partModel(defId));
+  obj.updateMatrixWorld(true);
+  const inner = new Map<number, number>();
+  obj.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const pos = o.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      const p = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      const band = Math.floor(p.y / SKIN_BAND);
+      inner.set(band, Math.min(inner.get(band) ?? Infinity, p.x));
+    }
+  });
+  const skin = armorGrade(defId) === 'ram' ? Math.min(...inner.values()) : Math.max(...inner.values());
+  SKINS.set(defId, skin);
+  return skin;
+}
+
 function shaded(color: number, k: number): number {
   return new THREE.Color(color).multiplyScalar(k).getHex();
 }

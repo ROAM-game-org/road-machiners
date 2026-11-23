@@ -1,19 +1,20 @@
-import { Plate, extrude, lit, litMap, loft, cap, glassMesh, insetPoly, grain, wear, rollGeometry, makeStage, frame, THREE, K } from './dashlib.js';
+import { Plate, extrude, lit, oliveLit, oliveMap, hexBolt, loft, cap, glassMesh, insetPoly, makeStage, frame, THREE, K } from './dashlib.js';
+import { OLIVE, mottle } from './olive.js';
 import { installBake } from '../core.js';
+import { buildToggle } from './toggle.js';
 
 const FACE = [-3, 581.9, 339.9, 729];
 const EYE_Z_DRIVE = 20.6;
 const Z_PANEL = -0.2;
 const FRAME_DEPTH = 0.25;
-const PANEL = '#5a2a13';
-const FRAME_FACE = '#52280f';
 const BRASS = '#a87a3c';
 const DIAL_BRASS = '#c48b40';
 const GLASS = '#1d1609';
 
 const DIAL = { cx: 82, cy: 687.1, rGlass: 71.5, rBrass: 73.0 };
 const GAUGE_SHIFT = -2.5;
-const shifted = (pts) => pts.map(([x, y]) => [x + GAUGE_SHIFT, y]);
+const GAUGE_DROP = 2;
+const shifted = (pts) => pts.map(([x, y]) => [x + GAUGE_SHIFT, y + GAUGE_DROP]);
 const FUEL = { pts: shifted([[156.4, 618.3], [213.9, 618.3], [213.9, 659.3], [156.4, 659.3]]), r: 9 };
 const HEAT = { pts: shifted([[217.9, 618.3], [275.1, 618.3], [275.1, 659.3], [217.9, 659.3]]), r: 9 };
 const COOL = { box: [276.4, 622.5, 318.2, 659.2], skirt: 5.5 };
@@ -25,17 +26,33 @@ root.add(P.g);
 const L0 = P.at(0), LP = P.at(Z_PANEL);
 const expand = ([x0, y0, x1, y1], d) => [x0 - d, y0 - d, x1 + d, y1 + d];
 
+const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
+const FRAME_TOP = 601.2, FRAME_RIGHT = 343.4;
+const HOLE_CURVE = [[96, HOLE_TOP], [50, HOLE_TOP], [0, 614], [-40, 630]];
+const bezierAt = (t, axis) => {
+  const [a, b, c, d] = HOLE_CURVE.map((p) => p[axis]), m = 1 - t;
+  return m * m * m * a + 3 * m * m * t * b + 3 * m * t * t * c + t * t * t * d;
+};
+const lipYAt = (x) => {
+  if (x < HOLE_CURVE[3][0] || x > HOLE_CURVE[0][0]) throw new Error(`lipYAt: x ${x} is outside the cut-out curve`);
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezierAt(mid, 0) > x) lo = mid; else hi = mid;
+  }
+  return bezierAt((lo + hi) / 2, 1);
+};
+
 const PANEL_BOX = [-40, 600, 340, 775];
 const panelCv = LP.canvas(PANEL_BOX);
 {
   const c = panelCv.c;
-  c.fillStyle = PANEL; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
-  grain(c, PANEL_BOX, 21, 4);
-  wear(c, PANEL_BOX, 33, { stains: 8, creases: 26, rubs: 4 });
+  c.fillStyle = OLIVE.housing; c.fillRect(...PANEL_BOX.slice(0, 2), PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1]);
+  mottle(c, PANEL_BOX[0], PANEL_BOX[1], PANEL_BOX[2] - PANEL_BOX[0], PANEL_BOX[3] - PANEL_BOX[1], 21);
   c.save();
   c.beginPath();
   c.moveTo(-40, 775); c.lineTo(333, 775); c.lineTo(333, 605.3 + 22); c.arc(333 - 22, 605.3 + 22, 22, 0, Math.PI / 2 * 3, true);
-  c.lineTo(96, 605.3); c.bezierCurveTo(50, 605.3, 0, 614, -40, 630); c.closePath();
+  c.lineTo(...HOLE_CURVE[0]); c.bezierCurveTo(...HOLE_CURVE[1], ...HOLE_CURVE[2], ...HOLE_CURVE[3]); c.closePath();
   c.clip();
   c.filter = 'blur(3.5px)'; c.strokeStyle = 'rgba(8,3,0,0.6)'; c.lineWidth = 16; c.stroke();
   c.restore();
@@ -45,22 +62,19 @@ const COOL_SINK = 0.025, COOL_GAP = 1.1;
   const panelShape = LP.shape(PANEL_BOX, [0, 24, 0, 0]);
   const [x0, y0, x1, y1] = [276.4, 622.5, 318.2, 659.2], g = COOL_GAP;
   panelShape.holes.push(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [5 + g, 5 + g, 5 + g, 5 + g]));
-  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: litMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: lit('#24100a'), seg: 3 }));
-  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), lit('#2a1309'));
+  P.g.add(extrude(panelShape, { front: Z_PANEL, depth: 0.1, bevel: LP.len(0.4), bt: LP.len(0.4), caps: oliveMap(LP.textureOf(panelCv.cv, PANEL_BOX)), sides: oliveLit(OLIVE.shade), seg: 3 }));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(LP.shape([x0 - g, y0 - g, x1 + g, y1 + g], [6, 6, 6, 6])), oliveLit(OLIVE.floor));
   floor.position.z = Z_PANEL - 0.06; floor.receiveShadow = true; P.g.add(floor);
 }
 
-const HOLE_TOP = 605.3, HOLE_RIGHT = 333, TR = 34, HOLE_R = 22;
-const ROLL_Y = 601.2, ROLL_X = 343.4, ROLL_R = 2.5, ROLL_COLOR = '#793f22';
 const FRAME_BOX = [-40, 596, 350, 775];
 const frameCv = L0.canvas(FRAME_BOX);
 {
   const c = frameCv.c;
-  c.fillStyle = FRAME_FACE; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
-  grain(c, FRAME_BOX, 5, 4);
-  wear(c, FRAME_BOX, 34, { stains: 3, creases: 12, rubs: 2 });
+  c.fillStyle = OLIVE.housing; c.fillRect(FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1]);
+  mottle(c, FRAME_BOX[0], FRAME_BOX[1], FRAME_BOX[2] - FRAME_BOX[0], FRAME_BOX[3] - FRAME_BOX[1], 5);
 }
-const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
+const outer = L0.shape([-40, FRAME_TOP, FRAME_RIGHT, 775], [0, TR, 0, 0]);
 {
   const u = (x, y) => [L0.ux(x), L0.uy(y)];
   const hole = new THREE.Path();
@@ -68,42 +82,16 @@ const outer = L0.shape([-40, ROLL_Y, ROLL_X, 775], [0, TR, 0, 0]);
   hole.lineTo(...u(HOLE_RIGHT, 775));
   hole.lineTo(...u(HOLE_RIGHT, HOLE_TOP + HOLE_R));
   hole.absarc(L0.ux(HOLE_RIGHT - HOLE_R), L0.uy(HOLE_TOP + HOLE_R), L0.len(HOLE_R), 0, Math.PI / 2, false);
-  hole.lineTo(...u(96, HOLE_TOP));
-  hole.bezierCurveTo(...u(50, HOLE_TOP), ...u(0, 614), ...u(-40, 630));
+  hole.lineTo(...u(...HOLE_CURVE[0]));
+  hole.bezierCurveTo(...u(...HOLE_CURVE[1]), ...u(...HOLE_CURVE[2]), ...u(...HOLE_CURVE[3]));
   hole.closePath();
   outer.holes.push(hole);
 }
-P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: litMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: lit('#632f16') }));
-{
-  const path = [[-40, ROLL_Y]];
-  const rc = TR - ROLL_R;
-  for (let x = -40 + 20; x < ROLL_X - rc; x += 20) path.push([x, ROLL_Y]);
-  path.push([ROLL_X - rc, ROLL_Y]);
-  for (let i = 1; i < 16; i++) { const a = -Math.PI / 2 + i / 16 * Math.PI / 2; path.push([ROLL_X - rc + Math.cos(a) * rc, ROLL_Y + rc + Math.sin(a) * rc]); }
-  for (let y = ROLL_Y + rc; y < 775; y += 20) path.push([ROLL_X, y]);
-  path.push([ROLL_X, 775]);
-  const { geo, lens, total } = rollGeometry(L0, path, ROLL_R);
-  const H = 64, cv = document.createElement('canvas');
-  cv.width = Math.round(total * K); cv.height = H;
-  const c = cv.getContext('2d');
-  c.fillStyle = ROLL_COLOR; c.fillRect(0, 0, cv.width, H);
-  const rowAt = (deg) => (1 - deg / 360) * H, row = rowAt(80), at = (len) => len * K;
-  for (const [deg, w, a] of [[52, 3.2 * K / 2, 0.22], [52, 1.4 * K / 2, 0.3]]) { c.globalAlpha = a; c.strokeStyle = '#d98a52'; c.lineWidth = w; c.beginPath(); c.moveTo(0, rowAt(deg)); c.lineTo(cv.width, rowAt(deg)); c.stroke(); }
-  const topEnd = lens[path.findIndex((p) => p[0] >= ROLL_X - rc)], arcEnd = lens[path.findIndex((p, i) => i > 0 && p[1] > ROLL_Y + rc - 0.01 && p[0] === ROLL_X)];
-  const run = (from, to, dash, gap, alpha) => {
-    c.save(); c.setLineDash([dash * K, gap * K]); c.lineCap = 'butt';
-    for (const [dy, a, col] of [[1.2, alpha * 0.5, '#1c0a03'], [0, alpha, '#ecd5ac']]) { c.globalAlpha = a; c.strokeStyle = col; c.lineWidth = K * 0.85; c.beginPath(); c.moveTo(at(from), row + dy); c.lineTo(at(to), row + dy); c.stroke(); }
-    c.restore();
-  };
-  run(0, topEnd, 6, 3.2, 0.6); run(topEnd, arcEnd, 4, 2.2, 0.7); run(arcEnd, total, 2.6, 1.5, 0.8);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapT = THREE.RepeatWrapping;
-  const mat = litMap(tex);
-  mat.side = THREE.DoubleSide;
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = false; mesh.receiveShadow = false;
-  P.g.add(mesh);
-}
+P.g.add(extrude(outer, { front: 0, depth: FRAME_DEPTH, bevel: L0.len(0.6), bt: L0.len(0.5), caps: oliveMap(L0.textureOf(frameCv.cv, FRAME_BOX)), sides: oliveLit(OLIVE.shade) }));
+
+const BOLT_Z = 0.014;
+const TOP_BOLT_X = 14;
+for (const [x, y] of [[TOP_BOLT_X, (FRAME_TOP + lipYAt(TOP_BOLT_X)) / 2], [338.2, 660], [338.2, 715]]) P.g.add(hexBolt(P.at(BOLT_Z), x, y, 2));
 
 const dialGlassPaint = (c, b) => {
   const cx = DIAL.cx, cy = DIAL.cy, R = DIAL.rGlass;
@@ -150,77 +138,38 @@ const coolKey = new THREE.Group();
   P.g.add(coolKey);
 }
 
-const font = new FontFace('Routed Gothic Narrow', 'url(/game/src/ui/fonts/routed-gothic-narrow.woff2)');
-document.fonts.add(await font.load());
-
-const BRASS_DEEP = '#5e4220', PRINT = '#e4d1a5';
-const brass = lit(BRASS), brassDeep = lit(BRASS_DEEP);
-
-const SW_RING = 0.85, SW_LEVER = 1.75, SW_LEVER_W = 1.25, SW_W = 28, SW_HALF_H = 19, SW_CENTER_Y = 700.5;
-const SW_PRINT = [13.5, 19.5];
-const SW_BASE = '#9a9a92', SW_HOLE = '#2a2017';
+const SW_W = 28, SW_HALF_H = 19;
+const SW_CENTER_Y = 703;
+const LABEL_ROW = [661, 673], ON_ROW = [674, 685], OFF_ROW = [719.5, 729];
+const PRINT_HALF_W = 13, ON_HALF_W = 8, LAMP_R = 5, LAMP_GAP = 2;
+const SW_BASE = '#9a9a92';
+const SW_SCALE = 1.5, SW_LEVER_SCALE = 2.3 / 1.75;
 const SW_Z = Z_PANEL + 0.004;
-const SW_TILT = 0.75;
 const EYE_UNITS = P.eye();
-const printMesh = (L, box, label, z) => {
-  const DENSITY = 20, cv = document.createElement('canvas');
-  cv.width = Math.round((box[2] - box[0]) * DENSITY); cv.height = Math.round((box[3] - box[1]) * DENSITY);
-  const c = cv.getContext('2d');
-  c.setTransform(DENSITY, 0, 0, DENSITY, -box[0] * DENSITY, -box[1] * DENSITY);
-  const mx = (box[0] + box[2]) / 2, my = (box[1] + box[3]) / 2;
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '400 6px "Routed Gothic Narrow"';
-  c.fillStyle = 'rgba(30,14,6,.6)'; c.fillText(label, mx, my + 0.6);
-  c.fillStyle = PRINT; c.fillText(label, mx, my);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  const rect = L.rect(box);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(rect.w, rect.h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false }));
-  m.position.set(rect.cx, rect.cy, z);
-  return m;
-};
-const setRocker = (r, on) => {
-  const rot = new THREE.Matrix4().makeRotationX(on ? Math.PI / 2 - SW_TILT : Math.PI / 2 + SW_TILT);
-  const m = new THREE.Matrix4().makeTranslation(r.at.x, r.at.y, r.at.z).multiply(r.shear).multiply(rot);
-  r.pivot.matrix.copy(m);
-};
-const flutedStem = (radius, length, flutes) => {
-  const g = new THREE.CylinderGeometry(radius, radius * 0.92, length, flutes * 4, 1);
-  const pos = g.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i);
-    if (Math.hypot(x, z) < 1e-5) continue;
-    const k = 0.88 + 0.12 * Math.abs(Math.cos(Math.atan2(z, x) * flutes / 2));
-    pos.setX(i, x * k); pos.setZ(i, z * k);
-  }
-  g.computeVertexNormals();
-  return g;
+const RED_LENS = '#4a0f0a';
+const lampDome = (cx, cy, lens = '#4a2c0a', radius = LAMP_R, z = SW_Z) => {
+  const L = P.at(z), px = L.ux(cx), py = L.uy(cy), r = L.len(radius);
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, L.len(radius * 0.22), 10, 32), lit(SW_BASE));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), lit(lens));
+  dome.rotation.x = Math.PI / 2; dome.scale.set(1, 0.6, 1);
+  const g = new THREE.Group();
+  g.add(bezel, dome);
+  g.position.set(px, py, z);
+  for (const m of [bezel, dome]) { m.castShadow = true; m.receiveShadow = true; }
+  P.g.add(g);
 };
 const rockers = ROCKERS.map(([x0, , x1]) => {
-  const cx = (x0 + x1) / 2, L = P.at(SW_Z), u = (v) => L.len(v * SW_RING), ul = (v) => L.len(v * SW_LEVER), uw = (v) => L.len(v * SW_LEVER_W);
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y - SW_PRINT[1], cx + 10, SW_CENTER_Y - SW_PRINT[0]], 'ON', SW_Z + 0.001));
-  P.g.add(printMesh(L, [cx - 10, SW_CENTER_Y + SW_PRINT[0], cx + 10, SW_CENTER_Y + SW_PRINT[1]], 'OFF', SW_Z + 0.001));
-  const px = L.ux(cx), py = L.uy(SW_CENTER_Y);
-  const profile = [[2.4, 0], [2.4, 0.5], [2.9, 1.3], [4.2, 1.4], [4.8, 0.9], [4.9, 0]].map(([x, y]) => new THREE.Vector2(u(x), u(y)));
-  const ringMesh = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), lit(SW_BASE, { side: THREE.DoubleSide }));
-  ringMesh.rotation.x = Math.PI / 2; ringMesh.position.set(px, py, SW_Z);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(u(2.4), 32), new THREE.MeshBasicMaterial({ color: SW_HOLE }));
-  hole.position.set(px, py, SW_Z + 0.0015);
-  const pivot = new THREE.Group();
-  pivot.matrixAutoUpdate = false;
-  const at = new THREE.Vector3(px, py, SW_Z + 0.002);
-  const shear = new THREE.Matrix4().set(1, 0, -(px - EYE_UNITS.x) / EYE_UNITS.z, 0, 0, 1, -(py - EYE_UNITS.y) / EYE_UNITS.z, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-  const len = ul(8);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.2), uw(1.2), ul(2), 16), brassDeep);
-  neck.position.y = ul(0.5);
-  const stem = new THREE.Mesh(flutedStem(uw(1.7), len, 16), brass);
-  stem.position.y = len / 2 + ul(1);
-  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(uw(1.35), uw(1.65), uw(1.1), 28), brass);
-  capTop.position.y = len + ul(1) + uw(0.55);
-  pivot.add(neck, stem, capTop);
-  for (const m of [ringMesh, stem, capTop, neck]) { m.castShadow = true; m.receiveShadow = true; }
-  P.g.add(hole, ringMesh, pivot);
-  return { pivot, at, shear, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
+  const cx = (x0 + x1) / 2, L = P.at(SW_Z);
+  lampDome(cx - ON_HALF_W - LAMP_GAP - LAMP_R, (ON_ROW[0] + ON_ROW[1]) / 2);
+  const at = new THREE.Vector3(L.ux(cx), L.uy(SW_CENTER_Y), SW_Z);
+  const toggle = buildToggle({ len: L.len.bind(L), at, eye: EYE_UNITS, scale: SW_SCALE, leverScale: SW_LEVER_SCALE });
+  P.g.add(...toggle.parts);
+  return { set: toggle.set, cx, box: [cx - SW_W / 2, SW_CENTER_Y - SW_HALF_H, cx + SW_W / 2, SW_CENTER_Y + SW_HALF_H] };
 });
-rockers.forEach((r) => setRocker(r, false));
+rockers.forEach((r) => r.set(false));
+const HEAT_LAMP_R = 3.2;
+const HEAT_LAMP = { x: HEAT.pts[0][0] + GLASS_INSET + (HEAT.pts[2][0] - HEAT.pts[0][0] - 2 * GLASS_INSET) * 0.83, y: HEAT.pts[2][1] - GLASS_INSET - 5.4 };
+lampDome(HEAT_LAMP.x, HEAT_LAMP.y, RED_LENS, HEAT_LAMP_R, GLASS_Z + 0.004);
 
 const view = frame({ scene, root, facePanel: { g: P.g, w: L0.len(FACE[2] - FACE[0]), z: 0 }, eye: P.eye(), faceWidthPx: (FACE[2] - FACE[0] + 3) * K });
 
@@ -228,6 +177,7 @@ const zoneFor = (box, z = 0) => ({ quad: P.quad(view, box, z), size: P.size(box)
 const DIAL_ZONE = [DIAL.cx - 76, DIAL.cy - 76, DIAL.cx + 76, DIAL.cy + 76];
 const FUEL_ZONE = bounds(insetPoly(FUEL.pts, GLASS_INSET));
 const HEAT_ZONE = bounds(insetPoly(HEAT.pts, GLASS_INSET));
+const LABEL_HALF_W = 22;
 const LABEL_Z = Z_PANEL + 0.01;
 const zones = {
   dial: zoneFor(DIAL_ZONE, Z_PANEL + 0.012),
@@ -236,10 +186,16 @@ const zones = {
   coolText: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK + 0.004),
   coolTextDown: zoneFor([281.2, 626.9, 311.7, 652.1], Z_PANEL + KEY_H - COOL_SINK - KEY_PRESS + 0.004),
   coolHit: zoneFor(COOL.box, Z_PANEL + KEY_H - COOL_SINK),
-  manual: zoneFor([169.3, 665.1, 202, 680.4], LABEL_Z),
-  lights: zoneFor([219.3, 665.1, 247.8, 680.4], LABEL_Z),
-  overdrive: zoneFor([259.1, 665.1, 304.3, 680.4], LABEL_Z),
+  heatLamp: zoneFor([HEAT_LAMP.x - HEAT_LAMP_R, HEAT_LAMP.y - HEAT_LAMP_R, HEAT_LAMP.x + HEAT_LAMP_R, HEAT_LAMP.y + HEAT_LAMP_R], GLASS_Z + 0.008),
 };
+rockers.forEach((r, i) => {
+  const rowBox = (row, half) => [r.cx - half, row[0], r.cx + half, row[1]];
+  zones[['manual', 'lights', 'overdrive'][i]] = zoneFor(rowBox(LABEL_ROW, LABEL_HALF_W), LABEL_Z);
+  zones[`on${i}`] = zoneFor(rowBox(ON_ROW, ON_HALF_W), LABEL_Z);
+  zones[`off${i}`] = zoneFor(rowBox(OFF_ROW, PRINT_HALF_W), LABEL_Z);
+  const lampX = r.cx - ON_HALF_W - LAMP_GAP - LAMP_R, lampY = (ON_ROW[0] + ON_ROW[1]) / 2;
+  zones[`lamp${i}`] = zoneFor([lampX - LAMP_R, lampY - LAMP_R, lampX + LAMP_R, lampY + LAMP_R], SW_Z + 0.004);
+});
 const sprites = { cool: { crop: view.cropAround(P.quad(view, COOL.box, Z_PANEL + 0.03), 8), frames: ['cool-up', 'cool-down'] } };
 rockers.forEach((r, i) => {
   zones[`rockerHit${i}`] = zoneFor(r.box, Z_PANEL + 0.05);
@@ -250,7 +206,7 @@ const meta = { width: view.IW, height: view.IH, face: P.quad(view, FACE, 0), zon
 installBake((scale) => {
   const files = {};
   coolKey.position.z = -COOL_SINK;
-  rockers.forEach((r) => setRocker(r, false));
+  rockers.forEach((r) => r.set(false));
   view.render(scale);
   files.housing = view.shot();
   files['cool-up'] = view.crop(scale, sprites.cool.crop);
@@ -259,9 +215,9 @@ installBake((scale) => {
   files['cool-down'] = view.crop(scale, sprites.cool.crop);
   coolKey.position.z = -COOL_SINK;
   rockers.forEach((r, i) => {
-    setRocker(r, true); view.render(scale);
+    r.set(true); view.render(scale);
     files[`rocker${i}-on`] = view.crop(scale, sprites[`rocker${i}`].crop);
-    setRocker(r, false);
+    r.set(false);
   });
   return { files, meta };
 });

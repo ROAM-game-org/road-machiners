@@ -1,4 +1,5 @@
 
+import { keyPress } from "./control-sound";
 import { runCommand } from "./run-command";
 import { GOOD_IDS } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
@@ -47,7 +48,7 @@ import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { filteredStock, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
+import { filteredStock, garageHead, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, serviceSupplyRow, reasonButton, rowButton, screenButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl, truckChips } from "./chip";
@@ -109,14 +110,13 @@ export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId
 }
 
 export class TownScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private page: TownPage = null;
   private closedAt: ClosedAt | null = null;
   private garageTab: GarageTab = "buyParts";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
-  private footKeys: HTMLElement[] = [];
   private paintPlan: TruckPaint | null = null;
   private slots = new RowSlots();
   private rows = new PartRows(() => this.render(), this.slots);
@@ -190,6 +190,14 @@ export class TownScreen {
     this.root.replaceChildren();
   }
 
+  backKey(): HTMLElement | null {
+    return this.root.querySelector<HTMLElement>('[data-town-go="back"], [data-town-go="leave"]');
+  }
+
+  private choiceKey(index: number): HTMLElement | null {
+    return this.root.querySelectorAll<HTMLElement>("[data-town-go]")[index] ?? null;
+  }
+
   back(): void {
     if (!this.isOpen()) return;
     const from = this.page;
@@ -235,6 +243,7 @@ export class TownScreen {
   private pickChoice(index: number): void {
     const choice = this.choices[index];
     if (!choice) return;
+    keyPress(this.choiceKey(index));
     if (!choice.reason) return choice.go();
     this.error = choice.reason;
     this.render();
@@ -318,13 +327,11 @@ export class TownScreen {
     const buttons = this.choices.map((c, i) => choiceButton(c, i));
     const exit = buttons.pop();
     const status = el("div", { class: "ink-status bad", ...(this.error ? { title: this.error } : {}) }, this.error);
-    const keys = this.footKeys;
-    this.footKeys = [];
     return el(
       "div",
       { class: "ink-body" },
       el("div", { class: "ink-scroll" }, head, panel, el("div", { class: buttons.length > 0 ? "ink-choices quest-choices screen-block" : "ink-choices quest-choices" }, ...buttons)),
-      el("div", { class: "ink-foot" }, exit ?? null, ...keys, status),
+      el("div", { class: "ink-foot" }, exit ?? null, status),
     );
   }
 
@@ -419,8 +426,7 @@ export class TownScreen {
       trucks: () => ({ head: [], body: this.trucks(w, shopId), screen: true }),
       paint: () => ({ head: [], body: this.paint(w), screen: true }),
     }[this.garageTab]();
-    this.footKeys = column.head;
-    return { head: [el("div", { class: "tabs sub" }, ...buttons)], body: column.body, screen: column.screen };
+    return { head: garageHead(buttons, column.head[0]), body: column.body, screen: column.screen };
   }
 
   private parkedDrivers(w: World, shopId: string): HTMLElement {
@@ -799,7 +805,7 @@ const TRADE_TAB_ICON: Record<TradeTab, IconName> = { goods: "salt", parts: "part
 const SUPPLY_STEP = 10;
 
 export class TruckTradeScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private tab: TradeTab = "goods";
   private npcId: string | null = null;
   private error: Msg | null = null;

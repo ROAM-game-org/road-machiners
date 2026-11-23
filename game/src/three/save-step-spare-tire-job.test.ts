@@ -8,9 +8,9 @@ import { emptyWorld } from '../sim/testkit';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { FOLDED_AND_TINY_STEPS, type SavedJson } from './save-migrations';
+import { FOLDED_AND_TINY_STEPS as TINY_STEPS, type SavedJson } from './save-migrations';
 
-const step = FOLDED_AND_TINY_STEPS.find((s) => s.name === 'withSpareTireJob')!;
+const step = TINY_STEPS.find((s) => s.name === 'withSpareTireJob')!;
 
 function fittingWorld() {
   const w = emptyWorld();

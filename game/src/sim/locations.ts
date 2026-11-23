@@ -4,7 +4,7 @@ import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { inTowReach } from './tow';
 import { breakLootWarning } from './loot-warning';
-import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvage, hiddenUnits, lootBlocker, lootWork, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
+import { canLootTruck, canReachSalvage, collectSalvage, hasRevealed, hasSalvageFor, hiddenUnits, hiddenUnitsFor, lockedFrom, lootBlocker, lootWork, pourStores, requireLootFree, salvageInRange, takeBasis } from './salvage';
 import { takeClaimed } from './parley';
 import { newId } from './factory';
 import { goodsCount, type Spot } from './grid';
@@ -108,7 +108,7 @@ export function mappedSites(world: World): Set<string> {
 
 export function salvageHere(world: World): SalvageStock | null {
   const me = playerVehicle(world);
-  return world.salvage.find((stock) => hasSalvage(stock) && canReachSalvage(me, stock)) ?? null;
+  return world.salvage.find((stock) => hasSalvageFor(world, me, stock) && canReachSalvage(me, stock)) ?? null;
 }
 
 export function salvageNear(world: World): SalvageStock | null {
@@ -117,11 +117,7 @@ export function salvageNear(world: World): SalvageStock | null {
 
 export function salvageListNear(world: World): SalvageStock[] {
   const me = playerVehicle(world);
-  return world.salvage.filter((stock) => hasSalvage(stock) && salvageInRange(me, stock));
-}
-
-export function downedNear(world: World): Vehicle | null {
-  return downedListNear(world)[0] ?? null;
+  return world.salvage.filter((stock) => hasSalvageFor(world, me, stock) && salvageInRange(me, stock));
 }
 
 export function downedListNear(world: World): Vehicle[] {
@@ -137,7 +133,7 @@ export function downedHere(world: World): Vehicle | null {
 
 export function emptySalvageNear(world: World): SalvageStock | null {
   const me = playerVehicle(world);
-  return world.salvage.find((stock) => !stock.pile && !hasSalvage(stock) && salvageInRange(me, stock)) ?? null;
+  return world.salvage.find((stock) => !stock.pile && !hasSalvageFor(world, me, stock) && salvageInRange(me, stock)) ?? null;
 }
 
 export function lootBlockerHere(world: World, targetId: string): Vehicle | null {
@@ -147,11 +143,11 @@ export function lootBlockerHere(world: World, targetId: string): Vehicle | null 
 function reachableStock(world: World, stockId: string): SalvageStock | null {
   const me = playerVehicle(world);
   const stock = world.salvage.find((s) => s.id === stockId);
-  return stock && hasSalvage(stock) && canReachSalvage(me, stock) ? stock : null;
+  return stock && hasSalvageFor(world, me, stock) && canReachSalvage(me, stock) ? stock : null;
 }
 
 export function needsSearch(world: World, stock: SalvageStock): boolean {
-  return hiddenUnits(stock) > 0 || !world.player.scavenged.includes(stock.id);
+  return hiddenUnitsFor(world, playerVehicle(world), stock) > 0 || !world.player.scavenged.includes(stock.id);
 }
 
 export function canScavenge(world: World, stockId: string): boolean {
@@ -184,7 +180,7 @@ export function takeLoot(world: World, stockId: string, pick: LootPick, to: Spot
   return playerCommand(world, (w) => {
     const stock = requireLootable(w, stockId);
     const item: GridItem = pick.kind === 'part'
-      ? { id: newId(w, 'i'), kind: 'part', part: requireStockPart(stock, pick.partId), ...to }
+      ? { id: newId(w, 'i'), kind: 'part', part: requireStockPart(w, stock, pick.partId), ...to }
       : { id: newId(w, 'i'), kind: 'good', good: pick.good, ...to };
     if (pick.kind === 'good' && (stock.goods[pick.good] ?? 0) <= 0) throw new Error(`No ${pick.good} left here`);
     transferLoot(w, stock, item, to);
@@ -239,8 +235,9 @@ function requireLootable(world: World, stockId: string): SalvageStock {
   return stock;
 }
 
-function requireStockPart(stock: SalvageStock, partId: string): PartInstance {
+function requireStockPart(world: World, stock: SalvageStock, partId: string): PartInstance {
   const part = stock.parts.find((p) => p.id === partId);
+  if (part && lockedFrom(world, playerVehicle(world), stock).has(partId)) throw new Error(`Part ${partId} is locked from you`);
   if (!part) throw new Error(`No part ${partId} here`);
   return part;
 }

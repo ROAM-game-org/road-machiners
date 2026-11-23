@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { HIGHWAY } from "../../data/modes";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
-import { desertWeight, glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, shownLooks, type PaintCanvas } from "../../render/groundPaint";
+import { glassOf,GROUND_MATERIAL_IDS, groundLooks, groundMaterialIndex, LOOK_DESERT, LOOK_NAMES, shownLooks, type PaintCanvas } from "../../render/groundPaint";
 import { paintHighwayWear } from "../../render/highwayWear";
 import { paintRoadDetail, joinedRoadEnds, paintRoadMask, paintRoadTone, regionRoadRuns, SQUARE_END_STEEPNESS, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadHole, type RoadImage } from "../../render/roadPaint";
 import { atlasOf, atlasSites } from "../../sim/atlas";
@@ -29,19 +29,26 @@ export const BLOCK_SLOTS = 3;
 export const BLOCK_COUNT_SHIFT = 5;
 const BLOCK_ROWS_PER_TASK = 32;
 
-export type GroundFields = ReturnType<typeof groundFields>;
+export type GroundFields = ReturnType<typeof groundFieldPieces> extends Generator<string, infer R> ? R : never;
 
-export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly Site[], landforms: THREE.Texture | null) {
+export function* groundFieldPieces(newMask: () => PaintCanvas, t: Terrain, shelters: readonly Site[]) {
+  yield "painting the road mask";
+  const mask = newMask();
   paintRoadMask(mask, atlasOf(t), roadHoles(t));
+  const roadMask = maskTexture(mask);
   const pixel = S / mask.res / PIXEL_SPLIT;
-  const tiles = tileTexture(t);
-  const surround = surroundTexture(t);
+  yield "building the ground tiles";
+  const { tiles, materials } = tilesOf(t);
+  yield "blending the ground surround";
+  const surround = surroundTexture(materials, t.size);
+  yield "building the road field";
+  const roadField = roadFieldTexture(t);
   return {
-    roadMask: { value: maskTexture(mask) },
+    roadMask: { value: roadMask },
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     facetSide: { value: S },
-    roadField: { value: roadFieldTexture(t) },
+    roadField: { value: roadField },
     heightSide: { value: t.size + 1 },
     groundTiles: { value: tiles.texture },
     groundBlocksReady: tiles.ready,
@@ -49,7 +56,6 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
     groundSurround: { value: surround },
     groundSurroundMeters: { value: surround.image.width * SURROUND_CELL_TILES * S },
     groundTileMeters: { value: t.size * S },
-    ...(landforms ? { groundLandforms: { value: landforms } } : {}),
     mapUvPerMeter: { value: mask.res / mask.size / S },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
@@ -60,6 +66,14 @@ export function groundFields(mask: PaintCanvas, t: Terrain, shelters: readonly S
   };
 }
 
+const MATERIAL_OF_LOOK = Uint8Array.from(LOOK_NAMES, groundMaterialIndex);
+
+function tilesOf(t: Terrain): { tiles: ReturnType<typeof tileTexture>; materials: Uint8Array } {
+  const shown = shownLooks(t);
+  const materials = Uint8Array.from(shown, (code) => MATERIAL_OF_LOOK[code]);
+  return { tiles: tileTexture(t, shown, materials), materials };
+}
+
 function roadHoles(t: Terrain): RoadHole[] {
   const key = t.atlas;
   if (key.kind !== "highway") return [];
@@ -67,17 +81,15 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function tileTexture(t: Terrain): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
+function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
-  const shown = shownLooks(t);
   const look = groundLooks(t);
   const glass = glassOf(t);
-  const materials = Uint8Array.from(shown, groundMaterialIndex);
   const turns = fieldTurns(shown, t.size);
   for (let tile = 0; tile < shown.length; tile++) {
     data[tile * 4 + TILE_MATERIAL] = materials[tile];
-    data[tile * 4 + TILE_DESERT] = Math.round(desertWeight(look[tile]) * 255);
+    data[tile * 4 + TILE_DESERT] = Math.round(LOOK_DESERT[look[tile]] * 255);
     data[tile * 4 + TILE_GLASS] = glass[tile];
     data[tile * 4 + TILE_FIELD_TURN] = turns[tile];
   }
