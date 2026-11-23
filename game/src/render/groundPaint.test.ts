@@ -293,6 +293,33 @@ describe('glassField', () => {
   });
 });
 
+describe('glassField against the plain three array blur', () => {
+  const reference = (t: Terrain): Uint8Array => {
+    const size = t.size;
+    const reach = 3;
+    const weights = Array.from({ length: 2 * reach + 1 }, (_, k) => Math.exp(-((k - reach) ** 2) / (2 * 0.75 * 0.75)));
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const kernel = Float32Array.from(weights, (w) => w / sum);
+    const pass = (from: Float32Array, along: number, across: number): Float32Array => {
+      const to = new Float32Array(from.length);
+      for (let line = 0; line < size; line++)
+        for (let i = 0; i < size; i++) {
+          let v = 0;
+          for (let k = -reach; k <= reach; k++) v += from[line * across + Math.min(Math.max(i + k, 0), size - 1) * along] * kernel[k + reach];
+          to[line * across + i * along] = v;
+        }
+      return to;
+    };
+    const member = Float32Array.from(t.types, (type) => (type === 'glass' ? 1 : 0));
+    return Uint8Array.from(pass(pass(member, 1, size), size, 1), (v) => Math.round(v * 255));
+  };
+
+  it('matches the reference byte for byte on a field, a strip and a lone tile', () => {
+    const map = glassMap(24, (x, y) => (x >= 3 && x < 11 && y >= 4 && y < 12) || x === 18 || (x === 14 && y === 20));
+    expect(glassField(map)).toEqual(reference(map));
+  });
+});
+
 describe('yardLook', () => {
   const nose = [...REGION.towns, ...REGION.locations].find((l) => l.id === 'nose')!;
   const t = TEST_MAP.terrain;
