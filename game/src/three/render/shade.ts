@@ -7,6 +7,7 @@ import { PAL } from '../../render/palette';
 import { playerVehicle } from '../../sim/damage';
 import { inShade, shadeCasters, sunAt, sunHeatAt, type Sun } from '../../sim/sun';
 import type { PlayClock } from '../play-clock';
+import { glslFloat, HAZE_WAVE_WEIGHT, hazeWavesGlsl } from './hazeWaves';
 import { groundUvPerMeter } from './terrain';
 import { placeInWorld } from './worldPlace';
 import { heightAt } from '../../sim/terrain';
@@ -21,12 +22,6 @@ const SHADE_ROWS_PER_FRAME = 4;
 const HAZE_FULL = 1 + (TIME.sunHeat - 1) * WEATHER.sim.effects.heatwave;
 const HAZE = {
   shift: 0.5,
-  waves: [
-    { wave: 4.7, speed: 2.9, heading: 0.4, weight: 1 },
-    { wave: 2.6, speed: 4.1, heading: 2.3, weight: 0.6 },
-    { wave: 1.4, speed: 6.3, heading: 4.1, weight: 0.35 },
-  ],
-  warp: { wave: 9, speed: 0.9, depth: 1.6 },
   gust: 22,
   gustSpeed: 0.21,
 };
@@ -189,10 +184,7 @@ const HAZE_SHIFT = `
   if (hazeOn > 0.0) {
   vec2 hazeP = vWorldXZ;
   float hazeT = hazeTime;
-  vec2 hazeWarp = ${glslFloat(HAZE.warp.depth)} * vec2(
-    sin(hazeP.y * ${glslFloat(TAU / HAZE.warp.wave)} + hazeT * ${glslFloat(HAZE.warp.speed)}),
-    sin(hazeP.x * ${glslFloat(TAU / HAZE.warp.wave * 0.83)} - hazeT * ${glslFloat(HAZE.warp.speed * 1.37)}));
-${HAZE.waves.map(waveGlsl).join('\n')}
+${hazeWavesGlsl({ point: 'hazeP', time: 'hazeT', warp: 'hazeWarp', out: 'hazeShift' })}
   float hazeGust = smoothstep(0.35, 0.95, 0.5 + 0.5 * sin(hazeP.x * ${glslFloat(TAU / HAZE.gust)} + hazeT * ${glslFloat(HAZE.gustSpeed)}
     + 1.7 * sin(hazeP.y * ${glslFloat(TAU / HAZE.gust * 0.71)} - hazeT * ${glslFloat(HAZE.gustSpeed * 0.63)}))
     * sin(hazeP.y * ${glslFloat(TAU / HAZE.gust * 0.87)} - hazeT * ${glslFloat(HAZE.gustSpeed * 1.21)}
@@ -203,21 +195,11 @@ ${HAZE.waves.map(waveGlsl).join('\n')}
     hazeLit = getShadow(directionalShadowMap[0], directionalLightShadows[0].shadowMapSize, 1.0,
       directionalLightShadows[0].shadowBias, directionalLightShadows[0].shadowRadius, vDirectionalShadowCoord[0]);
   #endif
-  hazeShift *= hazeOn * hazeLit * hazeGust * ${glslFloat(HAZE.shift / HAZE.waves.reduce((sum, w) => sum + w.weight, 0))};
+  hazeShift *= hazeOn * hazeLit * hazeGust * ${glslFloat(HAZE.shift / HAZE_WAVE_WEIGHT)};
   }
   #define HAZE_SHIFTED
   #define vMapUv (vMapUv + hazeShift * hazeUvPerMeter)
   #define vWorldXZ (vWorldXZ + hazeShift)`;
-
-function waveGlsl(w: (typeof HAZE.waves)[number]): string {
-  const dir = `vec2(${glslFloat(Math.cos(w.heading))}, ${glslFloat(Math.sin(w.heading))})`;
-  const phase = `dot(hazeP + hazeWarp, ${dir}) * ${glslFloat(TAU / w.wave)} - hazeT * ${glslFloat(w.speed)}`;
-  return `  hazeShift += ${glslFloat(w.weight)} * vec2(sin(${phase}), cos(${phase} * 0.77));`;
-}
-
-function glslFloat(x: number): string {
-  return x.toFixed(4);
-}
 
 function patchIndices(): THREE.BufferAttribute {
   const out: number[] = [];

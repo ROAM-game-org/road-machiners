@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HAZE_WAVES, hazeWavesGlsl } from './hazeWaves';
 import { TIME } from '../../data/time';
 import { HAZE_FROM } from '../../data/wear';
 import { shadeCasters, sunAt, sunHeatAt } from '../../sim/sun';
@@ -155,5 +156,11 @@ describe('one world position varying', () => {
     expect(shifted).toBeGreaterThan(-1);
     expect(restored).toBeGreaterThan(shifted);
     expect(restored).toBeLessThan(fragmentShader.indexOf('#include <color_fragment>'));
+  });
+
+  it('writes the ground haze from the shared wave table', () => {
+    const { fragmentShader } = stacked('haze-last');
+    expect(fragmentShader).toContain(hazeWavesGlsl({ point: 'hazeP', time: 'hazeT', warp: 'hazeWarp', out: 'hazeShift' }));
+    expect(count(fragmentShader, 'hazeShift += ')).toBe(HAZE_WAVES.waves.length);
   });
 });
