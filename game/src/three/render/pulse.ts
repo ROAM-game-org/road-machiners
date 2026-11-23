@@ -33,8 +33,9 @@ const PULSE_LOOK = {
   maxArcs: 4,
   maxShut: 6,
 };
-const ARC_INK = { widthM: 0.25, columns: [-1, -0.75, -0.75, -0.4, -0.4, 0.4, 0.4, 0.75, 0.75, 1] };
-const ARC_COLORS = [PAL.pulse.rim, PAL.pulse.rim, PAL.pulse.arc, PAL.pulse.arc, PAL.pulse.core, PAL.pulse.core, PAL.pulse.arc, PAL.pulse.arc, PAL.pulse.rim, PAL.pulse.rim];
+const INK_HOLD = 2.5;
+const ARC_INK = { widthM: 0.5, columns: [-1, -0.75, -0.75, -0.4, -0.4, 0.4, 0.4, 0.75, 0.75, 1] };
+const ARC_COLORS = [PAL.pulse.rim, PAL.pulse.rim, PAL.pulse.body, PAL.pulse.body, PAL.pulse.core, PAL.pulse.core, PAL.pulse.body, PAL.pulse.body, PAL.pulse.rim, PAL.pulse.rim];
 
 type PulseEvent = Extract<GameEvent, { t: 'pulse' }>;
 type Ribbon = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -81,11 +82,11 @@ export class PulseView {
   }
 
   private spark(cards: FxCards, at: THREE.Vector3, hex: number, size: number, alpha: number, streak: THREE.Vector3): void {
-    this.color.set(hex);
     const ink = inked();
+    this.color.set(ink ? PAL.pulse.body : hex);
     const batch = ink ? cards.lit : cards.glow;
     const shape = ink ? coolInkShape(ROUND_SHAPE) : ROUND_SHAPE;
-    batch.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape, r: this.color.r, g: this.color.g, b: this.color.b, alpha, sx: streak.x, sy: streak.y, sz: streak.z });
+    batch.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape, r: this.color.r, g: this.color.g, b: this.color.b, alpha: ink ? Math.min(1, alpha * INK_HOLD) : alpha, sx: streak.x, sy: streak.y, sz: streak.z });
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, camera: THREE.Camera): void {
