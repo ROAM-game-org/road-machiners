@@ -270,6 +270,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Quest page. The art in the left column, the tape and one screen of full column height in the middle with the prose and the numbered choices, the way out as a key on the metal under it, and the stats and facts on a second screen of full height at the right. The town's ink page keeps the art band on top.
 - Confirm dialog. No title. The question on a screen, Cancel as a plain key and the yes as a red key, both on metal.
 - Tooltip. A thin olive frame around one screen, like the center tip.
+- A gun's number on its arc icon over the world. On the icon's own small screen, left of the gun picture, as on the gun card. A number never hangs off a chip's corner.
 - Text field and picker. The input well on metal, with amber screen ink inside.
 - The crash screen keeps its plain `--crash-*` look, and the boot screen keeps its `--boot-*` look, since both draw before the baked pictures load.
 
