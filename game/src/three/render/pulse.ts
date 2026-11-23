@@ -38,7 +38,7 @@ const PULSE_LOOK = {
   maxArcs: 4,
   maxShut: 6,
 };
-export const PULSE_WAVE = { ease: 0.7, frontM: 3, pushM: 0.6, lobeM: 1, lobeShare: 0.4, trailShare: 0.25, trailFronts: 4 };
+export const PULSE_WAVE = { ease: 0.7, frontM: 4, pushM: 1.6, lobeM: 1, lobeShare: 0.4, trailShare: 0.25, trailFronts: 4 };
 const ARC_INK = { widthM: 0.5, columns: [-1, -0.75, -0.75, -0.4, -0.4, 0.4, 0.4, 0.75, 0.75, 1] };
 const ARC_COLORS = [PAL.pulse.rim, PAL.pulse.rim, PAL.pulse.body, PAL.pulse.body, PAL.pulse.core, PAL.pulse.core, PAL.pulse.body, PAL.pulse.body, PAL.pulse.rim, PAL.pulse.rim];
 
@@ -119,7 +119,7 @@ export class PulseView {
     return this.zaps.map((zap) => ({
       at: zap.ground,
       radiusM: reach * frontRadius(zap.t, PULSE_WAVE.ease),
-      strength: (1 - zap.t) * (1 - zap.t),
+      strength: 1 - zap.t,
       clockS: this.nowMs / 1000,
     }));
   }
