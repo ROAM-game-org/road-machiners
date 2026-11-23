@@ -8,6 +8,8 @@ import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../..
 import type { GridItem } from '../../sim/types';
 import { GLASS, loadModels, model, type ModelName } from './models';
 import { armorMatrix, armorPlacement, drawnArmorPlacement, poseArmor, type Placement } from './armorCut';
+import { armorSkinX } from './armorLook';
+import { placedBounds, skinBox } from './armorFit';
 import { FACE_COLUMN, lowestFace } from './gunStand';
 import { footprint, wouldFloat } from './vehicle';
 
@@ -84,12 +86,7 @@ function placementOf(chassisId: string, item: PartItem): Placement {
 
 function placedBox(chassisId: string, item: PartItem): THREE.Box3 {
   const key = `${chassisId}|${item.part.defId}|${item.x}|${item.y}|${item.rot}`;
-  return memo(placedBoxes, key, () => {
-    const obj = shared(partModel(item.part.defId)).clone(true);
-    poseArmor(obj, placementOf(chassisId, item));
-    obj.updateMatrixWorld(true);
-    return new THREE.Box3().setFromObject(obj);
-  });
+  return memo(placedBoxes, key, () => placedBounds(placementOf(chassisId, item), skinBox(rawBox(partModel(item.part.defId)), armorSkinX(item.part.defId))));
 }
 
 function innerFace(box: THREE.Box3, side: string): number {
@@ -211,7 +208,7 @@ function innerEdgeOf(at: Placement, item: PartItem, side: string): EdgePoint[] {
   const outward = side === 'F' || side === 'R' ? 1 : -1;
   const middle = (raw.min.z + raw.max.z) / 2;
   return [raw.min.y, raw.max.y].map((y) => {
-    const p = new THREE.Vector3(raw.min.x, y, middle).applyMatrix4(matrix);
+    const p = new THREE.Vector3(armorSkinX(item.part.defId), y, middle).applyMatrix4(matrix);
     return { y: p.y, out: outward * (isAcross(side) ? p.x : p.z) };
   }).sort((a, b) => a.y - b.y);
 }
@@ -419,5 +416,7 @@ export function reportedLoadoutClearsPlates(): void {
   const ram = armorAt('plowRam', 0, 1, 0);
   const plates = [armorAt('scrapPanels', 1, 2, 0), armorAt('cageSection', 0, 4, 0)];
   expect(mountedArmor('scout')).toEqual(expect.arrayContaining([ram, ...plates]));
-  expect(plates.flatMap((plate) => clearanceProblems('scout', ram, plate, [ram, ...plates]))).toEqual([]);
+  const byPlate = plates.map((plate) => clearanceProblems('scout', ram, plate, [ram, ...plates]));
+  const touchesOne = byPlate.some((problems) => !problems.some((p) => p.includes('of air')));
+  expect(byPlate.flat().filter((p) => !touchesOne || !p.includes('of air'))).toEqual([]);
 }

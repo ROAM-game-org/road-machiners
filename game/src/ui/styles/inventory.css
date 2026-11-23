@@ -972,7 +972,8 @@
 .inv-foot > .inv-keys {
   grid-column: -2 / -1;
 }
-.inv-foot > .inv-keys.loot {
+.inv-foot > .inv-keys.loot,
+.inv-foot > .inv-keys.settings {
   grid-column: 1;
   flex-direction: row;
   flex-wrap: wrap;

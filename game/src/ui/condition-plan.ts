@@ -65,6 +65,11 @@ export class ConditionPlan {
     return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
   }
 
+  boundsOf(partId: string): { x: number; y: number; width: number; height: number } {
+    const r = this.rectOf(partId);
+    return { x: r.x, y: r.y, width: r.w, height: r.h };
+  }
+
   layers(drawn: readonly Tiered[], scale: number): HTMLElement[] {
     const boxes = drawn.map((part) => this.boxOf(part));
     const turned = el("div", { class: "cond-plan-turned" }, truckOutline(this.chassisId, this.metrics), ...boxes);

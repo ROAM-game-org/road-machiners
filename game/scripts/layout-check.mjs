@@ -42,8 +42,14 @@ function fillLog(page) {
   });
 }
 
-async function openInventory(page) {
+async function pressInventory(page) {
   await key(page, 'KeyI');
+  await page.evaluate(() => window.__ROAM__.hud.tips.setOn(false));
+  await page.waitForTimeout(3700);
+}
+
+async function openInventory(page) {
+  await pressInventory(page);
   await page.evaluate(() => document.querySelector('.inv-item:not(.fixed)').click());
 }
 
@@ -207,7 +213,7 @@ const setMinimap = async (page, on) => {
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'Day', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
@@ -223,6 +229,43 @@ function frameFaults(page) {
     if (questFrameFits(width, height, stacked)) return [];
     return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
   });
+}
+
+function overlayFrameFaults(page) {
+  return page.evaluate(() => {
+    const slack = 1;
+    const out = [];
+    const shown = (node) => node.getClientRects().length > 0;
+    const leaves = (frame) => {
+      const found = [...frame.querySelectorAll('.item-icon')].map((node) => ({ box: node.getBoundingClientRect(), text: 'icon' }));
+      const walker = document.createTreeWalker(frame, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        found.push({ box: range.getBoundingClientRect(), text: node.textContent.trim() });
+      }
+      return found;
+    };
+    for (const frame of document.querySelectorAll('#overlay .hud-frame')) {
+      if (!shown(frame)) continue;
+      const f = frame.getBoundingClientRect();
+      for (const { box, text } of leaves(frame)) {
+        const outside = box.left < f.left - slack || box.right > f.right + slack || box.top < f.top - slack || box.bottom > f.bottom + slack;
+        if (outside) out.push({ kind: 'off-frame', path: `#overlay .${[...frame.classList].find((c) => c !== 'hud-frame' && c !== 'hud-tip-screen') ?? 'hud-frame'}`, text, sizes: `${Math.round(f.width)}x${Math.round(f.height)}` });
+      }
+    }
+    return out;
+  });
+}
+
+async function arcIconFaults(page) {
+  const shown = await page.evaluate(() => [...document.querySelectorAll('#overlay .arc-icon')].filter((n) => n.getClientRects().length > 0).length);
+  return shown > 0 ? [] : [{ kind: 'arc-icon-missing', path: '#overlay .arc-icon', text: '', sizes: '' }];
+}
+
+async function inspectFaults(page) {
+  return [...await cardFaults(page), ...await arcIconFaults(page)];
 }
 
 async function probe(page, locale) {
@@ -790,8 +833,29 @@ async function cardZoomFaults(page) {
   const keyCount = await page.evaluate((sel) => document.querySelectorAll(sel).length, ZOOM_KEYS);
   if (keyCount !== 2) return ['the card has no zoom keys'];
   const before = await cardBoxes(page);
+  const faults = await page.evaluate(() => {
+    const out = [];
+    const group = document.querySelector('#ui .info .info-zoom').getBoundingClientRect();
+    const draw = document.querySelector('#ui .info .info-draw');
+    const screen = draw.getBoundingClientRect();
+    const style = getComputedStyle(draw);
+    const rightEdge = screen.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+    const bottomEdge = screen.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom);
+    if (document.querySelector('#ui .info .hud-panel-head .info-zoom')) out.push('a zoom key sits in the card head row');
+    if (group.left < screen.left || group.top < screen.top || group.right > screen.right || group.bottom > screen.bottom || Math.abs(group.right - rightEdge) > 1 || Math.abs(group.bottom - bottomEdge) > 1) out.push("the zoom keys leave the picture screen's bottom right corner");
+    const truck = document.querySelector('#ui .info .condition-stage').getBoundingClientRect();
+    if (group.left < truck.right && group.right > truck.left && group.top < truck.bottom && group.bottom > truck.top) out.push('the zoom keys cover the truck at the fit');
+    return out;
+  });
   await pressZoom(page, 1, 8);
-  const faults = [];
+  const stage = () => page.evaluate(() => document.querySelector('#ui .info .condition-stage').style.translate);
+  const held = await stage();
+  const key = await page.evaluate((sel) => { const b = document.querySelectorAll(sel)[1].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, ZOOM_KEYS);
+  await page.mouse.move(key[0], key[1]);
+  await page.mouse.down();
+  await page.mouse.move(key[0] - 30, key[1] - 30, { steps: 4 });
+  await page.mouse.up();
+  if ((await stage()) !== held) faults.push('a press and drag on a zoom key panned the drawing');
   const after = await cardBoxes(page);
   if (JSON.stringify(after) !== JSON.stringify(before)) faults.push('the card or its picture screen changed size when the drawing zoomed');
   faults.push(
@@ -1098,7 +1162,7 @@ async function inventoryBenchFaults(page) {
 const ONE_WINDOW = [VIEWPORTS[0]];
 
 async function openInventoryGun(page) {
-  await key(page, 'KeyI');
+  await pressInventory(page);
   await page.evaluate(() => document.querySelector('.inv-item.mounted.drawn').click());
 }
 
@@ -1236,6 +1300,29 @@ async function closeNewGameScreen(page) {
   await closeStartMenu(page);
 }
 
+const HEAT_LAMP_LIT = '#ui .drive-plate .heat-lamp.lit';
+const heatLampLit = (page) => page.evaluate((sel) => document.querySelector(sel) !== null, HEAT_LAMP_LIT);
+
+const overheatEngine = async (page) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const { setEngineHeat } = await import('/src/sim/cheats.ts');
+    const { playerVehicle } = await import('/src/sim/damage.ts');
+    window.__layoutWorld = structuredClone(g.state);
+    const world = setEngineHeat(structuredClone(g.state), 1);
+    playerVehicle(world).speed = 20;
+    g.apply(world);
+  });
+};
+
+const cooldownEngine = async (page) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld));
+};
+
+const heatLampFaults = (wantLit) => async (page) => (await heatLampLit(page)) === wantLit ? [] : faultsOf('heat-lamp')([wantLit ? 'the heat lamp is dark while the engine overheats' : 'the heat lamp is lit while the engine is not overheating']);
+
 const closeDeath = (page) => page.evaluate(() => {
   const { death } = window.__ROAM__;
   death.root.remove();
@@ -1243,7 +1330,8 @@ const closeDeath = (page) => page.evaluate(() => {
 });
 
 const STATES = {
-  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
+  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL], check: heatLampFaults(false) },
+  overheat: { setup: overheatEngine, teardown: cooldownEngine, viewports: [...VIEWPORTS, PHONE], check: heatLampFaults(true) },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
@@ -1287,12 +1375,12 @@ const STATES = {
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
-  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
+  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: inspectFaults },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'inspect-hauler': { setup: inspectHauler, teardown: clearInspect, viewports: [...INSPECT_VIEWPORTS, PHONE], check: cardFaults },
   'inspect-nine': { setup: inspectNine, teardown: clearInspect, viewports: INSPECT_VIEWPORTS, check: cardFaults },
   'hud-armed': { setup: armTruck, teardown: (page) => page.evaluate(() => window.__ROAM__.apply(window.__layoutWorld)), check: async (page) => faultsOf('bottom-left')(await bottomLeftFaults(page)), viewports: [...VIEWPORTS, TALL, COMPACT, REPORT] },
-  'inventory-empty': { setup: (page) => key(page, 'KeyI'), teardown: escape, viewports: ONE_WINDOW },
+  'inventory-empty': { setup: pressInventory, teardown: escape, viewports: ONE_WINDOW },
   'inventory-gun': { setup: openInventoryGun, teardown: escape, viewports: ONE_WINDOW },
   'shop-sell': { setup: (page) => openTown(page, 'sellParts'), teardown: closeTown, viewports: ONE_WINDOW },
   'shop-row-open': { setup: openShopRow, teardown: closeTown, viewports: ONE_WINDOW },
@@ -1352,7 +1440,7 @@ async function canvasSpillFaults(page) {
 }
 
 async function recordFaults(page, locale, label, name, state) {
-  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await (await import('./hardware-check.mjs')).hardwareFaults(page, name, locale, label), ...await faultsIn(page, locale), ...await frameFaults(page), ...await overlayFrameFaults(page), ...await canvasSpillFaults(page), ...await stateFaults(page, state)]) report.push({ state: name, locale, viewport: label, ...f });
 }
 
 async function leaveState(page, state) {

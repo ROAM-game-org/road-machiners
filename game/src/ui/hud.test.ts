@@ -339,7 +339,7 @@ describe('truck card head', () => {
     });
     const w = emptyWorld({ x: 30, y: 30 });
     const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 35, y: 30 });
-    const hud = Object.assign(Object.create(Hud.prototype), { actions: { unpin }, zoomKeys: new FakeNode() }) as unknown as {
+    const hud = Object.assign(Object.create(Hud.prototype), { actions: { unpin } }) as unknown as {
       infoHead(w: World, v: typeof npc, pinned: boolean): unknown;
     };
     return hud.infoHead(w, npc, pinned) as FakeNode;

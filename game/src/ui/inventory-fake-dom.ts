@@ -33,7 +33,8 @@ export class FakeNode {
   setAttribute(k: string, v: string) { this.attrs.set(k, v); }
   getAttribute(k: string) { return this.attrs.get(k) ?? null; }
   removeAttribute(k: string) { this.attrs.delete(k); }
-  addEventListener() {}
+  listeners = new Map<string, () => void>();
+  addEventListener(type: string, fn: () => void) { this.listeners.set(type, fn); }
   closest() { return null; }
   contains() { return false; }
   querySelectorAll(sel: string) { return sel.startsWith(".") ? this.all((n) => n !== this && n.className.split(" ").includes(sel.slice(1))) : []; }

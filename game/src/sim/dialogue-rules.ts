@@ -22,7 +22,8 @@ import { discoverSite } from './locations';
 import { gridSquareOf } from './map-grid';
 import { awakeFoesOf, inCombat, inCombatWith, isHostile } from './combat';
 import { defyThreat, patchGoal, startTow, topGoal } from './npc-activities';
-import { requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { soughtBy, noteLead } from './leads';
+import { requireShop, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
 import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
@@ -66,15 +67,9 @@ function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
   return cargo ? ransom.haul.length > 0 : ransom.haul.length === 0 && ransom.money > 0;
 }
 
-function requireOpenSearch(world: World): SearchContract {
-  const search = heldSearch(world);
-  if (!search || search.delivered) throw new Error('No open search to talk about');
-  return search;
-}
-
-function sightingVar(vars: CallVars): Extract<CallVar, { kind: 'sighting' }> {
+function sightingsVar(vars: CallVars): Extract<CallVar, { kind: 'sightings' }> {
   const v = vars.sighting;
-  if (v?.kind !== 'sighting') throw new Error('The call has no sighting value');
+  if (v?.kind !== 'sightings') throw new Error('The call has no sightings value');
   return v;
 }
 
@@ -441,14 +436,11 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   fromTheWestDue: (world, npc) => momentDue(world, npc, 'fromTheWest'),
   eightToNineDue: (world, npc) => momentDue(world, npc, 'eightToNine'),
   crucibleDue: (world, npc) => momentDue(world, npc, 'crucible'),
-  seeksSomeone: (world, npc) => {
-    const search = heldSearch(world);
-    return search !== null && !search.delivered && search.target !== npc.id;
-  },
+  seeksSomeone: (world, npc) => soughtBy(world, npc).length > 0,
   hasParcelFor: (world, npc) => parcelFor(world, npc) !== null,
   noHandover: (world, npc) => handoverWith(world, npc) === null,
-  sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
-  missedSought: (_world, _npc, vars) => sightingVar(vars).seen === null,
+  sawSought: (_world, _npc, vars) => sightingsVar(vars).told.some((t) => t.seen !== null),
+  missedSought: (_world, _npc, vars) => sightingsVar(vars).told.every((t) => t.seen === null),
   heardWagonNearby: (world, npc) => WAGON_LEADS.some((note) => holdsNote(world, note)) && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= WAGON_TALK.reach,
   nearClaimWreck: (world, npc) => claimSeenBy(world, npc) !== null,
   rivalAsked: (world, npc) => rivalNearWreck(world, requireClaimSeen(world, npc)),
@@ -629,11 +621,13 @@ export const EFFECTS: Record<EffectId, Effect> = {
   refuseAidOffer: (world, npc) => refuseAid(world, npc),
   noteWagonRoad: (world) => learnNote(world, GAME_NOTES.wagonRoad),
   noteLead: (world, npc, call) => {
-    const search = requireOpenSearch(world);
-    const told = sightingVar(call.vars);
-    const memory = sightingOf(npc, search.target);
-    if (!memory || told.seen === null || told.seen.turns !== world.turn - memory.turn) throw new Error(`${npc.id} no longer remembers the sighting it told`);
-    noteSearchLead(world, memory.fact.at, memory.turn);
+    for (const told of sightingsVar(call.vars).told) {
+      if (told.seen === null) continue;
+      const sought = soughtBy(world, npc).find((s) => s.contract === told.contract);
+      const memory = sought && sightingOf(npc, sought.vehicle);
+      if (!memory || told.seen.turns !== world.turn - memory.turn) throw new Error(`${npc.id} no longer remembers the sighting it told`);
+      noteLead(world, told.contract, memory.fact.at, memory.turn);
+    }
   },
   startHandover: (world, npc) => askHandover(world, npc),
   noteClaimLead: (world, npc) => noteClaimLead(world, npc),
@@ -784,11 +778,13 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   courierFavorTerms: (world, npc): CallVars => ({ price: { kind: 'money', amount: favorAmount(world, npc) } }),
   lastSighting: (world, npc) => {
-    const search = requireOpenSearch(world);
-    const memory = sightingOf(npc, search.target);
     const me = playerVehicle(world).pos;
-    const seen = memory && { bearing: bearing(me, memory.fact.at), tiles: dist(me, memory.fact.at), turns: world.turn - memory.turn, heading: memory.fact.heading };
-    return { sighting: { kind: 'sighting', driver: search.driver, seen } };
+    const told = soughtBy(world, npc).map((s) => {
+      const memory = sightingOf(npc, s.vehicle);
+      const seen = memory && { bearing: bearing(me, memory.fact.at), tiles: dist(me, memory.fact.at), turns: world.turn - memory.turn, heading: memory.fact.heading };
+      return { contract: s.contract, driver: s.driver, seen };
+    });
+    return { sighting: { kind: 'sightings', told } };
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),

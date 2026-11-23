@@ -1486,14 +1486,14 @@ describe('asking after someone', () => {
     const rng = w.rngState;
     const asked = askAfter(w, witness);
     expect(asked.player.call?.vars.sighting).toEqual({
-      kind: 'sighting', driver: 'Mack Holt', seen: { bearing: 0, tiles: dist(me, { x: 90, y: 30 }), turns: 20, heading: 0 },
+      kind: 'sightings', told: [{ contract: 'ct-s', driver: 'Mack Holt', seen: { bearing: 0, tiles: dist(me, { x: 90, y: 30 }), turns: 20, heading: 0 } }],
     });
     expect(asked.rngState).toBe(rng);
   });
 
   it('answers null for a driver that never saw the target', () => {
     const { w, witness } = searchWorld();
-    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sighting', driver: 'Mack Holt', seen: null });
+    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sightings', told: [{ contract: 'ct-s', driver: 'Mack Holt', seen: null }] });
   });
 
   it('answers null once the sighting has faded', () => {
@@ -1501,7 +1501,7 @@ describe('asking after someone', () => {
     sawAt(w, witness, target, 0);
     w.turn += MEMORY.turns.sighting;
     forgetOld(w);
-    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sighting', driver: 'Mack Holt', seen: null });
+    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sightings', told: [{ contract: 'ct-s', driver: 'Mack Holt', seen: null }] });
   });
 
   it('moves the lead to the told place', () => {

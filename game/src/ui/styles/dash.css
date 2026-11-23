@@ -203,6 +203,24 @@
   box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
 }
 
+#ui .drive-plate .heat-lamp.lit {
+  background: radial-gradient(circle at 40% 35%, var(--hud-print), var(--hud-lamp-red) 45%, transparent 72%);
+  box-shadow: 0 0 1.2cqw var(--hud-lamp-red);
+  animation: heat-lamp-blink var(--hud-lamp-blink) steps(1, end) infinite;
+}
+
+@keyframes heat-lamp-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .drive-plate .heat-lamp.lit {
+    animation: none;
+  }
+}
+
 #ui .hud-drive {
   position: relative;
   width: var(--hud-drive-w);
@@ -257,6 +275,8 @@
 
 #ui .drive-drawing .dial-pace {
   fill: var(--hud-print);
+  stroke: var(--accent);
+  stroke-width: 2.2;
   transform: rotate(var(--needle, 0deg));
 }
 
@@ -689,6 +709,8 @@
 
 #ui .deck-lcd {
   display: flex;
+  white-space: nowrap;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
@@ -1007,6 +1029,7 @@
 
 #ui .lcd-word {
   position: relative;
+  flex: none;
   top: 0.1em;
   font: 400 var(--hud-lcd-size) / 1 var(--font-lcd-digits);
   text-transform: uppercase;
@@ -1176,7 +1199,7 @@
   clip-path: circle(40%);
 }
 
-#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker) {
+#ui :is(.info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue) button:not(.key-cap, .hud-close, .hud-key, .dialogue-option, .rocker, .screen-btn) {
   border: 0;
   background: none;
   box-shadow: none;
@@ -1199,7 +1222,7 @@
   flood-color: var(--hud-amber);
 }
 
-#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:hover {
+#ui :is(.hud-plate, .hud-tray, .info, .toast, .action, .tip, .rescue, .stranded, .status-mark, .contracts, .wanted, .dialogue, .game-menu [role=menu]) button:not(.screen-btn):hover {
   border-color: transparent;
   background: none;
   filter: none;
@@ -1279,7 +1302,7 @@
 
 #ui .condition-tip-body.tooltip {
   white-space: nowrap;
-  padding: var(--space-1) var(--space-3);
+  padding: calc(var(--space-2) + var(--hud-panel-gap)) calc(var(--space-5) + var(--hud-panel-gap));
 }
 
 #ui :is(.hover-tip, .touch-tip, .condition-tip-body) .tooltip-row {
@@ -1318,7 +1341,8 @@
   letter-spacing: 0;
 }
 
-#ui .drive-plate .switch-lamp {
+#ui .drive-plate .switch-lamp,
+#ui .drive-plate .heat-lamp {
   z-index: var(--z-hud-lit);
   pointer-events: none;
 }
@@ -1777,15 +1801,24 @@
 }
 
 #ui .info .info-zoom {
-  --hud-key-h: var(--btn-h-s);
-  --hud-icon: var(--icon-s);
-  margin: 0;
-  padding: 0;
-  border: 0;
+  position: absolute;
+  right: var(--hud-screen-pad-x);
+  bottom: var(--hud-screen-pad-y);
+  z-index: var(--z-hud);
+  display: flex;
+  gap: var(--space-2);
 }
 
-#ui .info .info-zoom > button.hud-key {
+#ui .info .info-zoom > .screen-btn {
+  width: var(--btn-h-s);
   padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+#ui .info .info-zoom .icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
 }
 
 #ui .info :is(.info-content > .hud-screen, .info-draw, .hitcard) {
@@ -1821,6 +1854,7 @@
 }
 
 #ui .info .info-draw {
+  position: relative;
   flex: 1 1 0;
   width: auto;
   padding: var(--hud-screen-pad);

@@ -8,7 +8,7 @@ import { isShield, partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellRect, engineFloor, ringMiddles, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellRect, engineFloor, ringMiddles, unitBody, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, itemLookId, LOADED_MODELS, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
@@ -354,7 +354,7 @@ export class VehicleView {
     this.anchorUndrawn(v);
     for (const unit of this.units) this.buildSuspension(unit, paint);
     this.buildLooseParts(v, onBody.length === v.items.length);
-    this.dentBases(bases, cabLook(v));
+    this.dentBases(v, bases, cabLook(v));
     yield;
     const merged: THREE.Group[] = [];
     yield* this.mergeUnits(v, merged);
@@ -546,11 +546,12 @@ export class VehicleView {
     });
   }
 
-  private dentBases(bases: THREE.Object3D[], look: Look): void {
+  private dentBases(v: Vehicle, bases: THREE.Object3D[], look: Look): void {
     if (!look.partId || look.step === 0) return;
     this.units.forEach((unit, i) => {
       const base = bases[i];
       const keepOut = [...unit.still.children, ...unit.body.children].filter((o) => o !== base && o !== unit.still && this.standsOnBody(o)).map((o) => unitBox(o, unit.body));
+      if (this.scene !== 'world') keepOut.push(...hullRim(unitBody(v.chassisId, unit.index).half));
       dent(base, look.partId as string, look.step, { top: true, keepOut });
     });
   }
@@ -1071,6 +1072,19 @@ function modelPoints(obj: THREE.Object3D, toModel: THREE.Matrix4): THREE.Vector3
     }
   });
   return [...points.values()];
+}
+
+const RIM_REACH = 1;
+const RIM_DEPTH = 0.03;
+
+function hullRim(half: { x: number; y: number; z: number }): PartBox[] {
+  const box = (x0: number, x1: number, z0: number, z1: number): PartBox => ({ min: { x: x0, y: -half.y, z: z0 }, max: { x: x1, y: half.y, z: z1 } });
+  return [
+    box(-half.x, half.x, half.z - RIM_DEPTH, half.z + RIM_REACH),
+    box(-half.x, half.x, -half.z - RIM_REACH, -half.z + RIM_DEPTH),
+    box(half.x - RIM_DEPTH, half.x + RIM_REACH, -half.z, half.z),
+    box(-half.x - RIM_REACH, -half.x + RIM_DEPTH, -half.z, half.z),
+  ];
 }
 
 type DentCover = { top: boolean; keepOut: PartBox[] };

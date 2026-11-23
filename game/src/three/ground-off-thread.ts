@@ -1,5 +1,5 @@
 import { adoptGroundBake, groundBakeFits, type GroundBake, type GroundBakeRequest } from "../render/groundPaint";
-import { packedBuffers, packTerrain, type Terrain } from "../sim/terrain";
+import { packTypes, type Terrain } from "../sim/terrain";
 import { reportError } from "./crash";
 import { readGroundCache, writeGroundCache } from "./ground-cache";
 import { groundSide } from "./render/terrain";
@@ -21,22 +21,27 @@ const REAL_PARTS: GroundBakerParts = {
   useCache: !import.meta.env.DEV,
 };
 
-export function startGroundBaker(parts: GroundBakerParts = REAL_PARTS): (terrain: Terrain, key: string) => GroundBaking {
-  return (terrain, key) => {
+export type BakeStep = (piece: string) => Promise<void>;
+
+export function startGroundBaker(parts: GroundBakerParts = REAL_PARTS): (terrain: Terrain, key: string, step: BakeStep) => GroundBaking {
+  return (terrain, key, step) => {
     const side = groundSide(terrain.size);
     let fresh: GroundBake | null = null;
     let kept = false;
     const writeFresh = (): void => {
       if (!fresh || kept) return;
       kept = true;
-      void parts.writeCache(key, fresh);
+      const bake = fresh;
+      fresh = null;
+      void parts.writeCache(key, bake);
     };
     const adopt = (bake: GroundBake | null): void => {
       if (bake && groundBakeFits(terrain, side, bake)) adoptGroundBake(terrain, bake);
       else if (bake) reportError(new Error("The ground bake does not fit the map"));
     };
-    const bakeInWorker = (): Promise<void> =>
-      new Promise((resolve) => {
+    const bakeInWorker = async (): Promise<void> => {
+      await step('baking the ground');
+      return new Promise((resolve) => {
         const worker = parts.openWorker();
         if (!worker) return resolve();
         let finished = false;
@@ -58,11 +63,16 @@ export function startGroundBaker(parts: GroundBakerParts = REAL_PARTS): (terrain
           reportError(new Error("Could not read the ground worker response"));
           finish(null);
         };
-        const packed = packTerrain({ ...terrain, routes: undefined });
-        worker.postMessage({ terrain: packed, side } satisfies GroundBakeRequest, packedBuffers(packed));
+        const types = packTypes(terrain.types);
+        worker.postMessage({ size: terrain.size, atlas: terrain.atlas, types, side } satisfies GroundBakeRequest, [types.buffer as ArrayBuffer]);
       });
-    const cached = parts.useCache ? parts.readCache(key).catch(() => null) : Promise.resolve(null);
-    const baked = cached.then((hit) => {
+    };
+    const readCached = async (): Promise<GroundBake | null> => {
+      if (!parts.useCache) return null;
+      await step('reading the ground cache');
+      return parts.readCache(key).catch(() => null);
+    };
+    const baked = readCached().then((hit) => {
       if (hit && groundBakeFits(terrain, side, hit)) return adopt(hit);
       return bakeInWorker();
     });

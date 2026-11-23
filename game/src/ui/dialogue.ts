@@ -9,7 +9,7 @@ import type { CallVar, CallVars, GameEvent, World } from '../sim/types';
 import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
-import { byId, list, num, t, type Msg } from '../text/msg';
+import { byId, concat, list, num, SPACE, t, type Msg } from '../text/msg';
 import { fullName, goodLower, hoursSpan, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
@@ -46,11 +46,17 @@ export function tipText(v: Extract<CallVar, { kind: 'tip' }>): Msg {
   return v.tip.dear ? t('tip.dear', words) : t('tip.cheap', words);
 }
 
-export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
+type Told = Extract<CallVar, { kind: 'sightings' }>['told'][number];
+
+function toldText(v: Told): Msg {
   const driver = fullName(v.driver);
   if (!v.seen) return t('sighting.none', { driver });
   const { bearing, tiles, turns, heading } = v.seen;
   return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compassText(bearing), heading: compassText(heading) });
+}
+
+export function sightingsText(v: Extract<CallVar, { kind: 'sightings' }>): Msg {
+  return concat(v.told.flatMap((x, i) => (i === 0 ? [toldText(x)] : [SPACE, toldText(x)])));
 }
 
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
@@ -77,7 +83,7 @@ const VAR_TEXT: VarText = {
   aid: (v) => aidWords(v.fuel, v.supplies),
   haul: haulText,
   tip: tipText,
-  sighting: sightingText,
+  sightings: sightingsText,
   line: (v) => lineText(v.line, {}),
   directions: (v) => directionsText(v.steps),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
