@@ -1,5 +1,5 @@
 import { PUBLIC_HASHES, PUBLIC_PACKS } from './config';
-import { BROWSER_NET, fetchAssetBody, type AssetBody, type AssetNet } from './fetch-asset';
+import { AssetRefused, BROWSER_NET, fetchAssetBody, type AssetBody, type AssetNet } from './fetch-asset';
 
 export type PublicFiles = { hashes: Record<string, string>; base: string; dev: boolean };
 
@@ -23,7 +23,7 @@ export type PublicPacks = { slices: Record<string, PackSlice>; base: string };
 
 export const BUILD_PACKS: PublicPacks = { slices: PUBLIC_PACKS, base: import.meta.env.BASE_URL };
 
-export class PackRangeRefused extends Error {
+export class PackRangeRefused extends AssetRefused {
   constructor(file: string, detail: string) {
     super(`The host refused the slice of ${file}: ${detail}`);
     this.name = 'PackRangeRefused';

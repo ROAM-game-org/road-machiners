@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { byteRange, fileForUrl, mimeOf, readRange } from './app-files';
+import { closedRange, fileForUrl, fitsFile, mimeOf, readRange } from './app-files';
 
 const ROOT = '/opt/roam/dist';
 
@@ -42,16 +42,19 @@ describe('app files', () => {
 
 describe('byte ranges', () => {
   it('reads one closed range', () => {
-    expect(byteRange('bytes=3-6', 10)).toEqual({ start: 3, end: 6 });
+    expect(closedRange('bytes=3-6')).toEqual({ start: 3, end: 6 });
   });
 
-  it('refuses a range past the end of the file', () => {
-    expect(() => byteRange('bytes=3-10', 10)).toThrow(RangeError);
+  it('leaves open, suffix and multiple ranges to the file fetch', () => {
+    expect(closedRange('bytes=0-')).toBeNull();
+    expect(closedRange('bytes=-500')).toBeNull();
+    expect(closedRange('bytes=0-1,4-5')).toBeNull();
+    expect(closedRange('')).toBeNull();
   });
 
-  it('refuses open and multiple ranges', () => {
-    expect(() => byteRange('bytes=3-', 10)).toThrow(RangeError);
-    expect(() => byteRange('bytes=0-1,4-5', 10)).toThrow(RangeError);
+  it('tells a range that fits the file from one past its end', () => {
+    expect(fitsFile({ start: 3, end: 9 }, 10)).toBe(true);
+    expect(fitsFile({ start: 3, end: 10 }, 10)).toBe(false);
   });
 
   it('reads exactly the bytes of the range', async () => {

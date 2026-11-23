@@ -51,12 +51,13 @@ export function fileForUrl(root: string, url: string): string | null {
 
 export type ByteRange = { start: number; end: number };
 
-export function byteRange(header: string, size: number): ByteRange {
+export function closedRange(header: string): ByteRange | null {
   const match = /^bytes=(\d+)-(\d+)$/.exec(header.trim());
-  if (match === null) throw new RangeError(`Range ${header} is not a single closed byte range`);
-  const range = { start: Number(match[1]), end: Number(match[2]) };
-  if (range.start > range.end || range.end >= size) throw new RangeError(`Range ${header} does not fit a file of ${size} bytes`);
-  return range;
+  return match === null ? null : { start: Number(match[1]), end: Number(match[2]) };
+}
+
+export function fitsFile(range: ByteRange, size: number): boolean {
+  return range.start <= range.end && range.end < size;
 }
 
 export async function readRange(file: string, range: ByteRange): Promise<Buffer> {

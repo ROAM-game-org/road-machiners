@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AssetUnreachable, type AssetNet } from './fetch-asset';
+import type { AssetNet } from './fetch-asset';
 import { PackRangeRefused, publicBytes, publicUrl, type PublicPacks } from './public-url';
 
 const built = { hashes: { 'maps/icarus.bin': 'abcd1234' }, base: './', dev: false };
@@ -57,13 +57,15 @@ describe('publicBytes', () => {
     expect(calls).toEqual([{ url: '/game/packs/models.pack?v=1', range: 'bytes=3-6' }]);
   });
 
-  it('refuses a whole-pack answer without reading it', async () => {
+  it('refuses a whole-pack answer at once, without reading or retrying it', async () => {
+    const calls: Call[] = [];
     const cancels: string[] = [];
 
-    const read = publicBytes('Model', 'models/a.glb', undefined, PACKS, hostOf(PACK, () => 'whole', [], cancels));
+    const read = publicBytes('Model', 'models/a.glb', undefined, PACKS, { ...hostOf(PACK, () => 'whole', calls, cancels), delaysMs: [0, 0, 0] });
 
-    await expect(read).rejects.toSatisfy((e: unknown) => e instanceof AssetUnreachable && e.cause instanceof PackRangeRefused);
+    await expect(read).rejects.toThrow(PackRangeRefused);
     expect(cancels).toEqual(['/game/packs/models.pack?v=1']);
+    expect(calls).toHaveLength(1);
   });
 
   it('refuses a slice of the wrong length', async () => {
