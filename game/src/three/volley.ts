@@ -47,9 +47,9 @@ const ROCKET: GunSounds = { shot: "shot-rocket", echo: null, struck: STRUCK };
 const GUN_SOUNDS: Record<string, GunSounds> = {
   harpoon: { shot: "shot-harpoon", echo: null, struck: { plate: "harpoon-hook", part: "harpoon-hook" } },
   heavyMg: HEAVY_MG,
-  gatling: { shot: "shot-gatling", echo: null, struck: STRUCK, once: true },
+  gatling: { shot: "shot-gatling", echo: "echo-mg", struck: STRUCK, once: true },
   rocketRack: ROCKET,
-  shotgun: { shot: "shot-shotgun", echo: null, struck: STRUCK, once: true },
+  shotgun: { shot: "shot-shotgun", echo: "echo-mg", struck: STRUCK, once: true },
   flamer: { shot: "shot-flamer", echo: null, struck: STRUCK, once: true },
   autocannon: HEAVY_MG,
   cannon: TANK_GUN,
