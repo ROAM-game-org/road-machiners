@@ -275,6 +275,8 @@
 
 #ui .drive-drawing .dial-pace {
   fill: var(--hud-print);
+  stroke: var(--accent);
+  stroke-width: 2.2;
   transform: rotate(var(--needle, 0deg));
 }
 
