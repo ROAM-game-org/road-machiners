@@ -1,8 +1,8 @@
 #ui .options {
   position: fixed;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: var(--hud-inset);
+  transform: translateX(-50%);
   z-index: var(--z-save);
   box-sizing: border-box;
   width: var(--panel-m);

@@ -48,6 +48,7 @@ export const UI: Translation<typeof EN> = {
   'options.title': 'Настройки',
   'options.uiSize': 'Размер интерфейса',
   'options.minimap': 'Миникарта',
+  'options.damageNumbers': 'Цифры урона',
   'options.log': 'Журнал',
   'options.logBrief': 'Кратко',
   'options.logVerbose': 'Подробно',

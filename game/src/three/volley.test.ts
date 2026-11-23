@@ -10,6 +10,7 @@ import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { PARTS } from "../data/parts";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { PHYSICS } from "../data/physics";
+import { loadDamageNumbersSetting } from "../ui/damage-numbers-setting";
 import type { TimedFlight } from "../sim/timed-combat";
 import { bodyOf } from "../sim/body";
 import { breakEmphasis, CollisionCues, collisionSteps, fireSteps, hookLine, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
@@ -330,6 +331,26 @@ describe("playVolley breaks", () => {
     playVolley(host, plans, MUZZLE, event, new BreakCues([event]), "mg", new Map(), false, null);
     expect(labels.map((l) => l.ms)).toEqual([350, 650]);
     expect(labels[0].at()).toEqual(ORIGIN);
+  });
+
+  it("draws no damage label and plays the same sounds while damage numbers are off", () => {
+    const run = () => {
+      const { host, sounds } = play();
+      const labels: number[] = [];
+      (host.fx as unknown as { label: unknown }).label = (_a: unknown, _t: unknown, _r: unknown, ms: number) => labels.push(ms);
+      playVolley(host, plansOf(event.rounds), MUZZLE, event, new BreakCues([event]), "mg", new Map(), false, null);
+      return { labels, sounds: [...sounds] };
+    };
+    const shown = run();
+    loadDamageNumbersSetting({ getItem: () => "off", setItem: () => {} });
+    try {
+      const hidden = run();
+      expect(shown.labels.length).toBeGreaterThan(0);
+      expect(hidden.labels).toEqual([]);
+      expect(hidden.sounds).toEqual(shown.sounds);
+    } finally {
+      loadDamageNumbersSetting({ getItem: () => null, setItem: () => {} });
+    }
   });
 
   it("breaks the part as its breaking round lands, once", () => {
