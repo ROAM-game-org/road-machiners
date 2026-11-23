@@ -12,7 +12,7 @@ const GAME = fileURLToPath(new URL('../../', import.meta.url));
 const PICTURES = `${GAME}public/hud/baked`;
 const BOXES = `${GAME}src/ui/dash/baked`;
 const GPU_MAX_SIDE = 8192, GPU_MAX_AREA = 30e6;
-const VIEW_SCALES = { desktop: [2, 4], flat: [2] };
+const VIEW_SCALES = { desktop: [2], flat: [2] };
 
 const fits = (meta, s) => meta.width * s <= GPU_MAX_SIDE && meta.height * s <= GPU_MAX_SIDE && meta.width * meta.height * s * s <= GPU_MAX_AREA;
 
