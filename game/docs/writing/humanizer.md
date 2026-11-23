@@ -31,7 +31,7 @@ Fiction may keep what the prompt lists as a tell when the voice or the scene nee
 
 Fiction still never does these. They are the faults that sent the game's copy back.
 
-- An image that means nothing when read twice. The rebar cage's lore read "Rebar bent around the cab the way farmers fenced seed. It wins no arguments, but it keeps the doors on." Farmers never fenced seed, and "wins no arguments" says nothing. It now reads "Rebar bent into a frame around the cab. It stops little in a firefight, but the doors stay on their hinges."
+- An image that means nothing when read twice. The rebar cage's lore read "Rebar bent around the cab the way farmers fenced seed. It wins no arguments, but it keeps the doors on." Farmers never fenced seed, and "wins no arguments" says nothing. It now reads "Rebar bent around the cab. Bullets go right through, but a rocket bursts on the bars before it reaches anything that matters."
 - A dry closer on every entry, so a set of entries shares one shape. One wry last line is voice. The same wry last line on every item card is a template.
 - One sentence template across many entries, like personifying the weather in every broadcast.
 - A narrator who tells the reader something is important instead of showing what follows from it.

@@ -89,7 +89,7 @@ Every part, good and the parcel has a lore entry in `src/text/en/lore.ts` and `s
 
 Writing rules:
 
-- No game rule, stat, tier or number, and no digits. Never restate what the card shows: mass, range, arc, damage, footprint or condition. A claim about how an item behaves is road wisdom that matches a real rule in the [mechanics pages](wiki/mechanics/). It names the effect a driver sees, like wrecking bare sides, never a hidden word like damager or penetration.
+- No game rule, stat, tier or number, and no digits. Never restate what the card shows: mass, range, arc, damage, footprint, condition or where it can be repaired. A claim about how an item behaves is road wisdom that matches a real rule in the [mechanics pages](wiki/mechanics/). It names the effect a driver sees, like wrecking bare sides, never a hidden word like damager or penetration.
 - Every fact matches this lore. It is evidence, never a conclusion: no hidden truth from [Timeline](lore/timeline.md), no ship name, no use for the M's, no crash date and no old name of the basin. No faction is right.
 - Name only Bowl, Nose and groups any driver hears of on day one: the Old Army, the Nose Army, the Bowl Farmers, raiders and Pierce. Name no other site and no person.
 - Each entry has its own image of New World use of Old World leftovers where it fits. No two entries share a template sentence.
