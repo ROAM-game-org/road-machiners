@@ -22,7 +22,7 @@ function plans(v: Vehicle): [string, number][][] {
 describe('cell owners follow the loadout', () => {
   const changes: Record<string, (v: Vehicle) => void> = {
     moved: (v) => { Object.assign(v.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!, { x: 3, y: 1 }); },
-    rotated: (v) => { const it = v.items.find((i) => i.kind === 'part' && i.part.defId === 'cannon')!; it.rot = (it.rot + 1) % 4; },
+    rotated: (v) => { const it = v.items.find((i) => i.kind === 'part' && i.part.defId === 'cannon')!; it.rot = it.rot === 1 ? 0 : 1; },
     removed: (v) => { v.items.splice(v.items.findIndex((it) => it.kind === 'part' && it.part.defId === 'plowRam'), 1); },
     damaged: (v) => { for (const part of mountedParts(v)) part.hp = Math.ceil(part.hp / 3); },
   };
