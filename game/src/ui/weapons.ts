@@ -24,23 +24,6 @@ import { partName } from "../text/names";
 
 export const blockWords = (block: FireBlock): Msg => t(`block.${block}`);
 
-export const BLOCK_SHORT: Record<FireBlock, PlainKey | null> = {
-  disabled: "blockShort.disabled",
-  cooldown: "blockShort.cooldown",
-  empty: "blockShort.empty",
-  range: "blockShort.range",
-  arc: "blockShort.arc",
-  blocked: "blockShort.blocked",
-  noTarget: null,
-  unseen: "blockShort.unseen",
-  covered: "blockShort.covered",
-  talking: "blockShort.talking",
-  out: "blockShort.out",
-  unmounted: "blockShort.unmounted",
-  shutDown: "blockShort.shutDown",
-  lineOut: "blockShort.lineOut",
-};
-
 
 
 export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
@@ -285,21 +268,6 @@ export function getWeaponReadout(w: World, mw: MountedWeapon) {
     block,
   };
 }
-
-export function shortStatus(mw: MountedWeapon, readout: ReturnType<typeof getWeaponReadout>): Msg | null {
-  if (readout.chance !== null) return t("hit.chance", { pct: Math.round(readout.chance * 100) });
-  const block = readout.block;
-  if (block === null) return null;
-  const withTurns = SHORT_WITH_TURNS[block];
-  if (withTurns) return withTurns(mw);
-  const short = BLOCK_SHORT[block];
-  return short && t(short);
-}
-
-const SHORT_WITH_TURNS: Partial<Record<FireBlock, (mw: MountedWeapon) => Msg>> = {
-  cooldown: (mw) => t("blockShort.cooldownIn", { n: gunOf(mw.part).cooldown }),
-  empty: (mw) => t("blockShort.emptyIn", { n: mw.def.reload - gunOf(mw.part).reloadWork }),
-};
 
 export const UTILITY_SLOTS = 4;
 export const SLOT_KEYS = 9;

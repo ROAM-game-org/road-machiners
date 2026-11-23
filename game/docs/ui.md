@@ -422,7 +422,7 @@ World colors keep their meaning in the 3D view. The UI does not reuse the cold c
 - `src/ui/styles/components.css` holds the shared pieces below. Each other file under `styles/` holds one screen area and adds only its own layout.
 - `src/ui/styles/windows.css` holds the window surfaces of 4.6: the screen look of `.well` and `.screen-block`, the screen button `.screen-btn`, the tape heading `.tape` and the engraved title. It loads last, so a screen's own file never repaints a window surface.
 - `src/ui/styles/dash.css` holds the HUD skin of 4.5. The window housing, the key cap of a plain button and the input well live in `base.css` and `components.css`, since every screen shares them. `src/ui/dash/` holds its panels, and `dash.html` shows them with sliders and the housing picker.
-- `src/ui/styles/drawings.css` holds drawn hardware: the speed dial, the compass gauge, the volume knobs of Options and the radio keys. Its shapes keep their own sizes, and its colors still come from tokens.
+- `src/ui/styles/drawings.css` holds drawn hardware: the compass gauge, the volume knobs of Options and the radio keys. Its shapes keep their own sizes, and its colors still come from tokens.
 - `src/ui/tokens.ts` reads `tokens.css` for Three.js. `tokenColor("--path-plan")` gives a color number and throws on an unknown name.
 - `src/ui/style-guard.test.ts` fails on a raw value outside `tokens.css`. It reads every file under `styles/`, `truck-condition.css`, the HTML page and the inline styles of the UI and overlay scripts.
 
