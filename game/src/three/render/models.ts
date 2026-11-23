@@ -527,6 +527,7 @@ export const TRUCK_BIT = 1;
 export const PROP_BIT = 2;
 export const READY_ARC_BIT = 4;
 export const SPENT_ARC_BIT = 8;
+export const CONTACT_BIT = 16;
 export const OUTLINE_ORDER = 805;
 
 function outlineMaterial(width: { value: number }): THREE.MeshBasicMaterial {

@@ -30,6 +30,7 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
+import { loadDamageNumbersSetting } from '../ui/damage-numbers-setting';
 import { loadLogViewSetting } from '../ui/log-setting';
 import type { SavedLog } from '../ui/log';
 import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
@@ -245,6 +246,7 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 paintSkin();
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
+loadDamageNumbersSetting(window.localStorage);
 loadLogViewSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
