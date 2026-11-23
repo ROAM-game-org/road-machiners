@@ -34,22 +34,66 @@ export function crashLevel(impact: number, curve: CrashCurve): number {
   return quietGain + (1 - quietGain) * share;
 }
 
-export class VoiceLimiter {
-  private ends = new Map<string, number[]>();
-  private lastStart = new Map<string, number>();
+export type VoicePlay = { cue: string; maxVoices: number; budgeted: boolean; now: number; startsAt: number; endsAt: number; minGapSec: number };
+export type AdmittedVoice = { id: number; cut: number[] };
+type Voice = { id: number; cue: string; startsAt: number; endsAt: number; budgeted: boolean };
 
-  admit(cue: string, maxVoices: number, now: number, endsAt: number, minGapSec = 0): boolean {
-    const live = (this.ends.get(cue) ?? []).filter((t) => t > now);
-    const last = this.lastStart.get(cue);
-    const spaced = last === undefined || now - last >= minGapSec;
-    const free = spaced && live.length < maxVoices;
-    if (free) {
-      live.push(endsAt);
-      this.lastStart.set(cue, now);
-    }
-    this.ends.set(cue, live);
-    return free;
+export class VoiceBudget {
+  private voices: Voice[] = [];
+  private lastStart = new Map<string, number>();
+  private nextId = 0;
+
+  constructor(private readonly budget: number) {
+    if (!(Number.isInteger(budget) && budget >= 1)) throw new Error(`Voice budget ${budget} must be a whole number of at least 1`);
   }
+
+  admit(play: VoicePlay): AdmittedVoice | null {
+    this.voices = this.voices.filter((v) => v.endsAt > play.now);
+    const last = this.lastStart.get(play.cue);
+    if (last !== undefined && play.now - last < play.minGapSec) return null;
+    this.lastStart.set(play.cue, play.now);
+    const cut = this.cutAtCap(play.cue, play.maxVoices);
+    const voice: Voice = { id: this.nextId++, cue: play.cue, startsAt: play.startsAt, endsAt: play.endsAt, budgeted: play.budgeted };
+    this.voices.push(voice);
+    if (play.budgeted) cut.push(...this.cutOverBudget(voice.id));
+    return { id: voice.id, cut };
+  }
+
+  private cutAtCap(cue: string, maxVoices: number): number[] {
+    const same = this.voices.filter((v) => v.cue === cue).sort(byAge);
+    return same.slice(0, Math.max(0, same.length - maxVoices + 1)).map((v) => this.remove(v));
+  }
+
+  private cutOverBudget(newId: number): number[] {
+    const cut: number[] = [];
+    for (let held = this.budgeted(); held.length > this.budget; held = this.budgeted()) {
+      const victim = mostCrowdedOldest(held);
+      if (victim.id === newId) throw new Error(`Voice budget ${this.budget} would cut the play it just admitted`);
+      cut.push(this.remove(victim));
+    }
+    return cut;
+  }
+
+  private budgeted(): Voice[] {
+    return this.voices.filter((v) => v.budgeted);
+  }
+
+  private remove(voice: Voice): number {
+    this.voices = this.voices.filter((v) => v !== voice);
+    return voice.id;
+  }
+}
+
+function byAge(a: Voice, b: Voice): number {
+  return a.startsAt - b.startsAt || a.id - b.id;
+}
+
+function mostCrowdedOldest(voices: readonly Voice[]): Voice {
+  const byCue = new Map<string, Voice[]>();
+  for (const v of voices) byCue.set(v.cue, [...(byCue.get(v.cue) ?? []), v]);
+  const groups = [...byCue.values()].map((g) => [...g].sort(byAge));
+  groups.sort((a, b) => b.length - a.length || byAge(a[0], b[0]));
+  return groups[0][0];
 }
 
 export function layersToPlay(layers: readonly Layer[], roll: () => number): Layer[] {

@@ -90,3 +90,24 @@ describe('SoundPlayer with a pending file', () => {
     expect(sources[0].stop).toHaveBeenCalled();
   });
 });
+
+describe('SoundPlayer voices', () => {
+  it('fades out the oldest copy of a cue at its cap and plays the new one', () => {
+    const { sources, bank, player } = setup();
+    bank.set('hit.ogg', buffer);
+    for (let k = 0; k < 5; k++) player.play('hit', at, 0);
+    expect(sources).toHaveLength(5);
+    expect(sources[0].stop).toHaveBeenCalledOnce();
+    expect(sources.slice(1).every((s) => s.stop.mock.calls.length === 0)).toBe(true);
+    expect(sources[4].start).toHaveBeenCalledOnce();
+  });
+
+  it('does not cut a copy that already ended', () => {
+    const { sources, bank, player } = setup();
+    bank.set('hit.ogg', buffer);
+    for (let k = 0; k < 4; k++) player.play('hit', at, 0);
+    for (const s of sources) (s as unknown as { onended: () => void }).onended();
+    player.play('hit', at, 0);
+    expect(sources.every((s) => s.stop.mock.calls.length === 0)).toBe(true);
+  });
+});
