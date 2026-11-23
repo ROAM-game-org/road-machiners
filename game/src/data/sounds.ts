@@ -346,7 +346,7 @@ export const MIX = {
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
   compressor: { threshold: -18, knee: 12, ratio: 4, attack: 0.003, release: 0.25 },
   reverb: { seconds: 1.2, decay: 3, wet: 0.12 },
-  crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.25 },
+  crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.6 },
   roadHorn: { brakeStep: 12, sightSpanSteps: 30 },
   halfGainMeters: 40,
   voices: { budget: 12, cutMs: 30 },
