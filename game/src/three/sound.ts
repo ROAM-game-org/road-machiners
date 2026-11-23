@@ -1,6 +1,6 @@
 
-import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS, type CueId } from "../data/sounds";
-import { shuffled, spatial } from "../audio/pick";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUND_EVENTS, SOUNDS, type CueId, type SoundEventId } from "../data/sounds";
+import { layersToPlay, shuffled, spatial } from "../audio/pick";
 import type {
   LoopHandle,
   Placement,
@@ -124,14 +124,24 @@ function plainEvent(struck: boolean, mine: boolean): BlockEvent | null {
   return struck ? "struck" : null;
 }
 
+export type Side = "mine" | "theirs" | "world";
+export type Emphasis = { side: Side; accent: boolean };
+export const PLAIN: Emphasis = { side: "world", accent: false };
+export const ACCENT: Emphasis = { side: "world", accent: true };
+
+export function sideGain(side: Side): number {
+  return side === "world" ? 1 : MIX.focus[side];
+}
+
 export class SoundDirector {
   readonly log: string[] = [];
 
   constructor(
-    private player: Pick<SoundPlayer, "play">,
+    private player: Pick<SoundPlayer, "play" | "duck">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
     private music: Pick<CombatMusic, "fire">,
     private now: () => number,
+    private random: () => number,
   ) {}
 
   private due: { kind: BlockEvent; atMs: number }[] = [];
@@ -168,16 +178,16 @@ export class SoundDirector {
     this.due = [];
   }
 
-  at(cue: CueId, p: V3, delayMs: number): void {
-    this.record(cue);
-    this.player.play(cue, this.place(p), delayMs);
-  }
-
-  atLevel(cue: CueId, p: V3, delayMs: number, level: number): void {
-    if (!(level > 0 && level <= 1)) throw new Error(`Sound level ${level} is outside (0, 1]`);
-    this.record(`${cue} ${level.toFixed(2)}`);
+  event(id: SoundEventId, p: V3, delayMs: number, level: number, emphasis: Emphasis): void {
+    checkLevel(level);
     const placed = this.place(p);
-    this.player.play(cue, { pan: placed.pan, gain: placed.gain * level }, delayMs);
+    const layers = layersToPlay(SOUND_EVENTS[id], this.random);
+    const spread = MIX.spread[id] ?? 0;
+    const gain = placed.gain * level * (1 - spread * this.random()) * sideGain(emphasis.side);
+    this.record(`${id} ${level.toFixed(2)} ${emphasis.side}${emphasis.accent ? " accent" : ""} ${layers.map((l) => l.cue).join(" ")}`);
+    if (emphasis.accent) this.player.duck(delayMs);
+    const route = emphasis.accent ? { accent: true as const } : {};
+    for (const l of layers) this.player.play(l.cue, { pan: placed.pan, gain: gain * l.gain, ...route }, delayMs + l.delayMs);
   }
 
   honk(p: V3, delayMs: number, chassisId: string, label = ""): void {
@@ -210,6 +220,10 @@ export class SoundDirector {
       MIX.panWidth,
     );
   }
+}
+
+function checkLevel(level: number): void {
+  if (!(level > 0 && level <= 1)) throw new Error(`Sound level ${level} is outside (0, 1]`);
 }
 
 export type MusicPlace = "town" | "outpost" | "abandoned" | null;

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { topGoal } from './npc-activities';
 import { isSheltered } from './sites';
 import { dawnAfter, duskTurn, gateOrder, holdsPost, membersOf, nextRideOut, returnTurn, rideOutTurn, sunwardFacts } from './sunward';
@@ -53,11 +53,9 @@ const afterTheReturn = () => playLeg('far night, after the return', atTheReturn,
 const throughTheSecondHalf = () => playLeg('far night, second half', afterTheReturn, farUntil(BEFORE_DAWN));
 const atHome = () => playLeg('far night, home', throughTheSecondHalf, farUntil(HOME));
 
-describe('the night schedule on far travel with nobody near', () => {
-  beforeAll(() => {
-    orderWorld(5);
-  });
+orderWorld(5);
 
+describe('the night schedule on far travel with nobody near', () => {
   it('rides out and keeps the column from stalling until dusk', () => {
     const { world: w, notes } = atDusk();
 

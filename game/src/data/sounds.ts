@@ -76,8 +76,12 @@ const DEFS = {
   "part-broken": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["Truck part breaks apart, snapping metal, sparks and a short hiss of steam."], seconds: 1.2 },
   "explosion": { bus: "sfx", setup: "field", volume: 1, pitchJitter: 0.04, maxVoices: 2, loop: false, prompts: ["Truck fuel tank explodes, big fiery blast with falling metal debris."], seconds: 3 },
   "horn": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0, maxVoices: 4, loop: false, prompts: ["Mad Max war rig horn: a huge rusted diesel truck blasts its twin air horns once, a deep booming low chord, brassy, gritty and overdriven, heavy as a freight train. Vehicle horn only, no music."], seconds: 1.5 },
-  "crash": { bus: "sfx", setup: "field", volume: 0.9, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["Two heavy steel trucks ram each other at speed: one hard, deep crunch of thick metal, a short scrape, then debris settling. Single impact."], seconds: 1.5 },
-  "car-hit": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A car bumps into a wall at low speed: one dull thud of metal and plastic, a short rattle, then quiet. Single light impact."], seconds: 1 },
+  "gun-echo-heavy": { bus: "sfx", volume: 0.7, pitchJitter: 0.04, maxVoices: 2, loop: false },
+  "hit-rattle": { bus: "sfx", volume: 0.5, pitchJitter: 0.08, maxVoices: 4, loop: false },
+  "crash-thump": { bus: "sfx", volume: 0.9, pitchJitter: 0.06, maxVoices: 2, loop: false },
+  "crash-crunch": { bus: "sfx", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false },
+  "crash-bump": { bus: "sfx", volume: 0.7, pitchJitter: 0.06, maxVoices: 2, loop: false },
+  "crash-debris": { bus: "sfx", volume: 0.5, pitchJitter: 0.08, maxVoices: 2, loop: false },
 
   "harpoon-fire": { bus: "sfx", setup: "field", volume: 0.8, pitchJitter: 0.05, maxVoices: 2, loop: false, prompts: ["A heavy spring-loaded harpoon gun on a truck fires: a deep mechanical thunk and clank of steel, then a thick rope whipping out fast."], seconds: 1.2 },
   "harpoon-hook": { bus: "sfx", setup: "field", volume: 0.7, pitchJitter: 0.06, maxVoices: 2, loop: false, prompts: ["A heavy barbed steel harpoon bolt slams into a truck's steel plate: a hard punching clank and a short metallic scrape."], seconds: 0.8 },
@@ -115,6 +119,72 @@ const DEFS = {
 } as const satisfies Record<string, CueDef>;
 
 export type CueId = keyof typeof DEFS;
+
+export type Layer = { cue: CueId; delayMs: number; gain: number; chance: number };
+
+export const SOUND_EVENTS = {
+  "crash-light": [
+    { cue: "crash-thump", delayMs: 0, gain: 1.5, chance: 1 },
+    { cue: "crash-bump", delayMs: 0, gain: 2, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 1.4, chance: 1 },
+    { cue: "crash-debris", delayMs: 90, gain: 0.6, chance: 0.3 },
+  ],
+  "crash-hard": [
+    { cue: "crash-thump", delayMs: 0, gain: 1.6, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 2, chance: 1 },
+    { cue: "crash-bump", delayMs: 140, gain: 0.6, chance: 0.5 },
+    { cue: "crash-debris", delayMs: 120, gain: 1.2, chance: 1 },
+  ],
+  "shot-mg": [{ cue: "mg-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-heavy-mg": [{ cue: "heavy-mg-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-gatling": [{ cue: "gatling-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-rocket": [{ cue: "rocket-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-shotgun": [{ cue: "shotgun-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-flamer": [{ cue: "flamer-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-long-gun": [{ cue: "long-gun-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-tank-gun": [{ cue: "tank-gun-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-cannon": [{ cue: "cannon-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-mortar": [{ cue: "mortar-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "shot-harpoon": [{ cue: "harpoon-fire", delayMs: 0, gain: 1, chance: 1 }],
+  "mortar-launch": [
+    { cue: "mortar-fire", delayMs: 0, gain: 0.98, chance: 1 },
+    { cue: "gun-echo-heavy", delayMs: 220, gain: 0.32, chance: 1 },
+  ],
+  "mortar-burst": [
+    { cue: "cannon-fire", delayMs: 0, gain: 0.75, chance: 1 },
+    { cue: "gun-echo-heavy", delayMs: 270, gain: 0.18, chance: 1 },
+  ],
+  "hit-plate": [
+    { cue: "hit-metal", delayMs: 0, gain: 0.97, chance: 1 },
+    { cue: "hit-rattle", delayMs: 30, gain: 0.3, chance: 0.4 },
+  ],
+  "hit-part": [
+    { cue: "hit-part", delayMs: 0, gain: 0.89, chance: 1 },
+    { cue: "hit-rattle", delayMs: 20, gain: 0.35, chance: 0.7 },
+    { cue: "crash-debris", delayMs: 60, gain: 0.25, chance: 0.2 },
+  ],
+  "explosion": [
+    { cue: "explosion", delayMs: 0, gain: 0.8, chance: 1 },
+    { cue: "crash-thump", delayMs: 0, gain: 0.4, chance: 1 },
+  ],
+  "part-broken": [
+    { cue: "part-broken", delayMs: 0, gain: 0.9, chance: 1 },
+    { cue: "crash-debris", delayMs: 80, gain: 0.4, chance: 0.5 },
+  ],
+  "gun-empty": [{ cue: "gun-empty", delayMs: 0, gain: 1, chance: 1 }],
+  "air-brake": [{ cue: "air-brake", delayMs: 0, gain: 1, chance: 1 }],
+  "harpoon-hook": [{ cue: "harpoon-hook", delayMs: 0, gain: 1, chance: 1 }],
+  "miss": [{ cue: "miss", delayMs: 0, gain: 1, chance: 1 }],
+  "smoke-burst": [{ cue: "smoke-burst", delayMs: 0, gain: 1, chance: 1 }],
+  "caltrops-drop": [{ cue: "caltrops-drop", delayMs: 0, gain: 1, chance: 1 }],
+  "caltrops-hit": [{ cue: "caltrops-hit", delayMs: 0, gain: 1, chance: 1 }],
+  "oil-spill": [{ cue: "oil-spill", delayMs: 0, gain: 1, chance: 1 }],
+  "emitter-pulse": [{ cue: "emitter-pulse", delayMs: 0, gain: 1, chance: 1 }],
+  "line-tear": [{ cue: "line-tear", delayMs: 0, gain: 1, chance: 1 }],
+  "flare-burst": [{ cue: "flare-burst", delayMs: 0, gain: 1, chance: 1 }],
+} as const satisfies Record<string, readonly Layer[]>;
+
+export type SoundEventId = keyof typeof SOUND_EVENTS;
 
 export const CONTROL_CUES = ["key-press", "turn-press", "switch-on", "switch-off", "latch-in", "latch-out", "screen-press", "knob-step", "wheel-step", "utility-armed", "utility-ready"] as const satisfies readonly CueId[];
 export type ControlCue = (typeof CONTROL_CUES)[number];
@@ -269,11 +339,15 @@ export const BANK = {
 export const MIX = {
   busVolume: { ui: 0.8, sfx: 0.75, ambient: 0.6, music: 0.65 } satisfies Record<Bus, number>,
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
-  compressor: { threshold: -18, knee: 12, ratio: 4, attack: 0.003, release: 0.25 },
-  reverb: { seconds: 1.2, decay: 3, wet: 0.12 },
-  crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.25 },
+  compressor: { threshold: -10, knee: 6, ratio: 2, attack: 0.025, release: 0.15, makeup: 1.48 },
+  focus: { mine: 1.585, theirs: 0.708 },
+  accent: { duck: 0.5, attackMs: 10, holdMs: 70, releaseMs: 400, minGapMs: 1000 },
+  crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.6 },
   roadHorn: { brakeStep: 12, sightSpanSteps: 30 },
   halfGainMeters: 40,
+  voices: { budget: 10, cutMs: 30 },
+  landings: { levels: [1, 0.7, 0.5], every: 3, restLevel: 0.4 },
+  spread: { miss: 0.5 } as Partial<Record<SoundEventId, number>>,
   panWidth: 0.7,
   engine: { idleRate: 0.8, topRate: 1.3, topSpeedMs: 31.2, idleGain: 0.5, loadMs: 3, revUp: 0.3, revDown: 0.2, loadGain: 0.3, movingMs: 0.5, brakeMs: 4, fadeSeconds: 0.12, overdriveGain: 1.5, strainRelease: 0.5 },
   rev: [
