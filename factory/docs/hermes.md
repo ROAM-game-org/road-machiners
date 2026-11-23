@@ -155,18 +155,19 @@ A natural reply to a private proposal post reaches you with an authoritative hea
 2. Check the bottleneck against the logs and the ledger before you trust it.
 3. It matters when a number jumped and the cause is in the factory, when the same failure repeats, or when the proposed change would clearly save time or money. A quiet day or a one-off glitch does not matter. A change an earlier review proposed matters again while its `factory` issue is open.
 4. When it matters, fix what you can with the CLI, and file the rest, settings changes included, as one `factory` issue with the numbers. A change an earlier review proposed goes on its open issue as a comment with the new numbers.
-5. Post the digest to the committee, as the next section says.
+5. When the incident watch also printed `factory digest due`, post the digest to the committee, as the next section says. Otherwise post none.
 6. Delete `/factory/home/review-pending` either way, so the line closes.
 
 ## Factory issue digest
 
-Nothing works on `factory` issues by itself. Only the owner fixes them, so the owner must see them. After each daily review, post one digest of the open `factory` issues to the committee, even on a quiet day.
+Nothing works on `factory` issues by itself. Only the owner fixes them, so the owner must see them. The digest goes at most once a week. Post one digest of the open `factory` issues to the committee when a review's lines include `factory digest due`, even on a quiet day, and never on a review without that line. The incident watch prints it when `/factory/home/digest-sent` is missing or holds a time at least 7 days old.
 
-1. List them with `gh issue list --label factory --state open --json number,title,createdAt,comments --limit 100`.
-2. Open with one line: how many are open, how many are new since the last digest, and today's review issue with its link.
+1. Read `/factory/home/digest-sent` first. It holds the time of the last digest, and a missing file means no earlier digest. List the open issues with `gh issue list --label factory --state open --json number,title,createdAt,comments --limit 100`.
+2. Open with one line: how many are open, how many are new since the time in `digest-sent`, and today's review issue with its link.
 3. Then one line per issue, the ones waste reviews proposed first, then oldest first, at most 10: its number with its link, its title, its age in days, and how many reviews proposed it. Mark one that today's review proposed again.
 4. Say how many more are open when the list is longer than 10.
 5. Post nothing when no `factory` issue is open.
+6. Once the digest is posted, write the current UTC time to `/factory/home/digest-sent`, for example `date -u +%FT%TZ > /factory/home/digest-sent`. Do it also when step 5 posted nothing, so the next try is a week away. Never write it when no digest was due.
 
 ## Release post
 
