@@ -169,8 +169,13 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | part-broken | sfx | false | 0.7 | 2 | 2 |
 | explosion | sfx | false | 1 | 2 | 3 |
 | horn | sfx | false | 0.8 | 4 | 3 |
-| crash | sfx | false | 0.9 | 2 | 2 |
-| car-hit | sfx | false | 0.8 | 2 | 1 |
+| gun-echo-light | sfx | false | 0.6 | 3 | 3 |
+| gun-echo-heavy | sfx | false | 0.7 | 2 | 3 |
+| hit-rattle | sfx | false | 0.5 | 4 | 3 |
+| crash-thump | sfx | false | 0.9 | 2 | 3 |
+| crash-crunch | sfx | false | 0.8 | 2 | 2 |
+| crash-bump | sfx | false | 0.7 | 2 | 3 |
+| crash-debris | sfx | false | 0.5 | 2 | 2 |
 | harpoon-fire | sfx | false | 0.8 | 2 | 2 |
 | harpoon-hook | sfx | false | 0.7 | 2 | 2 |
 | line-tear | sfx | false | 0.8 | 2 | 2 |
