@@ -5,6 +5,9 @@ import { Mixer } from "./mixer";
 class FakeParam {
   value = 0;
   setTargetAtTime = vi.fn();
+  setValueAtTime = vi.fn();
+  linearRampToValueAtTime = vi.fn();
+  cancelScheduledValues = vi.fn();
 }
 
 class FakeNode {
@@ -41,7 +44,11 @@ class FakeContext {
   }
   createBiquadFilter = () => new FakeNode();
   createDynamicsCompressor = () => new FakeNode();
-  createConvolver = () => new FakeNode();
+  convolvers = 0;
+  createConvolver = () => {
+    this.convolvers++;
+    return new FakeNode();
+  };
   createBuffer = (_c: number, n: number) => ({ getChannelData: () => new Float32Array(n) });
   async resume() {
     this.resumes++;
@@ -94,5 +101,35 @@ describe("Mixer", () => {
     target.dispatchEvent(new Event("pointerup"));
     await flush();
     expect(FakeContext.last.resumes).toBe(resumes);
+  });
+
+  it("adds no reverb to world sounds", () => {
+    new Mixer(MIX);
+    expect(FakeContext.last.convolvers).toBe(0);
+  });
+
+  it("ducks world sounds with a drop, a hold and a release, and keeps accents out of the duck", () => {
+    const mixer = new Mixer(MIX);
+    mixer.duck(2);
+    const ramps = FakeContext.last.gains.flatMap((g) => g.gain.linearRampToValueAtTime.mock.calls);
+    const a = MIX.accent;
+    expect(ramps.map(([v]) => v)).toEqual([a.duck, 1]);
+    expect(ramps[0][1]).toBeCloseTo(2 + a.attackMs / 1000);
+    expect(ramps[1][1]).toBeCloseTo(2 + (a.attackMs + a.holdMs + a.releaseMs) / 1000);
+    expect(mixer.accentInput()).not.toBe(mixer.input("sfx"));
+  });
+
+  it("skips a duck that starts inside the gap after the last one", () => {
+    const mixer = new Mixer(MIX);
+    mixer.duck(2);
+    mixer.duck(2 + MIX.accent.minGapMs / 1000 / 2);
+    mixer.duck(2 + MIX.accent.minGapMs / 1000);
+    const drops = FakeContext.last.gains.flatMap((g) => g.gain.linearRampToValueAtTime.mock.calls).filter(([v]) => v === MIX.accent.duck);
+    expect(drops).toHaveLength(2);
+  });
+
+  it("adds the fixed makeup gain after the compressor", () => {
+    new Mixer(MIX);
+    expect(FakeContext.last.gains.map((g) => g.gain.value)).toContain(MIX.compressor.makeup);
   });
 });
