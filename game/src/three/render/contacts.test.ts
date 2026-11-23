@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import type { Group, Mesh, MeshBasicMaterial } from 'three';
 import { PHYSICS } from '../../data/physics';
 import { heightAt } from '../../sim/terrain';
@@ -7,8 +8,9 @@ import { emptyWorld } from '../../sim/testkit';
 import type { Contact } from '../../sim/types';
 import { ContactsView } from './contacts';
 import { TUNING } from './inkTuning';
+import { CONTACT_BIT } from './models';
 
-function look(view: ContactsView, name: 'contact-blip' | 'contact-ink', index = 0): Group {
+function look(view: ContactsView, name: 'contact-blip' | 'contact-ghost', index = 0): Group {
   const marker = view.root.children[index] as Group;
   return marker.children.find((o) => o.name === name) as Group;
 }
@@ -20,88 +22,93 @@ function colorsOf(group: Group): number[] {
 describe('the contact mark', () => {
   const w = emptyWorld();
   const at = { x: 30, y: 30 };
-  const contact = (sources: Contact['sources'], vehicleId = 'v9', center = { x: 40, y: 40 }): Contact => ({ vehicleId, center, radius: 8, sources, loudness: null });
+  const S = PHYSICS.metersPerTile;
+  const contact = (sources: Contact['sources'], vehicleId = 'v9', center = { x: 40, y: 40 }, radius = 8): Contact => ({ vehicleId, center, radius, sources, loudness: null });
   const original = TUNING.fxInk.value;
   afterEach(() => {
     TUNING.fxInk.value = original;
   });
 
-  it('draws no mark for a far contact alone', () => {
-    const view = new ContactsView();
-    view.update(w.terrain, [contact(['far'])], at, w.turn, 0);
-    expect(look(view, 'contact-blip').visible).toBe(false);
-    expect(look(view, 'contact-ink').visible).toBe(false);
-  });
-
-  it('draws no mark for a sound contact alone', () => {
-    const view = new ContactsView();
-    view.update(w.terrain, [contact(['sound'])], at, w.turn, 0);
-    expect(look(view, 'contact-blip').visible).toBe(false);
-    expect(look(view, 'contact-ink').visible).toBe(false);
-  });
-
-  it('prints a radio contact as the ink mark when ink effects are on', () => {
+  it.each([['far'], ['sound']] as const)('draws no mark for a %s contact alone', (source) => {
     TUNING.fxInk.value = 1;
     const view = new ContactsView();
-    view.update(w.terrain, [contact(['radio', 'far'])], at, w.turn, 0);
+    view.update(w.terrain, [contact([source])], at, w.turn, 0);
     expect(look(view, 'contact-blip').visible).toBe(false);
-    const ink = look(view, 'contact-ink');
-    expect(ink.visible).toBe(true);
-    const colors = new Set(colorsOf(ink));
-    expect(colors).toEqual(new Set([PAL.contactMark.radio.deep, PAL.contactMark.radio.pale]));
+    expect(look(view, 'contact-ghost').visible).toBe(false);
+  });
+
+  it.each([[['radio', 'far']], [['flare']], [['radio', 'flare']]] as const)('shows %j as a ghost when ink effects are on', (sources) => {
+    TUNING.fxInk.value = 1;
+    const view = new ContactsView();
+    view.update(w.terrain, [contact([...sources])], at, w.turn, 0);
+    expect(look(view, 'contact-blip').visible).toBe(false);
+    expect(look(view, 'contact-ghost').visible).toBe(true);
   });
 
   it('brings the old blip back when ink effects are off', () => {
     TUNING.fxInk.value = 0;
     const view = new ContactsView();
-    view.update(w.terrain, [contact(['radio', 'far'])], at, w.turn, 0);
-    expect(look(view, 'contact-ink').visible).toBe(false);
-    expect(colorsOf(look(view, 'contact-blip'))).toEqual([PAL.radio, PAL.radio]);
+    view.update(w.terrain, [contact(['radio', 'far'], 'a'), contact(['flare'], 'b')], at, w.turn, 0);
+    expect(look(view, 'contact-ghost', 0).visible).toBe(false);
+    expect(look(view, 'contact-ghost', 1).visible).toBe(false);
+    expect(colorsOf(look(view, 'contact-blip', 0))).toEqual([PAL.radio, PAL.radio]);
+    expect(colorsOf(look(view, 'contact-blip', 1))).toEqual([PAL.flare.marker, PAL.flare.marker]);
   });
 
-  it('inks a flare contact in flare inks, and radio wins over flare', () => {
+  it('gives every contact the same form, size and axis', () => {
     TUNING.fxInk.value = 1;
     const view = new ContactsView();
-    view.update(w.terrain, [contact(['flare'], 'a'), contact(['radio', 'flare'], 'b')], at, w.turn, 0);
-    expect(new Set(colorsOf(look(view, 'contact-ink', 0)))).toEqual(new Set([PAL.contactMark.flare.deep, PAL.contactMark.flare.pale]));
-    expect(new Set(colorsOf(look(view, 'contact-ink', 1)))).toEqual(new Set([PAL.contactMark.radio.deep, PAL.contactMark.radio.pale]));
+    view.update(w.terrain, [contact(['radio'], 'a', { x: 40, y: 40 }, 3), contact(['flare'], 'b', { x: 70, y: 52 }, 20)], at, w.turn, 0);
+    const [a, b] = [look(view, 'contact-ghost', 0) as unknown as Mesh, look(view, 'contact-ghost', 1) as unknown as Mesh];
+    expect(a.geometry).toBe(b.geometry);
+    expect(a.material).toBe(b.material);
+    expect(a.rotation.toArray()).toEqual(b.rotation.toArray());
+    expect(a.scale.toArray()).toEqual(b.scale.toArray());
   });
 
-  it('sits at the contact center on the terrain', () => {
+  it('stands at the contact center on the terrain and holds its axis between turns', () => {
     TUNING.fxInk.value = 1;
     const view = new ContactsView();
     view.update(w.terrain, [contact(['radio'])], at, w.turn, 0);
-    const p = look(view, 'contact-ink').position;
-    const S = PHYSICS.metersPerTile;
-    expect(p.x).toBeCloseTo(40 * S);
-    expect(p.z).toBeCloseTo(40 * S);
-    expect(p.y).toBeCloseTo(heightAt(w.terrain, 40, 40) * S + 0.08);
+    const ghost = look(view, 'contact-ghost');
+    const axis = ghost.rotation.toArray();
+    expect(ghost.position.x).toBeCloseTo(40 * S);
+    expect(ghost.position.z).toBeCloseTo(40 * S);
+    expect(ghost.position.y).toBeCloseTo(heightAt(w.terrain, 40, 40) * S);
+    view.update(w.terrain, [contact(['radio'], 'v9', { x: 44, y: 41 })], at, w.turn + 1, 50000);
+    expect(ghost.position.x).toBeCloseTo(44 * S);
+    expect(ghost.position.z).toBeCloseTo(41 * S);
+    expect(ghost.rotation.toArray()).toEqual(axis);
   });
 
-  it('keeps the stroke turn of a mark steady and different per id', () => {
-    TUNING.fxInk.value = 1;
-    const view = new ContactsView();
-    view.update(w.terrain, [contact(['radio'], 'a'), contact(['radio'], 'b')], at, w.turn, 0);
-    const first = [look(view, 'contact-ink', 0).rotation.y, look(view, 'contact-ink', 1).rotation.y];
-    view.update(w.terrain, [contact(['radio'], 'a', { x: 44, y: 41 }), contact(['radio'], 'b', { x: 50, y: 52 })], at, w.turn + 3, 50000);
-    expect([look(view, 'contact-ink', 0).rotation.y, look(view, 'contact-ink', 1).rotation.y]).toEqual(first);
-    expect(first[0]).not.toBe(first[1]);
-  });
-
-  it('shares geometry and materials between marks and survives a removal', () => {
+  it('shares geometry and material and survives a removal', () => {
     TUNING.fxInk.value = 1;
     const view = new ContactsView();
     view.update(w.terrain, [contact(['radio'], 'a')], at, w.turn, 0);
-    const before = look(view, 'contact-ink').children.map((o) => [(o as Mesh).geometry, (o as Mesh).material]);
+    const first = look(view, 'contact-ghost') as unknown as Mesh;
+    const resources = [first.geometry, first.material as THREE.Material];
     let disposed = 0;
-    for (const [g, m] of before) {
-      (g as { addEventListener: (t: string, f: () => void) => void }).addEventListener('dispose', () => disposed++);
-      (m as { addEventListener: (t: string, f: () => void) => void }).addEventListener('dispose', () => disposed++);
-    }
+    for (const r of resources) r.addEventListener('dispose', () => disposed++);
     view.update(w.terrain, [], at, w.turn, 100);
     view.update(w.terrain, [contact(['radio'], 'c')], at, w.turn, 200);
-    const after = look(view, 'contact-ink').children.map((o) => [(o as Mesh).geometry, (o as Mesh).material]);
-    expect(after).toEqual(before);
+    const second = look(view, 'contact-ghost') as unknown as Mesh;
+    expect([second.geometry, second.material]).toEqual(resources);
     expect(disposed).toBe(0);
+  });
+
+  it('draws a flat tint that stencils each pixel once', () => {
+    TUNING.fxInk.value = 1;
+    const view = new ContactsView();
+    view.update(w.terrain, [contact(['radio'])], at, w.turn, 0);
+    const material = (look(view, 'contact-ghost') as unknown as Mesh).material as MeshBasicMaterial;
+    expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
+    expect(material.color.getHex()).toBe(PAL.contactGhost.color);
+    expect(material.opacity).toBe(PAL.contactGhost.opacity);
+    expect(material.transparent).toBe(true);
+    expect([material.depthTest, material.depthWrite]).toEqual([false, false]);
+    expect(material.stencilWrite).toBe(true);
+    expect([material.stencilRef, material.stencilFuncMask, material.stencilWriteMask]).toEqual([CONTACT_BIT, CONTACT_BIT, CONTACT_BIT]);
+    expect(material.stencilFunc).toBe(THREE.NotEqualStencilFunc);
+    expect(material.stencilZPass).toBe(THREE.ReplaceStencilOp);
   });
 });

@@ -7,6 +7,8 @@ import { hash2, valueNoise } from '../../render/noise';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Contact } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CONTACT_BIT } from './models';
 import { overlayMaterial } from './overlay-material';
 import { TUNING } from './inkTuning';
 import { INK_DUST_LAYER } from './particles/cards';
@@ -35,49 +37,42 @@ const WAVE = {
 
 const BLIP = { radius: 0.7, dot: 0.25, opacity: 0.9 };
 
-const INK_MARK = { core: 0.18, band: 0.3, strokeRadius: 0.58, strokeWidth: 0.14, strokeArc: (70 * Math.PI) / 180, strokes: 3, segments: 12 };
+const GHOST = { length: 1.6, width: 0.75, height: 0.6 };
 
 type MarkKind = 'radio' | 'flare';
 
-function arcStrokes(): THREE.BufferGeometry {
-  const { strokeRadius: r, strokeWidth: w, strokeArc: arc, strokes, segments } = INK_MARK;
-  const gap = (Math.PI * 2) / strokes;
-  const positions: number[] = [];
-  const index: number[] = [];
-  for (let s = 0; s < strokes; s++) {
-    const start = s * gap - arc / 2;
-    const base = positions.length / 3;
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
-      const a = start + arc * t;
-      const half = (w / 2) * Math.sin(Math.PI * t);
-      for (const radius of [r - half, r + half]) positions.push(Math.cos(a) * radius * S, 0, Math.sin(a) * radius * S);
-    }
-    for (let i = 0; i < segments; i++) {
-      const k = base + i * 2;
-      index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setIndex(index);
-  return geo;
+function ghostGeometry(): THREE.BufferGeometry {
+  const { length, width, height } = GHOST;
+  const L = length * S;
+  const W = width * S;
+  const H = height * S;
+  const wheelRadius = H * 0.22;
+  const hullHeight = H * 0.4;
+  const hull = new THREE.BoxGeometry(L, hullHeight, W * 0.86).translate(0, wheelRadius + hullHeight / 2, 0);
+  const middleHeight = H - wheelRadius - hullHeight;
+  const middle = new THREE.BoxGeometry(L * 0.45, middleHeight, W * 0.7).translate(0, wheelRadius + hullHeight + middleHeight / 2, 0);
+  const wheels = [-1, 1].flatMap((end) =>
+    [-1, 1].map((side) =>
+      new THREE.CylinderGeometry(wheelRadius, wheelRadius, W * 0.14, 10).rotateX(Math.PI / 2).translate(end * L * 0.32, wheelRadius, side * W * 0.43),
+    ),
+  );
+  return mergeGeometries([hull, middle, ...wheels].map((g) => g.toNonIndexed().deleteAttribute('uv').deleteAttribute('normal')));
 }
 
-const INK_GEOMETRY = {
-  core: new THREE.CircleGeometry(INK_MARK.core * S, 24).rotateX(-Math.PI / 2),
-  band: new THREE.RingGeometry(INK_MARK.core * S * 0.9, INK_MARK.band * S, 32).rotateX(-Math.PI / 2),
-  strokes: arcStrokes(),
-};
+const GHOST_GEOMETRY = ghostGeometry();
 
-function inkMaterial(color: number): THREE.MeshBasicMaterial {
-  return overlayMaterial({ color, opacity: 1, depthTest: false, depthWrite: false });
-}
-
-const INK_MATERIALS: Record<MarkKind, { deep: THREE.MeshBasicMaterial; pale: THREE.MeshBasicMaterial }> = {
-  radio: { deep: inkMaterial(PAL.contactMark.radio.deep), pale: inkMaterial(PAL.contactMark.radio.pale) },
-  flare: { deep: inkMaterial(PAL.contactMark.flare.deep), pale: inkMaterial(PAL.contactMark.flare.pale) },
-};
+const GHOST_MATERIAL = overlayMaterial({
+  color: PAL.contactGhost.color,
+  opacity: PAL.contactGhost.opacity,
+  depthTest: false,
+  depthWrite: false,
+  stencilWrite: true,
+  stencilRef: CONTACT_BIT,
+  stencilFuncMask: CONTACT_BIT,
+  stencilWriteMask: CONTACT_BIT,
+  stencilFunc: THREE.NotEqualStencilFunc,
+  stencilZPass: THREE.ReplaceStencilOp,
+});
 
 type Front = {
   line: THREE.Line;
@@ -90,7 +85,7 @@ type Front = {
   spawn: number;
 };
 
-type Marker = { id: string; fronts: Front[]; blip: THREE.Group; ink: THREE.Group; root: THREE.Group; burstMs: number };
+type Marker = { id: string; fronts: Front[]; blip: THREE.Group; ghost: THREE.Mesh; root: THREE.Group; burstMs: number };
 
 const WIND = (() => {
   const l = Math.hypot(WEATHER.wind.x, WEATHER.wind.y);
@@ -136,10 +131,10 @@ export class ContactsView {
     const seed = hashId(id);
     const fronts = Array.from({ length: WAVE.fronts }, (_, k) => makeFront(k, seed));
     const blip = makeBlip();
-    const ink = makeInkMark(id);
-    root.add(...fronts.map((f) => f.line), blip, ink);
+    const ghost = makeGhost();
+    root.add(...fronts.map((f) => f.line), blip, ghost);
     this.root.add(root);
-    return { id, fronts, blip, ink, root, burstMs: 0 };
+    return { id, fronts, blip, ghost, root, burstMs: 0 };
   }
 
   private advanceFront(terrain: Terrain, c: Contact, listener: Vec, f: Front, dt: number, due: boolean): void {
@@ -236,40 +231,28 @@ function makeBlip(): THREE.Group {
   return group;
 }
 
-function makeInkMark(id: string): THREE.Group {
-  const parts: [THREE.BufferGeometry, THREE.MeshBasicMaterial, number][] = [
-    [INK_GEOMETRY.band, INK_MATERIALS.radio.pale, 0],
-    [INK_GEOMETRY.core, INK_MATERIALS.radio.deep, 1],
-    [INK_GEOMETRY.strokes, INK_MATERIALS.radio.deep, 2],
-  ];
-  const group = new THREE.Group();
-  group.name = 'contact-ink';
-  group.rotation.y = hash2(hashId(id), 37) * Math.PI * 2;
-  for (const [geometry, material, layer] of parts) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.renderOrder = RENDER_ORDER + layer * 0.01;
-    group.add(mesh);
-  }
-  return group;
+function makeGhost(): THREE.Mesh {
+  const mesh = new THREE.Mesh(GHOST_GEOMETRY, GHOST_MATERIAL);
+  mesh.name = 'contact-ghost';
+  mesh.renderOrder = RENDER_ORDER;
+  mesh.frustumCulled = false;
+  return mesh;
 }
 
 function placeMark(terrain: Terrain, m: Marker, c: Contact): void {
   const kind = markKind(c);
   const inked = TUNING.fxInk.value >= INK_DUST_LAYER;
   m.blip.visible = kind !== null && !inked;
-  m.ink.visible = kind !== null && inked;
+  m.ghost.visible = kind !== null && inked;
   if (kind === null) return;
   const x = c.center.x * S;
-  const y = heightAt(terrain, c.center.x, c.center.y) * S + LIFT;
+  const terrainY = heightAt(terrain, c.center.x, c.center.y) * S;
   const z = c.center.y * S;
   if (inked) {
-    const [band, core, strokes] = m.ink.children as THREE.Mesh[];
-    band.material = INK_MATERIALS[kind].pale;
-    core.material = INK_MATERIALS[kind].deep;
-    strokes.material = INK_MATERIALS[kind].deep;
-    m.ink.position.set(x, y, z);
+    m.ghost.position.set(x, terrainY, z);
     return;
   }
+  const y = terrainY + LIFT;
   const color = kind === 'radio' ? PAL.radio : PAL.flare.marker;
   m.blip.traverse((o) => {
     if (o instanceof THREE.Mesh) (o.material as THREE.MeshBasicMaterial).color.setHex(color);
