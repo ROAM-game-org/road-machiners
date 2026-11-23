@@ -7,7 +7,7 @@ import { shutDownTurnsLeft } from '../../sim/utility';
 import { playerSees } from '../../sim/vision';
 import type { Terrain } from '../../sim/terrain';
 import type { TurnClock } from './hazards';
-import { coolInkShape, INK_DUST_LAYER, ROUND_SHAPE, type FxCards } from './particles/cards';
+import { INK_DUST_LAYER, ROUND_SHAPE, type FxCards } from './particles/cards';
 import { TUNING } from './inkTuning';
 import type { VehicleView } from './vehicle';
 
@@ -27,13 +27,16 @@ const PULSE_LOOK = {
   sparkHeight: 2.2,
   sparkStreak: 0.7,
   crackleMs: 90,
+  crackleArcs: 3,
+  crackleLength: 1.5,
+  crackleJitter: 0.3,
+  crackleWidthM: 0.25,
   strandSparks: [2, 4, 6],
   strandStreak: 0.5,
   maxZaps: 4,
   maxArcs: 4,
   maxShut: 6,
 };
-const INK_HOLD = 2.5;
 const ARC_INK = { widthM: 0.5, columns: [-1, -0.75, -0.75, -0.4, -0.4, 0.4, 0.4, 0.75, 0.75, 1] };
 const ARC_COLORS = [PAL.pulse.rim, PAL.pulse.rim, PAL.pulse.body, PAL.pulse.body, PAL.pulse.core, PAL.pulse.core, PAL.pulse.body, PAL.pulse.body, PAL.pulse.rim, PAL.pulse.rim];
 
@@ -47,7 +50,7 @@ const FROM = new THREE.Vector3();
 const TO = new THREE.Vector3();
 type Flash = { at: THREE.Vector3; size: number; alpha: number };
 type Zap = { e: PulseEvent; flash: Flash; arcs: { to: string; strands: Strand[] }[]; startMs: number; nextJagMs: number };
-type Crackle = { spots: { at: THREE.Vector3; streak: THREE.Vector3 }[]; nextMs: number };
+type Crackle = { spots: { at: THREE.Vector3; streak: THREE.Vector3 }[]; strands: Strand[]; ends: { from: V3; to: V3 }[]; nextMs: number };
 
 const inked = () => TUNING.fxInk.value >= INK_DUST_LAYER;
 
@@ -60,6 +63,7 @@ export class PulseView {
   private readonly color = new THREE.Color();
 
   draw(cards: FxCards): void {
+    if (inked()) return;
     for (const zap of this.zaps.slice(0, PULSE_LOOK.maxZaps)) {
       this.spark(cards, zap.flash.at, PAL.pulse.flash, zap.flash.size, zap.flash.alpha, NO_STREAK);
       for (const arc of zap.arcs.slice(0, PULSE_LOOK.maxArcs)) this.strandSparks(cards, arc.strands[0], zap.flash.alpha);
@@ -82,18 +86,15 @@ export class PulseView {
   }
 
   private spark(cards: FxCards, at: THREE.Vector3, hex: number, size: number, alpha: number, streak: THREE.Vector3): void {
-    const ink = inked();
-    this.color.set(ink ? PAL.pulse.body : hex);
-    const batch = ink ? cards.lit : cards.glow;
-    const shape = ink ? coolInkShape(ROUND_SHAPE) : ROUND_SHAPE;
-    batch.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape, r: this.color.r, g: this.color.g, b: this.color.b, alpha: ink ? Math.min(1, alpha * INK_HOLD) : alpha, sx: streak.x, sy: streak.y, sz: streak.z });
+    this.color.set(hex);
+    cards.glow.push({ x: at.x, y: at.y, z: at.z, size, spin: 0, shape: ROUND_SHAPE, r: this.color.r, g: this.color.g, b: this.color.b, alpha, sx: streak.x, sy: streak.y, sz: streak.z });
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, camera: THREE.Camera): void {
     if (clock === null || clock.moved) this.startZaps(world, nowMs);
     const view = camera.getWorldDirection(new THREE.Vector3());
     for (const zap of [...this.zaps]) this.play(zap, terrain, views, nowMs, view);
-    this.crackle(world, views, nowMs);
+    this.crackle(world, views, nowMs, view);
   }
 
   private startZaps(world: World, nowMs: number): void {
@@ -128,8 +129,8 @@ export class PulseView {
     for (const arc of zap.arcs) {
       const target = views.get(arc.to);
       for (const strand of arc.strands) {
-        if (roll) rollJag(strand);
-        placeStrand(strand, from, target ? zapPoint(target.center()) : null, 1 - t, ink, view);
+        if (roll) rollJag(strand, PULSE_LOOK.jitter);
+        placeStrand(strand, from, target ? zapPoint(target.center()) : null, 1 - t, ink, view, (ARC_INK.widthM / 2) * (1 - t));
       }
     }
   }
@@ -137,32 +138,56 @@ export class PulseView {
   private end(zap: Zap): void {
     const strands = zap.arcs.flatMap((a) => a.strands);
     this.root.remove(...strands.flatMap((s) => [s.line, s.ribbon]));
-    for (const s of strands) {
-      for (const o of [s.line, s.ribbon]) {
-        o.geometry.dispose();
-        o.material.dispose();
-      }
-    }
+    for (const s of strands) disposeStrand(s);
     this.zaps.splice(this.zaps.indexOf(zap), 1);
   }
 
-  private crackle(world: World, views: ReadonlyMap<string, VehicleView>, nowMs: number): void {
+  private crackle(world: World, views: ReadonlyMap<string, VehicleView>, nowMs: number, view: THREE.Vector3): void {
     const shut = shutDownViews(world, views);
-    for (const id of this.sparks.keys()) if (!shut.has(id)) this.sparks.delete(id);
-    for (const [id, view] of shut) {
+    for (const [id, crackle] of this.sparks) {
+      if (shut.has(id)) continue;
+      this.dropCrackle(crackle);
+      this.sparks.delete(id);
+    }
+    const ink = inked();
+    for (const [id, truck] of shut) {
       const crackle = this.sparks.get(id) ?? this.makeCrackle();
       this.sparks.set(id, crackle);
+      const center = truck.center();
       if (nowMs >= crackle.nextMs) {
-        jump(crackle, view.center());
+        jump(crackle, center);
         crackle.nextMs = nowMs + PULSE_LOOK.crackleMs;
       }
+      crackle.strands.forEach((strand, i) => {
+        const { from, to } = crackle.ends[i];
+        placeStrand(strand, offsetBy(center, from), offsetBy(center, to), 1, ink, view, PULSE_LOOK.crackleWidthM / 2);
+      });
     }
   }
 
   private makeCrackle(): Crackle {
     const spots = Array.from({ length: PULSE_LOOK.sparks }, () => ({ at: new THREE.Vector3(), streak: new THREE.Vector3() }));
-    return { spots, nextMs: -Infinity };
+    const strands = Array.from({ length: PULSE_LOOK.crackleArcs }, () => makeStrand());
+    const ends = strands.map(() => ({ from: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 } }));
+    this.root.add(...strands.map((s) => s.ribbon));
+    return { spots, strands, ends, nextMs: -Infinity };
   }
+
+  private dropCrackle(crackle: Crackle): void {
+    this.root.remove(...crackle.strands.map((s) => s.ribbon));
+    for (const s of crackle.strands) disposeStrand(s);
+  }
+}
+
+function disposeStrand(s: Strand): void {
+  for (const o of [s.line, s.ribbon]) {
+    o.geometry.dispose();
+    o.material.dispose();
+  }
+}
+
+function offsetBy(p: V3, d: V3): V3 {
+  return { x: p.x + d.x, y: p.y + d.y, z: p.z + d.z };
 }
 
 function makeStrand(): Strand {
@@ -201,17 +226,17 @@ function makeRibbon(): Ribbon {
   return mesh;
 }
 
-function rollJag(strand: Strand): void {
+function rollJag(strand: Strand, jitter: number): void {
   const last = PULSE_LOOK.segments - 1;
   strand.offsets.forEach((o, i) => {
-    const off = i === 0 || i === last ? 0 : PULSE_LOOK.jitter;
+    const off = i === 0 || i === last ? 0 : jitter;
     o.x = (Math.random() - 0.5) * 2 * off;
     o.y = (Math.random() - 0.5) * 2 * off;
     o.z = (Math.random() - 0.5) * 2 * off;
   });
 }
 
-function placeStrand(strand: Strand, a: V3, b: V3 | null, remaining: number, ink: boolean, view: THREE.Vector3): void {
+function placeStrand(strand: Strand, a: V3, b: V3 | null, remaining: number, ink: boolean, view: THREE.Vector3, halfWidth: number): void {
   strand.live = b !== null;
   strand.line.visible = b !== null && !ink;
   strand.ribbon.visible = b !== null && ink;
@@ -224,7 +249,7 @@ function placeStrand(strand: Strand, a: V3, b: V3 | null, remaining: number, ink
   });
   at.needsUpdate = true;
   strand.line.material.opacity = remaining;
-  if (ink) placeRibbon(strand.ribbon, at, view, (ARC_INK.widthM / 2) * remaining);
+  if (ink) placeRibbon(strand.ribbon, at, view, halfWidth);
 }
 
 function placeRibbon(ribbon: Ribbon, points: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, view: THREE.Vector3, halfWidth: number): void {
@@ -270,7 +295,7 @@ function pulseShown(world: World, e: PulseEvent): boolean {
   });
 }
 
-function jump(crackle: Crackle, at: { x: number; y: number; z: number }): void {
+function jump(crackle: Crackle, at: V3): void {
   for (const spot of crackle.spots) {
     const a = Math.random() * 2 * Math.PI;
     const r = Math.random() * PULSE_LOOK.sparkReach;
@@ -278,4 +303,13 @@ function jump(crackle: Crackle, at: { x: number; y: number; z: number }): void {
     const b = Math.random() * 2 * Math.PI;
     spot.streak.set(Math.cos(b), Math.random() - 0.3, Math.sin(b)).multiplyScalar(PULSE_LOOK.sparkStreak);
   }
+  crackle.strands.forEach((strand, i) => {
+    const a = Math.random() * 2 * Math.PI;
+    const r = Math.random() * PULSE_LOOK.sparkReach;
+    const from = { x: Math.cos(a) * r, y: PULSE_LOOK.sparkHeight * Math.random(), z: Math.sin(a) * r };
+    const b = Math.random() * 2 * Math.PI;
+    const to = { x: from.x + Math.cos(b) * PULSE_LOOK.crackleLength, y: from.y + (Math.random() - 0.5) * PULSE_LOOK.crackleLength * 0.5, z: from.z + Math.sin(b) * PULSE_LOOK.crackleLength };
+    crackle.ends[i] = { from, to };
+    rollJag(strand, PULSE_LOOK.crackleJitter);
+  });
 }

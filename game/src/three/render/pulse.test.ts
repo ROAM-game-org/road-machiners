@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { World } from '../../sim/types';
 import { TUNING } from './inkTuning';
-import { COOL_INK, coolInkShape, GLOW_IN_LIT, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
+import { ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
 import { PulseView } from './pulse';
 import type { VehicleView } from './vehicle';
 
@@ -69,16 +69,17 @@ describe('Emitter pulse view', () => {
     }
   });
 
-  it('puts every card in the lit batch as a cool ink card with ink on', () => {
+  it('draws no card in any batch with ink on, for a zap and for a shut-down truck', () => {
     (TUNING.fxInk.value = 1);
     const { world, views } = pulsingWorld();
+    const npc = world.vehicles[1];
+    npc.shutDown = { until: world.turn + 2 } as typeof npc.shutDown;
     const view = new PulseView();
     view.update(world, world.terrain, views, 1000, null, camera(1));
     const out = recorded();
     view.draw(out.cards);
     expect(out.glow).toEqual([]);
-    expect(out.lit.length).toBeGreaterThan(0);
-    expect(out.lit.every((c) => c.shape === ROUND_SHAPE + COOL_INK)).toBe(true);
+    expect(out.lit).toEqual([]);
   });
 
   it('keeps the soft glow cards with ink effects turned down', () => {
@@ -135,13 +136,42 @@ describe('Emitter pulse view', () => {
   });
 });
 
-describe('coolInkShape', () => {
-  it('adds the flag to a plain shape', () => {
-    expect(coolInkShape(ROUND_SHAPE)).toBe(ROUND_SHAPE + COOL_INK);
+describe('shut-down crackle', () => {
+  function shutWorld() {
+    const world = emptyWorld();
+    const npc = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: world.vehicles[0].pos.x + 4, y: world.vehicles[0].pos.y });
+    npc.shutDown = { until: world.turn + 2 } as typeof npc.shutDown;
+    const stub = { center: () => ({ x: 5, y: 0.5, z: 5 }) } as unknown as VehicleView;
+    return { world, npc, views: new Map([[npc.id, stub]]) as Map<string, VehicleView> };
+  }
+  const shown = (view: PulseView) => ribbons(view).filter((m) => m.visible);
+
+  it('crawls three short ribbons over a shut-down truck with ink on and holds them while the clock stands', () => {
+    const { world, views } = shutWorld();
+    const view = new PulseView();
+    view.update(world, world.terrain, views, 1000, null, camera(1));
+    expect(shown(view)).toHaveLength(3);
+    const first = positions(view);
+    view.update(world, world.terrain, views, 1000, null, camera(1));
+    expect(positions(view)).toEqual(first);
+    view.update(world, world.terrain, views, 1100, null, camera(1));
+    expect(positions(view)).not.toEqual(first);
   });
 
-  it('throws on a shape that already carries a flag', () => {
-    expect(() => coolInkShape(ROUND_SHAPE + GLOW_IN_LIT)).toThrow();
-    expect(() => coolInkShape(ROUND_SHAPE + COOL_INK)).toThrow();
+  it('removes the ribbons once the shutdown ends', () => {
+    const { world, npc, views } = shutWorld();
+    const view = new PulseView();
+    view.update(world, world.terrain, views, 1000, null, camera(1));
+    npc.shutDown = undefined;
+    view.update(world, world.terrain, views, 1100, null, camera(1));
+    expect(ribbons(view)).toHaveLength(0);
+  });
+
+  it('shows no ribbon with ink effects turned down', () => {
+    (TUNING.fxInk.value = 0);
+    const { world, views } = shutWorld();
+    const view = new PulseView();
+    view.update(world, world.terrain, views, 1000, null, camera(1));
+    expect(shown(view)).toHaveLength(0);
   });
 });

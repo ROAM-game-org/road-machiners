@@ -1,6 +1,3 @@
-import * as THREE from 'three';
-import { PAL } from '../../../render/palette';
-
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
 export const CLUMP_FIRST = ROUND_SHAPE + 1;
@@ -8,7 +5,6 @@ export const CLUMP_SHAPES = 4;
 export const HAZE_SHAPE = CLUMP_FIRST + CLUMP_SHAPES;
 export const PLUME_SHAPE = HAZE_SHAPE + CARD_SHAPES;
 export const GLOW_IN_LIT = 32;
-export const COOL_INK = 64;
 export const ATLAS_CELLS = 3;
 
 const CARD_LIGHT = { scatter: 0.7 };
@@ -17,18 +13,12 @@ const DENSITY = { gain: 2.2, boil: { scale: 1.6, speed: 0.12, low: 0.8, high: 1.
 export const DUST_RIM = { inner: 0.55, outer: 0.85 };
 const DUST_SAND = [0.85, 0.66, 0.42];
 const FIRE = { edge: { full: 0.42, gone: 0.8 }, fadeAlpha: 0.3, opacityGain: 1.5, thin: { soft: 0.25, crisp: 0.45 }, rim: 0.18, rimTone: [0.8, 0.3, 0.2], core: 0.55, coreShare: 0.7, yellow: [1, 0.8, 0.25], taper: { from: 0.05, to: 0.2, tip: 0.12 } };
-const COOL = { rim: linearOf(PAL.pulse.rim), core: linearOf(PAL.pulse.core) };
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
 const CLUMP_EDGE = { from: 0, to: 1 };
 const SHAPE_ALPHA = `mix(texture2D(shapes, vUv).a, smoothstep(${CLUMP_EDGE.from.toFixed(2)}, ${CLUMP_EDGE.to.toFixed(2)}, texture2D(shapes, vUv).a), vClump)`;
 const CARD_BODY = `mix(${SHAPE_ALPHA}, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)`;
 const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 const INV_PI = (1 / Math.PI).toFixed(6);
-
-function linearOf(hex: number): number[] {
-  const c = new THREE.Color(hex);
-  return [c.r, c.g, c.b];
-}
 
 const f = (n: number) => n.toFixed(3);
 const v3 = (c: number[]) => `vec3(${c.map(f).join(', ')})`;
@@ -77,11 +67,8 @@ export const CARD_VERTEX = `
     float c = cos(sizeSpin.y);
     float s = sin(sizeSpin.y);
     vec2 turned = mat2(c, s, -s, c) * (uv - 0.5) + 0.5;
-    float cool = shape > ${f(COOL_INK - 0.5)} ? 1.0 : 0.0;
-    float rest = shape - cool * ${f(COOL_INK)};
-    float glowing = rest > ${f(GLOW_IN_LIT - 0.5)} ? 1.0 : 0.0;
-    vGlow = cool > 0.5 ? 2.0 : glowing;
-    float base = rest - glowing * ${f(GLOW_IN_LIT)};
+    vGlow = shape > ${f(GLOW_IN_LIT - 0.5)} ? 1.0 : 0.0;
+    float base = shape - vGlow * ${f(GLOW_IN_LIT)};
     vPlume = base > ${f(PLUME_SHAPE - 0.5)} ? 1.0 : 0.0;
     vHaze = base > ${f(HAZE_SHAPE - 0.5)} && vPlume < 0.5 ? 1.0 : 0.0;
     float atlasShape = base - vHaze * ${f(HAZE_SHAPE)} - vPlume * ${f(PLUME_SHAPE)};
@@ -130,9 +117,8 @@ const INK_FIRE = `
   vec3 fireInks(vec3 tint, float body, float edge) {
     float inner = inkCut(body, mix(edge, 1.0, ${f(FIRE.rim)}));
     float core = inkCut(body, mix(edge, 1.0, ${f(FIRE.core)}));
-    bool cool = vGlow > 1.5;
-    vec3 color = mix(cool ? ${v3(COOL.rim)} : tint * ${v3(FIRE.rimTone)}, tint, inner);
-    return mix(color, cool ? ${v3(COOL.core)} : mix(tint, ${v3(FIRE.yellow)}, ${f(FIRE.coreShare)}), core);
+    vec3 color = mix(tint * ${v3(FIRE.rimTone)}, tint, inner);
+    return mix(color, mix(tint, ${v3(FIRE.yellow)}, ${f(FIRE.coreShare)}), core);
   }
 `;
 
