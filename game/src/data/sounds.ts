@@ -345,7 +345,7 @@ export const MIX = {
   crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.6 },
   roadHorn: { brakeStep: 12, sightSpanSteps: 30 },
   halfGainMeters: 40,
-  voices: { budget: 24, cutMs: 30 },
+  voices: { budget: 10, cutMs: 30 },
   landings: { levels: [1, 0.7, 0.5], every: 3, restLevel: 0.4 },
   spread: { miss: 0.5 } as Partial<Record<SoundEventId, number>>,
   panWidth: 0.7,
