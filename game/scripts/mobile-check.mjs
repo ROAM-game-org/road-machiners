@@ -119,7 +119,7 @@ const faultsIn = (page, scope = '#ui') =>
       const { findLayoutFaults, findMobileFaults, keyCapFaults } = await import('/src/ui/dom.ts');
       const root = document.querySelector(scope);
       const overlay = document.querySelector('#overlay');
-      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, minTarget: options.desktopMinTarget * (() => { const scale = Number(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')); if (!(scale > 0)) throw new Error(`--ui-scale is not set: ${scale}`); return scale; })(), viewportWidth: window.screen.width }), ...(overlay ? keyCapFaults(overlay) : [])];
+      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'Day', 'English'], glyphs }), ...findMobileFaults(root, { ...options, minTarget: options.desktopMinTarget * (() => { const scale = Number(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')); if (!(scale > 0)) throw new Error(`--ui-scale is not set: ${scale}`); return scale; })(), viewportWidth: window.screen.width }), ...(overlay ? keyCapFaults(overlay) : [])];
     },
     { options: FAULT_OPTIONS, glyphs: GLYPHS, scope },
   );

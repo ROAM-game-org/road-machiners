@@ -364,7 +364,7 @@ export const LOG: Translation<typeof EN> = {
   'clock.spanDays': '{d} д. {time}',
   'contract.salvageShort': 'Снять {part, case, acc} с {wreck, case, gen} в квадрате {square}',
   'clock.day': 'D',
-  'clock.dayWord': 'День',
+  'clock.dayWord': 'Day',
   'clock.full': 'День {day}, {time}',
   'goods.good': 'Товар',
   'goods.theirs': 'У них',
