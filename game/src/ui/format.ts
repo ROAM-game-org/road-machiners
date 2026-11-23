@@ -46,7 +46,7 @@ import { siteRecipes } from '../data/market';
 import { driverName, factionName, standingCauseText, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
-import { aidWords, lineText } from './dialogue';
+import { aidWords, cargoHandedLine, lineText, pleaText, standDownLine, truceLine } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { compassText, damage, distanceText, fuelLiters, kph, moneyM, moneyMsg } from './units';
 import { seesAll } from './see-all';
@@ -551,13 +551,6 @@ function cargoSpilledText(world: World, e: Extract<GameEvent, { t: 'cargoSpilled
   return line(e.pile === null ? t('log.cargoLost', { who: vehicleName(world, e.vehicle), part, n: e.units }) : t('log.cargoSpilledYours', { part, n: e.units }), 'bad');
 }
 
-function pleaText(world: World, e: Extract<GameEvent, { t: 'plea' }>): LogLine | null {
-  const me = world.player.vehicleId;
-  if (e.from === me || e.to === me) return null;
-  const who = { who: vehicleName(world, e.from), to: vehicleName(world, e.to) };
-  return line(t(`log.plea.${e.plea}.${e.accepted ? 'granted' : 'refused'}`, who), 'dim');
-}
-
 function towDroppedText(world: World, e: Extract<GameEvent, { t: 'towDropped' }>): LogLine {
   const by = vehicleName(world, e.by);
   if (e.client === world.player.vehicleId) return playerTowDroppedText(by, e.reason);
@@ -943,7 +936,7 @@ function lookedOverText(world: World, e: Extract<GameEvent, { t: 'lookedOver' }>
 }
 
 function holdUpText(world: World, e: Extract<GameEvent, { t: 'holdUp' }>): LogLine | null {
-  if (e.paid !== 'money') return null;
+  if (e.paid === 'cargo') return cargoHandedLine(e, world.player.vehicleId, (id) => vehicleName(world, id));
   const me = world.player.vehicleId;
   if (e.victim !== me && e.robber !== me) return null;
   const reason = moneyReasonText(world, { kind: 'holdUp', vehicle: e.victim === me ? e.robber : e.victim });
@@ -1094,6 +1087,8 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   partDisabled: partDisabledText,
   destroyed: (world, e) => line(t('log.destroyed', { who: vehicleName(world, e.vehicle) }), 'good'),
   hostile: quiet,
+  truce: (world, e) => truceLine(e, world.player.vehicleId, (id) => vehicleName(world, id)),
+  standDown: (world, e) => standDownLine(e, world.player.vehicleId, (id) => vehicleName(world, id)),
   joins: (world, e) => line(t('log.joins', { who: vehicleName(world, e.vehicle) }), e.against === world.player.vehicleId ? 'bad' : 'good'),
   standing: (_, e) => line(standingCauseText(e.cause, t(`log.standing.${e.band}`, { faction: factionName(e.faction) })), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
   practice: quiet,

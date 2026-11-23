@@ -39,6 +39,11 @@ export function endFight(world: World, a: Vehicle, b: Vehicle): void {
   });
 }
 
+export function agreeTruce(world: World, a: Vehicle, b: Vehicle, fee = 0): void {
+  makePeace(world, a, b);
+  world.events.push({ t: 'truce', a: a.id, b: b.id, fee });
+}
+
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
   endFight(world, a, b);
   forEachOpposed(world, a, b, (p, q) => {
@@ -121,7 +126,7 @@ function goTake(world: World, npc: Vehicle, stock: SalvageStock, warned: string[
 }
 
 export function giveUpTo(world: World, loser: Vehicle, winner: Vehicle): void {
-  makePeace(world, loser, winner);
+  agreeTruce(world, loser, winner);
   const grudge = stateOf(world, 'revenge', winner.id, loser.id);
   if (grudge) endState(world, grudge, 'fulfilled');
 }
@@ -129,6 +134,7 @@ export function giveUpTo(world: World, loser: Vehicle, winner: Vehicle): void {
 export function standDownTo(world: World, loser: Vehicle, winner: Vehicle): void {
   standDown(world, loser, winner.id);
   makePeace(world, loser, winner);
+  world.events.push({ t: 'standDown', loser: loser.id, winner: winner.id });
   const grudge = stateOf(world, 'revenge', winner.id, loser.id);
   if (grudge) endState(world, grudge, 'fulfilled');
 }
@@ -177,7 +183,7 @@ function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea
 
 function truceBetween(world: World, pleader: Vehicle, answerer: Vehicle): void {
   const withdrawal = withdrawsOnTruce(world, pleader, answerer);
-  makePeace(world, pleader, answerer);
+  agreeTruce(world, pleader, answerer);
   if (withdrawal) withdrawHunt(world, withdrawal.hunter, withdrawal.target);
 }
 
@@ -372,7 +378,7 @@ export function judgeStrandedFoe(world: World, npc: Vehicle): void {
 
 function spare(world: World, npc: Vehicle, prey: Vehicle): void {
   if (!prey.brain) world.events.push({ t: 'say', speaker: npc.id, to: prey.id, line: SPARE_LINE, vars: {} });
-  makePeace(world, npc, prey);
+  agreeTruce(world, npc, prey);
 }
 
 export function answersSurrender(world: World, prey: Vehicle, winner: Vehicle): boolean {

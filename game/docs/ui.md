@@ -270,6 +270,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Quest page. The art in the left column, the tape and one screen of full column height in the middle with the prose and the numbered choices, the way out as a key on the metal under it, and the stats and facts on a second screen of full height at the right. The town's ink page keeps the art band on top.
 - Confirm dialog. No title. The question on a screen, Cancel as a plain key and the yes as a red key, both on metal.
 - Tooltip. A thin olive frame around one screen, like the center tip.
+- A gun's number on its arc icon over the world. On the icon's own small screen, left of the gun picture, as on the gun card. A number never hangs off a chip's corner.
 - Text field and picker. The input well on metal, with amber screen ink inside.
 - The crash screen keeps its plain `--crash-*` look, and the boot screen keeps its `--boot-*` look, since both draw before the baked pictures load.
 
@@ -357,7 +358,11 @@ Every event gets a level before it gets a channel. A level fires on its channels
 | refusal | A command the rules turned down | The toast in danger ink, with no log line. A modal shows it on its own status line. |
 
 - A state alert lives on the HUD for as long as it is true. The log only records that it started.
-- The log shows info lines only in its Verbose view. Brief, the default, shows notable, attention and critical lines, so a long fight does not bury what matters under shot rolls. Brief adds no line of its own: it only hides, so a hit on the player shows through its attention lines like a disabled part, and the shot lines stay in Verbose. `src/ui/log-levels.ts` owns the level of each event in `EVENT_LEVELS`.
+- The log shows info lines only in its Verbose view. Brief, the default, shows notable, attention and critical lines. `src/ui/log-levels.ts` owns the level of each event in `EVENT_LEVELS`.
+- Brief shows results, and Verbose shows how they happened. Ask of each line: after it, is something about the player's run different? That means what the player owns, the truck's health, who is friend or foe, contracts, places known, skills or standing. If yes, or the line is an alert to act on or a story beat, it goes in Brief. A change the screen already shows gets no line, like a driver turning hostile, which its hover panel shows. Everything else is Verbose: shots, rolls, driving, radio talk, the steps of a deal and world events that do not touch the player.
+- Some examples. "Engine disabled", "+120 M: contract", "Truce with Fenn Marsh" and "Fuel low" are Brief. A shot for 5 damage, a ram, every radio line, a storm far away and a tow starting to hitch are Verbose.
+- A new event type starts at info. It moves to Brief only when it passes the test above, and "the player is part of it" is not enough.
+- Brief adds no line of its own: it only hides. Spam is cut by moving lines to Verbose, not by rewording them. A radio deal leaves one result line in both views, like a truce, a stand-down, cargo handed over or a fee paid, so the talk itself can stay in Verbose. One deal gives one Brief line, not one from the talk and one from the result.
 - A notice always has the controls to answer it. A notice with nothing to press is not a choice and drops a level.
 - Sound follows the level, and every sound follows `docs/sound.md`.
 - A call that a turn raises opens `CONFIG.callBeatMs` after that turn's playback ends, so the hit shows before the words about it. Its notice, `radio` sound, antenna cue and opening log lines open in the same frame. A call the player starts opens at once.
