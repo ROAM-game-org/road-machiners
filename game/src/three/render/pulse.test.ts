@@ -104,7 +104,7 @@ describe('Emitter pulse view', () => {
     });
     expect(shown.some((o) => o instanceof THREE.Line)).toBe(false);
     expect(shown.length).toBeGreaterThan(0);
-    for (const o of shown as THREE.Mesh[]) expect(o.material.blending).not.toBe(THREE.AdditiveBlending);
+    for (const o of shown as THREE.Mesh<THREE.BufferGeometry, THREE.Material>[]) expect(o.material.blending).not.toBe(THREE.AdditiveBlending);
   });
 
   it('sizes the ribbon in meters whatever the camera zoom', () => {
