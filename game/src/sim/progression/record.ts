@@ -173,7 +173,7 @@ function paidBetween(payee: string, payer: string, me: string, fee: number): Mov
 
 function moneyEventKey(reason: MoneyReason): Move['key'] {
   if (reason.kind === 'outpost') return 'payouts';
-  return reason.kind === 'towing' ? 'fees' : 'contracts';
+  return reason.kind === 'contract' || reason.kind === 'oddJobs' ? 'contracts' : 'fees';
 }
 
 function playTurn(world: World, archetype: Policy, options: BotOptions, mover: Mover): PlayedTurn {

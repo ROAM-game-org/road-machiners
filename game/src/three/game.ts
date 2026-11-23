@@ -244,7 +244,7 @@ export class Game {
     this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
-    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "notable"));
+    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "info"));
     this.drive = driveSnapshotOf(this.world);
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
