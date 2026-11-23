@@ -456,16 +456,9 @@ function groundColor(look: TileLook, x: number, y: number): number {
   return color;
 }
 
-let scratch: ImageData | null = null;
-
-function scratchImage(c: PaintCanvas): ImageData {
-  if (scratch?.width !== c.size || scratch.height !== c.size) scratch = c.ctx.createImageData(c.size, c.size);
-  return scratch;
-}
-
 function paintGround(c: PaintCanvas, t: GroundTiles): void {
   const look = tileLook(t);
-  const img = scratchImage(c);
+  const img = c.ctx.createImageData(c.size, c.size);
   const data = img.data;
   for (let py = 0; py < c.size; py++) {
     for (let px = 0; px < c.size; px++) {
@@ -535,8 +528,10 @@ export function paintCanvasOn(ctx: CanvasRenderingContext2D, side: number, mapSi
 }
 
 export function bakeGround(t: GroundTiles, ctx: CanvasRenderingContext2D, side: number): GroundBake {
+  const look = lookTypes(t);
+  const glass = glassField(t);
   paintGroundCanvas(paintCanvasOn(ctx, side, t.size), t);
-  return { pixels: ctx.getImageData(0, 0, side, side).data, glass: glassField(t), look: lookTypes(t) };
+  return { pixels: ctx.getImageData(0, 0, side, side).data, glass, look };
 }
 
 const glassBakes = new WeakMap<GroundTiles, Uint8Array>();
@@ -566,13 +561,30 @@ export function glassOf(t: GroundTiles): Uint8Array {
 export function glassField(t: GroundTiles): Uint8Array {
   const size = t.size;
   const kernel = gaussian();
-  const member = new Float32Array(size * size);
-  for (let i = 0; i < member.length; i++) member[i] = t.types[i] === "glass" ? 1 : 0;
-  const rows = new Float32Array(member.length);
-  blur(member, rows, size, 1, size, kernel);
-  const blurred = new Float32Array(member.length);
-  blur(rows, blurred, size, size, 1, kernel);
-  return Uint8Array.from(blurred, (v) => Math.round(v * 255));
+  const rows = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) {
+    if (!rowHasGlass(t, y)) continue;
+    for (let x = 0; x < size; x++) {
+      let v = 0;
+      for (let k = -GLASS_REACH; k <= GLASS_REACH; k++) if (t.types[y * size + Math.min(Math.max(x + k, 0), size - 1)] === "glass") v += kernel[k + GLASS_REACH];
+      rows[y * size + x] = v;
+    }
+  }
+  const glass = new Uint8Array(size * size);
+  for (let x = 0; x < size; x++) {
+    if (lineIsEmpty(rows, x, size, size)) continue;
+    for (let y = 0; y < size; y++) {
+      let v = 0;
+      for (let k = -GLASS_REACH; k <= GLASS_REACH; k++) v += rows[Math.min(Math.max(y + k, 0), size - 1) * size + x] * kernel[k + GLASS_REACH];
+      glass[y * size + x] = Math.round(Math.fround(v) * 255);
+    }
+  }
+  return glass;
+}
+
+function rowHasGlass(t: GroundTiles, y: number): boolean {
+  for (let x = 0; x < t.size; x++) if (t.types[y * t.size + x] === "glass") return true;
+  return false;
 }
 
 function gaussian(): Float32Array {
@@ -580,17 +592,6 @@ function gaussian(): Float32Array {
   let sum = 0;
   for (let k = -GLASS_REACH; k <= GLASS_REACH; k++) sum += kernel[k + GLASS_REACH] = Math.exp(-(k * k) / (2 * GLASS_BLUR * GLASS_BLUR));
   return kernel.map((w) => w / sum);
-}
-
-function blur(from: Float32Array, to: Float32Array, size: number, along: number, across: number, kernel: Float32Array): void {
-  for (let line = 0; line < size; line++) {
-    if (lineIsEmpty(from, line * across, along, size)) continue;
-    for (let i = 0; i < size; i++) {
-      let v = 0;
-      for (let k = -GLASS_REACH; k <= GLASS_REACH; k++) v += from[line * across + Math.min(Math.max(i + k, 0), size - 1) * along] * kernel[k + GLASS_REACH];
-      to[line * across + i * along] = v;
-    }
-  }
 }
 
 function lineIsEmpty(from: Float32Array, start: number, along: number, size: number): boolean {
