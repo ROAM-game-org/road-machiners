@@ -24,8 +24,6 @@ import { partName } from "../text/names";
 
 export const blockWords = (block: FireBlock): Msg => t(`block.${block}`);
 
-
-
 export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
 export type JobMark = { label: Msg; work: WorkLeft };
 export type VehicleMark = { weapons: WeaponMark[]; radio: boolean; job: JobMark | null; out: boolean; gaveUp: boolean };
