@@ -5,7 +5,7 @@ import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, siteOf, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import { PERSONALITIES, type PersonalityId } from '../data/personalities';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, STRANGER_TOLL, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
+import { BUSY_LINE, settlesSomething, TRAIT_TALK, END, handoffQuest, handoffTopic, HONK_RANGE, HUB, REFUSED, STRANGER_TOLL, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
 import { lineKey } from '../text/names';
 import { entryText, schemaOf } from '../text/resolve';
 import { QUESTS, questView } from './quests';
@@ -28,7 +28,7 @@ import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
 import { addVehicle, emptyWorld, chaosHighwayWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
-import type { SalvageStock, Vehicle, World } from './types';
+import type { GameEvent, SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
 import { gridSquareOf } from './map-grid';
 import { dist } from './vec';
@@ -120,7 +120,7 @@ describe('calls', () => {
     const next = callVehicle(w, npc.id);
     expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { line: TRAIT_TALK.trader.voice!.greeting, vars: {} }, group: null, asked: [] });
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'opened' });
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.greeting, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.greeting, vars: {}, role: 'routine' });
   });
 
   it('cannot reach a truck out of sight', () => {
@@ -302,7 +302,7 @@ describe('NPC calls', () => {
     let next = callVehicle(w, npc.id);
     next = chooseText(next, en(TOPICS.directions.ask!.say));
     expect(next.player.call?.topic).toBeNull();
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: TRAIT_TALK.trader.voice!.repeatLine, vars: {}, role: 'routine' });
     expect(next.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
   });
 });
@@ -1345,7 +1345,7 @@ describe('trucks on the radio', () => {
 
   it('reads the radio talk events and nothing else', () => {
     const plea = { kind: 'surrender' } as never;
-    expect(radioSpeakers([{ t: 'say', speaker: 'a', to: 'p', line: 'hangUp', vars: {} }], 'p')).toEqual(['a']);
+    expect(radioSpeakers([{ t: 'say', speaker: 'a', to: 'p', line: 'hangUp', vars: {}, role: 'routine' }], 'p')).toEqual(['a']);
     expect(radioSpeakers([{ t: 'call', with: 'a', outcome: 'opened' }], 'p').sort()).toEqual(['a', 'p']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'b', plea, accepted: true }], 'p').sort()).toEqual(['a', 'b']);
     expect(radioSpeakers([{ t: 'plea', from: 'a', to: 'p', plea, accepted: null }], 'p')).toEqual(['a']);
@@ -1640,7 +1640,7 @@ describe('road lessons', () => {
     const lesson = told.player.call!.vars.lesson;
     expect(lesson).toEqual({ kind: 'line', line: expect.stringMatching(/^lessonHauler/) });
     expect(told.player.call?.line.line).toBe('lessonTold');
-    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: 'lessonTold', vars: { lesson } });
+    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, to: w.player.vehicleId, line: 'lessonTold', vars: { lesson }, role: 'routine' });
     expect(told.player.money).toBe(money);
     expect(told.player.notes).toEqual(notes);
     expect(told.player.discovered).toEqual(explored);
@@ -1661,5 +1661,48 @@ describe('road lessons', () => {
 
   it('cannot be called on Chaos Highway, which has no radio', () => {
     expect(() => callVehicle(chaosHighwayWorld(), 'nobody')).toThrow();
+  });
+});
+
+describe('say roles', () => {
+  const roles = (w: World) => w.events.filter((e) => e.t === 'say').map((e) => (e as Extract<typeof e, { t: 'say' }>).role);
+
+  it('a plain call, a question and a hang-up are all routine', () => {
+    const { w, npc } = withNpc('trader', 'independent');
+    const opened = callVehicle(w, npc.id);
+    const asked = chooseText(opened, en(TOPICS.directions.ask!.say));
+    const closed = hangUp(asked);
+    const all = [opened, asked, closed].flatMap(roles);
+    expect(all.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(all)).toEqual(new Set(['routine']));
+  });
+
+  it('the opening line of a raised call is a hail', () => {
+    const { w } = withNpc('trader', 'independent');
+    TOPICS.directions.raise = { when: ['knowsTown'], priority: 1, duringFeud: false, duringCombat: false };
+    try {
+      raiseCalls(w);
+    } finally {
+      TOPICS.directions.raise = null;
+    }
+    expect(roles(w)).toEqual(['hail']);
+  });
+
+  it('a paid truce settles on the driver answer and leaves the player line routine', () => {
+    const { w, npc } = withNpc('buggy', 'scrapjaw');
+    npc.resources = { fuel: 10, supplies: 10, money: 0, health: 100 };
+    w.player.perks = ['paidTruce'];
+    w.player.money = 1000;
+    let next = callVehicle(w, npc.id);
+    next = chooseText(next, en(TOPICS.buyTruce.ask!.say));
+    next = chooseText(next, 'Deal. Sending it.');
+    const said = next.events.filter((e) => e.t === 'say') as Extract<GameEvent, { t: 'say' }>[];
+    expect(said.map((e) => [e.speaker === npc.id, e.role])).toEqual([[false, 'routine'], [true, 'settles']]);
+  });
+
+  it('settlesSomething tells a deal from talk-only bookkeeping', () => {
+    expect(settlesSomething(['revealRumor', 'settleDone'])).toBe(true);
+    expect(settlesSomething(['turnDownCall'])).toBe(false);
+    expect(settlesSomething([])).toBe(false);
   });
 });

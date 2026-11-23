@@ -1213,7 +1213,7 @@ describe("say lines", () => {
     const other = addVehicle(w, "independent", "buggy", [], { x: 120, y: 100 });
     const near = addVehicle(w, "independent", "buggy", [], { x: 30, y: 30 });
     w.player.visible = [Math.floor(near.pos.y) * w.size + Math.floor(near.pos.x)];
-    const shout = (speaker: string, to: string): GameEvent => ({ t: "say", speaker, to, line: "givenBySky", vars: {} });
+    const shout = (speaker: string, to: string): GameEvent => ({ t: "say", speaker, to, line: "givenBySky", vars: {}, role: 'shout' });
     return { w, far, other, near, shout };
   }
 

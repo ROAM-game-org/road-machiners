@@ -581,6 +581,8 @@ export type GuardEnd = 'expired' | 'dismissed' | 'knockedOut' | 'hostile';
 
 export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost' | 'cargoLost';
 
+export type SayRole = 'routine' | 'hail' | 'settles' | 'shout';
+
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
   | { t: 'stall'; vehicle: string; goal: NpcActivity['kind'] | null; reason: GoalReason }
@@ -646,7 +648,7 @@ export type GameEvent =
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
   | { t: 'weather'; event: WeatherEvent; outcome: 'started' | 'ended' }
-  | { t: 'say'; speaker: string; to: string; line: LineId; vars: CallVars }
+  | { t: 'say'; speaker: string; to: string; line: LineId; vars: CallVars; role: SayRole }
   | { t: 'call'; with: string; outcome: 'opened' | 'ended' }
   | { t: 'honk'; vehicle: string }
   | { t: 'roadHorn'; vehicle: string; cause: RoadHornCause; other: string; at: Vec }

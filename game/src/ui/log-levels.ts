@@ -50,7 +50,7 @@ const EVENT_LEVELS: { [K in GameEvent['t']]: Leveled<K> } = {
   claymore: 'info',
   claymoreCookOff: 'info',
   found: 'notable',
-  say: (world, e) => involvesPlayer(world, e.speaker, e.to),
+  say: (world, e) => (e.role === 'routine' ? 'info' : involvesPlayer(world, e.speaker, e.to)),
   job: (_, e) => (e.outcome === 'started' ? 'info' : 'notable'),
   weather: 'info',
   honk: 'info',

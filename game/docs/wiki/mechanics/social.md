@@ -6,7 +6,7 @@ Every truck has a radio, as in Space Rangers 2. A call reaches only a truck in s
 
 A truck on a call flashes the red antenna light twice, glows while the call stays open and flashes once when it ends. Drivers that just talked over the radio play the same cue in short, and so does the player's truck when its beacon switches on.
 
-Talk is built from topics. A topic is lines and replies in data, and its logic is named conditions and effects in code. The player's call opens on a menu of the topics that truck can take up. A driver's traits decide its voice and its topics. A topic can be once per driver: that driver remembers how it ended.
+Talk is built from topics. A topic is lines and replies in data, and its logic is named conditions and effects in code. The player's call opens on a menu of the topics that truck can take up. A driver's traits decide its voice and its topics. A topic can be once per driver: that driver remembers how it ended. The Brief log keeps only the opening line of a call a driver raises and the line that seals a choice that changed something. Every other call line stays in Verbose.
 
 A driver answers a call in a voice that fits what it sees. A driver that is shooting at the player, a player under fire from someone else, a stranded player and a fight that just ended each get their own greeting. A raider or marshal that attacks answers first, then a cold line for a driver that distrusts the player, then the other moods, then its usual greeting.
 

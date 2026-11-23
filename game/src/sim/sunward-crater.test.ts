@@ -299,7 +299,7 @@ describe('the vigil invitation', () => {
 
     shoutGiven(w, caller, playerVehicle(w));
 
-    expect(w.events).toEqual([{ t: 'say', speaker: caller.id, to: playerVehicle(w).id, line: 'givenBySky', vars: {} }]);
+    expect(w.events).toEqual([{ t: 'say', speaker: caller.id, to: playerVehicle(w).id, line: 'givenBySky', vars: {}, role: 'shout' }]);
   });
 
   it('makes no call before dusk to a stranger in the crater while a car already holds its post', () => {
