@@ -35,7 +35,7 @@ const WAVE = {
 
 const BLIP = { radius: 0.7, dot: 0.25, opacity: 0.9 };
 
-const INK_MARK = { core: 0.18, band: 0.3, strokeRadius: 0.58, strokeWidth: 0.1, strokeArc: (70 * Math.PI) / 180, strokes: 3, segments: 12 };
+const INK_MARK = { core: 0.18, band: 0.3, strokeRadius: 0.58, strokeWidth: 0.14, strokeArc: (70 * Math.PI) / 180, strokes: 3, segments: 12 };
 
 type MarkKind = 'radio' | 'flare';
 
