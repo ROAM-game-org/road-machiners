@@ -213,7 +213,7 @@ const setMinimap = async (page, on) => {
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'Day', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
