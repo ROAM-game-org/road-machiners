@@ -148,8 +148,6 @@ export const SOUND_EVENTS = {
   "shot-harpoon": [{ cue: "harpoon-fire", delayMs: 0, gain: 1, chance: 1 }],
   "echo-mg": [{ cue: "gun-echo-light", delayMs: 270, gain: 0.23, chance: 1 }],
   "echo-long-gun": [{ cue: "gun-echo-light", delayMs: 220, gain: 0.28, chance: 1 }],
-  "echo-shotgun": [{ cue: "gun-echo-light", delayMs: 750, gain: 0.4, chance: 1 }],
-  "echo-gatling": [{ cue: "gun-echo-light", delayMs: 1350, gain: 0.46, chance: 1 }],
   "echo-tank-gun": [{ cue: "gun-echo-heavy", delayMs: 370, gain: 0.2, chance: 1 }],
   "echo-cannon": [{ cue: "gun-echo-heavy", delayMs: 270, gain: 0.18, chance: 1 }],
   "echo-mortar": [{ cue: "gun-echo-heavy", delayMs: 220, gain: 0.32, chance: 1 }],

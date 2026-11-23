@@ -255,17 +255,14 @@ describe("playVolley sounds", () => {
     expect(cues.indexOf("echo-mg")).toBe(cues.lastIndexOf("shot-mg") + 1);
   });
 
-  it("plays a burst gun's one take and one echo for the whole volley", () => {
-    const gatling = cuesOf("gatling", false, 12);
-    expect(gatling.filter((c) => c === "shot-gatling")).toHaveLength(1);
-    expect(gatling.filter((c) => c === "echo-gatling")).toHaveLength(1);
-    const shotgun = cuesOf("shotgun", false, 10);
-    expect(shotgun.filter((c) => c === "shot-shotgun")).toHaveLength(1);
-    expect(shotgun.filter((c) => c === "echo-shotgun")).toHaveLength(1);
+  it("plays a burst gun's one take for the whole volley", () => {
+    expect(cuesOf("gatling", false, 12).filter((c) => c === "shot-gatling")).toHaveLength(1);
   });
 
   it("plays no echo for a gun whose take holds its own tail", () => {
     expect(cuesOf("heavyMg", false, 6).filter((c) => c.startsWith("echo-"))).toEqual([]);
+    expect(cuesOf("shotgun", false, 10).filter((c) => c.startsWith("echo-"))).toEqual([]);
+    expect(cuesOf("gatling", false, 12).filter((c) => c.startsWith("echo-"))).toEqual([]);
   });
 });
 
