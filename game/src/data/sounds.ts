@@ -125,15 +125,16 @@ export type Layer = { cue: CueId; delayMs: number; gain: number; chance: number 
 
 export const SOUND_EVENTS = {
   "crash-light": [
-    { cue: "crash-thump", delayMs: 0, gain: 0.75, chance: 1 },
-    { cue: "crash-bump", delayMs: 0, gain: 1, chance: 1 },
-    { cue: "crash-debris", delayMs: 90, gain: 0.3, chance: 0.3 },
+    { cue: "crash-thump", delayMs: 0, gain: 1.5, chance: 1 },
+    { cue: "crash-bump", delayMs: 0, gain: 2, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 1.4, chance: 1 },
+    { cue: "crash-debris", delayMs: 90, gain: 0.6, chance: 0.3 },
   ],
   "crash-hard": [
-    { cue: "crash-thump", delayMs: 0, gain: 0.8, chance: 1 },
-    { cue: "crash-crunch", delayMs: 0, gain: 1, chance: 1 },
-    { cue: "crash-bump", delayMs: 140, gain: 0.3, chance: 0.5 },
-    { cue: "crash-debris", delayMs: 120, gain: 0.6, chance: 1 },
+    { cue: "crash-thump", delayMs: 0, gain: 1.6, chance: 1 },
+    { cue: "crash-crunch", delayMs: 0, gain: 2, chance: 1 },
+    { cue: "crash-bump", delayMs: 140, gain: 0.6, chance: 0.5 },
+    { cue: "crash-debris", delayMs: 120, gain: 1.2, chance: 1 },
   ],
   "shot-mg": [{ cue: "mg-fire", delayMs: 0, gain: 0.5, chance: 1 }],
   "shot-heavy-mg": [{ cue: "heavy-mg-fire", delayMs: 0, gain: 0.6, chance: 1 }],
@@ -344,8 +345,9 @@ export const BANK = {
 export const MIX = {
   busVolume: { ui: 0.8, sfx: 0.75, ambient: 0.6, music: 0.65 } satisfies Record<Bus, number>,
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
-  compressor: { threshold: -18, knee: 12, ratio: 4, attack: 0.003, release: 0.25 },
-  reverb: { seconds: 1.2, decay: 3, wet: 0.12 },
+  compressor: { threshold: -10, knee: 6, ratio: 2, attack: 0.025, release: 0.15 },
+  focus: { mine: 1.585, theirs: 0.708 },
+  accent: { duck: 0.5, attackMs: 10, holdMs: 70, releaseMs: 400, minGapMs: 1000 },
   crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.6 },
   roadHorn: { brakeStep: 12, sightSpanSteps: 30 },
   halfGainMeters: 40,
