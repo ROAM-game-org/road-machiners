@@ -11,7 +11,7 @@ import { weaponArc } from './stats';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, belowDeck, cellKey, facingOf, hitGridOf, holdsItemFor, itemCells, isMounted, itemSize, mountedItems, shieldParts, sideOf, type Grid, type SideLetter } from './grid';
-import type { Loadout } from './loadout-memo';
+import { loadoutFact, loadoutSlot, type Loadout } from './loadout-memo';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -329,7 +329,7 @@ type LaneCell = { parts: readonly PartInstance[] } | null;
 
 const NO_PARTS: readonly PartInstance[] = [];
 
-function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): LaneCell[] {
+function laneOwners(g: Grid, owner: CellOwners, side: Side, lane: number): LaneCell[] {
   return laneCells(g, side, lane).map((c) => (isRingCorner(g, c) ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
 }
 
@@ -398,15 +398,22 @@ function lanesOutFrom(lane: number, lanes: number): number[] {
   return all.sort((a, b) => Math.abs(a - lane) - Math.abs(b - lane) || a - b);
 }
 
-function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
+type CellOwners = ReadonlyMap<number, readonly PartInstance[]>;
+
+const CELL_OWNERS = loadoutSlot((loadout): CellOwners => {
   const owner = new Map<number, PartInstance[]>();
-  for (const it of outerFirst(v.chassisId, mountedItems(v))) {
+  for (const it of outerFirst(loadout.chassisId, mountedItems(loadout))) {
     for (const c of itemCells(it)) {
       const key = cellKey(c.x, c.y);
       owner.set(key, [...(owner.get(key) ?? []), it.part]);
     }
   }
+  for (const parts of owner.values()) Object.freeze(parts);
   return owner;
+});
+
+function cellOwners(v: Vehicle): CellOwners {
+  return loadoutFact(v, CELL_OWNERS);
 }
 
 function outerFirst<T extends GridItem & { kind: 'part' }>(chassisId: string, items: readonly T[]): T[] {
@@ -450,7 +457,7 @@ export function passShare(v: Vehicle, side: Side, round: { pen: number; blast: b
   return lanes.reduce((sum, parts) => sum + parts.reduce((share, part) => share * pass(part), 1), 0) / lanes.length;
 }
 
-function firstParts(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): PartInstance[] {
+function firstParts(g: Grid, owner: CellOwners, side: Side, lane: number): readonly PartInstance[] {
   for (const c of laneCells(g, side, lane)) {
     const parts = (owner.get(cellKey(c.x, c.y)) ?? []).filter((part) => part.hp > 0);
     if (parts.length) return parts;
