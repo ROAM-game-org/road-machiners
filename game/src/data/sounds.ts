@@ -352,6 +352,7 @@ export const MIX = {
   roadHorn: { brakeStep: 12, sightSpanSteps: 30 },
   halfGainMeters: 40,
   voices: { budget: 24, cutMs: 30 },
+  landings: { levels: [1, 0.7, 0.5], every: 3, restLevel: 0.4 },
   panWidth: 0.7,
   engine: { idleRate: 0.8, topRate: 1.3, topSpeedMs: 31.2, idleGain: 0.5, loadMs: 3, revUp: 0.3, revDown: 0.2, loadGain: 0.3, movingMs: 0.5, brakeMs: 4, fadeSeconds: 0.12, overdriveGain: 1.5, strainRelease: 0.5 },
   rev: [

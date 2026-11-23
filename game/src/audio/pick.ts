@@ -101,6 +101,21 @@ export function layersToPlay(layers: readonly Layer[], roll: () => number): Laye
   return layers.filter((l) => roll() < l.chance);
 }
 
+export type LandingThin = { levels: readonly number[]; every: number; restLevel: number };
+
+export function landingLevel(rank: number, thin: LandingThin): number | null {
+  if (!(Number.isInteger(rank) && rank >= 0)) throw new Error(`Landing rank ${rank} must be a whole number of at least 0`);
+  if (rank < thin.levels.length) return thin.levels[rank];
+  return (rank - thin.levels.length) % thin.every === thin.every - 1 ? thin.restLevel : null;
+}
+
+export function landingRanks(landsAt: readonly number[]): number[] {
+  const order = landsAt.map((t, k) => ({ t, k })).sort((a, b) => a.t - b.t || a.k - b.k);
+  const ranks = new Array<number>(landsAt.length);
+  order.forEach(({ k }, rank) => (ranks[k] = rank));
+  return ranks;
+}
+
 export function crashEventOf(impact: number, hardSpeed: number): SoundEventId {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
   return impact >= hardSpeed ? "crash-hard" : "crash-light";

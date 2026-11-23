@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crashEventOf, crashLevel, layersToPlay, pickVariant, shuffled, spatial, VoiceBudget, type VoicePlay } from "./pick";
+import { crashEventOf, crashLevel, landingLevel, landingRanks, layersToPlay, pickVariant, shuffled, spatial, VoiceBudget, type VoicePlay } from "./pick";
 
 describe("shuffled", () => {
   it("reorders a copy by its rolls and keeps every item", () => {
@@ -131,6 +131,23 @@ describe("VoiceBudget", () => {
 
   it("rejects a budget below one voice", () => {
     expect(() => new VoiceBudget(0)).toThrow();
+  });
+});
+
+describe("landing thinning", () => {
+  const thin = { levels: [1, 0.7, 0.5], every: 3, restLevel: 0.4 };
+
+  it("plays the first landings of a volley at falling levels, then every third quietly", () => {
+    expect(Array.from({ length: 10 }, (_, k) => landingLevel(k, thin))).toEqual([1, 0.7, 0.5, null, null, 0.4, null, null, 0.4, null]);
+  });
+
+  it("ranks rounds by when they land, not by when they fired", () => {
+    expect(landingRanks([300, 100, 200, 100])).toEqual([3, 0, 2, 1]);
+  });
+
+  it("rejects a bad rank", () => {
+    expect(() => landingLevel(-1, thin)).toThrow();
+    expect(() => landingLevel(1.5, thin)).toThrow();
   });
 });
 

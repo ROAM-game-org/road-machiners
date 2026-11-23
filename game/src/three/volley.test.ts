@@ -271,6 +271,12 @@ describe("playVolley sounds", () => {
     expect(new Set(theirs)).toEqual(new Set(["theirs"]));
   });
 
+  it("thins a long volley's hits but keeps every shot", () => {
+    const cues = cuesOf("mg", true, 10);
+    expect(cues.filter((c) => c === "shot-mg")).toHaveLength(10);
+    expect(cues.filter((c) => c === "hit-plate")).toHaveLength(5);
+  });
+
   it("fires and hooks with the harpoon's own cues", () => {
     expect(cuesOf("harpoon", true)).toEqual(["shot-harpoon", "harpoon-hook"]);
   });

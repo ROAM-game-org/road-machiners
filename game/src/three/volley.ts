@@ -5,7 +5,7 @@ import { RULES } from "../data/rules";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
 import { MIX, type SoundEventId } from "../data/sounds";
-import { crashEventOf, crashLevel } from "../audio/pick";
+import { crashEventOf, crashLevel, landingLevel, landingRanks } from "../audio/pick";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { carriedPartDef } from "../sim/salvage";
 import { isShield } from "../data/parts";
@@ -85,6 +85,7 @@ export function playVolley(
   const by = shotBy(host.world, event.shooter);
   const landsAt = plans.map((plan) => plan.delayMs + plan.flightMs);
   const lastLand = landsAt.indexOf(Math.max(...landsAt));
+  const ranks = landingRanks(landsAt);
   plans.forEach((plan, k) => {
     const shown = { ...plan, delayMs: Math.max(0, plan.delayMs - host.startMs) };
     const empties = dry && k === lastLand;
@@ -93,7 +94,7 @@ export function playVolley(
     const cues = {
       fired: (m: Muzzle) => playShot(host, sounds, k, k === lastShot, m.pos, by),
       landed: () => {
-        landSound(host, plan, rounds[k], struck, by);
+        landSound(host, plan, rounds[k], struck, by, landingLevel(ranks[k], MIX.landings));
         if (empties) host.sound.event("gun-empty", muzzle().pos, 0, 1, by);
         if (burst) host.onBurst(burst);
         if (hooked && plan.impact === "truck") hooked();
@@ -111,8 +112,8 @@ export function reachedPart(world: World, r: ShotRound): boolean {
   return [...struck, ...r.blast].some((dealt) => dealt.hits.some((h) => h.damage > 0 && !isShield(carriedPartDef(world, dealt.vehicle, h.part))));
 }
 
-function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: SoundEventId, by: Emphasis): void {
-  if (plan.impact !== "none") host.sound.event(r.struck !== null || r.blast.length > 0 ? struck : "miss", plan.land, 0, 1, by);
+function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: SoundEventId, by: Emphasis, level: number | null): void {
+  if (plan.impact !== "none" && level !== null) host.sound.event(r.struck !== null || r.blast.length > 0 ? struck : "miss", plan.land, 0, level, by);
 }
 
 export function sideOf(world: Pick<World, "player">, vehicleId: string): Side {
@@ -625,7 +626,7 @@ function landTimedFx(host: CombatHost, f: TimedFlight, event: Extract<GameEvent,
   const spec = projectileOf(f.weaponDefId);
   host.fx.projectileImpact(plan, blastRadiusOf(f.weaponDefId), spec.look === 'shell');
   const sounds = gunSounds(f.weaponDefId);
-  landSound(host, plan, round, reachedPart(host.world, round) ? sounds.struck.part : sounds.struck.plate, shotBy(host.world, f.shooterId));
+  landSound(host, plan, round, reachedPart(host.world, round) ? sounds.struck.part : sounds.struck.plate, shotBy(host.world, f.shooterId), 1);
   if (round.burst) host.onBurst(round.burst);
   if (spec.rope && round.struck !== null) host.lineHooked(f.shooterId, f.weaponId);
   for (const brk of breaks.ofRound(event, 0)) host.breakPart(brk, f.shooterId);
