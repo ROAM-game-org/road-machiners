@@ -345,7 +345,7 @@ export const BANK = {
 export const MIX = {
   busVolume: { ui: 0.8, sfx: 0.75, ambient: 0.6, music: 0.65 } satisfies Record<Bus, number>,
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
-  compressor: { threshold: -10, knee: 6, ratio: 2, attack: 0.025, release: 0.15 },
+  compressor: { threshold: -10, knee: 6, ratio: 2, attack: 0.025, release: 0.15, makeup: 1.48 },
   focus: { mine: 1.585, theirs: 0.708 },
   accent: { duck: 0.5, attackMs: 10, holdMs: 70, releaseMs: 400, minGapMs: 1000 },
   crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.6 },

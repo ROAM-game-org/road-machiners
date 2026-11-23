@@ -80,7 +80,7 @@ export class Mixer {
     comp.ratio.value = c.ratio;
     comp.attack.value = c.attack;
     comp.release.value = c.release;
-    comp.connect(this.master);
+    comp.connect(this.bus("sfx", c.makeup, this.master));
     return comp;
   }
 }

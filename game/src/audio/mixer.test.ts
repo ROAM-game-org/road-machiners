@@ -127,4 +127,9 @@ describe("Mixer", () => {
     const drops = FakeContext.last.gains.flatMap((g) => g.gain.linearRampToValueAtTime.mock.calls).filter(([v]) => v === MIX.accent.duck);
     expect(drops).toHaveLength(2);
   });
+
+  it("adds the fixed makeup gain after the compressor", () => {
+    new Mixer(MIX);
+    expect(FakeContext.last.gains.map((g) => g.gain.value)).toContain(MIX.compressor.makeup);
+  });
 });
