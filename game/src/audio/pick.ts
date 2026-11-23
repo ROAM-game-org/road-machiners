@@ -34,9 +34,9 @@ export function crashLevel(impact: number, curve: CrashCurve): number {
   return quietGain + (1 - quietGain) * share;
 }
 
-export type VoicePlay = { cue: string; maxVoices: number; budgeted: boolean; now: number; startsAt: number; endsAt: number; minGapSec: number };
+export type VoicePlay = { cue: string; maxVoices: number; budgeted: boolean; now: number; endsAt: number; minGapSec: number };
 export type AdmittedVoice = { id: number; cut: number[] };
-type Voice = { id: number; cue: string; startsAt: number; endsAt: number; budgeted: boolean };
+type Voice = { id: number; cue: string; endsAt: number; budgeted: boolean };
 
 export class VoiceBudget {
   private voices: Voice[] = [];
@@ -53,7 +53,7 @@ export class VoiceBudget {
     if (last !== undefined && play.now - last < play.minGapSec) return null;
     this.lastStart.set(play.cue, play.now);
     const cut = this.cutAtCap(play.cue, play.maxVoices);
-    const voice: Voice = { id: this.nextId++, cue: play.cue, startsAt: play.startsAt, endsAt: play.endsAt, budgeted: play.budgeted };
+    const voice: Voice = { id: this.nextId++, cue: play.cue, endsAt: play.endsAt, budgeted: play.budgeted };
     this.voices.push(voice);
     if (play.budgeted) cut.push(...this.cutOverBudget(voice.id));
     return { id: voice.id, cut };
@@ -85,7 +85,7 @@ export class VoiceBudget {
 }
 
 function byAge(a: Voice, b: Voice): number {
-  return a.startsAt - b.startsAt || a.id - b.id;
+  return a.id - b.id;
 }
 
 function mostCrowdedOldest(voices: readonly Voice[]): Voice {

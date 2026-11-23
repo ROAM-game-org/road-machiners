@@ -50,7 +50,7 @@ describe("spatial", () => {
 });
 
 describe("VoiceBudget", () => {
-  const play = (cue: string, now: number, over: Partial<VoicePlay> = {}): VoicePlay => ({ cue, maxVoices: 6, budgeted: true, now, startsAt: now, endsAt: now + 1, minGapSec: 0, ...over });
+  const play = (cue: string, now: number, over: Partial<VoicePlay> = {}): VoicePlay => ({ cue, maxVoices: 6, budgeted: true, now, endsAt: now + 1, minGapSec: 0, ...over });
 
   it("cuts a cue's oldest voice when the cue is at its cap, and plays the new one", () => {
     const v = new VoiceBudget(12);
@@ -81,6 +81,13 @@ describe("VoiceBudget", () => {
     const hit = v.admit(play("hit", 0))!;
     v.admit(play("mg", 0.1));
     expect(v.admit(play("crash", 0.2))!.cut).toEqual([hit.id]);
+  });
+
+  it("ranks age by admission, so a play that starts before a delayed layer is still the newest", () => {
+    const v = new VoiceBudget(2);
+    const echo = v.admit(play("echo", 0, { endsAt: 1.27 }))!;
+    v.admit(play("rattle", 0, { endsAt: 1 }));
+    expect(v.admit(play("hit", 0))!.cut).toEqual([echo.id]);
   });
 
   it("frees space when voices end", () => {
