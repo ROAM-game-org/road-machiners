@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
 import { followingOf } from './companies';
 import { isSheltered } from './sites';
@@ -62,11 +62,9 @@ function secondHalfOfTheRide(): Leg<Watch> {
   return playLeg('watched ride, second half', firstHalfOfTheRide, watchUntil(returnTurn(DUSK)));
 }
 
-describe('the night schedule', () => {
-  beforeAll(() => {
-    orderWorld(5);
-  });
+orderWorld(5);
 
+describe('the night schedule', () => {
   it('lets one car out of the Hollow at a time while the player watches', () => {
     const { notes } = firstHalfOfTheRide();
 
