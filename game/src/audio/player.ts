@@ -1,9 +1,9 @@
-import type { Cue } from "../data/sounds";
+import { MIX, type Cue } from "../data/sounds";
 import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
-import { pickVariant, VoiceLimiter } from "./pick";
+import { pickVariant, VoiceBudget } from "./pick";
 
-export type Placement = { pan: number; gain: number };
+export type Placement = { pan: number; gain: number; accent?: true };
 export type SoundSelection = { file: string; rate: number };
 
 export type LoopHandle = {
@@ -19,7 +19,8 @@ const FRAME_SMOOTH_SECONDS = 0.02;
 
 export class SoundPlayer {
   private last = new Map<string, number>();
-  private voices = new VoiceLimiter();
+  private budget = new VoiceBudget(MIX.voices.budget);
+  private sounding = new Map<number, { src: AudioBufferSourceNode; gain: GainNode }>();
 
   constructor(private mixer: Mixer, private bank: Bank, private sounds: Record<string, Cue>) {}
 
@@ -31,16 +32,43 @@ export class SoundPlayer {
     if (!buf) return;
     const rate = selection ? this.checkedRate(id, selection.rate) : 1 + (Math.random() * 2 - 1) * cue.pitchJitter;
     const start = ctx.currentTime + delayMs / 1000;
-    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate, (cue.minGapMs ?? 0) / 1000)) return;
-    const src = ctx.createBufferSource();
+    const voice = this.admit(id, cue, start + buf.duration / rate);
+    if (voice !== null) this.startVoice(voice, buf, rate, cue, at, start);
+  }
+
+  private admit(id: string, cue: Cue, endsAt: number): number | null {
+    const now = this.mixer.ctx.currentTime;
+    const admitted = this.budget.admit({ cue: id, maxVoices: cue.maxVoices, budgeted: cue.bus === "sfx", now, endsAt, minGapSec: (cue.minGapMs ?? 0) / 1000 });
+    if (!admitted) return null;
+    for (const cut of admitted.cut) this.cut(cut);
+    return admitted.id;
+  }
+
+  private startVoice(voice: number, buf: AudioBuffer, rate: number, cue: Cue, at: Placement, start: number): void {
+    const src = this.mixer.ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
-    this.chain(src, cue, at);
+    this.sounding.set(voice, { src, gain: this.chain(src, cue, at) });
+    src.onended = () => this.sounding.delete(voice);
     src.start(start);
+  }
+
+  private cut(voice: number): void {
+    const playing = this.sounding.get(voice);
+    if (!playing) return;
+    this.sounding.delete(voice);
+    const now = this.mixer.ctx.currentTime;
+    const fade = MIX.voices.cutMs / 1000;
+    playing.gain.gain.setTargetAtTime(0, now, fade / 3);
+    playing.src.stop(now + fade);
   }
 
   now(): number {
     return this.mixer.ctx.currentTime;
+  }
+
+  duck(delayMs: number): void {
+    this.mixer.duck(this.mixer.ctx.currentTime + delayMs / 1000);
   }
 
   loop(id: string, at: Placement, file?: string): LoopHandle {
@@ -143,6 +171,12 @@ export class SoundPlayer {
     return this.bank.get(cue.files[this.nextIndex(id, cue)]);
   }
 
+  private route(cue: Cue, at: Placement): AudioNode {
+    if (!at.accent) return this.mixer.input(cue.bus);
+    if (cue.bus !== "sfx") throw new Error(`Only sfx sounds can play as an accent, not the ${cue.bus} bus`);
+    return this.mixer.accentInput();
+  }
+
   private chain(src: AudioNode | null, cue: Cue, at: Placement): GainNode {
     const ctx = this.mixer.ctx;
     const gain = ctx.createGain();
@@ -150,7 +184,7 @@ export class SoundPlayer {
     const pan = ctx.createStereoPanner();
     pan.pan.value = at.pan;
     src?.connect(gain);
-    gain.connect(pan).connect(this.mixer.input(cue.bus));
+    gain.connect(pan).connect(this.route(cue, at));
     return gain;
   }
 }

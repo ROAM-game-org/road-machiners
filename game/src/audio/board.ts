@@ -1,5 +1,6 @@
 
-import { CONTROL_STATES, MIX, SOUNDS, type Bus, type Cue, type ControlState } from "../data/sounds";
+import { CONTROL_STATES, MIX, SOUND_EVENTS, SOUNDS, type Bus, type Cue, type ControlState, type SoundEventId } from "../data/sounds";
+import { layersToPlay } from "./pick";
 import { devEl as el } from "../ui/dom";
 import { SFX_BYTES } from "../config";
 import { formatSupport, loadBank, recoverBank, type Bank, type DecodeFailure } from "./bank";
@@ -16,20 +17,40 @@ const options = { expectedBytes: SFX_BYTES, support: formatSupport() };
 const loaded = await loadBank(mixer.ctx, sounds, options);
 const { bank, failures, unreachable } = loaded;
 const recovered = await recoverBank(mixer.ctx, loaded, sounds, options);
-let playing: AudioBufferSourceNode | null = null;
+let playing: AudioBufferSourceNode[] = [];
 
-function play(id: string, file: string): void {
-  playing?.stop();
+function stopAll(): void {
+  for (const src of playing) src.stop();
+  playing = [];
+}
+
+function start(id: string, file: string, level: number, delayMs: number): void {
   const cue = sounds[id];
   const src = mixer.ctx.createBufferSource();
   src.buffer = bank.get(file)!;
   src.loop = cue.loop;
   const gain = mixer.ctx.createGain();
-  gain.gain.value = cue.volume;
+  gain.gain.value = cue.volume * level;
   src.connect(gain).connect(mixer.input(cue.bus));
-  src.start();
-  playing = src;
+  src.start(mixer.ctx.currentTime + delayMs / 1000);
+  playing.push(src);
 }
+
+function randomTake(id: string): string {
+  const files = sounds[id].files;
+  return files[Math.floor(Math.random() * files.length)];
+}
+
+function play(id: string, file: string): void {
+  stopAll();
+  start(id, file, 1, 0);
+}
+
+function playEvent(id: SoundEventId): void {
+  stopAll();
+  for (const layer of layersToPlay(SOUND_EVENTS[id], Math.random)) start(layer.cue, randomTake(layer.cue), layer.gain, layer.delayMs);
+}
+
 
 function stats(buf: AudioBuffer): string {
   const d = buf.getChannelData(0);
@@ -115,7 +136,7 @@ function applyFilter(): void {
 search.addEventListener("input", applyFilter);
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    playing?.stop();
+    stopAll();
     return;
   }
   if (e.key === "/" && document.activeElement !== search) {
@@ -125,9 +146,19 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-root.append(el("div", { class: "toolbar" }, el("button", { onclick: () => playing?.stop() }, "stop"), search, ...busButtons, count));
+root.append(el("div", { class: "toolbar" }, el("button", { onclick: stopAll }, "stop"), search, ...busButtons, count));
 for (const failure of unreachable) root.append(el("div", { class: "missing" }, `${failure.file} could not be fetched`));
 for (const failure of failures) root.append(el("div", { class: "missing" }, failureLine(failure)));
+
+function eventRow(id: SoundEventId): HTMLElement {
+  const layers = SOUND_EVENTS[id].map((l) => `${l.cue} ${l.delayMs}ms x${l.gain}${l.chance < 1 ? ` ${Math.round(l.chance * 100)}%` : ""}`).join(", ");
+  const node = el("div", { class: "cue" }, el("b", {}, id), el("button", { onclick: () => playEvent(id) }, "play"), el("span", { class: "kind" }, layers));
+  entries.push({ node, text: `${id} ${layers}`.toLowerCase(), bus: null });
+  return node;
+}
+
+root.append(el("h2", {}, "Sound events"));
+for (const id of Object.keys(SOUND_EVENTS) as SoundEventId[]) root.append(eventRow(id));
 
 root.append(el("h2", {}, "Controls by type and state"));
 for (const [type, states] of Object.entries(CONTROL_STATES)) {
