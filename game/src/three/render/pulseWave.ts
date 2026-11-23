@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HAZE_WAVE_WEIGHT, hazeWavesGlsl } from './hazeWaves';
+import { HAZE_WAVE_WEIGHT, hazeWavesGlsl } from './shade';
 import { frameTarget } from './frameTarget';
 import { PULSE_WAVE, type PulseWave } from './pulse';
 

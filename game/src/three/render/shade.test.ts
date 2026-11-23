@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HAZE_WAVES, hazeWavesGlsl } from './hazeWaves';
+import { HAZE_WAVES, hazeWavesGlsl } from './shade';
 import { TIME } from '../../data/time';
 import { HAZE_FROM } from '../../data/wear';
 import { shadeCasters, sunAt, sunHeatAt } from '../../sim/sun';
