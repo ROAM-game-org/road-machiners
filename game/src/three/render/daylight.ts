@@ -227,6 +227,10 @@ export function backdropAt(light: Daylight): THREE.Color {
   return BACKDROP.clone().multiplyScalar((light.sunIntensity + light.skyIntensity) / NOON_REACH);
 }
 
+export function lightShareAt(light: Daylight): number {
+  return (light.sunIntensity + light.skyIntensity) / NOON_REACH;
+}
+
 export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight, reach = SHADOW_REACH, aim: Daylight = light): void {
   const { camera, mapSize } = sun.shadow;
   coverShadow(camera, reach);

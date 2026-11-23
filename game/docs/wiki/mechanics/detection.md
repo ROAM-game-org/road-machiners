@@ -12,7 +12,7 @@ Sight is longer on a chassis with a sight ability, like the convertible and the 
 
 Dust clouds are objects in the world. Every turn a truck moving faster than a crawl on dusty ground leaves a cloud behind it. A stranded truck raises none, whatever its speed. Every ground raises its own amount of dust. Sand raises the most, then ash, salt crust, hardpan and dirt tracks, then scrub, fields, mud and gravel, then roads and pavement a little, and rock, glass and water the least. More dust shows farther and draws thicker. None rises at night. A cloud rises, drifts back along its truck's route and with the wind, wanders a little, and fades after a few turns. Once risen it is seen from far beyond sight and over hills. So a line of clouds shows where a truck passed, a little late.
 
-A radio scanner is a part that mounts on a deck cell, so it competes with a gun. It detects every moving vehicle within 160 tiles, through hills, and shows it as a steady blip. Bowl, Nose and the Pump Station sell it.
+A radio scanner is a part that mounts on a deck cell, so it competes with a gun. It detects every moving vehicle within 160 tiles, through hills, and shows it as a pale ghost of a plain vehicle that holds still until the next turn. Bowl, Nose and the Pump Station sell it.
 
 A truck shut down by an emitter pulse makes no engine sound and its scanner is off, see [Turns, driving and combat](turns.md).
 
