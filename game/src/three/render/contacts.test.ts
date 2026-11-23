@@ -4,6 +4,7 @@ import type { Group, Mesh, MeshBasicMaterial } from 'three';
 import { PHYSICS } from '../../data/physics';
 import { heightAt } from '../../sim/terrain';
 import { PAL } from '../../render/palette';
+import { clockOf } from '../../sim/sun';
 import { emptyWorld } from '../../sim/testkit';
 import type { Contact } from '../../sim/types';
 import { ContactsView } from './contacts';
@@ -102,7 +103,6 @@ describe('the contact mark', () => {
     view.update(w.terrain, [contact(['radio'])], at, w.turn, 0);
     const material = (look(view, 'contact-ghost') as unknown as Mesh).material as MeshBasicMaterial;
     expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
-    expect(material.color.getHex()).toBe(PAL.contactGhost.color);
     expect(material.opacity).toBe(PAL.contactGhost.opacity);
     expect(material.transparent).toBe(true);
     expect([material.depthTest, material.depthWrite]).toEqual([false, false]);
@@ -110,5 +110,20 @@ describe('the contact mark', () => {
     expect([material.stencilRef, material.stencilFuncMask, material.stencilWriteMask]).toEqual([CONTACT_BIT, CONTACT_BIT, CONTACT_BIT]);
     expect(material.stencilFunc).toBe(THREE.NotEqualStencilFunc);
     expect(material.stencilZPass).toBe(THREE.ReplaceStencilOp);
+  });
+
+  it('stands paler by day and dimmer at night, and holds still within a turn', () => {
+    TUNING.fxInk.value = 1;
+    const turnAt = (hour: number): number => Array.from({ length: 4000 }, (_, t) => t).find((t) => Math.abs(clockOf(t).hour - hour) < 0.3)!;
+    const view = new ContactsView();
+    const tint = (turn: number, nowMs: number): number => {
+      view.update(w.terrain, [contact(['radio'])], at, turn, nowMs);
+      return ((look(view, 'contact-ghost') as unknown as Mesh).material as MeshBasicMaterial).color.getHex();
+    };
+    const noon = tint(turnAt(12), 0);
+    expect(noon).toBe(PAL.contactGhost.color);
+    expect(tint(turnAt(12), 5000)).toBe(noon);
+    const night = new THREE.Color(tint(turnAt(23), 6000));
+    expect(night.r + night.g + night.b).toBeLessThan(new THREE.Color(noon).r + new THREE.Color(noon).g + new THREE.Color(noon).b);
   });
 });

@@ -8,6 +8,7 @@ import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Contact } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { daylightAt, lightShareAt } from './daylight';
 import { CONTACT_BIT } from './models';
 import { overlayMaterial } from './overlay-material';
 import { TUNING } from './inkTuning';
@@ -61,6 +62,14 @@ function ghostGeometry(): THREE.BufferGeometry {
 
 const GHOST_GEOMETRY = ghostGeometry();
 
+const GHOST_NIGHT_FLOOR = 0.3;
+const GHOST_DAY_COLOR = new THREE.Color(PAL.contactGhost.color);
+
+function dimGhostFor(turn: number): void {
+  const share = Math.min(1, Math.max(GHOST_NIGHT_FLOOR, lightShareAt(daylightAt(turn))));
+  GHOST_MATERIAL.color.copy(GHOST_DAY_COLOR).multiplyScalar(share);
+}
+
 const GHOST_MATERIAL = overlayMaterial({
   color: PAL.contactGhost.color,
   opacity: PAL.contactGhost.opacity,
@@ -103,6 +112,7 @@ export class ContactsView {
     this.lastMs = nowMs;
     const newTurn = turn !== this.lastTurn;
     this.lastTurn = turn;
+    if (newTurn) dimGhostFor(turn);
     if (newTurn) for (const m of this.markers.values()) startBurst(m, nowMs);
     const live = new Set(contacts.map((c) => c.vehicleId));
     for (const [id, m] of this.markers) {
