@@ -58,7 +58,7 @@ export const PAL = {
   shell: { casing: 0x2a2622, trail: 0x8a8580 },
   dustTrail: 0xe0c49a,
   radio: tokenColor('--path-radio'),
-  contactGhost: { color: 0x7d8a9c, opacity: 0.5 },
+  contactGhost: { color: 0x667488, opacity: 0.6 },
   beacon: tokenColor('--path-beacon'),
   flash: 0xfff0a0,
   brass: 0xc8a048,
