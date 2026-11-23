@@ -33,16 +33,6 @@ function shotAt(world: World, shooter: Vehicle, target: Vehicle, hits: { part: s
 const en = (entries: { text: Parameters<typeof resolve>[0] }[]) => entries.map((e) => resolve(e.text, "en"));
 
 describe("log levels", () => {
-  it("keeps routine call lines in Verbose and every other role the player is party to in Brief", () => {
-    const { w, me, raider } = fight();
-    const call = (role: "routine" | "hail" | "settles" | "shout", speaker: string, to: string): GameEvent => ({ t: "say", speaker, to, line: "hangUp", vars: {}, role });
-    expect(eventEntry(w, call("routine", raider.id, me.id))).toMatchObject({ level: "info", reach: "verbose" });
-    expect(eventEntry(w, call("routine", me.id, raider.id))).toMatchObject({ level: "info", reach: "verbose" });
-    for (const role of ["hail", "settles", "shout"] as const) expect(eventEntry(w, call(role, raider.id, me.id))).toMatchObject({ level: "notable", reach: "both" });
-    const other = addVehicle(w, "independent", "scout", [], { x: 50, y: 50 });
-    expect(eventLevel(w, call("settles", raider.id, other.id))).toBe("info");
-  });
-
   it("keeps shot rolls in Verbose and a knockout in both views", () => {
     const { w, me, raider, cab } = fight();
     const shot = eventEntry(w, shotAt(w, raider, me, [{ part: cab.id, damage: 5 }]));

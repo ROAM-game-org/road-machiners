@@ -1,13 +1,13 @@
 
 import { optionShort } from './dialogue-rules';
-import { BUSY_LINE, END, handoffQuest, handoffTopic, HANG_UP_LINE, HUB, REFUSED, STRANGER_TOLL, TOLL, settlesSomething, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
+import { BUSY_LINE, END, handoffQuest, handoffTopic, HANG_UP_LINE, HUB, REFUSED, STRANGER_TOLL, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
 import { BACK_LINE, isGroup, MOOD_GREETINGS, PERSONALITIES, TALK_PRICE, TOPIC_GROUPS, TOPIC_MERGE, TOPIC_ROOT, URGENT_TOPICS, type Gate, type GroupId, type Personality, type TopicChild } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { raiseEncounter } from './encounters';
 import { coldLine, CONDITIONS, EFFECTS, gateOpen, HELP_OFFERS, moodOf, opensHelp, PREPARES } from './dialogue-rules';
-import type { Call, CallVars, GameEvent, SayRole, Vehicle, World } from './types';
+import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
 import { practice } from './progress';
@@ -177,16 +177,16 @@ export function currentLine(world: World): LineId {
   return TOPICS[call.topic].nodes[call.node].line;
 }
 
-function say(world: World, speaker: string, to: string, line: LineId, vars: CallVars, role: SayRole): void {
-  world.events.push({ t: 'say', speaker, to, line, vars, role });
+function say(world: World, speaker: string, to: string, line: LineId, vars: CallVars): void {
+  world.events.push({ t: 'say', speaker, to, line, vars });
   if (world.player.call?.with === speaker) world.player.call.line = { line, vars };
 }
 
-function enter(world: World, call: Call, topic: TopicId | null, node: string, role: SayRole): void {
+function enter(world: World, call: Call, topic: TopicId | null, node: string): void {
   call.topic = topic;
   call.node = node;
   if (!topic) call.vars = {};
-  say(world, call.with, world.player.vehicleId, currentLine(world), call.vars, role);
+  say(world, call.with, world.player.vehicleId, currentLine(world), call.vars);
 }
 
 function routeOf(world: World, npc: Vehicle, topic: Topic, vars: CallVars): string {
@@ -194,14 +194,14 @@ function routeOf(world: World, npc: Vehicle, topic: Topic, vars: CallVars): stri
   return route?.go ?? topic.start;
 }
 
-function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start, handoff = false, role: SayRole = 'routine'): void {
+function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start, handoff = false): void {
   const prepared = topic.prepare ? PREPARES[topic.prepare](world, npc) : {};
   call.vars = node === TOLL || node === STRANGER_TOLL ? { ...prepared, price: { kind: 'money', amount: TALK_PRICE } } : prepared;
   if (!handoff) practice(world, 'call', 1, null, `${npc.id}:${topic.id}`);
   const go = node === topic.start ? routeOf(world, npc, topic, call.vars) : node;
   const target = handoffTopic(go);
-  if (target) return enterTopic(world, npc, call, TOPICS[target], TOPICS[target].start, true, role);
-  enter(world, call, topic.id, go, role);
+  if (target) return enterTopic(world, npc, call, TOPICS[target], TOPICS[target].start, true);
+  enter(world, call, topic.id, go);
 }
 
 function endCall(world: World, call: Call): void {
@@ -235,7 +235,7 @@ function requireRadio(world: World): void {
 }
 
 function answer(world: World, npc: Vehicle, refusal: LineId | null): void {
-  if (!refusal) return enter(world, begin(world, npc, greetingOf(world, npc)), null, HUB, 'routine');
+  if (!refusal) return enter(world, begin(world, npc, greetingOf(world, npc)), null, HUB);
   const call = begin(world, npc, refusal);
   call.node = REFUSED;
 }
@@ -250,8 +250,8 @@ function busyElsewhere(world: World, npc: Vehicle, me: Vehicle): boolean {
   return inCombatWithOther(world, npc, me.id) && !isHostile(world, npc, me);
 }
 
-function reply(world: World, call: Call, line: LineId, role: SayRole): void {
-  if (!isRefused(call)) say(world, world.player.vehicleId, call.with, line, call.vars, role);
+function reply(world: World, call: Call, line: LineId): void {
+  if (!isRefused(call)) say(world, world.player.vehicleId, call.with, line, call.vars);
 }
 
 function navigate(world: World, npc: Vehicle, call: Call, offered: OfferedOption): boolean {
@@ -260,34 +260,15 @@ function navigate(world: World, npc: Vehicle, call: Call, offered: OfferedOption
   return offered.group !== undefined || offered.back === true;
 }
 
-function answersInTopic(call: Call, go: string): boolean {
-  return go !== END && go !== HUB && !handoffQuest(go) && !handoffTopic(go) && call.topic !== null && go in TOPICS[call.topic].nodes;
-}
-
-function pickOption(world: World, npc: Vehicle, call: Call, offered: OfferedOption): void {
-  const option = offered.option!;
-  const deal = settlesSomething(option.effects);
-  const answered = deal && answersInTopic(call, option.go);
-  reply(world, call, offered.line, deal && !answered ? 'settles' : 'routine');
-  follow(world, npc, call, option, answered ? 'settles' : 'routine');
-}
-
-function hangUpRole(call: Call): SayRole {
-  return call.topic && settlesSomething(TOPICS[call.topic].hangUp) ? 'settles' : 'routine';
-}
-
 function pick(world: World, index: number): void {
   const offered = currentOptions(world)[index];
   if (!offered) throw new Error(`No option ${index} on offer`);
   const call = openCall(world);
   const npc = vehicleById(world, call.with);
   if (navigate(world, npc, call, offered)) return;
-  if (offered.option) return pickOption(world, npc, call, offered);
-  if (offered.topic) {
-    reply(world, call, offered.line, 'routine');
-    return ask(world, npc, call, TOPICS[offered.topic]);
-  }
-  reply(world, call, offered.line, hangUpRole(call));
+  reply(world, call, offered.line);
+  if (offered.option) return follow(world, npc, call, offered.option);
+  if (offered.topic) return ask(world, npc, call, TOPICS[offered.topic]);
   hangUpCall(world, npc, call);
 }
 
@@ -323,16 +304,16 @@ function hasHelpOffer(world: World, npc: Vehicle): boolean {
 
 function ask(world: World, npc: Vehicle, call: Call, topic: Topic): void {
   if (!call.asked.includes(topic.id)) call.asked.push(topic.id);
-  if (isSettled(world, npc, topic)) return say(world, npc.id, world.player.vehicleId, talkOf(npc).repeatLine, {}, 'routine');
+  if (isSettled(world, npc, topic)) return say(world, npc.id, world.player.vehicleId, talkOf(npc).repeatLine, {});
   const gate = gateOf(npc, topic);
   if (gate === 'help' && !opensHelp(world, npc)) {
-    if (hasHelpOffer(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {}, 'routine');
+    if (hasHelpOffer(world, npc)) return say(world, npc.id, world.player.vehicleId, 'helpMeFirst', {});
     return enterTopic(world, npc, call, topic, STRANGER_TOLL);
   }
   enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
 }
 
-function follow(world: World, npc: Vehicle, call: Call, option: DialogueOption, role: SayRole): void {
+function follow(world: World, npc: Vehicle, call: Call, option: DialogueOption): void {
   for (const id of option.effects) EFFECTS[id](world, npc, call);
   const quest = handoffQuest(option.go);
   if (quest) {
@@ -342,8 +323,8 @@ function follow(world: World, npc: Vehicle, call: Call, option: DialogueOption, 
   const topic = handoffTopic(option.go);
   if (topic) return enterTopic(world, npc, call, TOPICS[topic], TOPICS[topic].start, true);
   if (option.go === END) return endCall(world, call);
-  if (option.go === HUB) return enter(world, call, null, HUB, 'routine');
-  enter(world, call, call.topic, option.go, role);
+  if (option.go === HUB) return enter(world, call, null, HUB);
+  enter(world, call, call.topic, option.go);
 }
 
 export function endCallIfOut(world: World): void {
@@ -396,7 +377,7 @@ function hangUpCall(world: World, npc: Vehicle, call: Call): void {
 export function hangUp(world: World): World {
   return update(world, (w) => {
     const call = openCall(w);
-    reply(w, call, HANG_UP_LINE, hangUpRole(call));
+    reply(w, call, HANG_UP_LINE);
     hangUpCall(w, vehicleById(w, call.with), call);
   });
 }
@@ -407,7 +388,7 @@ export function raiseCalls(world: World): void {
   for (const npc of world.vehicles) {
     const topic = raisedTopic(world, npc, me);
     if (!topic) continue;
-    enterTopic(world, npc, begin(world, npc, topic.nodes[topic.start].line), topic, topic.start, false, 'hail');
+    enterTopic(world, npc, begin(world, npc, topic.nodes[topic.start].line), topic);
     raiseEncounter(world, npc, topic.id);
     return;
   }

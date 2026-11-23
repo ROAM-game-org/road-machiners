@@ -112,23 +112,6 @@ export const SPARE_LINE: LineId = 'spare';
 export const HANG_UP_LINE: LineId = 'hangUp';
 export const QUEST_GO = 'quest:';
 
-export const TALK_ONLY_EFFECTS: ReadonlySet<EffectId> = new Set<EffectId>([
-  'settleDone',
-  'settleRefused',
-  'turnDownCall',
-  'declineEncounter',
-  'endEncounter',
-  'endLookWarning',
-  'askStandDown',
-  'honkGoodbye',
-  'refuseTow',
-  'refuseAidOffer',
-]);
-
-export function settlesSomething(effects: readonly EffectId[]): boolean {
-  return effects.some((id) => !TALK_ONLY_EFFECTS.has(id));
-}
-
 export function questGo(quest: string): string {
   return `${QUEST_GO}${quest}`;
 }
