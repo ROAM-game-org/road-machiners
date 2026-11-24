@@ -21,3 +21,4 @@ Commit, then run `npm run itch`. Butler uploads only the changed files. Page set
 
 - Saves live in the browser storage of the itch.io game domain, so players keep them across versions. The Help entry of the Menu shows the version as `x.y.z+commit`, where the commit matches the upload name.
 - The debug console with cheats opens in every build.
+- itch.io rejects an HTML5 upload with more than 1000 files, and it shows the error only on the game page. `npm run build` fails when `dist` has more than 1000 files, so a release can never ship over the limit.
