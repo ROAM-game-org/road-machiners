@@ -44,7 +44,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onBootStopped, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onBootStopped, onEveryError, onReport, reloadPage, reportError } from './crash';
 import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished, watchBootEnd } from './boot-marker';
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
@@ -291,7 +291,7 @@ function soundsArrived(loaded: LoadedBank): void {
   if (loaded.failures.length) whenVisible(() => void recoverSounds(loaded).catch(reportError));
   performance.mark('roam:sounds');
 }
-const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError), endMark);
+const boot = BootScreen.adopt(() => void flushSaves().then(reloadPage, reportError), endMark);
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
@@ -330,7 +330,7 @@ if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
-  reload: () => void slots.flush().then(() => window.location.reload(), reportError),
+  reload: () => void slots.flush().then(reloadPage, reportError),
 };
 stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
@@ -377,8 +377,14 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-afterBoot(boot.finish(), () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })), () => game.warmPlans(), baking.keep).catch(reportError);
-endMark();
+afterBoot(boot.finish(), {
+  mark: stepBoot,
+  startTurns: () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })),
+  warmPlans: () => game.warmPlans(),
+  keep: baking.keep,
+  tilesFilled: drawn.tilesFilled,
+  end: endMark,
+}).catch(reportError);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

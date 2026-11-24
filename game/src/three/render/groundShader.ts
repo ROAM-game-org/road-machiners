@@ -9,9 +9,9 @@ import type { Site } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFieldPieces, TILE_LAYER } from "./groundFields";
-import { CREST_GLSL, GroundCrest, type CrestUniforms } from "./groundCrest";
+import { CREST_GLSL, landPieces, type CrestUniforms, type Land } from "./groundCrest";
 import { holdGroundDetail } from "./groundDetail";
-import { GroundLandform, LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
+import { LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { placeInWorld } from "./worldPlace";
@@ -148,18 +148,11 @@ const CENTER_LINE_FADE = 0.5;
 const DASH_EVERY = 6;
 const DASH_KEPT = 0.5;
 
-export type Land = { landform: GroundLandform; crest: GroundCrest };
-
 export type LandUniforms = LandformUniforms & CrestUniforms;
 
-export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; land: Land; header: string; key: string };
+export type DrawnGround = { uniforms: Record<string, THREE.IUniform>; land: Land; header: string; key: string; tilesFilled: Promise<void> };
 
 const LAND_GLSL = `${LANDFORM_GLSL}${CREST_GLSL}`;
-
-function landOf(t: Terrain): Land {
-  const landform = new GroundLandform(t.heights, t.size + 1, S);
-  return { landform, crest: new GroundCrest(landform.form, t.heights, t.size + 1, S) };
-}
 
 export function landUniforms(land: Land): LandUniforms {
   return { ...land.landform.uniforms, ...land.crest.uniforms };
@@ -182,17 +175,16 @@ export type GroundCacheUniforms = {
 export function* drawnGroundPieces(newMask: () => PaintCanvas, t: Terrain, shelters: readonly Site[], newLandforms: () => THREE.Texture | null): Generator<string, DrawnGround> {
   yield "reading the ground looks";
   groundLooks(t);
-  const fields = yield* groundFieldPieces(newMask, t, shelters);
+  const { uniforms: fields, tilesFilled } = yield* groundFieldPieces(newMask, t, shelters);
   yield "painting the landforms";
   const landforms = newLandforms();
-  yield "shaping the land";
-  const land = landOf(t);
+  const land = yield* landPieces(t, S);
   const worn = fields.highwayWear !== undefined;
   return {
     uniforms: { ...fields, ...(landforms ? { groundLandforms: { value: landforms } } : {}), ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN } },
     land,
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
-    key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`,
+    key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`, tilesFilled,
   };
 }
 

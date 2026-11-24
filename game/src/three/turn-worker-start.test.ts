@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DriveSnapshot } from '../phys/drive';
 import type { World } from '../sim/types';
-import { afterBoot, startTurnWorker, type TurnWorkerHost } from './turn-worker-start';
+import { afterBoot, startTurnWorker, type AfterBootSteps, type TurnWorkerHost } from './turn-worker-start';
 
 const terrain = { size: 4 } as unknown as World['terrain'];
 const world = { terrain } as unknown as World;
@@ -51,42 +51,61 @@ describe('the turn worker start', () => {
   });
 });
 
+function recordingSteps(calls: string[], jobs: { turns?: Promise<void>; tiles?: Promise<void> } = {}): AfterBootSteps {
+  return {
+    mark: (step) => void calls.push(`mark ${step}`),
+    startTurns: () => {
+      calls.push('turns');
+      return jobs.turns ?? Promise.resolve();
+    },
+    warmPlans: () => void calls.push('plans'),
+    keep: () => void calls.push('keep'),
+    tilesFilled: jobs.tiles ?? Promise.resolve(),
+    end: () => void calls.push('end'),
+  };
+}
+
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve));
+}
+
 describe('the boot order', () => {
-  it('starts the turn worker, then the plan preview, then the cache write, each after the one before', async () => {
+  it('marks and runs the turn worker, the plan preview, the cache write and the tile fill, each after the one before, then ends the mark', async () => {
     const calls: string[] = [];
     const boot = deferred();
     const turns = deferred();
 
-    const ordered = afterBoot(
-      boot.promise,
-      () => {
-        calls.push('turns');
-        return turns.promise;
-      },
-      () => void calls.push('plans'),
-      () => void calls.push('keep'),
-    );
-    await new Promise((resolve) => setTimeout(resolve));
+    const ordered = afterBoot(boot.promise, recordingSteps(calls, { turns: turns.promise }));
+    await settle();
     expect(calls).toEqual([]);
     boot.done();
-    await new Promise((resolve) => setTimeout(resolve));
-    expect(calls).toEqual(['turns']);
+    await settle();
+    expect(calls).toEqual(['mark starting the turn worker', 'turns']);
     turns.done();
     await ordered;
-    expect(calls).toEqual(['turns', 'plans', 'keep']);
+
+    expect(calls).toEqual(['mark starting the turn worker', 'turns', 'mark warming the plans', 'plans', 'mark writing the ground cache', 'keep', 'mark filling the ground tiles', 'end']);
   });
 
-  it('still keeps the bake when the turn worker fails to start, and warms no plans', async () => {
+  it('keeps the boot mark while the ground tiles still fill', async () => {
+    const calls: string[] = [];
+    const tiles = deferred();
+
+    const ordered = afterBoot(Promise.resolve(), recordingSteps(calls, { tiles: tiles.promise }));
+    await settle();
+    expect(calls).not.toContain('end');
+    tiles.done();
+    await ordered;
+
+    expect(calls.at(-1)).toBe('end');
+  });
+
+  it('still keeps the bake and ends the mark when the turn worker fails to start, and warms no plans', async () => {
     const calls: string[] = [];
 
-    const ordered = afterBoot(
-      Promise.resolve(),
-      () => Promise.reject(new Error('no worker')),
-      () => void calls.push('plans'),
-      () => void calls.push('keep'),
-    );
+    const ordered = afterBoot(Promise.resolve(), { ...recordingSteps(calls), startTurns: () => Promise.reject(new Error('no worker')) });
 
     await expect(ordered).rejects.toThrow('no worker');
-    expect(calls).toEqual(['keep']);
+    expect(calls).toEqual(['mark starting the turn worker', 'mark writing the ground cache', 'keep', 'mark filling the ground tiles', 'end']);
   });
 });
