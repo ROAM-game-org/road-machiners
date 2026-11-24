@@ -60,6 +60,9 @@ import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/model
 import { startGroundBaker } from './ground-off-thread';
 import { runStepped } from './render/stepped';
 import { drawnGroundSteps, groundTexture } from './render/terrain';
+import { landUniforms } from './render/groundShader';
+import { NIGHT_POOLS } from './render/lightPools';
+import { firstFramePieces, groundTextures, sceneCore, worldViewPieces } from './world-views';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
 import { paintSkin } from '../ui/dash/skin';
@@ -338,21 +341,30 @@ const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 stepBoot('building the ground');
 const baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`);
+async function paintBefore(piece: string): Promise<void> {
+  stepBoot(piece);
+  await boot.painted();
+}
 const drawn = await boot.track('ground', async () => {
   await baking.baked;
   groundTexture(world);
-  return runStepped(drawnGroundSteps(world), async (piece) => {
-    stepBoot(piece);
-    await boot.painted();
-  });
+  return runStepped(drawnGroundSteps(world), paintBefore);
 });
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', async () => {
-  stepBoot('building the renderer');
-  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
+  await paintBefore('building the renderer');
+  const core = sceneCore(surface, gpu, element('game'));
+  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => game.screens.pinOutpost() }), paintBefore);
+  await paintBefore('building the HUD');
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, core, gpu, travel, musicShelf, views);
+  await paintBefore('painting the minimap');
+  built.paintMinimap();
+  const textures = groundTextures({ ...drawn.uniforms, ...landUniforms(drawn.land) }, { map: views.groundMaterial.map, poolMap: NIGHT_POOLS.poolTexture() });
+  await runStepped(firstFramePieces(textures, built.firstFrame()), paintBefore);
+  return built;
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {

@@ -1,7 +1,7 @@
 import { combatFrameMs, playedKph, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
-import { CONFIG, PLAY_EASE } from "../config";
+import { CONFIG } from "../config";
 import { QUESTS, relanguageQuest } from "../sim/quests";
 import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
@@ -42,7 +42,7 @@ import { timed } from "../perf";
 import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
-import { ShaderWarmup } from "./shader-errors";
+import type { ShaderWarmup } from "./shader-errors";
 import { Hud } from "../ui/hud";
 import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
@@ -50,7 +50,7 @@ import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, mountedSelection, weaponsForClick } from "../ui/weapons";
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
-import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
+import { type CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
 import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
@@ -63,8 +63,8 @@ import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import type { RenderScope, SightLimit } from "./render/scope";
 import type { CellStreamer } from "./render/streamer";import type { SiteLights } from "./render/siteLights";
-import { buildWorldViews, sightAround, type WorldViewHost } from "./world-views";
-import { drawingRenderer, type WebGLSurface } from "./webgl";
+import { sightAround, type FirstFrameHost, type SceneCore, type WorldViews } from "./world-views";
+import { drawingRenderer } from "./webgl";
 import { FramePace } from "./frame-pace";
 import type { GraphicsFacts } from "./error-report";
 import { FRAME_REBUILDS, type RebuildBudget } from "./render/vehicle";
@@ -77,8 +77,7 @@ import { installControlSounds, keyPress } from "../ui/control-sound";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { CallReveal } from "./call-reveal";
-import { spotShadowsFit } from "./render/lightBudget";
-import { backdropAt, daylightAt, lightScene, RadioLights, refreshShadows, VehicleLights, sunCasters, sunLight, vehicleLampsOn } from "./render/daylight";
+import { backdropAt, daylightAt, lightScene, RadioLights, type VehicleLights, sunCasters, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -112,7 +111,7 @@ import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
 import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision, committedWorld } from "./travel";
-import { heldPlayMs, PlayClock, playbackFrameCapMs } from "./play-clock";
+import { heldPlayMs, type PlayClock, playbackFrameCapMs } from "./play-clock";
 
 
 const PICK_PX = 30;
@@ -138,10 +137,10 @@ export class Game {
   private world: World;
   private drive: DriveSnapshot;
   readonly renderer: THREE.WebGLRenderer;
-  readonly scene = new THREE.Scene();
+  readonly scene: THREE.Scene;
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
-  private readonly play = new PlayClock(PLAY_EASE);
+  private readonly play: PlayClock;
   private readonly vehicleLights: VehicleLights;
   private readonly siteLights: SiteLights;
   private readonly vignette = Object.assign(document.createElement("div"), {
@@ -153,8 +152,8 @@ export class Game {
   readonly rig: CameraRig;
   private readonly shaders: ShaderWarmup;
   private readonly rebuilds: RebuildBudget = { take: () => FRAME_REBUILDS.take(), ready: (root) => this.shaders.ready(root) };
-  private readonly ground = new THREE.Group();
-  private readonly props = new THREE.Group();
+  private readonly ground: THREE.Group;
+  private readonly props: THREE.Group;
   private readonly scopes: RenderScope[];
   readonly streamer: CellStreamer;
   private readonly obstacles: ObstacleViews;
@@ -183,7 +182,7 @@ export class Game {
   private readonly hostileSighting = new HostileSighting();
   private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
-  private readonly trucks = new TruckViews(this.scene, this.rebuilds);
+  private readonly trucks: TruckViews;
   private readonly radioLights = new RadioLights();
   private readonly reveal = new CallReveal();
   private playbackEnded = false;
@@ -202,13 +201,7 @@ export class Game {
   private hoverGround: Vec | null = null;
   private touchPreview: Vec | null = null;
   private readonly touch = new TouchGestures();
-  private readonly picker = new PointerPicker({
-    world: () => this.world,
-    hit: (x, y, object) => this.rig.hitDistance(x, y, object),
-    views: this.trucks.views,
-    visible: (v) => this.isVehicleVisible(v),
-    radiusPick: (x, y) => this.pickVehicle(x, y)?.id ?? null,
-  });
+  private readonly picker: PointerPicker;
   private hovered: string | null = null;
   private readonly hoverHold = new HoverHold((id) => this.setHovered(id), 400);
   private readonly pin = new InspectPin(() => this.onInspectChange(), (v) => this.isVehicleVisible(v));
@@ -226,6 +219,8 @@ export class Game {
 
   readonly hud: Hud;
   private minimap: Minimap | null = null;
+  private minimapPainted = false;
+  private readonly minimapWanted = (): boolean => this.minimapPainted && minimapSetting().on() && hasExplorationMap(this.world);
   private readonly hitCard: HitCard;
   private readonly weapons: WeaponPanel;
   readonly screens: ModalScreens;
@@ -238,10 +233,11 @@ export class Game {
     this.plans.warm(this.world);
   }
 
-  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, drawn: WorldViewHost["drawn"], bootStep: (name: string) => void) {
+  constructor(world: World, run: Run, private readonly view: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, core: SceneCore, readonly gpu: GpuContext, private readonly travel: Travel, tracks: MusicTracks, views: WorldViews) {
+    ({ renderer: this.renderer, scene: this.scene, rig: this.rig, shaders: this.shaders, ground: this.ground, props: this.props, play: this.play, vehicleLights: this.vehicleLights } = core);
+    this.trucks = new TruckViews(this.scene, this.rebuilds);
+    this.picker = new PointerPicker({ world: () => this.world, hit: (x, y, object) => this.rig.hitDistance(x, y, object), views: this.trucks.views, visible: (v) => this.isVehicleVisible(v), radiusPick: (x, y) => this.pickVehicle(x, y)?.id ?? null });
     this.travel.onTurnWait = (ms, at) => this.pace.noteTurnWait(ms, at);
-    this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
-    this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "notable"));
@@ -249,15 +245,9 @@ export class Game {
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
-    refreshShadows(this.renderer, this.scene, this.gpu);
-    view.appendChild(this.renderer.domElement);
-    this.rig = new CameraRig(this.renderer.domElement);
-    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError, this.gpu);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
-    this.renderer.domElement.classList.add("view");
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
-    const views = buildWorldViews(this.world, { bootStep, drawn, scene: this.scene, ground: this.ground, props: this.props, play: this.play, renderer: this.renderer, prepare: (obj) => this.shaders.prepare(obj), drawGroundThrough: (cache) => this.shaders.drawGroundThrough(cache), pinOutpost: () => this.screens.pinOutpost() });
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
@@ -288,7 +278,6 @@ export class Game {
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     installControlSounds(document, (cue) => this.sound.ui(cue));
     this.loops = new SoundLoops(player, music, tracks, Math.random);
-    bootStep("building the HUD");
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
     this.screens = new ModalScreens(host, () => this.hud.sideMoved(this.screens.journal.root));
@@ -331,7 +320,12 @@ export class Game {
     new ResizeObserver(() => this.fitView()).observe(view);
     this.fitView();
     this.refreshUi();
-    void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick((this.last = t))), reportError);
+  }
+
+  paintMinimap(): void {
+    this.minimapPainted = true;
+    this.syncMinimap();
+    this.minimap?.update(this.displayWorld());
   }
 
   private uiHost(): UiHost {
@@ -1161,11 +1155,19 @@ export class Game {
   private tick(now: number): void {
     if (!import.meta.env.DEV) requestAnimationFrame((t) => this.tick(t));
     this.frame(now);
+    this.drawFrame();
     if (import.meta.env.DEV) requestAnimationFrame((t) => this.tick(t));
   }
 
   private showPlayedSpeed(at: number | null): void {
     this.hud.showSpeed(playedKph(this.anim?.result.frames[playerVehicle(this.world).id], at));
+  }
+
+  private drawFrame(): void {
+    this.shaders.render(this.timeHeld());
+    this.hud.stepPortraits(this.travel.isPlaying(this.anim), this.screens.inventory.isOpen());
+    this.refreshPlan();
+    this.showPlan();
   }
 
   private frame(now: number): void {
@@ -1211,14 +1213,14 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera, sunCasters(this.sun));
-    this.shaders.render(this.timeHeld());
-    this.hud.stepPortraits(this.travel.isPlaying(this.anim), this.screens.inventory.isOpen());
-    this.refreshPlan();
-    this.showPlan();
+  }
+
+  firstFrame(): FirstFrameHost {
+    return { upload: (texture) => this.renderer.initTexture(texture), compile: () => void this.renderer.compile(this.scene, this.rig.camera), fillGroundCache: () => { this.frame((this.last = performance.now())); this.shaders.fillGroundCache(); }, drawFirstFrame: () => this.tick((this.last = performance.now())) };
   }
 
   private syncMinimap(): void {
-    const on = minimapSetting().on() && hasExplorationMap(this.world);
+    const on = this.minimapWanted();
     if (on && !this.minimap) {
       this.minimap = new Minimap(() => this.openMap());
     } else if (!on && this.minimap) {
