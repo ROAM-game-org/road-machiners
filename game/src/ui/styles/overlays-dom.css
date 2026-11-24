@@ -92,19 +92,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--hud-badge);
+  gap: var(--space-1);
+  min-width: var(--hud-badge);
   height: var(--hud-badge);
+  padding: 0 var(--hud-screen-edge);
 }
 #overlay .arc-icon.spent { color: var(--hud-amber-faint); }
 .arc-icon .item-icon {
-  width: 80%;
   height: 80%;
+  width: auto;
+  aspect-ratio: 1;
   filter: url(#hud-amber-tint);
 }
 .arc-icon-slot {
-  position: absolute;
-  right: calc(-1 * var(--space-3));
-  bottom: calc(-1 * var(--space-3));
   font: bold var(--hud-text-s) / 1 var(--font-hud);
   color: inherit;
   padding: 0 var(--space-1);

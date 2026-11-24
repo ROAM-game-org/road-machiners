@@ -7,7 +7,12 @@ import { hash2, valueNoise } from '../../render/noise';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import type { Contact } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { daylightAt, lightShareAt } from './daylight';
+import { CONTACT_BIT } from './models';
 import { overlayMaterial } from './overlay-material';
+import { TUNING } from './inkTuning';
+import { INK_DUST_LAYER } from './particles/cards';
 
 const S = PHYSICS.metersPerTile;
 const RENDER_ORDER = 905;
@@ -33,6 +38,51 @@ const WAVE = {
 
 const BLIP = { radius: 0.7, dot: 0.25, opacity: 0.9 };
 
+const GHOST = { length: 1.6, width: 0.75, height: 0.6 };
+
+type MarkKind = 'radio' | 'flare';
+
+function ghostGeometry(): THREE.BufferGeometry {
+  const { length, width, height } = GHOST;
+  const L = length * S;
+  const W = width * S;
+  const H = height * S;
+  const wheelRadius = H * 0.22;
+  const hullHeight = H * 0.4;
+  const hull = new THREE.BoxGeometry(L, hullHeight, W * 0.86).translate(0, wheelRadius + hullHeight / 2, 0);
+  const middleHeight = H - wheelRadius - hullHeight;
+  const middle = new THREE.BoxGeometry(L * 0.45, middleHeight, W * 0.7).translate(0, wheelRadius + hullHeight + middleHeight / 2, 0);
+  const wheels = [-1, 1].flatMap((end) =>
+    [-1, 1].map((side) =>
+      new THREE.CylinderGeometry(wheelRadius, wheelRadius, W * 0.14, 10).rotateX(Math.PI / 2).translate(end * L * 0.32, wheelRadius, side * W * 0.43),
+    ),
+  );
+  return mergeGeometries([hull, middle, ...wheels].map((g) => g.toNonIndexed().deleteAttribute('uv').deleteAttribute('normal')));
+}
+
+const GHOST_GEOMETRY = ghostGeometry();
+
+const GHOST_NIGHT_FLOOR = 0.3;
+const GHOST_DAY_COLOR = new THREE.Color(PAL.contactGhost.color);
+
+function dimGhostFor(turn: number): void {
+  const share = Math.min(1, Math.max(GHOST_NIGHT_FLOOR, lightShareAt(daylightAt(turn))));
+  GHOST_MATERIAL.color.copy(GHOST_DAY_COLOR).multiplyScalar(share);
+}
+
+const GHOST_MATERIAL = overlayMaterial({
+  color: PAL.contactGhost.color,
+  opacity: PAL.contactGhost.opacity,
+  depthTest: false,
+  depthWrite: false,
+  stencilWrite: true,
+  stencilRef: CONTACT_BIT,
+  stencilFuncMask: CONTACT_BIT,
+  stencilWriteMask: CONTACT_BIT,
+  stencilFunc: THREE.NotEqualStencilFunc,
+  stencilZPass: THREE.ReplaceStencilOp,
+});
+
 type Front = {
   line: THREE.Line;
   origin: Vec;
@@ -44,7 +94,7 @@ type Front = {
   spawn: number;
 };
 
-type Marker = { id: string; fronts: Front[]; blip: THREE.Group; root: THREE.Group; burstMs: number };
+type Marker = { id: string; fronts: Front[]; blip: THREE.Group; ghost: THREE.Mesh; root: THREE.Group; burstMs: number };
 
 const WIND = (() => {
   const l = Math.hypot(WEATHER.wind.x, WEATHER.wind.y);
@@ -62,6 +112,7 @@ export class ContactsView {
     this.lastMs = nowMs;
     const newTurn = turn !== this.lastTurn;
     this.lastTurn = turn;
+    if (newTurn) dimGhostFor(turn);
     if (newTurn) for (const m of this.markers.values()) startBurst(m, nowMs);
     const live = new Set(contacts.map((c) => c.vehicleId));
     for (const [id, m] of this.markers) {
@@ -81,7 +132,7 @@ export class ContactsView {
       const hearsSound = SHOW_SOUND_WAVES && c.sources.includes('sound');
       m.fronts.forEach((f) => (f.line.visible = hearsSound));
       if (hearsSound) m.fronts.forEach((f, k) => this.advanceFront(terrain, c, listener, f, dt, (nowMs - m.burstMs) / 1000 >= k * WAVE.stagger));
-      placeBlip(terrain, m.blip, c);
+      placeMark(terrain, m, c);
     }
   }
 
@@ -90,9 +141,10 @@ export class ContactsView {
     const seed = hashId(id);
     const fronts = Array.from({ length: WAVE.fronts }, (_, k) => makeFront(k, seed));
     const blip = makeBlip();
-    root.add(...fronts.map((f) => f.line), blip);
+    const ghost = makeGhost();
+    root.add(...fronts.map((f) => f.line), blip, ghost);
     this.root.add(root);
-    return { id, fronts, blip, root, burstMs: 0 };
+    return { id, fronts, blip, ghost, root, burstMs: 0 };
   }
 
   private advanceFront(terrain: Terrain, c: Contact, listener: Vec, f: Front, dt: number, due: boolean): void {
@@ -184,23 +236,43 @@ function makeBlip(): THREE.Group {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(BLIP.dot * S, 16).rotateX(-Math.PI / 2), mat());
   ring.renderOrder = dot.renderOrder = RENDER_ORDER;
   const group = new THREE.Group();
+  group.name = 'contact-blip';
   group.add(ring, dot);
   return group;
 }
 
-function placeBlip(terrain: Terrain, blip: THREE.Group, c: Contact): void {
-  const color = blipColor(c);
-  blip.visible = color !== null;
-  if (color === null) return;
-  blip.traverse((o) => {
-    if (o instanceof THREE.Mesh) (o.material as THREE.MeshBasicMaterial).color.setHex(color);
-  });
-  blip.position.set(c.center.x * S, heightAt(terrain, c.center.x, c.center.y) * S + LIFT, c.center.y * S);
+function makeGhost(): THREE.Mesh {
+  const mesh = new THREE.Mesh(GHOST_GEOMETRY, GHOST_MATERIAL);
+  mesh.name = 'contact-ghost';
+  mesh.renderOrder = RENDER_ORDER;
+  mesh.frustumCulled = false;
+  return mesh;
 }
 
-function blipColor(c: Contact): number | null {
-  if (c.sources.includes('radio')) return PAL.radio;
-  return c.sources.includes('flare') ? PAL.flare.marker : null;
+function placeMark(terrain: Terrain, m: Marker, c: Contact): void {
+  const kind = markKind(c);
+  const inked = TUNING.fxInk.value >= INK_DUST_LAYER;
+  m.blip.visible = kind !== null && !inked;
+  m.ghost.visible = kind !== null && inked;
+  if (kind === null) return;
+  const x = c.center.x * S;
+  const terrainY = heightAt(terrain, c.center.x, c.center.y) * S;
+  const z = c.center.y * S;
+  if (inked) {
+    m.ghost.position.set(x, terrainY, z);
+    return;
+  }
+  const y = terrainY + LIFT;
+  const color = kind === 'radio' ? PAL.radio : PAL.flare.marker;
+  m.blip.traverse((o) => {
+    if (o instanceof THREE.Mesh) (o.material as THREE.MeshBasicMaterial).color.setHex(color);
+  });
+  m.blip.position.set(x, y, z);
+}
+
+function markKind(c: Contact): MarkKind | null {
+  if (c.sources.includes('radio')) return 'radio';
+  return c.sources.includes('flare') ? 'flare' : null;
 }
 
 function disposeMarker(m: Marker): void {
@@ -208,7 +280,7 @@ function disposeMarker(m: Marker): void {
     f.line.geometry.dispose();
     (f.line.material as THREE.Material).dispose();
   }
-  m.root.traverse((o) => {
+  m.blip.traverse((o) => {
     if (o instanceof THREE.Mesh) (o.material as THREE.Material).dispose();
     if (o instanceof THREE.Mesh) o.geometry.dispose();
   });

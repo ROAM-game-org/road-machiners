@@ -74,6 +74,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
   it('keeps the passes of finished files when the run is killed, and the rerun on the same inputs runs only the rest', async () => {
+    put('vitest.config.ts', CONFIG.replace('maxWorkers: 2', 'maxWorkers: 3'));
     put('src/gated.test.ts', gatedTest);
     const run = spawn(runnerArgs[0]!, runnerArgs.slice(1), { cwd: root, env: childEnv({}), detached: true, stdio: 'ignore' });
     const exited = new Promise((done) => run.on('exit', done));

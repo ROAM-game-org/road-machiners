@@ -275,6 +275,8 @@
 
 #ui .drive-drawing .dial-pace {
   fill: var(--hud-print);
+  stroke: var(--accent);
+  stroke-width: 2.2;
   transform: rotate(var(--needle, 0deg));
 }
 
@@ -707,6 +709,8 @@
 
 #ui .deck-lcd {
   display: flex;
+  white-space: nowrap;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
@@ -1025,6 +1029,7 @@
 
 #ui .lcd-word {
   position: relative;
+  flex: none;
   top: 0.1em;
   font: 400 var(--hud-lcd-size) / 1 var(--font-lcd-digits);
   text-transform: uppercase;

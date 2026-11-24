@@ -240,7 +240,7 @@ export class HoverArcsView {
       const id = arc.weapon.part.id;
       if (this.icons.has(id)) continue;
       const number = el('span', { class: 'arc-icon-slot' }, num(arc.slot, 'int'));
-      const node = el('div', { class: 'arc-icon hud-frame hud-tip-screen' }, createBareItemIcon(arc.weapon.part.defId), number);
+      const node = el('div', { class: 'arc-icon hud-frame hud-tip-screen' }, number, createBareItemIcon(arc.weapon.part.defId));
       this.overlay.appendChild(node);
       this.icons.set(id, node);
     }

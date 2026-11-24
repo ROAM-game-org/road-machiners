@@ -30,6 +30,7 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
+import { loadDamageNumbersSetting } from '../ui/damage-numbers-setting';
 import { loadLogViewSetting } from '../ui/log-setting';
 import type { SavedLog } from '../ui/log';
 import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
@@ -57,7 +58,7 @@ import { GpuContext } from './gpu-context';
 import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
-import { startGroundBaker } from './ground-off-thread';
+import { startGroundBaker, type GroundBaking } from './ground-off-thread';
 import { runStepped } from './render/stepped';
 import { drawnGroundSteps, groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
@@ -245,6 +246,7 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 paintSkin();
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
+loadDamageNumbersSetting(window.localStorage);
 loadLogViewSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
@@ -336,15 +338,17 @@ stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-stepBoot('building the ground');
-const baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`);
+const stepAndPaint = async (piece: string): Promise<void> => {
+  stepBoot(piece);
+  await boot.painted();
+};
+let baking: GroundBaking | undefined;
 const drawn = await boot.track('ground', async () => {
+  baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`, stepAndPaint);
   await baking.baked;
+  await stepAndPaint('painting the ground texture');
   groundTexture(world);
-  return runStepped(drawnGroundSteps(world), async (piece) => {
-    stepBoot(piece);
-    await boot.painted();
-  });
+  return runStepped(drawnGroundSteps(world), stepAndPaint);
 });
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
@@ -377,7 +381,7 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-afterBoot(boot.finish(), () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })), () => game.warmPlans(), baking.keep).catch(reportError);
+afterBoot(boot.finish(), () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })), () => game.warmPlans(), () => baking?.keep()).catch(reportError);
 endMark();
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {

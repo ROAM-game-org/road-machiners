@@ -53,7 +53,7 @@ import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, breakEmphasis, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import type { ObstacleViews } from "./render/obstacles";
 import type { CraterViews } from "./render/craters";
@@ -98,7 +98,7 @@ import { confirmEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import type { MusicTracks } from "../audio/music-shelf";
-import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf, PanelSounds, TurnCues } from "./sound";
+import { ACCENT, computeEngineGlide, EngineStrain, musicPlaceAt, PLAIN, SoundDirector, SoundLoops, stingOf, PanelSounds, TurnCues } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { cameraSetting, followRenderScale, renderScaleSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
@@ -244,7 +244,7 @@ export class Game {
     this.vehicleLights = new VehicleLights(this.scene, spotShadowsFit(this.renderer.capabilities.maxVaryings));
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
-    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "notable"));
+    this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "info"));
     this.drive = driveSnapshotOf(this.world);
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
@@ -285,7 +285,7 @@ export class Game {
       openLoot: (id) => this.screens.inventory.openLoot(id),
       openLookedOver: (id) => this.screens.inventory.openLookedOver(this.world, id),
     });
-    this.sound = new SoundDirector(player, this.rig, music, () => player.now());
+    this.sound = new SoundDirector(player, this.rig, music, () => player.now(), Math.random);
     installControlSounds(document, (cue) => this.sound.ui(cue));
     this.loops = new SoundLoops(player, music, tracks, Math.random);
     bootStep("building the HUD");
@@ -939,7 +939,7 @@ export class Game {
     this.hud.pushEvents(this.world, this.reveal.landed(this.world));
     this.openLandingScreen();
     this.uiStale = true;
-    for (const b of this.breakCues.rest()) this.playBreak(b);
+    for (const b of this.breakCues.rest()) this.playBreak(b, null);
   }
 
   private openLandingScreen(): void {
@@ -1029,7 +1029,7 @@ export class Game {
   private playImpactSounds(): void {
     for (const e of this.world.events) {
       const p = untimedDestroyed(this.world, e) && this.eventPoint(e.vehicle);
-      if (p) this.sound.at("explosion", p, 0);
+      if (p) this.sound.event("explosion", p, 0, 1, ACCENT);
     }
     for (const cue of this.turnCues.after(this.world)) this.sound.ui(cue);
   }
@@ -1042,7 +1042,7 @@ export class Game {
     const running = g && !isStranded(this.world, me) ? g : null;
     this.loops.drive(running, me.chassisId, strain);
     if (running) this.sound.engineStrain(strain);
-    if (g?.brake) this.sound.at("air-brake", frames[0].pos, 0);
+    if (g?.brake) this.sound.event("air-brake", frames[0].pos, 0, 1, PLAIN);
   }
 
   private updateLoops(): void {
@@ -1079,14 +1079,14 @@ export class Game {
   private combatHost(startMs = 0): CombatHost {
     const frames = this.anim?.result.frames ?? {};
     const poses = posesOf(this.world, frames, { moveMs: MOVE_MS, stepMs: stepMs(1), gunHeight: GUN_HEIGHT }, (v) => this.canShowCombatVehicle(v));
-    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.trucks.views, breakPart: (b) => this.playBreak(b), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
+    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.trucks.views, breakPart: (b, shooter) => this.playBreak(b, shooter), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
   }
 
-  private playBreak(b: PartBreak): void {
+  private playBreak(b: PartBreak, shooter: string | null): void {
     if (this.eventPoint(b.vehicle) === null) return;
     if (!this.turnStart) throw new Error(`Part ${b.part} of ${b.vehicle} broke before any turn played`);
     const p = playBreak(this.world, this.turnStart, this.obstacles.parts, this.fx, this.trucks.views.get(b.vehicle), b);
-    if (p) this.sound.at("part-broken", p, 0);
+    if (p) this.sound.event("part-broken", p, 0, 1, breakEmphasis(this.world, b.vehicle, shooter));
     playCookOff(this.combatHost(), b);
   }
 

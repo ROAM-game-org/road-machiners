@@ -29,15 +29,15 @@ const leaders = (w: World) => {
 
 export function spawnRoomOnSeeds(seeds: readonly number[]): void {
   describe(`spawn room on seeds ${seeds[0]} to ${seeds[seeds.length - 1]}`, () => {
-    it('places no driver close to a migrated player and keeps the roster whole', () => {
-      const roster = SPAWN.initial.length + SPAWN.startTraffic.templates.length;
-      for (const seed of seeds) {
+    for (const seed of seeds) {
+      it(`places no driver close to a migrated player and keeps the roster whole on seed ${seed}`, () => {
+        const roster = SPAWN.initial.length + SPAWN.startTraffic.templates.length;
         const w = carried(seed);
         const npcs = w.vehicles.filter((v) => v.brain);
         expect(npcs.length).toBeGreaterThanOrEqual(roster);
         for (const v of npcs) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThanOrEqual(SPAWN.minPlayerDist);
-      }
-    }, budget(120_000));
+      }, budget(120_000));
+    }
 
     it('never spawns a leader into a crowd', () => {
       for (const seed of seeds) {
