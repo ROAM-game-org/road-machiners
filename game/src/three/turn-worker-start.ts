@@ -24,8 +24,8 @@ export type AfterBootSteps = {
 };
 
 export async function afterBoot(finish: Promise<void>, steps: AfterBootSteps): Promise<void> {
-  await finish;
   try {
+    await finish;
     steps.mark('starting the turn worker');
     await steps.startTurns();
     steps.mark('warming the plans');

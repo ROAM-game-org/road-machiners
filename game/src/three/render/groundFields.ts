@@ -95,6 +95,7 @@ function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { te
   const texture = linear(new THREE.DataArrayTexture(data, t.size, t.size, TILE_LAYERS));
   const ready = { value: false };
   const filled = fillBlocksLater(materials, t.size, texture, ready);
+  filled.catch(() => undefined);
   return { texture, ready, filled };
 }
 
