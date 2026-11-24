@@ -1,3 +1,4 @@
+import { itchStatus } from './test-fakes';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { solidPng } from '../media-fixtures';
@@ -38,11 +39,12 @@ let downloads: string[] = [];
 function fakeCtx(): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
   const fake = {
-    cfg: { home, committeeChat: 'chat', publicChannel: 'public', publicUrl: 'https://play.test', itchTarget: 'u/g', butlerKey: 'key', errorMapDays: 14 },
+    cfg: { home, committeeChat: 'chat', publicChannel: 'public', publicUrl: 'https://play.test', itchTarget: 'u/g', butlerKey: 'key', errorMapDays: 14, itchLiveMinutes: 0, itchPollSeconds: 0 },
+    fetch: (async (url: string | URL | Request) => { calls.push(`http ${String(url)}`); return new Response(null, { status: 200 }); }) as typeof fetch,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     log: () => undefined,
-    run: async (cmd: string, args: string[]) => { calls.push(`run ${cmd} ${args[0]}`); return { code: 0, stdout: cmd === 'git' ? 'abc1234'.padEnd(40, '0') : '', stderr: '' }; },
+    run: async (cmd: string, args: string[]) => { calls.push(`run ${cmd} ${args[0]}`); return { code: 0, stdout: cmd === 'git' ? 'abc1234'.padEnd(40, '0') : args[0] === 'status' ? itchStatus('abc1234') : '', stderr: '' }; },
     github: {
       cards: async () => [{ itemId: 'x', issue: 7, column, labels: [] }],
       issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
@@ -101,6 +103,8 @@ describe('approve', () => {
       'push main dev',
       'run git rev-parse',
       'run butler push',
+      'run butler status',
+      'http https://html-classic.itch.zone/html/5-9/index.html',
       `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
       'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.',
       'close 7 completed',
