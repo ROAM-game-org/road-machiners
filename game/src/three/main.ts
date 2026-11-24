@@ -354,12 +354,14 @@ stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
+let building: Game;
 const game = await boot.track('scene', async () => {
   await paintBefore('building the renderer');
   const core = sceneCore(surface, gpu, element('game'));
-  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => game.screens.pinOutpost() }), paintBefore);
+  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => building.screens.pinOutpost() }), paintBefore);
   await paintBefore('building the HUD');
-  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, core, gpu, travel, musicShelf, views);
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => building.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, core, gpu, travel, musicShelf, views);
+  building = built;
   await paintBefore('painting the minimap');
   built.paintMinimap();
   const textures = groundTextures({ ...drawn.uniforms, ...landUniforms(drawn.land) }, { map: views.groundMaterial.map, poolMap: NIGHT_POOLS.poolTexture() });
