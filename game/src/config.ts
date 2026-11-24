@@ -16,6 +16,8 @@ declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
 declare const __PUBLIC_HASHES__: Record<string, string>;
 export const PUBLIC_HASHES = __PUBLIC_HASHES__;
+declare const __PUBLIC_PACKS__: Record<string, { pack: string; offset: number; length: number }>;
+export const PUBLIC_PACKS = __PUBLIC_PACKS__;
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 

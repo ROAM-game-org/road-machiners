@@ -30,6 +30,13 @@ export class AssetStatusError extends Error {
 
 export type AssetBody = Body;
 
+export class AssetRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AssetRefused';
+  }
+}
+
 export class AssetUnreachable extends Error {
   constructor(
     readonly label: string,
@@ -84,6 +91,7 @@ async function attempt(label: string, url: string, tryUrl: string, init: Request
   try {
     outcome = await attemptWithin(tryUrl, init, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
   } catch (e) {
+    if (e instanceof AssetRefused) throw e;
     return { transient: e };
   }
   if ('body' in outcome) return { body: outcome.body };
