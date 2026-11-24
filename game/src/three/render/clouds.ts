@@ -3,6 +3,7 @@ import type { World } from '../../sim/types';
 import { DustCloudsView } from './dust';
 import { HazardViews, type TurnClock } from './hazards';
 import type { FxCards } from './particles/cards';
+import type { PulseWave } from './pulse';
 import type { VehicleView } from './vehicle';
 
 export class CloudViews {
@@ -19,5 +20,9 @@ export class CloudViews {
     this.hazards.update(world, world.terrain, views, nowMs, clock, camera);
     this.dust.draw(cards);
     this.hazards.draw(cards);
+  }
+
+  pulseWaves(): readonly PulseWave[] {
+    return this.hazards.pulseWaves();
   }
 }
