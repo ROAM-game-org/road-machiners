@@ -73,6 +73,8 @@ export type FactoryConfig = {
   suiteRerunFiles: number;
   wasteReviewDays: number;
   itchTarget: string | null;
+  itchLiveMinutes: number;
+  itchPollSeconds: number;
   butlerKey: string | null;
   maxJobsPerCard: number;
   triageWorkers: number;

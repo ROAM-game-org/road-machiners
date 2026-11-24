@@ -15,7 +15,7 @@ The game is published on itch.io as a browser game. `npm run itch` runs from `ga
 
 ## New versions
 
-Commit, then run `npm run itch`. Butler uploads only the changed files, and the page serves the new build in a few minutes. Page settings stay as they are.
+Commit, then run `npm run itch`. Butler uploads only the changed files. Page settings stay as they are. itch.io checks an HTML5 upload only after butler exits, like its 1000 file limit, so the script then waits up to 10 minutes. It ends only when `butler status` shows the new version completed and itch.io serves that build's page. Otherwise it fails and names what itch.io shows.
 
 ## Notes
 
