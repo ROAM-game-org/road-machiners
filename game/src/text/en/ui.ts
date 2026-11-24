@@ -51,6 +51,7 @@ export const UI = {
   'look.lookOver': 'Not during a look-over',
   'options.uiSizeTooBig': 'Too big for this screen',
   'options.minimap': 'Minimap',
+  'options.damageNumbers': 'Damage numbers',
   'options.log': 'Log',
   'options.logBrief': 'Brief',
   'options.logVerbose': 'Verbose',

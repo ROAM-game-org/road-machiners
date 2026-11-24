@@ -81,6 +81,8 @@ const STOPS: StopTable = {
   spawn: no,
   despawn: no,
   hostile: no,
+  truce: no,
+  standDown: no,
   joins: no,
   standing: no,
   preyPassed: no,

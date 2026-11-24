@@ -6,7 +6,9 @@ import { agentHome } from './common';
 import { MergeConflictError, RevertConflictError, type AgentRun, type Card, type Ctx, type FactoryConfig, type InlineButton, type IssueMerge, type MergeStep, type Resolution } from '../types';
 
 export const ROOT = resolve(`tmp/factory-periodic-test/${randomUUID()}`);
-export const cfg = { home: ROOT, buildModel: 'sonnet', publicChannel: 'public', committeeChat: 'committee', repo: 'o/r', transcriptDays: 10, publicUrl: 'https://play.test/play', errorMapDays: 14, testStallMinutes: 15, noCommitRounds: 3, suiteRerunFiles: 5 } as FactoryConfig;
+export const cfg = { home: ROOT, buildModel: 'sonnet', publicChannel: 'public', committeeChat: 'committee', repo: 'o/r', transcriptDays: 10, publicUrl: 'https://play.test/play', errorMapDays: 14, testStallMinutes: 15, noCommitRounds: 3, suiteRerunFiles: 5, itchLiveMinutes: 0, itchPollSeconds: 0 } as FactoryConfig;
+export const itchStatus = (version: string, state = 'completed'): string => `${JSON.stringify({ type: 'log', message: 'notice' })}\n${JSON.stringify({ type: 'result', value: { channels: [{ name: 'html5', uploadId: 5, head: { id: 9, state, userVersion: version } }] } })}\n`;
+const fakeStdout = (cmd: string, args: string[]): string => (cmd === 'git' && args[0] === 'rev-parse' ? `${CLONE_SHA}\n` : cmd === 'butler' && args[0] === 'status' ? itchStatus('abc1234') : '');
 export const CLONE_SHA = 'abc1234'.padEnd(40, '0');
 
 export type Photo = { chat: string; path: string; caption: string; buttons?: InlineButton[][] };
@@ -27,7 +29,8 @@ export function fake(): Fake {
     statePath: join(ROOT, 'state.json'),
     now: () => new Date('2026-09-29T10:00:00Z'),
     log: (stage: string, issue: number | null, msg: string) => { f.logs.push(`${stage} ${issue} ${msg}`); },
-    run: async (cmd: string, args: string[]) => { note(`run ${cmd} ${args.join(' ')}`); return { code: 0, stdout: cmd === 'git' && args[0] === 'rev-parse' ? `${CLONE_SHA}\n` : '', stderr: '' }; },
+    run: async (cmd: string, args: string[]) => { note(`run ${cmd} ${args.join(' ')}`); return { code: 0, stdout: fakeStdout(cmd, args), stderr: '' }; },
+    fetch: (async (url: string | URL | Request) => { note(`http ${String(url)}`); return new Response(null, { status: 200 }); }) as typeof fetch,
     github: {
       createIssue: async (title: string, body: string, labels: string[]) => { note(`createIssue ${title}`); f.created.push({ title, body, labels }); return 10 + f.created.length; },
       cards: async () => f.cards,

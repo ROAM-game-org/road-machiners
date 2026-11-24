@@ -2,9 +2,8 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { fetchAsset } from '../../fetch-asset';
 import { TUNING } from './inkTuning';
-import { publicUrl } from '../../public-url';
+import { publicBytes } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
 import { SURFACE_MODELS, WEAPON_POOLS } from '../../render/partLooks';
@@ -399,8 +398,8 @@ function checkWeaponSockets(): void {
   }
 }
 
-function fetchModel(name: ModelName): Promise<ArrayBuffer> {
-  return fetchAsset('Model', publicUrl(`models/${name}.glb`));
+async function fetchModel(name: ModelName): Promise<ArrayBuffer> {
+  return (await publicBytes('Model', `models/${name}.glb`)).bytes;
 }
 
 function source(name: ModelName): THREE.Object3D {
@@ -528,6 +527,7 @@ export const TRUCK_BIT = 1;
 export const PROP_BIT = 2;
 export const READY_ARC_BIT = 4;
 export const SPENT_ARC_BIT = 8;
+export const CONTACT_BIT = 16;
 export const OUTLINE_ORDER = 805;
 
 function outlineMaterial(width: { value: number }): THREE.MeshBasicMaterial {

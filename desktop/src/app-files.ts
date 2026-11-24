@@ -1,3 +1,4 @@
+import { open } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, extname } from 'node:path';
 
 export const APP_SCHEME = 'app';
@@ -12,6 +13,7 @@ const MIME_TYPES: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.wasm': 'application/wasm',
   '.bin': 'application/octet-stream',
+  '.pack': 'application/octet-stream',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -45,4 +47,27 @@ export function fileForUrl(root: string, url: string): string | null {
   const wanted = path.endsWith('/') ? `${path}index.html` : path;
   const file = resolve(join(root, wanted));
   return isInside(root, file) ? file : null;
+}
+
+export type ByteRange = { start: number; end: number };
+
+export function closedRange(header: string): ByteRange | null {
+  const match = /^bytes=(\d+)-(\d+)$/.exec(header.trim());
+  return match === null ? null : { start: Number(match[1]), end: Number(match[2]) };
+}
+
+export function fitsFile(range: ByteRange, size: number): boolean {
+  return range.start <= range.end && range.end < size;
+}
+
+export async function readRange(file: string, range: ByteRange): Promise<Buffer> {
+  const handle = await open(file, 'r');
+  try {
+    const bytes = Buffer.alloc(range.end - range.start + 1);
+    const { bytesRead } = await handle.read(bytes, 0, bytes.length, range.start);
+    if (bytesRead !== bytes.length) throw new Error(`${file} gave ${bytesRead} of ${bytes.length} bytes at ${range.start}`);
+    return bytes;
+  } finally {
+    await handle.close();
+  }
 }

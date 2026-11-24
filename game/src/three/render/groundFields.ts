@@ -29,8 +29,6 @@ export const BLOCK_SLOTS = 3;
 export const BLOCK_COUNT_SHIFT = 5;
 const BLOCK_ROWS_PER_TASK = 32;
 
-export type GroundFields = ReturnType<typeof groundFieldPieces> extends Generator<string, infer R> ? R : never;
-
 export function* groundFieldPieces(newMask: () => PaintCanvas, t: Terrain, shelters: readonly Site[]) {
   yield "painting the road mask";
   const mask = newMask();
@@ -43,7 +41,7 @@ export function* groundFieldPieces(newMask: () => PaintCanvas, t: Terrain, shelt
   const surround = surroundTexture(materials, t.size);
   yield "building the road field";
   const roadField = roadFieldTexture(t);
-  return {
+  const uniforms = {
     roadMask: { value: roadMask },
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
@@ -64,6 +62,7 @@ export function* groundFieldPieces(newMask: () => PaintCanvas, t: Terrain, shelt
     ...padUniforms([...atlasSites(atlasOf(t)), ...shelters], pixel),
     ...wearUniforms(mask, t),
   };
+  return { uniforms, tilesFilled: tiles.filled };
 }
 
 const MATERIAL_OF_LOOK = Uint8Array.from(LOOK_NAMES, groundMaterialIndex);
@@ -81,7 +80,7 @@ function roadHoles(t: Terrain): RoadHole[] {
   return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
-function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { texture: THREE.DataArrayTexture; ready: { value: boolean } } {
+function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { texture: THREE.DataArrayTexture; ready: { value: boolean }; filled: Promise<void> } {
   const layer = t.size * t.size * 4;
   const data = new Uint8Array(layer * TILE_LAYERS);
   const look = groundLooks(t);
@@ -95,26 +94,34 @@ function tileTexture(t: Terrain, shown: Uint8Array, materials: Uint8Array): { te
   }
   const texture = linear(new THREE.DataArrayTexture(data, t.size, t.size, TILE_LAYERS));
   const ready = { value: false };
-  fillBlocksLater(materials, t.size, texture, ready);
-  return { texture, ready };
+  const filled = fillBlocksLater(materials, t.size, texture, ready);
+  filled.catch(() => undefined);
+  return { texture, ready, filled };
 }
 
-function fillBlocksLater(materials: Uint8Array, side: number, texture: THREE.DataArrayTexture, ready: { value: boolean }): void {
+function fillBlocksLater(materials: Uint8Array, side: number, texture: THREE.DataArrayTexture, ready: { value: boolean }): Promise<void> {
   const layer = side * side * 4;
   const data = texture.image.data as Uint8Array;
   const write = blockWriter(materials, side, data.subarray(layer * TILE_LAYER.blockLead, layer * TILE_LAYER.blockRest), data.subarray(layer * TILE_LAYER.blockRest));
   let row = 0;
-  const step = (): void => {
-    const end = Math.min(side, row + BLOCK_ROWS_PER_TASK);
-    write(row, end);
-    row = end;
-    if (row < side) return void setTimeout(step, 0);
-    texture.addLayerUpdate(TILE_LAYER.blockLead);
-    texture.addLayerUpdate(TILE_LAYER.blockRest);
-    texture.needsUpdate = true;
-    ready.value = true;
-  };
-  setTimeout(step, 0);
+  return new Promise((resolve, reject) => {
+    const step = (): void => {
+      try {
+        const end = Math.min(side, row + BLOCK_ROWS_PER_TASK);
+        write(row, end);
+        row = end;
+        if (row < side) return void setTimeout(step, 0);
+        texture.addLayerUpdate(TILE_LAYER.blockLead);
+        texture.addLayerUpdate(TILE_LAYER.blockRest);
+        texture.needsUpdate = true;
+        ready.value = true;
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    };
+    setTimeout(step, 0);
+  });
 }
 
 export function blockWriter(materials: Uint8Array, side: number, lead: Uint8Array, rest: Uint8Array): (fromRow: number, toRow: number) => void {

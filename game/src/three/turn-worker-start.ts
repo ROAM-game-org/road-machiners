@@ -14,12 +14,34 @@ export async function startTurnWorker(host: TurnWorkerHost, bootFinished: Promis
   await host.warm(world, drive);
 }
 
-export async function afterBoot(finish: Promise<void>, startTurns: () => Promise<void>, warmPlans: () => void, keep: () => void): Promise<void> {
-  await finish;
+export type AfterBootSteps = {
+  mark: (step: string) => void;
+  startTurns: () => Promise<void>;
+  warmPlans: () => void;
+  keep: () => void;
+  tilesFilled: Promise<void>;
+  end: () => void;
+};
+
+export async function afterBoot(finish: Promise<void>, steps: AfterBootSteps): Promise<void> {
   try {
-    await startTurns();
-    warmPlans();
+    await finish;
+    steps.mark('starting the turn worker');
+    await steps.startTurns();
+    steps.mark('warming the plans');
+    steps.warmPlans();
   } finally {
-    keep();
+    await finishGround(steps);
+  }
+}
+
+async function finishGround(steps: AfterBootSteps): Promise<void> {
+  try {
+    steps.mark('writing the ground cache');
+    steps.keep();
+    steps.mark('filling the ground tiles');
+    await steps.tilesFilled;
+  } finally {
+    steps.end();
   }
 }

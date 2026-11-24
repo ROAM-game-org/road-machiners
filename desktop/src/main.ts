@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, net, protocol, session, type IpcMainInvokeEvent } from 'electron';
-import { APP_ORIGIN, APP_SCHEME, fileForUrl, mimeOf } from './app-files';
+import { APP_ORIGIN, APP_SCHEME, closedRange, fileForUrl, fitsFile, mimeOf, readRange, type ByteRange } from './app-files';
 import { FileSaves } from './saves';
 
 const SAVE_CALLS = ['readAll', 'put', 'remove', 'appendLog', 'readLog'] as const;
@@ -23,6 +23,8 @@ function serveGame(root: string): void {
   protocol.handle(APP_SCHEME, async (request) => {
     const file = fileForUrl(root, request.url);
     if (file === null || !existsSync(file)) return new Response('Not found', { status: 404 });
+    const range = closedRange(request.headers.get('range') ?? '');
+    if (range !== null) return serveSlice(file, range);
     const response = await net.fetch(pathToFileURL(file).toString(), { headers: request.headers });
     const type = mimeOf(file);
     if (type === null) return response;
@@ -30,6 +32,14 @@ function serveGame(root: string): void {
     headers.set('content-type', type);
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   });
+}
+
+async function serveSlice(file: string, range: ByteRange): Promise<Response> {
+  const size = statSync(file).size;
+  if (!fitsFile(range, size)) return new Response(`Range ${range.start}-${range.end} does not fit ${size} bytes`, { status: 416, headers: { 'content-range': `bytes */${size}` } });
+  const bytes = await readRange(file, range);
+  const headers = { 'content-type': mimeOf(file) ?? 'application/octet-stream', 'content-length': String(bytes.length), 'content-range': `bytes ${range.start}-${range.end}/${size}` };
+  return new Response(new Uint8Array(bytes), { status: 206, headers });
 }
 
 function fromGamePage(event: IpcMainInvokeEvent): void {

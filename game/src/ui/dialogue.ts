@@ -15,7 +15,7 @@ import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { directionsText } from './directions-text';
-import { gridSquareText } from './format';
+import { gridSquareText, vehicleName, type LogLine } from './format';
 import { renderLine } from './quest-text';
 import { agoText, compassText, distanceText, fuelLiters, moneyM, moneyMsg } from './units';
 
@@ -261,4 +261,32 @@ export class DialoguePanel {
     this.host.talk(callVehicle(this.host.world(), id));
     return true;
   }
+}
+
+type Name = (id: string) => Msg;
+
+export function cargoHandedLine(e: Extract<GameEvent, { t: 'holdUp' }>, me: string, name: Name): LogLine | null {
+  const value = moneyMsg(e.value);
+  if (e.victim === me) return { text: t('log.cargoHandedOver', { who: name(e.robber), value }), cls: 'bad' };
+  if (e.robber === me) return { text: t('log.cargoHandedYou', { who: name(e.victim), value }), cls: 'good' };
+  return null;
+}
+
+export function truceLine(e: Extract<GameEvent, { t: 'truce' }>, me: string, name: Name): LogLine | null {
+  if (e.a !== me && e.b !== me) return null;
+  const who = name(e.a === me ? e.b : e.a);
+  return { text: e.fee > 0 ? t('log.trucePaid', { who, fee: moneyMsg(e.fee) }) : t('log.truce', { who }), cls: '' };
+}
+
+export function standDownLine(e: Extract<GameEvent, { t: 'standDown' }>, me: string, name: Name): LogLine | null {
+  if (e.loser === me) return { text: t('log.standDownYou', { who: name(e.winner) }), cls: 'bad' };
+  if (e.winner === me) return { text: t('log.standDownThem', { who: name(e.loser) }), cls: 'good' };
+  return null;
+}
+
+export function pleaText(world: World, e: Extract<GameEvent, { t: 'plea' }>): LogLine | null {
+  const me = world.player.vehicleId;
+  if (e.from === me || e.to === me) return null;
+  const who = { who: vehicleName(world, e.from), to: vehicleName(world, e.to) };
+  return { text: t(`log.plea.${e.plea}.${e.accepted ? 'granted' : 'refused'}`, who), cls: 'dim' };
 }
