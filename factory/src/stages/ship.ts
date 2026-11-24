@@ -15,6 +15,7 @@ import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
 import { checkAndPush, landingAgent, mergeIn, runningJobId, type Landing } from './merge';
 import { queueIncidents } from './incident';
+import { requireLiveOnItch } from './itch-live';
 import { mergeResolving } from './merge-resolve';
 import { openPendingRelease } from './release';
 import { candidateDir, changelogText, readChanges, releaseLog, requireRelease, toFeatures, type Feature } from './release-common';
@@ -79,6 +80,7 @@ async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<
   const args = ['push', join(dir, GAME_DIR, 'dist'), `${keys.itchTarget}:html5`, '--userversion', version];
   const pushed = await ctx.run('butler', args, { activity: 'publish', env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log });
   if (!alreadyOnItch(pushed, version)) must(pushed, 'butler push');
+  await requireLiveOnItch(ctx, keys.itchTarget, keys.butlerKey, version);
 }
 
 function alreadyOnItch(result: RunResult, version: string): boolean {

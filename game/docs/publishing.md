@@ -15,10 +15,10 @@ The game is published on itch.io as a browser game. `npm run itch` runs from `ga
 
 ## New versions
 
-Commit, then run `npm run itch`. Butler uploads only the changed files, and the page serves the new build in a few minutes. Page settings stay as they are.
+Commit, then run `npm run itch`. Butler uploads only the changed files. Page settings stay as they are. itch.io checks an HTML5 upload only after butler exits, like its 1000 entry limit, so the script then waits up to 10 minutes. It ends only when `butler status` shows the new version completed and itch.io serves that build's page. Otherwise it fails and names what itch.io shows.
 
 ## Notes
 
 - Saves live in the browser storage of the itch.io game domain, so players keep them across versions. The Help entry of the Menu shows the version as `x.y.z+commit`, where the commit matches the upload name.
 - The debug console with cheats opens in every build.
-- itch.io rejects an HTML5 upload with more than 1000 files, and it shows the error only on the game page. `npm run build` fails when `dist` has more than 1000 files, so a release can never ship over the limit.
+- itch.io rejects an HTML5 upload with more than 1000 entries, and it shows the error only on the game page. It counts folders as entries too: the refused build had 1010 files in 49 folders, and itch reported 1059. `npm run build` fails when `dist` has more than 1000 files and folders together, so a release can never ship over the limit.

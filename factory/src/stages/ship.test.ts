@@ -5,10 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPublished } from '../sourcemaps';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import type { Card, IssueMerge, ReleaseState } from '../types';
-import { CLONE_SHA, ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
+import { CLONE_SHA, ROOT, fake, issueMerge, itchStatus, reset, type Fake } from './test-fakes';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { ship } = await import('./ship');
+const { ItchRefusedError } = await import('./itch-live');
 
 const TRUCKS = issueMerge(3, 'faster trucks');
 const LATER = issueMerge(7, 'later horn');
@@ -50,7 +51,7 @@ describe('ship', () => {
   it('merges, builds main in a fresh clone, pushes with butler alone, and leaves the public post to Hermes and a member', async () => {
     const f = shippable();
     const runs: { cmd: string; args: string[]; env?: Record<string, string> }[] = [];
-    f.ctx.run = async (cmd, args, opts) => { runs.push({ cmd, args, env: opts?.env }); f.calls.push(`run ${cmd}`); return { code: 0, stdout: cmd === 'git' ? CLONE_SHA : '', stderr: '' }; };
+    f.ctx.run = async (cmd, args, opts) => { runs.push({ cmd, args, env: opts?.env }); f.calls.push(`run ${cmd}`); return { code: 0, stdout: cmd === 'git' ? CLONE_SHA : args[0] === 'status' ? itchStatus('abc1234') : '', stderr: '' }; };
     const shells: { script: string; env?: Record<string, string> }[] = [];
     f.ctx.container.shell = async (kind, clone, script, _log, env) => { shells.push({ script, env }); f.calls.push(`shell ${kind} ${clone}`); };
     await ship(f.ctx, 11, 'Ann');
@@ -62,6 +63,7 @@ describe('ship', () => {
     expect(runs).toEqual([
       { cmd: 'git', args: ['rev-parse', 'HEAD'], env: undefined },
       { cmd: 'butler', args: ['push', join(ROOT, 'work', 'release-main', 'game', 'dist'), 'u/g:html5', '--userversion', 'abc1234'], env: { BUTLER_API_KEY: 'secret' } },
+      { cmd: 'butler', args: ['status', '--json', 'u/g:html5'], env: { BUTLER_API_KEY: 'secret' } },
     ]);
     expect(existsSync(join(ROOT, 'work', 'release-main', 'game', 'dist', 'assets', 'index.js.map'))).toBe(false);
     expect(existsSync(join(ROOT, 'sourcemaps', CLONE_SHA, 'assets', 'index.js.map'))).toBe(true);
@@ -370,7 +372,7 @@ describe('ship', () => {
 
   it('counts the upload as done when itch.io already has this version, so a retry after a later failure finishes', async () => {
     const f = shippable();
-    f.ctx.run = async (cmd) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: `itch.io API error (400): /wharf/builds: enforcing unique versions, 1 build(s) already exist with version abc1234` } : { code: 0, stdout: CLONE_SHA, stderr: '' });
+    f.ctx.run = async (cmd, args) => (cmd === 'butler' && args[0] === 'status' ? { code: 0, stdout: itchStatus('abc1234'), stderr: '' } : cmd === 'butler' ? { code: 1, stdout: '', stderr: `itch.io API error (400): /wharf/builds: enforcing unique versions, 1 build(s) already exist with version abc1234` } : { code: 0, stdout: CLONE_SHA, stderr: '' });
     await ship(f.ctx, 11, 'Ann');
     expect(readState(f.ctx.statePath).releasePost).not.toBeNull();
   });
@@ -379,5 +381,42 @@ describe('ship', () => {
     const f = shippable();
     f.ctx.run = async (cmd) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: 'enforcing unique versions, 1 build(s) already exist with version other99' } : { code: 0, stdout: CLONE_SHA, stderr: '' });
     await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('butler push failed');
+  });
+
+  it('fails before any release post or comment when itch.io serves no page for the pushed build', async () => {
+    const f = shippable();
+    f.ctx.fetch = (async (url: string | URL | Request) => { f.calls.push(`http ${String(url)}`); return new Response(null, { status: 404 }); }) as typeof fetch;
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow(ItchRefusedError);
+    expect(f.calls).toContain('http https://html-classic.itch.zone/html/5-9/index.html');
+    expect(f.calls.some((call) => call.startsWith('release ') || call.startsWith('comment') || call.startsWith('message'))).toBe(false);
+    expect(readState(f.ctx.statePath).releasePost).toBeNull();
+  });
+
+  it('fails at once when itch.io marks the pushed build failed', async () => {
+    const f = shippable();
+    f.ctx.run = async (cmd, args) => ({ code: 0, stdout: cmd === 'git' ? CLONE_SHA : args[0] === 'status' ? itchStatus('abc1234', 'failed') : '', stderr: '' });
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('build #9 failed processing');
+  });
+
+  it('fails when the itch.io channel still shows an older build when the wait ends', async () => {
+    const f = shippable();
+    f.ctx.run = async (cmd, args) => ({ code: 0, stdout: cmd === 'git' ? CLONE_SHA : args[0] === 'status' ? itchStatus('old0000') : '', stderr: '' });
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('the html5 channel head is version old0000');
+  });
+
+  it('waits while itch.io processes the build and ships once its page answers', async () => {
+    const f = shippable();
+    const states = ['processing', 'completed'];
+    let clock = 0;
+    f.ctx.now = () => new Date(Date.parse('2026-09-29T10:00:00Z') + clock++ * 1000);
+    Object.assign(f.ctx.cfg, { itchLiveMinutes: 1 });
+    f.ctx.run = async (cmd, args) => ({ code: 0, stdout: cmd === 'git' ? CLONE_SHA : args[0] === 'status' ? itchStatus('abc1234', states.shift() ?? 'completed') : '', stderr: '' });
+    try {
+      await ship(f.ctx, 11, 'Ann');
+    } finally {
+      Object.assign(f.ctx.cfg, { itchLiveMinutes: 0 });
+    }
+    expect(states).toEqual([]);
+    expect(readState(f.ctx.statePath).releasePost).not.toBeNull();
   });
 });
