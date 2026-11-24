@@ -1,5 +1,7 @@
 import * as THREE from "three";
+import type { Terrain } from "../../sim/terrain";
 import { TUNING } from "./inkTuning";
+import { GroundLandform } from "./groundLandform";
 
 const CREST_REACH_TILES = 4;
 const CREST_BROAD_REACH_TILES = 10;
@@ -307,6 +309,17 @@ export type CrestUniforms = {
   inkCrestWidth: { value: number };
 };
 
+export type Land = { landform: GroundLandform; crest: GroundCrest };
+
+export function* landPieces(t: Terrain, metersPerTile: number): Generator<string, Land> {
+  yield "shaping the land";
+  const landform = new GroundLandform(t.heights, t.size + 1, metersPerTile);
+  const crest = new GroundCrest(landform.form, t.heights, t.size + 1, metersPerTile);
+  yield "building the crest";
+  crest.build();
+  return { landform, crest };
+}
+
 export class GroundCrest {
   readonly uniforms: CrestUniforms;
   private built = -1;
@@ -335,12 +348,13 @@ export class GroundCrest {
   }
 
   private follow(): void {
+    if (this.built === -1) throw new Error("Ground crest read before its first build");
     if (this.pending || TUNING.crestFold.value === this.built) return;
     this.pending = true;
-    setTimeout(() => this.rebuild(), 0);
+    setTimeout(() => this.build(), 0);
   }
 
-  private rebuild(): void {
+  build(): void {
     const fold = TUNING.crestFold.value;
     const lines = crestLines(this.form, this.corners, this.side, this.metersPerTile, { ...CREST_SHAPE, leastFoldMeters: fold });
     const field = crestField(lines, this.side, this.metersPerTile);

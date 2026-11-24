@@ -24,7 +24,7 @@ import { checkRigs } from '../sim/rig';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
-import { reportError } from './crash';
+import { reloadPage, reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
@@ -477,12 +477,12 @@ export function saveStore(slots: SaveSlots, log: RunLog, session: Storage, world
     save: (slot: SlotId) => writeSave(slots, slot, world(), runId, Date.now(), savedLog?.()),
     reboot: (request: BootRequest) => {
       requestBoot(session, SAVE_KEY, request);
-      Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError);
+      Promise.all([slots.flush(), log.flush()]).then(reloadPage, reportError);
     },
     newGame: {
       hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
       requestBoot: (request: BootRequest) => requestBoot(session, SAVE_KEY, request),
-      reload: () => void Promise.all([slots.flush(), log.flush()]).then(() => window.location.reload(), reportError),
+      reload: () => void Promise.all([slots.flush(), log.flush()]).then(reloadPage, reportError),
     } satisfies NewGameActions,
   };
 }
@@ -583,7 +583,7 @@ export class GameSaves {
   }
 
   changeMapIfMoved(world: World): boolean {
-    this.moving ||= changeMapIfMoved(this.run, world, window.sessionStorage, () => window.location.reload());
+    this.moving ||= changeMapIfMoved(this.run, world, window.sessionStorage, reloadPage);
     return this.moving;
   }
 
