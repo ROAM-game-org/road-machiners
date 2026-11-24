@@ -160,6 +160,10 @@ export class NightPools {
     this.uniforms.poolSpan.value = worldSize * S;
   }
 
+  poolTexture(): THREE.DataTexture | null {
+    return this.uniforms.poolMap.value;
+  }
+
   addLamps(lamps: readonly PoolLamp[]): void {
     const texture = this.uniforms.poolMap.value;
     if (!this.map || !texture) throw new Error('Night pools were never started');

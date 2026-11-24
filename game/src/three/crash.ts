@@ -77,6 +77,11 @@ export function onBootStopped(listener: () => void): void {
   bootStopListeners.push(listener);
 }
 
+export function reloadPage(): void {
+  for (const listener of bootStopListeners) listener();
+  location.reload();
+}
+
 export function onEveryError(listener: () => void): void {
   listeners.push(listener);
 }

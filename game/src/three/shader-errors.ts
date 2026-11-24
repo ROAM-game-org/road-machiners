@@ -139,6 +139,10 @@ export class ShaderWarmup {
     this.groundCache = cache;
   }
 
+  fillGroundCache(): void {
+    this.groundCache?.draw(this.camera, () => {});
+  }
+
   drawScene(): void {
     const plain = () => this.renderer.render(this.scene, this.camera);
     if (this.groundCache) this.groundCache.draw(this.camera, plain);

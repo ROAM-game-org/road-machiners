@@ -44,7 +44,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { mountLookMenu } from './render/inkMenu';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onBootStopped, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, noteError, onBootStopped, onEveryError, onReport, reloadPage, reportError } from './crash';
 import { BootUnfinished, clearMark, markStep, markWaiting, takeUnfinished, watchBootEnd } from './boot-marker';
 import { AssetUnreachable } from '../fetch-asset';
 import { ErrorReporter, gameContext } from './error-report';
@@ -60,6 +60,9 @@ import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/model
 import { startGroundBaker } from './ground-off-thread';
 import { runStepped } from './render/stepped';
 import { drawnGroundSteps, groundTexture } from './render/terrain';
+import { landUniforms } from './render/groundShader';
+import { NIGHT_POOLS } from './render/lightPools';
+import { firstFramePieces, groundTextures, sceneCore, worldViewPieces } from './world-views';
 import { defaultSetup, modeKit } from '../sim/settings';
 import { errorText } from '../stall';
 import { paintSkin } from '../ui/dash/skin';
@@ -291,7 +294,7 @@ function soundsArrived(loaded: LoadedBank): void {
   if (loaded.failures.length) whenVisible(() => void recoverSounds(loaded).catch(reportError));
   performance.mark('roam:sounds');
 }
-const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError), endMark);
+const boot = BootScreen.adopt(() => void flushSaves().then(reloadPage, reportError), endMark);
 const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL && !benchMode ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
@@ -330,7 +333,7 @@ if (!benchMode && !combatPrototype) persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   hasAutosave: () => hasSave(slots, AUTOSAVE_SLOTS),
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
-  reload: () => void slots.flush().then(() => window.location.reload(), reportError),
+  reload: () => void slots.flush().then(reloadPage, reportError),
 };
 stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
@@ -338,21 +341,32 @@ const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 stepBoot('building the ground');
 const baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`);
+async function paintBefore(piece: string): Promise<void> {
+  stepBoot(piece);
+  await boot.painted();
+}
 const drawn = await boot.track('ground', async () => {
   await baking.baked;
   groundTexture(world);
-  return runStepped(drawnGroundSteps(world), async (piece) => {
-    stepBoot(piece);
-    await boot.painted();
-  });
+  return runStepped(drawnGroundSteps(world), paintBefore);
 });
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
+let building: Game;
 const game = await boot.track('scene', async () => {
-  stepBoot('building the renderer');
-  return new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => game.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, surface, gpu, travel, musicShelf, drawn, stepBoot);
+  await paintBefore('building the renderer');
+  const core = sceneCore(surface, gpu, element('game'));
+  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => building.screens.pinOutpost() }), paintBefore);
+  await paintBefore('building the HUD');
+  const built = new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => building.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, core, gpu, travel, musicShelf, views);
+  building = built;
+  await paintBefore('painting the minimap');
+  built.paintMinimap();
+  const textures = groundTextures({ ...drawn.uniforms, ...landUniforms(drawn.land) }, { map: views.groundMaterial.map, poolMap: NIGHT_POOLS.poolTexture() });
+  await runStepped(firstFramePieces(textures, built.firstFrame()), paintBefore);
+  return built;
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
@@ -377,8 +391,14 @@ gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrived).catch(reportError).finally(bankSettled);
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
-afterBoot(boot.finish(), () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })), () => game.warmPlans(), baking.keep).catch(reportError);
-endMark();
+afterBoot(boot.finish(), {
+  mark: stepBoot,
+  startTurns: () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })),
+  warmPlans: () => game.warmPlans(),
+  keep: baking.keep,
+  tilesFilled: drawn.tilesFilled,
+  end: endMark,
+}).catch(reportError);
 if (benchMode) void afterBank.then(() => runBenchMode(game));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language, buildAllCells: () => game.streamer.buildAll() });

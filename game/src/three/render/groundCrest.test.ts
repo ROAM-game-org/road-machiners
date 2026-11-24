@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { blurredHeights } from "../../sim/surface";
-import { CREST_SHAPE, crestField, crestGap, crestLines, type CrestPoint } from "./groundCrest";
+import { CREST_SHAPE, crestField, crestGap, crestLines, GroundCrest, type CrestPoint } from "./groundCrest";
+import { TUNING } from "./inkTuning";
 import { LANDFORM_BLUR_TILES } from "./groundLandform";
 
 const SIDE = 61;
@@ -91,5 +92,45 @@ describe("ground crests", () => {
       expect(crestGap(field, SIDE, METERS, { x: 38.6 * METERS, y: y * METERS }).across).toBeCloseTo(0.6 * METERS, 0);
       expect(crestGap(field, SIDE, METERS, { x: 30 * METERS, y: y * METERS }).across).toBeGreaterThan(6 * METERS);
     }
+  });
+});
+
+function ridgeCrest(): GroundCrest {
+  const raw = Float32Array.from({ length: SIDE * SIDE }, (_, k) => ridge(k % SIDE));
+  return new GroundCrest(blurredHeights(raw, SIDE, LANDFORM_BLUR_TILES), raw, SIDE, METERS);
+}
+
+describe("the ground crest texture", () => {
+  it("refuses a draw that reads the crest before its first build", () => {
+    const crest = ridgeCrest();
+
+    expect(() => crest.uniforms.inkCrestLine.value).toThrow("Ground crest read before its first build");
+  });
+
+  it("is ready right after its first build, with no timer", () => {
+    const crest = ridgeCrest();
+    const empty = crest.uniforms.groundCrest.value;
+
+    crest.build();
+
+    expect(crest.uniforms.groundCrestReady.value).toBe(1);
+    expect(crest.uniforms.groundCrest.value).not.toBe(empty);
+  });
+
+  it("builds again after the least fold is tuned", async () => {
+    const crest = ridgeCrest();
+    crest.build();
+    const first = crest.uniforms.groundCrest.value;
+    const fold = TUNING.crestFold.value;
+    TUNING.crestFold.value = fold + 1;
+    try {
+      void crest.uniforms.inkCrestLine.value;
+      void crest.uniforms.inkCrestLine.value;
+      await new Promise((resolve) => setTimeout(resolve));
+    } finally {
+      TUNING.crestFold.value = fold;
+    }
+
+    expect(crest.uniforms.groundCrest.value).not.toBe(first);
   });
 });

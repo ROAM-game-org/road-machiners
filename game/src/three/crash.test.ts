@@ -155,6 +155,17 @@ describe('a screen that ends the boot', () => {
     expect(crash.stops).toHaveBeenCalledTimes(1);
   });
 
+  it('stops the boot before a reload the game asked for, so the next start finds no unfinished boot', async () => {
+    const crash = await freshCrash();
+    const order: string[] = [];
+    crash.stops.mockImplementation(() => order.push('stopped'));
+    vi.spyOn(location, 'reload').mockImplementation(() => void order.push('reloaded'));
+
+    crash.reloadPage();
+
+    expect(order).toEqual(['stopped', 'reloaded']);
+  });
+
   it('stops the boot on the crash screen', async () => {
     const crash = await freshCrash();
     crash.reportError(new Error('broken'));
