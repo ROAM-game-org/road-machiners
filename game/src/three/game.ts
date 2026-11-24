@@ -1172,6 +1172,7 @@ export class Game {
 
   private frame(now: number): void {
     this.fx.beginFrame();
+    now = Math.max(now, this.last);
     const dt = now - this.last;
     this.last = now;
     if (this.framesSeen++ > 0) this.pace.note(dt, now, this.renderer.info.programs?.length ?? 0);
