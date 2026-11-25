@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { World } from '../../sim/types';
 import { FogView } from './fog';
+import { MESH_STEPS } from '../../sim/surface';
 import { SightLimit } from './scope';
 import { TERRAIN_CHUNK, type TerrainChunk } from './terrain';
 
@@ -63,16 +64,48 @@ describe('fog diff update', () => {
     const rnd = random(3);
     const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = fogOn(fogWorld([], explored.slice()), ground, new SightLimit(SIZE), []);
+    const view = new FogView(fogWorld([], explored.slice()), ground[0].mesh.material as THREE.MeshLambertMaterial, new SightLimit(SIZE), []);
+    const late = ground.slice(7);
+    for (const chunk of ground.slice(0, 7)) view.attach(chunk);
     for (let step = 0; step < 40; step++) {
       const visible = disk(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * 12);
       for (const t of visible) explored[t] = 1;
-      if (step % 5 === 4) for (let i = 0; i < 50; i++) explored[Math.floor(rnd() * SIZE * SIZE)] = 0;
-      if (step % 7 === 6) explored.fill(1, rnd() * SIZE * SIZE, rnd() * SIZE * SIZE);
+      if (step % 2 === 1 && step % 5 === 4) for (let i = 0; i < 50; i++) explored[Math.floor(rnd() * SIZE * SIZE)] = 0;
+      if (step % 2 === 1 && step % 7 === 6) explored.fill(1, rnd() * SIZE * SIZE, rnd() * SIZE * SIZE);
       const world = fogWorld(visible, explored.slice());
-      view.update(world, []);
-      expect(looks(ground)).toEqual(fresh(world));
+      if (step % 2 === 0) view.updateSight(world, []);
+      else view.update(world, []);
+      if (step === 10) for (const chunk of late) view.attach(chunk);
+      if (step >= 10) expect(looks(ground)).toEqual(fresh(world));
     }
+  });
+
+  it('a sight change inside one chunk uploads only its rows', () => {
+    const explored = new Uint8Array(SIZE * SIZE).fill(1);
+    const ground = groundChunks();
+    const view = fogOn(fogWorld([40 * SIZE + 40], explored), ground, new SightLimit(SIZE), []);
+    for (const a of lookAttributes(ground)) a.clearUpdateRanges();
+    const world = fogWorld([40 * SIZE + 40, 41 * SIZE + 40], explored);
+    view.updateSight(world, []);
+    const ranges = lookAttributes(ground).map((a) => a.updateRanges);
+    expect(ranges.filter((r) => r.length > 0).length).toBe(1);
+    const row = TERRAIN_CHUNK * MESH_STEPS + 1;
+    const middle = ranges[4];
+    expect(middle).toEqual([{ start: 8 * MESH_STEPS * row * 2, count: 3 * MESH_STEPS * row * 2 }]);
+    expect(looks(ground)).toEqual(fresh(world));
+  });
+
+  it('an unchanged sight writes nothing', () => {
+    const explored = new Uint8Array(SIZE * SIZE);
+    const ground = groundChunks();
+    const view = fogOn(fogWorld(disk(20, 20, 5), explored), ground, new SightLimit(SIZE), []);
+    for (const a of lookAttributes(ground)) a.clearUpdateRanges();
+    const before = looks(ground);
+    const versions = lookAttributes(ground).map((a) => a.version);
+    view.updateSight(fogWorld(disk(20, 20, 5), explored), []);
+    expect(lookAttributes(ground).flatMap((a) => a.updateRanges)).toEqual([]);
+    expect(lookAttributes(ground).map((a) => a.version)).toEqual(versions);
+    expect(looks(ground)).toEqual(before);
   });
 
   it('greys tiles a chart reveals out of sight', () => {

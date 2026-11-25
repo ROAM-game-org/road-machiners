@@ -5,29 +5,38 @@ import { MESH_STEPS } from '../../sim/surface';
 import type { World } from '../../sim/types';
 import type { SightLimit } from './scope';
 import { TERRAIN_CHUNK, type TerrainChunk } from './terrain';
+import { uploadRows } from './uploads';
 
 const VISIBLE = 0;
 const EXPLORED = 1;
 const DARK = 2;
 const UNSET = 255;
+const WAS = 1;
+const NOW = 2;
+const UNTOUCHED = 0x7fffffff;
 
 function* chain(first: readonly number[], second: readonly number[]): Generator<number> {
   yield* first;
   yield* second;
 }
 
-type Look = { grey: number; bright: number };
 type FogChunk = { x: number; y: number; width: number; depth: number; look: THREE.BufferAttribute };
 
 export class FogView {
   private readonly chunks: FogChunk[] = [];
   private readonly perSide: number;
   private readonly state: Uint8Array;
-  private readonly dirty: Uint8Array;
+  private readonly dirtyCells: Uint8Array;
+  private dirtyList: number[] = [];
+  private readonly flips: number[] = [];
+  private readonly touched: number[] = [];
+  private readonly rowFirst: Int32Array;
+  private readonly rowLast: Int32Array;
   private readonly visible: Uint8Array;
   private readonly known: Uint8Array;
   private shown: readonly number[] = [];
-  private readonly lookOf: Look[] = [{ grey: 0, bright: 1 }, TERRAIN.fog.seen, TERRAIN.fog.unseen];
+  private readonly greyOf = Float64Array.of(0, TERRAIN.fog.seen.grey, TERRAIN.fog.unseen.grey);
+  private readonly brightOf = Float64Array.of(1, TERRAIN.fog.seen.bright, TERRAIN.fog.unseen.bright);
 
   private explored: World['player']['explored'];
   private readonly size: number;
@@ -38,7 +47,9 @@ export class FogView {
     this.perSide = Math.ceil(n / TERRAIN_CHUNK);
     this.state = new Uint8Array(n * n).fill(UNSET);
     this.visible = new Uint8Array(n * n);
-    this.dirty = new Uint8Array(this.perSide * this.perSide);
+    this.dirtyCells = new Uint8Array(n * n);
+    this.rowFirst = new Int32Array(this.perSide * this.perSide).fill(UNTOUCHED);
+    this.rowLast = new Int32Array(this.perSide * this.perSide).fill(-1);
     greyOut(ground);
     this.show(world.player.visible, props);
     this.explored = world.player.explored;
@@ -55,18 +66,18 @@ export class FogView {
     this.chunks[k] = chunk;
     for (let y = Math.max(0, g.y - 1); y < Math.min(n, g.y + g.depth + 1); y++)
       for (let x = Math.max(0, g.x - 1); x < Math.min(n, g.x + g.width + 1); x++) this.restate(y * n + x, n, this.explored);
-    this.writeChunk(chunk, n);
-    this.dirty[k] = 0;
+    for (let y = g.y; y < g.y + g.depth; y++) for (let x = g.x; x < g.x + g.width; x++) this.writeCell(chunk, x, y, n);
+    look.clearUpdateRanges();
+    uploadRows(look, 0, look.count);
+    this.clearDirtyIn(chunk);
   }
 
   update(world: World, props: readonly number[]): void {
     const n = world.size;
-    const before = this.shown;
     const explored = world.player.explored;
     this.explored = explored;
     this.show(world.player.visible, props);
-    for (const t of before) this.restate(t, n, explored);
-    for (const t of this.shown) this.restate(t, n, explored);
+    this.restateFlipped(n, explored);
     this.restateExplored(explored, n);
     this.writeDirty(n);
   }
@@ -82,19 +93,33 @@ export class FogView {
 
   updateSight(world: World, props: readonly number[]): void {
     const n = world.size;
-    const before = this.shown;
     this.explored = world.player.explored;
     this.show(world.player.visible, props);
-    for (const t of before) this.restate(t, n, world.player.explored);
-    for (const t of this.shown) this.restate(t, n, world.player.explored);
+    this.restateFlipped(n, world.player.explored);
     this.writeDirty(n);
   }
 
   private show(tiles: readonly number[], props: readonly number[]): void {
-    for (const t of this.shown) this.visible[t] = 0;
-    for (const t of tiles) this.visible[t] = 1;
+    this.collectFlips(tiles);
+    for (const t of this.shown) this.visible[t] &= NOW;
+    for (const t of tiles) this.visible[t] = WAS;
     this.shown = tiles;
     this.limit.showVisible(chain(tiles, props));
+  }
+
+  private collectFlips(tiles: readonly number[]): void {
+    this.flips.length = 0;
+    for (const t of tiles) this.visible[t] |= NOW;
+    for (const t of this.shown) this.flipUnless(t, NOW);
+    for (const t of tiles) this.flipUnless(t, WAS);
+  }
+
+  private flipUnless(t: number, bit: number): void {
+    if (!(this.visible[t] & bit)) this.flips.push(t);
+  }
+
+  private restateFlipped(n: number, explored: World['player']['explored']): void {
+    for (const t of this.flips) this.restate(t, n, explored);
   }
 
   private restate(t: number, n: number, explored: World['player']['explored']): void {
@@ -102,61 +127,97 @@ export class FogView {
     if (s === this.state[t]) return;
     this.state[t] = s;
     const x = t % n;
-    const [cx0, cx1] = this.chunkSpan(x);
-    const [cy0, cy1] = this.chunkSpan((t - x) / n);
-    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) this.dirty[cy * this.perSide + cx] = 1;
+    this.markAround(x, (t - x) / n, n);
   }
 
-  private chunkSpan(at: number): [number, number] {
-    const C = TERRAIN_CHUNK;
-    const first = at % C === 0 && at > 0 ? at / C - 1 : Math.floor(at / C);
-    return [first, Math.min(Math.floor((at + 1) / C), this.perSide - 1)];
+  private markAround(x: number, y: number, n: number): void {
+    for (let cy = Math.max(0, y - 1); cy <= Math.min(n - 1, y + 1); cy++)
+      for (let cx = Math.max(0, x - 1); cx <= Math.min(n - 1, x + 1); cx++) this.markDirty(cy * n + cx);
+  }
+
+  private markDirty(cell: number): void {
+    if (this.dirtyCells[cell]) return;
+    this.dirtyCells[cell] = 1;
+    this.dirtyList.push(cell);
   }
 
   private writeDirty(n: number): void {
-    for (let k = 0; k < this.chunks.length; k++) {
-      if (!this.dirty[k]) continue;
-      this.dirty[k] = 0;
-      const chunk = this.chunks[k];
-      if (chunk) this.writeChunk(chunk, n);
-    }
+    this.touched.length = 0;
+    for (const cell of this.dirtyList) this.writeDirtyCell(cell, n);
+    this.dirtyList.length = 0;
+    for (const k of this.touched) this.uploadTouched(k);
   }
 
-  private writeChunk(chunk: FogChunk, n: number): void {
-    const corners = this.cornerLooks(chunk, n);
+  private writeDirtyCell(cell: number, n: number): void {
+    this.dirtyCells[cell] = 0;
+    const x = cell % n;
+    const y = (cell - x) / n;
+    const k = Math.floor(y / TERRAIN_CHUNK) * this.perSide + Math.floor(x / TERRAIN_CHUNK);
+    const chunk = this.chunks[k];
+    if (!chunk) return;
+    this.writeCell(chunk, x, y, n);
+    const first = (y - chunk.y) * MESH_STEPS;
+    const last = first + (y === chunk.y + chunk.depth - 1 ? MESH_STEPS : MESH_STEPS - 1);
+    if (this.rowLast[k] < 0) this.touched.push(k);
+    this.rowFirst[k] = Math.min(this.rowFirst[k], first);
+    this.rowLast[k] = Math.max(this.rowLast[k], last);
+  }
+
+  private uploadTouched(k: number): void {
+    const chunk = this.chunks[k];
+    const row = chunk.width * MESH_STEPS + 1;
+    uploadRows(chunk.look, this.rowFirst[k] * row, (this.rowLast[k] - this.rowFirst[k] + 1) * row);
+    this.rowFirst[k] = UNTOUCHED;
+    this.rowLast[k] = -1;
+  }
+
+  private clearDirtyIn(chunk: FogChunk): void {
+    const n = this.size;
+    for (let y = chunk.y; y < chunk.y + chunk.depth; y++) for (let x = chunk.x; x < chunk.x + chunk.width; x++) this.dirtyCells[y * n + x] = 0;
+    this.dirtyList = this.dirtyList.filter((cell) => this.dirtyCells[cell] === 1);
+  }
+
+  private writeCell(chunk: FogChunk, tx: number, ty: number, n: number): void {
+    const ci = tx - chunk.x;
+    const cj = ty - chunk.y;
+    if (!within(ci, chunk.width) || !within(cj, chunk.depth)) throw new Error(`Fog cell ${tx},${ty} lies outside the ground chunk at ${chunk.x},${chunk.y}`);
+    const iEnd = ci === chunk.width - 1 ? MESH_STEPS : MESH_STEPS - 1;
+    const jEnd = cj === chunk.depth - 1 ? MESH_STEPS : MESH_STEPS - 1;
+    for (let c = 0; c < 2; c++) this.fillCell(chunk, tx, ty, n, c, iEnd, jEnd);
+  }
+
+  private fillCell(chunk: FogChunk, tx: number, ty: number, n: number, c: number, iEnd: number, jEnd: number): void {
     const array = chunk.look.array as Float32Array;
     const row = chunk.width * MESH_STEPS + 1;
-    for (let j = 0; j <= chunk.depth * MESH_STEPS; j++)
-      for (let i = 0; i < row; i++) {
-        const ci = Math.min(Math.floor(i / MESH_STEPS), chunk.width - 1);
-        const cj = Math.min(Math.floor(j / MESH_STEPS), chunk.depth - 1);
-        const fx = i / MESH_STEPS - ci;
-        const fy = j / MESH_STEPS - cj;
-        for (let c = 0; c < 2; c++) {
-          const at = (x: number, y: number) => corners[(y * (chunk.width + 1) + x) * 2 + c];
-          const top = at(ci, cj) + (at(ci + 1, cj) - at(ci, cj)) * fx;
-          const bottom = at(ci, cj + 1) + (at(ci + 1, cj + 1) - at(ci, cj + 1)) * fx;
-          array[(j * row + i) * 2 + c] = top + (bottom - top) * fy;
-        }
+    const origin = ((ty - chunk.y) * MESH_STEPS * row + (tx - chunk.x) * MESH_STEPS) * 2 + c;
+    const a = this.cornerLook(tx, ty, n, c);
+    const b = this.cornerLook(tx + 1, ty, n, c);
+    const d = this.cornerLook(tx, ty + 1, n, c);
+    const e = this.cornerLook(tx + 1, ty + 1, n, c);
+    for (let dj = 0; dj <= jEnd; dj++)
+      for (let di = 0; di <= iEnd; di++) {
+        const fx = di / MESH_STEPS;
+        const top = a + (b - a) * fx;
+        const bottom = d + (e - d) * fx;
+        array[origin + (dj * row + di) * 2] = top + (bottom - top) * (dj / MESH_STEPS);
       }
-    chunk.look.needsUpdate = true;
   }
 
-  private cornerLooks(chunk: FogChunk, n: number): Float32Array {
-    const corners = new Float32Array((chunk.width + 1) * (chunk.depth + 1) * 2);
-    for (let j = 0; j <= chunk.depth; j++)
-      for (let i = 0; i <= chunk.width; i++) {
-        const look = this.cornerLook(chunk.x + i, chunk.y + j, n);
-        corners.set(look, (j * (chunk.width + 1) + i) * 2);
+  private cornerLook(x: number, y: number, n: number, channel: number): number {
+    const table = channel === 0 ? this.greyOf : this.brightOf;
+    let sum = 0;
+    let count = 0;
+    for (let tx = Math.max(0, x - 1); tx <= Math.min(n - 1, x); tx++)
+      for (let ty = Math.max(0, y - 1); ty <= Math.min(n - 1, y); ty++) {
+        sum += table[this.state[ty * n + tx]];
+        count++;
       }
-    return corners;
+    return sum / count;
   }
+}
 
-  private cornerLook(x: number, y: number, n: number): [number, number] {
-    const tiles = [x - 1, x].flatMap((tx) => [y - 1, y].map((ty) => ({ tx, ty }))).filter(({ tx, ty }) => tx >= 0 && ty >= 0 && tx < n && ty < n);
-    const looks = tiles.map(({ tx, ty }) => this.lookOf[this.state[ty * n + tx]]);
-    return [looks.reduce((s, l) => s + l.grey, 0) / looks.length, looks.reduce((s, l) => s + l.bright, 0) / looks.length];
-  }
+function within(at: number, size: number): boolean {
+  return at >= 0 && at < size;
 }
 
 function greyOut(mat: THREE.MeshLambertMaterial): void {
