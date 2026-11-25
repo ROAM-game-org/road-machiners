@@ -17,6 +17,8 @@ import {
   tileGrade,
   tileSlope,
   packTerrain,
+  packTypes,
+  unpackTypes,
   packedBuffers,
   unpackTerrain,
   type Terrain,
@@ -465,5 +467,15 @@ describe("a terrain packed for a worker", () => {
     expect(() => packTerrain(bad)).toThrow(/no code/);
     expect(() => unpackTerrain({ ...packed, heights: packed.heights.slice(1) })).toThrow(/heights/);
     expect(() => unpackTerrain({ ...packed, types: packed.types.slice(1) })).toThrow(/types/);
+  });
+
+  it("round-trips the tile types alone and refuses a wrong length or an unknown code", () => {
+    const { types } = small();
+    const codes = packTypes(types);
+
+    expect(unpackTypes(codes, 3)).toEqual(types);
+    expect(Object.isFrozen(unpackTypes(codes, 3))).toBe(true);
+    expect(() => unpackTypes(codes.slice(1), 3)).toThrow(/types/);
+    expect(() => unpackTypes(new Uint8Array(9).fill(250), 3)).toThrow(/unknown ground type/);
   });
 });

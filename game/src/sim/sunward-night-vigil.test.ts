@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SUNWARD } from '../data/sunward';
 import { RULES } from '../data/rules';
 import { topGoal } from './npc-activities';
@@ -47,11 +47,9 @@ const atTheReturn = () => playLeg('vigil, to the return', throughTheFirstHalf, r
 const throughTheSecondHalf = () => playLeg('vigil, second half of the night', atTheReturn, runUntil(BEFORE_DAWN));
 const atHome = () => playLeg('vigil, home', throughTheSecondHalf, runUntil(HOME));
 
-describe('the night schedule, vigil', () => {
-  beforeAll(() => {
-    orderWorld(5);
-  });
+orderWorld(5);
 
+describe('the night schedule, vigil', () => {
   it('rides out before dusk', () => {
     const before = beforeTheRide();
     for (const id of before.notes.members) expect(isSheltered(before.world, id)).toBe(true);

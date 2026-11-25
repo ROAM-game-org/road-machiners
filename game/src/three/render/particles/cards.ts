@@ -3,7 +3,7 @@ import { count } from '../../../perf';
 import type { ParticleBatches } from './particles';
 import { uploadFirst } from '../uploads';
 import { TUNING } from '../inkTuning';
-import { ATLAS_CELLS, CARD_SHAPES, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
+import { ATLAS_CELLS, CARD_SHAPES, GLOW_IN_LIT, CARD_VERTEX, CLUMP_FIRST, CLUMP_SHAPES, DENSITY_FRAGMENT, DUST_RIM, GLOW_FRAGMENT, LIT_FRAGMENT } from './cardShaders';
 
 export { CARD_SHAPES, CLUMP_FIRST, CLUMP_SHAPES, GLOW_IN_LIT, HAZE_SHAPE, PLUME_SHAPE, ROUND_SHAPE } from './cardShaders';
 

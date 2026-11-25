@@ -69,12 +69,6 @@ export function pressIfOn(button: HTMLElement, action: () => void): () => void {
   };
 }
 
-export function pressButton(className: string, label: Msg | null, action: () => void): HTMLButtonElement {
-  const button = el("button", { type: "button", class: className }, label) as HTMLButtonElement;
-  button.addEventListener("click", pressIfOn(button, action));
-  return button;
-}
-
 export function clampShare(share: number): number {
   if (Number.isNaN(share)) throw new Error("A gauge needs a share between 0 and 1, got NaN");
   return Math.min(1, Math.max(0, share));

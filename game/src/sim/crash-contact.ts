@@ -9,14 +9,15 @@ import { angleDiff, bearing, dist, type Vec } from './vec';
 import { laneCount, passShare, planCrashLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
-import { damagePart, isOwnedTruck } from './damage';
+import { damagePart, isOwnedTruck, wholeDamage } from './damage';
+import { loadoutFact, loadoutSlot } from './loadout-memo';
 import { RULES } from '../data/rules';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
 import { vehicleMass } from './mass';
 import { towsClient } from './tow';
 import { claymoresSetOff, detonateOnCrash, detonateOnObstacle } from './claymore';
-import type { Vehicle, World } from './types';
+import type { GridItem, Vehicle, World } from './types';
 import { damageScale } from './settings';
 
 export type CrashContact = { side: Side; lanes: number[] };
@@ -108,33 +109,46 @@ function playerRam(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB
 }
 
 function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): { hitsA: PartHit[]; hitsB: PartHit[] } {
-  if (!contact.b) throw new Error('Vehicle crash has no target contact');
-  const share = vehicleMass(b) / (vehicleMass(a) + vehicleMass(b));
-  const multA = ramMult(a, contact.a);
-  const multB = ramMult(b, contact.b);
-  if (towsClient(world, a, b) || towsClient(world, b, a)) return { hitsA: [], hitsB: [] };
-  const hitsA = applyContactDamage(world, a, contact.a, impact, share, multB);
-  const hitsB = applyContactDamage(world, b, contact.b, impact, 1 - share, multA);
+  const plan = crashPlan(world, a, b, impact, contact);
+  const hitsA = applyCrashHits(world, a, plan.hitsA());
+  const hitsB = applyCrashHits(world, b, plan.hitsB());
   return { hitsA, hitsB };
 }
 
-function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): PartHit[] {
-  if (contact.lanes.length === 0) throw new Error('Crash has no touched lanes');
-  if (impact < RULES.collisionMinImpact) return [];
-  const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
-  const hits = new Map<string, number>();
-  const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
-  const spill = { ...round, damage: round.damage * RULES.crashFalloff };
-  for (const lane of contact.lanes) strikeLane(world, vehicle, contact.side, lane, round, hits, ground);
-  for (const lane of spillLanes(vehicle, contact)) strikeLane(world, vehicle, contact.side, lane, spill, hits, ground);
-  return applyCrashHits(world, vehicle, hits);
+type CrashPlan = { hitsA: () => Map<string, number>; hitsB: () => Map<string, number> };
+
+function crashPlan(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): CrashPlan {
+  if (!contact.b) throw new Error('Vehicle crash has no target contact');
+  const contactB = contact.b;
+  const share = vehicleMass(b) / (vehicleMass(a) + vehicleMass(b));
+  const multA = ramMult(a, contact.a);
+  const multB = ramMult(b, contactB);
+  if (towsClient(world, a, b) || towsClient(world, b, a)) return { hitsA: () => new Map(), hitsB: () => new Map() };
+  return {
+    hitsA: () => contactHits(world, a, contact.a, impact, share, multB),
+    hitsB: () => contactHits(world, b, contactB, impact, 1 - share, multA),
+  };
 }
 
-function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
-  const copy = scratchCopy(vehicle);
-  const draft = { ...world, player: scratchPlayer(world, vehicle), events: [] };
-  for (const hit of planCrashLane(copy, side, lane, round, ground ? 1 : undefined)) {
-    hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
+function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): PartHit[] {
+  return applyCrashHits(world, vehicle, contactHits(world, vehicle, contact, impact, share, mult, ground));
+}
+
+function contactHits(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): Map<string, number> {
+  if (contact.lanes.length === 0) throw new Error('Crash has no touched lanes');
+  const hits = new Map<string, number>();
+  if (impact < RULES.collisionMinImpact) return hits;
+  const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
+  const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
+  const spill = { ...round, damage: round.damage * RULES.crashFalloff };
+  for (const lane of contact.lanes) strikeLane(vehicle, contact.side, lane, round, hits, ground);
+  for (const lane of spillLanes(vehicle, contact)) strikeLane(vehicle, contact.side, lane, spill, hits, ground);
+  return hits;
+}
+
+function strikeLane(vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
+  for (const hit of planCrashLane(vehicle, side, lane, round, ground ? 1 : undefined)) {
+    hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + Math.min(hit.part.hp, wholeDamage(hit.amount)));
   }
 }
 
@@ -172,27 +186,43 @@ export function ramImpact(world: World, attacker: Vehicle, target: Vehicle): num
 export type PartLoss = { defId: string; lost: number };
 export type RamForecast = { dealt: PartLoss[]; cost: PartLoss[]; fit: boolean };
 
-export function forecastRam(world: World, attacker: Vehicle, target: Vehicle, impact: number): RamForecast {
-  const own = scratchCopy(attacker);
-  const other = scratchCopy(target);
-  for (const part of mountedParts(other)) if (!isJunk(part)) restorePart(part, maxHp(part));
-  const intact = scratchCopy(other);
-  const draft = { ...world, player: scratchPlayer(world, attacker, target), events: [] };
-  own.heading = bearing(attacker.pos, target.pos);
-  damageVehicleCrash(draft, own, other, impact, estimateCrashGeometry(own, other, other.pos));
-  const minimum = NPC_BEHAVIOR.fleeCondition;
-  const cab = corePart(own, 'cab');
-  const fit = getMobilityCondition(attacker) > NPC_BEHAVIOR.recoverCondition && getMobilityCondition(own) > minimum && cab.hp > maxHp(cab) * minimum;
-  return { dealt: partLosses(intact, other), cost: partLosses(attacker, own), fit };
+const RESTORED = loadoutSlot((loadout): GridItem[] => {
+  const items = structuredClone(loadout.items);
+  for (const part of mountedParts({ chassisId: loadout.chassisId, items })) if (!isJunk(part)) restorePart(part, maxHp(part));
+  return items;
+});
+
+type RamLosses = { dealt: PartLoss[]; cost: PartLoss[]; costHits: Map<string, number>; heading: number };
+
+function ramLosses(world: World, attacker: Vehicle, target: Vehicle, impact: number): RamLosses {
+  const heading = bearing(attacker.pos, target.pos);
+  const own = { ...attacker, heading };
+  const full = { ...target, items: loadoutFact(target, RESTORED) };
+  const plan = crashPlan(world, own, full, impact, estimateCrashGeometry(own, full, full.pos));
+  const costHits = plan.hitsA();
+  return { dealt: lossesOf(full, plan.hitsB()), cost: lossesOf(attacker, costHits), costHits, heading };
 }
 
-function partLosses(before: Vehicle, after: Vehicle): PartLoss[] {
-  const hp = new Map(mountedParts(before).map((part) => [part.id, part.hp]));
-  return mountedParts(after).flatMap((part) => {
-    const previous = hp.get(part.id);
-    if (previous === undefined) throw new Error(`Ram forecast introduced part ${part.id}`);
-    return previous > part.hp ? [{ defId: part.defId, lost: previous - part.hp }] : [];
+function lossesOf(vehicle: Vehicle, hits: Map<string, number>): PartLoss[] {
+  const parts = mountedParts(vehicle);
+  for (const id of hits.keys()) if (!parts.some((part) => part.id === id)) throw new Error(`Ram forecast hit unknown part ${id}`);
+  return parts.flatMap((part) => {
+    const lost = Math.min(part.hp, wholeDamage(hits.get(part.id) ?? 0));
+    return lost > 0 ? [{ defId: part.defId, lost }] : [];
   });
+}
+
+function fitAfter(world: World, attacker: Vehicle, heading: number, hits: Map<string, number>): boolean {
+  const own = { ...scratchCopy(attacker), heading };
+  applyCrashHits({ ...world, player: scratchPlayer(world, attacker), events: [] }, own, hits);
+  const minimum = NPC_BEHAVIOR.fleeCondition;
+  const cab = corePart(own, 'cab');
+  return getMobilityCondition(attacker) > NPC_BEHAVIOR.recoverCondition && getMobilityCondition(own) > minimum && cab.hp > maxHp(cab) * minimum;
+}
+
+export function forecastRam(world: World, attacker: Vehicle, target: Vehicle, impact: number): RamForecast {
+  const { dealt, cost, costHits, heading } = ramLosses(world, attacker, target, impact);
+  return { dealt, cost, fit: fitAfter(world, attacker, heading, costHits) };
 }
 
 const R = NPC_BEHAVIOR.ram;
@@ -200,9 +230,9 @@ const R = NPC_BEHAVIOR.ram;
 export function ramValue(world: World, attacker: Vehicle, target: Vehicle): number {
   const impact = ramImpact(world, attacker, target);
   if (impact === null) return 0;
-  const forecast = forecastRam(world, attacker, target, impact);
-  const net = weighed(forecast.dealt) - weighed(forecast.cost);
-  if (!forecast.fit || net <= 0) return 0;
+  const { dealt, cost, costHits, heading } = ramLosses(world, attacker, target, impact);
+  const net = weighed(dealt) - weighed(cost);
+  if (net <= 0 || !fitAfter(world, attacker, heading, costHits)) return 0;
   const turns = turnsToClose(world, attacker, target, impact);
   const worth = ramHitChance(world, attacker, target, impact) * net;
   const guns = gunDamage(world, attacker, target) * R.gunWeight * (1 + turns);

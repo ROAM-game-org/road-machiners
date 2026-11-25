@@ -7,6 +7,7 @@ import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
 import { cameraSetting, RENDER_SCALES, renderScaleSetting, type CameraMode, type RenderScale } from "./camera-setting";
 import { minimapSetting } from "./minimap-setting";
+import { damageNumbersSetting } from "./damage-numbers-setting";
 import { logViewSetting } from "./log-setting";
 import type { LogView } from "./log";
 import { soundSection, type SoundSettings, type SoundView } from "./sound";
@@ -23,6 +24,7 @@ export class OptionsPanel {
   private languageSwitch: LanguageSwitch | null = null;
   private sizeSwitch: OptionSwitch<number> | null = null;
   private minimapSwitch: OptionSwitch<boolean> | null = null;
+  private damageNumbersSwitch: OptionSwitch<boolean> | null = null;
   private logSwitch: OptionSwitch<LogView> | null = null;
   private cameraSwitch: OptionSwitch<CameraMode> | null = null;
   private renderScaleSwitch: OptionSwitch<RenderScale> | null = null;
@@ -52,6 +54,8 @@ export class OptionsPanel {
     this.sizeSwitch = this.sizes(sizeSection);
     const minimapSection = el("section", { class: "options-minimap" }, el("h4", {}, t("options.minimap")));
     this.minimapSwitch = this.minimap(minimapSection);
+    const damageNumbersSection = el("section", { class: "options-damage-numbers" }, el("h4", {}, t("options.damageNumbers")));
+    this.damageNumbersSwitch = this.damageNumbers(damageNumbersSection);
     const logSection = el("section", { class: "options-log" }, el("h4", {}, t("options.log")));
     this.logSwitch = this.logView(logSection);
     const cameraSection = el("section", { class: "options-camera" }, el("h4", {}, t("options.camera")));
@@ -61,7 +65,7 @@ export class OptionsPanel {
     this.soundView = soundSection(this.sound);
     const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
     this.closeKey = el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close"));
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, logSection, cameraSection, renderScaleSection, soundBlock, this.closeKey);
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, damageNumbersSection, logSection, cameraSection, renderScaleSection, soundBlock, this.closeKey);
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
@@ -91,6 +95,19 @@ export class OptionsPanel {
       off: () => null,
       subscribe: (fn) => setting.subscribe(fn),
       rootClass: "minimap-switch",
+    });
+  }
+
+  private damageNumbers(parent: HTMLElement): OptionSwitch<boolean> {
+    const setting = damageNumbersSetting();
+    return new OptionSwitch(parent, {
+      label: t("options.damageNumbers"),
+      choices: [{ value: false, label: t("setting.off") }, { value: true, label: t("setting.on") }],
+      current: () => setting.on(),
+      pick: (on) => setting.set(on),
+      off: () => null,
+      subscribe: (fn) => setting.subscribe(fn),
+      rootClass: "damage-numbers-switch",
     });
   }
 
@@ -151,6 +168,8 @@ export class OptionsPanel {
   private disposeViewSwitches(): void {
     this.minimapSwitch?.dispose();
     this.minimapSwitch = null;
+    this.damageNumbersSwitch?.dispose();
+    this.damageNumbersSwitch = null;
     this.logSwitch?.dispose();
     this.logSwitch = null;
     this.cameraSwitch?.dispose();

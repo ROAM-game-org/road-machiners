@@ -7,12 +7,18 @@ export class Mixer {
   readonly ctx = new AudioContext();
   private master = this.ctx.createGain();
   private buses: Record<Bus, GainNode>;
+  private accent: GainNode;
+  private ducked: GainNode;
+  private lastDuck = -Infinity;
 
-  constructor(mix: Mix) {
+  constructor(private readonly mix: Mix) {
     this.master.connect(this.ctx.destination);
+    const comp = this.compressor(mix);
+    this.accent = this.bus("sfx", mix.busVolume.sfx, comp);
+    this.ducked = this.bus("sfx", 1, comp);
     this.buses = {
       ui: this.bus("ui", mix.busVolume.ui, this.master),
-      sfx: this.bus("sfx", mix.busVolume.sfx, this.effectsChain(mix)),
+      sfx: this.bus("sfx", mix.busVolume.sfx, this.ducked),
       ambient: this.bus("ambient", mix.busVolume.ambient, this.master),
       music: this.bus("music", mix.busVolume.music, this.master),
     };
@@ -22,8 +28,26 @@ export class Mixer {
     return this.buses[bus];
   }
 
+  accentInput(): AudioNode {
+    return this.accent;
+  }
+
+  duck(at: number): void {
+    const a = this.mix.accent;
+    if (at - this.lastDuck < a.minGapMs / 1000) return;
+    this.lastDuck = at;
+    const g = this.ducked.gain;
+    const down = at + a.attackMs / 1000;
+    g.cancelScheduledValues(at);
+    g.setValueAtTime(1, at);
+    g.linearRampToValueAtTime(a.duck, down);
+    g.setValueAtTime(a.duck, down + a.holdMs / 1000);
+    g.linearRampToValueAtTime(1, down + (a.holdMs + a.releaseMs) / 1000);
+  }
+
   setBusVolume(bus: Bus, volume: number): void {
     this.buses[bus].gain.value = volume;
+    if (bus === "sfx") this.accent.gain.value = volume;
   }
 
   setMuted(muted: boolean): void {
@@ -48,7 +72,7 @@ export class Mixer {
     return g;
   }
 
-  private effectsChain(mix: Mix): AudioNode {
+  private compressor(mix: Mix): AudioNode {
     const c = mix.compressor;
     const comp = this.ctx.createDynamicsCompressor();
     comp.threshold.value = c.threshold;
@@ -56,22 +80,7 @@ export class Mixer {
     comp.ratio.value = c.ratio;
     comp.attack.value = c.attack;
     comp.release.value = c.release;
-    comp.connect(this.master);
-    const verb = this.ctx.createConvolver();
-    verb.buffer = this.impulse(mix.reverb.seconds, mix.reverb.decay);
-    const wet = this.ctx.createGain();
-    wet.gain.value = mix.reverb.wet;
-    comp.connect(verb).connect(wet).connect(this.master);
+    comp.connect(this.bus("sfx", c.makeup, this.master));
     return comp;
-  }
-
-  private impulse(seconds: number, decay: number): AudioBuffer {
-    const n = Math.round(seconds * this.ctx.sampleRate);
-    const buf = this.ctx.createBuffer(2, n, this.ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch);
-      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
-    }
-    return buf;
   }
 }

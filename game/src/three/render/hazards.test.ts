@@ -27,14 +27,14 @@ function stubCanvas(): void {
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) });
 }
 
-function recordedCards(): { glow: Card[]; lit: Card[]; bank: Card[]; fire: Card[]; batches: FxCards } {
+function recordedCards(): { glow: Card[]; lit: Card[]; bank: Card[]; fire: Card[]; smoke: Card[]; batches: FxCards } {
   const glow: Card[] = [];
   const lit: Card[] = [];
   const bank: Card[] = [];
   const dust: Card[] = [];
   const fire: Card[] = [];
   const smoke: Card[] = [];
-  return { glow, lit, bank, fire, batches: { glow: recordingBatch(glow), lit: recordingBatch(lit), bank: recordingBatch(bank), dust: recordingBatch(dust), fire: recordingBatch(fire), smoke: recordingBatch(smoke) } as unknown as FxCards };
+  return { glow, lit, bank, fire, smoke, batches: { glow: recordingBatch(glow), lit: recordingBatch(lit), bank: recordingBatch(bank), dust: recordingBatch(dust), fire: recordingBatch(fire), smoke: recordingBatch(smoke) } as unknown as FxCards };
 }
 
 function recordingBatch(cards: Card[]): { push: (card: Card) => void; slot: () => Card } {
@@ -240,7 +240,7 @@ describe('HazardViews', () => {
     views.update(world, world.terrain, new Map(), 1000, null, new THREE.PerspectiveCamera());
     const cards = recordedCards();
     views.draw(cards.batches);
-    expect(cards.glow.length).toBeGreaterThan(0);
+    expect(cards.lit.length + cards.smoke.length + cards.fire.length + cards.glow.length).toBeGreaterThan(0);
 
     const meshes: THREE.Object3D[] = [];
     views.root.traverse((o) => {

@@ -140,7 +140,7 @@ export type Job =
       total: number;
       auto?: true;
     }
-  | { kind: "search"; stockId: string; turnsLeft: number; total: number }
+  | { kind: "search"; stockId: string; turnsLeft: number; total: number; found?: { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number } }
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
   | { kind: "firstAid"; turnsLeft: number; total: number }
@@ -231,7 +231,7 @@ export type SimNote =
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
-export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string } | { kind: 'oddJobs' };
+export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string } | { kind: 'oddJobs' } | { kind: 'talkFee'; vehicle: string } | { kind: 'tip'; vehicle: string } | { kind: 'favor'; vehicle: string };
 
 export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' } | { id: 'barrel' };
 
@@ -596,6 +596,8 @@ export type GameEvent =
   | { t: 'spawn'; vehicle: string }
   | { t: 'despawn'; vehicle: string }
   | { t: 'hostile'; vehicle: string; against: string }
+  | { t: 'truce'; a: string; b: string; fee: number }
+  | { t: 'standDown'; loser: string; winner: string }
   | { t: 'joins'; vehicle: string; against: string; victim: string }
   | { t: 'standing'; faction: StandingFactionId; band: Band; cause: StandingCause }
   | { t: 'preyPassed'; vehicle: string; prey: string; reason: PassReason }

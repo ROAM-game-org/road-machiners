@@ -30,6 +30,7 @@ import { mountReportDesk } from '../ui/feedback-form';
 import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
+import { loadDamageNumbersSetting } from '../ui/damage-numbers-setting';
 import { loadLogViewSetting } from '../ui/log-setting';
 import type { SavedLog } from '../ui/log';
 import { loadCameraSetting, loadRenderScaleSetting } from '../ui/camera-setting';
@@ -57,7 +58,7 @@ import { GpuContext } from './gpu-context';
 import { GAME_GL, openWebGL } from './webgl';
 import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
-import { startGroundBaker } from './ground-off-thread';
+import { startGroundBaker, type GroundBaking } from './ground-off-thread';
 import { runStepped } from './render/stepped';
 import { drawnGroundSteps, groundTexture } from './render/terrain';
 import { landUniforms } from './render/groundShader';
@@ -248,6 +249,7 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 paintSkin();
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent(), window.matchMedia(COARSE_QUERY).matches);
 loadMinimapSetting(window.localStorage);
+loadDamageNumbersSetting(window.localStorage);
 loadLogViewSetting(window.localStorage);
 loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
@@ -339,16 +341,17 @@ stepBoot('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
 const log = new RunLog(slots, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
-stepBoot('building the ground');
-const baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`);
-async function paintBefore(piece: string): Promise<void> {
+const stepAndPaint = async (piece: string): Promise<void> => {
   stepBoot(piece);
   await boot.painted();
-}
+};
+let baking: GroundBaking | undefined;
 const drawn = await boot.track('ground', async () => {
+  baking = startGroundBaker()(map.terrain, `${GAME_VERSION}|${map.hash}`, stepAndPaint);
   await baking.baked;
+  await stepAndPaint('painting the ground texture');
   groundTexture(world);
-  return runStepped(drawnGroundSteps(world), paintBefore);
+  return runStepped(drawnGroundSteps(world), stepAndPaint);
 });
 stepBoot('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
@@ -356,16 +359,16 @@ radio.hear(world);
 const overlay = element('overlay');
 let building: Game;
 const game = await boot.track('scene', async () => {
-  await paintBefore('building the renderer');
+  await stepAndPaint('building the renderer');
   const core = sceneCore(surface, gpu, element('game'));
-  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => building.screens.pinOutpost() }), paintBefore);
-  await paintBefore('building the HUD');
+  const views = await runStepped(worldViewPieces(world, { core, drawn, pinOutpost: () => building.screens.pinOutpost() }), stepAndPaint);
+  await stepAndPaint('building the HUD');
   const built = new Game(world, { slots, runId, log, mapHash: world.mapHash, importSave: importer, savedLog: (): SavedLog => building.hud.savedLog() }, element('game'), overlay, soundPlayer, music, soundSettings, radio, core, gpu, travel, musicShelf, views);
   building = built;
-  await paintBefore('painting the minimap');
+  await stepAndPaint('painting the minimap');
   built.paintMinimap();
   const textures = groundTextures({ ...drawn.uniforms, ...landUniforms(drawn.land) }, { map: views.groundMaterial.map, poolMap: NIGHT_POOLS.poolTexture() });
-  await runStepped(firstFramePieces(textures, built.firstFrame()), paintBefore);
+  await runStepped(firstFramePieces(textures, built.firstFrame()), stepAndPaint);
   return built;
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
@@ -395,7 +398,7 @@ afterBoot(boot.finish(), {
   mark: stepBoot,
   startTurns: () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })),
   warmPlans: () => game.warmPlans(),
-  keep: baking.keep,
+  keep: () => baking?.keep(),
   tilesFilled: drawn.tilesFilled,
   end: endMark,
 }).catch(reportError);

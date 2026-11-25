@@ -4,6 +4,8 @@ import { CrtPass } from './render/crtPass';
 import type { InkLayer } from './render/inkLayer';
 import type { GroundCache } from './render/groundCache';
 import { INK_DUST_LAYER } from './render/particles/cards';
+import type { PulseWave } from './render/pulse';
+import { PulseWavePass, waveFrame } from './render/pulseWave';
 import { TUNING, tuningVersion } from './render/inkTuning';
 
 export class ShaderBuildFailed extends Error {
@@ -120,6 +122,8 @@ export class ShaderWarmup {
   private readonly watched = new WeakSet<THREE.Object3D>();
   private sealed = new WeakSet<THREE.Object3D>();
   private readonly crt: CrtPass;
+  private readonly wave: PulseWavePass;
+  private waves: () => readonly PulseWave[] = () => [];
   private groundCache: GroundCache | null = null;
   private inkLayer: InkLayer | null = null;
 
@@ -132,6 +136,7 @@ export class ShaderWarmup {
   ) {
     failLoudOnShaderError(renderer, gpu, this.verdicts);
     this.crt = new CrtPass(renderer);
+    this.wave = new PulseWavePass(renderer);
     gpu.onRestored(() => this.forget());
   }
 
@@ -181,8 +186,22 @@ export class ShaderWarmup {
     this.inkLayer = layer;
   }
 
+  drawWavesFrom(source: () => readonly PulseWave[]): void {
+    this.waves = source;
+  }
+
   private drawView(): void {
-    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithInkLayer());
+    if (TUNING.crt.value > 0) this.crt.render(() => this.drawWithWave());
+    else this.drawWithWave();
+  }
+
+  private drawWithWave(): void {
+    const waves = this.waves();
+    if (waves.length === 0) return this.drawWithInkLayer();
+    const camera = this.camera;
+    if (!(camera instanceof THREE.OrthographicCamera)) throw new Error('The pulse wave bends the picture from an orthographic camera');
+    const frame = waveFrame(waves, camera);
+    if (frame) this.wave.render(frame, () => this.drawWithInkLayer());
     else this.drawWithInkLayer();
   }
 
