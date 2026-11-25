@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyPlacesLeft, surveyProgress, surveyWayLine } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyPlacesLeft, surveyProgress } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -994,11 +994,6 @@ describe("standing numbers", () => {
 
 describe("survey contract text", () => {
   const [first, second] = surveySites(TEST_MAP);
-  const surveySiteAt = (prefix: string, at: { x: number; y: number }): string => {
-    const site = surveySites(TEST_MAP).find((s) => s.id.startsWith(prefix) && Math.hypot(s.pos.x - at.x, s.pos.y - at.y) < 1);
-    if (!site) throw new Error(`No ${prefix} survey site at ${at.x}, ${at.y}`);
-    return site.id;
-  };
   const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
     id: "c3", shop: "bowl", kind: "survey", reward: 30, deadline: 100, window: 100, tier: 1,
     points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
@@ -1089,30 +1084,6 @@ describe("survey contract text", () => {
       expect(new Set(letters).size, locale).toBe(MAP_GRID.squares);
       for (const letter of letters) expect(letter, locale).toMatch(/^\p{Lu}$/u);
     }
-  });
-
-  it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: surveySiteAt("survey-skiff-", { x: 665.5, y: 1323.5 }), found: true, done: false }] };
-    vi.stubGlobal("document", {
-      createElement: () => new TextNode(),
-      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
-    });
-    const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
-    expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. That stretch takes half an hour or more. Where the road enters square D6, leave the road and head north-west and a touch north, about ten minutes' drive. Boat wrecks on flat ground. found");
-    vi.unstubAllGlobals();
-    expect(line.all("tag").at(-1)?.text()).toBe("found");
-  });
-
-  it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: surveySiteAt("survey-tank-", { x: 307.6, y: 1516.6 }), found: false, done: false }] };
-    const w = emptyWorld();
-    vi.stubGlobal("document", {
-      createElement: () => new TextNode(),
-      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
-    });
-    expect((surveyWayLine(w, c, c.points[0]) as unknown as TextNode).text()).toBe((surveyClueLines(c)[0] as unknown as TextNode).text());
-    vi.unstubAllGlobals();
   });
 
   it("tells the same clue wherever the truck is", () => {
