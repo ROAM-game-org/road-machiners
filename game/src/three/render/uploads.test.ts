@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CardBatch, type Card } from './particles/cards';
 import { ChunkBatch } from './particles/chunks';
-import { uploadFirst } from './uploads';
+import { uploadFirst, uploadRows } from './uploads';
 import type { Terrain } from '../../sim/terrain';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
@@ -27,6 +27,15 @@ describe('uploadFirst', () => {
     uploadFirst(attribute, 0);
     expect(attribute.version).toBe(0);
     expect(attribute.updateRanges).toEqual([]);
+  });
+});
+
+describe('uploadRows', () => {
+  it('sends only the given items', () => {
+    const attribute = new THREE.BufferAttribute(new Float32Array(30), 3);
+    uploadRows(attribute, 3, 2);
+    expect(attribute.version).toBe(1);
+    expect(attribute.updateRanges).toEqual([{ start: 9, count: 6 }]);
   });
 });
 
