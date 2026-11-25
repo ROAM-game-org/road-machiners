@@ -153,6 +153,16 @@ describe('the stretch lengths', () => {
   });
 });
 
+describe('a highway map', () => {
+  it('seals its terrain object and leaves the whole-map arrays unfrozen', () => {
+    const { terrain } = highwayMap(7, 0);
+
+    expect(Object.isFrozen(terrain)).toBe(true);
+    expect(Object.isFrozen(terrain.heights)).toBe(false);
+    expect(Object.isFrozen(terrain.types)).toBe(false);
+  });
+});
+
 describe('a highway window', () => {
   it('keeps its map hash', () => {
     expect(highwayMap(1, 0).hash).toBe('highway:7:1:0');

@@ -21,6 +21,8 @@ import {
   unpackTypes,
   packedBuffers,
   unpackTerrain,
+  decodeMap,
+  encodeMap,
   type Terrain,
 } from "./terrain";
 import { emptyWorld } from "./testkit";
@@ -446,8 +448,20 @@ describe("a terrain packed for a worker", () => {
 
     expect(back).toEqual(small(new Uint8Array([1, 2, 3])));
     expect(Object.isFrozen(back)).toBe(true);
-    expect(Object.isFrozen(back.heights)).toBe(true);
-    expect(Object.isFrozen(back.types)).toBe(true);
+    expect(Object.isFrozen(back.heights)).toBe(false);
+    expect(Object.isFrozen(back.types)).toBe(false);
+    expect(Array.isArray(back.heights)).toBe(true);
+    expect(Array.isArray(back.types)).toBe(true);
+  });
+
+  it("seals a decoded map without freezing its whole-map arrays", () => {
+    const size = 2;
+    const map = decodeMap(encodeMap({ size, heights: new Float32Array((size + 1) ** 2), types: new Uint8Array(size * size), props: [] }, 3));
+
+    expect(Object.isFrozen(map.terrain)).toBe(true);
+    expect(Object.isFrozen(map.terrain.heights)).toBe(false);
+    expect(Object.isFrozen(map.terrain.types)).toBe(false);
+    expect(Array.isArray(map.terrain.heights)).toBe(true);
   });
 
   it("leaves the route bytes out when the terrain has none, and copies them when it has", () => {
@@ -474,7 +488,7 @@ describe("a terrain packed for a worker", () => {
     const codes = packTypes(types);
 
     expect(unpackTypes(codes, 3)).toEqual(types);
-    expect(Object.isFrozen(unpackTypes(codes, 3))).toBe(true);
+    expect(Object.isFrozen(unpackTypes(codes, 3))).toBe(false);
     expect(() => unpackTypes(codes.slice(1), 3)).toThrow(/types/);
     expect(() => unpackTypes(new Uint8Array(9).fill(250), 3)).toThrow(/unknown ground type/);
   });

@@ -277,10 +277,11 @@ export function decodeMap(bytes: Uint8Array): BakedMap {
   const props: BakedProp[] = [];
   for (let k = 0, at = propsAt + 4; k < propCount; k++, at += PROP_BYTES) props.push(readProp(view, at, k));
   const terrain: Terrain = { size, heights, types, atlas: ICARUS_KEY };
-  Object.freeze(heights);
-  Object.freeze(types);
-  Object.freeze(terrain);
-  return { hash: fnv1a(bytes), seed, terrain, props };
+  return { hash: fnv1a(bytes), seed, terrain: sealTerrain(terrain), props };
+}
+
+export function sealTerrain(terrain: Terrain): Terrain {
+  return Object.freeze(terrain);
 }
 
 export type PackedTerrain = {
@@ -303,7 +304,7 @@ export function packTypes(types: readonly TerrainTypeId[]): Uint8Array {
 
 export function unpackTypes(codes: Uint8Array, size: number): TerrainTypeId[] {
   if (codes.length !== size * size) throw new Error(`Packed terrain has ${codes.length} types for size ${size}`);
-  return Object.freeze(Array.from(codes, readType)) as TerrainTypeId[];
+  return Array.from(codes, readType);
 }
 
 export function packedBuffers(p: PackedTerrain): ArrayBuffer[] {
@@ -317,10 +318,7 @@ export function unpackTerrain(p: PackedTerrain): Terrain {
   const heights = Array.from(p.heights);
   const types = unpackTypes(p.types, p.size);
   const terrain: Terrain = p.routes ? { size: p.size, heights, types, atlas: p.atlas, routes: p.routes } : { size: p.size, heights, types, atlas: p.atlas };
-  Object.freeze(heights);
-  Object.freeze(types);
-  Object.freeze(terrain);
-  return terrain;
+  return sealTerrain(terrain);
 }
 
 function typeCode(id: TerrainTypeId, tile: number): number {

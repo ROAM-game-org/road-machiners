@@ -13,8 +13,6 @@ function pairedWorld(): World {
 }
 
 function frozenGround(w: World): World {
-  Object.freeze(w.terrain.heights);
-  Object.freeze(w.terrain.types);
   Object.freeze(w.terrain);
   return w;
 }

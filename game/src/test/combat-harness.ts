@@ -231,8 +231,6 @@ function baseWorld(kit: string, arena: number | null, road: number | null): Worl
   }
   const w = newWorld(0, START_KITS[kit] ?? missing('kit', kit), TEST_MAP, defaultSetup('roaming'), false);
   const terrain = { size: w.size, heights: new Array((w.size + 1) * (w.size + 1)).fill(0), types: new Array(w.size * w.size).fill('road'), atlas: ICARUS_KEY };
-  Object.freeze(terrain.heights);
-  Object.freeze(terrain.types);
   w.terrain = Object.freeze(terrain);
   w.obstacles = arena === null ? [] : arenaRing(arena);
   w.states = [];

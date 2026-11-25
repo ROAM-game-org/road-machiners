@@ -9,7 +9,7 @@ import { closurePieces, craterDip, sceneAt, scenePieces, stretchLayout, windowCr
 import { INDEX_CELL, RoadIndex } from './road-index';
 import { modeMap } from './settings';
 import { hashRandom, nextRandom, randInt, randRange, type Rng } from './rng';
-import type { BakedMap, BakedProp, PropKind, Terrain } from './terrain';
+import { sealTerrain, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import type { WorldSetup } from './types';
 import { DEG, type Vec } from './vec';
 
@@ -516,9 +516,7 @@ function bakedProps(seed: number, window: number): BakedProp[] {
 export function highwayMap(seed: number, window: number): BakedMap {
   if (!Number.isInteger(window) || window < 0) throw new Error(`Highway window ${window} is not a whole number from 0`);
   const land = landOf(seed, window);
-  Object.freeze(land.heights);
-  Object.freeze(land.types);
-  const terrain: Terrain = Object.freeze({ size: SIZE, ...land, atlas: Object.freeze({ kind: 'highway', seed, window }) });
+  const terrain = sealTerrain({ size: SIZE, ...land, atlas: Object.freeze({ kind: 'highway', seed, window }) });
   return { hash: highwayHash(seed, window), seed, terrain, props: bakedProps(seed, window) };
 }
 
