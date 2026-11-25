@@ -8,7 +8,9 @@ const runs = Number(process.argv[3] ?? 3);
 const width = Number(process.argv[4] ?? 390);
 const height = Number(process.argv[5] ?? 669);
 const MENU_WAIT_MS = Number(process.argv[6] ?? process.env.BOOT_MEMORY_MENU_WAIT_MS ?? 20000);
-const WEBKIT_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? 2000);
+const BUDGET = JSON.parse(readFileSync(new URL('./boot-memory-budget.json', import.meta.url), 'utf8'));
+const RUN_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? BUDGET.runMb);
+const ENGINES = (process.env.BOOT_MEMORY_ENGINES ?? 'webkit,chromium').split(',').filter((engine) => engine in PROCESS_NAMES);
 const TURNS = 3;
 const IDLE_S = Number(process.env.BOOT_MEMORY_IDLE_S ?? 60);
 const SAMPLE_MS = 200;
@@ -16,6 +18,7 @@ const BOOT_TIMEOUT_MS = 400000;
 const TURN_TIMEOUT_MS = 120000;
 const GONE_WAIT_MS = 8000;
 
+const PROCESS_NAMES = { webkit: true, chromium: true };
 const PROCESS = {
   webkit: /(WebKit|WPE)(Web|GPU|Network)Process/,
   chromium: /chrom/i,
@@ -139,7 +142,8 @@ function median(values) {
 }
 
 const problems = [];
-for (const engine of ['webkit', 'chromium']) {
+if (ENGINES.length === 0) throw new Error(`BOOT_MEMORY_ENGINES ${process.env.BOOT_MEMORY_ENGINES} names no engine`);
+for (const engine of ENGINES) {
   const before = new Set(processes(engine).map((p) => p.pid));
   const results = [];
   for (let run = 0; run < runs; run++) {
@@ -157,7 +161,11 @@ for (const engine of ['webkit', 'chromium']) {
     if (result.errors.length > 0) problems.push(`${engine}: ${result.errors.join(' | ')}`);
     if (result.loads !== 1) problems.push(`${engine}: the page loaded ${result.loads} times, so New game reloaded it`);
   }
-  if (engine === 'webkit' && peak > WEBKIT_BUDGET_MB) problems.push(`webkit median peak ${peak} MB is over the ${WEBKIT_BUDGET_MB} MB budget`);
+  if (engine === 'webkit') {
+    console.log(`webkit boot peak is ${bootPeak - BUDGET.deviceMb} MB over the ${BUDGET.deviceMb} MB the reporting iPhone survives, and the run peak ${peak - BUDGET.deviceMb} MB`);
+    if (bootPeak > BUDGET.bootMb) problems.push(`webkit median boot peak ${bootPeak} MB is over the ${BUDGET.bootMb} MB budget`);
+    if (peak > RUN_BUDGET_MB) problems.push(`webkit median run peak ${peak} MB is over the ${RUN_BUDGET_MB} MB budget`);
+  }
 }
 
 if (problems.length > 0) {

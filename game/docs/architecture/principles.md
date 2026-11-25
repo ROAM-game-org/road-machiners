@@ -89,8 +89,10 @@ Work whose cost grows with map area picks one of four homes, by who reads it and
 - Keep a small whole-map summary when readers ask about the whole map, like connected areas or the road to a town.
 - Touch only the changed cells when game state changes in a few places each turn, like explored tiles.
 
+A whole-map array is never frozen. Its one owner keeps it immutable, since JSC turns a frozen large array into a dictionary several times its size.
+
 Work that grows with the count of trucks or shops is not area work and falls under principle 3.
 
-Why: the 7.5 km map made boot build every prop, scatter cell and route grid for the whole map, though the player sees a small disc. Boot took 20 s.
+Why: the 7.5 km map made boot build every prop, scatter cell and route grid for the whole map, though the player sees a small disc. Boot took 20 s. Frozen whole-map arrays made an iPhone boot die for memory in WebKit.
 
 Plan check: for each new piece of work that grows with map area, name its home. For a whole-map summary, give its size in the download or in memory.
