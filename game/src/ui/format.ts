@@ -1,7 +1,7 @@
 import { volleyLine, volleyOfShot, type Volley } from './volley';
 import { isShield, partDef } from '../data/parts';
 import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../sim/market';
-import { surveyClue, surveyPlaceType, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
+import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
 import type { ClaimLook } from '../data/market';
@@ -36,7 +36,6 @@ import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
-import { directionsText } from './directions-text';
 import { gridSquareText } from './grid-text';
 
 export { gridColumnLetter, gridRowNumber, gridSquareText } from './grid-text';
@@ -720,18 +719,6 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   if (point.done) throw new Error(`Survey place ${point.site} is already done`);
   const clue = surveyClue(c, point);
   return el('span', { class: 'contract-clue' }, surveyPlaceText(clue), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
-}
-
-export function surveyWayLine(world: World, c: SurveyContract, point: SurveyPoint): HTMLElement {
-  const way = surveyWay(world, c, point);
-  if (!way) return surveyPlaceLine(c, point);
-  const clue = surveyClue(c, point);
-  const text = t('contract.placeWay', { place: t(`contract.placeName.${clue.type}`), square: gridSquareText(clue.square), site: siteName(c.shop), way: directionsText(way), look: t(`contract.look.${clue.type}`), lay: t(`contract.lay.${clue.lay}`) });
-  return el('span', { class: 'contract-clue' }, text, point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null);
-}
-
-export function surveyWayLines(world: World, c: SurveyContract): HTMLElement[] {
-  return c.points.filter((p) => !p.done).map((p) => surveyWayLine(world, c, p));
 }
 
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {

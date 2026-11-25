@@ -323,7 +323,6 @@ export const LOG: Translation<typeof EN> = {
   'contract.surveyMet': 'Разведка завершена, сдайте отчет {site, case, at}',
   'contract.surveyed': 'Разведано {done} из {n}',
   'contract.placeClue': '{place}: в квадрате {square}, {dir} от {site, case, gen}, примерно в {distance}, {lay}.',
-  'contract.placeWay': '{place} в квадрате {square}, от {site, case, gen}: {way} {look} {lay}.',
   'contract.placesLeft': 'Осталось {n, plural, one {# место} few {# места} many {# мест} other {# места}}: {places, case, nom}',
   'contract.lookFor.homestead': 'Дом с высокой башней.',
   'contract.lookFor.hamlet': 'Кучка разрушенных домов.',
