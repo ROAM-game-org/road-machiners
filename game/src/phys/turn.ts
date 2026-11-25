@@ -1,6 +1,6 @@
 
 import { PHYSICS } from '../data/physics';
-import { unpackTerrain, type PackedTerrain } from '../sim/terrain';
+import { sealTerrain, unpackTerrain, type PackedTerrain } from '../sim/terrain';
 import { hasTimedFire } from '../sim/timed-combat';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
@@ -151,12 +151,6 @@ export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: Turn
 }
 export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure;
 
-function freezeTerrain(terrain: World['terrain']): void {
-  Object.freeze(terrain.heights);
-  Object.freeze(terrain.types);
-  Object.freeze(terrain);
-}
-
 function requireQuestLanguage(lang: QuestLanguage): void {
   if (!QUEST_LANGUAGES.includes(lang)) throw new Error(`Turn task has no quest language ${lang}`);
 }
@@ -176,7 +170,7 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
 }
 
 function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
-  freezeTerrain(terrain);
+  sealTerrain(terrain);
   const drive = restoreDrive(task.drive);
   const world = { ...task.world, terrain };
   try {
@@ -198,7 +192,7 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
 
 function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
   requireQuestLanguage(task.questLanguage);
-  freezeTerrain(terrain);
+  sealTerrain(terrain);
   const before = { ...task.world, terrain };
   const drive = restoreDrive(task.drive);
   let result: PlayedTurn | null = null;

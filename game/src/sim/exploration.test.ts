@@ -10,6 +10,7 @@ import { discoverSites, mappedSites } from './locations';
 import { buyChart } from './charts';
 import { gridSquareOf } from './map-grid';
 import { emptyWorld } from './testkit';
+import type { World } from './types';
 import { refreshVision, tileCenter } from './vision';
 import { bodyOf } from './body';
 import { standardWorld } from '../test/world-cache';
@@ -57,14 +58,23 @@ describe('Icarus exploration distances', () => {
 
   it('shares immutable terrain between turns without sharing mutable state', () => {
     const world = standardWorld(1337);
+    const before = terrainChecksum(world.terrain);
     const next = setMoveOrder(world, { kind: 'stopAt', dest: { x: 100, y: 440 } });
     expect(next.terrain).toBe(world.terrain);
-    expect(Object.isFrozen(next.terrain.heights)).toBe(true);
+    expect(Object.isFrozen(next.terrain)).toBe(true);
+    expect(terrainChecksum(next.terrain)).toBe(before);
     expect(next.player).not.toBe(world.player);
     expect(next.vehicles).not.toBe(world.vehicles);
     expect(world.vehicles[0].order).toBeNull();
   }, budget(60_000));
 });
+
+function terrainChecksum(terrain: World['terrain']): number {
+  let sum = 0;
+  for (let k = 0; k < terrain.heights.length; k++) sum = (sum * 31 + terrain.heights[k] * 1000) % 1_000_000_007;
+  for (let k = 0; k < terrain.types.length; k++) sum = (sum * 31 + terrain.types[k].length + terrain.types[k].charCodeAt(0)) % 1_000_000_007;
+  return sum;
+}
 
 describe('discovering an outlined territory', () => {
   const orchard = REGION.locations.find((l) => l.id === 'orchard')!;

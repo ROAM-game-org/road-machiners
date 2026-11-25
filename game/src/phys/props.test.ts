@@ -354,7 +354,7 @@ describe('a Fallen Sun flap', () => {
     const level = groundAt(w.terrain, flap.from.x, flap.from.y);
     const row = w.terrain.size + 1;
     const heights = w.terrain.heights.map((h, k) => (onRun({ x: k % row, y: Math.floor(k / row) }, 6) ? level : h));
-    w.terrain = Object.freeze({ ...w.terrain, heights: Object.freeze(heights) as number[] });
+    w.terrain = Object.freeze({ ...w.terrain, heights });
     w.obstacles = w.obstacles.filter((o) => o.kind === 'site' || !onRun(o.pos, 10));
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     me(w).pos = on(-5);

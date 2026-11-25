@@ -33,8 +33,8 @@ it("restores frozen terrain after worker transfer so turn clones retain the rout
   try {
     computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL }, terrain);
     expect(Object.isFrozen(terrain)).toBe(true);
-    expect(Object.isFrozen(terrain.heights)).toBe(true);
-    expect(Object.isFrozen(terrain.types)).toBe(true);
+    expect(Object.isFrozen(terrain.heights)).toBe(false);
+    expect(Object.isFrozen(terrain.types)).toBe(false);
   } finally {
     freeDrive(drive);
   }

@@ -23,8 +23,6 @@ export function flatTerrain(size: number): Terrain {
 
 function frozenFlatTerrain(size: number): Terrain {
   const terrain = flatTerrain(size);
-  Object.freeze(terrain.heights);
-  Object.freeze(terrain.types);
   return Object.freeze(terrain);
 }
 

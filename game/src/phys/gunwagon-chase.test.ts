@@ -27,7 +27,7 @@ const TURNS = 18;
 
 function openGround(w: World): void {
   const types = w.terrain.types.map(() => OPEN_GROUND) as typeof w.terrain.types;
-  w.terrain = Object.freeze({ ...w.terrain, types: Object.freeze(types) as typeof types });
+  w.terrain = Object.freeze({ ...w.terrain, types });
 }
 
 function rolledTruck(w: World, templateId: string, chassisId: string, x: number): Vehicle {
