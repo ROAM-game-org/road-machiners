@@ -10,7 +10,7 @@ import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { Hud, actionSlot, cardActions, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
+import { Hud, actionSlot, cardActions, recenterTip, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
 import type { CrimeCase, World } from '../sim/types';
@@ -357,5 +357,22 @@ describe('truck card head', () => {
 
   it('gives a hover card no close key', () => {
     expect(head(false, vi.fn()).withTag('button')).toHaveLength(0);
+  });
+});
+
+describe('recenter tip', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is a real button so its press sound can be read and a click recenters', () => {
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => Object.assign(new FakeNode(), { tag }),
+      createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
+    });
+    const onclick = vi.fn();
+    const tip = recenterTip(onclick) as unknown as FakeNode;
+    expect(tip.tag).toBe('button');
+    expect(tip.attrs.role).toBeUndefined();
+    tip.listeners.click();
+    expect(onclick).toHaveBeenCalledOnce();
   });
 });
