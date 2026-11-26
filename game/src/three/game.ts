@@ -7,7 +7,6 @@ import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
 import {
   restFrame,
-  TURN_STEPS,
   type DriveSnapshot,
   type TurnResult,
 } from "../phys/drive";
@@ -887,7 +886,7 @@ export class Game {
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
     playUtilitySounds(this.combatHost(), "start");
-    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, TURN_STEPS, playback.impactAtMs));
+    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, playback.impactAtMs));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
     this.path.clear();

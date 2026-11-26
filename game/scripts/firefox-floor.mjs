@@ -38,7 +38,7 @@ async function judge(page, step, seen) {
 async function playHardened(page, url, bootLimitMs, errors) {
   const seen = { linked: 0, failed: 0 };
   const problems = [];
-  await page.goto(playUrl(url));
+  await page.goto(playUrl(url), { timeout: bootLimitMs });
   await waitForGame(page, bootLimitMs);
   const limit = await page.evaluate(() => {
     const gl = window.__ROAM__.renderer.getContext();
