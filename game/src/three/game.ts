@@ -567,8 +567,11 @@ export class Game {
     if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen()))) return;
     if (key.idle && this.travel.isPlaying(this.anim)) return this.turnWait.defer(() => this.runKey(code, from));
     if (key.inventoryOk && this.screens.inventory.isOpen()) this.screens.inventory.close();
-    if (from === "key" && key.control !== "none") keyPress(key.control());
-    key.run();
+    try {
+      if (from === "key" && key.control !== "none") keyPress(key.control());
+    } finally {
+      key.run();
+    }
   }
 
   private readonly keys: Record<string, GameKey> = {
