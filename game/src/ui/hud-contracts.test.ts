@@ -54,3 +54,22 @@ describe("held claim line", () => {
     expect(text).toContain(" left");
   });
 });
+
+describe("held clock width", () => {
+  const sizerTexts = (c: Contract, turn: number): string[] => {
+    const line = heldContractLine({ ...emptyWorld(), turn }, c) as unknown as FakeNode;
+    return line.children[1].children.filter((n) => n.className === "clock-sizer").map((n) => n.textContent);
+  };
+
+  it("keeps the same reserved texts at every tick of one contract", () => {
+    const haul = contracts[0];
+    const first = sizerTexts(haul, 0);
+    expect(first.length).toBe(3);
+    for (const turn of [10, 50, 99, 120]) expect(sizerTexts(haul, turn)).toEqual(first);
+  });
+
+  it("leaves the escort without a sized clock", () => {
+    const line = heldContractLine(emptyWorld(), contracts[2]) as unknown as FakeNode;
+    expect(line.textContent).not.toContain("left");
+  });
+});
