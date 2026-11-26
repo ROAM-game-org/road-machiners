@@ -391,7 +391,7 @@ export class Hud {
     this.siteStatus.style.display = "none";
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("div", { class: "tooltip hover-tip recenter-tip", role: "button", onclick: () => actions.recenter() }, keyTip(t("hud.recenter"), RECENTER_KEY)));
+    this.recenter.append(recenterTip(() => actions.recenter()));
   }
 
   systemKey(name: SystemKey): HTMLButtonElement {
@@ -768,6 +768,10 @@ export interface CardHandlers {
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
   return [el("button", { class: "hud-key", "data-shortcut": key, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
+}
+
+export function recenterTip(onclick: () => void): HTMLElement {
+  return el("button", { type: "button", class: "tooltip hover-tip recenter-tip", onclick }, keyTip(t("hud.recenter"), RECENTER_KEY));
 }
 
 export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
