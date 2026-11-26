@@ -38,7 +38,7 @@ export class CombatMusic {
   private missed: string | null = null;
   private wanted = false;
   private playingTitle: string | null = null;
-  private loading: Promise<void>;
+  private loading: Promise<void> = Promise.resolve();
   private current: BlockSession | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private voices: BlockVoices;
@@ -51,7 +51,6 @@ export class CombatMusic {
     private onError: (e: unknown) => void,
   ) {
     this.voices = new BlockVoices(ctx, out);
-    this.loading = Promise.resolve();
     this.requestKit();
   }
 
@@ -157,7 +156,7 @@ export class CombatMusic {
 
   private async fetchKit(name: string): Promise<Kit | null> {
     this.loadingKit = true;
-    this.noteKit(name, "asked");
+    this.note(`kit ${name} asked`);
     try {
       const kit = await this.load(name);
       this.settle(name, kit !== null);
@@ -172,11 +171,7 @@ export class CombatMusic {
 
   private settle(name: string, landed: boolean): void {
     this.missed = landed ? null : name;
-    this.noteKit(name, landed ? "landed" : "missing");
-  }
-
-  private noteKit(name: string, outcome: string): void {
-    this.note(`kit ${name} ${outcome}`);
+    this.note(`kit ${name} ${landed ? "landed" : "missing"}`);
   }
 
   private note(line: string): void {
