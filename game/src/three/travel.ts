@@ -48,6 +48,10 @@ const STEP_MS = 1000 / PHYSICS.stepsPerSecond;
 const END_SLACK_MS = 1e-6;
 export const MOVE_MS = TURN_STEPS * STEP_MS;
 
+export function stepShownMs(step: number): number {
+  return (step + 1) * STEP_MS;
+}
+
 export function lightTurnOf(world: World, a: Playback | null): number {
   return a ? world.turn - 1 + Math.min(1, a.elapsed / MOVE_MS) : world.turn;
 }

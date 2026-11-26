@@ -20,6 +20,10 @@ import { claymoresSetOff, detonateOnCrash, detonateOnObstacle } from './claymore
 import type { GridItem, Vehicle, World } from './types';
 import { damageScale } from './settings';
 
+export function countsAsCrash(impact: number): boolean {
+  return impact >= RULES.collisionMinImpact;
+}
+
 export type CrashContact = { side: Side; lanes: number[] };
 export type CrashGeometry = { a: CrashContact; b: CrashContact | null };
 
@@ -64,7 +68,7 @@ export function applyGroundCrash(world: World, v: Vehicle, what: string, impact:
 
 export function applyLanding(world: World, v: Vehicle, what: string, impact: number): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad landing impact ${impact}`);
-  if (impact < RULES.collisionMinImpact) return;
+  if (!countsAsCrash(impact)) return;
   const driving = skillEffect(world, v, 'driving', 'crashDamage');
   const damage = RULES.ramDamage * RULES.crashDamage * damageScale(world) * RULES.landingDamage * impact * impact * Math.max(0, 1 - driving);
   const hitsA = coreParts(v, 'wheel').filter((wheel) => wheel.hp > 0).map((wheel) => ({ part: wheel.id, damage: damagePart(world, v, wheel, damage) }));
@@ -137,7 +141,7 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
 function contactHits(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): Map<string, number> {
   if (contact.lanes.length === 0) throw new Error('Crash has no touched lanes');
   const hits = new Map<string, number>();
-  if (impact < RULES.collisionMinImpact) return hits;
+  if (!countsAsCrash(impact)) return hits;
   const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
   const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
   const spill = { ...round, damage: round.damage * RULES.crashFalloff };
@@ -180,7 +184,7 @@ export function ramImpact(world: World, attacker: Vehicle, target: Vehicle): num
   const speed = Math.min(stats.maxSpeed, attacker.speed + stats.accel);
   const along = target.speed * Math.cos(target.heading - heading);
   const impact = Math.max(0, speed - along);
-  return impact < RULES.collisionMinImpact ? null : impact;
+  return countsAsCrash(impact) ? impact : null;
 }
 
 export type PartLoss = { defId: string; lost: number };
