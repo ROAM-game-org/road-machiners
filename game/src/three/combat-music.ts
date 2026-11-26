@@ -156,7 +156,7 @@ export class CombatMusic {
 
   private async fetchKit(name: string): Promise<Kit | null> {
     this.loadingKit = true;
-    this.note(`kit ${name} asked`);
+    this.noteKit(name, "asked");
     try {
       const kit = await this.load(name);
       this.settle(name, kit !== null);
@@ -171,7 +171,11 @@ export class CombatMusic {
 
   private settle(name: string, landed: boolean): void {
     this.missed = landed ? null : name;
-    this.note(`kit ${name} ${landed ? "landed" : "missing"}`);
+    this.noteKit(name, landed ? "landed" : "missing");
+  }
+
+  private noteKit(name: string, outcome: string): void {
+    this.note(`kit ${name} ${outcome}`);
   }
 
   private note(line: string): void {
