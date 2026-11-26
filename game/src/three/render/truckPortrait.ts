@@ -115,7 +115,7 @@ export function chassisSize(chassisId: string): PixelSize {
 
 type Wanted = { vehicleId: string; key: string; pristine: Vehicle; paint: TruckPaint; ahead: boolean };
 type Ready = { vehicleId: string; portrait: Portrait; seen: number };
-type Job = { wanted: Wanted; epoch: number; build: PortraitBuild; waiting: boolean; failure: { error: unknown } | null };
+type Job = { wanted: Wanted; epoch: number; build: PortraitBuild; waiting: boolean; paused: number | null; failure: { error: unknown } | null };
 
 export class TruckPortraits {
   private readonly ready = new Map<string, Ready>();
@@ -187,7 +187,7 @@ export class TruckPortraits {
       const known = this.ready.get(w.key);
       if (known) known.seen = this.tick;
     }
-    this.dropUnwantedJobs();
+    this.pauseUnwantedJobs();
     this.dropForgotten();
   }
 
@@ -205,12 +205,26 @@ export class TruckPortraits {
     }
   }
 
-  private dropUnwantedJobs(): void {
+  private pauseUnwantedJobs(): void {
     for (const [vehicleId, job] of this.jobs) {
-      if (this.wantedKeys.get(vehicleId) === job.wanted.key) continue;
-      job.build.dispose();
-      this.jobs.delete(vehicleId);
+      const key = this.wantedKeys.get(vehicleId);
+      if (key === job.wanted.key) job.paused = null;
+      else if (key !== undefined) this.discard(job);
+      else job.paused ??= this.tick;
     }
+  }
+
+  private discard(job: Job): void {
+    if (this.jobs.get(job.wanted.vehicleId) === job) this.jobs.delete(job.wanted.vehicleId);
+    job.build.dispose();
+  }
+
+  private evictOldestPaused(): boolean {
+    let oldest: Job | null = null;
+    for (const job of this.jobs.values()) if (job.paused !== null && (!oldest || job.paused < (oldest.paused as number))) oldest = job;
+    if (!oldest) return false;
+    this.discard(oldest);
+    return true;
   }
 
   private dropForgotten(): void {
@@ -236,13 +250,13 @@ export class TruckPortraits {
         if (!job.waiting) return job;
         continue;
       }
-      if (this.jobs.size < PORTRAIT_JOBS) return this.start(wanted);
+      if (this.jobs.size < PORTRAIT_JOBS || this.evictOldestPaused()) return this.start(wanted);
     }
     return null;
   }
 
   private start(wanted: Wanted): Job {
-    const job: Job = { wanted, epoch: this.gpu.epoch(), build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, failure: null };
+    const job: Job = { wanted, epoch: this.gpu.epoch(), build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, paused: null, failure: null };
     this.jobs.set(wanted.vehicleId, job);
     return job;
   }
@@ -415,22 +429,55 @@ function targetFor(size: PixelSize, samples: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(size.width, size.height, { samples, depthBuffer: true, stencilBuffer: false });
 }
 
-function* warmUp(renderer: THREE.WebGLRenderer, root: THREE.Object3D, camera: THREE.Camera, trash: Disposable[]): Generator<PortraitWait, void, void> {
+type Compiled = { programs: unknown; signatures: Set<string> };
+
+const COMPILED = new WeakMap<THREE.WebGLRenderer, Compiled>();
+
+function compiledOn(renderer: THREE.WebGLRenderer): Set<string> {
+  const programs = renderer.info?.programs;
+  const known = COMPILED.get(renderer);
+  if (known && known.programs === programs) return known.signatures;
+  const fresh = { programs, signatures: new Set<string>() };
+  COMPILED.set(renderer, fresh);
+  return fresh.signatures;
+}
+
+export function programSignature(mesh: Drawn): string {
+  const m = mesh.material as THREE.Material & { vertexColors?: boolean; flatShading?: boolean; map?: unknown };
+  const attributes = Object.keys(mesh.geometry.attributes).sort().join(',');
+  return [mesh.type, m.type, m.customProgramCacheKey(), m.side, m.transparent, m.vertexColors, m.flatShading, Boolean(m.map), m.alphaTest > 0, attributes].join('|');
+}
+
+export function coldMeshes(renderer: THREE.WebGLRenderer, meshes: Drawn[]): Drawn[] {
+  const compiled = compiledOn(renderer);
+  const seen = new Set<string>();
+  return meshes.filter((mesh) => {
+    const signature = programSignature(mesh);
+    if (compiled.has(signature) || seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
+}
+
+export function* warmUp(renderer: THREE.WebGLRenderer, root: THREE.Object3D, camera: THREE.Camera, trash: Disposable[]): Generator<PortraitWait, void, void> {
   const meshes: Drawn[] = [];
   root.traverse((o) => {
     if (o instanceof THREE.Mesh && o.visible) meshes.push(o as Drawn);
   });
+  const cold = coldMeshes(renderer, meshes);
+  if (cold.length === 0) return;
   const tiny = targetFor(LOOK.warmSize, LOOK.samples);
   trash.push(tiny);
   const scene = litScene(root);
   for (const mesh of meshes) mesh.visible = false;
-  for (const mesh of meshes) {
+  for (const mesh of cold) {
     mesh.visible = true;
     withRendererState(renderer, () => {
       renderer.setRenderTarget(tiny);
       renderer.render(scene, camera);
     });
     mesh.visible = false;
+    compiledOn(renderer).add(programSignature(mesh));
     yield;
   }
   for (const mesh of meshes) mesh.visible = true;
