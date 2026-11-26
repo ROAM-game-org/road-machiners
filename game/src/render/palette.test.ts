@@ -74,6 +74,22 @@ describe('paintSheetPixels', () => {
     for (let c = 0; c < 3; c++) expect(Math.abs(out[c] - (tan[c] + [0x5a, 0x20, 0x26][c]) / 2)).toBeLessThanOrEqual(2);
   });
 
+  it('paints one rectangle to the same pixels as that rectangle of the whole sheet', () => {
+    const width = 5;
+    const height = 4;
+    const noise = (seed: number): Uint8ClampedArray => Uint8ClampedArray.from({ length: width * height * 4 }, (_, i) => (i * 37 + seed * 101 + (i % 7) * 13) % 256);
+    const wide = noise(1);
+    const shades = noise(2);
+    const whole = paintSheetPixels(wide, shades, STANDARD, TO);
+    const rect = { x: 1, y: 1, w: 3, h: 2, stride: width };
+    const part = paintSheetPixels(wide, shades, STANDARD, TO, rect);
+    expect(part.length).toBe(rect.w * rect.h * 4);
+    for (let row = 0; row < rect.h; row++) {
+      const from = ((rect.y + row) * width + rect.x) * 4;
+      expect([...part.slice(row * rect.w * 4, (row + 1) * rect.w * 4)]).toEqual([...whole.slice(from, from + rect.w * 4)]);
+    }
+  });
+
   it('throws on a mask of another size', () => {
     expect(() => paintSheetPixels(sheet, px(tan), STANDARD, TO)).toThrow(/mask/);
   });
