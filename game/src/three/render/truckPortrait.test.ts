@@ -12,7 +12,7 @@ import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { HONEST_READBACK, REFUSED_READBACK, fakeGpu } from '../../test/fake-gpu';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, chassisSize, warmUp, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
+import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, captureAll, chassisSize, warmUp, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const isCabDef = (def: ReturnType<typeof partDef>): boolean => def.kind === 'core' && def.role === 'cab';
@@ -506,5 +506,27 @@ describe('truck portrait warm-up', () => {
     (renderer.info as unknown as { programs: unknown[] }).programs = [];
     runWarm(renderer, builtRoot());
     expect(renders()).toBeGreaterThan(rendered);
+  });
+
+  it('waits once for a group of passes whose programs are compiled, and once more for each cold pass', () => {
+    const { renderer } = countingRenderer();
+    const fake = renderer as unknown as Record<string, unknown>;
+    fake.compileAsync = () => Promise.resolve();
+    fake.readRenderTargetPixelsAsync = () => Promise.resolve();
+    const target = new THREE.WebGLRenderTarget(2, 2);
+    const camera = new THREE.OrthographicCamera();
+    const sceneOf = () => {
+      const scene = new THREE.Scene();
+      scene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+      return scene;
+    };
+    const waits = (): number => {
+      const passes = [0, 1, 2, 3].map(() => ({ target, camera, prepare: sceneOf }));
+      let count = 0;
+      for (const wait of captureAll(renderer, passes)) if (wait) count++;
+      return count;
+    };
+    expect(waits()).toBe(2);
+    expect(waits()).toBe(1);
   });
 });
