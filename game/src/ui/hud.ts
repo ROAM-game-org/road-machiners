@@ -823,7 +823,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
 }
 
 function heldClockCell(w: World, c: Contract): HTMLElement {
-  const sizers = heldClockSizers(w, c).map((msg) => el('span', { class: 'clock-sizer', 'aria-hidden': 'true' }, msg));
+  const sizers = heldClockSizers(c).map((msg) => el('span', { class: 'clock-sizer', 'aria-hidden': 'true' }, msg));
   return el('span', { class: isLate(w, c) ? 'num clock-cell bad' : 'num clock-cell', title: heldContractDeadline(w, c) ?? undefined }, ...sizers, el('span', { class: 'clock-now' }, heldContractClock(w, c)));
 }
 
