@@ -20,7 +20,8 @@ import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import type { VehicleView } from "./render/vehicle";
 import { ACCENT, PLAIN, scoreEventOf, type Emphasis, type Side, type SoundDirector } from "./sound";
-import { PHYSICS } from "../data/physics";
+import { MOVE_MS, stepShownMs } from "./travel";
+import { countsAsCrash } from "../sim/crash-contact";
 
 export type VolleyHost = {
   world: World;
@@ -305,26 +306,32 @@ export function collisionSteps(events: GameEvent[], result: Steps): TimedCollisi
     return found.step;
   };
   const timed: TimedCollision[] = [];
+  const heard = new Set<TimedCollision>();
   for (const event of events) {
     if (event.t === "claymore") {
-      timed.push({ event, step: blastStep(timed, event) });
+      const blast = { event, step: blastStep(timed, event) };
+      timed.push(blast);
+      heard.add(blast);
       continue;
     }
     if (event.t !== "collision") continue;
+    const smashed = take(result.breaks, (b) => b.vehicle === event.a && b.prop === event.b);
     const step =
-      take(result.breaks, (b) => b.vehicle === event.a && b.prop === event.b) ??
+      smashed ??
       take(result.crashes, (c) => samePair(c, event)) ??
       take(result.landings, (l) => l.vehicle === event.a && event.b === GROUND);
-    timed.push({ event, step });
+    const cue = { event, step };
+    timed.push(cue);
+    if (smashed !== null || countsAsCrash(event.impact)) heard.add(cue);
   }
-  return timed;
+  return timed.filter((cue) => heard.has(cue));
 }
 
-export function scoreEventMs(e: GameEvent, timed: TimedCollision[], endStep: number, impactMs: number): number | null {
+export function scoreEventMs(e: GameEvent, timed: TimedCollision[], impactMs: number): number | null {
   if (e.t === "shot") return null;
   if (e.t === "collision") {
     const hit = timed.find((t) => t.event === e);
-    return hit ? ((hit.step ?? endStep) / PHYSICS.stepsPerSecond) * 1000 : null;
+    return hit ? (hit.step === null ? MOVE_MS : stepShownMs(hit.step)) : null;
   }
   return impactMs;
 }

@@ -28,13 +28,19 @@ describe("scoreEventMs", () => {
     const crashed = hit("a", "b");
     const far = hit("a", "fence1");
     const timed = collisionSteps([crashed, far], { ...none, crashes: [crash("a", "b", 30)] });
-    expect(scoreEventMs(crashed, timed, 60, 1500)).toBe(500);
-    expect(scoreEventMs(far, timed, 60, 1500)).toBe(1000);
+    expect(scoreEventMs(crashed, timed, 1500)).toBeCloseTo((31 * 1000) / 60, 6);
+    expect(scoreEventMs(far, timed, 1500)).toBeCloseTo(1000, 6);
+  });
+
+  it("gives a collision that makes no sound no score time", () => {
+    const nudge = { ...hit("a", "b"), impact: 1.4 } as GameEvent;
+    const timed = collisionSteps([nudge], { ...none, crashes: [crash("a", "b", 30)] });
+    expect(scoreEventMs(nudge, timed, 1500)).toBeNull();
   });
 
   it("leaves shots to their volleys and puts a knockout where the shots land", () => {
-    expect(scoreEventMs({ t: "shot" } as GameEvent, [], 60, 1500)).toBeNull();
-    expect(scoreEventMs(knockout, [], 60, 1500)).toBe(1500);
+    expect(scoreEventMs({ t: "shot" } as GameEvent, [], 1500)).toBeNull();
+    expect(scoreEventMs(knockout, [], 1500)).toBe(1500);
   });
 });
 
@@ -61,6 +67,22 @@ describe("collisionSteps", () => {
   it("takes each candidate once", () => {
     const timed = collisionSteps([hit("a", "b"), hit("a", "b")], { ...none, crashes: [crash("a", "b", 4)] });
     expect(timed.map((t) => t.step)).toEqual([4, null]);
+  });
+});
+
+describe("collisionSteps keeps only heard collisions", () => {
+  const withImpact = (a: string, b: string, impact: number): GameEvent => ({ t: "collision", a, b, impact, hitsA: [], hitsB: [] });
+
+  it("drops contacts under the damage bar and keeps counted crashes, prop smashes and landings", () => {
+    const events = [withImpact("a", "ground", 0), withImpact("a", "b", 1.4), withImpact("a", "c", 3), withImpact("a", "fence1", 0.75), withImpact("a", "ground", 2)];
+    const result = { crashes: [crash("a", "ground", 5), crash("a", "b", 9), crash("a", "c", 12)], breaks: [smash("fence1", "a", 15)], landings: [land("a", 20)] };
+    expect(collisionSteps(events, result).map((t) => [(t.event as { b: string }).b, t.step])).toEqual([["c", 12], ["fence1", 15], ["ground", 20]]);
+  });
+
+  it("still pairs a blast with a crash nobody hears and plays it", () => {
+    const blast: GameEvent = { t: "claymore", vehicle: "a", part: "ram", other: "b", pos: { x: 0, y: 0 }, hits: [], selfHits: [] };
+    const timed = collisionSteps([withImpact("a", "b", 0.5), blast], { ...none, crashes: [crash("a", "b", 12)] });
+    expect(timed.map((t) => [t.event.t, t.step])).toEqual([["claymore", 12]]);
   });
 });
 
