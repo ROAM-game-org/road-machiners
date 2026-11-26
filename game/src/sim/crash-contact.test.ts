@@ -1,7 +1,7 @@
 import { partDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { applyContactCrash, applyGroundCrash, applyLanding, computeClosingSpeed, crashFault, locateCrashContact } from './crash-contact';
+import { applyContactCrash, applyGroundCrash, applyLanding, computeClosingSpeed, countsAsCrash, crashFault, locateCrashContact } from './crash-contact';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
 import { PERK_NUMBERS } from '../data/skills';
 import { isHostile } from './combat';
@@ -394,5 +394,12 @@ describe('crash approach', () => {
     const world = emptyWorld();
     const a = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 40, y: 40 });
     expect(() => applyContactCrash(world, a, null, 'rock', 6, { a: front, b: null }, { a: 6, b: 0 })).toThrow('approach');
+  });
+});
+
+describe('countsAsCrash', () => {
+  it('is false below the damage bar and true at it', () => {
+    expect(countsAsCrash(RULES.collisionMinImpact - 0.01)).toBe(false);
+    expect(countsAsCrash(RULES.collisionMinImpact)).toBe(true);
   });
 });
