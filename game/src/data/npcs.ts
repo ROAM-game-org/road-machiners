@@ -62,7 +62,7 @@ export const PRIORITY_TOP = 3;
 export const SPEED_SHARE = { low: 0.4, high: 0.6 };
 
 export const MIN_NPC_SPEED = RULES.limpSpeed * 2;
-export const RAIDER_CHASE_SPEED = 3.9;
+export const CHASE_SPEED = 3.9;
 
 export const GEAR_DRAWS = 3;
 export const GEAR_WHIM = 0.1;
@@ -178,7 +178,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: { good: "electronics", count: 2 }, weight: 1 },
     ],
     haul: { kg: 400, cells: 5 },
-    minSpeed: RAIDER_CHASE_SPEED,
+    minSpeed: CHASE_SPEED,
     repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
@@ -249,7 +249,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
-    minSpeed: MIN_NPC_SPEED,
+    minSpeed: CHASE_SPEED,
     repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
@@ -264,7 +264,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
-    minSpeed: MIN_NPC_SPEED,
+    minSpeed: CHASE_SPEED,
     repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
@@ -397,7 +397,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
-    minSpeed: MIN_NPC_SPEED,
+    minSpeed: CHASE_SPEED,
     repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
@@ -445,7 +445,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     cargoPart: MOSTLY_NO_CARGO_PART,
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
-    minSpeed: MIN_NPC_SPEED,
+    minSpeed: CHASE_SPEED,
     repairParts: NPC_UPKEEP.repairParts,
     spares: null,
   },
