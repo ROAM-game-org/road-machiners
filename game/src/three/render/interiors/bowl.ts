@@ -43,13 +43,19 @@ type Side = { a: Vec; b: Vec; length: number; along: Vec; inward: Vec };
 type Spot = { x: number; z: number; yaw: number };
 type Disc = { x: number; z: number; r: number };
 
-export function buildBowl(b: SiteBuilder, site: Site): void {
+export function* buildBowl(b: SiteBuilder, site: Site): Generator<void> {
   const taken: Disc[] = [];
-  buildFloor(b, site, taken);
+  yield* buildFloorSteps(b, site, taken);
   b.root.userData.homes = addHouses(b, site, taken);
-  addTerraces(b, site, taken);
+  yield;
+  yield* addTerracesSteps(b, site, taken);
+  yield;
   addSheds(b, site);
-  lampSpots(site, taken).forEach((s, i) => b.addLantern(s.x, s.z, i * 0.5));
+  yield;
+  for (const [i, s] of lampSpots(site, taken).entries()) {
+    b.addLantern(s.x, s.z, i * 0.5);
+    yield;
+  }
 }
 
 function lampSpots(site: Site, taken: Disc[]): Spot[] {
@@ -67,14 +73,16 @@ function lampSpots(site: Site, taken: Disc[]): Spot[] {
   return chosen;
 }
 
-function buildFloor(b: SiteBuilder, site: Site, taken: Disc[]): void {
+function* buildFloorSteps(b: SiteBuilder, site: Site, taken: Disc[]): Generator<void> {
   requireFlat(site, POND.x, POND.z, 2 * POND.r + 1, 'pond');
   b.addTank(POND.x, POND.z, POND.r, 0.05, PAL.water);
   b.addBox(POND.x - 1.2, POND.z - 1.6, 1.4, 0.08, 0.5, PAL.crate, 0.05, 0.6);
   addPondFence(b);
   taken.push({ ...POND, r: POND.r + 1.4 });
+  yield;
   addWindmill(b, site);
   taken.push({ ...WINDMILL, r: 1.5 });
+  yield;
   for (const tank of TANKS) {
     requireFlat(site, tank.x, tank.z, 1.4, 'stilt tank');
     b.addModel('stilt_tank', tank.x, tank.z, 0.3);
@@ -83,6 +91,7 @@ function buildFloor(b: SiteBuilder, site: Site, taken: Disc[]): void {
   requireFlat(site, GREENHOUSE.x, GREENHOUSE.z, 3.6, 'greenhouse');
   b.addModel('quonset', GREENHOUSE.x, GREENHOUSE.z, GREENHOUSE.yaw, GREENHOUSE.scale);
   taken.push({ ...GREENHOUSE, r: 2.6 });
+  yield;
 }
 
 function addPondFence(b: SiteBuilder): void {
@@ -133,13 +142,15 @@ function isFloorSpot(site: Site, s: Spot, span: number, taken: Disc[]): boolean 
   return flatDepth(site, s.x, s.z, span) !== null && !taken.some((d) => Math.hypot(d.x - s.x, d.z - s.z) < d.r + span / 2);
 }
 
-function addTerraces(b: SiteBuilder, site: Site, taken: Disc[]): void {
+function* addTerracesSteps(b: SiteBuilder, site: Site, taken: Disc[]): Generator<void> {
   const sides = curtainSides(site);
   const stairs = sides.flatMap((side) => sideStair(site, side));
   const clear = [...taken, ...stairs.map((s) => ({ x: s.x, z: s.z, r: STAIR.width }))];
   const rows: Spot[] = [];
   const trees: Spot[] = [];
-  for (const tile of fieldTiles(site, sides, clear)) plantTile(site, tile, rows, trees);
+  const tiles = yield* fieldTilesSteps(site, sides, clear);
+  for (const tile of tiles) plantTile(site, tile, rows, trees);
+  yield;
   b.root.add(boxes('bowl-crops', rows, { w: ROW.length, h: ROW.height, d: ROW.width }, CROP, b));
   b.root.add(boxes('bowl-stairs', stairs, { w: STAIR.width, h: STAIR.height, d: STAIR.step }, STAIR_COLOR, b));
   b.addInstances('fruit_tree', trees).name = 'bowl-trees';
@@ -161,14 +172,22 @@ function onSide(site: Site, side: Side, s: number, d: number): Vec {
   return { x: side.a.x + side.along.x * s + side.inward.x * d - site.pos.x, y: side.a.y + side.along.y * s + side.inward.y * d - site.pos.y };
 }
 
-function fieldTiles(site: Site, sides: Side[], clear: Disc[]): Spot[] {
+function* fieldTilesSteps(site: Site, sides: Side[], clear: Disc[]): Generator<void, Spot[]> {
   const tiles: Spot[] = [];
   const reach = Math.ceil(site.radius);
   for (let x = Math.floor(site.pos.x) - reach; x < site.pos.x + reach; x++) {
-    for (let y = Math.floor(site.pos.y) - reach; y < site.pos.y + reach; y++) {
-      const tile = fieldTile(site, sides, { x: x + 0.5, y: y + 0.5 });
-      if (tile !== null && !clear.some((d) => Math.hypot(d.x - tile.x, d.z - tile.z) < d.r + 0.5)) tiles.push(tile);
-    }
+    tiles.push(...fieldColumn(site, sides, clear, x));
+    yield;
+  }
+  return tiles;
+}
+
+function fieldColumn(site: Site, sides: Side[], clear: Disc[], x: number): Spot[] {
+  const tiles: Spot[] = [];
+  const reach = Math.ceil(site.radius);
+  for (let y = Math.floor(site.pos.y) - reach; y < site.pos.y + reach; y++) {
+    const tile = fieldTile(site, sides, { x: x + 0.5, y: y + 0.5 });
+    if (tile !== null && !clear.some((d) => Math.hypot(d.x - tile.x, d.z - tile.z) < d.r + 0.5)) tiles.push(tile);
   }
   return tiles;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Mesh, Vector3, type Object3D } from 'three';
+import { Group, Mesh, Vector3, type Object3D } from 'three';
 import { PHYSICS } from '../../data/physics';
 import { FALLEN_SUN_DECKS } from '../../data/territory';
 import { deckById, type Deck } from '../../sim/bridge';
@@ -7,7 +7,9 @@ import { deckHeight, deckSegments, groundAt } from '../../sim/terrain';
 import { segmentDist, type Vec } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
-import { buildShipDecks } from './ship-decks';
+import { addShipDecks, buildShipDecks } from './ship-decks';
+import { RenderScope, SightLimit } from './scope';
+import { TERRAIN_CHUNK } from './terrain';
 
 const S = PHYSICS.metersPerTile;
 const t = TEST_MAP.terrain;
@@ -125,3 +127,27 @@ describe('Fallen Sun deck skirts', () => {
     for (const spec of FALLEN_SUN_DECKS) expect(deckById(spec.id).skirt, spec.id).toBe(true);
   });
 });
+
+describe('streamed ship decks', () => {
+  it('build each deck in a step per plate and one for the skirt, into the same objects as the one-call build', () => {
+    const scope = new RenderScope(new Group(), t.size, new SightLimit(t.size), false, false);
+    addShipDecks(t, scope);
+    const looks = FALLEN_SUN_DECKS.map((spec) => deckById(spec.id));
+    for (const deck of looks) {
+      const mid = { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 };
+      const cell = Math.floor(mid.y / TERRAIN_CHUNK) * scope.cellsPerSide + Math.floor(mid.x / TERRAIN_CHUNK);
+      let steps = 0;
+      while (scope.buildNext(cell) === 'stepped') steps++;
+      const streamed = scope.groupOf(cell).getObjectByName(`ship-deck-${deck.id}`)!;
+      expect(steps, deck.id).toBe(deckSegments(t, deck).length + 1);
+      expect(shapeOf(streamed), deck.id).toEqual(shapeOf(decks.getObjectByName(`ship-deck-${deck.id}`)!));
+    }
+  });
+});
+
+function shapeOf(root: Object3D): string[] {
+  root.updateMatrixWorld(true);
+  const shape: string[] = [];
+  root.traverse((o) => shape.push(`${o.name}:${o.type}:${o instanceof Mesh ? o.geometry.getAttribute('position').count : 0}:${o.matrixWorld.elements.map((v) => v.toFixed(4)).join(',')}`));
+  return shape;
+}

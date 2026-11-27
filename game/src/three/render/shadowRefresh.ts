@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { GpuContext } from '../gpu-context';
 import { enableSunShadows } from './shadowFilter';
+import { count, timed } from '../../perf';
 
 type Values = { list: number[]; at: number; changed: boolean };
 type Caster = { values: Values; stamp: number };
@@ -107,11 +108,13 @@ export class ShadowRefresh {
   private standingCount = 0;
 
   update(scene: THREE.Scene): void {
-    this.lights.length = 0;
-    this.standingCount = 0;
-    this.visit(scene);
-    for (const light of this.lights) this.settle(light);
-    this.drawNextWaiting();
+    timed('shadow-check', () => {
+      this.lights.length = 0;
+      this.standingCount = 0;
+      this.visit(scene);
+      for (const light of this.lights) this.settle(light);
+      this.drawNextWaiting();
+    });
   }
 
   forget(): void {
@@ -167,6 +170,7 @@ export class ShadowRefresh {
   }
 
   private owe(light: ShadowLight, isNew: boolean): void {
+    if (!isBeam(light)) count('shadow-refresh');
     if (isNew || !isBeam(light)) light.shadow.needsUpdate = true;
     else if (!this.waiting.includes(light)) this.waiting.push(light);
   }

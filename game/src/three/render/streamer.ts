@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { count, timed } from '../../perf';
+import { count, record, timed } from '../../perf';
 import type { Vec } from '../../sim/vec';
 import type { Rect, RenderScope } from './scope';
 
@@ -40,8 +40,10 @@ export class CellStreamer {
   frame(center: Vec, reach: number, lead: number): void {
     const touched = new Map<RenderScope, Set<number>>();
     const blocked = wantedCells(this.scopes, center, reach);
-    if (blocked.length > 0) count('stream-block', blocked.length);
-    for (const cell of blocked) this.buildCell(cell, touched);
+    if (blocked.length > 0) {
+      count('stream-block', blocked.length);
+      timed('stream-block-ms', () => blocked.forEach((cell) => this.buildCell(cell, touched)));
+    }
     const ahead = wantedCells(this.scopes, center, lead);
     if (ahead.length > 0) timed('stream-build', () => this.buildAhead(ahead, touched));
     for (const [scope, cells] of touched) for (const cell of cells) this.prepare(scope.groupOf(cell));
@@ -70,8 +72,11 @@ export class CellStreamer {
 
   private buildOne(cell: number, touched: Touched | null): boolean {
     for (const scope of this.scopes) {
-      if (!scope.buildNext(cell)) continue;
-      if (touched) touched.set(scope, (touched.get(scope) ?? new Set()).add(cell));
+      const start = performance.now();
+      const step = scope.buildNext(cell);
+      if (step === null) continue;
+      record('stream-step', performance.now() - start);
+      if (touched && step === 'built') touched.set(scope, (touched.get(scope) ?? new Set()).add(cell));
       return true;
     }
     return false;

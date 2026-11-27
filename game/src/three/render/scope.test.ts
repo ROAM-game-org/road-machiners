@@ -224,6 +224,42 @@ describe('render scope placements', () => {
     expect(attached(obj, root)).toBe(false);
   });
 
+  it('builds a stepped placement over several calls into the same object, and counts it pending until done', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, false);
+    const at = { x: 40, y: 40 };
+    let stepped = 0;
+    const p = scope.place(at, 1, {
+      *steps() {
+        for (let i = 0; i < 3; i++, stepped++) yield;
+        return mesh('stepped', at)();
+      },
+    });
+    expect([scope.buildNext(p.cell), scope.buildNext(p.cell), scope.buildNext(p.cell)]).toEqual(['stepped', 'stepped', 'stepped']);
+    expect(p.built).toBeNull();
+    expect(scope.pendingCount).toBe(1);
+    expect(scope.waitingCells().has(p.cell)).toBe(true);
+    expect(scope.buildNext(p.cell)).toBe('built');
+    expect(stepped).toBe(3);
+    expect(p.built?.name).toBe('stepped');
+    expect(attached(p.built!, root)).toBe(true);
+    expect(scope.pendingCount).toBe(0);
+    expect(scope.buildNext(p.cell)).toBeNull();
+  });
+
+  it('drops a stepped placement removed halfway, and builds the next one whole', () => {
+    const scope = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, false);
+    const at = { x: 40, y: 40 };
+    const half = scope.place(at, 1, { *steps() { yield; yield; return mesh('half', at)(); } });
+    const next = scope.place(at, 1, mesh('next', at));
+    scope.buildNext(half.cell);
+    scope.remove(half);
+    expect(scope.buildNext(next.cell)).toBe('built');
+    expect(next.built?.name).toBe('next');
+    expect(half.built).toBeNull();
+    expect(scope.pendingCount).toBe(0);
+  });
+
   it('throws at build time when a placement leaves its claim', () => {
     const scope = new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, false);
     const p = scope.place({ x: 40, y: 40 }, 1, mesh('stray', { x: 90, y: 40 }));

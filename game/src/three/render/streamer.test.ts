@@ -116,6 +116,8 @@ describe('cell streamer', () => {
     streamer.frame({ x: 10, y: 10 }, 40, 40);
     expect(s.pendingCount).toBe(0);
     expect(perfSnapshot()['stream-block'].calls).toBe(1);
+    expect(perfSnapshot()['stream-block-ms'].calls).toBe(1);
+    expect(perfSnapshot()['stream-step'].calls).toBe(20);
   });
 
   it('stops lead cells once the budget is spent, so only the placement already running overruns', () => {
@@ -127,6 +129,28 @@ describe('cell streamer', () => {
     streamer.frame({ x: 10, y: 10 }, 20, 400);
     expect(s.pendingCount).toBe(6 - 2);
     expect(perfSnapshot()['stream-block']).toBeUndefined();
+  });
+
+  it('checks the budget between the steps of one placement, and finishes a stepped placement in reach the same frame', () => {
+    resetPerf();
+    const s = scope();
+    const stepped = (name: string, at: Vec, count: number) => ({
+      *steps() {
+        for (let i = 0; i < count; i++) yield;
+        return box(name, at)();
+      },
+    });
+    const near = { x: 10, y: 10 };
+    const far = { x: 10 + 4 * TERRAIN_CHUNK, y: 10 };
+    const inReach = s.place(near, 1, stepped('near', near, 5));
+    const ahead = s.place(far, 1, stepped('far', far, 5));
+    const streamer = new CellStreamer([s], () => {}, clock(4), 10);
+    streamer.frame(near, 20, 400);
+    expect(inReach.built?.name).toBe('near');
+    expect(ahead.built).toBeNull();
+    expect(perfSnapshot()['stream-step'].calls).toBe(6 + 2);
+    for (let frame = 0; frame < 3; frame++) streamer.frame(near, 20, 400);
+    expect(ahead.built?.name).toBe('far');
   });
 
   it('builds a cell ground first, then props, then decals', () => {

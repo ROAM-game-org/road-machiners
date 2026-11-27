@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { holdGroundDetail } from "./groundDetail";
 import { type GroundCacheUniforms } from "./groundShader";
 import { tuningVersion } from "./inkTuning";
+import { count, timed } from "../../perf";
 
 const HAZE_REACH_PX = 32;
 const MOVING_LENS_DENSITY = 0.5;
@@ -94,7 +95,7 @@ export class GroundCache {
     this.up.setFromMatrixColumn(camera.matrixWorld, 1);
     const view = `${lens}|${this.density}|${this.signature()}`;
     const fresh = view !== this.view;
-    if (fresh) this.anchor.copy(camera.position);
+    if (fresh) this.reanchor(camera);
     const offset = this.offset.copy(camera.position).sub(this.anchor);
     const x = Math.round(offset.dot(this.right) / meterX);
     const y = Math.round(offset.dot(this.up) / meterY);
@@ -107,8 +108,13 @@ export class GroundCache {
     this.view = view;
     this.shift = { x, y };
     this.uniforms.groundCacheShift.value.set(mod(x, target.width), mod(y, target.height));
-    if (areas.length) this.fill(camera, target, areas, x, y, width, height);
+    if (areas.length) timed("ground-fill", () => this.fill(camera, target, areas, x, y, width, height));
     this.renderer.setRenderTarget(into);
+  }
+
+  private reanchor(camera: THREE.OrthographicCamera): void {
+    count("ground-refill");
+    this.anchor.copy(camera.position);
   }
 
   private signature(): string {
