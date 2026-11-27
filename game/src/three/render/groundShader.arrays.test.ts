@@ -11,4 +11,8 @@ describe("ground shader source", () => {
   it("declares no local array of values", () => {
     expect(source).not.toMatch(/^\s*(vec[234]|ivec[234]|float|int)\s+\w+\s*\[\s*\w+\s*\]\s*=/m);
   });
+
+  it("ranks no pair of materials for the border, so a third material draws no straight cut", () => {
+    expect(source).not.toMatch(/drawnPairField|\.lo\b|\.hi\b|drawnSamePair/);
+  });
 });
