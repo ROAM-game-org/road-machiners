@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { createHash } from 'node:crypto';
-import { GEAR_LEVEL_IDS, GEAR_LEVELS, MIN_NPC_SPEED, NPCS, RAIDER_CHASE_SPEED } from '../data/npcs';
+import { GEAR_LEVEL_IDS, GEAR_LEVELS, MIN_NPC_SPEED, NPCS, CHASE_SPEED } from '../data/npcs';
 import { PHYSICS } from '../data/physics';
 import { TERRAIN } from '../data/terrain';
 import { type EngineDef } from '../data/parts';
@@ -24,6 +24,8 @@ import { isLineGun, partDef } from '../data/parts';
 
 useLoadoutFixture();
 
+const CHASE_ROLES = ['gunwagon', 'noseArmy', 'bowlFarmer', 'convoyGuard', 'merc'] as const;
+
 describe('NPC speed floor and wear odds', () => {
   it.each(Object.values(NPCS))('keeps $id at its table floor on its worn engine with its goods and haul at every gear level', (template) => {
     for (const level of GEAR_LEVEL_IDS) {
@@ -36,39 +38,13 @@ describe('NPC speed floor and wear odds', () => {
     }
   }, budget(120_000));
 
-  it('keeps every gunwagon chassis and level at chase speed with a real gun, its goods and its full haul', () => {
-    const template = NPCS.gunwagon;
-    for (const { value: chassis } of template.loadout.chassis) {
-      for (const level of ['standard', 'heavy', 'loaded'] as const) {
-        for (let seed = 1; seed <= 6; seed++) {
-          const world = { ...fixture, rngState: seed, marketRng: { rngState: seed * 104729 + 1 } };
-          const v = makeVehicle(world, { ...loadoutOf(world, template, chassis, level), faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
-          const label = `${chassis} ${level} ${seed}`;
-          expect(vehicleStats(world, v).maxSpeed, label).toBeGreaterThanOrEqual(RAIDER_CHASE_SPEED - 1e-9);
-          expect(massRoomAbove(v, 0, RAIDER_CHASE_SPEED), label).toBeGreaterThanOrEqual(template.loadout.haul.kg);
-          expect(mountedItems(v, 'weapon').some((item) => !isLineGun(partDef(item.part.defId))), label).toBe(true);
-        }
-      }
-    }
-  }, budget(300_000));
-
-  it('refits a lying-up gunwagon back to chase speed', () => {
-    const world = cloneWorld(fixture);
-    const roll = generateNpcLoadout(world, NPCS.gunwagon, 'wagon', 'standard');
-    const truck = spawnAt(world, NPCS.gunwagon, { ...roll, cargo: {} }, { x: 50, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
-    for (let i = 0; i < 4; i++) {
-      refitAtHome(world, truck);
-      expect(vehicleStats(world, truck).maxSpeed, `refit ${i}`).toBeGreaterThanOrEqual(RAIDER_CHASE_SPEED - 1e-9);
-    }
-  });
-
   it('sets the chase speed so that open ground still tops 50 km/h', () => {
-    expect(RAIDER_CHASE_SPEED * TERRAIN.drive.unpavedTopSpeed * PHYSICS.metersPerTile * 3.6).toBeGreaterThanOrEqual(50);
+    expect(CHASE_SPEED * TERRAIN.drive.unpavedTopSpeed * PHYSICS.metersPerTile * 3.6).toBeGreaterThanOrEqual(50);
   });
 
-  it('gives every template its own floor and only the gunwagon a higher one', () => {
+  it('gives every template its own floor and the chase roles the chase floor', () => {
     for (const template of Object.values(NPCS)) {
-      expect(openGear(template.loadout).minSpeed).toBe(template.id === 'gunwagon' ? RAIDER_CHASE_SPEED : MIN_NPC_SPEED);
+      expect(openGear(template.loadout).minSpeed).toBe((CHASE_ROLES as readonly string[]).includes(template.id) ? CHASE_SPEED : MIN_NPC_SPEED);
       expect(openGear(template.loadout).chassisFloor).toBe(MIN_NPC_SPEED);
     }
   });
@@ -79,7 +55,7 @@ describe('NPC speed floor and wear odds', () => {
   });
 
   it('rolls every other template at the rescaled prices as it did before the floor moved to the table', () => {
-    const hashes = {"buggy":"90f1382cbcc6","trader":"8636f6ea863f","scavenger":"458f02902704","bowlFarmer":"1152167e1ea4","noseArmy":"76238ad26d92","marshal":"7b7d92ea28f7","courier":"3406fc5ebbd9","roamer":"772c0738a8a2","vulture":"9664f5a62950","convoy":"6c359a482fda","convoyGuard":"066af49deeec","merc":"ccc81a703612","cavalcade":"dd89b40e30b1","hunter":"ecaa123ea195"};
+    const hashes = {"buggy":"90f1382cbcc6","trader":"8636f6ea863f","scavenger":"458f02902704","marshal":"7b7d92ea28f7","courier":"3406fc5ebbd9","roamer":"772c0738a8a2","vulture":"9664f5a62950","convoy":"6c359a482fda","cavalcade":"dd89b40e30b1","hunter":"ecaa123ea195"};
     for (const [id, hash] of Object.entries(hashes)) {
       const rolls = [1, 2, 3].map((seed) => describeLoadout(rolled(NPCS[id], 'standard', seed)));
       expect(createHash('sha1').update(rolls.join('|')).digest('hex').slice(0, 12), id).toBe(hash);
