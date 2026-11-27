@@ -45,15 +45,17 @@ type Disc = { x: number; z: number; r: number };
 
 export function* buildBowl(b: SiteBuilder, site: Site): Generator<void> {
   const taken: Disc[] = [];
-  buildFloor(b, site, taken);
-  yield;
+  yield* buildFloorSteps(b, site, taken);
   b.root.userData.homes = addHouses(b, site, taken);
   yield;
   addTerraces(b, site, taken);
   yield;
   addSheds(b, site);
   yield;
-  lampSpots(site, taken).forEach((s, i) => b.addLantern(s.x, s.z, i * 0.5));
+  for (const [i, s] of lampSpots(site, taken).entries()) {
+    b.addLantern(s.x, s.z, i * 0.5);
+    yield;
+  }
 }
 
 function lampSpots(site: Site, taken: Disc[]): Spot[] {
@@ -71,14 +73,16 @@ function lampSpots(site: Site, taken: Disc[]): Spot[] {
   return chosen;
 }
 
-function buildFloor(b: SiteBuilder, site: Site, taken: Disc[]): void {
+function* buildFloorSteps(b: SiteBuilder, site: Site, taken: Disc[]): Generator<void> {
   requireFlat(site, POND.x, POND.z, 2 * POND.r + 1, 'pond');
   b.addTank(POND.x, POND.z, POND.r, 0.05, PAL.water);
   b.addBox(POND.x - 1.2, POND.z - 1.6, 1.4, 0.08, 0.5, PAL.crate, 0.05, 0.6);
   addPondFence(b);
   taken.push({ ...POND, r: POND.r + 1.4 });
+  yield;
   addWindmill(b, site);
   taken.push({ ...WINDMILL, r: 1.5 });
+  yield;
   for (const tank of TANKS) {
     requireFlat(site, tank.x, tank.z, 1.4, 'stilt tank');
     b.addModel('stilt_tank', tank.x, tank.z, 0.3);
@@ -87,6 +91,7 @@ function buildFloor(b: SiteBuilder, site: Site, taken: Disc[]): void {
   requireFlat(site, GREENHOUSE.x, GREENHOUSE.z, 3.6, 'greenhouse');
   b.addModel('quonset', GREENHOUSE.x, GREENHOUSE.z, GREENHOUSE.yaw, GREENHOUSE.scale);
   taken.push({ ...GREENHOUSE, r: 2.6 });
+  yield;
 }
 
 function addPondFence(b: SiteBuilder): void {

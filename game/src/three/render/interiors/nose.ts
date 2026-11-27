@@ -95,14 +95,16 @@ export function* buildNose(b: SiteBuilder, site: Site): Generator<void> {
   yield;
   const gates = gateDiscs(site);
   const taken = [...gates];
-  addYard(b, f, taken, gates);
-  yield;
+  yield* addYardSteps(b, f, taken, gates);
   b.root.userData.homes = addShelters(b, site, f, taken);
   yield;
   addRubble(b, site, f, taken);
   yield;
   b.root.userData.structures = taken;
-  lampSpots(site, f, taken).forEach((s, i) => b.addLantern(s.x, s.z, i * 0.7));
+  for (const [i, s] of lampSpots(site, f, taken).entries()) {
+    b.addLantern(s.x, s.z, i * 0.7);
+    yield;
+  }
 }
 
 function lampSpots(site: Site, f: Frame, taken: Disc[]): Spot[] {
@@ -172,23 +174,27 @@ function claim(taken: Disc[], gates: Disc[], name: string, p: Point, r: number):
   taken.push({ ...p, r });
 }
 
-function addYard(b: SiteBuilder, f: Frame, taken: Disc[], gates: Disc[]): void {
+function* addYardSteps(b: SiteBuilder, f: Frame, taken: Disc[], gates: Disc[]): Generator<void> {
   for (const u of SCAFFOLD_RUN) {
     const p = placeAt(f, u, RISE.front - SCAFFOLD_BACK);
     b.addModel('hull_scaffold', p.x, p.z, f.faceYaw).name = 'nose-scaffold';
     claim(taken, gates, 'scaffold', p, 2.2);
   }
+  yield;
   addAwning(b, f, taken, gates);
+  yield;
   const tower = placeAt(f, WATER_TOWER.u, WATER_TOWER.v);
   b.addModel('water_tower', tower.x, tower.z, f.faceYaw, WATER_TOWER.scale).name = 'nose-water-tower';
   claim(taken, gates, 'water tower', tower, 1.8);
   const crane = placeAt(f, JIB_CRANE.u, JIB_CRANE.v);
   b.addModel('jib_crane', crane.x, crane.z, f.faceYaw + Math.PI / 2).name = 'nose-jib-crane';
   claim(taken, gates, 'jib crane', crane, 2.6);
+  yield;
   for (const [i, c] of CRATES.entries()) {
     const p = placeAt(f, c.u, c.v);
     b.addModel('crates', p.x, p.z, i * 1.3);
     claim(taken, gates, 'crate', p, 1);
+    yield;
   }
   const p = placeAt(f, VAN.u, VAN.v);
   const van = b.addModel('base_van', p.x, p.z, f.faceYaw + VAN.yaw);

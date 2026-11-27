@@ -25,11 +25,15 @@ const YARD_PROPS = [
   { name: 'drums', x: -0.3, z: -1.2, yaw: 1.2 },
 ] as const;
 
-export function buildSalvageYard(b: SiteBuilder): void {
+export function* buildSalvageYard(b: SiteBuilder): Generator<void> {
   addCrane(b);
+  yield;
   addContainer(b);
+  yield;
   addShed(b, 'salvage', YARD_SHED);
+  yield;
   for (const stack of STACKS) addScrapStack(b, stack);
+  yield;
   b.addModel('wreck', JEEP.x, JEEP.z, JEEP.yaw).name = 'salvage-jeep';
   for (const w of WRECKS) b.addModel('wreck_sedan', w.x, w.z, w.yaw).name = 'salvage-wreck';
   for (const p of YARD_PROPS) b.addModel(p.name, p.x, p.z, p.yaw);

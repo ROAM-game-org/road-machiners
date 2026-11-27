@@ -1,25 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Box3, Group, InstancedMesh, Matrix4, Mesh, Scene, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
 import { loadModels, MODEL_GLOW } from './models';
-import { addSites, buildSites, lampMount } from './sites';
+import { addSites, buildSites, HollowLamps, lampMount, SiteBuilder, siteSteps } from './sites';
+import { HOLLOW } from '../../data/sunward';
 import { RenderScope, SightLimit } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
 import { PlayClock } from '../play-clock';
 import { FORTRESS } from '../../data/fortress';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
-import { REGION } from '../../data/region';
+import { REGION, type SiteLocationDef, type TownDef } from '../../data/region';
 import { fortressGates, fortressPieces, insideCurtain, onFortressRock, pitDepth } from '../../sim/fortress';
 import { TOWARD_CAMERA } from './camera';
 import { GATE_CLEAR, riseFront } from './interiors/nose';
 import { boxDistance, propBoxes, propObstacle, propShape } from '../../sim/mapgen';
 import { noseFrame, noseRocks } from '../../sim/nose';
-import { isFortress } from '../../sim/sites';
+import { isFortress, siteLook } from '../../sim/sites';
 import { deckAt, deckById } from '../../sim/bridge';
 import { heightAt, type Terrain } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { ICARUS_DECKS } from '../../sim/bridge';
-import { ICARUS_KEY } from '../../sim/atlas';
+import { atlasOf, ICARUS_KEY } from '../../sim/atlas';
 import { highwayMap, outpostFort } from '../../sim/highway';
 import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL, SiteLights } from './siteLights';
 
@@ -826,6 +827,42 @@ function siteIn(world: typeof built, id: string): Object3D {
   return found;
 }
 
+const STEP_PIECES = 48;
+
+function piecesIn(root: Object3D): number {
+  let count = 0;
+  root.traverse(() => count++);
+  return count;
+}
+
+function piecesPerStep(run: Iterator<void, unknown>, root: Object3D): number[] {
+  const added: number[] = [];
+  let pieces = piecesIn(root);
+  for (let done = false; !done; ) {
+    done = run.next().done === true;
+    const now = piecesIn(root);
+    added.push(now - pieces);
+    pieces = now;
+  }
+  return added;
+}
+
+function shapeOf(root: Object3D): string[] {
+  root.updateMatrixWorld(true);
+  const shape: string[] = [];
+  root.traverse((o) => {
+    const vertices = o instanceof Mesh ? o.geometry.getAttribute('position').count : 0;
+    const material = o instanceof Mesh ? (Array.isArray(o.material) ? o.material : [o.material]).map((m) => `${m.type}#${'color' in m ? m.color.getHexString() : ''}`).join('+') : '';
+    shape.push(`${o.name}:${o.type}:${vertices}:${material}:${o.matrixWorld.elements.map((v) => v.toFixed(4)).join(',')}`);
+  });
+  return shape;
+}
+
+function sitesOn(t: Terrain): (TownDef | SiteLocationDef)[] {
+  const atlas = atlasOf(t);
+  return [...atlas.towns, ...atlas.locations.filter((l): l is SiteLocationDef => l.kind !== 'territory')];
+}
+
 function halosIn(root: Object3D): Vector3[] {
   root.updateMatrixWorld(true);
   const at: Vector3[] = [];
@@ -838,11 +875,11 @@ function halosIn(root: Object3D): Vector3[] {
 describe('merged static meshes', () => {
   const roadTerrain = highwayMap(3, 1).terrain;
   const worlds = [
-    { name: 'the sites of the map', loose: built, merged: buildSites(FLAT_TERRAIN), ids: ALL.map((s) => s.id) },
-    { name: 'the outposts of the Chaos Highway', loose: buildSites(roadTerrain, false), merged: buildSites(roadTerrain), ids: [1, 2].map((j) => outpostFort(3, 1, j).id) },
+    { name: 'the sites of the map', terrain: FLAT_TERRAIN, loose: built, merged: buildSites(FLAT_TERRAIN), ids: ALL.map((s) => s.id) },
+    { name: 'the outposts of the Chaos Highway', terrain: roadTerrain, loose: buildSites(roadTerrain, false), merged: buildSites(roadTerrain), ids: [1, 2].map((j) => outpostFort(3, 1, j).id) },
   ];
 
-  it('streams the Nose in many steps into the same objects as its one-call build, and lights it once done', () => {
+  it('streams the Nose through the render scope in many steps, and lights it once done', () => {
     const nose = ALL.find((s) => s.id === 'nose')!;
     const scope = new RenderScope(new Group(), REGION.size, new SightLimit(REGION.size), false, false);
     const siteLights = new SiteLights(new Scene(), null, { worldSize: 8, maxTextureSize: 64, spotShadows: false });
@@ -853,15 +890,42 @@ describe('merged static meshes', () => {
     while (scope.buildNext(cell) === 'stepped') steps++;
     expect(added).toHaveBeenCalledOnce();
     expect(added.mock.calls[0][0].map((l) => l.siteId)).toContain('nose');
-    const streamed = scope.groupOf(cell).getObjectByName('landmark-nose')!;
-    const shape = (root: Object3D) => {
-      const names: string[] = [];
-      root.traverse((o) => names.push(`${o.name}:${o.type}:${o.position.toArray().map((v) => v.toFixed(3)).join(',')}`));
-      return names;
-    };
     expect(steps).toBeGreaterThan(10);
-    expect(shape(streamed)).toEqual(shape(siteIn(worlds[0].merged, 'nose')));
+    expect(shapeOf(scope.groupOf(cell).getObjectByName('landmark-nose')!)).toEqual(shapeOf(siteIn(worlds[0].merged, 'nose')));
   });
+
+  it('builds the Hollow lamps in steps, with every gate lamp, lantern and fire lit by one halo', () => {
+    const site = HOLLOW.site;
+    const scope = new RenderScope(new Group(), REGION.size, new SightLimit(REGION.size), false, false);
+    new HollowLamps(FLAT_TERRAIN, scope);
+    const cell = Math.floor(site.pos.y / TERRAIN_CHUNK) * scope.cellsPerSide + Math.floor(site.pos.x / TERRAIN_CHUNK);
+    let steps = 0;
+    while (scope.buildNext(cell) === 'stepped') steps++;
+    const hollow = scope.groupOf(cell).children.at(-1)!;
+    expect(steps).toBeGreaterThan(1);
+    expect(hollow.userData.streamKind).toBe('hollow');
+    expect(halosIn(hollow)).toHaveLength(fortressGates(site).length + HOLLOW.lanterns.length + 1);
+  });
+
+  it(`builds every site look in steps of at most ${STEP_PIECES} new objects, into the same objects as its one-call build (IV1, IV4)`, () => {
+    const looks = new Set<string>();
+    const overs: string[] = [];
+    for (const { terrain, merged, ids } of worlds) {
+      for (const id of ids) {
+        const site = sitesOn(terrain).find((s) => s.id === id)!;
+        const b = new SiteBuilder(terrain, site);
+        const added = piecesPerStep(siteSteps(terrain, site, true, b), b.root);
+        added.forEach((count, step) => {
+          if (count > STEP_PIECES) overs.push(`${siteLook(site)} (${id}) step ${step}: ${count}`);
+        });
+        expect(shapeOf(b.root), id).toEqual(shapeOf(siteIn(merged, id)));
+        looks.add(siteLook(site));
+      }
+    }
+    expect(overs).toEqual([]);
+    expect([...looks].sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'marshal-post', 'nose', 'outpost', 'pump-station', 'salvage-yard', 'scrapjaw']);
+  });
+
 
   it('draws every site with under 60% of its meshes, and the Bowl with under 40%', () => {
     const shares: number[] = [];

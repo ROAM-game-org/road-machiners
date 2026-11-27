@@ -159,9 +159,6 @@ export class SiteBuilder {
     this.root.add(group);
     return group;
   }
-  mergeStatic(kept: readonly THREE.Object3D[]): void {
-    finishSteps(this.mergeStaticSteps(kept));
-  }
   mergeStaticSteps(kept: readonly THREE.Object3D[]): Generator<void> {
     return mergeStaticSteps(this.root, kept, new THREE.Vector3(this.site.pos.x * S, this.groundAt(0, 0) * S, this.site.pos.y * S));
   }
@@ -229,12 +226,15 @@ export function lampMount(site: Site, piece: FortressLampPiece): FortressLampMou
   return mount;
 }
 
-function dressGates(b: SiteBuilder, site: Site, t: Terrain): void {
+function* dressGatesSteps(b: SiteBuilder, site: Site, t: Terrain): Generator<void> {
   const guarded = isBannered(site);
   const first = b.root.children.length;
   const placed = placedPieces(site, t);
-  for (const fort of fortressGates(site)) dressGate(b, site, fort, guarded, gateBase(placed, fort));
-  addSconces(b, site, placed);
+  for (const fort of fortressGates(site)) {
+    dressGate(b, site, fort, guarded, gateBase(placed, fort));
+    yield;
+  }
+  yield* addSconcesSteps(b, site, placed);
   b.addFill();
   for (const piece of b.root.children.slice(first)) piece.userData.gateFurniture = true;
 }
@@ -321,22 +321,34 @@ function clearOfTowers(towers: Placed[], m: Mount): boolean {
   return towers.every((t) => Math.hypot(t.centre.x - m.lamp.x, t.centre.z - m.lamp.z) >= SCONCE.towerClear);
 }
 
-function addSconces(b: SiteBuilder, site: Site, all: Placed[]): void {
+function* addSconcesSteps(b: SiteBuilder, site: Site, all: Placed[]): Generator<void> {
   const towers = all.filter((p) => p.piece.kind === 'tower');
   const walls = all.filter((p) => p.piece.kind === 'wall');
+  hangOutsideSconces(b, site, towers);
+  yield;
+  for (const m of innerSconces(site, towers, walls)) {
+    hangSconce(b, m);
+    yield;
+  }
+}
+
+function hangOutsideSconces(b: SiteBuilder, site: Site, towers: Placed[]): void {
   const outside = outsideTowers(site, towers);
   if (towers.length > 0 && outside.length === 0) throw new Error(`Fort ${site.id} has towers but no outside lamp`);
   for (const t of outside) {
     const m = outermost(t.mounts, t.centre);
     if (m) hangSconce(b, m);
   }
-  const hung: Vec2[] = [];
+}
+
+function innerSconces(site: Site, towers: Placed[], walls: Placed[]): Mount[] {
+  const hung: Mount[] = [];
   for (const p of [...towers, ...walls]) {
     const m = innerMount(site, p.mounts, p.centre, p.piece.kind);
-    if (!m || !clearOf(hung, m) || (p.piece.kind === 'wall' && !clearOfTowers(towers, m))) continue;
-    hangSconce(b, m);
-    hung.push(m.lamp);
+    if (!m || !clearOf(hung.map((h) => h.lamp), m) || (p.piece.kind === 'wall' && !clearOfTowers(towers, m))) continue;
+    hung.push(m);
   }
+  return hung;
 }
 
 function dressGate(b: SiteBuilder, site: Site, fort: FortGate, guarded: boolean, base: number): void {
@@ -413,7 +425,7 @@ function buildWingDeck(t: Terrain): THREE.Group {
 function* closeSiteSteps(b: SiteBuilder, site: Site, t: Terrain): Generator<void> {
   if (!isFortress(site)) throw new Error(`Site ${site.id} has no fortress`);
   yield* pullInsideSteps(site, b.root, t);
-  dressGates(b, site, t);
+  yield* dressGatesSteps(b, site, t);
 }
 
 function* insideSiteCurtainSteps(site: Site, obj: THREE.Object3D): Generator<void, boolean> {
@@ -489,7 +501,7 @@ function* everyChildInside(site: Site, root: THREE.Group): Generator<void, boole
   return true;
 }
 
-type SiteDecor = (b: SiteBuilder, site: Site, t: Terrain) => Generator<void> | void;
+type SiteDecor = (b: SiteBuilder, site: Site, t: Terrain) => Generator<void>;
 
 const camp: SiteDecor = (b, site) => buildCamp(b, site.id);
 
@@ -547,12 +559,10 @@ function buildSite(t: Terrain, site: Site, merge = true): BuiltSite {
   return finishSteps(siteSteps(t, site, merge));
 }
 
-export function* siteSteps(t: Terrain, site: Site, merge = true): Generator<void, BuiltSite> {
-  const b = new SiteBuilder(t, site);
+export function* siteSteps(t: Terrain, site: Site, merge = true, b = new SiteBuilder(t, site)): Generator<void, BuiltSite> {
   const decor = SITE_DECOR[siteLook(site)];
   if (decor === undefined) throw new Error(`Missing landmark model for ${siteLook(site)}`);
-  const decorSteps = decor(b, site, t);
-  if (decorSteps) yield* decorSteps;
+  yield* decor(b, site, t);
   yield;
   yield* closeSiteSteps(b, site, t);
   const lights = resolveLights(b, site, t);
@@ -650,14 +660,18 @@ export class HollowLamps {
 
   constructor(terrain: Terrain, scope: RenderScope) {
     const site = HOLLOW.site;
-    scope.place(site.pos, site.radius, () => {
-      const builder = new SiteBuilder(terrain, site);
-      const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
-      const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
-      for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
-      builder.mergeStatic(builder.lamps);
-      return streamKind('hollow', builder.root);
-    });
+    scope.place(site.pos, site.radius, { steps: () => this.buildSteps(terrain, site) });
+  }
+
+  private *buildSteps(terrain: Terrain, site: Site): Generator<void, THREE.Object3D> {
+    const builder = new SiteBuilder(terrain, site);
+    const gateLamps = fortressGates(site).map((fort) => gateFaceLamp(builder, site, fort));
+    yield;
+    const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
+    for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
+    yield;
+    yield* builder.mergeStaticSteps(builder.lamps);
+    return streamKind('hollow', builder.root);
   }
 
   private lightUp(head: THREE.Mesh): void {
