@@ -556,7 +556,7 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted), itemLoreEl(itemLookId(item))));
+    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), itemLoreEl(itemLookId(item)), ...itemFacts(w, me, item, mounted)));
     this.fillActions(actions, t("inv.dragToGrid"));
   }
 

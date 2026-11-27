@@ -61,7 +61,7 @@ describe("the item lore on the inventory card", () => {
   });
 
   for (const lang of ["en", "ru"] as const) {
-    it(`ends the card of a part, a good and the parcel with its lore in ${lang}`, () => {
+    it(`puts the lore right under the title on the card of a part, a good and the parcel with its lore in ${lang}`, () => {
       speak(lang);
       const { w, part, good, parcel } = truckWithAllKinds();
       const screen = screenOver(w);
@@ -72,7 +72,7 @@ describe("the item lore on the inventory card", () => {
         expect(lore).toHaveLength(1);
         expect(textOf(lore[0])).toBe(say(itemLore(itemLookId(item))));
         const details = root.all((n) => n.className.split(" ").includes("inv-details"))[0];
-        expect(details.children[details.children.length - 1]).toBe(lore[0]);
+        expect(details.children[1]).toBe(lore[0]);
       }
       expect(PARCEL.id).toBe(itemLookId(parcel));
     });
