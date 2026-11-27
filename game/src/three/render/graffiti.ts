@@ -8,6 +8,7 @@ import { ObstacleBuckets } from '../../sim/nav/buckets';
 import { groundAt, groundSlope, type Terrain } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { count, timed } from '../../perf';
 import { buildProp } from './obstacles';
 import type { Rect, RenderScope } from './scope';
 import { chunkGeometry } from './terrain';
@@ -447,11 +448,12 @@ export class GraffitiViews {
     const buckets = new ObstacleBuckets<Obstacle>(world.obstacles, world.size);
     const candidates = new GraffitiCandidates(world.terrain, world.obstacles);
     const fit = (site: GraffitiSite): SignFit | null => {
+      count('graffiti-tries');
       const found = fitSite(world.terrain, site);
       return found && !blockedInFront(buckets, site.obstacle, found) ? found : null;
     };
     for (const region of graffitiRegions(world.size))
-      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), () => this.draw(region, chooseRegionGraffiti(region, candidates.sitesIn(region), fit)));
+      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), () => timed('graffiti-region', () => this.draw(region, chooseRegionGraffiti(region, candidates.sitesIn(region), fit))));
   }
 
   private paint(): THREE.MeshLambertMaterial {

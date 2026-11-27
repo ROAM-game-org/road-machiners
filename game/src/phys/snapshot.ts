@@ -1,4 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
+import { timed } from "../perf";
 
 let restorer: RAPIER.SerializationPipeline | null = null;
 
@@ -6,7 +7,15 @@ export function stepPhysics(world: RAPIER.World, events: RAPIER.EventQueue): voi
   world.physicsPipeline.step(world.gravity, world.integrationParameters, world.islands, world.broadPhase, world.narrowPhase, world.bodies, world.colliders, world.softBodies, world.impulseJoints, world.multibodyJoints, world.ccdSolver, events);
 }
 
+export function snapshotOf(world: RAPIER.World): Uint8Array {
+  return timed("drive-snapshot", () => world.takeSnapshot());
+}
+
 export function restoreWorld(snapshot: Uint8Array): RAPIER.World {
+  return timed("drive-restore", () => restoreRaw(snapshot));
+}
+
+function restoreRaw(snapshot: Uint8Array): RAPIER.World {
   restorer ??= new RAPIER.SerializationPipeline();
   const raw = restorer.raw.deserializeAll(snapshot);
   if (!raw) throw new Error("Rapier could not read the physics snapshot");

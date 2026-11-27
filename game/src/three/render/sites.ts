@@ -11,6 +11,7 @@ import { deckById, deckCenterAt, type Deck } from '../../sim/bridge';
 import { propBase, propObstacle } from '../../sim/mapgen';
 import { deckSegments, heightAt, type DeckSegment, type Terrain } from '../../sim/terrain';
 import { pointInPolygon, segmentDist } from '../../sim/vec';
+import { timed } from '../../perf';
 import { instancedModel, model, type ModelName } from './models';
 import type { RenderScope } from './scope';
 import type { PlayClock } from '../play-clock';
@@ -559,7 +560,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLi
   const motion = new SiteMotion();
   for (const site of sitesOf(t))
     scope.place(site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0), () => {
-      const built = buildSite(t, site);
+      const built = timed('site-build', () => buildSite(t, site));
       siteLights.add(built.lights, built.lamps);
       const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
       for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));

@@ -3,7 +3,8 @@ import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
 import { callVehicle } from '../sim/dialogue';
 import { refreshVision } from '../sim/vision';
 import type { World } from '../sim/types';
-import { closeBenchCall, finishBenchDrive } from './bench';
+import { REGION } from '../data/region';
+import { closeBenchCall, finishBenchDrive, mountainTown } from './bench';
 
 function fixture() {
   const input = emptyWorld({ x: 30, y: 30 });
@@ -58,4 +59,13 @@ it('rejects a drive pass that advanced beyond the requested turn', () => {
   const game = { state: emptyWorld(), busy: false };
   const travel = { stopAuto: vi.fn(() => true) };
   expect(() => finishBenchDrive(game, game.state.turn - 1, travel)).toThrow('overshot');
+});
+
+it('drives the Nose scene past the mountain town on the full map', () => {
+  const world = { terrain: { size: REGION.size } } as World;
+  expect(mountainTown(world).def.id).toBe('nose');
+});
+
+it('refuses the Nose scene on a map too small to hold the town', () => {
+  expect(() => mountainTown({ terrain: { size: 64 } } as World)).toThrow(/lies off/);
 });

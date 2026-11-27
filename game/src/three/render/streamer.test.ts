@@ -116,6 +116,8 @@ describe('cell streamer', () => {
     streamer.frame({ x: 10, y: 10 }, 40, 40);
     expect(s.pendingCount).toBe(0);
     expect(perfSnapshot()['stream-block'].calls).toBe(1);
+    expect(perfSnapshot()['stream-block-ms'].calls).toBe(1);
+    expect(perfSnapshot()['stream-step'].calls).toBe(20);
   });
 
   it('stops lead cells once the budget is spent, so only the placement already running overruns', () => {

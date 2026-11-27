@@ -1,7 +1,7 @@
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
-import { freeOnThrow, restoreWorld, stepPhysics } from './snapshot';
+import { freeOnThrow, restoreWorld, snapshotOf, stepPhysics } from './snapshot';
 import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, GROUND, type Crash, type ImpactMotion } from './contacts';
 
 export { GROUND, type Crash };
@@ -78,7 +78,7 @@ export type DriveSnapshot = Omit<Drive, "world"> & { snapshot: Uint8Array };
 
 export function captureDrive(drive: Drive): DriveSnapshot {
   const { world, ...handles } = drive;
-  return { ...structuredClone(handles), snapshot: world.takeSnapshot() };
+  return { ...structuredClone(handles), snapshot: snapshotOf(world) };
 }
 
 export function restoreDrive(saved: DriveSnapshot): Drive {
@@ -240,7 +240,7 @@ export type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody
 export const rearKey = (id: string) => `${id}/rear`;
 
 export function simulateSteps(d: Drive, w: World, steps: number): TurnResult {
-  const world = restoreWorld(d.world.takeSnapshot());
+  const world = restoreWorld(snapshotOf(d.world));
   const events = new RAPIER.EventQueue(true);
   return freeOnThrow(world, events, () => run(d, w, steps, world, events));
 }

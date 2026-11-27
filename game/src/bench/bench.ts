@@ -40,6 +40,7 @@ const TURN_MS = 30000;
 const DRIVE_MS = 120000;
 const COUNT_AFTER_FRAMES = 30;
 const PROP_RADIUS_TILES = 40;
+const MOUNTAIN_TOWN = 'nose';
 const DAY_HOUR = 10;
 const NIGHT_HOUR = 23;
 const NEAR_ZOOM = 1.15;
@@ -89,6 +90,14 @@ export function pickTown(world: World): Town {
   if (towns.length === 0) throw new Error('No town has a landing pad, so the bench has nowhere to play');
   const props = (town: Town) => world.obstacles.filter((o) => dist(o.pos, town.pad) <= PROP_RADIUS_TILES).length;
   return towns.reduce((best, town) => (props(town) > props(best) ? town : best));
+}
+
+export function mountainTown(world: World): Town {
+  const def = REGION.towns.find((town) => town.id === MOUNTAIN_TOWN);
+  const pad = def && sitePads(def)[0];
+  if (!def || !pad) throw new Error(`Town ${MOUNTAIN_TOWN} has no landing pad, so the bench cannot drive past it`);
+  if (world.terrain.size <= def.pos.x + def.radius + OUTSIDE_TILES) throw new Error(`Town ${MOUNTAIN_TOWN} lies off this ${world.terrain.size}-tile map`);
+  return { def, pad };
 }
 
 async function place(ctx: Ctx, world: World): Promise<void> {
@@ -633,6 +642,8 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
   const fightNight: TurnScene = { id: 'fight-night', warm: false, night: true, start: () => nightFightWorld, run: () => playFightTurns(ctx, log, 'fight-night'), check: fightCheck(log) };
   const driveWorld = (pass: number) => driveStart(outsideBase(base, town, driveSide(pass)), driveSide(pass));
   const drive: TurnScene = { id: 'drive', warm: false, start: driveWorld, run: () => playDrive(ctx, log), check: driveCheck };
+  const nose = mountainTown(base);
+  const driveNose: TurnScene = { id: 'drive-nose', warm: false, start: (pass) => driveStart(outsideBase(base, nose, driveSide(pass)), driveSide(pass)), run: () => playDrive(ctx, log), check: driveCheck };
   const driveNight: TurnScene = {
     id: 'drive-night', warm: false, night: true,
     start: (pass) => nightConvoy(driveStart(outsideBase(base, town, driveSide(pass), NIGHT_HOUR, NIGHT_LANE_TILES), driveSide(pass))),
@@ -647,6 +658,7 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
     turnSpec(ctx, fight),
     turnSpec(ctx, drive),
     turnSpec(ctx, driveNight),
+    turnSpec(ctx, driveNose),
   ];
 }
 

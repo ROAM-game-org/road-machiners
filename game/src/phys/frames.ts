@@ -1,6 +1,7 @@
 
 import RAPIER from "@dimforge/rapier3d-compat";
 import { PHYSICS } from "../data/physics";
+import { timed } from "../perf";
 import { CRATER } from "../data/rules";
 import { craterRimPoints } from "../sim/craters";
 import { playerVehicle } from "../sim/damage";
@@ -286,8 +287,10 @@ export function movedGround(world: RAPIER.World, patch: GroundPatch, w: World): 
   const center = playerVehicle(w).pos;
   const want = patchOrigin(w.terrain.size, center);
   if (Math.abs(want.x0 - patch.x0) <= PATCH_SHIFT && Math.abs(want.z0 - patch.z0) <= PATCH_SHIFT) return patch;
-  world.removeCollider(world.getCollider(patch.handle), true);
-  return addGround(world, w.terrain, center);
+  return timed("ground-patch", () => {
+    world.removeCollider(world.getCollider(patch.handle), true);
+    return addGround(world, w.terrain, center);
+  });
 }
 
 export function craterColliders(t: Terrain, c: Crater): RAPIER.ColliderDesc[] {
