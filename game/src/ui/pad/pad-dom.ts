@@ -71,6 +71,37 @@ function under(at: Point): Element {
   return document.elementFromPoint(at.x, at.y) ?? document.body;
 }
 
+const captured = new Map<number, Element>();
+const PAD_POINTERS: ReadonlySet<number> = new Set([PAD_POINTER_ID, DRAG_POINTER_ID]);
+
+export function emulatePadCapture(): void {
+  const proto = Element.prototype;
+  const { setPointerCapture, releasePointerCapture, hasPointerCapture } = proto;
+  proto.setPointerCapture = function (this: Element, id: number): void {
+    if (!PAD_POINTERS.has(id)) return setPointerCapture.call(this, id);
+    captured.set(id, this);
+  };
+  proto.releasePointerCapture = function (this: Element, id: number): void {
+    if (!PAD_POINTERS.has(id)) return releasePointerCapture.call(this, id);
+    if (captured.get(id) === this) loseCapture(id);
+  };
+  proto.hasPointerCapture = function (this: Element, id: number): boolean {
+    if (!PAD_POINTERS.has(id)) return hasPointerCapture.call(this, id);
+    return captured.get(id) === this;
+  };
+}
+
+function loseCapture(id: number): void {
+  const holder = captured.get(id);
+  if (!holder) return;
+  captured.delete(id);
+  holder.dispatchEvent(new PointerEvent("lostpointercapture", { bubbles: true, composed: true, pointerId: id, pointerType: id === PAD_POINTER_ID ? "touch" : "mouse", isPrimary: true }));
+}
+
+function receiver(id: number, at: Point): Element {
+  return captured.get(id) ?? under(at);
+}
+
 function pointer(type: string, at: Point, init: PointerEventInit): PointerEvent {
   return new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, clientX: at.x, clientY: at.y, isPrimary: true, ...init });
 }
@@ -92,7 +123,7 @@ export class PadPress {
   move(at: Point): void {
     if (!this.target) return;
     this.at = at;
-    under(at).dispatchEvent(pointer("pointermove", at, { pointerType: "touch", pointerId: PAD_POINTER_ID, button: -1, buttons: 1 }));
+    receiver(PAD_POINTER_ID, at).dispatchEvent(pointer("pointermove", at, { pointerType: "touch", pointerId: PAD_POINTER_ID, button: -1, buttons: 1 }));
   }
 
   up(click: boolean): void {
@@ -100,7 +131,8 @@ export class PadPress {
     if (!target) return;
     this.target = null;
     const end = under(this.at);
-    end.dispatchEvent(pointer("pointerup", this.at, { pointerType: "touch", pointerId: PAD_POINTER_ID, button: 0, buttons: 0 }));
+    receiver(PAD_POINTER_ID, this.at).dispatchEvent(pointer("pointerup", this.at, { pointerType: "touch", pointerId: PAD_POINTER_ID, button: 0, buttons: 0 }));
+    loseCapture(PAD_POINTER_ID);
     if (click && target.contains(end) && !(end instanceof HTMLCanvasElement)) end.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: this.at.x, clientY: this.at.y, detail: 1 }));
   }
 
@@ -123,12 +155,13 @@ export class PadDrag {
       surface.dispatchEvent(pointer("pointerdown", this.at, { pointerType: "mouse", pointerId: DRAG_POINTER_ID, button: 2, buttons: 2 }));
     }
     this.at = { x: this.at.x + dx, y: this.at.y + dy };
-    window.dispatchEvent(pointer("pointermove", this.at, { pointerType: "mouse", pointerId: DRAG_POINTER_ID, button: -1, buttons: 2 }));
+    (captured.get(DRAG_POINTER_ID) ?? window).dispatchEvent(pointer("pointermove", this.at, { pointerType: "mouse", pointerId: DRAG_POINTER_ID, button: -1, buttons: 2 }));
   }
 
   end(): void {
     if (!this.at) return;
-    window.dispatchEvent(pointer("pointerup", this.at, { pointerType: "mouse", pointerId: DRAG_POINTER_ID, button: 2, buttons: 0 }));
+    (captured.get(DRAG_POINTER_ID) ?? window).dispatchEvent(pointer("pointerup", this.at, { pointerType: "mouse", pointerId: DRAG_POINTER_ID, button: 2, buttons: 0 }));
+    loseCapture(DRAG_POINTER_ID);
     this.at = null;
   }
 }

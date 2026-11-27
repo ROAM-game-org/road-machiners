@@ -717,7 +717,7 @@ export class InventoryView {
     this.lootKeys.replaceChildren(
       ...stores,
       ...(needsSearch(w, stock) ? [this.searchButton(w, stock)] : []),
-      ...(present ? [el("button", { ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))) }, t("inv.takeAll"))] : []),
+      ...(present ? [el("button", { class: "inv-take-all", ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))) }, t("inv.takeAll"))] : []),
     );
     return el(
       "div",

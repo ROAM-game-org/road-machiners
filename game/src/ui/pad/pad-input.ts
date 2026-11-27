@@ -1,6 +1,6 @@
 import { PAD } from "../../config";
 import { setPadMode } from "../input-mode";
-import { controlTargets, focusedTarget, hoverAt, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
+import { controlTargets, emulatePadCapture, focusedTarget, hoverAt, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
 import {
   cycledTarget,
   framesActive,
@@ -12,6 +12,7 @@ import {
   RADIAL_ENTRIES,
   radialPick,
   readPads,
+  snapTarget,
   targetToward,
   turnKey,
   type PadButton,
@@ -55,6 +56,7 @@ export class PadInput {
   constructor(private readonly pads: Gamepads) {}
 
   start(): void {
+    emulatePadCapture();
     for (const type of ["pointermove", "pointerdown", "keydown", "wheel"]) window.addEventListener(type, (e) => e.isTrusted && this.leave(), true);
     const loop = (now: number): void => {
       this.tick(now);
@@ -253,7 +255,7 @@ export class PadInput {
 
   private settle(): void {
     if (this.stuck !== null || this.press.pressing()) return;
-    const near = nearestTarget(this.reticle.where(), this.targets, PAD.snapPx);
+    const near = snapTarget(this.reticle.where(), this.targets, this.place, PAD.snapPx);
     if (near) return this.moveTo(near);
     if (this.place === "world") this.hover();
   }

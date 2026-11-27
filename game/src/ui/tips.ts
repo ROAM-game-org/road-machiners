@@ -355,8 +355,10 @@ export class Tips {
   }
 
   private anchorNode(): HTMLElement | null {
+    const inventory = '.inventory-screen:not([style*="display: none"])';
+    if (this.shown === "loot") return document.querySelector<HTMLElement>(`${inventory} .inv-take-all`);
     const id = this.moment && this.shown ? anchorItem(this.moment.world, this.shown) : null;
-    return id === null ? null : document.querySelector<HTMLElement>(`.inventory-screen:not([style*="display: none"]) [data-item-id="${id}"]`);
+    return id === null ? null : document.querySelector<HTMLElement>(`${inventory} [data-item-id="${id}"]`);
   }
 }
 

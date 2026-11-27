@@ -13,6 +13,7 @@ import {
   radialSpot,
   readPad,
   readPads,
+  snapTarget,
   targetToward,
   type GamepadLike,
   type PadButton,
@@ -171,5 +172,26 @@ describe("pad bindings", () => {
     expect(padGlyphFor("Esc")).toBe("B");
     expect(padGlyphFor("E")).toBe("X");
     expect(padGlyphFor("C")).toBeNull();
+  });
+});
+
+describe("snapping when the stick lets go", () => {
+  const close = { ...target("close", 100, 100), r: 12 };
+  const truck = { ...target("truck", 160, 100, "truck"), r: 30 };
+
+  it("in the world, a control near the reticle does not pull it off the ground", () => {
+    expect(snapTarget({ x: 125, y: 100 }, [close], "world", 36)).toBeNull();
+  });
+
+  it("in the world, a control the reticle is over still holds it", () => {
+    expect(snapTarget({ x: 105, y: 100 }, [close], "world", 36)?.key).toBe("close");
+  });
+
+  it("in the world, a truck in reach pulls the reticle", () => {
+    expect(snapTarget({ x: 125, y: 100 }, [close, truck], "world", 36)?.key).toBe("truck");
+  });
+
+  it("on a screen, the nearest control in reach pulls the reticle", () => {
+    expect(snapTarget({ x: 125, y: 100 }, [close], "screen", 36)?.key).toBe("close");
   });
 });

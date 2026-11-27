@@ -176,6 +176,12 @@ export function nearestTarget(at: Point, targets: readonly PadTarget[], reachPx:
   return best;
 }
 
+export function snapTarget(at: Point, targets: readonly PadTarget[], place: PadPlace, reachPx: number): PadTarget | null {
+  const over = nearestTarget(at, targets, 0);
+  if (over) return over;
+  return nearestTarget(at, place === "world" ? targets.filter((t) => t.kind !== "control") : targets, reachPx);
+}
+
 function clamp(value: number, max: number): number {
   return Math.min(Math.max(0, value), max);
 }

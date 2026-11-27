@@ -214,7 +214,25 @@ async function leavingReleasesRt(pad) {
   if (held) pad.fail('leaving pad mode with RT held kept the turn key held');
 }
 
-const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, menuReachesHelp, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode, wakingPressOnlyWakes, leavingReleasesRt];
+async function heldADragsAnItem(pad) {
+  await pad.press('y');
+  await pad.frames(3);
+  const box = await pad.page.locator('.inventory-screen .inv-item[data-item-id]:not(.fixed):not(.mounted)').first().boundingBox();
+  if (!box) return pad.fail('the inventory shows no item to drag');
+  await pad.steerTo(box.x + box.width / 2, box.y + box.height / 2);
+  await pad.setButton('a', true);
+  await pad.page.waitForTimeout(900);
+  await pad.frames(2);
+  if (!(await pad.page.locator('.inv-ghost').isVisible())) pad.fail('holding A on an item did not pick it up');
+  await pad.tilt([0.6, 0, 0, 0], 6);
+  await pad.setButton('a', false);
+  await pad.frames(3);
+  if (await pad.page.locator('.inv-ghost').count()) pad.fail('letting go of A did not drop the item');
+  await pad.press('b');
+  await pad.frames(3);
+}
+
+const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, heldADragsAnItem, menuReachesHelp, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode, wakingPressOnlyWakes, leavingReleasesRt];
 
 async function openGame(width, height) {
   const page = await browser.newPage({ viewport: { width, height } });
