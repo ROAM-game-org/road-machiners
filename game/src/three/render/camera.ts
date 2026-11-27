@@ -219,6 +219,13 @@ export class CameraRig {
   }
 }
 
+export type LeadAim = { kind: "along"; heading: number } | { kind: "hold" } | { kind: "center" };
+
+export function leadAim(auto: boolean, onOrder: boolean, heading: number | null): LeadAim {
+  if (!auto || !onOrder) return { kind: "center" };
+  return heading === null ? { kind: "hold" } : { kind: "along", heading };
+}
+
 export class TruckFollow {
   private following = true;
   private recentering = true;
@@ -269,18 +276,18 @@ export class TruckFollow {
     this.dangerSeen = danger;
   }
 
-  update(truck: V3, dest: V3 | null, dtMs: number, worldMs: number): void {
+  update(truck: V3, aim: LeadAim, dtMs: number, worldMs: number): void {
     const playing = worldMs > 0;
     if (this.keyPan.pan(this.rig, dtMs)) this.following = false;
     if (playing) this.recentering = false;
-    if (this.following) this.aim(truck, dest, playing);
+    if (this.following) this.aim(truck, aim, playing);
     this.rig.tick(this.recentering ? dtMs : worldMs);
     if (this.rig.pointLeftView(truck)) this.resume();
   }
 
-  private aim(truck: V3, dest: V3 | null, playing: boolean): void {
-    const heading = dest ? Math.atan2(dest.z - truck.z, dest.x - truck.x) : null;
-    this.rig.follow(truck, heading, playing);
+  private aim(truck: V3, aim: LeadAim, playing: boolean): void {
+    const heading = aim.kind === "along" ? aim.heading : null;
+    this.rig.follow(truck, heading, playing && aim.kind !== "hold");
   }
 }
 
