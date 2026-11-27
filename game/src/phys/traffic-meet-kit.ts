@@ -19,7 +19,7 @@ const MEETING_TURNS = 14;
 const OVERTAKE_GAP = 6;
 const START_SEARCH = 40;
 const MIN_BACK = 6;
-const CLEAR_OF_TOWN = 35;
+const CLEAR_OF_TOWN = 45;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
   let next: Drive | null = null;
