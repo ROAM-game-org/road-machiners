@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAOS_HIGHWAY } from '../data/modes';
-import { MIN_NPC_SPEED, NPCS, RAIDER_CHASE_SPEED } from '../data/npcs';
+import { MIN_NPC_SPEED, NPCS, CHASE_SPEED } from '../data/npcs';
 import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
 import { type Vec, DEG, bearing, dist } from './vec';
@@ -36,7 +36,7 @@ function spawned(w: World, templates: string[], stretch: number): Vehicle[] {
 describe('Chaos Highway waves', () => {
   it('keeps the roaming speed floor for every truck built outside a run', () => {
     expect(openGear(NPCS.trader.loadout).minSpeed).toBe(MIN_NPC_SPEED);
-    expect(openGear(NPCS.gunwagon.loadout).minSpeed).toBe(RAIDER_CHASE_SPEED);
+    expect(openGear(NPCS.gunwagon.loadout).minSpeed).toBe(CHASE_SPEED);
   });
 
   it('builds every chasing card at least as fast as the chase speed, and lets blockers be slow', () => {
