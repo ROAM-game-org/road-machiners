@@ -5,7 +5,7 @@ import { kph } from "../ui/units";
 import { emptyWorld } from '../sim/testkit';
 import { cloneWorld } from '../sim/world';
 import { mountedParts } from '../sim/grid';
-import { playbackKph, playbackWorld, timedDisplay } from './timed-display';
+import { playedHeading, playbackKph, playbackWorld, timedDisplay } from './timed-display';
 import { newTimedCombat } from '../sim/timed-combat';
 
 it('changes inspected health at the recorded impact without changing simulation state', () => {
@@ -77,5 +77,41 @@ describe("playbackKph", () => {
   it("measures along the ground in both axes", () => {
     const frames = Array.from({ length: 20 }, (_, i) => frame(i * 0.1, i * 0.1));
     expect(playbackKph(frames, 10)).toBe(playbackKph(steady(Math.SQRT2 * 0.1, 20), 10));
+  });
+});
+
+describe("playedHeading", () => {
+  const along = (angle: number, count: number, jitter = 0): VehicleFrame[] =>
+    Array.from({ length: count }, (_, i) =>
+      frame(i * 0.3 * Math.cos(angle) - Math.sin(angle) * (i % 2) * jitter, i * 0.3 * Math.sin(angle) + Math.cos(angle) * (i % 2) * jitter),
+    );
+
+  it("gives the course of a straight path", () => {
+    expect(playedHeading(along(Math.PI / 6, 70), 35)).toBeCloseTo(Math.PI / 6, 6);
+  });
+
+  it("gives the direction of motion when the truck drives backward", () => {
+    const backward = Array.from({ length: 70 }, (_, i) => frame(-i * 0.3));
+    expect(Math.abs(playedHeading(backward, 35) ?? 0)).toBeCloseTo(Math.PI, 6);
+  });
+
+  it("gives null for a still truck, a single frame, no frames and no step", () => {
+    expect(playedHeading(steady(0, 70), 35)).toBeNull();
+    expect(playedHeading([frame(0)], 0)).toBeNull();
+    expect(playedHeading([], 0)).toBeNull();
+    expect(playedHeading(undefined, 0)).toBeNull();
+    expect(playedHeading(steady(1, 70), null)).toBeNull();
+  });
+
+  it("clamps the step into the frames", () => {
+    const frames = along(0.5, 70);
+    expect(playedHeading(frames, -5)).toBeCloseTo(0.5, 6);
+    expect(playedHeading(frames, 500)).toBeCloseTo(0.5, 6);
+  });
+
+  it("stays within 3 degrees of the course under side jitter", () => {
+    const course = 1;
+    const heading = playedHeading(along(course, 70, 0.05), 35) ?? NaN;
+    expect(Math.abs(heading - course)).toBeLessThan((3 * Math.PI) / 180);
   });
 });

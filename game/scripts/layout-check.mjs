@@ -1303,18 +1303,22 @@ async function closeNewGameScreen(page) {
 const HEAT_LAMP_LIT = '#ui .drive-plate .heat-lamp.lit';
 const heatLampLit = (page) => page.evaluate((sel) => document.querySelector(sel) !== null, HEAT_LAMP_LIT);
 
-const overheatEngine = async (page) => {
+const heatEngineTo = (heat) => async (page) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate(async () => {
+  await page.evaluate(async (level) => {
     const g = window.__ROAM__;
     const { setEngineHeat } = await import('/src/sim/cheats.ts');
     const { playerVehicle } = await import('/src/sim/damage.ts');
+    g.hud.tips.setOn(false);
     window.__layoutWorld = structuredClone(g.state);
-    const world = setEngineHeat(structuredClone(g.state), 1);
+    const world = setEngineHeat(structuredClone(g.state), level);
     playerVehicle(world).speed = 20;
     g.apply(world);
-  });
+  }, heat);
 };
+
+const overheatEngine = heatEngineTo(1);
+const runHotEngine = heatEngineTo(0.8);
 
 const cooldownEngine = async (page) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -1332,6 +1336,7 @@ const closeDeath = (page) => page.evaluate(() => {
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL], check: heatLampFaults(false) },
   overheat: { setup: overheatEngine, teardown: cooldownEngine, viewports: [...VIEWPORTS, PHONE], check: heatLampFaults(true) },
+  'run-hot': { setup: runHotEngine, teardown: cooldownEngine, viewports: [...VIEWPORTS, PHONE], check: heatLampFaults(true) },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape, check: inventoryBenchFaults, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },

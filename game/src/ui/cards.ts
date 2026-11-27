@@ -281,27 +281,33 @@ export function gridItemIcon(item: GridItem): HTMLElement {
 export function chassisPortrait(chassisId: string, paint: TruckPaint): HTMLElement {
   const cell = chassisPortraitCell(chassisId, paint);
   const portrait = sheetIcon(cell, "chassis-portrait crt-picture", cell.box, cell.label);
-  if (!samePaint(paint, PAINT.standard) && canvasReadable()) void showPainted(portrait, paint);
+  if (!samePaint(paint, PAINT.standard) && canvasReadable()) void showPainted(portrait, cell, paint);
   return portrait;
 }
 
-const PAINTED_KEPT = 4;
+const PAINTED_KEPT = 16;
 const painted = new Map<string, Promise<string>>();
 let paintFailureNoted = false;
 
-async function showPainted(portrait: HTMLElement, paint: TruckPaint): Promise<void> {
+async function showPainted(portrait: HTMLElement, cell: IconCell, paint: TruckPaint): Promise<void> {
   try {
-    const url = await paintedSheetUrl(paint);
-    portrait.querySelector("image")?.setAttribute("href", url);
+    const url = await paintedCellUrl(cell, paint);
+    const image = portrait.querySelector("image");
+    const clip = image?.parentElement;
+    if (!image || !clip) return;
+    image.setAttribute("href", url);
+    image.setAttribute("width", "1");
+    image.setAttribute("height", "1");
+    clip.setAttribute("viewBox", `${cell.box.x} ${cell.box.y} ${cell.box.w} ${cell.box.h}`);
   } catch (err) {
     if (!paintFailureNoted) noteError(err);
     paintFailureNoted = true;
   }
 }
 
-export function paintedSheetUrl(paint: TruckPaint): Promise<string> {
-  const key = `${paint.body}|${paint.cab}|${paint.gear}`;
-  const made = painted.get(key) ?? paintedSheet(paint);
+export function paintedCellUrl(cell: IconCell, paint: TruckPaint): Promise<string> {
+  const key = `${cell.col}|${cell.row}|${paint.body}|${paint.cab}|${paint.gear}`;
+  const made = painted.get(key) ?? paintedCell(cell, paint);
   painted.delete(key);
   painted.set(key, made);
   made.catch(() => painted.delete(key));
@@ -313,7 +319,18 @@ export function paintedSheetUrl(paint: TruckPaint): Promise<string> {
   return made;
 }
 
-async function paintedSheet(paint: TruckPaint): Promise<string> {
+type SheetPixels = { sheet: ImageData; mask: ImageData };
+let sheetPixels: Promise<SheetPixels> | null = null;
+
+function chassisSheetPixels(): Promise<SheetPixels> {
+  sheetPixels ??= decodeSheets().catch((err: unknown) => {
+    sheetPixels = null;
+    throw err;
+  });
+  return sheetPixels;
+}
+
+async function decodeSheets(): Promise<SheetPixels> {
   const [sheet, mask] = await Promise.all([CHASSIS_SHEET, CHASSIS_MASK].map(sheetBitmap));
   const canvas = document.createElement("canvas");
   canvas.width = sheet.width;
@@ -325,11 +342,22 @@ async function paintedSheet(paint: TruckPaint): Promise<string> {
     ctx.drawImage(image, 0, 0);
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
   };
-  const shades = pixels(mask).data;
-  const standard = pixels(sheet);
-  standard.data.set(paintSheetPixels(standard.data, shades, playerColors(PAINT.standard), playerColors(paint)));
-  ctx.putImageData(standard, 0, 0);
-  const blob = await new Promise<Blob>((done, fail) => canvas.toBlob((b) => (b ? done(b) : fail(new Error("The painted chassis sheet did not encode"))), "image/png"));
+  return { mask: pixels(mask), sheet: pixels(sheet) };
+}
+
+async function paintedCell(cell: IconCell, paint: TruckPaint): Promise<string> {
+  const { sheet, mask } = await chassisSheetPixels();
+  const w = Math.round(sheet.width / cell.cols);
+  const h = Math.round(sheet.height / cell.rows);
+  const rect = { x: cell.col * w, y: cell.row * h, w, h, stride: sheet.width };
+  const recolored = paintSheetPixels(sheet.data, mask.data, playerColors(PAINT.standard), playerColors(paint), rect);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No 2D canvas context to paint the chassis cell");
+  ctx.putImageData(new ImageData(recolored as Uint8ClampedArray<ArrayBuffer>, w, h), 0, 0);
+  const blob = await new Promise<Blob>((done, fail) => canvas.toBlob((b) => (b ? done(b) : fail(new Error("The painted chassis cell did not encode"))), "image/png"));
   return URL.createObjectURL(blob);
 }
 

@@ -1,4 +1,4 @@
-import { combatFrameMs, playedKph, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
+import { combatFrameMs, playedKph, playedHeading, playbackWorld, timedUiStale, shownTimedVehicles, untimedDestroyed, combatEventPoint } from './timed-display';
 
 import * as THREE from "three";
 import { CONFIG } from "../config";
@@ -49,7 +49,7 @@ import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, mountedSelection, weaponsForClick } from "../ui/weapons";
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
-import { type CameraRig, KeyPan, TruckFollow } from "./render/camera";
+import { type CameraRig, KeyPan, TruckFollow, leadAim, type LeadAim } from "./render/camera";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
 import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, breakEmphasis, volleySeen, type CombatHost } from "./volley";
@@ -482,9 +482,11 @@ export class Game {
     this.hitCard.show();
   }
 
-  private orderPoint(): V3 | null {
+  private cameraAim(at: number | null): LeadAim {
     const order = playerVehicle(this.anim ? this.anim.before : this.world).order;
-    return order === null || order.kind === "brake" ? null : groundPoint(this.world.terrain, order.dest);
+    const onOrder = order !== null && order.kind !== "brake";
+    const heading = playedHeading(this.anim?.result.frames[playerVehicle(this.world).id], at);
+    return leadAim(cameraSetting().mode() === "auto", onOrder, heading);
   }
 
   private refreshTargetMarkers(): void {
@@ -1199,7 +1201,7 @@ export class Game {
     const truck = this.frames[playerVehicle(this.world).id].pos;
     const sightRadius = sightAround(this.sightLimit, this.streamer, this.world, truck);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
+    this.follow.update(truck, this.cameraAim(at), dt, playMs);
     this.drawOverlays();
     this.hud.showRecenter(!this.follow.isFollowing());
     const daylight = daylightAt(lightTurnOf(this.world, this.anim));
