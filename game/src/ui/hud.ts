@@ -28,6 +28,7 @@ import {
   dockSummary,
   guardLeavesIn,
   heldContractClock,
+  heldClockSizers,
   heldContractDeadline,
   contractSummary,
   surveyProgress,
@@ -817,8 +818,13 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
     'div',
     { class: 'contract-line' },
     el('span', {}, survey ? contractSummary(c) : dockSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num', title: heldContractDeadline(w, c) ?? undefined }, heldContractClock(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : heldClockCell(w, c),
   );
+}
+
+function heldClockCell(w: World, c: Contract): HTMLElement {
+  const sizers = heldClockSizers(c).map((msg) => el('span', { class: 'clock-sizer', 'aria-hidden': 'true' }, msg));
+  return el('span', { class: isLate(w, c) ? 'num clock-cell bad' : 'num clock-cell', title: heldContractDeadline(w, c) ?? undefined }, ...sizers, el('span', { class: 'clock-now' }, heldContractClock(w, c)));
 }
 
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
