@@ -73,6 +73,10 @@ function inScreens(screens: readonly Element[], node: Element): boolean {
   return screens.length === 0 || screens.some((screen) => screen.contains(node));
 }
 
+export function storyOnTop(): boolean {
+  return openScreens().some((screen) => screen.classList.contains("quest-screen"));
+}
+
 export function controlTargets(skip: (node: Element) => boolean): PadTarget[] {
   const screens = openScreens();
   return [...document.querySelectorAll(CONTROLS)].filter((node) => !skip(node) && inScreens(screens, node)).flatMap((node) => controlTarget(node) ?? []);
@@ -86,7 +90,7 @@ function targetOf(node: Element | null, targets: readonly PadTarget[]): PadTarge
 export function landingTarget(targets: readonly PadTarget[]): PadTarget | null {
   const active = document.activeElement;
   const focused = active && active !== document.body ? targetOf(active, targets) : null;
-  return focused ?? [...document.querySelectorAll(".quest-choice, .quest-next")].map((node) => targetOf(node, targets)).find((target) => target !== null) ?? null;
+  return focused ?? [...document.querySelectorAll(".quest-choice:not(.compact), .quest-next")].map((node) => targetOf(node, targets)).find((target) => target !== null) ?? null;
 }
 
 function under(at: Point): Element {
@@ -246,6 +250,7 @@ const RADIAL_GAP_PX = 8;
 export class PadReticle {
   private readonly node = el("div", { class: "pad-reticle", "aria-hidden": "true" });
   private at: Point = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  private onTarget = false;
 
   constructor() {
     document.body.append(this.node);
@@ -258,8 +263,12 @@ export class PadReticle {
 
   place(at: Point, onTarget: boolean): void {
     this.at = at;
-    moveTo(this.node, at.x, at.y);
-    this.node.classList.toggle("on-target", onTarget);
+    this.onTarget = onTarget;
+  }
+
+  draw(): void {
+    moveTo(this.node, this.at.x, this.at.y);
+    this.node.classList.toggle("on-target", this.onTarget);
   }
 
   pressed(down: boolean): void {

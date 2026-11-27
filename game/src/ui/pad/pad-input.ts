@@ -1,6 +1,6 @@
 import { PAD } from "../../config";
 import { setPadMode } from "../input-mode";
-import { controlTargets, emulatePadCapture, hoverAt, landingTarget, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
+import { controlTargets, emulatePadCapture, hoverAt, landingTarget, storyOnTop, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
 import {
   cycledTarget,
   framesActive,
@@ -75,6 +75,11 @@ export class PadInput {
   }
 
   private tick(now: number): void {
+    this.step(now);
+    this.reticle.draw();
+  }
+
+  private step(now: number): void {
     const dt = Math.min(100, now - this.last);
     this.last = now;
     const frame = readPads(this.pads(), PAD);
@@ -164,11 +169,19 @@ export class PadInput {
   }
 
   private reland(): void {
-    const same = this.lost ? sameControl(this.lost, this.targets, PAD.snapPx) : null;
-    const opened = this.lost === null ? nearestTarget(this.reticle.where(), this.targets, Infinity) : null;
-    const land = same ?? landingTarget(this.targets) ?? opened;
+    const land = this.sameAsLost() ?? landingTarget(this.targets) ?? this.fallback();
     if (land) this.moveTo(land);
   }
+
+  private sameAsLost(): PadTarget | null {
+    return this.lost ? sameControl(this.lost, this.targets, PAD.snapPx) : null;
+  }
+
+  private fallback(): PadTarget | null {
+    if (this.lost !== null && storyOnTop()) return null;
+    return nearestTarget(this.reticle.where(), this.targets, Infinity);
+  }
+
 
   private moveTo(target: PadTarget): void {
     this.stuck = target.key;
