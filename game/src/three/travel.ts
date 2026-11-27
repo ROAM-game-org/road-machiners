@@ -8,6 +8,7 @@ import {
   type UnitWheels,
   type TurnResult,
 } from "../phys/drive";
+import type { LiveRequest, LiveResponse } from "../phys/live-second";
 import type { TurnClock } from "./render/hazards";
 import { fitsBody, frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type IdleFailure, type TurnRequest, type TurnResponse } from "../phys/turn";
@@ -244,6 +245,10 @@ export class Travel {
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
+  }
+
+  liveChannel(): TurnPreparation {
+    return this.turns;
   }
 
   pause(): void {
@@ -598,13 +603,27 @@ export class TurnPreparation {
   private prepSamples: number[] = [];
   private prepMedian: number | null = null;
 
+  onLive: ((response: LiveResponse) => void) | null = null;
+
   constructor(private readonly tailSteps: number) {}
+
+  postLive(request: LiveRequest): void {
+    this.worker ??= this.createWorker();
+    this.worker.postMessage(request);
+  }
+
+  liveOpenRequest(world: World, drive: DriveSnapshot): LiveRequest {
+    const { terrain: _terrain, obstacles, ...rest } = world;
+    this.obstacles.forget();
+    return { kind: "live-open", world: rest, obstacles, drive: { ...drive, snapshot: drive.snapshot.slice() }, questLanguage: currentQuestLanguage() };
+  }
 
   private createWorker(): Worker {
     const worker = new Worker(new URL("../phys/turn-worker.ts", import.meta.url), {
       type: "module",
     });
-    worker.onmessage = (event: MessageEvent<TurnResponse>) => {
+    worker.onmessage = (event: MessageEvent<TurnResponse | LiveResponse>) => {
+      if ("live" in event.data) return this.onLive?.(event.data);
       if (isIdleFailure(event.data)) return noteIdleFailure(event.data);
       this.receive(event.data);
       this.finish(event.data.id);

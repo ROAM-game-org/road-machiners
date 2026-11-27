@@ -571,6 +571,30 @@ function playTimedCombat(host: CombatHost, breaks: BreakCues): number {
   return host.poses.moveMs;
 }
 
+export function playLiveRecords(host: CombatHost, records: readonly TimedRecord[], destroyed: readonly string[], breaks: BreakCues): void {
+  const pellets = new Map<string, number>();
+  const rows = new Map<string, number>();
+  for (const record of records) {
+    const f = record.flight;
+    if (!f || !knowsVehicle(host.world, f.shooterId) || !knowsVehicle(host.world, f.targetId)) continue;
+    if (record.kind === 'launch') {
+      const key = `${f.weaponId}@${record.at}`;
+      const pellet = pellets.get(key) ?? 0;
+      pellets.set(key, pellet + 1);
+      playTimedLaunch(host, f, 0, false, pellet);
+    }
+    if (record.kind === 'impact' && record.event) playTimedImpact(host, f, record.event, 0, rows, breaks);
+  }
+  for (const id of destroyed) {
+    const point = host.eventPoint(id);
+    if (point) { host.fx.explode(point); host.sound.event('explosion', point, 0, 1, ACCENT); }
+  }
+}
+
+function knowsVehicle(w: World, id: string): boolean {
+  return w.vehicles.some((v) => v.id === id) || w.removed.some((v) => v.id === id);
+}
+
 function playTimedRecord(host: CombatHost, record: TimedRecord, state: TimedCombatState, rows: Map<string, number>, breaks: BreakCues, last: Map<string, TimedFlight>, pellets: Map<TimedFlight, number>): void {
   if (!record.flight) return;
   const at = Math.max(0, record.at - state.turnStart - host.startMs);

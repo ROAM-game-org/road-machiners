@@ -19,7 +19,7 @@ import {
   type V3,
   type VehicleFrame,
 } from "../phys/frames";
-import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
+import { driveSnapshotOf, joinTurn, type PreparedTurn } from "../phys/turn";
 import { isPlayerTruck, playerVehicle, vehicleById } from "../sim/damage";
 import { landingScreen } from "./landing-screen";
 
@@ -52,9 +52,10 @@ import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMar
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { type CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import { LiveClock, LiveKeys } from "./live-clock";
+import type { LiveClosed } from "../phys/live-second";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, breakEmphasis, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playLiveRecords, playUtilitySounds, posesOf, shotAimsOf, breakEmphasis, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import type { ObstacleViews } from "./render/obstacles";
 import type { CraterViews } from "./render/craters";
@@ -216,7 +217,8 @@ export class Game {
   private framesSeen = 0;
   readonly pace = new FramePace();
   private liveMode = false;
-  private readonly liveClock = new LiveClock();
+  private readonly liveClock: LiveClock;
+  private readonly liveLandings: LiveClosed[] = [];
   private readonly liveKeys = new LiveKeys((e) => this.liveMode && !this.ignoresKey(e) && !this.modalOpen());
   private readonly turnWait = new TurnWait(() => this.travel.isPlaying(this.anim));
   private pressedDuringTurn = false;
@@ -242,6 +244,7 @@ export class Game {
     this.trucks = new TruckViews(this.scene, this.rebuilds);
     this.picker = new PointerPicker({ world: () => this.world, hit: (x, y, object) => this.rig.hitDistance(x, y, object), views: this.trucks.views, visible: (v) => this.isVehicleVisible(v), radiusPick: (x, y) => this.pickVehicle(x, y)?.id ?? null });
     this.travel.onTurnWait = (ms, at) => this.pace.noteTurnWait(ms, at);
+    this.liveClock = new LiveClock(travel.liveChannel());
     this.gpu.onRestored(() => this.screens.inventory.render());
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad", "attention"), (text) => this.hud.note(this.world, text, "dim", "info"));
@@ -405,6 +408,7 @@ export class Game {
 
   apply(next: World): void {
     this.travel.pause();
+    this.liveClock.patch(this.world, next);
     this.world = next;
     this.saves.logWorld(next);
     if (this.anim && !this.anim.impacts) return this.refreshUi();
@@ -539,18 +543,32 @@ export class Game {
 
   private toggleLive(): void {
     this.liveMode = !this.liveMode;
-    this.liveClock.drop();
     this.travel.pause();
-    if (this.liveMode && playerCanAct(this.world) && playerVehicle(this.world).order) this.apply(setMoveOrder(this.world, null));
+    this.liveLandings.length = 0;
+    if (!this.liveMode) return this.liveClock.stop();
+    if (playerCanAct(this.world) && playerVehicle(this.world).order) this.apply(setMoveOrder(this.world, null));
   }
 
-  private tickLive(now: number, dt: number): void {
-    if (!this.liveKeys.anyHeld() || this.anim || this.holdsTime() || this.turnRefused() || this.world.player.state === "dead") return;
+  private liveAllowed(): boolean {
+    return !this.turnRefused() && this.world.player.state !== "dead" && !waitsOnPlayer(this.world);
+  }
+
+  private liveTimeWanted(): boolean {
+    return this.liveKeys.anyHeld() && this.liveAllowed();
+  }
+
+  private tickLive(now: number, playMs: number): void {
     try {
-      const prepared = this.liveClock.tick(this.world, this.drive, dt, this.liveKeys.stick());
-      if (prepared) this.beginTurn(prepared, now, MOVE_MS);
+      if (!this.liveClock.isRunning() && playMs > 0 && this.liveAllowed() && !this.anim && this.liveLandings.length === 0) this.liveClock.start(this.world, this.drive);
+      this.liveClock.tick(playMs, this.liveKeys.stick());
+      const news = this.liveClock.takeNews();
+      if (news.records.length || news.destroyed.length) playLiveRecords(this.combatHost(), news.records, news.destroyed, this.breakCues);
+      this.liveLandings.push(...news.closed);
+      const closed = this.anim ? null : this.liveLandings.shift();
+      if (closed) this.beginTurn(joinTurn(closed.turn, closed.obstacles, this.world), now, MOVE_MS, true);
     } catch (err) {
-      this.liveClock.drop();
+      this.liveClock.stop();
+      this.liveLandings.length = 0;
       this.failTurn(err);
     }
   }
@@ -885,7 +903,7 @@ export class Game {
     }
   }
 
-  private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
+  private beginTurn(prepared: PreparedTurn, now: number, elapsed: number, live = false): void {
     if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
     const { world: played, playback, towed } = timed("begin-playback", () => this.travel.beginPlayback(this.world, prepared, elapsed, this.frames));
     const world = timed("relanguage-quest", () => relanguageQuest(played, QUESTS));
@@ -905,10 +923,10 @@ export class Game {
     this.hornCues = new HornCues(this.heardRoadHorns(world));
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
-    playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
+    playback.impactAtMs = live ? MOVE_MS : Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
     playUtilitySounds(this.combatHost(), "start");
-    this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, TURN_STEPS, playback.impactAtMs));
-    if (!towed) this.playDriveSound(playback.result);
+    if (!live) this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, collisions, TURN_STEPS, playback.impactAtMs));
+    if (!towed && !live) this.playDriveSound(playback.result);
     this.phase = "moving";
     this.path.clear();
     this.uiStale = true;
@@ -1111,6 +1129,7 @@ export class Game {
   private refreshPlan(): void {
     if (this.travel.isAdvancing(this.anim, this.last) || this.planFor === this.world) return;
     this.planFor = this.world;
+    if (this.liveMode) return this.path.clear();
     if (!playerCanAct(this.world)) return this.path.clear();
     const me = playerVehicle(this.world);
     if (!me.order && me.speed === 0) return this.path.clear();
@@ -1141,7 +1160,7 @@ export class Game {
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
     const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), playbackFrameCapMs(speed, CONFIG.playbackHitchMs, MOVE_MS)), speed, now);
-    if (this.liveMode) this.tickLive(now, dt);
+    if (this.liveMode) this.tickLive(now, clock.playMs);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();
@@ -1172,7 +1191,7 @@ export class Game {
   }
 
   private tickWorldClock(realMs: number, speed: number, now: number): { playMs: number; combatMs: number } {
-    const wanted = (this.anim !== null && !this.anim.moved) || this.travel.timeWanted(this.world, now);
+    const wanted = this.liveMode ? this.liveTimeWanted() : (this.anim !== null && !this.anim.moved) || this.travel.timeWanted(this.world, now);
     this.play.coast(realMs, wanted, wanted ? speed : 1);
     return { playMs: this.play.frameMs(), combatMs: combatFrameMs(this.anim, this.play.frameMs(), MOVE_MS) };
   }

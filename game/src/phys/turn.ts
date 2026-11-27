@@ -32,6 +32,7 @@ import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 import { ownExplored } from '../sim/explored';
 import { errorText } from '../stall';
+import { isLiveRequest, LiveWorker, type LiveRequest, type LiveResponse } from './live-second';
 
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
@@ -248,12 +249,24 @@ export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   let obstacles: Obstacle[] | null = null;
   const ready = initPhysics();
-  self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
+  const live = new LiveWorker();
+  self.onmessage = async (event: MessageEvent<WorkerRequest | LiveRequest>) => {
     const request = event.data;
     if (request.kind === 'terrain') {
       const unpacked = unpackTerrain(request.terrain);
       terrain = unpacked;
       timed('route-terrain', () => prepareRouteTerrain(unpacked));
+      return;
+    }
+    if (isLiveRequest(request)) {
+      try {
+        await ready;
+        const response = live.answer(request, terrain);
+        if (response) self.postMessage(response, { transfer: response.closed ? [response.closed.turn.result.next.snapshot.buffer as ArrayBuffer] : [] });
+      } catch (error) {
+        live.answer({ kind: 'live-stop' }, terrain);
+        self.postMessage({ live: true, error: errorText(error) } satisfies LiveResponse);
+      }
       return;
     }
     if (request.kind === 'warm') {
