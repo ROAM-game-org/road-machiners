@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CameraRig, KeyPan, TruckFollow, VIEW_METERS, ZOOM } from './camera';
+import { CameraRig, KeyPan, TruckFollow, VIEW_METERS, ZOOM, leadAim, type LeadAim } from './camera';
 import { PHYSICS } from '../../data/physics';
 import { DEFAULT_ZOOM, VIEW } from '../../data/view';
 import { daylightAt, lightScene, sunLight } from './daylight';
 
 const S = PHYSICS.metersPerTile;
+const EAST: LeadAim = { kind: 'along', heading: 0 };
+const CENTER: LeadAim = { kind: 'center' };
 
 function rigAt(): CameraRig {
   const container = {
@@ -303,7 +305,7 @@ describe('truck follow', () => {
     const canvas = new EventTarget();
     const rig = new CameraRig(container);
     const follow = new TruckFollow(rig, new KeyPan(() => false), canvas as HTMLElement);
-    follow.update(truck, null, 0, 0);
+    follow.update(truck, CENTER, 0, 0);
     return { follow, canvas };
   }
 
@@ -319,7 +321,7 @@ describe('truck follow', () => {
     const { follow, canvas } = setup();
 
     drag(canvas);
-    for (let i = 0; i < 10; i++) follow.update(truck, null, 100, 100);
+    for (let i = 0; i < 10; i++) follow.update(truck, CENTER, 100, 100);
 
     expect(follow.isFollowing()).toBe(false);
   });
@@ -346,9 +348,9 @@ describe('truck follow', () => {
   it('follows again when the truck drives out of view', () => {
     const { follow, canvas } = setup();
     drag(canvas);
-    follow.update(truck, null, 16, 16);
+    follow.update(truck, CENTER, 16, 16);
 
-    follow.update({ x: 500, y: 0, z: -500 }, null, 16, 16);
+    follow.update({ x: 500, y: 0, z: -500 }, CENTER, 16, 16);
 
     expect(follow.isFollowing()).toBe(true);
   });
@@ -373,18 +375,18 @@ describe('truck follow while planning', () => {
   it('brings the view to the truck at boot', () => {
     const { follow, rig } = setup();
 
-    follow.update({ x: 10, y: 0, z: 10 }, null, Number.POSITIVE_INFINITY, 0);
+    follow.update({ x: 10, y: 0, z: 10 }, CENTER, Number.POSITIVE_INFINITY, 0);
 
     expect(rig.focus().x).toBeCloseTo(10, 3);
   });
 
   it('holds the view still after a turn while the view still lags the truck', () => {
     const { follow, rig } = setup();
-    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
+    follow.update({ x: 0, y: 0, z: 0 }, CENTER, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, CENTER, 100, 100);
     const lagging = rig.focus();
 
-    follow.update({ x: 10, y: 0, z: 0 }, null, 5000, 0);
+    follow.update({ x: 10, y: 0, z: 0 }, CENTER, 5000, 0);
 
     expect(rig.focus().x).toBeCloseTo(lagging.x, 6);
     expect(lagging.x).toBeLessThan(10);
@@ -392,11 +394,11 @@ describe('truck follow while planning', () => {
 
   it('keeps closing the lag on world time as the world slows after a turn, instead of halting in one frame', () => {
     const { follow, rig } = setup();
-    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
+    follow.update({ x: 0, y: 0, z: 0 }, CENTER, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, CENTER, 100, 100);
     const steps = [12, 8, 4, 1, 0].map((worldMs) => {
       const from = rig.focus().x;
-      follow.update({ x: 10, y: 0, z: 0 }, null, 16, worldMs);
+      follow.update({ x: 10, y: 0, z: 0 }, CENTER, 16, worldMs);
       return rig.focus().x - from;
     });
     steps.slice(0, 4).forEach((step) => expect(step).toBeGreaterThan(0));
@@ -406,22 +408,21 @@ describe('truck follow while planning', () => {
 
   it('brings the view to the truck on recenter while planning', () => {
     const { follow, rig } = setup();
-    follow.update({ x: 0, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-    follow.update({ x: 10, y: 0, z: 0 }, null, 100, 100);
+    follow.update({ x: 0, y: 0, z: 0 }, CENTER, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    follow.update({ x: 10, y: 0, z: 0 }, CENTER, 100, 100);
 
     follow.recenter();
-    follow.update({ x: 10, y: 0, z: 0 }, null, Number.POSITIVE_INFINITY, 0);
+    follow.update({ x: 10, y: 0, z: 0 }, CENTER, Number.POSITIVE_INFINITY, 0);
 
     expect(rig.focus().x).toBeCloseTo(10, 3);
   });
 
   const truck = { x: 0, y: 0, z: 0 };
-  const far = { x: 500, y: 0, z: 0 };
 
   function driveWithLead(): { follow: TruckFollow; rig: CameraRig } {
     const made = setup();
-    made.follow.update(truck, null, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-    for (let i = 0; i < 300; i++) made.follow.update(truck, far, 100, 100);
+    made.follow.update(truck, CENTER, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    for (let i = 0; i < 300; i++) made.follow.update(truck, EAST, 100, 100);
     return made;
   }
 
@@ -435,7 +436,7 @@ describe('truck follow while planning', () => {
     follow.pan(300, 200);
 
     follow.recenter();
-    follow.update(truck, null, Number.POSITIVE_INFINITY, 0);
+    follow.update(truck, CENTER, Number.POSITIVE_INFINITY, 0);
 
     expect(offsetFromCenter(rig)).toBeLessThan(1);
   });
@@ -445,10 +446,10 @@ describe('truck follow while planning', () => {
     const old = offsetFromCenter(rig);
 
     follow.recenter();
-    for (let i = 0; i < 60; i++) follow.update(truck, far, 16, 16);
+    for (let i = 0; i < 60; i++) follow.update(truck, EAST, 16, 16);
     expect(offsetFromCenter(rig)).toBeLessThan(old * 0.35);
 
-    for (let i = 0; i < 200; i++) follow.update(truck, far, 100, 100);
+    for (let i = 0; i < 200; i++) follow.update(truck, EAST, 100, 100);
     expect(offsetFromCenter(rig)).toBeGreaterThan(old * 0.95);
   });
 
@@ -458,9 +459,54 @@ describe('truck follow while planning', () => {
     follow.pan(300, 200);
 
     follow.noteDanger(true);
-    for (let i = 0; i < 300; i++) follow.update(truck, far, 100, 100);
+    for (let i = 0; i < 300; i++) follow.update(truck, EAST, 100, 100);
 
     expect(offsetFromCenter(rig)).toBeCloseTo(old, 0);
+  });
+
+  it('leads along the motion, not toward a far point, at 80 degrees off', () => {
+    const { follow, rig } = setup();
+    const heading = (80 * Math.PI) / 180;
+    follow.update(truck, CENTER, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    for (let i = 0; i < 300; i++) follow.update(truck, { kind: 'along', heading }, 100, 100);
+    const at = rig.screenOf(truck);
+    const ahead = rig.screenOf({ x: Math.cos(heading), y: 0, z: Math.sin(heading) });
+    const towardCenter = (ahead.x - at.x) * (640 - at.x) + (ahead.y - at.y) * (360 - at.y);
+    expect(towardCenter).toBeGreaterThan(0);
+    expect(offsetFromCenter(rig)).toBeGreaterThan(50);
+  });
+
+  it('keeps the lead while held for a long time', () => {
+    const { follow, rig } = driveWithLead();
+    const old = rig.focus();
+    for (let i = 0; i < 100; i++) follow.update(truck, { kind: 'hold' }, 100, 100);
+    expect(rig.focus().x).toBeCloseTo(old.x, 2);
+    expect(rig.focus().z).toBeCloseTo(old.z, 2);
+  });
+
+  it('eases to the center with no order', () => {
+    const { follow, rig } = driveWithLead();
+    for (let i = 0; i < 300; i++) follow.update(truck, CENTER, 100, 100);
+    expect(offsetFromCenter(rig)).toBeLessThan(1);
+  });
+
+  it('grows the lead back along the motion after a recenter', () => {
+    const { follow, rig } = driveWithLead();
+    const old = offsetFromCenter(rig);
+    follow.recenter();
+    for (let i = 0; i < 300; i++) follow.update(truck, EAST, 100, 100);
+    expect(offsetFromCenter(rig)).toBeGreaterThan(old * 0.95);
+  });
+});
+
+describe('leadAim', () => {
+  it.each([
+    [false, true, 1, { kind: 'center' }],
+    [true, false, 1, { kind: 'center' }],
+    [true, true, 1, { kind: 'along', heading: 1 }],
+    [true, true, null, { kind: 'hold' }],
+  ])('auto %s, order %s, heading %s', (auto, onOrder, heading, expected) => {
+    expect(leadAim(auto, onOrder, heading)).toEqual(expected);
   });
 });
 
@@ -579,7 +625,6 @@ describe('followed truck stays in frame', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: size.w, height: size.h }),
   } as HTMLElement;
   const origin = { x: 0, y: 0, z: 0 };
-  const far = { x: 500, y: 0, z: 0 };
 
   function settled(): { rig: CameraRig; follow: TruckFollow } {
     size.w = 1280;
@@ -587,7 +632,7 @@ describe('followed truck stays in frame', () => {
     vi.stubGlobal('window', new EventTarget());
     const rig = new CameraRig(container);
     const follow = new TruckFollow(rig, new KeyPan(() => false), new EventTarget() as HTMLElement);
-    for (let i = 0; i < 300; i++) follow.update(origin, far, 100, 100);
+    for (let i = 0; i < 300; i++) follow.update(origin, EAST, 100, 100);
     return { rig, follow };
   }
 
@@ -605,7 +650,7 @@ describe('followed truck stays in frame', () => {
   it('keeps the truck in the box after a zoom to the maximum between turns', () => {
     const { rig, follow } = settled();
     rig.zoomBy(-2000);
-    follow.update(origin, far, 16, 0);
+    follow.update(origin, EAST, 16, 0);
     expectInBox(rig, origin);
     expect(follow.isFollowing()).toBe(true);
   });
@@ -614,7 +659,7 @@ describe('followed truck stays in frame', () => {
     const { rig, follow } = settled();
     const hill = { x: 0, y: 30, z: 0 };
     rig.zoomBy(-2000);
-    follow.update(hill, far, 16, 0);
+    follow.update(hill, EAST, 16, 0);
     expectInBox(rig, hill);
   });
 
@@ -623,7 +668,7 @@ describe('followed truck stays in frame', () => {
     size.w = w;
     size.h = h;
     rig.resize();
-    follow.update(origin, far, 16, 0);
+    follow.update(origin, EAST, 16, 0);
     expectInBox(rig, origin);
   });
 
@@ -635,7 +680,7 @@ describe('followed truck stays in frame', () => {
       for (let i = 0; i < 300; i++) {
         truck.x += Math.cos(heading) * 25 * 0.016;
         truck.z += Math.sin(heading) * 25 * 0.016;
-        follow.update(truck, { x: truck.x + 500 * Math.cos(heading), y: 0, z: truck.z + 500 * Math.sin(heading) }, 16, 16);
+        follow.update(truck, { kind: "along", heading }, 16, 16);
         expectInBox(rig, truck);
       }
     }
@@ -644,7 +689,7 @@ describe('followed truck stays in frame', () => {
   it('settles the look-ahead halfway to the edge again after a zoom', () => {
     const { rig, follow } = settled();
     rig.zoomBy(-2000);
-    for (let i = 0; i < 300; i++) follow.update(origin, far, 100, 100);
+    for (let i = 0; i < 300; i++) follow.update(origin, EAST, 100, 100);
     const s = rig.screenOf(origin);
     const ox = s.x - 640;
     const oy = s.y - 360;
@@ -657,7 +702,7 @@ describe('followed truck stays in frame', () => {
     follow.pan(10, 10);
     rig.zoomBy(-2000);
     const before = rig.focus();
-    follow.update(origin, far, 16, 0);
+    follow.update(origin, EAST, 16, 0);
     const after = rig.focus();
     expect(after.x).toBeCloseTo(before.x);
     expect(after.z).toBeCloseTo(before.z);
