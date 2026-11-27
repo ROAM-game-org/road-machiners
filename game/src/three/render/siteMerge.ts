@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { registerBakedOutline } from './models';
+import { finishSteps } from './scope';
 
 const PLAIN_ATTRIBUTES = new Set(['position', 'normal', 'uv', 'color']);
 const NOT_LOOK = new Set(['uuid', 'name']);
@@ -19,10 +20,20 @@ const MERGE_RULES: readonly ((mesh: THREE.Mesh, context: Context) => boolean)[] 
 ];
 
 export function mergeStaticMeshes(root: THREE.Group, kept: readonly THREE.Object3D[], pivot: THREE.Vector3): void {
+  finishSteps(mergeStaticSteps(root, kept, pivot));
+}
+
+export function* mergeStaticSteps(root: THREE.Group, kept: readonly THREE.Object3D[], pivot: THREE.Vector3): Generator<void> {
   root.updateMatrixWorld(true);
   const standing = subtreesOf(kept);
   const toPivot = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z).multiply(root.matrixWorld.clone().invert());
-  for (const group of groupsOf(root, standing)) if (group.meshes.length > 1) mergeGroup(root, group, toPivot, pivot, standing);
+  const groups = groupsOf(root, standing);
+  yield;
+  for (const group of groups)
+    if (group.meshes.length > 1) {
+      mergeGroup(root, group, toPivot, pivot, standing);
+      yield;
+    }
 }
 
 function subtreesOf(nodes: readonly THREE.Object3D[]): Set<THREE.Object3D> {

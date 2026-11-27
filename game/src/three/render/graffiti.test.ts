@@ -7,7 +7,7 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseRegionGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, keepAlphas, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
+import { chooseRegionGraffiti, fitSite, regionGraffitiSteps, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, keepAlphas, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -37,6 +37,22 @@ describe('graffiti regions', () => {
     const busy = regions.find((r) => placed.some((p) => inside(r, p.site.pos)))!;
     const alone = chooseRegionGraffiti(busy, new GraffitiCandidates(t, world.obstacles).sitesIn(busy), fitOn);
     expect(alone.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busy, p.site.pos)).map((p) => p.site.id));
+  });
+
+  it('choose a region in steps of at most one fit each, the same as in one call', () => {
+    const busiest = regions.reduce((a, b) => (placed.filter((p) => inside(b, p.site.pos)).length > placed.filter((p) => inside(a, p.site.pos)).length ? b : a));
+    let fits = 0;
+    const steps = regionGraffitiSteps(busiest, candidates.sitesIn(busiest), (site: GraffitiSite) => (fits++, fitOn(site)));
+    let step = steps.next();
+    let most = fits;
+    while (!step.done) {
+      const before = fits;
+      step = steps.next();
+      most = Math.max(most, fits - before);
+    }
+    expect(most).toBe(1);
+    expect(fits).toBeGreaterThan(1);
+    expect(step.value.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busiest, p.site.pos)).map((p) => p.site.id));
   });
 
   it('keep every candidate half the gap inside its region edge', () => {

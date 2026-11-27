@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { Box3, InstancedMesh, Matrix4, Mesh, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
+import { describe, expect, it, vi } from 'vitest';
+import { Box3, Group, InstancedMesh, Matrix4, Mesh, Scene, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
 import { loadModels, MODEL_GLOW } from './models';
-import { buildSites, lampMount } from './sites';
+import { addSites, buildSites, lampMount } from './sites';
+import { RenderScope, SightLimit } from './scope';
+import { TERRAIN_CHUNK } from './terrain';
+import { PlayClock } from '../play-clock';
 import { FORTRESS } from '../../data/fortress';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
@@ -18,7 +21,7 @@ import { TEST_MAP } from '../../test/map';
 import { ICARUS_DECKS } from '../../sim/bridge';
 import { ICARUS_KEY } from '../../sim/atlas';
 import { highwayMap, outpostFort } from '../../sim/highway';
-import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL } from './siteLights';
+import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL, SiteLights } from './siteLights';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -838,6 +841,27 @@ describe('merged static meshes', () => {
     { name: 'the sites of the map', loose: built, merged: buildSites(FLAT_TERRAIN), ids: ALL.map((s) => s.id) },
     { name: 'the outposts of the Chaos Highway', loose: buildSites(roadTerrain, false), merged: buildSites(roadTerrain), ids: [1, 2].map((j) => outpostFort(3, 1, j).id) },
   ];
+
+  it('streams the Nose in many steps into the same objects as its one-call build, and lights it once done', () => {
+    const nose = ALL.find((s) => s.id === 'nose')!;
+    const scope = new RenderScope(new Group(), REGION.size, new SightLimit(REGION.size), false, false);
+    const siteLights = new SiteLights(new Scene(), null, { worldSize: 8, maxTextureSize: 64, spotShadows: false });
+    addSites(FLAT_TERRAIN, scope, new PlayClock({ stopMs: 1, startMs: 1, stopFolds: 1 }), siteLights);
+    const cell = Math.floor(nose.pos.y / TERRAIN_CHUNK) * scope.cellsPerSide + Math.floor(nose.pos.x / TERRAIN_CHUNK);
+    const added = vi.spyOn(siteLights, 'add');
+    let steps = 0;
+    while (scope.buildNext(cell) === 'stepped') steps++;
+    expect(added).toHaveBeenCalledOnce();
+    expect(added.mock.calls[0][0].map((l) => l.siteId)).toContain('nose');
+    const streamed = scope.groupOf(cell).getObjectByName('landmark-nose')!;
+    const shape = (root: Object3D) => {
+      const names: string[] = [];
+      root.traverse((o) => names.push(`${o.name}:${o.type}:${o.position.toArray().map((v) => v.toFixed(3)).join(',')}`));
+      return names;
+    };
+    expect(steps).toBeGreaterThan(10);
+    expect(shape(streamed)).toEqual(shape(siteIn(worlds[0].merged, 'nose')));
+  });
 
   it('draws every site with under 60% of its meshes, and the Bowl with under 40%', () => {
     const shares: number[] = [];

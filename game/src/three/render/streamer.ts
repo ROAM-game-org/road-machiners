@@ -73,9 +73,10 @@ export class CellStreamer {
   private buildOne(cell: number, touched: Touched | null): boolean {
     for (const scope of this.scopes) {
       const start = performance.now();
-      if (!scope.buildNext(cell)) continue;
+      const step = scope.buildNext(cell);
+      if (step === null) continue;
       record('stream-step', performance.now() - start);
-      if (touched) touched.set(scope, (touched.get(scope) ?? new Set()).add(cell));
+      if (touched && step === 'built') touched.set(scope, (touched.get(scope) ?? new Set()).add(cell));
       return true;
     }
     return false;

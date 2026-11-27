@@ -18,7 +18,10 @@ const IDENTITY = new THREE.Matrix4();
 
 export type Rect = { x0: number; y0: number; x1: number; y1: number };
 export type Placement = { readonly pos: Vec; readonly radius: number; readonly cell: number; built: THREE.Object3D | null };
-type Pending = { placement: Placement; build: () => THREE.Object3D };
+export type StepBuild = { steps(): Iterator<void, THREE.Object3D> };
+export type PlacementBuild = (() => THREE.Object3D) | StepBuild;
+export type BuildStep = 'built' | 'stepped' | null;
+type Pending = { placement: Placement; build: PlacementBuild; run: Iterator<void, THREE.Object3D> | null };
 type Chunk = { group: THREE.Group; cell: number; box: THREE.Box3; shown: boolean; pending: Pending[]; claim: Rect | null };
 type CellRange = { x0: number; y0: number; x1: number; y1: number };
 const CHUNK_METERS = TERRAIN_CHUNK * S;
@@ -102,12 +105,12 @@ export class RenderScope {
     return { x0: claim.x0 - margin, y0: claim.y0 - margin, x1: claim.x1 + margin, y1: claim.y1 + margin };
   }
 
-  place(pos: Vec, radius: number, build: () => THREE.Object3D): Placement {
+  place(pos: Vec, radius: number, build: PlacementBuild): Placement {
     this.checkAnchor(pos, radius);
     const cell = this.cellAt(pos);
     const chunk = this.chunkAt(pos);
     const placement: Placement = { pos, radius, cell, built: null };
-    chunk.pending.push({ placement, build });
+    chunk.pending.push({ placement, build, run: null });
     chunk.claim = widen(chunk.claim, pos, radius);
     this.claimOverhang = Math.max(this.claimOverhang, this.claimOverhangOf(cell, pos, radius));
     this.placed.add(placement);
@@ -122,15 +125,17 @@ export class RenderScope {
     return chunk.group;
   }
 
-  buildNext(cell: number): THREE.Object3D | null {
+  buildNext(cell: number): BuildStep {
     const chunk = this.chunks[cell];
-    const next = chunk?.pending.shift();
+    const next = chunk?.pending[0];
     if (!chunk || !next) return null;
+    const obj = stepOnce(next);
+    if (obj === null) return 'stepped';
+    chunk.pending.shift();
     this.settle(chunk, cell);
-    const obj = next.build();
     this.add(obj, next.placement.pos, next.placement.radius);
     next.placement.built = obj;
-    return obj;
+    return 'built';
   }
 
   add(obj: THREE.Object3D, pos: Vec, radius: number): void {
@@ -318,6 +323,20 @@ function inRange(cell: number, range: CellRange, perSide: number): boolean {
   const cx = cell % perSide;
   const cy = Math.floor(cell / perSide);
   return cx >= range.x0 && cx <= range.x1 && cy >= range.y0 && cy <= range.y1;
+}
+
+export function finishSteps<T>(steps: Iterator<void, T>): T {
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+function stepOnce(pending: Pending): THREE.Object3D | null {
+  if (typeof pending.build === 'function') return pending.build();
+  pending.run ??= pending.build.steps();
+  const step = pending.run.next();
+  return step.done ? step.value : null;
 }
 
 function widen(claim: Rect | null, pos: Vec, radius: number): Rect {

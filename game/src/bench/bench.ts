@@ -96,7 +96,7 @@ export function mountainTown(world: World): Town {
   const def = REGION.towns.find((town) => town.id === MOUNTAIN_TOWN);
   const pad = def && sitePads(def)[0];
   if (!def || !pad) throw new Error(`Town ${MOUNTAIN_TOWN} has no landing pad, so the bench cannot drive past it`);
-  if (world.terrain.size <= def.pos.x + def.radius + OUTSIDE_TILES) throw new Error(`Town ${MOUNTAIN_TOWN} lies off this ${world.terrain.size}-tile map`);
+  if (world.terrain.size <= def.pos.x || noseApproach(def).x - DRIVE_TILES < 1) throw new Error(`Town ${MOUNTAIN_TOWN} lies off this ${world.terrain.size}-tile map`);
   return { def, pad };
 }
 
@@ -372,6 +372,14 @@ function nightConvoy(world: World): World {
   return NIGHT_CONVOY_TEMPLATES.reduce((spawned, template) => spawnNear(spawned, template, false), world);
 }
 
+function noseApproach(def: TownDef): Vec {
+  return { x: def.pos.x - def.radius - OUTSIDE_TILES - DRIVE_TILES, y: def.pos.y };
+}
+
+function noseDrive(base: World, nose: Town, pass: number): World {
+  return driveStart(teleport(skipToHour(base, DAY_HOUR), noseApproach(nose.def)), pass === 0 ? 1 : -1);
+}
+
 function driveSide(pass: number): number {
   return pass % 2 === 0 ? 1 : -1;
 }
@@ -643,7 +651,7 @@ function specsFor(ctx: Ctx, town: Town, base: World): Spec[] {
   const driveWorld = (pass: number) => driveStart(outsideBase(base, town, driveSide(pass)), driveSide(pass));
   const drive: TurnScene = { id: 'drive', warm: false, start: driveWorld, run: () => playDrive(ctx, log), check: driveCheck };
   const nose = mountainTown(base);
-  const driveNose: TurnScene = { id: 'drive-nose', warm: false, start: (pass) => driveStart(outsideBase(base, nose, driveSide(pass)), driveSide(pass)), run: () => playDrive(ctx, log), check: driveCheck };
+  const driveNose: TurnScene = { id: 'drive-nose', warm: false, start: (pass) => noseDrive(base, nose, pass), run: () => playDrive(ctx, log), check: driveCheck };
   const driveNight: TurnScene = {
     id: 'drive-night', warm: false, night: true,
     start: (pass) => nightConvoy(driveStart(outsideBase(base, town, driveSide(pass), NIGHT_HOUR, NIGHT_LANE_TILES), driveSide(pass))),

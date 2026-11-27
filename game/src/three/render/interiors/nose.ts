@@ -89,14 +89,18 @@ function placeAt(f: Pick<Frame, 'u' | 'v'>, u: number, v: number): Point {
   return { x: u * f.u.x + v * f.v.x, z: u * f.u.z + v * f.v.z };
 }
 
-export function buildNose(b: SiteBuilder, site: Site): void {
+export function* buildNose(b: SiteBuilder, site: Site): Generator<void> {
   const f = frameOf(site);
   addShip(b, f);
+  yield;
   const gates = gateDiscs(site);
   const taken = [...gates];
   addYard(b, f, taken, gates);
+  yield;
   b.root.userData.homes = addShelters(b, site, f, taken);
+  yield;
   addRubble(b, site, f, taken);
+  yield;
   b.root.userData.structures = taken;
   lampSpots(site, f, taken).forEach((s, i) => b.addLantern(s.x, s.z, i * 0.7));
 }

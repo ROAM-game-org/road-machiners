@@ -43,12 +43,16 @@ type Side = { a: Vec; b: Vec; length: number; along: Vec; inward: Vec };
 type Spot = { x: number; z: number; yaw: number };
 type Disc = { x: number; z: number; r: number };
 
-export function buildBowl(b: SiteBuilder, site: Site): void {
+export function* buildBowl(b: SiteBuilder, site: Site): Generator<void> {
   const taken: Disc[] = [];
   buildFloor(b, site, taken);
+  yield;
   b.root.userData.homes = addHouses(b, site, taken);
+  yield;
   addTerraces(b, site, taken);
+  yield;
   addSheds(b, site);
+  yield;
   lampSpots(site, taken).forEach((s, i) => b.addLantern(s.x, s.z, i * 0.5));
 }
 

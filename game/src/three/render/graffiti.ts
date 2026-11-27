@@ -8,9 +8,9 @@ import { ObstacleBuckets } from '../../sim/nav/buckets';
 import { groundAt, groundSlope, type Terrain } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
-import { count, timed } from '../../perf';
+import { count } from '../../perf';
 import { buildProp } from './obstacles';
-import type { Rect, RenderScope } from './scope';
+import { finishSteps, type Rect, type RenderScope } from './scope';
 import { chunkGeometry } from './terrain';
 
 const S = PHYSICS.metersPerTile;
@@ -170,18 +170,24 @@ export class GraffitiCandidates {
 }
 
 export function chooseRegionGraffiti<F>(region: GraffitiRegion, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
+  return finishSteps(regionGraffitiSteps(region, sites, fit));
+}
+
+export function* regionGraffitiSteps<F>(region: GraffitiRegion, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): Generator<void, GraffitiPlaced<F>[]> {
   const placed: GraffitiPlaced<F>[] = [];
-  const fill = (list: readonly GraffitiSite[], count: number) => {
-    for (const site of list) {
-      if (placed.length >= count) return;
-      if (placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) continue;
-      const found = fit(site);
-      if (found !== null) placed.push({ site, fit: found });
-    }
-  };
-  fill(sites.props, Math.round(region.target * GRAFFITI.propShare));
-  fill(sites.cliffs, region.target);
+  yield* fillSteps(placed, sites.props, Math.round(region.target * GRAFFITI.propShare), fit);
+  yield* fillSteps(placed, sites.cliffs, region.target, fit);
   return placed;
+}
+
+function* fillSteps<F>(placed: GraffitiPlaced<F>[], list: readonly GraffitiSite[], count: number, fit: (site: GraffitiSite) => F | null): Generator<void> {
+  for (const site of list) {
+    if (placed.length >= count) return;
+    if (placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) continue;
+    const found = fit(site);
+    if (found !== null) placed.push({ site, fit: found });
+    yield;
+  }
 }
 
 type Hit = { point: THREE.Vector3; normal: THREE.Vector3 };
@@ -453,7 +459,13 @@ export class GraffitiViews {
       return found && !blockedInFront(buckets, site.obstacle, found) ? found : null;
     };
     for (const region of graffitiRegions(world.size))
-      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), () => timed('graffiti-region', () => this.draw(region, chooseRegionGraffiti(region, candidates.sitesIn(region), fit))));
+      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), { steps: () => this.drawSteps(region, candidates, fit) });
+  }
+
+  private *drawSteps(region: GraffitiRegion, candidates: GraffitiCandidates, fit: (site: GraffitiSite) => SignFit | null): Generator<void, THREE.Object3D> {
+    const sites = candidates.sitesIn(region);
+    yield;
+    return this.draw(region, yield* regionGraffitiSteps(region, sites, fit));
   }
 
   private paint(): THREE.MeshLambertMaterial {

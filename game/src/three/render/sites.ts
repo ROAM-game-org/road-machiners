@@ -10,13 +10,12 @@ import { atlasOf } from '../../sim/atlas';
 import { deckById, deckCenterAt, type Deck } from '../../sim/bridge';
 import { propBase, propObstacle } from '../../sim/mapgen';
 import { deckSegments, heightAt, type DeckSegment, type Terrain } from '../../sim/terrain';
-import { pointInPolygon, segmentDist } from '../../sim/vec';
-import { timed } from '../../perf';
+import { isConvexPolygon, pointInPolygon, segmentDist } from '../../sim/vec';
 import { instancedModel, model, type ModelName } from './models';
-import type { RenderScope } from './scope';
+import { finishSteps, type RenderScope } from './scope';
 import type { PlayClock } from '../play-clock';
 import { SiteMotion, type Motion } from './site-motion';
-import { mergeStaticMeshes } from './siteMerge';
+import { mergeStaticSteps } from './siteMerge';
 import { buildBowl } from './interiors/bowl';
 import { buildCamp } from './interiors/camp';
 import { buildDustwell } from './interiors/dustwell';
@@ -160,7 +159,10 @@ export class SiteBuilder {
     return group;
   }
   mergeStatic(kept: readonly THREE.Object3D[]): void {
-    mergeStaticMeshes(this.root, kept, new THREE.Vector3(this.site.pos.x * S, this.groundAt(0, 0) * S, this.site.pos.y * S));
+    finishSteps(this.mergeStaticSteps(kept));
+  }
+  mergeStaticSteps(kept: readonly THREE.Object3D[]): Generator<void> {
+    return mergeStaticSteps(this.root, kept, new THREE.Vector3(this.site.pos.x * S, this.groundAt(0, 0) * S, this.site.pos.y * S));
   }
   offRoad(x: number, z: number, clearance: number): void {
     const pos = { x: this.site.pos.x + x, y: this.site.pos.y + z };
@@ -407,19 +409,42 @@ function buildWingDeck(t: Terrain): THREE.Group {
   return root;
 }
 
-function closeSite(b: SiteBuilder, site: Site, t: Terrain): void {
+function* closeSiteSteps(b: SiteBuilder, site: Site, t: Terrain): Generator<void> {
   if (!isFortress(site)) throw new Error(`Site ${site.id} has no fortress`);
-  pullInside(site, b.root, t);
+  yield* pullInsideSteps(site, b.root, t);
   dressGates(b, site, t);
 }
 
-function insideSiteCurtain(site: Site, obj: THREE.Object3D): boolean {
-  let inside = true;
+function* insideSiteCurtainSteps(site: Site, obj: THREE.Object3D): Generator<void, boolean> {
+  const convex = isConvexPolygon(fortressOutline(site));
   obj.updateMatrixWorld(true);
+  const checked = { vertices: 0 };
+  for (const { geometry, at } of copiesUnder(obj)) {
+    if (convex && boxInsideCurtain(site, geometry, at)) continue;
+    if (!(yield* verticesInsideSteps(site, geometry, at, checked))) return false;
+  }
+  return true;
+}
+
+function* verticesInsideSteps(site: Site, geometry: THREE.BufferGeometry, at: THREE.Matrix4, checked: { vertices: number }): Generator<void, boolean> {
+  const pos = geometry.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) {
+    if (++checked.vertices % CURTAIN_CHECK_VERTICES === 0) yield;
+    if (!vertexInside(site, CHECKED_VERTEX.fromBufferAttribute(pos, i).applyMatrix4(at))) return false;
+  }
+  return true;
+}
+
+const CURTAIN_CHECK_VERTICES = 256;
+const CHECKED_VERTEX = new THREE.Vector3();
+const CHECKED_BOX = new THREE.Box3();
+
+function copiesUnder(obj: THREE.Object3D): { geometry: THREE.BufferGeometry; at: THREE.Matrix4 }[] {
+  const copies: { geometry: THREE.BufferGeometry; at: THREE.Matrix4 }[] = [];
   obj.traverse((o) => {
-    if (o instanceof THREE.Mesh && inside) inside = copiesOf(o).every((at) => verticesInside(site, o.geometry, at));
+    if (o instanceof THREE.Mesh) for (const at of copiesOf(o)) copies.push({ geometry: o.geometry, at });
   });
-  return inside;
+  return copies;
 }
 
 function copiesOf(o: THREE.Mesh): THREE.Matrix4[] {
@@ -427,18 +452,18 @@ function copiesOf(o: THREE.Mesh): THREE.Matrix4[] {
   return Array.from({ length: o.count }, (_, k) => o.matrixWorld.clone().multiply(o.getMatrixAt(k, new THREE.Matrix4())));
 }
 
-function verticesInside(site: Site, geometry: THREE.BufferGeometry, at: THREE.Matrix4): boolean {
-  const v = new THREE.Vector3();
-  const pos = geometry.getAttribute('position');
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i).applyMatrix4(at);
-    const p = { x: v.x / S, y: v.z / S };
-    if (!insideCurtain(site, p) && !onFortressRock(site, p)) return false;
-  }
-  return true;
+function boxInsideCurtain(site: Site, geometry: THREE.BufferGeometry, at: THREE.Matrix4): boolean {
+  if (geometry.boundingBox === null) geometry.computeBoundingBox();
+  const { min, max } = CHECKED_BOX.copy(geometry.boundingBox!).applyMatrix4(at);
+  return [min.x, max.x].every((x) => [min.z, max.z].every((z) => insideCurtain(site, { x: x / S, y: z / S })));
 }
 
-function pullInside(site: Site, root: THREE.Group, t: Terrain): void {
+function vertexInside(site: Site, v: THREE.Vector3): boolean {
+  const p = { x: v.x / S, y: v.z / S };
+  return insideCurtain(site, p) || onFortressRock(site, p);
+}
+
+function* pullInsideSteps(site: Site, root: THREE.Group, t: Terrain): Generator<void> {
   const cx = site.pos.x * S;
   const cz = site.pos.y * S;
   const homes = root.children.map((child) => child.position.clone());
@@ -446,7 +471,7 @@ function pullInside(site: Site, root: THREE.Group, t: Terrain): void {
   for (let step = 20; step >= 0 && !fits; step--) {
     const k = step / 20;
     root.children.forEach((child, i) => child.position.set(cx + (homes[i].x - cx) * k, homes[i].y, cz + (homes[i].z - cz) * k));
-    fits = root.children.every((child) => insideSiteCurtain(site, child));
+    fits = yield* everyChildInside(site, root);
   }
   if (!fits) throw new Error(`The interior of ${site.id} does not fit inside its curtain`);
   root.children.forEach((child, i) => {
@@ -454,7 +479,16 @@ function pullInside(site: Site, root: THREE.Group, t: Terrain): void {
   });
 }
 
-type SiteDecor = (b: SiteBuilder, site: Site, t: Terrain) => void;
+function* everyChildInside(site: Site, root: THREE.Group): Generator<void, boolean> {
+  for (const child of root.children) {
+    const inside = yield* insideSiteCurtainSteps(site, child);
+    yield;
+    if (!inside) return false;
+  }
+  return true;
+}
+
+type SiteDecor = (b: SiteBuilder, site: Site, t: Terrain) => Generator<void> | void;
 
 const camp: SiteDecor = (b, site) => buildCamp(b, site.id);
 
@@ -509,14 +543,22 @@ function resolveLights(b: SiteBuilder, site: Site, t: Terrain): SiteLight[] {
 }
 
 function buildSite(t: Terrain, site: Site, merge = true): BuiltSite {
+  return finishSteps(siteSteps(t, site, merge));
+}
+
+function* siteSteps(t: Terrain, site: Site, merge = true): Generator<void, BuiltSite> {
   const b = new SiteBuilder(t, site);
   const decor = SITE_DECOR[siteLook(site)];
   if (decor === undefined) throw new Error(`Missing landmark model for ${siteLook(site)}`);
-  decor(b, site, t);
-  closeSite(b, site, t);
+  const decorSteps = decor(b, site, t);
+  if (decorSteps) yield* decorSteps;
+  yield;
+  yield* closeSiteSteps(b, site, t);
   const lights = resolveLights(b, site, t);
   const lamps = lightNights(b, site);
-  if (merge) b.mergeStatic([...b.movers.map((m) => m.node), ...b.lamps, ...b.fixtures.map((f) => f.head)]);
+  yield;
+  if (merge) yield* b.mergeStaticSteps([...b.movers.map((m) => m.node), ...b.lamps, ...b.fixtures.map((f) => f.head)]);
+  yield;
   b.root.traverse((o) => {
     o.updateMatrix();
     o.matrixAutoUpdate = false;
@@ -559,13 +601,7 @@ export function buildSites(t: Terrain, merge = true): BuiltSite {
 export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLights: SiteLights): void {
   const motion = new SiteMotion();
   for (const site of sitesOf(t))
-    scope.place(site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0), () => {
-      const built = timed('site-build', () => buildSite(t, site));
-      siteLights.add(built.lights, built.lamps);
-      const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
-      for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
-      return built.root;
-    });
+    scope.place(site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0), { steps: () => placeSiteSteps(t, site, motion, siteLights) });
   let last = play.nowMs();
   scope.onFrame(() => {
     const now = play.nowMs();
@@ -576,6 +612,14 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLi
     const deck = deckOf(t, id);
     if (deck) scope.place({ x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2, () => build(t));
   }
+}
+
+function* placeSiteSteps(t: Terrain, site: Site, motion: SiteMotion, siteLights: SiteLights): Generator<void, THREE.Object3D> {
+  const built = yield* siteSteps(t, site);
+  siteLights.add(built.lights, built.lamps);
+  const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
+  for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
+  return built.root;
 }
 
 export function poseOnDeck(obj: THREE.Object3D, deck: Deck, seg: DeckSegment, top: number): void {
