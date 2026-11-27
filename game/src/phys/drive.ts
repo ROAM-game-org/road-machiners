@@ -240,46 +240,78 @@ export type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody
 export const rearKey = (id: string) => `${id}/rear`;
 
 export function simulateSteps(d: Drive, w: World, steps: number): TurnResult {
-  const world = restoreWorld(d.world.takeSnapshot());
-  const events = new RAPIER.EventQueue(true);
-  return freeOnThrow(world, events, () => run(d, w, steps, world, events));
+  const run = new PhysicsRun(d, w, steps);
+  return freeOnThrow(run.world, run.events, () => {
+    for (let i = 0; i < steps; i++) run.step();
+    return run.finish();
+  });
 }
 
-function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAPIER.EventQueue): TurnResult {
-  world.timestep = DT;
-  const memory: Record<string, Memory> = structuredClone(d.memory);
-  const cars = makeCars(d, w, world, memory);
-  const owners = ownersOf(cars);
-  const obstacleOf = new Map(Object.entries(d.obstacles).flatMap(([id, handles]) => handles.map((h) => [h, id] as const)));
+export type Stick = { throttle: -1 | 0 | 1; steer: -1 | 0 | 1 };
 
-  const frames: TurnFrames = Object.fromEntries(cars.map((c) => [c.v.id, [] as VehicleFrame[]]));
-  const contacts = new Contacts(w);
-  const throws = new ClaymoreThrows(w, cars);
-  const landings = new Landings();
-  const lines = new Lines(w, cars);
-  const combat = new TimedDrive(w, cars, steps, car => { car.plan = planOf(w, car.v, car.s, car.body, car.mem); });
-  for (let i = 0; i < steps; i++) {
-    combat.step();
+export class PhysicsRun {
+  readonly world: RAPIER.World;
+  readonly events = new RAPIER.EventQueue(true);
+  readonly frames: TurnFrames;
+  private readonly memory: Record<string, Memory>;
+  private readonly cars: Car[];
+  private readonly owners: Owners;
+  private readonly obstacleOf: Map<number, string>;
+  private readonly contacts: Contacts;
+  private readonly throws: ClaymoreThrows;
+  private readonly landings = new Landings();
+  private readonly lines: Lines;
+  private readonly combat: TimedDrive;
+  private done = 0;
+
+  constructor(private readonly d: Drive, private readonly w: World, readonly steps: number, private readonly stickOf: (id: string) => Stick | null = () => null) {
+    this.world = restoreWorld(d.world.takeSnapshot());
+    this.world.timestep = DT;
+    this.memory = structuredClone(d.memory);
+    this.cars = makeCars(d, w, this.world, this.memory);
+    this.owners = ownersOf(this.cars);
+    this.obstacleOf = new Map(Object.entries(d.obstacles).flatMap(([id, handles]) => handles.map((h) => [h, id] as const)));
+    this.frames = Object.fromEntries(this.cars.map((c) => [c.v.id, [] as VehicleFrame[]]));
+    this.contacts = new Contacts(w);
+    this.throws = new ClaymoreThrows(w, this.cars);
+    this.lines = new Lines(w, this.cars);
+    this.combat = new TimedDrive(w, this.cars, steps, car => { car.plan = planOf(w, car.v, car.s, car.body, car.mem); });
+  }
+
+  isDone(): boolean {
+    return this.done >= this.steps;
+  }
+
+  step(): void {
+    if (this.isDone()) throw new Error(`A physics run of ${this.steps} steps was stepped past its end`);
+    const { world, events, cars, contacts, d, w } = this;
+    const i = this.done++;
+    this.combat.step();
     const before = impactMotions(cars);
-    for (const c of cars) driveStep(c, w.terrain);
+    for (const c of cars) driveStep(c, w.terrain, this.stickOf(c.v.id));
     for (const c of cars) updateCar(c);
-    lines.pull(i);
+    this.lines.pull(i);
     for (const c of cars) holdUnits(c);
     for (const c of cars) levelCar(c, w.terrain);
-    landings.note(cars, before, i);
+    this.landings.note(cars, before, i);
     stepPhysics(world, events);
     events.drainCollisionEvents((h1, h2, started) => {
-      if (started) contacts.add(crashOf(h1, h2, owners, obstacleOf, d, before, world, w), i);
+      if (started) contacts.add(crashOf(h1, h2, this.owners, this.obstacleOf, d, before, world, w), i);
     });
     smash(world, d, contacts.takeNewBreaks(), cars, before);
-    throws.apply(contacts.takeNewCrashes());
-    for (const c of cars) frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
+    this.throws.apply(contacts.takeNewCrashes());
+    for (const c of cars) this.frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
   }
-  combat.finish();
-  for (const c of cars) dropControllers(world, carrySpins(noteGrounded(c, (handle) => isGround(d, handle)), frames[c.v.id].at(-1)));
-  const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
-  const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
-  return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, ramps: { ...d.ramps }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };
+
+  finish(): TurnResult {
+    if (!this.isDone()) throw new Error(`A physics run finished after ${this.done} of ${this.steps} steps`);
+    const { world, cars, d, contacts, frames } = this;
+    this.combat.finish();
+    for (const c of cars) dropControllers(world, carrySpins(noteGrounded(c, (handle) => isGround(d, handle)), frames[c.v.id].at(-1)));
+    const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
+    const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
+    return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, ramps: { ...d.ramps }, memory: this.memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: this.landings.all(), tears: this.lines.tears, results };
+  }
 }
 
 function makeCars(d: Drive, w: World, world: RAPIER.World, memory: Record<string, Memory>): Car[] {
@@ -626,11 +658,12 @@ function oiledUnit(oil: Circle[], body: RAPIER.RigidBody, b: Body, unit: number)
   });
 }
 
-function driveStep(c: Car, terrain: Terrain): void {
+function driveStep(c: Car, terrain: Terrain, stick: Stick | null): void {
   const slick = oiledWheels(c);
   applyTerrainGrip(c, terrain, slick);
   oilKick(c, slick.front);
   const speed = forwardSpeed(c.body);
+  if (stick) return stickStep(c, stick, speed);
   const driving = c.plan.dest && !reached(c);
   if (!driving) c.mem.stall = 0;
   const command = driving ? commandToward(c, c.plan.dest!, speed) : { target: c.plan.target, steerTo: 0 };
@@ -642,6 +675,20 @@ function driveStep(c: Car, terrain: Terrain): void {
   }
   turnWheels(c, command.steerTo);
   applyPedals(c, groundTarget(c, command.target), speed);
+}
+
+function stickStep(c: Car, stick: Stick, speed: number): void {
+  c.mem.stall = 0;
+  c.mem.reverse = false;
+  c.mem.backFrom = null;
+  turnWheels(c, stick.steer * c.plan.maxSteer);
+  applyPedals(c, groundTarget(c, stickTarget(c, stick, speed)), speed);
+}
+
+function stickTarget(c: Car, stick: Stick, speed: number): number {
+  if (stick.throttle === 1) return speed < -D.stallSpeed ? 0 : toMps(c.s.maxSpeed);
+  if (stick.throttle === -1) return speed > D.stallSpeed ? 0 : -D.reverseSpeed;
+  return speed;
 }
 
 function groundTarget(c: Car, target: number): number {

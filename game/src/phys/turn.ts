@@ -26,7 +26,7 @@ import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
 import { seenPropTiles, visibleTiles } from '../sim/vision';
-import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateSteps, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
+import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, PhysicsRun, simulateSteps, syncDrive, type Stick, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type TurnFrames, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
@@ -362,18 +362,28 @@ export type PlayedTurn = TurnResult & { sight: LiveSight };
 
 export function physicsMove(d: Drive, done: (r: PlayedTurn) => void): (w: World) => void {
   return (w) => {
-    settleWoken(w, (id) => d.bodies[id] !== undefined);
-    syncDrive(d, w);
-    const timedFar = w.combat.active && hasTimedFire(w.combat);
-    const r = simulateTurn(d, w);
-    const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));
-    applyTurn(w, r);
-    for (const v of far) {
-      if (!timedFar) advanceFar(w, v);
-      r.frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
-    }
-    done({ ...r, sight: timed('live-sight', () => playerSight(w, r.frames[w.player.vehicleId])) });
+    const run = startPhysics(d, w);
+    while (!run.isDone()) run.step();
+    done(landPhysics(w, run));
   };
+}
+
+export function startPhysics(d: Drive, w: World, stickOf?: (id: string) => Stick | null): PhysicsRun {
+  settleWoken(w, (id) => d.bodies[id] !== undefined);
+  syncDrive(d, w);
+  return new PhysicsRun(d, w, TURN_STEPS, stickOf);
+}
+
+export function landPhysics(w: World, run: PhysicsRun): PlayedTurn {
+  const timedFar = w.combat.active && hasTimedFire(w.combat);
+  const r = run.finish();
+  const far = w.vehicles.filter((v) => !r.frames[v.id] && !isOnRope(w, v.id));
+  applyTurn(w, r);
+  for (const v of far) {
+    if (!timedFar) advanceFar(w, v);
+    r.frames[v.id] = trailFrames(w, v, restWheels(v.chassisId));
+  }
+  return { ...r, sight: timed('live-sight', () => playerSight(w, r.frames[w.player.vehicleId])) };
 }
 
 function playerSight(w: World, frames: readonly VehicleFrame[] | undefined): LiveSight {

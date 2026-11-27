@@ -51,6 +51,7 @@ import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, mountedSelection, weaponsForClick } from "../ui/weapons";
 import { TRAVEL_SPEED_CODES } from "../ui/travel-speed";
 import { type CameraRig, KeyPan, TruckFollow } from "./render/camera";
+import { LiveClock, LiveKeys } from "./live-clock";
 import type { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
 import { aimedTarget, CollisionCues, HornCues, hornSteps, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, breakEmphasis, volleySeen, type CombatHost } from "./volley";
@@ -214,6 +215,9 @@ export class Game {
   private last = performance.now();
   private framesSeen = 0;
   readonly pace = new FramePace();
+  private liveMode = false;
+  private readonly liveClock = new LiveClock();
+  private readonly liveKeys = new LiveKeys((e) => this.liveMode && !this.ignoresKey(e) && !this.modalOpen());
   private readonly turnWait = new TurnWait(() => this.travel.isPlaying(this.anim));
   private pressedDuringTurn = false;
 
@@ -245,7 +249,7 @@ export class Game {
     subscribeInputMode(() => this.refreshUi());
     installTips(uiRoot(), touchMode, [overlay]);
     followRenderScale(this.renderer, () => window.devicePixelRatio, () => this.fitView());
-    this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
+    this.follow = new TruckFollow(this.rig, new KeyPan((e) => this.ignoresKey(e) || this.liveMode), this.renderer.domElement);
     this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
     ({ sightLimit: this.sightLimit, scopes: this.scopes, craters: this.craters, siteLights: this.siteLights, obstacles: this.obstacles, fog: this.fog, shade: this.shade, streamer: this.streamer } = views);
@@ -516,7 +520,7 @@ export class Game {
     canvas.addEventListener("pointerleave", () => this.picker.moveTo(null));
     canvas.addEventListener("wheel", (e) => this.rig.zoomBy(e.deltaY), { passive: true });
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") this.releaseTurn();
+      if (e.code === "Space" && !this.liveMode) this.releaseTurn();
     });
     window.addEventListener("blur", () => this.travel.pause());
     document.addEventListener("visibilitychange", () => {
@@ -524,13 +528,31 @@ export class Game {
     });
     window.addEventListener("keydown", (e) => {
       if (this.ignoresKey(e) || this.death.isShown()) return;
-      if (e.code === "Space" && !this.turnRefused()) {
+      if (e.code === "Space" && !this.liveMode && !this.turnRefused()) {
         e.preventDefault();
         if (!e.repeat) this.pressTurn("key");
       }
       if (e.code === "Escape" && e.repeat) return;
       this.runKey(e.code, "key");
     });
+  }
+
+  private toggleLive(): void {
+    this.liveMode = !this.liveMode;
+    this.liveClock.drop();
+    this.travel.pause();
+    if (this.liveMode && playerCanAct(this.world) && playerVehicle(this.world).order) this.apply(setMoveOrder(this.world, null));
+  }
+
+  private tickLive(now: number, dt: number): void {
+    if (!this.liveKeys.anyHeld() || this.anim || this.holdsTime() || this.turnRefused() || this.world.player.state === "dead") return;
+    try {
+      const prepared = this.liveClock.tick(this.world, this.drive, dt, this.liveKeys.stick());
+      if (prepared) this.beginTurn(prepared, now, MOVE_MS);
+    } catch (err) {
+      this.liveClock.drop();
+      this.failTurn(err);
+    }
   }
 
   private releaseTurn(): void {
@@ -581,6 +603,7 @@ export class Game {
     KeyE: { run: () => this.context.use(), control: () => this.hud.actionKey(), noModal: true, inventoryOk: true, idle: true },
     ArrowLeft: { run: () => this.cycleContext(-1), control: () => this.hud.cycleKey(-1), noModal: true, idle: true },
     ArrowRight: { run: () => this.cycleContext(1), control: () => this.hud.cycleKey(1), noModal: true, idle: true },
+    KeyK: { run: () => this.toggleLive(), control: "none", noModal: true, idle: true },
     KeyR: { run: () => this.controls.toggleManual(), control: () => this.hud.manualSwitch(), noModal: true, idle: true },
     KeyP: { run: () => this.controls.toggleAutoRepair(), control: "none", noModal: true, idle: true },
     KeyO: { run: () => this.controls.toggleOverdrive(), control: () => this.hud.overdriveSwitch(), noModal: true, idle: true },
@@ -629,7 +652,7 @@ export class Game {
 
   private canClick(): boolean { return !this.anim && this.canOrder(); }
 
-  private canOrder(): boolean { return !this.modalOpen() && playerCanAct(this.world); }
+  private canOrder(): boolean { return !this.liveMode && !this.modalOpen() && playerCanAct(this.world); }
 
   private touchDown(e: PointerEvent): void {
     this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, performance.now()));
@@ -1118,6 +1141,7 @@ export class Game {
     if (held) this.travel.pause();
     const speed = this.travel.paceSpeed(this.world, now, held ? 0 : dt, CONFIG.travelFastSpeed);
     const clock = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), playbackFrameCapMs(speed, CONFIG.playbackHitchMs, MOVE_MS)), speed, now);
+    if (this.liveMode) this.tickLive(now, dt);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.revealDueCall();
@@ -1125,7 +1149,7 @@ export class Game {
     let at = this.animStep(now, speed, clock.playMs);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying);
+    const began = this.liveMode ? "none" : this.tryBeginTurn(now, wasPlaying);
     if (began === "failed") return { at, ...clock };
     if (began === "began") {
       clock.combatMs = 0;
@@ -1134,7 +1158,7 @@ export class Game {
     }
     this.settleLateStop(now);
     if (!this.travel.isPlaying(this.anim)) this.turnWait.release();
-    if (began !== "began") this.travel.prepareNext(this.world, this.anim, now, this.drive);
+    if (began !== "began" && !this.liveMode) this.travel.prepareNext(this.world, this.anim, now, this.drive);
     timed("flush-ui", () => this.flushUi(began, phase));
     return { at, ...clock };
   }
@@ -1273,7 +1297,7 @@ export class Game {
     const hidden: Vehicle[] = [];
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
-      const f = this.shownFrame(v, this.travel.playedFrame(v, this.anim, at));
+      const f = this.shownFrame(v, this.liveClock.frameOf(v.id) ?? this.travel.playedFrame(v, this.anim, at));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);

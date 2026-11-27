@@ -263,7 +263,7 @@ export function cloneWorld(world: World): World {
   return { ...structuredClone(state), obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
 }
 
-function cloneForTurn(world: World): World {
+export function cloneForTurn(world: World): World {
   const { terrain, obstacles, player, ...state } = world;
   const { explored, ...playerState } = player;
   return {
@@ -405,110 +405,126 @@ export function endTurn(
   return draft;
 }
 
+export type OpenedTurn = { troubleBefore: ReturnType<typeof troubleOf>; gaps: ReturnType<typeof huntGaps>; combatStart: number };
+
 export function endTurnInPlace(
   world: World,
   move: (w: World) => void,
 ): void {
-  if (world.player.state === 'dead') throw new Error('The player is dead; no more turns run');
-  if (world.player.call) throw new Error('A radio call is open; no turn runs until it ends');
-  timed('turn', () => settleDraft(world, (w) => {
-    const troubleBefore = troubleOf(w);
-    w.turn++;
-    advanceWeather(w);
-    settleMeetings(w);
-    planNpcOrders(w);
-    planHaulerOrder(w);
-    freezeDriving(w);
-    advanceUtilityEffects(w);
-    assignUtilityOrders(w);
-    activateUtilities(w);
-    const gaps = huntGaps(w);
-    raiseCalls(w);
-    assignAutoOrders(w);
-    freezeFire(w);
-    settleAims(w);
-    const combatStart = w.combat.now;
-    beginTimedCombat(w, w.combat, PHYSICS.turnSeconds * 1000);
-    move(w);
-    completeCombatMovement(w, combatStart);
-    closeTimedCombat(w, w.combat);
-    if (!shopNear(w)) w.player.townPatched = false;
-    followTower(w);
-    caltropHits(w);
-    applyWear(w);
-    spillDeadCells(w);
-    advanceEngineHeat(w);
-    advanceDust(w);
-    advanceLines(w);
-    clearPiles(w);
-    renewSalvage(w);
-    renewRelics(w);
-    fadeCraters(w);
-    advanceJobs(w);
-    startAutoRepair(w);
-    practiceContacts(w, refreshVision(w));
-    findSurveySites(w);
-    raiseCalls(w);
-    assignAutoOrders(w);
-    freezeFire(w);
-    settleAims(w);
-    tickCharges(w);
-    cookOffClaymores(w);
-    consumeSupplies(w);
-    applyHazards(w);
-    spillDeadCells(w);
-    scrapPatch(w);
-    healPlayer(w);
-    leakFuel(w);
-    fitAllStores(w);
-    applyGodMode(w);
-    const landedShots = new Set<World['events'][number]>(w.combat.records.flatMap(record => record.event ? [record.event] : []));
-    finishWrecks(w, w.combat);
-    resolveDestroyed(w, landedShots);
-    settleCrews(w);
-    noteHaulerHits(w);
-    dropStrandedTowers(w);
-    advanceContracts(w);
-    advancePatches(w);
-    advanceAid(w);
-    advanceStates(w);
-    advanceCrimes(w);
-    advanceRescues(w);
-    checkBeacon(w);
-    forgetOld(w);
-    driftStanding(w);
-    lapseEncounter(w);
-    resolveNpcActivities(w);
-    learnCasesAtDesk(w);
-    noteEngagements(w, gaps);
-    discoverSites(w);
-    checkDeath(w);
-    wakeInTown(w, advanceKnockout(w));
-    checkKnockout(w, w.events.filter(event => !landedShots.has(event)));
-    advanceNpcKnockouts(w);
-    parkOverdrive(w);
-    advanceChaosHighway(w);
-    openRoadScene(w);
-    spawnNpcs(w);
-    passMoments(w);
-    advanceSunward(w);
-    releaseRearmed(w);
-    advanceIntro(w);
-    greetAtWell(w);
-    advanceShops(w);
-    advanceProduction(w);
-    practiceContacts(w, refreshVision(w));
-    noteEscape(w);
-    noteTrouble(w, troubleBefore);
-    noteHurt(w);
-    settleShutdowns(w);
-    settleClaymores(w);
-    settleMeetings(w);
-    watchStalls(w);
-    watchHaulerStall(w);
-    endCallIfOut(w);
-    raiseCalls(w);
-  }));
+  timed('turn', () => {
+    const opened = openTurn(world);
+    move(world);
+    closeTurn(world, opened);
+  });
+}
+
+export function openTurn(w: World): OpenedTurn {
+  if (w.player.state === 'dead') throw new Error('The player is dead; no more turns run');
+  if (w.player.call) throw new Error('A radio call is open; no turn runs until it ends');
+  w.events = [];
+  w.removed = [];
+  const troubleBefore = troubleOf(w);
+  w.turn++;
+  advanceWeather(w);
+  settleMeetings(w);
+  planNpcOrders(w);
+  planHaulerOrder(w);
+  freezeDriving(w);
+  advanceUtilityEffects(w);
+  assignUtilityOrders(w);
+  activateUtilities(w);
+  const gaps = huntGaps(w);
+  raiseCalls(w);
+  assignAutoOrders(w);
+  freezeFire(w);
+  settleAims(w);
+  const combatStart = w.combat.now;
+  beginTimedCombat(w, w.combat, PHYSICS.turnSeconds * 1000);
+  return { troubleBefore, gaps, combatStart };
+}
+
+export function closeTurn(w: World, opened: OpenedTurn): void {
+  const { troubleBefore, gaps, combatStart } = opened;
+  completeCombatMovement(w, combatStart);
+  closeTimedCombat(w, w.combat);
+  if (!shopNear(w)) w.player.townPatched = false;
+  followTower(w);
+  caltropHits(w);
+  applyWear(w);
+  spillDeadCells(w);
+  advanceEngineHeat(w);
+  advanceDust(w);
+  advanceLines(w);
+  clearPiles(w);
+  renewSalvage(w);
+  renewRelics(w);
+  fadeCraters(w);
+  advanceJobs(w);
+  startAutoRepair(w);
+  practiceContacts(w, refreshVision(w));
+  findSurveySites(w);
+  raiseCalls(w);
+  assignAutoOrders(w);
+  freezeFire(w);
+  settleAims(w);
+  tickCharges(w);
+  cookOffClaymores(w);
+  consumeSupplies(w);
+  applyHazards(w);
+  spillDeadCells(w);
+  scrapPatch(w);
+  healPlayer(w);
+  leakFuel(w);
+  fitAllStores(w);
+  applyGodMode(w);
+  const landedShots = new Set<World['events'][number]>(w.combat.records.flatMap(record => record.event ? [record.event] : []));
+  finishWrecks(w, w.combat);
+  resolveDestroyed(w, landedShots);
+  settleCrews(w);
+  noteHaulerHits(w);
+  dropStrandedTowers(w);
+  advanceContracts(w);
+  advancePatches(w);
+  advanceAid(w);
+  advanceStates(w);
+  advanceCrimes(w);
+  advanceRescues(w);
+  checkBeacon(w);
+  forgetOld(w);
+  driftStanding(w);
+  lapseEncounter(w);
+  resolveNpcActivities(w);
+  learnCasesAtDesk(w);
+  noteEngagements(w, gaps);
+  discoverSites(w);
+  checkDeath(w);
+  wakeInTown(w, advanceKnockout(w));
+  checkKnockout(w, w.events.filter(event => !landedShots.has(event)));
+  advanceNpcKnockouts(w);
+  parkOverdrive(w);
+  advanceChaosHighway(w);
+  openRoadScene(w);
+  spawnNpcs(w);
+  passMoments(w);
+  advanceSunward(w);
+  releaseRearmed(w);
+  advanceIntro(w);
+  greetAtWell(w);
+  advanceShops(w);
+  advanceProduction(w);
+  practiceContacts(w, refreshVision(w));
+  noteEscape(w);
+  noteTrouble(w, troubleBefore);
+  noteHurt(w);
+  settleShutdowns(w);
+  settleClaymores(w);
+  settleMeetings(w);
+  watchStalls(w);
+  watchHaulerStall(w);
+  endCallIfOut(w);
+  raiseCalls(w);
+  settleAims(w);
+  settleOverdrive(w);
 }
 
 export function setWeaponOrder(
