@@ -12,6 +12,20 @@ export const TOUCH = {
   longPressMs: 500,
 };
 
+export const PAD = {
+  deadzone: 0.2,
+  triggerAt: 0.5,
+  holdMs: TOUCH.longPressMs,
+  cursorPxPerS: 1100,
+  cursorSlowNear: 0.4,
+  snapPx: 36,
+  panPxPerS: 900,
+  scrollPxPerS: 900,
+  zoomStep: 240,
+  radialPick: 0.5,
+  targetRefreshMs: 150,
+};
+
 declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
 declare const __PUBLIC_HASHES__: Record<string, string>;

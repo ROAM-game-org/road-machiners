@@ -1,0 +1,73 @@
+/* Gamepad play: the reticle the left stick moves, the radial dash on a held Y and the cursor that hides while a pad drives. */
+html.pad,
+html.pad * {
+  cursor: none !important;
+}
+
+.pad-reticle {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: var(--z-pad-reticle);
+  width: var(--pad-reticle-size);
+  height: var(--pad-reticle-size);
+  margin: calc(var(--pad-reticle-size) / -2) 0 0 calc(var(--pad-reticle-size) / -2);
+  border: 2px solid var(--pad-reticle-ink);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--pad-reticle-shade), inset 0 0 0 1px var(--pad-reticle-shade);
+  pointer-events: none;
+  transition: width 80ms, height 80ms, margin 80ms;
+}
+.pad-reticle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--space-2);
+  height: var(--space-2);
+  margin: calc(var(--space-2) / -2) 0 0 calc(var(--space-2) / -2);
+  border-radius: 50%;
+  background: var(--pad-reticle-ink);
+}
+.pad-reticle.on-target {
+  width: var(--pad-reticle-target-size);
+  height: var(--pad-reticle-target-size);
+  margin: calc(var(--pad-reticle-target-size) / -2) 0 0 calc(var(--pad-reticle-target-size) / -2);
+  border-color: var(--select);
+}
+.pad-reticle.pressed {
+  background: var(--accent-wash);
+}
+
+.pad-radial {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-pad-radial);
+  background: var(--scrim);
+  pointer-events: none;
+}
+.pad-radial-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+.pad-radial-entry {
+  position: absolute;
+  width: var(--pad-radial-entry-width);
+  margin-left: calc(var(--pad-radial-entry-width) / -2);
+  padding: var(--space-3) var(--space-4);
+  transform: translateY(-50%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-raised);
+  color: var(--ink);
+  font: var(--text-body) var(--font-hud);
+  text-align: center;
+  text-transform: uppercase;
+}
+.pad-radial-entry.picked {
+  border-color: var(--select);
+  background: var(--select);
+  color: var(--ink-on-accent);
+}

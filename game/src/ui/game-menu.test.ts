@@ -54,7 +54,7 @@ describe("the help rows of a mode", () => {
 });
 
 describe("the Esc help row", () => {
-  const escRow = () => controlsFor(modeRulesOf("roaming"), false).flatMap((g) => g.controls).find((c) => c.keys.some((k) => k !== "" && typeof k !== "string" && resolve(k, "en") === "Esc"));
+  const escRow = () => controlsFor(modeRulesOf("roaming"), "keys").flatMap((g) => g.controls).find((c) => c.keys.some((k) => k !== "" && typeof k !== "string" && resolve(k, "en") === "Esc"));
 
   it("sits in the key groups and says what Esc does in both languages", () => {
     expect(resolve(escRow()!.does, "en")).toBe("Close a screen or open the menu");
@@ -62,14 +62,14 @@ describe("the Esc help row", () => {
   });
 
   it("is absent from the touch help", () => {
-    const rows = controlsFor(modeRulesOf("roaming"), true).flatMap((g) => g.controls);
+    const rows = controlsFor(modeRulesOf("roaming"), "touch").flatMap((g) => g.controls);
     expect(rows.some((c) => c.keys.some((k) => k !== "" && typeof k !== "string" && resolve(k, "en") === "Esc"))).toBe(false);
   });
 });
 
 describe("the help of a touch screen", () => {
   it("holds the Touch group alone, with no key caps", () => {
-    const groups = controlsFor(modeRulesOf("roaming"), true);
+    const groups = controlsFor(modeRulesOf("roaming"), "touch");
     expect(groups.map((g) => resolve(g.title, "en"))).toEqual(["Touch"]);
     const keys = groups.flatMap((g) => g.controls).flatMap((c) => c.keys).map((k) => (typeof k === "string" ? k : resolve(k, "en")));
     expect(keys).not.toContain("Space");
@@ -77,7 +77,21 @@ describe("the help of a touch screen", () => {
   });
 
   it("keeps the key groups on a screen with a keyboard", () => {
-    expect(controlsFor(modeRulesOf("roaming"), false).length).toBeGreaterThan(1);
+    expect(controlsFor(modeRulesOf("roaming"), "keys").length).toBeGreaterThan(1);
+  });
+});
+
+describe("the help while a gamepad drives", () => {
+  const padKeys = () =>
+    controlsFor(modeRulesOf("roaming"), "pad")
+      .flatMap((g) => g.controls)
+      .flatMap((c) => c.keys)
+      .map((k) => (typeof k === "string" ? k : resolve(k, "en")));
+
+  it("holds the Controller group alone, named by pad buttons and not keys", () => {
+    expect(controlsFor(modeRulesOf("roaming"), "pad").map((g) => resolve(g.title, "en"))).toEqual(["Controller"]);
+    expect(padKeys()).toEqual(expect.arrayContaining(["A", "B", "RT", "Left stick"]));
+    expect(padKeys()).not.toContain("Space");
   });
 });
 

@@ -1,6 +1,11 @@
-import { playerVehicle } from '../sim/damage';
+import { framePoints, groundPoint, type V3, type VehicleFrame } from '../phys/frames';
+import { atlasOf } from '../sim/atlas';
+import { isPlayerTruck, playerVehicle } from '../sim/damage';
 import type { Vehicle, World } from '../sim/types';
+import type { Vec } from '../sim/vec';
+import { playerSees } from '../sim/vision';
 import { isAtRest } from '../sim/world';
+import type { PadTarget, PadTargetKind } from '../ui/pad/pad-model';
 import type * as THREE from 'three';
 import type { VehicleView } from './render/vehicle';
 
@@ -85,4 +90,68 @@ export class PointerPicker {
     if (v.id === playerId || !this.deps.visible(v)) return null;
     return this.deps.hit(x, y, view.root);
   }
+}
+
+export type ScreenOf = (p: V3) => { x: number; y: number };
+
+export type PickScene = {
+  world: World;
+  frames: Record<string, VehicleFrame>;
+  screenOf: ScreenOf;
+  visible: (v: Vehicle) => boolean;
+};
+
+const TRUCK_PX = 30;
+const PLACE_PX = 24;
+
+function screenDistance(scene: PickScene, f: VehicleFrame, x: number, y: number): number {
+  return Math.min(...framePoints(f).map((p) => {
+    const s = scene.screenOf(p);
+    return Math.hypot(s.x - x, s.y - y);
+  }));
+}
+
+export function pickVehicleAt(scene: PickScene, x: number, y: number, reachPx: number): Vehicle | null {
+  let best: Vehicle | null = null;
+  let bestD = reachPx;
+  for (const v of scene.world.vehicles) {
+    const f = scene.frames[v.id];
+    if (!f || !scene.visible(v)) continue;
+    const d = screenDistance(scene, f, x, y);
+    if (d < bestD) {
+      best = v;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function truckTargets(scene: PickScene): PadTarget[] {
+  return scene.world.vehicles.flatMap((v) => {
+    const f = scene.frames[v.id];
+    if (!f || !scene.visible(v)) return [];
+    const at = scene.screenOf(f.pos);
+    const kind: PadTargetKind = isPlayerTruck(scene.world, v) ? "own" : "truck";
+    return [{ key: `${kind}-${v.id}`, kind, x: at.x, y: at.y, r: TRUCK_PX }];
+  });
+}
+
+function groundTarget(scene: PickScene, key: string, kind: PadTargetKind, pos: Vec): PadTarget[] {
+  if (!playerSees(scene.world, pos)) return [];
+  const at = scene.screenOf(groundPoint(scene.world.terrain, pos));
+  return [{ key, kind, x: at.x, y: at.y, r: PLACE_PX }];
+}
+
+function onScreen(t: PadTarget, view: { width: number; height: number }): boolean {
+  return t.x >= 0 && t.y >= 0 && t.x <= view.width && t.y <= view.height;
+}
+
+export function worldPadTargets(scene: PickScene, view: { width: number; height: number }): PadTarget[] {
+  const atlas = atlasOf(scene.world.terrain);
+  const places = [...atlas.towns, ...atlas.locations.filter((l) => l.kind !== "territory")];
+  return [
+    ...truckTargets(scene),
+    ...places.flatMap((p) => groundTarget(scene, `place-${p.id}`, "place", p.pos)),
+    ...scene.world.salvage.flatMap((s) => groundTarget(scene, `loot-${s.id}`, "loot", s.pos)),
+  ].filter((t) => onScreen(t, view));
 }

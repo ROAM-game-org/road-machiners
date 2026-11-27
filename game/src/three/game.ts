@@ -11,7 +11,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
-  framePoints, staleFrame,
+  staleFrame,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -107,7 +107,8 @@ import { touchTapAction } from "./touch-tap";
 import { swallowNextClick } from "./ghost-click";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
-import { PointerPicker } from "./pointer";
+import { pickVehicleAt, PointerPicker, worldPadTargets, type PickScene } from "./pointer";
+import type { PadWorld } from "../ui/pad/pad-input";
 import { HostileSighting } from "./hostile-sighting";
 import { lightTurnOf, MOVE_MS, nextSightSample, threatsIn, type Travel, turnClockOf, type Playback, type LiveVision, committedWorld } from "./travel";
 import { heldPlayMs, type PlayClock, playbackFrameCapMs } from "./play-clock";
@@ -793,22 +794,14 @@ export class Game {
     return playerSees(this.world, v.pos);
   }
 
-  private pickVehicle(cx: number, cy: number): Vehicle | null {
-    let best: Vehicle | null = null;
-    let bestD = PICK_PX;
-    for (const v of this.world.vehicles) {
-      const f = this.frames[v.id];
-      if (!f || !this.isVehicleVisible(v)) continue;
-      const d = Math.min(...framePoints(f).map((p) => {
-        const s = this.rig.screenOf(p);
-        return Math.hypot(s.x - cx, s.y - cy);
-      }));
-      if (d < bestD) {
-        best = v;
-        bestD = d;
-      }
-    }
-    return best;
+  private pickScene(): PickScene {
+    return { world: this.world, frames: this.frames, screenOf: (p) => this.rig.screenOf(p), visible: (v) => this.isVehicleVisible(v) };
+  }
+
+  private pickVehicle(cx: number, cy: number): Vehicle | null { return pickVehicleAt(this.pickScene(), cx, cy, PICK_PX); }
+
+  padWorld(): PadWorld {
+    return { open: () => !this.modalOpen() && !this.death.isShown(), targets: () => worldPadTargets(this.pickScene(), { width: window.innerWidth, height: window.innerHeight }), surface: this.renderer.domElement };
   }
 
   private groundFor(x: number, y: number): Vec | null {

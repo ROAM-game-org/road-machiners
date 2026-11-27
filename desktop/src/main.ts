@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, net, protocol, session, type IpcMainInvokeEvent } from 'electron';
 import { APP_ORIGIN, APP_SCHEME, closedRange, fileForUrl, fitsFile, mimeOf, readRange, type ByteRange } from './app-files';
+import { startsFullscreen } from './handheld';
 import { FileSaves } from './saves';
 
 const SAVE_CALLS = ['readAll', 'put', 'remove', 'appendLog', 'readLog'] as const;
@@ -67,6 +68,7 @@ function openWindow(): BrowserWindow {
     show: !quiet,
     width: 1440,
     height: 900,
+    fullscreen: !quiet && startsFullscreen(process.env, process.argv),
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     webPreferences: {

@@ -181,6 +181,14 @@ A browser script is for what the screen shows: UI, rendering and screenshots. Pl
 
 Browser gestures to try on top of that: pull down from the top of the screen on the map (the page must not reload), swipe in from the screen edge (the game must not leave), double-tap a button (the page must not zoom), pinch outside the map (the page may zoom), turn the phone mid-turn, and on a phone with a notch check that no control sits under it.
 
+## Handheld
+
+The Steam Deck and the ROG Ally play with their built-in gamepad. `npm run pad` plays the game in Chromium at 1280x800 and 1920x1080 with a fake gamepad: it starts pad mode, opens the radial dash and switches the lights, opens the inventory, the menu and the help, sets a route with A, plays a turn with RT and leaves pad mode on a mouse move. Screenshots go to `tmp/pad-check/`. It needs the dev server. Set `CHROMIUM_PATH` when the installed Playwright has no browser of its own. In software rendering a turn takes about a second, so the check waits on frames, not on time.
+
+The desktop app starts fullscreen on a Steam Deck (`SteamDeck=1`), in Steam Big Picture (`SteamGamepadUI=1`) or with `--fullscreen`, and `--windowed` overrides both. On the Ally, add `--fullscreen` to the launch options of the Steam shortcut. Steam Input gives the game an Xbox layout pad on both machines.
+
+On a real handheld, check the feel: reticle speed, snap reach, the deadzone and the hold time live in `PAD` in `src/config.ts`.
+
 ## Debugging
 
 - In dev, any uncaught error shows a fullscreen crash screen. Outside dev, errors after boot go to the browser log and the debug console, and the game keeps running. Boot errors always show the crash screen. A browser without WebGL 2 gets a notice that names the fixes, and the error reporter does not send it. A boot download or sound fetch that gets no data for 20 seconds counts as dropped and is retried, and a slow download that keeps getting data is never cut.

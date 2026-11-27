@@ -1,9 +1,11 @@
 import { concat, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { el } from "./dom";
+import { padGlyphFor } from "./pad/pad-model";
 import { type Extent, type UiSize } from "./ui-size";
 
 export interface InputMode {
   touch: boolean;
+  pad: boolean;
   slim: boolean;
   narrow: boolean;
   tight: boolean;
@@ -16,7 +18,7 @@ export const TIGHT_MAX_WIDTH = 880;
 export const COMPACT_MAX_WIDTH = 1100;
 export const COARSE_QUERY = "(pointer: coarse)";
 
-export function inputModeOf(coarse: boolean, layer: Extent): InputMode {
+export function inputModeOf(coarse: boolean, layer: Extent): Omit<InputMode, "pad"> {
   return {
     touch: coarse,
     slim: layer.width <= SLIM_MAX_WIDTH,
@@ -26,8 +28,10 @@ export function inputModeOf(coarse: boolean, layer: Extent): InputMode {
   };
 }
 
-const NONE: InputMode = { touch: false, slim: false, narrow: false, tight: false, compact: false };
+const NONE: InputMode = { touch: false, pad: false, slim: false, narrow: false, tight: false, compact: false };
 let shown: InputMode = NONE;
+let padOn = false;
+let reapply: () => void = () => undefined;
 const listeners = new Set<(mode: InputMode) => void>();
 
 export function subscribeInputMode(fn: (mode: InputMode) => void): () => void {
@@ -37,6 +41,7 @@ export function subscribeInputMode(fn: (mode: InputMode) => void): () => void {
 
 function mark(root: HTMLElement, mode: InputMode): void {
   root.classList.toggle("touch", mode.touch);
+  root.classList.toggle("pad", mode.pad);
   root.classList.toggle("slim", mode.slim);
   root.classList.toggle("narrow", mode.narrow);
   root.classList.toggle("tight", mode.tight);
@@ -48,12 +53,15 @@ export function watchInputMode(roots: HTMLElement[], size: UiSize): InputMode {
   const coarse = window.matchMedia(COARSE_QUERY);
   const current = (): InputMode => {
     const layer = size.layerSize();
-    return layer.width > 0 && layer.height > 0 ? inputModeOf(coarse.matches, layer) : shown;
+    const mode = layer.width > 0 && layer.height > 0 ? inputModeOf(coarse.matches, layer) : shown;
+    return { ...mode, pad: padOn };
   };
   const apply = (): void => {
     for (const root of roots) mark(root, current());
+    document.documentElement.classList.toggle("pad", padOn);
     for (const fn of listeners) fn(shown);
   };
+  reapply = apply;
   coarse.addEventListener("change", apply);
   size.subscribe(apply);
   for (const root of roots) mark(root, current());
@@ -64,6 +72,16 @@ export function touchMode(): boolean {
   return shown.touch;
 }
 
+export function padMode(): boolean {
+  return shown.pad;
+}
+
+export function setPadMode(on: boolean): void {
+  if (padOn === on) return;
+  padOn = on;
+  reapply();
+}
+
 export function narrowMode(): boolean {
   return shown.narrow;
 }
@@ -71,9 +89,15 @@ export function narrowMode(): boolean {
 export const ESCAPE = { key: "Esc" };
 export const RECENTER_KEY = "F";
 
+function shownKey(key: string): string | null {
+  if (shown.pad) return padGlyphFor(key);
+  return touchMode() ? null : key;
+}
+
 export function keyLabel(text: Msg, key: string, place: "after" | "before" = "after"): Msg {
-  if (touchMode()) return text;
-  const cap = t("ui.key", { key });
+  const named = shownKey(key);
+  if (named === null) return text;
+  const cap = t("ui.key", { key: named });
   return concat(place === "after" ? [text, SPACE, cap] : [cap, SPACE, text]);
 }
 
@@ -82,6 +106,7 @@ export function keyTip(text: Msg, key: string): Msg {
 }
 
 export function keyCap(key: string): HTMLElement | null {
-  if (touchMode()) return null;
-  return el("kbd", { class: "key" }, verbatim(key));
+  const named = shownKey(key);
+  if (named === null) return null;
+  return el("kbd", { class: shown.pad ? "key pad-glyph" : "key" }, verbatim(named));
 }

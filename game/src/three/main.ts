@@ -28,6 +28,7 @@ import { questArtPath, townArtKeys } from '../data/quest-art';
 import { el, uiRoot } from '../ui/dom';
 import { mountReportDesk } from '../ui/feedback-form';
 import { COARSE_QUERY, watchInputMode } from '../ui/input-mode';
+import { startPad } from '../ui/pad/pad-input';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
 import { loadDamageNumbersSetting } from '../ui/damage-numbers-setting';
@@ -255,6 +256,7 @@ loadCameraSetting(window.localStorage);
 loadRenderScaleSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
 watchInputMode([uiRoot(), element('report')], sizeOfUi);
+const pad = startPad();
 document.body.append(el('div', { class: 'rotate-prompt', role: 'alert' }, t('ui.rotatePhone')));
 mountReportDesk(element('report'), gameContext, FEEDBACK_URL);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
@@ -372,6 +374,7 @@ const game = await boot.track('scene', async () => {
   return built;
 });
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
+pad.attachWorld(game.padWorld());
 relocalizeGame = () => {
   game.relanguageQuest();
   radio.relocalize();

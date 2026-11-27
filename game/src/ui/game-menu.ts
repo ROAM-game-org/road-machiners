@@ -1,5 +1,5 @@
 
-import { ESCAPE, keyTip, touchMode } from "./input-mode";
+import { ESCAPE, keyTip, padMode, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -118,9 +118,44 @@ const TOUCH_CONTROLS: ControlGroup[] = [
   },
 ];
 
-export function controlsFor(rules: ModeRules, touch = false): ControlGroup[] {
-  if (touch) return TOUCH_CONTROLS;
+const PAD_CONTROLS: ControlGroup[] = [
+  {
+    title: t("help.group.pad"),
+    controls: [
+      { keys: [t("help.key.leftStick")], does: t("help.does.point") },
+      { keys: ["A"], on: t("help.on.ground"), does: t("help.does.driveByRoad") },
+      { keys: [t("help.key.hold"), "A"], on: t("help.on.ground"), does: t("help.does.stopThere") },
+      { keys: ["A"], on: t("help.on.truck"), does: t("help.does.look") },
+      { keys: ["A"], on: t("help.on.townOrSite"), does: t("help.does.stopAtPad") },
+      { keys: ["LB", "RB"], does: t("help.does.look") },
+      { keys: ["RT"], does: t("help.does.driveOrPause") },
+      { keys: [t("help.key.hold"), "RT"], does: t("help.does.fastForward") },
+      { keys: ["X"], on: t("help.on.pad"), does: t("help.does.padWork") },
+      { keys: ["LT"], does: t("help.does.allWeapons") },
+      { keys: ["Y"], does: t("help.does.inventory") },
+      { keys: [t("help.key.hold"), "Y"], does: t("help.does.switches") },
+      { keys: ["View"], does: t("help.does.map") },
+      { keys: ["B"], does: t("help.does.escape") },
+      { keys: [t("help.key.rightStick")], does: t("help.does.pan") },
+      { keys: [t("help.key.dpad")], does: t("help.does.zoom") },
+      { keys: ["R3"], does: t("help.does.center") },
+      { keys: ["L3"], does: t("help.does.camera") },
+      { keys: [t("help.key.hold"), "A"], on: t("help.on.control"), does: t("help.does.why") },
+    ],
+  },
+];
+
+export type HelpInput = "keys" | "touch" | "pad";
+
+export function controlsFor(rules: ModeRules, input: HelpInput = "keys"): ControlGroup[] {
+  if (input === "touch") return TOUCH_CONTROLS;
+  if (input === "pad") return PAD_CONTROLS;
   return CONTROLS.map((group) => ({ ...group, controls: group.controls.filter((c) => !c.needs || rules[c.needs]) }));
+}
+
+function helpInput(): HelpInput {
+  if (padMode()) return "pad";
+  return touchMode() ? "touch" : "keys";
 }
 
 function controlKeys(c: Control): HTMLElement {
@@ -177,7 +212,7 @@ export class HelpPanel {
     const notes = [buildNote(), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
       el("button", { class: "close btn-s", title: keyTip(t("menu.close"), ESCAPE.key), onclick: () => this.close() }, t("menu.close")),
-      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
+      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), helpInput()).map(controlGroup)),
       el("div", { class: "help-notes screen-block" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;

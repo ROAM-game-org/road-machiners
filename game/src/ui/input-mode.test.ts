@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { t } from "../text/msg";
 import { resolve } from "../text/resolve";
-import { inputModeOf, keyLabel, watchInputMode } from "./input-mode";
+import { inputModeOf, keyCap, keyLabel, setPadMode, watchInputMode } from "./input-mode";
 import type { UiSize } from "./ui-size";
 
 const layer = (width: number, height: number) => ({ width, height });
@@ -64,5 +64,33 @@ describe("key label", () => {
   it("adds the key cap with a mouse", () => {
     watch(false);
     expect(resolve(keyLabel(t("menu.close"), "C"), "en")).toBe("Close [C]");
+  });
+
+  describe("while a gamepad drives", () => {
+    function watchPad(): void {
+      watch(false);
+      vi.stubGlobal("document", { documentElement: { classList: { toggle: () => {} } } });
+      setPadMode(true);
+    }
+
+    afterEach(() => setPadMode(false));
+
+    it("names the pad button for a key the pad has", () => {
+      watchPad();
+      expect(resolve(keyLabel(t("menu.close"), "Esc"), "en")).toBe("Close [B]");
+      expect(resolve(keyLabel(t("menu.close"), "Space"), "en")).toBe("Close [RT]");
+    });
+
+    it("drops the cap of a key no pad button sends", () => {
+      watchPad();
+      expect(resolve(keyLabel(t("menu.close"), "C"), "en")).toBe("Close");
+      expect(keyCap("C")).toBeNull();
+    });
+
+    it("goes back to key caps once the pad lets go", () => {
+      watchPad();
+      setPadMode(false);
+      expect(resolve(keyLabel(t("menu.close"), "Esc"), "en")).toBe("Close [Esc]");
+    });
   });
 });
