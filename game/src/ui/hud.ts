@@ -122,10 +122,6 @@ function rocker(lock: Msg | null, checked: boolean, title: Msg, reason: Msg | nu
   return { checked, title, reason: lock ?? reason, locked };
 }
 
-export function heatLampOn(w: World): boolean {
-  return engineHot(w);
-}
-
 export function driveControlsOf(w: World, manual: boolean, headlights: boolean): DriveControls {
   const lock = orderLock(w);
   const od = overdriveSwitch(w);
@@ -578,7 +574,7 @@ export class Hud {
       heat: p.engineHeat,
       heatTitle: t("hud.readout", { label: t("readout.engineHeat"), value: engine.value }),
       heatWarn: engine.warning,
-      heatAlarm: heatLampOn(w),
+      heatAlarm: engineHot(w),
       ...driveControlsOf(w, readout.manual, this.actions.headlightsOn()),
     });
   }

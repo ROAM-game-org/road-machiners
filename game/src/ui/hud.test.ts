@@ -10,7 +10,7 @@ import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
-import { Hud, actionSlot, cardActions, recenterTip, driveControlsOf, firstAidMsg, heatLampOn, heldContractLine, systemViewsOf } from './hud';
+import { Hud, actionSlot, cardActions, recenterTip, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
 import type { CrimeCase, World } from '../sim/types';
@@ -374,17 +374,5 @@ describe('recenter tip', () => {
     expect(tip.attrs.role).toBeUndefined();
     tip.listeners.click();
     expect(onclick).toHaveBeenCalledOnce();
-  });
-});
-
-describe('heat lamp', () => {
-  const lampAt = (heat: number) => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    w.player.engineHeat = heat;
-    return heatLampOn(w);
-  };
-
-  it('stays dark below the warning heat and lights from it', () => {
-    expect([0.5, 0.74, 0.75, 0.8, 1].map((heat) => lampAt(heat))).toEqual([false, false, true, true, true]);
   });
 });
