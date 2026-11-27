@@ -157,7 +157,7 @@ export const RADIAL_ENTRIES: readonly RadialEntry[] = [
 export type Point = { x: number; y: number };
 export type Box = { width: number; height: number };
 export type PadTargetKind = "control" | "truck" | "own" | "place" | "loot";
-export type PadTarget = { key: string; kind: PadTargetKind; x: number; y: number; r: number };
+export type PadTarget = { key: string; kind: PadTargetKind; x: number; y: number; r: number; label?: string };
 export type CursorMove = { stick: Stick; dtMs: number; pxPerS: number; slowNear: number; bounds: Box };
 
 const CONE = Math.PI / 3;
@@ -174,6 +174,10 @@ export function nearestTarget(at: Point, targets: readonly PadTarget[], reachPx:
     }
   }
   return best;
+}
+
+export function sameControl(lost: PadTarget, targets: readonly PadTarget[], reachPx: number): PadTarget | null {
+  return nearestTarget(lost, targets.filter((t) => t.label === lost.label), reachPx);
 }
 
 export function snapTarget(at: Point, targets: readonly PadTarget[], place: PadPlace, reachPx: number): PadTarget | null {

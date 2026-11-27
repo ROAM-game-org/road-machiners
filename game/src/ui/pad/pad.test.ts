@@ -13,6 +13,7 @@ import {
   radialSpot,
   readPad,
   readPads,
+  sameControl,
   snapTarget,
   targetToward,
   type GamepadLike,
@@ -193,5 +194,21 @@ describe("snapping when the stick lets go", () => {
 
   it("on a screen, the nearest control in reach pulls the reticle", () => {
     expect(snapTarget({ x: 125, y: 100 }, [close], "screen", 36)?.key).toBe("close");
+  });
+});
+
+describe("finding a control again after a screen redraws", () => {
+  const buy = { ...target("old", 100, 100), label: "Buy 5 L" };
+
+  it("finds the redrawn control with the same text at the same spot", () => {
+    expect(sameControl(buy, [{ ...target("new", 102, 100), label: "Buy 5 L" }], 36)?.key).toBe("new");
+  });
+
+  it("does not take another control that now sits at that spot", () => {
+    expect(sameControl(buy, [{ ...target("leave", 100, 100), label: "Leave" }], 36)).toBeNull();
+  });
+
+  it("does not take the same text far away", () => {
+    expect(sameControl(buy, [{ ...target("far", 400, 100), label: "Buy 5 L" }], 36)).toBeNull();
   });
 });

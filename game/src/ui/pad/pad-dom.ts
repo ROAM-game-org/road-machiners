@@ -66,7 +66,7 @@ function controlTarget(node: Element): PadTarget | null {
   const rect = node.getBoundingClientRect();
   const at = centreOf(rect);
   if (!shown(rect) || !reachable(node, at)) return null;
-  return { key: keyOf(node), kind: "control", x: at.x, y: at.y, r: Math.max(CONTROL_TARGET_PX, Math.min(rect.width, rect.height) / 2) };
+  return { key: keyOf(node), kind: "control", x: at.x, y: at.y, r: Math.max(CONTROL_TARGET_PX, Math.min(rect.width, rect.height) / 2), label: node.textContent ?? "" };
 }
 
 function inScreens(screens: readonly Element[], node: Element): boolean {
@@ -78,11 +78,15 @@ export function controlTargets(skip: (node: Element) => boolean): PadTarget[] {
   return [...document.querySelectorAll(CONTROLS)].filter((node) => !skip(node) && inScreens(screens, node)).flatMap((node) => controlTarget(node) ?? []);
 }
 
-export function focusedTarget(targets: readonly PadTarget[]): PadTarget | null {
+function targetOf(node: Element | null, targets: readonly PadTarget[]): PadTarget | null {
+  const key = node ? keys.get(node) : undefined;
+  return key === undefined ? null : (targets.find((t) => t.key === key) ?? null);
+}
+
+export function landingTarget(targets: readonly PadTarget[]): PadTarget | null {
   const active = document.activeElement;
-  if (!active || active === document.body) return null;
-  const key = keys.get(active);
-  return targets.find((t) => t.key === key) ?? null;
+  const focused = active && active !== document.body ? targetOf(active, targets) : null;
+  return focused ?? [...document.querySelectorAll(".quest-choice, .quest-next")].map((node) => targetOf(node, targets)).find((target) => target !== null) ?? null;
 }
 
 function under(at: Point): Element {

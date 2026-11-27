@@ -1,6 +1,6 @@
 import { PAD } from "../../config";
 import { setPadMode } from "../input-mode";
-import { controlTargets, emulatePadCapture, focusedTarget, hoverAt, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
+import { controlTargets, emulatePadCapture, hoverAt, landingTarget, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
 import {
   cycledTarget,
   framesActive,
@@ -12,6 +12,7 @@ import {
   RADIAL_ENTRIES,
   radialPick,
   readPads,
+  sameControl,
   snapTarget,
   targetToward,
   turnKey,
@@ -35,6 +36,7 @@ const DIRECTIONS: Partial<Record<PadButton, Point>> = { up: { x: 0, y: -1 }, dow
 const CYCLE: Partial<Record<PadButton, 1 | -1>> = { lb: -1, rb: 1 };
 const ZOOM: Partial<Record<PadButton, number>> = { up: -1, down: 1 };
 const SCROLL_NUDGE_PX = 120;
+const NAVIGATES: ReadonlySet<PadButton> = new Set(["up", "down", "left", "right", "lb", "rb"]);
 
 export class PadInput {
   private readonly tracker = new PadTracker(PAD.holdMs);
@@ -50,6 +52,9 @@ export class PadInput {
   private targets: PadTarget[] = [];
   private stuck: string | null = null;
   private worldAt: Point | null = null;
+  private lost: PadTarget | null = null;
+  private stuckTarget: PadTarget | null = null;
+  private relanding = false;
   private waking = new Set<PadButton>();
   private last = 0;
 
@@ -128,12 +133,15 @@ export class PadInput {
 
   private landOnScreen(place: PadPlace): void {
     if (place === "world") return this.backToWorld();
-    this.worldAt ??= this.reticle.where();
-    const land = focusedTarget(this.targets) ?? nearestTarget(this.reticle.where(), this.targets, Infinity);
-    if (land) this.moveTo(land);
+    this.worldAt = this.reticle.where();
+    this.lost = null;
+    this.relanding = true;
+    this.reland();
   }
 
+
   private backToWorld(): void {
+    this.relanding = false;
     if (!this.worldAt) return;
     this.stuck = null;
     this.reticle.place(this.worldAt, false);
@@ -141,15 +149,30 @@ export class PadInput {
   }
 
   private follow(): void {
+    if (this.relanding) return this.reland();
     if (this.stuck === null) return;
     const target = this.targets.find((t) => t.key === this.stuck);
-    if (target) return this.reticle.place({ x: target.x, y: target.y }, true);
+    if (target) {
+      this.stuckTarget = target;
+      return this.reticle.place({ x: target.x, y: target.y }, true);
+    }
     this.stuck = null;
-    if (this.place === "screen") this.landOnScreen("screen");
+    if (this.place !== "screen") return;
+    this.lost = this.stuckTarget;
+    this.relanding = true;
+    this.reland();
+  }
+
+  private reland(): void {
+    const same = this.lost ? sameControl(this.lost, this.targets, PAD.snapPx) : null;
+    const opened = this.lost === null ? nearestTarget(this.reticle.where(), this.targets, Infinity) : null;
+    const land = same ?? landingTarget(this.targets) ?? opened;
+    if (land) this.moveTo(land);
   }
 
   private moveTo(target: PadTarget): void {
     this.stuck = target.key;
+    this.stuckTarget = target;
     this.reticle.place({ x: target.x, y: target.y }, true);
     this.hover();
   }
@@ -162,6 +185,7 @@ export class PadInput {
   }
 
   private refreshAfter(edges: PadEdges): void {
+    if (edges.pressed.some((b) => NAVIGATES.has(b))) this.relanding = false;
     if (edges.pressed.length + edges.released.length > 0) this.controlsAt = -Infinity;
   }
 
@@ -251,6 +275,7 @@ export class PadInput {
     const { left } = frame;
     if (left.x === 0 && left.y === 0) return this.settle();
     this.stuck = null;
+    this.relanding = false;
     const at = this.reticle.where();
     const over = nearestTarget(at, this.targets, 0);
     const next = movedCursor(at, { stick: left, dtMs: dt, pxPerS: PAD.cursorPxPerS, slowNear: PAD.cursorSlowNear, bounds: { width: window.innerWidth, height: window.innerHeight } }, over);
