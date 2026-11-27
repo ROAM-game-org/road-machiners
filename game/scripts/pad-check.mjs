@@ -9,7 +9,7 @@ const arg = (name, fallback) => {
 };
 const url = arg('url', 'http://localhost:5173');
 const out = arg('out', 'tmp/pad-check');
-const sizes = arg('sizes', '1280x800,1920x1080').split(',').map((s) => s.split('x').map(Number));
+const sizes = arg('sizes', '1280x720,1280x800,1920x1080').split(',').map((s) => s.split('x').map(Number));
 const BOOT_LIMIT_MS = 300000;
 const BUTTON = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7, view: 8, menu: 9, l3: 10, r3: 11, up: 12, down: 13, left: 14, right: 15 };
 const LIGHTS_ON_RADIAL = [0.5, -0.87, 0, 0];
@@ -151,7 +151,7 @@ async function menuReachesHelp(pad) {
   await pad.press('a');
   await pad.frames(3);
   const help = await pad.page.locator('.help-groups').innerText().catch(() => '');
-  if (!/controller/i.test(help)) pad.fail(`the help panel does not show the Controller group: ${help.slice(0, 80)}`);
+  if (!/controller|геймпад/i.test(help)) pad.fail(`the help panel does not show the Controller group: ${help.slice(0, 80)}`);
   await pad.shot('help');
   await pad.press('b');
   if (await pad.page.evaluate(() => window.__ROAM__.menu.isOpen())) pad.fail('B did not close the help panel');

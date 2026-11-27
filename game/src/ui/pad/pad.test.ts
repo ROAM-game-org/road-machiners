@@ -10,6 +10,7 @@ import {
   PadTracker,
   RADIAL_ENTRIES,
   radialPick,
+  radialRadii,
   radialSpot,
   readPad,
   readPads,
@@ -156,7 +157,7 @@ describe("the radial dash", () => {
 
   it("lays its entries where the stick picks them", () => {
     RADIAL_ENTRIES.forEach((_, i) => {
-      const spot = radialSpot(i, RADIAL_ENTRIES.length, 1);
+      const spot = radialSpot(i, RADIAL_ENTRIES.length, { x: 1, y: 1 });
       expect(radialPick(spot, RADIAL_ENTRIES.length, 0.5)).toBe(i);
     });
   });
@@ -210,5 +211,22 @@ describe("finding a control again after a screen redraws", () => {
 
   it("does not take the same text far away", () => {
     expect(sameControl(buy, [{ ...target("far", 400, 100), label: "Buy 5 L" }], 36)).toBeNull();
+  });
+});
+
+describe("laying out the radial dash", () => {
+  const entry = { width: 150, height: 32 };
+  const overlaps = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) < entry.width && Math.abs(a.y - b.y) < entry.height;
+
+  it.each([
+    [1280, 720],
+    [1280, 800],
+    [1920, 1080],
+  ])("keeps every entry apart at %ix%i", (width, height) => {
+    const count = RADIAL_ENTRIES.length;
+    const radii = radialRadii({ width, height }, entry, count, 0.32, 8);
+    const spots = RADIAL_ENTRIES.map((_, i) => radialSpot(i, count, radii));
+    spots.forEach((a, i) => spots.slice(i + 1).forEach((b) => expect(overlaps(a, b)).toBe(false)));
+    spots.forEach((s) => expect(Math.abs(s.x) + entry.width / 2).toBeLessThanOrEqual(width / 2));
   });
 });

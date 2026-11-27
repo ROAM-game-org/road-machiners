@@ -232,7 +232,13 @@ export function radialPick(stick: Stick, count: number, threshold: number): numb
   return Math.round(turn / ((2 * Math.PI) / count)) % count;
 }
 
-export function radialSpot(index: number, count: number, radius: number): Point {
+export function radialSpot(index: number, count: number, radii: Point): Point {
   const turn = (index * 2 * Math.PI) / count;
-  return { x: Math.sin(turn) * radius, y: -Math.cos(turn) * radius };
+  return { x: Math.sin(turn) * radii.x, y: -Math.cos(turn) * radii.y };
+}
+
+export function radialRadii(view: Box, entry: Box, count: number, share: number, gapPx: number): Point {
+  const y = Math.min(view.width, view.height) * share;
+  const apart = (entry.width + gapPx) / Math.sin((2 * Math.PI) / count);
+  return { x: Math.min(Math.max(y, apart), (view.width - entry.width) / 2 - gapPx), y };
 }

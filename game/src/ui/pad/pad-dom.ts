@@ -1,6 +1,6 @@
 import { t } from "../../text/msg";
 import { el, moveTo } from "../dom";
-import { radialSpot, type PadKey, type PadTarget, type Point, type RadialEntry } from "./pad-model";
+import { radialRadii, radialSpot, type PadKey, type PadTarget, type Point, type RadialEntry } from "./pad-model";
 
 export const PAD_POINTER_ID = 7331;
 const DRAG_POINTER_ID = 7332;
@@ -241,6 +241,7 @@ export function stepTab(at: Point, step: 1 | -1): boolean {
 }
 
 const RADIAL_RADIUS_SHARE = 0.32;
+const RADIAL_GAP_PX = 8;
 
 export class PadReticle {
   private readonly node = el("div", { class: "pad-reticle", "aria-hidden": "true" });
@@ -282,16 +283,17 @@ export class PadRadial {
 
   open(): void {
     if (this.node) return;
-    const radius = Math.min(window.innerWidth, window.innerHeight) * RADIAL_RADIUS_SHARE;
-    this.spots = this.entries.map((entry, i) => {
-      const spot = el("div", { class: "pad-radial-entry screen-line" }, t(entry.label));
-      const at = radialSpot(i, this.entries.length, radius);
-      moveTo(spot, at.x, at.y);
-      return spot;
-    });
+    this.spots = this.entries.map((entry) => el("div", { class: "pad-radial-entry screen-line" }, t(entry.label)));
     this.node = el("div", { class: "pad-radial", role: "menu" }, el("div", { class: "pad-radial-hub" }, ...this.spots));
     document.body.append(this.node);
+    const entry = { width: Math.max(...this.spots.map((spot) => spot.offsetWidth)), height: Math.max(...this.spots.map((spot) => spot.offsetHeight)) };
+    const radii = radialRadii({ width: window.innerWidth, height: window.innerHeight }, entry, this.entries.length, RADIAL_RADIUS_SHARE, RADIAL_GAP_PX);
+    this.spots.forEach((spot, i) => {
+      const at = radialSpot(i, this.entries.length, radii);
+      moveTo(spot, at.x, at.y);
+    });
   }
+
 
   highlight(index: number | null): void {
     this.spots.forEach((spot, i) => spot.classList.toggle("picked", i === index));
