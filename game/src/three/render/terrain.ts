@@ -20,6 +20,7 @@ import { runNow } from "./stepped";
 import { drawGround, drawnGroundPieces, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
+import { streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const TEXTURE_SIDE = 2048;
@@ -175,7 +176,7 @@ export function terrainMesh(w: World, material: THREE.MeshLambertMaterial, scope
       scope.place({ x: x + width / 2, y: y + depth / 2 }, Math.hypot(width, depth) / 2, () => {
         const chunk = groundChunk(w.terrain, material, x, y, width, depth);
         onChunk(chunk);
-        return chunk.mesh;
+        return streamKind('ground', chunk.mesh);
       });
     }
   for (const deck of atlasOf(w.terrain).decks.decks) deckPick(w.terrain, deck, scope);
@@ -209,6 +210,6 @@ function piecePick(deck: Deck, seg: DeckSegment, scope: RenderScope): void {
   scope.place(mid, seg.length / 2, () => {
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
     mesh.visible = false;
-    return mesh;
+    return streamKind('pick', mesh);
   });
 }

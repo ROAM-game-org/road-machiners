@@ -12,6 +12,7 @@ import { dist, type Vec } from '../../sim/vec';
 import { poseOnDeck } from './sites';
 import { model } from './models';
 import type { RenderScope } from './scope';
+import { streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const WING = { length: 88, width: 32 };
@@ -33,7 +34,7 @@ export function addShipDecks(t: Terrain, scope: RenderScope): void {
   for (const ship of shipDecks(t)) {
     const { deck } = ship;
     const mid = { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 };
-    scope.place(mid, Math.hypot(deck.length, deck.width) / 2, () => buildShipDeck(t, ship));
+    scope.place(mid, Math.hypot(deck.length, deck.width) / 2, () => streamKind('ship-deck', buildShipDeck(t, ship)));
   }
 }
 

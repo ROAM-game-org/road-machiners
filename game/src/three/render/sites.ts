@@ -13,7 +13,7 @@ import { deckSegments, heightAt, type DeckSegment, type Terrain } from '../../si
 import { isConvexPolygon, pointInPolygon, segmentDist } from '../../sim/vec';
 import { instancedModel, model, type ModelName } from './models';
 import type { RenderScope } from './scope';
-import { finishSteps } from '../../perf';
+import { finishSteps, streamKind } from '../../perf';
 import type { PlayClock } from '../play-clock';
 import { SiteMotion, type Motion } from './site-motion';
 import { mergeStaticSteps } from './siteMerge';
@@ -547,7 +547,7 @@ function buildSite(t: Terrain, site: Site, merge = true): BuiltSite {
   return finishSteps(siteSteps(t, site, merge));
 }
 
-function* siteSteps(t: Terrain, site: Site, merge = true): Generator<void, BuiltSite> {
+export function* siteSteps(t: Terrain, site: Site, merge = true): Generator<void, BuiltSite> {
   const b = new SiteBuilder(t, site);
   const decor = SITE_DECOR[siteLook(site)];
   if (decor === undefined) throw new Error(`Missing landmark model for ${siteLook(site)}`);
@@ -611,7 +611,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLi
   });
   for (const { id, build } of DECK_MODELS) {
     const deck = deckOf(t, id);
-    if (deck) scope.place({ x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2, () => build(t));
+    if (deck) scope.place({ x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2, () => streamKind('deck', build(t)));
   }
 }
 
@@ -620,7 +620,7 @@ function* placeSiteSteps(t: Terrain, site: Site, motion: SiteMotion, siteLights:
   yield* siteLights.addSteps(built.lights, built.lamps);
   const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
   for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
-  return built.root;
+  return streamKind(`site:${siteLook(site)}`, built.root);
 }
 
 export function poseOnDeck(obj: THREE.Object3D, deck: Deck, seg: DeckSegment, top: number): void {
@@ -656,7 +656,7 @@ export class HollowLamps {
       const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
       for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
       builder.mergeStatic(builder.lamps);
-      return builder.root;
+      return streamKind('hollow', builder.root);
     });
   }
 

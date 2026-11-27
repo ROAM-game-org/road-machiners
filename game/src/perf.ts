@@ -70,3 +70,8 @@ export function finishSteps<T>(steps: Iterator<void, T>): T {
     if (step.done) return step.value;
   }
 }
+
+export function streamKind<T extends { userData: Record<string, unknown> }>(kind: string, obj: T): T {
+  obj.userData.streamKind = kind;
+  return obj;
+}

@@ -24,6 +24,7 @@ import { PartDebris } from './partDebris';
 import type { Placement, RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
 import { posed, PropInstances } from './propInstances';
+import { streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const CRATES_RADIUS = 1.5;
@@ -144,7 +145,7 @@ export class ObstacleViews {
 
   private addView(o: Obstacle): void {
     if (this.fixed?.props.holds(o.id)) throw new Error(`Prop ${o.id} still has a visible instance slot`);
-    this.byId.set(o.id, this.scope.place(o.pos, viewReach(o), () => this.buildView(o)));
+    this.byId.set(o.id, this.scope.place(o.pos, viewReach(o), () => streamKind(`obstacle:${o.kind}`, this.buildView(o))));
   }
 
   private buildView(o: Obstacle): THREE.Object3D {
@@ -275,7 +276,7 @@ export class ObstacleViews {
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
       this.scope.place(center, reach, () => {
         const placed = list.map((o) => rockPlacement(this.terrain, o));
-        return minorProp(instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m));
+        return streamKind('rocks', minorProp(instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint), (m) => m)));
       });
     }
     return new Set(rocks.map((o) => o.id));
@@ -533,7 +534,7 @@ export function addPowerLines(t: Terrain, obstacles: Obstacle[], scope: RenderSc
   for (const a of poles.values()) {
     const b = poles.get(nextId(a.id));
     if (!b) continue;
-    scope.place({ x: (a.pos.x + b.pos.x) / 2, y: (a.pos.y + b.pos.y) / 2 }, dist(a.pos, b.pos) / 2 + 1, () => powerLine(t, a, b, material));
+    scope.place({ x: (a.pos.x + b.pos.x) / 2, y: (a.pos.y + b.pos.y) / 2 }, dist(a.pos, b.pos) / 2 + 1, () => streamKind('power-line', powerLine(t, a, b, material)));
   }
 }
 

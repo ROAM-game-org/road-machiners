@@ -8,7 +8,7 @@ import { ObstacleBuckets } from '../../sim/nav/buckets';
 import { groundAt, groundSlope, type Terrain } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
-import { count } from '../../perf';
+import { count, streamKind } from '../../perf';
 import { buildProp } from './obstacles';
 import type { Rect, RenderScope } from './scope';
 import { chunkGeometry } from './terrain';
@@ -462,7 +462,7 @@ export class GraffitiViews {
   private *drawSteps(region: GraffitiRegion, candidates: GraffitiCandidates, fit: FitSteps<SignFit>): Generator<void, THREE.Object3D> {
     const sites = candidates.sitesIn(region);
     yield;
-    return this.draw(region, yield* regionGraffitiSteps(region, sites, fit));
+    return streamKind('graffiti', this.draw(region, yield* regionGraffitiSteps(region, sites, fit)));
   }
 
   private paint(): THREE.MeshLambertMaterial {
