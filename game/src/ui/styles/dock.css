@@ -71,6 +71,16 @@
   flex: none;
   white-space: nowrap;
 }
+.contract-line > .clock-cell {
+  display: grid;
+  justify-items: end;
+}
+.clock-cell > * {
+  grid-area: 1 / 1;
+}
+.clock-sizer {
+  visibility: hidden;
+}
 .contract-line .claim-rival {
   display: flex;
   align-items: center;

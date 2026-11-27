@@ -232,12 +232,83 @@ describe("CombatMusic", () => {
     expect(music.session).toBeNull();
   });
 
-  it("boots and stays silent in combat when no song loads", async () => {
-    const errors: unknown[] = [];
-    const music = new CombatMusic(fakeCtx(), {} as AudioNode, async () => { throw new Error("no song"); }, () => 0, (e) => errors.push(e));
+  const missingFirst = () => {
+    const asked: string[] = [];
+    const loader = async (name: string) => {
+      asked.push(name);
+      return asked.length === 1 ? null : kitOf(name);
+    };
+    return { asked, loader };
+  };
+
+  it("asks for a song again at the next fight after a song missed", async () => {
+    const { asked, loader } = missingFirst();
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, loader, () => 0, (e) => { throw e; });
     await music.ready();
     music.setCombat(true);
-    expect(music.inCombat).toBe(false);
+    await music.ready();
+    expect(asked).toHaveLength(2);
+    expect(music.inCombat).toBe(true);
+    music.setCombat(false);
+  });
+
+  it("asks again at the next fight when the song loader throws", async () => {
+    const errors: unknown[] = [];
+    let calls = 0;
+    const loader = async (name: string) => {
+      calls++;
+      if (calls === 1) throw new Error("no song");
+      return kitOf(name);
+    };
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, loader, () => 0, (e) => errors.push(e));
+    await music.ready();
+    music.setCombat(true);
+    await music.ready();
     expect(errors).toHaveLength(1);
+    expect(music.inCombat).toBe(true);
+    music.setCombat(false);
+  });
+
+  it("asks once while a song is loading, however often the fight starts and ends", async () => {
+    let calls = 0;
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, () => { calls++; return new Promise<Kit | null>(() => {}); }, () => 0, (e) => { throw e; });
+    for (let i = 0; i < 5; i++) {
+      music.setCombat(true);
+      music.tick();
+      music.fire("hit", 1);
+      music.nextSong();
+      music.setCombat(false);
+    }
+    expect(calls).toBe(1);
+  });
+
+  it("asks for another song after one missed", async () => {
+    const { asked, loader } = missingFirst();
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, loader, () => 0, (e) => { throw e; });
+    await music.ready();
+    music.setCombat(true);
+    await music.ready();
+    expect(asked).toHaveLength(2);
+    expect(asked[1]).not.toBe(asked[0]);
+    music.setCombat(false);
+  });
+
+  it("logs each request, landing, miss, start and end", async () => {
+    const { loader } = missingFirst();
+    const names = Object.keys(COMBAT_SONGS);
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, loader, () => 0, (e) => { throw e; });
+    await music.ready();
+    music.setCombat(true);
+    await music.ready();
+    music.setCombat(false);
+    const title = COMBAT_SONGS[names[1]].title;
+    expect(music.log.slice(0, 6)).toEqual([
+      `kit ${names[0]} asked`,
+      `kit ${names[0]} missing`,
+      `kit ${names[1]} asked`,
+      `kit ${names[1]} landed`,
+      `start ${title}`,
+      `end ${title}`,
+    ]);
   });
 });

@@ -816,6 +816,13 @@ export function heldContractClock(world: World, c: Contract): Msg {
   return t('contract.left', { span: timeSpanText(world.turn, dueTurn(c)) });
 }
 
+export function heldClockSizers(c: Contract): Msg[] {
+  if (c.kind === 'escort') throw new Error('An escort has no clock to size');
+  const fullSpan = timeSpanText(c.deadline - c.window, dueTurn(c));
+  const sizers = [t('contract.left', { span: fullSpan }), t('contract.ready')];
+  return c.kind === 'haul' ? [...sizers, t('contract.bountyIn', { span: fullSpan })] : sizers;
+}
+
 export function heldContractDeadline(world: World, c: Contract): Msg | null {
   if (c.kind === 'escort' || isMet(c)) return null;
   return isLate(world, c) ? lateDue(c) : contractDue(c);

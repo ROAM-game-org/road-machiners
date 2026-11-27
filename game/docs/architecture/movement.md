@@ -280,7 +280,7 @@ Trucks ease to a stop when travel pauses. That motion is real physics.
 - A pan stops following until F, the recenter button, danger in sight, or the truck driving out of view.
 - F and the recenter button put the truck at the screen center by dropping the look-ahead. The look-ahead grows back while turns play in auto mode.
 - Danger in sight and the truck leaving the view resume following and keep the look-ahead.
-- In auto mode the camera leads toward the order point.
+- In auto mode the camera leads along the way the truck is driving, read from the playing turn's frames. With an order but no motion it keeps its lead, and with no order it eases back to center.
 - The follow chase runs on the world clock, so it slows and stops with the world instead of halting in one frame. Recentering and pans run on real time.
 - Auto or Centered is the camera setting in Options, owned by `src/ui/camera-setting.ts`. V flips it.
 

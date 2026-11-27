@@ -140,16 +140,36 @@ export function mix(a: number, b: number, t: number): number {
 
 const MASK_CHANNELS = ['body', 'cab', 'gear'] as const satisfies readonly (keyof TruckColors)[];
 
-export function paintSheetPixels(sheet: Uint8ClampedArray, mask: Uint8ClampedArray, from: TruckColors, to: TruckColors): Uint8ClampedArray {
+export type PixelRect = { x: number; y: number; w: number; h: number; stride: number };
+
+export function paintSheetPixels(sheet: Uint8ClampedArray, mask: Uint8ClampedArray, from: TruckColors, to: TruckColors, rect?: PixelRect): Uint8ClampedArray {
   if (sheet.length !== mask.length) throw new Error(`Paint mask has ${mask.length} bytes for a sheet of ${sheet.length}`);
-  const out = new Uint8ClampedArray(sheet);
-  const shifts = MASK_CHANNELS.map((slot) => ({ from: rgb(from[slot]), to: rgb(to[slot]), lum: brightness(rgb(from[slot])) }));
-  for (let at = 0; at < sheet.length; at += 4) {
-    const shade = brightness([sheet[at], sheet[at + 1], sheet[at + 2]]);
-    for (let c = 0; c < 3; c++) {
-      let v = sheet[at + c];
-      for (const [i, s] of shifts.entries()) v += (mask[at + i] / 255) * (shade / s.lum) * (s.to[c] - s.from[c]);
-      out[at + c] = v;
+  const area = rect ?? { x: 0, y: 0, w: sheet.length / 4, h: 1, stride: sheet.length / 4 };
+  const out = new Uint8ClampedArray(area.w * area.h * 4);
+  const lum = MASK_CHANNELS.map((slot) => brightness(rgb(from[slot])));
+  const shift = MASK_CHANNELS.map((slot) => {
+    const [fr, fg, fb] = rgb(from[slot]);
+    const [tr, tg, tb] = rgb(to[slot]);
+    return [tr - fr, tg - fg, tb - fb];
+  });
+  let at = 0;
+  for (let row = 0; row < area.h; row++) {
+    let source = ((area.y + row) * area.stride + area.x) * 4;
+    for (let col = 0; col < area.w; col++, source += 4, at += 4) {
+      const shade = Math.max(1, 0.299 * sheet[source] + 0.587 * sheet[source + 1] + 0.114 * sheet[source + 2]);
+      let r = sheet[source];
+      let g = sheet[source + 1];
+      let b = sheet[source + 2];
+      for (let i = 0; i < 3; i++) {
+        const k = (mask[source + i] / 255) * (shade / lum[i]);
+        r += k * shift[i][0];
+        g += k * shift[i][1];
+        b += k * shift[i][2];
+      }
+      out[at] = r;
+      out[at + 1] = g;
+      out[at + 2] = b;
+      out[at + 3] = sheet[source + 3];
     }
   }
   return out;

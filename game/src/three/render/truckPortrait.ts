@@ -115,7 +115,7 @@ export function chassisSize(chassisId: string): PixelSize {
 
 type Wanted = { vehicleId: string; key: string; pristine: Vehicle; paint: TruckPaint; ahead: boolean };
 type Ready = { vehicleId: string; portrait: Portrait; seen: number };
-type Job = { wanted: Wanted; epoch: number; build: PortraitBuild; waiting: boolean; failure: { error: unknown } | null };
+type Job = { wanted: Wanted; epoch: number; build: PortraitBuild; waiting: boolean; paused: number | null; failure: { error: unknown } | null };
 
 export class TruckPortraits {
   private readonly ready = new Map<string, Ready>();
@@ -187,7 +187,7 @@ export class TruckPortraits {
       const known = this.ready.get(w.key);
       if (known) known.seen = this.tick;
     }
-    this.dropUnwantedJobs();
+    this.pauseUnwantedJobs();
     this.dropForgotten();
   }
 
@@ -205,12 +205,26 @@ export class TruckPortraits {
     }
   }
 
-  private dropUnwantedJobs(): void {
+  private pauseUnwantedJobs(): void {
     for (const [vehicleId, job] of this.jobs) {
-      if (this.wantedKeys.get(vehicleId) === job.wanted.key) continue;
-      job.build.dispose();
-      this.jobs.delete(vehicleId);
+      const key = this.wantedKeys.get(vehicleId);
+      if (key === job.wanted.key) job.paused = null;
+      else if (key !== undefined) this.discard(job);
+      else job.paused ??= this.tick;
     }
+  }
+
+  private discard(job: Job): void {
+    if (this.jobs.get(job.wanted.vehicleId) === job) this.jobs.delete(job.wanted.vehicleId);
+    job.build.dispose();
+  }
+
+  private evictOldestPaused(): boolean {
+    let oldest: Job | null = null;
+    for (const job of this.jobs.values()) if (job.paused !== null && (!oldest || job.paused < (oldest.paused as number))) oldest = job;
+    if (!oldest) return false;
+    this.discard(oldest);
+    return true;
   }
 
   private dropForgotten(): void {
@@ -236,13 +250,13 @@ export class TruckPortraits {
         if (!job.waiting) return job;
         continue;
       }
-      if (this.jobs.size < PORTRAIT_JOBS) return this.start(wanted);
+      if (this.jobs.size < PORTRAIT_JOBS || this.evictOldestPaused()) return this.start(wanted);
     }
     return null;
   }
 
   private start(wanted: Wanted): Job {
-    const job: Job = { wanted, epoch: this.gpu.epoch(), build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, failure: null };
+    const job: Job = { wanted, epoch: this.gpu.epoch(), build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, paused: null, failure: null };
     this.jobs.set(wanted.vehicleId, job);
     return job;
   }
@@ -415,55 +429,127 @@ function targetFor(size: PixelSize, samples: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(size.width, size.height, { samples, depthBuffer: true, stencilBuffer: false });
 }
 
-function* warmUp(renderer: THREE.WebGLRenderer, root: THREE.Object3D, camera: THREE.Camera, trash: Disposable[]): Generator<PortraitWait, void, void> {
+type Compiled = { programs: unknown; signatures: Set<string> };
+
+const COMPILED = new WeakMap<THREE.WebGLRenderer, Compiled>();
+
+function compiledOn(renderer: THREE.WebGLRenderer): Set<string> {
+  const programs = renderer.info?.programs;
+  const known = COMPILED.get(renderer);
+  if (known && known.programs === programs) return known.signatures;
+  const fresh = { programs, signatures: new Set<string>() };
+  COMPILED.set(renderer, fresh);
+  return fresh.signatures;
+}
+
+export function programSignature(mesh: Drawn): string {
+  const m = mesh.material as THREE.Material & { vertexColors?: boolean; flatShading?: boolean; map?: unknown };
+  const attributes = Object.keys(mesh.geometry.attributes).sort().join(',');
+  return [mesh.type, m.type, m.customProgramCacheKey(), m.side, m.transparent, m.vertexColors, m.flatShading, Boolean(m.map), m.alphaTest > 0, attributes].join('|');
+}
+
+export function coldMeshes(renderer: THREE.WebGLRenderer, meshes: Drawn[]): Drawn[] {
+  const compiled = compiledOn(renderer);
+  const seen = new Set<string>();
+  return meshes.filter((mesh) => {
+    const signature = programSignature(mesh);
+    if (compiled.has(signature) || seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
+}
+
+export function* warmUp(renderer: THREE.WebGLRenderer, root: THREE.Object3D, camera: THREE.Camera, trash: Disposable[]): Generator<PortraitWait, void, void> {
   const meshes: Drawn[] = [];
   root.traverse((o) => {
     if (o instanceof THREE.Mesh && o.visible) meshes.push(o as Drawn);
   });
+  const cold = coldMeshes(renderer, meshes);
+  if (cold.length === 0) return;
   const tiny = targetFor(LOOK.warmSize, LOOK.samples);
   trash.push(tiny);
   const scene = litScene(root);
   for (const mesh of meshes) mesh.visible = false;
-  for (const mesh of meshes) {
+  for (const mesh of cold) {
     mesh.visible = true;
     withRendererState(renderer, () => {
       renderer.setRenderTarget(tiny);
       renderer.render(scene, camera);
     });
     mesh.visible = false;
+    compiledOn(renderer).add(programSignature(mesh));
     yield;
   }
   for (const mesh of meshes) mesh.visible = true;
 }
 
-function* captureRaw(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
-  const bytes = new Uint8Array(target.width * target.height * 4);
-  yield withRendererState(renderer, () => {
-    renderer.setRenderTarget(target);
-    return renderer.compileAsync(scene, camera);
+export type CapturePass = { target: THREE.WebGLRenderTarget; camera: THREE.Camera; prepare(): THREE.Scene; restore?(): void };
+
+function coldPassMeshes(renderer: THREE.WebGLRenderer, scene: THREE.Scene): Drawn[] {
+  const meshes: Drawn[] = [];
+  scene.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.visible) meshes.push(o as Drawn);
   });
-  yield withRendererState(renderer, () => {
-    renderer.setRenderTarget(target);
-    renderer.setClearColor(0x000000, 0);
-    renderer.autoClear = true;
-    renderer.render(scene, camera);
-    return renderer.readRenderTargetPixelsAsync(target, 0, 0, target.width, target.height, bytes);
-  });
-  return new Uint8ClampedArray(bytes.buffer);
+  return coldMeshes(renderer, meshes);
 }
 
-export function* captureColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
-  const px = yield* captureRaw(renderer, target, scene, camera);
+function markCompiled(renderer: THREE.WebGLRenderer, meshes: Drawn[]): void {
+  const compiled = compiledOn(renderer);
+  for (const mesh of meshes) compiled.add(programSignature(mesh));
+}
+
+export function* captureAll(renderer: THREE.WebGLRenderer, passes: CapturePass[]): Generator<PortraitWait, Uint8ClampedArray[], void> {
+  const reads: Promise<unknown>[] = [];
+  const pixels: Uint8Array[] = [];
+  for (const pass of passes) {
+    const { target, camera } = pass;
+    const scene = pass.prepare();
+    const cold = coldPassMeshes(renderer, scene);
+    if (cold.length > 0) {
+      yield withRendererState(renderer, () => {
+        renderer.setRenderTarget(target);
+        return renderer.compileAsync(scene, camera);
+      });
+      markCompiled(renderer, cold);
+    }
+    const bytes = new Uint8Array(target.width * target.height * 4);
+    const read = withRendererState(renderer, () => {
+      renderer.setRenderTarget(target);
+      renderer.setClearColor(0x000000, 0);
+      renderer.autoClear = true;
+      renderer.render(scene, camera);
+      return renderer.readRenderTargetPixelsAsync(target, 0, 0, target.width, target.height, bytes);
+    });
+    void read.catch(() => undefined);
+    reads.push(read);
+    pixels.push(bytes);
+    pass.restore?.();
+  }
+  yield Promise.all(reads);
+  return pixels.map((bytes) => new Uint8ClampedArray(bytes.buffer));
+}
+
+function colored(px: Uint8ClampedArray, target: THREE.WebGLRenderTarget): Uint8ClampedArray {
   unpremultiply(px);
   linearToSrgb(px);
   flipRows(px, target.width, target.height);
   return px;
 }
 
-function* captureIds(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint16Array, void> {
-  const ids = idsOf(yield* captureRaw(renderer, target, scene, camera));
+function identified(px: Uint8ClampedArray, target: THREE.WebGLRenderTarget): Uint16Array {
+  const ids = idsOf(px);
   flipRows(ids, target.width, target.height);
   return ids;
+}
+
+export function* captureColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
+  const [px] = yield* captureAll(renderer, [{ target, camera, prepare: () => scene }]);
+  return colored(px, target);
+}
+
+function* captureIds(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint16Array, void> {
+  const [px] = yield* captureAll(renderer, [{ target, camera, prepare: () => scene }]);
+  return identified(px, target);
 }
 
 export function canvasOf(px: Uint8ClampedArray, size: PixelSize): HTMLCanvasElement {
@@ -631,44 +717,60 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, index: Indexes,
   };
 }
 
-type Pass = { renderer: THREE.WebGLRenderer; smooth: THREE.WebGLRenderTarget; flat: THREE.WebGLRenderTarget; camera: THREE.Camera };
+type Pass = { renderer: THREE.WebGLRenderer; camera: THREE.Camera };
 
-function* captureParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (mesh: Drawn) => boolean, trash: Disposable[]): Generator<PortraitWait, Uint8ClampedArray, void> {
-  const occluder = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: THREE.NoBlending });
-  trash.push(occluder);
+function partsPass(target: THREE.WebGLRenderTarget, camera: THREE.Camera, view: VehicleView, meshes: Drawn[], isPart: (mesh: Drawn) => boolean, trash: Disposable[]): CapturePass {
   const originals = new Map(meshes.map((m) => [m, m.material]));
-  hideOutlines(view.root);
-  for (const mesh of meshes.filter((m) => !isPart(m))) {
-    if (mesh.material.transparent) mesh.visible = false;
-    else mesh.material = occluder;
-  }
-  const parts = yield* captureColor(pass.renderer, pass.smooth, litScene(view.root), pass.camera);
-  for (const [mesh, material] of originals) mesh.material = material;
-  return parts;
+  return {
+    target,
+    camera,
+    prepare() {
+      const occluder = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: THREE.NoBlending });
+      trash.push(occluder);
+      hideOutlines(view.root);
+      for (const mesh of meshes.filter((m) => !isPart(m))) {
+        if (mesh.material.transparent) mesh.visible = false;
+        else mesh.material = occluder;
+      }
+      return litScene(view.root);
+    },
+    restore() {
+      for (const [mesh, material] of originals) mesh.material = material;
+    },
+  };
 }
 
-function* capturePartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[], cabs: CabSpan[]): Generator<PortraitWait, Uint16Array, void> {
-  paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID));
-  paintCabs(solid, cabs, numberOf);
-  const scene = new THREE.Scene();
-  scene.add(view.root);
-  let ids = yield* captureIds(pass.renderer, pass.flat, scene, pass.camera);
-  yield;
+function idsPass(target: THREE.WebGLRenderTarget, camera: THREE.Camera, view: VehicleView, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, cabs: CabSpan[]): CapturePass {
+  return {
+    target,
+    camera,
+    prepare() {
+      paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID));
+      paintCabs(solid, cabs, numberOf);
+      const scene = new THREE.Scene();
+      scene.add(view.root);
+      return scene;
+    },
+  };
+}
+
+function cellsPass(target: THREE.WebGLRenderTarget, camera: THREE.Camera, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): CapturePass {
+  const column = { boxOf: deckBoxesOf(v, solid), depthTest: true };
+  return { target, camera, prepare: () => footprintScene(conditionItems(v), numberOf, column, trash) };
+}
+
+function* hiddenIds(pass: Pass, flat: THREE.WebGLRenderTarget, ids: Uint16Array, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): Generator<PortraitWait, Uint16Array, void> {
+  let found = ids;
   for (const span of LOOK.hiddenSpansM) {
-    const seen = new Set(ids);
+    const seen = new Set(found);
     const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
-    if (hidden.length === 0) return ids;
+    if (hidden.length === 0) return found;
     const heightOf = heightsOf(v, solid);
     const column = { boxOf: (item: PartItem) => cellBox(v, item, span, heightOf(item)), depthTest: false };
-    ids = hiddenOver(ids, yield* captureIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
+    found = hiddenOver(found, yield* captureIds(pass.renderer, flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
     yield;
   }
-  return ids;
-}
-
-function* captureCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): Generator<PortraitWait, Uint16Array, void> {
-  const column = { boxOf: deckBoxesOf(v, solid), depthTest: true };
-  return yield* captureIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
+  return found;
 }
 
 const CAB_SPAN_VERTEX = 'vCabX = (modelMatrix * vec4(transformed, 1.0)).x;';
@@ -738,20 +840,27 @@ function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: V
   sheenGlass(meshes);
   neutralizeReds(meshes, trash);
   const { camera, size } = settledCamera(meshes);
-  const pass = { renderer, camera, smooth: targetFor(size, LOOK.samples), flat: targetFor(size, 0) };
-  trash.push(pass.smooth, pass.flat);
+  const targets = { lit: targetFor(size, LOOK.samples), parts: targetFor(size, LOOK.samples), ids: targetFor(size, 0), cells: targetFor(size, 0) };
+  trash.push(...Object.values(targets));
   yield* warmUp(renderer, view.root, camera, trash);
-  const lit = yield* captureColor(renderer, pass.smooth, litScene(view.root), camera);
-  yield;
   const isPart = partOnly(v);
-  const parts = yield* captureParts(pass, view, meshes, isPart, trash);
-  yield;
   const numberOf = numbering();
   const items = conditionItems(v);
   for (const item of items) numberOf(item.part.id);
-  const solid = meshes.filter((m) => m.visible);
-  const ids = yield* capturePartIds(pass, view, v, solid, isPart, numberOf, trash, cabs);
-  const cells = yield* captureCellIds(pass, v, solid, numberOf, trash);
+  const solid = meshes.filter((m) => isPart(m) || !m.material.transparent);
+  const [litPx, partsPx, idsPx, cellsPx] = yield* captureAll(renderer, [
+    { target: targets.lit, camera, prepare: () => litScene(view.root) },
+    partsPass(targets.parts, camera, view, meshes, isPart, trash),
+    idsPass(targets.ids, camera, view, solid, isPart, numberOf, cabs),
+    cellsPass(targets.cells, camera, v, solid, numberOf, trash),
+  ]);
+  const lit = colored(litPx, targets.lit);
+  yield;
+  const parts = colored(partsPx, targets.parts);
+  yield;
+  const first = identified(idsPx, targets.ids);
+  const ids = yield* hiddenIds({ renderer, camera }, targets.ids, first, v, solid, numberOf, trash);
+  const cells = identified(cellsPx, targets.cells);
   yield;
   const index = { ids: indexIds(ids, size, lit), cells: indexIds(cells, size) };
   checkCovered(v, items, index.ids, numberOf);
