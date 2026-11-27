@@ -18,6 +18,7 @@ export const SCROLL_SCREENS = [
   ".truck-body .inv-side",
   ".inv-body",
   ".inv-details > .stat-grid",
+  ".inv-details > .item-lore",
   ".inv-bench .well .inv-storage",
   ".inv-bench .inv-side-column > .well",
   ".rank-ladder",
