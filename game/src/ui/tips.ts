@@ -1,5 +1,5 @@
 
-import { touchMode } from "./input-mode";
+import { padMode, subscribeInputMode, touchMode } from "./input-mode";
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
 import { introStep } from "../sim/quests";
@@ -255,6 +255,7 @@ export class Tips {
     this.seen = readSeen(storage);
     this.off = tipsOff(storage);
     this.box.style.display = "none";
+    subscribeInputMode(() => this.shown !== null && this.render());
   }
 
   update(world: World, auto: boolean): void {
@@ -332,7 +333,7 @@ export class Tips {
     this.box.classList.toggle("opening-tip", tip.opening === true);
     this.box.replaceChildren(
       panelHead(t("hint.title"), { label: t("hint.closeThis"), onClose: () => this.close() }),
-      screen(screenLine(null, t(touchMode() ? `hint.touch.${tip.id}` : `hint.${tip.id}`)), screenLine("dim", t("hint.offInMenu"))),
+      screen(screenLine(null, t(hintKey(tip.id))), screenLine("dim", t("hint.offInMenu"))),
     );
     this.place();
   }
@@ -363,6 +364,11 @@ export class Tips {
 }
 
 const TIP_GAP = 8;
+
+function hintKey(id: TipId): `hint.${TipId}` | `hint.touch.${TipId}` | `hint.pad.${TipId}` {
+  if (padMode()) return `hint.pad.${id}`;
+  return touchMode() ? `hint.touch.${id}` : `hint.${id}`;
+}
 
 function instrumentsEdge(): number {
   const instruments = document.querySelector<HTMLElement>("#ui .instruments");

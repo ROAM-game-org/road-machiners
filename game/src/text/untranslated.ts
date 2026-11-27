@@ -12,6 +12,7 @@ const DEV_ATLAS = 'The stretch atlas is a dev page that draws the trucks each Ch
 const DEV_INK_MENU = 'The ink look menu is a dev tool that opens only with ?tune in the page address. It stays English.';
 const FONT_SAMPLE ='A sample string that makes the browser load the font. No player reads it.';
 const GAUGE_MARKS = 'The end marks of the fuel and heat gauges are dashboard symbols, printed the same in every language.';
+const PAD_BUTTON = 'The name of a gamepad button as the Xbox layout names it, printed the same in every language like A, LB and RT.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
@@ -22,6 +23,8 @@ const SAVE_STEP_FILE = 'src/three/save-step-square-grid.ts';
 const SAVE_DB_ERROR = 'An error message of the save database, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: 'src/ui/game-menu.ts', text: 'View', reason: PAD_BUTTON },
+  { file: 'src/ui/pad/pad-model.ts', text: 'View', reason: PAD_BUTTON },
   { file: 'src/three/stretch-atlas.ts', text: '*', reason: DEV_ATLAS },
   { file: 'src/three/render/inkMenu.ts', text: '*', reason: DEV_INK_MENU },
   { file: 'src/three/render/inkTuning.ts', text: '*', reason: DEV_INK_MENU },

@@ -157,6 +157,25 @@ async function menuReachesHelp(pad) {
   if (await pad.page.evaluate(() => window.__ROAM__.menu.isOpen())) pad.fail('B did not close the help panel');
 }
 
+async function openOptions(pad) {
+  await pad.press('menu');
+  await pad.frames(3);
+  for (let i = 0; i < 10 && !(await pad.reticleOn('[data-entry=options]')); i++) await pad.press('down');
+  await pad.press('a');
+  await pad.frames(4);
+}
+
+async function optionsKeepsTheReticle(pad) {
+  await openOptions(pad);
+  if (!(await pad.reticleOn('.options'))) pad.fail('opening Options from the menu left the reticle outside Options');
+  for (let i = 0; i < 4; i++) await pad.press('down');
+  if (!(await pad.reticleOn('.options'))) pad.fail('the D-pad moved the reticle out of Options');
+  await pad.shot('options');
+  await pad.press('b');
+  await pad.frames(3);
+  if (await pad.page.evaluate(() => window.__ROAM__.menu.isOpen())) await pad.press('b');
+}
+
 async function aSetsRoute(pad) {
   await pad.steerTo(pad.size.width / 2 + 120, pad.size.height / 2 - 90);
   await pad.press('a');
@@ -232,7 +251,7 @@ async function heldADragsAnItem(pad) {
   await pad.frames(3);
 }
 
-const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, heldADragsAnItem, menuReachesHelp, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode, wakingPressOnlyWakes, leavingReleasesRt];
+const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, heldADragsAnItem, menuReachesHelp, optionsKeepsTheReticle, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode, wakingPressOnlyWakes, leavingReleasesRt];
 
 async function openGame(width, height) {
   const page = await browser.newPage({ viewport: { width, height } });

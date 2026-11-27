@@ -128,7 +128,7 @@ export class PadInput {
 
   private landOnScreen(place: PadPlace): void {
     if (place === "world") return this.backToWorld();
-    this.worldAt = this.reticle.where();
+    this.worldAt ??= this.reticle.where();
     const land = focusedTarget(this.targets) ?? nearestTarget(this.reticle.where(), this.targets, Infinity);
     if (land) this.moveTo(land);
   }
@@ -143,8 +143,9 @@ export class PadInput {
   private follow(): void {
     if (this.stuck === null) return;
     const target = this.targets.find((t) => t.key === this.stuck);
-    if (target) this.reticle.place({ x: target.x, y: target.y }, true);
-    else this.stuck = null;
+    if (target) return this.reticle.place({ x: target.x, y: target.y }, true);
+    this.stuck = null;
+    if (this.place === "screen") this.landOnScreen("screen");
   }
 
   private moveTo(target: PadTarget): void {
@@ -154,9 +155,14 @@ export class PadInput {
   }
 
   private runEdges(edges: PadEdges): void {
+    this.refreshAfter(edges);
     for (const button of edges.pressed) if (!this.waking.has(button)) this.pressed(button);
     for (const button of edges.heldNow) if (button === "y") this.openRadial();
     for (const release of edges.released) this.released(release.button, release.held);
+  }
+
+  private refreshAfter(edges: PadEdges): void {
+    if (edges.pressed.length + edges.released.length > 0) this.controlsAt = -Infinity;
   }
 
   private pressed(button: PadButton): void {

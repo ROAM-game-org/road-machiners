@@ -48,16 +48,34 @@ function keyOf(node: Element): string {
   return key;
 }
 
+const SCREENS = ".modal, .dialog, [role=dialog], [role=alertdialog], [role=menu]";
+
+function onTop(node: Element): boolean {
+  const rect = node.getBoundingClientRect();
+  if (!shown(rect)) return false;
+  const at = centreOf(rect);
+  const hit = document.elementFromPoint(at.x, at.y);
+  return hit !== null && node.contains(hit);
+}
+
+function openScreens(): Element[] {
+  return [...document.querySelectorAll(SCREENS)].filter(onTop);
+}
+
+function controlTarget(node: Element): PadTarget | null {
+  const rect = node.getBoundingClientRect();
+  const at = centreOf(rect);
+  if (!shown(rect) || !reachable(node, at)) return null;
+  return { key: keyOf(node), kind: "control", x: at.x, y: at.y, r: Math.max(CONTROL_TARGET_PX, Math.min(rect.width, rect.height) / 2) };
+}
+
+function inScreens(screens: readonly Element[], node: Element): boolean {
+  return screens.length === 0 || screens.some((screen) => screen.contains(node));
+}
+
 export function controlTargets(skip: (node: Element) => boolean): PadTarget[] {
-  const found: PadTarget[] = [];
-  for (const node of document.querySelectorAll(CONTROLS)) {
-    if (skip(node)) continue;
-    const rect = node.getBoundingClientRect();
-    const at = centreOf(rect);
-    if (!shown(rect) || !reachable(node, at)) continue;
-    found.push({ key: keyOf(node), kind: "control", x: at.x, y: at.y, r: Math.max(CONTROL_TARGET_PX, Math.min(rect.width, rect.height) / 2) });
-  }
-  return found;
+  const screens = openScreens();
+  return [...document.querySelectorAll(CONTROLS)].filter((node) => !skip(node) && inScreens(screens, node)).flatMap((node) => controlTarget(node) ?? []);
 }
 
 export function focusedTarget(targets: readonly PadTarget[]): PadTarget | null {
@@ -189,8 +207,16 @@ function scrollerOf(node: Element | null): Element | null {
   return null;
 }
 
+function screenScroller(): Element | null {
+  for (const screen of openScreens()) {
+    const inside = [screen, ...screen.querySelectorAll("*")].find((node) => scrollerOf(node) === node);
+    if (inside) return inside;
+  }
+  return null;
+}
+
 export function scrollAt(at: Point, dy: number): void {
-  scrollerOf(under(at))?.scrollBy({ top: dy });
+  (scrollerOf(under(at)) ?? screenScroller())?.scrollBy({ top: dy, behavior: "instant" });
 }
 
 function tabsNear(at: Point): HTMLElement[] {
