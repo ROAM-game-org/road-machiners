@@ -12,7 +12,8 @@ import { propBase, propObstacle } from '../../sim/mapgen';
 import { deckSegments, heightAt, type DeckSegment, type Terrain } from '../../sim/terrain';
 import { isConvexPolygon, pointInPolygon, segmentDist } from '../../sim/vec';
 import { instancedModel, model, type ModelName } from './models';
-import { finishSteps, type RenderScope } from './scope';
+import type { RenderScope } from './scope';
+import { finishSteps } from '../../perf';
 import type { PlayClock } from '../play-clock';
 import { SiteMotion, type Motion } from './site-motion';
 import { mergeStaticSteps } from './siteMerge';
@@ -616,7 +617,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock, siteLi
 
 function* placeSiteSteps(t: Terrain, site: Site, motion: SiteMotion, siteLights: SiteLights): Generator<void, THREE.Object3D> {
   const built = yield* siteSteps(t, site);
-  siteLights.add(built.lights, built.lamps);
+  yield* siteLights.addSteps(built.lights, built.lamps);
   const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
   for (const mover of built.movers) motion.add(mover.node, (seconds, node, rest) => mover.motion(seconds + phase, node, rest));
   return built.root;

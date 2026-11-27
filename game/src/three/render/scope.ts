@@ -325,13 +325,6 @@ function inRange(cell: number, range: CellRange, perSide: number): boolean {
   return cx >= range.x0 && cx <= range.x1 && cy >= range.y0 && cy <= range.y1;
 }
 
-export function finishSteps<T>(steps: Iterator<void, T>): T {
-  for (;;) {
-    const step = steps.next();
-    if (step.done) return step.value;
-  }
-}
-
 function stepOnce(pending: Pending): THREE.Object3D | null {
   if (typeof pending.build === 'function') return pending.build();
   pending.run ??= pending.build.steps();

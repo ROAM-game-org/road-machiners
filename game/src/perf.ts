@@ -63,3 +63,10 @@ export function resetPerf(): void {
   stats.clear();
   workerNames.clear();
 }
+
+export function finishSteps<T>(steps: Iterator<void, T>): T {
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}

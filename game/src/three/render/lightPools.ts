@@ -5,6 +5,7 @@ import { fortressOutline, fortressFootprint, fortressPieces } from '../../sim/fo
 import type { Site } from '../../sim/sites';
 import { pointInPolygon, type Vec } from '../../sim/vec';
 import { placeInWorld } from './worldPlace';
+import { finishSteps } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 
@@ -32,14 +33,16 @@ function texelCentre(grid: PoolGrid, i: number): number {
   return (i + 0.5) / grid.perTile;
 }
 
-function siteRegion(site: Site, grid: PoolGrid): Region {
+function* siteRegionSteps(site: Site, grid: PoolGrid): Generator<void, Region> {
   const reach = site.radius + POOLS.radius + POOLS.margin;
   const lo = (v: number) => Math.max(0, Math.floor((v - reach) * grid.perTile));
   const hi = (v: number) => Math.min(grid.side - 1, Math.ceil((v + reach) * grid.perTile));
   const region = { site, i0: lo(site.pos.x), j0: lo(site.pos.y), i1: hi(site.pos.x), j1: hi(site.pos.y), sides: [] as Side[] };
   const solids = fortressPieces(site).map((piece) => fortressFootprint(site, piece));
-  for (let j = region.j0; j <= region.j1; j++)
+  for (let j = region.j0; j <= region.j1; j++) {
     for (let i = region.i0; i <= region.i1; i++) region.sides.push(poolSide(site, solids, { x: texelCentre(grid, i), y: texelCentre(grid, j) }));
+    yield;
+  }
   return region;
 }
 
@@ -74,12 +77,13 @@ export class PoolMap {
   }
 
   add(lamps: readonly PoolLamp[]): void {
+    finishSteps(this.addSteps(lamps));
+  }
+
+  *addSteps(lamps: readonly PoolLamp[]): Generator<void> {
     const regions = new Map<Site, Region>();
-    for (const lamp of lamps) {
-      let region = regions.get(lamp.site);
-      if (!region) regions.set(lamp.site, (region = siteRegion(lamp.site, this.grid)));
-      addLamp(this.light, this.grid, region, lamp);
-    }
+    for (const lamp of lamps) if (!regions.has(lamp.site)) regions.set(lamp.site, yield* siteRegionSteps(lamp.site, this.grid));
+    for (const lamp of lamps) addLamp(this.light, this.grid, regions.get(lamp.site)!, lamp);
     for (const region of regions.values()) this.write(region);
   }
 
@@ -164,11 +168,11 @@ export class NightPools {
     return this.uniforms.poolMap.value;
   }
 
-  addLamps(lamps: readonly PoolLamp[]): void {
+  *addLampsSteps(lamps: readonly PoolLamp[]): Generator<void> {
     const texture = this.uniforms.poolMap.value;
     if (!this.map || !texture) throw new Error('Night pools were never started');
     if (lamps.length === 0) return;
-    this.map.add(lamps);
+    yield* this.map.addSteps(lamps);
     texture.needsUpdate = true;
   }
 

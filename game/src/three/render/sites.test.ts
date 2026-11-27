@@ -848,7 +848,7 @@ describe('merged static meshes', () => {
     const siteLights = new SiteLights(new Scene(), null, { worldSize: 8, maxTextureSize: 64, spotShadows: false });
     addSites(FLAT_TERRAIN, scope, new PlayClock({ stopMs: 1, startMs: 1, stopFolds: 1 }), siteLights);
     const cell = Math.floor(nose.pos.y / TERRAIN_CHUNK) * scope.cellsPerSide + Math.floor(nose.pos.x / TERRAIN_CHUNK);
-    const added = vi.spyOn(siteLights, 'add');
+    const added = vi.spyOn(siteLights, 'addSteps');
     let steps = 0;
     while (scope.buildNext(cell) === 'stepped') steps++;
     expect(added).toHaveBeenCalledOnce();

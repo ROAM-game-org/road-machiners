@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { registerBakedOutline } from './models';
-import { finishSteps } from './scope';
+import { finishSteps } from '../../perf';
 
 const PLAIN_ATTRIBUTES = new Set(['position', 'normal', 'uv', 'color']);
 const NOT_LOOK = new Set(['uuid', 'name']);
