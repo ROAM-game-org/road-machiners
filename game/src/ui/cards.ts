@@ -190,6 +190,10 @@ export function itemLore(id: string): Msg {
   return id in GOODS ? goodLore(id) : partLore(partDef(id).id);
 }
 
+export function itemLoreEl(id: string): HTMLElement {
+  return el("p", { class: "dim item-lore" }, itemLore(id));
+}
+
 export function itemTip(id: string): Msg {
   return t("item.tip", { name: itemIconLabel(id), lore: itemLore(id) });
 }
@@ -572,7 +576,7 @@ export function partDetail(world: World, part: PartInstance, base: PartInstance 
     ...(base ? [compareLine(base)] : []),
     el("div", { class: "part-hp" }, conditionMeter(part, GAUGE_CELLS), hpText),
     ...(rest.length ? [statGrid(rest)] : []),
-    el("p", { class: "dim" }, partLore(part.defId)),
+    itemLoreEl(part.defId),
   ];
 }
 
