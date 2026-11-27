@@ -555,6 +555,14 @@
   overflow-y: auto;
   scrollbar-width: none;
 }
+.inv-details > .item-lore {
+  flex: 0 1000 auto;
+  min-height: 0;
+  margin: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  font-size: var(--text-dense);
+}
 /* One row form: a stat grid in a card prints like the rows of the truck column, with one value edge. */
 .inv-inspection .stat-grid {
   grid-template-columns: var(--icon-m) 1fr auto auto;
