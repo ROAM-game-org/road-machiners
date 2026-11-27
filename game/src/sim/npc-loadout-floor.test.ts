@@ -9,18 +9,14 @@ import { cloneWorld } from './world';
 import { freeCells, mountedParts } from './grid';
 import { loadFactor } from './mass';
 import { generateNpcLoadout, openGear } from './npc-loadout';
-import { allegianceFor, fallbackFaction, spawnAt } from './spawn';
-import { refitAtHome } from './defeat';
-import { makeVehicle } from './factory';
-import { gunCapacity, gunDrag, massRoomAbove, npcMassRoom, vehicleStats } from './stats';
+import { allegianceFor, spawnAt } from './spawn';
+import { gunCapacity, gunDrag, npcMassRoom } from './stats';
 import { topSpeedFactor } from './chassis-features';
 import { wornDef } from './wear';
 import { addGoods } from './inventory';
 import { CRATE_MASS } from '../data/goods';
 import { budget } from '../test/budget';
-import { describeLoadout, fixture, loadoutOf, rolled, useLoadoutFixture } from './npc-loadout-kit';
-import { mountedItems } from './grid';
-import { isLineGun, partDef } from '../data/parts';
+import { describeLoadout, fixture, rolled, useLoadoutFixture } from './npc-loadout-kit';
 
 useLoadoutFixture();
 
