@@ -58,6 +58,10 @@ const ROUND_NEAR_TILES = 1;
 const ROUND_FAR_TILES = 2;
 const ROUND_REACH_TILES = 1;
 const NEAR_SHARE = 0.1;
+const MEANDER_SIZE = 2.5;
+const MEANDER_AMOUNT = 1.5;
+const HALO_WANDER_SIZE = 6;
+const HALO_WANDER_SPILL = 0.08;
 const STRAIGHT_REACH = 2;
 const ROUND_TRUST_SHARE = 0.08;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
@@ -586,7 +590,7 @@ DrawnBorder drawnBorderOfSlots(vec2 tile, ivec3 ids, vec3 shares, vec3 gradX, ve
   vec3 gaps = vec3(${DRAWN_FAR_TILES.toFixed(1)}) * (1.0 - step(0.00001, next)) + (strongest - rounded) / speed * step(0.00001, next);
   vec3 kept = max(rounded, 0.0) * live;
   vec3 slotSpills = vec3(ids.x >= 0 ? drawnMaterialSpill[ids.x] : 0.0, ids.y >= 0 ? drawnMaterialSpill[ids.y] : 0.0, ids.z >= 0 ? drawnMaterialSpill[ids.z] : 0.0);
-  float roundedSpill = dot(kept, slotSpills) / max(kept.x + kept.y + kept.z, 0.0001);
+  float roundedSpill = spill + dot(kept - level, slotSpills);
   return DrawnBorder(ids[own], ids[across], (rounded[own] - strongest) / speed, ids, next, gaps, wave, pepper, roundedSpill, spillColor);
 }
 DrawnBorder drawnBorderOfTiles(vec2 tile) {
@@ -671,9 +675,14 @@ float drawnStreakAt(vec2 at) {
   vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
   return (valueNoise(wind / vec2(${DRAWN_STREAK_LONG.toFixed(1)}, ${DRAWN_STREAK_WIDE.toFixed(1)})) - 0.5) * ${DRAWN_STREAK_MIX.toFixed(2)};
 }
-float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float aa, out float past) {
+float drawnHaloWander(vec2 at, float px) {
+  float broad = (valueNoise(at / ${HALO_WANDER_SIZE.toFixed(1)} + 61.0) - 0.5) * 2.0 * ${HALO_WANDER_SPILL.toFixed(3)};
+  float fine = (valueNoise(at / ${(HALO_WANDER_SIZE / 3).toFixed(2)} + 67.0) - 0.5) * 2.0 * ${(HALO_WANDER_SPILL / 3).toFixed(3)};
+  return (broad + fine) * (1.0 - smoothstep(0.3, 0.6, px));
+}
+float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float wander, float aa, out float past) {
   float excess = (edge.spill - drawnMaterialSpill[own]) * drawnHaloAmount * (1.0 - drawnMaterialPepper[own]);
-  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)} + crumb * drawnMaterialGrit[own];
+  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)} + crumb * drawnMaterialGrit[own] + wander * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess);
   float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
   float depthAa = fwidth(depth) + 0.001;
   return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
@@ -704,7 +713,8 @@ vec2 drawnWarpAt(float wave, float fineShare, vec2 at) {
   vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
   vec2 fine = vec2(0.0);
   if (fineShare > 0.0) fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
-  return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
+  vec2 meander = vec2(valueNoise(at / (drawnWaveSize * ${MEANDER_SIZE.toFixed(1)}) + 13.0), valueNoise(at / (drawnWaveSize * ${MEANDER_SIZE.toFixed(1)}) + 19.0)) - 0.5;
+  return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)} + meander * ${MEANDER_AMOUNT.toFixed(1)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
 }
 vec2 drawnViewFrame(vec2 p) {
   return vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
@@ -912,8 +922,9 @@ const BORDER_BODY = `
   float drawnAcrossHaloPast;
   float drawnPxMeters = drawnTilePx * facetSide;
   float drawnHaloCrumb = drawnGritMeters / drawnPxMeters * drawnHaloAa;
-  float drawnOwnHalo = drawnHalo(drawnEdge, drawnEdge.own, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnOwnHaloPast);
-  float drawnAcrossHalo = drawnHalo(drawnEdge, drawnEdge.across, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnAcrossHaloPast);
+  float drawnHaloDrift = drawnHaloWander(vWorldXZ, drawnDetailPx);
+  float drawnOwnHalo = drawnHalo(drawnEdge, drawnEdge.own, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnOwnHaloPast);
+  float drawnAcrossHalo = drawnHalo(drawnEdge, drawnEdge.across, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnAcrossHaloPast);
   bool drawnSameOwn = fwidth(float(drawnEdge.own)) == 0.0;
   float drawnOwnHaloMeters = drawnHaloMeters(drawnOwnHaloPast, drawnPxMeters, drawnSameOwn);
   vec3 drawnOwnColor = mix(drawnMaterialTone(drawnEdge.own), drawnEdge.spillColor, drawnOwnHalo);
