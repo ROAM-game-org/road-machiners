@@ -42,7 +42,7 @@ import { lookOrTurnReason, lookOverReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
-import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
+import { actionRow, conditionMeter, conditionTag, createIcon, createItemIcon, itemLoreEl, footprint as footprintEl, itemIconEl, partIconEl, toneStyle } from "./cards";
 import { budgetGroup, truckGroups } from "./truck-panel";
 import { autoPatchKey } from "./auto-patch-key";
 import { itemActions, itemFacts, jobBlock, rotateButton, type CardHost } from "./item-card";
@@ -556,7 +556,7 @@ export class InventoryView {
   }
 
   private showCard(w: World, me: Vehicle, item: GridItem, mounted: boolean, actions: HTMLElement[]): void {
-    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), ...itemFacts(w, me, item, mounted)));
+    this.inspection.replaceChildren(el("div", { class: "well-group inv-details" }, this.cardHead(w, item), itemLoreEl(itemLookId(item)), ...itemFacts(w, me, item, mounted)));
     this.fillActions(actions, t("inv.dragToGrid"));
   }
 
