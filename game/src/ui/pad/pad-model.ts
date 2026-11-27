@@ -37,8 +37,15 @@ export function readPad(pad: GamepadLike, limits: PadLimits): PadFrame {
   return { down, left: deadzoned(axis(0), axis(1), limits.deadzone), right: deadzoned(axis(2), axis(3), limits.deadzone) };
 }
 
-export function activePad<T extends GamepadLike & { connected: boolean }>(pads: readonly (T | null)[]): T | null {
-  return pads.find((p): p is T => p !== null && p.connected && p.buttons.length > 0) ?? null;
+export type ConnectedPad = GamepadLike & { readonly connected: boolean; readonly mapping: string };
+
+function stronger(a: Stick, b: Stick): Stick {
+  return Math.hypot(b.x, b.y) > Math.hypot(a.x, a.y) ? b : a;
+}
+
+export function readPads(pads: readonly (ConnectedPad | null)[], limits: PadLimits): PadFrame {
+  const frames = pads.filter((p): p is ConnectedPad => p !== null && p.connected && p.mapping === "standard").map((p) => readPad(p, limits));
+  return frames.reduce((all, f) => ({ down: new Set([...all.down, ...f.down]), left: stronger(all.left, f.left), right: stronger(all.right, f.right) }), IDLE_FRAME);
 }
 
 export function framesActive(frame: PadFrame): boolean {

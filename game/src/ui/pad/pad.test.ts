@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  activePad,
+  IDLE_FRAME,
   cycledTarget,
   deadzoned,
   movedCursor,
@@ -12,6 +12,7 @@ import {
   radialPick,
   radialSpot,
   readPad,
+  readPads,
   targetToward,
   type GamepadLike,
   type PadButton,
@@ -55,10 +56,26 @@ describe("reading a gamepad", () => {
     expect(read.right).toEqual({ x: 0, y: -1 });
   });
 
-  it("takes the first connected pad and skips empty slots", () => {
-    const pad = { ...gamepad([]), connected: true };
-    expect(activePad([null, { ...pad, connected: false }, pad])).toBe(pad);
-    expect(activePad([null])).toBeNull();
+  it("reads every connected standard pad and skips empty slots", () => {
+    const pad = (pressed: number[], axes?: number[]) => ({ ...gamepad(pressed, axes), connected: true, mapping: "standard" });
+    expect([...readPads([null, pad([0]), null, pad([1])], LIMITS).down]).toEqual(["a", "b"]);
+    expect(readPads([null], LIMITS)).toEqual(IDLE_FRAME);
+  });
+
+  it("merges a pad seen twice, so an idle twin hides nothing", () => {
+    const steam = { ...gamepad([7], [0.9, 0, 0, 0]), connected: true, mapping: "standard" };
+    const idle = { ...gamepad([]), connected: true, mapping: "standard" };
+    const read = readPads([idle, steam], LIMITS);
+    expect(read.down.has("rt")).toBe(true);
+    expect(read.left.x).toBeGreaterThan(0.8);
+  });
+
+  it("ignores a pad without the standard layout, whose button order is unknown", () => {
+    expect(readPads([{ ...gamepad([0, 3]), connected: true, mapping: "" }], LIMITS)).toEqual(IDLE_FRAME);
+  });
+
+  it("ignores a disconnected pad", () => {
+    expect(readPads([{ ...gamepad([0]), connected: false, mapping: "standard" }], LIMITS)).toEqual(IDLE_FRAME);
   });
 });
 

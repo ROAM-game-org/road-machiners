@@ -2,10 +2,8 @@ import { PAD } from "../../config";
 import { setPadMode } from "../input-mode";
 import { controlTargets, focusedTarget, hoverAt, PadDrag, PadPress, PadRadial, PadReticle, pressKey, scrollAt, sendKey, stepTab, zoomAt } from "./pad-dom";
 import {
-  activePad,
   cycledTarget,
   framesActive,
-  IDLE_FRAME,
   INVENTORY_KEY,
   movedCursor,
   nearestTarget,
@@ -13,7 +11,7 @@ import {
   PadTracker,
   RADIAL_ENTRIES,
   radialPick,
-  readPad,
+  readPads,
   targetToward,
   turnKey,
   type PadButton,
@@ -51,6 +49,7 @@ export class PadInput {
   private targets: PadTarget[] = [];
   private stuck: string | null = null;
   private worldAt: Point | null = null;
+  private waking = new Set<PadButton>();
   private last = 0;
 
   constructor(private readonly pads: Gamepads) {}
@@ -71,10 +70,9 @@ export class PadInput {
   private tick(now: number): void {
     const dt = Math.min(100, now - this.last);
     this.last = now;
-    const pad = activePad(this.pads());
-    const frame = pad ? readPad(pad, PAD) : IDLE_FRAME;
-    const edges = this.tracker.step(frame, now);
-    if (framesActive(frame)) this.enter();
+    const frame = readPads(this.pads(), PAD);
+    const edges = this.awake(this.tracker.step(frame, now));
+    if (framesActive(frame)) this.enter(frame);
     if (!this.active) return;
     this.refresh(now);
     if (this.radial.isOpen()) return this.steerRadial(frame, edges);
@@ -82,9 +80,15 @@ export class PadInput {
     this.steer(frame, dt);
   }
 
-  private enter(): void {
+  private awake(edges: PadEdges): PadEdges {
+    const released = edges.released.filter((r) => !this.waking.delete(r.button));
+    return { pressed: edges.pressed, released, heldNow: edges.heldNow.filter((b) => !this.waking.has(b)) };
+  }
+
+  private enter(frame: PadFrame): void {
     if (this.active) return;
     this.active = true;
+    this.waking = new Set(frame.down);
     this.reticle.show(true);
     setPadMode(true);
   }
@@ -92,6 +96,7 @@ export class PadInput {
   private leave(): void {
     if (!this.active) return;
     this.active = false;
+    if (this.tracker.frame().down.has("rt") && !this.waking.has("rt")) sendKey("keyup", turnKey());
     this.press.up(false);
     this.drag.end();
     this.radial.close();
@@ -147,7 +152,7 @@ export class PadInput {
   }
 
   private runEdges(edges: PadEdges): void {
-    for (const button of edges.pressed) this.pressed(button);
+    for (const button of edges.pressed) if (!this.waking.has(button)) this.pressed(button);
     for (const button of edges.heldNow) if (button === "y") this.openRadial();
     for (const release of edges.released) this.released(release.button, release.held);
   }

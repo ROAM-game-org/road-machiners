@@ -75,11 +75,11 @@ class PadDriver {
   }
 
   async steerTo(x, y) {
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 120; i++) {
       const at = await this.reticle();
       const d = Math.hypot(x - at.x, y - at.y);
-      if (d < 24) break;
-      const tilt = Math.min(1, d / 300);
+      if (d < 8) break;
+      const tilt = Math.min(1, Math.max(0.4, d / 120));
       await this.setAxes([((x - at.x) / d) * tilt, ((y - at.y) / d) * tilt, 0, 0]);
       await this.frames(1);
     }
@@ -177,7 +177,44 @@ async function mouseLeavesPadMode(pad) {
   if (await pad.padMode()) pad.fail('a mouse move did not leave pad mode');
 }
 
-const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, menuReachesHelp, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode];
+async function menuButtonCentre(pad) {
+  const box = await pad.page.locator('.system-menu').boundingBox();
+  if (!box) throw new Error('no Menu button in the HUD');
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+async function wakingPressOnlyWakes(pad) {
+  await pad.tilt([0.5, 0, 0, 0], 2);
+  const menu = await menuButtonCentre(pad);
+  await pad.steerTo(menu.x, menu.y);
+  await pad.frames(3);
+  if (!(await pad.reticleOn('.system-menu'))) pad.fail(`the reticle did not land on the Menu button at ${JSON.stringify(menu)}, it is at ${JSON.stringify(await pad.reticle())} over ${await pad.page.evaluate(() => { const r = document.querySelector('.pad-reticle').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.className; })}`);
+  await pad.page.mouse.move(pad.size.width / 4, pad.size.height / 4);
+  await pad.page.waitForTimeout(200);
+  await pad.press('a');
+  await pad.frames(3);
+  if (!(await pad.padMode())) pad.fail('A did not wake pad mode');
+  if (await pad.page.evaluate(() => window.__ROAM__.menu.isOpen())) pad.fail('the A press that woke pad mode also pressed the control under the reticle');
+  await pad.press('a');
+  await pad.frames(3);
+  if (!(await pad.page.evaluate(() => window.__ROAM__.menu.isOpen()))) pad.fail('A after waking did not press the Menu button');
+  await pad.press('b');
+  await pad.frames(3);
+}
+
+async function leavingReleasesRt(pad) {
+  await pad.tilt([0.5, 0, 0, 0], 2);
+  await pad.setButton('rt', true);
+  await pad.page.waitForTimeout(1200);
+  await pad.page.mouse.move(pad.size.width / 3, pad.size.height / 2);
+  await pad.page.waitForTimeout(200);
+  const held = await pad.page.evaluate(() => window.__ROAM__.travel.isFast(performance.now()));
+  await pad.setButton('rt', false);
+  await pad.frames(2);
+  if (held) pad.fail('leaving pad mode with RT held kept the turn key held');
+}
+
+const STEPS = [startsPadMode, radialSwitchesLights, yOpensInventory, menuReachesHelp, aSetsRoute, rtPlaysTurn, mouseLeavesPadMode, wakingPressOnlyWakes, leavingReleasesRt];
 
 async function openGame(width, height) {
   const page = await browser.newPage({ viewport: { width, height } });
