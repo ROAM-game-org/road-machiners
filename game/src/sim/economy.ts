@@ -333,9 +333,10 @@ function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[], shopId:
   if (resources.money < 0) return;
   for (const kind of kinds) {
     const room = shopId === null ? supplyRoom(world, kind, vehicle) : serviceRoom(world, shopId, kind, vehicle);
-    const count = Math.max(0, Math.min(room, affordableUnits(resources.money, ECONOMY.supplyPrice[kind])));
+    const count = fillableUnits(resources.money, room, ECONOMY.supplyPrice[kind]);
+    if (count <= 0) continue;
     if (shopId !== null) drawService(world, shopId, kind, count);
-    resources[kind] += count;
+    pourSupply(resources, vehicle, kind, count, supplyRoom(world, kind, vehicle));
     shopMoney(world, vehicle, -supplyCharge(kind, count), kind);
   }
 }
@@ -350,12 +351,12 @@ function serviceStock(world: World, shopId: string, kind: Supply): number {
 }
 
 export function rationing(world: World, shopId: string, kind: Supply): boolean {
-  return serviceStock(world, shopId, kind) === 0;
+  return serviceStock(world, shopId, kind) < ECONOMY.unitPrecision;
 }
 
 export function rationRoom(world: World, kind: Supply, truck: Vehicle): number {
   const cap = kind === 'fuel' ? fuelCap(truck) : suppliesCap(truck);
-  return Math.max(0, Math.floor(cap * RULES.scrapPatch - getResources(world, truck)[kind]));
+  return tankRoom(cap * RULES.scrapPatch, getResources(world, truck)[kind], kind);
 }
 
 export function serviceRoom(world: World, shopId: string, kind: Supply, truck: Vehicle = playerVehicle(world)): number {
@@ -369,7 +370,8 @@ function drawService(world: World, shopId: string, kind: Supply, units: number):
   const fromCrates = Math.max(0, fromStock - opened);
   const crates = Math.ceil(fromCrates / serviceUnitsPerCrate(kind));
   if (crates > 0) moveStock(state, shopId, SERVICE_GOOD[kind], -crates, 'service');
-  state.opened[kind] = opened + crates * serviceUnitsPerCrate(kind) - fromStock;
+  const left = opened + crates * serviceUnitsPerCrate(kind) - fromStock;
+  state.opened[kind] = Math.round(left / ECONOMY.unitPrecision) * ECONOMY.unitPrecision;
 }
 
 export function scrapPatch(world: World): void {
@@ -518,7 +520,28 @@ export function sellGood(world: World, good: string, n: number): World {
 
 export function supplyRoom(world: World, kind: Supply, truck: Vehicle = playerVehicle(world)): number {
   const cap = kind === 'fuel' ? fuelCap(truck) : suppliesCap(truck);
-  return Math.max(0, Math.floor(cap - getResources(world, truck)[kind]));
+  return tankRoom(cap, getResources(world, truck)[kind], kind);
+}
+
+export function tankRoom(cap: number, held: number, kind: Supply): number {
+  const room = cap - held;
+  return room > ECONOMY.fullSlack[kind] ? room : 0;
+}
+
+export function requireSupplyCount(n: number, room: number): void {
+  if (!(n > 0 && n <= room && (Number.isInteger(n) || n === room))) throw new Error(`Cannot buy ${n}`);
+}
+
+export function fillableUnits(money: number, room: number, unitPrice: number): number {
+  if (room <= 0) return 0;
+  if (chargeM(room * unitPrice) <= money) return room;
+  return Math.min(Math.floor(room), affordableUnits(money, unitPrice));
+}
+
+export function pourSupply(resources: Record<Supply, number>, truck: Vehicle, kind: Supply, n: number, room: number): void {
+  if (n > room) throw new Error(`Cannot pour ${n} into room ${room}`);
+  const cap = kind === 'fuel' ? fuelCap(truck) : suppliesCap(truck);
+  resources[kind] = n === room ? cap : resources[kind] + n;
 }
 
 export function buySupply(world: World, kind: Supply, n: number): World {
@@ -526,11 +549,11 @@ export function buySupply(world: World, kind: Supply, n: number): World {
     const shopId = requireShop(w);
     if (!shopDef(shopId).supplies.includes(kind))
       throw new Error(`${shopId} does not sell ${kind}`);
-    if (!Number.isInteger(n) || n <= 0 || n > serviceRoom(w, shopId, kind))
-      throw new Error(`Cannot buy ${n} ${kind}`);
+    const room = serviceRoom(w, shopId, kind);
+    requireSupplyCount(n, room);
     pay(w, supplyCharge(kind, n));
     drawService(w, shopId, kind, n);
-    w.player[kind] += n;
+    pourSupply(w.player, playerVehicle(w), kind, n, supplyRoom(w, kind));
   });
 }
 
@@ -968,11 +991,12 @@ export function sellTruckPart(world: World, npcId: string, partId: string): Worl
 export function buyTruckSupply(world: World, npcId: string, kind: Supply, n: number): World {
   return playerCommand(world, (w) => {
     const { npc } = requireMeeting(w, npcId);
-    requireCount(n);
+    const room = supplyRoom(w, kind);
+    if (n > room) throw new Refused({ id: 'noSupplyRoom' });
+    requireSupplyCount(n, room);
     if (n > truckSupplyForSale(npc, kind)) throw new Error(`${npc.id} will not sell that much ${kind}`);
-    if (n > supplyRoom(w, kind)) throw new Refused({ id: 'noSupplyRoom' });
     transfer(w, playerVehicle(w), npc, truckSupplyPrice(w, kind, n));
     npc.resources![kind] -= n;
-    w.player[kind] += n;
+    pourSupply(w.player, playerVehicle(w), kind, n, room);
   });
 }

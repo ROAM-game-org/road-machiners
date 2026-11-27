@@ -33,6 +33,9 @@ import {
   rationing,
   serviceAtStall,
   serviceRoom,
+  supplyRoom,
+  tankRoom,
+  fillableUnits,
   serviceUnitsPerCrate,
   serviceVehicle,
   supplyCharge,
@@ -246,6 +249,46 @@ describe("garage", () => {
       expect(r.player[kind]).toBe(3);
       expect(r.player.money).toBe(333 - supplyCharge(kind, 3));
     }
+  });
+
+  it("sells the last part-unit of a tank and lands exactly on the cap", () => {
+    const w = startAtBowl();
+    w.player.money = 10;
+    const fuelFull = fuelCap(w.vehicles[0]);
+    const suppliesFull = suppliesCap(w.vehicles[0]);
+    w.player.fuel = fuelFull - 0.8;
+    w.player.supplies = suppliesFull - 0.2;
+    const stock = shopState(w, "bowl");
+    const before = stock.goods.fuelDrums * serviceUnitsPerCrate("fuel") + (stock.opened.fuel ?? 0);
+    expect(serviceRoom(w, "bowl", "fuel")).toBeCloseTo(0.8);
+    const r = buySupply(buySupply(w, "fuel", serviceRoom(w, "bowl", "fuel")), "supplies", supplyRoom(w, "supplies"));
+    expect(r.player.fuel).toBe(fuelFull);
+    expect(r.player.supplies).toBe(suppliesFull);
+    expect(r.player.money).toBe(10 - 1 - 1);
+    const after = shopState(r, "bowl");
+    expect(after.goods.fuelDrums * serviceUnitsPerCrate("fuel") + (after.opened.fuel ?? 0)).toBeCloseTo(before - 0.8, 5);
+    expect(r.events.some((e) => e.t === "supply")).toBe(false);
+  });
+
+  it("counts a room within the gauge's last digit as full", () => {
+    expect(tankRoom(200, 200 - ECONOMY.fullSlack.fuel * 0.9, "fuel")).toBe(0);
+    expect(tankRoom(20, 20 - ECONOMY.fullSlack.supplies * 0.9, "supplies")).toBe(0);
+    expect(tankRoom(20, 19.9, "supplies")).toBeCloseTo(0.1);
+  });
+
+  it("refuses a count that is neither whole nor the whole room", () => {
+    const w = startAtBowl();
+    w.player.money = 10;
+    w.player.fuel = fuelCap(w.vehicles[0]) - 0.8;
+    expect(() => buySupply(w, "fuel", 0.5)).toThrow();
+    expect(() => buySupply(w, "fuel", 1)).toThrow();
+  });
+
+  it("fills the whole room when money covers it, else the whole units money covers", () => {
+    expect(fillableUnits(10, 0.8, 1)).toBe(0.8);
+    expect(fillableUnits(0, 0.8, 1)).toBe(0);
+    expect(fillableUnits(3, 7.5, 1)).toBe(3);
+    expect(fillableUnits(100, 7.5, 1)).toBe(7.5);
   });
 
   it("draws a service crate per its unit conversion, and an opened crate serves the next fill", () => {

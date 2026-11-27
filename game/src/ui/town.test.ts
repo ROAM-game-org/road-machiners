@@ -9,7 +9,7 @@ import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { CONTRACTS, RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
-import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy, supplyAmount } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { canteenName, placeProse } from "../text/names";
 import type { World } from "../sim/types";
@@ -324,6 +324,41 @@ describe("the supply rows of the front page", () => {
     w.player.money = ECONOMY.supplyPrice.fuel * 3;
     limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 10, tag: null });
     expect(asked).toEqual([1, 3]);
+  });
+
+  it("offer the last part-unit of a tank on both keys, and read Full only at the cap", () => {
+    const w = emptyWorld();
+    w.player.money = 10;
+    const asked: number[] = [];
+    const prices: number[] = [];
+    const reasons: unknown[] = [];
+    const buttons = {
+      button: () => new FakeNode("button") as unknown as HTMLElement,
+      priceButton: (_w: World, _verb: Msg, price: number, cmd: (x: World) => World, reason: unknown) => {
+        cmd(w);
+        prices.push(price);
+        reasons.push(reason);
+        return keyWithPrice();
+      },
+    };
+    const buy = (x: World, _k: string, n: number) => {
+      asked.push(n);
+      return x;
+    };
+    limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 0.8, tag: null });
+    expect(asked).toEqual([0.8, 0.8]);
+    expect(prices).toEqual([1, 1]);
+    expect(reasons).toEqual([null, null]);
+    reasons.length = 0;
+    limitedSupplyRow(w, "fuel", buttons as never, buy as never, playerVehicle(w), { room: 0, tag: null });
+    expect(reasons).toEqual([t("trade.full"), t("trade.full")]);
+  });
+
+  it("print the same level at the slack from the cap as at the cap", () => {
+    for (const k of ["fuel", "supplies"] as const) {
+      const cap = k === "fuel" ? 40 : 20;
+      expect(supplyAmount(k, cap - ECONOMY.fullSlack[k] * 0.9)).toEqual(supplyAmount(k, cap));
+    }
   });
 
   it("print the verb and the price on the keys and show only the level on the screen", () => {
