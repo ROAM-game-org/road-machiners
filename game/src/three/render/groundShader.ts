@@ -584,7 +584,10 @@ DrawnBorder drawnBorderOfSlots(vec2 tile, ivec3 ids, vec3 shares, vec3 gradX, ve
   int across = others.x >= others.y && others.x >= others.z ? 0 : (others.y >= others.z ? 1 : 2);
   float strongest = others[across];
   vec3 gaps = vec3(${DRAWN_FAR_TILES.toFixed(1)}) * (1.0 - step(0.00001, next)) + (strongest - rounded) / speed * step(0.00001, next);
-  return DrawnBorder(ids[own], ids[across], (rounded[own] - strongest) / speed, ids, next, gaps, wave, pepper, spill, spillColor);
+  vec3 kept = max(rounded, 0.0) * live;
+  vec3 slotSpills = vec3(ids.x >= 0 ? drawnMaterialSpill[ids.x] : 0.0, ids.y >= 0 ? drawnMaterialSpill[ids.y] : 0.0, ids.z >= 0 ? drawnMaterialSpill[ids.z] : 0.0);
+  float roundedSpill = dot(kept, slotSpills) / max(kept.x + kept.y + kept.z, 0.0001);
+  return DrawnBorder(ids[own], ids[across], (rounded[own] - strongest) / speed, ids, next, gaps, wave, pepper, roundedSpill, spillColor);
 }
 DrawnBorder drawnBorderOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
