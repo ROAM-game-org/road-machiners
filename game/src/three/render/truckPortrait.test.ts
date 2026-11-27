@@ -12,7 +12,7 @@ import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { HONEST_READBACK, REFUSED_READBACK, fakeGpu } from '../../test/fake-gpu';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, chassisSize, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
+import { PORTRAIT_KEEP, PORTRAIT_TILT_DEG, TruckPortraits, captureAll, chassisSize, warmUp, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait, type PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const isCabDef = (def: ReturnType<typeof partDef>): boolean => def.kind === 'core' && def.role === 'cab';
@@ -103,13 +103,48 @@ describe('truck portrait queue', () => {
     const portraits = new TruckPortraits(RENDERER, fakeGpu(), HONEST_READBACK, fake.build);
     const a = clone(truck(), 'a');
     const b = clone(truck(), 'b');
-    portraits.want([], [a, b], 'a', PAINT.standard);
+    portraits.want([], [a], 'a', PAINT.standard);
     portraits.step(0, false);
-    portraits.want([], [a, b], 'b', PAINT.standard);
+    portraits.want([], [b], 'b', PAINT.standard);
     settle(portraits);
     expect(fake.started.sort()).toEqual(['a', 'b']);
-    expect(fake.disposed.sort()).toEqual(['a', 'b']);
+    expect(fake.disposed).toEqual(['b']);
+    expect(portraits.shown(b, PAINT.standard)).not.toBeNull();
+    portraits.want([], [a], 'a', PAINT.standard);
+    settle(portraits);
+    expect(fake.started).toEqual(['a', 'b']);
     expect(portraits.shown(a, PAINT.standard)).not.toBeNull();
+  });
+
+  it('resumes a paused build when the cursor returns', () => {
+    const fake = counting(3);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), HONEST_READBACK, fake.build);
+    const a = clone(truck(), 'a');
+    portraits.want([], [a], 'a', PAINT.standard);
+    portraits.step(0, false);
+    portraits.want([], [], null, PAINT.standard);
+    portraits.step(0, false);
+    expect(fake.steps()).toBe(1);
+    expect(fake.disposed).toEqual([]);
+    portraits.want([], [a], 'a', PAINT.standard);
+    settle(portraits);
+    expect(fake.started).toEqual(['a']);
+    expect(fake.steps()).toBe(3);
+    expect(portraits.settled('a')).toBe(true);
+  });
+
+  it('evicts the oldest paused build for a wanted one', () => {
+    const fake = counting(3);
+    const portraits = new TruckPortraits(RENDERER, fakeGpu(), HONEST_READBACK, fake.build);
+    const [a, b, c] = ['a', 'b', 'c'].map((id) => clone(truck(), id));
+    portraits.want([], [a], null, PAINT.standard);
+    portraits.step(0, false);
+    portraits.want([], [b], null, PAINT.standard);
+    portraits.step(0, false);
+    portraits.want([], [c], null, PAINT.standard);
+    portraits.step(0, false);
+    expect(fake.started).toEqual(['a', 'b', 'c']);
+    expect(fake.disposed).toEqual(['a']);
   });
 
   it('only steps the player trucks and the focus while a turn plays', () => {
@@ -425,5 +460,73 @@ describe('truck portraits across a lost context', () => {
     const portraits = new TruckPortraits(RENDERER, fakeGpu(), HONEST_READBACK, build);
     portraits.want([], [truck()], null, PAINT.standard);
     expect(() => portraits.step(1e9, false)).toThrow('has no pixels');
+  });
+});
+
+describe('truck portrait warm-up', () => {
+  function countingRenderer(): { renderer: THREE.WebGLRenderer; renders: () => number } {
+    let renders = 0;
+    const renderer = {
+      info: { programs: [] },
+      getRenderTarget: () => null,
+      getClearColor: () => new THREE.Color(),
+      getClearAlpha: () => 1,
+      autoClear: true,
+      setRenderTarget() {},
+      setClearColor() {},
+      render: () => void renders++,
+    } as unknown as THREE.WebGLRenderer;
+    return { renderer, renders: () => renders };
+  }
+
+  function builtRoot(): THREE.Object3D {
+    return new VehicleView(pristineOf(bare('buggy').v), false, PAINT.standard, 'portrait').root;
+  }
+
+  function runWarm(renderer: THREE.WebGLRenderer, root: THREE.Object3D): number {
+    let steps = 0;
+    for (const _ of warmUp(renderer, root, new THREE.OrthographicCamera(), [])) steps++;
+    return steps;
+  }
+
+  it('renders each program once in a session and nothing for a truck built again', () => {
+    const { renderer, renders } = countingRenderer();
+    const first = runWarm(renderer, builtRoot());
+    const rendered = renders();
+    expect(first).toBeGreaterThan(0);
+    expect(rendered).toBe(first);
+    expect(runWarm(renderer, builtRoot())).toBe(0);
+    expect(renders()).toBe(rendered);
+  });
+
+  it('warms again after the renderer lost its programs', () => {
+    const { renderer, renders } = countingRenderer();
+    runWarm(renderer, builtRoot());
+    const rendered = renders();
+    (renderer.info as unknown as { programs: unknown[] }).programs = [];
+    runWarm(renderer, builtRoot());
+    expect(renders()).toBeGreaterThan(rendered);
+  });
+
+  it('waits once for a group of passes whose programs are compiled, and once more for each cold pass', () => {
+    const { renderer } = countingRenderer();
+    const fake = renderer as unknown as Record<string, unknown>;
+    fake.compileAsync = () => Promise.resolve();
+    fake.readRenderTargetPixelsAsync = () => Promise.resolve();
+    const target = new THREE.WebGLRenderTarget(2, 2);
+    const camera = new THREE.OrthographicCamera();
+    const sceneOf = () => {
+      const scene = new THREE.Scene();
+      scene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+      return scene;
+    };
+    const waits = (): number => {
+      const passes = [0, 1, 2, 3].map(() => ({ target, camera, prepare: sceneOf }));
+      let count = 0;
+      for (const wait of captureAll(renderer, passes)) if (wait) count++;
+      return count;
+    };
+    expect(waits()).toBe(2);
+    expect(waits()).toBe(1);
   });
 });

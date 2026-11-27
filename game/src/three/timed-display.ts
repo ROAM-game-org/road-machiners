@@ -76,13 +76,18 @@ export function combatFrameMs(playback: { elapsed: number } | null, frameMs: num
 }
 
 const SPEED_WINDOW_STEPS = 3;
+const HEADING_WINDOW_STEPS = 30;
+const MIN_HEADING_METERS = 0.5;
+
+function playedWindow(last: number, at: number, halfSteps: number): { from: number; to: number } {
+  const step = Math.min(Math.max(Math.floor(at), 0), last);
+  return { from: Math.max(0, step - halfSteps), to: Math.min(last, step + halfSteps) };
+}
 
 export function playbackKph(frames: readonly VehicleFrame[], at: number): number {
   const last = frames.length - 1;
   if (last < 1) return 0;
-  const step = Math.min(Math.max(Math.floor(at), 0), last);
-  const from = Math.max(0, step - SPEED_WINDOW_STEPS);
-  const to = Math.min(last, step + SPEED_WINDOW_STEPS);
+  const { from, to } = playedWindow(last, at, SPEED_WINDOW_STEPS);
   const meters = Math.hypot(frames[to].pos.x - frames[from].pos.x, frames[to].pos.z - frames[from].pos.z);
   const metersPerSecond = (meters * PHYSICS.stepsPerSecond) / (to - from);
   return kph((metersPerSecond * PHYSICS.turnSeconds) / PHYSICS.metersPerTile);
@@ -90,4 +95,12 @@ export function playbackKph(frames: readonly VehicleFrame[], at: number): number
 
 export function playedKph(frames: readonly VehicleFrame[] | undefined, at: number | null): number | null {
   return at === null || !frames ? null : playbackKph(frames, at);
+}
+
+export function playedHeading(frames: readonly VehicleFrame[] | undefined, at: number | null): number | null {
+  if (at === null || !frames || frames.length < 2) return null;
+  const { from, to } = playedWindow(frames.length - 1, at, HEADING_WINDOW_STEPS);
+  const dx = frames[to].pos.x - frames[from].pos.x;
+  const dz = frames[to].pos.z - frames[from].pos.z;
+  return Math.hypot(dx, dz) < MIN_HEADING_METERS ? null : Math.atan2(dz, dx);
 }
