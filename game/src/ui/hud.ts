@@ -60,7 +60,7 @@ import { isPlayerTruck, playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
 import { knowsCargo, lookOverError } from "../sim/look-over";
-import { douseBlock, engineOverheating, type DouseBlock } from "../sim/engine-heat";
+import { douseBlock, engineHot, type DouseBlock } from "../sim/engine-heat";
 import { firstAidTurnSupplies } from "../sim/health";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -120,6 +120,10 @@ export interface DriveControls {
 
 function rocker(lock: Msg | null, checked: boolean, title: Msg, reason: Msg | null = null, locked = false): RockerView {
   return { checked, title, reason: lock ?? reason, locked };
+}
+
+export function heatLampOn(w: World): boolean {
+  return engineHot(w);
 }
 
 export function driveControlsOf(w: World, manual: boolean, headlights: boolean): DriveControls {
@@ -574,7 +578,7 @@ export class Hud {
       heat: p.engineHeat,
       heatTitle: t("hud.readout", { label: t("readout.engineHeat"), value: engine.value }),
       heatWarn: engine.warning,
-      heatAlarm: engineOverheating(w),
+      heatAlarm: heatLampOn(w),
       ...driveControlsOf(w, readout.manual, this.actions.headlightsOn()),
     });
   }
