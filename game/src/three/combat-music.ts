@@ -10,6 +10,7 @@ export type Kit = { name: string; song: BlockSong; buffers: KitBuffers };
 export type KitLoader = (name: string) => Promise<Kit | null>;
 
 const TICK_MS = 100;
+const LOG_LINES = 100;
 
 export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions, report: (err: unknown) => void): KitLoader {
   return async (name) => {
@@ -22,7 +23,7 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions, repor
       return null;
     }
     if (loaded.unreachable.length > 0) {
-      console.warn(`Combat song ${name} could not be fetched, so this fight keeps the last song`, loaded.unreachable);
+      console.warn(`Combat song ${name} could not be fetched, so the next fight asks for another song`, loaded.unreachable);
       return null;
     }
     const [main, guitars, cymbals] = files.map((f) => loaded.bank.get(f)!);
@@ -31,10 +32,13 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions, repor
 }
 
 export class CombatMusic {
+  readonly log: string[] = [];
   private kit: Kit | null = null;
+  private loadingKit = false;
+  private missed: string | null = null;
   private wanted = false;
   private playingTitle: string | null = null;
-  private loading: Promise<void>;
+  private loading: Promise<void> = Promise.resolve();
   private current: BlockSession | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private voices: BlockVoices;
@@ -47,7 +51,7 @@ export class CombatMusic {
     private onError: (e: unknown) => void,
   ) {
     this.voices = new BlockVoices(ctx, out);
-    this.loading = this.loadNext().catch(onError);
+    this.requestKit();
   }
 
   ready(): Promise<void> {
@@ -68,6 +72,7 @@ export class CombatMusic {
 
   setCombat(on: boolean): void {
     this.wanted = on;
+    if (on && !this.kit) this.requestKit();
     if (on === this.inCombat) return;
     if (on) this.start();
     else this.stop();
@@ -78,9 +83,10 @@ export class CombatMusic {
   }
 
   nextSong(): void {
+    if (this.loadingKit) return;
     const names = Object.keys(COMBAT_SONGS);
     const name = names[(names.indexOf(this.kit?.name ?? names[0]) + 1) % names.length];
-    this.loading = this.load(name)
+    this.loading = this.fetchKit(name)
       .then((kit) => {
         if (kit) this.switchTo(kit);
       })
@@ -94,8 +100,10 @@ export class CombatMusic {
     const at = old.end(this.ctx.currentTime);
     const tail = old.played.at(-1)!;
     for (const v of tail.voices) v.fadeOut(at + old.beatSeconds, old.beatSeconds / 2);
+    this.note(`end ${this.playingTitle}`);
     this.voices.use(kit.buffers);
     this.playingTitle = kit.song.title;
+    this.note(`start ${kit.song.title}`);
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(at - SCORE_BLOCKS.startLeadSeconds);
   }
@@ -109,6 +117,7 @@ export class CombatMusic {
     if (!kit) return;
     this.voices.use(kit.buffers);
     this.playingTitle = kit.song.title;
+    this.note(`start ${kit.song.title}`);
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(this.ctx.currentTime);
     this.timer ??= setInterval(() => this.tick(), TICK_MS);
@@ -120,17 +129,57 @@ export class CombatMusic {
 
   private stop(): void {
     this.current?.end(this.ctx.currentTime);
+    this.note(`end ${this.playingTitle}`);
     this.voices.release();
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
+    this.requestKit();
+  }
+
+  private requestKit(): void {
+    if (this.loadingKit) return;
     this.loading = this.loadNext().catch(this.onError);
   }
 
   private async loadNext(): Promise<void> {
-    const names = Object.keys(COMBAT_SONGS);
-    const name = names[Math.floor(this.roll() * names.length)];
+    const name = this.pickSong();
     if (this.kit?.name === name) return;
-    this.kit = (await this.load(name)) ?? this.kit;
+    this.kit = (await this.fetchKit(name)) ?? this.kit;
     this.startIfWanted();
+  }
+
+  private pickSong(): string {
+    const names = Object.keys(COMBAT_SONGS);
+    const choices = names.length > 1 ? names.filter((n) => n !== this.missed) : names;
+    return choices[Math.floor(this.roll() * choices.length)];
+  }
+
+  private async fetchKit(name: string): Promise<Kit | null> {
+    this.loadingKit = true;
+    this.noteKit(name, "asked");
+    try {
+      const kit = await this.load(name);
+      this.settle(name, kit !== null);
+      return kit;
+    } catch (e) {
+      this.settle(name, false);
+      throw e;
+    } finally {
+      this.loadingKit = false;
+    }
+  }
+
+  private settle(name: string, landed: boolean): void {
+    this.missed = landed ? null : name;
+    this.noteKit(name, landed ? "landed" : "missing");
+  }
+
+  private noteKit(name: string, outcome: string): void {
+    this.note(`kit ${name} ${outcome}`);
+  }
+
+  private note(line: string): void {
+    this.log.push(line);
+    if (this.log.length > LOG_LINES) this.log.shift();
   }
 }

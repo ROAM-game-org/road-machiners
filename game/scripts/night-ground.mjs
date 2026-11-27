@@ -149,7 +149,9 @@ const reloadPage = async (page) => {
 };
 
 export const waitForGame = async (page, bootLimitMs) => {
-  await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs });
+  await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: bootLimitMs }).catch((cause) => {
+    throw new Error(`the boot screen stayed up for ${bootLimitMs} ms before the game state existed`, { cause });
+  });
   await page.waitForSelector('#boot', { state: 'detached', timeout: bootLimitMs }).catch(async (cause) => {
     const shown = await page.evaluate(() => document.querySelector('#boot')?.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '');
     throw new Error(`the boot screen stayed up for ${bootLimitMs} ms, showing "${shown}"`, { cause });
