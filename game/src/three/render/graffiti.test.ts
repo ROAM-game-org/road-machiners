@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { START_KITS } from '../../data/start';
 import { SIGN_STAGES } from '../../render/sign';
 import { isBreakable } from '../../sim/mapgen';
@@ -60,6 +60,21 @@ describe('graffiti regions', () => {
     expect(most).toBe(1);
     expect(fits).toBeGreaterThan(1);
     expect(count).toBeGreaterThan(2 * fits);
+    expect(step.value.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busiest, p.site.pos)).map((p) => p.site.id));
+  });
+
+  it(`cast at most one row of ${GRID + 1} rays in a step, with the same picks as in one call`, () => {
+    const busiest = regions.reduce((a, b) => (placed.filter((p) => inside(b, p.site.pos)).length > placed.filter((p) => inside(a, p.site.pos)).length ? b : a));
+    const casts = vi.spyOn(THREE.Raycaster.prototype, 'intersectObject');
+    const steps = regionGraffitiSteps(busiest, candidates.sitesIn(busiest), fitOn);
+    let most = 0;
+    let step = steps.next();
+    for (; !step.done; step = steps.next()) {
+      most = Math.max(most, casts.mock.calls.length);
+      casts.mockClear();
+    }
+    casts.mockRestore();
+    expect(most).toBeLessThanOrEqual(GRID + 1);
     expect(step.value.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busiest, p.site.pos)).map((p) => p.site.id));
   });
 

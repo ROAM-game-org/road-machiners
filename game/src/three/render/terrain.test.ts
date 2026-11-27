@@ -6,7 +6,7 @@ import { deckHeight, isCliff } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { scatterPlacements } from './scatter';
 import { BLOCK_COUNT_SHIFT, blockWriter } from './groundFields';
-import { chunkGeometry, deckFloorCap, groundSide, groundTexture, TERRAIN_CHUNK } from './terrain';
+import { chunkGeometry, chunkGeometrySteps, deckFloorCap, drawnGroundAt, groundSide, groundTexture, TERRAIN_CHUNK } from './terrain';
 import { adoptGroundBake } from '../../render/groundPaint';
 import type { World } from '../../sim/types';
 import * as THREE from 'three';
@@ -196,5 +196,27 @@ describe('groundTexture', () => {
     expect(texture.magFilter).toBe(THREE.NearestFilter);
     expect(texture.minFilter).toBe(THREE.LinearMipmapLinearFilter);
     expect(texture.generateMipmaps).toBe(true);
+  });
+});
+
+describe('stepped ground chunks', () => {
+  it('fills every vertex of a chunk over several steps, at the drawn ground under it', () => {
+    const [x, y] = [TERRAIN_CHUNK, TERRAIN_CHUNK];
+    const run = chunkGeometrySteps(t, x, y, TERRAIN_CHUNK, TERRAIN_CHUNK);
+    let steps = 0;
+    let next = run.next();
+    for (; !next.done; next = run.next()) steps++;
+    const pos = next.value.getAttribute('position');
+    const row = TERRAIN_CHUNK * MESH_STEPS + 1;
+    const wrong: string[] = [];
+    for (let k = 0; k < pos.count; k++) {
+      const u = x + (k % row) / MESH_STEPS;
+      const v = y + Math.floor(k / row) / MESH_STEPS;
+      const want = [u * S, drawnGroundAt(t, u, v) * S, v * S];
+      if ([pos.getX(k), pos.getY(k), pos.getZ(k)].some((got, axis) => Math.abs(got - want[axis]) > 1e-4)) wrong.push(`${u},${v}`);
+    }
+    expect(steps).toBeGreaterThan(4);
+    expect(wrong).toEqual([]);
+    expect(next.value.getIndex()!.count).toBe((row - 1) * (row - 1) * 6);
   });
 });

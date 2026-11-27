@@ -12,7 +12,7 @@ import { dist, type Vec } from '../../sim/vec';
 import { poseOnDeck } from './sites';
 import { model } from './models';
 import type { RenderScope } from './scope';
-import { streamKind } from '../../perf';
+import { finishSteps, streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const WING = { length: 88, width: 32 };
@@ -34,7 +34,7 @@ export function addShipDecks(t: Terrain, scope: RenderScope): void {
   for (const ship of shipDecks(t)) {
     const { deck } = ship;
     const mid = { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 };
-    scope.place(mid, Math.hypot(deck.length, deck.width) / 2, () => streamKind('ship-deck', buildShipDeck(t, ship)));
+    scope.place(mid, Math.hypot(deck.length, deck.width) / 2, { steps: () => shipDeckSteps(t, ship) });
   }
 }
 
@@ -46,6 +46,10 @@ function shipDecks(t: Terrain): ShipDeck[] {
 }
 
 function buildShipDeck(t: Terrain, ship: ShipDeck): THREE.Group {
+  return finishSteps(shipDeckSteps(t, ship));
+}
+
+export function* shipDeckSteps(t: Terrain, ship: ShipDeck): Generator<void, THREE.Group> {
   const { deck } = ship;
   const root = new THREE.Group();
   root.name = `ship-deck-${deck.id}`;
@@ -54,13 +58,15 @@ function buildShipDeck(t: Terrain, ship: ShipDeck): THREE.Group {
     plate.name = 'ship-deck-model';
     poseOnDeck(plate, deck, seg, 0);
     root.add(plate);
+    yield;
   }
   root.add(skirt(t, deck));
+  yield;
   root.traverse((o) => {
     o.updateMatrix();
     o.matrixAutoUpdate = false;
   });
-  return root;
+  return streamKind('ship-deck', root);
 }
 
 function deckModel({ deck, look }: ShipDeck, length: number): THREE.Object3D {

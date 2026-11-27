@@ -222,16 +222,26 @@ function sampleAt(target: THREE.Object3D, frame: Frame, size: number, u: number,
   return found.normal.dot(n) >= SAME_FACE && found.normal.dot(VIEW) >= SEEN_BY_VIEWER ? found : null;
 }
 
-function sampleGrid(target: THREE.Object3D, frame: Frame, size: number): Hit[] | null {
+function* sampleGridSteps(target: THREE.Object3D, frame: Frame, size: number): Generator<void, Hit[] | null> {
   if (!PROBE_POINTS.every(([u, v]) => sampleAt(target, frame, size, u, v))) return null;
   const hits: Hit[] = [];
-  for (let j = 0; j <= GRID; j++)
-    for (let i = 0; i <= GRID; i++) {
-      const found = sampleAt(target, frame, size, i / GRID, j / GRID);
-      if (!found) return null;
-      hits.push(found);
-    }
+  for (let j = 0; j <= GRID; j++) {
+    yield;
+    const row = sampleRow(target, frame, size, j);
+    if (!row) return null;
+    hits.push(...row);
+  }
   return hits;
+}
+
+function sampleRow(target: THREE.Object3D, frame: Frame, size: number, j: number): Hit[] | null {
+  const row: Hit[] = [];
+  for (let i = 0; i <= GRID; i++) {
+    const found = sampleAt(target, frame, size, i / GRID, j / GRID);
+    if (!found) return null;
+    row.push(found);
+  }
+  return row;
 }
 
 function buildFit(frame: Frame, hits: Hit[], size: number): SignFit {
@@ -250,11 +260,11 @@ function buildFit(frame: Frame, hits: Hit[], size: number): SignFit {
   return fit;
 }
 
-function fitAt(target: THREE.Object3D, origin: THREE.Vector3, direction: THREE.Vector3, far: number, size: number): SignFit | null {
+function* fitAtSteps(target: THREE.Object3D, origin: THREE.Vector3, direction: THREE.Vector3, far: number, size: number): Generator<void, SignFit | null> {
   const first = cast(target, origin, direction, far);
   if (!first || !isWall(first.normal)) return null;
   const frame = frameOf(first);
-  const hits = sampleGrid(target, frame, size);
+  const hits = yield* sampleGridSteps(target, frame, size);
   return hits && buildFit(frame, hits, size);
 }
 
@@ -274,8 +284,9 @@ function* fitCliffSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit
   const origin = new THREE.Vector3((site.pos.x + face.x * CLIFF_REACH_TILES) * S, ((low + high) / 2) * S, (site.pos.y + face.y * CLIFF_REACH_TILES) * S);
   const direction = new THREE.Vector3(-face.x, 0, -face.y);
   const target = cliffTarget(t, site.pos);
-  const fits = SIGN_SIZES.map((size) => () => fitAt(target, origin, direction, CLIFF_REACH_TILES * 2 * S, size));
+  const fits = SIGN_SIZES.map((size) => () => fitAtSteps(target, origin, direction, CLIFF_REACH_TILES * 2 * S, size));
   try {
+    yield;
     return yield* firstFitSteps(fits);
   } finally {
     target.geometry.dispose();
@@ -283,9 +294,9 @@ function* fitCliffSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit
   }
 }
 
-function* firstFitSteps(tries: readonly (() => SignFit | null)[]): Generator<void, SignFit | null> {
+function* firstFitSteps(tries: readonly (() => Generator<void, SignFit | null>)[]): Generator<void, SignFit | null> {
   for (const attempt of tries) {
-    const fit = attempt();
+    const fit = yield* attempt();
     if (fit) return fit;
     yield;
   }
@@ -297,11 +308,11 @@ function propDirections(site: GraffitiSite): Vec[] {
   return Array.from({ length: PROP_DIRECTIONS }, (_, k) => ({ x: Math.cos(turn + (k * Math.PI * 2) / PROP_DIRECTIONS), y: Math.sin(turn + (k * Math.PI * 2) / PROP_DIRECTIONS) })).filter(facesCamera);
 }
 
-function fitFacing(target: THREE.Object3D, box: THREE.Box3, out: Vec, size: number, level: number): SignFit | null {
+function fitFacingSteps(target: THREE.Object3D, box: THREE.Box3, out: Vec, size: number, level: number): Generator<void, SignFit | null> {
   const center = box.getCenter(new THREE.Vector3());
   const reach = Math.hypot(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + PROP_STANDOFF;
   const direction = new THREE.Vector3(-out.x, 0, -out.y);
-  return fitAt(target, new THREE.Vector3(center.x + out.x * reach, box.min.y + (box.max.y - box.min.y) * level, center.z + out.y * reach), direction, reach * 2, size);
+  return fitAtSteps(target, new THREE.Vector3(center.x + out.x * reach, box.min.y + (box.max.y - box.min.y) * level, center.z + out.y * reach), direction, reach * 2, size);
 }
 
 function* fitPropSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit | null> {
@@ -311,7 +322,8 @@ function* fitPropSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit 
   target.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(target);
   const outs = propDirections(site);
-  return yield* firstFitSteps(SIGN_SIZES.flatMap((size) => outs.flatMap((out) => PROP_LEVELS.map((level) => () => fitFacing(target, box, out, size, level)))));
+  yield;
+  return yield* firstFitSteps(SIGN_SIZES.flatMap((size) => outs.flatMap((out) => PROP_LEVELS.map((level) => () => fitFacingSteps(target, box, out, size, level)))));
 }
 
 export function fitSiteSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit | null> {
