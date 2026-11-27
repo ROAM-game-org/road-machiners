@@ -7,7 +7,7 @@ Prices are in M's, the basin's currency ([lore](../../lore/README.md#ms)). One M
 - Fair price: every town garage and stall sells 5 L of fuel for 1 M with no spread. The scrap patch charges the same 1 M per 5 L it spares, and aid is priced the same.
 - Roadside: a truck selling fuel adds the spread and the road spread, so 5 L costs 1.50 M at Trade 0, charged as 2 M when bought alone.
 - Diesel is a trade good, priced by distance and stock like any good. It is cargo, not tank fuel, so the anchor does not hold for it. A shop's fuel service draws on its own diesel, though, and its supplies service on its rations (see Stock and production below).
-- Fuel is bought in whole 5 L units. The smallest purchase is 5 L for 1 M. Nothing rounds a fuel amount up for free or a fuel price down to zero.
+- Fuel is bought in whole 5 L units. The smallest purchase is 5 L for 1 M, except the last part-unit of a tank: when less than one unit is free, a purchase of exactly that room tops the tank to its cap for the same rounded-up charge, so 4 L of room costs 1 M. A tank within half the gauge's last digit of its cap counts as full. Supplies follow the same rule. Nothing rounds a fuel amount up for free or a fuel price down to zero.
 
 Before the anchor, 5 L of fuel cost 3 money, so one old money number is now 1/3 of an M. The start money and NPC budgets are rounded to whole M.
 
