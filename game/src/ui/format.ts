@@ -696,8 +696,13 @@ const POSTED_WORDS: PostedWords = {
   search: (c) => t('contract.search', { who: searchTarget(c), site: siteName(c.shop) }),
 };
 
-export function postedSummary(c: Contract): Msg {
+function postedSummary(c: Contract): Msg {
   return (POSTED_WORDS[c.kind] as (x: Contract) => Msg)(c);
+}
+
+export function offerSummary(c: Contract): Msg {
+  if (c.kind === 'search') return t('contract.searchOffer', { who: searchTarget(c) });
+  return postedSummary(c);
 }
 
 export { gameHours };

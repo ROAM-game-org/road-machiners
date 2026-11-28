@@ -146,6 +146,15 @@ describe("one row form for every kind", () => {
     }
   });
 
+  it("keeps the claim place off a search offer and on its held rows", () => {
+    const { w, client } = trader();
+    const search = kinds(client).find((c) => c.kind === "search")!;
+    const offer = offerRow(w, search, new FakeNode("button") as unknown as HTMLElement, null) as unknown as FakeNode;
+    expect(offer.textContent).not.toMatch(/claim at|Bowl/);
+    expect((boardHeldRow(w, search, new FakeNode("button") as unknown as HTMLElement) as unknown as FakeNode).textContent).toContain("claim at Bowl");
+    expect((heldContractRow(w, search) as unknown as FakeNode).textContent).toContain("claim at Bowl");
+  });
+
   it("gives a held board row of icon, title, meta and action, and no way text for a survey", () => {
     const { w, client } = trader();
     for (const c of kinds(client)) {

@@ -306,6 +306,7 @@ export const LOG = {
   'claim.piece.guardHut': 'a guard hut',
   'contract.rivalOut': m('{driver} is after it too', { driver: 'text' }),
   'contract.search': m('Bring a parcel to {who}, claim at {site}', { who: 'text', site: 'text' }),
+  'contract.searchOffer': m('Bring a parcel to {who}', { who: 'text' }),
   'contract.searchMet': m('Parcel delivered to {who}, claim at {site}', { who: 'text', site: 'text' }),
   'contract.survey': m('Survey {places}', { places: 'text' }),
   'contract.surveyMet': m('Survey done, report at {site}', { site: 'text' }),

@@ -7,7 +7,7 @@ import type { World } from "../sim/types";
 import { PLUS, SPACE, t, type Msg, type PlainKey } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, dockSummary, escortLeaves, escortLeavesIn, escortStatusText, heldContractClock, heldContractDeadline, rescueWhere, surveyClueTip, surveyOpenSquares, surveyProgress, vehicleName } from "./format";
+import { claimRivalMark, contractWindow, dockSummary, offerSummary, escortLeaves, escortLeavesIn, escortStatusText, heldContractClock, heldContractDeadline, rescueWhere, surveyClueTip, surveyOpenSquares, surveyProgress, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -79,7 +79,7 @@ function titleEl(c: Contract, summary: Msg, title?: Msg, tagged = true): HTMLEle
 }
 
 export function offerRow(w: World, c: Contract, accept: HTMLElement, need: HTMLElement | null): HTMLElement {
-  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c), undefined, false), offerCaption(w, c)), el("div", { class: "job-meta" }, ...(need ? [need] : []), postedClock(w, c), payEl(w, c)), accept);
+  return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, offerSummary(c), undefined, false), offerCaption(w, c)), el("div", { class: "job-meta" }, ...(need ? [need] : []), postedClock(w, c), payEl(w, c)), accept);
 }
 
 export function boardHeldRow(w: World, c: Contract, action: HTMLElement): HTMLElement {
