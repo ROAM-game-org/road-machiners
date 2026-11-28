@@ -646,10 +646,13 @@ function relaxNeighbours(s: FineSearch, cur: number, cx: number, cy: number): vo
     const ny = (next - nx) / n;
     if (!canEnter(s.layer, s.ov, next, nx, ny, s.g, s.corridor, s.box)) continue;
     const c = here + tastedAlong(s.taste, aroundStep[k] * slowAt(s.layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
-    if (seen.atXY(nx, ny) === s.g && c >= cost.atXY(nx, ny)) continue;
-    seen.setXY(nx, ny, s.g);
-    cost.setXY(nx, ny, c);
-    from.setXY(nx, ny, cur);
+    const at = seen.offsetOf(nx, ny);
+    const seenPage = seen.pageOf(nx, ny);
+    const costPage = cost.pageOf(nx, ny);
+    if (seenPage[at] === s.g && c >= costPage[at]) continue;
+    seenPage[at] = s.g;
+    costPage[at] = c;
+    from.pageOf(nx, ny)[at] = cur;
     heapPush(next, c + heuristic(nx, ny, s.gx, s.gy) * s.w);
   }
 }

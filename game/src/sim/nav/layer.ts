@@ -425,7 +425,12 @@ function markCliffCells(layer: NavLayer, reach: number, w: Window): void {
     const row = tile(y, 0) * s;
     const rowAhead = tile(y, reach) * s;
     const rowBehind = tile(y, -reach) * s;
-    for (let i = 0; i < width; i++) layer.blocked.setXY(w.x0 + i, y, tiles[row + cols[i]] | tiles[row + colsAhead[i]] | tiles[row + colsBehind[i]] | tiles[rowAhead + cols[i]] | tiles[rowBehind + cols[i]]);
+    for (let i = 0; i < width; ) {
+      const page = layer.blocked.pageOf(w.x0 + i, y);
+      const at = layer.blocked.offsetOf(w.x0 + i, y) - i;
+      const end = Math.min(width, i + layer.blocked.pageSide - ((w.x0 + i) & (layer.blocked.pageSide - 1)));
+      for (; i < end; i++) page[at + i] = tiles[row + cols[i]] | tiles[row + colsAhead[i]] | tiles[row + colsBehind[i]] | tiles[rowAhead + cols[i]] | tiles[rowBehind + cols[i]];
+    }
   }
 }
 

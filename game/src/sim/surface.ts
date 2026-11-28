@@ -46,11 +46,10 @@ export class GroundSurface {
   foldAt(tileX: number, tileY: number): Fold {
     const n = this.rules.size;
     if (tileX < 0 || tileY < 0 || tileX >= n || tileY >= n) return FOLD.smooth;
-    const known = this.folds.atXY(tileX, tileY);
-    if (known !== UNKNOWN_FOLD) return known as Fold;
-    const fold = this.rules.foldOf(tileX, tileY);
-    this.folds.setXY(tileX, tileY, fold);
-    return fold;
+    const page = this.folds.pageOf(tileX, tileY);
+    const at = this.folds.offsetOf(tileX, tileY);
+    if (page[at] === UNKNOWN_FOLD) page[at] = this.rules.foldOf(tileX, tileY);
+    return page[at] as Fold;
   }
 
   heightAt(x: number, y: number): number {
