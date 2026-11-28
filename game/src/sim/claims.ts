@@ -5,7 +5,7 @@ import { WRECK_LOOKS } from '../data/territory';
 import { playerTrucks, playerVehicle } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { pushGoal } from './npc-activities';
-import { canStowPart, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
+import { canStowPart, claimantOf, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
 import { navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
@@ -95,7 +95,8 @@ function heldByPlayer(world: World, partId: string): boolean {
 
 function heldByRival(world: World, c: ClaimContract): boolean {
   const rival = rivalRunning(world, c);
-  return rival !== null && carriesPart(rival, c.partId);
+  if (rival === null) return false;
+  return carriesPart(rival, c.partId) || world.salvage.some((s) => s.parts.some((p) => p.id === c.partId) && claimantOf(world, s) === rival);
 }
 
 export function claimPartHeld(world: World, c: ClaimContract): PartWhere {

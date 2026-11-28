@@ -4,10 +4,15 @@ import { relicClaimWorld, type RelicClaimWorld } from '../test/relic-claim';
 import { TEST_MAP } from '../test/map';
 import { playerBid } from './claim-bid';
 import { onRelicSeen } from './claim-contest';
-import { carriesPart } from './claims';
+import { carriesPart, claimPartHeld } from './claims';
+import { addGoods } from './inventory';
+import { knowsCargo } from './look-over';
+import { handedOver, yieldTo } from './parley';
+import { ransomOf } from './haul';
 import { robbing } from './states';
-import { topGoal } from './npc-activities';
+import { resolveNpcActivities, topGoal } from './npc-activities';
 import { defaultSetup } from './settings';
+import { searchTurn } from './search';
 import { forceOption, rngStateForForcedRolls } from './testkit';
 import type { World } from './types';
 import { newWorld } from './world';
@@ -91,5 +96,50 @@ describe('a claim rival that sees the relic on the player', () => {
     scene.rival.brain!.traits = ['lawman'];
     onRelicSeen(scene.w, scene.rival);
     expect(robbing(scene.w, scene.rival.id, scene.me.id)).toBe(false);
+  });
+});
+
+describe('a robbing claim rival', () => {
+  function robbing_(): RelicClaimWorld & { relicId: string } {
+    forceOption('claimContest', 'takeIt');
+    const scene = contest();
+    addGoods(scene.w, scene.me, 'scrap', 2);
+    return { ...scene, relicId: scene.relic.id };
+  }
+
+  it('knows what the player carries on sight and demands only the relic', () => {
+    const { w, rival, me, relic } = robbing_();
+    expect(knowsCargo(w, rival, me)).toBe(true);
+    const ransom = ransomOf(w, rival, me);
+    expect(ransom.haul).toHaveLength(1);
+    expect(ransom.haul[0]).toMatchObject({ kind: 'part', part: { id: relic.id } });
+    expect(ransom.money).toBeGreaterThan(0);
+    expect(handedOver(w, me, rival)).toEqual(ransom.haul);
+  });
+
+  it('keeps the claim held through a pile, and the rival collects and hands in', () => {
+    const { w, rival, me, claim, relicId } = robbing_();
+    onRelicSeen(w, rival);
+    yieldTo(w, me, rival);
+    expect(carriesPart(me, relicId)).toBe(false);
+    expect(me.items.some((it) => it.kind === 'good')).toBe(true);
+    expect(claimPartHeld(w, claim)).toBe('rival');
+    for (let i = 0; i < 40 && !carriesPart(rival, relicId); i++) {
+      rival.speed = 0;
+      w.turn += 1;
+      resolveNpcActivities(w);
+      if (rival.job?.kind === 'search' && searchTurn(w, rival, rival.job)) rival.job = null;
+    }
+    expect(carriesPart(rival, relicId)).toBe(true);
+    expect(claimPartHeld(w, claim)).toBe('rival');
+    expect(rival.brain!.goals.some((g) => g.kind === 'claim')).toBe(true);
+  });
+
+  it('leaves the claim with the player when the demand is refused', () => {
+    const { w, rival, me, claim, relicId } = robbing_();
+    onRelicSeen(w, rival);
+    expect(carriesPart(me, relicId)).toBe(true);
+    expect(claimPartHeld(w, claim)).toBe('player');
+    expect(w.events.some((e) => e.t === 'claimRivalQuit')).toBe(false);
   });
 });

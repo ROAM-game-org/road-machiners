@@ -13,8 +13,8 @@ import { canArgue, fightOver, warnTruck } from './loot-warning';
 import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
 import { SPARE_LINE } from '../data/dialogue';
 import { modeRules } from './settings';
-import { cargoHaul, cashCut, ransomOf, strippable, haulValue, type Ransom } from './haul';
-import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, looseCargo, salvageInRange, takeError } from './salvage';
+import { demandedHaul, cashCut, ransomOf, strippable, haulValue, type Ransom } from './haul';
+import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, salvageInRange, takeError } from './salvage';
 import { isStranded } from './stats';
 import { addState, endState, lootWarningData, pleaData, stateOf } from './states';
 import type { DecisionOptions } from '../data/npcs';
@@ -70,7 +70,7 @@ function holdFire(v: Vehicle, target: Vehicle): void {
 }
 
 export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridItem[] {
-  return winner.brain ? cargoHaul(winner, loser) : looseCargo(loser);
+  return demandedHaul(world, winner, loser);
 }
 
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {

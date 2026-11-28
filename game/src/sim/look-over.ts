@@ -1,3 +1,4 @@
+import { claimOfRelic } from './claims';
 import { GOODS } from '../data/goods';
 import { LOOK_OVER, type DecisionOptions } from '../data/npcs';
 import { fightsAgainst, huntsForLoot, inCombat, inCombatWith, isHostile } from './combat';
@@ -115,6 +116,7 @@ export function checkSizedUp(world: World, s: NpcState): StateEnding | null {
 
 export function knowsCargo(world: World, looker: Vehicle, target: Vehicle): boolean {
   if (stateOf(world, 'sizedUp', looker.id, target.id)) return true;
+  if (claimOfRelic(world, looker, target) !== null && canVehicleSee(world, looker, target.pos)) return true;
   return isPlayerTruck(world, looker) && hasPerk(world, 'cargoEye') && canVehicleSee(world, looker, target.pos);
 }
 
