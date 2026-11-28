@@ -200,6 +200,9 @@ async function openCall(page, node) {
       return { line: town === 'town' ? 'townWay' : 'siteWay', vars: { [town]: { kind: town, id: best.site.id }, way: { kind: 'directions', steps: best.steps } } };
     }
   }, node);
+  await frames(page);
+  await page.evaluate(() => document.querySelector('#ui .dialogue')?.click());
+  await frames(page);
 }
 
 const hangUp = (page) => page.evaluate(async () => {

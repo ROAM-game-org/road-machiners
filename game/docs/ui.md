@@ -263,7 +263,7 @@ The one rule: what the game changes lives on a screen, and what the player press
 - Skills on the character screen. A key per skill prints only its name and icon. The skill's XP gauge, rank and price are on the screen beside the keys.
 - Goods rows on a trade screen. One column grid down the list: icon, name, stock and held, then the Buy and Sell screen buttons, each column of buttons one width.
 - Held contracts on the board. A screen sized for the three a truck can hold, beside the offers screen and as tall as it.
-- A talk window. One fixed window per call: the line screen sized for three lines and the replies screen sized for six replies.
+- A talk window. One fixed window per call, extra large: the line screen sized for six lines and the replies screen sized for five replies, the most a call offers. A short layer takes height from the line screen first, down to four lines.
 - A tip and a passing message. A small HUD panel: the olive frame, the engraved title and close key on the metal, the words on one screen.
 - Chips over the art band, such as money and load. Small screens set into the band's lower edge.
 - Prose such as a town or shop description. A screen under the title row.
