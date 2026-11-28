@@ -451,7 +451,7 @@ const HELD_CONTRACTS = () => {
   return [
     { id: 'lj-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: turn + 600, window: 600, rush: false, tier: 2 },
     { id: 'lj-order', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 9, reward: 111, deadline: turn + 900, window: 900, tier: 1 },
-    { id: 'lj-escort', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: turn + 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+    { id: 'lj-escort', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: turn + 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null },
   ];
 };
 
@@ -602,11 +602,11 @@ const BOARD_KINDS = async ({ offerKinds, heldCount }) => {
     { ...at('lb-order'), kind: 'procure', good: 'water', units: 6, cratePay: 9 },
     { ...at('lb-claim'), kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', rivalAt: 9000, rival: null, leads: [] },
     { ...at('lb-search'), kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, delivered: false },
-    { ...at('lb-escort'), kind: 'escort', client: 'v-gone', to: 'nose', threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null },
+    { ...at('lb-escort'), kind: 'escort', client: 'v-gone', to: 'nose', threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null },
     { ...at('lb-survey'), kind: 'survey', points: sites.map((s) => ({ site: s.id, found: false, done: false })) },
   ];
   shopState(world, 'bowl').contracts = offerKinds.map((kind) => offers.find((o) => o.kind === kind));
-  const held = (i, c) => ({ ...c, id: `lb-held-${i}`, deadline: world.turn + 300 });
+  const held = (i, c) => ({ ...c, id: `lb-held-${i}`, deadline: world.turn + 300, ...(c.kind === 'escort' ? { ended: 'released' } : {}) });
   const heldKinds = ['haul', 'escort', 'claim'].slice(0, Math.min(heldCount, CONTRACTS.maxActive));
   world.player.contracts = heldKinds.map((kind, i) => held(i, offers.find((o) => o.kind === kind)));
   g.apply(world);

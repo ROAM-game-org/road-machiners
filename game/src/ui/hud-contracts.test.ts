@@ -29,7 +29,7 @@ const en = (msg: Parameters<typeof resolve>[0]): string => resolve(msg, "en");
 const contracts: Contract[] = [
   { ...base, id: "h", kind: "haul", good: "parts", units: 3, to: "nose", rush: false },
   { ...base, id: "p", kind: "procure", good: "water", units: 4, cratePay: 10 },
-  { ...base, id: "e", kind: "escort", client: "gone", to: "nose", threat: "low" as never, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null },
+  { ...base, id: "e", kind: "escort", client: "gone", to: "nose", threat: "low" as never, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null },
 ];
 
 describe("held contract line", () => {
@@ -41,6 +41,16 @@ describe("held contract line", () => {
       if (c.kind !== "escort") expect(line.textContent).toContain(en(heldContractClock(emptyWorld(), c)));
     });
   }
+});
+
+describe("met escort line", () => {
+  const met: Contract = { ...base, id: "m", kind: "escort", client: "gone", to: "nose", threat: "low" as never, span: 10, together: 5, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: "released" };
+
+  it("says where to report and shows Ready, with no road status", () => {
+    const text = (heldContractLine(emptyWorld(), met) as unknown as FakeNode).textContent;
+    expect(text).toContain("Escort done, report at Nose");
+    expect(text).toContain("Ready");
+  });
 });
 
 describe("held claim line", () => {

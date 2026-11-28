@@ -5,7 +5,7 @@ import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { newId } from './factory';
 import { fightOdds } from './fight-odds';
-import { contractReward, estimateTurns, finishContract, shopState, siteOf, type Contract } from './market';
+import { contractReward, estimateTurns, endingAmount, finishContract, shopState, siteOf, type Contract } from './market';
 import { decide, firepower, getKnownSite, keepsWord } from './npc-decisions';
 import { inDanger, pushGoal, topGoal } from './npc-activities';
 import { lieUpSpot } from './npc-service';
@@ -50,7 +50,7 @@ export function escortReward(from: string, to: string, threat: Threat): number {
 }
 
 export function heldEscort(world: World): EscortContract | null {
-  return world.player.contracts.find((c): c is EscortContract => c.kind === 'escort') ?? null;
+  return world.player.contracts.find((c): c is EscortContract => c.kind === 'escort' && c.ended === null) ?? null;
 }
 
 function clientOf(world: World, c: EscortContract): Vehicle | undefined {
@@ -111,6 +111,7 @@ export function postEscortOffer(world: World, trader: Vehicle, shopId: string, t
     apart: 0,
     stuck: 0,
     holdUntil: null,
+    ended: null,
   };
   shopState(world, shopId).contracts.push(offer);
 }
@@ -199,6 +200,11 @@ function conclude(world: World, c: EscortContract, outcome: 'done' | 'released' 
   const state = stateOf(world, 'escort', world.player.vehicleId, c.client);
   if (state) endState(world, state, end === 'arrived' ? 'fulfilled' : 'broken');
   world.events.push({ t: 'escortEnded', contract: c.id, client: c.client, end });
+  if (outcome !== 'failed' && endingAmount(c, outcome) > 0) {
+    c.ended = outcome;
+    world.events.push({ t: 'contract', contract: { ...c }, outcome: 'fulfilled' });
+    return;
+  }
   finishContract(world, c, outcome);
 }
 

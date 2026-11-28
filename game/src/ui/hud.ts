@@ -818,7 +818,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
     'div',
     { class: 'contract-line' },
     el('span', {}, survey ? contractSummary(c) : dockSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : heldClockCell(w, c),
+    c.kind === 'escort' && !isMet(c) ? escortLine(w, c) : heldClockCell(w, c),
   );
 }
 

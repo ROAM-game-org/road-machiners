@@ -4,7 +4,7 @@ import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { playerVehicle } from './damage';
 import { awaitsEscort, escortBlocked, escortFit, escortReward, escortShare, escortStatus, heldEscort, holdEscort, postEscortOffer, routeThreat, traderWaits, type EscortContract } from './escort-job';
-import { acceptContract, advanceContracts, advanceShops, siteOf } from './market';
+import { acceptContract, advanceContracts, advanceShops, deliverContract, handInSite, isMet, metPay, siteOf } from './market';
 import { addGoods } from './inventory';
 import { settleCashThreat, settleThreat } from './parley';
 import { sitePads } from './sites';
@@ -68,6 +68,16 @@ function tick(w: World, turns = 1): GameEvent[] {
     events.push(...w.events);
   }
   return events;
+}
+
+function ready(w: World, id: string) {
+  return w.player.contracts.find((c): c is EscortContract => c.kind === 'escort' && c.id === id)!;
+}
+
+function report(w: World): World {
+  playerVehicle(w).pos = { ...sitePads(NOSE)[0] };
+  playerVehicle(w).speed = 0;
+  return w;
 }
 
 function leave(w: World, trader: Vehicle, gap: number): void {
@@ -253,14 +263,20 @@ describe('a helpless player', () => {
     const held = heldEscort(next)!;
     traderIn(next, trader).pos = { x: trader.pos.x + 100, y: trader.pos.y };
     tick(next, 1);
+    held.together = held.span / 2;
     const togetherAfter = held.together;
     getResources(next, playerVehicle(next)).fuel = 0;
     const money = next.player.money;
     const events = tick(next, ESCORT_JOB.stuckTurns);
     expect(heldEscort(next)).toBeNull();
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'stuck')).toBe(true);
-    expect(events.some((e) => e.t === 'contract' && e.outcome === 'released')).toBe(true);
-    expect(next.player.money).toBe(money + Math.round(offer.reward * clampShare(togetherAfter, held.span)));
+    expect(events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(1);
+    expect(next.player.money).toBe(money);
+    const owed = Math.round(offer.reward * clampShare(togetherAfter, held.span));
+    expect(metPay(ready(next, offer.id))).toBe(owed);
+    const paid = deliverContract(report(next), offer.id);
+    expect(paid.player.money).toBe(money + owed);
+    expect(paid.player.pastContracts.at(-1)).toMatchObject({ outcome: 'released', amount: owed });
   });
 
   it('releases at once when the player is knocked out', () => {
@@ -302,10 +318,49 @@ describe('the outcomes', () => {
     const money = next.player.money;
     const events = tick(next, 1);
     expect(heldEscort(next)).toBeNull();
-    expect(next.player.money).toBe(money + offer.reward);
-    expect(events.filter((e) => e.t === 'money')).toHaveLength(1);
+    expect(next.player.money).toBe(money);
+    expect(events.filter((e) => e.t === 'money')).toHaveLength(0);
+    expect(events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(1);
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'arrived')).toBe(true);
     expect(events.some((e) => e.t === 'escortPaid')).toBe(false);
+    expect(isMet(ready(next, offer.id))).toBe(true);
+    const paid = deliverContract(report(next), offer.id);
+    expect(paid.player.money).toBe(money + offer.reward);
+    expect(paid.events.filter((e) => e.t === 'money')).toHaveLength(1);
+    expect(paid.player.pastContracts.at(-1)).toMatchObject({ outcome: 'done', amount: offer.reward });
+    expect(paid.player.contracts).toHaveLength(0);
+    expect(() => deliverContract(paid, offer.id)).toThrow();
+  });
+
+  it('can be reported only at the destination, never at the posting shop', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    traderIn(next, trader).pos = { ...sitePads(NOSE)[0] };
+    playerVehicle(next).pos = { x: sitePads(NOSE)[0].x - 5, y: sitePads(NOSE)[0].y };
+    tick(next, 1);
+    expect(handInSite(ready(next, offer.id))).toBe('nose');
+    playerVehicle(next).pos = { ...sitePads(BOWL)[0] };
+    expect(() => deliverContract(next, offer.id)).toThrow(/Not parked at nose/);
+  });
+
+  it('refuses a report while the escort is still on the road', () => {
+    const { w, offer } = setup();
+    const next = take(w, offer);
+    expect(() => deliverContract(report(next), offer.id)).toThrow(/not over yet/);
+  });
+
+  it('keeps a met escort untouched through apart and stuck turns, and lets a new escort be taken', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    traderIn(next, trader).pos = { ...sitePads(NOSE)[0] };
+    playerVehicle(next).pos = { x: sitePads(NOSE)[0].x - 5, y: sitePads(NOSE)[0].y };
+    tick(next, 1);
+    const before = structuredClone(ready(next, offer.id));
+    getResources(next, playerVehicle(next)).fuel = 0;
+    leave(next, traderIn(next, trader), 500);
+    tick(next, ESCORT_JOB.graceTurns + ESCORT_JOB.stuckTurns + 1);
+    expect(ready(next, offer.id)).toEqual(before);
+    expect(escortBlocked(next, setupSecond(next))).toBeNull();
   });
 
   it('pays a share when the trader arrives while they are apart', () => {
@@ -318,7 +373,9 @@ describe('the outcomes', () => {
     const money = next.player.money;
     const events = tick(next, 1);
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'apartAtArrival')).toBe(true);
-    expect(next.player.money).toBe(money + Math.round(offer.reward / 2));
+    expect(next.player.money).toBe(money);
+    expect(metPay(ready(next, offer.id))).toBe(Math.round(offer.reward / 2));
+    expect(deliverContract(report(next), offer.id).player.money).toBe(money + Math.round(offer.reward / 2));
   });
 
   it('pays a share when the trader is knocked out', () => {
@@ -329,7 +386,8 @@ describe('the outcomes', () => {
     const money = next.player.money;
     const events = tick(next, 1);
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'lost')).toBe(true);
-    expect(next.player.money).toBe(money + Math.round(offer.reward * 0.75));
+    expect(next.player.money).toBe(money);
+    expect(deliverContract(report(next), offer.id).player.money).toBe(money + Math.round(offer.reward * 0.75));
   });
 
   it('fails the job and pays nothing when the trucks turn hostile', () => {
@@ -355,9 +413,11 @@ describe('the outcomes', () => {
     const money = next.player.money;
     const events = tick(next, 1);
     expect(events.filter((e) => e.t === 'escortEnded' && e.end === 'cargoLost')).toHaveLength(1);
-    expect(next.player.money).toBe(money + Math.round(offer.reward * 0.75));
+    expect(next.player.money).toBe(money);
     expect(heldEscort(next)).toBeNull();
-    expect(next.player.pastContracts.filter((r) => r.contract.id === offer.id)).toHaveLength(1);
+    const paid = deliverContract(report(next), offer.id);
+    expect(paid.player.money).toBe(money + Math.round(offer.reward * 0.75));
+    expect(paid.player.pastContracts.filter((r) => r.contract.id === offer.id)).toHaveLength(1);
     expect(stateOf(next, 'escort', playerVehicle(next).id, trader.id)).toBeNull();
   });
 
@@ -519,7 +579,8 @@ describe('on the turn pipeline', () => {
     }
     expect(heldEscort(next)).toBeNull();
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'arrived')).toBe(true);
-    expect(next.player.money).toBe(money + offer.reward);
+    expect(next.player.money).toBe(money);
+    expect(deliverContract(report(next), offer.id).player.money).toBe(money + offer.reward);
     expect(events.some((e) => e.t === 'stall')).toBe(false);
     expect(parked / turns).toBeLessThan(0.1);
   });

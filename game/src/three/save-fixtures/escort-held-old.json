@@ -1,0 +1,73 @@
+{
+ "shops": {
+  "bowl": {
+   "contracts": [
+    {
+     "id": "e-board",
+     "shop": "bowl",
+     "kind": "escort",
+     "client": "v2",
+     "to": "nose",
+     "reward": 80,
+     "deadline": 90,
+     "window": 60,
+     "tier": 1,
+     "threat": 2,
+     "span": 100,
+     "together": 40,
+     "seen": null,
+     "apart": 0,
+     "stuck": 0,
+     "holdUntil": null
+    }
+   ]
+  }
+ },
+ "player": {
+  "contracts": [
+   {
+    "id": "e1",
+    "shop": "bowl",
+    "kind": "escort",
+    "client": "v2",
+    "to": "nose",
+    "reward": 80,
+    "deadline": 90,
+    "window": 60,
+    "tier": 1,
+    "threat": 2,
+    "span": 100,
+    "together": 40,
+    "seen": null,
+    "apart": 0,
+    "stuck": 0,
+    "holdUntil": null
+   }
+  ],
+  "pastContracts": [
+   {
+    "contract": {
+     "id": "e-past",
+     "shop": "bowl",
+     "kind": "escort",
+     "client": "v2",
+     "to": "nose",
+     "reward": 80,
+     "deadline": 90,
+     "window": 60,
+     "tier": 1,
+     "threat": 2,
+     "span": 100,
+     "together": 40,
+     "seen": null,
+     "apart": 0,
+     "stuck": 0,
+     "holdUntil": null
+    },
+    "outcome": "done",
+    "turn": 5,
+    "amount": 80
+   }
+  ]
+ }
+}

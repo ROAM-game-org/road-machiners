@@ -21,7 +21,7 @@ import { newId, chargeFor, gunFor, makePart } from './factory';
 import { installSpot, stowSpot } from './inventory';
 import { baseGrid, findSpot, gridOf, mountedItems, onDeadCell, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
-import { addShop, contractTruck, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
+import { addShop, contractTruck, finishContract, isMet, metPay, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
@@ -286,7 +286,7 @@ function dropOwnContracts(world: World): void {
   if (doomed.length === 0) return;
   const truck = world.vehicles.find((v) => v.id === world.player.vehicleId);
   if (truck) clearContractWork(truck, new Set(doomed.map((c) => c.id)));
-  for (const c of doomed.filter(isMet)) world.player.money += c.reward;
+  for (const c of doomed.filter(isMet)) world.player.money += metPay(c);
   endEscorts(world, new Set(doomed.flatMap((c) => (c.kind === 'escort' ? [c.client] : []))));
   world.player.contracts = world.player.contracts.filter((c) => !doomed.includes(c));
 }

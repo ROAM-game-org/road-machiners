@@ -354,7 +354,7 @@ describe('repairContent', () => {
     const [client] = npcs(w);
     const me = playerVehicle(w);
     const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 9, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
-    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 5, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
+    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 5, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null } as const;
     w.player.contracts.push(survey as never, escort as never);
     addState(w, 'escort', me.id, client.id, { kind: 'escort', site: REGION.towns[0].id, fee: 0 });
     const money = w.player.money;
@@ -364,6 +364,16 @@ describe('repairContent', () => {
     expect(w.player.contracts.some((c) => c.id === 'c-done' || c.id === 'c-esc')).toBe(false);
     expect(w.states.some((s) => s.kind === 'escort' && s.holder === me.id && s.other === client.id)).toBe(false);
     expect(() => endTurn(w, () => {})).not.toThrow();
+  });
+
+  it('pays the share of a met escort whose shop left the data', () => {
+    const w = fresh();
+    const [client] = npcs(w);
+    const escort = { id: 'c-met', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 10, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 5, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: 'released' } as const;
+    w.player.contracts.push(escort as never);
+    const money = w.player.money;
+    repairContent(w);
+    expect(w.player.money).toBe(money + 5);
   });
 
   it('drops a trade goal that buys a good at a shop that no longer trades it', () => {

@@ -278,7 +278,7 @@ export type Contract =
   | { id: string; shop: string; kind: 'haul'; good: string; units: number; to: string; reward: number; deadline: number; window: number; rush: boolean; tier: Tier }
   | { id: string; shop: string; kind: 'claim'; stockId: string; at: Vec; partId: string; defId: string; reward: number; deadline: number; window: number; tier: Tier; rivalAt: number; rival: string | null; leads: ClaimLead[] }
   | { id: string; shop: string; kind: 'procure'; good: string; units: number; cratePay: number; reward: number; deadline: number; window: number; tier: Tier }
-  | { id: string; shop: string; kind: 'escort'; client: string; to: string; reward: number; deadline: number; window: number; tier: Tier; threat: Threat; span: number; together: number; seen: { x: number; y: number; turn: number } | null; apart: number; stuck: number; holdUntil: number | null }
+  | { id: string; shop: string; kind: 'escort'; client: string; to: string; reward: number; deadline: number; window: number; tier: Tier; threat: Threat; span: number; together: number; seen: { x: number; y: number; turn: number } | null; apart: number; stuck: number; holdUntil: number | null; ended: 'done' | 'released' | null }
   | { id: string; shop: string; kind: 'rescue'; client: string; driver: string; need: RescueNeed; area: Vec; lead: { at: Vec; turn: number } | null; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean }
   | { id: string; shop: string; kind: 'search'; target: string; driver: string; template: string; lead: { at: Vec; turn: number }; reward: number; deadline: number; window: number; tier: Tier; delivered: boolean }
   | { id: string; shop: string; kind: 'survey'; points: SurveyPoint[]; reward: number; deadline: number; window: number; tier: Tier };
@@ -806,8 +806,12 @@ export function deliverContract(world: World, contractId: string): World {
   });
 }
 
-function handIn(w: World, contract: Contract): 'done' | 'late' {
-  if (contract.kind === 'escort') throw new Error('An escort ends on the road, not at a counter');
+export function handInSite(c: Contract): string {
+  return c.kind === 'haul' || c.kind === 'escort' ? c.to : c.shop;
+}
+
+function handIn(w: World, contract: Contract): 'done' | 'late' | 'released' {
+  if (contract.kind === 'escort') return handInEscort(w, contract);
   if (contract.kind === 'haul') return handInHaul(w, contract);
   if (contract.kind === 'claim') handInClaim(w, contract);
   else if (contract.kind === 'procure') handInProcure(w, contract);
@@ -815,13 +819,19 @@ function handIn(w: World, contract: Contract): 'done' | 'late' {
   return 'done';
 }
 
+function handInEscort(world: World, c: Extract<Contract, { kind: 'escort' }>): 'done' | 'released' {
+  requireParkedAt(world, handInSite(c));
+  if (c.ended === null) throw new Error('The escort is not over yet');
+  return c.ended;
+}
+
 function handInMet(world: World, c: Extract<Contract, { kind: 'rescue' | 'search' | 'survey' }>): void {
-  requireParkedAt(world, c.shop);
+  requireParkedAt(world, handInSite(c));
   if (!isMet(c)) throw new Error(`The ${c.kind} is not met yet`);
 }
 
 function handInHaul(world: World, c: HaulContract): 'done' | 'late' {
-  requireParkedAt(world, c.to);
+  requireParkedAt(world, handInSite(c));
   const late = isLate(world, c);
   const aboard = haulCratesAboard(world, c);
   if (aboard < (late ? 1 : c.units)) throw new Error(`Needs ${late ? 1 : c.units} ${c.good}`);
@@ -867,7 +877,7 @@ function contractEffort(c: Contract): number {
 }
 
 export function finishContract(world: World, c: Contract, outcome: ContractEnd, cause?: 'rival'): void {
-  if (outcome !== 'done' && isMet(c)) throw new Error(`A met ${c.kind} cannot be ${outcome}`);
+  if (isMet(c) && outcome !== metOutcome(c)) throw new Error(`A met ${c.kind} cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
   const me = playerVehicle(world);
   if (me.job?.kind === 'survey' && me.job.contractId === c.id) cancelJob(world, me);
@@ -890,7 +900,15 @@ function noteBrokenWord(world: World, c: Contract): void {
   if (faction) noteContractDeed(world, c.id, faction, 'failedContract');
 }
 
-function endingAmount(c: Contract, outcome: ContractEnd): number {
+function metOutcome(c: Contract): ContractEnd {
+  return c.kind === 'escort' && c.ended !== null ? c.ended : 'done';
+}
+
+export function metPay(c: Contract): number {
+  return endingAmount(c, metOutcome(c));
+}
+
+export function endingAmount(c: Contract, outcome: ContractEnd): number {
   if (outcome === 'done') return c.reward;
   if (outcome === 'released' && c.kind === 'escort') return fairM(c.reward * escortShare(c));
   return 0;
@@ -921,6 +939,7 @@ function payContract(world: World, c: Contract, amount: number): void {
 
 export function isMet(c: Contract): boolean {
   if (c.kind === 'survey') return isSurveyMet(c);
+  if (c.kind === 'escort') return c.ended !== null;
   return (c.kind === 'rescue' && c.fulfilled) || (c.kind === 'search' && c.delivered);
 }
 

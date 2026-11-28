@@ -30,7 +30,7 @@ afterEach(() => {
 function postedEscort(threat: number) {
   const w = emptyWorld();
   const trader = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 46, y: 40 });
-  const c: Contract = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client: trader.id, to: "nose", threat: threat as 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null };
+  const c: Contract = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client: trader.id, to: "nose", threat: threat as 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null };
   return () => offerRow(w, c, new FakeNode("button") as unknown as HTMLElement, null) as unknown as FakeNode;
 }
 
@@ -118,6 +118,18 @@ describe("held clocks in a row", () => {
   });
 });
 
+describe("a finished escort row", () => {
+  it("reads Ready and the share it pays, with no road status", () => {
+    const w = emptyWorld();
+    const client = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 46, y: 40 }).id;
+    const c: Contract = { shop: "bowl", reward: 80, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client, to: "nose", threat: 2, span: 10, together: 5, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: "released" };
+    const row = boardHeldRow(w, c, new FakeNode("button") as unknown as HTMLElement) as unknown as FakeNode;
+    expect(row.textContent).toContain("Ready");
+    expect(row.textContent).toContain("40");
+    expect(row.textContent).toContain("report at Nose");
+  });
+});
+
 describe("one row form for every kind", () => {
   const base = { shop: "bowl", reward: 7, deadline: 100, window: 100, tier: 1 } as const;
   const trader = () => {
@@ -129,7 +141,7 @@ describe("one row form for every kind", () => {
     { ...base, id: "r", kind: "haul", good: "salt", units: 2, to: "nose", rush: true },
     { ...base, id: "p", kind: "procure", good: "salt", units: 2, cratePay: 3 },
     { ...base, id: "c", kind: "claim", stockId: "tank-3", at: { x: 300, y: 40 }, partId: "p1", defId: "mg", rivalAt: 100, rival: null, leads: [] },
-    { ...base, id: "e", kind: "escort", client, to: "nose", threat: 2, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null },
+    { ...base, id: "e", kind: "escort", client, to: "nose", threat: 2, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null },
     { ...base, id: "u", kind: "rescue", client, driver: "Jed Cobb", need: "fuel", area: { x: 50, y: 40 }, lead: null, fulfilled: false },
     { ...base, id: "s", kind: "search", target: client, driver: "Jed Cobb", template: "trader", lead: { at: { x: 50, y: 40 }, turn: 0 }, delivered: false },
     { ...base, id: "v", kind: "survey", points: [{ site: SURVEY_SITES_FILE.sites[0]!.id, found: false, done: false }] },

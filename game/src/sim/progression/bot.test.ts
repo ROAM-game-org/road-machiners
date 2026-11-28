@@ -762,6 +762,19 @@ describe('the bot in a fight', () => {
     expect(turn.world.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['late', 0]]);
   });
 
+  it('has a hauler report a finished escort at its destination and drive there from elsewhere', () => {
+    const escort = { id: 'ct-esc', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: 5000, window: 600, tier: 1, threat: 2, span: 100, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: 'done' } as Contract;
+    const at = parkedAt('nose');
+    at.player.contracts = [escort];
+    const paid = botOrders(at, 'hauler').world;
+    expect(paid.player.contracts).toEqual([]);
+    expect(paid.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['done', 80]]);
+
+    const away = parkedAt('bowl');
+    away.player.contracts = [escort];
+    expect(botOrders(away, 'hauler').world.player.contracts).toHaveLength(1);
+  });
+
   it('has a trader keep the crates a held haul owes when it sells at a shop', () => {
     const w = parkedAt('nose');
     w.player.contracts = [{ id: 'ct-held', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'granary', reward: 200, deadline: 5000, window: 300, rush: false, tier: 1 }];
