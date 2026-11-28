@@ -2,13 +2,22 @@ import type { DriveSnapshot } from '../phys/drive';
 import type { World } from '../sim/types';
 
 export interface TurnWorkerHost {
-  sendTerrain(terrain: World['terrain']): void;
+  sendTerrain(terrain: World['terrain'], onReady: () => void): void;
   warm(world: World, drive: DriveSnapshot): Promise<void>;
 }
 
-export async function startTurnWorker(host: TurnWorkerHost, bootFinished: Promise<void>, physicsReady: Promise<unknown>, terrain: World['terrain'], opening: () => { world: World; drive: DriveSnapshot }): Promise<void> {
+export type TurnWorkerStart = {
+  host: TurnWorkerHost;
+  bootFinished: Promise<void>;
+  physicsReady: Promise<unknown>;
+  terrain: World['terrain'];
+  opening: () => { world: World; drive: DriveSnapshot };
+  mark: (step: string) => void;
+};
+
+export async function startTurnWorker({ host, bootFinished, physicsReady, terrain, opening, mark }: TurnWorkerStart): Promise<void> {
   await bootFinished;
-  host.sendTerrain(terrain);
+  host.sendTerrain(terrain, () => mark('running the first turn in the turn worker'));
   await physicsReady;
   const { world, drive } = opening();
   await host.warm(world, drive);

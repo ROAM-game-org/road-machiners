@@ -13,6 +13,7 @@ import { hashId, hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
 import type { Vec } from '../vec';
+import { CellPages } from '../cell-pages';
 import { ObstacleBuckets, type Blocker } from './buckets';
 import { buildPieces, cellOfFine, cellWindow, ensureAll, ensureCell, ensureFine, loadPieces, newGrid, pieceTable, regionAt, type CellGrid, type CellSource, type PieceTable, type Window } from './cells';
 import { ObstacleCache } from './obstacle-cache';
@@ -20,6 +21,7 @@ import { ObstacleCache } from './obstacle-cache';
 export const CELL = 0.5;
 export const CLEARANCE = 0.4;
 const SIDE = REGION.navigation.cellTiles / CELL;
+export const WARM_RING = Math.ceil(REGION.navigation.farWindow / REGION.navigation.cellTiles);
 const MAX_GROW = Math.max(...Object.values(CHASSIS).map((c) => c.radius)) + CLEARANCE;
 
 export type TerrainNav = {
@@ -31,7 +33,7 @@ export type TerrainNav = {
   roadTile: Uint8Array;
   openTile: Uint8Array;
   roadShy: Float32Array;
-  slow: Float32Array;
+  slow: CellPages<Float32Array>;
   steep: Float32Array;
   slopeX: Int8Array;
   slopeY: Int8Array;
@@ -44,8 +46,8 @@ export const COARSE = 8;
 export type NavLayer = TerrainNav & {
   id: number;
   radius: number;
-  marks: Uint8Array;
-  blocked: Uint8Array;
+  marks: CellPages<Uint8Array>;
+  blocked: CellPages<Uint8Array>;
   grid: CellGrid;
   cells: CellSource;
   statics: StaticSet;
@@ -66,12 +68,20 @@ function terrainEntry(t: Terrain) {
   if (!e) {
     const n = Math.ceil(t.size / CELL);
     const tiles = tileLayers(t);
-    const slow = new Float32Array(n * n);
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) slow[y * n + x] = tiles.tileCost[tileIndex(t.size, (x + 0.5) * CELL, (y + 0.5) * CELL)];
-    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks, climbBlocks: new Map() }, layers: new Map(), tileKeys: null, summary: t.routes ? readSummary(t, t.routes) : null };
+    e = { nav: { size: t.size, n, ...tiles, slow: slowPages(t.size, n, tiles.tileCost), decks: atlasOf(t).decks, climbBlocks: new Map() }, layers: new Map(), tileKeys: null, summary: t.routes ? readSummary(t, t.routes) : null };
     terrains.set(t, e);
   }
   return e;
+}
+
+function slowPages(size: number, n: number, tileCost: Float64Array): CellPages<Float32Array> {
+  return new CellPages<Float32Array>(n, SIDE, (length) => new Float32Array(length), 0, (page, x0, y0) => {
+    for (let y = y0; y < Math.min(n, y0 + SIDE); y++) for (let x = x0; x < Math.min(n, x0 + SIDE); x++) page[(y - y0) * SIDE + x - x0] = tileCost[tileIndex(size, (x + 0.5) * CELL, (y + 0.5) * CELL)];
+  });
+}
+
+function bytePages(n: number): CellPages<Uint8Array> {
+  return new CellPages<Uint8Array>(n, SIDE, (length) => new Uint8Array(length), 0);
 }
 
 function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'openTile' | 'roadShy' | 'steep' | 'slopeX' | 'slopeY'> {
@@ -322,9 +332,9 @@ function newLayer(e: TerrainEntry, terrain: Terrain, statics: StaticSet, radius:
   if (radius + CLEARANCE > MAX_GROW) throw new Error(`Radius ${radius} is wider than the widest chassis the route cells hold`);
   const nav = e.nav;
   const grid = newGrid(nav.n, SIDE, COARSE);
-  const blocked = new Uint8Array(nav.n * nav.n);
-  const layer: NavLayer = { ...nav, id: nextLayerId++, radius, blocked, marks: new Uint8Array(nav.n * nav.n), grid, statics, cells: { grid, blocked, slowOf: () => 0, fill: () => {} } };
-  layer.cells = { grid, blocked, slowOf: (c) => markedSlow(layer, c), fill: (cell) => fillCell(layer, cell) };
+  const blocked = bytePages(nav.n);
+  const layer: NavLayer = { ...nav, id: nextLayerId++, radius, blocked, marks: bytePages(nav.n), grid, statics, cells: { grid, blocked, slowOf: () => 0, fill: () => {} } };
+  layer.cells = { grid, blocked, slowOf: (x, y) => markedSlow(layer, x, y), fill: (cell) => fillCell(layer, cell) };
   const baked = e.summary?.pieces.get(radius);
   if (!baked) {
     buildPieces(layer.cells, Array.from({ length: grid.m * grid.m }, (_, cell) => cell));
@@ -347,14 +357,14 @@ function fillCell(layer: NavLayer, cell: number): void {
   const w = cellWindow(layer.grid, cell);
   const n = layer.n;
   for (let y = w.y0; y <= w.y1; y++) {
-    layer.blocked.fill(0, y * n + w.x0, y * n + w.x1 + 1);
-    layer.marks.fill(0, y * n + w.x0, y * n + w.x1 + 1);
+    layer.blocked.fillRow(y, w.x0, w.x1, 0);
+    layer.marks.fillRow(y, w.x0, w.x1, 0);
   }
   const reach = layer.radius + CLEARANCE;
   markCliffCells(layer, reach, w);
   for (const box of layer.decks.boxes) markRailCells(layer, box, reach, w);
-  stampBlockers(n, layer.statics.solidBins[cell], layer.radius, (c) => (layer.blocked[c] = 1), w);
-  stampBlockers(n, layer.statics.costlyBins[cell], layer.radius, (c) => (layer.marks[c] = 1), w);
+  stampBlockers(n, layer.statics.solidBins[cell], layer.radius, (c) => layer.blocked.set(c, 1), w);
+  stampBlockers(n, layer.statics.costlyBins[cell], layer.radius, (c) => layer.marks.set(c, 1), w);
 }
 
 function restampCostly(layer: NavLayer, statics: StaticSet): void {
@@ -373,10 +383,10 @@ function remark(layer: NavLayer, statics: StaticSet, changed: Blocker[]): Set<nu
   const touched = new Set<number>();
   stampBlockers(layer.n, changed, layer.radius, (c) => g.built[cellOfFine(g, c)] === 1 && touched.add(c));
   const grow = layer.radius + CLEARANCE;
-  for (const c of touched) layer.marks[c] = 0;
+  for (const c of touched) layer.marks.set(c, 0);
   for (const o of changed) {
     const near = statics.costlyBuckets.alongSegment(o.pos, o.pos, o.r + 2 * grow + CELL);
-    stampBlockers(layer.n, near, layer.radius, (c) => touched.has(c) && (layer.marks[c] = 1));
+    stampBlockers(layer.n, near, layer.radius, (c) => touched.has(c) && layer.marks.set(c, 1));
   }
   return touched;
 }
@@ -392,7 +402,7 @@ function regionMean(layer: NavLayer, r: number): number {
     for (let x = x0; x < Math.min(layer.n, x0 + COARSE); x++) {
       const c = y * layer.n + x;
       if (regionAt(g, c) !== r) continue;
-      sum += markedSlow(layer, c);
+      sum += markedSlow(layer, x, y);
       count++;
     }
   return sum / count;
@@ -415,8 +425,12 @@ function markCliffCells(layer: NavLayer, reach: number, w: Window): void {
     const row = tile(y, 0) * s;
     const rowAhead = tile(y, reach) * s;
     const rowBehind = tile(y, -reach) * s;
-    const out = y * layer.n + w.x0;
-    for (let i = 0; i < width; i++) layer.blocked[out + i] = tiles[row + cols[i]] | tiles[row + colsAhead[i]] | tiles[row + colsBehind[i]] | tiles[rowAhead + cols[i]] | tiles[rowBehind + cols[i]];
+    for (let i = 0; i < width; ) {
+      const page = layer.blocked.pageOf(w.x0 + i, y);
+      const at = layer.blocked.offsetOf(w.x0 + i, y) - i;
+      const end = Math.min(width, i + layer.blocked.pageSide - ((w.x0 + i) & (layer.blocked.pageSide - 1)));
+      for (; i < end; i++) page[at + i] = tiles[row + cols[i]] | tiles[row + colsAhead[i]] | tiles[row + colsBehind[i]] | tiles[rowAhead + cols[i]] | tiles[rowBehind + cols[i]];
+    }
   }
 }
 
@@ -426,7 +440,7 @@ function markRailCells(layer: NavLayer, box: { minX: number; maxX: number; minY:
   const y0 = Math.max(w.y0, Math.floor((box.minY - reach) / CELL));
   const y1 = Math.min(w.y1, Math.ceil((box.maxY + reach) / CELL));
   for (let y = y0; y <= y1; y++)
-    for (let x = x0; x <= x1; x++) if (nearRail(layer.decks, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) layer.blocked[y * layer.n + x] = 1;
+    for (let x = x0; x <= x1; x++) if (nearRail(layer.decks, (x + 0.5) * CELL, (y + 0.5) * CELL, reach)) layer.blocked.setXY(x, y, 1);
 }
 
 const KEY_MARGIN = Math.ceil(MAX_GROW) + 1;
@@ -547,11 +561,17 @@ export function bakeRouteSummary(map: BakedMap, obstacles: Obstacle[], radii: nu
 
 export function slowAt(layer: NavLayer, c: number): number {
   ensureFine(layer.cells, c);
-  return markedSlow(layer, c);
+  const x = c % layer.n;
+  return markedSlow(layer, x, (c - x) / layer.n);
 }
 
-function markedSlow(layer: NavLayer, c: number): number {
-  return layer.marks[c] === 1 ? Math.fround(layer.slow[c] * BREAKABLE.routeCost) : layer.slow[c];
+export function slowFrom(slow: number, mark: number): number {
+  return mark === 1 ? Math.fround(slow * BREAKABLE.routeCost) : slow;
+}
+
+export function markedSlow(layer: NavLayer, x: number, y: number): number {
+  const slow = layer.slow.atXY(x, y);
+  return slowFrom(slow, layer.marks.atXY(x, y));
 }
 
 export function stampBlockers(n: number, blockers: Blocker[], radius: number, mark: (cell: number) => void, w: Window = { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }): void {
@@ -605,7 +625,7 @@ export function componentOf(layer: NavLayer, cell: number): number {
 
 export function blockedAt(layer: NavLayer, cell: number): boolean {
   ensureFine(layer.cells, cell);
-  return layer.blocked[cell] === 1;
+  return layer.blocked.at(cell) === 1;
 }
 
 export function prepareRouteTerrain(terrain: Terrain): void {
@@ -683,8 +703,13 @@ function floodClimb(layer: NavLayer): Uint8Array | null {
 }
 
 function stepsOf(layer: NavLayer): Uint8Array {
-  const steps = new Uint8Array(layer.n * layer.n);
-  for (let c = 0; c < steps.length; c++) steps[c] = stepOf(layer, c);
+  const n = layer.n;
+  const steps = new Uint8Array(n * n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const c = y * n + x;
+      steps[c] = layer.blocked.atXY(x, y) === 1 ? NO_CLIMB : stepOf(layer, c);
+    }
   return steps;
 }
 
@@ -696,7 +721,7 @@ function onRoad(layer: NavLayer, c: number): boolean {
 
 function seedRoadCells(layer: NavLayer, steps: Uint8Array, need: Uint8Array, buckets: number[][]): void {
   for (let c = 0; c < need.length; c++) {
-    if (layer.blocked[c] === 1 || !onRoad(layer, c)) continue;
+    if (steps[c] === NO_CLIMB || !onRoad(layer, c)) continue;
     need[c] = steps[c];
     buckets[steps[c]].push(c);
   }
@@ -716,7 +741,7 @@ function relaxAround(layer: NavLayer, steps: Uint8Array, need: Uint8Array, bucke
   const cy = (c - cx) / n;
   for (const [dx, dy] of CLIMB_NEIGHBOURS) {
     const next = neighbourCell(n, cx + dx, cy + dy);
-    if (next < 0 || layer.blocked[next] === 1) continue;
+    if (next < 0 || steps[next] === NO_CLIMB) continue;
     const through = Math.max(level, steps[next]);
     if (through >= need[next]) continue;
     need[next] = through;

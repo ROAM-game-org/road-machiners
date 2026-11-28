@@ -163,13 +163,15 @@ describe("the start menu", () => {
     expect(menu.byClass("start-refusal")[0].children).toEqual([]);
   });
 
-  it("shows one muted line after a start that did not finish, and drops it on the next press", () => {
+  it("shows one muted line after a start that did not finish, and drops it once the next press lands", () => {
     const { menu } = open(SAVES, { unfinished: true });
 
     const notice = menu.byClass("start-refusal")[0];
     expect(notice.textContent).toBe("The last start did not finish. Try again.");
     expect(notice.byClass("bad")).toEqual([]);
     menu.fire("pointerdown");
+    expect(menu.byClass("start-refusal")[0].textContent).toBe("The last start did not finish. Try again.");
+    menu.fire("click");
     expect(menu.byClass("start-refusal")[0].children).toEqual([]);
   });
 

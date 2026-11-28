@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../../data/region';
 import { addVehicle, emptyWorld } from '../testkit';
-import { buildCellsAround, navLayer } from './layer';
-import { warmRadii, WARM_RING } from '../../phys/turn';
+import { buildCellsAround, navLayer, WARM_RING } from './layer';
+import { warmRadii } from '../../phys/turn';
 import { START_KITS } from '../../data/start';
 import { defaultSetup } from '../settings';
 import { newWorld } from '../world';
