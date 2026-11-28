@@ -234,7 +234,10 @@ describe("garage", () => {
   });
 
   const STALLS = ["salvage-yard", "granary", "pump-station", "dustwell", "green-pit"];
-  const atSite = (id: string) => emptyWorld({ ...sitePads(REGION.locations.find((l) => l.id === id)!)[0] });
+  const atSite = (id: string) => {
+    const site = REGION.locations.find((l) => l.id === id)!;
+    return emptyWorld({ ...(sitePads(site)[0] ?? site.pos) });
+  };
 
   it.each(STALLS)("sells fuel and supplies at the %s at the town prices", (id) => {
     const w = atSite(id);
