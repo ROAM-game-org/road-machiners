@@ -29,7 +29,11 @@ vec3 inkGlow = vec3(0.0);
 const INK_COLOR = `
 varying vec3 vInkAt;
 uniform vec4 inkTuneA;
+#ifdef INK_LIGHT_FLOOR
+#define inkFullLight max(inkTuneA.x, INK_LIGHT_FLOOR)
+#else
 #define inkFullLight inkTuneA.x
+#endif
 #define inkDayLight inkTuneA.y
 #define inkColor inkTuneA.z
 #define inkShadeLine inkTuneA.w
@@ -267,15 +271,15 @@ const DAY_LIGHT = { value: 1 };
 export type InkLight = Pick<Daylight, "sun" | "sunIntensity" | "sky" | "skyIntensity" | "elevation">;
 
 export function syncInkLight(light: InkLight, fullDay: InkLight): void {
-  FULL_LIGHT.value = fullLightOf(light);
-  DAY_LIGHT.value = fullLightOf(fullDay);
+  FULL_LIGHT.value = inkFullLightOf(light);
+  DAY_LIGHT.value = inkFullLightOf(fullDay);
   packInk();
 }
 
-function fullLightOf(light: InkLight): number {
+export function inkFullLightOf(light: InkLight): number {
   const sunShare = light.sunIntensity * Math.max(Math.sin(light.elevation), 0) * (0.2126 * light.sun.r + 0.7152 * light.sun.g + 0.0722 * light.sun.b);
   const skyShare = light.skyIntensity * (0.2126 * light.sky.r + 0.7152 * light.sky.g + 0.0722 * light.sky.b);
-  return Math.max((sunShare + skyShare) / Math.PI, 0.02);
+  return Math.max((sunShare + skyShare) / Math.PI, 0.004);
 }
 
 export function inkGround(material: THREE.MeshLambertMaterial): void {

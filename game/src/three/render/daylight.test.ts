@@ -6,7 +6,8 @@ import { bodyOf } from '../../sim/body';
 import { playerVehicle } from '../../sim/damage';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { setHeadlights } from '../../sim/world';
-import { BEAM_CAP, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
+import { inkFullLightOf } from './inkPaint';
+import { BEAM_CAP, nightKey, beamOrder, daylightAt, lampsOn, lightScene, VehicleLights, nightLightsWanted, SHADOW_MAP, snapToShadowTexels, sunLight, vehicleLampsOn, type LitVehicle } from './daylight';
 
 const turnAt = (hour: number) => 1 + ((hour - TIME.startHour + 24) % 24) * (TIME.turnsPerDay / 24);
 
@@ -19,6 +20,30 @@ describe('daylightAt', () => {
     expect(late.sunIntensity).toBe(small.sunIntensity);
     expect(late.sky.getHex()).toBe(small.sky.getHex());
     expect(late.sunIntensity).toBeLessThan(daylightAt(turnAt(12)).sunIntensity);
+  });
+});
+
+const inkLevelAt = (hour: number) => {
+  const light = daylightAt(turnAt(hour));
+  return inkFullLightOf({ ...light, elevation: 0 });
+};
+
+describe('night light', () => {
+  it('darkens deep night to at most a quarter of the old 0.0695 and never brightens through the evening', () => {
+    expect(inkLevelAt(23)).toBeLessThanOrEqual(0.0695 * 0.25);
+    const hours = [20.5, 21, 21.5, 22, 23];
+    for (let i = 1; i < hours.length; i++) expect(inkLevelAt(hours[i])).toBeLessThanOrEqual(inkLevelAt(hours[i - 1]) + 1e-9);
+  });
+
+  it('leaves the day and dusk keys at their old values', () => {
+    expect(daylightAt(turnAt(12)).sunIntensity).toBeCloseTo(2.3, 0);
+    expect(daylightAt(turnAt(19)).skyIntensity).toBeGreaterThan(0.6);
+  });
+
+  it('refuses a night light outside (0, 1]', () => {
+    expect(() => nightKey(0)).toThrow();
+    expect(() => nightKey(1.1)).toThrow();
+    expect(() => nightKey(1)).not.toThrow();
   });
 });
 

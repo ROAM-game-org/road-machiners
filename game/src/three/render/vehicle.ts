@@ -397,7 +397,10 @@ export class VehicleView {
   }
 
   private finishLook(merged: THREE.Group[], chassisId: string, stripe: number): void {
-    if (this.scene === 'world') for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS, MODEL_FILL]) shade.shadeTree(this.root);
+    if (this.scene === 'world') {
+      for (const shade of [WORLD_LOOKS, CLOUD_SHADOWS]) shade.shadeTree(this.root);
+      MODEL_FILL.shadeTruck(this.root);
+    }
     const plain = [...this.silhouettes];
     this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain, chassisId, stripe));
     if (this.scene !== 'world') {
