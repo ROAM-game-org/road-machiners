@@ -217,7 +217,7 @@ export function isManageable(vehicle: Vehicle, danger: number): boolean {
 }
 
 function raidNerve(world: World, vehicle: Vehicle, target: Vehicle): number {
-  if (!huntsForLoot(world, vehicle, target)) return 1;
+  if (!huntsForLoot(world, vehicle, target) || visibleHostiles(world, vehicle).length > 1) return 1;
   const curve = huntCurve(vehicle);
   const appeal = appealOf(world, vehicle, target, curve);
   return 1 + (RAID_NERVE.prize * (appeal - curve.poorMul)) / (1 - curve.poorMul);
