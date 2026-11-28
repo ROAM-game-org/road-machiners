@@ -21,7 +21,7 @@ import { isDefeated, isKnockedOut } from '../defeat';
 import { askTopic, callVehicle, canAskTopic, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
-import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
+import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom, fillableUnits } from '../economy';
 import { cellKey, corePart, engineCells, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart, tradedSpares } from '../inventory';
 import { itemMass } from '../mass';
@@ -446,7 +446,7 @@ function serviceHere(o: Orders): void {
   const shop = shopAt(o.world);
   for (const kind of ['fuel', 'supplies'] as const) {
     const room = shop ? serviceRoom(o.world, shop, kind) : supplyRoom(o.world, kind);
-    const n = Math.min(room, Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
+    const n = fillableUnits(o.world.player.money, room, ECONOMY.supplyPrice[kind]);
     if (n > 0) o.run((w) => buySupply(w, kind, n), kind);
   }
   repairAtGarage(o);

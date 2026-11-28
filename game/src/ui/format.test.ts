@@ -14,7 +14,7 @@ import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotabl
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { claimClueLines, claimClueTip, contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
 import { wearLabel, conditionTier, conditionStatus, showsCondition } from "./cards";
 import type { ClaimContract } from "../sim/salvage";
 import { bakedTier } from "../sim/claim-clue";
@@ -230,6 +230,16 @@ describe("contract text", () => {
     expect(text).toContain(" of Bowl, about ");
     expect(text.endsWith(", in " + en(siteName("orchard")))).toBe(true);
     expect(shop).toBeDefined();
+  });
+
+  it("gives the clue words the dock line leaves out as a bearing line and a territory line", () => {
+    const orchard = REGION.locations.find((l) => l.id === "orchard")!;
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    const lines = claimClueLines(claim).map(en);
+    expect(lines[0]).toMatch(/^About .+ of Bowl\.$/);
+    expect(lines[1]).toBe("In " + en(siteName("orchard")) + ".");
+    expect(en(claimClueTip(claim))).toBe(lines.join(" "));
+    expect(en(dockSummary(claim))).not.toContain("Bowl");
   });
 
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {

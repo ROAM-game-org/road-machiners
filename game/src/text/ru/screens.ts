@@ -817,6 +817,8 @@ export const SCREENS: Translation<typeof EN> = {
   'journal.from': 'От {site, case, gen}',
   'journal.placeLay': 'Лежит {lay}.',
   'journal.placeBearing': 'Примерно в {distance} {dir} от {site, case, gen}.',
+  'journal.claimIn': 'Искать {place, case, at}.',
+  'journal.claimAt': 'Искать {place, case, at}, {where}.',
   'journal.day': 'День {day}',
   'journal.wreckSquare': 'Квадрат {square}',
   'journal.wrecksInSquare': 'Квадрат {square}, {n, plural, one {# остов} few {# остова} many {# остовов} other {# остова}}',

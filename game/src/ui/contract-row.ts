@@ -7,7 +7,7 @@ import type { World } from "../sim/types";
 import { PLUS, SPACE, t, type Msg, type PlainKey } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, dockSummary, escortLeaves, escortLeavesIn, escortStatusText, heldContractClock, heldContractDeadline, rescueWhere, surveyClueTip, surveyOpenSquares, surveyProgress, vehicleName } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, dockSummary, escortLeaves, escortLeavesIn, escortStatusText, heldContractClock, heldContractDeadline, rescueWhere, claimClueTip, surveyClueTip, surveyOpenSquares, surveyProgress, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -82,8 +82,13 @@ export function offerRow(w: World, c: Contract, accept: HTMLElement, need: HTMLE
   return el("div", { class: "job offer" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, titleEl(c, contractSummary(c), undefined, false), offerCaption(w, c)), el("div", { class: "job-meta" }, ...(need ? [need] : []), postedClock(w, c), payEl(w, c)), accept);
 }
 
+function heldClueTip(c: Contract): Msg | undefined {
+  if (c.kind === "survey") return surveyClueTip(c);
+  return c.kind === "claim" ? claimClueTip(c) : undefined;
+}
+
 export function boardHeldRow(w: World, c: Contract, action: HTMLElement): HTMLElement {
-  const title = titleEl(c, dockSummary(c), c.kind === "survey" ? surveyClueTip(c) : undefined);
+  const title = titleEl(c, dockSummary(c), heldClueTip(c));
   const progress = c.kind === "survey" ? el("div", { class: "job-caption dim" }, surveyProgress(c)) : claimRivalMark(w, c);
   return el("div", { class: "job held" }, CONTRACT_ICON[c.kind](), el("div", { class: "job-what" }, title, progress), el("div", { class: "job-meta" }, heldClock(w, c), payEl(w, c)), action);
 }

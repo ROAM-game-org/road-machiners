@@ -46,7 +46,10 @@ function turnWorker() {
   const sent = new SentObstacles();
   const request = (id: number) => ({ kind: 'turn', id, questLanguage: 'en', tailSteps: 4, ...sent.split(state), drive: driveSnapshotOf(world), terrain: null });
   return {
-    start: () => worker.onmessage({ data: { kind: 'terrain', terrain: packTerrain(terrain) } }),
+    start: async () => {
+      await worker.onmessage({ data: { kind: 'terrain', terrain: packTerrain(terrain) } });
+      expect(posted.splice(0)).toEqual([{ terrainReady: true }]);
+    },
     ask: (id: number) => worker.onmessage({ data: request(id) }),
     warm: () => worker.onmessage({ data: { kind: 'warm', ...sent.split(state) } }),
   };

@@ -1,3 +1,5 @@
+import { CellPages } from './cell-pages';
+
 export const MESH_STEPS = 2;
 const LAND_BLUR_TILES = 1.25;
 const RAW_REACH = 2;
@@ -8,6 +10,7 @@ export type Fold = (typeof FOLD)[keyof typeof FOLD];
 
 const UNKNOWN_FOLD = 255;
 const WARM_BLOCK = 16;
+const PAGE_TILES = 32;
 const UNKNOWN = 0;
 const CALM = 1;
 const ROUGH = 2;
@@ -23,10 +26,10 @@ export type SurfaceRules = {
 };
 
 export class GroundSurface {
-  private readonly corners: Float64Array;
-  private readonly folds: Uint8Array;
-  private readonly calm: Uint8Array;
-  private readonly shares: Float32Array;
+  private readonly corners: CellPages<Float64Array>;
+  private readonly folds: CellPages<Uint8Array>;
+  private readonly calm: CellPages<Uint8Array>;
+  private readonly shares: CellPages<Float32Array>;
   private readonly weights = gaussWeights(LAND_BLUR_TILES);
   private readonly wx = new Float64Array(4);
   private readonly wy = new Float64Array(4);
@@ -34,18 +37,19 @@ export class GroundSurface {
   private readonly patchTiles = new Int32Array(PATCH_SLOTS).fill(-1);
 
   constructor(private readonly rules: SurfaceRules) {
-    this.corners = new Float64Array((rules.size + 1) ** 2).fill(NaN);
-    this.folds = new Uint8Array(rules.size ** 2).fill(UNKNOWN_FOLD);
-    this.calm = new Uint8Array(rules.size ** 2);
-    this.shares = new Float32Array((rules.size + 1) ** 2).fill(NaN);
+    this.corners = new CellPages<Float64Array>(rules.size + 1, PAGE_TILES, (length) => new Float64Array(length), NaN);
+    this.folds = new CellPages<Uint8Array>(rules.size, PAGE_TILES, (length) => new Uint8Array(length), UNKNOWN_FOLD);
+    this.calm = new CellPages<Uint8Array>(rules.size, PAGE_TILES, (length) => new Uint8Array(length), UNKNOWN);
+    this.shares = new CellPages<Float32Array>(rules.size + 1, PAGE_TILES, (length) => new Float32Array(length), NaN);
   }
 
   foldAt(tileX: number, tileY: number): Fold {
     const n = this.rules.size;
     if (tileX < 0 || tileY < 0 || tileX >= n || tileY >= n) return FOLD.smooth;
-    const k = tileY * n + tileX;
-    if (this.folds[k] === UNKNOWN_FOLD) this.folds[k] = this.rules.foldOf(tileX, tileY);
-    return this.folds[k] as Fold;
+    const page = this.folds.pageOf(tileX, tileY);
+    const at = this.folds.offsetOf(tileX, tileY);
+    if (page[at] === UNKNOWN_FOLD) page[at] = this.rules.foldOf(tileX, tileY);
+    return page[at] as Fold;
   }
 
   heightAt(x: number, y: number): number {
@@ -149,24 +153,27 @@ export class GroundSurface {
   }
 
   private settle(x: number, y: number, lines: Float64Array, from: number, width: number): void {
+    if (!Number.isNaN(this.corners.atXY(x, y))) return;
     const k = y * (this.rules.size + 1) + x;
-    if (this.corners[k] === this.corners[k]) return;
     if (this.touchesCliff(x, y)) {
-      this.corners[k] = this.rules.heights[k];
+      this.corners.setXY(x, y, this.rules.heights[k]);
       return;
     }
     let sum = 0;
     for (let b = 0; b < this.weights.length; b++) sum += this.weights[b] * lines[from + b * width];
     const raw = this.rawShare(x, y);
-    this.corners[k] = raw === 0 ? sum : sum + (this.rules.heights[k] - sum) * raw;
+    this.corners.setXY(x, y, raw === 0 ? sum : sum + (this.rules.heights[k] - sum) * raw);
   }
 
   private rawShare(x: number, y: number): number {
     const n = this.rules.size;
     const at = Math.min(n, Math.max(0, x));
-    const k = Math.min(n, Math.max(0, y)) * (n + 1) + at;
-    if (this.shares[k] !== this.shares[k]) this.shares[k] = this.touchesCliff(at, Math.min(n, Math.max(0, y))) ? 1 : this.shareNear(at, Math.min(n, Math.max(0, y)));
-    return this.shares[k];
+    const down = Math.min(n, Math.max(0, y));
+    const known = this.shares.atXY(at, down);
+    if (!Number.isNaN(known)) return known;
+    const share = this.touchesCliff(at, down) ? 1 : this.shareNear(at, down);
+    this.shares.setXY(at, down, share);
+    return this.shares.atXY(at, down);
   }
 
   private shareNear(x: number, y: number): number {
@@ -194,9 +201,11 @@ export class GroundSurface {
   private calmAt(i: number, j: number): boolean {
     const n = this.rules.size;
     if (Math.min(i, j) < 1 || Math.max(i, j) > n - 3) return false;
-    const k = j * n + i;
-    if (this.calm[k] === UNKNOWN) this.calm[k] = this.roughAround(i, j) ? ROUGH : CALM;
-    return this.calm[k] === CALM;
+    const known = this.calm.atXY(i, j);
+    if (known !== UNKNOWN) return known === CALM;
+    const calm = this.roughAround(i, j) ? ROUGH : CALM;
+    this.calm.setXY(i, j, calm);
+    return calm === CALM;
   }
 
   private roughAround(i: number, j: number): boolean {
@@ -207,9 +216,8 @@ export class GroundSurface {
   private corner(i: number, j: number): number {
     const n = this.rules.size;
     if (offMap(i, j, n)) return pastEdge(i, j, n, (x, y) => this.corner(x, y));
-    const k = j * (n + 1) + i;
-    if (this.corners[k] !== this.corners[k]) this.warm(i - (i % WARM_BLOCK), j - (j % WARM_BLOCK), WARM_BLOCK, WARM_BLOCK);
-    return this.corners[k];
+    if (Number.isNaN(this.corners.atXY(i, j))) this.warm(i - (i % WARM_BLOCK), j - (j % WARM_BLOCK), WARM_BLOCK, WARM_BLOCK);
+    return this.corners.atXY(i, j);
   }
 
   private readonly raw = (i: number, j: number): number => {
@@ -265,7 +273,7 @@ export class GroundSurface {
   }
 
   private patchCorner(x: number, y: number, inside: boolean): number {
-    const known = inside ? this.corners[y * (this.rules.size + 1) + x] : NaN;
+    const known = inside ? this.corners.atXY(x, y) : NaN;
     return known === known ? known : this.corner(x, y);
   }
 

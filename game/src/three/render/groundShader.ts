@@ -57,6 +57,13 @@ const DRAWN_FAR_TILES = 8;
 const ROUND_NEAR_TILES = 1;
 const ROUND_FAR_TILES = 2;
 const ROUND_REACH_TILES = 1;
+const NEAR_SHARE = 0.1;
+const MEANDER_SIZE = 2.5;
+const MEANDER_AMOUNT = 1.5;
+const HALO_WANDER_SIZE = 6;
+const HALO_WANDER_SPILL = 0.08;
+const STRAIGHT_REACH = 2;
+const ROUND_TRUST_SHARE = 0.08;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
 const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
@@ -431,7 +438,10 @@ vec3 wearRim(vec3 color, vec4 wear, float wander) {
 `;
 
 const NOISE = `float noiseHash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  ivec2 c = ivec2(p);
+  uint h = uint(c.x) * 374761393u + uint(c.y) * 668265263u;
+  h = (h ^ (h >> 13u)) * 1274126177u;
+  return float((h ^ (h >> 16u)) >> 8u) / 16777216.0;
 }
 float valueNoise(vec2 p) {
   vec2 i = floor(p);
@@ -444,7 +454,7 @@ float markHash(vec2 p) {
 }
 `;
 
-const MATERIAL_BORDERS = `struct DrawnBorder { int lo; int hi; float toward; float wave; float pepper; float spill; vec3 spillColor; };
+const MATERIAL_BORDERS = `struct DrawnBorder { int own; int across; float toward; ivec3 ids; vec3 near; vec3 gaps; float wave; float pepper; float spill; vec3 spillColor; };
 struct DrawnBlock { ivec3 ids; ivec3 masks; };
 float drawnLuminance(float lightness) {
   float f = (lightness + 16.0) / 116.0;
@@ -501,42 +511,46 @@ vec4 drawnSplineSlopes(float f) {
   float g = 1.0 - f;
   return vec4(-0.5 * g * g, 1.5 * f * f - 2.0 * f, -1.5 * f * f + f + 0.5, 0.5 * f * f);
 }
-float drawnPairFieldOfTiles(vec2 tile, int here, int there) {
+vec3 drawnSharesOfTiles(vec2 tile, ivec3 ids) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
-  float field = 0.0;
+  vec3 shares = vec3(0.0);
   for (int j = 0; j < 4; j++)
     for (int i = 0; i < 4; i++) {
       int id = drawnMaterialAt(first + vec2(float(i), float(j)) + 0.5);
-      field += (id == here ? 1.0 : (id == there ? -1.0 : 0.0)) * wx[i] * wy[j];
+      shares += vec3(equal(ids, ivec3(id))) * wx[i] * wy[j];
     }
-  return field;
+  return shares;
 }
-float drawnPairField(vec2 tile, int here, int there) {
+vec3 drawnSharesAt(vec2 tile, ivec3 ids) {
   DrawnBlock block;
-  if (!drawnBlockAt(tile, block)) return drawnPairFieldOfTiles(tile, here, there);
+  if (!drawnBlockAt(tile, block)) return drawnSharesOfTiles(tile, ids);
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
-  float field = 0.0;
-  for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++) {
-    float side = block.ids[slot] == here ? 1.0 : (block.ids[slot] == there ? -1.0 : 0.0);
-    field += side * drawnMaskShare(block.masks[slot], wx, wy);
-  }
-  return field;
+  vec3 shares = vec3(0.0);
+  for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++)
+    shares += vec3(equal(ids, ivec3(block.ids[slot]))) * drawnMaskShare(block.masks[slot], wx, wy);
+  return shares;
 }
-float drawnRoundedDistance(vec2 tile, int here, int there, float field, vec2 slope) {
-  float speed = max(length(slope), 0.0001);
-  float narrow = field / speed;
-  float share = min(drawnMaterialRound[here], drawnMaterialRound[there]);
-  if (share <= 0.0) return narrow;
+vec3 drawnNearWeights(vec3 shares, ivec3 ids, int ownSlot) {
+  vec3 live = vec3(ownSlot != 0 && ids.x >= 0 ? 1.0 : 0.0, ownSlot != 1 && ids.y >= 0 ? 1.0 : 0.0, ownSlot != 2 && ids.z >= 0 ? 1.0 : 0.0);
+  float best = max(max(live.x * shares.x, live.y * shares.y), live.z * shares.z);
+  vec3 weights = live * smoothstep(0.0, ${NEAR_SHARE.toFixed(2)}, shares - best + ${NEAR_SHARE.toFixed(2)}) * smoothstep(0.0, 0.02, shares);
+  return weights / max(weights.x + weights.y + weights.z, 0.00001);
+}
+vec3 drawnRoundedShares(vec2 tile, ivec3 ids, vec3 shares, vec2 slope, float speed) {
+  vec3 roundness = vec3(drawnMaterialRound[max(ids.x, 0)], drawnMaterialRound[max(ids.y, 0)], drawnMaterialRound[max(ids.z, 0)]);
+  float rounding = 1.0 - min(1.0, ${STRAIGHT_REACH.toFixed(1)} * dot(shares, vec3(1.0) - roundness));
+  if (rounding <= 0.0) return shares;
   vec2 along = vec2(-slope.y, slope.x) / speed;
-  float inner = drawnPairField(tile + along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there);
-  float outer = drawnPairField(tile + along * ${ROUND_FAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_FAR_TILES.toFixed(1)}, here, there);
-  float smoothed = (3.0 * field + 2.0 * inner + outer) / 9.0 / speed;
-  return narrow + share * clamp(smoothed - narrow, -${ROUND_REACH_TILES.toFixed(1)}, ${ROUND_REACH_TILES.toFixed(1)});
+  vec3 inner = drawnSharesAt(tile + along * ${ROUND_NEAR_TILES.toFixed(1)}, ids) + drawnSharesAt(tile - along * ${ROUND_NEAR_TILES.toFixed(1)}, ids);
+  vec3 outer = drawnSharesAt(tile + along * ${ROUND_FAR_TILES.toFixed(1)}, ids) + drawnSharesAt(tile - along * ${ROUND_FAR_TILES.toFixed(1)}, ids);
+  vec3 smoothed = (3.0 * shares + 2.0 * inner + outer) / 9.0;
+  float reach = 0.5 * ${ROUND_REACH_TILES.toFixed(1)} * speed;
+  return shares + rounding * smoothstep(0.0, ${ROUND_TRUST_SHARE.toFixed(2)}, shares) * clamp(smoothed - shares, -reach, reach);
 }
 vec4 drawnEdgeTraitsOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
@@ -559,6 +573,28 @@ vec4 drawnEdgeTraits(vec2 tile) {
   vec4 wy = drawnSplineWeights(f.y);
   vec3 shares = vec3(drawnMaskShare(block.masks.x, wx, wy), drawnMaskShare(block.masks.y, wx, wy), drawnMaskShare(block.masks.z, wx, wy));
   return vec4(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}), dot(shares, ${pickMaterial("drawnMaterialFine")}), dot(shares, ${pickMaterial("drawnMaterialGrit")}));
+}
+DrawnBorder drawnBorderOfSlots(vec2 tile, ivec3 ids, vec3 shares, vec3 gradX, vec3 gradY, float wave, float pepper, float spill, vec3 spillColor) {
+  vec3 live = vec3(ids.x >= 0 ? 1.0 : 0.0, ids.y >= 0 ? 1.0 : 0.0, ids.z >= 0 ? 1.0 : 0.0);
+  vec3 level = shares * live;
+  int top = level.x >= level.y && level.x >= level.z ? 0 : (level.y >= level.z ? 1 : 2);
+  vec3 rivals = drawnNearWeights(level, ids, top);
+  vec3 rivalShares = level * step(0.00001, rivals);
+  if (max(max(rivalShares.x, rivalShares.y), rivalShares.z) <= 0.0) return DrawnBorder(ids[top], ids[top], ${DRAWN_FAR_TILES.toFixed(1)}, ids, vec3(0.0), vec3(${DRAWN_FAR_TILES.toFixed(1)}), wave, pepper, spill, spillColor);
+  vec2 topSlope = vec2(gradX[top], gradY[top]);
+  vec2 slope = rivals.x * (topSlope - vec2(gradX.x, gradY.x)) + rivals.y * (topSlope - vec2(gradX.y, gradY.y)) + rivals.z * (topSlope - vec2(gradX.z, gradY.z));
+  float speed = max(length(slope), 0.0001);
+  vec3 rounded = drawnRoundedShares(tile, ids, level, slope, speed) * live - (1.0 - live) * 10.0;
+  int own = rounded.x >= rounded.y && rounded.x >= rounded.z ? 0 : (rounded.y >= rounded.z ? 1 : 2);
+  vec3 next = drawnNearWeights(rounded, ids, own);
+  vec3 others = rounded - vec3(own == 0 ? 20.0 : 0.0, own == 1 ? 20.0 : 0.0, own == 2 ? 20.0 : 0.0);
+  int across = others.x >= others.y && others.x >= others.z ? 0 : (others.y >= others.z ? 1 : 2);
+  float strongest = others[across];
+  vec3 gaps = vec3(${DRAWN_FAR_TILES.toFixed(1)}) * (1.0 - step(0.00001, next)) + (strongest - rounded) / speed * step(0.00001, next);
+  vec3 kept = max(rounded, 0.0) * live;
+  vec3 slotSpills = vec3(ids.x >= 0 ? drawnMaterialSpill[ids.x] : 0.0, ids.y >= 0 ? drawnMaterialSpill[ids.y] : 0.0, ids.z >= 0 ? drawnMaterialSpill[ids.z] : 0.0);
+  float roundedSpill = spill + dot(kept - level, slotSpills);
+  return DrawnBorder(ids[own], ids[across], (rounded[own] - strongest) / speed, ids, next, gaps, wave, pepper, roundedSpill, spillColor);
 }
 DrawnBorder drawnBorderOfTiles(vec2 tile) {
   vec2 first = floor(tile - 0.5) - 1.0;
@@ -591,33 +627,31 @@ DrawnBorder drawnBorderOfTiles(vec2 tile) {
       spillColor += leads * drawnMaterialTone(ids[k]);
     }
   spillColor /= max(spillLead, 0.0001);
-  int here = -1;
-  int there = -1;
-  float hereWeight = 0.0;
-  float thereWeight = 0.0;
+  ivec3 lead = ivec3(-1);
+  vec3 leadWeight = vec3(0.0);
   for (int k = 0; k < 16; k++) {
     int id = ids[k];
     float total = totals[id];
-    bool fresh = id != here && id != there;
-    bool top = fresh && total > hereWeight;
-    bool next = fresh && !top && total > thereWeight;
-    there = top ? here : (next ? id : there);
-    thereWeight = top ? hereWeight : (next ? total : thereWeight);
-    here = top ? id : here;
-    hereWeight = top ? total : hereWeight;
+    bool fresh = id != lead.x && id != lead.y && id != lead.z;
+    bool top = fresh && total > leadWeight.x;
+    bool next = fresh && !top && total > leadWeight.y;
+    bool last = fresh && !top && !next && total > leadWeight.z;
+    ivec3 was = lead;
+    vec3 wasWeight = leadWeight;
+    lead = top ? ivec3(id, was.x, was.y) : (next ? ivec3(was.x, id, was.y) : (last ? ivec3(was.x, was.y, id) : was));
+    leadWeight = top ? vec3(total, wasWeight.x, wasWeight.y) : (next ? vec3(wasWeight.x, total, wasWeight.y) : (last ? vec3(wasWeight.x, wasWeight.y, total) : wasWeight));
   }
-  if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
-  float field = 0.0;
-  vec2 slope = vec2(0.0);
+  vec3 shares = vec3(0.0);
+  vec3 gradX = vec3(0.0);
+  vec3 gradY = vec3(0.0);
   for (int j = 0; j < 4; j++)
     for (int i = 0; i < 4; i++) {
-      int id = ids[j * 4 + i];
-      float side = id == here ? 1.0 : (id == there ? -1.0 : 0.0);
-      field += side * wx[i] * wy[j];
-      slope += side * vec2(sx[i] * wy[j], wx[i] * sy[j]);
+      vec3 hit = vec3(equal(lead, ivec3(ids[j * 4 + i])));
+      shares += hit * wx[i] * wy[j];
+      gradX += hit * sx[i] * wy[j];
+      gradY += hit * wx[i] * sy[j];
     }
-  float dist = drawnRoundedDistance(tile, here, there, field, slope);
-  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+  return drawnBorderOfSlots(tile, lead, shares, gradX, gradY, wave, pepper, spill, spillColor);
 }
 DrawnBorder drawnBorderAt(vec2 tile) {
   DrawnBlock block;
@@ -637,55 +671,52 @@ DrawnBorder drawnBorderAt(vec2 tile) {
   float wave = dot(shares, ${pickMaterial("drawnMaterialWave")});
   float pepper = dot(shares, ${pickMaterial("drawnMaterialPepper")});
   float spill = dot(shares, spills);
-  int here = -1;
-  int there = -1;
-  vec3 hereSpread = vec3(0.0);
-  vec3 thereSpread = vec3(0.0);
-  for (int slot = 0; slot < ${BLOCK_SLOTS}; slot++) {
-    vec3 spread = slot == 0 ? spread0 : (slot == 1 ? spread1 : spread2);
-    bool top = spread.x > hereSpread.x;
-    bool next = !top && spread.x > thereSpread.x;
-    there = top ? here : (next ? block.ids[slot] : there);
-    thereSpread = top ? hereSpread : (next ? spread : thereSpread);
-    here = top ? block.ids[slot] : here;
-    hereSpread = top ? spread : hereSpread;
-  }
-  if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
-  float dist = drawnRoundedDistance(tile, here, there, hereSpread.x - thereSpread.x, hereSpread.yz - thereSpread.yz);
-  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+  ivec3 slots = ivec3(block.ids.x, block.ids.y == block.ids.x ? -1 : block.ids.y, block.ids.z == block.ids.x || block.ids.z == block.ids.y ? -1 : block.ids.z);
+  return drawnBorderOfSlots(tile, slots, shares, vec3(spread0.y, spread1.y, spread2.y), vec3(spread0.z, spread1.z, spread2.z), wave, pepper, spill, spillColor);
 }
 float drawnStreakAt(vec2 at) {
   vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
   return (valueNoise(wind / vec2(${DRAWN_STREAK_LONG.toFixed(1)}, ${DRAWN_STREAK_WIDE.toFixed(1)})) - 0.5) * ${DRAWN_STREAK_MIX.toFixed(2)};
 }
-float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float aa, out float past) {
+float drawnHaloWander(vec2 at, float px) {
+  float broad = (valueNoise(at / ${HALO_WANDER_SIZE.toFixed(1)} + 61.0) - 0.5) * 2.0 * ${HALO_WANDER_SPILL.toFixed(3)};
+  float fine = (valueNoise(at / ${(HALO_WANDER_SIZE / 3).toFixed(2)} + 67.0) - 0.5) * 2.0 * ${(HALO_WANDER_SPILL / 3).toFixed(3)};
+  return (broad + fine) * (1.0 - smoothstep(0.3, 0.6, px));
+}
+float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float wander, float aa, out float past) {
   float excess = (edge.spill - drawnMaterialSpill[own]) * drawnHaloAmount * (1.0 - drawnMaterialPepper[own]);
-  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)} + crumb * drawnMaterialGrit[own];
+  past = excess + streak * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess) - ${DRAWN_HALO_EDGE.toFixed(2)} + crumb * drawnMaterialGrit[own] + wander * smoothstep(0.0, ${DRAWN_HALO_EDGE.toFixed(2)}, excess);
   float depth = clamp(past / ${(0.5 - DRAWN_HALO_EDGE).toFixed(2)}, 0.0, 1.0);
   float depthAa = fwidth(depth) + 0.001;
   return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
 }
-float drawnHaloMeters(float past, float pxMeters, bool samePair) {
-  float slope = fwidth(past);
-  return samePair ? past / max(slope, 0.0001) * pxMeters : -${DRAWN_FAR_TILES.toFixed(1)} * facetSide;
+float drawnHaloMeters(float past, float slope, float pxMeters) {
+  return past / max(slope, 0.0001) * pxMeters;
 }
-float drawnEdgeShadow(DrawnBorder edge, float towardMeters, float loHaloMeters, float hiHaloMeters, float aaMeters) {
-  float rise = drawnMaterialStand[edge.hi] - drawnMaterialStand[edge.lo];
-  if (rise == 0.0 || drawnEdgeShadowAmount <= 0.0) return 0.0;
-  bool hiStands = rise > 0.0;
-  float intoLow = hiStands ? towardMeters : -towardMeters;
-  float tallHalo = hiStands ? hiHaloMeters : loHaloMeters;
-  float lowHalo = hiStands ? loHaloMeters : hiHaloMeters;
-  float depth = min(max(intoLow, tallHalo), -lowHalo);
+float drawnSideOf(int own, int other) {
+  return own < other ? 1.0 : -1.0;
+}
+float drawnEdgeShadow(DrawnBorder edge, float noise, float ownHaloMeters, float aaMeters) {
+  if (drawnEdgeShadowAmount <= 0.0) return 0.0;
+  float shaded = 0.0;
+  for (int k = 0; k < ${BLOCK_SLOTS}; k++) {
+    if (edge.near[k] > 0.0) {
+      float rise = drawnMaterialStand[edge.ids[k]] - drawnMaterialStand[edge.own];
+      float away = (edge.toward + edge.gaps[k] + drawnSideOf(edge.own, edge.ids[k]) * noise) * facetSide;
+      float depth = rise > 0.0 ? min(away, -ownHaloMeters) : -away;
+      float band = smoothstep(-aaMeters, aaMeters, depth) * (1.0 - smoothstep(0.0, drawnEdgeShadowWidth + aaMeters, depth));
+      shaded += edge.near[k] * band * min(abs(rise), 1.0);
+    }
+  }
   float seen = smoothstep(${EDGE_SHADOW_FADE_PX.toFixed(2)}, ${(2 * EDGE_SHADOW_FADE_PX).toFixed(2)}, drawnEdgeShadowWidth / drawnDetailPx);
-  float band = smoothstep(-aaMeters, aaMeters, depth) * (1.0 - smoothstep(0.0, drawnEdgeShadowWidth + aaMeters, depth));
-  return band * min(abs(rise), 1.0) * drawnEdgeShadowAmount * seen;
+  return shaded * drawnEdgeShadowAmount * seen;
 }
 vec2 drawnWarpAt(float wave, float fineShare, vec2 at) {
   vec2 broad = vec2(valueNoise(at / drawnWaveSize), valueNoise(at / drawnWaveSize + 7.0)) - 0.5;
   vec2 fine = vec2(0.0);
   if (fineShare > 0.0) fine = vec2(valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 23.0), valueNoise(at / ${DRAWN_FINE_WAVE_SIZE.toFixed(1)} + 31.0)) - 0.5;
-  return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
+  vec2 meander = vec2(valueNoise(at / (drawnWaveSize * ${MEANDER_SIZE.toFixed(1)}) + 13.0), valueNoise(at / (drawnWaveSize * ${MEANDER_SIZE.toFixed(1)}) + 19.0)) - 0.5;
+  return (broad + fine * fineShare * ${DRAWN_FINE_WAVE_SHARE.toFixed(2)} + meander * ${MEANDER_AMOUNT.toFixed(1)}) * 1.4 * drawnEdgeWobble * wave * facetSide;
 }
 vec2 drawnViewFrame(vec2 p) {
   return vec2(dot(p, vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)})), dot(p, vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)})));
@@ -808,9 +839,10 @@ int drawnMarkAt(vec2 at, out float edgeMeters) {
   vec4 rough = drawnEdgeTraits(tile);
   vec2 warp = rough.x > 0.0 ? drawnWarpAt(rough.x, rough.z, at) : vec2(0.0);
   DrawnBorder edge = drawnBorderAt((at + warp) / facetSide);
-  float toward = edge.toward + min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, drawnDetailPx) / facetSide;
+  float shift = min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, drawnDetailPx) / facetSide;
+  float toward = edge.toward + drawnSideOf(edge.own, edge.across) * shift;
   edgeMeters = abs(toward) * facetSide;
-  return int(drawnMaterialMark[toward > 0.0 ? edge.lo : edge.hi] + 0.5);
+  return int(drawnMaterialMark[toward > 0.0 ? edge.own : edge.across] + 0.5);
 }
 float drawnTufts(vec2 p, float px) {
   vec2 q = drawnViewFrame(p) / ${DRAWN_TUFT_CELL.toFixed(2)};
@@ -847,7 +879,7 @@ float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, b
   return drawnLine(abs(length(d) - radius) * cell, ${DRAWN_INK_WIDTH.toFixed(3)}, px) * under * (1.0 - smoothstep(cell / 8.0, cell / 4.0, drawnDetailPx));
 }
 bool drawnStandsBy(DrawnBorder edge, int here, int mark, float overhang) {
-  bool beside = int(drawnMaterialMark[edge.lo] + 0.5) == mark || int(drawnMaterialMark[edge.hi] + 0.5) == mark;
+  bool beside = int(drawnMaterialMark[edge.own] + 0.5) == mark || int(drawnMaterialMark[edge.across] + 0.5) == mark;
   return here == mark || (beside && overhang < ${DRAWN_STAND_OVERHANG.toFixed(1)});
 }
 float drawnGravel(vec2 p, float px) {
@@ -882,29 +914,29 @@ const BORDER_BODY = `
   float drawnGritMeters = 0.0;
   if (drawnRough.w > 0.0) drawnGritMeters = drawnGritNoise(vWorldXZ, drawnDetailPx);
   drawnPepperShift += drawnRough.w * drawnGritMeters / facetSide;
-  float drawnToward = drawnEdge.toward + drawnPepperShift;
+  float drawnToward = drawnEdge.toward + drawnSideOf(drawnEdge.own, drawnEdge.across) * drawnPepperShift;
   float drawnAa = drawnTilePx + fwidth(drawnPepperShift);
-  float drawnLoSide = smoothstep(-drawnEdgeSoft - drawnAa, drawnEdgeSoft + drawnAa, drawnToward);
+  float drawnOwnSide = smoothstep(-drawnEdgeSoft - drawnAa, drawnEdgeSoft + drawnAa, drawnToward);
   float drawnStreak = 0.0;
-  if (drawnEdge.spill > min(drawnMaterialSpill[drawnEdge.lo], drawnMaterialSpill[drawnEdge.hi])) drawnStreak = drawnStreakAt(vWorldXZ);
+  if (drawnEdge.spill > drawnMaterialSpill[drawnEdge.own]) drawnStreak = drawnStreakAt(vWorldXZ);
   float drawnHaloAa = max(fwidth(drawnEdge.spill * drawnHaloAmount + drawnStreak), 0.0005);
-  float drawnLoHaloPast;
-  float drawnHiHaloPast;
+  float drawnOwnHaloPast;
+  float drawnAcrossHaloPast;
   float drawnPxMeters = drawnTilePx * facetSide;
   float drawnHaloCrumb = drawnGritMeters / drawnPxMeters * drawnHaloAa;
-  float drawnLoHalo = drawnHalo(drawnEdge, drawnEdge.lo, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnLoHaloPast);
-  float drawnHiHalo = drawnHalo(drawnEdge, drawnEdge.hi, drawnStreak, drawnHaloCrumb, drawnHaloAa, drawnHiHaloPast);
-  bool drawnSamePair = fwidth(float(drawnEdge.lo * ${GROUND_MATERIAL_IDS.length} + drawnEdge.hi)) == 0.0;
-  float drawnLoHaloMeters = drawnHaloMeters(drawnLoHaloPast, drawnPxMeters, drawnSamePair);
-  float drawnHiHaloMeters = drawnHaloMeters(drawnHiHaloPast, drawnPxMeters, drawnSamePair);
-  vec3 drawnLoColor = mix(drawnMaterialTone(drawnEdge.lo), drawnEdge.spillColor, drawnLoHalo);
-  vec3 drawnHiColor = mix(drawnMaterialTone(drawnEdge.hi), drawnEdge.spillColor, drawnHiHalo);
-  diffuseColor.rgb = mix(drawnHiColor, drawnLoColor, drawnLoSide);
-  float drawnSettles = mix(drawnMaterialSettles[drawnEdge.hi], drawnMaterialSettles[drawnEdge.lo], drawnLoSide) * drawnSurroundBlend;
+  float drawnHaloDrift = drawnHaloWander(vWorldXZ, drawnDetailPx);
+  float drawnOwnHalo = drawnHalo(drawnEdge, drawnEdge.own, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnOwnHaloPast);
+  float drawnAcrossHalo = drawnHalo(drawnEdge, drawnEdge.across, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnAcrossHaloPast);
+  float drawnOwnHaloSlope = fwidth(drawnEdge.spill) * drawnHaloAmount * (1.0 - drawnMaterialPepper[drawnEdge.own]);
+  float drawnOwnHaloMeters = drawnHaloMeters(drawnOwnHaloPast, drawnOwnHaloSlope, drawnPxMeters);
+  vec3 drawnOwnColor = mix(drawnMaterialTone(drawnEdge.own), drawnEdge.spillColor, drawnOwnHalo);
+  vec3 drawnAcrossColor = mix(drawnMaterialTone(drawnEdge.across), drawnEdge.spillColor, drawnAcrossHalo);
+  diffuseColor.rgb = mix(drawnAcrossColor, drawnOwnColor, drawnOwnSide);
+  float drawnSettles = mix(drawnMaterialSettles[drawnEdge.across], drawnMaterialSettles[drawnEdge.own], drawnOwnSide) * drawnSurroundBlend;
   if (drawnSettles > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture(groundSurround, vWorldXZ / groundSurroundMeters).rgb, drawnSettles);
-  diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnToward * facetSide, drawnLoHaloMeters, drawnHiHaloMeters, drawnAa * facetSide);
-  int drawnMaterial = drawnLoSide > 0.5 ? drawnEdge.lo : drawnEdge.hi;
-  float drawnHaloCover = mix(drawnHiHalo, drawnLoHalo, drawnLoSide);
+  diffuseColor.rgb *= 1.0 - drawnEdgeShadow(drawnEdge, drawnPepperShift, drawnOwnHaloMeters, drawnAa * facetSide);
+  int drawnMaterial = drawnOwnSide > 0.5 ? drawnEdge.own : drawnEdge.across;
+  float drawnHaloCover = mix(drawnAcrossHalo, drawnOwnHalo, drawnOwnSide);
   float drawnBroad = valueNoise(drawnTileAt / 7.0) * 0.7 + valueNoise(drawnTileAt / 2.5) * 0.15;
   diffuseColor.rgb = mix(diffuseColor.rgb, drawnBroadTint, drawnBroad * ${DRAWN_BROAD_MIX.toFixed(2)});
   diffuseColor.rgb *= 1.0 + (valueNoise(drawnTileAt / ${DRAWN_PATCH_TILES.toFixed(1)} + 41.5) - 0.5) * 2.0 * ${DRAWN_PATCH_MIX.toFixed(2)};

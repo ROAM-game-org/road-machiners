@@ -19,7 +19,7 @@ export const FIXED_GROUPS = {
   call: { window: '.dialogue', states: ['call-hub', 'call-deal', 'call-directions', 'call-group', 'call-attacker'] },
   board: { window: '.town-page', states: ['town-board', 'board-full', 'board-kinds', 'board-kinds-more', 'board-taken'] },
   inventory: { window: '.inventory-screen', states: ['inventory', 'inventory-gun', 'inventory-empty'] },
-  journal: { window: '.journal-side', states: ['journal-longest', 'journal-empty', 'journal-notes', 'journal-past', 'journal-survey', 'journal-wrecks'] },
+  journal: { window: '.journal-side', states: ['journal-longest', 'journal-empty', 'journal-notes', 'journal-past', 'journal-survey', 'journal-claim', 'journal-wrecks'] },
   outpost: { window: '.outpost-screen', states: ['outpost-buyParts-hauler', 'outpost-buyParts-truck', 'outpost-market-hauler', 'outpost-market-truck', 'outpost-paint-hauler', 'outpost-paint-truck', 'outpost-sellParts-hauler', 'outpost-sellParts-truck', 'outpost-trucks-hauler', 'outpost-trucks-truck'] },
   yard: { window: '.town-page', states: ['garage', 'garage-full', 'garage-storage', 'garage-full-sorokonoga', 'paint'] },
   trade: { window: '.town-page', states: ['trade', 'trade-shortage', 'trade-untraded'] },

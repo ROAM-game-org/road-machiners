@@ -2,7 +2,7 @@ import { CHAOS_HIGHWAY } from '../data/modes';
 import { ECONOMY, GOODS } from '../data/goods';
 import { playerVehicle, truckFor } from './damage';
 import { getResources } from './resources';
-import { applyPaint, spread, takeSellablePart, basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
+import { applyPaint, spread, takeSellablePart, basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, supplyCharge, swapChassis, repairCost, supplyRoom, requireSupplyCount, pourSupply, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './chaos-highway';
 import { addGoods, cargoRoom, removeGoods } from './inventory';
 import { goodsCount } from './grid';
@@ -54,9 +54,10 @@ export function outpostBuySupply(world: World, kind: Supply, n: number, truckId?
   return playerCommand(world, (w) => {
     requireOutpost(w, truckId);
     const truck = truckFor(w, truckId);
-    if (!Number.isInteger(n) || n <= 0 || n > supplyRoom(w, kind, truck)) throw new Error(`Cannot buy ${n} ${kind}`);
+    const room = supplyRoom(w, kind, truck);
+    requireSupplyCount(n, room);
     pay(w, supplyCharge(kind, n));
-    getResources(w, truck)[kind] += n;
+    pourSupply(getResources(w, truck), truck, kind, n, room);
   });
 }
 

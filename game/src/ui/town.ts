@@ -29,6 +29,8 @@ import {
   sellTruckGood,
   sellTruckPart,
   supplyRoom,
+  fillableUnits,
+  truckSupplyRate,
   rationing,
   serviceRoom,
   canTradeWith,
@@ -997,20 +999,21 @@ export class TruckTradeScreen {
   }
 
   private supplyRow(w: World, npc: Vehicle, k: Supply): HTMLElement {
-    const price = truckSupplyPrice(w, k);
     const offer = truckSupplyForSale(npc, k);
-    const most = Math.min(offer, supplyRoom(w, k), Math.floor(w.player.money / price));
+    const most = Math.min(offer, fillableUnits(w.player.money, supplyRoom(w, k), truckSupplyRate(w, k)));
+    const room = supplyRoom(w, k);
+    const fillProbe = room > 0 ? Math.min(1, room) : 1;
     const have = w.player[k];
     const cap = supplyCap(w, k);
     const amount = (n: number) => supplyAmount(k, n);
     const reasonFor = (n: number) =>
-      theyHave(offer, n, amount) ?? (supplyRoom(w, k) < n ? t("trade.full") : null) ?? shortBy(w.player.money, price * n);
+      theyHave(offer, n, amount) ?? (supplyRoom(w, k) < n ? t("trade.full") : null) ?? shortBy(w.player.money, truckSupplyPrice(w, k, n));
     return supplyLine(k, have, cap, countCell("theirs", offer, amount(offer)), [
-      screenButton(buyButton(w.player.money, t("trade.plusAmount", { amount: amount(SUPPLY_STEP) }), price * SUPPLY_STEP, () => this.run((x) => buyTruckSupply(x, npc.id, k, SUPPLY_STEP)), reasonFor(SUPPLY_STEP))),
+      screenButton(buyButton(w.player.money, t("trade.plusAmount", { amount: amount(SUPPLY_STEP) }), truckSupplyPrice(w, k, SUPPLY_STEP), () => this.run((x) => buyTruckSupply(x, npc.id, k, SUPPLY_STEP)), reasonFor(SUPPLY_STEP))),
       screenButton(
         most > 0
-          ? buyButton(w.player.money, t("trade.fillBare"), price * most, () => this.run((x) => buyTruckSupply(x, npc.id, k, most)), reasonFor(1), "", t("trade.fill", { amount: amount(most) }))
-          : this.button(t("trade.fillBare"), (x) => x, reasonFor(1)),
+          ? buyButton(w.player.money, t("trade.fillBare"), truckSupplyPrice(w, k, most), () => this.run((x) => buyTruckSupply(x, npc.id, k, most)), reasonFor(fillProbe), "", t("trade.fill", { amount: amount(most) }))
+          : this.button(t("trade.fillBare"), (x) => x, reasonFor(fillProbe)),
       ),
     ], null, true);
   }
