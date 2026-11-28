@@ -7,9 +7,9 @@ import { MOMENT_LINES, MOMENT_TOPICS, type MomentConditionId, type MomentEffectI
 import { SUNWARD_LINES, SUNWARD_TOPICS, type SunwardConditionId, type SunwardEffectId, type SunwardPrepareId, type SunwardTopicId } from './sunward';
 
 export type TopicId = 'whatDoYouWant' | 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'roadLesson' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo' | 'lookWarning'
-  | 'tale' | 'salvageTip' | 'challenge' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId | MarshalTopicId | CourierTopicId | MomentId;
+  | 'tale' | 'salvageTip' | 'challenge' | 'lastSeen' | 'parcel' | 'claimWreck' | 'claimBid' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId | MarshalTopicId | CourierTopicId | MomentId;
 export type ConditionId =
-  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
+  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim' | 'bidsForClaim'
   | 'attacksPlayer' | 'farFromTown' | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm' | 'playerCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
@@ -19,14 +19,14 @@ export type ConditionId =
   | 'helpAskable' | 'helpComes' | 'helpRefuses' | 'helpOutgunned' | 'mercForHire' | 'takesGuard' | 'refusesGuard' | 'canPayGuard' | 'guardOfMine'
   | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue' | SunwardConditionId | MarshalConditionId | MomentConditionId;
 export type EffectId =
-  | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
+  | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim' | 'acceptClaimBid' | 'refuseClaimBid'
   | 'endLookWarning' | 'answerLoadThreat'
   | 'acceptPlea' | 'refusePlea' | 'settlePlea' | 'payToll' | 'payDemand' | 'payTollMoney' | 'paySpared' | 'settleRobCut' | 'settleDemandRefused' | 'refuseToll' | 'withdrawPlea' | 'settleThreat' | 'settleWarning' | 'hitchNpc' | 'hitchNpcFree' | 'releaseNpc' | 'startTrade'
   | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad' | 'noteClaimLead'
   | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'holdEscort' | 'releaseHold'
   | 'tellTale' | 'buyTip' | 'declineEncounter' | 'endEncounter' | 'backDown' | 'answerChallenge' | 'acceptChallenge'
   | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead' | 'hireGuard' | 'dismissGuard' | 'joinFight' | 'turnDownCall' | SunwardEffectId | MarshalEffectId | MomentEffectId;
-export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'demandCut' | 'robCutAnswer'
+export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'demandCut' | 'robCutAnswer' | 'claimBidTerms'
   | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'guardOffer' | 'helpAnswer' | 'claimWreckBearing' | 'roadLesson' | SunwardPrepareId | MarshalPrepareId;
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
@@ -45,6 +45,7 @@ export type Topic = {
 };
 
 export const LINE_IDS = [
+  'buyRelicHere', 'notSelling',
   'whatAreYouLookingAt', 'nothingMovingOn', 'yourLoad',
   'armyWagonTold', 'seenADeadArmy', 'seenThatWreck', 'claimWreckTold', 'anyoneElseAsking', 'crewAskedTheSame', 'nobodyElseAsked', 'whatElseDidYouSee', 'agreedGunsDown', 'allRightIAm', 'allRightItIs', 'alreadySaid', 'anythingInteresting',
   'busy', 'canYouDoAnything', 'clearTheChannel', 'comeAndGetIt', 'comeAndTakeIt', 'dealHitchMeUp', 'dealHitchUp',
@@ -170,6 +171,24 @@ export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...
         options: [
           { say: 'dealHitchMeUp', when: [], effects: ['acceptTow'], go: END },
           { say: 'noThanks', when: [], effects: ['refuseTow'], go: END },
+        ],
+      },
+    },
+  },
+  claimBid: {
+    id: 'claimBid',
+    once: false,
+    ask: null,
+    raise: { when: ['bidsForClaim'], priority: 3, duringFeud: false, duringCombat: false },
+    prepare: 'claimBidTerms',
+    hangUp: ['refuseClaimBid'],
+    start: 'offer',
+    nodes: {
+      offer: {
+        line: 'buyRelicHere',
+        options: [
+          { say: 'dealPlain', when: [], effects: ['acceptClaimBid'], go: END },
+          { say: 'notSelling', when: [], effects: ['refuseClaimBid'], go: END },
         ],
       },
     },

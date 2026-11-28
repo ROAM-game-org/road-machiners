@@ -215,3 +215,12 @@ export function bakeClaimClues(world: World): ClaimClueBake {
 export function leadOf(stockPos: Vec, from: Vec): { angle: number; distance: number } {
   return { angle: snapAngle(Math.atan2(stockPos.y - from.y, stockPos.x - from.x)), distance: roundTo(dist(from, stockPos), CONTRACTS.claim.leadStepTiles) };
 }
+
+export function claimRunBy(world: World, vehicle: Vehicle): ClaimContract | null {
+  return liveClaims(world).find((c) => c.rival === vehicle.id && rivalRunning(world, c) === vehicle) ?? null;
+}
+
+export function claimOfRelic(world: World, rival: Vehicle, carrier: Vehicle): ClaimContract | null {
+  const claim = claimRunBy(world, rival);
+  return claim !== null && carriesPart(carrier, claim.partId) ? claim : null;
+}

@@ -314,6 +314,7 @@ const STATE_SHIFT: { [K in StateData['kind']]: (d: Extract<StateData, { kind: K 
   offering: (d, ctx) => ({ ...d, core: at(ctx, d.core) }),
   drag: (d, ctx) => ({ ...d, drop: at(ctx, d.drop) }),
   bountyStop: (d) => d,
+  claimBid: (d) => d,
 };
 
 function shiftStateData(data: StateData, ctx: Ctx): StateData {

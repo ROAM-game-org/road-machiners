@@ -67,6 +67,7 @@ export const LOG: Translation<typeof EN> = {
   'state.pleaMercy': 'Молил вас о пощаде',
   'state.trade': 'Тормозит, чтобы поторговать с вами',
   'state.handover': 'Тормозит, чтобы забрать вашу посылку',
+  'state.claimBid': 'Тормозит, чтобы купить вашу находку',
   'state.revenge': 'Жаждет мести',
   'state.escort': 'Сопровождает вас',
   'state.crew': 'Едет в банде рейдеров',

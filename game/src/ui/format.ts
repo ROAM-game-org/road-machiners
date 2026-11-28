@@ -230,6 +230,7 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   plea: (s) => (pleaData(s).plea === 'truce' ? t('state.pleaTruce') : t('state.pleaMercy')),
   trade: () => t('state.trade'),
   handover: () => t('state.handover'),
+  claimBid: () => t('state.claimBid'),
   revenge: () => t('state.revenge'),
   escort: () => t('state.escort'),
   crew: () => t('state.crew'),

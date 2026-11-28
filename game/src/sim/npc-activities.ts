@@ -430,11 +430,11 @@ function pursuitOver(world: World, vehicle: Vehicle, goal: NpcActivity): GoalRea
 }
 
 function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';
+  return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid' || s.kind === 'claimBid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';
 }
 
 const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
-const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];
+const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid', 'claimBid'];
 const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {

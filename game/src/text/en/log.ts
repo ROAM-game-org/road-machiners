@@ -66,6 +66,7 @@ export const LOG = {
   'state.pleaMercy': 'Begged you for mercy',
   'state.trade': 'Pulling over to trade with you',
   'state.handover': 'Pulling over for your parcel',
+  'state.claimBid': 'Pulling over to buy your find',
   'state.revenge': 'Wants revenge on you',
   'state.escort': 'Escorting you',
   'state.crew': 'Riding in a raider crew',

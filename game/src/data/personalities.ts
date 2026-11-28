@@ -59,7 +59,7 @@ const HELP: TopicId[] = ['askHelp'];
 const MOMENT_TALK: TopicId[] = ['fromTheWest', 'eightToNine', 'crucible'];
 const COURIER_STORY: TopicId[] = ['courierShort', 'courierThanks', 'courierSquare', 'courierCold', 'courierGrudge', 'courierFavor'];
 
-const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'whatDoYouWant', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'lookWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
+const PARLEY: TopicId[] = ['claimBid', 'spillClaim', 'surrender', 'giveUp', 'claim', 'whatDoYouWant', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'lookWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
 
 export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
   marshal: { voice: { greeting: 'marshalGreeting', repeatLine: 'marshalRepeat', refusal: 'marshalRefusal', warnOff: 'marshalWarnOff', honksBack: true, moods: { attacking: 'marshalStopAndListen', underFire: 'shootingOnMyRoad', stranded: 'stalledOutThere', justFought: 'heardTheShooting' } }, topics: ['bountyDemand', 'payBounty', 'directions', 'lastSeen', 'roadLesson', 'tow', 'towFree', ...PARLEY] },

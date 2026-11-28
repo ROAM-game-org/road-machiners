@@ -44,6 +44,8 @@ export const TALK: Translation<typeof EN> = {
   'line.dealHitchMeUp': 'Договорились. Цепляй.',
   'line.dealHitchUp': 'Договорились. Цепляйся.',
   'line.dealIWillStay': 'Договорились. Стою на месте.',
+  'line.buyRelicHere': 'Та штука, что удалось вытащить. Заплачу за неё {fee} прямо здесь. Не придется ехать до {town, case, gen}.',
+  'line.notSelling': 'Не продаю.',
   'line.dealPlain': 'Договорились.',
   'line.dealPullOverAnd': 'Договорились. Тормози и жди.',
   'line.dealSendingIt': 'Договорились. Отправляю.',

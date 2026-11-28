@@ -36,7 +36,8 @@ import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, 
 import { talkOf } from './dialogue';
 import { cashCut, haulVar, ransomOf, showsHaul } from './haul';
 import { hasCargo, hasSalvage, isStoryWreck, storyStock, type ClaimContract } from './salvage';
-import { claimPartHeld, leadOf, rivalRunning } from './claims';
+import { acceptClaimBid, bidData, playerBid, refuseClaimBid } from './claim-bid';
+import { claimPartHeld, findClaim, leadOf, rivalRunning } from './claims';
 import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } from './patch';
 import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
@@ -230,6 +231,11 @@ function inPatch(world: World, id: string): boolean {
   return world.states.some((s) => s.kind === 'patch' && (s.holder === id || s.other === id));
 }
 
+function bidFrom(world: World, npc: Vehicle) {
+  const bid = playerBid(world);
+  return bid?.holder === npc.id && !bidData(bid).accepted ? bid : null;
+}
+
 function offerBy(world: World, npc: Vehicle) {
   const tow = playerTow(world);
   return tow?.holder === npc.id && !towData(tow).hitched ? tow : null;
@@ -352,6 +358,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   canPayGuard: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
   guardOfMine: (world, npc) => isPlayerGuard(world, npc),
   knowsTown: (_world, npc) => knownTowns(npc).length > 0,
+  bidsForClaim: (world, npc) => bidFrom(world, npc) !== null,
   offersPaidTow: (world, npc) => {
     const tow = offerBy(world, npc);
     return tow !== null && towData(tow).fee > 0;
@@ -465,6 +472,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
     const town = REGION.towns.find((t) => t.id === v.id)!;
     if (!world.player.discovered.includes(town.id)) discoverSite(world, town);
   },
+  acceptClaimBid: (world) => acceptClaimBid(world),
+  refuseClaimBid: (world) => refuseClaimBid(world),
   acceptTow: (world) => acceptOffer(world),
   refuseTow: (world) => refuseOffer(world),
   askTow: (world, npc) => startTow(world, npc, playerVehicle(world), strandedPlayerAt(world, npc)!),
@@ -749,6 +758,13 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   patchTerms: (world, npc): CallVars => {
     const deal = patchTerms(world, npc);
     return deal ? { deal } : {};
+  },
+  claimBidTerms: (world, npc) => {
+    const bid = bidFrom(world, npc);
+    if (!bid) throw new Error(`${npc.id} made no claim bid`);
+    const claim = findClaim(world, bidData(bid).contract);
+    if (!claim) throw new Error(`Claim bid ${bid.id} names no live claim`);
+    return { town: { kind: 'town', id: claim.shop }, fee: { kind: 'money', amount: bidData(bid).price } };
   },
   towOffer: (world, npc) => {
     const tow = offerBy(world, npc);

@@ -98,7 +98,7 @@ function foundWords(e: Of<'found'>): string {
 
 const STATE: Record<StateKindId, string> = {
   feud: 'feud', backedOff: 'backing off', tow: 'tow', turnedDown: 'turned down', towPromise: 'tow promise', answering: 'radio answer', patch: 'patch job',
-  truce: 'truce', grievance: 'grievance', plea: 'plea', helpRefused: 'refused help', trade: 'trade', handover: 'handover', revenge: 'revenge', escort: 'escort',
+  truce: 'truce', grievance: 'grievance', plea: 'plea', helpRefused: 'refused help', trade: 'trade', handover: 'handover', claimBid: 'relic bid', revenge: 'revenge', escort: 'escort',
   strayFire: 'stray fire grudge', aid: 'aid', combat: 'fight', lootWarning: 'loot warning', crew: 'crew', hire: 'hire', cavalcade: 'cavalcade', offering: 'offering',
   drag: 'drag', lookOver: 'look over', sizedUp: 'sizing up', bountyStop: 'bounty stop',
 };

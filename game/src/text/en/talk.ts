@@ -43,6 +43,8 @@ export const TALK = {
   'line.dealHitchMeUp': 'Deal. Hitch me up.',
   'line.dealHitchUp': 'Deal. Hitch up.',
   'line.dealIWillStay': "Deal. I'll stay put.",
+  'line.buyRelicHere': m('That piece you pulled out. I\'ll pay {fee} for it right here. Saves you the drive to {town}.', { town: 'text', fee: 'text' }),
+  'line.notSelling': 'Not selling.',
   'line.dealPlain': 'Deal.',
   'line.dealPullOverAnd': 'Deal. Pull over and wait.',
   'line.dealSendingIt': 'Deal. Sending it.',
