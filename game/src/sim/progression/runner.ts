@@ -13,7 +13,7 @@ import { isStranded, vehicleMaxSpeed, vehicleStats } from '../stats';
 import { getResources } from '../resources';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
-import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
+import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, fillableUnits, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canDriveOn, driveOn, haulerWedged, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../chaos-highway';
 import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
@@ -315,7 +315,7 @@ function repair(o: Orders, truck: Vehicle): void {
 }
 
 function topUp(o: Orders, kind: Supply, truck: Vehicle): void {
-  const n = Math.min(supplyRoom(o.world, kind, truck), Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
+  const n = fillableUnits(o.world.player.money, supplyRoom(o.world, kind, truck), ECONOMY.supplyPrice[kind]);
   if (n > 0) o.run((w) => outpostBuySupply(w, kind, n, truck.id), kind);
 }
 

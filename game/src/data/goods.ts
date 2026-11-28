@@ -38,6 +38,8 @@ export const ECONOMY = {
   spread: 0.2,
   roadSpread: 0.3,
   supplyPrice: { fuel: 1, supplies: 1.67 } as Record<'fuel' | 'supplies', number>,
+  fullSlack: { fuel: 0.1, supplies: 0.05 } as Record<'fuel' | 'supplies', number>,
+  unitPrecision: 1e-6,
   scrapPerKg: 0.0633,
   repairShare: 0.425,
   useRange: 1.5,

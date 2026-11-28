@@ -5,7 +5,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle, vehicleById } from "../sim/damage";
-import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyCharge, supplyRoom, type Supply } from "../sim/economy";
+import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyCharge, supplyRoom, fillableUnits, type Supply } from "../sim/economy";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
@@ -58,10 +58,12 @@ export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
 
 export function serviceSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
   const price = ECONOMY.supplyPrice[k];
-  const afford = Math.min(limit.room, Math.floor(w.player.money / price));
+  const step = Math.min(1, limit.room);
+  const buyUnits = step > 0 ? step : 1;
   const amount = (n: number) => supplyAmount(k, n);
-  const reason = limit.room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  const fillUnits = afford > 0 ? afford : Math.max(limit.room, 0);
+  const reason = limit.room === 0 ? t("trade.full") : shortBy(w.player.money, supplyCharge(k, step));
+  const fillUnits = fillableUnits(w.player.money, limit.room, price);
+  const shownFill = fillUnits > 0 ? fillUnits : limit.room;
   const have = getResources(w, truck)[k];
   const cap = supplyCap(w, k, truck);
   return el(
@@ -69,8 +71,8 @@ export function serviceSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy:
     { class: "service-row" },
     createIcon(k),
     el("div", { class: "service-meter cost readout" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) }), limit.tag), bar(have / cap)),
-    quoteStep(buttons.priceButton(w, t("goods.buy"), supplyCharge(k, 1), (x) => buy(x, k, 1), reason, `${k}:buy`, t("trade.plusAmount", { amount: amount(1) })), amount(1)),
-    buttons.priceButton(w, t("trade.fillBare"), supplyCharge(k, fillUnits), (x) => (afford > 0 ? buy(x, k, afford) : x), reason, `${k}:fill`, t("trade.fill", { amount: amount(fillUnits) })),
+    quoteStep(buttons.priceButton(w, t("goods.buy"), supplyCharge(k, buyUnits), (x) => buy(x, k, buyUnits), reason, `${k}:buy`, t("trade.plusAmount", { amount: amount(buyUnits) })), amount(buyUnits)),
+    buttons.priceButton(w, t("trade.fillBare"), supplyCharge(k, shownFill), (x) => (fillUnits > 0 ? buy(x, k, fillUnits) : x), reason, `${k}:fill`, t("trade.fill", { amount: amount(shownFill) })),
   );
 }
 

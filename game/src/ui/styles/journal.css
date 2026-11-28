@@ -195,3 +195,11 @@
   text-shadow: var(--hud-print-coal-edge);
   text-transform: uppercase;
 }
+.journal-detail.claim {
+  gap: var(--space-6);
+}
+.journal-detail.claim .claim-clue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

@@ -45,7 +45,7 @@ function stockSpot(world: World, vehicle: Vehicle, center: Vec, stockRadius: num
 
 function isOpen(layer: NavLayer, spot: Vec, component: number): boolean {
   const cell = cellAt(layer, spot);
-  return layer.blocked[cell] === 0 && componentOf(layer, cell) === component;
+  return layer.blocked.at(cell) === 0 && componentOf(layer, cell) === component;
 }
 
 function cellAt(layer: NavLayer, p: Vec): number {

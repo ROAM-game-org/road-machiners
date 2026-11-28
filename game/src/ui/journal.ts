@@ -9,7 +9,7 @@ import { toldWrecks, toldWreckWay, type WreckWay } from '../sim/rumors';
 import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
-import { gridSquareText, postedSummary } from './format';
+import { claimClueLines, gridSquareText, postedSummary } from './format';
 import { directionsSteps } from './directions-text';
 import { createIcon } from './cards';
 import { surveyPictureEl } from './picture-store';
@@ -154,7 +154,7 @@ export class JournalScreen {
 
   private workDetail(w: World, c: Contract, openId: string | null): HTMLElement | null {
     if (c.kind === 'survey') return el('div', { class: 'journal-detail survey' }, ...c.points.map((p) => this.surveyPlace(w, c, p, placeId(c, p) === openId)));
-    if (c.kind === 'claim' && c.leads.length > 0) return el('div', { class: 'journal-detail' }, ...claimLeads(c).map(leadEntry));
+    if (c.kind === 'claim') return el('div', { class: 'journal-detail claim' }, el('div', { class: 'claim-clue' }, ...claimClueLines(c).map((line) => el('div', {}, line))), ...claimLeads(c).map(leadEntry));
     return null;
   }
 
