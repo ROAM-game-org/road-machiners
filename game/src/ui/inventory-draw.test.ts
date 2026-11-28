@@ -4,12 +4,12 @@ import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import type { GridItem, Rot, World } from "../sim/types";
 import { chassisDef } from "../data/chassis";
 import { knockOutNpc } from "../sim/defeat";
-import { bareGrid, baseGrid, cellsTurned, corePart, facingOf, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
+import { bareGrid, baseGrid, cellsTurned, itemSize, corePart, facingOf, findSpot, gridOf, MOUNT_CELLS } from "../sim/grid";
 import { mountPart, plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, iconTurn, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
@@ -419,21 +419,26 @@ describe("the icon of a gun lying across its cells", () => {
   const metrics = { cellW: 20, cellH: 20, spareCell: 30, chassisRows: 5 } as GridMetrics;
   const at = (rot: Rot) => iconBox(item("mg", rot), metrics);
 
-  it("keeps the footprint for a gun that points along its cells", () => {
-    expect(at(0)).toEqual({ width: 18, height: 58 });
-    expect(at(1)).toEqual({ width: 18, height: 58 });
+  it("draws the wide gun picture along the long side of the footprint", () => {
+    expect(at(0)).toEqual({ width: 58, height: 18 });
+    expect(at(1)).toEqual({ width: 58, height: 18 });
   });
 
   it("sizes a gun in a cargo row from the cargo cell", () => {
-    expect(iconBox({ ...item("mg", 0), y: 5 }, metrics)).toEqual({ width: 28, height: 88 });
+    expect(iconBox({ ...item("mg", 0), y: 5 }, metrics)).toEqual({ width: 88, height: 28 });
   });
 
-  it("keeps the gun's own proportions inside the footprint when it points across", () => {
-    const { width, height } = at(4);
-    expect(height).toBeCloseTo(18);
-    expect(width).toBeCloseTo(6);
-    expect(at(5).width).toBeCloseTo(6);
-    expect(at(5).height).toBeCloseTo(18);
+  it.each(["mg", "battleRifle", "tankGun"])("fills the footprint of %s along its long side in every pose", (id) => {
+    for (const rot of [0, 1, 2, 3, 4, 5, 6, 7] as Rot[]) {
+      const gun = item(id, rot);
+      const cells = itemSize(gun);
+      const { width, height } = iconBox(gun, metrics);
+      const long = Math.max(cells.w, cells.h) * 20 - 2;
+      expect(Math.max(width, height)).toBe(long);
+      expect(Math.min(width, height)).toBe(Math.min(cells.w, cells.h) * 20 - 2);
+      expect(iconTurn(gun) === 90).toBe(cells.h > cells.w);
+      expect(width).toBe(Math.max(width, height));
+    }
   });
 });
 
