@@ -999,9 +999,10 @@ export class TruckTradeScreen {
   }
 
   private supplyRow(w: World, npc: Vehicle, k: Supply): HTMLElement {
-    const price = truckSupplyPrice(w, k);
     const offer = truckSupplyForSale(npc, k);
     const most = Math.min(offer, fillableUnits(w.player.money, supplyRoom(w, k), truckSupplyRate(w, k)));
+    const room = supplyRoom(w, k);
+    const fillProbe = room > 0 ? Math.min(1, room) : 1;
     const have = w.player[k];
     const cap = supplyCap(w, k);
     const amount = (n: number) => supplyAmount(k, n);
@@ -1011,8 +1012,8 @@ export class TruckTradeScreen {
       screenButton(buyButton(w.player.money, t("trade.plusAmount", { amount: amount(SUPPLY_STEP) }), truckSupplyPrice(w, k, SUPPLY_STEP), () => this.run((x) => buyTruckSupply(x, npc.id, k, SUPPLY_STEP)), reasonFor(SUPPLY_STEP))),
       screenButton(
         most > 0
-          ? buyButton(w.player.money, t("trade.fillBare"), truckSupplyPrice(w, k, most), () => this.run((x) => buyTruckSupply(x, npc.id, k, most)), reasonFor(1), "", t("trade.fill", { amount: amount(most) }))
-          : this.button(t("trade.fillBare"), (x) => x, reasonFor(1)),
+          ? buyButton(w.player.money, t("trade.fillBare"), truckSupplyPrice(w, k, most), () => this.run((x) => buyTruckSupply(x, npc.id, k, most)), reasonFor(fillProbe), "", t("trade.fill", { amount: amount(most) }))
+          : this.button(t("trade.fillBare"), (x) => x, reasonFor(fillProbe)),
       ),
     ], null, true);
   }
