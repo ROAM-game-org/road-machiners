@@ -25,7 +25,7 @@ import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply,
 import { cellKey, corePart, engineCells, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, storePart, tradedSpares } from '../inventory';
 import { itemMass } from '../mass';
-import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
+import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, isMet, handInSite, shopState, siteOf, spareGoods, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, needsSearch, salvageHere, takeAllLoot } from '../locations';
@@ -489,6 +489,8 @@ function surveyorGoal(o: Orders): void {
 function haulerGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
+  const finished = o.world.player.contracts.find((c): c is EscortContract => c.kind === 'escort' && isMet(c));
+  if (finished) return reportEscort(o, finished);
   const escort = heldEscort(o.world);
   if (escort) return followClient(o, escort);
   if (!takeHaul(o) && !takeEscort(o) && !trade(o) && !scavenge(o)) checkNextBoard(o);
@@ -518,6 +520,12 @@ function takeHaul(o: Orders): boolean {
   const held = heldHaul(o.world);
   if (held) carryHaul(o, held);
   return true;
+}
+
+function reportEscort(o: Orders, job: EscortContract): void {
+  const site = handInSite(job);
+  if (shopAt(o.world) === site) o.run((w) => deliverContract(w, job.id), 'contracts');
+  else driveToSite(o, siteOf(site));
 }
 
 function followClient(o: Orders, job: EscortContract): void {
