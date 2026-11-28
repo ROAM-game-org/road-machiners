@@ -95,7 +95,7 @@ describe('an intercepted sorgut shipment', () => {
     const r = region();
     const { w } = r;
     for (let day = 0; day < 3; day++) dayOfShipments(r, 'arrives');
-    const steady = { sorgut: buyAt(w, 'granary', 'grain'), rations: buyAt(w, 'bowl', 'rations'), grain: w.shops.granary.goods.grain };
+    const steady = { sorgut: buyAt(w, 'granary', 'grain'), rations: buyAt(w, 'nose', 'rations'), grain: w.shops.granary.goods.grain };
 
     const arrived: number[] = [];
     watchStock((shop, good, delta, cause) => {
@@ -116,7 +116,7 @@ describe('an intercepted sorgut shipment', () => {
     for (let day = 1; day <= 16 && rationsDays.length === 0; day++) {
       dayOfShipments(r, 'none');
       if (stoppedOn === null && recipeRunning(w, 'granary', 'rations') === 'stopped') stoppedOn = day;
-      if (buyAt(w, 'bowl', 'rations') > steady.rations) rationsDays.push(day);
+      if (buyAt(w, 'nose', 'rations') > steady.rations) rationsDays.push(day);
     }
     expect(stoppedOn).not.toBeNull();
     expect(rationsDays.length).toBe(1);

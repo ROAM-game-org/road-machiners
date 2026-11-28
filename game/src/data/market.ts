@@ -373,6 +373,7 @@ export const PRODUCTION = {
   bufferDays: 1.5,
   fullShare: 1.6,
   minTarget: { garage: 120, stall: 30 } as Record<'garage' | 'stall', number>,
+  chainMargin: 1.25,
 };
 
 export const GOODS_STORE = { crates: 95 };
@@ -413,12 +414,12 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
   dustwell: {
     recipes: [{ id: 'well', inputs: {}, outputs: { water: 2 }, everyCycles: 3, upkeep: ['tools'], upkeepBatches: 16, wornEvery: 6 }],
     demand: { meds: 24, rations: 12 },
-    serviceDaily: { fuelDrums: 10, rations: 1 },
+    serviceDaily: { fuelDrums: 1.9, rations: 0.2 },
   },
   'green-pit': {
-    recipes: [{ id: 'well', inputs: {}, outputs: { water: 1 }, everyCycles: 6, ...NO_UPKEEP }],
+    recipes: [{ id: 'well', inputs: {}, outputs: { water: 1 }, everyCycles: 3, ...NO_UPKEEP }],
     demand: { salt: 24, textiles: 24, rations: 12 },
-    serviceDaily: { fuelDrums: 10, rations: 1 },
+    serviceDaily: { fuelDrums: 3.9, rations: 0.6 },
   },
   bowl: {
     recipes: [
@@ -428,33 +429,33 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
       { id: 'machinists', inputs: { scrap: 1 }, outputs: { parts: 1 }, everyCycles: 6, ...NO_UPKEEP },
       { id: 'workshop', inputs: { batteries: 1, scrap: 1 }, outputs: { electronics: 1 }, everyCycles: 24, ...NO_UPKEEP },
     ],
-    demand: { salt: 12, tools: 24, rations: 2, relics: 24 },
-    serviceDaily: { fuelDrums: 45, rations: 1 },
+    demand: { salt: 12, tools: 24, rations: 12, relics: 24 },
+    serviceDaily: { fuelDrums: 15.7, rations: 0.9 },
   },
   granary: {
     recipes: [{ id: 'rations', inputs: { grain: 2, salt: 1, water: 1 }, outputs: { rations: 3 }, everyCycles: 3, upkeep: ['tools'], upkeepBatches: 24, wornEvery: 6 }],
     demand: {},
-    serviceDaily: { fuelDrums: 10, rations: 1 },
+    serviceDaily: { fuelDrums: 3.7, rations: 1.1 },
   },
   nose: {
     recipes: [
-      { id: 'pans', inputs: {}, outputs: { salt: 1 }, everyCycles: 2, ...NO_UPKEEP },
+      { id: 'pans', inputs: {}, outputs: { salt: 3 }, everyCycles: 5, ...NO_UPKEEP },
       { id: 'forge', inputs: { scrap: 2, fuelDrums: 1 }, outputs: { tools: 1 }, everyCycles: 6, ...NO_UPKEEP },
       { id: 'cells', inputs: { parts: 1, fuelDrums: 1 }, outputs: { batteries: 1 }, everyCycles: 8, ...NO_UPKEEP },
     ],
-    demand: { rations: 4, water: 8, textiles: 12, meds: 24, electronics: 24, relics: 24 },
-    serviceDaily: { fuelDrums: 45, rations: 1 },
+    demand: { rations: 8, water: 8, textiles: 12, meds: 24, electronics: 24, relics: 24 },
+    serviceDaily: { fuelDrums: 18.6, rations: 1.6 },
   },
   'pump-station': {
     recipes: [{ id: 'pump', inputs: {}, outputs: { fuelDrums: 12 }, everyCycles: 2, upkeep: ['tools', 'batteries'], upkeepBatches: 24, wornEvery: 4 }],
     demand: { rations: 12 },
-    serviceDaily: { fuelDrums: 10, rations: 1 },
+    serviceDaily: { fuelDrums: 5.2, rations: 0.6 },
   },
   'salvage-yard': {
     recipes: [{ id: 'yard', inputs: {}, outputs: { scrap: 2, parts: 1 }, everyCycles: 3, upkeep: ['tools'], upkeepBatches: 16, wornEvery: 6 }],
     found: ['relics'],
     demand: { rations: 12 },
-    serviceDaily: { fuelDrums: 10, rations: 1 },
+    serviceDaily: { fuelDrums: 2.3, rations: 0.8 },
   },
 };
 
@@ -486,15 +487,46 @@ export function tradedGoods(shopId: string): string[] {
   return unique([...madeGoods(shopId), ...usedGoods(shopId)]);
 }
 
-export function dailyFlow(shopId: string, good: string): number {
+export type SteadyFlow = { made: number; used: number };
+
+export function siteFlow(shopId: string, good: string): SteadyFlow {
   const site = siteEconomy(shopId);
-  const recipeFlow = site.recipes.reduce((sum, r) => sum + ((r.outputs[good] ?? 0) + (r.inputs[good] ?? 0)) * (CYCLES_PER_DAY / r.everyCycles) + upkeepFlow(r, good), 0);
+  const made = site.recipes.reduce((sum, r) => sum + (r.outputs[good] ?? 0) * batchesPerDay(r), 0);
+  const recipeUse = site.recipes.reduce((sum, r) => sum + (r.inputs[good] ?? 0) * batchesPerDay(r) + upkeepFlow(r, good), 0);
   const demand = site.demand[good] ? CYCLES_PER_DAY / site.demand[good] : 0;
-  return recipeFlow + demand + (site.serviceDaily[good] ?? 0);
+  return { made, used: recipeUse + demand + (site.serviceDaily[good] ?? 0) };
+}
+
+export function dailyFlow(shopId: string, good: string): number {
+  const flow = siteFlow(shopId, good);
+  return flow.made + flow.used;
+}
+
+export function steadyBalance(): Record<string, SteadyFlow> {
+  const goods = unique(Object.keys(SITE_ECONOMY).flatMap(tradedGoods));
+  return Object.fromEntries(goods.map((good) => [good, Object.keys(SITE_ECONOMY).reduce((sum, shopId) => {
+    const flow = siteFlow(shopId, good);
+    return { made: sum.made + flow.made, used: sum.used + flow.used };
+  }, { made: 0, used: 0 })]));
+}
+
+export function chainGoods(): string[] {
+  const recipes = Object.values(SITE_ECONOMY).flatMap((site) => site.recipes);
+  const chain = new Set(ESSENTIAL_GOODS);
+  let size = 0;
+  while (chain.size !== size) {
+    size = chain.size;
+    for (const r of recipes) if (Object.keys(r.outputs).some((good) => chain.has(good))) for (const input of Object.keys(r.inputs)) chain.add(input);
+  }
+  return [...chain];
+}
+
+function batchesPerDay(r: Recipe): number {
+  return CYCLES_PER_DAY / r.everyCycles;
 }
 
 function upkeepFlow(r: Recipe, good: string): number {
-  return r.upkeep.includes(good) ? CYCLES_PER_DAY / r.everyCycles / r.upkeepBatches : 0;
+  return r.upkeep.includes(good) ? batchesPerDay(r) / r.upkeepBatches : 0;
 }
 
 export function rationsValue(values: Record<string, number>, wage: number): number {

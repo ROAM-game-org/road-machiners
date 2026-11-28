@@ -38,14 +38,14 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | site | recipe | inputs | outputs | every (production cycles) | without inputs | upkeep | upkeep crate per batches | worn every (cycles) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | dustwell | well | - | 2 water | 3 | - | tools | 16 | 6 |
-| green-pit | well | - | 1 water | 6 | - |  | 1 | 1 |
+| green-pit | well | - | 1 water | 3 | - |  | 1 | 1 |
 | bowl | sorgut | 1 water | 3 grain | 3 | 1 grain |  | 1 | 1 |
 | bowl | weavers | - | 1 textiles | 8 | - |  | 1 | 1 |
 | bowl | clinic | - | 1 meds | 12 | - |  | 1 | 1 |
 | bowl | machinists | 1 scrap | 1 parts | 6 | - |  | 1 | 1 |
 | bowl | workshop | 1 batteries, 1 scrap | 1 electronics | 24 | - |  | 1 | 1 |
 | granary | rations | 2 grain, 1 salt, 1 water | 3 rations | 3 | - | tools | 24 | 6 |
-| nose | pans | - | 1 salt | 2 | - |  | 1 | 1 |
+| nose | pans | - | 3 salt | 5 | - |  | 1 | 1 |
 | nose | forge | 2 scrap, 1 fuelDrums | 1 tools | 6 | - |  | 1 | 1 |
 | nose | cells | 1 parts, 1 fuelDrums | 1 batteries | 8 | - |  | 1 | 1 |
 | pump-station | pump | - | 12 fuelDrums | 2 | - | tools, batteries | 24 | 4 |
@@ -58,13 +58,13 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | dustwell | water | 30 | 48 | - | - |
 | dustwell | tools | 30 | - | - | - |
 | dustwell | meds | 30 | - | 24 | - |
-| dustwell | rations | 30 | - | 12 | 1 |
-| dustwell | fuelDrums | 30 | - | - | 10 |
+| dustwell | rations | 30 | - | 12 | 0.2 |
+| dustwell | fuelDrums | 30 | - | - | 1.9 |
 | green-pit | water | 30 | 48 | - | - |
 | green-pit | salt | 30 | - | 24 | - |
 | green-pit | textiles | 30 | - | 24 | - |
-| green-pit | rations | 30 | - | 12 | 1 |
-| green-pit | fuelDrums | 30 | - | - | 10 |
+| green-pit | rations | 30 | - | 12 | 0.6 |
+| green-pit | fuelDrums | 30 | - | - | 3.9 |
 | bowl | grain | 120 | 192 | - | - |
 | bowl | textiles | 120 | 192 | - | - |
 | bowl | meds | 120 | 192 | - | - |
@@ -75,37 +75,37 @@ Sites run their recipes on the production clock, one cycle every `PRODUCTION.cyc
 | bowl | batteries | 120 | - | - | - |
 | bowl | salt | 120 | - | 12 | - |
 | bowl | tools | 120 | - | 24 | - |
-| bowl | rations | 120 | - | 2 | 1 |
+| bowl | rations | 120 | - | 12 | 0.9 |
 | bowl | relics | 120 | - | 24 | - |
-| bowl | fuelDrums | 120 | - | - | 45 |
-| granary | rations | 38 | 61 | - | 1 |
+| bowl | fuelDrums | 120 | - | - | 15.7 |
+| granary | rations | 38 | 61 | - | 1.1 |
 | granary | grain | 30 | - | - | - |
 | granary | salt | 30 | - | - | - |
 | granary | water | 30 | - | - | - |
 | granary | tools | 30 | - | - | - |
-| granary | fuelDrums | 30 | - | - | 10 |
+| granary | fuelDrums | 30 | - | - | 3.7 |
 | nose | salt | 120 | 192 | - | - |
 | nose | tools | 120 | 192 | - | - |
 | nose | batteries | 120 | 192 | - | - |
 | nose | scrap | 120 | - | - | - |
-| nose | fuelDrums | 120 | - | - | 45 |
+| nose | fuelDrums | 120 | - | - | 18.6 |
 | nose | parts | 120 | - | - | - |
-| nose | rations | 120 | - | 4 | 1 |
+| nose | rations | 120 | - | 8 | 1.6 |
 | nose | water | 120 | - | 8 | - |
 | nose | textiles | 120 | - | 12 | - |
 | nose | meds | 120 | - | 24 | - |
 | nose | electronics | 120 | - | 24 | - |
 | nose | relics | 120 | - | 24 | - |
-| pump-station | fuelDrums | 229 | 367 | - | 10 |
+| pump-station | fuelDrums | 221 | 354 | - | 5.2 |
 | pump-station | tools | 30 | - | - | - |
 | pump-station | batteries | 30 | - | - | - |
-| pump-station | rations | 30 | - | 12 | 1 |
+| pump-station | rations | 30 | - | 12 | 0.6 |
 | salvage-yard | scrap | 30 | 48 | - | - |
 | salvage-yard | parts | 30 | 48 | - | - |
 | salvage-yard | relics | 30 | 48 | - | - |
 | salvage-yard | tools | 30 | - | - | - |
-| salvage-yard | rations | 30 | - | 12 | 1 |
-| salvage-yard | fuelDrums | 30 | - | - | 10 |
+| salvage-yard | rations | 30 | - | 12 | 0.8 |
+| salvage-yard | fuelDrums | 30 | - | - | 2.3 |
 <!-- /wiki:site-stock -->
 
 <!-- wiki:site-events -->
