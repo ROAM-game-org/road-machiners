@@ -4,6 +4,7 @@ import { START_KITS } from '../../data/start';
 import { TIME } from '../../data/time';
 import { wreckVehicle } from '../combat';
 import { playerVehicle } from '../damage';
+import { hangUp } from '../dialogue';
 import { buyGood, rationing, type Supply } from '../economy';
 import { moveFarCombat } from '../far';
 import { hasCargoRoom } from '../inventory';
@@ -174,7 +175,7 @@ function noteHour(rec: Recording): void {
 }
 
 function playTurn(rec: Recording, onDay: (s: DaySample) => void): void {
-  rec.world.player.call = null;
+  if (rec.world.player.call) rec.world = hangUp(rec.world);
   rec.world = endTurn(rec.world, (x) => moveFarCombat(x));
   if (rec.world.turn % Math.round(TIME.workDayTurns / 24) === 0) noteHour(rec);
   if (rec.world.turn % SAMPLE_TURNS !== 0) return;
