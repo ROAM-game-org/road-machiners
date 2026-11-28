@@ -1,7 +1,3 @@
-#ui .dialogue {
-  min-width: var(--panel-m);
-  max-width: var(--panel-l);
-}
 .dialogue .dialogue-options {
   display: flex;
   flex-direction: column;

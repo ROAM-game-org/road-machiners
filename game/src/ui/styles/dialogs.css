@@ -56,10 +56,31 @@
 }
 #ui .panel.dialogue {
   --talk-wheel: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
-  width: min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset)));
+  --talk-gap: var(--space-2);
+  --talk-line-rows: 6;
+  --talk-line-min-rows: 4;
+  --talk-reply-rows: 5;
+  --talk-line-pad: calc(2 * var(--hud-screen-pad-y));
+  --talk-line-room: calc(var(--text-body) * 1.35);
+  width: max(
+    min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset))),
+    min(var(--hud-panel-xl), calc(var(--layer-w) - 2 * (var(--hud-panel-m) + var(--hud-inset) + var(--hud-gap))))
+  );
   min-width: 0;
   max-width: none;
+  --talk-head: calc(var(--text-body) * 1.15 + 2 * var(--space-2));
+  --talk-replies: calc(var(--talk-reply-rows) * var(--btn-h-s) + (var(--talk-reply-rows) - 1) * var(--space-1) + var(--talk-line-pad));
+  --talk-least: calc(var(--talk-head) + var(--talk-line-min-rows) * var(--talk-line-room) + var(--talk-line-pad) + var(--talk-replies) + 2 * var(--hud-pad) + 2 * var(--talk-gap));
+  --talk-clear: calc(var(--hud-radio-h) * var(--hud-zoom));
+  max-height: max(calc(var(--layer-h) - var(--hud-notice-top) - var(--talk-clear) - var(--safe-bottom)), var(--talk-least));
+  padding: var(--hud-pad);
+  gap: var(--talk-gap);
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
+}
+#ui .dialogue > :not(.dialogue-line) {
+  flex: none;
 }
 #ui .dialogue .hud-panel-head {
   height: calc(var(--text-body) * 1.15 + 2 * var(--space-2));
@@ -76,7 +97,8 @@
   scrollbar-width: none;
 }
 #ui .dialogue .dialogue-line {
-  height: calc(3 * var(--text-body) * 1.35 + 2 * var(--space-3));
+  flex: 0 1 calc(var(--talk-line-rows) * var(--talk-line-room) + var(--talk-line-pad));
+  min-height: calc(var(--talk-line-min-rows) * var(--talk-line-room) + var(--talk-line-pad));
   padding: var(--space-3) var(--space-5);
   font: var(--text-body) / 1.35 var(--font-ui);
 }
@@ -84,7 +106,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  height: calc(6 * var(--btn-h-s) + 5 * var(--space-1) + 2 * var(--space-3));
+  height: var(--talk-replies);
   padding: var(--space-3);
 }
 #ui .dialogue .dialogue-option {

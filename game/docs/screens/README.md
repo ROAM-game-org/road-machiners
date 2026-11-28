@@ -19,6 +19,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `call-group.jpg`: a radio call, one group of choices.
 - `call-directions.jpg`: a radio call, directions.
 - `call-deal.jpg`: a radio call, a deal.
+- `call-story.jpg`: a radio call, a long story line.
 
 ## Truck and driver
 

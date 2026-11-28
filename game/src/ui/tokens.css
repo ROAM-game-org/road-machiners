@@ -248,6 +248,7 @@
   --hud-weapons-w: calc(var(--hud-weapons-n) * 1px);
   --hud-radio-n: 410;
   --hud-radio-w: calc(var(--hud-radio-n) * 1px);
+  --hud-radio-h: 223px;
   --hud-zoom: 1;
   --hud-row-gap: var(--hud-gap);
   --hud-radio-scale: 1;
