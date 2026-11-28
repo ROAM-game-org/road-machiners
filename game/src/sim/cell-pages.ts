@@ -72,12 +72,6 @@ export class CellPages<A extends PageArray> {
     return this.held;
   }
 
-  bytes(): number {
-    let total = 0;
-    for (const page of this.pages) if (page !== undefined) total += page.byteLength;
-    return total;
-  }
-
   release(): void {
     this.pages.fill(undefined);
     this.held = 0;

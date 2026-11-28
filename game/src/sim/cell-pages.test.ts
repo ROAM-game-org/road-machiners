@@ -31,7 +31,6 @@ describe('a grid kept one page per cell', () => {
     grid.setXY(2, 2, 1);
     grid.setXY(SIDE - 1, SIDE - 1, 1);
     expect(grid.pageCount()).toBe(2);
-    expect(grid.bytes()).toBe(2 * PAGE * PAGE);
   });
 
   it('fills a new page with the blank value, so the rest of its cell still reads blank', () => {
