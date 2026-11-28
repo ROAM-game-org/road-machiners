@@ -21,14 +21,18 @@ const PIPE = { size: 0.08, lift: 0.12, support: 0.6 };
 const TROUGH = { x: 3.1, z: -1.3, length: 1.1, width: 0.45, rim: 0.16, wall: 0.06, water: 0.1 };
 const PUMP_LANTERN = { x: -1.7, z: 1.4, yaw: -Math.PI / 2 };
 
-export function buildDustwell(b: SiteBuilder): void {
+export function* buildDustwell(b: SiteBuilder): Generator<void> {
   addPumpjack(b);
+  yield;
   for (const tank of TANKS) b.addModel('storage_tank', tank.x, tank.z).name = 'dustwell-tank';
   b.addModel('storage_tank', SQUAT.x, SQUAT.z, 0.6, new THREE.Vector3(1, SQUAT.height, 1)).name = 'dustwell-tank';
+  yield;
   addShed(b, 'dustwell', SHED);
+  yield;
   addPipes(b);
   addTrough(b);
   b.addLantern(PUMP_LANTERN.x, PUMP_LANTERN.z, PUMP_LANTERN.yaw);
+  yield;
   addMarket(b, 'dustwell', MARKET);
 }
 

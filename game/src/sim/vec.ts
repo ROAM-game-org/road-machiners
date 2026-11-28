@@ -65,3 +65,14 @@ export function polygonEdgeDist(p: Vec, poly: readonly Vec[]): number {
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) best = Math.min(best, segmentDist(p, poly[j], poly[i]));
   return best;
 }
+
+export function isConvexPolygon(poly: readonly Vec[]): boolean {
+  let sign = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [a, b, c] = [poly[i], poly[(i + 1) % poly.length], poly[(i + 2) % poly.length]];
+    const turn = Math.sign((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x));
+    if (turn !== 0 && sign !== 0 && turn !== sign) return false;
+    if (turn !== 0) sign = turn;
+  }
+  return true;
+}

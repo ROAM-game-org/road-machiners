@@ -8,6 +8,7 @@ import { ObstacleBuckets } from '../../sim/nav/buckets';
 import { groundAt, groundSlope, type Terrain } from '../../sim/terrain';
 import type { Obstacle, World } from '../../sim/types';
 import { dist, type Vec } from '../../sim/vec';
+import { count, streamKind } from '../../perf';
 import { buildProp } from './obstacles';
 import type { Rect, RenderScope } from './scope';
 import { chunkGeometry } from './terrain';
@@ -168,19 +169,23 @@ export class GraffitiCandidates {
   }
 }
 
-export function chooseRegionGraffiti<F>(region: GraffitiRegion, sites: GraffitiSites, fit: (site: GraffitiSite) => F | null): GraffitiPlaced<F>[] {
+export type FitSteps<F> = (site: GraffitiSite) => Generator<void, F | null>;
+
+export function* regionGraffitiSteps<F>(region: GraffitiRegion, sites: GraffitiSites, fit: FitSteps<F>): Generator<void, GraffitiPlaced<F>[]> {
   const placed: GraffitiPlaced<F>[] = [];
-  const fill = (list: readonly GraffitiSite[], count: number) => {
-    for (const site of list) {
-      if (placed.length >= count) return;
-      if (placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) continue;
-      const found = fit(site);
-      if (found !== null) placed.push({ site, fit: found });
-    }
-  };
-  fill(sites.props, Math.round(region.target * GRAFFITI.propShare));
-  fill(sites.cliffs, region.target);
+  yield* fillSteps(placed, sites.props, Math.round(region.target * GRAFFITI.propShare), fit);
+  yield* fillSteps(placed, sites.cliffs, region.target, fit);
   return placed;
+}
+
+function* fillSteps<F>(placed: GraffitiPlaced<F>[], list: readonly GraffitiSite[], count: number, fit: FitSteps<F>): Generator<void> {
+  for (const site of list) {
+    if (placed.length >= count) return;
+    if (placed.some((p) => dist(p.site.pos, site.pos) < GRAFFITI.minGapTiles)) continue;
+    const found = yield* fit(site);
+    if (found !== null) placed.push({ site, fit: found });
+    yield;
+  }
 }
 
 type Hit = { point: THREE.Vector3; normal: THREE.Vector3 };
@@ -217,16 +222,26 @@ function sampleAt(target: THREE.Object3D, frame: Frame, size: number, u: number,
   return found.normal.dot(n) >= SAME_FACE && found.normal.dot(VIEW) >= SEEN_BY_VIEWER ? found : null;
 }
 
-function sampleGrid(target: THREE.Object3D, frame: Frame, size: number): Hit[] | null {
+function* sampleGridSteps(target: THREE.Object3D, frame: Frame, size: number): Generator<void, Hit[] | null> {
   if (!PROBE_POINTS.every(([u, v]) => sampleAt(target, frame, size, u, v))) return null;
   const hits: Hit[] = [];
-  for (let j = 0; j <= GRID; j++)
-    for (let i = 0; i <= GRID; i++) {
-      const found = sampleAt(target, frame, size, i / GRID, j / GRID);
-      if (!found) return null;
-      hits.push(found);
-    }
+  for (let j = 0; j <= GRID; j++) {
+    yield;
+    const row = sampleRow(target, frame, size, j);
+    if (!row) return null;
+    hits.push(...row);
+  }
   return hits;
+}
+
+function sampleRow(target: THREE.Object3D, frame: Frame, size: number, j: number): Hit[] | null {
+  const row: Hit[] = [];
+  for (let i = 0; i <= GRID; i++) {
+    const found = sampleAt(target, frame, size, i / GRID, j / GRID);
+    if (!found) return null;
+    row.push(found);
+  }
+  return row;
 }
 
 function buildFit(frame: Frame, hits: Hit[], size: number): SignFit {
@@ -245,11 +260,11 @@ function buildFit(frame: Frame, hits: Hit[], size: number): SignFit {
   return fit;
 }
 
-function fitAt(target: THREE.Object3D, origin: THREE.Vector3, direction: THREE.Vector3, far: number, size: number): SignFit | null {
+function* fitAtSteps(target: THREE.Object3D, origin: THREE.Vector3, direction: THREE.Vector3, far: number, size: number): Generator<void, SignFit | null> {
   const first = cast(target, origin, direction, far);
   if (!first || !isWall(first.normal)) return null;
   const frame = frameOf(first);
-  const hits = sampleGrid(target, frame, size);
+  const hits = yield* sampleGridSteps(target, frame, size);
   return hits && buildFit(frame, hits, size);
 }
 
@@ -261,7 +276,7 @@ function cliffTarget(t: Terrain, pos: Vec): THREE.Mesh {
   return mesh;
 }
 
-function fitCliff(t: Terrain, site: GraffitiSite): SignFit | null {
+function* fitCliffSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit | null> {
   const face = site.face;
   if (!face) throw new Error(`Cliff site ${site.id} has no face`);
   const low = groundAt(t, site.pos.x + face.x * CLIFF_REACH_TILES, site.pos.y + face.y * CLIFF_REACH_TILES);
@@ -269,19 +284,21 @@ function fitCliff(t: Terrain, site: GraffitiSite): SignFit | null {
   const origin = new THREE.Vector3((site.pos.x + face.x * CLIFF_REACH_TILES) * S, ((low + high) / 2) * S, (site.pos.y + face.y * CLIFF_REACH_TILES) * S);
   const direction = new THREE.Vector3(-face.x, 0, -face.y);
   const target = cliffTarget(t, site.pos);
-  const fits = SIGN_SIZES.map((size) => () => fitAt(target, origin, direction, CLIFF_REACH_TILES * 2 * S, size));
+  const fits = SIGN_SIZES.map((size) => () => fitAtSteps(target, origin, direction, CLIFF_REACH_TILES * 2 * S, size));
   try {
-    return firstFit(fits);
+    yield;
+    return yield* firstFitSteps(fits);
   } finally {
     target.geometry.dispose();
     (target.material as THREE.Material).dispose();
   }
 }
 
-function firstFit(tries: readonly (() => SignFit | null)[]): SignFit | null {
+function* firstFitSteps(tries: readonly (() => Generator<void, SignFit | null>)[]): Generator<void, SignFit | null> {
   for (const attempt of tries) {
-    const fit = attempt();
+    const fit = yield* attempt();
     if (fit) return fit;
+    yield;
   }
   return null;
 }
@@ -291,27 +308,26 @@ function propDirections(site: GraffitiSite): Vec[] {
   return Array.from({ length: PROP_DIRECTIONS }, (_, k) => ({ x: Math.cos(turn + (k * Math.PI * 2) / PROP_DIRECTIONS), y: Math.sin(turn + (k * Math.PI * 2) / PROP_DIRECTIONS) })).filter(facesCamera);
 }
 
-function fitFacing(target: THREE.Object3D, box: THREE.Box3, out: Vec, size: number): SignFit | null {
+function fitFacingSteps(target: THREE.Object3D, box: THREE.Box3, out: Vec, size: number, level: number): Generator<void, SignFit | null> {
   const center = box.getCenter(new THREE.Vector3());
   const reach = Math.hypot(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + PROP_STANDOFF;
   const direction = new THREE.Vector3(-out.x, 0, -out.y);
-  return firstFit(
-    PROP_LEVELS.map((level) => () => fitAt(target, new THREE.Vector3(center.x + out.x * reach, box.min.y + (box.max.y - box.min.y) * level, center.z + out.y * reach), direction, reach * 2, size)),
-  );
+  return fitAtSteps(target, new THREE.Vector3(center.x + out.x * reach, box.min.y + (box.max.y - box.min.y) * level, center.z + out.y * reach), direction, reach * 2, size);
 }
 
-function fitProp(t: Terrain, site: GraffitiSite): SignFit | null {
+function* fitPropSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit | null> {
   const o = site.obstacle;
   if (!o) throw new Error(`Prop site ${site.id} has no obstacle`);
   const target = buildProp(t, o);
   target.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(target);
   const outs = propDirections(site);
-  return firstFit(SIGN_SIZES.flatMap((size) => outs.map((out) => () => fitFacing(target, box, out, size))));
+  yield;
+  return yield* firstFitSteps(SIGN_SIZES.flatMap((size) => outs.flatMap((out) => PROP_LEVELS.map((level) => () => fitFacingSteps(target, box, out, size, level)))));
 }
 
-export function fitSite(t: Terrain, site: GraffitiSite): SignFit | null {
-  return site.obstacle === null ? fitCliff(t, site) : fitProp(t, site);
+export function fitSiteSteps(t: Terrain, site: GraffitiSite): Generator<void, SignFit | null> {
+  return site.obstacle === null ? fitCliffSteps(t, site) : fitPropSteps(t, site);
 }
 
 function smoothstep(from: number, to: number, v: number): number {
@@ -446,12 +462,19 @@ export class GraffitiViews {
   constructor(world: World, scope: RenderScope) {
     const buckets = new ObstacleBuckets<Obstacle>(world.obstacles, world.size);
     const candidates = new GraffitiCandidates(world.terrain, world.obstacles);
-    const fit = (site: GraffitiSite): SignFit | null => {
-      const found = fitSite(world.terrain, site);
+    const fit = function* (site: GraffitiSite): Generator<void, SignFit | null> {
+      count('graffiti-tries');
+      const found = yield* fitSiteSteps(world.terrain, site);
       return found && !blockedInFront(buckets, site.obstacle, found) ? found : null;
     };
     for (const region of graffitiRegions(world.size))
-      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), () => this.draw(region, chooseRegionGraffiti(region, candidates.sitesIn(region), fit)));
+      if (region.target > 0) scope.place(regionCenter(region), regionReach(region), { steps: () => this.drawSteps(region, candidates, fit) });
+  }
+
+  private *drawSteps(region: GraffitiRegion, candidates: GraffitiCandidates, fit: FitSteps<SignFit>): Generator<void, THREE.Object3D> {
+    const sites = candidates.sitesIn(region);
+    yield;
+    return streamKind('graffiti', this.draw(region, yield* regionGraffitiSteps(region, sites, fit)));
   }
 
   private paint(): THREE.MeshLambertMaterial {

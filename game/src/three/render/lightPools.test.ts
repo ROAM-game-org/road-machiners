@@ -44,6 +44,20 @@ describe('night light pools added site by site', () => {
     expect(Buffer.from(forward.bytes).equals(Buffer.from(whole))).toBe(true);
     expect(Buffer.from(backward.bytes).equals(Buffer.from(whole))).toBe(true);
   });
+
+  it('adds a site in many steps to the same map, and leaves the map untouched when dropped halfway', () => {
+    const site = SITES[0];
+    const lamps = FACES.map(lampAt).filter((l) => l.site === site);
+    const stepped = new PoolMap(GRID);
+    let steps = 0;
+    for (const _ of stepped.addSteps(lamps)) steps++;
+    const dropped = new PoolMap(GRID);
+    const halfway = dropped.addSteps(lamps);
+    for (let k = 0; k < steps / 2; k++) halfway.next();
+    expect(steps).toBeGreaterThan(10);
+    expect(Buffer.from(stepped.bytes).equals(Buffer.from(bakePools(lamps, GRID)))).toBe(true);
+    expect(dropped.bytes.every((v) => v === 0)).toBe(true);
+  });
 });
 
 describe('night light pools (IV1, IV4)', () => {
