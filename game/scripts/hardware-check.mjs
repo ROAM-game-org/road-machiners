@@ -16,7 +16,7 @@ const SELECTORS = {
 };
 
 export const FIXED_GROUPS = {
-  call: { window: '.dialogue', states: ['call-hub', 'call-deal', 'call-directions', 'call-group', 'call-attacker'] },
+  call: { window: '.dialogue', states: ['call-hub', 'call-deal', 'call-directions', 'call-group', 'call-attacker', 'call-story'] },
   board: { window: '.town-page', states: ['town-board', 'board-full', 'board-kinds', 'board-kinds-more', 'board-taken'] },
   inventory: { window: '.inventory-screen', states: ['inventory', 'inventory-gun', 'inventory-empty'] },
   journal: { window: '.journal-side', states: ['journal-longest', 'journal-empty', 'journal-notes', 'journal-past', 'journal-survey', 'journal-wrecks'] },

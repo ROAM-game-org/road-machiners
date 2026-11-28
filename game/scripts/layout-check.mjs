@@ -156,6 +156,7 @@ async function openCall(page, node) {
       g.apply(callVehicle(raiderWorld, raider.id));
       return;
     }
+    const story = node === 'story' ? await longestStory() : null;
     const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 13, parts: 3, turns: 4 } };
     const hub = { with: npc.id, topic: null, node: 'hub', vars: {}, group: null, asked: [], line: { line: 'whatDoYouWant', vars: {} } };
@@ -163,10 +164,24 @@ async function openCall(page, node) {
       ? hub
       : node === 'group'
       ? { ...hub, group: 'helpTrade', asked: ['tradeTalk'] }
+      : node === 'story'
+      ? { with: npc.id, topic: 'tale', node: 'story', vars: story, group: null, asked: [], line: { line: 'taleStory', vars: story } }
       : node === 'directions'
       ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, group: null, asked: [], line: { line: way.line, vars: way.vars } }
       : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, group: null, asked: [], line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
+    async function longestStory() {
+      const { STORY_LINE_IDS } = await import('/src/data/road-stories.ts');
+      const { LESSON_LINE_IDS } = await import('/src/data/lessons.ts');
+      const { lineText } = await import('/src/ui/dialogue.ts');
+      const { schemaOf } = await import('/src/text/resolve.ts');
+      const { lineKey } = await import('/src/text/names.ts');
+      const { say } = await import('/src/text/language.ts');
+      const free = [...STORY_LINE_IDS, ...LESSON_LINE_IDS].filter((id) => Object.keys(schemaOf(lineKey(id))).length === 0);
+      const length = (id) => say(lineText(id, {})).length;
+      const best = free.reduce((a, b) => (length(b) > length(a) ? b : a));
+      return { story: { kind: 'line', line: best } };
+    }
     async function longestDirections(world) {
       const { directionsTo } = await import('/src/sim/directions.ts');
       const { REGION } = await import('/src/data/region.ts');
@@ -536,6 +551,33 @@ const cutFaults = (page, selectors) =>
   page.evaluate((selectors) => [...document.querySelectorAll(selectors.join(', '))].filter((n) => n.scrollHeight > n.clientHeight + 1).map((n) => `${n.className} is cut: ${n.scrollHeight} of ${n.clientHeight}`), selectors);
 
 const JOURNAL = '#ui .journal-screen:not([style*="display: none"])';
+
+const CALL_VIEWPORTS = [...VIEWPORTS, COMPACT];
+
+const callFaults = async (page) => (await callFaultTexts(page)).map((text) => ({ kind: 'call-window', path: '', text, sizes: '' }));
+
+const callFaultTexts = (page) =>
+  page.evaluate(() => {
+    const faults = [];
+    const call = document.querySelector('#ui .dialogue');
+    if (!call || call.style.display === 'none') return ['no call window'];
+    const box = call.getBoundingClientRect();
+    const desktop = innerWidth >= 1024 && innerHeight >= 600;
+    const line = call.querySelector('.dialogue-line');
+    const options = call.querySelector('.dialogue-options');
+    if (desktop && !call.textContent.includes("⟦") && window.__ROAM__.state.player.call?.topic === 'tale' && line.scrollHeight > line.clientHeight + 1) faults.push(`call-line-scrolls: ${line.scrollHeight} of ${line.clientHeight}`);
+    if (!call.textContent.includes("⟦") && options.scrollHeight > options.clientHeight + 1) faults.push(`call-replies-scroll: ${options.scrollHeight} of ${options.clientHeight}`);
+    const roomy = innerHeight >= 700;
+    if (roomy && box.bottom > innerHeight + 1) faults.push(`call-off-layer: ends at ${Math.round(box.bottom)} of ${innerHeight}`);
+    const zones = '#ui .right-dock, #ui .contracts, #ui .hover, #ui .hud-tray, #ui .hud-plate, #ui .minimap';
+    for (const other of roomy ? document.querySelectorAll(zones) : []) {
+      const r = other.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || other.closest('.dialogue')) continue;
+      const apart = r.right <= box.left + 1 || r.left >= box.right - 1 || r.bottom <= box.top + 1 || r.top >= box.bottom - 1;
+      if (!apart) faults.push(`call-overlap: ${other.className} top ${Math.round(r.top)} window bottom ${Math.round(box.bottom)}`);
+    }
+    return faults;
+  });
 
 const journalWindowFaults = (page) =>
   page.evaluate((sel) => {
@@ -1368,11 +1410,12 @@ const STATES = {
   'town-nav': { setup: openTownClear, teardown: closeTown, check: townNavFaults, viewports: [...VIEWPORTS, TALL, PHONE, PHONE_SMALL] },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown, check: nestedScrollFaults },
-  'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
-  'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp },
-  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp },
-  'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
-  'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
+  'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
+  'call-group': { setup: (page) => openCall(page, 'group'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
+  'call-attacker': { setup: (page) => openCall(page, 'attacker'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
+  'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
+  'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
+  'call-story': { setup: (page) => openCall(page, 'story'), teardown: hangUp, viewports: CALL_VIEWPORTS, check: callFaults },
   help: { setup: openHelp, teardown: closeHelp },
   character: { setup: (page) => key(page, 'KeyC'), teardown: escape, viewports: [...VIEWPORTS, PHONE, PHONE_SMALL] },
   saves: { setup: openSaves, teardown: escape },

@@ -56,10 +56,11 @@
 }
 #ui .panel.dialogue {
   --talk-wheel: calc(var(--scroll-wheel-w) + var(--scroll-wheel-gap));
+  --talk-gap: var(--space-2);
   --talk-line-rows: 6;
-  --talk-line-min-rows: 3;
+  --talk-line-min-rows: 4;
   --talk-reply-rows: 5;
-  --talk-line-pad: calc(2 * var(--space-3));
+  --talk-line-pad: calc(2 * var(--hud-screen-pad-y));
   --talk-line-room: calc(var(--text-body) * 1.35);
   width: max(
     min(var(--hud-panel-l), calc(var(--layer-w) - 2 * var(--hud-inset))),
@@ -67,7 +68,13 @@
   );
   min-width: 0;
   max-width: none;
-  max-height: calc(var(--layer-h) - var(--hud-notice-top) - var(--safe-bottom));
+  --talk-head: calc(var(--text-body) * 1.15 + 2 * var(--space-2));
+  --talk-replies: calc(var(--talk-reply-rows) * var(--btn-h-s) + (var(--talk-reply-rows) - 1) * var(--space-1) + var(--talk-line-pad));
+  --talk-least: calc(var(--talk-head) + var(--talk-line-min-rows) * var(--talk-line-room) + var(--talk-line-pad) + var(--talk-replies) + 2 * var(--hud-pad) + 2 * var(--talk-gap));
+  --talk-clear: calc(var(--hud-radio-h) * var(--hud-zoom));
+  max-height: max(calc(var(--layer-h) - var(--hud-notice-top) - var(--talk-clear) - var(--safe-bottom)), var(--talk-least));
+  padding: var(--hud-pad);
+  gap: var(--talk-gap);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -99,7 +106,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  height: calc(var(--talk-reply-rows) * var(--btn-h-s) + (var(--talk-reply-rows) - 1) * var(--space-1) + 2 * var(--space-3));
+  height: var(--talk-replies);
   padding: var(--space-3);
 }
 #ui .dialogue .dialogue-option {
