@@ -191,18 +191,26 @@ function pickSpots(world: World, traffic: Float64Array, samples: readonly Vec[])
   const usable = scoreCandidates(world.size, traffic).filter(({ p }) => keepsSiteGap(p) && isHideSpot(world, p) && seesTraffic(world, p, samples));
   const spacing = HUNT.groundSpacing;
   const spots: Vec[] = [];
-  for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => dist(s, candidate.p) >= spacing)) spots.push(candidate.p);
+  for (const candidate of usable) if (isPeak(candidate, usable, spacing) && spots.every((s) => !closerThan(s, candidate.p, spacing))) spots.push(candidate.p);
   return spots;
 }
 
 function seesTraffic(world: World, p: Vec, samples: readonly Vec[]): boolean {
-  return samples.some((s) => dist(s, p) <= HUNT.groundSight && seesGround(world, p, s));
+  return samples.some((s) => !farther(s, p, HUNT.groundSight) && seesGround(world, p, s));
+}
+
+function closerThan(a: Vec, b: Vec, limit: number): boolean {
+  return Math.abs(b.x - a.x) < limit && Math.abs(b.y - a.y) < limit && dist(a, b) < limit;
+}
+
+function farther(a: Vec, b: Vec, limit: number): boolean {
+  return Math.abs(b.x - a.x) > limit || Math.abs(b.y - a.y) > limit || dist(a, b) > limit;
 }
 
 function isPeak(candidate: Scored, all: Scored[], spacing: number): boolean {
   for (const o of all) {
     if (o.score <= candidate.score) return true;
-    if (dist(o.p, candidate.p) < spacing) return false;
+    if (closerThan(o.p, candidate.p, spacing)) return false;
   }
   return true;
 }

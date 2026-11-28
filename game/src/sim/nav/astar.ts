@@ -1,43 +1,65 @@
 
 import { REGION } from '../../data/region';
 import { count } from '../../perf';
+import { CellPages } from '../cell-pages';
 import type { Blocker } from './buckets';
 import { cellOfBlock, cellOfFine, costsWithin, endRegion, ensureCell, ensureFine, regionAt, stepCost, triIndex } from './cells';
-import { CELL, COARSE, componentOf, slowAt, stampBlockers, tastedAlong, tastedCoarse, type NavLayer, type Taste } from './layer';
+import { CELL, COARSE, componentOf, markedSlow, slowFrom, stampBlockers, tastedAlong, tastedCoarse, WARM_RING, type NavLayer, type Taste } from './layer';
 
-export type Overlay = { stamp: Uint32Array; gen: number };
+export type Overlay = { stamp: CellPages<Uint32Array>; gen: number };
 
-const overlay: Overlay = { stamp: new Uint32Array(0), gen: 0 };
+const SCRATCH_PAGES = (2 * WARM_RING + 1) ** 2;
+const LAST_GEN = 0x7fffffff;
+
+const stampPages = (n: number, side: number) => new CellPages<Uint32Array>(n, side, (length) => new Uint32Array(length), 0);
+
+const overlay: Overlay = { stamp: stampPages(0, 1), gen: 0 };
 
 export function stampOverlay(layer: NavLayer, blockers: Blocker[], radius: number): Overlay {
-  const size = layer.n * layer.n;
-  if (overlay.stamp.length !== size || overlay.gen === 0xffffffff) {
-    overlay.stamp = new Uint32Array(size);
+  if (overlay.stamp.side !== layer.n || overlay.stamp.pageSide !== layer.grid.side || overlay.gen === LAST_GEN) {
+    overlay.stamp = stampPages(layer.n, layer.grid.side);
     overlay.gen = 0;
   }
+  overlay.stamp.releaseOver(SCRATCH_PAGES);
   const gen = ++overlay.gen;
   const stamp = overlay.stamp;
-  stampBlockers(layer.n, blockers, radius, (c) => (stamp[c] = gen));
+  stampBlockers(layer.n, blockers, radius, (c) => stamp.set(c, gen));
   return overlay;
 }
 
-let cost = new Float64Array(0);
-let from = new Int32Array(0);
-let seen = new Uint32Array(0);
-let closed = new Uint32Array(0);
-let queue = new Int32Array(0);
+type Scratch = { cost: CellPages<Float64Array>; from: CellPages<Int32Array>; seen: CellPages<Uint32Array> };
+
+function newScratch(n: number, side: number): Scratch {
+  return {
+    cost: new CellPages<Float64Array>(n, side, (length) => new Float64Array(length), 0),
+    from: new CellPages<Int32Array>(n, side, (length) => new Int32Array(length), 0),
+    seen: stampPages(n, side),
+  };
+}
+
+let scratch = newScratch(0, 1);
+let { cost, from, seen } = scratch;
+let queue = new Int32Array(1 << 12);
 let gen = 0;
 
-function begin(size: number): number {
-  if (seen.length !== size || gen === 0xffffffff) {
-    cost = new Float64Array(size);
-    from = new Int32Array(size);
-    seen = new Uint32Array(size);
-    closed = new Uint32Array(size);
-    queue = new Int32Array(size);
+function begin(layer: NavLayer): number {
+  if (seen.side !== layer.n || seen.pageSide !== layer.grid.side || gen === LAST_GEN) {
+    scratch = newScratch(layer.n, layer.grid.side);
+    ({ cost, from, seen } = scratch);
     gen = 0;
   }
-  return ++gen;
+  return ++gen * 2;
+}
+
+function endSearch(): void {
+  for (const pages of [cost, from, seen]) pages.releaseOver(SCRATCH_PAGES);
+}
+
+function queueRoom(tail: number): void {
+  if (tail + 8 <= queue.length) return;
+  const grown = new Int32Array(queue.length * 2);
+  grown.set(queue);
+  queue = grown;
 }
 
 type FreeCellAnswer = { cell: number | null; stamped: number[]; ring: number };
@@ -61,8 +83,8 @@ function answerCovers(answer: FreeCellAnswer, maxRing: number): boolean {
 }
 
 function answerHolds(ov: Overlay, answer: FreeCellAnswer): boolean {
-  if (answer.cell !== null && ov.stamp[answer.cell] === ov.gen) return false;
-  return answer.stamped.every((cell) => ov.stamp[cell] === ov.gen);
+  if (answer.cell !== null && ov.stamp.at(answer.cell) === ov.gen) return false;
+  return answer.stamped.every((cell) => ov.stamp.at(cell) === ov.gen);
 }
 
 function rememberAnswer(comp: Int32Array, key: string, answer: FreeCellAnswer): void {
@@ -73,19 +95,27 @@ function rememberAnswer(comp: Int32Array, key: string, answer: FreeCellAnswer): 
 }
 
 function searchFreeCell(layer: NavLayer, ov: Overlay, c: number, component: number | null, maxRing: number, accepts: (cell: number) => boolean): FreeCellAnswer {
+  try {
+    return ringSearch(layer, ov, c, component, maxRing, accepts);
+  } finally {
+    endSearch();
+  }
+}
+
+function ringSearch(layer: NavLayer, ov: Overlay, c: number, component: number | null, maxRing: number, accepts: (cell: number) => boolean): FreeCellAnswer {
   const n = layer.n;
-  const g = begin(n * n);
+  const g = begin(layer);
   const holds = component === null ? null : cellsHolding(layer, component);
   const cx = c % n;
   const cy = (c - cx) / n;
   const stamped: number[] = [];
   let tail = 0;
   queue[tail++] = c;
-  seen[c] = g;
+  seen.set(c, g);
   for (let i = 0; i < tail; i++) {
     const cur = queue[i];
     if (freeIn(layer, cur, component, holds)) {
-      if (ov.stamp[cur] === ov.gen) stamped.push(cur);
+      if (ov.stamp.at(cur) === ov.gen) stamped.push(cur);
       else if (accepts(cur)) return { cell: cur, stamped, ring: Math.max(Math.abs((cur % n) - cx), Math.abs((cur - (cur % n)) / n - cy)) };
     }
     tail = ringOut(n, cur, cx, cy, g, maxRing, tail);
@@ -97,20 +127,20 @@ function freeIn(layer: NavLayer, c: number, component: number | null, holds: Uin
   const cell = cellOfFine(layer.grid, c);
   if (holds !== null && holds[cell] === 0) return false;
   if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
-  return !layer.blocked[c] && (component === null || componentOf(layer, c) === component);
+  return layer.blocked.at(c) === 0 && (component === null || componentOf(layer, c) === component);
 }
 
 function ringOut(n: number, cur: number, cx: number, cy: number, g: number, maxRing: number, tail: number): number {
   const x = cur % n;
   const y = (cur - x) / n;
+  queueRoom(tail);
   for (let i = 0; i < 8; i++) {
     const nx = x + AROUND_X[i];
     const ny = y + AROUND_Y[i];
     if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
-    const next = ny * n + nx;
-    if (seen[next] === g || Math.max(Math.abs(nx - cx), Math.abs(ny - cy)) > maxRing) continue;
-    seen[next] = g;
-    queue[tail++] = next;
+    if (seen.atXY(nx, ny) === g || Math.max(Math.abs(nx - cx), Math.abs(ny - cy)) > maxRing) continue;
+    seen.setXY(nx, ny, g);
+    queue[tail++] = ny * n + nx;
   }
   return tail;
 }
@@ -130,9 +160,15 @@ function cellsHolding(layer: NavLayer, component: number): Uint8Array {
 }
 
 function isFree(layer: NavLayer, ov: Overlay, c: number): boolean {
-  const cell = cellOfFine(layer.grid, c);
-  if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
-  return !layer.blocked[c] && ov.stamp[c] !== ov.gen;
+  const x = c % layer.n;
+  return isFreeXY(layer, ov, c, x, (c - x) / layer.n);
+}
+
+function isFreeXY(layer: NavLayer, ov: Overlay, c: number, x: number, y: number): boolean {
+  const g = layer.grid;
+  const cell = ((y / g.side) | 0) * g.m + ((x / g.side) | 0);
+  if (g.built[cell] === 0) ensureCell(layer.cells, cell);
+  return layer.blocked.atXY(x, y) === 0 && ov.stamp.atXY(x, y) !== ov.gen;
 }
 
 const AROUND_X = [-1, -1, -1, 0, 0, 1, 1, 1];
@@ -268,7 +304,7 @@ function coveredShare(layer: NavLayer, ov: Overlay, r: number): number {
       const c = y * n + x;
       if (regionAt(g, c) !== r) continue;
       own++;
-      if (ov.stamp[c] === ov.gen) covered++;
+      if (ov.stamp.atXY(x, y) === ov.gen) covered++;
     }
   return covered / own;
 }
@@ -409,13 +445,13 @@ function markCellsAround(layer: NavLayer, cell: number, ring: number, cg: number
     }
 }
 
-const cheapest = new WeakMap<Float32Array, number>();
+const cheapest = new WeakMap<Float64Array, number>();
 
 function cheapestSlow(layer: NavLayer): number {
-  let low = cheapest.get(layer.slow);
+  let low = cheapest.get(layer.tileCost);
   if (low === undefined) {
-    low = layer.slow.reduce((a, b) => Math.min(a, b), Infinity);
-    cheapest.set(layer.slow, low);
+    low = Math.fround(layer.tileCost.reduce((a, b) => Math.min(a, b), Infinity));
+    cheapest.set(layer.tileCost, low);
   }
   return low;
 }
@@ -487,7 +523,7 @@ function weighCrossing(s: CrossingSearch, t: number, step: number, prev: number)
   const T = s.layer.grid.portals;
   const fromX = prev === -1 ? s.startX : T.x[prev];
   const fromY = prev === -1 ? s.startY : T.y[prev];
-  const covered = s.avoid !== null && s.avoid.stamp[Math.round(T.y[t]) * s.layer.n + Math.round(T.x[t])] === s.avoid.gen;
+  const covered = s.avoid !== null && s.avoid.stamp.atXY(Math.round(T.x[t]), Math.round(T.y[t])) === s.avoid.gen;
   return tastedAlong(s.taste, covered ? step * (1 + COVERED_COST) : step, (T.x[t] + 0.5) * CELL, (T.y[t] + 0.5) * CELL, T.x[t] - fromX, T.y[t] - fromY);
 }
 
@@ -561,47 +597,104 @@ function startRegion(layer: NavLayer, start: number, goal: number): number {
 }
 
 function fineSearch(layer: NavLayer, ov: Overlay, start: number, goal: number, corridor: boolean, taste: Taste | null, box: Box | null = null): Int32Array {
+  try {
+    return aStar(layer, ov, start, goal, corridor, taste, box);
+  } finally {
+    endSearch();
+  }
+}
+
+type FineSearch = { layer: NavLayer; ov: Overlay; g: number; corridor: boolean; taste: Taste | null; box: Box | null; gx: number; gy: number; w: number };
+
+function aStar(layer: NavLayer, ov: Overlay, start: number, goal: number, corridor: boolean, taste: Taste | null, box: Box | null): Int32Array {
   const n = layer.n;
-  const g = begin(n * n);
-  const w = REGION.navigation.heuristicWeight;
-  const gx = goal % n;
-  const gy = Math.floor(goal / n);
+  const g = begin(layer);
+  const s: FineSearch = { layer, ov, g, corridor, taste, box, gx: goal % n, gy: Math.floor(goal / n), w: REGION.navigation.heuristicWeight };
   heapSize = 0;
-  cost[start] = 0;
-  from[start] = -1;
-  seen[start] = g;
-  heapPush(start, heuristic(start % n, Math.floor(start / n), gx, gy) * w);
+  cost.set(start, 0);
+  from.set(start, -1);
+  seen.set(start, g);
+  heapPush(start, heuristic(start % n, Math.floor(start / n), s.gx, s.gy) * s.w);
   let expanded = 0;
   let nearest = start;
   let nearestLeft = Infinity;
   while (heapSize > 0) {
     const cur = heapPop();
     if (cur === goal) return finished(goal, expanded);
-    if (closed[cur] === g) continue;
-    closed[cur] = g;
+    const cx = cur % n;
+    const cy = (cur - cx) / n;
+    if (seen.atXY(cx, cy) === g + 1) continue;
+    seen.setXY(cx, cy, g + 1);
     expanded++;
-    const left = heuristic(cur % n, Math.floor(cur / n), gx, gy);
+    const left = heuristic(cx, cy, s.gx, s.gy);
     if (left < nearestLeft) {
       nearest = cur;
       nearestLeft = left;
     }
-    const count = neighbours(n, cur);
-    const cx = cur % n;
-    const cy = (cur - cx) / n;
-    for (let k = 0; k < count; k++) {
-      const next = around[k];
-      if (!canEnter(layer, ov, next, g, corridor, box)) continue;
-      const nx = next % n;
-      const ny = (next - nx) / n;
-      const c = cost[cur] + tastedAlong(taste, aroundStep[k] * slowAt(layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
-      if (seen[next] === g && c >= cost[next]) continue;
-      seen[next] = g;
-      cost[next] = c;
-      from[next] = cur;
-      heapPush(next, c + heuristic(nx, ny, gx, gy) * w);
-    }
+    relaxNeighbours(s, cur, cx, cy);
   }
   return finished(nearest, expanded);
+}
+
+function relaxNeighbours(s: FineSearch, cur: number, cx: number, cy: number): void {
+  const layer = s.layer;
+  const n = layer.n;
+  const side = layer.grid.side;
+  const lx = cx & (side - 1);
+  const ly = cy & (side - 1);
+  if (lx > 0 && ly > 0 && lx < side - 1 && ly < side - 1 && cx + 1 < n && cy + 1 < n && relaxInside(s, cur, cx, cy, ly * side + lx)) return;
+  const count = neighbours(n, cur);
+  const here = cost.atXY(cx, cy);
+  for (let k = 0; k < count; k++) {
+    const next = around[k];
+    const nx = next % n;
+    const ny = (next - nx) / n;
+    const seenPage = seen.pageOf(nx, ny);
+    const at = seen.offsetOf(nx, ny);
+    if (seenPage[at] === s.g + 1 || !canEnter(layer, s.ov, next, nx, ny, s.corridor, s.box)) continue;
+    const c = here + tastedAlong(s.taste, aroundStep[k] * markedSlow(layer, nx, ny), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
+    const costPage = cost.pageOf(nx, ny);
+    if (seenPage[at] === s.g && c >= costPage[at]) continue;
+    seenPage[at] = s.g;
+    costPage[at] = c;
+    from.pageOf(nx, ny)[at] = cur;
+    heapPush(next, c + heuristic(nx, ny, s.gx, s.gy) * s.w);
+  }
+}
+
+function relaxInside(s: FineSearch, cur: number, cx: number, cy: number, base: number): boolean {
+  const layer = s.layer;
+  const grid = layer.grid;
+  if (grid.built[((cy / grid.side) | 0) * grid.m + ((cx / grid.side) | 0)] === 0) return false;
+  const blockedPage = layer.blocked.pageIfOpen(cx, cy);
+  if (blockedPage === undefined) return false;
+  const stampPage = s.ov.stamp.pageIfOpen(cx, cy);
+  const marksPage = layer.marks.pageIfOpen(cx, cy);
+  const slowPage = layer.slow.pageOf(cx, cy);
+  const seenPage = seen.pageOf(cx, cy);
+  const costPage = cost.pageOf(cx, cy);
+  const fromPage = from.pageOf(cx, cy);
+  const side = grid.side;
+  const closedMark = s.g + 1;
+  const here = costPage[base];
+  for (let k = 0; k < 8; k++) {
+    const dx = AROUND_X[k];
+    const dy = AROUND_Y[k];
+    const at = base + dy * side + dx;
+    if (seenPage[at] === closedMark || blockedPage[at] !== 0 || (stampPage !== undefined && stampPage[at] === s.ov.gen)) continue;
+    const nx = cx + dx;
+    const ny = cy + dy;
+    if (s.box && !inBox(s.box, nx, ny)) continue;
+    if (s.corridor && inCorridor[Math.floor(ny / COARSE) * grid.bn + Math.floor(nx / COARSE)] !== corridorGen) continue;
+    const slow = slowFrom(slowPage[at], marksPage === undefined ? 0 : marksPage[at]);
+    const c = here + tastedAlong(s.taste, AROUND_STEP[k] * slow, (nx + 0.5) * CELL, (ny + 0.5) * CELL, dx, dy);
+    if (seenPage[at] === s.g && c >= costPage[at]) continue;
+    seenPage[at] = s.g;
+    costPage[at] = c;
+    fromPage[at] = cur;
+    heapPush(ny * layer.n + nx, c + heuristic(nx, ny, s.gx, s.gy) * s.w);
+  }
+  return true;
 }
 
 function finished(end: number, expanded: number): Int32Array {
@@ -609,12 +702,10 @@ function finished(end: number, expanded: number): Int32Array {
   return unwind(end);
 }
 
-function canEnter(layer: NavLayer, ov: Overlay, c: number, g: number, corridor: boolean, box: Box | null): boolean {
-  if (!isFree(layer, ov, c) || closed[c] === g) return false;
-  const n = layer.n;
-  if (box && !inBox(box, c % n, Math.floor(c / n))) return false;
-  const bn = layer.grid.bn;
-  return !corridor || inCorridor[Math.floor(Math.floor(c / n) / COARSE) * bn + Math.floor((c % n) / COARSE)] === corridorGen;
+function canEnter(layer: NavLayer, ov: Overlay, c: number, x: number, y: number, corridor: boolean, box: Box | null): boolean {
+  if (!isFreeXY(layer, ov, c, x, y)) return false;
+  if (box && !inBox(box, x, y)) return false;
+  return !corridor || inCorridor[Math.floor(y / COARSE) * layer.grid.bn + Math.floor(x / COARSE)] === corridorGen;
 }
 
 function inBox(box: Box, x: number, y: number): boolean {
@@ -623,8 +714,8 @@ function inBox(box: Box, x: number, y: number): boolean {
 
 function unwind(goal: number): Int32Array {
   let len = 1;
-  for (let c = goal; from[c] !== -1; c = from[c]) len++;
+  for (let c = goal; from.at(c) !== -1; c = from.at(c)) len++;
   const out = new Int32Array(len);
-  for (let c = goal, i = len - 1; i >= 0; c = from[c], i--) out[i] = c;
+  for (let c = goal, i = len - 1; i >= 0; c = from.at(c), i--) out[i] = c;
   return out;
 }

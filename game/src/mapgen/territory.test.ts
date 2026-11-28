@@ -362,7 +362,7 @@ describe("the Fallen Sun's dirt roads, decks and lanes on the baked map", () => 
     const w = standardWorld(1337);
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
     const hulls = pieces.flatMap((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }));
-    const free = (p: Vec) => layer.blocked[Math.floor(p.y / CELL) * layer.n + Math.floor(p.x / CELL)] === 0 && hulls.every((b) => boxDistance(b, p) > 0);
+    const free = (p: Vec) => layer.blocked.at(Math.floor(p.y / CELL) * layer.n + Math.floor(p.x / CELL)) === 0 && hulls.every((b) => boxDistance(b, p) > 0);
     const reach = Math.ceil(fallenSun.radius / 5) * 5;
     const points: Vec[] = [];
     for (let y = -reach; y <= reach; y += 5) for (let x = -reach; x <= reach; x += 5) {

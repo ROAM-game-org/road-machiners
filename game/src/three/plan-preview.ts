@@ -1,6 +1,6 @@
 import type { DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
-import { postLabel, SentObstacles, type PreviewRequest, type IdleFailure, type PreviewResponse, type TerrainRequest, type WarmRequest } from "../phys/turn";
+import { postLabel, SentObstacles, type PreviewRequest, type IdleFailure, type PreviewResponse, type TerrainReady, type TerrainRequest, type WarmRequest } from "../phys/turn";
 import { mergePerf, timed } from "../perf";
 import { PAL } from "../render/palette";
 import { orderThrottle, playerOrder } from "../sim/steering";
@@ -9,7 +9,7 @@ import type { Vec } from "../sim/vec";
 import { currentQuestLanguage } from "../sim/quests";
 import { reportError } from "./crash";
 import { packedBuffers, packTerrain } from "../sim/terrain";
-import { isIdleFailure, noteIdleFailure, workerError } from "./travel";
+import { isIdleFailure, isTerrainReady, noteIdleFailure, workerError } from "./travel";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export function throttleColor(world: World, me: Vehicle, p: Vec): number {
@@ -92,6 +92,7 @@ export class PlanPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<PreviewResponse>) => {
+      if (isTerrainReady(event.data)) return;
       if (isIdleFailure(event.data)) return noteIdleFailure(event.data);
       this.receive(event.data);
     };
@@ -116,7 +117,7 @@ export class PlanPreparation {
     this.sent = null;
   }
 
-  private receive(response: Exclude<PreviewResponse, IdleFailure>): void {
+  private receive(response: Exclude<PreviewResponse, IdleFailure | TerrainReady>): void {
     this.load.loaded();
     this.answered = true;
     if ("error" in response) reportError(workerError(response.error));

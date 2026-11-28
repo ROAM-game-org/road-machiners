@@ -57,7 +57,7 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: S
     const notice = el('div', { class: 'dim', role: 'status' }, t('menu.bootUnfinished'));
     const refused = el('div', { class: 'start-refusal screen-block' }, ...(unfinished ? [notice] : []));
     const clearNotice = () => notice.remove();
-    root.addEventListener('pointerdown', clearNotice, true);
+    root.addEventListener('click', clearNotice, true);
     root.addEventListener('keydown', clearNotice, true);
     const importFile = async () => {
       const result = await pickImport(importSave);

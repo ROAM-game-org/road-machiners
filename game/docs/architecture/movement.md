@@ -96,6 +96,7 @@ Every truck that `followsTraffic()` in `src/sim/ai.ts` obeys these rules on a ro
 ## Route planning and caches
 
 - Route grids are built per 32-tile cell, the first time a search reads that cell. `src/sim/nav/cells.ts` owns the cells.
+- A layer's blocked, breakable mark, slow and coarse region grids, the search scratch and the ground surface caches are `CellPages` from `src/sim/cell-pages.ts`: one typed array page per 32-tile cell, made on first write. An unwritten page reads its blank value. The search scratch drops its pages once it holds more than the warm window, `(2 * WARM_RING + 1)²` pages. Hot loops take a page with `pageOf()` and index it with `offsetOf()`. A coarse block always lies inside one page. The route ground in `terrainEntry()` is still whole-map.
 - A cell holds its blocked cells, breakable marks and coarse regions: the connected parts of each 8 by 8 block of half-tile cells, linked where they touch.
 - A piece is the connected part of a cell. A crossing joins two pieces of neighbouring cells at their cheapest touching regions. Each piece keeps the cost between each pair of its crossings.
 - Pieces, crossings and their costs for every chassis radius come baked in `public/maps/icarus.routes.bin`, from `npm run routes:bake`. The file stores a key per cell from its ground and solid props. A layer rebuilds only the cells whose key differs, such as the Hollow or another kit's props. A map with no baked file, like Chaos Highway, builds every cell when the layer is made.

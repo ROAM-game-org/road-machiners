@@ -5,12 +5,14 @@ import { launchChromium } from './gpu.mjs';
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/boot-memory.mjs <url> [runs] [width] [height] [menuWaitMs]');
 const runs = Number(process.argv[3] ?? 3);
-const width = Number(process.argv[4] ?? 390);
-const height = Number(process.argv[5] ?? 669);
+const width = Number(process.argv[4] ?? 750);
+const height = Number(process.argv[5] ?? 262);
 const MENU_WAIT_MS = Number(process.argv[6] ?? process.env.BOOT_MEMORY_MENU_WAIT_MS ?? 20000);
 const BUDGET = JSON.parse(readFileSync(new URL('./boot-memory-budget.json', import.meta.url), 'utf8'));
 const RUN_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? BUDGET.runMb);
 const ENGINES = (process.env.BOOT_MEMORY_ENGINES ?? 'webkit,chromium').split(',').filter((engine) => engine in PROCESS_NAMES);
+const CHROMIUM_BUDGET_MB = Number(process.env.BOOT_MEMORY_CHROMIUM_MB ?? 2000);
+const PHONE_MAX_SHORT_SIDE = 600;
 const TURNS = 3;
 const IDLE_S = Number(process.env.BOOT_MEMORY_IDLE_S ?? 60);
 const SAMPLE_MS = 200;
@@ -61,9 +63,14 @@ async function playTurns(page) {
   }
 }
 
+function screenOf(viewWidth, viewHeight) {
+  if (Math.min(viewWidth, viewHeight) > PHONE_MAX_SHORT_SIDE) return { deviceScaleFactor: 1, isMobile: false, hasTouch: false };
+  return { deviceScaleFactor: 3, isMobile: true, hasTouch: true };
+}
+
 async function oneRun(engine) {
   const { browser } = await launch(engine);
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ viewport: { width, height }, ...screenOf(width, height) });
   const page = await context.newPage();
   let loads = 0;
   page.on('load', () => loads++);
@@ -166,6 +173,7 @@ for (const engine of ENGINES) {
     if (bootPeak > BUDGET.bootMb) problems.push(`webkit median boot peak ${bootPeak} MB is over the ${BUDGET.bootMb} MB budget`);
     if (peak > RUN_BUDGET_MB) problems.push(`webkit median run peak ${peak} MB is over the ${RUN_BUDGET_MB} MB budget`);
   }
+  if (engine === 'chromium' && peak > CHROMIUM_BUDGET_MB) problems.push(`chromium median peak ${peak} MB is over the ${CHROMIUM_BUDGET_MB} MB budget`);
 }
 
 if (problems.length > 0) {
