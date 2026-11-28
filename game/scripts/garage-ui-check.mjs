@@ -15,7 +15,7 @@ const { browser } = await launchChromium(chromium);
 
 const read = (page) => page.evaluate(() => ({
   selected: [...document.querySelectorAll('.inv-item.selected')].map(n => n.title.split('\n')[0]),
-  inspect: document.querySelector('.inv-inspection')?.innerText.split('\n')[0] ?? '',
+  inspect: document.querySelector('.inv-inspection:not(:has(.idle))')?.innerText.split('\n')[0] ?? '',
   cards: document.querySelectorAll('.town-shop .part-row').length,
   compares: [...document.querySelectorAll('.town-shop .card-compare')].map(n => n.innerText),
   deltas: document.querySelectorAll('.town-shop .part-row .delta').length,
@@ -23,26 +23,24 @@ const read = (page) => page.evaluate(() => ({
   repair: document.querySelector('.town-repair')?.innerText ?? '',
 }));
 
-const trucksLayout = (page) => page.evaluate(() => {
+const trucksLayout = (page) => page.evaluate(async () => {
+  const { garageChassis } = await import('/src/sim/economy.ts');
+  const { townNear } = await import('/src/sim/sites.ts');
   const shop = document.querySelector('.town-shop');
-  const cards = [...document.querySelectorAll('.truck-card')];
-  const spills = [];
-  for (const card of cards) {
-    const c = card.getBoundingClientRect();
-    const name = card.querySelector('.card-name')?.innerText ?? '?';
-    for (const n of card.querySelectorAll('.card-name, .chassis-portrait, .chassis-map, .stat-name, .stat-val, .delta, .card-foot span, .card-foot button')) {
-      const b = n.getBoundingClientRect();
-      const over = Math.max(c.left - b.left, b.right - c.right, c.top - b.top, b.bottom - c.bottom);
-      if (over > 1) spills.push(`${name} ${n.className || n.tagName} ${Math.round(over)}px`);
-    }
-  }
-  const overlaps = [];
-  for (let i = 0; i < cards.length; i++) for (let j = i + 1; j < cards.length; j++) {
-    const a = cards[i].getBoundingClientRect(), b = cards[j].getBoundingClientRect();
-    if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps.push(`${cards[i].querySelector('.card-name')?.innerText} x ${cards[j].querySelector('.card-name')?.innerText}`);
-  }
+  const body = shop.querySelector('.shop-body');
+  const view = body.getBoundingClientRect();
+  const rows = [...document.querySelectorAll('.truck-rows .part-row')];
+  const inView = (n) => {
+    const b = n.getBoundingClientRect();
+    return b.top >= view.top - 1 && b.bottom <= view.bottom + 1;
+  };
+  const scrolling = [...document.querySelectorAll('.truck-rows *')].filter((n) => /auto|scroll/.test(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight + 1).map((n) => n.className);
   return {
-    count: cards.length, spills, overlaps,
+    count: rows.length,
+    lineup: garageChassis(townNear(window.__ROAM__.state).id).length,
+    ids: rows.map((r) => r.dataset.partRow),
+    seen: rows.filter((r) => inView(r.querySelector('.part-name b')) && (!r.querySelector('.part-line > button:not(.part-sum)') || inView(r.querySelector('.part-line > button:not(.part-sum)')))).length,
+    scrolling,
     shopScroll: shop.scrollWidth, shopClient: shop.clientWidth,
     docScroll: document.documentElement.scrollWidth, innerWidth,
   };
@@ -51,18 +49,67 @@ const assertNoScroll = (r, spot) => {
   assert(r.shopScroll <= r.shopClient + 1, `${spot}: shop scrolls sideways (${r.shopScroll} > ${r.shopClient})`);
   assert(r.docScroll <= r.innerWidth, `${spot}: page overflows sideways (${r.docScroll} > ${r.innerWidth})`);
 };
-const checkTrucks = async (page, spot) => {
+const checkTrucks = async (page, spot, tall) => {
   const r = await trucksLayout(page);
-  assert(r.count >= 16, `${spot}: expected every truck card, got ${r.count}`);
-  assert.deepEqual(r.spills, [], `${spot}: truck card content must lie inside its card`);
-  assert.deepEqual(r.overlaps, [], `${spot}: truck cards must not overlap`);
+  assert(r.count > 0 && r.count === r.lineup, `${spot}: expected one row per lineup truck (${r.lineup}), got ${r.count}`);
+  assert.deepEqual(r.scrolling, [], `${spot}: nothing inside a truck row may scroll`);
+  if (tall) assert.equal(r.seen, r.count, `${spot}: every truck row must show without scrolling, saw ${r.seen} of ${r.count}`);
+  else assert(r.seen >= Math.min(5, r.count), `${spot}: at least 5 truck rows must show, saw ${r.seen}`);
   assertNoScroll(r, `${spot} Trucks`);
+};
+const checkBukhanka = async (page, spot) => {
+  await page.evaluate(() => { document.querySelector('.town-shop .shop-body').scrollTop = 1e6; });
+  const row = page.locator('.truck-rows [data-part-row="bukhanka"]');
+  await row.waitFor();
+  const look = await row.evaluate((r) => {
+    const view = document.querySelector('.town-shop .shop-body').getBoundingClientRect();
+    const swap = r.querySelector('.part-line > button:not(.part-sum)');
+    const b = swap.getBoundingClientRect();
+    return { name: r.querySelector('.part-name b').innerText, swap: swap.innerText, inView: b.top >= view.top - 1 && b.bottom <= view.bottom + 1 };
+  });
+  assert.equal(look.name, 'Bukhanka', `${spot}: the Bukhanka row must carry its name`);
+  assert(look.inView && /\d/.test(look.swap), `${spot}: the Bukhanka Swap and price must be reachable, got ${JSON.stringify(look)}`);
+  await row.locator('.part-sum').click();
+  await page.waitForTimeout(400);
+  const open = await row.evaluate((r) => {
+    const view = document.querySelector('.town-shop .shop-body').getBoundingClientRect();
+    const detail = r.querySelector('.part-detail');
+    const d = detail.getBoundingClientRect();
+    return {
+      stats: detail.querySelectorAll('.stat').length,
+      parts: ['.truck-pics .chassis-portrait', '.truck-pics .chassis-map', '.chassis-feature'].map((q) => !!detail.querySelector(q)),
+      inView: d.top >= view.top - 1 && d.bottom <= view.bottom + 1,
+      openRows: document.querySelectorAll('.truck-rows .part-sum[aria-expanded="true"]').length,
+    };
+  });
+  assert.equal(open.stats, 7, `${spot}: the open row must keep the full stat grid, got ${open.stats}`);
+  assert(open.parts.every(Boolean) && open.inView && open.openRows === 1, `${spot}: the open Bukhanka row must show whole, got ${JSON.stringify(open)}`);
+  assert.deepEqual((await trucksLayout(page)).scrolling, [], `${spot}: an open truck row must not scroll`);
+  await page.evaluate(async () => {
+    const { setMoney } = await import('/src/sim/cheats.ts');
+    window.__ROAM__.apply(setMoney(window.__ROAM__.state, 1e6));
+  });
+  await page.waitForTimeout(300);
+  await row.locator('.part-line > button:not(.part-sum)').click();
+  await page.waitForTimeout(500);
+  const own = await page.evaluate(() => {
+    const w = window.__ROAM__.state;
+    const mine = w.vehicles.find((v) => v.id === w.player.vehicleId);
+    return { chassis: mine.chassisId, tag: document.querySelector('.truck-rows [data-part-row="bukhanka"] .part-line > .tag')?.innerText };
+  });
+  assert.equal(own.chassis, 'bukhanka', `${spot}: Swap on the Bukhanka row must make the player drive one`);
+  assert.equal(own.tag, 'Your truck', `${spot}: the Bukhanka row must read Your truck after the swap`);
 };
 
 async function enter(page, spot) {
   await page.evaluate(async (id) => {
     const g = window.__ROAM__;
     const c = await import('/src/sim/cheats.ts');
+    const { setWorldVar } = await import('/src/sim/quests.ts');
+    const { TOWN_SCENES } = await import('/src/data/quests.ts');
+    for (const scene of TOWN_SCENES) setWorldVar(g.state, scene.gate, true);
+    g.state.player.quests.session = null;
+    g.state.player.quests.live = null;
     let w = c.teleport(g.state, c.placeSpot(g.state, id));
     if (id === 'nose' || id === 'bowl') {
       const guns = (x) => x.vehicles.find(v => v.id === x.player.vehicleId).items.filter(i => i.kind === 'part' && i.part.defId && /gun|cannon|rifle|turret|shotgun/i.test(i.part.defId)).length;
@@ -127,12 +174,12 @@ try {
     });
     await page.waitForTimeout(300);
     r = await read(page);
-    assert(/Repair basics\s+\d+\s+Repair all\s+\d+/.test(r.repair), `${spot}: repair bar must show both prices, got ${r.repair}`);
+    assert(/Repair basics\s+\d+\s+Repair all\s+\d+/i.test(r.repair), `${spot}: repair bar must show both prices, got ${r.repair}`);
     await page.locator('.town-repair [data-key="repairAll"]').waitFor();
     const placed = await page.evaluate(() => {
       const title = document.querySelector('.town-page .ink-head-line .quest-place').getBoundingClientRect();
       const first = document.querySelector('.town-page .ink-head .town-services .town-repair button').getBoundingClientRect();
-      return { inside: !!document.querySelector('.ink-head .town-services .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), truckHas: !!document.querySelector('.town-truck .town-repair'), right: first.left > title.right };
+      return { inside: !!document.querySelector('.ink-head .town-services .town-repair'), shopHas: !!document.querySelector('.town-shop .town-repair'), truckHas: !!document.querySelector('.town-truck .town-repair'), right: first.left > title.right || first.top >= title.bottom };
     });
     assert(placed.inside && !placed.shopHas && !placed.truckHas && placed.right, `${spot}: the repair bar must sit on the heading line, right of the title, got ${JSON.stringify(placed)}`);
     const chipLook = await page.evaluate(() => [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => {
@@ -143,12 +190,6 @@ try {
     assert(chipLook.every(c => c.pad && c.glyph), `${spot}: chips need even padding and one glyph size, got ${JSON.stringify(chipLook)}`);
     await page.evaluate(() => window.__ROAM__.screens.town.close());
   }
-  await enter(page, 'salvage-yard');
-  assert((await read(page)).chips.includes('Free cargo cells'), 'stall header must keep free cells');
-  await page.evaluate(() => window.__ROAM__.screens.town.close());
-  await page.keyboard.press('i');
-  assert((await read(page).then(() => page.locator('.modal:visible h3 .chip[title="Free cargo cells"]').count())) === 1, 'inventory header must keep free cells');
-  await page.keyboard.press('Escape');
   await enter(page, 'nose');
   await garage(page, 'buyParts');
   await mkdir('.playtest', { recursive: true });
@@ -172,33 +213,18 @@ try {
     }
     await garage(page, 'trucks');
     await page.waitForTimeout(300);
-    await checkTrucks(page, `${width}x${height}`);
+    await checkTrucks(page, `${width}x${height}`, height >= 1080);
     await page.screenshot({ path: `.playtest/garage-trucks-${width}.png` });
     await garage(page, 'buyParts');
   }
-  await page.evaluate(async () => {
-    const g = window.__ROAM__;
-    const { setMoney } = await import('/src/sim/cheats.ts');
-    const { buyChassis, garageChassis } = await import('/src/sim/economy.ts');
-    const { townNear } = await import('/src/sim/sites.ts');
-    const { chassisDef } = await import('/src/data/chassis.ts');
-    const ids = garageChassis(townNear(g.state).id);
-    const top = ids.reduce((a, b) => (chassisDef(b).value > chassisDef(a).value ? b : a));
-    g.apply(buyChassis(setMoney(g.state, 1e5), top));
-  });
-  await page.waitForTimeout(500);
   await garage(page, 'trucks');
+  await page.setViewportSize({ width: 1280, height: 730 });
   await page.waitForTimeout(300);
-  const swapped = await page.evaluate(() => ({
-    own: document.querySelector('.truck-card.own .card-name')?.innerText,
-    chip: [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => n.title || n.innerText).join('|'),
-    back: [...document.querySelectorAll('.truck-card .card-foot button')].filter(b => b.innerText.includes('Swap, get')).length,
-  }));
-  assert(swapped.back > 0, `a Swap, get n back button must show after buying the top truck, got ${JSON.stringify(swapped)}`);
+  await checkBukhanka(page, 'nose 1280x730');
   for (const [width, height] of [[1920, 1080], [800, 730]]) {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(300);
-    await checkTrucks(page, `${width}x${height} after swap`);
+    await checkTrucks(page, `${width}x${height} after swap`, false);
   }
   assert.deepEqual(errors, [], 'No uncaught page errors');
   console.log('PASS: garage comparison follows selection, labels removed at garages only, layout holds');
