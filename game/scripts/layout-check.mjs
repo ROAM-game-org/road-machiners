@@ -1218,7 +1218,7 @@ const closeOutpost = async (page) => {
 
 const OUTPOST_STATES = Object.fromEntries(
   ['market', 'buyParts', 'sellParts', 'trucks', 'paint'].flatMap((tab) =>
-    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: nestedScrollFaults }]),
+    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: async (page) => [...await nestedScrollFaults(page), ...await (await import('./layout-store.mjs')).storeScreenFaults(page)] }]),
   ),
 );
 

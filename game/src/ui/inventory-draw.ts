@@ -22,7 +22,7 @@ const CARGO_BESIDE_GAP_PX = 20;
 const CELL_PX = 42;
 const MIN_CLICK_CELL_PX = 24;
 const STACKED_MIN_CELL_PX = 28;
-const BESIDE_KEEPS_TRUCK = 0.85;
+const BESIDE_MIN_TRUCK_PX = 64;
 
 export type PixelRect = { left: number; top: number; width: number; height: number };
 
@@ -146,11 +146,11 @@ export function chooseLayout(rooms: readonly FitRoom[], truck: TruckMeters): Gri
 }
 
 export function chooseHosted(rooms: readonly FitRoom[], truck: TruckMeters): GridLayout {
-  const tries = rooms.map((room) => ({ ...layoutIn(room, truck), ...(room.store ? { store: room.store } : {}) }));
-  const stacked = tries.find((t) => t.store === "stacked");
-  const beside = tries.find((t) => t.store === "beside");
+  const stacked = rooms.find((room) => room.store === "stacked");
+  const beside = rooms.find((room) => room.store === "beside");
   if (!stacked || !beside) return chooseLayout(rooms, truck);
-  return beside.pxPerMeter >= stacked.pxPerMeter * BESIDE_KEEPS_TRUCK ? beside : stacked;
+  const room = beside.width >= BESIDE_MIN_TRUCK_PX ? beside : stacked;
+  return { ...layoutIn(room, truck), store: room.store };
 }
 
 export function stackedLayout(height: number, truck: TruckMeters): GridLayout {
@@ -286,12 +286,8 @@ export function hostedRooms(box: HTMLElement, root: HTMLElement, height: number)
   if (uiRoot().classList.contains("tight")) return [{ columns: 1, width: bandedWidth(root), height, store: "stacked" }];
   split.dataset.store = "stacked";
   const stacked = bandedWidth(root);
-  const shop = split.querySelector(".town-shop");
-  const shopFloor = pxOf(shop ? getComputedStyle(shop).getPropertyValue("--panel-xl") : undefined);
-  const slack = widthOf(split) - pxOf(getComputedStyle(split).columnGap) - shopFloor - widthOf(column);
-  const wrap = root.querySelector(".inv-wrap");
-  const sideColumn = widthOf(root.querySelector(".inv-side")) + (wrap ? pxOf(getComputedStyle(wrap).columnGap) : 0);
-  const beside = stacked + Math.min(0, slack - sideColumn);
+  split.dataset.store = "beside";
+  const beside = bandedWidth(root);
   return [
     { columns: 1, width: beside, height, store: "beside" },
     { columns: 1, width: stacked, height, store: "stacked" },

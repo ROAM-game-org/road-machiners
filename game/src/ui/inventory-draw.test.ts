@@ -457,18 +457,20 @@ describe("the choice of a place for garage storage", () => {
   const scout = { width: 3, truckHeight: 10, spareHeight: 0, col: 1 };
   const place = (store: "beside" | "stacked", width: number): FitRoom => ({ columns: 1, width, height: 600, store });
 
-  it("puts storage beside the card when the truck keeps most of its cell", () => {
-    expect(chooseHosted([place("beside", 280), place("stacked", 300)], scout).store).toBe("beside");
+  it("puts storage beside the card while the truck column keeps room for a truck", () => {
+    expect(chooseHosted([place("beside", 70), place("stacked", 300)], scout).store).toBe("beside");
   });
 
-  it("puts storage under the card when beside would take a large share of the truck's cell", () => {
-    const layout = chooseHosted([place("beside", 90), place("stacked", 300)], scout);
+  it("puts storage under the card when beside leaves the truck column too narrow", () => {
+    const layout = chooseHosted([place("beside", 40), place("stacked", 300)], scout);
     expect(layout.store).toBe("stacked");
     expect(layout.pxPerMeter).toBe(42);
   });
 
-  it("takes beside on a tie, since a height-bound truck loses nothing", () => {
-    expect(chooseHosted([place("beside", 5000), place("stacked", 5000)], scout).store).toBe("beside");
+  it("makes the same choice for a tall truck and a short one", () => {
+    const hauler = { width: 3, truckHeight: 40, spareHeight: 0, col: 1 };
+    const rooms = [place("beside", 70), place("stacked", 300)];
+    expect(chooseHosted(rooms, hauler).store).toBe(chooseHosted(rooms, scout).store);
   });
 
   it("falls back to the column rule for a single room", () => {

@@ -1015,7 +1015,8 @@
   row-gap: var(--space-4);
 }
 .town-split.banded[data-store="beside"] {
-  --town-truck-w: min(calc(2 * var(--inv-side-width) + 3 * var(--space-9) + 300px), calc(100% - var(--panel-xl) - var(--space-9)));
+  --inv-side-width: var(--inv-side-beside);
+  --town-truck-w: min(calc(2 * var(--inv-side-width) + 3 * var(--space-9) + 300px), calc(100% - var(--panel-xl) - 2 * var(--space-9)));
 }
 .town-split.banded[data-store="beside"] .inv-wrap:has(> .inv-store) {
   grid-template-columns: minmax(0, 1fr) var(--inv-side-width) var(--inv-side-width);
