@@ -56,6 +56,7 @@ import {
   itemName,
   idleActions, splitActions,
   chooseLayout,
+  chooseHosted,
   hostedRooms,
   type FitRoom,
   type StorePlace,
@@ -188,6 +189,7 @@ export class InventoryView {
   fitTo(box: HTMLElement): void {
     const key = this.fitKeyOf(box);
     if (this.scale.holds(key)) {
+      this.markStore(box, this.scale.storePlace);
       this.render();
       return;
     }
@@ -205,7 +207,7 @@ export class InventoryView {
     const me = gridOf(this.shown(w));
     const layer = uiSize().layerSize();
     const room = this.head ? `${layer.width}x${layer.height}` : `${box.offsetHeight}`;
-    return [this.mine(w).id, me.w, me.h, this.shown(w).chassisId, this.truck ?? "", this.looking, this.loot ?? "", uiSize().toLayer(1), layer.width, room, this.head ? "bench" : "hosted"].join("|");
+    return [this.mine(w).id, me.w, me.h, this.shown(w).chassisId, this.truck ?? "", this.looking, this.loot ?? "", uiSize().toLayer(1), layer.width, room, this.head ? "bench" : "hosted", this.hasStore(w) ? "store" : ""].join("|");
   }
 
   private fitHosted(box: HTMLElement, key: string): void {
@@ -213,9 +215,9 @@ export class InventoryView {
     const truck = truckMeters(me.chassisId, gridOf(me));
     const height = bandedHeight(box, this.root) ?? gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
     const narrow = uiRoot().classList.contains("narrow");
-    const layout = narrow ? stackedLayout(height, truck) : chooseLayout(this.hostedRooms(box, height), truck);
-    this.markStore(box, layout.store);
+    const layout = narrow ? stackedLayout(height, truck) : chooseHosted(this.hostedRooms(box, height), truck);
     this.scale.apply(key, layout, null);
+    this.markStore(box, layout.store);
     this.render();
   }
 
@@ -561,8 +563,12 @@ export class InventoryView {
     return this.loot ? [this.lootEl(w, this.loot)] : this.storeList(w);
   }
 
+  private hasStore(w: World): boolean {
+    return !this.instant && atGarage(w, this.gridTruck ?? undefined);
+  }
+
   private storeList(w: World): HTMLElement[] {
-    if (this.instant || !atGarage(w, this.gridTruck ?? undefined)) return [];
+    if (!this.hasStore(w)) return [];
     const shopId = this.storeShop(w);
     return shopId ? [this.storageEl(w), this.cratesEl(w, shopId)] : [this.storageEl(w)];
   }

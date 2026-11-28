@@ -22,6 +22,7 @@ const CARGO_BESIDE_GAP_PX = 20;
 const CELL_PX = 42;
 const MIN_CLICK_CELL_PX = 24;
 const STACKED_MIN_CELL_PX = 28;
+const BESIDE_KEEPS_TRUCK = 0.85;
 
 export type PixelRect = { left: number; top: number; width: number; height: number };
 
@@ -144,6 +145,14 @@ export function chooseLayout(rooms: readonly FitRoom[], truck: TruckMeters): Gri
   return first ?? tries.reduce((best, t) => (t.pxPerMeter > best.pxPerMeter ? t : best));
 }
 
+export function chooseHosted(rooms: readonly FitRoom[], truck: TruckMeters): GridLayout {
+  const tries = rooms.map((room) => ({ ...layoutIn(room, truck), ...(room.store ? { store: room.store } : {}) }));
+  const stacked = tries.find((t) => t.store === "stacked");
+  const beside = tries.find((t) => t.store === "beside");
+  if (!stacked || !beside) return chooseLayout(rooms, truck);
+  return beside.pxPerMeter >= stacked.pxPerMeter * BESIDE_KEEPS_TRUCK ? beside : stacked;
+}
+
 export function stackedLayout(height: number, truck: TruckMeters): GridLayout {
   const gap = truck.spareHeight > 0 ? SPARE_GAP_CELLS * truck.col : 0;
   const fits = height / (truck.truckHeight + gap + truck.spareHeight);
@@ -177,6 +186,10 @@ export class GridScale {
 
   get columns(): number {
     return this.layout?.columns ?? 3;
+  }
+
+  get storePlace(): StorePlace | undefined {
+    return this.layout?.store;
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {

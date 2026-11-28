@@ -19,7 +19,7 @@
   align-items: center;
   gap: var(--space-9);
 }
-:where(#ui.narrow) .inv-side {
+:where(#ui.narrow) :is(.inv-side, .inv-store) {
   width: 100%;
 }
 :where(#ui.narrow) .town-split {
