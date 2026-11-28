@@ -14,7 +14,7 @@ import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotabl
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import { contractDue, dockSummary, heldContractClock, timeSpanText, clock, workLabel, contractSummary, offerSummary, searchTarget, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, standingNum, standingStep, formatNpcCargo } from "./format";
 import { wearLabel, conditionTier, conditionStatus, showsCondition } from "./cards";
 import type { ClaimContract } from "../sim/salvage";
 import { bakedTier } from "../sim/claim-clue";
@@ -172,6 +172,12 @@ describe("contract text", () => {
 
     it("names who gets the parcel and where to claim", () => {
       expect(en(contractSummary(search))).toBe("Bring a parcel to Trader Jed Cobb, claim at Bowl");
+    });
+
+    it("names only who gets the parcel on an offer, in both languages", () => {
+      expect(en(offerSummary(search))).toBe("Bring a parcel to Trader Jed Cobb");
+      expect(resolve(offerSummary(search), "ru")).toBe(resolve(t("contract.searchOffer", { who: searchTarget(search) }), "ru"));
+      expect(resolve(offerSummary(search), "ru")).not.toMatch(/Боул|Bowl/);
     });
 
     it("reads a delivered search as ready to claim", () => {

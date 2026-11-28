@@ -9,7 +9,7 @@ import { toldWrecks } from '../sim/rumors';
 import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
-import { gridSquareText, postedSummary } from './format';
+import { gridSquareText, offerSummary } from './format';
 import { directionsSteps } from './directions-text';
 import { createIcon } from './cards';
 import { surveyPictureEl } from './picture-store';
@@ -218,7 +218,7 @@ function pastEntry({ record, day }: PastEntry): HTMLElement {
     'div',
     { class: 'job' },
     contractIcon(c.kind),
-    el('div', { class: 'job-what' }, el('span', {}, postedSummary(c)), el('span', { class: 'dim' }, t('journal.entryHead', { day, from: siteName(c.shop) }))),
+    el('div', { class: 'job-what' }, el('span', {}, offerSummary(c)), el('span', { class: 'dim' }, t('journal.entryHead', { day, from: siteName(c.shop) }))),
     el('span', { class: `tag ${OUTCOME_TONE[record.outcome]}` }, t(`journal.past.${record.outcome}`)),
     pastMoney(record),
   );

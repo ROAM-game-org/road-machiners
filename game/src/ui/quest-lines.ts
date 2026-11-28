@@ -8,7 +8,7 @@ import { t, verbatim } from '../text/msg';
 import { skillName } from '../text/names';
 import { el } from './dom';
 import { pictureUrl } from './picture-store';
-import { contractSummary, contractWindow } from './format';
+import { contractWindow, offerSummary } from './format';
 import { lineStyle, renderLine, rowCells, type LineStyle, type Reveal } from './quest-text';
 import { moneyMsg } from './units';
 
@@ -92,7 +92,7 @@ function drawLine(nodes: HTMLElement[], w: World, line: QuestLine, atMs: number,
 function offerCard(w: World, atMs: number): HTMLElement {
   const offer = townWork(w);
   if (!offer) throw new Error('A work offer line showed with no work on the board');
-  return el('div', { class: 'talk-offer qt-unit', style: `animation-delay: ${atMs}ms` }, t('quest.offer', { summary: contractSummary(offer), pay: moneyMsg(offer.reward), window: contractWindow(offer) }));
+  return el('div', { class: 'talk-offer qt-unit', style: `animation-delay: ${atMs}ms` }, t('quest.offer', { summary: offerSummary(offer), pay: moneyMsg(offer.reward), window: contractWindow(offer) }));
 }
 
 export function choiceButtons(w: World, view: QuestView, pick: (index: number) => void, onScreen = false): HTMLElement[] {

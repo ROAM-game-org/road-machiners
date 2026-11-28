@@ -318,6 +318,7 @@ export const LOG: Translation<typeof EN> = {
   'claim.piece.guardHut': noun('f', 'сторожевая будка', 'сторожевой будки', 'сторожевой будке', 'сторожевую будку', 'сторожевой будкой', 'сторожевой будке'),
   'contract.rivalOut': '{driver, case, nom} тоже ищет эту деталь',
   'contract.search': 'Доставить посылку {who, case, dat}, награда {site, case, at}',
+  'contract.searchOffer': 'Доставить посылку {who, case, dat}',
   'contract.searchMet': 'Посылка доставлена {who, case, dat}, награда {site, case, at}',
   'contract.survey': 'Разведка: {places}',
   'contract.surveyMet': 'Разведка завершена, сдайте отчет {site, case, at}',
