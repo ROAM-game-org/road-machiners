@@ -78,6 +78,7 @@ export const LINE_IDS = [
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
   'nothingButTheFight', 'youCalledSayItFast', 'shotsFlyingWhatNeed', 'lookStuckWhatNow', 'thatWasSomeShooting', 'marshalStopAndListen', 'shootingOnMyRoad', 'stalledOutThere', 'heardTheShooting', 'shotsOnYourSide', 'youLookStuckNeedPull', 'youAlrightSawShooting', 'makeItQuickImShooting', 'boldCallingMeTalk', 'busyMakeItCount', 'stuckAreYou', 'shootingsOverTalk', 'shootingOutHereStateNeed', 'stillBreathingTalkFast', 'paidToShootYouTalk',
+  'escortedGoAhead', 'onYourRopeGoAhead', 'guardListening',
   'silent', ...SUNWARD_LINES, ...MARSHAL_LINES, ...TREE_LINES, ...MOMENT_LINES,
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
