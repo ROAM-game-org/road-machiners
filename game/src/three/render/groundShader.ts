@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundLooks, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type MarkKind, type PaintCanvas } from "../../render/groundPaint";
+import { EDGE_LOOKS, GROUND_MATERIAL_IDS, groundLooks, groundMaterial, MARK_KINDS, ROAD_PLAIN, ROAD_SAND, TERRAIN_MARGIN, type LookType, type PaintCanvas } from "../../render/groundPaint";
 import { CENTER_GAP, HALF as WEAR_HALF, LINE_HALF, WEAR_NEUTRAL } from "../../render/highwayWear";
 import { mix, PAL } from "../../render/palette";
 import { DRAWN_ROAD_HALF, TRACK_FIELD_REACH } from "../../render/roadPaint";
@@ -10,12 +10,12 @@ import type { Terrain } from "../../sim/terrain";
 import { TOWARD_CAMERA } from "./camera";
 import { BLOCK_COUNT_SHIFT, BLOCK_SIDE, BLOCK_SLOTS, groundFieldPieces, TILE_LAYER } from "./groundFields";
 import { CREST_GLSL, landPieces, type CrestUniforms, type Land } from "./groundCrest";
-import { holdGroundDetail } from "./groundDetail";
 import { LANDFORM_GLSL, type LandformUniforms } from "./groundLandform";
 import { INK_CONTRACT } from "./inkPaint";
 import { injectAfter } from "./shaderPatch";
 import { placeInWorld } from "./worldPlace";
 import { TUNING } from "./inkTuning";
+import { DRAWN_EDGE_SAMPLES, DRAWN_PEBBLE_CELL, DRAWN_PEBBLE_EDGE_SHARE, DRAWN_PEPPER_SPREAD, DRAWN_STONE_CELL, DRAWN_STONE_EDGE_SHARE, DRAWN_TUFT_CELL, DRAWN_TUFT_EDGE_SHARE, holdGroundDetail, MARK_SAMPLES_GLSL, markIndex } from "./groundDetail";
 
 const S = PHYSICS.metersPerTile;
 const OWNER = "drawn-ground";
@@ -58,7 +58,6 @@ const ROUND_NEAR_TILES = 1;
 const ROUND_FAR_TILES = 2;
 const ROUND_REACH_TILES = 1;
 const BLOCK_FULL = (1 << (BLOCK_SIDE * BLOCK_SIDE)) - 1;
-const DRAWN_PEPPER_SPREAD = 3;
 const DRAWN_BROAD_MIX = 0.12;
 const DRAWN_PATCH_MIX = 0.05;
 const DRAWN_PATCH_TILES = 24;
@@ -90,10 +89,9 @@ const DRAWN_SHORE_WIDTH = 0.04;
 const DRAWN_CLUMP_SIZE = 3.5;
 const DRAWN_INK_WIDTH = 0.04;
 const DRAWN_TICK_WIDTH = 0.02;
-const DRAWN_TUFT_CELL = 0.5;
+const DRAWN_ROUND_STEPS = 4;
 const DRAWN_TUFT_CLUMP = 1.3;
 const DRAWN_TUFT_SHARE = 0.6;
-const DRAWN_TUFT_EDGE_SHARE = 1;
 const DRAWN_TUFT_EDGE_REACH = 3.5;
 const DRAWN_STAND_OVERHANG = 1;
 const DRAWN_ROAD_VERGE = 0.9;
@@ -102,14 +100,10 @@ const DRAWN_BLADE_WIDE = 0.12;
 const DRAWN_BLADE_TALL = 0.45;
 const DRAWN_GRIT_SIZE = 0.35;
 const DRAWN_GRIT_METERS = 0.7;
-const DRAWN_PEBBLE_CELL = 0.8;
 const DRAWN_PEBBLE_SHARE = 0.35;
-const DRAWN_PEBBLE_EDGE_SHARE = 0.8;
 const DRAWN_PEBBLE_TOP = 0.25;
 const DRAWN_PEBBLE_INK = 0.6;
-const DRAWN_STONE_CELL = 1.8;
 const DRAWN_STONE_SHARE = 0.12;
-const DRAWN_STONE_EDGE_SHARE = 0.3;
 const DRAWN_CRACK_CELL = 1.8;
 const DRAWN_CRACK_FINE_CELL = 0.9;
 const DRAWN_PUDDLE_SIZE = 2.2;
@@ -181,7 +175,7 @@ export function* drawnGroundPieces(newMask: () => PaintCanvas, t: Terrain, shelt
   const land = yield* landPieces(t, S);
   const worn = fields.highwayWear !== undefined;
   return {
-    uniforms: { ...fields, ...(landforms ? { groundLandforms: { value: landforms } } : {}), ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN } },
+    uniforms: { ...fields, ...(landforms ? { groundLandforms: { value: landforms } } : {}), ...lookUniforms(), ...materialUniforms(), ...(worn ? wearLook() : {}), drawnDetailPx: { value: Number.NaN }, drawnEdgeSamples: { value: DRAWN_EDGE_SAMPLES }, drawnRoundSteps: { value: DRAWN_ROUND_STEPS } },
     land,
     header: `#define PAD_COUNT ${fields.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${landforms ? "#define GROUND_LANDFORMS\n" : ""}${GROUND_DECLARATIONS}`,
     key: `|roads${worn ? "|wear" : ""}${landforms ? "|landforms" : ""}`, tilesFilled,
@@ -303,10 +297,6 @@ function materialId(id: LookType): number {
   return at;
 }
 
-function markIndex(mark: MarkKind): number {
-  return MARK_KINDS.indexOf(mark);
-}
-
 function pickMaterial(table: string): string {
   return `vec3(${table}[block.ids.x], ${table}[block.ids.y], ${table}[block.ids.z])`;
 }
@@ -381,6 +371,8 @@ uniform float drawnFarMarks;
 uniform float drawnEdgeShadowAmount;
 uniform float drawnEdgeShadowWidth;
 uniform float drawnDetailPx;
+uniform int drawnEdgeSamples;
+uniform int drawnRoundSteps;
 uniform vec3 drawnBroadTint;
 uniform vec3 drawnFarTint;
 uniform float drawnEdgeWobble;
@@ -446,6 +438,7 @@ float markHash(vec2 p) {
 
 const MATERIAL_BORDERS = `struct DrawnBorder { int lo; int hi; float toward; float wave; float pepper; float spill; vec3 spillColor; };
 struct DrawnBlock { ivec3 ids; ivec3 masks; };
+struct DrawnPair { int here; int there; float field; vec2 slope; };
 float drawnLuminance(float lightness) {
   float f = (lightness + 16.0) / 116.0;
   return f * f * f;
@@ -533,9 +526,12 @@ float drawnRoundedDistance(vec2 tile, int here, int there, float field, vec2 slo
   float share = min(drawnMaterialRound[here], drawnMaterialRound[there]);
   if (share <= 0.0) return narrow;
   vec2 along = vec2(-slope.y, slope.x) / speed;
-  float inner = drawnPairField(tile + along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_NEAR_TILES.toFixed(1)}, here, there);
-  float outer = drawnPairField(tile + along * ${ROUND_FAR_TILES.toFixed(1)}, here, there) + drawnPairField(tile - along * ${ROUND_FAR_TILES.toFixed(1)}, here, there);
-  float smoothed = (3.0 * field + 2.0 * inner + outer) / 9.0 / speed;
+  float around = 0.0;
+  for (int step = 0; step < drawnRoundSteps; step++) {
+    float reach = (step < 2 ? ${ROUND_NEAR_TILES.toFixed(1)} : ${ROUND_FAR_TILES.toFixed(1)}) * (step % 2 == 0 ? 1.0 : -1.0);
+    around += (step < 2 ? 2.0 : 1.0) * drawnPairField(tile + along * reach, here, there);
+  }
+  float smoothed = (3.0 * field + around) / 9.0 / speed;
   return narrow + share * clamp(smoothed - narrow, -${ROUND_REACH_TILES.toFixed(1)}, ${ROUND_REACH_TILES.toFixed(1)});
 }
 vec4 drawnEdgeTraitsOfTiles(vec2 tile) {
@@ -560,7 +556,7 @@ vec4 drawnEdgeTraits(vec2 tile) {
   vec3 shares = vec3(drawnMaskShare(block.masks.x, wx, wy), drawnMaskShare(block.masks.y, wx, wy), drawnMaskShare(block.masks.z, wx, wy));
   return vec4(dot(shares, ${pickMaterial("drawnMaterialWave")}), dot(shares, ${pickMaterial("drawnMaterialPepper")}), dot(shares, ${pickMaterial("drawnMaterialFine")}), dot(shares, ${pickMaterial("drawnMaterialGrit")}));
 }
-DrawnBorder drawnBorderOfTiles(vec2 tile) {
+DrawnBorder drawnBorderOfTiles(vec2 tile, out DrawnPair pair) {
   vec2 first = floor(tile - 0.5) - 1.0;
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
@@ -606,6 +602,7 @@ DrawnBorder drawnBorderOfTiles(vec2 tile) {
     here = top ? id : here;
     hereWeight = top ? total : hereWeight;
   }
+  pair = DrawnPair(here, there, 0.0, vec2(0.0));
   if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
   float field = 0.0;
   vec2 slope = vec2(0.0);
@@ -616,12 +613,10 @@ DrawnBorder drawnBorderOfTiles(vec2 tile) {
       field += side * wx[i] * wy[j];
       slope += side * vec2(sx[i] * wy[j], wx[i] * sy[j]);
     }
-  float dist = drawnRoundedDistance(tile, here, there, field, slope);
-  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+  pair = DrawnPair(here, there, field, slope);
+  return DrawnBorder(min(here, there), max(here, there), 0.0, wave, pepper, spill, spillColor);
 }
-DrawnBorder drawnBorderAt(vec2 tile) {
-  DrawnBlock block;
-  if (!drawnBlockAt(tile, block)) return drawnBorderOfTiles(tile);
+DrawnBorder drawnBorderOfBlock(vec2 tile, DrawnBlock block, out DrawnPair pair) {
   vec2 f = tile - 0.5 - floor(tile - 0.5);
   vec4 wx = drawnSplineWeights(f.x);
   vec4 wy = drawnSplineWeights(f.y);
@@ -650,9 +645,20 @@ DrawnBorder drawnBorderAt(vec2 tile) {
     here = top ? block.ids[slot] : here;
     hereSpread = top ? spread : hereSpread;
   }
+  pair = DrawnPair(here, there, hereSpread.x - thereSpread.x, hereSpread.yz - thereSpread.yz);
   if (there < 0) return DrawnBorder(here, here, ${DRAWN_FAR_TILES.toFixed(1)}, wave, pepper, spill, spillColor);
-  float dist = drawnRoundedDistance(tile, here, there, hereSpread.x - thereSpread.x, hereSpread.yz - thereSpread.yz);
-  return DrawnBorder(min(here, there), max(here, there), here < there ? dist : -dist, wave, pepper, spill, spillColor);
+  return DrawnBorder(min(here, there), max(here, there), 0.0, wave, pepper, spill, spillColor);
+}
+DrawnBorder drawnBorderAt(vec2 tile) {
+  DrawnBlock block;
+  DrawnPair pair;
+  DrawnBorder border;
+  if (drawnBlockAt(tile, block)) border = drawnBorderOfBlock(tile, block, pair);
+  else border = drawnBorderOfTiles(tile, pair);
+  if (pair.there < 0) return border;
+  float dist = drawnRoundedDistance(tile, pair.here, pair.there, pair.field, pair.slope);
+  border.toward = pair.here < pair.there ? dist : -dist;
+  return border;
 }
 float drawnStreakAt(vec2 at) {
   vec2 wind = vec2(dot(at, vec2(${DRAWN_WIND.x.toFixed(3)}, ${DRAWN_WIND.y.toFixed(3)})), dot(at, vec2(${(-DRAWN_WIND.y).toFixed(3)}, ${DRAWN_WIND.x.toFixed(3)})));
@@ -803,16 +809,7 @@ float drawnBlade(vec2 f, vec2 root, float lean, float bend, float tall) {
 vec2 drawnFromViewFrame(vec2 q) {
   return q.x * vec2(${(-TOWARD_CAMERA.y).toFixed(3)}, ${TOWARD_CAMERA.x.toFixed(3)}) + q.y * vec2(${TOWARD_CAMERA.x.toFixed(3)}, ${TOWARD_CAMERA.y.toFixed(3)});
 }
-int drawnMarkAt(vec2 at, out float edgeMeters) {
-  vec2 tile = at / facetSide;
-  vec4 rough = drawnEdgeTraits(tile);
-  vec2 warp = rough.x > 0.0 ? drawnWarpAt(rough.x, rough.z, at) : vec2(0.0);
-  DrawnBorder edge = drawnBorderAt((at + warp) / facetSide);
-  float toward = edge.toward + min(rough.y * 2.0, 1.0) * drawnPepperNoise(at, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)} + rough.w * drawnGritNoise(at, drawnDetailPx) / facetSide;
-  edgeMeters = abs(toward) * facetSide;
-  return int(drawnMaterialMark[toward > 0.0 ? edge.lo : edge.hi] + 0.5);
-}
-float drawnTufts(vec2 p, float px) {
+${MARK_SAMPLES_GLSL}float drawnTufts(vec2 p, float px, int mark, float edgeMeters) {
   vec2 q = drawnViewFrame(p) / ${DRAWN_TUFT_CELL.toFixed(2)};
   vec2 c = floor(q);
   vec2 f = q - c;
@@ -820,8 +817,7 @@ float drawnTufts(vec2 p, float px) {
   if (pick > ${DRAWN_TUFT_EDGE_SHARE.toFixed(2)}) return 0.0;
   vec2 root = vec2(0.3 + 0.4 * markHash(c + 43.0), 0.9);
   vec2 rootAt = drawnFromViewFrame((c + root) * ${DRAWN_TUFT_CELL.toFixed(2)});
-  float edgeMeters;
-  if (drawnMarkAt(rootAt, edgeMeters) !=${markIndex("tufts")}) return 0.0;
+  if (mark != ${markIndex("tufts")}) return 0.0;
   float clumps = smoothstep(0.5, 0.72, valueNoise(rootAt / ${DRAWN_TUFT_CLUMP.toFixed(1)} + 61.0));
   float edge = 1.0 - smoothstep(${(DRAWN_TUFT_EDGE_REACH / 4).toFixed(2)}, ${DRAWN_TUFT_EDGE_REACH.toFixed(2)}, edgeMeters);
   float share = max(clumps * ${DRAWN_TUFT_SHARE.toFixed(2)}, edge * ${DRAWN_TUFT_EDGE_SHARE.toFixed(2)});
@@ -830,15 +826,14 @@ float drawnTufts(vec2 p, float px) {
   if (markHash(c + 71.0) < share) near = min(near, drawnBlade(f, root + vec2(markHash(c + 73.0) < 0.5 ? -0.14 : 0.14, -0.04), (markHash(c + 79.0) - 0.5) * 0.3, (markHash(c + 83.0) - 0.5) * 1.0, mix(0.5, 0.75, markHash(c + 89.0))));
   return drawnLine(near * ${DRAWN_TUFT_CELL.toFixed(2)}, ${DRAWN_TICK_WIDTH.toFixed(3)}, px) * (1.0 - smoothstep(${(DRAWN_TUFT_CELL / 4).toFixed(3)}, ${(DRAWN_TUFT_CELL / 2).toFixed(3)}, drawnDetailPx));
 }
-float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, bool clumped, float px) {
+float drawnPebbles(vec2 p, float cell, float seed, float open, float gathered, bool clumped, float px, int mark, float edgeMeters) {
   vec2 q = drawnViewFrame(p) / cell;
   vec2 c = floor(q);
   float pick = markHash(c + seed);
   if (pick > gathered) return 0.0;
   vec2 center = 0.3 + 0.4 * vec2(markHash(c + seed + 3.1), markHash(c + seed + 5.3));
   vec2 centerAt = drawnFromViewFrame((c + center) * cell);
-  float edgeMeters;
-  if (drawnMarkAt(centerAt, edgeMeters) !=${markIndex("pebbles")}) return 0.0;
+  if (mark != ${markIndex("pebbles")}) return 0.0;
   float share = mix(open, gathered, drawnBorderNear(edgeMeters)) * (clumped ? drawnClumps(centerAt, 71.0) : 1.0);
   if (pick > share) return 0.0;
   vec2 d = q - c - center;
@@ -850,9 +845,9 @@ bool drawnStandsBy(DrawnBorder edge, int here, int mark, float overhang) {
   bool beside = int(drawnMaterialMark[edge.lo] + 0.5) == mark || int(drawnMaterialMark[edge.hi] + 0.5) == mark;
   return here == mark || (beside && overhang < ${DRAWN_STAND_OVERHANG.toFixed(1)});
 }
-float drawnGravel(vec2 p, float px) {
-  float small = drawnPebbles(p, ${DRAWN_PEBBLE_CELL.toFixed(2)}, 91.0, ${DRAWN_PEBBLE_SHARE.toFixed(2)}, ${DRAWN_PEBBLE_EDGE_SHARE.toFixed(2)}, true, px);
-  float big = drawnPebbles(p, ${DRAWN_STONE_CELL.toFixed(2)}, 99.0, ${DRAWN_STONE_SHARE.toFixed(2)}, ${DRAWN_STONE_EDGE_SHARE.toFixed(2)}, false, px);
+float drawnGravel(vec2 p, float px, ivec2 marks, vec2 edgeMeters) {
+  float small = drawnPebbles(p, ${DRAWN_PEBBLE_CELL.toFixed(2)}, 91.0, ${DRAWN_PEBBLE_SHARE.toFixed(2)}, ${DRAWN_PEBBLE_EDGE_SHARE.toFixed(2)}, true, px, marks.x, edgeMeters.x);
+  float big = drawnPebbles(p, ${DRAWN_STONE_CELL.toFixed(2)}, 99.0, ${DRAWN_STONE_SHARE.toFixed(2)}, ${DRAWN_STONE_EDGE_SHARE.toFixed(2)}, false, px, marks.y, edgeMeters.y);
   return max(small, big);
 }
 float drawnSeams(vec2 p, float px) {
@@ -872,10 +867,11 @@ const BORDER_BODY = `
   vec3 blurredGround = textureLod(map, vMapUv, 2.5).rgb;
   vec2 drawnTileAt = vWorldXZ / facetSide;
   float drawnTilePx = max(length(fwidth(vWorldXZ)), 0.0005) / facetSide;
-  vec4 drawnRough = drawnEdgeTraits(drawnTileAt);
-  vec2 drawnWarp = vec2(0.0);
-  if (drawnRough.x > 0.0) drawnWarp = drawnWarpAt(drawnRough.x, drawnRough.z, vWorldXZ);
-  DrawnBorder drawnEdge = drawnBorderAt((vWorldXZ + drawnWarp) / facetSide);
+  vec4 drawnRough;
+  DrawnBorder drawnEdge;
+  ivec3 drawnSampleMarks;
+  vec3 drawnSampleMeters;
+  drawnEdgeSamplesAt(vWorldXZ, drawnRough, drawnEdge, drawnSampleMarks, drawnSampleMeters);
   float drawnPeppered = min(drawnRough.y * 2.0, 1.0);
   float drawnPepperShift = 0.0;
   if (drawnPeppered > 0.0) drawnPepperShift = drawnPeppered * drawnPepperNoise(vWorldXZ, drawnDetailPx) * ${DRAWN_PEPPER_SPREAD.toFixed(1)};
@@ -1028,8 +1024,8 @@ const MARKS_BODY = `
   float drawnStandShow = drawnFlat * max(drawnOffRoad, drawnRoadVerge);
   float drawnOverhang = abs(drawnToward) * facetSide;
   float drawnStanding = 0.0;
-  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("tufts")}, drawnOverhang)) drawnStanding = drawnTufts(vWorldXZ, drawnPx) * drawnTuftInk;
-  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("pebbles")}, drawnOverhang)) drawnStanding = max(drawnStanding, drawnGravel(vWorldXZ, drawnPx) * ${DRAWN_PEBBLE_INK.toFixed(2)});
+  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("tufts")}, drawnOverhang)) drawnStanding = drawnTufts(vWorldXZ, drawnPx, drawnSampleMarks.x, drawnSampleMeters.x) * drawnTuftInk;
+  if (drawnStandShow > 0.0 && drawnStandsBy(drawnEdge, drawnMark, ${markIndex("pebbles")}, drawnOverhang)) drawnStanding = max(drawnStanding, drawnGravel(vWorldXZ, drawnPx, drawnSampleMarks.yz, drawnSampleMeters.yz) * ${DRAWN_PEBBLE_INK.toFixed(2)});
   diffuseColor.rgb *= 1.0 - ${DRAWN_MARK_DARK.toFixed(2)} * drawnStanding * drawnStandShow;
 `;
 
