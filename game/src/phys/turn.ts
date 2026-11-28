@@ -138,8 +138,9 @@ export type WarmRequest = { kind: 'warm'; world: Omit<TurnState, 'obstacles'>; o
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest | WarmRequest;
 export type WorkerFailure = { id: number; error: string };
 export type IdleFailure = { idleError: string };
+export type TerrainReady = { terrainReady: true };
 export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
-export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure;
+export type TurnResponse = { id: number; turn: PostedTurn; obstacles: ObstacleSync; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure | TerrainReady;
 
 export function postLabel(base: string, request: { terrain: unknown; obstacles: ObstacleSync }): string {
   const obstacles = request.obstacles.kind === 'same' ? '' : `-obstacles-${request.obstacles.kind}`;
@@ -149,7 +150,7 @@ export function postLabel(base: string, request: { terrain: unknown; obstacles: 
 export function joinTurn(turn: PostedTurn, obstacles: ObstacleSync, before: TurnState): PreparedTurn {
   return { ...turn, world: { ...turn.world, obstacles: applyObstacles(before.obstacles, obstacles) } };
 }
-export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure;
+export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat>; idle?: Record<string, PerfStat> } | WorkerFailure | IdleFailure | TerrainReady;
 
 function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain.heights);
@@ -254,6 +255,7 @@ export function startTurnWorker(): void {
       const unpacked = unpackTerrain(request.terrain);
       terrain = unpacked;
       timed('route-terrain', () => prepareRouteTerrain(unpacked));
+      self.postMessage({ terrainReady: true } satisfies TerrainReady);
       return;
     }
     if (request.kind === 'warm') {

@@ -10,7 +10,7 @@ import {
 } from "../phys/drive";
 import type { TurnClock } from "./render/hazards";
 import { fitsBody, frameAt, type VehicleFrame } from "../phys/frames";
-import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type IdleFailure, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, postLabel, SentObstacles,withTail, type LiveSight, type PreparedTurn, type Tail, type TerrainRequest, type IdleFailure, type TerrainReady, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { CONFIG, steppedSpeedIndex } from "../config";
 import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
@@ -338,8 +338,8 @@ export class Travel {
     return this.isPlaying(playback) || this.shouldAdvance(now);
   }
 
-  sendTerrain(terrain: World["terrain"]): void {
-    this.turns.sendTerrain(terrain);
+  sendTerrain(terrain: World["terrain"], onReady: () => void): void {
+    this.turns.sendTerrain(terrain, onReady);
   }
 
   warm(world: World, drive: DriveSnapshot): Promise<void> {
@@ -547,6 +547,10 @@ export function workerError(workerStack: string): Error {
   return error;
 }
 
+export function isTerrainReady(response: object): response is TerrainReady {
+  return "terrainReady" in response;
+}
+
 export function isIdleFailure(response: object): response is IdleFailure {
   return "idleError" in response;
 }
@@ -592,6 +596,7 @@ export class TurnPreparation {
   private serial = 0;
   private warmId = 0;
   private warmed: (() => void) | null = null;
+  private terrainReady: (() => void) | null = null;
   private pending: WantedTurn | null = null;
   private running: number | null = null;
   private lastRouteMs: number | null = null;
@@ -605,6 +610,7 @@ export class TurnPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
+      if (isTerrainReady(event.data)) return this.settleTerrain();
       if (isIdleFailure(event.data)) return noteIdleFailure(event.data);
       this.receive(event.data);
       this.finish(event.data.id);
@@ -620,7 +626,12 @@ export class TurnPreparation {
     return worker;
   }
 
-  private receive(response: Exclude<TurnResponse, IdleFailure>): void {
+  private settleTerrain(): void {
+    this.terrainReady?.();
+    this.terrainReady = null;
+  }
+
+  private receive(response: Exclude<TurnResponse, IdleFailure | TerrainReady>): void {
     this.load.loaded();
     if (response.id === this.warmId) this.settleWarm();
     if ("error" in response) return this.fail(response.id, response.error);
@@ -676,9 +687,10 @@ export class TurnPreparation {
     else reportError(workerError(message));
   }
 
-  sendTerrain(terrain: World["terrain"]): void {
+  sendTerrain(terrain: World["terrain"], onReady: () => void): void {
     if (this.load.gaveUp || this.load.waiting) return;
     this.worker ??= this.createWorker();
+    this.terrainReady = onReady;
     const packed = packTerrain(terrain);
     this.worker.postMessage({ kind: "terrain", terrain: packed } satisfies TerrainRequest, packedBuffers(packed));
     this.terrain = terrain;
