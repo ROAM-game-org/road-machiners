@@ -11,6 +11,7 @@ import type { Contract } from '../sim/market';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
 import { Hud, actionSlot, cardActions, recenterTip, driveControlsOf, firstAidMsg, heldContractLine, systemViewsOf } from './hud';
+import { followError, followTruck } from '../sim/follow';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
 import type { CrimeCase, World } from '../sim/types';
@@ -154,7 +155,7 @@ describe('truck card actions', () => {
   it('draws Call, Look over and Mark as buttons with no keycap on their faces', () => {
     const { row } = card(5, true);
     const buttons = row!.withTag('button');
-    expect(buttons.map((b) => b.text())).toEqual(['Radio', 'Look over', 'Mark']);
+    expect(buttons.map((b) => b.text())).toEqual(['Radio', 'Look over', 'Follow', 'Mark']);
     expect(row!.all('key')).toHaveLength(0);
     expect(row!.all('cost')).toHaveLength(0);
     expect(buttons[1].attrs.title).toContain('Look over, takes 1 turn');
@@ -174,17 +175,33 @@ describe('truck card actions', () => {
 
   it('shows no Mark button without the spotter perk', () => {
     const { row } = card(5, false);
-    expect(row!.withTag('button').map((b) => b.text())).toEqual(['Radio', 'Look over']);
+    expect(row!.withTag('button').map((b) => b.text())).toEqual(['Radio', 'Look over', 'Follow']);
   });
 
   it('disables a refused button with the sim reason', () => {
     const { w, npc, row } = card(60, true);
-    const [, lookOver, mark] = row!.withTag('button');
+    const [, lookOver, , mark] = row!.withTag('button');
     const look = lookOverError(w, npc.id)!;
     expect(lookOver.attrs['aria-disabled']).toBe('true');
     expect(lookOver.attrs['data-reason']).toBe(say(refusalText(w, look)));
     const markRefusal = markError(w, npc.id);
     expect(mark.attrs['aria-disabled']).toBe(markRefusal ? 'true' : undefined);
+  });
+
+  it('enables Follow with its tip, lights it while following and disables it with the sim reason', () => {
+    const { w, npc, row } = card(5, false);
+    const follow = row!.withTag('button')[2];
+    expect(follow.attrs['aria-disabled']).toBeUndefined();
+    expect(follow.attrs['aria-pressed']).toBe('false');
+    expect(follow.className).toBe('hud-key');
+    expect(follow.attrs.title).toContain('Follow at its speed until you steer');
+    const lit = cardActions(followTruck(w, npc.id), npc, handlers) as unknown as FakeNode;
+    expect(lit.withTag('button')[2].attrs['aria-pressed']).toBe('true');
+    expect(lit.withTag('button')[2].className).toBe('hud-key on');
+    const far = card(60, false);
+    const refused = far.row!.withTag('button')[2];
+    expect(refused.attrs['aria-disabled']).toBe('true');
+    expect(refused.attrs['data-reason']).toBe(say(refusalText(far.w, followError(far.w, far.npc.id)!)));
   });
 
   it('writes no key text into a button label', () => {

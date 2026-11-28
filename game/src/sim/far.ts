@@ -106,7 +106,7 @@ export function advanceFar(w: World, v: Vehicle, part?: TurnShare): number {
   burnFuelAt(w, v, walk.moved, step.fuelPerTile);
   if (!drivesCoarse(v)) breakCrossed(w, v, walk.path, full.radius);
   keepFarRoute(v, replans(done, windowEnds, block, walk.moved, share) ? undefined : farRouteOf(order.dest, walk.ahead, style, partial));
-  if (done) arrive(w, v);
+  if (done && order.follow === undefined) arrive(w, v);
   return walk.moved;
 }
 

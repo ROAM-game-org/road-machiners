@@ -61,6 +61,7 @@ import { repairQuests, type SavedRevisions } from './quest-repair';
 import { isNoteId } from '../data/locals';
 import { advanceChaosHighway, outpostFactsAt, runStart, startRun } from './chaos-highway';
 import { gatesShut } from './outpost-gates';
+import { planPlayerFollow } from './follow';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { overdriveBlock, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
@@ -418,6 +419,7 @@ export function endTurnInPlace(
     settleMeetings(w);
     planNpcOrders(w);
     planHaulerOrder(w);
+    planPlayerFollow(w);
     freezeDriving(w);
     advanceUtilityEffects(w);
     assignUtilityOrders(w);
@@ -566,7 +568,10 @@ export function setDirect(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
     const me = playerVehicle(w);
     me.direct = on;
-    if (on && me.order && me.order.kind !== 'brake') delete me.order.pace;
+    if (on && me.order && me.order.kind !== 'brake') {
+      delete me.order.pace;
+      delete me.order.follow;
+    }
     switchSetSpeed(me, on);
   });
 }

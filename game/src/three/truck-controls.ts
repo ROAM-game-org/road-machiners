@@ -2,6 +2,7 @@
 import { deskAt } from '../sim/crime';
 import type { Msg } from '../text/msg';
 import { refusalText } from '../text/names';
+import { followedId, followTruck, stopFollowing } from '../sim/follow';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
@@ -126,6 +127,7 @@ export class TruckContext {
     if (!id) return;
     if (action === 'mark' && !markError(w, id)) this.host.apply(markVehicle(w, id));
     if (action === 'lookOver') this.lookOverOrReopen(w, id);
+    if (action === 'follow') this.refusable(() => (followedId(w) === id ? stopFollowing(w) : followTruck(w, id)));
   }
 
   private lookOverOrReopen(w: World, id: string): void {

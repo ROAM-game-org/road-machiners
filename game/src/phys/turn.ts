@@ -486,7 +486,7 @@ function isPinned(w: World, v: Vehicle, res: VehicleResult): boolean {
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {
-  if (!v.order || !orderDone(v.order, res, v.speed < STOPPED)) return;
+  if (!v.order || (v.order.kind !== 'brake' && v.order.follow !== undefined) || !orderDone(v.order, res, v.speed < STOPPED)) return;
   if (v.order.kind !== 'brake') w.events.push({ t: 'arrived', vehicle: v.id });
   v.order = null;
 }

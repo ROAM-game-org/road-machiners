@@ -66,6 +66,7 @@ const ownVehicle = (event: { vehicle: string }, world: World): boolean => isPlay
 
 const STOPS: StopTable = {
   activity: no,
+  followEnded: yes,
   stall: no,
   collision: (e, w) => ramsTruck(e, w) || hurtsByCrash(e, w),
   empty: no,

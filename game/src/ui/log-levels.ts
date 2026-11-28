@@ -31,6 +31,7 @@ function supplyLevel(e: Extract<GameEvent, { t: 'supply' }>): LogLevel {
 const EVENT_LEVELS: { [K in GameEvent['t']]: Leveled<K> } = {
   roadHorn: 'info',
   activity: 'info',
+  followEnded: 'notable',
   stall: 'info',
   preyPassed: 'info',
   info: (_, e) => infoLevel(e),
