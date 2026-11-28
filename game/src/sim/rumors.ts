@@ -1,11 +1,15 @@
+import { CONTRACTS } from '../data/market';
 import { PERK_NUMBERS } from '../data/skills';
 import { REGION } from '../data/region';
 import { TRADE_TIP } from '../data/npcs';
+import { atlasOf } from './atlas';
+import { roundTo, snapAngle } from './claim-clue';
+import { directionsFromSite, toldInFull } from './directions';
 import { goodValue, standingPrice } from './market';
 import { recall } from './memory';
 import { hasOpenSalvage, isStoryWreck } from './salvage';
-import type { SalvageStock, Vehicle, World } from './types';
-import { dist, type Vec } from './vec';
+import type { DirectionStep, SalvageStock, Vehicle, World } from './types';
+import { bearing, dist, type Vec } from './vec';
 
 export type Rumor = { id: string; pos: Vec; site: { id: string } | null };
 export type TradeTip = { shop: string; good: string; dear: boolean };
@@ -75,4 +79,19 @@ export function toldWrecks(world: World): SalvageStock[] {
     const stock = stocks.get(id);
     return stock && !searched.has(id) ? [stock] : [];
   });
+}
+
+export type WreckWay =
+  | { kind: 'way'; town: string; steps: DirectionStep[] }
+  | { kind: 'bearing'; town: string; rad: number; tiles: number };
+
+export function toldWreckWay(world: World, stock: SalvageStock): WreckWay {
+  const towns = [...atlasOf(world.terrain).towns].sort((a, b) => dist(a.pos, stock.pos) - dist(b.pos, stock.pos) || (a.id < b.id ? -1 : 1));
+  if (towns.length === 0) throw new Error('A told wreck needs a town to give the way from');
+  for (const town of towns) {
+    const steps = directionsFromSite(world, town.id, { kind: 'spot', pos: stock.pos, clue: 'wreck' });
+    if (toldInFull(steps)) return { kind: 'way', town: town.id, steps };
+  }
+  const [near] = towns;
+  return { kind: 'bearing', town: near.id, rad: snapAngle(bearing(near.pos, stock.pos)), tiles: roundTo(dist(near.pos, stock.pos), CONTRACTS.claim.clueStepTiles) };
 }

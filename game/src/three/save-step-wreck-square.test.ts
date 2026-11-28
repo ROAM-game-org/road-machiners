@@ -78,7 +78,7 @@ describe('told wrecks across a save', () => {
     const loaded = reload(w);
     expect(loaded.player.call).toEqual(w.player.call);
     expect(journalEntries(loaded).wrecks).toEqual(journalEntries(w).wrecks);
-    expect(journalEntries(loaded).wrecks).toEqual([{ square: gridSquareOf(pos), count: 1 }]);
+    expect(journalEntries(loaded).wrecks).toEqual([{ key: `${gridSquareOf(pos).column},${gridSquareOf(pos).row}`, square: gridSquareOf(pos), stocks: [w.salvage[0]] }]);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.events).toEqual([]);

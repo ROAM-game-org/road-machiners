@@ -11,7 +11,7 @@ import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
 import type { SalvageStock, World } from '../sim/types';
 import { emptyHidden } from '../sim/salvage';
-import { gridSquareTiles } from '../sim/map-grid';
+import { gridSquareOf, gridSquareTiles } from '../sim/map-grid';
 import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 
@@ -22,6 +22,13 @@ const noWay = vi.hoisted(() => ({ on: false }));
 vi.mock('../sim/survey', async (orig) => {
   const real = await orig<typeof import('../sim/survey')>();
   return { ...real, surveyWay: (...args: Parameters<typeof real.surveyWay>) => (noWay.on ? null : real.surveyWay(...args)) };
+});
+
+const noWreckWay = vi.hoisted(() => ({ on: false }));
+
+vi.mock('../sim/rumors', async (orig) => {
+  const real = await orig<typeof import('../sim/rumors')>();
+  return { ...real, toldWreckWay: (...args: Parameters<typeof real.toldWreckWay>) => (noWreckWay.on ? { kind: 'bearing' as const, town: 'bowl', rad: 0, tiles: 125 } : real.toldWreckWay(...args)) };
 });
 
 const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id, pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
@@ -108,7 +115,7 @@ describe('journal entries', () => {
 
     const { wrecks } = journalEntries(w);
 
-    expect(wrecks).toEqual([{ square: { column: 2, row: 3 }, count: 2 }, { square: { column: 5, row: 1 }, count: 1 }]);
+    expect(wrecks.map((n) => [n.key, n.square, n.stocks.map((x) => x.id)])).toEqual([['2,3', { column: 2, row: 3 }, ['wreck3', 'wreck1']], ['5,1', { column: 5, row: 1 }, ['wreck2']]]);
   });
 });
 
@@ -171,6 +178,7 @@ describe('journal tabs', () => {
 describe('journal screen', () => {
   afterEach(() => {
     noWay.on = false;
+    noWreckWay.on = false;
     ui.children = [];
     vi.unstubAllGlobals();
   });
@@ -248,6 +256,8 @@ describe('journal screen', () => {
     expect(root.children.every((c, i) => c === before[i])).toBe(true);
   });
 
+  const wreckPlaces = (root: FakeNode) => root.all((n) => n.has('journal-place') && n.has('wreck'));
+
   it('names the squares of told wrecks, and drops a searched wreck', () => {
     const w = emptyWorld();
     const side = gridSquareTiles();
@@ -255,13 +265,80 @@ describe('journal screen', () => {
     w.player.rumored = ['wreck1', 'wreck2', 'wreck3'];
 
     const { root } = journalOf(w);
-    const places = root.all((n) => n.className === 'journal-place');
+    const heads = root.all((n) => n.has('place-head'));
 
     expect(tabButtons(root)!.map((b) => b.has('on'))).toEqual([false, true, false, false]);
-    expect(places.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
+    expect(heads.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
     ui.children = [];
     w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
     expect(openJournal(w).all((n) => n.has('journal-place'))).toHaveLength(0);
+  });
+
+  it('opens the newest square with the way from a town and numbered steps', () => {
+    const w = emptyWorld();
+    const wrecks = w.salvage.filter((x) => x.id.startsWith('wreck'));
+    const near = wrecks[0];
+    const far = wrecks.find((x) => gridSquareOf(x.pos).column !== gridSquareOf(near.pos).column || gridSquareOf(x.pos).row !== gridSquareOf(near.pos).row)!;
+    w.player.rumored = [far.id, near.id];
+
+    const places = wreckPlaces(journalOf(w).root);
+
+    expect(places.map((p) => p.has('open'))).toEqual([true, false]);
+    expect((places[0].children[0] as FakeNode).attrs.get('aria-expanded')).toBe('true');
+    expect(places[0].text()).toContain('From ');
+    expect(places[0].all((n) => n.has('way-steps'))).toHaveLength(1);
+    expect(places[0].all((n) => n.tag === 'li').length).toBeGreaterThan(0);
+    expect(places[1].all((n) => n.has('way-steps'))).toHaveLength(0);
+  });
+
+  it('opens a square on its head and closes the one open', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: 5, y: 5 })];
+    w.player.rumored = ['wreck1', 'wreck2'];
+    const screen = journalOf(w);
+    const second = wreckPlaces(screen.root)[1].children[0] as FakeNode;
+
+    second.click();
+
+    expect(wreckPlaces(screen.root).map((p) => p.has('open'))).toEqual([false, true]);
+  });
+
+  it('gives one way group for each wreck in an open square', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 })];
+    w.player.rumored = ['wreck1', 'wreck2'];
+
+    const [place] = wreckPlaces(journalOf(w).root);
+
+    expect(place.all((n) => n.has('place-way'))).toHaveLength(2);
+    expect(place.all((n) => n.has('place-from'))).toHaveLength(2);
+  });
+
+  it('tells one way for wrecks in a square whose way is the same', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 })];
+    w.player.rumored = ['wreck1', 'wreck2'];
+    noWreckWay.on = true;
+
+    const [place] = wreckPlaces(journalOf(w).root);
+
+    expect(place.all((n) => n.has('place-way'))).toHaveLength(1);
+  });
+
+  it('says how far and which way a wreck lies from a town when no town tells the way', () => {
+    const w = emptyWorld();
+    w.salvage = [stock('wreck1', { x: 60, y: 60 })];
+    w.player.rumored = ['wreck1'];
+    noWreckWay.on = true;
+
+    const [place] = wreckPlaces(journalOf(w).root);
+
+    expect(place.all((n) => n.has('way-steps'))).toHaveLength(0);
+    expect(place.text()).toContain('From Bowl');
+    expect(place.text()).toContain(' of Bowl.');
   });
 
   it('opens the newest note and closes the others to a title and a day', () => {

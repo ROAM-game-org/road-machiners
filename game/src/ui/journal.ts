@@ -4,8 +4,8 @@ import { keyTip, narrowMode } from './input-mode';
 import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
-import type { World } from '../sim/types';
-import { toldWrecks } from '../sim/rumors';
+import type { DirectionStep, SalvageStock, World } from '../sim/types';
+import { toldWrecks, toldWreckWay, type WreckWay } from '../sim/rumors';
 import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
@@ -24,7 +24,7 @@ export type ClaimLeadNote = { id: string; day: number; from: Msg; body: Msg };
 
 export type PastEntry = { record: PastContract; day: number };
 
-export type WreckSquareNote = { square: GridSquare; count: number };
+export type WreckSquareNote = { key: string; square: GridSquare; stocks: SalvageStock[] };
 
 export type Journal = { work: Contract[]; wrecks: WreckSquareNote[]; notes: JournalNote[]; past: PastEntry[] };
 
@@ -34,8 +34,8 @@ function wreckSquares(world: World): WreckSquareNote[] {
     const square = gridSquareOf(stock.pos);
     const key = `${square.column},${square.row}`;
     const note = squares.get(key);
-    if (note) note.count += 1;
-    else squares.set(key, { square, count: 1 });
+    if (note) note.stocks.push(stock);
+    else squares.set(key, { key, square, stocks: [stock] });
   }
   return [...squares.values()];
 }
@@ -109,7 +109,7 @@ export class JournalScreen {
     const tabs = journalTabs(journal);
     const tab = this.tab ?? tabs[0] ?? 'work';
     const side = this.sideForm();
-    const signature = JSON.stringify([side, tab, this.opened, w.turn, journal.work, journal.wrecks, journal.notes.map((n) => n.id), journal.past.length, journal.past[0]?.record.turn]);
+    const signature = JSON.stringify([side, tab, this.opened, w.turn, journal.work, journal.wrecks.map((n) => [n.key, n.stocks.map((x) => x.id)]), journal.notes.map((n) => n.id), journal.past.length, journal.past[0]?.record.turn]);
     if (signature === this.drawn) return;
     this.drawn = signature;
     this.root.classList.toggle('modal', !side);
@@ -134,7 +134,7 @@ export class JournalScreen {
   private page(w: World, journal: Journal, tab: JournalTab): HTMLElement {
     if (journal[tab].length === 0) return el('div', { class: 'journal-idle' }, t('journal.empty'));
     if (tab === 'work') return this.workPage(w, journal.work);
-    if (tab === 'wrecks') return el('div', { class: 'journal-list' }, ...journal.wrecks.map(wreckSquareEntry));
+    if (tab === 'wrecks') return this.wrecksPage(w, journal.wrecks);
     if (tab === 'notes') return this.notesPage(journal.notes);
     return el('div', { class: 'jobs journal-past' }, ...journal.past.map(pastEntry));
   }
@@ -173,6 +173,20 @@ export class JournalScreen {
     );
   }
 
+  private wrecksPage(w: World, wrecks: WreckSquareNote[]): HTMLElement {
+    const chosen = this.opened.wrecks;
+    const openKey = wrecks.some((n) => n.key === chosen) ? chosen : wrecks[0]?.key;
+    return el('div', { class: 'journal-list' }, ...wrecks.map((n) => this.wreckSquare(w, n, n.key === openKey)));
+  }
+
+  private wreckSquare(w: World, note: WreckSquareNote, open: boolean): HTMLElement {
+    const n = note.stocks.length;
+    const words = n > 1 ? t('journal.wrecksInSquare', { square: gridSquareText(note.square), n }) : t('journal.wreckSquare', { square: gridSquareText(note.square) });
+    const head = el('button', { class: 'screen-line journal-head place-head', 'aria-expanded': open ? 'true' : 'false', onclick: (e: Event) => { this.open('wrecks', note.key); (e.currentTarget as HTMLElement | null)?.blur(); } }, el('span', {}, words));
+    if (!open) return el('div', { class: 'journal-place wreck' }, head);
+    return el('div', { class: 'journal-place wreck open' }, head, ...distinctWays(note.stocks.map((stock) => toldWreckWay(w, stock))).map(wreckWay));
+  }
+
   private notesPage(notes: JournalNote[]): HTMLElement {
     const chosen = this.opened.notes;
     const openId = notes.some((n) => n.id === chosen) ? chosen : notes[0]?.id;
@@ -194,20 +208,36 @@ function placeTag(point: SurveyPoint): HTMLElement {
   return point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : el('span', {});
 }
 
+function wayGroup(from: string, body: HTMLElement): HTMLElement {
+  return el('div', { class: 'place-way' }, el('div', { class: 'place-from dim' }, t('journal.from', { site: siteName(from) })), body);
+}
+
+function wayList(steps: DirectionStep[]): HTMLElement {
+  return el('ol', { class: 'way-steps' }, ...directionsSteps(steps).map((step) => el('li', {}, step)));
+}
+
 function placeWay(w: World, c: SurveyContract, point: SurveyPoint, clue: SurveyClue): HTMLElement {
   const way = surveyWay(w, c, point);
-  const caption = el('div', { class: 'place-from dim' }, t('journal.from', { site: siteName(c.shop) }));
-  if (!way) return el('div', { class: 'place-way' }, caption, el('div', {}, t('journal.placeBearing', { distance: distanceText(clue.tiles), dir: compassText(clue.rad), site: siteName(clue.landmark) })));
-  return el('div', { class: 'place-way' }, caption, el('ol', { class: 'way-steps' }, ...directionsSteps(way).map((step) => el('li', {}, step))));
+  return wayGroup(c.shop, way ? wayList(way) : el('div', {}, t('journal.placeBearing', { distance: distanceText(clue.tiles), dir: compassText(clue.rad), site: siteName(clue.landmark) })));
+}
+
+function distinctWays(ways: WreckWay[]): WreckWay[] {
+  const seen = new Set<string>();
+  return ways.filter((way) => {
+    const key = JSON.stringify(way);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function wreckWay(way: WreckWay): HTMLElement {
+  if (way.kind === 'way') return wayGroup(way.town, wayList(way.steps));
+  return wayGroup(way.town, el('div', {}, t('journal.placeBearing', { distance: distanceText(way.tiles), dir: compassText(way.rad), site: siteName(way.town) })));
 }
 
 function leadEntry(lead: ClaimLeadNote): HTMLElement {
   return el('div', { class: 'journal-place journal-head' }, el('span', {}, lead.body), el('span', { class: 'dim' }, t('journal.entryHead', { day: lead.day, from: lead.from })));
-}
-
-function wreckSquareEntry({ square, count }: WreckSquareNote): HTMLElement {
-  const words = count > 1 ? t('journal.wrecksInSquare', { square: gridSquareText(square), n: count }) : t('journal.wreckSquare', { square: gridSquareText(square) });
-  return el('div', { class: 'journal-place' }, words);
 }
 
 const OUTCOME_TONE: Record<ContractEnd, 'good' | 'bad' | 'dim'> = { done: 'good', failed: 'bad', late: 'dim', lapsed: 'dim', released: 'dim' };
