@@ -332,6 +332,19 @@ describe("the choice of a layout", () => {
     expect(layout.pxPerMeter).toBeGreaterThan(300 / 14.3);
   });
 
+  it("keeps the storage place of the winning room, and none when the room names none", () => {
+    const scout = { width: 3, truckHeight: 10, spareHeight: 0, col: 1 };
+    const storeRoom = (store: "beside" | "stacked", width: number): FitRoom => ({ ...room(1, width, 300), store });
+    expect(chooseLayout([storeRoom("beside", 500), storeRoom("stacked", 800)], scout).store).toBe("beside");
+    expect(chooseLayout([room(1, 500, 300)], scout).store).toBeUndefined();
+  });
+
+  it("puts storage under the card when beside would shrink the truck below the click minimum", () => {
+    const wide = { width: 6, truckHeight: 4, spareHeight: 0, col: 1 };
+    const storeRoom = (store: "beside" | "stacked", width: number): FitRoom => ({ ...room(1, width, 900), store });
+    expect(chooseLayout([storeRoom("beside", 60), storeRoom("stacked", 400)], wide).store).toBe("stacked");
+  });
+
   it("keeps cargo below on a tie", () => {
     const layout = chooseLayout([room(3, 5000, 5000)], { width: 3, truckHeight: 5, spareHeight: 2, col: 1 });
     expect(layout).toMatchObject({ cargoBeside: false, pxPerMeter: 42, spareCellPx: 42 });

@@ -16,6 +16,7 @@ export const SCROLL_SCREENS = [
   ".shop-body",
   ".truck-body",
   ".truck-body .inv-side",
+  ".truck-body .inv-store",
   ".inv-body",
   ".inv-details > .stat-grid",
   ".inv-details > .item-lore",

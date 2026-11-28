@@ -56,6 +56,9 @@ import {
   itemName,
   idleActions, splitActions,
   chooseLayout,
+  hostedRooms,
+  type FitRoom,
+  type StorePlace,
   stackedLayout,
   truckMeters,
   benchRooms,
@@ -209,9 +212,22 @@ export class InventoryView {
     const me = this.shown(this.host.world());
     const truck = truckMeters(me.chassisId, gridOf(me));
     const height = bandedHeight(box, this.root) ?? gridSize(this.scale.mine).height - overflowIn(scrollAncestor(box) ?? box, this.root);
-    const stacked = uiRoot().classList.contains("narrow");
-    this.scale.apply(key, stacked ? stackedLayout(height, truck) : chooseLayout([{ columns: 1, width: hostedWidth(box, this.root), height }], truck), null);
+    const narrow = uiRoot().classList.contains("narrow");
+    const layout = narrow ? stackedLayout(height, truck) : chooseLayout(this.hostedRooms(box, height), truck);
+    this.markStore(box, layout.store);
+    this.scale.apply(key, layout, null);
     this.render();
+  }
+
+  private hostedRooms(box: HTMLElement, height: number): FitRoom[] {
+    return box.closest(".town-split.banded") ? hostedRooms(box, this.root, height) : [{ columns: 1, width: hostedWidth(box, this.root), height }];
+  }
+
+  private markStore(box: HTMLElement, store: StorePlace | undefined): void {
+    const split = box.closest<HTMLElement>(".town-split");
+    if (!split) return;
+    if (store) split.dataset.store = store;
+    else delete split.dataset.store;
   }
 
   private fitBench(frame: HTMLElement, key: string): void {
@@ -279,12 +295,13 @@ export class InventoryView {
   }
 
   private hostedEl(w: World, grid: HTMLElement, error: HTMLElement): HTMLElement {
-    const stores = this.sideList(w);
+    const stores = this.storeList(w);
     return el(
       "div",
       { class: "inv-wrap" },
       el("div", { class: "inv-truck" }, el("div", { class: "truck-shell" }, grid)),
-      el("div", { class: "inv-side screen-block", "data-drop": stores.length > 0 ? "storage" : undefined }, this.costs, ...this.jobBlock(w), this.inspection, error, ...stores),
+      el("div", { class: "inv-side screen-block" }, this.costs, ...this.jobBlock(w), this.inspection, error),
+      stores.length > 0 ? el("div", { class: "inv-store screen-block", "data-drop": "storage" }, ...stores) : null,
     );
   }
 
@@ -541,7 +558,10 @@ export class InventoryView {
   }
 
   private sideList(w: World): HTMLElement[] {
-    if (this.loot) return [this.lootEl(w, this.loot)];
+    return this.loot ? [this.lootEl(w, this.loot)] : this.storeList(w);
+  }
+
+  private storeList(w: World): HTMLElement[] {
     if (this.instant || !atGarage(w, this.gridTruck ?? undefined)) return [];
     const shopId = this.storeShop(w);
     return shopId ? [this.storageEl(w), this.cratesEl(w, shopId)] : [this.storageEl(w)];
@@ -597,7 +617,7 @@ export class InventoryView {
       "div",
       { class: "inv-storage", "data-drop": "storage" },
       el("h3", {}, t("inv.storage")),
-      ...chips,
+      ...(chips.length ? chips : [el("div", { class: "dim" }, t("inv.storageEmpty"))]),
     );
   }
 
