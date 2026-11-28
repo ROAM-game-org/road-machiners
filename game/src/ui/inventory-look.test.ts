@@ -93,11 +93,11 @@ describe("the inventory with nothing picked", () => {
     return ui.children[ui.children.length - 1] as FakeNode;
   }
 
-  it("keeps the Rotate and Strip keys in the foot row, off, with no value beside them", () => {
+  it("keeps the Rotate, Strip and Dump keys in the foot row, off, with no value beside them", () => {
     const foot = benchRoot().all((n) => n.className === "inv-foot")[0];
     const rows = foot.all((n) => n.className === "action-rows")[0];
     const buttons = rows.all((n) => n.tag === "button");
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(3);
     for (const button of buttons) expect(button.attrs.get("aria-disabled")).toBe("true");
     expect(rows.all((n) => n.className.includes("cost"))).toHaveLength(0);
   });

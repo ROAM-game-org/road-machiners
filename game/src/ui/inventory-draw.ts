@@ -595,9 +595,11 @@ export function markWorking(node: HTMLElement, done: number): HTMLElement {
   return node;
 }
 
-export function idleActions(reason: Msg): HTMLElement {
+export function idleActions(reason: Msg, dump: boolean): HTMLElement {
   const strip = el("button", { class: "btn-s", ...disabledWith(reason, () => {}) }, t("inv.verb.strip"));
-  return el("div", { class: "action-rows" }, rotateButton(() => {}, reason), strip);
+  const keys = [rotateButton(() => {}, reason), strip];
+  if (dump) keys.push(el("button", { class: "btn-s", "data-drop": "dump", ...disabledWith(reason, () => {}) }, t("inv.dumpShort")));
+  return el("div", { class: "action-rows" }, ...keys);
 }
 
 export function splitActions(actions: HTMLElement[]): { keys: HTMLElement[]; costs: HTMLElement[] } {

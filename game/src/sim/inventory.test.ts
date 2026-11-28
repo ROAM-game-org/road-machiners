@@ -155,10 +155,27 @@ describe('inventory grid', () => {
     const w = emptyWorld();
     const before = w.vehicles[0].items.filter((it) => it.kind === 'good').length;
     expect(dumpItem(w, good(w).id).vehicles[0].items.filter((it) => it.kind === 'good')).toHaveLength(before - 1);
-    expect(() => dumpItem(w, item(w, 'mg').id)).toThrow('Remove an installed part');
+    expect(() => dumpItem(w, item(w, 'mg').id)).toThrow('Refused: offMountFirst');
     expect(stowPart(w, w.vehicles[0], makePart(w, 'mg', 0))).toBe(true);
     const loose = w.vehicles[0].items.filter((it) => it.kind === 'part' && it.part.defId === 'mg').at(-1)!;
     expect(dumpItem(w, loose.id).vehicles[0].items.some((it) => it.id === loose.id)).toBe(false);
+  });
+
+  it('a built-in part refuses to be dumped with its reason', () => {
+    const w = emptyWorld();
+    expect(() => dumpItem(w, coreItem(w.vehicles[0], 'cab').id)).toThrow('Refused: builtInFixed');
+  });
+
+  it('a manual job blocks a dump but an auto patch does not', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const crate = good(w);
+    me.job = { kind: 'repair', partId: item(w, 'mg').id, parts: 1, turnsLeft: 3, total: 3 };
+    expect(() => dumpItem(w, crate.id)).toThrow('Refused: busy');
+    me.job = { kind: 'repair', partId: item(w, 'mg').id, parts: 1, turnsLeft: 3, total: 3, auto: true };
+    const next = dumpItem(w, crate.id);
+    expect(next.vehicles[0].items.some((it) => it.id === crate.id)).toBe(false);
+    expect(next.vehicles[0].job).not.toBeNull();
   });
 });
 

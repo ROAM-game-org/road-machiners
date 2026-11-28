@@ -324,7 +324,7 @@ export class InventoryView {
 
   private fillActions(actions: HTMLElement[], idle: Msg): void {
     const { keys, costs } = splitActions(actions);
-    this.keys.replaceChildren(keys.length > 0 ? el("div", { class: "action-rows" }, ...keys) : idleActions(idle));
+    this.keys.replaceChildren(keys.length > 0 ? el("div", { class: "action-rows" }, ...keys) : idleActions(idle, this.dumpZone));
     this.costs.replaceChildren(...costs);
   }
 

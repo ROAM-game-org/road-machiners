@@ -245,6 +245,7 @@ export type Refusal =
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
+  | { id: 'offMountFirst' }
   | { id: 'parcelKept' }
   | { id: 'salvageOutOfReach' }
   | { id: 'salvagePartGone' }
