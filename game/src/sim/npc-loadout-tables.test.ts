@@ -74,3 +74,17 @@ describe('NPC loadout tables', () => {
     }
   }, budget(120_000));
 });
+
+describe('raider gear spread', () => {
+  const raiderTemplates = Object.values(NPCS).filter((tpl) => tpl.traits.includes('raider'));
+  const levelsOf = (tpl: NpcTemplate) => tpl.loadout.levels.map((entry) => entry.value);
+
+  it('has both raider templates roll at least three gear levels', () => {
+    expect(raiderTemplates.length).toBeGreaterThanOrEqual(2);
+    for (const tpl of raiderTemplates) expect(new Set(levelsOf(tpl)).size, tpl.id).toBeGreaterThanOrEqual(3);
+  });
+
+  it('lets an outrider roll poor and light, so weak raiders ride beside strong ones', () => {
+    expect(levelsOf(NPCS.buggy)).toEqual(expect.arrayContaining(['poor', 'light', 'loaded']));
+  });
+});
