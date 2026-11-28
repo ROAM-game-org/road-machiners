@@ -8,7 +8,11 @@ const runs = Number(process.argv[3] ?? 3);
 const width = Number(process.argv[4] ?? 750);
 const height = Number(process.argv[5] ?? 262);
 const MENU_WAIT_MS = Number(process.argv[6] ?? process.env.BOOT_MEMORY_MENU_WAIT_MS ?? 20000);
-const WEBKIT_BUDGET_MB = Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? 2000);
+const BUDGET_MB = {
+  webkit: Number(process.env.BOOT_MEMORY_WEBKIT_MB ?? 2000),
+  chromium: Number(process.env.BOOT_MEMORY_CHROMIUM_MB ?? 2000),
+};
+const PHONE_MAX_SHORT_SIDE = 600;
 const TURNS = 3;
 const IDLE_S = Number(process.env.BOOT_MEMORY_IDLE_S ?? 60);
 const SAMPLE_MS = 200;
@@ -58,9 +62,14 @@ async function playTurns(page) {
   }
 }
 
+function screenOf(viewWidth, viewHeight) {
+  if (Math.min(viewWidth, viewHeight) > PHONE_MAX_SHORT_SIDE) return { deviceScaleFactor: 1, isMobile: false, hasTouch: false };
+  return { deviceScaleFactor: 3, isMobile: true, hasTouch: true };
+}
+
 async function oneRun(engine) {
   const { browser } = await launch(engine);
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ viewport: { width, height }, ...screenOf(width, height) });
   const page = await context.newPage();
   let loads = 0;
   page.on('load', () => loads++);
@@ -157,7 +166,7 @@ for (const engine of ['webkit', 'chromium']) {
     if (result.errors.length > 0) problems.push(`${engine}: ${result.errors.join(' | ')}`);
     if (result.loads !== 1) problems.push(`${engine}: the page loaded ${result.loads} times, so New game reloaded it`);
   }
-  if (engine === 'webkit' && peak > WEBKIT_BUDGET_MB) problems.push(`webkit median peak ${peak} MB is over the ${WEBKIT_BUDGET_MB} MB budget`);
+  if (peak > BUDGET_MB[engine]) problems.push(`${engine} median peak ${peak} MB is over the ${BUDGET_MB[engine]} MB budget`);
 }
 
 if (problems.length > 0) {
