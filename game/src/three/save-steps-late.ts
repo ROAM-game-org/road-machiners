@@ -1041,3 +1041,13 @@ export function withRescueLeads(world: SavedJson): SavedJson {
   const nextCall = call && line && { ...call, vars: withSightingList(call.vars as SavedJson, search), line: { ...line, vars: withSightingList(line.vars as SavedJson, search) } };
   return { ...world, shops: boards, player: { ...player, contracts: contracts.map(withLeadOnRescue), pastContracts: past, call: nextCall ?? null } };
 }
+
+const withEnded = (c: SavedJson): SavedJson => (c.kind === 'escort' && !('ended' in c) ? { ...c, ended: null } : c);
+
+export function withEscortEnded(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const shops = world.shops as Record<string, SavedJson>;
+  const boards = Object.fromEntries(Object.entries(shops).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withEnded) }]));
+  const past = (player.pastContracts as SavedJson[]).map((p) => ({ ...p, contract: withEnded(p.contract as SavedJson) }));
+  return { ...world, shops: boards, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withEnded), pastContracts: past } };
+}

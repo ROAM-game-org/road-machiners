@@ -358,7 +358,7 @@ describe('game save', () => {
     world.turn = 300;
     const escort: Contract = priced(world, {
       id: 'ct-e', shop: 'bowl', kind: 'escort', client: trader.id, to: 'nose', reward: 48, deadline: Number.MAX_SAFE_INTEGER, window: 75, tier: 2, threat: 2,
-      span: 300, together: 210, seen: { x: pad.x + 5, y: pad.y, turn: 295 }, apart: 12, stuck: 0, holdUntil: 340,
+      span: 300, together: 210, seen: { x: pad.x + 5, y: pad.y, turn: 295 }, apart: 12, stuck: 0, holdUntil: 340, ended: null,
     } as Contract);
     world.player.contracts = [escort];
     hireEscort(world, playerVehicle(world), trader, 'nose', 0);
@@ -370,6 +370,19 @@ describe('game save', () => {
     expect(loaded.states).toEqual(world.states);
     expect(loaded.player.money).toBe(world.player.money);
     expect(loaded.events.filter((e) => ['money', 'contract', 'escortEnded', 'practice'].includes(e.t))).toEqual([]);
+  });
+
+  it('keeps a finished escort waiting for its report across a reload, and awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const escort: Contract = priced(world, { id: 'ct-m', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 48, deadline: Number.MAX_SAFE_INTEGER, window: 75, tier: 2, threat: 2, span: 300, together: 150, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: 'released' } as Contract);
+    world.player.contracts = [escort];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.contracts).toEqual([escort]);
+    expect({ money: loaded.player.money, xp: loaded.player.xp, events: loaded.events }).toEqual({ money: world.player.money, xp: world.player.xp, events: [] });
   });
 
   it('keeps the past contracts across a reload, and awards nothing', () => {

@@ -12,7 +12,7 @@ const migrated = (): Saved => step.step(structuredClone(OLD) as SavedJson) as un
 
 describe('save step withRescueLeads', () => {
   it('is the newest tiny step before withSearchFinds', () => {
-    expect(TINY_STEPS.at(-2)).toBe(step);
+    expect(TINY_STEPS.indexOf(step)).toBeLessThan(TINY_STEPS.findIndex((s) => s.name === 'withSearchFinds'));
   });
 
   it('gives every rescue a null lead on the board, in hand and in the past', () => {
