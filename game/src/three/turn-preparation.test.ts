@@ -492,3 +492,18 @@ it("counts the next turn after a failed request left the queue", () => {
   measured(turns, 300);
   expect(turns.keptSpeed()).toBeCloseTo(MOVE_MS / 300);
 });
+
+it("calls back once when the worker says its route ground is ready, and keeps the queued turn", () => {
+  const turns = new TurnPreparation(TAIL);
+  const ready = vi.fn();
+  turns.sendTerrain(world.terrain, ready);
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  worker.respond({ terrainReady: true });
+  worker.respond({ terrainReady: true });
+  expect(ready).toHaveBeenCalledOnce();
+  expect(turns.computing()).toBe(true);
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: { kind: "same" }, perf: {} });
+  expect(turns.take(world)).toEqual(reply);
+  expect(reportError).not.toHaveBeenCalled();
+});

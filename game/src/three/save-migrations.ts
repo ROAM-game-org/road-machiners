@@ -867,9 +867,11 @@ export const RELEASE_STEPS: readonly ReleaseStep[] = [
   { from: 136, to: 138, step: chained(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)), names: namesOf(FOLDED_AND_TINY_STEPS.slice(136 - FIRST_TINY, 138 - FIRST_TINY)) },
   { from: 138, to: 144, step: chained(foldedSlice(138, 144)), names: namesOf(foldedSlice(138, 144)) },
   { from: 144, to: 149, step: chained(foldedSlice(144, 149)), names: namesOf(foldedSlice(144, 149)) },
+  { from: 149, to: 150, step: chained(foldedSlice(149, 150)), names: namesOf(foldedSlice(149, 150)) },
+  { from: 150, to: 151, step: chained(foldedSlice(150, 151)), names: namesOf(foldedSlice(150, 151)) },
 ];
 
-export const TINY_FROM = 149;
+export const TINY_FROM = 151;
 
 export const TINY_STEPS: readonly NamedStep[] = FOLDED_AND_TINY_STEPS.slice(TINY_FROM - FIRST_TINY);
 

@@ -7,14 +7,23 @@ const terrain = { size: 4 } as unknown as World['terrain'];
 const world = { terrain } as unknown as World;
 const drive = {} as DriveSnapshot;
 
-function host(calls: string[]): TurnWorkerHost {
+function host(calls: string[], ready: { signal: () => void } = { signal: () => {} }): TurnWorkerHost {
   return {
-    sendTerrain: () => void calls.push('terrain'),
+    sendTerrain: (_terrain, onReady) => {
+      calls.push('terrain');
+      ready.signal = onReady;
+    },
     warm: () => {
       calls.push('warm');
       return Promise.resolve();
     },
   };
+}
+
+type Start = { boot?: Promise<void>; physics?: Promise<void>; ready?: { signal: () => void } };
+
+function start(calls: string[], { boot = Promise.resolve(), physics = Promise.resolve(), ready }: Start = {}): Promise<void> {
+  return startTurnWorker({ host: host(calls, ready), bootFinished: boot, physicsReady: physics, terrain, opening: () => ({ world, drive }), mark: (step) => void calls.push(`mark ${step}`) });
 }
 
 function deferred(): { promise: Promise<void>; done: () => void } {
@@ -28,7 +37,7 @@ describe('the turn worker start', () => {
     const calls: string[] = [];
     const boot = deferred();
 
-    const started = startTurnWorker(host(calls), boot.promise, Promise.resolve(), terrain, () => ({ world, drive }));
+    const started = start(calls, { boot: boot.promise });
     await new Promise((resolve) => setTimeout(resolve));
 
     expect(calls).toEqual([]);
@@ -41,13 +50,28 @@ describe('the turn worker start', () => {
     const calls: string[] = [];
     const physics = deferred();
 
-    const started = startTurnWorker(host(calls), Promise.resolve(), physics.promise, terrain, () => ({ world, drive }));
+    const started = start(calls, { physics: physics.promise });
     await new Promise((resolve) => setTimeout(resolve));
 
     expect(calls).toEqual(['terrain']);
     physics.done();
     await started;
     expect(calls).toEqual(['terrain', 'warm']);
+  });
+
+  it('marks the first turn as its own boot step once the worker says its route ground is ready', async () => {
+    const calls: string[] = [];
+    const physics = deferred();
+    const ready = { signal: () => {} };
+
+    const started = start(calls, { physics: physics.promise, ready });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(calls).toEqual(['terrain']);
+    ready.signal();
+    physics.done();
+    await started;
+
+    expect(calls).toEqual(['terrain', 'mark running the first turn in the turn worker', 'warm']);
   });
 });
 

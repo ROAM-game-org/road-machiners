@@ -21,6 +21,8 @@ const RECORDED: Record<string, string> = {
   '138-144 2-138-roaming.json': '1f743f411f43c73bf2966c39c25306dc6a2d52dc3f84bf83ca68c288cb25b472',
   '144-149 2-144-highway.json': '89fe04870db66db64a23c49c5cbc3a164f51834eb206a57563dcaac5f9edf087',
   '144-149 2-144-roaming.json': '0215f249ae8e912e4bf70f92b0fc63f8a03a87aeb5c51a2ba49e3fd0e7844ce8',
+  '149-150 2-149-highway.json': '3e75c62a42ae1987411ee77f3fe344c7c9b6e8fd396bd4f28545e4e0034c0fe9',
+  '150-151 2-150-highway.json': '3e75c62a42ae1987411ee77f3fe344c7c9b6e8fd396bd4f28545e4e0034c0fe9',
   '63-136 2-63-roaming.json': '00816bc6270e14ec8549b62ab892af4d8fbb14656c0c7351ea41983da0751afc',
 };
 
