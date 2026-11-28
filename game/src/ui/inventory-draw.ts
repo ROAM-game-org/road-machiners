@@ -391,10 +391,8 @@ export function iconBox(it: GridItem, m: GridMetrics): { width: number; height: 
 }
 
 export function iconTurn(it: GridItem): number {
-  const aim = facingOf(it);
-  const turned = cellsTurned(it);
-  if (turned === (aim % 180 === 90)) return aim;
-  return turned ? (aim === 0 ? 90 : 270) : aim === 90 ? 0 : 180;
+  const box = footprint(it);
+  return box.h > box.w ? 90 : 0;
 }
 
 export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {

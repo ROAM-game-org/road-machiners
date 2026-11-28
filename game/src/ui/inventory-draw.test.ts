@@ -419,13 +419,13 @@ describe("the icon of a gun lying across its cells", () => {
   const metrics = { cellW: 20, cellH: 20, spareCell: 30, chassisRows: 5 } as GridMetrics;
   const at = (rot: Rot) => iconBox(item("mg", rot), metrics);
 
-  it("keeps the footprint for a gun that points along its cells", () => {
-    expect(at(0)).toEqual({ width: 18, height: 58 });
-    expect(at(1)).toEqual({ width: 18, height: 58 });
+  it("draws the wide gun picture along the long side of the footprint", () => {
+    expect(at(0)).toEqual({ width: 58, height: 18 });
+    expect(at(1)).toEqual({ width: 58, height: 18 });
   });
 
   it("sizes a gun in a cargo row from the cargo cell", () => {
-    expect(iconBox({ ...item("mg", 0), y: 5 }, metrics)).toEqual({ width: 28, height: 88 });
+    expect(iconBox({ ...item("mg", 0), y: 5 }, metrics)).toEqual({ width: 88, height: 28 });
   });
 
   it.each(["mg", "battleRifle", "tankGun"])("fills the footprint of %s along its long side in every pose", (id) => {
@@ -436,7 +436,8 @@ describe("the icon of a gun lying across its cells", () => {
       const long = Math.max(cells.w, cells.h) * 20 - 2;
       expect(Math.max(width, height)).toBe(long);
       expect(Math.min(width, height)).toBe(Math.min(cells.w, cells.h) * 20 - 2);
-      expect(iconTurn(gun) % 180 === 90).toBe(cellsTurned(gun));
+      expect(iconTurn(gun) === 90).toBe(cells.h > cells.w);
+      expect(width).toBe(Math.max(width, height));
     }
   });
 });
