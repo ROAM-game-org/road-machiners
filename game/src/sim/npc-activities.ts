@@ -33,6 +33,7 @@ import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, isStockGoal, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
+import { onRelicSeen } from './claim-contest';
 import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
@@ -480,7 +481,7 @@ function perceives(world: World, vehicle: Vehicle, decision: string, id: string,
   return PERCEIVES[decision as NoticedKind](world, vehicle, id, contacts);
 }
 
-export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen' | 'crewCalled' | 'lookedOver';
+export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen' | 'crewCalled' | 'lookedOver' | 'claimContest';
 type NoticedKind = NoticedDecision | 'lookWarning';
 
 type Perception = (world: World, vehicle: Vehicle, id: string, contacts: Contact[]) => boolean;
@@ -512,6 +513,7 @@ const PERCEIVES: Record<NoticedKind, Perception> = {
   strangerSeen: seesVehicle,
   crewCalled: seesVehicle,
   lookedOver: seesVehicle,
+  claimContest: seesVehicle,
   lookWarning: seesVehicle,
 };
 
@@ -873,6 +875,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onHoldUp(world, vehicle);
   onStrandedSeen(world, vehicle);
   onNeedySeen(world, vehicle);
+  onRelicSeen(world, vehicle);
   onStrangerSeen(world, vehicle);
   if (!ridesOnSchedule(vehicle)) onSalvageSeen(world, vehicle);
   onEscortSeen(world, vehicle);

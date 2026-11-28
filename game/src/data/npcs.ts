@@ -701,6 +701,7 @@ export type DecisionOptions = {
   strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
   vigilCalled: 'accept' | 'refuse' | 'flee';
   helpCalled: 'help' | 'refuse';
+  claimContest: 'buy' | 'takeIt' | 'giveUp';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -732,6 +733,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   lootContested: { warn: 4, leave: 5.7, fight: 0.2 },
   warnRefused: { leave: 3, fight: 1 },
   mugging: { demand: 3, attack: 2 },
+  claimContest: { buy: 1, takeIt: 0.4, giveUp: 0.5 },
   resume: { resume: 9, new: 1 },
   bountyDemanded: { pay: 3, fight: 1, flee: 1 },
   spotWork: { work: 0, moveOn: 1 },

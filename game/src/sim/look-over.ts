@@ -160,7 +160,7 @@ export function onPreySeen(world: World, vehicle: Vehicle): void {
   }
 }
 
-function startRobbery(world: World, vehicle: Vehicle, target: Vehicle): void {
+export function startRobbery(world: World, vehicle: Vehicle, target: Vehicle): void {
   addState(world, 'feud', vehicle.id, target.id, { kind: 'feud', robbery: true });
   world.events.push({ t: 'hostile', vehicle: vehicle.id, against: target.id });
   reportIncident(world, { aggressor: vehicle, victim: target, deed: 'robbed', victimFights: false });

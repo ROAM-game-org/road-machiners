@@ -39,6 +39,7 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { remember } from './memory';
+import { canBidFor } from './claim-bid';
 import { canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGates, siteUnder, type Site } from './sites';
@@ -638,6 +639,16 @@ function traitsAllowRobbing(vehicle: Vehicle): boolean {
   return robs === 'offDuty' && !vehicle.brain!.goals.some((goal) => goal.kind === 'follow');
 }
 
+function canBuyRelic(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return canBidFor(world, vehicle, subjectOf(world, decision, subject));
+}
+
+function canTakeRelic(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  const target = subjectOf(world, decision, subject);
+  if (isStranded(world, vehicle) || !traitsAllowRobbing(vehicle) || firepower(world, vehicle) <= 0) return false;
+  return isFairGame(world, vehicle, target) && !inCombatWithOther(world, target, vehicle.id);
+}
+
 function canRamSubject(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
   const target = subjectOf(world, decision, subject);
   const top = topGoal(vehicle);
@@ -754,6 +765,9 @@ const AVAILABLE: Record<OptionName, Availability> = {
   comply: always,
   demand: always,
   attack: always,
+  buy: canBuyRelic,
+  takeIt: canTakeRelic,
+  giveUp: always,
   help: (world, vehicle, decision, subject) => canAnswerCall(world, vehicle, subjectOf(world, decision, subject)),
   hire: canHireSubject,
   take: canTakeSubject,
@@ -998,6 +1012,9 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   tow: towFactor,
   demand: neutral,
   attack: neutral,
+  buy: neutral,
+  takeIt: (world, vehicle, decision, subject) => guardFactor(world, vehicle, subjectOf(world, decision, subject), NPC_BEHAVIOR.robNearGuards),
+  giveUp: neutral,
   resume: lootedResumeFactor,
   new: neutral,
   trade: neutral,
@@ -1128,6 +1145,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   lootContested: 'response',
   warnRefused: 'response',
   mugging: 'response',
+  claimContest: 'response',
   strandedFoe: 'response',
   surrenderOffered: 'response',
   resume: 'response',
