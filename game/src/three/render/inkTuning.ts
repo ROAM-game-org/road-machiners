@@ -70,7 +70,7 @@ export const KNOBS: Record<TuningKey, Knob> = {
   fireTongue: { label: "Tongue reach", min: 0, max: 3, step: 0.05, start: 0.9, unit: "m" },
   fireTongueSize: { label: "Tongue size", min: 0.1, max: 3, step: 0.05, start: 0.8, unit: "m" },
   fireTongueSpeed: { label: "Tongue rise speed", min: 0, max: 5, step: 0.1, start: 1.5 },
-  nightLight: { label: "Night light", min: 0.05, max: 1, step: 0.05, start: 0.2 },
+  nightLight: { label: "Night light", min: 0.05, max: 1, step: 0.05, start: 0.25 },
   truckNight: { label: "Truck night light", min: 0, max: 0.2, step: 0.005, start: 0.07 },
   crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0 },
 };
