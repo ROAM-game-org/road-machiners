@@ -613,6 +613,12 @@
       "chev icon name name"
       ". . stat foot";
   }
+  #ui .truck-rows button.part-sum {
+    grid-template-columns: var(--icon-xs) var(--icon-3xl) minmax(0, 1fr) auto;
+    grid-template-areas:
+      "chev icon name name"
+      ". . stat stat";
+  }
 }
 
 .footprint {
@@ -1035,18 +1041,6 @@
   min-height: var(--btn-h-m);
 }
 
-/* Trucks: the layout map beside the stats. */
-.cards.trucks {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-truck-min)), 1fr));
-}
-.truck-card {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-}
-.truck-card .card-foot {
-  flex-wrap: wrap;
-}
 .tile.on {
   border-color: var(--accent);
   border-left-color: var(--tone, var(--accent));
@@ -1055,17 +1049,32 @@
 .tile.on:hover {
   border-color: var(--accent);
 }
-.truck-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+#ui .truck-rows button.part-sum {
+  grid-template-columns: var(--icon-xs) var(--icon-3xl) minmax(0, 1fr) auto;
+  grid-template-areas: "chev icon name stat";
 }
-.truck-body {
+.part-sum > .chassis-icon {
+  overflow: hidden;
+  grid-area: icon;
+  display: block;
+  width: var(--icon-3xl);
+  height: var(--icon-xl);
+}
+.chassis-icon > .chassis-portrait {
+  width: 100%;
+  height: 100%;
+}
+.truck-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+.truck-facts {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
 }
 /* The truck's portrait beside its grid. */
 .truck-pics {
@@ -1298,13 +1307,6 @@
 .supply-rows .cap,
 .ink-panel.supplies .cap {
   display: none;
-}
-.truck-head .card-name b {
-  white-space: normal;
-}
-.truck-head > .screen-btn {
-  flex: none;
-  width: calc(var(--btn-trade-w) * 1.4);
 }
 .supply-rows .row,
 .supply-rows .good-row {
