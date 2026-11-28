@@ -14,7 +14,7 @@ import { unitPoses } from '../../sim/rig';
 import type { Vehicle, World } from '../../sim/types';
 import { DEG, type Vec } from '../../sim/vec';
 import { createBareItemIcon } from '../../ui/cards';
-import { el } from '../../ui/dom';
+import { el, moveTo } from '../../ui/dom';
 import type { CameraRig } from './camera';
 import { READY_ARC_BIT, SPENT_ARC_BIT } from './models';
 import { num } from '../../text/msg';
@@ -217,8 +217,7 @@ export class HoverArcsView {
       const y = pos.y + Math.sin(a) * arc.spot.distance;
       const p = layerPointOf(this.rig.screenOf({ x: x * S, y: markHeightAt(terrain, pos, x, y) * S, z: y * S }));
       const node = this.icons.get(arc.weapon.part.id)!;
-      node.style.left = `${p.x}px`;
-      node.style.top = `${p.y}px`;
+      moveTo(node, p.x, p.y);
       node.classList.toggle('spent', arc.spent);
     }
   }

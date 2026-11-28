@@ -87,21 +87,24 @@
 
 .arc-icon {
   position: absolute;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
+  will-change: translate;
+  margin: calc(var(--hud-badge) / -2) 0 0 calc(var(--hud-arc-chip-w) / -2);
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  min-width: var(--hud-badge);
+  box-sizing: border-box;
+  width: var(--hud-arc-chip-w);
   height: var(--hud-badge);
   padding: 0 var(--hud-screen-edge);
 }
 #overlay .arc-icon.spent { color: var(--hud-amber-faint); }
 .arc-icon .item-icon {
-  height: 80%;
-  width: auto;
-  aspect-ratio: 1;
+  height: var(--hud-arc-icon);
+  width: var(--hud-arc-icon);
   filter: url(#hud-amber-tint);
 }
 .arc-icon-slot {
