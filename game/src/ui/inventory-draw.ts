@@ -384,16 +384,17 @@ export function cellEl(c: Cell, x: number, y: number, m: GridMetrics): HTMLEleme
 
 export function iconBox(it: GridItem, m: GridMetrics): { width: number; height: number } {
   const box = footprint(it);
-  const sideways = facingOf(it) % 180 === 90;
-  const across = cellsTurned(it);
-  const spare = it.y >= m.chassisRows;
-  const wide = box.w * (spare ? m.spareCell : m.cellW) - 2;
-  const tall = box.h * (spare ? m.spareCell : m.cellH) - 2;
-  const room = { width: sideways ? tall : wide, height: sideways ? wide : tall };
-  if (across === sideways) return room;
-  const own = itemSize({ ...it, rot: 0 });
-  const k = Math.min(room.width / own.w, room.height / own.h);
-  return { width: own.w * k, height: own.h * k };
+  const cell = it.y >= m.chassisRows ? m.spareCell : null;
+  const wide = box.w * (cell ?? m.cellW) - 2;
+  const tall = box.h * (cell ?? m.cellH) - 2;
+  return iconTurn(it) % 180 === 90 ? { width: tall, height: wide } : { width: wide, height: tall };
+}
+
+export function iconTurn(it: GridItem): number {
+  const aim = facingOf(it);
+  const turned = cellsTurned(it);
+  if (turned === (aim % 180 === 90)) return aim;
+  return turned ? (aim === 0 ? 90 : 270) : aim === 90 ? 0 : 180;
 }
 
 export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
@@ -401,7 +402,7 @@ export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
   const gun = weaponDefOf(it);
   if (!gun) return icon;
   const { width, height } = iconBox(it, m);
-  icon.style.cssText += `;position:absolute;left:50%;top:50%;width:${width}px;height:${height}px;transform:translate(-50%,-50%) rotate(${facingOf(it)}deg)`;
+  icon.style.cssText += `;position:absolute;left:50%;top:50%;width:${width}px;height:${height}px;transform:translate(-50%,-50%) rotate(${iconTurn(it)}deg)`;
   return icon;
 }
 
