@@ -570,6 +570,7 @@ export const LOG = {
   'refusal.twoInTheWay': 'More than one item is in the way',
   'refusal.refitItemMoved': 'An item needed for the refit has moved or disappeared',
   'refusal.builtInFixed': 'Built-in parts cannot be moved',
+  'refusal.offMountFirst': 'Take it off its mount first',
   'refusal.parcelKept': 'Not yours to drop',
   'refusal.salvageOutOfReach': 'Salvage is no longer in reach',
   'refusal.salvagePartGone': 'The salvage part is no longer available',

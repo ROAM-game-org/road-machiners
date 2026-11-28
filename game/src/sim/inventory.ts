@@ -9,7 +9,7 @@ import { cellKey, findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, l
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
-import { cancelJob, startJob } from './jobs';
+import { cancelJob, isBusy, startJob } from './jobs';
 import { RULES } from '../data/rules';
 import { canReachSalvage, dumpOnPile, lockedFrom, pickupWork, truckPickupItem } from './salvage';
 import { modeRules } from './settings';
@@ -400,10 +400,12 @@ export function dumpItem(world: World, itemId: string, truckId?: string): World 
   return playerCommand(world, (w) => {
     const me = refitTruck(w, truckId, true);
     requireIdleRefit(me);
+    if (me.job && isBusy(me)) throw new Refused({ id: 'busy', job: me.job.kind });
     const item = findItem(me, itemId);
     if (item.kind === 'parcel') throw new Refused({ id: 'parcelKept' });
+    requireRemovable(item);
+    if (isMounted(me.chassisId, item)) throw new Refused({ id: 'offMountFirst' });
     if (item.kind === 'good') requireSpareGoods(w, me, item.good, 1);
-    if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
     if (modeRules(w).looting) dumpOnPile(w, me, item);
     else me.items = me.items.filter((it) => it.id !== item.id);
   });

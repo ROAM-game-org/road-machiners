@@ -15,10 +15,10 @@ function damagedGunWorld(): { w: World; gunId: string } {
   return { w, gunId: gun.id };
 }
 
-function viewOver(w: World, gunId: string | null, shape: { bench: boolean; columns?: number }): FakeNode {
+function viewOver(w: World, gunId: string | null, shape: { bench: boolean; columns?: number; dump?: boolean }): FakeNode {
   stubDom();
   const host = { world: () => w, apply: () => {}, announce: () => {}, searchStock: () => {}, menuOpen: () => false, getTurnPhase: () => null } as never;
-  const view = new InventoryView(host, () => {}, !shape.bench);
+  const view = new InventoryView(host, () => {}, shape.dump ?? !shape.bench);
   if (shape.bench) view.setHead({ title: new FakeNode("h2") as never, close: new FakeNode("button") as never });
   const probe = view as unknown as Probe;
   if (shape.columns) probe.scale.apply("test", { columns: shape.columns, cargoBeside: false, pxPerMeter: 20, spareCellPx: 20 }, null);
@@ -67,5 +67,33 @@ describe("where an action's cost prints", () => {
     expect(root.all((n) => n.attrs.get("data-action") === "rotate").length).toBeGreaterThan(0);
     const idle = viewOver(w, null, { bench: true });
     expect(named(idle, "inv-costs")[0].children).toHaveLength(0);
+  });
+});
+
+describe("the Dump key", () => {
+  afterEach(() => {
+    ui.children = [];
+    vi.unstubAllGlobals();
+  });
+
+  const dumpKeys = (root: FakeNode) => named(root.all((n) => n.className === "inv-foot")[0], "inv-keys").flatMap((k) => k.all((n) => n.attrs.get("data-drop") === "dump"));
+  const crateOf = (w: World) => w.vehicles[0].items.find((it) => it.kind === "good")!.id;
+
+  it("holds its place in every state", () => {
+    const { w, gunId } = damagedGunWorld();
+    expect(dumpKeys(viewOver(w, null, { bench: true, dump: false }))).toHaveLength(0);
+    expect(dumpKeys(viewOver(w, null, { bench: true, dump: true }))).toHaveLength(1);
+    expect(dumpKeys(viewOver(w, gunId, { bench: true, dump: true }))).toHaveLength(1);
+    expect(dumpKeys(viewOver(w, crateOf(w), { bench: true, dump: true }))).toHaveLength(1);
+    w.vehicles[0].job = { kind: "repair", partId: gunId, parts: 1, turnsLeft: 3, total: 3 };
+    expect(dumpKeys(viewOver(w, crateOf(w), { bench: true, dump: true }))).toHaveLength(1);
+  });
+
+  it("is last in the strip", () => {
+    const { w } = damagedGunWorld();
+    const foot = viewOver(w, null, { bench: true, dump: true }).all((n) => n.className === "inv-foot")[0];
+    const keys = foot.all((n) => n.tag === "button");
+    expect(keys.length).toBeGreaterThan(1);
+    expect(keys[keys.length - 1].attrs.get("data-drop")).toBe("dump");
   });
 });

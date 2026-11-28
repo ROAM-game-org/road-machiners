@@ -156,8 +156,8 @@ function dumpReason(h: CardHost, item: GridItem): Msg | null {
   return failed === null ? null : commandFailure(h.world, failed);
 }
 
-function dumpRow(h: CardHost, item: GridItem, mounted: boolean): HTMLElement[] {
-  if (!h.dumpZone || mounted || h.me.job) return [];
+function dumpRow(h: CardHost, item: GridItem): HTMLElement[] {
+  if (!h.dumpZone) return [];
   const reason = dumpReason(h, item);
   const button = el("button", { class: "btn-s", "data-drop": "dump", onpointerdown: stopPress, ...disabledWith(reason, () => h.run((world) => dumpItem(world, item.id, h.truckId))) }, t("inv.dumpShort"));
   return reason ? offActionRow(button, reason) : actionRow(button, []);
@@ -186,7 +186,7 @@ function spareRows(h: CardHost, part: PartInstance, mounted: boolean): HTMLEleme
 
 function cargoRows(h: CardHost, item: GridItem): HTMLElement[] {
   const welds = item.kind === "good" && item.good === "scrap" && vehicleHasPerk(h.world, h.me, "welder");
-  return [...(welds ? weldRow(h) : []), ...dumpRow(h, item, false)];
+  return [...(welds ? weldRow(h) : []), ...dumpRow(h, item)];
 }
 
 function partRows(h: CardHost, item: Extract<GridItem, { kind: "part" }>, mounted: boolean): HTMLElement[] {
@@ -198,7 +198,7 @@ function partRows(h: CardHost, item: Extract<GridItem, { kind: "part" }>, mounte
     ...(shopAt(h.world) || atOutpost(h, h.world) ? repairRow(h, part) : []),
     ...rotateRow(h, item),
     ...(strips ? stripRow(h, part) : []),
-    ...dumpRow(h, item, mounted),
+    ...dumpRow(h, item),
   ];
 }
 
