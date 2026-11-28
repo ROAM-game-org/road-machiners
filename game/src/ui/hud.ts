@@ -770,7 +770,7 @@ export interface CardHandlers {
 
 function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label, pressed?: boolean): HTMLElement[] {
   const state = pressed === undefined ? {} : { "aria-pressed": String(pressed) };
-  return [el("button", { class: "hud-key", "data-shortcut": key, ...state, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
+  return [el("button", { class: pressed ? "hud-key on" : "hud-key", "data-shortcut": key, ...state, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
 }
 
 export function recenterTip(onclick: () => void): HTMLElement {

@@ -193,9 +193,11 @@ describe('truck card actions', () => {
     const follow = row!.withTag('button')[2];
     expect(follow.attrs['aria-disabled']).toBeUndefined();
     expect(follow.attrs['aria-pressed']).toBe('false');
+    expect(follow.className).toBe('hud-key');
     expect(follow.attrs.title).toContain('Follow at its speed until you steer');
     const lit = cardActions(followTruck(w, npc.id), npc, handlers) as unknown as FakeNode;
     expect(lit.withTag('button')[2].attrs['aria-pressed']).toBe('true');
+    expect(lit.withTag('button')[2].className).toBe('hud-key on');
     const far = card(60, false);
     const refused = far.row!.withTag('button')[2];
     expect(refused.attrs['aria-disabled']).toBe('true');
