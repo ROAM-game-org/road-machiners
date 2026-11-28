@@ -33,9 +33,9 @@ export type Voice = {
   moods?: Partial<Record<Mood, LineId>>;
 };
 
-export type Mood = 'attacking' | 'underFire' | 'stranded' | 'justFought';
+export type Mood = 'attacking' | 'underFire' | 'stranded' | 'justFought' | 'escorted' | 'towed' | 'guarded';
 
-export const MOOD_GREETINGS: Record<Mood, LineId> = { attacking: 'youCalledSayItFast', underFire: 'shotsFlyingWhatNeed', stranded: 'lookStuckWhatNow', justFought: 'thatWasSomeShooting' };
+export const MOOD_GREETINGS: Record<Mood, LineId> = { attacking: 'youCalledSayItFast', underFire: 'shotsFlyingWhatNeed', stranded: 'lookStuckWhatNow', justFought: 'thatWasSomeShooting', escorted: 'escortedGoAhead', towed: 'onYourRopeGoAhead', guarded: 'guardListening' };
 
 export type TraitTalk = { voice: Voice | null; topics: TopicId[]; only?: true };
 
@@ -174,6 +174,10 @@ export const URGENT_TOPICS: readonly UrgentTopic[] = [
   { topic: 'buyTruce', when: [] },
   { topic: 'yieldDemand', when: [] },
   { topic: 'payBounty', when: [] },
+  { topic: 'escortHold', when: [] },
+  { topic: 'escortGo', when: [] },
+  { topic: 'releaseTow', when: [] },
+  { topic: 'dismissGuard', when: [] },
   { topic: 'lastSeen', when: [] },
   { topic: 'parcel', when: [] },
   { topic: 'claimWreck', when: [] },

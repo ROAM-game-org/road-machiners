@@ -327,7 +327,14 @@ export function moodOf(world: World, npc: Vehicle): Mood | null {
   const foes = awakeFoesOf(world, me);
   if (inCombat(world, me) && foes.length > 0 && !foes.some((foe) => foe.id === npc.id)) return 'underFire';
   if (isStranded(world, me)) return 'stranded';
-  return inCombat(world, me) ? 'justFought' : null;
+  if (inCombat(world, me)) return 'justFought';
+  return dealMood(world, npc);
+}
+
+function dealMood(world: World, npc: Vehicle): Mood | null {
+  if (heldEscort(world)?.client === npc.id) return 'escorted';
+  if (playerTowing(world)?.other === npc.id) return 'towed';
+  return isPlayerGuard(world, npc) ? 'guarded' : null;
 }
 
 export const CONDITIONS: Record<ConditionId, Condition> = {
