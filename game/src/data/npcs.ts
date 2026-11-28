@@ -1,6 +1,6 @@
 
 import type { NpcFactionId, StateKindId } from '../sim/types';
-import { CREW, HIRE, NPC_UPKEEP, ROAD_KIT_PARTS } from './npc-behavior';
+import { CREW, HIRE, NPC_UPKEEP, RAID_NERVE, ROAD_KIT_PARTS } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
@@ -813,7 +813,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, RAID_NERVE, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
 
 export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

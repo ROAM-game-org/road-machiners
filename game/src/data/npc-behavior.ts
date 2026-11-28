@@ -139,6 +139,10 @@ export const CREW = {
   lowAppetite: 0.5,
 };
 
+export const RAID_NERVE = {
+  prize: 0.5,
+};
+
 export const HIRE = {
   turns: TIME.workDayTurns,
 };

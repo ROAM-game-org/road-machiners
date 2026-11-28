@@ -253,7 +253,7 @@ function giveUp(world: World, marshal: Vehicle, cases: CrimeCase[]): void {
 }
 
 export function outmatched(world: World, marshal: Vehicle, target: Vehicle): boolean {
-  return wantsPeace(world, marshal, judgeDanger(world, marshal, target));
+  return wantsPeace(world, marshal, target, judgeDanger(world, marshal, target));
 }
 
 export function hunterOf(world: World, marshal: Vehicle): Vehicle | null {

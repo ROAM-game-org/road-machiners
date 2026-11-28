@@ -14,7 +14,7 @@ import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
-  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, ICARUS_OPTIONS, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, ICARUS_OPTIONS, RAID_NERVE, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
@@ -214,6 +214,21 @@ function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subje
 
 export function isManageable(vehicle: Vehicle, danger: number): boolean {
   return danger <= NPC_BEHAVIOR.threatRatio * npcProfile(vehicle).boldness;
+}
+
+function raidNerve(world: World, vehicle: Vehicle, target: Vehicle): number {
+  if (!huntsForLoot(world, vehicle, target)) return 1;
+  const curve = huntCurve(vehicle);
+  const appeal = appealOf(world, vehicle, target, curve);
+  return 1 + (RAID_NERVE.prize * (appeal - curve.poorMul)) / (1 - curve.poorMul);
+}
+
+export function managesAgainst(world: World, vehicle: Vehicle, target: Vehicle, danger: number): boolean {
+  return danger <= NPC_BEHAVIOR.threatRatio * npcProfile(vehicle).boldness * raidNerve(world, vehicle, target);
+}
+
+function manages(world: World, vehicle: Vehicle, subject: string | null, danger: number): boolean {
+  return subject === null ? isManageable(vehicle, danger) : managesAgainst(world, vehicle, vehicleById(world, subject), danger);
 }
 
 export function isWeak(world: World, vehicle: Vehicle): boolean {
@@ -792,7 +807,7 @@ function losingFlee(world: World, vehicle: Vehicle, foe: Vehicle): number {
 }
 
 function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  if (danger === null || isManageable(vehicle, danger)) return 1;
+  if (danger === null || manages(world, vehicle, subject, danger)) return 1;
   return getsAway(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
 }
 
@@ -800,17 +815,17 @@ function hunterFlee(world: World, vehicle: Vehicle, manageable: boolean): number
   return huntsPrey(vehicle) && manageable && !badlyHurt(world, vehicle) ? NPC_BEHAVIOR.hunterFlee : 1;
 }
 
-function manageableFoe(vehicle: Vehicle, danger: number | null): boolean {
-  return danger !== null && isManageable(vehicle, danger);
+function manageableFoe(world: World, vehicle: Vehicle, subject: string | null, danger: number | null): boolean {
+  return danger !== null && manages(world, vehicle, subject, danger);
 }
 
 function fleeSeenFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
+  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(world, vehicle, manageableFoe(world, vehicle, subject, danger));
 }
 
 function fleeParleyFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const foe = subjectOf(world, decision, subject);
-  return threatFlee(world, vehicle, decision, subject, danger) * losingFlee(world, vehicle, foe) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
+  return threatFlee(world, vehicle, decision, subject, danger) * losingFlee(world, vehicle, foe) * hunterFlee(world, vehicle, manageableFoe(world, vehicle, subject, danger));
 }
 
 function fleeHeardFactor(world: World, vehicle: Vehicle): number {
@@ -853,7 +868,7 @@ function robFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject
 }
 
 function raidFactor(world: World, vehicle: Vehicle, target: Vehicle, danger: number | null): number {
-  const eager = danger !== null && isManageable(vehicle, danger);
+  const eager = danger !== null && managesAgainst(world, vehicle, target, danger);
   const appeal = appealOf(world, vehicle, target, huntCurve(vehicle));
   return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(world, vehicle, target, NPC_BEHAVIOR.fightNearGuards);
 }
@@ -871,13 +886,13 @@ export function passReason(world: World, hunter: Vehicle, other: Vehicle, danger
   if (!huntsPrey(hunter)) throw new Error(`${hunter.id} is not a raider, so it has no pass reason`);
   if (!hasPerceivedLoot(world, hunter, other) && !inFeud(world, hunter, other)) return 'nothing';
   if (inCombatWithOther(world, hunter, other.id)) return 'busy';
-  if (!isManageable(hunter, danger)) return 'outgunned';
+  if (!managesAgainst(world, hunter, other, danger)) return 'outgunned';
   return appealOf(world, hunter, other, huntCurve(hunter)) < 1 ? 'poorLoad' : 'chance';
 }
 
 function fightFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const target = subjectOf(world, decision, subject);
-  const eager = !isBusy(vehicle) && danger !== null && isManageable(vehicle, danger);
+  const eager = !isBusy(vehicle) && danger !== null && managesAgainst(world, vehicle, target, danger);
   const lootOnly = decision === 'hostileSeen' && huntsForLoot(world, vehicle, target);
   const appeal = lootOnly ? appealOf(world, vehicle, target, huntCurve(vehicle)) : 1;
   return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * crewHold(world, vehicle, decision, target) * guardFactor(world, vehicle, target, NPC_BEHAVIOR.fightNearGuards);
@@ -887,8 +902,8 @@ function crewHold(world: World, vehicle: Vehicle, decision: DecisionId, target: 
   return decision === 'hostileSeen' && heldBackByCrew(world, vehicle, target) ? CREW.initiative : 1;
 }
 
-function fightBackFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
-  return danger !== null && isManageable(vehicle, danger) ? NPC_BEHAVIOR.manageableFight : 1;
+function fightBackFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
+  return danger !== null && manages(world, vehicle, subject, danger) ? NPC_BEHAVIOR.manageableFight : 1;
 }
 
 function keepFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
@@ -907,7 +922,7 @@ function retaliateFactor(world: World, vehicle: Vehicle, decision: DecisionId, s
 }
 
 function truceFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  if (danger !== null && !isManageable(vehicle, danger)) return NPC_BEHAVIOR.threatTruce;
+  if (danger !== null && !manages(world, vehicle, subject, danger)) return NPC_BEHAVIOR.threatTruce;
   return pleads(world, vehicle, subjectOf(world, decision, subject)) ? 1 : NPC_BEHAVIOR.winningTruce;
 }
 
@@ -915,16 +930,16 @@ function begFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject
   return pleads(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.weakBeg : 1;
 }
 
-export function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
-  return (danger !== null && !isManageable(vehicle, danger)) || isWeak(world, vehicle);
+export function wantsPeace(world: World, vehicle: Vehicle, target: Vehicle, danger: number | null): boolean {
+  return (danger !== null && !managesAgainst(world, vehicle, target, danger)) || isWeak(world, vehicle);
 }
 
-function acceptFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
-  return wantsPeace(world, vehicle, danger) ? NPC_BEHAVIOR.threatAccept : 1;
+function acceptFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  return wantsPeace(world, vehicle, subjectOf(world, decision, subject), danger) ? NPC_BEHAVIOR.threatAccept : 1;
 }
 
-function refuseFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
-  return robs(world, vehicle, subject) && !wantsPeace(world, vehicle, danger) ? NPC_BEHAVIOR.robberRefuse : 1;
+function refuseFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  return robs(world, vehicle, subject) && !wantsPeace(world, vehicle, subjectOf(world, decision, subject), danger) ? NPC_BEHAVIOR.robberRefuse : 1;
 }
 
 function robs(world: World, vehicle: Vehicle, subject: string | null): boolean {
@@ -938,7 +953,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && knowsCargo(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
+  return wantsLoot(world, robber, prey) && knowsCargo(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, prey, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -949,12 +964,12 @@ export function holdsOffRobbery(world: World, vehicle: Vehicle, target: Vehicle)
   return isStranded(world, vehicle) && robbedFor(world, vehicle, target) && !fightsAgainst(world, target, vehicle);
 }
 
-function leaveFactor(_world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
-  return danger !== null && !isManageable(vehicle, danger) ? NPC_BEHAVIOR.threatLeave : 1;
+function leaveFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
+  return danger !== null && !manages(world, vehicle, subject, danger) ? NPC_BEHAVIOR.threatLeave : 1;
 }
 
-function complyFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
-  const threat = danger !== null && !isManageable(vehicle, danger) ? NPC_BEHAVIOR.threatComply : 1;
+function complyFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null, danger: number | null): number {
+  const threat = danger !== null && !manages(world, vehicle, subject, danger) ? NPC_BEHAVIOR.threatComply : 1;
   return guardedNow(world, vehicle) ? threat * NPC_BEHAVIOR.guardedComply : threat;
 }
 
