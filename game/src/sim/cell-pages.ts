@@ -36,19 +36,28 @@ export class CellPages<A extends PageArray> {
   }
 
   atXY(x: number, y: number): number {
-    this.checkXY(x, y);
-    return this.read(x, y);
+    if (!(x >>> 0 === x && y >>> 0 === y && x < this.side && y < this.side)) this.outside(x, y);
+    const p = (y >> this.shift) * this.across + (x >> this.shift);
+    const page = this.pages[p];
+    if (page !== undefined) return page[((y & this.mask) << this.shift) | (x & this.mask)];
+    return this.filler === null ? this.blank : this.open(p, x, y)[((y & this.mask) << this.shift) | (x & this.mask)];
   }
 
   setXY(x: number, y: number, v: number): void {
-    this.checkXY(x, y);
-    this.write(x, y, v);
+    if (!(x >>> 0 === x && y >>> 0 === y && x < this.side && y < this.side)) this.outside(x, y);
+    const p = (y >> this.shift) * this.across + (x >> this.shift);
+    (this.pages[p] ?? this.open(p, x, y))[((y & this.mask) << this.shift) | (x & this.mask)] = v;
   }
 
   pageOf(x: number, y: number): A {
-    this.checkXY(x, y);
-    const p = this.pageAt(x, y);
+    if (!(x >>> 0 === x && y >>> 0 === y && x < this.side && y < this.side)) this.outside(x, y);
+    const p = (y >> this.shift) * this.across + (x >> this.shift);
     return this.pages[p] ?? this.open(p, x, y);
+  }
+
+  pageIfOpen(x: number, y: number): A | undefined {
+    if (!(x >>> 0 === x && y >>> 0 === y && x < this.side && y < this.side)) this.outside(x, y);
+    return this.pages[(y >> this.shift) * this.across + (x >> this.shift)];
   }
 
   offsetOf(x: number, y: number): number {
@@ -115,6 +124,10 @@ export class CellPages<A extends PageArray> {
   }
 
   private checkXY(x: number, y: number): void {
-    if (!(this.onSide(x) && this.onSide(y))) throw new Error(`CellPages: cell ${x},${y} is outside the ${this.side} by ${this.side} grid`);
+    if (!(this.onSide(x) && this.onSide(y))) this.outside(x, y);
+  }
+
+  private outside(x: number, y: number): never {
+    throw new Error(`CellPages: cell ${x},${y} is outside the ${this.side} by ${this.side} grid`);
   }
 }

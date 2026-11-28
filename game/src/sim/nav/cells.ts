@@ -65,7 +65,7 @@ export function cellWindow(g: CellGrid, cell: number): Window {
 
 export function cellOfFine(g: CellGrid, c: number): number {
   const x = c % g.n;
-  return Math.floor((c - x) / g.n / g.side) * g.m + Math.floor(x / g.side);
+  return (((c - x) / g.n / g.side) | 0) * g.m + ((x / g.side) | 0);
 }
 
 export function cellOfBlock(g: CellGrid, block: number): number {

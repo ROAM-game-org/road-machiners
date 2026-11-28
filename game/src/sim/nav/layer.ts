@@ -565,9 +565,13 @@ export function slowAt(layer: NavLayer, c: number): number {
   return markedSlow(layer, x, (c - x) / layer.n);
 }
 
-function markedSlow(layer: NavLayer, x: number, y: number): number {
+export function slowFrom(slow: number, mark: number): number {
+  return mark === 1 ? Math.fround(slow * BREAKABLE.routeCost) : slow;
+}
+
+export function markedSlow(layer: NavLayer, x: number, y: number): number {
   const slow = layer.slow.atXY(x, y);
-  return layer.marks.atXY(x, y) === 1 ? Math.fround(slow * BREAKABLE.routeCost) : slow;
+  return slowFrom(slow, layer.marks.atXY(x, y));
 }
 
 export function stampBlockers(n: number, blockers: Blocker[], radius: number, mark: (cell: number) => void, w: Window = { x0: 0, y0: 0, x1: n - 1, y1: n - 1 }): void {

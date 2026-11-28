@@ -4,12 +4,12 @@ import { count } from '../../perf';
 import { CellPages } from '../cell-pages';
 import type { Blocker } from './buckets';
 import { cellOfBlock, cellOfFine, costsWithin, endRegion, ensureCell, ensureFine, regionAt, stepCost, triIndex } from './cells';
-import { CELL, COARSE, componentOf, slowAt, stampBlockers, tastedAlong, tastedCoarse, WARM_RING, type NavLayer, type Taste } from './layer';
+import { CELL, COARSE, componentOf, markedSlow, slowFrom, stampBlockers, tastedAlong, tastedCoarse, WARM_RING, type NavLayer, type Taste } from './layer';
 
 export type Overlay = { stamp: CellPages<Uint32Array>; gen: number };
 
 const SCRATCH_PAGES = (2 * WARM_RING + 1) ** 2;
-const LAST_GEN = 0xffffffff;
+const LAST_GEN = 0x7fffffff;
 
 const stampPages = (n: number, side: number) => new CellPages<Uint32Array>(n, side, (length) => new Uint32Array(length), 0);
 
@@ -27,33 +27,32 @@ export function stampOverlay(layer: NavLayer, blockers: Blocker[], radius: numbe
   return overlay;
 }
 
-type Scratch = { cost: CellPages<Float64Array>; from: CellPages<Int32Array>; seen: CellPages<Uint32Array>; closed: CellPages<Uint32Array> };
+type Scratch = { cost: CellPages<Float64Array>; from: CellPages<Int32Array>; seen: CellPages<Uint32Array> };
 
 function newScratch(n: number, side: number): Scratch {
   return {
     cost: new CellPages<Float64Array>(n, side, (length) => new Float64Array(length), 0),
     from: new CellPages<Int32Array>(n, side, (length) => new Int32Array(length), 0),
     seen: stampPages(n, side),
-    closed: stampPages(n, side),
   };
 }
 
 let scratch = newScratch(0, 1);
-let { cost, from, seen, closed } = scratch;
+let { cost, from, seen } = scratch;
 let queue = new Int32Array(1 << 12);
 let gen = 0;
 
 function begin(layer: NavLayer): number {
   if (seen.side !== layer.n || seen.pageSide !== layer.grid.side || gen === LAST_GEN) {
     scratch = newScratch(layer.n, layer.grid.side);
-    ({ cost, from, seen, closed } = scratch);
+    ({ cost, from, seen } = scratch);
     gen = 0;
   }
-  return ++gen;
+  return ++gen * 2;
 }
 
 function endSearch(): void {
-  for (const pages of [cost, from, seen, closed]) pages.releaseOver(SCRATCH_PAGES);
+  for (const pages of [cost, from, seen]) pages.releaseOver(SCRATCH_PAGES);
 }
 
 function queueRoom(tail: number): void {
@@ -166,8 +165,9 @@ function isFree(layer: NavLayer, ov: Overlay, c: number): boolean {
 }
 
 function isFreeXY(layer: NavLayer, ov: Overlay, c: number, x: number, y: number): boolean {
-  const cell = cellOfFine(layer.grid, c);
-  if (layer.grid.built[cell] === 0) ensureCell(layer.cells, cell);
+  const g = layer.grid;
+  const cell = ((y / g.side) | 0) * g.m + ((x / g.side) | 0);
+  if (g.built[cell] === 0) ensureCell(layer.cells, cell);
   return layer.blocked.atXY(x, y) === 0 && ov.stamp.atXY(x, y) !== ov.gen;
 }
 
@@ -623,8 +623,8 @@ function aStar(layer: NavLayer, ov: Overlay, start: number, goal: number, corrid
     if (cur === goal) return finished(goal, expanded);
     const cx = cur % n;
     const cy = (cur - cx) / n;
-    if (closed.atXY(cx, cy) === g) continue;
-    closed.setXY(cx, cy, g);
+    if (seen.atXY(cx, cy) === g + 1) continue;
+    seen.setXY(cx, cy, g + 1);
     expanded++;
     const left = heuristic(cx, cy, s.gx, s.gy);
     if (left < nearestLeft) {
@@ -637,17 +637,22 @@ function aStar(layer: NavLayer, ov: Overlay, start: number, goal: number, corrid
 }
 
 function relaxNeighbours(s: FineSearch, cur: number, cx: number, cy: number): void {
-  const n = s.layer.n;
+  const layer = s.layer;
+  const n = layer.n;
+  const side = layer.grid.side;
+  const lx = cx & (side - 1);
+  const ly = cy & (side - 1);
+  if (lx > 0 && ly > 0 && lx < side - 1 && ly < side - 1 && cx + 1 < n && cy + 1 < n && relaxInside(s, cur, cx, cy, ly * side + lx)) return;
   const count = neighbours(n, cur);
   const here = cost.atXY(cx, cy);
   for (let k = 0; k < count; k++) {
     const next = around[k];
     const nx = next % n;
     const ny = (next - nx) / n;
-    if (!canEnter(s.layer, s.ov, next, nx, ny, s.g, s.corridor, s.box)) continue;
-    const c = here + tastedAlong(s.taste, aroundStep[k] * slowAt(s.layer, next), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
-    const at = seen.offsetOf(nx, ny);
     const seenPage = seen.pageOf(nx, ny);
+    const at = seen.offsetOf(nx, ny);
+    if (seenPage[at] === s.g + 1 || !canEnter(layer, s.ov, next, nx, ny, s.corridor, s.box)) continue;
+    const c = here + tastedAlong(s.taste, aroundStep[k] * markedSlow(layer, nx, ny), (nx + 0.5) * CELL, (ny + 0.5) * CELL, nx - cx, ny - cy);
     const costPage = cost.pageOf(nx, ny);
     if (seenPage[at] === s.g && c >= costPage[at]) continue;
     seenPage[at] = s.g;
@@ -657,13 +662,48 @@ function relaxNeighbours(s: FineSearch, cur: number, cx: number, cy: number): vo
   }
 }
 
+function relaxInside(s: FineSearch, cur: number, cx: number, cy: number, base: number): boolean {
+  const layer = s.layer;
+  const grid = layer.grid;
+  if (grid.built[((cy / grid.side) | 0) * grid.m + ((cx / grid.side) | 0)] === 0) return false;
+  const blockedPage = layer.blocked.pageIfOpen(cx, cy);
+  if (blockedPage === undefined) return false;
+  const stampPage = s.ov.stamp.pageIfOpen(cx, cy);
+  const marksPage = layer.marks.pageIfOpen(cx, cy);
+  const slowPage = layer.slow.pageOf(cx, cy);
+  const seenPage = seen.pageOf(cx, cy);
+  const costPage = cost.pageOf(cx, cy);
+  const fromPage = from.pageOf(cx, cy);
+  const side = grid.side;
+  const closedMark = s.g + 1;
+  const here = costPage[base];
+  for (let k = 0; k < 8; k++) {
+    const dx = AROUND_X[k];
+    const dy = AROUND_Y[k];
+    const at = base + dy * side + dx;
+    if (seenPage[at] === closedMark || blockedPage[at] !== 0 || (stampPage !== undefined && stampPage[at] === s.ov.gen)) continue;
+    const nx = cx + dx;
+    const ny = cy + dy;
+    if (s.box && !inBox(s.box, nx, ny)) continue;
+    if (s.corridor && inCorridor[Math.floor(ny / COARSE) * grid.bn + Math.floor(nx / COARSE)] !== corridorGen) continue;
+    const slow = slowFrom(slowPage[at], marksPage === undefined ? 0 : marksPage[at]);
+    const c = here + tastedAlong(s.taste, AROUND_STEP[k] * slow, (nx + 0.5) * CELL, (ny + 0.5) * CELL, dx, dy);
+    if (seenPage[at] === s.g && c >= costPage[at]) continue;
+    seenPage[at] = s.g;
+    costPage[at] = c;
+    fromPage[at] = cur;
+    heapPush(ny * layer.n + nx, c + heuristic(nx, ny, s.gx, s.gy) * s.w);
+  }
+  return true;
+}
+
 function finished(end: number, expanded: number): Int32Array {
   count('route-search-cells', expanded);
   return unwind(end);
 }
 
-function canEnter(layer: NavLayer, ov: Overlay, c: number, x: number, y: number, g: number, corridor: boolean, box: Box | null): boolean {
-  if (!isFreeXY(layer, ov, c, x, y) || closed.atXY(x, y) === g) return false;
+function canEnter(layer: NavLayer, ov: Overlay, c: number, x: number, y: number, corridor: boolean, box: Box | null): boolean {
+  if (!isFreeXY(layer, ov, c, x, y)) return false;
   if (box && !inBox(box, x, y)) return false;
   return !corridor || inCorridor[Math.floor(y / COARSE) * layer.grid.bn + Math.floor(x / COARSE)] === corridorGen;
 }
