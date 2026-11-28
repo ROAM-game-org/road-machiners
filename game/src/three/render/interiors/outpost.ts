@@ -16,10 +16,12 @@ const SHED = { x: STRIP + 0.2, z: -4.2, yaw: Math.PI / 2 };
 const RACK = { x: STRIP, z: 1.1, length: 1.6, depth: 0.35, height: 0.6, shelves: 3 };
 const LANTERN = { x: STRIP + 0.4, z: 3.6 };
 
-export function buildOutpost(b: SiteBuilder): void {
+export function* buildOutpost(b: SiteBuilder): Generator<void> {
   for (const d of DRUM_CLUSTERS) b.addModel('drums', d.x, d.z, d.yaw).name = 'outpost-drums';
+  yield;
   for (const c of CRATES) b.addModel('crates', c.x, c.z, c.yaw).name = 'outpost-crates';
   b.addModel('shack', SHED.x, SHED.z, SHED.yaw).name = 'outpost-shed';
+  yield;
   addRack(b);
   addLantern(b);
 }
@@ -50,11 +52,14 @@ const ROADHOUSE_DRUMS = [
 const ROADHOUSE_CRATES = { x: -3.0, z: 2.4, yaw: 0.2 };
 const ROADHOUSE_LANTERN = { x: 0.8, z: 2.6, yaw: Math.PI / 2 };
 
-export function buildRoadhouse(b: SiteBuilder): void {
+export function* buildRoadhouse(b: SiteBuilder): Generator<void> {
   addMast(b);
+  yield;
   addShed(b, 'marshal-post', ROADHOUSE_SHED);
+  yield;
   b.addModel('scrap_shelter_lean', LEAN_TO.x, LEAN_TO.z, LEAN_TO.yaw).name = 'marshal-post-lean-to';
   addHearingTable(b);
+  yield;
   for (const d of ROADHOUSE_DRUMS) b.addModel('drums', d.x, d.z, d.yaw).name = 'marshal-post-drums';
   b.addModel('crates', ROADHOUSE_CRATES.x, ROADHOUSE_CRATES.z, ROADHOUSE_CRATES.yaw).name = 'marshal-post-crates';
   b.addLantern(ROADHOUSE_LANTERN.x, ROADHOUSE_LANTERN.z, ROADHOUSE_LANTERN.yaw);

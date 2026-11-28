@@ -31,14 +31,20 @@ const GRAIN = TEMPLATE_PAINT.bowlFarmer.cab;
 const SACK_COLOR = PAL.wall.top;
 const UP = new THREE.Vector3(0, 1, 0);
 
-export function buildGranary(b: SiteBuilder): void {
+export function* buildGranary(b: SiteBuilder): Generator<void> {
   for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
     b.addModel('grain_silo', SILOS.x + dx * SILOS.apart, SILOS.z + dz * SILOS.apart).name = 'granary-silo';
   }
+  yield;
   addConveyor(b);
-  for (const shelter of SHELTERS) addShelter(b, shelter.x, shelter.z);
+  yield;
+  for (const shelter of SHELTERS) {
+    addShelter(b, shelter.x, shelter.z);
+    yield;
+  }
   for (const c of YARD_CRATES) b.addModel('crates', c.x, c.z, c.yaw);
   for (const [i, j] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBin(b, BINS.x + (i * BINS.apart) / 2, BINS.z + (j * BINS.apart) / 2);
+  yield;
   for (const l of SHELTER_LANTERNS) b.addLantern(l.x, l.z, Math.atan2(l.z, -l.x));
 }
 

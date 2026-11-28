@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEG, leadsAwayBy, pointInPolygon, polygonEdgeDist } from './vec';
+import { DEG, isConvexPolygon, leadsAwayBy, pointInPolygon, polygonEdgeDist } from './vec';
 
 const SQUARE = [
   { x: 0, y: 0 },
@@ -43,5 +43,15 @@ describe('leads away by', () => {
 
   it('is true straight away from the threat', () => {
     expect(leadsAwayBy(from, toward(180), threat, 45)).toBe(true);
+  });
+});
+
+describe('convex polygons', () => {
+  it('holds for a square either way round and with a straight corner, and fails for a dent', () => {
+    const square = [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }];
+    expect(isConvexPolygon(square)).toBe(true);
+    expect(isConvexPolygon([...square].reverse())).toBe(true);
+    expect(isConvexPolygon([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }])).toBe(true);
+    expect(isConvexPolygon([{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }, { x: 0, y: 2 }])).toBe(false);
   });
 });

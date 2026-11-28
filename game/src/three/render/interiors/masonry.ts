@@ -11,20 +11,23 @@ const GREEN_PIT_SHACKS = [
   { x: 3.0, z: -1.2, yaw: Math.PI },
 ];
 
-export function buildPump(b: SiteBuilder): void {
+export function* buildPump(b: SiteBuilder): Generator<void> {
   b.addRuin(-1.7, 0, 3, 3.8);
+  yield;
   b.addModel('pump_station', 2.5, 0);
   b.addBox(-2, 0, 1.2, 0.85, 2, PAL.rust.side);
   b.addLantern(PUMP_LANTERN.x, PUMP_LANTERN.z, PUMP_LANTERN.yaw);
 }
 
-export function buildOasis(b: SiteBuilder): void {
+export function* buildOasis(b: SiteBuilder): Generator<void> {
   b.addTank(0, 0, 2.8, 0.04, PAL.waterLight);
   for (let i = 0; i < OASIS_LAMPS; i++) {
     const a = (i + 0.5) * Math.PI * 2 / OASIS_LAMPS;
     b.addLantern(Math.cos(a) * OASIS_LAMP_RING, Math.sin(a) * OASIS_LAMP_RING, -a);
   }
+  yield;
   addMarket(b, 'green-pit', GREEN_PIT_MARKET);
+  yield;
   for (const shack of GREEN_PIT_SHACKS) b.addModel('shack', shack.x, shack.z, shack.yaw, 1.2).name = 'green-pit-shack';
   b.addModel('crates', -1.2, -3.2, 0.4);
 }

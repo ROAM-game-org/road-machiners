@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { START_KITS } from '../../data/start';
 import { SIGN_STAGES } from '../../render/sign';
 import { isBreakable } from '../../sim/mapgen';
@@ -7,7 +7,8 @@ import { defaultSetup } from '../../sim/settings';
 import { newWorld } from '../../sim/world';
 import { dist } from '../../sim/vec';
 import { TEST_MAP } from '../../test/map';
-import { chooseRegionGraffiti, fitSite, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, keepAlphas, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type SignFit } from './graffiti';
+import { fitSiteSteps, regionGraffitiSteps, GRAFFITI, GRAFFITI_PROP_LOOKS, GraffitiCandidates, keepAlphas, graffitiLift, graffitiRegions, graffitiTarget, GRID, type GraffitiPlaced, type GraffitiRegion, type GraffitiSite, type GraffitiSites, type SignFit } from './graffiti';
+import { finishSteps } from '../../perf';
 import { loadModels } from './models';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -21,8 +22,9 @@ const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roamin
 const t = world.terrain;
 const candidates = new GraffitiCandidates(t, world.obstacles);
 const regions = graffitiRegions(world.size);
-const fitOn = (site: GraffitiSite) => fitSite(t, site);
-const plan = (): GraffitiPlaced<SignFit>[] => regions.flatMap((r) => chooseRegionGraffiti(r, candidates.sitesIn(r), fitOn));
+const fitOn = (site: GraffitiSite) => fitSiteSteps(t, site);
+const chooseRegionGraffiti = (r: GraffitiRegion, sites: GraffitiSites) => finishSteps(regionGraffitiSteps(r, sites, fitOn));
+const plan = (): GraffitiPlaced<SignFit>[] => regions.flatMap((r) => chooseRegionGraffiti(r, candidates.sitesIn(r)));
 const placed = plan();
 const VIEW = new THREE.Vector3(1, 0.816, 1).normalize();
 
@@ -35,8 +37,45 @@ describe('graffiti regions', () => {
 
   it('choose a region the same alone as among all the others', () => {
     const busy = regions.find((r) => placed.some((p) => inside(r, p.site.pos)))!;
-    const alone = chooseRegionGraffiti(busy, new GraffitiCandidates(t, world.obstacles).sitesIn(busy), fitOn);
+    const alone = chooseRegionGraffiti(busy, new GraffitiCandidates(t, world.obstacles).sitesIn(busy));
     expect(alone.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busy, p.site.pos)).map((p) => p.site.id));
+  });
+
+  it('choose a region in steps that each start at most one fit and split fits by their tries, the same as in one call', () => {
+    const busiest = regions.reduce((a, b) => (placed.filter((p) => inside(b, p.site.pos)).length > placed.filter((p) => inside(a, p.site.pos)).length ? b : a));
+    let fits = 0;
+    const steps = regionGraffitiSteps(busiest, candidates.sitesIn(busiest), function* (site: GraffitiSite) {
+      fits++;
+      return yield* fitSiteSteps(t, site);
+    });
+    let step = steps.next();
+    let most = fits;
+    let count = 1;
+    while (!step.done) {
+      const before = fits;
+      step = steps.next();
+      count++;
+      most = Math.max(most, fits - before);
+    }
+    expect(most).toBe(1);
+    expect(fits).toBeGreaterThan(1);
+    expect(count).toBeGreaterThan(2 * fits);
+    expect(step.value.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busiest, p.site.pos)).map((p) => p.site.id));
+  });
+
+  it(`cast at most one row of ${GRID + 1} rays in a step, with the same picks as in one call`, () => {
+    const busiest = regions.reduce((a, b) => (placed.filter((p) => inside(b, p.site.pos)).length > placed.filter((p) => inside(a, p.site.pos)).length ? b : a));
+    const casts = vi.spyOn(THREE.Raycaster.prototype, 'intersectObject');
+    const steps = regionGraffitiSteps(busiest, candidates.sitesIn(busiest), fitOn);
+    let most = 0;
+    let step = steps.next();
+    for (; !step.done; step = steps.next()) {
+      most = Math.max(most, casts.mock.calls.length);
+      casts.mockClear();
+    }
+    casts.mockRestore();
+    expect(most).toBeLessThanOrEqual(GRID + 1);
+    expect(step.value.map((p) => p.site.id)).toEqual(placed.filter((p) => inside(busiest, p.site.pos)).map((p) => p.site.id));
   });
 
   it('keep every candidate half the gap inside its region edge', () => {

@@ -42,17 +42,19 @@ function slowPer1000(scene) {
   return real.frames > 0 ? (real.over33 / real.frames) * 1000 : null;
 }
 
+const CHUNK_SCENES = ['drive', 'drive-nose'];
+
 function sceneLines(scene, budget) {
   const lines = [
     lineOf(scene.id, 'frame p99', statOf(scene.frame.real, 'p99'), budget.frameP99Ms, 'ms'),
     lineOf(scene.id, `frames over ${SLOW_FRAME_MS} ms per 1000`, slowPer1000(scene), budget.over33Per1000, ''),
     lineOf(scene.id, 'frames over 100 ms', over100Alone(scene), budget.over100Max, ''),
   ];
-  if (scene.id === 'drive') lines.push(lineOf(scene.id, 'frames over 100 ms that built a chunk', scene.slowFrames.over100WithChunkBuild, budget.chunkOver100Max, ''));
+  if (CHUNK_SCENES.includes(scene.id)) lines.push(lineOf(scene.id, 'frames over 100 ms that built a chunk', scene.slowFrames.over100WithChunkBuild, budget.chunkOver100Max, ''));
   return lines;
 }
 
-const TURN_SCENES = ['fight', 'drive', 'drive-night'];
+const TURN_SCENES = ['fight', 'drive', 'drive-night', 'drive-nose'];
 const ran = (report, id) => report.scenes.some((scene) => scene.id === id);
 
 function turnLines(report, budget) {
@@ -76,7 +78,7 @@ function loadProblems(run) {
   return problems;
 }
 
-const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'drive-night', 'fight-night']);
+const PASSES_DIFFER_ON_PURPOSE = new Set(['drive', 'drive-night', 'drive-nose', 'fight-night']);
 
 function spreadProblems(scenes) {
   return scenes

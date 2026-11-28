@@ -396,7 +396,7 @@ startBank(mixer.ctx, BOOT_SOUNDS, soundOptions, sounds).loaded.then(soundsArrive
 void afterBank.then(() => preloadPictures('Quest art', townArtKeys().map(questArtPath))).catch(reportError);
 afterBoot(boot.finish(), {
   mark: stepBoot,
-  startTurns: () => startTurnWorker(travel, Promise.resolve(), initPhysics(), map.terrain, () => ({ world: game.state, drive: driveSnapshotOf(game.state) })),
+  startTurns: () => startTurnWorker({ host: travel, bootFinished: Promise.resolve(), physicsReady: initPhysics(), terrain: map.terrain, opening: () => ({ world: game.state, drive: driveSnapshotOf(game.state) }), mark: stepBoot }),
   warmPlans: () => game.warmPlans(),
   keep: () => baking?.keep(),
   tilesFilled: drawn.tilesFilled,

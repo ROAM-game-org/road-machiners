@@ -20,6 +20,7 @@
     "perf:remote": "node scripts/perf-remote.mjs",
     "census": "node scripts/census.mjs",
     "site:shot": "node scripts/site-shot.mjs",
+    "stream:cost": "node scripts/stream-cost.mjs",
     "shot": "node scripts/shot.mjs",
     "sfx:gen": "vite-node scripts/sfx-gen.mjs",
     "sfx:import": "vite-node scripts/sfx-import.mjs",

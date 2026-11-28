@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TIME } from '../../data/time';
 import { sunAt } from '../../sim/sun';
 import { groundHits, SITE_LIGHT_FADE_S, SITE_LIGHT_POOL, SITE_SHADOW_SLOTS, siteLightOrder, SiteLights, LOOKS, type SiteLight } from './siteLights';
+import { finishSteps } from '../../perf';
 
 const light = (id: string, x: number, siteId = 'a'): SiteLight => ({ id, siteId, kind: 'flood', at: { x, y: 8, z: 0 }, aim: { x, y: 0, z: -5 }, ground: 0 });
 const all = () => true;
@@ -26,7 +27,7 @@ function setup(lights: SiteLight[], spotShadows = true) {
   camera.position.set(0, 50, 50);
   camera.lookAt(0, 0, 0);
   const pool = new SiteLights(scene, null, { worldSize: 8, maxTextureSize: 64, spotShadows });
-  pool.add(lights, []);
+  finishSteps(pool.addSteps(lights, []));
   return { scene, camera, pool };
 }
 const spotsIn = (scene: THREE.Scene) => scene.children.filter((c) => c instanceof THREE.SpotLight);

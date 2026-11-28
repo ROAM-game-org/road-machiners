@@ -15,11 +15,13 @@ import { hollowSitesFor } from "../../sim/hollow-layout";
 import { deckAt, railOffset, type Deck } from "../../sim/bridge";
 import { MESH_STEPS, surfaceTriangles } from "../../sim/surface";
 import { deckHeight, deckSegments, groundAt, groundSurface, type DeckSegment, type Terrain } from "../../sim/terrain";
+import type { GroundSurface } from "../../sim/surface";
 import type { World } from "../../sim/types";
 import { runNow } from "./stepped";
 import { drawGround, drawnGroundPieces, landUniforms, readGroundCache, writeGroundCache, type DrawnGround, type GroundCacheUniforms } from "./groundShader";
 import { NIGHT_POOLS } from "./lightPools";
 import type { RenderScope } from "./scope";
+import { finishSteps, streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const TEXTURE_SIDE = 2048;
@@ -111,29 +113,43 @@ export function drawnGroundAt(t: Terrain, x: number, y: number): number {
   return cap === null ? h : Math.min(h, cap);
 }
 
+const GROUND_BAND_ROWS = 16;
+
 export function chunkGeometry(t: Terrain, x: number, y: number, width: number, depth: number): THREE.PlaneGeometry {
+  return finishSteps(chunkGeometrySteps(t, x, y, width, depth));
+}
+
+export function* chunkGeometrySteps(t: Terrain, x: number, y: number, width: number, depth: number): Generator<void, THREE.PlaneGeometry> {
   const surface = groundSurface(t);
   const cols = width * MESH_STEPS;
   const rows = depth * MESH_STEPS;
   const geo = new THREE.PlaneGeometry(width * S, depth * S, cols, rows).rotateX(-Math.PI / 2);
+  for (let first = 0; first <= rows; first += GROUND_BAND_ROWS) {
+    yield;
+    fillGroundRows(t, surface, geo, { x, y, cols }, first, Math.min(rows, first + GROUND_BAND_ROWS - 1));
+  }
+  yield;
+  geo.setIndex(surfaceTriangles(surface, x, y, width, depth));
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+function fillGroundRows(t: Terrain, surface: GroundSurface, geo: THREE.PlaneGeometry, at: { x: number; y: number; cols: number }, first: number, last: number): void {
   const pos = geo.getAttribute("position");
   const normal = geo.getAttribute("normal");
   const uv = geo.getAttribute("uv");
   const span = t.size + TERRAIN_MARGIN * 2;
   const up = new THREE.Vector3();
-  for (let j = 0; j <= rows; j++)
-    for (let i = 0; i <= cols; i++) {
-      const k = j * (cols + 1) + i;
-      const u = x + i / MESH_STEPS;
-      const v = y + j / MESH_STEPS;
+  for (let j = first; j <= last; j++)
+    for (let i = 0; i <= at.cols; i++) {
+      const k = j * (at.cols + 1) + i;
+      const u = at.x + i / MESH_STEPS;
+      const v = at.y + j / MESH_STEPS;
       const slope = surface.slopeAt(u, v);
       pos.setXYZ(k, u * S, drawnGroundAt(t, u, v) * S, v * S);
       normal.setXYZ(k, ...up.set(-slope.x, 1, -slope.y).normalize().toArray());
       uv.setXY(k, (u + TERRAIN_MARGIN) / span, (v + TERRAIN_MARGIN) / span);
     }
-  geo.setIndex(surfaceTriangles(surface, x, y, width, depth));
-  geo.computeBoundingSphere();
-  return geo;
 }
 
 export function groundMaterial(w: World, drawn: DrawnGround): THREE.MeshLambertMaterial {
@@ -172,22 +188,22 @@ export function terrainMesh(w: World, material: THREE.MeshLambertMaterial, scope
     for (let x = 0; x < w.size; x += TERRAIN_CHUNK) {
       const width = Math.min(TERRAIN_CHUNK, w.size - x);
       const depth = Math.min(TERRAIN_CHUNK, w.size - y);
-      scope.place({ x: x + width / 2, y: y + depth / 2 }, Math.hypot(width, depth) / 2, () => {
-        const chunk = groundChunk(w.terrain, material, x, y, width, depth);
-        onChunk(chunk);
-        return chunk.mesh;
-      });
+      scope.place({ x: x + width / 2, y: y + depth / 2 }, Math.hypot(width, depth) / 2, { steps: () => groundChunkSteps(w.terrain, material, { x, y, width, depth }, onChunk) });
     }
   for (const deck of atlasOf(w.terrain).decks.decks) deckPick(w.terrain, deck, scope);
 }
 
-function groundChunk(t: Terrain, material: THREE.MeshLambertMaterial, x: number, y: number, width: number, depth: number): TerrainChunk {
-  const mesh = new THREE.Mesh(chunkGeometry(t, x, y, width, depth), material);
+type ChunkArea = { x: number; y: number; width: number; depth: number };
+
+function* groundChunkSteps(t: Terrain, material: THREE.MeshLambertMaterial, area: ChunkArea, onChunk: (chunk: TerrainChunk) => void): Generator<void, THREE.Object3D> {
+  const mesh = new THREE.Mesh(yield* chunkGeometrySteps(t, area.x, area.y, area.width, area.depth), material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();
-  return { x, y, width, depth, mesh };
+  yield;
+  onChunk({ ...area, mesh });
+  return streamKind('ground', mesh);
 }
 
 function deckPick(t: Terrain, deck: Deck, scope: RenderScope): void {
@@ -209,6 +225,6 @@ function piecePick(deck: Deck, seg: DeckSegment, scope: RenderScope): void {
   scope.place(mid, seg.length / 2, () => {
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
     mesh.visible = false;
-    return mesh;
+    return streamKind('pick', mesh);
   });
 }

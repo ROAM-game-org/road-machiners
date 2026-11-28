@@ -86,9 +86,9 @@ export class SiteLights {
     NIGHT_POOLS.start(pools.worldSize, pools.maxTextureSize);
   }
 
-  add(lights: readonly SiteLight[], lamps: readonly PoolLamp[]): void {
+  *addSteps(lights: readonly SiteLight[], lamps: readonly PoolLamp[]): Generator<void> {
+    yield* NIGHT_POOLS.addLampsSteps(lamps);
     this.lights.push(...lights);
-    NIGHT_POOLS.addLamps(lamps);
   }
 
   get pooled(): number {

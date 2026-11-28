@@ -63,3 +63,15 @@ export function resetPerf(): void {
   stats.clear();
   workerNames.clear();
 }
+
+export function finishSteps<T>(steps: Iterator<void, T>): T {
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+export function streamKind<T extends { userData: Record<string, unknown> }>(kind: string, obj: T): T {
+  obj.userData.streamKind = kind;
+  return obj;
+}

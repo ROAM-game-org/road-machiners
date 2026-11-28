@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { registerMergedOutline, SHIP_GLOW_MATERIAL, sourceParts, type ModelName, type SourcePart } from './models';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
+import { streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 const ZERO = new Float32Array(16);
@@ -72,7 +73,7 @@ export class PropInstances {
     for (const o of list) this.props.set(o.id, o);
     const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
     const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
-    scope.place(center, reach, () => this.buildGroup(terrain, name, list, materialOf));
+    scope.place(center, reach, () => streamKind('landmarks', this.buildGroup(terrain, name, list, materialOf)));
   }
 
   private buildGroup(terrain: Terrain, name: ModelName, list: readonly Landmark[], materialOf: MaterialOf): THREE.Group {

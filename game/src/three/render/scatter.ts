@@ -16,6 +16,7 @@ import { minorProp } from './models';
 import { instancedProp } from './propInstances';
 import type { RenderScope } from './scope';
 import { deckFloorCap, TERRAIN_CHUNK } from './terrain';
+import { streamKind } from '../../perf';
 
 const S = PHYSICS.metersPerTile;
 export const ROAD_MARGIN = 0.3;
@@ -54,7 +55,7 @@ export function addScatter(t: Terrain, obstacles: Obstacle[], scope: RenderScope
   for (let cy = 0; cy < t.size; cy += TERRAIN_CHUNK)
     for (let cx = 0; cx < t.size; cx += TERRAIN_CHUNK) {
       const center = { x: cx + Math.min(TERRAIN_CHUNK, t.size - cx) / 2, y: cy + Math.min(TERRAIN_CHUNK, t.size - cy) / 2 };
-      scope.place(center, reach, () => scatterGroup(chunkScatter(t, tiles, cx, cy)));
+      scope.place(center, reach, () => streamKind('scatter', scatterGroup(chunkScatter(t, tiles, cx, cy))));
     }
 }
 
