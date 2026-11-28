@@ -85,17 +85,30 @@ function runField(world: World): { run?: string } {
 
 const SNAPSHOT_TURNS = 10;
 
-export type WorldLine = { t: number; events?: GameEvent[]; money?: NpcLedger; trucks?: TruckSnap[] };
+export type Aim = { vehicle: string; activity: string; target: string | null; reason: string };
+export type WorldLine = { t: number; events?: GameEvent[]; aims?: Aim[]; money?: NpcLedger; trucks?: TruckSnap[] };
 export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; style: RouteStyle; onRoad: boolean; roadGap: number };
 
 export function worldLine(world: World, events: readonly GameEvent[], npcMoney: NpcLedger = {}): WorldLine | null {
-  const line: WorldLine = { t: world.turn, ...eventsField(events), ...moneyField(npcMoney) };
+  const line: WorldLine = { t: world.turn, ...eventsField(events), ...aimsField(world, events), ...moneyField(npcMoney) };
   if (world.turn % SNAPSHOT_TURNS === 0) line.trucks = world.vehicles.map((v) => snap(world, v));
   return Object.keys(line).length > 1 ? line : null;
 }
 
 function eventsField(events: readonly GameEvent[]): Pick<WorldLine, 'events'> {
   return events.length > 0 ? { events: [...events] } : {};
+}
+
+const AIMING: readonly (string | null)[] = ['flee', 'fight', 'sizeUp'];
+
+export function aimsField(world: World, events: readonly GameEvent[]): Pick<WorldLine, 'aims'> {
+  const aims = events.flatMap((e) => (e.t === 'activity' && AIMING.includes(e.activity) ? [aimOf(world, e.vehicle, e.activity!, e.reason)] : []));
+  return aims.length > 0 ? { aims } : {};
+}
+
+function aimOf(world: World, vehicleId: string, activity: string, reason: string): Aim {
+  const top = world.vehicles.find((v) => v.id === vehicleId)?.brain?.goals.at(-1);
+  return { vehicle: vehicleId, activity, target: top?.targetId ?? null, reason };
 }
 
 function moneyField(npcMoney: NpcLedger): Pick<WorldLine, 'money'> {

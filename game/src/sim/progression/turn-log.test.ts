@@ -1,8 +1,9 @@
 import { REGION } from '../../data/region';
 import { describe, expect, it } from 'vitest';
 import { tileAt } from '../terrain';
-import { addVehicle, editableTerrain, emptyWorld } from '../testkit';
-import type { World } from '../types';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain } from '../testkit';
+import { NPCS } from '../../data/npcs';
+import type { GameEvent, World } from '../types';
 import { measuredRewardTurns, searchEffort, worldLine, type TruckSnap, type TurnLine } from './turn-log';
 import { EFFORT } from '../../data/market';
 
@@ -70,5 +71,25 @@ describe('search effort from a turn log', () => {
 
   it('sets the reward from effort, running cost and the tier 1 wage', () => {
     expect(measuredRewardTurns(246, 0.253 * 100)).toBe(Math.round((246 * (25.3 + EFFORT.wage[1])) / EFFORT.wage[1] / 10) * 10);
+  });
+});
+
+describe('raider aims in the world log', () => {
+  it('names the player as the target of a raider that turns to flee from it', () => {
+    const w = sandWithOneRoadTile();
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 50.5, y: 40.5 });
+    raider.brain = npcBrain('buggy', { x: 50, y: 40 }, NPCS.buggy.traits);
+    raider.brain.goals.push({ kind: 'flee', targetId: 'player', destination: null, phase: 'travel', reason: 'avoidCostlyFight' });
+    const events: GameEvent[] = [{ t: 'activity', vehicle: raider.id, previous: 'raid', activity: 'flee', reason: 'avoidCostlyFight' }];
+
+    expect(worldLine(w, events)?.aims).toEqual([{ vehicle: raider.id, activity: 'flee', target: 'player', reason: 'avoidCostlyFight' }]);
+  });
+
+  it('writes no aims for activities that are not an aim at a truck', () => {
+    const w = sandWithOneRoadTile();
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 50.5, y: 40.5 });
+    const events: GameEvent[] = [{ t: 'activity', vehicle: raider.id, previous: 'raid', activity: 'muster', reason: 'musterCrew' }];
+
+    expect(worldLine(w, events)?.aims).toBeUndefined();
   });
 });
