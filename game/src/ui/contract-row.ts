@@ -1,6 +1,6 @@
 import { PARCEL } from "../data/goods";
 import type { Threat } from "../data/market";
-import { isLate, type Contract } from "../sim/market";
+import { isLate, isMet, metPay, type Contract } from "../sim/market";
 import { surveyThreat } from "../sim/survey";
 import { vehicleStats } from "../sim/stats";
 import type { World } from "../sim/types";
@@ -53,11 +53,11 @@ export function heldContractRow(w: World, c: Contract): HTMLElement {
 }
 
 function payEl(w: World, c: Contract): HTMLElement {
-  return isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(c.reward));
+  return isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(isMet(c) ? metPay(c) : c.reward));
 }
 
 function heldClock(w: World, c: Contract): HTMLElement {
-  if (c.kind === "escort") return escortClock(w, c, false);
+  if (c.kind === "escort" && !isMet(c)) return escortClock(w, c, false);
   return el("span", { class: "price", title: heldContractDeadline(w, c) ?? undefined }, createIcon("clock"), heldContractClock(w, c));
 }
 

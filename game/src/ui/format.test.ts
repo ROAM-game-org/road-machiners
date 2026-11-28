@@ -1246,3 +1246,17 @@ describe("time span text", () => {
     expect(() => timeSpanText(10, 9)).toThrow();
   });
 });
+
+describe('escort log lines', () => {
+  const escort = { id: 'e', shop: 'bowl', kind: 'escort', client: 'c', to: 'nose', reward: 80, deadline: 9, window: 9, tier: 1, threat: 1, span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: 'done' } as const;
+  const text = (outcome: 'fulfilled' | 'done' | 'released', c: Contract = escort) => logEn(emptyWorld(), { t: 'contract', contract: c, outcome })!.text;
+
+  it('names the town to report at when the road part ends', () => {
+    expect(text('fulfilled')).toBe('Escort done: report at Nose for 80 M\'s');
+  });
+
+  it('says what was paid at the counter, even for a share', () => {
+    expect(text('done')).toContain('pays 80');
+    expect(text('released', { ...escort, ended: 'released', together: 5 })).toContain('pays 40');
+  });
+});

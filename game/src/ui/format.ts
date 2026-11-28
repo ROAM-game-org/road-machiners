@@ -1,6 +1,6 @@
 import { volleyLine, volleyOfShot, type Volley } from './volley';
 import { isShield, partDef } from '../data/parts';
-import { bountyTurn, dueTurn, isLate, isMet, siteOf, type Contract } from '../sim/market';
+import { bountyTurn, dueTurn, isLate, isMet, metPay, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
 import type { ClueWords } from '../sim/claim-clue';
@@ -610,8 +610,12 @@ function searchedText(stock: string): LogLine {
 
 const CONTRACT_CLS = { accepted: '', found: 'good', surveyed: 'dim', fulfilled: 'good', expiring: 'bad', overdue: 'bad', late: 'dim', done: 'good', failed: 'bad', lapsed: 'dim', released: '', apart: 'bad' } as const;
 
-function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, reward: number): Msg {
-  if (outcome === 'accepted' || outcome === 'done') return t(`log.escort.${outcome}`, { what, reward: moneyMsg(reward) });
+function escortContractText(c: Extract<Contract, { kind: 'escort' }>, outcome: keyof typeof CONTRACT_CLS): Msg {
+  const what = postedSummary(c);
+  if (outcome === 'fulfilled') return t('log.escort.fulfilled', { site: siteName(c.to), reward: moneyMsg(metPay(c)) });
+  if (outcome === 'done' || (outcome === 'released' && c.ended !== null)) return t('log.escort.done', { what, reward: moneyMsg(metPay(c)) });
+  const reward = c.reward;
+  if (outcome === 'accepted') return t(`log.escort.${outcome}`, { what, reward: moneyMsg(reward) });
   if (outcome === 'failed' || outcome === 'released' || outcome === 'apart') return t(`log.escort.${outcome}`, { what });
   throw new Error(`An escort is never ${outcome}`);
 }
@@ -634,11 +638,11 @@ function contractEventText(world: World, e: Extract<GameEvent, { t: 'contract' }
 
 function contractText(world: World, c: Contract, outcome: Exclude<keyof typeof CONTRACT_CLS, 'found' | 'surveyed'>): LogLine {
   const cls = CONTRACT_CLS[outcome];
-  if (outcome === 'fulfilled') return line(fulfilledText(c), cls);
+  if (outcome === 'fulfilled') return line(c.kind === 'escort' ? escortContractText(c, outcome) : fulfilledText(c), cls);
   if (outcome === 'lapsed' && c.kind === 'rescue') return line(t('log.contract.rescueLapsed', { driver: verbatim(c.driver) }), cls);
   const what = contractSummary(c);
   if (c.kind === 'search' && (outcome === 'failed' || outcome === 'lapsed')) return line(t(SEARCH_ENDS[outcome], { what }), cls);
-  if (c.kind === 'escort') return line(escortContractText(outcome, what, c.reward), cls);
+  if (c.kind === 'escort') return line(escortContractText(c, outcome), cls);
   if (outcome === 'released' || outcome === 'apart') throw new Error(`Only an escort is ${outcome}, not a ${c.kind} contract`);
   if (outcome === 'overdue' || outcome === 'late') return line(haulLateText(c, outcome, what), cls);
   const text = outcome === 'expiring' ? t('log.contract.expiring', { what, due: isLate(world, c) ? lateDue(c) : contractDue(c) }) : t(`log.contract.${outcome}`, { what, reward: moneyMsg(c.reward) });
@@ -681,6 +685,7 @@ export function contractSummary(c: Contract): Msg {
   if (c.kind === 'survey') return t('contract.surveyMet', { site: siteName(c.shop) });
   if (c.kind === 'rescue') return t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) });
   if (c.kind === 'search') return t('contract.searchMet', { who: searchTarget(c), site: siteName(c.shop) });
+  if (c.kind === 'escort') return t('contract.escortMet', { site: siteName(c.to) });
   throw new Error(`A ${c.kind} contract has no met wording`);
 }
 
@@ -810,21 +815,22 @@ export function timeSpanText(from: number, to: number): Msg {
 }
 
 export function heldContractClock(world: World, c: Contract): Msg {
-  if (c.kind === 'escort') return t('contract.noDeadline');
+  if (c.kind === 'escort' && !isMet(c)) return t('contract.noDeadline');
   if (isLate(world, c)) return t('contract.bountyIn', { span: timeSpanText(world.turn, bountyTurn(requireHaul(c))) });
   if (isMet(c)) return t('contract.ready');
   return t('contract.left', { span: timeSpanText(world.turn, dueTurn(c)) });
 }
 
 export function heldClockSizers(c: Contract): Msg[] {
-  if (c.kind === 'escort') throw new Error('An escort has no clock to size');
+  if (c.kind === 'escort' && !isMet(c)) throw new Error('An escort on the road has no clock to size');
+  if (c.kind === 'escort') return [t('contract.ready')];
   const fullSpan = timeSpanText(c.deadline - c.window, dueTurn(c));
   const sizers = [t('contract.left', { span: fullSpan }), t('contract.ready')];
   return c.kind === 'haul' ? [...sizers, t('contract.bountyIn', { span: fullSpan })] : sizers;
 }
 
 export function heldContractDeadline(world: World, c: Contract): Msg | null {
-  if (c.kind === 'escort' || isMet(c)) return null;
+  if (isMet(c) || c.kind === 'escort') return null;
   return isLate(world, c) ? lateDue(c) : contractDue(c);
 }
 
@@ -847,7 +853,7 @@ export function dockSummary(c: Contract): Msg {
 }
 
 export function escortStatusText(world: World, c: Contract): Msg | null {
-  if (c.kind !== 'escort') return null;
+  if (c.kind !== 'escort' || isMet(c)) return null;
   const status = escortStatus(world, c);
   if (status === 'together') return null;
   if (status === 'waiting') return t('contract.status.waiting');

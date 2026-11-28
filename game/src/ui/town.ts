@@ -43,7 +43,7 @@ import {
 import { freeCells, goodsCount, mountCellsOf } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts, tradedSpares } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, goodStock, haulShort, isMet, onOrder, spareGoods, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, goodStock, handInSite, haulShort, isMet, onOrder, spareGoods, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
@@ -723,8 +723,8 @@ export class TownScreen {
   }
 
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
-    if (c.kind === "escort") return el("span", { class: "dim" }, escortStatusText(w, c));
-    const destination = c.kind === "haul" ? c.to : c.shop;
+    if (c.kind === "escort" && !isMet(c)) return el("span", { class: "dim" }, escortStatusText(w, c));
+    const destination = handInSite(c);
     const verb = DELIVER_VERBS[c.kind];
     if (destination !== shopId) return el("span", { class: "dim" }, t(verb.at, { site: siteName(destination) }));
     const deliver = this.button(t(verb.now), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
@@ -740,6 +740,7 @@ const DELIVER_VERBS = {
   search: { now: "contract.claim", at: "contract.claimAt" },
   survey: { now: "contract.report", at: "contract.reportAt" },
   claim: { now: "contract.deliver", at: "contract.deliverAt" },
+  escort: { now: "contract.report", at: "contract.reportAt" },
 } as const;
 
 function notReady(w: World, c: Contract): Msg {
