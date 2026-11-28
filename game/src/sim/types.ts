@@ -607,6 +607,7 @@ export type GameEvent =
   | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'late' | 'overdue' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
   | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
+  | { t: 'claimRivalQuit'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
   | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }

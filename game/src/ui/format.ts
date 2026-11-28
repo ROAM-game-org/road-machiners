@@ -616,7 +616,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'claimRival', 'guardEnded', 'wake']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'claimRival', 'claimRivalQuit', 'guardEnded', 'wake']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -769,6 +769,12 @@ function claimRivalText(world: World, e: Extract<GameEvent, { t: 'claimRival' }>
   const c = world.player.contracts.find((x) => x.id === e.contract);
   if (c?.kind !== 'claim') return null;
   return line(t('log.contract.rival', { shop: siteName(c.shop), driver: driverName(requireTruck(world, e.vehicle)), part: partNameOf(c.defId) }), 'bad');
+}
+
+function claimRivalQuitText(world: World, e: Extract<GameEvent, { t: 'claimRivalQuit' }>): LogLine | null {
+  const c = world.player.contracts.find((x) => x.id === e.contract);
+  if (c?.kind !== 'claim') return null;
+  return line(t('log.contract.rivalQuit', { driver: driverName(requireTruck(world, e.vehicle)), part: partNameOf(c.defId) }), 'good');
 }
 
 function claimLeadText(world: World, e: Extract<GameEvent, { t: 'claimLead' }>): LogLine {
@@ -1107,6 +1113,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   searched: (_, e) => searchedText(e.stock),
   contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(world, e)),
   claimRival: claimRivalText,
+  claimRivalQuit: claimRivalQuitText,
   claimLead: claimLeadText,
   escortEnded: escortEndedText,
   breakdown: breakdownText,

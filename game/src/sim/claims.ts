@@ -94,8 +94,8 @@ function heldByPlayer(world: World, partId: string): boolean {
 }
 
 function heldByRival(world: World, c: ClaimContract): boolean {
-  const rival = world.vehicles.find((v) => v.id === c.rival);
-  return rival !== undefined && carriesPart(rival, c.partId);
+  const rival = rivalRunning(world, c);
+  return rival !== null && carriesPart(rival, c.partId);
 }
 
 export function claimPartHeld(world: World, c: ClaimContract): PartWhere {

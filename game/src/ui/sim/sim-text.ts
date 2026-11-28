@@ -144,6 +144,7 @@ const SIM_WORDS: Words = {
   bountyClosed: (world, e) => ({ text: `The case on ${nameOf(world, e.target)} closes, ${words(e.status)}`, tone: '' }),
   huntWithdrawn: (world, e) => ({ text: `${nameOf(world, e.by)} gives up the hunt for ${nameOf(world, e.target)}`, tone: 'dim' }),
   claimRival: (world, e) => ({ text: `${nameOf(world, e.vehicle)} goes after your claim: ${contractText(world, e.contract)}`, tone: 'bad' }),
+  claimRivalQuit: (world, e) => ({ text: `${nameOf(world, e.vehicle)} gives up on your claim: ${contractText(world, e.contract)}`, tone: 'good' }),
   claimLead: (world, e) => ({ text: `${e.driver} gives a lead on your claim: ${contractText(world, e.contract)}`, tone: 'good' }),
   guardPaid: (world, e) => ({ text: `${nameOf(world, e.by)} pays ${nameOf(world, e.guard)} ${english(moneyMsg(e.fee))} for guarding`, tone: 'dim' }),
   encounter: (world, e) => ({ text: `${nameOf(world, e.vehicle)} comes to your truck with a ${words(e.encounter)}`, tone: '' }),

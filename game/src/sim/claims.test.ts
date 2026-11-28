@@ -566,6 +566,7 @@ describe('rival crews', () => {
     expect(stock.parts.map((p) => p.id)).toEqual([part.id]);
     const rival = crew(w, near(stock.pos, 1));
     claim.rival = rival.id;
+    rival.brain!.goals.push({ kind: 'claim', claim: claim.id, left: [stock.id], targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'claimRun' });
     expect(canTakeAny(w, rival, stock)).toBe(true);
     collectSalvage(w, rival, stock.id, Infinity);
     expect(claimPartHeld(w, claim)).toBe('rival');
@@ -633,10 +634,81 @@ describe('rival crews', () => {
     expect(w.player.contracts).toHaveLength(1);
     expect(claimPartHeld(w, w.player.contracts[0] as ClaimContract)).toBe('player');
     w = update(w, (d) => { d.vehicles.find((v) => v.id === npc.id)!.speed = 0; resolveNpcActivities(d); });
-    expect(w.vehicles.find((v) => v.id === npc.id)!.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
+    expect(w.vehicles.find((v) => v.id === npc.id)!.brain!.goals.some((g) => g.kind === 'claim')).toBe(true);
     const money = w.player.money;
     w = deliverContract(w, claim.id);
     expect(w.player.money).toBe(money + claim.reward);
+  });
+
+  it('keeps the rival searching after the player takes the part, then sends it to the shop without the part', () => {
+    const { w, stock, claim } = rivalWorld();
+    const npc = crew(w, behind(claim, 20));
+    sendDue(w, claim);
+    stowPart(w, playerVehicle(w), takeFromWreck(w, claim));
+    const goal = topGoal(npc)!;
+    stepRival(w, npc);
+    expect(topGoal(npc)).toBe(goal);
+    goal.targetId = stock.id;
+    goal.left = [stock.id];
+    npc.pos = near(stock.pos, 1);
+    stepRival(w, npc);
+    expect(npc.job?.kind).toBe('search');
+    runUntilSearchDone(w, npc);
+    stepRival(w, npc);
+    expect(topGoal(npc)).toMatchObject({ kind: 'claim', targetId: claim.shop, phase: 'travel' });
+    expect(w.events.some((e) => e.t === 'claimRivalQuit')).toBe(false);
+  });
+
+  it('gives up out loud once when the rival reaches the shop without the part', () => {
+    const { w, claim } = rivalWorld();
+    const npc = crew(w, behind(claim, 20));
+    sendDue(w, claim);
+    stowPart(w, playerVehicle(w), takeFromWreck(w, claim));
+    const goal = topGoal(npc)!;
+    goal.targetId = claim.shop;
+    goal.left = [];
+    goal.destination = { ...siteOf(claim.shop).pos };
+    npc.pos = { ...sitePads(siteOf(claim.shop))[0] };
+    stepRival(w, npc);
+    expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
+    expect(w.events.filter((e) => e.t === 'claimRivalQuit')).toEqual([{ t: 'claimRivalQuit', contract: claim.id, vehicle: npc.id }]);
+    expect(w.player.contracts).toEqual([claim]);
+  });
+
+  it('says nothing when the rival hands in the part, and nothing when the claim already lapsed', () => {
+    const { w, claim } = rivalWorld();
+    const npc = crew(w, { ...sitePads(siteOf('bowl'))[0] });
+    claim.rival = npc.id;
+    stowPart(w, npc, takeFromWreck(w, claim));
+    npc.brain!.goals.push({ kind: 'claim', claim: claim.id, left: [], targetId: 'bowl', destination: { ...siteOf('bowl').pos }, phase: 'travel', reason: 'claimRun' });
+    stepRival(w, npc);
+    expect(w.events.some((e) => e.t === 'claimRivalQuit')).toBe(false);
+  });
+
+  it('lapses a claim whose part sits with a rival that is no longer running', () => {
+    const { w, claim } = rivalWorld();
+    const npc = crew(w, behind(claim, 20));
+    claim.rival = npc.id;
+    stowPart(w, npc, takeFromWreck(w, claim));
+    expect(claimPartHeld(w, claim)).toBe('gone');
+    advanceContracts(w);
+    expect(w.player.contracts).toEqual([]);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'contract', outcome: 'lapsed' }));
+  });
+
+  it('ends a contest run at the deadline', () => {
+    const { w, claim } = rivalWorld();
+    const npc = crew(w, behind(claim, 20));
+    sendDue(w, claim);
+    stowPart(w, playerVehicle(w), takeFromWreck(w, claim));
+    const goal = topGoal(npc)!;
+    goal.targetId = claim.shop;
+    goal.left = [];
+    w.turn = claim.deadline + 1;
+    advanceContracts(w);
+    stepRival(w, npc);
+    expect(npc.brain!.goals.some((g) => g.kind === 'claim')).toBe(false);
+    expect(w.events.some((e) => e.t === 'claimRivalQuit')).toBe(false);
   });
 
   it('lapses the claim when a third truck takes the part off the rival', () => {

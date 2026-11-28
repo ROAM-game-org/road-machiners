@@ -112,6 +112,7 @@ const EVENT_LEVELS: { [K in GameEvent['t']]: Leveled<K> } = {
   searched: 'info',
   contract: (_, e) => (e.outcome === 'expiring' || e.outcome === 'overdue' ? 'attention' : 'notable'),
   claimRival: 'notable',
+  claimRivalQuit: 'notable',
   claimLead: 'notable',
   escortEnded: 'notable',
   breakdown: (world, e) => onPlayerTruck(world, e.vehicle),

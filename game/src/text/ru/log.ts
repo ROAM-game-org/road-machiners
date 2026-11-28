@@ -206,6 +206,7 @@ export const LOG: Translation<typeof EN> = {
   'log.contract.done': 'Контракт выполнен: {what}, оплата {reward}',
   'log.contract.failed': 'Контракт провален: {what}, обещали {reward}',
   'log.contract.lapsed': 'Контракт истек: {what}, обещали {reward}',
+  'log.contract.rivalQuit': '{driver, case, nom} {driver, gender, m {бросил} f {бросила} n {бросило} pl {бросили}} гонку за {part, case, ins}',
   'log.contract.rival': '{shop} тоже {shop, gender, m {отправил} f {отправила} n {отправило} pl {отправили}} {driver, case, acc} за {part, case, ins}',
   'log.contract.lapsedRival': 'Контракт истек: {driver, case, nom} {driver, gender, m {первым привез} f {первой привезла} n {первым привезло} pl {первыми привезли}} {part, case, acc} {shop, case, to}',
   'log.contract.overdue': 'Рейс просрочен, оплаты уже не будет: {what}. Сдайте ящики до {when}, иначе {shop} объявит вас в розыск.',
