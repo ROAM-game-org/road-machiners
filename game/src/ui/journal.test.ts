@@ -315,6 +315,18 @@ describe('journal screen', () => {
     expect(place.all((n) => n.has('place-from'))).toHaveLength(2);
   });
 
+  it('tells one way for wrecks in a square whose way is the same', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 })];
+    w.player.rumored = ['wreck1', 'wreck2'];
+    noWreckWay.on = true;
+
+    const [place] = wreckPlaces(journalOf(w).root);
+
+    expect(place.all((n) => n.has('place-way'))).toHaveLength(1);
+  });
+
   it('says how far and which way a wreck lies from a town when no town tells the way', () => {
     const w = emptyWorld();
     w.salvage = [stock('wreck1', { x: 60, y: 60 })];

@@ -5,7 +5,7 @@ import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
 import type { DirectionStep, SalvageStock, World } from '../sim/types';
-import { toldWrecks, toldWreckWay } from '../sim/rumors';
+import { toldWrecks, toldWreckWay, type WreckWay } from '../sim/rumors';
 import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, surveyWay, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
@@ -184,7 +184,7 @@ export class JournalScreen {
     const words = n > 1 ? t('journal.wrecksInSquare', { square: gridSquareText(note.square), n }) : t('journal.wreckSquare', { square: gridSquareText(note.square) });
     const head = el('button', { class: 'screen-line journal-head place-head', 'aria-expanded': open ? 'true' : 'false', onclick: (e: Event) => { this.open('wrecks', note.key); (e.currentTarget as HTMLElement | null)?.blur(); } }, el('span', {}, words));
     if (!open) return el('div', { class: 'journal-place wreck' }, head);
-    return el('div', { class: 'journal-place wreck open' }, head, ...note.stocks.map((stock) => wreckWay(w, stock)));
+    return el('div', { class: 'journal-place wreck open' }, head, ...distinctWays(note.stocks.map((stock) => toldWreckWay(w, stock))).map(wreckWay));
   }
 
   private notesPage(notes: JournalNote[]): HTMLElement {
@@ -221,8 +221,17 @@ function placeWay(w: World, c: SurveyContract, point: SurveyPoint, clue: SurveyC
   return wayGroup(c.shop, way ? wayList(way) : el('div', {}, t('journal.placeBearing', { distance: distanceText(clue.tiles), dir: compassText(clue.rad), site: siteName(clue.landmark) })));
 }
 
-function wreckWay(w: World, stock: SalvageStock): HTMLElement {
-  const way = toldWreckWay(w, stock);
+function distinctWays(ways: WreckWay[]): WreckWay[] {
+  const seen = new Set<string>();
+  return ways.filter((way) => {
+    const key = JSON.stringify(way);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function wreckWay(way: WreckWay): HTMLElement {
   if (way.kind === 'way') return wayGroup(way.town, wayList(way.steps));
   return wayGroup(way.town, el('div', {}, t('journal.placeBearing', { distance: distanceText(way.tiles), dir: compassText(way.rad), site: siteName(way.town) })));
 }
